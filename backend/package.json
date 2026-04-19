@@ -1,6 +1,6 @@
 {
   "name": "finder",
-  "version": "2.2.0",
+  "version": "2.2.3",
   "description": "explorer",
   "main": "src/server.js",
   "scripts": {
