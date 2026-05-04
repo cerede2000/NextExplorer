@@ -6,6 +6,7 @@ const { normalizeBoolean } = require('../utils/env');
  */
 module.exports = {
   // Server
+  ADDRESS: process.env.ADDRESS || '0.0.0.0',
   PORT: Number(process.env.PORT) || 3000,
   // Node.js HTTP server request timeout (ms). Set to 0 to disable.
   // Node defaults to 300000ms (5 minutes) on modern versions, which can abort large uploads.

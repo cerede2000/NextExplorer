@@ -220,6 +220,7 @@ const shares = {
 // --- Main Export ---
 module.exports = {
   port: env.PORT,
+  address: env.ADDRESS,
   http: {
     requestTimeoutMs,
   },
