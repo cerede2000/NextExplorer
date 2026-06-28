@@ -72,6 +72,11 @@
     "readwrite": "पढ़ना/लिखना"
   },
   "editor": {
+    "editing":"Editing",
+    "unsavedChanges":"Unsaved changes",
+    "theme": "Theme",
+    "editorSettings": "Editor settings",
+    "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "आपके पास बिना सहेजे परिवर्तन हैं। बिना सहेजे बंद करें?"
   },
   "status": {
@@ -442,6 +447,8 @@
     },
     "access": {
       "subtitle": "प्रति फ़ोल्डर अनुमतियाँ सेट करें: पढ़ें-लिखें, केवल पढ़ें या छिपा हुआ।",
+      "noRules": "No access rules configured.",
+      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
       "recursive": "रिकर्सिव",
       "readWrite": "पढ़ें और लिखें",
       "readOnly": "केवल पढ़ें",
@@ -460,10 +467,12 @@
       "validation": "कृपया सभी फ़ील्ड भरें; नया पासवर्ड कम से कम 6 अक्षरों का होना चाहिए और पुष्टि से मेल खाना चाहिए।"
     },
     "users": {
+      "subtitle": "Manage users, roles, and access credentials.",
       "cannotDeleteSelf": "आप अपना स्वयं का खाता नहीं हटा सकते।",
       "confirmRemove": "उपयोगकर्ता {user} को हटाएँ? इसे वापस नहीं किया जा सकता।",
       "createUser": "उपयोगकर्ता बनाएँ",
       "grantAdmin": "एडमिन अधिकार दें",
+      "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "प्रदर्शन नाम",
       "makeAdmin": "एडमिन बनाएं",
       "resetPassword": "पासवर्ड सेट/रीसेट करें",
@@ -490,6 +499,32 @@
       "volumePath": "वॉल्यूम पथ",
       "pathCannotChange": "निर्माण के बाद पथ बदला नहीं जा सकता। यदि आवश्यक हो तो इसे हटा दें और नया बनाएँ।",
       "accessMode": "पहुँच मोड"
+    },
+    "userDetails": {
+      "profileTab": "Profile",
+      "securityTab": "Security",
+      "generalInfo": "General Information",
+      "displayName": "Display Name",
+      "username": "Username",
+      "email": "Email Address",
+      "rolesAndPermissions": "Roles & Permissions",
+      "adminRole": "Administrator",
+      "adminRoleHint": "Can access all settings and manage users.",
+      "grantAdmin": "Grand Admin",
+      "revokeAdmin": "Revoke Admin",
+      "dangerZone": "Danger Zone",
+      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
+      "deleteUser": "Delete User",
+      "password": "Password",
+      "localPassword": "Local Password",
+      "localPasswordExistHint": "User has a local password set.",
+      "localPasswordNotExistHint": "User does not have a local password set.",
+      "setLocalPassword": "Set Password",
+      "resetLocalPassword": "Reset Password",
+      "sso": "Single Sign-On (OIDC)",
+      "oidcProvider": "OIDC Provider",
+      "oidcLinkedProfile": "Linked Profile",
+      "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
   "share": {
@@ -501,12 +536,16 @@
     "createShareLink": "शेयर लिंक बनाएँ",
     "shareLink": "शेयर लिंक",
     "shareLinkCreatedSuccess": "शेयर लिंक सफलतापूर्वक बनाया गया!",
+    "access": "Access Mode",
+    "type": "Target",
     "shareSelectedItem": "चयनित आइटम साझा करें",
     "selectItemToShare": "साझा करने के लिए एक आइटम चुनें",
     "sharing": "साझा किया जा रहा है:",
     "sharedItem": "साझा आइटम",
     "sharedFolder": "साझा फ़ोल्डर",
     "sharedFile": "साझा फ़ाइल",
+    "label": "Label",
+    "labelPlaceholder": "e.g. My Project",
     "accessMode": "पहुँच मोड",
     "whoCanAccess": "कौन पहुँच सकता है",
     "anyoneWithLink": "लिंक वाला कोई भी",

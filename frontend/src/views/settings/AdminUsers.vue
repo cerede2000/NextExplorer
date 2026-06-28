@@ -318,9 +318,9 @@ onMounted(() => {
               <label for="is-admin" class="font-medium text-zinc-700 dark:text-zinc-300">{{
                 t('settings.users.grantAdmin')
               }}</label>
-              <p class="text-zinc-500 dark:text-zinc-400">
-                Grants full access to all settings and users.
-              </p>
+              <p class="text-zinc-500 dark:text-zinc-400">{{
+                t('settings.users.grantAdminHint')
+              }}</p>
             </div>
           </div>
 
