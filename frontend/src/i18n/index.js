@@ -11,16 +11,17 @@ const messages = Object.fromEntries(
 );
 
 const preferredLocaleOrder = [
+  'de',
   'en',
   'es',
   'fr',
-  'de',
-  'it',
-  'ro',
   'hi',
+  'it',
+  'ko',
   'pl',
-  'sv',
+  'ro',
   'ru',
+  'sv',
   'zh-CN',
   'zh-TW',
 ];

@@ -72,6 +72,11 @@
     "readwrite": "讀寫"
   },
   "editor": {
+    "editing":"Editing",
+    "unsavedChanges":"Unsaved changes",
+    "theme": "Theme",
+    "editorSettings": "Editor settings",
+    "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "您有未儲存的變更。要在不儲存的情況下關閉嗎？"
   },
   "status": {
@@ -442,6 +447,8 @@
     },
     "access": {
       "subtitle": "為每個檔案夾設置權限：讀寫、只讀或隱藏。",
+      "noRules": "No access rules configured.",
+      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
       "recursive": "遞迴套用",
       "readWrite": "讀寫",
       "readOnly": "只讀",
@@ -460,10 +467,12 @@
       "validation": "請填寫所有字段；新密碼至少 6 個字符，並且需要與確認密碼一致。"
     },
     "users": {
+      "subtitle": "Manage users, roles, and access credentials.",
       "cannotDeleteSelf": "無法刪除您自己的帳戶。",
       "confirmRemove": "刪除使用者 {user}? 此操作無法復原。",
       "createUser": "建立使用者",
       "grantAdmin": "授予管理員權限",
+      "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "顯示名稱",
       "makeAdmin": "設為管理員",
       "resetPassword": "設定/重設密碼",
@@ -490,6 +499,32 @@
       "volumePath": "儲存卷路徑",
       "pathCannotChange": "建立後無法更改路徑。如需更改，請刪除此卷並重新建立。",
       "accessMode": "存取模式"
+    },
+    "userDetails": {
+      "profileTab": "Profile",
+      "securityTab": "Security",
+      "generalInfo": "General Information",
+      "displayName": "Display Name",
+      "username": "Username",
+      "email": "Email Address",
+      "rolesAndPermissions": "Roles & Permissions",
+      "adminRole": "Administrator",
+      "adminRoleHint": "Can access all settings and manage users.",
+      "grantAdmin": "Grand Admin",
+      "revokeAdmin": "Revoke Admin",
+      "dangerZone": "Danger Zone",
+      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
+      "deleteUser": "Delete User",
+      "password": "Password",
+      "localPassword": "Local Password",
+      "localPasswordExistHint": "User has a local password set.",
+      "localPasswordNotExistHint": "User does not have a local password set.",
+      "setLocalPassword": "Set Password",
+      "resetLocalPassword": "Reset Password",
+      "sso": "Single Sign-On (OIDC)",
+      "oidcProvider": "OIDC Provider",
+      "oidcLinkedProfile": "Linked Profile",
+      "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
   "share": {
@@ -501,12 +536,16 @@
     "createShareLink": "建立分享連結",
     "shareLink": "分享連結",
     "shareLinkCreatedSuccess": "分享連結建立成功！",
+    "access": "Access Mode",
+    "type": "Target",
     "shareSelectedItem": "分享所選項目",
     "selectItemToShare": "選擇要分享的項目",
     "sharing": "正在分享：",
     "sharedItem": "已分享項目",
     "sharedFolder": "已分享檔案夾",
     "sharedFile": "已分享檔案",
+    "label": "Label",
+    "labelPlaceholder": "e.g. My Project",
     "accessMode": "存取模式",
     "whoCanAccess": "可存取的使用者",
     "anyoneWithLink": "擁有連結的任何人",

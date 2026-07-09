@@ -72,6 +72,11 @@
     "readwrite": "Lecture/Écriture"
   },
   "editor": {
+    "editing":"Editing",
+    "unsavedChanges":"Unsaved changes",
+    "theme": "Theme",
+    "editorSettings": "Editor settings",
+    "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?"
   },
   "status": {
@@ -442,6 +447,8 @@
     },
     "access": {
       "subtitle": "Définissez les autorisations par dossier : lecture-écriture, lecture seule ou masqué.",
+      "noRules": "No access rules configured.",
+      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
       "recursive": "Récursif",
       "readWrite": "Lecture et écriture",
       "readOnly": "Lecture seule",
@@ -460,10 +467,12 @@
       "validation": "Veuillez remplir tous les champs ; le nouveau mot de passe doit comporter au moins 6 caractères et correspondre à la confirmation."
     },
     "users": {
+      "subtitle": "Manage users, roles, and access credentials.",
       "cannotDeleteSelf": "Vous ne pouvez pas supprimer votre propre compte.",
       "confirmRemove": "Supprimer l'utilisateur {user} ? Ceci est irréversible.",
       "createUser": "Créer un utilisateur",
       "grantAdmin": "Accorder les droits d'admin",
+      "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Nom d'affichage",
       "makeAdmin": "Rendre admin",
       "resetPassword": "Définir/réinitialiser le mot de passe",
@@ -490,6 +499,32 @@
       "volumePath": "Chemin du volume",
       "pathCannotChange": "Le chemin ne peut pas être modifié après la création. Supprimez ce volume et créez-en un nouveau si nécessaire.",
       "accessMode": "Mode d'accès"
+    },
+    "userDetails": {
+      "profileTab": "Profile",
+      "securityTab": "Security",
+      "generalInfo": "General Information",
+      "displayName": "Display Name",
+      "username": "Username",
+      "email": "Email Address",
+      "rolesAndPermissions": "Roles & Permissions",
+      "adminRole": "Administrator",
+      "adminRoleHint": "Can access all settings and manage users.",
+      "grantAdmin": "Grand Admin",
+      "revokeAdmin": "Revoke Admin",
+      "dangerZone": "Danger Zone",
+      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
+      "deleteUser": "Delete User",
+      "password": "Password",
+      "localPassword": "Local Password",
+      "localPasswordExistHint": "User has a local password set.",
+      "localPasswordNotExistHint": "User does not have a local password set.",
+      "setLocalPassword": "Set Password",
+      "resetLocalPassword": "Reset Password",
+      "sso": "Single Sign-On (OIDC)",
+      "oidcProvider": "OIDC Provider",
+      "oidcLinkedProfile": "Linked Profile",
+      "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
   "share": {
@@ -501,12 +536,16 @@
     "createShareLink": "Créer un lien de partage",
     "shareLink": "Lien de partage",
     "shareLinkCreatedSuccess": "Lien de partage créé avec succès !",
+    "access": "Access Mode",
+    "type": "Target",
     "shareSelectedItem": "Partager l'élément sélectionné",
     "selectItemToShare": "Sélectionnez un élément à partager",
     "sharing": "Partage :",
     "sharedItem": "Élément partagé",
     "sharedFolder": "Dossier partagé",
     "sharedFile": "Fichier partagé",
+    "label": "Label",
+    "labelPlaceholder": "e.g. My Project",
     "accessMode": "Mode d'accès",
     "whoCanAccess": "Qui peut accéder",
     "anyoneWithLink": "Toute personne disposant du lien",

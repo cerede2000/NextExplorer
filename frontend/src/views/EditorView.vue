@@ -5,7 +5,7 @@
     >
       <div class="min-w-0">
         <p class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          Editing
+          {{ t('editor.editing') }}
         </p>
         <h1 class="truncate text-md text-neutral-900 dark:text-white">
           {{ normalizedPath || '—' }}
@@ -16,7 +16,7 @@
           {{ saveError }}
         </span>
         <p v-if="hasUnsavedChanges" class="mr-4 text-xs text-amber-600 dark:text-amber-400">
-          Unsaved changes
+          {{ t('editor.unsavedChanges') }}
         </p>
         <button
           type="button"
@@ -34,8 +34,8 @@
             class="rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
             aria-haspopup="listbox"
             :aria-expanded="isThemeMenuOpen"
-            :aria-label="`Theme: ${currentThemeLabel}`"
-            :title="`Theme: ${currentThemeLabel}`"
+            :aria-label="`${t('editor.theme')}: ${currentThemeLabel}`"
+            :title="`${t('editor.theme')}: ${currentThemeLabel}`"
             @click="isThemeMenuOpen = !isThemeMenuOpen"
           >
             <Color20Regular class="h-5 w-5" />
@@ -61,7 +61,7 @@
                   v-if="opt.id === themeId"
                   class="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent dark:bg-white/10 dark:text-white"
                 >
-                  Active
+                  {{ t('common.active') }}
                 </span>
               </button>
             </div>
@@ -86,8 +86,8 @@
             class="rounded-full p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
             aria-haspopup="true"
             :aria-expanded="isSettingsMenuOpen"
-            aria-label="Editor settings"
-            title="Editor settings"
+            :aria-label="$t('editor.editorSettings')"
+            :title="$t('editor.editorSettings')"
             @click="isSettingsMenuOpen = !isSettingsMenuOpen"
           >
             <EllipsisVerticalIcon class="h-5 w-5" />
@@ -104,7 +104,7 @@
                 class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10"
                 @click="toggleLineWrapping"
               >
-                <span>Wrap lines</span>
+                <span>{{ t('editor.wrapLines') }}</span>
                 <CheckIcon v-if="isLineWrapping" class="h-4 w-4" />
               </button>
             </div>

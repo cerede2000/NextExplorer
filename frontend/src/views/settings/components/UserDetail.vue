@@ -177,7 +177,7 @@ const getInitials = (name) => {
               v-if="isAdmin"
               class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
             >
-              Admin
+              {{ t('common.admin') }}
             </span>
           </div>
         </div>
@@ -196,7 +196,7 @@ const getInitials = (name) => {
             'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
           ]"
         >
-          Profile
+          {{ t('settings.userDetails.profileTab') }}
         </button>
         <button
           @click="activeTab = 'security'"
@@ -207,7 +207,7 @@ const getInitials = (name) => {
             'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
           ]"
         >
-          Security
+          {{ t('settings.userDetails.securityTab') }}
         </button>
         <button
           v-if="userVolumesEnabled"
@@ -232,13 +232,13 @@ const getInitials = (name) => {
           class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"
         >
           <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-            General Information
+            {{ t('settings.userDetails.generalInfo') }}
           </h3>
           <form @submit.prevent="handleSaveProfile" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-                  >Display Name</label
+                  >{{ t('settings.userDetails.displayName') }}</label
                 >
                 <input
                   v-model="formData.displayName"
@@ -248,7 +248,7 @@ const getInitials = (name) => {
               </div>
               <div>
                 <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-                  >Username</label
+                  >{{ t('settings.userDetails.username') }}</label
                 >
                 <input
                   v-model="formData.username"
@@ -259,7 +259,7 @@ const getInitials = (name) => {
             </div>
             <div>
               <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-                >Email Address</label
+                >{{ t('settings.userDetails.email') }}</label
               >
               <input
                 v-model="formData.email"
@@ -284,16 +284,16 @@ const getInitials = (name) => {
           class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"
         >
           <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-            Roles & Permissions
+            {{ t('settings.userDetails.rolesAndPermissions') }}
           </h3>
           <div class="flex items-center justify-between">
             <div>
               <div class="flex items-center gap-2">
                 <ShieldCheckIcon class="w-5 h-5 text-zinc-500" />
-                <span class="font-medium text-zinc-900 dark:text-zinc-100">Administrator</span>
+                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ t('settings.userDetails.adminRole') }}</span>
               </div>
               <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1 ml-7">
-                Can access all settings and manage users.
+                {{ t('settings.userDetails.adminRoleHint') }}
               </p>
             </div>
             <button
@@ -301,7 +301,7 @@ const getInitials = (name) => {
               @click="$emit('make-admin', user)"
               class="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium"
             >
-              Grant Admin
+              {{ t('settings.userDetails.grantAdmin') }}
             </button>
             <button
               v-else
@@ -310,7 +310,7 @@ const getInitials = (name) => {
               class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               :title="isCurrentUser ? t('settings.users.cannotDeleteSelf') : ''"
             >
-              Revoke Admin
+              {{ t('settings.userDetails.revokeAdmin') }}
             </button>
           </div>
         </div>
@@ -320,11 +320,11 @@ const getInitials = (name) => {
           v-if="!isCurrentUser"
           class="bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-900/30 p-4"
         >
-          <h3 class="text-base font-semibold text-red-800 dark:text-red-300 mb-4">Danger Zone</h3>
+          <h3 class="text-base font-semibold text-red-800 dark:text-red-300 mb-4">{{ t('settings.userDetails.dangerZone') }}</h3>
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-red-700 dark:text-red-400">
-                Permanently remove this user and all their data. This action cannot be undone.
+                {{ t('settings.userDetails.deleteUserMessage') }}
               </p>
             </div>
             <button
@@ -332,7 +332,7 @@ const getInitials = (name) => {
               class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/40"
             >
               <TrashIcon class="w-4 h-4 mr-2" />
-              Delete User
+              {{ t('settings.userDetails.deleteUser') }}
             </button>
           </div>
         </div>
@@ -344,18 +344,18 @@ const getInitials = (name) => {
         <div
           class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"
         >
-          <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Password</h3>
+          <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">{{ t('settings.userDetails.password') }}</h3>
           <div class="flex items-center justify-between">
             <div>
               <div class="flex items-center gap-2">
                 <KeyIcon class="w-5 h-5 text-zinc-500" />
-                <span class="font-medium text-zinc-900 dark:text-zinc-100">Local Password</span>
+                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ t('settings.userDetails.localPassword') }}</span>
               </div>
               <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1 ml-7">
                 {{
                   hasLocalAuth
-                    ? 'User has a local password set.'
-                    : 'User does not have a local password set.'
+                    ? t('settings.userDetails.localPasswordExistHint')
+                    : t('settings.userDetails.localPasswordNotExistHint')
                 }}
               </p>
             </div>
@@ -363,7 +363,7 @@ const getInitials = (name) => {
               @click="$emit('reset-password', user)"
               class="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium"
             >
-              {{ hasLocalAuth ? 'Reset Password' : 'Set Password' }}
+              {{ hasLocalAuth ? t('settings.userDetails.resetLocalPassword') : t('settings.userDetails.setLocalPassword') }}
             </button>
           </div>
         </div>
@@ -373,7 +373,7 @@ const getInitials = (name) => {
           class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"
         >
           <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-            Single Sign-On (OIDC)
+            {{ t('settings.userDetails.sso') }}
           </h3>
 
           <div v-if="oidcProfiles.length > 0" class="space-y-4">
@@ -388,22 +388,22 @@ const getInitials = (name) => {
                 </div>
                 <div>
                   <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {{ profile.provider || 'OIDC Provider' }}
+                    {{ profile.provider || t('settings.userDetails.oidcProvider') }}
                   </p>
-                  <p class="text-xs text-zinc-500 dark:text-zinc-400">Linked Profile</p>
+                  <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ t('settings.userDetails.oidcLinkedProfile') }}</p>
                 </div>
               </div>
               <!-- Placeholder for unlink action if needed in future -->
               <span
                 class="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full"
-                >Active</span
+                >{{ t('common.active') }}</span
               >
             </div>
           </div>
 
           <div v-else class="text-center py-6 text-zinc-500 dark:text-zinc-400 text-sm">
             <CloudIcon class="w-10 h-10 mx-auto mb-2 opacity-20" />
-            No OIDC profiles linked to this account.
+            {{ t('settings.userDetails.noOidcProfileMessage') }}
           </div>
         </div>
       </div>

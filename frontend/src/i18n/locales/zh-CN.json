@@ -72,6 +72,11 @@
     "readwrite": "读/写"
   },
   "editor": {
+    "editing":"Editing",
+    "unsavedChanges":"Unsaved changes",
+    "theme": "Theme",
+    "editorSettings": "Editor settings",
+    "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？"
   },
   "status": {
@@ -442,6 +447,8 @@
     },
     "access": {
       "subtitle": "为每个文件夹设置权限：读写、只读或隐藏。",
+      "noRules": "No access rules configured.",
+      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
       "recursive": "递归",
       "readWrite": "读写",
       "readOnly": "只读",
@@ -460,10 +467,12 @@
       "validation": "请填写所有字段；新密码至少 6 个字符，并且需要与确认密码一致。"
     },
     "users": {
+      "subtitle": "Manage users, roles, and access credentials.",
       "cannotDeleteSelf": "无法删除您自己的账户。",
       "confirmRemove": "删除用户 {user}? 此操作无法撤销。",
       "createUser": "创建用户",
       "grantAdmin": "授予管理员权限",
+      "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "显示名称",
       "makeAdmin": "设为管理员",
       "resetPassword": "设置/重置密码",
@@ -490,6 +499,32 @@
       "volumePath": "卷路径",
       "pathCannotChange": "创建后无法更改路径。如需更改，请删除此卷并重新创建。",
       "accessMode": "访问模式"
+    },
+    "userDetails": {
+      "profileTab": "Profile",
+      "securityTab": "Security",
+      "generalInfo": "General Information",
+      "displayName": "Display Name",
+      "username": "Username",
+      "email": "Email Address",
+      "rolesAndPermissions": "Roles & Permissions",
+      "adminRole": "Administrator",
+      "adminRoleHint": "Can access all settings and manage users.",
+      "grantAdmin": "Grand Admin",
+      "revokeAdmin": "Revoke Admin",
+      "dangerZone": "Danger Zone",
+      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
+      "deleteUser": "Delete User",
+      "password": "Password",
+      "localPassword": "Local Password",
+      "localPasswordExistHint": "User has a local password set.",
+      "localPasswordNotExistHint": "User does not have a local password set.",
+      "setLocalPassword": "Set Password",
+      "resetLocalPassword": "Reset Password",
+      "sso": "Single Sign-On (OIDC)",
+      "oidcProvider": "OIDC Provider",
+      "oidcLinkedProfile": "Linked Profile",
+      "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
   "share": {
@@ -501,12 +536,16 @@
     "createShareLink": "创建共享链接",
     "shareLink": "共享链接",
     "shareLinkCreatedSuccess": "共享链接创建成功！",
+    "access": "Access Mode",
+    "type": "Target",
     "shareSelectedItem": "共享所选项目",
     "selectItemToShare": "选择要共享的项目",
     "sharing": "正在共享：",
     "sharedItem": "已共享项目",
     "sharedFolder": "已共享文件夹",
     "sharedFile": "已共享文件",
+    "label": "Label",
+    "labelPlaceholder": "e.g. My Project",
     "accessMode": "访问模式",
     "whoCanAccess": "可访问的用户",
     "anyoneWithLink": "拥有链接的任何人",

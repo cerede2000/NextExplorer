@@ -40,7 +40,7 @@ const getAuthLabel = (auth) => {
           {{ t('titles.userManagement') }}
         </h2>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Manage users, roles, and access credentials.
+          {{ t('settings.users.subtitle') }}
         </p>
       </div>
       <button
@@ -97,7 +97,7 @@ const getAuthLabel = (auth) => {
                   v-if="(user.roles || []).includes('admin')"
                   class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
                 >
-                  Admin
+                  {{ t('common.admin') }}
                 </span>
               </div>
               <p class="text-sm text-zinc-500 dark:text-zinc-400 truncate">

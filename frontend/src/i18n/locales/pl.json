@@ -72,6 +72,11 @@
     "readwrite": "Odczyt/Zapis"
   },
   "editor": {
+    "editing":"Editing",
+    "unsavedChanges":"Unsaved changes",
+    "theme": "Theme",
+    "editorSettings": "Editor settings",
+    "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?"
   },
   "status": {
@@ -442,6 +447,8 @@
     },
     "access": {
       "subtitle": "Ustaw uprawnienia dla folderów: odczyt-zapis, tylko odczyt lub ukryte.",
+      "noRules": "No access rules configured.",
+      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
       "recursive": "Rekursywne",
       "readWrite": "Odczyt i zapis",
       "readOnly": "Tylko odczyt",
@@ -460,10 +467,12 @@
       "validation": "Wypełnij wszystkie pola; nowe hasło musi mieć co najmniej 6 znaków i zgadzać się z potwierdzeniem."
     },
     "users": {
+      "subtitle": "Manage users, roles, and access credentials.",
       "cannotDeleteSelf": "Nie możesz usunąć własnego konta.",
       "confirmRemove": "Usunąć użytkownika {user}? Tej operacji nie można cofnąć.",
       "createUser": "Utwórz użytkownika",
       "grantAdmin": "Nadaj uprawnienia administratora",
+      "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Nazwa wyświetlana",
       "makeAdmin": "Uczyń administratorem",
       "resetPassword": "Ustaw/Resetuj hasło",
@@ -490,6 +499,32 @@
       "volumePath": "Ścieżka woluminu",
       "pathCannotChange": "Ścieżki nie można zmienić po utworzeniu. Usuń ten wolumin i utwórz nowy w razie potrzeby.",
       "accessMode": "Tryb dostępu"
+    },
+    "userDetails": {
+      "profileTab": "Profile",
+      "securityTab": "Security",
+      "generalInfo": "General Information",
+      "displayName": "Display Name",
+      "username": "Username",
+      "email": "Email Address",
+      "rolesAndPermissions": "Roles & Permissions",
+      "adminRole": "Administrator",
+      "adminRoleHint": "Can access all settings and manage users.",
+      "grantAdmin": "Grand Admin",
+      "revokeAdmin": "Revoke Admin",
+      "dangerZone": "Danger Zone",
+      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
+      "deleteUser": "Delete User",
+      "password": "Password",
+      "localPassword": "Local Password",
+      "localPasswordExistHint": "User has a local password set.",
+      "localPasswordNotExistHint": "User does not have a local password set.",
+      "setLocalPassword": "Set Password",
+      "resetLocalPassword": "Reset Password",
+      "sso": "Single Sign-On (OIDC)",
+      "oidcProvider": "OIDC Provider",
+      "oidcLinkedProfile": "Linked Profile",
+      "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
   "share": {
@@ -501,12 +536,16 @@
     "createShareLink": "Utwórz link udostępniania",
     "shareLink": "Link udostępniania",
     "shareLinkCreatedSuccess": "Link udostępniania został pomyślnie utworzony!",
+    "access": "Access Mode",
+    "type": "Target",
     "shareSelectedItem": "Udostępnij wybrany element",
     "selectItemToShare": "Wybierz element do udostępnienia",
     "sharing": "Udostępnianie:",
     "sharedItem": "Udostępniony element",
     "sharedFolder": "Udostępniony folder",
     "sharedFile": "Udostępniony plik",
+    "label": "Label",
+    "labelPlaceholder": "e.g. My Project",
     "accessMode": "Tryb dostępu",
     "whoCanAccess": "Kto ma dostęp",
     "anyoneWithLink": "Każdy z linkiem",

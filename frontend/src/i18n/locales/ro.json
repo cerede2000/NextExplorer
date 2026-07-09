@@ -72,6 +72,11 @@
     "readwrite": "Citire/Scriere"
   },
   "editor": {
+    "editing":"Editing",
+    "unsavedChanges":"Unsaved changes",
+    "theme": "Theme",
+    "editorSettings": "Editor settings",
+    "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?"
   },
   "status": {
@@ -442,6 +447,8 @@
     },
     "access": {
       "subtitle": "Setează permisiuni pe dosare: citire-scriere, doar citire sau ascuns.",
+      "noRules": "No access rules configured.",
+      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
       "recursive": "Recursiv",
       "readWrite": "Citire și scriere",
       "readOnly": "Doar citire",
@@ -460,10 +467,12 @@
       "validation": "Completează toate câmpurile; parola nouă trebuie să aibă cel puțin 6 caractere și să se potrivească cu confirmarea."
     },
     "users": {
+      "subtitle": "Manage users, roles, and access credentials.",
       "cannotDeleteSelf": "Nu îți poți șterge propriul cont.",
       "confirmRemove": "Elimini utilizatorul {user}? Această acțiune nu poate fi anulată.",
       "createUser": "Creează utilizator",
       "grantAdmin": "Acordă admin",
+      "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Nume afișat",
       "makeAdmin": "Fă admin",
       "resetPassword": "Setează/Resetează parola",
@@ -490,6 +499,32 @@
       "volumePath": "Cale volum",
       "pathCannotChange": "Calea nu poate fi schimbată după creare. Șterge și creează unul nou dacă e necesar.",
       "accessMode": "Mod acces"
+    },
+    "userDetails": {
+      "profileTab": "Profile",
+      "securityTab": "Security",
+      "generalInfo": "General Information",
+      "displayName": "Display Name",
+      "username": "Username",
+      "email": "Email Address",
+      "rolesAndPermissions": "Roles & Permissions",
+      "adminRole": "Administrator",
+      "adminRoleHint": "Can access all settings and manage users.",
+      "grantAdmin": "Grand Admin",
+      "revokeAdmin": "Revoke Admin",
+      "dangerZone": "Danger Zone",
+      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
+      "deleteUser": "Delete User",
+      "password": "Password",
+      "localPassword": "Local Password",
+      "localPasswordExistHint": "User has a local password set.",
+      "localPasswordNotExistHint": "User does not have a local password set.",
+      "setLocalPassword": "Set Password",
+      "resetLocalPassword": "Reset Password",
+      "sso": "Single Sign-On (OIDC)",
+      "oidcProvider": "OIDC Provider",
+      "oidcLinkedProfile": "Linked Profile",
+      "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
   "share": {
@@ -501,12 +536,16 @@
     "createShareLink": "Creează link de partajare",
     "shareLink": "Link de partajare",
     "shareLinkCreatedSuccess": "Linkul de partajare a fost creat cu succes!",
+    "access": "Access Mode",
+    "type": "Target",
     "shareSelectedItem": "Partajează elementul selectat",
     "selectItemToShare": "Selectează un element de partajat",
     "sharing": "Partajare:",
     "sharedItem": "Element partajat",
     "sharedFolder": "Dosar partajat",
     "sharedFile": "Fișier partajat",
+    "label": "Label",
+    "labelPlaceholder": "e.g. My Project",
     "accessMode": "Mod de acces",
     "whoCanAccess": "Cine poate accesa",
     "anyoneWithLink": "Oricine are linkul",
