@@ -3,8 +3,10 @@ import { ref } from 'vue';
 
 export const useTerminalStore = defineStore('terminal', () => {
   const isOpen = ref(false);
+  const launchPath = ref('');
 
-  const open = () => {
+  const open = (cwd = '') => {
+    launchPath.value = typeof cwd === 'string' ? cwd : '';
     isOpen.value = true;
   };
 
@@ -12,12 +14,18 @@ export const useTerminalStore = defineStore('terminal', () => {
     isOpen.value = false;
   };
 
-  const toggle = () => {
-    isOpen.value = !isOpen.value;
+  const toggle = (cwd = '') => {
+    if (isOpen.value) {
+      close();
+      return;
+    }
+
+    open(cwd);
   };
 
   return {
     isOpen,
+    launchPath,
     open,
     close,
     toggle,
