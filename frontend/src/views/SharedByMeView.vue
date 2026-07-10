@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getMyShares, deleteShare, copyShareUrl } from '@/api/shares.api';
+import { getMyShares, deleteShare, copyDirectShareFileUrl, copyShareUrl } from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
 import {
   ShareIcon,
@@ -13,6 +13,7 @@ import {
   UsersIcon,
   ClipboardDocumentIcon,
   CheckIcon,
+  LinkIcon,
   MagnifyingGlassIcon,
   ArrowsUpDownIcon,
 } from '@heroicons/vue/24/outline';
@@ -27,6 +28,8 @@ const error = ref('');
 const deletingId = ref(null);
 const copyingId = ref(null);
 const copiedId = ref(null);
+const directCopyingId = ref(null);
+const directCopiedId = ref(null);
 const searchQuery = ref('');
 const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
@@ -190,6 +193,25 @@ const handleCopyLink = async (share) => {
     console.error('Failed to copy link:', err);
   } finally {
     copyingId.value = null;
+  }
+};
+
+const handleCopyDirectFileLink = async (share) => {
+  if (!share?.id || !share?.shareToken || share.isDirectory) return;
+
+  try {
+    directCopyingId.value = share.id;
+    await copyDirectShareFileUrl(share.shareToken);
+    directCopiedId.value = share.id;
+    setTimeout(() => {
+      if (directCopiedId.value === share.id) {
+        directCopiedId.value = null;
+      }
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy direct file link:', err);
+  } finally {
+    directCopyingId.value = null;
   }
 };
 
@@ -380,6 +402,7 @@ onMounted(async () => {
             <div class="flex items-center justify-end gap-1">
               <button
                 @click.stop="handleCopyLink(share)"
+                :disabled="copyingId === share.id"
                 class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
                 :title="t('actions.copy')"
               >
@@ -387,6 +410,19 @@ onMounted(async () => {
                   :is="copiedId === share.id ? CheckIcon : ClipboardDocumentIcon"
                   class="w-4 h-4"
                   :class="{ 'text-green-500': copiedId === share.id }"
+                />
+              </button>
+              <button
+                v-if="!share.isDirectory"
+                @click.stop="handleCopyDirectFileLink(share)"
+                :disabled="directCopyingId === share.id"
+                class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                :title="t('share.copyDirectFileLink', 'Copy direct file link')"
+              >
+                <component
+                  :is="directCopiedId === share.id ? CheckIcon : LinkIcon"
+                  class="w-4 h-4"
+                  :class="{ 'text-green-500': directCopiedId === share.id }"
                 />
               </button>
               <button
