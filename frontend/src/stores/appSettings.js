@@ -21,6 +21,9 @@ export const useAppSettings = defineStore('appSettings', () => {
   const userSettings = ref({
     showHiddenFiles: false,
     showThumbnails: true,
+    showSidebarFavorites: true,
+    showSidebarShares: true,
+    showSidebarTools: true,
     defaultShareExpiration: null, // { value: number, unit: 'days' | 'weeks' | 'months' }
     skipHome: null, // null = use env var, true/false = override
   });
@@ -98,6 +101,9 @@ export const useAppSettings = defineStore('appSettings', () => {
         userSettings.value = {
           showHiddenFiles: false,
           showThumbnails: true,
+          showSidebarFavorites: true,
+          showSidebarShares: true,
+          showSidebarTools: true,
           defaultShareExpiration: null,
           skipHome: null,
           ...s.user,

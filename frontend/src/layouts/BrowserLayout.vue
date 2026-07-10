@@ -111,6 +111,11 @@ const currentPathName = computed(() => {
 useTitle(currentPathName);
 
 const showBrowseToolbar = computed(() => String(route.path || '').startsWith('/browse'));
+const showSidebarFavorites = computed(
+  () => appSettings.userSettings?.showSidebarFavorites !== false
+);
+const showSidebarShares = computed(() => appSettings.userSettings?.showSidebarShares !== false);
+const showSidebarTools = computed(() => appSettings.userSettings?.showSidebarTools !== false);
 
 // Ensure Uppy is initialized app-wide and bound to current path
 useFileUploader();
@@ -163,10 +168,10 @@ const handleGuestLogin = () => {
       </div>
 
       <div class="overflow-y-auto -mx-6 px-6 mt-6 scroll-on-hover">
-        <FavMenu v-if="!auth.isGuest" />
-        <SharesMenu v-if="!auth.isGuest" />
+        <FavMenu v-if="!auth.isGuest && showSidebarFavorites" />
+        <SharesMenu v-if="!auth.isGuest && showSidebarShares" />
         <VolMenu v-if="!auth.isGuest" />
-        <TerminalMenu v-if="featuresStore.terminalEnabled" />
+        <TerminalMenu v-if="featuresStore.terminalEnabled && showSidebarTools" />
       </div>
       <UserMenu v-if="!auth.isGuest" class="mt-auto -mx-4" />
     </aside>
