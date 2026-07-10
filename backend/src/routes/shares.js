@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs/promises');
+const fss = require('fs');
 const path = require('path');
 const asyncHandler = require('../utils/asyncHandler');
 const {
@@ -17,19 +18,115 @@ const {
   updateShare,
   deleteShare,
   verifySharePassword,
+  hasUserPermission,
   isShareExpired,
   trackShareAccess,
   getShareStats,
 } = require('../services/sharesService');
 const { createGuestSession } = require('../services/guestSessionService');
-const { parsePathSpace } = require('../utils/pathUtils');
+const { normalizeRelativePath, parsePathSpace } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
-const { extensions } = require('../config/index');
+const { extensions, mimeTypes } = require('../config/index');
 const { getSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
+const { encodeContentDisposition } = require('./files/utils');
 
 const router = express.Router();
+
+const buildPublicBaseUrl = (req) => {
+  const { public: publicConfig } = require('../config/index');
+  return publicConfig.origin || `${req.protocol}://${req.get('host')}`;
+};
+
+const encodeUrlPath = (value = '') =>
+  String(value).split('/').filter(Boolean).map(encodeURIComponent).join('/');
+
+const buildDirectFilePath = (shareToken, innerPath = '') => {
+  const encodedToken = encodeURIComponent(shareToken);
+  const encodedInnerPath = encodeUrlPath(innerPath);
+  return encodedInnerPath
+    ? `/api/share/${encodedToken}/file/${encodedInnerPath}`
+    : `/api/share/${encodedToken}/file`;
+};
+
+const getSafeRedirectTarget = (target) => {
+  if (typeof target !== 'string' || !target.startsWith('/') || target.startsWith('//')) {
+    return null;
+  }
+  return target;
+};
+
+const redirectToShareAccess = (req, res, shareToken) => {
+  const redirectTarget = getSafeRedirectTarget(req.originalUrl || '');
+  const redirectQuery = redirectTarget ? `?redirect=${encodeURIComponent(redirectTarget)}` : '';
+  res.redirect(302, `/share/${encodeURIComponent(shareToken)}${redirectQuery}`);
+};
+
+const streamResolvedFileInline = async ({ absolutePath, stats, req, res }) => {
+  const filename = path.basename(absolutePath);
+  const extension = path.extname(filename).slice(1).toLowerCase();
+  const mimeType = mimeTypes[extension] || 'application/octet-stream';
+
+  const streamFile = (options = undefined) => {
+    const stream = options
+      ? fss.createReadStream(absolutePath, options)
+      : fss.createReadStream(absolutePath);
+    stream.on('error', (streamError) => {
+      if (!res.headersSent) {
+        res.status(500).end();
+      } else {
+        res.destroy(streamError);
+      }
+    });
+    stream.pipe(res);
+  };
+
+  const baseHeaders = {
+    'Content-Type': mimeType,
+    'Content-Disposition': encodeContentDisposition(filename, 'inline'),
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex',
+  };
+
+  const rangeHeader = req.headers.range;
+  if (rangeHeader) {
+    const bytesPrefix = 'bytes=';
+    if (!rangeHeader.startsWith(bytesPrefix)) {
+      res.status(416).send('Malformed Range header');
+      return;
+    }
+
+    const [startString, endString] = rangeHeader.slice(bytesPrefix.length).split('-');
+    let start = Number(startString);
+    let end = endString ? Number(endString) : stats.size - 1;
+
+    if (Number.isNaN(start)) start = 0;
+    if (Number.isNaN(end) || end >= stats.size) end = stats.size - 1;
+
+    if (start > end) {
+      res.status(416).send('Range Not Satisfiable');
+      return;
+    }
+
+    const chunkSize = end - start + 1;
+    res.writeHead(206, {
+      ...baseHeaders,
+      'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+    });
+    streamFile({ start, end });
+    return;
+  }
+
+  res.writeHead(200, {
+    ...baseHeaders,
+    'Content-Length': stats.size,
+    'Accept-Ranges': 'bytes',
+  });
+  streamFile();
+};
 
 /**
  * POST /api/shares - Create a new share
@@ -123,13 +220,14 @@ router.post(
     });
 
     // Generate share URL using PUBLIC_URL if configured, otherwise use request host
-    const { public: publicConfig } = require('../config/index');
-    const baseUrl = publicConfig.origin || `${req.protocol}://${req.get('host')}`;
+    const baseUrl = buildPublicBaseUrl(req);
     const shareUrl = `${baseUrl}/share/${share.shareToken}`;
+    const directFileUrl = isDirectory ? null : `${baseUrl}${buildDirectFilePath(share.shareToken)}`;
 
     res.status(201).json({
       ...share,
       shareUrl,
+      directFileUrl,
     });
   })
 );
@@ -475,6 +573,93 @@ router.get(
     });
   })
 );
+
+const handleDirectFileRequest = async (req, res) => {
+  const shareToken = req.params.token;
+  const rawInnerPath = req.params[0] || '';
+  let innerPath = '';
+
+  try {
+    innerPath = rawInnerPath ? normalizeRelativePath(rawInnerPath) : '';
+  } catch (error) {
+    throw new ValidationError('Invalid file path.');
+  }
+
+  const share = await getShareByToken(shareToken);
+  if (!share) {
+    throw new NotFoundError('Share not found');
+  }
+
+  if (isShareExpired(share)) {
+    throw new ForbiddenError('Share has expired');
+  }
+
+  if (!share.isDirectory && innerPath) {
+    throw new NotFoundError('Path not found');
+  }
+
+  if (share.sharingType === 'users') {
+    if (!req.user || !req.user.id) {
+      redirectToShareAccess(req, res, shareToken);
+      return;
+    }
+
+    const permitted = await hasUserPermission(share.id, req.user.id);
+    if (!permitted) {
+      throw new ForbiddenError('Access denied');
+    }
+  }
+
+  let guestSession = req.guestSession || null;
+
+  if (share.sharingType === 'anyone' && !req.user) {
+    if (share.hasPassword) {
+      if (!guestSession || guestSession.shareId !== share.id) {
+        redirectToShareAccess(req, res, shareToken);
+        return;
+      }
+    } else {
+      // Public direct file links should work without first visiting the Web UI.
+      guestSession = guestSession?.shareId === share.id ? guestSession : { shareId: share.id };
+    }
+  }
+
+  const logicalPath = innerPath ? `share/${shareToken}/${innerPath}` : `share/${shareToken}`;
+  const context = { user: req.user, guestSession };
+  const { accessInfo, resolved } = await resolvePathWithAccess(context, logicalPath);
+
+  if (
+    !accessInfo ||
+    !accessInfo.canAccess ||
+    !accessInfo.canRead ||
+    !accessInfo.canDownload ||
+    !resolved
+  ) {
+    throw new ForbiddenError(accessInfo?.denialReason || 'File access not allowed.');
+  }
+
+  if (!(await pathExists(resolved.absolutePath))) {
+    throw new NotFoundError('Path not found');
+  }
+
+  const stats = await fs.stat(resolved.absolutePath);
+  if (stats.isDirectory()) {
+    redirectToShareAccess(req, res, shareToken);
+    return;
+  }
+
+  await trackShareAccess(share.id);
+  await streamResolvedFileInline({ absolutePath: resolved.absolutePath, stats, req, res });
+};
+
+/**
+ * GET /api/share/:token/file/* - Open a shared file directly.
+ *
+ * This keeps the same share rules as the Web UI but streams the target file
+ * itself, letting the browser preview supported formats or download others.
+ */
+router.get('/:token/file', asyncHandler(handleDirectFileRequest));
+router.get('/:token/file/*', asyncHandler(handleDirectFileRequest));
 
 /**
  * GET /api/share/:token/browse/* - Browse share contents

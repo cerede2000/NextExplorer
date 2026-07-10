@@ -18,6 +18,7 @@ beforeAll(async () => {
       'src/services/users',
       'src/services/userVolumesService',
       'src/services/sharesService',
+      'src/services/guestSessionService',
       'src/utils/pathUtils',
       'src/middleware/errorHandler',
       'src/routes/shares',
@@ -41,8 +42,13 @@ const buildApp = ({ user } = {}) => {
   const app = express();
   app.use(express.json());
 
-  app.use((req, _res, next) => {
+  app.use(async (req, _res, next) => {
     if (user) req.user = user;
+    const guestSessionId = req.headers['x-guest-session'];
+    if (guestSessionId) {
+      const { getGuestSession } = envContext.requireFresh('src/services/guestSessionService');
+      req.guestSession = await getGuestSession(guestSessionId);
+    }
     next();
   });
 
@@ -82,13 +88,11 @@ describe('Shares Routes', () => {
 
       const app = buildApp({ user });
 
-      const create = await request(app)
-        .post('/api/shares')
-        .send({
-          sourcePath: 'MyVol/myfolder',
-          accessMode: 'readonly',
-          sharingType: 'anyone',
-        });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'MyVol/myfolder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
 
       expect(create.status).toBe(201);
       expect(create.body.shareToken).toBeDefined();
@@ -198,6 +202,191 @@ describe('Shares Routes', () => {
       // Browse should be forbidden
       const browse = await request(app).get(`/api/share/${shareToken}/browse/`);
       expect(browse.status).toBe(403);
+    });
+  });
+
+  describe('Direct File Links', () => {
+    it('should stream an anyone-with-link file share without a prior guest session', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-public');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'hello.txt'), 'hello direct link');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-public@example.com',
+        username: 'direct-public',
+        displayName: 'Direct Public',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectPublicVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectPublicVol/hello.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-disposition']).toContain('inline');
+      expect(direct.headers['content-disposition']).toContain('hello.txt');
+      expect(Buffer.from(direct.body).toString()).toBe('hello direct link');
+    });
+
+    it('should redirect a password-protected direct file until the password is verified', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-password');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'secret.txt'), 'protected direct link');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-password@example.com',
+        username: 'direct-password',
+        displayName: 'Direct Password',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectPasswordVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectPasswordVol/secret.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+        password: 'open-sesame',
+      });
+
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const directBeforePassword = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/file`
+      );
+      expect(directBeforePassword.status).toBe(302);
+      expect(directBeforePassword.headers.location).toContain(`/share/${create.body.shareToken}`);
+      expect(directBeforePassword.headers.location).toContain('redirect=');
+
+      const verify = await request(publicApp)
+        .post(`/api/share/${create.body.shareToken}/verify`)
+        .send({ password: 'open-sesame' });
+
+      expect(verify.status).toBe(200);
+      expect(verify.body.guestSessionId).toBeDefined();
+
+      const directAfterPassword = await request(publicApp)
+        .get(`/api/share/${create.body.shareToken}/file`)
+        .set('X-Guest-Session', verify.body.guestSessionId);
+
+      expect(directAfterPassword.status).toBe(200);
+      expect(Buffer.from(directAfterPassword.body).toString()).toBe('protected direct link');
+    });
+
+    it('should redirect direct links that resolve to directories back to the share flow', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-folder');
+      await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-folder@example.com',
+        username: 'direct-folder',
+        displayName: 'Direct Folder',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectFolderVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectFolderVol/folder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.directFileUrl).toBeNull();
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(302);
+      expect(direct.headers.location).toContain(`/share/${create.body.shareToken}`);
+    });
+
+    it('should reject direct file access for expired shares', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-expired');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'expired.txt'), 'expired direct link');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-expired@example.com',
+        username: 'direct-expired',
+        displayName: 'Direct Expired',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectExpiredVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const create = await request(app)
+        .post('/api/shares')
+        .send({
+          sourcePath: 'DirectExpiredVol/expired.txt',
+          accessMode: 'readonly',
+          sharingType: 'anyone',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        });
+
+      expect(create.status).toBe(201);
+
+      const updateResponse = await request(app)
+        .put(`/api/shares/${create.body.id}`)
+        .send({ expiresAt: '2000-01-01T00:00:00.000Z' });
+      expect(updateResponse.status).toBe(200);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(403);
     });
   });
 });
