@@ -6,6 +6,7 @@ export const useFeaturesStore = defineStore('features', () => {
   const publicUrl = ref('');
   const publicOrigin = ref('');
   const editorExtensions = ref([]);
+  const hiddenFilePatterns = ref(['.']);
   const onlyofficeEnabled = ref(false);
   const onlyofficeExtensions = ref([]);
   const collaboraEnabled = ref(false);
@@ -48,6 +49,11 @@ export const useFeaturesStore = defineStore('features', () => {
           ? features.editor.extensions
           : [];
 
+        // Hidden file patterns
+        hiddenFilePatterns.value = Array.isArray(features?.hiddenFiles?.patterns)
+          ? features.hiddenFiles.patterns
+          : ['.'];
+
         // OnlyOffice
         onlyofficeEnabled.value = Boolean(features?.onlyoffice?.enabled);
         onlyofficeExtensions.value = Array.isArray(features?.onlyoffice?.extensions)
@@ -86,6 +92,7 @@ export const useFeaturesStore = defineStore('features', () => {
         publicUrl.value = '';
         publicOrigin.value = '';
         editorExtensions.value = [];
+        hiddenFilePatterns.value = ['.'];
         onlyofficeEnabled.value = false;
         onlyofficeExtensions.value = [];
         collaboraEnabled.value = false;
@@ -116,6 +123,7 @@ export const useFeaturesStore = defineStore('features', () => {
     publicUrl,
     publicOrigin,
     editorExtensions,
+    hiddenFilePatterns,
     onlyofficeEnabled,
     onlyofficeExtensions,
     collaboraEnabled,

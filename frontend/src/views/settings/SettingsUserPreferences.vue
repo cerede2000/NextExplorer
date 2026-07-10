@@ -1,9 +1,11 @@
 <script setup>
-import { computed, reactive, watch } from 'vue';
+import { computed, onMounted, reactive, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
 
 const appSettings = useAppSettings();
+const features = useFeaturesStore();
 const { t } = useI18n();
 
 const local = reactive({
@@ -28,6 +30,15 @@ const dirty = computed(() => {
     JSON.stringify(localExpiration) !== JSON.stringify(origExpiration) ||
     local.skipHome !== orig.skipHome
   );
+});
+
+const hiddenFilePatternsLabel = computed(() => {
+  const patterns = Array.isArray(features.hiddenFilePatterns) ? features.hiddenFilePatterns : [];
+  return patterns.length ? patterns.join(', ') : t('common.disabled');
+});
+
+onMounted(() => {
+  features.ensureLoaded();
 });
 
 watch(
@@ -127,7 +138,11 @@ const save = async () => {
               {{ t('settings.userPreferences.showHiddenFiles') }}
             </div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              {{ t('settings.userPreferences.showHiddenFilesHelp') }}
+              {{
+                t('settings.userPreferences.showHiddenFilesHelp', {
+                  patterns: hiddenFilePatternsLabel,
+                })
+              }}
             </div>
           </div>
           <label class="inline-flex cursor-pointer items-center">

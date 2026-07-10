@@ -1,5 +1,12 @@
 const express = require('express');
-const { onlyoffice, collabora, editor, features, public: publicConfig } = require('../config/index');
+const {
+  onlyoffice,
+  collabora,
+  editor,
+  features,
+  hiddenFiles,
+  public: publicConfig,
+} = require('../config/index');
 const terminalService = require('../services/terminalService');
 const packageJson = require('../../package.json');
 
@@ -22,6 +29,9 @@ router.get('/features', (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+    },
+    hiddenFiles: {
+      patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

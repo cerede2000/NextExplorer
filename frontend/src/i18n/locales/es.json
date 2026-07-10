@@ -415,7 +415,7 @@
       "title": "Preferencias de usuario",
       "subtitle": "Personaliza tus ajustes personales.",
       "showHiddenFiles": "Mostrar archivos ocultos",
-      "showHiddenFilesHelp": "Muestra archivos y carpetas que comienzan con puntuación (.) en el explorador.",
+      "showHiddenFilesHelp": "Muestra archivos y carpetas que coinciden con los patrones ocultos configurados ({patterns}) en el explorador.",
       "showThumbnails": "Mostrar miniaturas",
       "showThumbnailsHelp": "Muestra previsualizaciones en miniatura para imágenes y vídeos.",
       "defaultShareExpiration": "Caducidad predeterminada para compartir",

@@ -415,7 +415,7 @@
       "title": "Benutzereinstellungen",
       "subtitle": "Passen Sie Ihre persönlichen Einstellungen an.",
       "showHiddenFiles": "Versteckte Dateien anzeigen",
-      "showHiddenFilesHelp": "Zeigt Dateien und Ordner mit führendem Punkt (.) im Browser an.",
+      "showHiddenFilesHelp": "Zeigt Dateien und Ordner an, die den konfigurierten versteckten Mustern ({patterns}) entsprechen.",
       "showThumbnails": "Vorschaubilder anzeigen",
       "showThumbnailsHelp": "Zeigt Vorschaubilder für Bilder und Videos im Explorer an.",
       "defaultShareExpiration": "Standard-Ablaufdatum für Freigaben",

@@ -415,7 +415,7 @@
       "title": "Preferenze utente",
       "subtitle": "Personalizza le impostazioni personali.",
       "showHiddenFiles": "Mostra file nascosti",
-      "showHiddenFilesHelp": "Mostra file e cartelle che iniziano con un punto (.) nell'esploratore.",
+      "showHiddenFilesHelp": "Mostra file e cartelle che corrispondono ai pattern nascosti configurati ({patterns}) nell'esploratore.",
       "showThumbnails": "Mostra miniature",
       "showThumbnailsHelp": "Mostra anteprime miniatura per immagini e video.",
       "defaultShareExpiration": "Scadenza predefinita per la condivisione",
