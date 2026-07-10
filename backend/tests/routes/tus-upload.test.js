@@ -77,7 +77,7 @@ describe('TUS upload route', () => {
           'Upload-Metadata',
           encodeMetadata({
             filename: 'hello.txt',
-            relativePath: 'hello.txt',
+            relativePath: 'S05E09 - Épisode 9.avi',
             uploadTo: 'Nvm',
           })
         );
@@ -109,7 +109,7 @@ describe('TUS upload route', () => {
           'Upload-Metadata',
           encodeMetadata({
             filename: 'hello.txt',
-            relativePath: 'hello.txt',
+            relativePath: 'S05E09 - Épisode 9.avi',
             uploadTo: 'Nvm',
           })
         );
@@ -127,7 +127,7 @@ describe('TUS upload route', () => {
 
       expect(patch.status).toBe(204);
       await expect(
-        fs.readFile(path.join(envContext.volumeDir, 'Nvm', 'hello.txt'), 'utf8')
+        fs.readFile(path.join(envContext.volumeDir, 'Nvm', 'S05E09 - Épisode 9.avi'), 'utf8')
       ).resolves.toBe('hello through tus');
     } finally {
       await closeServer(server);
