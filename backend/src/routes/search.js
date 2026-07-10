@@ -11,7 +11,7 @@ const { resolvePathWithAccess, getAccessInfo } = require('../services/accessMana
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
 const { createPermissionResolver } = require('../services/accessControlService');
-const { getSettings } = require('../services/settingsService');
+const { getSettings, getUserSettings } = require('../services/settingsService');
 
 const router = express.Router();
 
@@ -53,7 +53,7 @@ const hasRipgrep = async () => {
 };
 
 // Search implementations
-const buildRipgrepArgs = () => [
+const buildRipgrepArgs = (includeHiddenFiles = false) => [
   '-g',
   '!.git',
   '-g',
@@ -62,7 +62,7 @@ const buildRipgrepArgs = () => [
   '!dist',
   '-g',
   '!build',
-  ...hiddenFiles.ripgrepGlobExcludes.flatMap((glob) => ['-g', glob]),
+  ...(includeHiddenFiles ? [] : hiddenFiles.ripgrepGlobExcludes.flatMap((glob) => ['-g', glob])),
 ];
 
 const normalizePath = (p, relBasePath) => {
@@ -70,10 +70,12 @@ const normalizePath = (p, relBasePath) => {
   return relBasePath ? path.posix.join(relBasePath, normalized) : normalized;
 };
 
-const shouldIgnore = (name) =>
-  IGNORED_DIRS.has(name) || excludedFiles.includes(name) || hiddenFiles.isHiddenName(name);
+const shouldIgnore = (name, includeHiddenFiles = false) =>
+  IGNORED_DIRS.has(name) ||
+  excludedFiles.includes(name) ||
+  (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
 
-const extractDirMatches = (fullPath, needle) => {
+const extractDirMatches = (fullPath, needle, includeHiddenFiles = false) => {
   const dirs = new Set();
   const dirPath = path.posix.dirname(fullPath);
 
@@ -82,7 +84,7 @@ const extractDirMatches = (fullPath, needle) => {
     let acc = '';
 
     for (const part of parts) {
-      if (!part || shouldIgnore(part)) continue;
+      if (!part || shouldIgnore(part, includeHiddenFiles)) continue;
       acc = acc ? `${acc}/${part}` : part;
       if (part.toLowerCase().includes(needle)) dirs.add(acc);
     }
@@ -123,9 +125,10 @@ async function* streamFileListMatches(
   needle,
   seenPaths,
   dirSet,
-  shouldInclude
+  shouldInclude,
+  includeHiddenFiles = false
 ) {
-  const globArgs = buildRipgrepArgs();
+  const globArgs = buildRipgrepArgs(includeHiddenFiles);
   const fileListProcess = spawn('rg', ['--files', '--hidden', '--no-messages', ...globArgs], {
     cwd: baseAbsPath,
   });
@@ -138,12 +141,12 @@ async function* streamFileListMatches(
   for await (const line of rl) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (hiddenFiles.isHiddenPath(trimmed)) continue;
+    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(trimmed)) continue;
 
     const fullRel = normalizePath(trimmed, relBasePath);
 
     // Extract and yield directory matches immediately
-    for (const dirPath of extractDirMatches(fullRel, needle)) {
+    for (const dirPath of extractDirMatches(fullRel, needle, includeHiddenFiles)) {
       if (!dirSet.has(dirPath) && !seenPaths.has(dirPath)) {
         dirSet.add(dirPath);
         seenPaths.add(dirPath);
@@ -165,8 +168,15 @@ async function* streamFileListMatches(
 }
 
 // Optimized: Stream content matches with JSON output (Optimization #1 & #2)
-async function* streamContentMatches(baseAbsPath, relBasePath, term, seenPaths, shouldInclude) {
-  const globArgs = buildRipgrepArgs();
+async function* streamContentMatches(
+  baseAbsPath,
+  relBasePath,
+  term,
+  seenPaths,
+  shouldInclude,
+  includeHiddenFiles = false
+) {
+  const globArgs = buildRipgrepArgs(includeHiddenFiles);
 
   const contentArgs = [
     '--json', // Use JSON output for faster parsing (Optimization #2)
@@ -199,7 +209,7 @@ async function* streamContentMatches(baseAbsPath, relBasePath, term, seenPaths, 
 
     const filePath = data.data?.path?.text;
     if (!filePath) continue;
-    if (hiddenFiles.isHiddenPath(filePath)) continue;
+    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(filePath)) continue;
 
     const lineNum = data.data?.line_number;
     const lineText = data.data?.lines?.text;
@@ -215,7 +225,14 @@ async function* streamContentMatches(baseAbsPath, relBasePath, term, seenPaths, 
 }
 
 // Optimized ripgrep with parallel execution (Optimization #1, #2, #3)
-async function* generateRipgrepResults(baseAbsPath, relBasePath, term, shouldInclude, deep = true) {
+async function* generateRipgrepResults(
+  baseAbsPath,
+  relBasePath,
+  term,
+  shouldInclude,
+  deep = true,
+  includeHiddenFiles = false
+) {
   const needle = term.toLowerCase();
   const seenPaths = new Set();
   const dirSet = new Set();
@@ -228,7 +245,8 @@ async function* generateRipgrepResults(baseAbsPath, relBasePath, term, shouldInc
       needle,
       seenPaths,
       dirSet,
-      shouldInclude
+      shouldInclude,
+      includeHiddenFiles
     );
     return;
   }
@@ -240,9 +258,17 @@ async function* generateRipgrepResults(baseAbsPath, relBasePath, term, shouldInc
     needle,
     seenPaths,
     dirSet,
-    shouldInclude
+    shouldInclude,
+    includeHiddenFiles
   );
-  const contentGen = streamContentMatches(baseAbsPath, relBasePath, term, seenPaths, shouldInclude);
+  const contentGen = streamContentMatches(
+    baseAbsPath,
+    relBasePath,
+    term,
+    seenPaths,
+    shouldInclude,
+    includeHiddenFiles
+  );
 
   // Yield from file list first (directories and filename matches)
   for await (const result of fileListGen) {
@@ -261,7 +287,8 @@ async function* generateFallbackResults(
   relBasePath,
   term,
   shouldInclude,
-  deep = true
+  deep = true,
+  includeHiddenFiles = false
 ) {
   const seenPaths = new Set();
   const needle = term.toLowerCase();
@@ -276,7 +303,7 @@ async function* generateFallbackResults(
     }
 
     for (const d of dirents) {
-      if (shouldIgnore(d.name)) continue;
+      if (shouldIgnore(d.name, includeHiddenFiles)) continue;
 
       const abs = path.join(dirAbs, d.name);
       const rel = dirRel ? path.posix.join(dirRel, d.name) : d.name;
@@ -362,6 +389,8 @@ router.get(
     const deepEnabled = searchConfig?.deep !== false;
 
     const settings = await getSettings();
+    const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
+    const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const permissionRules = Array.isArray(settings?.access?.rules) ? settings.access.rules : [];
     const permissionResolver = permissionRules.length
       ? createPermissionResolver(permissionRules)
@@ -373,7 +402,7 @@ router.get(
     const shouldInclude = async (rel) => {
       const name = path.posix.basename(rel);
       if (excludedFiles.includes(name)) return false;
-      if (hiddenFiles.isHiddenName(name)) return false;
+      if (!includeHiddenFiles && hiddenFiles.isHiddenName(name)) return false;
 
       if (includeCache.has(rel)) return includeCache.get(rel);
 
@@ -388,8 +417,8 @@ router.get(
     };
 
     const generator = useRipgrep
-      ? generateRipgrepResults(baseAbs, relBase, q, shouldInclude, deepEnabled)
-      : generateFallbackResults(baseAbs, relBase, q, shouldInclude, deepEnabled);
+      ? generateRipgrepResults(baseAbs, relBase, q, shouldInclude, deepEnabled, includeHiddenFiles)
+      : generateFallbackResults(baseAbs, relBase, q, shouldInclude, deepEnabled, includeHiddenFiles);
 
     const items = [];
     for await (const item of generator) {

@@ -57,4 +57,26 @@ describe('Search hidden file patterns', () => {
     expect(response.status).toBe(200);
     expect(response.body.items.map((item) => item.name)).toEqual(['visible-match.txt']);
   });
+
+  it('returns hidden pattern matches when the user preference is enabled', async () => {
+    const { envContext, app } = await createSearchContext();
+    currentEnv = envContext;
+
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setUserSetting('admin', 'showHiddenFiles', true);
+
+    await fs.writeFile(path.join(envContext.volumeDir, 'visible-match.txt'), 'needle');
+    await fs.writeFile(path.join(envContext.volumeDir, '.dot-match.txt'), 'needle');
+    await fs.mkdir(path.join(envContext.volumeDir, '@eaDir'), { recursive: true });
+    await fs.writeFile(path.join(envContext.volumeDir, '@eaDir', 'synology-match.txt'), 'needle');
+
+    const response = await request(app).get('/api/search').query({ q: 'match' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.items.map((item) => item.name).sort()).toEqual([
+      '.dot-match.txt',
+      'synology-match.txt',
+      'visible-match.txt',
+    ]);
+  });
 });

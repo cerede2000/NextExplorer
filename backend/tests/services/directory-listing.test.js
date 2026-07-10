@@ -66,4 +66,25 @@ describe('Directory listing service', () => {
 
     expect(items.map((item) => item.name)).toEqual(['visible.txt']);
   });
+
+  it('shows configured hidden patterns when requested', async () => {
+    const { envContext, listDirectoryItems } = await createContext({
+      HIDDEN_FILE_PATTERNS: '.,@',
+    });
+    currentEnv = envContext;
+
+    await fs.writeFile(path.join(envContext.volumeDir, 'visible.txt'), 'visible');
+    await fs.writeFile(path.join(envContext.volumeDir, '.test'), 'hidden');
+    await fs.mkdir(path.join(envContext.volumeDir, '@eaDir'));
+
+    const items = await listDirectoryItems({
+      absoluteDir: envContext.volumeDir,
+      parentLogicalPath: '',
+      context: { user: { id: 'admin', roles: ['admin'] } },
+      thumbsEnabled: false,
+      includeHiddenFiles: true,
+    });
+
+    expect(items.map((item) => item.name).sort()).toEqual(['.test', '@eaDir', 'visible.txt']);
+  });
 });

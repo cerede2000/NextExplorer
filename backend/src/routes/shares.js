@@ -26,7 +26,7 @@ const { parsePathSpace } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { extensions } = require('../config/index');
-const { getSettings } = require('../services/settingsService');
+const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 
 const router = express.Router();
@@ -513,7 +513,9 @@ router.get(
 
     // Determine thumbnail settings
     const settings = await getSettings();
+    const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
     const thumbsEnabled = settings?.thumbnails?.enabled !== false;
+    const includeHiddenFiles = userSettings?.showHiddenFiles === true;
 
     // Directory share or navigating inside a directory share
     if (stats.isDirectory()) {
@@ -529,6 +531,7 @@ router.get(
         context,
         thumbsEnabled,
         excludeDownloadArtifacts: false,
+        includeHiddenFiles,
         permissionRules: settings?.access?.rules || [],
         shareCache,
         userVolumeCache,

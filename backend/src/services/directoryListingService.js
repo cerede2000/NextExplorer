@@ -33,6 +33,7 @@ const listDirectoryItems = async ({
   context,
   thumbsEnabled,
   excludeDownloadArtifacts = false,
+  includeHiddenFiles = false,
   itemExtras = null,
   permissionRules = null,
   shareCache = null,
@@ -53,7 +54,7 @@ const listDirectoryItems = async ({
 
   const filtered = entries
     .filter((name) => !excludedFiles.includes(name))
-    .filter((name) => !hiddenFiles.isHiddenName(name))
+    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name))
     .filter((name) =>
       excludeDownloadArtifacts ? path.extname(name).toLowerCase() !== '.download' : true
     );
