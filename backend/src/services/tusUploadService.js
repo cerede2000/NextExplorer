@@ -200,13 +200,7 @@ const server = new Server({
       logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
     }
 
-    return {
-      headers: {
-        'X-Upload-Logical-Path': normalizeRelativePath(
-          path.join(path.dirname(target.logicalRelativePath), path.basename(finalPath))
-        ),
-      },
-    };
+    return {};
   },
   onResponseError(req, err) {
     logger.warn({ err, method: req.method, url: req.url }, 'TUS upload request failed');
