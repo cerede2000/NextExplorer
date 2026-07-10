@@ -29,6 +29,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                    |
 | `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                           |
 | `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`). |
+| `HIDDEN_FILE_PATTERNS`   | `.`                               | Comma- or space-separated hidden filename patterns used by directory listings, volume pickers, and search. Plain values are fast filename prefixes, e.g. `.,@` hides dotfiles and Synology `@...` entries. Advanced entries can use `regex:<source>` or `/source/flags`. Set to an empty value to disable pattern hiding. |
 
 ## Authentication
 

@@ -6,7 +6,7 @@ const readline = require('readline');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
-const { excludedFiles, search: searchConfig } = require('../config/index');
+const { excludedFiles, hiddenFiles, search: searchConfig } = require('../config/index');
 const { resolvePathWithAccess, getAccessInfo } = require('../services/accessManager');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
@@ -62,6 +62,7 @@ const buildRipgrepArgs = () => [
   '!dist',
   '-g',
   '!build',
+  ...hiddenFiles.ripgrepGlobExcludes.flatMap((glob) => ['-g', glob]),
 ];
 
 const normalizePath = (p, relBasePath) => {
@@ -69,7 +70,8 @@ const normalizePath = (p, relBasePath) => {
   return relBasePath ? path.posix.join(relBasePath, normalized) : normalized;
 };
 
-const shouldIgnore = (name) => IGNORED_DIRS.has(name) || excludedFiles.includes(name);
+const shouldIgnore = (name) =>
+  IGNORED_DIRS.has(name) || excludedFiles.includes(name) || hiddenFiles.isHiddenName(name);
 
 const extractDirMatches = (fullPath, needle) => {
   const dirs = new Set();
@@ -136,6 +138,7 @@ async function* streamFileListMatches(
   for await (const line of rl) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+    if (hiddenFiles.isHiddenPath(trimmed)) continue;
 
     const fullRel = normalizePath(trimmed, relBasePath);
 
@@ -196,6 +199,7 @@ async function* streamContentMatches(baseAbsPath, relBasePath, term, seenPaths, 
 
     const filePath = data.data?.path?.text;
     if (!filePath) continue;
+    if (hiddenFiles.isHiddenPath(filePath)) continue;
 
     const lineNum = data.data?.line_number;
     const lineText = data.data?.lines?.text;
@@ -369,6 +373,7 @@ router.get(
     const shouldInclude = async (rel) => {
       const name = path.posix.basename(rel);
       if (excludedFiles.includes(name)) return false;
+      if (hiddenFiles.isHiddenName(name)) return false;
 
       if (includeCache.has(rel)) return includeCache.get(rel);
 
