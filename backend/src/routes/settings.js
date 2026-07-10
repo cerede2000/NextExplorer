@@ -207,6 +207,25 @@ router.patch(
         }
       }
 
+      // Upload settings
+      if (payload.uploads && typeof payload.uploads === 'object') {
+        const uploadsUpdate = {};
+        if (typeof payload.uploads.chunkedEnabled === 'boolean') {
+          uploadsUpdate.chunkedEnabled = payload.uploads.chunkedEnabled;
+        }
+        if (Number.isFinite(payload.uploads.chunkSizeBytes)) {
+          uploadsUpdate.chunkSizeBytes = payload.uploads.chunkSizeBytes;
+        }
+        if (Object.keys(uploadsUpdate).length > 0) {
+          const current = await getSettings();
+          await setSystemSetting('system', 'uploads', {
+            ...current.uploads,
+            ...uploadsUpdate,
+          });
+          systemUpdates.uploads = { ...current.uploads, ...uploadsUpdate };
+        }
+      }
+
       // Branding settings
       if (payload.branding && typeof payload.branding === 'object') {
         const brandingUpdate = {};
@@ -244,7 +263,7 @@ router.patch(
       if (resetToDefault) {
         await deleteCustomLogoFiles();
       }
-    } else if (payload.thumbnails || payload.access || payload.branding) {
+    } else if (payload.thumbnails || payload.access || payload.branding || payload.uploads) {
       // Non-admin trying to update system settings
       return res.status(403).json({ error: 'Admin access required for system settings.' });
     }

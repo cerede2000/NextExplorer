@@ -8,6 +8,7 @@ import SearchResultsView from '@/views/SearchResultsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import SettingsBranding from '@/views/settings/SettingsBranding.vue';
 import SettingsFilesThumbnails from '@/views/settings/SettingsFilesThumbnails.vue';
+import SettingsUploads from '@/views/settings/SettingsUploads.vue';
 import SettingsAccessControl from '@/views/settings/SettingsAccessControl.vue';
 import SettingsComingSoon from '@/views/settings/SettingsComingSoon.vue';
 import AdminUsers from '@/views/settings/AdminUsers.vue';
@@ -50,6 +51,11 @@ const router = createRouter({
             {
               path: 'files-thumbnails',
               component: SettingsFilesThumbnails,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'uploads',
+              component: SettingsUploads,
               meta: { requiresAdmin: true },
             },
             { path: 'account-password', component: SettingsPassword },

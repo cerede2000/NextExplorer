@@ -28,6 +28,8 @@ describe('Settings Service', () => {
         expect(settings.thumbnails.size).toBe(200);
         expect(settings.thumbnails.quality).toBe(70);
         expect(settings.thumbnails.concurrency).toBe(10);
+        expect(settings.uploads.chunkedEnabled).toBe(false);
+        expect(settings.uploads.chunkSizeBytes).toBe(8 * 1024 * 1024);
       } finally {
         await envContext.cleanup();
       }
@@ -47,6 +49,7 @@ describe('Settings Service', () => {
               { path: '../bad', permissions: 'hidden' },
             ],
           },
+          uploads: { chunkedEnabled: true, chunkSizeBytes: 512 },
         };
 
         const updated = await settingsService.setSettings(payload);
@@ -58,6 +61,8 @@ describe('Settings Service', () => {
         expect(updated.access.rules.length).toBe(2);
         expect(updated.access.rules[0].path).toBe('Projects');
         expect(updated.access.rules[1].permissions).toBe('rw');
+        expect(updated.uploads.chunkedEnabled).toBe(true);
+        expect(updated.uploads.chunkSizeBytes).toBe(1024 * 1024);
       } finally {
         await envContext.cleanup();
       }
