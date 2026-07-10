@@ -5,10 +5,12 @@ import { useI18n } from 'vue-i18n';
 import { useTerminalStore } from '@/stores/terminal';
 import { useAuthStore } from '@/stores/auth';
 import { useFileStore } from '@/stores/fileStore';
+import { useRoute } from 'vue-router';
 
 const terminalStore = useTerminalStore();
 const { toggle, isOpen } = terminalStore;
 const fileStore = useFileStore();
+const route = useRoute();
 
 const auth = useAuthStore();
 const isAdmin = computed(
@@ -18,9 +20,10 @@ const isAdmin = computed(
 const { t } = useI18n();
 
 const open = ref(true);
+const terminalPath = computed(() => (route.name === 'HomeView' ? '' : fileStore.currentPath || ''));
 
 const toggleTerminal = () => {
-  toggle(fileStore.currentPath || '');
+  toggle(terminalPath.value);
 };
 </script>
 
