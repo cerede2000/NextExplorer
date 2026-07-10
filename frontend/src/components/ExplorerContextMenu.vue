@@ -254,14 +254,13 @@ const getItemExtension = (item) => {
   return kind && kind !== 'file' && kind !== 'directory' && kind !== 'volume' ? kind : '';
 };
 
-const shellQuote = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
+const shellEscape = (value) => String(value).replace(/([^A-Za-z0-9_@%+=:,./-])/g, '\\$1');
 
 const buildTerminalInputForItem = (item) => {
   const name = String(item?.name || '').trim();
   if (!name) return '';
 
-  const fileArg = shellQuote(`./${name}`);
-  return getItemExtension(item) === 'sh' ? `sh ${fileArg}` : fileArg;
+  return shellEscape(`./${name}`);
 };
 
 const canOpenWithTerminal = computed(() => {
