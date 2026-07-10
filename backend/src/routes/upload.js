@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { createUploadMiddleware } = require('../services/uploadService');
+const { handleTusUpload } = require('../services/tusUploadService');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
@@ -10,6 +11,8 @@ const { ValidationError } = require('../errors/AppError');
 
 const router = express.Router();
 const upload = createUploadMiddleware();
+
+router.all('/upload/tus*', handleTusUpload);
 
 router.post(
   '/upload',

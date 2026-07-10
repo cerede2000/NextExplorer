@@ -4,13 +4,15 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Server & networking
 
-| Variable                                         | Default                                         | Description                                                                                                             |
-| ------------------------------------------------ | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                       |
-| `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads). |
-| `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).   |
-| `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                           |
-| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                 |
+| Variable                                         | Default                                         | Description                                                                                                                 |
+| ------------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                           |
+| `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads).     |
+| `UPLOAD_CHUNKED_ENABLED`                         | `false`                                         | Default for the admin upload setting. When enabled, browser uploads use TUS chunked transfer instead of one large request.  |
+| `UPLOAD_CHUNK_SIZE`                              | `8M`                                            | Default TUS chunk size. Supports byte-size suffixes such as `4M`, `16M`, or `64M`; keep it below reverse proxy body limits. |
+| `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).       |
+| `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                               |
+| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                     |
 
 ## Logging & debugging
 

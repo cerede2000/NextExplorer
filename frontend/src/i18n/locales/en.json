@@ -381,6 +381,7 @@
       "userPreferences": "Preferences",
       "branding": "Branding",
       "filesThumbnails": "Files & Thumbnails",
+      "uploads": "Uploads",
       "security": "Security",
       "accessControl": "Access Control",
       "adminUsers": "User Management"
@@ -445,6 +446,14 @@
       "maxDimHelp": "Longest side in pixels. Default is 200.",
       "concurrency": "Parallel generation",
       "concurrencyHelp": "Number of thumbnails to generate simultaneously (1–50). Default is 10."
+    },
+    "uploads": {
+      "title": "Uploads",
+      "subtitle": "Configure how files are sent to the server.",
+      "chunkedEnable": "Enable chunked uploads",
+      "chunkedEnableHelp": "Use TUS to send large files through multiple smaller requests.",
+      "chunkSize": "Chunk size",
+      "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit."
     },
     "security": {
       "subtitle": "Control access to the app.",

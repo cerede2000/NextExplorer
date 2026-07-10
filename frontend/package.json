@@ -28,6 +28,7 @@
     "@uppy/core": "^5.2.0",
     "@uppy/drop-target": "^4.1.0",
     "@uppy/status-bar": "^5.1.0",
+    "@uppy/tus": "^5.1.1",
     "@uppy/xhr-upload": "^5.1.1",
     "@vueuse/components": "^10.9.0",
     "@vueuse/core": "^10.9.0",

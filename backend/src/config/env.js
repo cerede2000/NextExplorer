@@ -11,6 +11,8 @@ module.exports = {
   // Node.js HTTP server request timeout (ms). Set to 0 to disable.
   // Node defaults to 300000ms (5 minutes) on modern versions, which can abort large uploads.
   HTTP_TIMEOUT: process.env.HTTP_TIMEOUT != null ? Number(process.env.HTTP_TIMEOUT) : 0,
+  UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED) ?? false,
+  UPLOAD_CHUNK_SIZE: process.env.UPLOAD_CHUNK_SIZE?.trim() || null,
 
   // Paths
   VOLUME_ROOT: process.env.VOLUME_ROOT || '/mnt',

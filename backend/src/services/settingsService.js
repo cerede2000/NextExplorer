@@ -1,6 +1,31 @@
 const { getDb } = require('./db');
 const { normalizeRelativePath } = require('../utils/pathUtils');
+const { parseByteSize } = require('../utils/env');
+const env = require('../config/env');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
+
+const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
+const MAX_UPLOAD_CHUNK_SIZE_BYTES = 512 * 1024 * 1024;
+const DEFAULT_UPLOAD_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
+
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const defaultUploadSettings = () => {
+  const configuredChunkSize = parseByteSize(env.UPLOAD_CHUNK_SIZE);
+  const chunkSizeBytes =
+    Number.isFinite(configuredChunkSize) && configuredChunkSize > 0
+      ? configuredChunkSize
+      : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES;
+
+  return {
+    chunkedEnabled: env.UPLOAD_CHUNKED_ENABLED ?? false,
+    chunkSizeBytes: clampNumber(
+      Math.floor(chunkSizeBytes),
+      MIN_UPLOAD_CHUNK_SIZE_BYTES,
+      MAX_UPLOAD_CHUNK_SIZE_BYTES
+    ),
+  };
+};
 
 const generateId = () => {
   const crypto = require('crypto');
@@ -78,6 +103,31 @@ const sanitizeBranding = (branding = {}) => {
 };
 
 /**
+ * Sanitize upload settings
+ */
+const sanitizeUploads = (uploads = {}) => {
+  const defaults = defaultUploadSettings();
+  const rawChunkSize =
+    typeof uploads.chunkSizeBytes === 'string'
+      ? parseByteSize(uploads.chunkSizeBytes)
+      : uploads.chunkSizeBytes;
+
+  return {
+    chunkedEnabled:
+      typeof uploads.chunkedEnabled === 'boolean'
+        ? uploads.chunkedEnabled
+        : defaults.chunkedEnabled,
+    chunkSizeBytes: Number.isFinite(rawChunkSize)
+      ? clampNumber(
+          Math.floor(rawChunkSize),
+          MIN_UPLOAD_CHUNK_SIZE_BYTES,
+          MAX_UPLOAD_CHUNK_SIZE_BYTES
+        )
+      : defaults.chunkSizeBytes,
+  };
+};
+
+/**
  * Get public settings (branding only, no auth required)
  */
 const getPublicSettings = async () => {
@@ -149,6 +199,7 @@ const getSystemSettings = async () => {
 
     const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
     const access = { rules: [] };
+    let uploads = defaultUploadSettings();
 
     for (const row of rows) {
       try {
@@ -159,6 +210,8 @@ const getSystemSettings = async () => {
           if (accessData.rules) {
             access.rules = accessData.rules;
           }
+        } else if (row.key === 'uploads') {
+          uploads = { ...uploads, ...JSON.parse(row.value) };
         }
       } catch (err) {
         // Skip invalid JSON
@@ -170,6 +223,7 @@ const getSystemSettings = async () => {
       access: {
         rules: sanitizeAccessRules(access.rules),
       },
+      uploads: sanitizeUploads(uploads),
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -181,12 +235,14 @@ const getSystemSettings = async () => {
         access: {
           rules: sanitizeAccessRules(settings.access?.rules || []),
         },
+        uploads: sanitizeUploads(settings.uploads),
       };
     } catch (err2) {
       // Return defaults
       return {
         thumbnails: sanitizeThumbnails({}),
         access: { rules: [] },
+        uploads: sanitizeUploads({}),
       };
     }
   }
@@ -207,10 +263,11 @@ const getSettingsForUser = async (user) => {
   if (user && user.id) {
     const userSettings = await getUserSettings(user.id);
     result.user = userSettings;
+    const systemSettings = await getSystemSettings();
+    result.uploads = systemSettings.uploads;
 
     const isAdmin = Array.isArray(user.roles) && user.roles.includes('admin');
     if (isAdmin) {
-      const systemSettings = await getSystemSettings();
       result.thumbnails = systemSettings.thumbnails;
       result.access = systemSettings.access;
     }
@@ -301,6 +358,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = {
       rules: sanitizeAccessRules(value.rules || []),
     };
+  } else if (key === 'uploads') {
+    sanitizedValue = sanitizeUploads(value);
   } else if (key === 'branding') {
     sanitizedValue = sanitizeBranding(value);
   }
@@ -352,6 +411,7 @@ const setSettings = async (partial) => {
     access: {
       rules: partial.access?.rules !== undefined ? partial.access.rules : current.access.rules,
     },
+    uploads: { ...current.uploads, ...(partial.uploads || {}) },
     branding: { ...current.branding, ...(partial.branding || {}) },
   };
 
@@ -365,6 +425,9 @@ const setSettings = async (partial) => {
   if (partial.branding) {
     merged.branding = await setSystemSetting('branding', 'branding', merged.branding);
   }
+  if (partial.uploads) {
+    merged.uploads = await setSystemSetting('system', 'uploads', merged.uploads);
+  }
 
   // Also update JSON for backward compatibility during transition
   try {
@@ -373,6 +436,7 @@ const setSettings = async (partial) => {
       settings: {
         thumbnails: merged.thumbnails,
         access: merged.access,
+        uploads: merged.uploads,
         branding: merged.branding,
       },
     }));
@@ -399,6 +463,7 @@ module.exports = {
   getSettingsForUser,
   setUserSetting,
   setSystemSetting,
+  sanitizeUploads,
   // Legacy methods for backward compatibility
   getSettings,
   setSettings,
