@@ -21,6 +21,7 @@ beforeAll(async () => {
       'src/utils/pathUtils',
       'src/middleware/errorHandler',
       'src/routes/shares',
+      'src/routes/files',
     ],
   });
 });
@@ -36,6 +37,7 @@ const buildApp = ({ user } = {}) => {
   clearModuleCache('src/config/index');
 
   const sharesRoutes = envContext.requireFresh('src/routes/shares');
+  const fileRoutes = envContext.requireFresh('src/routes/files');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
 
   const app = express();
@@ -48,6 +50,7 @@ const buildApp = ({ user } = {}) => {
 
   app.use('/api/shares', sharesRoutes);
   app.use('/api/share', sharesRoutes);
+  app.use('/api', fileRoutes);
   app.use(errorHandler);
   return app;
 };
@@ -82,13 +85,11 @@ describe('Shares Routes', () => {
 
       const app = buildApp({ user });
 
-      const create = await request(app)
-        .post('/api/shares')
-        .send({
-          sourcePath: 'MyVol/myfolder',
-          accessMode: 'readonly',
-          sharingType: 'anyone',
-        });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'MyVol/myfolder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
 
       expect(create.status).toBe(201);
       expect(create.body.shareToken).toBeDefined();
@@ -198,6 +199,72 @@ describe('Shares Routes', () => {
       // Browse should be forbidden
       const browse = await request(app).get(`/api/share/${shareToken}/browse/`);
       expect(browse.status).toBe(403);
+    });
+  });
+
+  describe('Share Activity', () => {
+    it('tracks successful public share access and downloads without exposing audit data publicly', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+
+      const sharedFolder = path.join(envContext.volumeDir, 'audit-folder');
+      await fs.mkdir(sharedFolder, { recursive: true });
+      await fs.writeFile(path.join(sharedFolder, 'hello.txt'), 'hello audit');
+
+      const user = await usersService.createLocalUser({
+        email: 'audit-owner@example.com',
+        username: 'audit-owner',
+        displayName: 'Audit Owner',
+        password: 'secret123',
+        roles: ['admin'],
+      });
+
+      const app = buildApp({ user });
+
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'audit-folder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.accessCount).toBe(0);
+      expect(create.body.downloadCount).toBe(0);
+
+      const publicInfo = await request(app).get(`/api/share/${create.body.shareToken}/info`);
+      expect(publicInfo.status).toBe(200);
+      expect(publicInfo.body.accessCount).toBeUndefined();
+      expect(publicInfo.body.downloadCount).toBeUndefined();
+      expect(publicInfo.body.lastAccessIp).toBeUndefined();
+      expect(publicInfo.body.lastDownloadIp).toBeUndefined();
+
+      const access = await request(app).get(`/api/share/${create.body.shareToken}/access`);
+      expect(access.status).toBe(200);
+
+      const afterAccess = await request(app).get(`/api/shares/${create.body.id}`);
+      expect(afterAccess.status).toBe(200);
+      expect(afterAccess.body.accessCount).toBe(1);
+      expect(afterAccess.body.lastAccessedAt).toBeTruthy();
+      expect(afterAccess.body.lastAccessIp).toBeTruthy();
+      expect(afterAccess.body.downloadCount).toBe(0);
+      expect(afterAccess.body.lastDownloadedAt).toBeNull();
+      expect(afterAccess.body.lastDownloadIp).toBeNull();
+      expect(afterAccess.body.stats.accessCount).toBe(1);
+      expect(afterAccess.body.stats.downloadCount).toBe(0);
+
+      const download = await request(app)
+        .post('/api/download')
+        .send({ path: `share/${create.body.shareToken}/hello.txt` });
+      expect(download.status).toBe(200);
+      expect(download.text).toBe('hello audit');
+
+      const afterDownload = await request(app).get(`/api/shares/${create.body.id}`);
+      expect(afterDownload.status).toBe(200);
+      expect(afterDownload.body.accessCount).toBe(1);
+      expect(afterDownload.body.downloadCount).toBe(1);
+      expect(afterDownload.body.lastDownloadedAt).toBeTruthy();
+      expect(afterDownload.body.lastDownloadIp).toBeTruthy();
+      expect(afterDownload.body.stats.accessCount).toBe(1);
+      expect(afterDownload.body.stats.downloadCount).toBe(1);
     });
   });
 });

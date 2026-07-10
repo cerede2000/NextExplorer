@@ -22,6 +22,13 @@ const generateId = () =>
     : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 const DEFAULT_FAVORITE_ICON = favorites.defaultIcon;
 
+const addColumnIfMissing = (db, tableName, columnName, definition) => {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  if (!columns.some((column) => column.name === columnName)) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+  }
+};
+
 const migrate = (db) => {
   // Simple schema versioning
   db.exec(`
@@ -245,8 +252,12 @@ const migrate = (db) => {
           password_hash TEXT,
           expires_at TEXT,
           label TEXT,
+          access_count INTEGER DEFAULT 0,
           download_count INTEGER DEFAULT 0,
           last_accessed_at TEXT,
+          last_access_ip TEXT,
+          last_downloaded_at TEXT,
+          last_download_ip TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
@@ -352,6 +363,29 @@ const migrate = (db) => {
         String(8)
       );
       version = 8;
+    }
+    if (version < 9) {
+      logger.info('[DB Migration] Migrating to v9: Adding share audit counters...');
+
+      addColumnIfMissing(db, 'shares', 'access_count', 'access_count INTEGER DEFAULT 0');
+      addColumnIfMissing(db, 'shares', 'last_access_ip', 'last_access_ip TEXT');
+      addColumnIfMissing(db, 'shares', 'last_downloaded_at', 'last_downloaded_at TEXT');
+      addColumnIfMissing(db, 'shares', 'last_download_ip', 'last_download_ip TEXT');
+      db.prepare(
+        `
+        UPDATE shares
+        SET access_count = COALESCE(download_count, 0),
+            download_count = 0
+        WHERE access_count IS NULL OR access_count = 0
+      `
+      ).run();
+
+      logger.info('[DB Migration] Migration to v9 completed successfully!');
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(9)
+      );
+      version = 9;
     }
   })();
 };

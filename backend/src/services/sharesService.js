@@ -40,8 +40,12 @@ const toClientShare = (row) => {
     hasPassword: Boolean(row.password_hash),
     expiresAt: row.expires_at || null,
     label: row.label || null,
+    accessCount: row.access_count || 0,
     downloadCount: row.download_count || 0,
     lastAccessedAt: row.last_accessed_at || null,
+    lastAccessIp: row.last_access_ip || null,
+    lastDownloadedAt: row.last_downloaded_at || null,
+    lastDownloadIp: row.last_download_ip || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -438,15 +442,33 @@ const isShareExpired = (share) => {
 /**
  * Update share access tracking
  */
-const trackShareAccess = async (shareId) => {
+const trackShareAccess = async (shareId, { ipAddress = null } = {}) => {
   const db = await getDb();
   db.prepare(
     `
     UPDATE shares
-    SET last_accessed_at = ?, download_count = download_count + 1
+    SET access_count = access_count + 1,
+        last_accessed_at = ?,
+        last_access_ip = ?
     WHERE id = ?
   `
-  ).run(nowIso(), shareId);
+  ).run(nowIso(), ipAddress, shareId);
+};
+
+/**
+ * Update share download tracking
+ */
+const trackShareDownload = async (shareId, { ipAddress = null } = {}) => {
+  const db = await getDb();
+  db.prepare(
+    `
+    UPDATE shares
+    SET download_count = download_count + 1,
+        last_downloaded_at = ?,
+        last_download_ip = ?
+    WHERE id = ?
+  `
+  ).run(nowIso(), ipAddress, shareId);
 };
 
 /**
@@ -467,8 +489,12 @@ const getShareStats = async (shareId) => {
     .get(shareId);
 
   return {
+    accessCount: share.access_count || 0,
     downloadCount: share.download_count || 0,
     lastAccessedAt: share.last_accessed_at || null,
+    lastAccessIp: share.last_access_ip || null,
+    lastDownloadedAt: share.last_downloaded_at || null,
+    lastDownloadIp: share.last_download_ip || null,
     guestSessionCount: guestSessions?.count || 0,
   };
 };
@@ -501,6 +527,7 @@ module.exports = {
   hasUserPermission,
   isShareExpired,
   trackShareAccess,
+  trackShareDownload,
   getShareStats,
   cleanupExpiredShares,
 };

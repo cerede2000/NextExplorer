@@ -15,6 +15,8 @@ import {
   CheckIcon,
   MagnifyingGlassIcon,
   ArrowsUpDownIcon,
+  EyeIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/vue/24/outline';
 import FileIcon from '@/icons/FileIcon.vue';
 
@@ -32,7 +34,7 @@ const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
 
 // Grid columns configuration
-const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_100px]';
+const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_1.6fr_100px]';
 
 // Create a map of userId -> user for quick lookup
 const usersMap = computed(() => {
@@ -80,6 +82,16 @@ const formatDate = (dateString) => {
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return dateString;
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+};
+
+const formatActivityDate = (dateString) => {
+  if (!dateString) return t('share.noActivity');
+  return formatDate(dateString);
+};
+
+const formatIp = (ipAddress) => {
+  if (!ipAddress) return t('share.noIpRecorded');
+  return ipAddress;
 };
 
 const getRecentTimestamp = (share) => {
@@ -286,7 +298,7 @@ onMounted(async () => {
       </div>
 
       <!-- List -->
-      <div v-else class="min-w-[800px]">
+      <div v-else class="min-w-[980px]">
         <!-- Header Row -->
         <div
           :class="[
@@ -299,6 +311,7 @@ onMounted(async () => {
           <div>{{ t('share.sharedWith') }}</div>
           <div>{{ t('settings.access.title') }}</div>
           <div>{{ t('share.expiresAt') }}</div>
+          <div>{{ t('share.activity') }}</div>
           <div class="text-right">{{ t('common.actions') }}</div>
         </div>
 
@@ -374,6 +387,38 @@ onMounted(async () => {
               <span :class="{ 'text-red-500': isExpired(share) }">
                 {{ share.expiresAt ? formatDate(share.expiresAt) : t('common.noExpiration') }}
               </span>
+            </div>
+
+            <!-- Activity -->
+            <div class="min-w-0 space-y-1 text-xs text-neutral-600 dark:text-neutral-300">
+              <div class="flex min-w-0 items-center gap-1.5">
+                <EyeIcon class="w-4 h-4 shrink-0 text-neutral-400" />
+                <span class="font-medium tabular-nums">{{ share.accessCount || 0 }}</span>
+                <span class="truncate">
+                  {{ t('share.accesses') }} ·
+                  {{ formatActivityDate(share.lastAccessedAt) }}
+                </span>
+              </div>
+              <div
+                v-if="share.lastAccessIp"
+                class="ml-5 truncate font-mono text-[11px] text-neutral-400"
+              >
+                {{ formatIp(share.lastAccessIp) }}
+              </div>
+              <div class="flex min-w-0 items-center gap-1.5">
+                <ArrowDownTrayIcon class="w-4 h-4 shrink-0 text-neutral-400" />
+                <span class="font-medium tabular-nums">{{ share.downloadCount || 0 }}</span>
+                <span class="truncate">
+                  {{ t('share.downloads') }} ·
+                  {{ formatActivityDate(share.lastDownloadedAt) }}
+                </span>
+              </div>
+              <div
+                v-if="share.lastDownloadIp"
+                class="ml-5 truncate font-mono text-[11px] text-neutral-400"
+              >
+                {{ formatIp(share.lastDownloadIp) }}
+              </div>
             </div>
 
             <!-- Actions -->

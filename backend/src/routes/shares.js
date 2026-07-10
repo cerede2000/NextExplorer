@@ -337,6 +337,7 @@ router.post(
           ipAddress: req.ip,
           userAgent: req.get('user-agent'),
         });
+        await trackShareAccess(share.id, { ipAddress: req.ip });
 
         // Set guest session cookie
         res.cookie('guestSession', session.id, {
@@ -371,6 +372,7 @@ router.post(
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });
+      await trackShareAccess(share.id, { ipAddress: req.ip });
 
       // Set guest session cookie
       res.cookie('guestSession', session.id, {
@@ -410,9 +412,6 @@ router.get(
       throw new ForbiddenError('Share has expired');
     }
 
-    // Track access
-    await trackShareAccess(share.id);
-
     // Check if user has permission
     if (share.sharingType === 'users') {
       if (!req.user || !req.user.id) {
@@ -436,6 +435,7 @@ router.get(
             ipAddress: req.ip,
             userAgent: req.get('user-agent'),
           });
+          await trackShareAccess(share.id, { ipAddress: req.ip });
 
           // Set guest session cookie (overwrites any existing session)
           res.cookie('guestSession', session.id, {
@@ -459,6 +459,8 @@ router.get(
           throw new UnauthorizedError('Password verification required');
         }
       }
+
+      await trackShareAccess(share.id, { ipAddress: req.ip });
     }
 
     // Return share access info
