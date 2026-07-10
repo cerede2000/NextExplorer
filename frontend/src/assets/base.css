@@ -29,6 +29,29 @@
     background-color: var(--clr-base);
   }
 
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable],
+  .select-text,
+  .cm-editor,
+  .cm-editor *,
+  .xterm,
+  .xterm *,
+  .prose,
+  .prose *,
+  pre,
+  code,
+  kbd,
+  samp {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
   *,
   ::after,
   ::before,
