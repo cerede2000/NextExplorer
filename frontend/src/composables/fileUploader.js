@@ -69,6 +69,18 @@ export function useFileUploader() {
     }
   };
 
+  const removeCompletedUploadFiles = () => {
+    const currentFiles = typeof uppy?.getFiles === 'function' ? uppy.getFiles() : [];
+    currentFiles.forEach((file) => {
+      if (!file?.id || file?.progress?.uploadComplete !== true) return;
+      try {
+        uppy.removeFile(file.id);
+      } catch (_) {
+        /* noop */
+      }
+    });
+  };
+
   const configureUploadPlugin = () => {
     if (!uppy) return;
 
@@ -182,6 +194,18 @@ export function useFileUploader() {
       fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
     });
 
+    uppy.on('complete', (result) => {
+      const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
+      successfulFiles.forEach((file) => {
+        if (!file?.id) return;
+        try {
+          uppy.removeFile(file.id);
+        } catch (_) {
+          /* noop */
+        }
+      });
+    });
+
     uppy.on('upload-error', (_file, error, response) => {
       const body = response?.body;
       const nested = body && typeof body === 'object' ? body?.error : null;
@@ -269,6 +293,8 @@ export function useFileUploader() {
       setDialogAttributes(options);
 
       inputRef.value.onchange = (e) => {
+        removeCompletedUploadFiles();
+
         const selectedFiles = Array.from(e.target.files || []).filter(
           (file) => !isDisallowedUpload(file.name)
         );
