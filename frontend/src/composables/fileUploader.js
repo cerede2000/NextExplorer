@@ -1,9 +1,11 @@
 import { ref, onMounted, onBeforeUnmount, markRaw } from 'vue';
 import Uppy from '@uppy/core';
 import XHRUpload from '@uppy/xhr-upload';
+import Tus from '@uppy/tus';
 import { useUppyStore } from '@/stores/uppyStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useAppSettings } from '@/stores/appSettings';
 import { apiBase, normalizePath } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
 import DropTarget from '@uppy/drop-target';
@@ -13,11 +15,13 @@ export function useFileUploader() {
   const uppyStore = useUppyStore();
   const fileStore = useFileStore();
   const notificationsStore = useNotificationsStore();
+  const appSettings = useAppSettings();
   const inputRef = ref(null);
   const files = ref([]);
 
   let lastNotifyAt = 0;
   let lastNotifyHeading = '';
+  let uploadPluginMode = null;
 
   const canUploadToCurrentPath = () => {
     const access = fileStore.currentPathData;
@@ -51,6 +55,65 @@ export function useFileUploader() {
   let uppy = uppyStore.uppy;
   const createdHere = ref(false);
 
+  const getUploadSettings = () => ({
+    chunkedEnabled: Boolean(appSettings.state?.uploads?.chunkedEnabled),
+    chunkSizeBytes: Number.isFinite(appSettings.state?.uploads?.chunkSizeBytes)
+      ? appSettings.state.uploads.chunkSizeBytes
+      : 8 * 1024 * 1024,
+  });
+
+  const removeUploadPlugin = (id) => {
+    const plugin = uppy?.getPlugin?.(id);
+    if (plugin) {
+      uppy.removePlugin(plugin);
+    }
+  };
+
+  const configureUploadPlugin = () => {
+    if (!uppy) return;
+
+    const uploadSettings = getUploadSettings();
+    const nextMode = uploadSettings.chunkedEnabled ? 'tus' : 'xhr';
+
+    if (uploadPluginMode === nextMode) {
+      if (nextMode === 'tus') {
+        uppy.getPlugin('Tus')?.setOptions?.({
+          chunkSize: uploadSettings.chunkSizeBytes,
+        });
+      }
+      return;
+    }
+
+    removeUploadPlugin('XHRUpload');
+    removeUploadPlugin('Tus');
+
+    if (nextMode === 'tus') {
+      uppy.use(Tus, {
+        endpoint: `${apiBase}/api/upload/tus`,
+        chunkSize: uploadSettings.chunkSizeBytes,
+        allowedMetaFields: ['name', 'type', 'uploadTo', 'relativePath'],
+        removeFingerprintOnSuccess: true,
+        storeFingerprintForResuming: false,
+        retryDelays: [0, 1000, 3000, 5000],
+        withCredentials: true,
+      });
+    } else {
+      uppy.use(XHRUpload, {
+        endpoint: `${apiBase}/api/upload`,
+        formData: true,
+        fieldName: 'filedata',
+        bundle: false,
+        responseType: 'json',
+        // Uppy v5 expects `allowedMetaFields` to be `true` (all) or an explicit list.
+        // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
+        allowedMetaFields: true,
+        withCredentials: true,
+      });
+    }
+
+    uploadPluginMode = nextMode;
+  };
+
   if (!uppy) {
     uppy = new Uppy({
       debug: true,
@@ -58,17 +121,7 @@ export function useFileUploader() {
       store: uppyStore,
     });
 
-    uppy.use(XHRUpload, {
-      endpoint: `${apiBase}/api/upload`,
-      formData: true,
-      fieldName: 'filedata',
-      bundle: false,
-      responseType: 'json',
-      // Uppy v5 expects `allowedMetaFields` to be `true` (all) or an explicit list.
-      // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
-      allowedMetaFields: true,
-      withCredentials: true,
-    });
+    configureUploadPlugin();
 
     // Cookies carry auth; no token headers
     uppy.on('file-added', (file) => {
@@ -112,8 +165,7 @@ export function useFileUploader() {
       const current = normalizePath(fileStore.currentPath || '');
       const files = Array.isArray(batchFiles) ? batchFiles : [];
       const targetsCurrentPath =
-        files.length > 0 &&
-        files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
+        files.length > 0 && files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
 
       if (!targetsCurrentPath) return;
       if (canUploadToCurrentPath()) return;
@@ -182,7 +234,7 @@ export function useFileUploader() {
     inputRef.value.mozdirectory = !!options.directory;
   }
 
-  function openDialog(opts) {
+  async function openDialog(opts) {
     const defaultDialogOptions = {
       multiple: true,
       accept: '*',
@@ -192,6 +244,13 @@ export function useFileUploader() {
       notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
       return Promise.resolve();
     }
+
+    try {
+      await appSettings.ensureLoaded();
+    } catch (_) {
+      // Keep upload available with safe defaults if settings cannot be loaded.
+    }
+    configureUploadPlugin();
 
     return new Promise((resolve) => {
       if (!inputRef.value) {
@@ -232,6 +291,11 @@ export function useFileUploader() {
     input.className = 'hidden';
     document.body.appendChild(input);
     inputRef.value = input;
+
+    appSettings
+      .ensureLoaded()
+      .catch(() => {})
+      .finally(() => configureUploadPlugin());
   });
 
   onBeforeUnmount(() => {

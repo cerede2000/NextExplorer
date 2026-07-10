@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon,
   BuildingOfficeIcon,
   PhotoIcon,
+  ArrowUpTrayIcon,
   KeyIcon,
   UsersIcon,
   UserCircleIcon,
@@ -74,6 +75,12 @@ const adminCategories = [
     i18nKey: 'filesThumbnails',
     name: 'Files & Thumbnails',
     icon: PhotoIcon,
+  },
+  {
+    key: 'uploads',
+    i18nKey: 'uploads',
+    name: 'Uploads',
+    icon: ArrowUpTrayIcon,
   },
   {
     key: 'access-control',

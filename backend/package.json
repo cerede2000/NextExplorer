@@ -18,6 +18,8 @@
   "license": "ISC",
   "dependencies": {
     "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
+    "@tus/file-store": "^2.1.0",
+    "@tus/server": "^2.4.1",
     "adm-zip": "^0.5.16",
     "archiver": "^6.0.2",
     "axios": "^1.7.7",
