@@ -48,7 +48,7 @@ import { onClickOutside } from '@vueuse/core';
 import logger from '@/utils/logger';
 
 const terminalStore = useTerminalStore();
-const { isOpen, launchPath } = storeToRefs(terminalStore);
+const { isOpen, launchPath, launchInput, launchKey } = storeToRefs(terminalStore);
 const { close } = terminalStore;
 
 const terminaldiv = ref(null);
@@ -58,6 +58,8 @@ let socket;
 let fitAddon;
 let resizeObserver;
 let pendingResize;
+let launchInputTimer;
+let launchInputSent = false;
 
 // Prefix used to send control messages (like resize) over the same WS channel as raw terminal input.
 // This avoids collisions with normal shell input (xterm sends raw keystrokes).
@@ -85,6 +87,34 @@ const sendResize = (cols, rows) => {
       })}`
     );
   }
+};
+
+const clearLaunchInputTimer = () => {
+  if (launchInputTimer) {
+    clearTimeout(launchInputTimer);
+    launchInputTimer = null;
+  }
+};
+
+const scheduleLaunchInput = () => {
+  if (launchInputSent || !launchInput.value) return;
+
+  clearLaunchInputTimer();
+  launchInputTimer = setTimeout(() => {
+    if (launchInputSent || !launchInput.value) return;
+    sendInput(launchInput.value);
+    launchInputSent = true;
+    launchInputTimer = null;
+  }, 150);
+};
+
+const focusTerminal = () => {
+  requestAnimationFrame(() => {
+    term?.focus();
+    setTimeout(() => {
+      term?.focus();
+    }, 50);
+  });
 };
 
 const toWebSocketScheme = (url) => {
@@ -131,7 +161,7 @@ const connectToBackend = async () => {
 
     socket.onmessage = (event) => {
       logger.debug('Received data from terminal', event.data.length, 'bytes');
-      term.write(event.data);
+      term.write(event.data, scheduleLaunchInput);
     };
 
     socket.onerror = (error) => {
@@ -185,6 +215,7 @@ const initTerminal = () => {
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(terminaldiv.value);
+  focusTerminal();
 
   term.onResize(({ cols, rows }) => {
     sendResize(cols, rows);
@@ -201,6 +232,7 @@ const initTerminal = () => {
   // Initial fit (also triggers `onResize` -> sends size to backend).
   requestAnimationFrame(() => {
     fitAddon.fit();
+    focusTerminal();
   });
 
   term.onData((data) => {
@@ -211,6 +243,9 @@ const initTerminal = () => {
 };
 
 const teardownTerminal = () => {
+  clearLaunchInputTimer();
+  launchInputSent = false;
+
   if (resizeObserver) {
     resizeObserver.disconnect();
     resizeObserver = null;
@@ -230,8 +265,9 @@ const teardownTerminal = () => {
   pendingResize = null;
 };
 
-watch(isOpen, (newVal) => {
+watch([isOpen, launchKey], ([newVal]) => {
   if (newVal) {
+    teardownTerminal();
     setTimeout(() => {
       initTerminal();
       if (fitAddon) {

@@ -72,8 +72,8 @@
     "readwrite": "Citire/Scriere"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Obține informații",
     "openWithEditor": "Deschide cu editor",
+    "openWithTerminal": "Deschide în terminal",
     "addToFavorites": "Adaugă la favorite",
     "removeFromFavorites": "Elimină din favorite",
     "deleteTitle": {

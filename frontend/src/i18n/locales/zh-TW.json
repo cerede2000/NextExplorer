@@ -72,8 +72,8 @@
     "readwrite": "讀寫"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "詳細資訊",
     "openWithEditor": "使用編輯器打開",
+    "openWithTerminal": "在終端機中開啟",
     "addToFavorites": "新增到最愛",
     "removeFromFavorites": "從最愛移除",
     "deleteTitle": {

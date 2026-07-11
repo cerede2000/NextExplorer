@@ -72,8 +72,8 @@
     "readwrite": "읽기/쓰기"
   },
   "editor": {
-    "editing":"편집 중",
-    "unsavedChanges":"저장되지 않은 변경사항 있음",
+    "editing": "편집 중",
+    "unsavedChanges": "저장되지 않은 변경사항 있음",
     "theme": "테마",
     "editorSettings": "에디터 설정",
     "wrapLines": "자동 줄 바꿈",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "속성",
     "openWithEditor": "에디터로 열기",
+    "openWithTerminal": "터미널에서 열기",
     "addToFavorites": "즐겨찾기에 추가",
     "removeFromFavorites": "즐겨찾기에서 제거",
     "deleteTitle": {

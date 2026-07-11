@@ -72,8 +72,8 @@
     "readwrite": "Чтение/Запись"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Свойства",
     "openWithEditor": "Открыть в редакторе",
+    "openWithTerminal": "Открыть в терминале",
     "addToFavorites": "Добавить в избранное",
     "removeFromFavorites": "Удалить из избранного",
     "deleteTitle": {

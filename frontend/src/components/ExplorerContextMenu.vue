@@ -17,6 +17,7 @@ import { useFavoritesStore } from '@/stores/favorites';
 import {
   StarIcon as StarOutline,
   DocumentTextIcon,
+  CommandLineIcon,
   ArrowDownTrayIcon,
   ShareIcon,
   ArchiveBoxArrowDownIcon,
@@ -24,6 +25,9 @@ import {
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
+import { useTerminalStore } from '@/stores/terminal';
+import { useFeaturesStore } from '@/stores/features';
+import { isTerminalExtension } from '@/config/terminal';
 // Icons
 import {
   CreateNewFolderRound,
@@ -41,6 +45,8 @@ const infoPanel = useInfoPanelStore();
 const { clearSelection } = useSelection();
 const favoritesStore = useFavoritesStore();
 const { openEditorForFavorite } = useFavoriteEditor();
+const terminalStore = useTerminalStore();
+const featuresStore = useFeaturesStore();
 const router = useRouter();
 
 const isOpen = ref(false);
@@ -237,6 +243,42 @@ const runOpenWithEditor = () => {
   router.push({ path: `/editor/${encodedPath}` });
 };
 
+const getItemExtension = (item) => {
+  const name = String(item?.name || '');
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot > 0 && lastDot < name.length - 1) {
+    return name.slice(lastDot + 1).toLowerCase();
+  }
+
+  const kind = String(item?.kind || '').toLowerCase();
+  return kind && kind !== 'file' && kind !== 'directory' && kind !== 'volume' ? kind : '';
+};
+
+const shellEscape = (value) => String(value).replace(/([^A-Za-z0-9_@%+=:,./-])/g, '\\$1');
+
+const buildTerminalInputForItem = (item) => {
+  const name = String(item?.name || '').trim();
+  if (!name) return '';
+
+  return shellEscape(`./${name}`);
+};
+
+const canOpenWithTerminal = computed(() => {
+  if (!featuresStore.terminalEnabled || contextKind.value !== 'file' || !primaryItem.value) {
+    return false;
+  }
+
+  return isTerminalExtension(getItemExtension(primaryItem.value));
+});
+
+const runOpenWithTerminal = () => {
+  if (!canOpenWithTerminal.value || !primaryItem.value) return;
+  const item = primaryItem.value;
+  const parentPath = normalizePath(item.path || fileStore.getCurrentPath || '');
+  const initialInput = buildTerminalInputForItem(item);
+  terminalStore.open(parentPath, initialInput);
+};
+
 // Favorites support
 const selectedDirectoryPath = computed(() => {
   if (contextKind.value !== 'directory') return null;
@@ -355,11 +397,27 @@ const menuSections = computed(() => {
 
   // Add "Open with Editor" for files only
   if (contextKind.value === 'file') {
-    sections.push([
+    const openSection = [
       mk('open-with-editor', t('context.openWithEditor'), DocumentTextIcon, runOpenWithEditor, {
         disabled: !primaryItem.value,
       }),
-    ]);
+    ];
+
+    if (canOpenWithTerminal.value) {
+      openSection.push(
+        mk(
+          'open-with-terminal',
+          t('context.openWithTerminal'),
+          CommandLineIcon,
+          runOpenWithTerminal,
+          {
+            disabled: !primaryItem.value,
+          }
+        )
+      );
+    }
+
+    sections.push(openSection);
   }
 
   // Add download option

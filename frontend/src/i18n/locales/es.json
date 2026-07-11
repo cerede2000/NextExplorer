@@ -72,8 +72,8 @@
     "readwrite": "Lectura/Escritura"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Obtener información",
     "openWithEditor": "Abrir con el editor",
+    "openWithTerminal": "Abrir en terminal",
     "addToFavorites": "Agregar a favoritos",
     "removeFromFavorites": "Quitar de favoritos",
     "deleteTitle": {
