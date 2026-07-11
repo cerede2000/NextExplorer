@@ -72,8 +72,8 @@
     "readwrite": "Lecture/Écriture"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -535,6 +535,17 @@
     "shareCreated": "Partage créé",
     "createShareLink": "Créer un lien de partage",
     "shareLink": "Lien de partage",
+    "directFileLink": "Lien direct du fichier",
+    "directFolderLink": "Lien direct ZIP du dossier",
+    "directLinkMode": "Mode du lien direct",
+    "copyDirectFileLink": "Copier le lien direct du fichier",
+    "copyDirectFolderLink": "Copier le lien direct ZIP du dossier",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visualiser",
+      "raw": "Raw",
+      "download": "Télécharger"
+    },
     "shareLinkCreatedSuccess": "Lien de partage créé avec succès !",
     "access": "Access Mode",
     "type": "Target",

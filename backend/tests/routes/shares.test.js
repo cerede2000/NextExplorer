@@ -245,7 +245,15 @@ describe('Shares Routes', () => {
       expect(direct.status).toBe(200);
       expect(direct.headers['content-disposition']).toContain('inline');
       expect(direct.headers['content-disposition']).toContain('hello.txt');
-      expect(Buffer.from(direct.body).toString()).toBe('hello direct link');
+      expect(direct.text).toBe('hello direct link');
+
+      const download = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/file?mode=download`
+      );
+
+      expect(download.status).toBe(200);
+      expect(download.headers['content-disposition']).toContain('attachment');
+      expect(download.headers['content-disposition']).toContain('hello.txt');
     });
 
     it('should redirect a password-protected direct file until the password is verified', async () => {
@@ -301,15 +309,16 @@ describe('Shares Routes', () => {
         .set('X-Guest-Session', verify.body.guestSessionId);
 
       expect(directAfterPassword.status).toBe(200);
-      expect(Buffer.from(directAfterPassword.body).toString()).toBe('protected direct link');
+      expect(directAfterPassword.text).toBe('protected direct link');
     });
 
-    it('should redirect direct links that resolve to directories back to the share flow', async () => {
+    it('should stream direct directory links as ZIP downloads', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
 
       const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-folder');
       await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'folder', 'nested.txt'), 'nested file');
 
       const user = await usersService.createLocalUser({
         email: 'direct-folder@example.com',
@@ -334,13 +343,55 @@ describe('Shares Routes', () => {
       });
 
       expect(create.status).toBe(201);
-      expect(create.body.directFileUrl).toBeNull();
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
 
       const publicApp = buildApp();
       const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
 
-      expect(direct.status).toBe(302);
-      expect(direct.headers.location).toContain(`/share/${create.body.shareToken}`);
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-type']).toContain('application/zip');
+      expect(direct.headers['content-disposition']).toContain('attachment');
+      expect(direct.headers['content-disposition']).toContain('folder.zip');
+    });
+
+    it('should force binary direct links to download in automatic mode', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-binary');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'archive.zip'), Buffer.from('fake zip payload'));
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-binary@example.com',
+        username: 'direct-binary',
+        displayName: 'Direct Binary',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectBinaryVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectBinaryVol/archive.zip',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-disposition']).toContain('attachment');
+      expect(direct.headers['content-disposition']).toContain('archive.zip');
     });
 
     it('should reject direct file access for expired shares', async () => {

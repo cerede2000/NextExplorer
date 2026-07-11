@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs/promises');
 const fss = require('fs');
 const path = require('path');
+const archiver = require('archiver');
 const asyncHandler = require('../utils/asyncHandler');
 const {
   ValidationError,
@@ -31,6 +32,7 @@ const { extensions, mimeTypes } = require('../config/index');
 const { getSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -42,12 +44,127 @@ const buildPublicBaseUrl = (req) => {
 const encodeUrlPath = (value = '') =>
   String(value).split('/').filter(Boolean).map(encodeURIComponent).join('/');
 
-const buildDirectFilePath = (shareToken, innerPath = '') => {
+const DIRECT_FILE_MODES = new Set(['auto', 'download', 'inline', 'raw', 'view']);
+const TEXT_LIKE_EXTENSIONS = new Set([
+  'bat',
+  'bash',
+  'c',
+  'cfg',
+  'cmd',
+  'conf',
+  'cpp',
+  'cs',
+  'css',
+  'csv',
+  'env',
+  'fish',
+  'go',
+  'h',
+  'hpp',
+  'htm',
+  'html',
+  'ini',
+  'java',
+  'js',
+  'json',
+  'jsx',
+  'less',
+  'log',
+  'mjs',
+  'md',
+  'php',
+  'ps1',
+  'py',
+  'rb',
+  'rs',
+  'scss',
+  'sh',
+  'sql',
+  'svg',
+  'toml',
+  'ts',
+  'tsx',
+  'txt',
+  'vue',
+  'xml',
+  'yaml',
+  'yml',
+  'zsh',
+]);
+const TEXT_LIKE_FILENAMES = new Set(['dockerfile', 'makefile', 'readme', 'license']);
+const FORCE_PLAIN_TEXT_EXTENSIONS = new Set([
+  'bat',
+  'bash',
+  'cmd',
+  'fish',
+  'htm',
+  'html',
+  'js',
+  'jsx',
+  'mjs',
+  'ps1',
+  'sh',
+  'svg',
+  'ts',
+  'tsx',
+  'zsh',
+]);
+const INLINE_MIME_PREFIXES = ['audio/', 'image/', 'text/', 'video/'];
+const INLINE_MIME_TYPES = new Set([
+  'application/json',
+  'application/pdf',
+  'application/xml',
+  'application/javascript',
+  'application/x-javascript',
+]);
+
+const normalizeDirectFileMode = (mode) => {
+  const value = typeof mode === 'string' ? mode.toLowerCase() : 'auto';
+  if (!DIRECT_FILE_MODES.has(value)) return 'auto';
+  return value === 'view' ? 'inline' : value;
+};
+
+const isTextLikeFile = (filename, extension) => {
+  const lowerName = filename.toLowerCase();
+  return TEXT_LIKE_EXTENSIONS.has(extension) || TEXT_LIKE_FILENAMES.has(lowerName);
+};
+
+const getDirectFilePresentation = (filename, requestedMode) => {
+  const mode = normalizeDirectFileMode(requestedMode);
+  const extension = path.extname(filename).slice(1).toLowerCase();
+  const detectedMimeType = mimeTypes[extension] || 'application/octet-stream';
+  const textLike = isTextLikeFile(filename, extension);
+  const inlineMime =
+    INLINE_MIME_PREFIXES.some((prefix) => detectedMimeType.startsWith(prefix)) ||
+    INLINE_MIME_TYPES.has(detectedMimeType);
+  const canInline = textLike || inlineMime;
+  const forceDownload = mode === 'download' || !canInline;
+  const disposition = forceDownload ? 'attachment' : 'inline';
+
+  let contentType = detectedMimeType;
+  if (!forceDownload && textLike) {
+    const shouldUsePlainText =
+      mode === 'inline' ||
+      detectedMimeType === 'application/octet-stream' ||
+      FORCE_PLAIN_TEXT_EXTENSIONS.has(extension);
+    contentType = shouldUsePlainText ? 'text/plain; charset=utf-8' : detectedMimeType;
+  }
+
+  return {
+    contentType,
+    disposition,
+  };
+};
+
+const buildDirectFilePath = (shareToken, innerPath = '', mode = 'auto') => {
   const encodedToken = encodeURIComponent(shareToken);
   const encodedInnerPath = encodeUrlPath(innerPath);
-  return encodedInnerPath
+  const normalizedMode = normalizeDirectFileMode(mode);
+  const query = normalizedMode === 'auto' ? '' : `?mode=${encodeURIComponent(normalizedMode)}`;
+  const pathPart = encodedInnerPath
     ? `/api/share/${encodedToken}/file/${encodedInnerPath}`
     : `/api/share/${encodedToken}/file`;
+  return `${pathPart}${query}`;
 };
 
 const getSafeRedirectTarget = (target) => {
@@ -63,10 +180,9 @@ const redirectToShareAccess = (req, res, shareToken) => {
   res.redirect(302, `/share/${encodeURIComponent(shareToken)}${redirectQuery}`);
 };
 
-const streamResolvedFileInline = async ({ absolutePath, stats, req, res }) => {
+const streamResolvedFile = async ({ absolutePath, stats, mode, req, res }) => {
   const filename = path.basename(absolutePath);
-  const extension = path.extname(filename).slice(1).toLowerCase();
-  const mimeType = mimeTypes[extension] || 'application/octet-stream';
+  const { contentType, disposition } = getDirectFilePresentation(filename, mode);
 
   const streamFile = (options = undefined) => {
     const stream = options
@@ -83,8 +199,8 @@ const streamResolvedFileInline = async ({ absolutePath, stats, req, res }) => {
   };
 
   const baseHeaders = {
-    'Content-Type': mimeType,
-    'Content-Disposition': encodeContentDisposition(filename, 'inline'),
+    'Content-Type': contentType,
+    'Content-Disposition': encodeContentDisposition(filename, disposition),
     'X-Content-Type-Options': 'nosniff',
     'X-Robots-Tag': 'noindex',
   };
@@ -126,6 +242,32 @@ const streamResolvedFileInline = async ({ absolutePath, stats, req, res }) => {
     'Accept-Ranges': 'bytes',
   });
   streamFile();
+};
+
+const streamResolvedDirectoryZip = async ({ absolutePath, archiveName, res }) => {
+  const safeArchiveName = archiveName && archiveName.trim() ? archiveName.trim() : 'download';
+  const filename = safeArchiveName.toLowerCase().endsWith('.zip')
+    ? safeArchiveName
+    : `${safeArchiveName}.zip`;
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', encodeContentDisposition(filename, 'attachment'));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Robots-Tag', 'noindex');
+
+  const archive = archiver('zip', { zlib: { level: 1 } });
+  archive.on('error', (archiveError) => {
+    logger.error({ err: archiveError }, 'Direct share archive creation failed');
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to create archive.' });
+    } else {
+      res.end();
+    }
+  });
+
+  archive.pipe(res);
+  archive.directory(absolutePath, path.basename(absolutePath) || safeArchiveName);
+  await archive.finalize();
 };
 
 /**
@@ -222,7 +364,7 @@ router.post(
     // Generate share URL using PUBLIC_URL if configured, otherwise use request host
     const baseUrl = buildPublicBaseUrl(req);
     const shareUrl = `${baseUrl}/share/${share.shareToken}`;
-    const directFileUrl = isDirectory ? null : `${baseUrl}${buildDirectFilePath(share.shareToken)}`;
+    const directFileUrl = `${baseUrl}${buildDirectFilePath(share.shareToken)}`;
 
     res.status(201).json({
       ...share,
@@ -577,6 +719,7 @@ router.get(
 const handleDirectFileRequest = async (req, res) => {
   const shareToken = req.params.token;
   const rawInnerPath = req.params[0] || '';
+  const mode = normalizeDirectFileMode(req.query?.mode);
   let innerPath = '';
 
   try {
@@ -644,12 +787,21 @@ const handleDirectFileRequest = async (req, res) => {
 
   const stats = await fs.stat(resolved.absolutePath);
   if (stats.isDirectory()) {
-    redirectToShareAccess(req, res, shareToken);
+    await trackShareAccess(share.id);
+    await streamResolvedDirectoryZip({
+      absolutePath: resolved.absolutePath,
+      archiveName:
+        path.basename(resolved.absolutePath) ||
+        share.label ||
+        path.basename(share.sourcePath || '') ||
+        'download',
+      res,
+    });
     return;
   }
 
   await trackShareAccess(share.id);
-  await streamResolvedFileInline({ absolutePath: resolved.absolutePath, stats, req, res });
+  await streamResolvedFile({ absolutePath: resolved.absolutePath, stats, mode, req, res });
 };
 
 /**

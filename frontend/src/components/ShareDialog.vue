@@ -4,7 +4,13 @@ import { useI18n } from 'vue-i18n';
 import { useAppSettings } from '@/stores/appSettings';
 import { calculateExpirationDate } from '@/utils/datetime';
 import ModalDialog from '@/components/ModalDialog.vue';
-import { createShare, copyDirectShareFileUrl, copyShareUrl } from '@/api/shares.api';
+import {
+  createShare,
+  copyDirectShareFileUrl,
+  copyShareUrl,
+  DIRECT_SHARE_FILE_MODES,
+  getDirectShareFileUrl,
+} from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
@@ -49,6 +55,7 @@ const error = ref('');
 const shareResult = ref(null);
 const linkCopied = ref(false);
 const directLinkCopied = ref(false);
+const directLinkMode = ref('auto');
 const availableUsers = ref([]);
 const loadingUsers = ref(false);
 const expiresAtInputRef = ref(null);
@@ -60,6 +67,16 @@ const sourcePath = computed(() => {
   if (!props.item) return '';
   const parentPath = props.item.path || '';
   return parentPath ? `${parentPath}/${props.item.name}` : props.item.name;
+});
+const directLinkModeOptions = computed(() =>
+  DIRECT_SHARE_FILE_MODES.map((mode) => ({
+    ...mode,
+    label: t(mode.labelKey, mode.fallback),
+  }))
+);
+const directShareUrl = computed(() => {
+  if (!shareResult.value?.shareToken) return '';
+  return getDirectShareFileUrl(shareResult.value.shareToken, '', directLinkMode.value);
 });
 
 // Reset form when dialog opens/closes
@@ -108,6 +125,7 @@ function resetForm() {
   shareResult.value = null;
   linkCopied.value = false;
   directLinkCopied.value = false;
+  directLinkMode.value = 'auto';
 }
 
 function destroyExpiresPicker() {
@@ -248,10 +266,10 @@ async function copyLink() {
 }
 
 async function copyDirectLink() {
-  if (!shareResult.value?.shareToken || shareResult.value?.isDirectory) return;
+  if (!shareResult.value?.shareToken) return;
 
   try {
-    await copyDirectShareFileUrl(shareResult.value.shareToken);
+    await copyDirectShareFileUrl(shareResult.value.shareToken, '', directLinkMode.value);
     directLinkCopied.value = true;
     setTimeout(() => {
       directLinkCopied.value = false;
@@ -302,14 +320,29 @@ function closeDialog() {
         </div>
       </div>
 
-      <div v-if="!shareResult.isDirectory">
-        <label class="block mb-2 text-sm font-medium">
-          {{ t('share.directFileLink', 'Direct file link') }}
-        </label>
+      <div>
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <label class="block text-sm font-medium">
+            {{
+              shareResult.isDirectory
+                ? t('share.directFolderLink', 'Direct folder ZIP link')
+                : t('share.directFileLink', 'Direct file link')
+            }}
+          </label>
+          <select
+            v-model="directLinkMode"
+            class="px-2 py-1 text-xs border rounded-md bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :title="t('share.directLinkMode', 'Direct link mode')"
+          >
+            <option v-for="mode in directLinkModeOptions" :key="mode.value" :value="mode.value">
+              {{ mode.label }}
+            </option>
+          </select>
+        </div>
         <div class="flex gap-2">
           <input
             type="text"
-            :value="shareResult.directFileUrl"
+            :value="directShareUrl"
             readonly
             class="flex-1 px-3 py-2 text-sm border rounded-lg bg-gray-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

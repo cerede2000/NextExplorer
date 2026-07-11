@@ -138,17 +138,31 @@ function getShareUrl(shareToken) {
   return `${baseUrl}/share/${shareToken}`;
 }
 
+const DIRECT_SHARE_FILE_MODES = [
+  { value: 'auto', labelKey: 'share.directLinkModes.auto', fallback: 'Auto' },
+  { value: 'inline', labelKey: 'share.directLinkModes.inline', fallback: 'View' },
+  { value: 'raw', labelKey: 'share.directLinkModes.raw', fallback: 'Raw' },
+  { value: 'download', labelKey: 'share.directLinkModes.download', fallback: 'Download' },
+];
+
+function normalizeDirectShareFileMode(mode) {
+  const value = typeof mode === 'string' ? mode.toLowerCase() : 'auto';
+  return DIRECT_SHARE_FILE_MODES.some((item) => item.value === value) ? value : 'auto';
+}
+
 /**
  * Generate direct shared file URL for a token and optional inner path
  */
-function getDirectShareFileUrl(shareToken, innerPath = '') {
+function getDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
   const baseUrl = window.location.origin;
   const encodedToken = encodeURIComponent(shareToken);
   const normalizedInnerPath = normalizePath(innerPath);
   const encodedInnerPath = encodePath(normalizedInnerPath);
-  return encodedInnerPath
+  const url = encodedInnerPath
     ? `${baseUrl}/api/share/${encodedToken}/file/${encodedInnerPath}`
     : `${baseUrl}/api/share/${encodedToken}/file`;
+  const normalizedMode = normalizeDirectShareFileMode(mode);
+  return normalizedMode === 'auto' ? url : `${url}?mode=${encodeURIComponent(normalizedMode)}`;
 }
 
 const writeToClipboard = async (value) => {
@@ -180,8 +194,8 @@ async function copyShareUrl(shareToken) {
 /**
  * Copy direct shared file URL to clipboard
  */
-async function copyDirectShareFileUrl(shareToken, innerPath = '') {
-  const url = getDirectShareFileUrl(shareToken, innerPath);
+async function copyDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
+  const url = getDirectShareFileUrl(shareToken, innerPath, mode);
   return writeToClipboard(url);
 }
 
@@ -200,6 +214,7 @@ export {
   getGuestSession,
   clearGuestSession,
   getShareUrl,
+  DIRECT_SHARE_FILE_MODES,
   getDirectShareFileUrl,
   copyShareUrl,
   copyDirectShareFileUrl,

@@ -1,7 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getMyShares, deleteShare, copyDirectShareFileUrl, copyShareUrl } from '@/api/shares.api';
+import {
+  getMyShares,
+  deleteShare,
+  copyDirectShareFileUrl,
+  copyShareUrl,
+  DIRECT_SHARE_FILE_MODES,
+} from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
 import {
   ShareIcon,
@@ -30,12 +36,13 @@ const copyingId = ref(null);
 const copiedId = ref(null);
 const directCopyingId = ref(null);
 const directCopiedId = ref(null);
+const directLinkModes = ref({});
 const searchQuery = ref('');
 const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
 
 // Grid columns configuration
-const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_100px]';
+const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_170px]';
 
 // Create a map of userId -> user for quick lookup
 const usersMap = computed(() => {
@@ -56,6 +63,11 @@ const loadShares = async () => {
       fetchShareableUsers().catch(() => ({ users: [] })),
     ]);
     shares.value = sharesResponse?.shares || [];
+    shares.value.forEach((share) => {
+      if (share?.id && !directLinkModes.value[share.id]) {
+        directLinkModes.value[share.id] = 'auto';
+      }
+    });
     users.value = usersResponse?.users || [];
   } catch (err) {
     console.error('Failed to load my shares:', err);
@@ -131,6 +143,13 @@ const visibleShares = computed(() => {
   return list;
 });
 
+const directLinkModeOptions = computed(() =>
+  DIRECT_SHARE_FILE_MODES.map((mode) => ({
+    ...mode,
+    label: t(mode.labelKey, mode.fallback),
+  }))
+);
+
 const getShareLabel = (share) => {
   if (share.label) return share.label;
   if (share.sourcePath) {
@@ -197,11 +216,11 @@ const handleCopyLink = async (share) => {
 };
 
 const handleCopyDirectFileLink = async (share) => {
-  if (!share?.id || !share?.shareToken || share.isDirectory) return;
+  if (!share?.id || !share?.shareToken) return;
 
   try {
     directCopyingId.value = share.id;
-    await copyDirectShareFileUrl(share.shareToken);
+    await copyDirectShareFileUrl(share.shareToken, '', directLinkModes.value[share.id] || 'auto');
     directCopiedId.value = share.id;
     setTimeout(() => {
       if (directCopiedId.value === share.id) {
@@ -412,19 +431,38 @@ onMounted(async () => {
                   :class="{ 'text-green-500': copiedId === share.id }"
                 />
               </button>
-              <button
-                v-if="!share.isDirectory"
-                @click.stop="handleCopyDirectFileLink(share)"
-                :disabled="directCopyingId === share.id"
-                class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
-                :title="t('share.copyDirectFileLink', 'Copy direct file link')"
-              >
-                <component
-                  :is="directCopiedId === share.id ? CheckIcon : LinkIcon"
-                  class="w-4 h-4"
-                  :class="{ 'text-green-500': directCopiedId === share.id }"
-                />
-              </button>
+              <div class="flex items-center gap-1">
+                <select
+                  v-model="directLinkModes[share.id]"
+                  @click.stop
+                  class="w-20 px-1.5 py-1 text-xs rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300"
+                  :title="t('share.directLinkMode', 'Direct link mode')"
+                >
+                  <option
+                    v-for="mode in directLinkModeOptions"
+                    :key="mode.value"
+                    :value="mode.value"
+                  >
+                    {{ mode.label }}
+                  </option>
+                </select>
+                <button
+                  @click.stop="handleCopyDirectFileLink(share)"
+                  :disabled="directCopyingId === share.id"
+                  class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                  :title="
+                    share.isDirectory
+                      ? t('share.copyDirectFolderLink', 'Copy direct folder ZIP link')
+                      : t('share.copyDirectFileLink', 'Copy direct file link')
+                  "
+                >
+                  <component
+                    :is="directCopiedId === share.id ? CheckIcon : LinkIcon"
+                    class="w-4 h-4"
+                    :class="{ 'text-green-500': directCopiedId === share.id }"
+                  />
+                </button>
+              </div>
               <button
                 @click.stop="handleDeleteShare(share)"
                 class="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-neutral-500 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400"
