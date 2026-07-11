@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import request from 'supertest';
@@ -136,6 +136,44 @@ describe('TUS upload route', () => {
         fs.readFile(path.join(envContext.volumeDir, 'Nvm', 'S05E09 - Épisode 9.avi'), 'utf8')
       ).resolves.toBe('hello through tus');
     } finally {
+      await closeServer(server);
+    }
+  });
+
+  it('rejects TUS upload creation when storage is insufficient', async () => {
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setSystemSetting('system', 'uploads', {
+      chunkedEnabled: true,
+      chunkSizeBytes: 1024 * 1024,
+    });
+
+    await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
+    const statfsSpy = vi.spyOn(fs, 'statfs').mockResolvedValue({
+      bavail: 1,
+      bsize: 1024,
+    });
+
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+
+    try {
+      const response = await request(baseUrl)
+        .post('/api/upload/tus')
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Length', String(1024 * 1024))
+        .set(
+          'Upload-Metadata',
+          encodeMetadata({
+            filename: 'large.bin',
+            relativePath: 'large.bin',
+            uploadTo: 'Nvm',
+          })
+        );
+
+      expect(response.status).toBe(507);
+      expect(response.text).toContain('Not enough storage available');
+    } finally {
+      statfsSpy.mockRestore();
       await closeServer(server);
     }
   });
