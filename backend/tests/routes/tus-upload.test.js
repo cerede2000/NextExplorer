@@ -9,9 +9,15 @@ const MODULES = [
   'src/config/index',
   'src/services/db',
   'src/services/settingsService',
+  'src/services/accessControlService',
+  'src/services/accessManager',
+  'src/services/authorizationService',
+  'src/services/sharesService',
   'src/services/tusUploadService',
+  'src/services/userVolumesService',
   'src/routes/upload',
   'src/middleware/errorHandler',
+  'src/utils/pathUtils',
 ];
 
 const encodeMetadata = (metadata) =>
