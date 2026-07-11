@@ -4,7 +4,7 @@ const fs = require('fs/promises');
 const { Server } = require('@tus/server');
 const { FileStore } = require('@tus/file-store');
 
-const { directories } = require('../config');
+const { upload: uploadConfig } = require('../config');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
@@ -12,7 +12,7 @@ const { getSystemSettings } = require('./settingsService');
 const logger = require('../utils/logger');
 
 const TUS_PATH = '/api/upload/tus';
-const TUS_CACHE_DIR = path.join(directories.cache, 'tus-uploads');
+const TUS_CACHE_DIR = uploadConfig?.tusUploadDir;
 const TUS_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -27,6 +27,41 @@ const tusError = (statusCode, message) => ({
   status_code: statusCode,
   body: `${message}\n`,
 });
+
+const getAvailableBytes = async (directory) => {
+  if (typeof fs.statfs !== 'function') {
+    return null;
+  }
+
+  try {
+    await ensureDir(directory);
+    const stats = await fs.statfs(directory);
+    return stats.bavail * stats.bsize;
+  } catch (err) {
+    logger.warn({ directory, err }, 'Unable to inspect available storage for uploads');
+    return null;
+  }
+};
+
+const ensureStorageAvailable = async (directory, uploadSize, label) => {
+  if (!Number.isFinite(uploadSize) || uploadSize < 0) {
+    return;
+  }
+
+  const availableBytes = await getAvailableBytes(directory);
+  if (!Number.isFinite(availableBytes)) {
+    return;
+  }
+
+  const reserveBytes = uploadConfig?.storageReserveBytes ?? 64 * 1024 * 1024;
+  const requiredBytes = uploadSize + reserveBytes;
+  if (availableBytes < requiredBytes) {
+    throw tusError(
+      507,
+      `Not enough storage available in ${label}. Required ${requiredBytes} bytes including reserve, available ${availableBytes} bytes.`
+    );
+  }
+};
 
 const getNodeRequest = (req) => req?.runtime?.node?.req || req?.node?.req || null;
 
@@ -165,6 +200,10 @@ const server = new Server({
 
     const { nodeReq } = getContext(req);
     const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
+    const uploadSize = Number.isFinite(upload.size) ? upload.size : null;
+
+    await ensureStorageAvailable(TUS_CACHE_DIR, uploadSize, 'temporary upload storage');
+    await ensureStorageAvailable(target.destinationDir, uploadSize, 'destination storage');
 
     return {
       metadata: {

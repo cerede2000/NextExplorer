@@ -10,6 +10,7 @@ const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
+const { upload: uploadConfig } = require('../config');
 
 const RETRYABLE_CLEANUP_ERRORS = new Set(['EBUSY', 'ENOTEMPTY', 'EPERM']);
 
@@ -32,6 +33,12 @@ const destroyStream = (stream, error) => {
 const createUploadAbortedError = () => {
   const error = new Error('Upload aborted by the client.');
   error.code = 'UPLOAD_ABORTED';
+  return error;
+};
+
+const createUploadInactiveError = (timeoutMs) => {
+  const error = new Error(`Upload aborted after ${timeoutMs}ms without receiving data.`);
+  error.code = 'UPLOAD_INACTIVITY_TIMEOUT';
   return error;
 };
 
@@ -126,11 +133,20 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       let uploadAborted = false;
       let uploadFinished = false;
       let abortError = null;
+      let inactivityTimer = null;
+      const inactivityTimeoutMs = uploadConfig?.inactivityTimeoutMs ?? 120000;
 
-      const handleAbort = () => {
+      const clearInactivityTimer = () => {
+        if (!inactivityTimer) return;
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+      };
+
+      const handleAbort = (error = createUploadAbortedError()) => {
         if (uploadFinished || uploadAborted) return;
         uploadAborted = true;
-        abortError = createUploadAbortedError();
+        abortError = error instanceof Error ? error : createUploadAbortedError();
+        clearInactivityTimer();
         try {
           file.stream.unpipe(outStream);
         } catch (_) {
@@ -138,6 +154,15 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         }
         destroyStream(file.stream, abortError);
         destroyStream(outStream, abortError);
+      };
+
+      const refreshInactivityTimer = () => {
+        if (!Number.isFinite(inactivityTimeoutMs) || inactivityTimeoutMs <= 0) return;
+        clearInactivityTimer();
+        inactivityTimer = setTimeout(() => {
+          handleAbort(createUploadInactiveError(inactivityTimeoutMs));
+        }, inactivityTimeoutMs);
+        inactivityTimer.unref?.();
       };
 
       const handleClose = () => {
@@ -148,6 +173,8 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
 
       req.once('aborted', handleAbort);
       req.once('close', handleClose);
+      file.stream.on('data', refreshInactivityTimer);
+      refreshInactivityTimer();
 
       try {
         await pipeline(file.stream, outStream);
@@ -161,6 +188,8 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         cb(error);
         return;
       } finally {
+        clearInactivityTimer();
+        file.stream.off('data', refreshInactivityTimer);
         req.off('aborted', handleAbort);
         req.off('close', handleClose);
       }
