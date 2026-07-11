@@ -8,6 +8,7 @@ const {
   findAvailableName,
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
+const { removeFavoritesForDeletedPath } = require('./favoritesService');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -165,7 +166,16 @@ const deleteItems = async (items = [], options = {}) => {
 
     const stats = await fs.stat(absolutePath);
     await fs.rm(absolutePath, { recursive: stats.isDirectory(), force: true });
-    results.push({ path: relativePath, status: 'deleted' });
+    const removedFavoriteCount = context.user?.id
+      ? await removeFavoritesForDeletedPath(context.user.id, relativePath, {
+          includeChildren: stats.isDirectory(),
+        })
+      : 0;
+    results.push({
+      path: relativePath,
+      status: 'deleted',
+      ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
+    });
   }
 
   return results;

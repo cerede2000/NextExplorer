@@ -17,6 +17,7 @@ import {
 } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFavoritesStore } from '@/stores/favorites';
 
 export const useFileStore = defineStore('fileStore', () => {
   // State
@@ -28,6 +29,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const renameState = ref(null);
 
   const clipboardOperation = ref(null);
+  const favoritesStore = useFavoritesStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -147,6 +149,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     await deleteItems(payload);
     clearSelection();
+    await favoritesStore.loadFavorites();
     await fetchPathItems(currentPath.value);
   };
 
