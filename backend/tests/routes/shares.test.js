@@ -22,6 +22,8 @@ beforeAll(async () => {
       'src/utils/pathUtils',
       'src/middleware/errorHandler',
       'src/routes/shares',
+      'src/routes/files/delete',
+      'src/services/fileTransferService',
     ],
   });
 });
@@ -37,6 +39,7 @@ const buildApp = ({ user } = {}) => {
   clearModuleCache('src/config/index');
 
   const sharesRoutes = envContext.requireFresh('src/routes/shares');
+  const deleteRoutes = envContext.requireFresh('src/routes/files/delete');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
 
   const app = express();
@@ -54,6 +57,7 @@ const buildApp = ({ user } = {}) => {
 
   app.use('/api/shares', sharesRoutes);
   app.use('/api/share', sharesRoutes);
+  app.use('/api', deleteRoutes);
   app.use(errorHandler);
   return app;
 };
@@ -202,6 +206,100 @@ describe('Shares Routes', () => {
       // Browse should be forbidden
       const browse = await request(app).get(`/api/share/${shareToken}/browse/`);
       expect(browse.status).toBe(403);
+    });
+  });
+
+  describe('Delete Cleanup', () => {
+    it('should report and remove linked shares when deleting a shared file', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-delete-file');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'shared.txt'), 'shared file');
+
+      const user = await usersService.createLocalUser({
+        email: 'delete-file@example.com',
+        username: 'delete-file',
+        displayName: 'Delete File',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DeleteFileVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'DeleteFileVol/shared.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+
+      const items = [{ path: 'DeleteFileVol', name: 'shared.txt', kind: 'txt' }];
+      const impact = await request(app).post('/api/files/delete-impact').send({ items });
+      expect(impact.status).toBe(200);
+      expect(impact.body.shareCount).toBe(1);
+
+      const deleted = await request(app).delete('/api/files').send({ items });
+      expect(deleted.status).toBe(200);
+      expect(deleted.body.items[0].status).toBe('deleted');
+      expect(deleted.body.items[0].deletedShareCount).toBe(1);
+
+      const shareAfterDelete = await request(app).get(`/api/shares/${create.body.id}`);
+      expect(shareAfterDelete.status).toBe(404);
+    });
+
+    it('should remove shares inside a deleted folder tree', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-delete-folder');
+      await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'folder', 'nested.txt'), 'nested file');
+
+      const user = await usersService.createLocalUser({
+        email: 'delete-folder@example.com',
+        username: 'delete-folder',
+        displayName: 'Delete Folder',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DeleteFolderVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'DeleteFolderVol/folder/nested.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+
+      const items = [{ path: 'DeleteFolderVol', name: 'folder', kind: 'directory' }];
+      const impact = await request(app).post('/api/files/delete-impact').send({ items });
+      expect(impact.status).toBe(200);
+      expect(impact.body.shareCount).toBe(1);
+
+      const deleted = await request(app).delete('/api/files').send({ items });
+      expect(deleted.status).toBe(200);
+      expect(deleted.body.items[0].status).toBe('deleted');
+      expect(deleted.body.items[0].deletedShareCount).toBe(1);
+
+      const shareAfterDelete = await request(app).get(`/api/shares/${create.body.id}`);
+      expect(shareAfterDelete.status).toBe(404);
     });
   });
 

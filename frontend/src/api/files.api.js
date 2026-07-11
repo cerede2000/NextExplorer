@@ -38,6 +38,13 @@ async function deleteItems(items) {
   });
 }
 
+async function getDeleteImpact(items) {
+  return requestJson('/api/files/delete-impact', {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  });
+}
+
 async function createFolder(destination, name) {
   const normalizedDestination = normalizePath(destination || '');
   const payload = { path: normalizedDestination };
@@ -214,6 +221,7 @@ export {
   copyItems,
   moveItems,
   deleteItems,
+  getDeleteImpact,
   createFolder,
   renameItem,
   fetchFileContent,

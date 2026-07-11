@@ -9,6 +9,7 @@ import {
   DIRECT_SHARE_FILE_MODES,
 } from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
+import ModalDialog from '@/components/ModalDialog.vue';
 import {
   ShareIcon,
   ClockIcon,
@@ -37,6 +38,8 @@ const copiedId = ref(null);
 const directCopyingId = ref(null);
 const directCopiedId = ref(null);
 const directLinkModes = ref({});
+const sharePendingDelete = ref(null);
+const isDeleteShareDialogOpen = ref(false);
 const searchQuery = ref('');
 const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
@@ -180,20 +183,32 @@ const getIconItem = (share) => {
 
 const handleDeleteShare = async (share) => {
   if (!share?.id) return;
+  sharePendingDelete.value = share;
+  isDeleteShareDialogOpen.value = true;
+};
 
-  const confirmed = window.confirm(t('share.confirmDeleteShare'));
-  if (!confirmed) return;
+const confirmDeleteShare = async () => {
+  const share = sharePendingDelete.value;
+  if (!share?.id) return;
 
   deletingId.value = share.id;
   try {
     await deleteShare(share.id);
     shares.value = shares.value.filter((s) => s.id !== share.id);
+    isDeleteShareDialogOpen.value = false;
+    sharePendingDelete.value = null;
   } catch (err) {
     console.error('Failed to delete share:', err);
     error.value = err.message || t('errors.deleteShare');
   } finally {
     deletingId.value = null;
   }
+};
+
+const closeDeleteShareDialog = () => {
+  if (deletingId.value) return;
+  isDeleteShareDialogOpen.value = false;
+  sharePendingDelete.value = null;
 };
 
 const handleCopyLink = async (share) => {
@@ -475,5 +490,38 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <ModalDialog v-model="isDeleteShareDialogOpen">
+      <template #title>
+        {{ t('share.deleteShareTitle', 'Remove share?') }}
+      </template>
+      <p class="mb-6 text-base text-zinc-700 dark:text-zinc-200">
+        {{
+          t(
+            'share.deleteShareMessage',
+            'People with this link will no longer be able to access the shared item.'
+          )
+        }}
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
+          :disabled="Boolean(deletingId)"
+          @click="closeDeleteShareDialog"
+        >
+          {{ t('common.cancel') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 active:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
+          :disabled="Boolean(deletingId)"
+          @click="confirmDeleteShare"
+        >
+          <span v-if="deletingId">{{ t('common.deleting') }}</span>
+          <span v-else>{{ t('common.delete') }}</span>
+        </button>
+      </div>
+    </ModalDialog>
   </div>
 </template>

@@ -128,7 +128,21 @@ const deleteDialogMessage = computed(() => {
   return t('context.deleteMessage.generic');
 });
 
-const { isDeleteConfirmOpen, isDeleting, requestDelete, confirmDelete } = useDeleteConfirm();
+const {
+  isDeleteConfirmOpen,
+  isDeleting,
+  isLoadingDeleteImpact,
+  deleteImpact,
+  deleteImpactError,
+  requestDelete,
+  confirmDelete,
+} = useDeleteConfirm();
+
+const deleteShareImpactMessage = computed(() => {
+  const count = Number(deleteImpact.value?.shareCount || 0);
+  if (count <= 0) return '';
+  return t('context.deleteLinkedShares', { count });
+});
 
 const closeMenu = () => {
   isOpen.value = false;
@@ -586,6 +600,18 @@ provide(explorerContextMenuSymbol, {
     <template #title>{{ deleteDialogTitle }}</template>
     <p class="mb-6 text-base text-zinc-700 dark:text-zinc-200">
       {{ deleteDialogMessage }}
+    </p>
+    <p v-if="isLoadingDeleteImpact" class="-mt-3 mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+      {{ $t('context.checkingDeleteImpact') }}
+    </p>
+    <p
+      v-else-if="deleteShareImpactMessage"
+      class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
+    >
+      {{ deleteShareImpactMessage }}
+    </p>
+    <p v-else-if="deleteImpactError" class="-mt-3 mb-6 text-sm text-amber-700 dark:text-amber-300">
+      {{ $t('context.deleteImpactUnavailable') }}
     </p>
     <div class="flex justify-end gap-3">
       <button
