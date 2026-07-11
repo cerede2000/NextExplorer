@@ -140,6 +140,10 @@ const closeMenu = () => {
   isOpen.value = false;
 };
 
+const clearTextSelection = () => {
+  window.getSelection?.()?.removeAllRanges?.();
+};
+
 const getItemKey = (item) => {
   if (!item || !item.name) return '';
   const parent = normalizePath(item.path || '');
@@ -162,6 +166,7 @@ const ensureItemInSelection = (item) => {
 
 const openMenuAt = (event, kind, item = null) => {
   if (!event) return;
+  clearTextSelection();
   const clientX = event.clientX ?? 0;
   const clientY = event.clientY ?? 0;
 
