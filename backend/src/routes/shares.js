@@ -553,6 +553,9 @@ router.get(
           canShare: false,
           canDownload: accessInfo.canDownload,
         },
+        current: {
+          isDirectory: true,
+        },
         path: resolved.relativePath,
       };
 
@@ -607,6 +610,9 @@ router.get(
         canDelete: accessInfo.canDelete,
         canShare: false,
         canDownload: accessInfo.canDownload,
+      },
+      current: {
+        isDirectory: false,
       },
       path: resolved.relativePath,
     };

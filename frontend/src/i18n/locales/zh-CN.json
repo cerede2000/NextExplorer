@@ -95,6 +95,7 @@
     "paste": "粘贴",
     "rename": "重命名",
     "download": "下载",
+    "downloadFolder": "下载文件夹",
     "extractZip": "解压 ZIP",
     "compressToZip": "压缩为 ZIP",
     "search": "搜索",
