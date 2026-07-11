@@ -48,7 +48,7 @@ import { onClickOutside } from '@vueuse/core';
 import logger from '@/utils/logger';
 
 const terminalStore = useTerminalStore();
-const { isOpen } = storeToRefs(terminalStore);
+const { isOpen, launchPath } = storeToRefs(terminalStore);
 const { close } = terminalStore;
 
 const terminaldiv = ref(null);
@@ -111,7 +111,7 @@ const buildTerminalUrl = (token) => {
 
 const connectToBackend = async () => {
   try {
-    const session = await createTerminalSession();
+    const session = await createTerminalSession(launchPath.value || '');
     const token = session?.token;
     if (!token) {
       console.error('Failed to obtain terminal session token');
@@ -210,6 +210,26 @@ const initTerminal = () => {
   connectToBackend();
 };
 
+const teardownTerminal = () => {
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
+
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
+
+  if (term) {
+    term.dispose();
+    term = null;
+  }
+
+  fitAddon = null;
+  pendingResize = null;
+};
+
 watch(isOpen, (newVal) => {
   if (newVal) {
     setTimeout(() => {
@@ -218,6 +238,8 @@ watch(isOpen, (newVal) => {
         fitAddon.fit();
       }
     }, 250);
+  } else {
+    teardownTerminal();
   }
 });
 
@@ -228,15 +250,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
-  if (socket) {
-    socket.close();
-  }
-  if (term) {
-    term.dispose();
-  }
+  teardownTerminal();
 });
 
 onClickOutside(panelRef, () => {

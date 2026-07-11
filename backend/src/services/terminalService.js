@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fs = require('fs/promises');
 const WebSocket = require('ws');
 const logger = require('../utils/logger');
 
@@ -44,7 +45,17 @@ class TerminalService {
     return this.enabled && this.available;
   }
 
-  createSessionToken(user) {
+  async resolveWorkingDirectory(resolvedPath) {
+    const absolutePath = resolvedPath?.absolutePath;
+    if (!absolutePath) return null;
+
+    const stats = await fs.stat(absolutePath);
+    if (!stats.isDirectory()) return null;
+
+    return absolutePath;
+  }
+
+  createSessionToken(user, options = {}) {
     if (!user || !user.id) {
       const err = new Error('User context is required to create terminal session token.');
       err.status = 400;
@@ -66,10 +77,14 @@ class TerminalService {
     this.sessionTokens.set(token, {
       userId: user.id,
       roles,
+      cwd: typeof options.cwd === 'string' && options.cwd ? options.cwd : null,
       createdAt: now,
     });
 
-    logger.info({ userId: user.id }, 'Created terminal session token');
+    logger.info(
+      { userId: user.id, hasCwd: Boolean(options.cwd) },
+      'Created terminal session token'
+    );
 
     return token;
   }
@@ -131,7 +146,7 @@ class TerminalService {
           'Terminal WebSocket connection established for admin user'
         );
 
-        this.handleConnection(ws);
+        this.handleConnection(ws, session);
       } catch (error) {
         logger.error({ err: error }, 'Error handling terminal WebSocket connection');
         try {
@@ -150,7 +165,7 @@ class TerminalService {
     return wss;
   }
 
-  handleConnection(ws) {
+  handleConnection(ws, session = {}) {
     if (!this.isAvailable() || !this.pty) {
       ws.close(1011, 'Terminal unavailable');
       return;
@@ -158,12 +173,14 @@ class TerminalService {
 
     const terminalId = Date.now().toString();
     const shell = process.env.SHELL || 'bash';
+    const defaultCwd = process.env.HOME || process.cwd();
+    const cwd = session.cwd || defaultCwd;
 
     logger.info(
       {
         terminalId,
         shell,
-        cwd: process.env.HOME,
+        cwd,
         wsReadyState: ws.readyState,
       },
       'Attempting to spawn terminal process'
@@ -174,7 +191,7 @@ class TerminalService {
         name: 'xterm-256color',
         cols: 80,
         rows: 30,
-        cwd: process.env.HOME,
+        cwd,
         env: {
           ...process.env,
           TERM: 'xterm-256color',

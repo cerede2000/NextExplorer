@@ -4,9 +4,13 @@ import { CommandLineIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
 import { useI18n } from 'vue-i18n';
 import { useTerminalStore } from '@/stores/terminal';
 import { useAuthStore } from '@/stores/auth';
+import { useFileStore } from '@/stores/fileStore';
+import { useRoute } from 'vue-router';
 
 const terminalStore = useTerminalStore();
 const { toggle, isOpen } = terminalStore;
+const fileStore = useFileStore();
+const route = useRoute();
 
 const auth = useAuthStore();
 const isAdmin = computed(
@@ -16,6 +20,11 @@ const isAdmin = computed(
 const { t } = useI18n();
 
 const open = ref(true);
+const terminalPath = computed(() => (route.name === 'HomeView' ? '' : fileStore.currentPath || ''));
+
+const toggleTerminal = () => {
+  toggle(terminalPath.value);
+};
 </script>
 
 <template>
@@ -45,7 +54,7 @@ const open = ref(true);
       >
         <div v-if="open" class="overflow-hidden">
           <button
-            @click="toggle"
+            @click="toggleTerminal"
             :class="[
               'cursor-pointer flex w-full items-center gap-3 my-3 rounded-lg transition-colors duration-200 text-sm',
               isOpen ? 'dark:text-white' : 'dark:text-neutral-300/90',
