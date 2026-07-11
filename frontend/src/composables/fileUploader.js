@@ -81,6 +81,22 @@ export function useFileUploader() {
     });
   };
 
+  const removeUploadFile = (file) => {
+    if (!file?.id) return;
+    try {
+      uppy.removeFile(file.id);
+    } catch (_) {
+      /* noop */
+    }
+  };
+
+  const getTusErrorStatus = (error) => {
+    if (typeof error?.originalResponse?.getStatus === 'function') {
+      return error.originalResponse.getStatus();
+    }
+    return null;
+  };
+
   const configureUploadPlugin = () => {
     if (!uppy) return;
 
@@ -107,6 +123,11 @@ export function useFileUploader() {
         removeFingerprintOnSuccess: true,
         storeFingerprintForResuming: false,
         retryDelays: [0, 1000, 3000, 5000],
+        onShouldRetry: (error, _retryAttempt, _options, next) => {
+          const status = getTusErrorStatus(error);
+          if (status === 507) return false;
+          return next(error);
+        },
         withCredentials: true,
       });
     } else {
@@ -196,17 +217,11 @@ export function useFileUploader() {
 
     uppy.on('complete', (result) => {
       const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
-      successfulFiles.forEach((file) => {
-        if (!file?.id) return;
-        try {
-          uppy.removeFile(file.id);
-        } catch (_) {
-          /* noop */
-        }
-      });
+      const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
+      [...successfulFiles, ...failedFiles].forEach(removeUploadFile);
     });
 
-    uppy.on('upload-error', (_file, error, response) => {
+    uppy.on('upload-error', (file, error, response) => {
       const body = response?.body;
       const nested = body && typeof body === 'object' ? body?.error : null;
       const nestedObj = nested && typeof nested === 'object' ? nested : null;
@@ -225,6 +240,7 @@ export function useFileUploader() {
         requestId: nestedObj?.requestId || null,
         statusCode: nestedObj?.statusCode ?? response?.status,
       });
+      setTimeout(() => removeUploadFile(file), 0);
       // Keep UI in sync in case some files partially uploaded.
       if (fileStore.currentPath) {
         fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
