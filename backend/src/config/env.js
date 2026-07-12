@@ -160,7 +160,7 @@ module.exports = {
   THUMBNAIL_VIDEO_CONCURRENCY:
     process.env.THUMBNAIL_VIDEO_CONCURRENCY != null
       ? Number(process.env.THUMBNAIL_VIDEO_CONCURRENCY)
-      : 2,
+      : 3,
   THUMBNAIL_VIDEO_SEEK_SECONDS:
     process.env.THUMBNAIL_VIDEO_SEEK_SECONDS != null
       ? Number(process.env.THUMBNAIL_VIDEO_SEEK_SECONDS)
@@ -177,7 +177,7 @@ module.exports = {
   THUMBNAIL_BACKGROUND_QUEUE_LIMIT:
     process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT != null
       ? Number(process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
-      : 8,
+      : 16,
   THUMBNAIL_DIAGNOSTICS_ENABLED:
     normalizeBoolean(process.env.THUMBNAIL_DIAGNOSTICS_ENABLED) ?? false,
   THUMBNAIL_DIAGNOSTICS_INTERVAL_MS:

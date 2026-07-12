@@ -112,7 +112,7 @@ const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_C
   : 500;
 const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
   ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
-  : 2;
+  : 3;
 const THUMBNAIL_VIDEO_SEEK_SECONDS = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_SECONDS)
   ? Math.max(0, Math.floor(env.THUMBNAIL_VIDEO_SEEK_SECONDS))
   : 5;
@@ -127,7 +127,7 @@ const THUMBNAIL_VIDEO_SCALE_FLAGS = /^[a-z0-9_+.-]+$/i.test(env.THUMBNAIL_VIDEO_
   : 'fast_bilinear';
 const THUMBNAIL_BACKGROUND_QUEUE_LIMIT = Number.isFinite(env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
   ? Math.max(1, Math.min(100, Math.floor(env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)))
-  : 8;
+  : 16;
 const THUMBNAIL_DIAGNOSTICS_ENABLED = env.THUMBNAIL_DIAGNOSTICS_ENABLED === true;
 const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS)
   ? Math.max(5000, Math.floor(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS))
@@ -545,7 +545,7 @@ const makeImageThumb = async (srcPath, destPath) => {
       withoutEnlargement: true,
       fastShrinkOnLoad: true,
     })
-    .webp({ quality, effort: 4 });
+    .webp({ quality, effort: 3 });
 
   await atomicWriteSharpFile(destPath, pipeline);
 };
@@ -713,7 +713,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
     });
 
     let settled = false;
-    const pipeline = sharp().webp({ quality, effort: 4 });
+    const pipeline = sharp().webp({ quality, effort: 3 });
     convert.stdout.pipe(pipeline);
 
     const cleanup = ({ killProcess = false } = {}) => {

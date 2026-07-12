@@ -22,7 +22,11 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 
 export const useFileStore = defineStore('fileStore', () => {
-  const THUMBNAIL_REQUEST_CONCURRENCY = 2;
+  // How many thumbnail HTTP requests the client keeps in flight at once. The
+  // backend keeps navigation responsive under load (enlarged libuv pool + niced
+  // ffmpeg/convert children + bounded background queue), so the client can feed
+  // it several requests concurrently instead of trickling them two at a time.
+  const THUMBNAIL_REQUEST_CONCURRENCY = 6;
 
   // State
   const currentPath = ref('');
