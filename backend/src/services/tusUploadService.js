@@ -13,14 +13,14 @@ const logger = require('../utils/logger');
 
 const TUS_PATH = '/api/upload/tus';
 const TUS_CACHE_DIR = uploadConfig?.tusUploadDir;
-const TUS_EXPIRATION_MS = 24 * 60 * 60 * 1000;
-const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
+const TUS_INCOMPLETE_UPLOAD_TTL_MS = uploadConfig?.tusIncompleteUploadTtlMs ?? 60 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = uploadConfig?.tusCleanupIntervalMs ?? 10 * 60 * 1000;
 
 let lastCleanupAt = 0;
 
 const fileStore = new FileStore({
   directory: TUS_CACHE_DIR,
-  expirationPeriodInMilliseconds: TUS_EXPIRATION_MS,
+  expirationPeriodInMilliseconds: TUS_INCOMPLETE_UPLOAD_TTL_MS,
 });
 
 const tusError = (statusCode, message) => ({
@@ -79,17 +79,132 @@ const ensureTusEnabled = async () => {
   }
 };
 
-const cleanupExpiredUploads = async () => {
+const safeStat = async (filePath) => {
+  try {
+    return await fs.stat(filePath);
+  } catch (_) {
+    return null;
+  }
+};
+
+const safeReadJson = async (filePath) => {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+  } catch (_) {
+    return null;
+  }
+};
+
+const rmIfExists = async (filePath) => {
+  try {
+    await fs.rm(filePath, { force: true });
+    return true;
+  } catch (err) {
+    logger.warn({ filePath, err }, 'Failed to remove stale TUS cache file');
+    return false;
+  }
+};
+
+const getLastActivityMs = (...stats) =>
+  Math.max(
+    0,
+    ...stats.filter(Boolean).map((statsItem) => Number(statsItem.mtimeMs || statsItem.ctimeMs || 0))
+  );
+
+const cleanupInactiveUploads = async (now = Date.now()) => {
+  if (TUS_INCOMPLETE_UPLOAD_TTL_MS <= 0) return 0;
+
+  await ensureDir(TUS_CACHE_DIR);
+
+  let entries = [];
+  try {
+    entries = await fs.readdir(TUS_CACHE_DIR, { withFileTypes: true });
+  } catch (err) {
+    logger.warn({ err }, 'Failed to inspect TUS upload cache');
+    return 0;
+  }
+
+  const fileNames = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
+  let removedCount = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile() || entry.name.endsWith('.json')) continue;
+
+    const dataPath = path.join(TUS_CACHE_DIR, entry.name);
+    if (fileNames.has(`${entry.name}.json`)) continue;
+
+    const dataStats = await safeStat(dataPath);
+    if (!dataStats || now - getLastActivityMs(dataStats) < TUS_INCOMPLETE_UPLOAD_TTL_MS) continue;
+
+    if (await rmIfExists(dataPath)) removedCount += 1;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+
+    const uploadId = entry.name.slice(0, -'.json'.length);
+    const metadataPath = path.join(TUS_CACHE_DIR, entry.name);
+    const dataPath = path.join(TUS_CACHE_DIR, uploadId);
+    const [metadataStats, dataStats, metadata] = await Promise.all([
+      safeStat(metadataPath),
+      safeStat(dataPath),
+      safeReadJson(metadataPath),
+    ]);
+
+    const lastActivityMs = getLastActivityMs(metadataStats, dataStats);
+    if (now - lastActivityMs < TUS_INCOMPLETE_UPLOAD_TTL_MS) continue;
+
+    if (!dataStats) {
+      if (await rmIfExists(metadataPath)) removedCount += 1;
+      continue;
+    }
+
+    const expectedSize = Number(metadata?.size);
+    const isIncomplete = !Number.isFinite(expectedSize) || dataStats.size < expectedSize;
+    if (!isIncomplete) continue;
+
+    const removed = await Promise.all([rmIfExists(dataPath), rmIfExists(metadataPath)]);
+    removedCount += removed.filter(Boolean).length;
+  }
+
+  if (removedCount > 0) {
+    logger.info({ removedCount }, 'Cleaned stale TUS upload cache files');
+  }
+
+  return removedCount;
+};
+
+const cleanupExpiredUploads = async ({ force = false } = {}) => {
   const now = Date.now();
-  if (now - lastCleanupAt < CLEANUP_INTERVAL_MS) return;
+  if (!force && now - lastCleanupAt < CLEANUP_INTERVAL_MS) return;
   lastCleanupAt = now;
+
+  try {
+    await ensureDir(TUS_CACHE_DIR);
+  } catch (err) {
+    logger.warn({ err }, 'Failed to prepare TUS upload cache for cleanup');
+    return;
+  }
 
   try {
     await fileStore.deleteExpired();
   } catch (err) {
-    logger.warn({ err }, 'Failed to clean up expired TUS uploads');
+    const message = String(err?.body || err?.message || '');
+    if (err?.code !== 'ENOENT' && !message.includes('not found')) {
+      logger.warn({ err }, 'Failed to clean up expired TUS uploads');
+    }
+  }
+
+  try {
+    await cleanupInactiveUploads(now);
+  } catch (err) {
+    logger.warn({ err }, 'Failed to clean up inactive TUS uploads');
   }
 };
+
+cleanupExpiredUploads({ force: true }).catch((err) => {
+  logger.warn({ err }, 'Failed to run initial TUS upload cleanup');
+});
 
 const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
   const filename =
@@ -258,4 +373,6 @@ const handleTusUpload = async (req, res) => {
 
 module.exports = {
   handleTusUpload,
+  cleanupExpiredUploads,
+  cleanupInactiveUploads,
 };
