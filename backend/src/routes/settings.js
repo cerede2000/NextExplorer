@@ -158,11 +158,13 @@ router.patch(
         if (
           key === 'showHiddenFiles' ||
           key === 'showThumbnails' ||
+          key === 'showSidebarFavorites' ||
+          key === 'showSidebarShares' ||
+          key === 'showSidebarTools' ||
           key === 'defaultShareExpiration' ||
           key === 'skipHome'
         ) {
-          await setUserSetting(user.id, key, value);
-          userUpdates[key] = value;
+          userUpdates[key] = await setUserSetting(user.id, key, value);
         }
       }
       if (Object.keys(userUpdates).length > 0) {

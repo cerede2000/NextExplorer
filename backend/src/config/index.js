@@ -81,6 +81,13 @@ const parseHiddenFilePatterns = (raw) => {
   };
 };
 
+const parseExtensionList = (raw) =>
+  String(raw || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .map((s) => (s.startsWith('.') ? s.slice(1) : s))
+    .filter(Boolean);
+
 // Helper: Parse comma/space-separated scopes
 const parseScopes = (raw) => {
   const list = parseCommaOrSpaceList(raw);
@@ -259,11 +266,13 @@ const editorMaxFileSizeBytes = (() => {
 })();
 
 const editor = {
-  extensions: env.EDITOR_EXTENSIONS.split(',')
-    .map((s) => s.trim().toLowerCase())
-    .map((s) => (s.startsWith('.') ? s.slice(1) : s))
-    .filter(Boolean),
+  extensions: parseExtensionList(env.EDITOR_EXTENSIONS),
   maxFileSizeBytes: editorMaxFileSizeBytes,
+};
+
+// --- Terminal ---
+const terminal = {
+  extensions: parseExtensionList(env.TERMINAL_FILE_EXTENSIONS),
 };
 
 // --- Favorites ---
@@ -331,6 +340,7 @@ module.exports = {
   onlyoffice,
   collabora,
   editor,
+  terminal,
   favorites,
   shares,
   hiddenFiles,

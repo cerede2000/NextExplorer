@@ -48,7 +48,7 @@ import { onClickOutside } from '@vueuse/core';
 import logger from '@/utils/logger';
 
 const terminalStore = useTerminalStore();
-const { isOpen } = storeToRefs(terminalStore);
+const { isOpen, launchPath, launchInput, launchKey } = storeToRefs(terminalStore);
 const { close } = terminalStore;
 
 const terminaldiv = ref(null);
@@ -58,6 +58,8 @@ let socket;
 let fitAddon;
 let resizeObserver;
 let pendingResize;
+let launchInputTimer;
+let launchInputSent = false;
 
 // Prefix used to send control messages (like resize) over the same WS channel as raw terminal input.
 // This avoids collisions with normal shell input (xterm sends raw keystrokes).
@@ -87,6 +89,34 @@ const sendResize = (cols, rows) => {
   }
 };
 
+const clearLaunchInputTimer = () => {
+  if (launchInputTimer) {
+    clearTimeout(launchInputTimer);
+    launchInputTimer = null;
+  }
+};
+
+const scheduleLaunchInput = () => {
+  if (launchInputSent || !launchInput.value) return;
+
+  clearLaunchInputTimer();
+  launchInputTimer = setTimeout(() => {
+    if (launchInputSent || !launchInput.value) return;
+    sendInput(launchInput.value);
+    launchInputSent = true;
+    launchInputTimer = null;
+  }, 150);
+};
+
+const focusTerminal = () => {
+  requestAnimationFrame(() => {
+    term?.focus();
+    setTimeout(() => {
+      term?.focus();
+    }, 50);
+  });
+};
+
 const toWebSocketScheme = (url) => {
   if (url.startsWith('https://')) {
     return `wss://${url.slice(8)}`;
@@ -111,7 +141,7 @@ const buildTerminalUrl = (token) => {
 
 const connectToBackend = async () => {
   try {
-    const session = await createTerminalSession();
+    const session = await createTerminalSession(launchPath.value || '');
     const token = session?.token;
     if (!token) {
       console.error('Failed to obtain terminal session token');
@@ -131,7 +161,7 @@ const connectToBackend = async () => {
 
     socket.onmessage = (event) => {
       logger.debug('Received data from terminal', event.data.length, 'bytes');
-      term.write(event.data);
+      term.write(event.data, scheduleLaunchInput);
     };
 
     socket.onerror = (error) => {
@@ -185,6 +215,7 @@ const initTerminal = () => {
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(terminaldiv.value);
+  focusTerminal();
 
   term.onResize(({ cols, rows }) => {
     sendResize(cols, rows);
@@ -201,6 +232,7 @@ const initTerminal = () => {
   // Initial fit (also triggers `onResize` -> sends size to backend).
   requestAnimationFrame(() => {
     fitAddon.fit();
+    focusTerminal();
   });
 
   term.onData((data) => {
@@ -210,14 +242,40 @@ const initTerminal = () => {
   connectToBackend();
 };
 
-watch(isOpen, (newVal) => {
+const teardownTerminal = () => {
+  clearLaunchInputTimer();
+  launchInputSent = false;
+
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
+
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
+
+  if (term) {
+    term.dispose();
+    term = null;
+  }
+
+  fitAddon = null;
+  pendingResize = null;
+};
+
+watch([isOpen, launchKey], ([newVal]) => {
   if (newVal) {
+    teardownTerminal();
     setTimeout(() => {
       initTerminal();
       if (fitAddon) {
         fitAddon.fit();
       }
     }, 250);
+  } else {
+    teardownTerminal();
   }
 });
 
@@ -228,15 +286,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
-  if (socket) {
-    socket.close();
-  }
-  if (term) {
-    term.dispose();
-  }
+  teardownTerminal();
 });
 
 onClickOutside(panelRef, () => {

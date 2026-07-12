@@ -72,8 +72,8 @@
     "readwrite": "पढ़ना/लिखना"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "जानकारी प्राप्त करें",
     "openWithEditor": "संपादक में खोलें",
+    "openWithTerminal": "टर्मिनल में खोलें",
     "addToFavorites": "पसंदीदा में जोड़ें",
     "removeFromFavorites": "पसंदीदा से हटाएँ",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "एक्सप्लोरर में कॉन्फ़िगर किए गए छिपे पैटर्न ({patterns}) से मेल खाने वाली फ़ाइलें और फ़ोल्डर दिखाएँ।",
       "showThumbnails": "थंबनेल दिखाएँ",
       "showThumbnailsHelp": "इमेज और वीडियो के लिए थंबनेल पूर्वावलोकन दिखाएँ।",
+      "showSidebarFavorites": "पसंदीदा सेक्शन दिखाएँ",
+      "showSidebarFavoritesHelp": "बाएँ साइडबार में पसंदीदा दिखाएँ।",
+      "showSidebarShares": "शेयर सेक्शन दिखाएँ",
+      "showSidebarSharesHelp": "बाएँ साइडबार में शेयर दिखाएँ।",
+      "showSidebarTools": "टूल्स सेक्शन दिखाएँ",
+      "showSidebarToolsHelp": "बाएँ साइडबार में टूल्स दिखाएँ।",
       "defaultShareExpiration": "शेयर के लिए डिफ़ॉल्ट समाप्ति",
       "defaultShareExpirationHelp": "नई शेयरों के लिए एक डिफ़ॉल्ट अवधि सेट करें। यह सेटिंग शेयर बनाने पर समाप्ति तिथि को पूर्व-भरा रखेगी।",
       "expirationValue": "मान",

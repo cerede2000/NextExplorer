@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs/promises');
 const fss = require('fs');
+const { finished, pipeline } = require('stream/promises');
 const multer = require('multer');
 
 const { ensureDir, pathExists } = require('../utils/fsUtils');
@@ -9,6 +10,30 @@ const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
+
+const RETRYABLE_CLEANUP_ERRORS = new Set(['EBUSY', 'ENOTEMPTY', 'EPERM']);
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForClosed = async (stream) => {
+  if (!stream || stream.closed) return;
+  try {
+    await finished(stream);
+  } catch (_) {
+    // A destroyed stream often reports the original abort/error here; the close is what matters.
+  }
+};
+
+const destroyStream = (stream, error) => {
+  if (!stream || stream.destroyed) return;
+  stream.destroy(error);
+};
+
+const createUploadAbortedError = () => {
+  const error = new Error('Upload aborted by the client.');
+  error.code = 'UPLOAD_ABORTED';
+  return error;
+};
 
 const resolveUploadPaths = async (req, file) => {
   const relativePathMeta = readMetaField(req, 'relativePath');
@@ -77,43 +102,82 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       const temporaryPath = `${finalPath}.uploading`;
 
       const cleanupTemporary = async () => {
-        try {
-          if (await pathExists(temporaryPath)) {
-            await fs.rm(temporaryPath, { force: true });
+        let lastError = null;
+
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          try {
+            if (await pathExists(temporaryPath)) {
+              await fs.rm(temporaryPath, { force: true });
+            }
+            return;
+          } catch (cleanupErr) {
+            lastError = cleanupErr;
+            if (!RETRYABLE_CLEANUP_ERRORS.has(cleanupErr?.code) || attempt === 5) {
+              break;
+            }
+            await delay(50 * (attempt + 1));
           }
-        } catch (cleanupErr) {
-          logger.error(
-            { temporaryPath, err: cleanupErr },
-            'Failed to remove temporary upload file'
-          );
         }
+
+        logger.error({ temporaryPath, err: lastError }, 'Failed to remove temporary upload file');
       };
 
       const outStream = fss.createWriteStream(temporaryPath);
-      file.stream.pipe(outStream);
+      let uploadAborted = false;
+      let uploadFinished = false;
+      let abortError = null;
 
-      const handleStreamError = async (streamErr) => {
-        await cleanupTemporary();
-        cb(streamErr);
+      const handleAbort = () => {
+        if (uploadFinished || uploadAborted) return;
+        uploadAborted = true;
+        abortError = createUploadAbortedError();
+        try {
+          file.stream.unpipe(outStream);
+        } catch (_) {
+          /* noop */
+        }
+        destroyStream(file.stream, abortError);
+        destroyStream(outStream, abortError);
       };
 
-      file.stream.on('error', handleStreamError);
-      outStream.on('error', handleStreamError);
-
-      outStream.on('finish', async () => {
-        try {
-          await fs.rename(temporaryPath, finalPath);
-          cb(null, {
-            path: finalPath,
-            size: outStream.bytesWritten,
-            filename: path.basename(finalPath),
-            logicalPath: logicalRelativePath,
-          });
-        } catch (renameErr) {
-          await cleanupTemporary();
-          cb(renameErr);
+      const handleClose = () => {
+        if (!req.complete) {
+          handleAbort();
         }
-      });
+      };
+
+      req.once('aborted', handleAbort);
+      req.once('close', handleClose);
+
+      try {
+        await pipeline(file.stream, outStream);
+        uploadFinished = true;
+      } catch (streamErr) {
+        const error = uploadAborted ? abortError || streamErr : streamErr;
+        destroyStream(file.stream, error);
+        destroyStream(outStream, error);
+        await waitForClosed(outStream);
+        await cleanupTemporary();
+        cb(error);
+        return;
+      } finally {
+        req.off('aborted', handleAbort);
+        req.off('close', handleClose);
+      }
+
+      try {
+        await fs.rename(temporaryPath, finalPath);
+        cb(null, {
+          path: finalPath,
+          size: outStream.bytesWritten,
+          filename: path.basename(finalPath),
+          logicalPath: logicalRelativePath,
+        });
+      } catch (renameErr) {
+        await waitForClosed(outStream);
+        await cleanupTemporary();
+        cb(renameErr);
+      }
     } catch (uploadError) {
       cb(uploadError);
     }

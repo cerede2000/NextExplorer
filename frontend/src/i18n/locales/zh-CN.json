@@ -72,8 +72,8 @@
     "readwrite": "读/写"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "获取信息",
     "openWithEditor": "使用编辑器打开",
+    "openWithTerminal": "在终端中打开",
     "addToFavorites": "添加到收藏夹",
     "removeFromFavorites": "从收藏夹移除",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "在文件浏览器中显示匹配已配置隐藏模式（{patterns}）的文件和文件夹。",
       "showThumbnails": "显示缩略图",
       "showThumbnailsHelp": "在浏览器中显示图像和视频的缩略预览。",
+      "showSidebarFavorites": "显示收藏夹区域",
+      "showSidebarFavoritesHelp": "在左侧边栏显示收藏夹。",
+      "showSidebarShares": "显示共享区域",
+      "showSidebarSharesHelp": "在左侧边栏显示共享。",
+      "showSidebarTools": "显示工具区域",
+      "showSidebarToolsHelp": "在左侧边栏显示工具。",
       "defaultShareExpiration": "分享默认过期时间",
       "defaultShareExpirationHelp": "为新的分享设置默认期限。创建分享时将自动填充到期日期。",
       "expirationValue": "值",

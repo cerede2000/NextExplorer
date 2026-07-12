@@ -72,8 +72,8 @@
     "readwrite": "Läs/Skriv"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Hämta info",
     "openWithEditor": "Öppna med redigerare",
+    "openWithTerminal": "Öppna i terminal",
     "addToFavorites": "Lägg till i favoriter",
     "removeFromFavorites": "Ta bort från favoriter",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "Visar filer och mappar som matchar de konfigurerade dolda mönstren ({patterns}) i Utforskaren.",
       "showThumbnails": "Visa miniatyrbilder",
       "showThumbnailsHelp": "Visar förhandsgranskningar av bilder och videor i miniatyrformat.",
+      "showSidebarFavorites": "Visa Favoriter",
+      "showSidebarFavoritesHelp": "Visar Favoriter i vänster sidofält.",
+      "showSidebarShares": "Visa Delningar",
+      "showSidebarSharesHelp": "Visar Delningar i vänster sidofält.",
+      "showSidebarTools": "Visa Verktyg",
+      "showSidebarToolsHelp": "Visar Verktyg i vänster sidofält.",
       "defaultShareExpiration": "Standardutgång för delningar",
       "defaultShareExpirationHelp": "Ställ in en standardperiod för nya delningar. Utlösningsdatumet fylls i automatiskt baserat på detta val.",
       "expirationValue": "Värde",

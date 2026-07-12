@@ -3,6 +3,7 @@ const {
   onlyoffice,
   collabora,
   editor,
+  terminal,
   features,
   hiddenFiles,
   public: publicConfig,
@@ -47,6 +48,7 @@ router.get('/features', (_req, res) => {
     },
     terminal: {
       enabled: Boolean(features?.terminal) && terminalService.isAvailable(),
+      extensions: Array.isArray(terminal?.extensions) ? terminal.extensions : [],
     },
     version: {
       app: packageJson.version || '1.0.0',

@@ -72,8 +72,8 @@
     "readwrite": "Lecture/Écriture"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Obtenir des informations",
     "openWithEditor": "Ouvrir avec l’éditeur",
+    "openWithTerminal": "Ouvrir dans le terminal",
     "addToFavorites": "Ajouter aux favoris",
     "removeFromFavorites": "Retirer des favoris",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "Affiche les fichiers et dossiers correspondant aux patterns cachés configurés ({patterns}) dans l’explorateur.",
       "showThumbnails": "Afficher les miniatures",
       "showThumbnailsHelp": "Affiche des aperçus miniatures pour les images et vidéos.",
+      "showSidebarFavorites": "Afficher la section Favoris",
+      "showSidebarFavoritesHelp": "Affiche les Favoris dans la barre latérale gauche.",
+      "showSidebarShares": "Afficher la section Partages",
+      "showSidebarSharesHelp": "Affiche les Partages dans la barre latérale gauche.",
+      "showSidebarTools": "Afficher la section Outils",
+      "showSidebarToolsHelp": "Affiche les Outils dans la barre latérale gauche.",
       "defaultShareExpiration": "Expiration par défaut des partages",
       "defaultShareExpirationHelp": "Définissez un délai par défaut pour les nouveaux partages. La date d’expiration est pré-remplie selon ce délai.",
       "expirationValue": "Valeur",

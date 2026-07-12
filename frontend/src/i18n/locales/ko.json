@@ -72,8 +72,8 @@
     "readwrite": "읽기/쓰기"
   },
   "editor": {
-    "editing":"편집 중",
-    "unsavedChanges":"저장되지 않은 변경사항 있음",
+    "editing": "편집 중",
+    "unsavedChanges": "저장되지 않은 변경사항 있음",
     "theme": "테마",
     "editorSettings": "에디터 설정",
     "wrapLines": "자동 줄 바꿈",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "속성",
     "openWithEditor": "에디터로 열기",
+    "openWithTerminal": "터미널에서 열기",
     "addToFavorites": "즐겨찾기에 추가",
     "removeFromFavorites": "즐겨찾기에서 제거",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "파일 탐색기에서 구성된 숨김 패턴({patterns})과 일치하는 파일과 폴더를 표시합니다.",
       "showThumbnails": "썸네일 표시",
       "showThumbnailsHelp": "파일 탐색기에서 사진과 영상 파일의 미리보기 썸네일을 표시합니다.",
+      "showSidebarFavorites": "즐겨찾기 섹션 표시",
+      "showSidebarFavoritesHelp": "왼쪽 사이드바에 즐겨찾기를 표시합니다.",
+      "showSidebarShares": "공유 섹션 표시",
+      "showSidebarSharesHelp": "왼쪽 사이드바에 공유를 표시합니다.",
+      "showSidebarTools": "도구 섹션 표시",
+      "showSidebarToolsHelp": "왼쪽 사이드바에 도구를 표시합니다.",
       "defaultShareExpiration": "기본 공유 기한",
       "defaultShareExpirationHelp": "새 공유를 만들 때 사용할 기본 공유 기한을 지정하세요. 공유를 생성할 때 이 설정 값을 바탕으로 기본값이 채워집니다.",
       "expirationValue": "기간",

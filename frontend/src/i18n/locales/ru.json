@@ -72,8 +72,8 @@
     "readwrite": "Чтение/Запись"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Свойства",
     "openWithEditor": "Открыть в редакторе",
+    "openWithTerminal": "Открыть в терминале",
     "addToFavorites": "Добавить в избранное",
     "removeFromFavorites": "Удалить из избранного",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "Отображает файлы и папки, соответствующие настроенным скрытым шаблонам ({patterns}), в проводнике.",
       "showThumbnails": "Показывать миниатюры",
       "showThumbnailsHelp": "Показывает миниатюры для изображений и видео.",
+      "showSidebarFavorites": "Показывать раздел избранного",
+      "showSidebarFavoritesHelp": "Показывает избранное в левой боковой панели.",
+      "showSidebarShares": "Показывать раздел общего доступа",
+      "showSidebarSharesHelp": "Показывает общий доступ в левой боковой панели.",
+      "showSidebarTools": "Показывать раздел инструментов",
+      "showSidebarToolsHelp": "Показывает инструменты в левой боковой панели.",
       "defaultShareExpiration": "Стандартный срок действия ссылки",
       "defaultShareExpirationHelp": "Установите интервал по умолчанию для новых ссылок. Дата истечения будет автоматически заполнена согласно этому значению.",
       "expirationValue": "Значение",

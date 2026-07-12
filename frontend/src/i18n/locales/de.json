@@ -72,8 +72,8 @@
     "readwrite": "Lesen/Schreiben"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Informationen",
     "openWithEditor": "Im Editor öffnen",
+    "openWithTerminal": "Im Terminal öffnen",
     "addToFavorites": "Zu Favoriten hinzufügen",
     "removeFromFavorites": "Aus Favoriten entfernen",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "Zeigt Dateien und Ordner an, die den konfigurierten versteckten Mustern ({patterns}) entsprechen.",
       "showThumbnails": "Vorschaubilder anzeigen",
       "showThumbnailsHelp": "Zeigt Vorschaubilder für Bilder und Videos im Explorer an.",
+      "showSidebarFavorites": "Favoritenbereich anzeigen",
+      "showSidebarFavoritesHelp": "Zeigt Favoriten in der linken Seitenleiste an.",
+      "showSidebarShares": "Freigabenbereich anzeigen",
+      "showSidebarSharesHelp": "Zeigt Freigaben in der linken Seitenleiste an.",
+      "showSidebarTools": "Werkzeugbereich anzeigen",
+      "showSidebarToolsHelp": "Zeigt Werkzeuge in der linken Seitenleiste an.",
       "defaultShareExpiration": "Standard-Ablaufdatum für Freigaben",
       "defaultShareExpirationHelp": "Legen Sie einen Standardzeitraum für neue Freigaben fest. Das Ablaufdatum wird beim Erstellen automatisch entsprechend vorbelegt.",
       "expirationValue": "Wert",

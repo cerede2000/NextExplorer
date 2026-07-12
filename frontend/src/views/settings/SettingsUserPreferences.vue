@@ -11,6 +11,9 @@ const { t } = useI18n();
 const local = reactive({
   showHiddenFiles: false,
   showThumbnails: true,
+  showSidebarFavorites: true,
+  showSidebarShares: true,
+  showSidebarTools: true,
   defaultShareExpirationValue: null,
   defaultShareExpirationUnit: 'weeks',
   skipHome: null, // null = use env, true/false = override
@@ -27,6 +30,9 @@ const dirty = computed(() => {
   return (
     local.showHiddenFiles !== orig.showHiddenFiles ||
     local.showThumbnails !== orig.showThumbnails ||
+    local.showSidebarFavorites !== (orig.showSidebarFavorites ?? true) ||
+    local.showSidebarShares !== (orig.showSidebarShares ?? true) ||
+    local.showSidebarTools !== (orig.showSidebarTools ?? true) ||
     JSON.stringify(localExpiration) !== JSON.stringify(origExpiration) ||
     local.skipHome !== orig.skipHome
   );
@@ -41,11 +47,32 @@ onMounted(() => {
   features.ensureLoaded();
 });
 
+const sidebarPreferenceRows = [
+  {
+    key: 'showSidebarFavorites',
+    label: 'settings.userPreferences.showSidebarFavorites',
+    help: 'settings.userPreferences.showSidebarFavoritesHelp',
+  },
+  {
+    key: 'showSidebarShares',
+    label: 'settings.userPreferences.showSidebarShares',
+    help: 'settings.userPreferences.showSidebarSharesHelp',
+  },
+  {
+    key: 'showSidebarTools',
+    label: 'settings.userPreferences.showSidebarTools',
+    help: 'settings.userPreferences.showSidebarToolsHelp',
+  },
+];
+
 watch(
   () => appSettings.userSettings,
   (userSettings) => {
     local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
     local.showThumbnails = userSettings.showThumbnails ?? true;
+    local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
+    local.showSidebarShares = userSettings.showSidebarShares ?? true;
+    local.showSidebarTools = userSettings.showSidebarTools ?? true;
 
     const expiration = userSettings.defaultShareExpiration;
     if (expiration && typeof expiration === 'object') {
@@ -65,6 +92,9 @@ const reset = () => {
   const userSettings = appSettings.userSettings;
   local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
   local.showThumbnails = userSettings.showThumbnails ?? true;
+  local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
+  local.showSidebarShares = userSettings.showSidebarShares ?? true;
+  local.showSidebarTools = userSettings.showSidebarTools ?? true;
 
   const expiration = userSettings.defaultShareExpiration;
   if (expiration && typeof expiration === 'object') {
@@ -87,6 +117,9 @@ const save = async () => {
     user: {
       showHiddenFiles: local.showHiddenFiles,
       showThumbnails: local.showThumbnails,
+      showSidebarFavorites: local.showSidebarFavorites,
+      showSidebarShares: local.showSidebarShares,
+      showSidebarTools: local.showSidebarTools,
       defaultShareExpiration,
       skipHome: local.skipHome,
     },
@@ -168,6 +201,31 @@ const save = async () => {
           </div>
           <label class="inline-flex cursor-pointer items-center">
             <input type="checkbox" v-model="local.showThumbnails" class="peer sr-only" />
+            <div
+              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
+            >
+              <div
+                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
+              ></div>
+            </div>
+          </label>
+        </div>
+
+        <div
+          v-for="row in sidebarPreferenceRows"
+          :key="row.key"
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t(row.label) }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t(row.help) }}
+            </div>
+          </div>
+          <label class="inline-flex cursor-pointer items-center">
+            <input type="checkbox" v-model="local[row.key]" class="peer sr-only" />
             <div
               class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
             >

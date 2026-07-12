@@ -72,8 +72,8 @@
     "readwrite": "Odczyt/Zapis"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Informacje",
     "openWithEditor": "Otwórz w edytorze",
+    "openWithTerminal": "Otwórz w terminalu",
     "addToFavorites": "Dodaj do ulubionych",
     "removeFromFavorites": "Usuń z ulubionych",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "Pokazuje pliki i foldery pasujące do skonfigurowanych ukrytych wzorców ({patterns}) w eksploratorze.",
       "showThumbnails": "Pokaż miniatury",
       "showThumbnailsHelp": "Wyświetla miniatury obrazów i filmów w przeglądarce.",
+      "showSidebarFavorites": "Pokaż sekcję Ulubione",
+      "showSidebarFavoritesHelp": "Wyświetla Ulubione na lewym pasku bocznym.",
+      "showSidebarShares": "Pokaż sekcję Udostępnienia",
+      "showSidebarSharesHelp": "Wyświetla Udostępnienia na lewym pasku bocznym.",
+      "showSidebarTools": "Pokaż sekcję Narzędzia",
+      "showSidebarToolsHelp": "Wyświetla Narzędzia na lewym pasku bocznym.",
       "defaultShareExpiration": "Domyślny czas wygaśnięcia udostępnień",
       "defaultShareExpirationHelp": "Ustaw domyślny okres dla nowych udostępnień. Data wygaśnięcia zostanie wstępnie ustawiona zgodnie z tym okresem.",
       "expirationValue": "Wartość",

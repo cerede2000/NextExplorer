@@ -72,8 +72,8 @@
     "readwrite": "Lectura/Escritura"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -215,6 +215,7 @@
   "context": {
     "getInfo": "Obtener información",
     "openWithEditor": "Abrir con el editor",
+    "openWithTerminal": "Abrir en terminal",
     "addToFavorites": "Agregar a favoritos",
     "removeFromFavorites": "Quitar de favoritos",
     "deleteTitle": {
@@ -418,6 +419,12 @@
       "showHiddenFilesHelp": "Muestra archivos y carpetas que coinciden con los patrones ocultos configurados ({patterns}) en el explorador.",
       "showThumbnails": "Mostrar miniaturas",
       "showThumbnailsHelp": "Muestra previsualizaciones en miniatura para imágenes y vídeos.",
+      "showSidebarFavorites": "Mostrar sección Favoritos",
+      "showSidebarFavoritesHelp": "Muestra Favoritos en la barra lateral izquierda.",
+      "showSidebarShares": "Mostrar sección Compartidos",
+      "showSidebarSharesHelp": "Muestra Compartidos en la barra lateral izquierda.",
+      "showSidebarTools": "Mostrar sección Herramientas",
+      "showSidebarToolsHelp": "Muestra Herramientas en la barra lateral izquierda.",
       "defaultShareExpiration": "Caducidad predeterminada para compartir",
       "defaultShareExpirationHelp": "Establece un período por defecto para nuevas comparticiones. La fecha de caducidad se rellena automáticamente basándose en este valor.",
       "expirationValue": "Valor",
