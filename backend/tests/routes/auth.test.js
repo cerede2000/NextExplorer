@@ -27,6 +27,8 @@ const buildApp = ({ authEnabled } = {}) => {
 
   // Ensure each test app starts with a clean database.
   try {
+    const dbService = require('../../src/services/db');
+    dbService.closeDb?.();
     fs.rmSync(path.join(envContext.configDir, 'app.db'), { force: true });
   } catch (_) {
     // ignore
