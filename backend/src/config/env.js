@@ -95,6 +95,7 @@ module.exports = {
   FFMPEG_HWACCEL: process.env.FFMPEG_HWACCEL?.trim() || null,
   FFMPEG_HWACCEL_DEVICE: process.env.FFMPEG_HWACCEL_DEVICE?.trim() || null,
   FFMPEG_HWACCEL_OUTPUT_FORMAT: process.env.FFMPEG_HWACCEL_OUTPUT_FORMAT?.trim() || null,
+  THUMBNAILS_ENABLED: normalizeBoolean(process.env.THUMBNAILS_ENABLED) ?? true,
   THUMBNAIL_CACHE_MAX_FILES:
     process.env.THUMBNAIL_CACHE_MAX_FILES != null
       ? Number(process.env.THUMBNAIL_CACHE_MAX_FILES)
@@ -110,7 +111,7 @@ module.exports = {
   THUMBNAIL_SHARP_CACHE_MEMORY_MB:
     process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB != null
       ? Number(process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)
-      : 32,
+      : 0,
 
   // Favorites
   FAVORITES_DEFAULT_ICON: process.env.FAVORITES_DEFAULT_ICON || 'outline:StarIcon',

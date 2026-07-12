@@ -26,6 +26,7 @@ const { parsePathSpace } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { extensions } = require('../config/index');
+const env = require('../config/env');
 const { getSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 
@@ -513,7 +514,8 @@ router.get(
 
     // Determine thumbnail settings
     const settings = await getSettings();
-    const thumbsEnabled = settings?.thumbnails?.enabled !== false;
+    const thumbsEnabled =
+      env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
 
     // Directory share or navigating inside a directory share
     if (stats.isDirectory()) {

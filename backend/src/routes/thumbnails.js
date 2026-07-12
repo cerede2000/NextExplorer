@@ -4,6 +4,7 @@ const path = require('path');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { extensions } = require('../config/index');
+const env = require('../config/env');
 const { getThumbnail } = require('../services/thumbnailService');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
@@ -29,7 +30,8 @@ router.get(
   '/thumbnails/*',
   asyncHandler(async (req, res) => {
     const settings = await getSettings();
-    const thumbsEnabled = settings?.thumbnails?.enabled !== false;
+    const thumbsEnabled =
+      env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     if (!thumbsEnabled) {
       return res.json({ thumbnail: '' });
     }

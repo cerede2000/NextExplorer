@@ -30,7 +30,7 @@ const configureSharpCache = () => {
   sharp.cache({
     memory: SHARP_CACHE_MEMORY_MB,
     files: 0,
-    items: 100,
+    items: SHARP_CACHE_MEMORY_MB > 0 ? 100 : 0,
   });
 };
 const trimSharpCache = () => {
@@ -109,6 +109,9 @@ const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_C
   ? Math.max(1, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE))
   : 500;
 const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
+const THUMBNAIL_CACHE_DIR = path.resolve(directories.thumbnails);
+const THUMBNAIL_CACHE_FILE_PATTERN = /^v\d+-(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
+const THUMBNAILS_ENABLED = env.THUMBNAILS_ENABLED !== false;
 
 // Create thumbnail generation queue with concurrency limit
 // This prevents overwhelming the system with too many concurrent sharp/ffmpeg operations
@@ -127,7 +130,7 @@ let thumbnailCacheCleanupPromise = null;
 let thumbnailCacheCleanupTimer = null;
 let lastThumbnailCacheCleanupAt = 0;
 
-const scheduleSharpCacheTrim = ({ delayMs = 10 * 1000 } = {}) => {
+const scheduleSharpCacheTrim = ({ delayMs = 2 * 1000 } = {}) => {
   if (sharpCacheTrimTimer) {
     clearTimeout(sharpCacheTrimTimer);
   }
@@ -146,6 +149,29 @@ const scheduleSharpCacheTrim = ({ delayMs = 10 * 1000 } = {}) => {
   if (typeof sharpCacheTrimTimer.unref === 'function') {
     sharpCacheTrimTimer.unref();
   }
+};
+
+const isInsideDirectory = (candidatePath, directoryPath) => {
+  if (!candidatePath) {
+    return false;
+  }
+
+  const relativePath = path.relative(directoryPath, path.resolve(candidatePath));
+  return (
+    relativePath === '' ||
+    (!!relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+  );
+};
+
+const isThumbnailCachePath = (filePath) => {
+  if (!filePath) {
+    return false;
+  }
+
+  return (
+    isInsideDirectory(filePath, THUMBNAIL_CACHE_DIR) ||
+    THUMBNAIL_CACHE_FILE_PATTERN.test(path.basename(filePath))
+  );
 };
 
 // Update queue concurrency from settings
@@ -206,16 +232,24 @@ const hashForFile = async (filePath, stats = null) => {
   return hash.digest('hex');
 };
 
-const atomicWrite = async (finalPath, buffer) => {
+const buildTempThumbnailPath = (finalPath) => `${finalPath}.tmp-${process.pid}-${Date.now()}`;
+
+const atomicWriteSharpFile = async (finalPath, pipeline) => {
   await ensureDir(path.dirname(finalPath));
-  const tmpPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
-  await fsPromises.writeFile(tmpPath, buffer);
-  await fsPromises.rename(tmpPath, finalPath);
+  const tmpPath = buildTempThumbnailPath(finalPath);
+
+  try {
+    await pipeline.toFile(tmpPath);
+    await fsPromises.rename(tmpPath, finalPath);
+  } catch (error) {
+    await fsPromises.rm(tmpPath, { force: true }).catch(() => {});
+    throw error;
+  }
 };
 
 const makeImageThumb = async (srcPath, destPath) => {
   const { size, quality } = await getThumbOptions();
-  const buffer = await sharp(srcPath)
+  const pipeline = sharp(srcPath)
     .rotate()
     .resize({
       width: size,
@@ -224,10 +258,9 @@ const makeImageThumb = async (srcPath, destPath) => {
       withoutEnlargement: true,
       fastShrinkOnLoad: true,
     })
-    .webp({ quality, effort: 4 })
-    .toBuffer();
+    .webp({ quality, effort: 4 });
 
-  await atomicWrite(destPath, buffer);
+  await atomicWriteSharpFile(destPath, pipeline);
 };
 
 const makeRawImageThumb = async (srcPath, destPath) => {
@@ -302,6 +335,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     const done = () => {
       if (settled) return;
       settled = true;
+      cleanup();
       resolve();
     };
 
@@ -319,11 +353,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
       const { quality } = await getThumbOptions();
       pipeline = sharp().webp({ quality, effort: 4 });
       stream.pipe(pipeline);
-      pipeline
-        .toBuffer()
-        .then((buffer) => atomicWrite(destPath, buffer))
-        .then(done)
-        .catch(fail);
+      atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
     })().catch(fail);
   });
 };
@@ -370,6 +400,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
     const done = () => {
       if (settled) return;
       settled = true;
+      cleanup();
       resolve();
     };
 
@@ -386,11 +417,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
     pipeline = sharp().webp({ quality, effort: 4 });
     convert.stdout.pipe(pipeline);
 
-    pipeline
-      .toBuffer()
-      .then((buffer) => atomicWrite(destPath, buffer))
-      .then(done)
-      .catch(fail);
+    atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
   });
 };
 
@@ -550,7 +577,7 @@ const scheduleThumbnailCacheCleanup = ({ force = false, delayMs = 5000 } = {}) =
 scheduleThumbnailCacheCleanup({ force: true, delayMs: 2 * 60 * 1000 });
 
 const getThumbnailPathIfExists = async (filePath, stats = null) => {
-  if (filePath.includes(directories.thumbnails)) {
+  if (!THUMBNAILS_ENABLED || isThumbnailCachePath(filePath)) {
     return '';
   }
 
@@ -570,7 +597,7 @@ const getThumbnailPathIfExists = async (filePath, stats = null) => {
 };
 
 const getThumbnail = async (filePath) => {
-  if (filePath.includes(directories.thumbnails)) {
+  if (!THUMBNAILS_ENABLED || isThumbnailCachePath(filePath)) {
     return '';
   }
 
@@ -647,7 +674,7 @@ const getThumbnail = async (filePath) => {
 };
 
 const queueThumbnailGeneration = (filePath) => {
-  if (!filePath || filePath.includes(directories.thumbnails)) {
+  if (!THUMBNAILS_ENABLED || !filePath || isThumbnailCachePath(filePath)) {
     return;
   }
 
@@ -665,5 +692,6 @@ module.exports = {
   generateThumbnail,
   getThumbnail,
   getThumbnailPathIfExists,
+  isThumbnailCachePath,
   queueThumbnailGeneration,
 };
