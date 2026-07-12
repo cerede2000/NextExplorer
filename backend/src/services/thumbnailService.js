@@ -111,8 +111,8 @@ const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_C
   ? Math.max(1, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE))
   : 500;
 const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
-  ? Math.max(1, Math.min(4, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
-  : 1;
+  ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
+  : 2;
 const THUMBNAIL_VIDEO_SEEK_SECONDS = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_SECONDS)
   ? Math.max(0, Math.floor(env.THUMBNAIL_VIDEO_SEEK_SECONDS))
   : 5;
@@ -121,7 +121,7 @@ const THUMBNAIL_VIDEO_SEEK_PERCENT = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_PE
   : null;
 const THUMBNAIL_VIDEO_THREADS = Number.isFinite(env.THUMBNAIL_VIDEO_THREADS)
   ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_THREADS)))
-  : 1;
+  : 2;
 const THUMBNAIL_VIDEO_SCALE_FLAGS = /^[a-z0-9_+.-]+$/i.test(env.THUMBNAIL_VIDEO_SCALE_FLAGS || '')
   ? env.THUMBNAIL_VIDEO_SCALE_FLAGS
   : 'fast_bilinear';
@@ -183,6 +183,32 @@ let thumbnailDiagnosticsTimer = null;
 
 const toMb = (bytes) => Math.round((Number(bytes) || 0) / 1024 / 1024);
 
+// Cheap snapshots used on hot paths (per job/process). Avoid building the full
+// getDiagnosticsSnapshot() object when only memory or queue depth is needed.
+const currentMemoryMb = () => {
+  const memory = process.memoryUsage();
+  return {
+    rss: toMb(memory.rss),
+    heapUsed: toMb(memory.heapUsed),
+    heapTotal: toMb(memory.heapTotal),
+    external: toMb(memory.external),
+    arrayBuffers: toMb(memory.arrayBuffers),
+  };
+};
+
+const queuesSnapshot = () => ({
+  thumbnail: {
+    size: thumbnailQueue.size,
+    pending: thumbnailQueue.pending,
+    concurrency: thumbnailQueue.concurrency,
+  },
+  video: {
+    size: videoThumbnailQueue.size,
+    pending: videoThumbnailQueue.pending,
+    concurrency: videoThumbnailQueue.concurrency,
+  },
+});
+
 const summarizeActiveMap = (map, { now = Date.now(), limit = 5 } = {}) =>
   Array.from(map.values())
     .map((item) => ({
@@ -216,30 +242,12 @@ const safeSharpDiagnostics = () => {
 
 const getDiagnosticsSnapshot = () => {
   const now = Date.now();
-  const memory = process.memoryUsage();
   const activeJobs = Array.from(activeThumbnailJobs.values());
   const activeProcesses = Array.from(activeExternalProcesses.values());
 
   return {
-    memoryMb: {
-      rss: toMb(memory.rss),
-      heapUsed: toMb(memory.heapUsed),
-      heapTotal: toMb(memory.heapTotal),
-      external: toMb(memory.external),
-      arrayBuffers: toMb(memory.arrayBuffers),
-    },
-    queues: {
-      thumbnail: {
-        size: thumbnailQueue.size,
-        pending: thumbnailQueue.pending,
-        concurrency: thumbnailQueue.concurrency,
-      },
-      video: {
-        size: videoThumbnailQueue.size,
-        pending: videoThumbnailQueue.pending,
-        concurrency: videoThumbnailQueue.concurrency,
-      },
-    },
+    memoryMb: currentMemoryMb(),
+    queues: queuesSnapshot(),
     counts: {
       inflight: inflight.size,
       failedCache: failedThumbnails.size,
@@ -322,7 +330,7 @@ const startThumbnailJob = (filePath, thumbPath) => {
 
   activeThumbnailJobs.set(id, job);
   if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
-    logger.info({ job, queues: getDiagnosticsSnapshot().queues }, 'Thumbnail job started');
+    logger.info({ job, queues: queuesSnapshot() }, 'Thumbnail job started');
   }
   return id;
 };
@@ -333,17 +341,20 @@ const finishThumbnailJob = (id, status, error = null) => {
 
   activeThumbnailJobs.delete(id);
   const durationMs = Date.now() - job.startedAt;
-  const payload = {
-    job,
-    status,
-    durationMs,
-    memoryMb: getDiagnosticsSnapshot().memoryMb,
-    error: error ? error.message : undefined,
-  };
-
-  if (THUMBNAIL_DIAGNOSTICS_ENABLED || durationMs >= THUMBNAIL_SLOW_JOB_MS) {
-    logger.info(payload, 'Thumbnail job finished');
+  if (!THUMBNAIL_DIAGNOSTICS_ENABLED && durationMs < THUMBNAIL_SLOW_JOB_MS) {
+    return;
   }
+
+  logger.info(
+    {
+      job,
+      status,
+      durationMs,
+      memoryMb: currentMemoryMb(),
+      error: error ? error.message : undefined,
+    },
+    'Thumbnail job finished'
+  );
 };
 
 // Lower the CPU scheduling priority of a spawned child (ffmpeg/convert) so the
@@ -380,7 +391,7 @@ const registerExternalProcess = (type, filePath, pid, extra = {}) => {
 
   if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
     logger.info(
-      { process: item, memoryMb: getDiagnosticsSnapshot().memoryMb },
+      { process: item, memoryMb: currentMemoryMb() },
       'Thumbnail external process started'
     );
   }
@@ -402,7 +413,7 @@ const unregisterExternalProcess = (id, status, error = null) => {
         status,
         durationMs,
         error: error ? error.message : undefined,
-        memoryMb: getDiagnosticsSnapshot().memoryMb,
+        memoryMb: currentMemoryMb(),
       },
       'Thumbnail external process finished'
     );
@@ -491,18 +502,6 @@ const updateQueueConcurrency = async ({ force = false } = {}) => {
 
 // Initialize concurrency from settings
 updateQueueConcurrency({ force: true });
-
-// Log queue stats periodically for monitoring
-thumbnailQueue.on('active', () => {
-  logger.debug(
-    {
-      size: thumbnailQueue.size,
-      pending: thumbnailQueue.pending,
-      concurrency: thumbnailQueue.concurrency,
-    },
-    'Thumbnail queue status'
-  );
-});
 
 const resolveThumbnailSourceIdentity = async (filePath) => {
   try {
@@ -1021,14 +1020,12 @@ const getThumbnail = async (filePath) => {
             // Still doesn't exist, generate it
           }
 
-          logger.debug({ filePath, thumbPath }, 'Generating thumbnail');
           await generateThumbnail(filePath, thumbPath);
           scheduleThumbnailCacheCleanup();
 
           // Verify generation succeeded
           try {
             await fsPromises.access(thumbPath, fs.constants.F_OK);
-            logger.debug({ filePath, thumbPath }, 'Thumbnail generated successfully');
             thumbnailStats.generated += 1;
             finishThumbnailJob(jobId, 'generated');
             return `/static/thumbnails/${thumbFile}`;
