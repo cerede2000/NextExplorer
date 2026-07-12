@@ -161,6 +161,19 @@ module.exports = {
     process.env.THUMBNAIL_VIDEO_CONCURRENCY != null
       ? Number(process.env.THUMBNAIL_VIDEO_CONCURRENCY)
       : 1,
+  THUMBNAIL_VIDEO_SEEK_SECONDS:
+    process.env.THUMBNAIL_VIDEO_SEEK_SECONDS != null
+      ? Number(process.env.THUMBNAIL_VIDEO_SEEK_SECONDS)
+      : 5,
+  THUMBNAIL_VIDEO_SEEK_PERCENT:
+    process.env.THUMBNAIL_VIDEO_SEEK_PERCENT != null &&
+    process.env.THUMBNAIL_VIDEO_SEEK_PERCENT.trim() !== ''
+      ? Number(process.env.THUMBNAIL_VIDEO_SEEK_PERCENT)
+      : null,
+  THUMBNAIL_VIDEO_THREADS:
+    process.env.THUMBNAIL_VIDEO_THREADS != null ? Number(process.env.THUMBNAIL_VIDEO_THREADS) : 1,
+  THUMBNAIL_VIDEO_SCALE_FLAGS:
+    process.env.THUMBNAIL_VIDEO_SCALE_FLAGS?.trim() || 'fast_bilinear',
   THUMBNAIL_DIAGNOSTICS_ENABLED:
     normalizeBoolean(process.env.THUMBNAIL_DIAGNOSTICS_ENABLED) ?? false,
   THUMBNAIL_DIAGNOSTICS_INTERVAL_MS:
