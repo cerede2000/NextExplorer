@@ -186,6 +186,20 @@ const requestTimeoutMs = (() => {
   return Number.isFinite(value) && value >= 0 ? value : 0;
 })();
 
+const uploadInactivityTimeoutMs = (() => {
+  const value = env.UPLOAD_INACTIVITY_TIMEOUT;
+  return Number.isFinite(value) && value >= 0 ? value : 120000;
+})();
+
+const uploadStorageReserveBytes = (() => {
+  const value = parseByteSize(env.UPLOAD_STORAGE_RESERVE);
+  return Number.isFinite(value) && value >= 0 ? value : 64 * 1024 * 1024;
+})();
+
+const tusUploadDir = env.TUS_UPLOAD_DIR
+  ? path.resolve(env.TUS_UPLOAD_DIR)
+  : path.join(cacheDir, 'tus-uploads');
+
 // --- Auth ---
 // Determine auth mode: 'local', 'oidc', 'both', or 'disabled'
 // If AUTH_MODE is not set, fall back to legacy behavior based on OIDC_ENABLED
@@ -305,6 +319,11 @@ module.exports = {
   address: env.ADDRESS,
   http: {
     requestTimeoutMs,
+  },
+  upload: {
+    inactivityTimeoutMs: uploadInactivityTimeoutMs,
+    storageReserveBytes: uploadStorageReserveBytes,
+    tusUploadDir,
   },
   directories,
 

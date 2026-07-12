@@ -384,6 +384,7 @@
       "userPreferences": "Préférences",
       "branding": "Identité visuelle",
       "filesThumbnails": "Fichiers et vignettes",
+      "uploads": "Téléversements",
       "security": "Sécurité",
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs"
@@ -448,6 +449,14 @@
       "maxDimHelp": "Côté le plus long en pixels. La valeur par défaut est 200.",
       "concurrency": "Génération parallèle",
       "concurrencyHelp": "Nombre de vignettes générées simultanément (1–50). La valeur par défaut est 10."
+    },
+    "uploads": {
+      "title": "Téléversements",
+      "subtitle": "Configurez le transport utilisé pour envoyer les fichiers vers le serveur.",
+      "chunkedEnable": "Activer les téléversements par chunks",
+      "chunkedEnableHelp": "Utilise TUS pour envoyer les gros fichiers en plusieurs requêtes plus petites.",
+      "chunkSize": "Taille des chunks",
+      "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy."
     },
     "security": {
       "subtitle": "Contrôlez l'accès à l'application.",
