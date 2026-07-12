@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { normalizePath } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
 import { useFileStore } from '@/stores/fileStore';
@@ -49,6 +50,25 @@ const applySelectionFromQuery = () => {
 const sortedItems = computed(() => fileStore.getCurrentPathItems);
 const visibleItems = computed(() => sortedItems.value.slice(0, visibleLimit.value));
 const hasMoreItems = computed(() => visibleItems.value.length < sortedItems.value.length);
+const showLargeFolderControls = computed(() => sortedItems.value.length > INITIAL_VISIBLE_ITEMS);
+
+const getItemKey = (item) => {
+  if (!item || !item.name) return '';
+  const parent = normalizePath(item.path || '');
+  return `${parent}::${item.name}`;
+};
+
+const allItemsSelected = computed(
+  () =>
+    sortedItems.value.length > 0 &&
+    sortedItems.value.every((item) => fileStore.selectedItemKeys.has(getItemKey(item)))
+);
+
+const someItemsSelected = computed(
+  () =>
+    sortedItems.value.length > 0 &&
+    sortedItems.value.some((item) => fileStore.selectedItemKeys.has(getItemKey(item)))
+);
 
 const resetVisibleItems = () => {
   visibleLimit.value = INITIAL_VISIBLE_ITEMS;
@@ -60,6 +80,24 @@ const revealMoreItems = () => {
     sortedItems.value.length,
     visibleLimit.value + VISIBLE_ITEMS_INCREMENT
   );
+};
+
+const scrollToTop = () => {
+  dropTargetRef.value?.scrollTo?.({ top: 0, behavior: 'smooth' });
+};
+
+const scrollToBottom = () => {
+  const target = dropTargetRef.value;
+  target?.scrollTo?.({ top: target.scrollHeight, behavior: 'smooth' });
+};
+
+const toggleSelectAll = () => {
+  if (allItemsSelected.value) {
+    clearSelection();
+    return;
+  }
+
+  fileStore.selectedItems = [...sortedItems.value];
 };
 
 const disconnectLoadMoreObserver = () => {
@@ -250,10 +288,23 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="dropTargetRef"
-    class="upload-drop-target relative flex flex-col flex-1 min-h-0"
+    class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-y-auto"
     @click.self="clearSelection()"
   >
     <template v-if="!loading">
+      <div
+        v-if="showLargeFolderControls"
+        class="sticky top-0 z-20 flex items-center justify-end gap-2 bg-default/90 px-3 py-2 text-xs backdrop-blur"
+      >
+        <button
+          type="button"
+          class="rounded-md border border-neutral-200 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          @click="scrollToBottom"
+        >
+          {{ $t('folder.scrollBottom') }}
+        </button>
+      </div>
+
       <DragSelect
         v-model="selectionModel"
         :click-option-to-select="false"
@@ -283,7 +334,17 @@ onBeforeUnmount(() => {
               gridTemplateColumns: settings.listViewGridTemplateColumns,
             }"
           >
-            <div></div>
+            <div class="flex items-center justify-center">
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                :checked="allItemsSelected"
+                :indeterminate.prop="someItemsSelected && !allItemsSelected"
+                :aria-label="allItemsSelected ? $t('folder.deselectAll') : $t('folder.selectAll')"
+                @change="toggleSelectAll"
+                @click.stop
+              />
+            </div>
             <div v-for="col in listColumns" :key="col.key" class="relative flex items-center">
               <button
                 type="button"
@@ -355,6 +416,19 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </DragSelect>
+
+      <div
+        v-if="showLargeFolderControls"
+        class="sticky bottom-0 z-20 flex items-center justify-end gap-2 bg-default/90 px-3 py-2 text-xs backdrop-blur"
+      >
+        <button
+          type="button"
+          class="rounded-md border border-neutral-200 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          @click="scrollToTop"
+        >
+          {{ $t('folder.scrollTop') }}
+        </button>
+      </div>
     </template>
 
     <template v-else>
