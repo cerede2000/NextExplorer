@@ -79,8 +79,19 @@ const isPdf = (ext) => ext === 'pdf';
 const isHeic = (ext) => ext === 'heic';
 
 const inflight = new Map();
+const failedThumbnails = new Map();
 
 const THUMBNAIL_CACHE_VERSION = 2;
+const QUEUE_CONCURRENCY_REFRESH_INTERVAL_MS = 30 * 1000;
+const FAILED_THUMBNAIL_TTL_MS = 10 * 60 * 1000;
+const FAILED_THUMBNAIL_MAX_ENTRIES = 1000;
+const THUMBNAIL_CACHE_MAX_FILES = Number.isFinite(env.THUMBNAIL_CACHE_MAX_FILES)
+  ? Math.max(0, Math.floor(env.THUMBNAIL_CACHE_MAX_FILES))
+  : 3000;
+const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS)
+  ? Math.max(60 * 1000, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS))
+  : 60 * 60 * 1000;
+const THUMBNAIL_CACHE_TARGET_RATIO = 0.9;
 
 // Create thumbnail generation queue with concurrency limit
 // This prevents overwhelming the system with too many concurrent sharp/ffmpeg operations
@@ -91,20 +102,49 @@ const thumbnailQueue = new PQueue({
   throwOnTimeout: false,
 });
 
+let queueConcurrencyRefreshPromise = null;
+let lastQueueConcurrencyRefreshAt = 0;
+let lastQueueConcurrency = thumbnailQueue.concurrency;
+let thumbnailCacheCleanupPromise = null;
+let thumbnailCacheCleanupTimer = null;
+let lastThumbnailCacheCleanupAt = 0;
+
 // Update queue concurrency from settings
-const updateQueueConcurrency = async () => {
-  try {
-    const settings = await getSettings();
-    const concurrency = settings?.thumbnails?.concurrency || 10;
-    thumbnailQueue.concurrency = concurrency;
-    logger.info({ concurrency }, 'Thumbnail queue concurrency set');
-  } catch (error) {
-    logger.warn({ err: error }, 'Failed to update thumbnail queue concurrency');
+const updateQueueConcurrency = async ({ force = false } = {}) => {
+  const now = Date.now();
+  if (!force && now - lastQueueConcurrencyRefreshAt < QUEUE_CONCURRENCY_REFRESH_INTERVAL_MS) {
+    return;
   }
+
+  if (queueConcurrencyRefreshPromise) {
+    return queueConcurrencyRefreshPromise;
+  }
+
+  queueConcurrencyRefreshPromise = (async () => {
+    lastQueueConcurrencyRefreshAt = Date.now();
+
+    try {
+      const settings = await getSettings();
+      const rawConcurrency = Number(settings?.thumbnails?.concurrency) || 10;
+      const concurrency = Math.max(1, Math.min(50, Math.floor(rawConcurrency)));
+
+      if (concurrency !== lastQueueConcurrency) {
+        thumbnailQueue.concurrency = concurrency;
+        lastQueueConcurrency = concurrency;
+        logger.info({ concurrency }, 'Thumbnail queue concurrency set');
+      }
+    } catch (error) {
+      logger.warn({ err: error }, 'Failed to update thumbnail queue concurrency');
+    } finally {
+      queueConcurrencyRefreshPromise = null;
+    }
+  })();
+
+  return queueConcurrencyRefreshPromise;
 };
 
 // Initialize concurrency from settings
-updateQueueConcurrency();
+updateQueueConcurrency({ force: true });
 
 // Log queue stats periodically for monitoring
 thumbnailQueue.on('active', () => {
@@ -301,6 +341,129 @@ const buildThumbnailPaths = async (filePath, stats = null) => {
   return { thumbFile, thumbPath };
 };
 
+const getFailedThumbnail = (thumbPath) => {
+  const failedAt = failedThumbnails.get(thumbPath);
+  if (!failedAt) {
+    return false;
+  }
+
+  if (Date.now() - failedAt > FAILED_THUMBNAIL_TTL_MS) {
+    failedThumbnails.delete(thumbPath);
+    return false;
+  }
+
+  return true;
+};
+
+const markFailedThumbnail = (thumbPath) => {
+  if (failedThumbnails.size >= FAILED_THUMBNAIL_MAX_ENTRIES) {
+    const oldestKey = failedThumbnails.keys().next().value;
+    if (oldestKey) {
+      failedThumbnails.delete(oldestKey);
+    }
+  }
+
+  failedThumbnails.set(thumbPath, Date.now());
+};
+
+const cleanupThumbnailCache = async () => {
+  if (THUMBNAIL_CACHE_MAX_FILES <= 0) {
+    return;
+  }
+
+  if (thumbnailCacheCleanupPromise) {
+    return thumbnailCacheCleanupPromise;
+  }
+
+  thumbnailCacheCleanupPromise = (async () => {
+    lastThumbnailCacheCleanupAt = Date.now();
+
+    try {
+      await ensureDir(directories.thumbnails);
+      const dirents = await fsPromises.readdir(directories.thumbnails, { withFileTypes: true });
+      const fileNames = dirents.filter((entry) => entry.isFile()).map((entry) => entry.name);
+
+      if (fileNames.length <= THUMBNAIL_CACHE_MAX_FILES) {
+        return;
+      }
+
+      const files = [];
+      for (const name of fileNames) {
+        const filePath = path.join(directories.thumbnails, name);
+        try {
+          const stats = await fsPromises.stat(filePath);
+          files.push({ filePath, mtimeMs: stats.mtimeMs });
+        } catch (_) {
+          // File may have been removed by another request.
+        }
+      }
+
+      if (files.length <= THUMBNAIL_CACHE_MAX_FILES) {
+        return;
+      }
+
+      files.sort((a, b) => a.mtimeMs - b.mtimeMs);
+      const targetCount = Math.max(
+        0,
+        Math.floor(THUMBNAIL_CACHE_MAX_FILES * THUMBNAIL_CACHE_TARGET_RATIO)
+      );
+      const deleteCount = Math.max(0, files.length - targetCount);
+      const toDelete = files.slice(0, deleteCount);
+
+      let deleted = 0;
+      for (const file of toDelete) {
+        try {
+          await fsPromises.rm(file.filePath, { force: true });
+          deleted += 1;
+        } catch (_) {
+          // Best-effort cache cleanup.
+        }
+      }
+
+      logger.info(
+        {
+          deleted,
+          before: files.length,
+          target: targetCount,
+          max: THUMBNAIL_CACHE_MAX_FILES,
+        },
+        'Thumbnail cache cleanup completed'
+      );
+    } catch (error) {
+      logger.warn({ err: error }, 'Thumbnail cache cleanup failed');
+    } finally {
+      thumbnailCacheCleanupPromise = null;
+    }
+  })();
+
+  return thumbnailCacheCleanupPromise;
+};
+
+const scheduleThumbnailCacheCleanup = ({ force = false, delayMs = 5000 } = {}) => {
+  if (THUMBNAIL_CACHE_MAX_FILES <= 0) {
+    return;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastThumbnailCacheCleanupAt < THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  if (thumbnailCacheCleanupTimer || thumbnailCacheCleanupPromise) {
+    return;
+  }
+
+  thumbnailCacheCleanupTimer = setTimeout(() => {
+    thumbnailCacheCleanupTimer = null;
+    cleanupThumbnailCache().catch(() => {});
+  }, delayMs);
+  if (typeof thumbnailCacheCleanupTimer.unref === 'function') {
+    thumbnailCacheCleanupTimer.unref();
+  }
+};
+
+scheduleThumbnailCacheCleanup({ force: true, delayMs: 30 * 1000 });
+
 const getThumbnailPathIfExists = async (filePath, stats = null) => {
   if (filePath.includes(directories.thumbnails)) {
     return '';
@@ -336,9 +499,14 @@ const getThumbnail = async (filePath) => {
   // Check if thumbnail already exists (fast path)
   try {
     await fsPromises.access(thumbPath, fs.constants.F_OK);
+    failedThumbnails.delete(thumbPath);
     return `/static/thumbnails/${thumbFile}`;
   } catch (error) {
     // Thumbnail doesn't exist, need to generate
+  }
+
+  if (getFailedThumbnail(thumbPath)) {
+    return '';
   }
 
   // Update queue concurrency from settings (non-blocking)
@@ -361,6 +529,7 @@ const getThumbnail = async (filePath) => {
 
           logger.debug({ filePath, thumbPath }, 'Generating thumbnail');
           await generateThumbnail(filePath, thumbPath);
+          scheduleThumbnailCacheCleanup();
 
           // Verify generation succeeded
           try {
@@ -375,6 +544,7 @@ const getThumbnail = async (filePath) => {
             return '';
           }
         } catch (error) {
+          markFailedThumbnail(thumbPath);
           logger.error({ filePath, err: error }, 'Thumbnail generation failed');
           throw error;
         }

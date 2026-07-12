@@ -132,6 +132,7 @@ services:
       # ONLYOFFICE_FILE_EXTENSIONS: "" # Extra file extensions to surface to the Document Server.
       # FFMPEG_PATH: "" # Point to a custom ffmpeg binary (defaults to bundled binary).
       # FFPROBE_PATH: "" # Point to a custom ffprobe binary (defaults to bundled binary).
+      # THUMBNAIL_CACHE_MAX_FILES: "3000" # Max files kept in /cache/thumbnails; set 0 to disable cleanup.
 
       # Container user mapping (optional)
       # PUID: "1000" # Map container processes to host UID so created files have consistent ownership.

@@ -95,6 +95,14 @@ module.exports = {
   FFMPEG_HWACCEL: process.env.FFMPEG_HWACCEL?.trim() || null,
   FFMPEG_HWACCEL_DEVICE: process.env.FFMPEG_HWACCEL_DEVICE?.trim() || null,
   FFMPEG_HWACCEL_OUTPUT_FORMAT: process.env.FFMPEG_HWACCEL_OUTPUT_FORMAT?.trim() || null,
+  THUMBNAIL_CACHE_MAX_FILES:
+    process.env.THUMBNAIL_CACHE_MAX_FILES != null
+      ? Number(process.env.THUMBNAIL_CACHE_MAX_FILES)
+      : 3000,
+  THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS:
+    process.env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS != null
+      ? Number(process.env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS)
+      : 60 * 60 * 1000,
 
   // Favorites
   FAVORITES_DEFAULT_ICON: process.env.FAVORITES_DEFAULT_ICON || 'outline:StarIcon',
