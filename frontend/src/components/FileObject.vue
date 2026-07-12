@@ -392,16 +392,22 @@ if (isTouchDevice.value) {
           v-if="showSelectionControl"
           type="button"
           :class="[
-            selectionButtonBaseClass,
-            selectionButtonStateClass(selected),
+            'absolute inset-y-0 left-1/2 z-10 flex w-7 -translate-x-1/2 items-center justify-center',
             selectionMode || selected ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100',
-            'absolute left-1/2 top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-md',
           ]"
           :aria-label="`Select ${item.name}`"
           @click="handleToggleSelection"
           @dblclick.stop.prevent
         >
-          <CheckIcon class="h-4 w-4" />
+          <span
+            :class="[
+              selectionButtonBaseClass,
+              selectionButtonStateClass(selected),
+              'flex h-5 w-5 items-center justify-center rounded-md',
+            ]"
+          >
+            <CheckIcon class="h-4 w-4" />
+          </span>
         </button>
       </div>
       <div :title="item.name" class="min-w-0 overflow-hidden text-sm">

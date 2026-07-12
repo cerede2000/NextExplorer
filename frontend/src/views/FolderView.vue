@@ -14,7 +14,12 @@ import { useViewConfig } from '@/composables/useViewConfig';
 import { DragSelect } from '@coleqiu/vue-drag-select';
 import { useUppyDropTarget } from '@/composables/fileUploader';
 import { FolderOpenIcon } from '@heroicons/vue/24/outline';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/vue/20/solid';
+import {
+  ChevronDoubleDownIcon,
+  ChevronDoubleUpIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+} from '@heroicons/vue/20/solid';
 import { useEventListener } from '@vueuse/core';
 import { useInputMode } from '@/composables/useInputMode';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
@@ -26,6 +31,9 @@ const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
 const visibleLimit = ref(500);
 const loadMoreTrigger = ref(null);
+const isScrollable = ref(false);
+const canScrollUp = ref(false);
+const canScrollDown = ref(false);
 const { clearSelection } = useSelection();
 const contextMenu = useExplorerContextMenu();
 const dropTargetRef = ref(null);
@@ -50,7 +58,6 @@ const applySelectionFromQuery = () => {
 const sortedItems = computed(() => fileStore.getCurrentPathItems);
 const visibleItems = computed(() => sortedItems.value.slice(0, visibleLimit.value));
 const hasMoreItems = computed(() => visibleItems.value.length < sortedItems.value.length);
-const showLargeFolderControls = computed(() => sortedItems.value.length > INITIAL_VISIBLE_ITEMS);
 
 const getItemKey = (item) => {
   if (!item || !item.name) return '';
@@ -80,15 +87,45 @@ const revealMoreItems = () => {
     sortedItems.value.length,
     visibleLimit.value + VISIBLE_ITEMS_INCREMENT
   );
+  nextTick(updateScrollState);
+};
+
+const updateScrollState = () => {
+  const target = dropTargetRef.value;
+  if (!target) {
+    isScrollable.value = false;
+    canScrollUp.value = false;
+    canScrollDown.value = false;
+    return;
+  }
+
+  const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+  isScrollable.value = maxScrollTop > 2;
+  canScrollUp.value = target.scrollTop > 2;
+  canScrollDown.value = target.scrollTop < maxScrollTop - 2;
+};
+
+const revealAllItems = async () => {
+  while (visibleLimit.value < sortedItems.value.length) {
+    visibleLimit.value = Math.min(
+      sortedItems.value.length,
+      visibleLimit.value + VISIBLE_ITEMS_INCREMENT
+    );
+    await nextTick();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
 };
 
 const scrollToTop = () => {
   dropTargetRef.value?.scrollTo?.({ top: 0, behavior: 'smooth' });
 };
 
-const scrollToBottom = () => {
+const scrollToBottom = async () => {
+  await revealAllItems();
+  await nextTick();
   const target = dropTargetRef.value;
   target?.scrollTo?.({ top: target.scrollHeight, behavior: 'smooth' });
+  updateScrollState();
 };
 
 const toggleSelectAll = () => {
@@ -153,6 +190,8 @@ const loadFiles = async () => {
   } finally {
     loading.value = false;
     await setupLoadMoreObserver();
+    await nextTick();
+    updateScrollState();
   }
 };
 
@@ -160,7 +199,15 @@ onMounted(loadFiles);
 
 watch(hasMoreItems, () => {
   setupLoadMoreObserver();
+  nextTick(updateScrollState);
 });
+
+watch(
+  () => [visibleItems.value.length, sortedItems.value.length, settings.view],
+  () => {
+    nextTick(updateScrollState);
+  }
+);
 
 watch(
   () => route.params.path,
@@ -278,6 +325,7 @@ useEventListener(window, 'pointermove', (event) => {
 
 useEventListener(window, 'pointerup', stopResize);
 useEventListener(window, 'pointercancel', stopResize);
+useEventListener(window, 'resize', updateScrollState);
 
 onBeforeUnmount(() => {
   stopResize();
@@ -290,21 +338,9 @@ onBeforeUnmount(() => {
     ref="dropTargetRef"
     class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-y-auto"
     @click.self="clearSelection()"
+    @scroll.passive="updateScrollState"
   >
     <template v-if="!loading">
-      <div
-        v-if="showLargeFolderControls"
-        class="sticky top-0 z-20 flex items-center justify-end gap-2 bg-default/90 px-3 py-2 text-xs backdrop-blur"
-      >
-        <button
-          type="button"
-          class="rounded-md border border-neutral-200 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-          @click="scrollToBottom"
-        >
-          {{ $t('folder.scrollBottom') }}
-        </button>
-      </div>
-
       <DragSelect
         v-model="selectionModel"
         :click-option-to-select="false"
@@ -417,16 +453,26 @@ onBeforeUnmount(() => {
         </div>
       </DragSelect>
 
-      <div
-        v-if="showLargeFolderControls"
-        class="sticky bottom-0 z-20 flex items-center justify-end gap-2 bg-default/90 px-3 py-2 text-xs backdrop-blur"
-      >
+      <div v-if="isScrollable" class="fixed bottom-6 right-6 z-40 flex flex-col gap-2">
         <button
+          v-if="canScrollUp"
           type="button"
-          class="rounded-md border border-neutral-200 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          class="grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          :aria-label="$t('folder.scrollTop')"
+          :title="$t('folder.scrollTop')"
           @click="scrollToTop"
         >
-          {{ $t('folder.scrollTop') }}
+          <ChevronDoubleUpIcon class="h-5 w-5" />
+        </button>
+        <button
+          v-if="canScrollDown"
+          type="button"
+          class="grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          :aria-label="$t('folder.scrollBottom')"
+          :title="$t('folder.scrollBottom')"
+          @click="scrollToBottom"
+        >
+          <ChevronDoubleDownIcon class="h-5 w-5" />
         </button>
       </div>
     </template>
