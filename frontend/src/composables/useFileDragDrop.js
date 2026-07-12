@@ -1,5 +1,7 @@
 import { ref } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFolderSizeStore } from '@/stores/folderSize';
 import { moveItems, normalizePath } from '@/api';
 import { useInputMode } from '@/composables/useInputMode';
 
@@ -9,6 +11,8 @@ import { useInputMode } from '@/composables/useInputMode';
  */
 export function useFileDragDrop() {
   const fileStore = useFileStore();
+  const volumeUsageStore = useVolumeUsageStore();
+  const folderSizeStore = useFolderSizeStore();
   const { isTouchDevice } = useInputMode();
   const isDraggingOver = ref(false);
   const dragOverTarget = ref(null);
@@ -23,7 +27,9 @@ export function useFileDragDrop() {
     const types = event?.dataTransfer?.types;
     if (!types) return false;
     // Our internal drags set application/json and a text/plain fallback for Safari.
-    return Array.from(types).includes('application/json') || Array.from(types).includes('text/plain');
+    return (
+      Array.from(types).includes('application/json') || Array.from(types).includes('text/plain')
+    );
   };
 
   const serializeItems = (items) =>
@@ -264,6 +270,8 @@ export function useFileDragDrop() {
 
       // Refresh the current path to show the changes
       await fileStore.fetchPathItems(fileStore.currentPath);
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
     } catch (error) {
       console.error('Failed to move items:', error);
     }

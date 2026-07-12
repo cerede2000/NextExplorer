@@ -9,6 +9,7 @@ const { ACTIONS, authorizeAndResolve } = require('../../services/authorizationSe
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../errors/AppError');
 const { buildItemMetadata } = require('./utils');
+const folderSizeHooks = require('../../services/folderSizeHooks');
 
 const router = require('express').Router();
 
@@ -62,6 +63,7 @@ router.post(
     const folderAbsolute = path.join(parentAbsolute, finalName);
 
     await fs.mkdir(folderAbsolute);
+    folderSizeHooks.onFolderCreated(folderAbsolute);
 
     const item = await buildItemMetadata(folderAbsolute, parentRelative, finalName);
     res.status(201).json({ success: true, item });

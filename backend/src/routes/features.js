@@ -37,6 +37,10 @@ router.get('/features', (_req, res) => {
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),
     },
+    folderSize: {
+      mode: features?.folderSizeMode || 'off',
+      enabled: (features?.folderSizeMode || 'off') !== 'off',
+    },
     personal: {
       enabled: Boolean(features?.personalFolders),
     },

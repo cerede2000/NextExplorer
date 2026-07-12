@@ -1,0 +1,267 @@
+/**
+ * Folder size indexer — in-process supervisor.
+ *
+ * Everything runs on the main thread to keep RAM low: no worker thread (no
+ * second V8 isolate, no second SQLite connection) and no recursive filesystem
+ * watcher (recursive inotify holds memory proportional to the directory count).
+ * Heavy work still stays off the request path because it is fully async
+ * (readdir/stat), writes to SQLite in small batched transactions, and yields to
+ * the event loop between batches — so Express keeps serving while indexing
+ * proceeds. We deliberately do NOT lower the process priority here (on the main
+ * thread that would nice request handling too).
+ *
+ * Freshness has three layers:
+ *   1. write hooks — NextExplorer's own operations update the index instantly;
+ *   2. on-view refresh — opening a folder re-checks the folders on screen
+ *      (mtime-gated) so external changes surface within seconds where you look;
+ *   3. adaptive reconciliation — a periodic mtime sweep that accelerates when it
+ *      finds external changes and backs off when idle.
+ */
+const fsp = require('fs/promises');
+
+const config = require('../config/index');
+const logger = require('../utils/logger');
+const indexer = require('./folderSizeIndexer');
+const folderSizeIndex = require('./folderSizeIndex');
+const { getDb } = require('./db');
+
+let db = null;
+let scope = null;
+let running = false;
+let starting = false;
+let stopped = false;
+
+// Directories that need (re)aggregation, coalesced until the next flush.
+const dirty = new Set();
+let flushing = false;
+let flushTimer = null;
+
+// Adaptive reconciliation state.
+let reconcileTimer = null;
+let reconcileDelay = 0;
+let reconciling = false;
+let abortController = null;
+
+const log = (level, message, extra = {}) =>
+  logger[level]({ component: 'folderSizeIndexer', ...extra }, message);
+
+/**
+ * Return the one-off baseline's transient heap to the OS. No-op unless the
+ * process was started with --expose-gc; called only after the baseline/rebuild
+ * (never in the steady-state loops) so it adds no ongoing pauses. Pair with
+ * NODE_OPTIONS=--max-old-space-size=<n> to keep the resident set low.
+ */
+const reclaimMemory = () => {
+  if (typeof global.gc === 'function') {
+    try {
+      global.gc();
+    } catch {
+      // ignore — best effort
+    }
+  }
+};
+
+const markDirty = (absPath) => {
+  if (!absPath || !scope) return;
+  if (!folderSizeIndex.isWithinRoot(scope.root, absPath)) return;
+  dirty.add(absPath);
+};
+
+/** Re-aggregate every dirty directory, applying all changes in one transaction. */
+const flush = async () => {
+  if (flushing || !db || !dirty.size) return;
+  flushing = true;
+  try {
+    const dirs = Array.from(dirty);
+    dirty.clear();
+
+    // Phase 1 (async, read-only): compute each directory's new aggregate.
+    const ops = [];
+    for (const abs of dirs) {
+      // eslint-disable-next-line no-await-in-loop
+      const agg = await indexer.aggregateDirectory(db, scope, abs, { mode: config.folderSize.mode });
+      ops.push({ abs, agg });
+    }
+
+    // Phase 2 (sync, one transaction): apply every change atomically.
+    const apply = db.transaction(() => {
+      for (const { abs, agg } of ops) {
+        if (agg) indexer.applyAggregate(db, scope, abs, agg);
+        else indexer.removeMissing(db, scope, abs);
+      }
+    });
+    apply();
+    log('debug', 'Flushed folder size updates', { directories: ops.length });
+  } catch (err) {
+    log('warn', 'Folder size flush failed', { err });
+  } finally {
+    flushing = false;
+  }
+};
+
+/**
+ * On-view refresh. Given the directories currently in view, mark the ones whose
+ * on-disk mtime is newer than what the index recorded so the next flush
+ * re-aggregates them. One stat per folder (skipped when unchanged), fired
+ * best-effort from the read route AFTER the response — the response itself stays
+ * an O(1) index lookup, never a traversal. This is what surfaces external
+ * changes promptly without a filesystem watcher.
+ */
+const touch = async (absDirs = []) => {
+  if (!running || !db || !Array.isArray(absDirs) || !absDirs.length) return;
+  for (const abs of absDirs) {
+    if (!folderSizeIndex.isWithinRoot(scope.root, abs)) continue;
+    let stat;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      stat = await fsp.stat(abs);
+    } catch {
+      markDirty(abs); // vanished — the flush will remove it and fix ancestors
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    const entry = folderSizeIndex.getByAbsolutePath(db, abs);
+    if (indexer.isStale(entry, stat.mtimeMs)) markDirty(abs);
+  }
+};
+
+const runReconcile = async (reason) => {
+  if (reconciling || stopped || !db) return { changed: 0 };
+  reconciling = true;
+  try {
+    const result = await indexer.reconcile(db, scope, {
+      mode: config.folderSize.mode,
+      signal: abortController?.signal,
+    });
+    log('debug', 'Reconciliation pass complete', { reason, ...result });
+    // A large sweep grows the heap; hand it back (no-op without --expose-gc).
+    reclaimMemory();
+    return result;
+  } catch (err) {
+    log('warn', 'Reconciliation failed', { err });
+    return { changed: 0 };
+  } finally {
+    reconciling = false;
+  }
+};
+
+/** Arm the next reconciliation timer, adaptively unless a fixed interval is set. */
+const armReconcile = () => {
+  if (stopped) return;
+  reconcileTimer = setTimeout(async () => {
+    const { changed } = await runReconcile('scheduled');
+    const { reconcileMs, reconcileMinMs, reconcileMaxMs } = config.folderSize;
+    reconcileDelay =
+      reconcileMs > 0
+        ? reconcileMs
+        : indexer.nextReconcileDelay(reconcileDelay, changed, {
+            minMs: reconcileMinMs,
+            maxMs: reconcileMaxMs,
+          });
+    armReconcile();
+  }, reconcileDelay);
+  if (reconcileTimer.unref) reconcileTimer.unref();
+};
+
+const baselineIfNeeded = async () => {
+  const existing = folderSizeIndex.countByVolume(db, scope.label);
+  const rebuild = config.folderSize.rebuild;
+  if (existing > 0 && !rebuild) {
+    log('info', 'Baseline skipped (volume already indexed)', { folders: existing });
+    return;
+  }
+  if (rebuild && existing > 0) {
+    folderSizeIndex.removeSubtree(db, scope, scope.root);
+    log('info', 'Rebuild requested — cleared existing index', { folders: existing });
+  }
+  log('info', 'Starting baseline walk', { root: scope.root, mode: config.folderSize.mode });
+  const started = Date.now();
+  const result = await indexer.runBaseline(db, scope, { mode: config.folderSize.mode });
+  log('info', 'Baseline walk complete', { ...result, ms: Date.now() - started });
+};
+
+const init = async () => {
+  db = await getDb();
+  scope = indexer.getVolumeScope();
+
+  // Baseline once (or on explicit rebuild). Async + cooperative yields, so it
+  // never blocks request handling even on a large volume.
+  await baselineIfNeeded();
+  reclaimMemory();
+
+  running = true;
+  starting = false;
+  abortController = new AbortController();
+
+  flushTimer = setInterval(() => {
+    flush().catch(() => {});
+  }, config.folderSize.flushMs);
+  if (flushTimer.unref) flushTimer.unref();
+
+  reconcileDelay =
+    config.folderSize.reconcileMs > 0
+      ? config.folderSize.reconcileMs
+      : config.folderSize.reconcileMinMs;
+  armReconcile();
+
+  log('info', 'Folder size indexer ready (in-process)', {
+    root: scope.root,
+    mode: config.folderSize.mode,
+  });
+};
+
+const start = () => {
+  if (!config.folderSize.enabled) {
+    logger.debug('[folderSizeIndexer] Disabled (FOLDER_SIZE_MODE=off)');
+    return;
+  }
+  if (running || starting) return;
+  starting = true;
+  stopped = false;
+  init().catch((err) => {
+    starting = false;
+    log('error', 'Folder size indexer failed to start', { err });
+  });
+};
+
+const stop = async () => {
+  if (flushTimer) clearInterval(flushTimer);
+  if (reconcileTimer) clearTimeout(reconcileTimer);
+  flushTimer = null;
+  reconcileTimer = null;
+  if (abortController) abortController.abort(); // cancel any in-flight paced reconcile
+  running = false;
+  // Final flush of anything still pending, then mark stopped so no late timer
+  // callback re-arms.
+  await flush();
+  stopped = true;
+};
+
+const requestReconcile = () => {
+  if (running) runReconcile('command').catch(() => {});
+};
+
+const requestRebuild = () => {
+  if (!running) return;
+  (async () => {
+    try {
+      dirty.clear();
+      folderSizeIndex.removeSubtree(db, scope, scope.root);
+      log('info', 'Rebuild requested — cleared existing index');
+      const result = await indexer.runBaseline(db, scope, { mode: config.folderSize.mode });
+      reclaimMemory();
+      log('info', 'Baseline walk complete', { ...result });
+    } catch (err) {
+      log('error', 'Rebuild failed', { err });
+    }
+  })();
+};
+
+module.exports = {
+  start,
+  stop,
+  touch,
+  requestReconcile,
+  requestRebuild,
+  isRunning: () => running,
+};

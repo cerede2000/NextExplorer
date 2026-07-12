@@ -12,6 +12,8 @@ export const useFeaturesStore = defineStore('features', () => {
   const collaboraEnabled = ref(false);
   const collaboraExtensions = ref([]);
   const volumeUsageEnabled = ref(false);
+  const folderSizeMode = ref('off');
+  const folderSizeEnabled = ref(false);
   const personalEnabled = ref(false);
   const userVolumesEnabled = ref(false);
   const skipHome = ref(false);
@@ -70,6 +72,11 @@ export const useFeaturesStore = defineStore('features', () => {
         // Volume usage
         volumeUsageEnabled.value = Boolean(features?.volumeUsage?.enabled);
 
+        // Folder size index
+        folderSizeMode.value =
+          typeof features?.folderSize?.mode === 'string' ? features.folderSize.mode : 'off';
+        folderSizeEnabled.value = Boolean(features?.folderSize?.enabled);
+
         // Personal folders
         personalEnabled.value = Boolean(features?.personal?.enabled);
 
@@ -102,6 +109,8 @@ export const useFeaturesStore = defineStore('features', () => {
         collaboraEnabled.value = false;
         collaboraExtensions.value = [];
         volumeUsageEnabled.value = false;
+        folderSizeMode.value = 'off';
+        folderSizeEnabled.value = false;
         personalEnabled.value = false;
         userVolumesEnabled.value = false;
         skipHome.value = false;
@@ -134,6 +143,8 @@ export const useFeaturesStore = defineStore('features', () => {
     collaboraEnabled,
     collaboraExtensions,
     volumeUsageEnabled,
+    folderSizeMode,
+    folderSizeEnabled,
     personalEnabled,
     userVolumesEnabled,
     skipHome,

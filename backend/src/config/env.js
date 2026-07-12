@@ -88,6 +88,34 @@ module.exports = {
 
   // Features
   SHOW_VOLUME_USAGE: normalizeBoolean(process.env.SHOW_VOLUME_USAGE) || false,
+
+  // Folder size index
+  // Mode: 'off' (default, feature disabled), 'shallow' (size of a folder's
+  // direct entries only) or 'full' (recursive size of the whole subtree).
+  FOLDER_SIZE_MODE: process.env.FOLDER_SIZE_MODE?.trim().toLowerCase() || 'off',
+  // Concurrency of the baseline walk on local vs network-detected mounts.
+  FOLDER_SIZE_CONCURRENCY: Number(process.env.FOLDER_SIZE_CONCURRENCY) || 6,
+  FOLDER_SIZE_NETWORK_CONCURRENCY: Number(process.env.FOLDER_SIZE_NETWORK_CONCURRENCY) || 2,
+  // How often (ms) accumulated dirty directories (on-view refresh, hooks,
+  // optional watcher) are flushed to the index in one transaction.
+  FOLDER_SIZE_FLUSH_MS: Number(process.env.FOLDER_SIZE_FLUSH_MS) || 3000,
+  // mtime-based reconciliation cadence. When 0 (default) the interval is
+  // adaptive: it accelerates to *MIN when a pass finds external changes and
+  // backs off (doubling) up to *MAX when idle. Set a non-zero value to force a
+  // fixed interval instead.
+  FOLDER_SIZE_RECONCILE_MS: Number(process.env.FOLDER_SIZE_RECONCILE_MS) || 0,
+  FOLDER_SIZE_RECONCILE_MIN_MS: Number(process.env.FOLDER_SIZE_RECONCILE_MIN_MS) || 900000,
+  FOLDER_SIZE_RECONCILE_MAX_MS: Number(process.env.FOLDER_SIZE_RECONCILE_MAX_MS) || 43200000,
+  // Reconciliation is paced so it never spikes CPU/IO on huge volumes: it stat()s
+  // folders in pages of *_BATCH and sleeps *_PAUSE_MS between pages, scanning as a
+  // gentle background trickle instead of one burst.
+  FOLDER_SIZE_RECONCILE_BATCH: Number(process.env.FOLDER_SIZE_RECONCILE_BATCH) || 100,
+  FOLDER_SIZE_RECONCILE_PAUSE_MS:
+    process.env.FOLDER_SIZE_RECONCILE_PAUSE_MS !== undefined
+      ? Number(process.env.FOLDER_SIZE_RECONCILE_PAUSE_MS)
+      : 200,
+  // Force a fresh baseline walk even if the volume is already indexed.
+  FOLDER_SIZE_REBUILD: normalizeBoolean(process.env.FOLDER_SIZE_REBUILD) || false,
   USER_DIR_ENABLED: normalizeBoolean(process.env.USER_DIR_ENABLED) || false,
   USER_VOLUMES: normalizeBoolean(process.env.USER_VOLUMES) || false,
   SKIP_HOME: normalizeBoolean(process.env.SKIP_HOME) || false,

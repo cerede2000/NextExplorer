@@ -302,6 +302,26 @@ const personal = {
 // --- Hidden file patterns ---
 const hiddenFiles = parseHiddenFilePatterns(env.HIDDEN_FILE_PATTERNS);
 
+// --- Folder size index ---
+const VALID_FOLDER_SIZE_MODES = new Set(['off', 'shallow', 'full']);
+const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
+  ? env.FOLDER_SIZE_MODE
+  : 'off';
+
+const folderSize = {
+  mode: folderSizeMode,
+  enabled: folderSizeMode !== 'off',
+  concurrency: env.FOLDER_SIZE_CONCURRENCY,
+  networkConcurrency: env.FOLDER_SIZE_NETWORK_CONCURRENCY,
+  flushMs: env.FOLDER_SIZE_FLUSH_MS,
+  reconcileMs: env.FOLDER_SIZE_RECONCILE_MS,
+  reconcileMinMs: env.FOLDER_SIZE_RECONCILE_MIN_MS,
+  reconcileMaxMs: env.FOLDER_SIZE_RECONCILE_MAX_MS,
+  reconcileBatch: env.FOLDER_SIZE_RECONCILE_BATCH,
+  reconcilePauseMs: env.FOLDER_SIZE_RECONCILE_PAUSE_MS,
+  rebuild: env.FOLDER_SIZE_REBUILD,
+};
+
 // --- Shares ---
 const shares = {
   enabled: env.SHARES_ENABLED,
@@ -363,9 +383,11 @@ module.exports = {
   favorites,
   shares,
   hiddenFiles,
+  folderSize,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,
+    folderSizeMode,
     personalFolders: env.USER_DIR_ENABLED,
     userVolumes: env.USER_VOLUMES,
     shares: env.SHARES_ENABLED,

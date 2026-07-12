@@ -10,6 +10,7 @@ const {
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
 const { removeFavoritesForDeletedPath } = require('./favoritesService');
+const folderSizeHooks = require('./folderSizeHooks');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -124,8 +125,17 @@ const transferItems = async (items, destination, operation, options = {}) => {
 
     if (operation === 'copy') {
       await copyEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
+      folderSizeHooks.onEntryCopied(targetAbsolute, {
+        isDirectory: stats.isDirectory(),
+        size: stats.size,
+        sourceAbsolutePath: sourceAbsolute,
+      });
     } else if (operation === 'move') {
       await moveEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
+      folderSizeHooks.onEntryMoved(sourceAbsolute, targetAbsolute, {
+        isDirectory: stats.isDirectory(),
+        size: stats.size,
+      });
     } else {
       throw new Error(`Unsupported operation: ${operation}`);
     }
@@ -234,10 +244,19 @@ const deleteItems = async (items = [], options = {}) => {
     }
 
     await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
+    const deletedEntryStats = stats || (await fs.stat(absolutePath));
+    await fs.rm(absolutePath, {
+      recursive: isDirectory || deletedEntryStats.isDirectory(),
+      force: true,
+    });
+    folderSizeHooks.onEntryDeleted(absolutePath, {
+      isDirectory: isDirectory || deletedEntryStats.isDirectory(),
+      size: deletedEntryStats.size,
+    });
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
     const removedFavoriteCount = context.user?.id
       ? await removeFavoritesForDeletedPath(context.user.id, relativePath, {
-          includeChildren: isDirectory || stats.isDirectory(),
+          includeChildren: isDirectory || deletedEntryStats.isDirectory(),
         })
       : 0;
     results.push({

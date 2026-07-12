@@ -6,6 +6,8 @@ import { useUppyStore } from '@/stores/uppyStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useAppSettings } from '@/stores/appSettings';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFolderSizeStore } from '@/stores/folderSize';
 import { apiBase, normalizePath } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
 import DropTarget from '@uppy/drop-target';
@@ -16,6 +18,8 @@ export function useFileUploader() {
   const fileStore = useFileStore();
   const notificationsStore = useNotificationsStore();
   const appSettings = useAppSettings();
+  const volumeUsageStore = useVolumeUsageStore();
+  const folderSizeStore = useFolderSizeStore();
   const inputRef = ref(null);
   const files = ref([]);
 
@@ -213,6 +217,8 @@ export function useFileUploader() {
 
     uppy.on('upload-success', () => {
       fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
     });
 
     uppy.on('complete', (result) => {
@@ -245,6 +251,8 @@ export function useFileUploader() {
       if (fileStore.currentPath) {
         fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
       }
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
     });
 
     uppy.on('error', (error) => {
