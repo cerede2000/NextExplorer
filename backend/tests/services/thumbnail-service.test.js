@@ -28,6 +28,16 @@ describe('Thumbnail Service', () => {
       expect(isThumbnailCachePath(aliasedPath)).toBe(true);
     });
 
+    it('detects current v3 generated thumbnail artifacts', () => {
+      const thumbnailPath = path.join(
+        directories.volume,
+        'media',
+        'v3-0123456789abcdef0123456789abcdef01234567.webp'
+      );
+
+      expect(isThumbnailCachePath(thumbnailPath)).toBe(true);
+    });
+
     it('does not block regular webp files', () => {
       const regularImage = path.join(directories.volume, 'photos', 'cover.webp');
 
