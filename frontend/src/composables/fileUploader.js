@@ -24,7 +24,7 @@ export function useFileUploader() {
   const files = ref([]);
 
   let lastNotifyAt = 0;
-  let lastNotifyHeading = '';
+  let lastNotifyKey = '';
   let uploadPluginMode = null;
 
   const canUploadToCurrentPath = () => {
@@ -49,10 +49,12 @@ export function useFileUploader() {
 
   const notifyErrorOnce = (heading, extra = {}) => {
     const now = Date.now();
-    if (heading === lastNotifyHeading && now - lastNotifyAt < 1500) return;
+    const { dedupeKey, dedupeMs = 10000, ...notificationExtra } = extra;
+    const key = dedupeKey || heading;
+    if (key === lastNotifyKey && now - lastNotifyAt < dedupeMs) return;
     lastNotifyAt = now;
-    lastNotifyHeading = heading;
-    notificationsStore.addNotification({ type: 'error', heading, ...extra });
+    lastNotifyKey = key;
+    notificationsStore.addNotification({ type: 'error', heading, ...notificationExtra });
   };
 
   // Ensure a single Uppy instance app-wide
@@ -101,6 +103,19 @@ export function useFileUploader() {
     return null;
   };
 
+  const isNetworkUploadError = (error) => {
+    const message = String(error?.message || '').toLowerCase();
+    return (
+      error instanceof TypeError ||
+      message.includes('network error') ||
+      message.includes('failed to fetch') ||
+      message.includes('load failed') ||
+      message.includes('networkerror') ||
+      message.includes('unexpected response while uploading chunk') ||
+      message.includes('unexpected response while creating upload')
+    );
+  };
+
   const configureUploadPlugin = () => {
     if (!uppy) return;
 
@@ -126,10 +141,13 @@ export function useFileUploader() {
         allowedMetaFields: ['name', 'type', 'uploadTo', 'relativePath'],
         removeFingerprintOnSuccess: true,
         storeFingerprintForResuming: false,
-        retryDelays: [0, 1000, 3000, 5000],
+        // Resumable uploads are intentionally disabled for now. Automatic TUS retries keep
+        // large files alive in memory and can spam errors when the client network disappears.
+        retryDelays: [],
         onShouldRetry: (error, _retryAttempt, _options, next) => {
           const status = getTusErrorStatus(error);
           if (status === 507) return false;
+          if (isNetworkUploadError(error)) return false;
           return next(error);
         },
         withCredentials: true,
@@ -153,7 +171,7 @@ export function useFileUploader() {
 
   if (!uppy) {
     uppy = new Uppy({
-      debug: true,
+      debug: import.meta.env.DEV,
       autoProceed: true,
       store: uppyStore,
     });
@@ -231,20 +249,28 @@ export function useFileUploader() {
       const body = response?.body;
       const nested = body && typeof body === 'object' ? body?.error : null;
       const nestedObj = nested && typeof nested === 'object' ? nested : null;
+      const networkError = isNetworkUploadError(error);
 
-      const heading =
+      const rawHeading =
         nestedObj?.message ||
         (typeof nested === 'string' ? nested : '') ||
         error?.message ||
         'Upload failed';
+      const heading = networkError
+        ? 'Upload interrupted because the server connection was lost.'
+        : rawHeading;
+      const bodyText = networkError
+        ? 'The transfer was stopped. Check the network connection and retry the upload.'
+        : nestedObj?.details !== undefined && nestedObj?.details !== null
+          ? JSON.stringify(nestedObj.details)
+          : '';
 
       notifyErrorOnce(heading, {
-        body:
-          nestedObj?.details !== undefined && nestedObj?.details !== null
-            ? JSON.stringify(nestedObj.details)
-            : '',
+        body: bodyText,
         requestId: nestedObj?.requestId || null,
         statusCode: nestedObj?.statusCode ?? response?.status,
+        dedupeKey: `upload-error:${heading}`,
+        dedupeMs: 15000,
       });
       setTimeout(() => removeUploadFile(file), 0);
       // Keep UI in sync in case some files partially uploaded.
@@ -256,8 +282,13 @@ export function useFileUploader() {
     });
 
     uppy.on('error', (error) => {
-      const message = error?.message || 'Upload error';
-      notifyErrorOnce(message);
+      const message = isNetworkUploadError(error)
+        ? 'Upload interrupted because the server connection was lost.'
+        : error?.message || 'Upload error';
+      notifyErrorOnce(message, {
+        dedupeKey: `uppy-error:${message}`,
+        dedupeMs: 15000,
+      });
     });
 
     // Uppy v5 uses private class fields; if it gets wrapped in a Vue Proxy (reactive store),
