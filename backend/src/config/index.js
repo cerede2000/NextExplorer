@@ -200,6 +200,16 @@ const tusUploadDir = env.TUS_UPLOAD_DIR
   ? path.resolve(env.TUS_UPLOAD_DIR)
   : path.join(cacheDir, 'tus-uploads');
 
+const tusIncompleteUploadTtlMs = (() => {
+  const value = env.TUS_INCOMPLETE_UPLOAD_TTL_MS;
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 60 * 60 * 1000;
+})();
+
+const tusCleanupIntervalMs = (() => {
+  const value = env.TUS_CLEANUP_INTERVAL_MS;
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 10 * 60 * 1000;
+})();
+
 // --- Auth ---
 // Determine auth mode: 'local', 'oidc', 'both', or 'disabled'
 // If AUTH_MODE is not set, fall back to legacy behavior based on OIDC_ENABLED
@@ -344,6 +354,8 @@ module.exports = {
     inactivityTimeoutMs: uploadInactivityTimeoutMs,
     storageReserveBytes: uploadStorageReserveBytes,
     tusUploadDir,
+    tusIncompleteUploadTtlMs,
+    tusCleanupIntervalMs,
   },
   directories,
 

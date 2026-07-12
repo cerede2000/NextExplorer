@@ -177,4 +177,45 @@ describe('TUS upload route', () => {
       await closeServer(server);
     }
   });
+
+  it('cleans stale incomplete TUS uploads from the cache', async () => {
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    await fs.mkdir(tusDir, { recursive: true });
+
+    const staleUploadId = 'stale-upload';
+    const activeUploadId = 'active-upload';
+    const staleDate = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    await fs.writeFile(path.join(tusDir, staleUploadId), 'partial');
+    await fs.writeFile(
+      path.join(tusDir, `${staleUploadId}.json`),
+      JSON.stringify({
+        id: staleUploadId,
+        size: 1024,
+        metadata: { filename: 'stale.bin' },
+        creation_date: staleDate.toISOString(),
+      })
+    );
+    await fs.utimes(path.join(tusDir, staleUploadId), staleDate, staleDate);
+    await fs.utimes(path.join(tusDir, `${staleUploadId}.json`), staleDate, staleDate);
+
+    await fs.writeFile(path.join(tusDir, activeUploadId), 'partial');
+    await fs.writeFile(
+      path.join(tusDir, `${activeUploadId}.json`),
+      JSON.stringify({
+        id: activeUploadId,
+        size: 1024,
+        metadata: { filename: 'active.bin' },
+        creation_date: new Date().toISOString(),
+      })
+    );
+
+    const { cleanupExpiredUploads } = envContext.requireFresh('src/services/tusUploadService');
+    await cleanupExpiredUploads({ force: true });
+
+    await expect(fs.access(path.join(tusDir, staleUploadId))).rejects.toBeTruthy();
+    await expect(fs.access(path.join(tusDir, `${staleUploadId}.json`))).rejects.toBeTruthy();
+    await expect(fs.access(path.join(tusDir, activeUploadId))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(tusDir, `${activeUploadId}.json`))).resolves.toBeUndefined();
+  });
 });

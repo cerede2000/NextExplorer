@@ -19,6 +19,14 @@ module.exports = {
   UPLOAD_CHUNK_SIZE: process.env.UPLOAD_CHUNK_SIZE?.trim() || null,
   UPLOAD_STORAGE_RESERVE: process.env.UPLOAD_STORAGE_RESERVE?.trim() || '64M',
   TUS_UPLOAD_DIR: process.env.TUS_UPLOAD_DIR?.trim() || null,
+  TUS_INCOMPLETE_UPLOAD_TTL_MS:
+    process.env.TUS_INCOMPLETE_UPLOAD_TTL_MS != null
+      ? Number(process.env.TUS_INCOMPLETE_UPLOAD_TTL_MS)
+      : 60 * 60 * 1000,
+  TUS_CLEANUP_INTERVAL_MS:
+    process.env.TUS_CLEANUP_INTERVAL_MS != null
+      ? Number(process.env.TUS_CLEANUP_INTERVAL_MS)
+      : 10 * 60 * 1000,
 
   // Paths
   VOLUME_ROOT: process.env.VOLUME_ROOT || '/mnt',
