@@ -153,7 +153,7 @@ const getItemKey = (item) => {
 const ensureItemInSelection = (item) => {
   if (!item) return;
   const key = getItemKey(item);
-  const alreadySelected = fileStore.selectedItems.some((selected) => getItemKey(selected) === key);
+  const alreadySelected = fileStore.selectedItemKeys.has(key);
 
   if (alreadySelected) {
     return;
