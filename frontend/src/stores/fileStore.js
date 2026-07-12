@@ -22,6 +22,8 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 
 export const useFileStore = defineStore('fileStore', () => {
+  const THUMBNAIL_REQUEST_CONCURRENCY = 2;
+
   // State
   const currentPath = ref('');
   const currentPathItems = ref([]);
@@ -39,6 +41,10 @@ export const useFileStore = defineStore('fileStore', () => {
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
   const thumbnailRequests = new Map();
+  const thumbnailRequestQueue = [];
+  const activeThumbnailControllers = new Set();
+  let activeThumbnailRequestCount = 0;
+  let thumbnailQueueGeneration = 0;
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
   const selectedItemKeys = computed(() => {
@@ -89,6 +95,72 @@ export const useFileStore = defineStore('fileStore', () => {
     const parent = normalizePath(item.path || '');
     const combined = parent ? `${parent}/${item.name}` : item.name;
     return normalizePath(combined);
+  };
+
+  const isAbortError = (error) =>
+    error?.name === 'AbortError' ||
+    (typeof DOMException !== 'undefined' && error?.code === DOMException.ABORT_ERR) ||
+    /aborted/i.test(error?.message || '');
+
+  const pumpThumbnailRequestQueue = () => {
+    while (
+      activeThumbnailRequestCount < THUMBNAIL_REQUEST_CONCURRENCY &&
+      thumbnailRequestQueue.length > 0
+    ) {
+      const task = thumbnailRequestQueue.shift();
+
+      if (!task || task.generation !== thumbnailQueueGeneration) {
+        task?.resolve?.(null);
+        continue;
+      }
+
+      const controller = new AbortController();
+      activeThumbnailControllers.add(controller);
+      activeThumbnailRequestCount += 1;
+
+      task
+        .run(controller.signal)
+        .then(task.resolve)
+        .catch((error) => {
+          if (!isAbortError(error)) {
+            task.reject(error);
+            return;
+          }
+          task.resolve(null);
+        })
+        .finally(() => {
+          activeThumbnailRequestCount = Math.max(0, activeThumbnailRequestCount - 1);
+          activeThumbnailControllers.delete(controller);
+          thumbnailRequests.delete(task.key);
+          pumpThumbnailRequestQueue();
+        });
+    }
+  };
+
+  const queueThumbnailRequest = (key, run) =>
+    new Promise((resolve, reject) => {
+      thumbnailRequestQueue.push({
+        key,
+        generation: thumbnailQueueGeneration,
+        run,
+        resolve,
+        reject,
+      });
+      pumpThumbnailRequestQueue();
+    });
+
+  const cancelThumbnailRequests = () => {
+    thumbnailQueueGeneration += 1;
+
+    const queued = thumbnailRequestQueue.splice(0);
+    for (const task of queued) {
+      thumbnailRequests.delete(task.key);
+      task.resolve(null);
+    }
+
+    for (const controller of activeThumbnailControllers) {
+      controller.abort();
+    }
   };
 
   const serializeItems = (items) =>
@@ -397,9 +469,12 @@ export const useFileStore = defineStore('fileStore', () => {
         return null;
       }
 
-      pending = (async () => {
+      pending = queueThumbnailRequest(key, async (signal) => {
         try {
-          const response = await fetchThumbnailApi(relativePath);
+          const response = await fetchThumbnailApi(relativePath, {
+            signal,
+            retryNetworkErrors: false,
+          });
           const thumbnail = response?.thumbnail || '';
           if (thumbnail) {
             const target = findItemByKey(key);
@@ -409,12 +484,12 @@ export const useFileStore = defineStore('fileStore', () => {
           }
           return thumbnail || null;
         } catch (error) {
-          console.error(`Failed to fetch thumbnail for ${relativePath}`, error);
+          if (!isAbortError(error)) {
+            console.error(`Failed to fetch thumbnail for ${relativePath}`, error);
+          }
           return null;
-        } finally {
-          thumbnailRequests.delete(key);
         }
-      })();
+      });
 
       thumbnailRequests.set(key, pending);
     }
@@ -470,6 +545,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const previousItems = Array.isArray(currentPathItems.value) ? currentPathItems.value : [];
 
     const normalizedPath = normalizePath(typeof path === 'string' ? path : currentPath.value);
+    cancelThumbnailRequests();
     currentPath.value = normalizedPath;
     clearSelection();
     // When changing folders, exit selection mode (mobile UX).

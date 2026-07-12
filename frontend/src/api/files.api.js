@@ -146,13 +146,13 @@ function getRawFileUrl(path) {
   return buildUrl(`/api/raw?${params.toString()}`);
 }
 
-async function fetchThumbnail(relativePath) {
+async function fetchThumbnail(relativePath, options = {}) {
   const normalizedPath = normalizePath(relativePath);
   if (!normalizedPath) {
     throw new Error('A file path is required to fetch a thumbnail.');
   }
   const encodedPath = encodePath(normalizedPath);
-  return requestJson(`/api/thumbnails/${encodedPath}`, { method: 'GET' });
+  return requestJson(`/api/thumbnails/${encodedPath}`, { method: 'GET', ...options });
 }
 
 async function fetchMetadata(relativePath) {
