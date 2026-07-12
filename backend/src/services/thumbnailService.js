@@ -74,14 +74,15 @@ const configureFfmpegBinaries = () => {
     logger.warn('FFmpeg binary not found. Video thumbnails will be skipped.');
   }
 
+  const ffprobeRequired = env.THUMBNAIL_VIDEO_SEEK_PERCENT != null;
   const ffprobePath = resolveExecutable(EXECUTABLE_CANDIDATES.ffprobe);
   if (ffprobePath) {
     ffmpeg.setFfprobePath(ffprobePath);
-  } else {
+  } else if (ffprobeRequired) {
     logger.warn('ffprobe binary not found. Video thumbnails will be skipped.');
   }
 
-  canProcessVideoThumbnails = Boolean(ffmpegPath && ffprobePath);
+  canProcessVideoThumbnails = Boolean(ffmpegPath && (!ffprobeRequired || ffprobePath));
 };
 
 configureFfmpegBinaries();
@@ -111,6 +112,18 @@ const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_C
 const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
   ? Math.max(1, Math.min(4, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
   : 1;
+const THUMBNAIL_VIDEO_SEEK_SECONDS = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_SECONDS)
+  ? Math.max(0, Math.floor(env.THUMBNAIL_VIDEO_SEEK_SECONDS))
+  : 5;
+const THUMBNAIL_VIDEO_SEEK_PERCENT = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_PERCENT)
+  ? Math.max(0, Math.min(1, Number(env.THUMBNAIL_VIDEO_SEEK_PERCENT)))
+  : null;
+const THUMBNAIL_VIDEO_THREADS = Number.isFinite(env.THUMBNAIL_VIDEO_THREADS)
+  ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_THREADS)))
+  : 1;
+const THUMBNAIL_VIDEO_SCALE_FLAGS = /^[a-z0-9_+.-]+$/i.test(env.THUMBNAIL_VIDEO_SCALE_FLAGS || '')
+  ? env.THUMBNAIL_VIDEO_SCALE_FLAGS
+  : 'fast_bilinear';
 const THUMBNAIL_DIAGNOSTICS_ENABLED = env.THUMBNAIL_DIAGNOSTICS_ENABLED === true;
 const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS)
   ? Math.max(5000, Math.floor(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS))
@@ -258,6 +271,10 @@ const startThumbnailDiagnostics = () => {
       cacheMaxFiles: THUMBNAIL_CACHE_MAX_FILES,
       sharpCacheMemoryMb: SHARP_CACHE_MEMORY_MB,
       videoConcurrency: THUMBNAIL_VIDEO_CONCURRENCY,
+      videoSeekSeconds: THUMBNAIL_VIDEO_SEEK_SECONDS,
+      videoSeekPercent: THUMBNAIL_VIDEO_SEEK_PERCENT,
+      videoThreads: THUMBNAIL_VIDEO_THREADS,
+      videoScaleFlags: THUMBNAIL_VIDEO_SCALE_FLAGS,
     },
     'Thumbnail diagnostics enabled'
   );
@@ -518,19 +535,33 @@ const probeDuration = (filePath) =>
     });
   });
 
+const resolveVideoSeekSeconds = async (filePath) => {
+  if (THUMBNAIL_VIDEO_SEEK_PERCENT == null) {
+    return THUMBNAIL_VIDEO_SEEK_SECONDS;
+  }
+
+  const duration = await probeDuration(filePath);
+  if (!duration || !Number.isFinite(duration)) {
+    return THUMBNAIL_VIDEO_SEEK_SECONDS;
+  }
+
+  return Math.max(0, Math.floor(duration * THUMBNAIL_VIDEO_SEEK_PERCENT));
+};
+
 const makeVideoThumb = async (srcPath, destPath) => {
   if (!canProcessVideoThumbnails) {
     logger.warn({ srcPath }, 'Skipping video thumbnail (no ffmpeg/ffprobe)');
     return;
   }
 
-  const duration = await probeDuration(srcPath);
-  const seconds =
-    duration && Number.isFinite(duration) ? Math.max(1, Math.floor(duration * 0.05)) : 1;
+  const seconds = await resolveVideoSeekSeconds(srcPath);
   const { size, quality } = await getThumbOptions();
 
   await new Promise((resolve, reject) => {
     const inputOptions = ['-hide_banner', '-loglevel', 'error'];
+    if (THUMBNAIL_VIDEO_THREADS > 0) {
+      inputOptions.push('-threads', String(THUMBNAIL_VIDEO_THREADS));
+    }
 
     if (env.FFMPEG_HWACCEL) {
       inputOptions.push('-hwaccel', env.FFMPEG_HWACCEL);
@@ -585,7 +616,23 @@ const makeVideoThumb = async (srcPath, destPath) => {
     command = ffmpeg(srcPath)
       .inputOptions(inputOptions)
       .seekInput(seconds)
-      .outputOptions(['-frames:v', '1', '-vf', `scale=${size}:-1:flags=lanczos`, '-vcodec', 'png'])
+      .outputOptions([
+        '-map',
+        '0:v:0',
+        '-an',
+        '-sn',
+        '-dn',
+        '-frames:v',
+        '1',
+        '-vf',
+        `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
+        '-threads',
+        String(THUMBNAIL_VIDEO_THREADS),
+        '-vcodec',
+        'mjpeg',
+        '-q:v',
+        '4',
+      ])
       .format('image2pipe')
       .on('start', () => {
         externalProcessId = registerExternalProcess('ffmpeg', srcPath, command?.ffmpegProc?.pid, {
@@ -602,7 +649,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     stream.on('error', fail);
 
     (async () => {
-      pipeline = sharp().webp({ quality, effort: 4 });
+      pipeline = sharp().webp({ quality, effort: 3 });
       stream.pipe(pipeline);
       atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
     })().catch(fail);

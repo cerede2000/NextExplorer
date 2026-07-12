@@ -137,6 +137,10 @@ services:
       # THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE: "500" # Max thumbnail cache files deleted per cleanup pass.
       # THUMBNAIL_SHARP_CACHE_MEMORY_MB: "0" # Sharp/libvips thumbnail cache memory budget.
       # THUMBNAIL_VIDEO_CONCURRENCY: "1" # Max concurrent ffmpeg thumbnail jobs.
+      # THUMBNAIL_VIDEO_SEEK_SECONDS: "5" # Timestamp used for video thumbnails; avoids probing every video by default.
+      # THUMBNAIL_VIDEO_SEEK_PERCENT: "" # Optional 0-1 value to seek by duration percentage; enables ffprobe per video.
+      # THUMBNAIL_VIDEO_THREADS: "1" # ffmpeg thread limit for video thumbnail extraction.
+      # THUMBNAIL_VIDEO_SCALE_FLAGS: "fast_bilinear" # ffmpeg scale flags; use lanczos for sharper but heavier thumbnails.
       # THUMBNAIL_DIAGNOSTICS_ENABLED: "false" # Enable detailed thumbnail queue/memory/process logs.
       # THUMBNAIL_DIAGNOSTICS_INTERVAL_MS: "30000" # Interval for thumbnail diagnostics logs.
       # THUMBNAIL_SLOW_JOB_MS: "10000" # Log thumbnail jobs/processes slower than this threshold.

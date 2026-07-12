@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watchEffect } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { apiBase } from '@/api';
 import { useAppSettings } from '@/stores/appSettings';
@@ -80,25 +80,83 @@ const isPreviewable = computed(() => {
 
 // Track if we've already requested the thumbnail in this component instance
 const hasRequestedThumbnail = ref(false);
+const iconRoot = ref(null);
+const isNearViewport = ref(false);
+let thumbnailObserver = null;
 
-// Automatically request thumbnail when all conditions are met
-// watchEffect automatically tracks all reactive dependencies and re-runs when they change
-watchEffect(() => {
-  // Exit early if already requested
+const canRequestThumbnail = computed(() => {
+  if (props.disableThumbnails) return false;
+  if (!props.item || props.item.kind === 'directory') return false;
+  if (!isPreviewable.value) return false;
+  if (appSettings.thumbnailsEnabledForSession === false) return false;
+  if (props.item.thumbnail) return false;
+  return Boolean(props.item.supportsThumbnail);
+});
+
+const thumbnailRequestKey = computed(() => {
+  if (!props.item) return '';
+  return [
+    props.item.path || '',
+    props.item.name || '',
+    props.item.kind || '',
+    props.item.size || '',
+    props.item.modified || '',
+  ].join('::');
+});
+
+const requestThumbnailIfNeeded = () => {
   if (hasRequestedThumbnail.value) return;
-
-  // Check all conditions
-  if (props.disableThumbnails) return;
-  if (!props.item || props.item.kind === 'directory') return;
-  if (!isPreviewable.value) return;
-  if (appSettings.thumbnailsEnabledForSession === false) return;
-  if (props.item.thumbnail) return;
-  if (!props.item.supportsThumbnail) return;
+  if (!isNearViewport.value) return;
+  if (!canRequestThumbnail.value) return;
 
   // All conditions met - request thumbnail once
   hasRequestedThumbnail.value = true;
   fileStore.ensureItemThumbnail(props.item);
+};
+
+const disconnectThumbnailObserver = () => {
+  if (thumbnailObserver) {
+    thumbnailObserver.disconnect();
+    thumbnailObserver = null;
+  }
+};
+
+const observeThumbnailVisibility = async () => {
+  await nextTick();
+  if (!iconRoot.value) {
+    isNearViewport.value = true;
+    return;
+  }
+
+  if (typeof IntersectionObserver === 'undefined') {
+    isNearViewport.value = true;
+    return;
+  }
+
+  disconnectThumbnailObserver();
+  thumbnailObserver = new IntersectionObserver(
+    (entries) => {
+      const isVisible = entries.some((entry) => entry.isIntersecting);
+      if (!isVisible) return;
+      isNearViewport.value = true;
+      requestThumbnailIfNeeded();
+      disconnectThumbnailObserver();
+    },
+    { root: null, rootMargin: '600px 0px', threshold: 0.01 }
+  );
+  thumbnailObserver.observe(iconRoot.value);
+};
+
+watch([canRequestThumbnail, isNearViewport], requestThumbnailIfNeeded);
+
+watch(thumbnailRequestKey, () => {
+  hasRequestedThumbnail.value = false;
+  isNearViewport.value = false;
+  observeThumbnailVisibility();
 });
+
+onMounted(observeThumbnailVisibility);
+onBeforeUnmount(disconnectThumbnailObserver);
 
 // Additional type groupings
 const audioExts = new Set(['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus', 'wma']);
@@ -255,18 +313,20 @@ const badge = computed(() => {
 </script>
 
 <template>
-  <DirectoryIcon v-if="props.item.kind === 'directory'" />
-  <PdfIcon v-else-if="props.item.kind === 'pdf'" />
-  <div
-    v-else-if="thumbnailUrl"
-    class="aspect-square bg-contain bg-center bg-no-repeat"
-    :style="{ backgroundImage: `url('${thumbnailUrl}')` }"
-  />
-  <ImageIcon v-else-if="isPreviewableImage(ext)" />
-  <VideoIcon v-else-if="isPreviewableVideo(ext)" />
-  <AudioIcon v-else-if="audioExts.has(ext)" />
-  <ArchiveIcon v-else-if="archiveExts.has(ext)" />
-  <FileBadgeIcon v-else-if="badge" v-bind="badge" />
-  <CodeIcon v-else-if="['json', 'vue'].includes(props.item.kind)" />
-  <TxtIcon v-else />
+  <span ref="iconRoot" class="block aspect-square">
+    <DirectoryIcon v-if="props.item.kind === 'directory'" />
+    <PdfIcon v-else-if="props.item.kind === 'pdf'" />
+    <div
+      v-else-if="thumbnailUrl"
+      class="h-full w-full bg-contain bg-center bg-no-repeat"
+      :style="{ backgroundImage: `url('${thumbnailUrl}')` }"
+    />
+    <ImageIcon v-else-if="isPreviewableImage(ext)" />
+    <VideoIcon v-else-if="isPreviewableVideo(ext)" />
+    <AudioIcon v-else-if="audioExts.has(ext)" />
+    <ArchiveIcon v-else-if="archiveExts.has(ext)" />
+    <FileBadgeIcon v-else-if="badge" v-bind="badge" />
+    <CodeIcon v-else-if="['json', 'vue'].includes(props.item.kind)" />
+    <TxtIcon v-else />
+  </span>
 </template>
