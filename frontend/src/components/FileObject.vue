@@ -386,20 +386,19 @@ if (isTouchDevice.value) {
       ]"
       :style="{ gridTemplateColumns: settings.listViewGridTemplateColumns }"
     >
-      <div
-        class="relative flex items-center justify-center"
-        :class="showSelectionControl ? 'cursor-pointer' : ''"
-        @click="showSelectionControl ? handleToggleSelection($event) : undefined"
-      >
+      <div class="relative flex items-center justify-center">
         <FileIcon :item="item" class="w-6 shrink-0" />
         <button
           v-if="showSelectionControl"
           type="button"
           :class="[
-            'absolute inset-y-0 left-1/2 z-10 flex w-7 -translate-x-1/2 items-center justify-center',
+            'absolute -top-1 -bottom-1 left-1/2 z-20 flex w-7 -translate-x-1/2 items-center justify-center',
             selectionMode || selected ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100',
           ]"
           :aria-label="`Select ${item.name}`"
+          @pointerdown.stop
+          @mousedown.stop
+          @mouseup.stop
           @click="handleToggleSelection"
           @dblclick.stop.prevent
         >
