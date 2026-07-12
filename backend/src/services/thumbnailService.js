@@ -108,6 +108,9 @@ const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_CACHE_
 const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
   ? Math.max(1, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE))
   : 500;
+const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
+  ? Math.max(1, Math.min(4, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
+  : 1;
 const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
 const THUMBNAIL_CACHE_DIR = path.resolve(directories.thumbnails);
 const THUMBNAIL_CACHE_FILE_PATTERN = /^v\d+-(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
@@ -119,6 +122,12 @@ const THUMBNAILS_ENABLED = env.THUMBNAILS_ENABLED !== false;
 const thumbnailQueue = new PQueue({
   concurrency: 10, // Default: 10 concurrent thumbnail generations (updated from settings)
   timeout: 30000, // 30 second timeout per thumbnail
+  throwOnTimeout: false,
+});
+
+const videoThumbnailQueue = new PQueue({
+  concurrency: THUMBNAIL_VIDEO_CONCURRENCY,
+  timeout: 30000,
   throwOnTimeout: false,
 });
 
@@ -232,7 +241,8 @@ const hashForFile = async (filePath, stats = null) => {
   return hash.digest('hex');
 };
 
-const buildTempThumbnailPath = (finalPath) => `${finalPath}.tmp-${process.pid}-${Date.now()}`;
+const buildTempThumbnailPath = (finalPath) =>
+  `${finalPath}.tmp-${process.pid}-${Date.now()}-${crypto.randomUUID()}`;
 
 const atomicWriteSharpFile = async (finalPath, pipeline) => {
   await ensureDir(path.dirname(finalPath));
@@ -289,15 +299,9 @@ const makeVideoThumb = async (srcPath, destPath) => {
   const duration = await probeDuration(srcPath);
   const seconds =
     duration && Number.isFinite(duration) ? Math.max(1, Math.floor(duration * 0.05)) : 1;
+  const { size, quality } = await getThumbOptions();
 
   await new Promise((resolve, reject) => {
-    // Size is dynamic; capture inside ffmpeg filter
-    let size = 200;
-    getThumbOptions()
-      .then(({ size: sz }) => {
-        size = sz;
-      })
-      .catch(() => {});
     const inputOptions = ['-hide_banner', '-loglevel', 'error'];
 
     if (env.FFMPEG_HWACCEL) {
@@ -314,9 +318,17 @@ const makeVideoThumb = async (srcPath, destPath) => {
 
     let stream = null;
     let pipeline = null;
+    let command = null;
     let settled = false;
 
-    const cleanup = () => {
+    const cleanup = ({ killProcess = false } = {}) => {
+      if (killProcess) {
+        try {
+          command?.kill('SIGKILL');
+        } catch (_) {
+          // noop
+        }
+      }
       if (stream && !stream.destroyed) {
         stream.destroy();
       }
@@ -328,7 +340,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     const fail = (error) => {
       if (settled) return;
       settled = true;
-      cleanup();
+      cleanup({ killProcess: true });
       reject(error);
     };
 
@@ -339,7 +351,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
       resolve();
     };
 
-    const command = ffmpeg(srcPath)
+    command = ffmpeg(srcPath)
       .inputOptions(inputOptions)
       .seekInput(seconds)
       .outputOptions(['-frames:v', '1', '-vf', `scale=${size}:-1:flags=lanczos`, '-vcodec', 'png'])
@@ -350,7 +362,6 @@ const makeVideoThumb = async (srcPath, destPath) => {
     stream.on('error', fail);
 
     (async () => {
-      const { quality } = await getThumbOptions();
       pipeline = sharp().webp({ quality, effort: 4 });
       stream.pipe(pipeline);
       atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
@@ -378,14 +389,15 @@ const makeHeicThumb = async (srcPath, destPath) => {
       stderr += data.toString();
     });
 
-    let pipeline = null;
     let settled = false;
+    const pipeline = sharp().webp({ quality, effort: 4 });
+    convert.stdout.pipe(pipeline);
 
-    const cleanup = () => {
+    const cleanup = ({ killProcess = false } = {}) => {
       if (pipeline && !pipeline.destroyed) {
         pipeline.destroy();
       }
-      if (!convert.killed) {
+      if (killProcess && !convert.killed) {
         convert.kill('SIGKILL');
       }
     };
@@ -393,31 +405,31 @@ const makeHeicThumb = async (srcPath, destPath) => {
     const fail = (error) => {
       if (settled) return;
       settled = true;
-      cleanup();
+      cleanup({ killProcess: true });
       reject(error);
-    };
-
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve();
     };
 
     convert.on('error', (err) => {
       fail(new Error(`Failed to spawn ImageMagick convert: ${err.message}`));
     });
 
-    convert.on('exit', (code) => {
-      if (code !== 0 && code !== null) {
-        fail(new Error(`ImageMagick convert exited with code ${code}: ${stderr}`));
-      }
+    const convertDone = new Promise((resolveConvert, rejectConvert) => {
+      convert.on('close', (code) => {
+        if (code !== 0 && code !== null) {
+          rejectConvert(new Error(`ImageMagick convert exited with code ${code}: ${stderr}`));
+          return;
+        }
+        resolveConvert();
+      });
     });
 
-    pipeline = sharp().webp({ quality, effort: 4 });
-    convert.stdout.pipe(pipeline);
-
-    atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
+    Promise.all([atomicWriteSharpFile(destPath, pipeline), convertDone])
+      .then(() => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      })
+      .catch(fail);
   });
 };
 
@@ -444,7 +456,7 @@ const generateThumbnail = async (filePath, thumbPath) => {
   }
 
   if (isVideo(extension)) {
-    await makeVideoThumb(filePath, thumbPath);
+    await videoThumbnailQueue.add(() => makeVideoThumb(filePath, thumbPath));
     return;
   }
 
