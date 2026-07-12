@@ -1,5 +1,6 @@
 const DEFAULT_API_BASE = '/';
 const apiBase = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE).replace(/\/$/, '');
+const NETWORK_RETRY_DELAYS_MS = [300, 900];
 
 const buildUrl = (endpoint) => `${apiBase}${endpoint}`;
 
@@ -21,6 +22,15 @@ const normalizePath = (relativePath = '') => {
   return relativePath.replace(/^\/+|\/+$/g, '');
 };
 
+const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
+
+const shouldRetryNetworkError = (method, attempt, options = {}) => {
+  if (options.retryNetworkErrors === false) return false;
+  if (options.signal?.aborted) return false;
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  return attempt < NETWORK_RETRY_DELAYS_MS.length;
+};
+
 const requestRaw = async (endpoint, options = {}) => {
   const method = (options.method || 'GET').toUpperCase();
   const headers = {
@@ -37,37 +47,48 @@ const requestRaw = async (endpoint, options = {}) => {
     headers['X-Guest-Session'] = guestSessionId;
   }
 
-  try {
-    const response = await fetch(buildUrl(endpoint), {
-      credentials: options.credentials || 'include', // All requests rely on cookies
-      ...options,
-      method,
-      headers,
-    });
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(buildUrl(endpoint), {
+        credentials: options.credentials || 'include', // All requests rely on cookies
+        ...options,
+        method,
+        headers,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = errorData?.error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = errorData?.error;
 
-      const errorInfo = {
-        statusCode: response.status,
-        ...(typeof error === 'object' ? error : { message: error || `Request failed with status ${response.status}` }),
-      };
+        const errorInfo = {
+          statusCode: response.status,
+          ...(typeof error === 'object'
+            ? error
+            : { message: error || `Request failed with status ${response.status}` }),
+        };
 
-      const translatedMessage = errorHandler?.(errorInfo) || errorInfo.message;
-      throw new Error(translatedMessage);
+        const translatedMessage = errorHandler?.(errorInfo) || errorInfo.message;
+        throw new Error(translatedMessage);
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof TypeError) {
+        if (shouldRetryNetworkError(method, attempt, options)) {
+          await wait(NETWORK_RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
+
+        const translatedMessage =
+          errorHandler?.({
+            message: 'Network Error',
+            details:
+              'Failed to connect to server. This is often caused by a PUBLIC_URL/CORS mismatch or a reverse proxy configuration issue.',
+          }) || 'Network Error';
+        throw new Error(translatedMessage);
+      }
+      throw error;
     }
-
-    return response;
-  } catch (error) {
-    if (error instanceof TypeError) {
-      const translatedMessage = errorHandler?.({
-        message: 'Network Error',
-        details: 'Failed to connect to server. This is often caused by a PUBLIC_URL/CORS mismatch or a reverse proxy configuration issue.',
-      }) || 'Network Error';
-      throw new Error(translatedMessage);
-    }
-    throw error;
   }
 };
 
