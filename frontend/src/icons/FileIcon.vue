@@ -119,7 +119,7 @@ const scheduleThumbnailRetry = () => {
   if (thumbnailRetryCount.value >= 20) return;
 
   thumbnailRetryCount.value += 1;
-  const delayMs = Math.min(5000, 1000 + thumbnailRetryCount.value * 500);
+  const delayMs = Math.min(5000, 700 + thumbnailRetryCount.value * 400);
   thumbnailRetryTimer = setTimeout(() => {
     thumbnailRetryTimer = null;
     hasRequestedThumbnail.value = false;
