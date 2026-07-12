@@ -386,7 +386,11 @@ if (isTouchDevice.value) {
       ]"
       :style="{ gridTemplateColumns: settings.listViewGridTemplateColumns }"
     >
-      <div class="relative flex items-center justify-center">
+      <div
+        class="relative flex items-center justify-center"
+        :class="selectionMode ? 'cursor-pointer' : ''"
+        @click="selectionMode ? handleToggleSelection($event) : undefined"
+      >
         <FileIcon :item="item" class="w-6 shrink-0" />
         <button
           v-if="showSelectionControl"

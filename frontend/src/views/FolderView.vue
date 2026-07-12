@@ -46,6 +46,15 @@ const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
 let loadMoreObserver = null;
 
+const getScrollTarget = () => {
+  const localTarget = dropTargetRef.value;
+  if (localTarget && localTarget.scrollHeight - localTarget.clientHeight > 2) {
+    return localTarget;
+  }
+
+  return document.scrollingElement || document.documentElement;
+};
+
 const applySelectionFromQuery = () => {
   const selectName = typeof route.query?.select === 'string' ? route.query.select : '';
   if (!selectName) return;
@@ -91,7 +100,7 @@ const revealMoreItems = () => {
 };
 
 const updateScrollState = () => {
-  const target = dropTargetRef.value;
+  const target = getScrollTarget();
   if (!target) {
     isScrollable.value = false;
     canScrollUp.value = false;
@@ -117,13 +126,13 @@ const revealAllItems = async () => {
 };
 
 const scrollToTop = () => {
-  dropTargetRef.value?.scrollTo?.({ top: 0, behavior: 'smooth' });
+  getScrollTarget()?.scrollTo?.({ top: 0, behavior: 'smooth' });
 };
 
 const scrollToBottom = async () => {
   await revealAllItems();
   await nextTick();
-  const target = dropTargetRef.value;
+  const target = getScrollTarget();
   target?.scrollTo?.({ top: target.scrollHeight, behavior: 'smooth' });
   updateScrollState();
 };
@@ -326,6 +335,7 @@ useEventListener(window, 'pointermove', (event) => {
 useEventListener(window, 'pointerup', stopResize);
 useEventListener(window, 'pointercancel', stopResize);
 useEventListener(window, 'resize', updateScrollState);
+useEventListener(window, 'scroll', updateScrollState, { passive: true });
 
 onBeforeUnmount(() => {
   stopResize();
@@ -453,11 +463,14 @@ onBeforeUnmount(() => {
         </div>
       </DragSelect>
 
-      <div v-if="isScrollable" class="fixed bottom-6 right-6 z-40 flex flex-col gap-2">
+      <div
+        v-if="isScrollable"
+        class="pointer-events-none fixed bottom-6 right-6 z-[100] flex flex-col gap-2"
+      >
         <button
           v-if="canScrollUp"
           type="button"
-          class="grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          class="pointer-events-auto grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
           :aria-label="$t('folder.scrollTop')"
           :title="$t('folder.scrollTop')"
           @click="scrollToTop"
@@ -467,7 +480,7 @@ onBeforeUnmount(() => {
         <button
           v-if="canScrollDown"
           type="button"
-          class="grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          class="pointer-events-auto grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
           :aria-label="$t('folder.scrollBottom')"
           :title="$t('folder.scrollBottom')"
           @click="scrollToBottom"
