@@ -1,28 +1,41 @@
 const express = require('express');
-const { promisify } = require('util');
-const { exec } = require('child_process');
+const fs = require('fs/promises');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
-const execp = promisify(exec);
 const router = express.Router();
 
-// Fast directory size using du command
-const dirSize = async (root) => {
-  try {
-    // -sb: summarize in bytes, don't follow symlinks
-    // This is orders of magnitude faster than fs.stat() recursion
-    const { stdout } = await execp(`du -sb "${root}"`, {
-      maxBuffer: 1024 * 1024 * 10, // 10MB buffer for large outputs
-    });
+const toSafeNumber = (value) => {
+  const numeric = typeof value === 'bigint' ? Number(value) : Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+};
 
-    // Output format: "12345\t/path/to/dir"
-    const size = parseInt(stdout.split('\t')[0], 10);
-    return size || 0;
+const getFilesystemUsage = async (root) => {
+  try {
+    const stats = await fs.statfs(root);
+    const blockSize = toSafeNumber(stats.bsize);
+    const total = toSafeNumber(stats.blocks) * blockSize;
+    const free = toSafeNumber(stats.bavail) * blockSize;
+    const used = Math.max(0, total - free);
+    const percentUsed = total > 0 ? Math.min(100, Math.max(0, (used / total) * 100)) : 0;
+
+    return {
+      size: used,
+      used,
+      free,
+      total,
+      percentUsed,
+    };
   } catch (err) {
-    logger.debug(err);
-    return 0;
+    logger.debug({ err, root }, 'Failed to read filesystem usage');
+    return {
+      size: 0,
+      used: 0,
+      free: 0,
+      total: 0,
+      percentUsed: 0,
+    };
   }
 };
 
@@ -36,31 +49,18 @@ router.get(
     const { accessInfo, resolved } = await resolvePathWithAccess(context, inputRel);
 
     if (!accessInfo || !accessInfo.canAccess || !accessInfo.canRead) {
-      // Treat denied access the same as du failing; zero usage
-      return res.json({ path: inputRel, size: 0, free: 0, total: 0 });
+      return res.json({
+        path: inputRel,
+        size: 0,
+        used: 0,
+        free: 0,
+        total: 0,
+        percentUsed: 0,
+      });
     }
 
     const { absolutePath: abs, relativePath: rel } = resolved;
-
-    // Run both commands in parallel for maximum speed
-    const [size, dfResult] = await Promise.all([
-      dirSize(abs),
-      execp(`df -Pk "${abs}"`).catch(() => ({ stdout: '' })),
-    ]);
-
-    let total = 0,
-      free = 0;
-
-    if (dfResult.stdout) {
-      const line = dfResult.stdout.trim().split('\n').pop();
-      const parts = line.trim().split(/\s+/);
-      const totalKb = parseInt(parts[1], 10) || 0;
-      const availKb = parseInt(parts[3], 10) || 0;
-      total = totalKb * 1024;
-      free = availKb * 1024;
-    }
-
-    res.json({ path: rel, size, free, total });
+    res.json({ path: rel, ...(await getFilesystemUsage(abs)) });
   })
 );
 

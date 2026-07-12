@@ -4,6 +4,7 @@ import XHRUpload from '@uppy/xhr-upload';
 import { useUppyStore } from '@/stores/uppyStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { apiBase, normalizePath } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
 import DropTarget from '@uppy/drop-target';
@@ -13,6 +14,7 @@ export function useFileUploader() {
   const uppyStore = useUppyStore();
   const fileStore = useFileStore();
   const notificationsStore = useNotificationsStore();
+  const volumeUsageStore = useVolumeUsageStore();
   const inputRef = ref(null);
   const files = ref([]);
 
@@ -112,8 +114,7 @@ export function useFileUploader() {
       const current = normalizePath(fileStore.currentPath || '');
       const files = Array.isArray(batchFiles) ? batchFiles : [];
       const targetsCurrentPath =
-        files.length > 0 &&
-        files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
+        files.length > 0 && files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
 
       if (!targetsCurrentPath) return;
       if (canUploadToCurrentPath()) return;
@@ -128,6 +129,7 @@ export function useFileUploader() {
 
     uppy.on('upload-success', () => {
       fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+      volumeUsageStore.scheduleRefresh();
     });
 
     uppy.on('upload-error', (_file, error, response) => {
@@ -153,6 +155,7 @@ export function useFileUploader() {
       if (fileStore.currentPath) {
         fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
       }
+      volumeUsageStore.scheduleRefresh();
     });
 
     uppy.on('error', (error) => {

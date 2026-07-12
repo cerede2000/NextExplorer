@@ -1,44 +1,29 @@
 <script setup>
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useFeaturesStore } from '@/stores/features';
-import { getVolumes, getUsage } from '@/api';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useNavigation } from '@/composables/navigation';
 import * as OutlineIcons from '@heroicons/vue/24/outline';
 import * as SolidIcons from '@heroicons/vue/24/solid';
-const ProgressBar = defineAsyncComponent(() => import('@/components/ProgressBar.vue'));
+import VolumeUsageBar from '@/components/VolumeUsageBar.vue';
 import IconDrive from '@/icons/IconDrive.vue';
-import { formatBytes } from '@/utils';
-const volumes = ref([]);
-const loading = ref(true);
+
 const favoritesStore = useFavoritesStore();
 const featuresStore = useFeaturesStore();
-const usage = ref({});
+const volumeUsageStore = useVolumeUsageStore();
 const { openItem, openBreadcrumb } = useNavigation();
 const showVolumeUsage = computed(() => featuresStore.volumeUsageEnabled);
 const personalEnabled = computed(() => featuresStore.personalEnabled);
+const volumes = computed(() => volumeUsageStore.volumes);
+const usage = computed(() => volumeUsageStore.usage);
+const loading = computed(
+  () => volumeUsageStore.isLoadingVolumes || !volumeUsageStore.hasLoadedVolumes
+);
 
 onMounted(async () => {
-  try {
-    // Ensure features are loaded before checking flags
-    await Promise.all([favoritesStore.ensureLoaded(), featuresStore.ensureLoaded()]);
-
-    // Load volumes
-    volumes.value = await getVolumes();
-
-    // Lazy-load usage for each volume only when the feature is enabled
-    if (showVolumeUsage.value) {
-      volumes.value.forEach(async (v) => {
-        try {
-          usage.value[v.path] = await getUsage(v.path);
-        } catch (_) {
-          // Ignore per-volume usage failures
-        }
-      });
-    }
-  } finally {
-    loading.value = false;
-  }
+  await Promise.all([favoritesStore.ensureLoaded(), featuresStore.ensureLoaded()]);
+  await volumeUsageStore.loadVolumes();
 });
 
 const ICON_VARIANTS = {
@@ -131,55 +116,28 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="!loading"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        class="grid grid-cols-2 items-start gap-x-2 gap-y-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
       >
         <button
           v-for="vol in volumes"
           :key="vol.name"
           type="button"
           @click="openItem(vol)"
-          class="flex items-center gap-3 py-4 text-left"
+          class="flex w-fit max-w-full cursor-pointer select-none flex-col items-start gap-2 rounded-lg px-2 py-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
         >
-          <IconDrive class="h-16 shrink-0" />
-          <div>
-            <div class="mb-1 truncate text-sm font-medium text-neutral-900 dark:text-white">
+          <div class="flex min-w-0 items-center gap-3">
+            <IconDrive class="h-16 shrink-0" />
+            <div class="truncate text-sm font-medium text-neutral-900 dark:text-white">
               {{ vol.name }}
             </div>
-            <template v-if="showVolumeUsage">
-              <template v-if="usage[vol.path]">
-                <ProgressBar
-                  :used="usage[vol.path].size || 0"
-                  :total="
-                    usage[vol.path].total ||
-                    (usage[vol.path].size || 0) + (usage[vol.path].free || 0) ||
-                    1
-                  "
-                  size="sm"
-                  :warnAt="75"
-                  :dangerAt="90"
-                  style="width: 120px"
-                  class="mb-1"
-                />
-                <div class="flex justify-between text-xs w-[120px]">
-                  <span>{{ formatBytes(usage[vol.path].size || 0) }}</span>
-                  <span>{{ formatBytes(usage[vol.path].total || 0) }}</span>
-                </div>
-              </template>
-              <template v-else>
-                <div
-                  class="mb-2 w-[120px] h-2 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse"
-                ></div>
-                <div class="flex justify-between text-xs w-[120px]">
-                  <span
-                    class="h-3 w-10 rounded-sm bg-neutral-200 dark:bg-neutral-700 animate-pulse"
-                  ></span>
-                  <span
-                    class="h-3 w-10 rounded-sm bg-neutral-200 dark:bg-neutral-700 animate-pulse"
-                  ></span>
-                </div>
-              </template>
-            </template>
           </div>
+          <VolumeUsageBar
+            v-if="showVolumeUsage"
+            :usage="usage[vol.path]"
+            :loading="volumeUsageStore.isLoadingUsage"
+            percent-inside
+            class="w-44 max-w-full"
+          />
         </button>
       </div>
       <div v-else class="text-sm text-neutral-500 dark:text-neutral-400">

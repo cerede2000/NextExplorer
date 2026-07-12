@@ -17,6 +17,7 @@ import {
 } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
 
 export const useFileStore = defineStore('fileStore', () => {
   // State
@@ -28,6 +29,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const renameState = ref(null);
 
   const clipboardOperation = ref(null);
+  const volumeUsageStore = useVolumeUsageStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -136,6 +138,7 @@ export const useFileStore = defineStore('fileStore', () => {
       }
 
       await fetchPathItems(refreshTarget);
+      volumeUsageStore.scheduleRefresh();
     } finally {
       clipboardOperation.value = null;
     }
@@ -148,6 +151,7 @@ export const useFileStore = defineStore('fileStore', () => {
     await deleteItems(payload);
     clearSelection();
     await fetchPathItems(currentPath.value);
+    volumeUsageStore.scheduleRefresh();
   };
 
   const createFolder = async (baseName) => {
@@ -156,6 +160,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const createdName = response?.item?.name;
 
     await fetchPathItems(destination);
+    volumeUsageStore.scheduleRefresh();
 
     if (createdName) {
       const createdKey = `${destination}::${createdName}`;
@@ -199,6 +204,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     // Refresh and start rename for the created item
     await fetchPathItems(destination);
+    volumeUsageStore.scheduleRefresh();
 
     const createdKey = `${destination}::${candidate}`;
     const createdItem = findItemByKey(createdKey);
@@ -222,6 +228,7 @@ export const useFileStore = defineStore('fileStore', () => {
     })();
 
     await fetchPathItems(parent);
+    volumeUsageStore.scheduleRefresh();
 
     const createdName = response?.item?.name;
     if (createdName) {
@@ -244,6 +251,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const createdName = response?.item?.name;
 
     await fetchPathItems(destination);
+    volumeUsageStore.scheduleRefresh();
 
     if (createdName) {
       const createdKey = `${destination}::${createdName}`;
