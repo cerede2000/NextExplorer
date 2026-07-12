@@ -96,7 +96,7 @@ const isHeic = (ext) => ext === 'heic';
 const inflight = new Map();
 const failedThumbnails = new Map();
 
-const THUMBNAIL_CACHE_VERSION = 2;
+const THUMBNAIL_CACHE_VERSION = 3;
 const QUEUE_CONCURRENCY_REFRESH_INTERVAL_MS = 30 * 1000;
 const FAILED_THUMBNAIL_TTL_MS = 10 * 60 * 1000;
 const FAILED_THUMBNAIL_MAX_ENTRIES = 1000;
@@ -477,12 +477,18 @@ thumbnailQueue.on('active', () => {
   );
 });
 
-const hashForFile = async (filePath, stats = null) => {
-  const info = stats || (await fsPromises.stat(filePath));
+const resolveThumbnailSourceIdentity = async (filePath) => {
+  try {
+    return await fsPromises.realpath(filePath);
+  } catch (_) {
+    return path.resolve(filePath);
+  }
+};
+
+const hashForFile = async (filePath) => {
+  const sourceIdentity = await resolveThumbnailSourceIdentity(filePath);
   const hash = crypto.createHash('sha1');
-  hash.update(filePath);
-  hash.update(String(info.size));
-  hash.update(String(Math.floor(info.mtimeMs)));
+  hash.update(sourceIdentity);
   return hash.digest('hex');
 };
 
@@ -753,11 +759,24 @@ const generateThumbnail = async (filePath, thumbPath) => {
   throw new Error(`Unsupported file type: .${extension}`);
 };
 
-const buildThumbnailPaths = async (filePath, stats = null) => {
-  const key = await hashForFile(filePath, stats);
+const buildThumbnailPaths = async (filePath) => {
+  const key = await hashForFile(filePath);
   const thumbFile = `v${THUMBNAIL_CACHE_VERSION}-${key}.webp`;
   const thumbPath = path.join(directories.thumbnails, thumbFile);
   return { thumbFile, thumbPath };
+};
+
+const isThumbnailFresh = async (thumbPath, sourceStats = null, filePath = null) => {
+  try {
+    const [thumbStats, currentSourceStats] = await Promise.all([
+      fsPromises.stat(thumbPath),
+      sourceStats ? Promise.resolve(sourceStats) : fsPromises.stat(filePath),
+    ]);
+
+    return thumbStats.mtimeMs >= currentSourceStats.mtimeMs;
+  } catch (_) {
+    return false;
+  }
 };
 
 const getFailedThumbnail = (thumbPath) => {
@@ -803,15 +822,24 @@ const cleanupThumbnailCache = async () => {
       const dirents = await fsPromises.readdir(directories.thumbnails, { withFileTypes: true });
       const fileNames = dirents.filter((entry) => entry.isFile()).map((entry) => entry.name);
 
-      if (fileNames.length <= THUMBNAIL_CACHE_MAX_FILES) {
+      const currentVersionPrefix = `v${THUMBNAIL_CACHE_VERSION}-`;
+      const oldVersionNames = fileNames.filter(
+        (name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name) && !name.startsWith(currentVersionPrefix)
+      );
+      const oversizedCount = Math.max(0, fileNames.length - THUMBNAIL_CACHE_MAX_FILES);
+      const deleteCount = Math.min(
+        Math.max(oldVersionNames.length, oversizedCount),
+        THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE
+      );
+
+      if (deleteCount <= 0) {
         return;
       }
 
-      const deleteCount = Math.min(
-        fileNames.length - THUMBNAIL_CACHE_MAX_FILES,
-        THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE
-      );
-      const toDelete = fileNames.slice(0, deleteCount);
+      const toDelete = [
+        ...oldVersionNames,
+        ...fileNames.filter((name) => !oldVersionNames.includes(name)),
+      ].slice(0, deleteCount);
 
       let deleted = 0;
       for (const name of toDelete) {
@@ -830,13 +858,17 @@ const cleanupThumbnailCache = async () => {
           remainingEstimate: Math.max(0, fileNames.length - deleted),
           max: THUMBNAIL_CACHE_MAX_FILES,
           batchSize: THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE,
+          oldVersionCandidates: oldVersionNames.length,
         },
         'Thumbnail cache cleanup batch completed'
       );
       thumbnailStats.cacheCleanupDeleted += deleted;
       logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
 
-      if (fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES) {
+      if (
+        oldVersionNames.length > deleted ||
+        fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES
+      ) {
         shouldContinueCleanup = true;
       }
     } catch (error) {
@@ -890,10 +922,12 @@ const getThumbnailPathIfExists = async (filePath, stats = null) => {
     return '';
   }
 
-  const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath, stats);
+  const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath);
 
   try {
-    await fsPromises.access(thumbPath, fs.constants.F_OK);
+    if (!(await isThumbnailFresh(thumbPath, stats, filePath))) {
+      return '';
+    }
     return `/static/thumbnails/${thumbFile}`;
   } catch (error) {
     return '';
@@ -911,16 +945,14 @@ const getThumbnail = async (filePath) => {
     return '';
   }
 
+  const sourceStats = await fsPromises.stat(filePath);
   const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath);
 
   // Check if thumbnail already exists (fast path)
-  try {
-    await fsPromises.access(thumbPath, fs.constants.F_OK);
+  if (await isThumbnailFresh(thumbPath, sourceStats, filePath)) {
     failedThumbnails.delete(thumbPath);
     thumbnailStats.cacheHits += 1;
     return `/static/thumbnails/${thumbFile}`;
-  } catch (error) {
-    // Thumbnail doesn't exist, need to generate
   }
 
   if (getFailedThumbnail(thumbPath)) {
@@ -942,7 +974,9 @@ const getThumbnail = async (filePath) => {
         try {
           // Double-check if another request created it while we were queued
           try {
-            await fsPromises.access(thumbPath, fs.constants.F_OK);
+            if (!(await isThumbnailFresh(thumbPath, sourceStats, filePath))) {
+              throw new Error('Stale or missing thumbnail');
+            }
             thumbnailStats.cacheHits += 1;
             finishThumbnailJob(jobId, 'cache-hit');
             return `/static/thumbnails/${thumbFile}`;
