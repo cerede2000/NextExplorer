@@ -65,25 +65,28 @@ const collectInputPaths = (...sources) => {
 
 const toPosix = (value = '') => value.replace(/\\/g, '/');
 
-const encodeContentDisposition = (filename) => {
+const encodeContentDisposition = (filename, disposition = 'attachment') => {
+  const safeDisposition = disposition === 'inline' ? 'inline' : 'attachment';
+  const safeFilename = String(filename || 'download').replace(/[\r\n"]/g, '_');
+
   // Check if filename contains non-ASCII characters
   // eslint-disable-next-line no-control-regex
-  const hasNonAscii = /[^\x00-\x7F]/.test(filename);
+  const hasNonAscii = /[^\x00-\x7F]/.test(safeFilename);
 
   if (!hasNonAscii) {
     // Simple case: filename is ASCII-only
-    return `attachment; filename="${filename}"`;
+    return `${safeDisposition}; filename="${safeFilename}"`;
   }
 
   // For non-ASCII filenames, use RFC 5987 encoding
   // Create ASCII fallback (replace non-ASCII with underscores)
   // eslint-disable-next-line no-control-regex
-  const asciiFallback = filename.replace(/[^\x00-\x7F]/g, '_');
+  const asciiFallback = safeFilename.replace(/[^\x00-\x7F]/g, '_');
 
   // Encode filename for filename* parameter (RFC 5987)
-  const encodedFilename = encodeURIComponent(filename);
+  const encodedFilename = encodeURIComponent(safeFilename);
 
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
+  return `${safeDisposition}; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
 };
 
 const stripBasePath = (relativePath, basePath) => {
