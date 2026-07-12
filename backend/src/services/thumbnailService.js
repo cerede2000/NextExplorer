@@ -124,6 +124,9 @@ const THUMBNAIL_VIDEO_THREADS = Number.isFinite(env.THUMBNAIL_VIDEO_THREADS)
 const THUMBNAIL_VIDEO_SCALE_FLAGS = /^[a-z0-9_+.-]+$/i.test(env.THUMBNAIL_VIDEO_SCALE_FLAGS || '')
   ? env.THUMBNAIL_VIDEO_SCALE_FLAGS
   : 'fast_bilinear';
+const THUMBNAIL_BACKGROUND_QUEUE_LIMIT = Number.isFinite(env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
+  ? Math.max(1, Math.min(100, Math.floor(env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)))
+  : 8;
 const THUMBNAIL_DIAGNOSTICS_ENABLED = env.THUMBNAIL_DIAGNOSTICS_ENABLED === true;
 const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS)
   ? Math.max(5000, Math.floor(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS))
@@ -145,6 +148,7 @@ const thumbnailStats = {
   failed: 0,
   failedTtlSkips: 0,
   cacheCleanupDeleted: 0,
+  backgroundQueueSkipped: 0,
   ffmpegStarted: 0,
   convertStarted: 0,
 };
@@ -275,6 +279,7 @@ const startThumbnailDiagnostics = () => {
       videoSeekPercent: THUMBNAIL_VIDEO_SEEK_PERCENT,
       videoThreads: THUMBNAIL_VIDEO_THREADS,
       videoScaleFlags: THUMBNAIL_VIDEO_SCALE_FLAGS,
+      backgroundQueueLimit: THUMBNAIL_BACKGROUND_QUEUE_LIMIT,
     },
     'Thumbnail diagnostics enabled'
   );
@@ -766,6 +771,13 @@ const buildThumbnailPaths = async (filePath) => {
   return { thumbFile, thumbPath };
 };
 
+const getThumbnailQueueLoad = () =>
+  inflight.size +
+  thumbnailQueue.size +
+  thumbnailQueue.pending +
+  videoThumbnailQueue.size +
+  videoThumbnailQueue.pending;
+
 const isThumbnailFresh = async (thumbPath, sourceStats = null, filePath = null) => {
   try {
     const [thumbStats, currentSourceStats] = await Promise.all([
@@ -1023,19 +1035,47 @@ const getThumbnail = async (filePath) => {
   return pending;
 };
 
-const queueThumbnailGeneration = (filePath) => {
+const queueThumbnailGeneration = async (filePath) => {
   if (!THUMBNAILS_ENABLED || !filePath || isThumbnailCachePath(filePath)) {
-    return;
+    return { thumbnail: '', pending: false, queued: false };
   }
 
   const extension = path.extname(filePath).toLowerCase().slice(1);
   if (isPdf(extension)) {
-    return;
+    return { thumbnail: '', pending: false, queued: false };
+  }
+
+  const sourceStats = await fsPromises.stat(filePath);
+  const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath);
+  if (await isThumbnailFresh(thumbPath, sourceStats, filePath)) {
+    failedThumbnails.delete(thumbPath);
+    thumbnailStats.cacheHits += 1;
+    return {
+      thumbnail: `/static/thumbnails/${thumbFile}`,
+      pending: false,
+      queued: false,
+    };
+  }
+
+  if (getFailedThumbnail(thumbPath)) {
+    thumbnailStats.failedTtlSkips += 1;
+    return { thumbnail: '', pending: false, queued: false };
+  }
+
+  if (inflight.has(thumbPath)) {
+    return { thumbnail: '', pending: true, queued: true };
+  }
+
+  if (getThumbnailQueueLoad() >= THUMBNAIL_BACKGROUND_QUEUE_LIMIT) {
+    thumbnailStats.backgroundQueueSkipped += 1;
+    return { thumbnail: '', pending: true, queued: false, retryAfterMs: 1500 };
   }
 
   getThumbnail(filePath).catch((error) => {
     logger.warn({ filePath, err: error }, 'Queued thumbnail generation failed');
   });
+
+  return { thumbnail: '', pending: true, queued: true };
 };
 
 module.exports = {

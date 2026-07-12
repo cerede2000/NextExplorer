@@ -141,6 +141,7 @@ services:
       # THUMBNAIL_VIDEO_SEEK_PERCENT: "" # Optional 0-1 value to seek by duration percentage; enables ffprobe per video.
       # THUMBNAIL_VIDEO_THREADS: "1" # ffmpeg thread limit for video thumbnail extraction.
       # THUMBNAIL_VIDEO_SCALE_FLAGS: "fast_bilinear" # ffmpeg scale flags; use lanczos for sharper but heavier thumbnails.
+      # THUMBNAIL_BACKGROUND_QUEUE_LIMIT: "8" # Max pending/in-flight thumbnail jobs accepted before clients retry later.
       # THUMBNAIL_DIAGNOSTICS_ENABLED: "false" # Enable detailed thumbnail queue/memory/process logs.
       # THUMBNAIL_DIAGNOSTICS_INTERVAL_MS: "30000" # Interval for thumbnail diagnostics logs.
       # THUMBNAIL_SLOW_JOB_MS: "10000" # Log thumbnail jobs/processes slower than this threshold.
