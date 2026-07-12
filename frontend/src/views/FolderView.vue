@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
@@ -23,6 +23,8 @@ const fileStore = useFileStore();
 const route = useRoute();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
+const visibleLimit = ref(500);
+const loadMoreTrigger = ref(null);
 const { clearSelection } = useSelection();
 const contextMenu = useExplorerContextMenu();
 const dropTargetRef = ref(null);
@@ -31,6 +33,10 @@ useUppyDropTarget(dropTargetRef);
 const { isTouchDevice } = useInputMode();
 const { handleDragOver, handleDragLeave, handleDrop, isDragTarget } = useFileDragDrop();
 
+const INITIAL_VISIBLE_ITEMS = 500;
+const VISIBLE_ITEMS_INCREMENT = 500;
+let loadMoreObserver = null;
+
 const applySelectionFromQuery = () => {
   const selectName = typeof route.query?.select === 'string' ? route.query.select : '';
   if (!selectName) return;
@@ -38,6 +44,52 @@ const applySelectionFromQuery = () => {
   if (match) {
     fileStore.selectedItems = [match];
   }
+};
+
+const sortedItems = computed(() => fileStore.getCurrentPathItems);
+const visibleItems = computed(() => sortedItems.value.slice(0, visibleLimit.value));
+const hasMoreItems = computed(() => visibleItems.value.length < sortedItems.value.length);
+
+const resetVisibleItems = () => {
+  visibleLimit.value = INITIAL_VISIBLE_ITEMS;
+};
+
+const revealMoreItems = () => {
+  if (!hasMoreItems.value) return;
+  visibleLimit.value = Math.min(
+    sortedItems.value.length,
+    visibleLimit.value + VISIBLE_ITEMS_INCREMENT
+  );
+};
+
+const disconnectLoadMoreObserver = () => {
+  if (loadMoreObserver) {
+    loadMoreObserver.disconnect();
+    loadMoreObserver = null;
+  }
+};
+
+const setupLoadMoreObserver = async () => {
+  disconnectLoadMoreObserver();
+
+  if (!hasMoreItems.value || typeof IntersectionObserver === 'undefined') {
+    return;
+  }
+
+  await nextTick();
+  if (!loadMoreTrigger.value) {
+    return;
+  }
+
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        revealMoreItems();
+      }
+    },
+    { root: null, rootMargin: '800px 0px' }
+  );
+  loadMoreObserver.observe(loadMoreTrigger.value);
 };
 
 const selectionModel = computed({
@@ -53,6 +105,7 @@ const selectionModel = computed({
 
 const loadFiles = async () => {
   loading.value = true;
+  resetVisibleItems();
   const path = route.params.path || '';
   try {
     await fileStore.fetchPathItems(path);
@@ -61,10 +114,22 @@ const loadFiles = async () => {
     console.error('Failed to load directory contents', error);
   } finally {
     loading.value = false;
+    await setupLoadMoreObserver();
   }
 };
 
 onMounted(loadFiles);
+
+watch(hasMoreItems, () => {
+  setupLoadMoreObserver();
+});
+
+watch(
+  () => route.params.path,
+  () => {
+    resetVisibleItems();
+  }
+);
 
 const handleBackgroundContextMenu = (event) => {
   if (!contextMenu || !event) return;
@@ -178,6 +243,7 @@ useEventListener(window, 'pointercancel', stopResize);
 
 onBeforeUnmount(() => {
   stopResize();
+  disconnectLoadMoreObserver();
 });
 </script>
 
@@ -242,7 +308,7 @@ onBeforeUnmount(() => {
           </div>
 
           <FileObject
-            v-for="item in fileStore.getCurrentPathItems"
+            v-for="item in visibleItems"
             :key="(item.path || '') + '::' + item.name"
             :item="item"
             :view="settings.view"
@@ -256,6 +322,20 @@ onBeforeUnmount(() => {
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
           />
+
+          <div
+            v-if="hasMoreItems"
+            ref="loadMoreTrigger"
+            class="flex items-center justify-center py-4 text-xs text-neutral-500 dark:text-neutral-400"
+          >
+            <button
+              type="button"
+              class="rounded-md border border-neutral-200 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+              @click="revealMoreItems"
+            >
+              {{ visibleItems.length }} / {{ sortedItems.length }} {{ $t('common.items') }}
+            </button>
+          </div>
 
           <!-- No photos message -->
           <div

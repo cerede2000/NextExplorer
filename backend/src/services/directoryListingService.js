@@ -7,6 +7,8 @@ const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const logger = require('../utils/logger');
 
+const LIST_DIRECTORY_CONCURRENCY = 64;
+
 const previewable = new Set([
   ...extensions.images,
   ...(extensions.rawImages || []),
@@ -19,6 +21,23 @@ const toKind = (stats, name) => {
   const ext = path.extname(name).slice(1).toLowerCase();
   if (!ext) return 'unknown';
   return ext.length > 10 ? 'unknown' : ext;
+};
+
+const mapWithConcurrency = async (items, concurrency, mapper) => {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 };
 
 /**
@@ -57,52 +76,45 @@ const listDirectoryItems = async ({
       excludeDownloadArtifacts ? path.extname(name).toLowerCase() !== '.download' : true
     );
 
-  const items = await Promise.all(
-    filtered.map(async (name) => {
-      const filePath = path.join(absoluteDir, name);
+  const items = await mapWithConcurrency(filtered, LIST_DIRECTORY_CONCURRENCY, async (name) => {
+    const filePath = path.join(absoluteDir, name);
 
-      let stats;
-      try {
-        stats = await fs.stat(filePath);
-      } catch (err) {
-        if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
-          logger.warn({ filePath, err }, 'Skipping unreadable entry');
-          return null;
-        }
-        throw err;
-      }
-
-      const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
-      const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
-      if (!childAccess?.canAccess) {
+    let stats;
+    try {
+      stats = await fs.stat(filePath);
+    } catch (err) {
+      if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
+        logger.warn({ filePath, err }, 'Skipping unreadable entry');
         return null;
       }
+      throw err;
+    }
 
-      const kind = toKind(stats, name);
-      const item = {
-        name,
-        path: parentLogicalPath,
-        dateModified: stats.mtime,
-        size: stats.size,
-        kind,
-      };
+    const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
+    const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
+    if (!childAccess?.canAccess) {
+      return null;
+    }
 
-      if (
-        thumbsEnabled &&
-        stats.isFile() &&
-        kind !== 'pdf' &&
-        previewable.has(kind.toLowerCase())
-      ) {
-        item.supportsThumbnail = true;
-      }
+    const kind = toKind(stats, name);
+    const item = {
+      name,
+      path: parentLogicalPath,
+      dateModified: stats.mtime,
+      size: stats.size,
+      kind,
+    };
 
-      if (typeof itemExtras === 'function') {
-        Object.assign(item, itemExtras({ name, stats, kind, access: childAccess }) || {});
-      }
+    if (thumbsEnabled && stats.isFile() && kind !== 'pdf' && previewable.has(kind.toLowerCase())) {
+      item.supportsThumbnail = true;
+    }
 
-      return item;
-    })
-  );
+    if (typeof itemExtras === 'function') {
+      Object.assign(item, itemExtras({ name, stats, kind, access: childAccess }) || {});
+    }
+
+    return item;
+  });
 
   return items.filter(Boolean);
 };

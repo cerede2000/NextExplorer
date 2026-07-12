@@ -1,5 +1,7 @@
 import { requestJson, requestRaw, normalizePath, encodePath, buildUrl } from './http';
 
+const DELETE_BATCH_SIZE = 100;
+
 async function browse(path = '') {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
@@ -32,10 +34,26 @@ async function moveItems(items, destination) {
 }
 
 async function deleteItems(items) {
-  return requestJson('/api/files', {
-    method: 'DELETE',
-    body: JSON.stringify({ items }),
-  });
+  const normalizedItems = Array.isArray(items) ? items : [];
+  if (normalizedItems.length <= DELETE_BATCH_SIZE) {
+    return requestJson('/api/files', {
+      method: 'DELETE',
+      body: JSON.stringify({ items: normalizedItems }),
+    });
+  }
+
+  const deletedItems = [];
+  for (let index = 0; index < normalizedItems.length; index += DELETE_BATCH_SIZE) {
+    const batch = normalizedItems.slice(index, index + DELETE_BATCH_SIZE);
+    // eslint-disable-next-line no-await-in-loop
+    const response = await requestJson('/api/files', {
+      method: 'DELETE',
+      body: JSON.stringify({ items: batch }),
+    });
+    deletedItems.push(...(Array.isArray(response?.items) ? response.items : []));
+  }
+
+  return { success: true, items: deletedItems };
 }
 
 async function createFolder(destination, name) {
