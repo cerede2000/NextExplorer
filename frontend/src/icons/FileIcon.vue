@@ -92,6 +92,9 @@ const canRequestThumbnail = computed(() => {
   if (!isPreviewable.value) return false;
   if (appSettings.thumbnailsEnabledForSession === false) return false;
   if (props.item.thumbnail) return false;
+  // A prior request definitively failed (missing source / unsupported): don't
+  // loop on it. A fresh navigation yields a new item object without this flag.
+  if (props.item.thumbnailUnavailable) return false;
   return Boolean(props.item.supportsThumbnail);
 });
 

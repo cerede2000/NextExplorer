@@ -447,11 +447,28 @@ export const useFileStore = defineStore('fileStore', () => {
             if (target) {
               target.thumbnail = thumbnail;
             }
+            return thumbnail;
           }
-          return thumbnail || null;
+          // No thumbnail yet: only keep polling when the server reported the job
+          // as pending. Anything else is a definitive "no thumbnail" (unsupported
+          // type, generation failed) — mark it so the icon stops re-requesting.
+          if (!response?.pending) {
+            const target = findItemByKey(key);
+            if (target) {
+              target.thumbnailUnavailable = true;
+            }
+          }
+          return null;
         } catch (error) {
-          if (!isAbortError(error)) {
-            console.error(`Failed to fetch thumbnail for ${relativePath}`, error);
+          // Aborted on navigation is not a failure — allow a later attempt.
+          if (isAbortError(error)) {
+            return null;
+          }
+          // Hard failure (404 missing source, other 4xx/5xx). These are silent,
+          // best-effort fetches; mark the item so we never loop on the error.
+          const target = findItemByKey(key);
+          if (target) {
+            target.thumbnailUnavailable = true;
           }
           return null;
         }
