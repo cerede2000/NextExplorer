@@ -129,6 +129,10 @@ module.exports = {
     process.env.THUMBNAIL_VIDEO_THREADS != null ? Number(process.env.THUMBNAIL_VIDEO_THREADS) : 1,
   THUMBNAIL_VIDEO_SCALE_FLAGS:
     process.env.THUMBNAIL_VIDEO_SCALE_FLAGS?.trim() || 'fast_bilinear',
+  THUMBNAIL_BACKGROUND_QUEUE_LIMIT:
+    process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT != null
+      ? Number(process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
+      : 8,
   THUMBNAIL_DIAGNOSTICS_ENABLED:
     normalizeBoolean(process.env.THUMBNAIL_DIAGNOSTICS_ENABLED) ?? false,
   THUMBNAIL_DIAGNOSTICS_INTERVAL_MS:

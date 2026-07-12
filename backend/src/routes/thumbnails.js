@@ -5,7 +5,10 @@ const path = require('path');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { extensions } = require('../config/index');
 const env = require('../config/env');
-const { getThumbnail } = require('../services/thumbnailService');
+const {
+  getThumbnailPathIfExists,
+  queueThumbnailGeneration,
+} = require('../services/thumbnailService');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
@@ -79,26 +82,28 @@ router.get(
       throw new ValidationError('Thumbnails are not available for this file type.');
     }
 
-    let thumbnail = '';
     try {
-      thumbnail = await getThumbnail(absolutePath);
+      const cachedThumbnail = await getThumbnailPathIfExists(absolutePath, stats);
+      if (cachedThumbnail) {
+        return res.json({ thumbnail: cachedThumbnail, pending: false });
+      }
+
+      const result = await queueThumbnailGeneration(absolutePath);
+      return res.status(result.pending ? 202 : 200).json(result);
     } catch (error) {
       logger.warn(
         { absolutePath, err: error },
-        'Thumbnail generation failed, falling back to original file'
+        'Thumbnail generation scheduling failed, falling back to original file'
       );
     }
 
-    // If thumbnail generation failed or produced no result, fall back to the original file
-    if (
-      !thumbnail &&
-      (extensions.images.includes(extension) || (extensions.rawImages || []).includes(extension))
-    ) {
+    // If thumbnail scheduling failed unexpectedly, fall back to the original file for images.
+    if (extensions.images.includes(extension) || (extensions.rawImages || []).includes(extension)) {
       const previewUrl = `/api/preview?path=${encodeURIComponent(logicalPath)}`;
       return res.json({ thumbnail: previewUrl });
     }
 
-    res.json({ thumbnail: thumbnail || '' });
+    res.json({ thumbnail: '', pending: false });
   })
 );
 

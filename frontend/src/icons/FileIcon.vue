@@ -82,7 +82,9 @@ const isPreviewable = computed(() => {
 const hasRequestedThumbnail = ref(false);
 const iconRoot = ref(null);
 const isNearViewport = ref(false);
+const thumbnailRetryCount = ref(0);
 let thumbnailObserver = null;
+let thumbnailRetryTimer = null;
 
 const canRequestThumbnail = computed(() => {
   if (props.disableThumbnails) return false;
@@ -104,6 +106,27 @@ const thumbnailRequestKey = computed(() => {
   ].join('::');
 });
 
+const clearThumbnailRetry = () => {
+  if (thumbnailRetryTimer) {
+    clearTimeout(thumbnailRetryTimer);
+    thumbnailRetryTimer = null;
+  }
+};
+
+const scheduleThumbnailRetry = () => {
+  clearThumbnailRetry();
+  if (!canRequestThumbnail.value || !isNearViewport.value) return;
+  if (thumbnailRetryCount.value >= 20) return;
+
+  thumbnailRetryCount.value += 1;
+  const delayMs = Math.min(5000, 1000 + thumbnailRetryCount.value * 500);
+  thumbnailRetryTimer = setTimeout(() => {
+    thumbnailRetryTimer = null;
+    hasRequestedThumbnail.value = false;
+    requestThumbnailIfNeeded();
+  }, delayMs);
+};
+
 const requestThumbnailIfNeeded = () => {
   if (hasRequestedThumbnail.value) return;
   if (!isNearViewport.value) return;
@@ -111,7 +134,13 @@ const requestThumbnailIfNeeded = () => {
 
   // All conditions met - request thumbnail once
   hasRequestedThumbnail.value = true;
-  fileStore.ensureItemThumbnail(props.item);
+  fileStore.ensureItemThumbnail(props.item).then((thumbnail) => {
+    if (thumbnail) {
+      clearThumbnailRetry();
+      return;
+    }
+    scheduleThumbnailRetry();
+  });
 };
 
 const disconnectThumbnailObserver = () => {
@@ -136,13 +165,15 @@ const observeThumbnailVisibility = async () => {
   disconnectThumbnailObserver();
   thumbnailObserver = new IntersectionObserver(
     (entries) => {
-      const isVisible = entries.some((entry) => entry.isIntersecting);
-      if (!isVisible) return;
-      isNearViewport.value = true;
-      requestThumbnailIfNeeded();
-      disconnectThumbnailObserver();
+      isNearViewport.value = entries.some((entry) => entry.isIntersecting);
+      if (isNearViewport.value) {
+        requestThumbnailIfNeeded();
+      } else {
+        clearThumbnailRetry();
+        hasRequestedThumbnail.value = false;
+      }
     },
-    { root: null, rootMargin: '600px 0px', threshold: 0.01 }
+    { root: null, rootMargin: '300px 0px', threshold: 0.01 }
   );
   thumbnailObserver.observe(iconRoot.value);
 };
@@ -150,13 +181,18 @@ const observeThumbnailVisibility = async () => {
 watch([canRequestThumbnail, isNearViewport], requestThumbnailIfNeeded);
 
 watch(thumbnailRequestKey, () => {
+  clearThumbnailRetry();
   hasRequestedThumbnail.value = false;
   isNearViewport.value = false;
+  thumbnailRetryCount.value = 0;
   observeThumbnailVisibility();
 });
 
 onMounted(observeThumbnailVisibility);
-onBeforeUnmount(disconnectThumbnailObserver);
+onBeforeUnmount(() => {
+  clearThumbnailRetry();
+  disconnectThumbnailObserver();
+});
 
 // Additional type groupings
 const audioExts = new Set(['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus', 'wma']);
