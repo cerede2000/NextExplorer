@@ -31,6 +31,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const renameState = ref(null);
 
   const clipboardOperation = ref(null);
+  const deleteOperation = ref(null);
   const favoritesStore = useFavoritesStore();
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
@@ -40,6 +41,14 @@ export const useFileStore = defineStore('fileStore', () => {
   const thumbnailRequests = new Map();
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
+  const selectedItemKeys = computed(() => {
+    const keys = new Set();
+    for (const item of selectedItems.value) {
+      const key = itemKey(item);
+      if (key) keys.add(key);
+    }
+    return keys;
+  });
   const hasClipboardItems = computed(
     () => copiedItems.value.length > 0 || cutItems.value.length > 0
   );
@@ -153,12 +162,22 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
-    await deleteItems(payload);
-    clearSelection();
-    await favoritesStore.loadFavorites();
-    await fetchPathItems(currentPath.value);
-    volumeUsageStore.scheduleRefresh();
-    folderSizeStore.scheduleRefresh();
+    deleteOperation.value = {
+      type: 'delete',
+      itemCount: payload.length,
+      startedAt: Date.now(),
+    };
+
+    try {
+      await deleteItems(payload);
+      clearSelection();
+      await favoritesStore.loadFavorites();
+      await fetchPathItems(currentPath.value);
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
+    } finally {
+      deleteOperation.value = null;
+    }
   };
 
   const createFolder = async (baseName) => {
@@ -545,11 +564,13 @@ export const useFileStore = defineStore('fileStore', () => {
     getCurrentPathItems,
     fetchPathItems,
     selectedItems,
+    selectedItemKeys,
     selectionMode,
     setSelectionMode,
     toggleSelectionMode,
     clearSelection,
     clipboardOperation,
+    deleteOperation,
     copiedItems,
     cutItems,
     hasSelection,
