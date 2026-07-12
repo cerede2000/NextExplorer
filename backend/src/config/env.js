@@ -141,6 +141,10 @@ module.exports = {
       : 30000,
   THUMBNAIL_SLOW_JOB_MS:
     process.env.THUMBNAIL_SLOW_JOB_MS != null ? Number(process.env.THUMBNAIL_SLOW_JOB_MS) : 10000,
+  // Niceness applied to child ffmpeg/convert processes (0 = disabled, 1-19 lowers
+  // their CPU priority so the Node event loop stays responsive during generation).
+  THUMBNAIL_PROCESS_NICE:
+    process.env.THUMBNAIL_PROCESS_NICE != null ? Number(process.env.THUMBNAIL_PROCESS_NICE) : 10,
 
   // Favorites
   FAVORITES_DEFAULT_ICON: process.env.FAVORITES_DEFAULT_ICON || 'outline:StarIcon',

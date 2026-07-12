@@ -42,6 +42,10 @@ RUN npm run -w frontend build -- --sourcemap false
 # ---------------------------------------------------------------------------
 FROM base AS runtime
 ENV NODE_ENV=production
+# Enlarge the libuv thread pool so directory-listing fs.stat calls are not
+# starved by concurrent thumbnail-generation fs operations (keeps navigation
+# responsive while a large media folder is being processed). Tunable at runtime.
+ENV UV_THREADPOOL_SIZE=16
 
 # Create the baseline app user; UID/GID may be mutated at runtime via entrypoint.sh.
 # Alpine uses busybox addgroup/adduser instead of Debian's groupadd/useradd.
