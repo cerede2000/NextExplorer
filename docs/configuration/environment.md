@@ -96,6 +96,7 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `THUMBNAIL_CACHE_MAX_FILES`           | `3000`             | Maximum number of files kept in the thumbnail cache. Set `0` to disable automatic cleanup.                                              |
 | `THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS` | `3600000`          | Minimum delay between thumbnail cache cleanup scans.                                                                                    |
 | `THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE`  | `500`              | Maximum number of thumbnail cache files deleted per cleanup pass.                                                                       |
+| `THUMBNAIL_SHARP_CACHE_MEMORY_MB`     | `32`               | Memory in MB allowed for Sharp/libvips thumbnail cache. Lower values reduce idle RSS after thumbnail generation.                        |
 
 ## Collabora (WOPI)
 

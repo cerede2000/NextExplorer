@@ -23,7 +23,21 @@ const getThumbOptions = async () => {
 
 const currentConcurrency = sharp.concurrency();
 sharp.concurrency(Math.max(1, Math.min(8, currentConcurrency)));
-sharp.cache({ memory: 256, files: 0 });
+const SHARP_CACHE_MEMORY_MB = Number.isFinite(env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)
+  ? Math.max(0, Math.min(256, Math.floor(env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)))
+  : 32;
+const configureSharpCache = () => {
+  sharp.cache({
+    memory: SHARP_CACHE_MEMORY_MB,
+    files: 0,
+    items: 100,
+  });
+};
+const trimSharpCache = () => {
+  sharp.cache(false);
+  configureSharpCache();
+};
+configureSharpCache();
 
 const EXECUTABLE_CANDIDATES = {
   ffmpeg: [env.FFMPEG_PATH, '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg'],
@@ -108,9 +122,31 @@ const thumbnailQueue = new PQueue({
 let queueConcurrencyRefreshPromise = null;
 let lastQueueConcurrencyRefreshAt = 0;
 let lastQueueConcurrency = thumbnailQueue.concurrency;
+let sharpCacheTrimTimer = null;
 let thumbnailCacheCleanupPromise = null;
 let thumbnailCacheCleanupTimer = null;
 let lastThumbnailCacheCleanupAt = 0;
+
+const scheduleSharpCacheTrim = ({ delayMs = 10 * 1000 } = {}) => {
+  if (sharpCacheTrimTimer) {
+    clearTimeout(sharpCacheTrimTimer);
+  }
+
+  sharpCacheTrimTimer = setTimeout(() => {
+    sharpCacheTrimTimer = null;
+    if (thumbnailQueue.size === 0 && thumbnailQueue.pending === 0) {
+      trimSharpCache();
+      logger.debug({ memoryMb: SHARP_CACHE_MEMORY_MB }, 'Sharp thumbnail cache trimmed');
+      return;
+    }
+
+    scheduleSharpCacheTrim({ delayMs });
+  }, delayMs);
+
+  if (typeof sharpCacheTrimTimer.unref === 'function') {
+    sharpCacheTrimTimer.unref();
+  }
+};
 
 // Update queue concurrency from settings
 const updateQueueConcurrency = async ({ force = false } = {}) => {
@@ -243,26 +279,52 @@ const makeVideoThumb = async (srcPath, destPath) => {
       inputOptions.push('-hwaccel_output_format', env.FFMPEG_HWACCEL_OUTPUT_FORMAT);
     }
 
+    let stream = null;
+    let pipeline = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (stream && !stream.destroyed) {
+        stream.destroy();
+      }
+      if (pipeline && !pipeline.destroyed) {
+        pipeline.destroy();
+      }
+    };
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
     const command = ffmpeg(srcPath)
       .inputOptions(inputOptions)
       .seekInput(seconds)
       .outputOptions(['-frames:v', '1', '-vf', `scale=${size}:-1:flags=lanczos`, '-vcodec', 'png'])
       .format('image2pipe')
-      .on('error', reject);
+      .on('error', fail);
 
-    const stream = command.pipe();
-    stream.on('error', reject);
+    stream = command.pipe();
+    stream.on('error', fail);
 
     (async () => {
       const { quality } = await getThumbOptions();
-      const pipeline = sharp().webp({ quality, effort: 4 });
+      pipeline = sharp().webp({ quality, effort: 4 });
       stream.pipe(pipeline);
       pipeline
         .toBuffer()
         .then((buffer) => atomicWrite(destPath, buffer))
-        .then(resolve)
-        .catch(reject);
-    })().catch(reject);
+        .then(done)
+        .catch(fail);
+    })().catch(fail);
   });
 };
 
@@ -286,24 +348,49 @@ const makeHeicThumb = async (srcPath, destPath) => {
       stderr += data.toString();
     });
 
+    let pipeline = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (pipeline && !pipeline.destroyed) {
+        pipeline.destroy();
+      }
+      if (!convert.killed) {
+        convert.kill('SIGKILL');
+      }
+    };
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
     convert.on('error', (err) => {
-      reject(new Error(`Failed to spawn ImageMagick convert: ${err.message}`));
+      fail(new Error(`Failed to spawn ImageMagick convert: ${err.message}`));
     });
 
     convert.on('exit', (code) => {
       if (code !== 0 && code !== null) {
-        reject(new Error(`ImageMagick convert exited with code ${code}: ${stderr}`));
+        fail(new Error(`ImageMagick convert exited with code ${code}: ${stderr}`));
       }
     });
 
-    const pipeline = sharp().webp({ quality, effort: 4 });
+    pipeline = sharp().webp({ quality, effort: 4 });
     convert.stdout.pipe(pipeline);
 
     pipeline
       .toBuffer()
       .then((buffer) => atomicWrite(destPath, buffer))
-      .then(resolve)
-      .catch(reject);
+      .then(done)
+      .catch(fail);
   });
 };
 
@@ -550,6 +637,7 @@ const getThumbnail = async (filePath) => {
       .finally(() => {
         // Clean up inflight map when done
         inflight.delete(thumbPath);
+        scheduleSharpCacheTrim();
       });
 
     inflight.set(thumbPath, pending);
