@@ -67,8 +67,16 @@ const requestRaw = async (endpoint, options = {}) => {
             : { message: error || `Request failed with status ${response.status}` }),
         };
 
-        const translatedMessage = errorHandler?.(errorInfo) || errorInfo.message;
-        throw new Error(translatedMessage);
+        // Best-effort / background requests (e.g. thumbnails) opt out of the
+        // global error handler so a missing file does not raise a user-facing
+        // toast. The status code is still attached so callers can react.
+        const translatedMessage = options.suppressErrorHandler
+          ? errorInfo.message
+          : errorHandler?.(errorInfo) || errorInfo.message;
+        const requestError = new Error(translatedMessage);
+        requestError.statusCode = response.status;
+        if (errorInfo.code) requestError.code = errorInfo.code;
+        throw requestError;
       }
 
       return response;

@@ -152,7 +152,14 @@ async function fetchThumbnail(relativePath, options = {}) {
     throw new Error('A file path is required to fetch a thumbnail.');
   }
   const encodedPath = encodePath(normalizedPath);
-  return requestJson(`/api/thumbnails/${encodedPath}`, { method: 'GET', ...options });
+  // Thumbnails are best-effort/background: never surface a global error toast on
+  // a missing source. Callers inspect the thrown error's statusCode to decide
+  // whether to retry.
+  return requestJson(`/api/thumbnails/${encodedPath}`, {
+    method: 'GET',
+    suppressErrorHandler: true,
+    ...options,
+  });
 }
 
 async function fetchMetadata(relativePath) {
