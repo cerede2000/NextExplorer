@@ -12,17 +12,19 @@ import { fetchShareableUsers } from '@/api/users.api';
 import ModalDialog from '@/components/ModalDialog.vue';
 import {
   ShareIcon,
-  ClockIcon,
   LockClosedIcon,
   LockOpenIcon,
   TrashIcon,
   GlobeAltIcon,
-  UsersIcon,
   ClipboardDocumentIcon,
   CheckIcon,
   LinkIcon,
   MagnifyingGlassIcon,
   ArrowsUpDownIcon,
+  EyeIcon,
+  ArrowDownTrayIcon,
+  InformationCircleIcon,
+  XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import FileIcon from '@/icons/FileIcon.vue';
 
@@ -40,6 +42,7 @@ const directCopiedId = ref(null);
 const directLinkModes = ref({});
 const sharePendingDelete = ref(null);
 const isDeleteShareDialogOpen = ref(false);
+const selectedActivityShare = ref(null);
 const searchQuery = ref('');
 const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
@@ -100,9 +103,24 @@ const formatDate = (dateString) => {
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
 };
 
+const formatDetailedDate = (dateString) => {
+  if (!dateString) return t('share.noActivity');
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleString(undefined, {
+    dateStyle: 'full',
+    timeStyle: 'medium',
+  });
+};
+
+const formatIp = (ipAddress) => {
+  if (!ipAddress) return t('share.noIpRecorded');
+  return ipAddress;
+};
+
 const getRecentTimestamp = (share) => {
   if (!share) return 0;
-  const fields = ['updatedAt', 'createdAt'];
+  const fields = ['lastDownloadedAt', 'lastAccessedAt', 'updatedAt', 'createdAt'];
   for (const key of fields) {
     const raw = share[key];
     if (!raw) continue;
@@ -249,6 +267,14 @@ const handleCopyDirectFileLink = async (share) => {
   }
 };
 
+const openActivityDetails = (share) => {
+  selectedActivityShare.value = share;
+};
+
+const closeActivityDetails = () => {
+  selectedActivityShare.value = null;
+};
+
 onMounted(async () => {
   await loadShares();
 });
@@ -342,7 +368,7 @@ onMounted(async () => {
       </div>
 
       <!-- List -->
-      <div v-else class="min-w-[800px]">
+      <div v-else class="min-w-[860px]">
         <!-- Header Row -->
         <div
           :class="[
@@ -435,6 +461,13 @@ onMounted(async () => {
             <!-- Actions -->
             <div class="flex items-center justify-end gap-1">
               <button
+                @click.stop="openActivityDetails(share)"
+                class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                :title="t('share.activityDetails')"
+              >
+                <InformationCircleIcon class="w-4 h-4" />
+              </button>
+              <button
                 @click.stop="handleCopyLink(share)"
                 :disabled="copyingId === share.id"
                 class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
@@ -523,5 +556,114 @@ onMounted(async () => {
         </button>
       </div>
     </ModalDialog>
+
+    <div
+      v-if="selectedActivityShare"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+      @click.self="closeActivityDetails"
+    >
+      <div
+        class="w-full max-w-lg rounded-lg bg-white shadow-xl ring-1 ring-black/10 dark:bg-neutral-900 dark:ring-white/10"
+      >
+        <div
+          class="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4 dark:border-neutral-800"
+        >
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+              {{ t('share.activityDetails') }}
+            </h2>
+            <p class="mt-1 truncate text-sm text-neutral-500 dark:text-neutral-400">
+              {{ getShareLabel(selectedActivityShare) }}
+            </p>
+          </div>
+          <button
+            @click="closeActivityDetails"
+            class="shrink-0 rounded p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+            :title="t('common.close')"
+          >
+            <XMarkIcon class="h-5 w-5" />
+          </button>
+        </div>
+
+        <div class="space-y-5 px-5 py-5">
+          <div class="rounded-md bg-neutral-50 px-3 py-2 dark:bg-neutral-800/60">
+            <div class="text-xs font-medium uppercase text-neutral-500 dark:text-neutral-400">
+              {{ t('common.path') }}
+            </div>
+            <div class="mt-1 break-all font-mono text-sm text-neutral-800 dark:text-neutral-200">
+              {{ selectedActivityShare.sourcePath }}
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <section class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+              <div class="mb-3 flex items-center gap-2 text-neutral-800 dark:text-neutral-100">
+                <EyeIcon class="h-5 w-5 text-neutral-500" />
+                <h3 class="font-medium">{{ t('share.accesses') }}</h3>
+              </div>
+              <dl class="space-y-3 text-sm">
+                <div>
+                  <dt class="text-neutral-500 dark:text-neutral-400">
+                    {{ t('share.accessCount') }}
+                  </dt>
+                  <dd class="font-medium tabular-nums text-neutral-900 dark:text-neutral-100">
+                    {{ selectedActivityShare.accessCount || 0 }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-neutral-500 dark:text-neutral-400">
+                    {{ t('share.lastAccessed') }}
+                  </dt>
+                  <dd class="text-neutral-900 dark:text-neutral-100">
+                    {{ formatDetailedDate(selectedActivityShare.lastAccessedAt) }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-neutral-500 dark:text-neutral-400">
+                    {{ t('share.lastAccessIp') }}
+                  </dt>
+                  <dd class="break-all font-mono text-neutral-900 dark:text-neutral-100">
+                    {{ formatIp(selectedActivityShare.lastAccessIp) }}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section class="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+              <div class="mb-3 flex items-center gap-2 text-neutral-800 dark:text-neutral-100">
+                <ArrowDownTrayIcon class="h-5 w-5 text-neutral-500" />
+                <h3 class="font-medium">{{ t('share.downloads') }}</h3>
+              </div>
+              <dl class="space-y-3 text-sm">
+                <div>
+                  <dt class="text-neutral-500 dark:text-neutral-400">
+                    {{ t('share.downloadCount') }}
+                  </dt>
+                  <dd class="font-medium tabular-nums text-neutral-900 dark:text-neutral-100">
+                    {{ selectedActivityShare.downloadCount || 0 }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-neutral-500 dark:text-neutral-400">
+                    {{ t('share.lastDownloaded') }}
+                  </dt>
+                  <dd class="text-neutral-900 dark:text-neutral-100">
+                    {{ formatDetailedDate(selectedActivityShare.lastDownloadedAt) }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-neutral-500 dark:text-neutral-400">
+                    {{ t('share.lastDownloadIp') }}
+                  </dt>
+                  <dd class="break-all font-mono text-neutral-900 dark:text-neutral-100">
+                    {{ formatIp(selectedActivityShare.lastDownloadIp) }}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

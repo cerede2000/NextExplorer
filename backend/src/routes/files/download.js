@@ -3,6 +3,7 @@ const fs = require('fs/promises');
 const archiver = require('archiver');
 const { normalizeRelativePath } = require('../../utils/pathUtils');
 const { resolvePathWithAccess } = require('../../services/accessManager');
+const { trackShareDownload } = require('../../services/sharesService');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
@@ -42,8 +43,14 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
       const { absolutePath, relativePath: logicalPath } = resolved;
       const stats = await fs.stat(absolutePath);
-      return { relativePath: logicalPath, absolutePath, stats };
+      const shareId = resolved.shareInfo?.sharingType === 'anyone' ? resolved.shareInfo.id : null;
+      return { relativePath: logicalPath, absolutePath, stats, shareId };
     })
+  );
+
+  const shareDownloadIds = [...new Set(targets.map(({ shareId }) => shareId).filter(Boolean))];
+  await Promise.all(
+    shareDownloadIds.map((shareId) => trackShareDownload(shareId, { ipAddress: req.ip }))
   );
 
   const hasDirectory = targets.some(({ stats }) => stats.isDirectory());
