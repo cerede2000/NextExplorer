@@ -3,6 +3,17 @@
  * This file is responsible for starting the server and should NOT be imported in tests.
  * Tests should import the app directly from ./app.js
  */
+
+// Size the libuv thread pool up front, before any async filesystem work runs.
+// Directory listings do one fs.stat per entry through this pool; with the Node
+// default of 4 threads those stats queue behind concurrent thumbnail-generation
+// fs operations (realpath/stat/rename), which makes folder navigation stall
+// while a large media folder is being processed. Overridable via the env var
+// (also set in the Docker image); this default only applies when unset.
+if (!process.env.UV_THREADPOOL_SIZE) {
+  process.env.UV_THREADPOOL_SIZE = '16';
+}
+
 const { createApp } = require('./app');
 const { port, http, features, address } = require('./config/index');
 const logger = require('./utils/logger');

@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
@@ -134,6 +135,9 @@ const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOST
 const THUMBNAIL_SLOW_JOB_MS = Number.isFinite(env.THUMBNAIL_SLOW_JOB_MS)
   ? Math.max(1000, Math.floor(env.THUMBNAIL_SLOW_JOB_MS))
   : 10000;
+const THUMBNAIL_PROCESS_NICE = Number.isFinite(env.THUMBNAIL_PROCESS_NICE)
+  ? Math.max(0, Math.min(19, Math.floor(env.THUMBNAIL_PROCESS_NICE)))
+  : 10;
 const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
 const THUMBNAIL_CACHE_DIR = path.resolve(directories.thumbnails);
 const THUMBNAIL_CACHE_FILE_PATTERN = /^v\d+-(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
@@ -280,6 +284,8 @@ const startThumbnailDiagnostics = () => {
       videoThreads: THUMBNAIL_VIDEO_THREADS,
       videoScaleFlags: THUMBNAIL_VIDEO_SCALE_FLAGS,
       backgroundQueueLimit: THUMBNAIL_BACKGROUND_QUEUE_LIMIT,
+      processNice: THUMBNAIL_PROCESS_NICE,
+      uvThreadpoolSize: process.env.UV_THREADPOOL_SIZE || null,
     },
     'Thumbnail diagnostics enabled'
   );
@@ -337,6 +343,22 @@ const finishThumbnailJob = (id, status, error = null) => {
 
   if (THUMBNAIL_DIAGNOSTICS_ENABLED || durationMs >= THUMBNAIL_SLOW_JOB_MS) {
     logger.info(payload, 'Thumbnail job finished');
+  }
+};
+
+// Lower the CPU scheduling priority of a spawned child (ffmpeg/convert) so the
+// Node event loop — and therefore directory listings and navigation — keeps CPU
+// during heavy thumbnail generation. Only ever applied to child PIDs, never to
+// the main process. Best-effort: setpriority may be unavailable or denied.
+const lowerChildProcessPriority = (pid) => {
+  if (!pid || THUMBNAIL_PROCESS_NICE <= 0) {
+    return;
+  }
+
+  try {
+    os.setPriority(pid, THUMBNAIL_PROCESS_NICE);
+  } catch (error) {
+    logger.debug({ pid, err: error }, 'Failed to lower thumbnail process priority');
   }
 };
 
@@ -646,10 +668,12 @@ const makeVideoThumb = async (srcPath, destPath) => {
       ])
       .format('image2pipe')
       .on('start', () => {
-        externalProcessId = registerExternalProcess('ffmpeg', srcPath, command?.ffmpegProc?.pid, {
+        const ffmpegPid = command?.ffmpegProc?.pid;
+        externalProcessId = registerExternalProcess('ffmpeg', srcPath, ffmpegPid, {
           seekSeconds: seconds,
           size,
         });
+        lowerChildProcessPriority(ffmpegPid);
       })
       .on('end', () => {
         unregisterExternalProcess(externalProcessId, 'success');
@@ -682,6 +706,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
       'png:-',
     ]);
     const externalProcessId = registerExternalProcess('convert', srcPath, convert.pid, { size });
+    lowerChildProcessPriority(convert.pid);
 
     let stderr = '';
     convert.stderr.on('data', (data) => {
