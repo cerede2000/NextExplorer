@@ -111,10 +111,30 @@ const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_C
 const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
   ? Math.max(1, Math.min(4, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
   : 1;
+const THUMBNAIL_DIAGNOSTICS_ENABLED = env.THUMBNAIL_DIAGNOSTICS_ENABLED === true;
+const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS)
+  ? Math.max(5000, Math.floor(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS))
+  : 30000;
+const THUMBNAIL_SLOW_JOB_MS = Number.isFinite(env.THUMBNAIL_SLOW_JOB_MS)
+  ? Math.max(1000, Math.floor(env.THUMBNAIL_SLOW_JOB_MS))
+  : 10000;
 const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
 const THUMBNAIL_CACHE_DIR = path.resolve(directories.thumbnails);
 const THUMBNAIL_CACHE_FILE_PATTERN = /^v\d+-(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
 const THUMBNAILS_ENABLED = env.THUMBNAILS_ENABLED !== false;
+const activeThumbnailJobs = new Map();
+const activeExternalProcesses = new Map();
+const thumbnailStats = {
+  requests: 0,
+  cacheHits: 0,
+  queued: 0,
+  generated: 0,
+  failed: 0,
+  failedTtlSkips: 0,
+  cacheCleanupDeleted: 0,
+  ffmpegStarted: 0,
+  convertStarted: 0,
+};
 
 // Create thumbnail generation queue with concurrency limit
 // This prevents overwhelming the system with too many concurrent sharp/ffmpeg operations
@@ -138,6 +158,214 @@ let sharpCacheTrimTimer = null;
 let thumbnailCacheCleanupPromise = null;
 let thumbnailCacheCleanupTimer = null;
 let lastThumbnailCacheCleanupAt = 0;
+let thumbnailDiagnosticsTimer = null;
+
+const toMb = (bytes) => Math.round((Number(bytes) || 0) / 1024 / 1024);
+
+const summarizeActiveMap = (map, { now = Date.now(), limit = 5 } = {}) =>
+  Array.from(map.values())
+    .map((item) => ({
+      id: item.id,
+      type: item.type,
+      ext: item.ext,
+      fileName: item.fileName,
+      pid: item.pid,
+      ageMs: now - item.startedAt,
+    }))
+    .sort((a, b) => b.ageMs - a.ageMs)
+    .slice(0, limit);
+
+const countBy = (items, key) =>
+  items.reduce((acc, item) => {
+    const value = item[key] || 'unknown';
+    acc[value] = (acc[value] || 0) + 1;
+    return acc;
+  }, {});
+
+const safeSharpDiagnostics = () => {
+  try {
+    return {
+      cache: sharp.cache(),
+      counters: sharp.counters(),
+    };
+  } catch (error) {
+    return { error: error.message };
+  }
+};
+
+const getDiagnosticsSnapshot = () => {
+  const now = Date.now();
+  const memory = process.memoryUsage();
+  const activeJobs = Array.from(activeThumbnailJobs.values());
+  const activeProcesses = Array.from(activeExternalProcesses.values());
+
+  return {
+    memoryMb: {
+      rss: toMb(memory.rss),
+      heapUsed: toMb(memory.heapUsed),
+      heapTotal: toMb(memory.heapTotal),
+      external: toMb(memory.external),
+      arrayBuffers: toMb(memory.arrayBuffers),
+    },
+    queues: {
+      thumbnail: {
+        size: thumbnailQueue.size,
+        pending: thumbnailQueue.pending,
+        concurrency: thumbnailQueue.concurrency,
+      },
+      video: {
+        size: videoThumbnailQueue.size,
+        pending: videoThumbnailQueue.pending,
+        concurrency: videoThumbnailQueue.concurrency,
+      },
+    },
+    counts: {
+      inflight: inflight.size,
+      failedCache: failedThumbnails.size,
+      activeJobs: activeJobs.length,
+      activeExternalProcesses: activeProcesses.length,
+    },
+    activeByType: countBy(activeJobs, 'type'),
+    activeByExt: countBy(activeJobs, 'ext'),
+    activeExternalByType: countBy(activeProcesses, 'type'),
+    oldestJobs: summarizeActiveMap(activeThumbnailJobs, { now }),
+    oldestExternalProcesses: summarizeActiveMap(activeExternalProcesses, { now }),
+    stats: { ...thumbnailStats },
+    sharp: safeSharpDiagnostics(),
+    cleanup: {
+      cacheMaxFiles: THUMBNAIL_CACHE_MAX_FILES,
+      cleanupInProgress: Boolean(thumbnailCacheCleanupPromise),
+      cleanupTimerScheduled: Boolean(thumbnailCacheCleanupTimer),
+      lastCleanupAgeMs: lastThumbnailCacheCleanupAt ? now - lastThumbnailCacheCleanupAt : null,
+    },
+  };
+};
+
+const logThumbnailDiagnostics = (reason, extra = {}) => {
+  if (!THUMBNAIL_DIAGNOSTICS_ENABLED) return;
+  logger.info({ reason, ...getDiagnosticsSnapshot(), ...extra }, 'Thumbnail diagnostics');
+};
+
+const startThumbnailDiagnostics = () => {
+  if (!THUMBNAIL_DIAGNOSTICS_ENABLED || thumbnailDiagnosticsTimer) {
+    return;
+  }
+
+  logger.info(
+    {
+      intervalMs: THUMBNAIL_DIAGNOSTICS_INTERVAL_MS,
+      slowJobMs: THUMBNAIL_SLOW_JOB_MS,
+      cacheMaxFiles: THUMBNAIL_CACHE_MAX_FILES,
+      sharpCacheMemoryMb: SHARP_CACHE_MEMORY_MB,
+      videoConcurrency: THUMBNAIL_VIDEO_CONCURRENCY,
+    },
+    'Thumbnail diagnostics enabled'
+  );
+
+  thumbnailDiagnosticsTimer = setInterval(() => {
+    logThumbnailDiagnostics('interval');
+  }, THUMBNAIL_DIAGNOSTICS_INTERVAL_MS);
+
+  if (typeof thumbnailDiagnosticsTimer.unref === 'function') {
+    thumbnailDiagnosticsTimer.unref();
+  }
+};
+
+const startThumbnailJob = (filePath, thumbPath) => {
+  const id = crypto.randomUUID();
+  const ext = path.extname(filePath).toLowerCase().slice(1) || 'unknown';
+  const type = isVideo(ext)
+    ? 'video'
+    : isHeic(ext)
+      ? 'heic'
+      : isRawImage(ext)
+        ? 'raw'
+        : isImage(ext)
+          ? 'image'
+          : ext;
+  const job = {
+    id,
+    type,
+    ext,
+    fileName: path.basename(filePath),
+    thumbFile: path.basename(thumbPath),
+    startedAt: Date.now(),
+  };
+
+  activeThumbnailJobs.set(id, job);
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
+    logger.info({ job, queues: getDiagnosticsSnapshot().queues }, 'Thumbnail job started');
+  }
+  return id;
+};
+
+const finishThumbnailJob = (id, status, error = null) => {
+  const job = activeThumbnailJobs.get(id);
+  if (!job) return;
+
+  activeThumbnailJobs.delete(id);
+  const durationMs = Date.now() - job.startedAt;
+  const payload = {
+    job,
+    status,
+    durationMs,
+    memoryMb: getDiagnosticsSnapshot().memoryMb,
+    error: error ? error.message : undefined,
+  };
+
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED || durationMs >= THUMBNAIL_SLOW_JOB_MS) {
+    logger.info(payload, 'Thumbnail job finished');
+  }
+};
+
+const registerExternalProcess = (type, filePath, pid, extra = {}) => {
+  const id = crypto.randomUUID();
+  const item = {
+    id,
+    type,
+    ext: path.extname(filePath).toLowerCase().slice(1) || 'unknown',
+    fileName: path.basename(filePath),
+    pid: pid || null,
+    startedAt: Date.now(),
+    ...extra,
+  };
+
+  activeExternalProcesses.set(id, item);
+  if (type === 'ffmpeg') thumbnailStats.ffmpegStarted += 1;
+  if (type === 'convert') thumbnailStats.convertStarted += 1;
+
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
+    logger.info(
+      { process: item, memoryMb: getDiagnosticsSnapshot().memoryMb },
+      'Thumbnail external process started'
+    );
+  }
+
+  return id;
+};
+
+const unregisterExternalProcess = (id, status, error = null) => {
+  if (!id) return;
+  const item = activeExternalProcesses.get(id);
+  if (!item) return;
+
+  activeExternalProcesses.delete(id);
+  const durationMs = Date.now() - item.startedAt;
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED || durationMs >= THUMBNAIL_SLOW_JOB_MS) {
+    logger.info(
+      {
+        process: item,
+        status,
+        durationMs,
+        error: error ? error.message : undefined,
+        memoryMb: getDiagnosticsSnapshot().memoryMb,
+      },
+      'Thumbnail external process finished'
+    );
+  }
+};
+
+startThumbnailDiagnostics();
 
 const scheduleSharpCacheTrim = ({ delayMs = 2 * 1000 } = {}) => {
   if (sharpCacheTrimTimer) {
@@ -319,6 +547,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     let stream = null;
     let pipeline = null;
     let command = null;
+    let externalProcessId = null;
     let settled = false;
 
     const cleanup = ({ killProcess = false } = {}) => {
@@ -340,6 +569,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     const fail = (error) => {
       if (settled) return;
       settled = true;
+      unregisterExternalProcess(externalProcessId, 'error', error);
       cleanup({ killProcess: true });
       reject(error);
     };
@@ -347,6 +577,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     const done = () => {
       if (settled) return;
       settled = true;
+      unregisterExternalProcess(externalProcessId, 'success');
       cleanup();
       resolve();
     };
@@ -356,6 +587,15 @@ const makeVideoThumb = async (srcPath, destPath) => {
       .seekInput(seconds)
       .outputOptions(['-frames:v', '1', '-vf', `scale=${size}:-1:flags=lanczos`, '-vcodec', 'png'])
       .format('image2pipe')
+      .on('start', () => {
+        externalProcessId = registerExternalProcess('ffmpeg', srcPath, command?.ffmpegProc?.pid, {
+          seekSeconds: seconds,
+          size,
+        });
+      })
+      .on('end', () => {
+        unregisterExternalProcess(externalProcessId, 'success');
+      })
       .on('error', fail);
 
     stream = command.pipe();
@@ -383,6 +623,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
       '100',
       'png:-',
     ]);
+    const externalProcessId = registerExternalProcess('convert', srcPath, convert.pid, { size });
 
     let stderr = '';
     convert.stderr.on('data', (data) => {
@@ -405,6 +646,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
     const fail = (error) => {
       if (settled) return;
       settled = true;
+      unregisterExternalProcess(externalProcessId, 'error', error);
       cleanup({ killProcess: true });
       reject(error);
     };
@@ -427,6 +669,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
       .then(() => {
         if (settled) return;
         settled = true;
+        unregisterExternalProcess(externalProcessId, 'success');
         resolve();
       })
       .catch(fail);
@@ -543,6 +786,8 @@ const cleanupThumbnailCache = async () => {
         },
         'Thumbnail cache cleanup batch completed'
       );
+      thumbnailStats.cacheCleanupDeleted += deleted;
+      logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
 
       if (fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES) {
         shouldContinueCleanup = true;
@@ -612,6 +857,7 @@ const getThumbnail = async (filePath) => {
   if (!THUMBNAILS_ENABLED || isThumbnailCachePath(filePath)) {
     return '';
   }
+  thumbnailStats.requests += 1;
 
   const extension = path.extname(filePath).toLowerCase().slice(1);
   if (isPdf(extension)) {
@@ -624,12 +870,14 @@ const getThumbnail = async (filePath) => {
   try {
     await fsPromises.access(thumbPath, fs.constants.F_OK);
     failedThumbnails.delete(thumbPath);
+    thumbnailStats.cacheHits += 1;
     return `/static/thumbnails/${thumbFile}`;
   } catch (error) {
     // Thumbnail doesn't exist, need to generate
   }
 
   if (getFailedThumbnail(thumbPath)) {
+    thumbnailStats.failedTtlSkips += 1;
     return '';
   }
 
@@ -639,13 +887,17 @@ const getThumbnail = async (filePath) => {
   // Check if generation is already in progress for this file
   let pending = inflight.get(thumbPath);
   if (!pending) {
+    thumbnailStats.queued += 1;
     // Queue the thumbnail generation with concurrency limit
     pending = thumbnailQueue
       .add(async () => {
+        const jobId = startThumbnailJob(filePath, thumbPath);
         try {
           // Double-check if another request created it while we were queued
           try {
             await fsPromises.access(thumbPath, fs.constants.F_OK);
+            thumbnailStats.cacheHits += 1;
+            finishThumbnailJob(jobId, 'cache-hit');
             return `/static/thumbnails/${thumbFile}`;
           } catch (error) {
             // Still doesn't exist, generate it
@@ -659,17 +911,22 @@ const getThumbnail = async (filePath) => {
           try {
             await fsPromises.access(thumbPath, fs.constants.F_OK);
             logger.debug({ filePath, thumbPath }, 'Thumbnail generated successfully');
+            thumbnailStats.generated += 1;
+            finishThumbnailJob(jobId, 'generated');
             return `/static/thumbnails/${thumbFile}`;
           } catch (missing) {
             logger.warn(
               { filePath, thumbPath },
               'Thumbnail generation completed but file not found'
             );
+            finishThumbnailJob(jobId, 'missing');
             return '';
           }
         } catch (error) {
+          thumbnailStats.failed += 1;
           markFailedThumbnail(thumbPath);
           logger.error({ filePath, err: error }, 'Thumbnail generation failed');
+          finishThumbnailJob(jobId, 'error', error);
           throw error;
         }
       })
