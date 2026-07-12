@@ -137,6 +137,9 @@ services:
       # THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE: "500" # Max thumbnail cache files deleted per cleanup pass.
       # THUMBNAIL_SHARP_CACHE_MEMORY_MB: "0" # Sharp/libvips thumbnail cache memory budget.
       # THUMBNAIL_VIDEO_CONCURRENCY: "1" # Max concurrent ffmpeg thumbnail jobs.
+      # THUMBNAIL_DIAGNOSTICS_ENABLED: "false" # Enable detailed thumbnail queue/memory/process logs.
+      # THUMBNAIL_DIAGNOSTICS_INTERVAL_MS: "30000" # Interval for thumbnail diagnostics logs.
+      # THUMBNAIL_SLOW_JOB_MS: "10000" # Log thumbnail jobs/processes slower than this threshold.
 
       # Container user mapping (optional)
       # PUID: "1000" # Map container processes to host UID so created files have consistent ownership.

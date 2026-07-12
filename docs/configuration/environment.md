@@ -4,18 +4,18 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Server & networking
 
-| Variable                                         | Default                                         | Description                                                                                                                 |
-| ------------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                           |
-| `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads).     |
-| `UPLOAD_INACTIVITY_TIMEOUT`                      | `120000`                                        | Classic upload inactivity timeout (ms). If no bytes are received for this delay, the request is aborted and `.uploading` is cleaned up. Use `0` to disable. |
-| `UPLOAD_CHUNKED_ENABLED`                         | `false`                                         | Default for the admin upload setting. When enabled, browser uploads use TUS chunked transfer instead of one large request.  |
-| `UPLOAD_CHUNK_SIZE`                              | `8M`                                            | Default TUS chunk size. Supports byte-size suffixes such as `4M`, `16M`, or `64M`; keep it below reverse proxy body limits. |
+| Variable                                         | Default                                         | Description                                                                                                                                                           |
+| ------------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                                                                     |
+| `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads).                                               |
+| `UPLOAD_INACTIVITY_TIMEOUT`                      | `120000`                                        | Classic upload inactivity timeout (ms). If no bytes are received for this delay, the request is aborted and `.uploading` is cleaned up. Use `0` to disable.           |
+| `UPLOAD_CHUNKED_ENABLED`                         | `false`                                         | Default for the admin upload setting. When enabled, browser uploads use TUS chunked transfer instead of one large request.                                            |
+| `UPLOAD_CHUNK_SIZE`                              | `8M`                                            | Default TUS chunk size. Supports byte-size suffixes such as `4M`, `16M`, or `64M`; keep it below reverse proxy body limits.                                           |
 | `UPLOAD_STORAGE_RESERVE`                         | `64M`                                           | Free-space reserve kept when accepting TUS uploads. Upload creation is rejected with `507` if temporary or destination storage cannot fit the file plus this reserve. |
-| `TUS_UPLOAD_DIR`                                  | `<CACHE_DIR>/tus-uploads`                       | Temporary storage directory for TUS chunked uploads. Put it on a volume large enough for the biggest in-progress uploads. |
-| `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).       |
-| `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                               |
-| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                     |
+| `TUS_UPLOAD_DIR`                                 | `<CACHE_DIR>/tus-uploads`                       | Temporary storage directory for TUS chunked uploads. Put it on a volume large enough for the biggest in-progress uploads.                                             |
+| `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).                                                 |
+| `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                                                                         |
+| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                                                               |
 
 ## Logging & debugging
 
@@ -27,13 +27,13 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Paths & volumes
 
-| Variable                 | Default                           | Description                                                                                                                                      |
-| ------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VOLUME_ROOT`            | `/mnt`                            | Root directory that houses all mounted volumes.                                                                                                  |
-| `CONFIG_DIR`             | `/config`                         | Location for SQLite, `app-config.json`, extensions, and settings.                                                                                |
-| `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                    |
-| `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                           |
-| `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`). |
+| Variable                 | Default                           | Description                                                                                                                                                                                                                                                                                                               |
+| ------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VOLUME_ROOT`            | `/mnt`                            | Root directory that houses all mounted volumes.                                                                                                                                                                                                                                                                           |
+| `CONFIG_DIR`             | `/config`                         | Location for SQLite, `app-config.json`, extensions, and settings.                                                                                                                                                                                                                                                         |
+| `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                                                                                                                                                                                             |
+| `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                                                                                                                                                                                                    |
+| `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`).                                                                                                                                                                          |
 | `HIDDEN_FILE_PATTERNS`   | `.`                               | Comma- or space-separated hidden filename patterns used by directory listings, volume pickers, and search. Plain values are fast filename prefixes, e.g. `.,@` hides dotfiles and Synology `@...` entries. Advanced entries can use `regex:<source>` or `/source/flags`. Set to an empty value to disable pattern hiding. |
 
 ## Authentication
@@ -105,6 +105,9 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE`  | `500`              | Maximum number of thumbnail cache files deleted per cleanup pass.                                                                       |
 | `THUMBNAIL_SHARP_CACHE_MEMORY_MB`     | `0`                | Memory in MB allowed for Sharp/libvips thumbnail cache. Keep `0` to minimize idle RSS after thumbnail generation.                       |
 | `THUMBNAIL_VIDEO_CONCURRENCY`         | `1`                | Maximum number of concurrent ffmpeg thumbnail jobs. Keep low on small hosts to avoid memory spikes.                                     |
+| `THUMBNAIL_DIAGNOSTICS_ENABLED`       | `false`            | Enable periodic thumbnail diagnostics logs with queue, memory, active job, external process, and cache cleanup counters.                |
+| `THUMBNAIL_DIAGNOSTICS_INTERVAL_MS`   | `30000`            | Interval between thumbnail diagnostics logs when diagnostics are enabled.                                                               |
+| `THUMBNAIL_SLOW_JOB_MS`               | `10000`            | Duration threshold after which a thumbnail job/process is logged even when diagnostics are disabled.                                    |
 
 ## Collabora (WOPI)
 
