@@ -95,6 +95,7 @@
     "paste": "붙여넣기",
     "rename": "이름 바꾸기",
     "download": "다운로드",
+    "downloadFolder": "폴더 다운로드",
     "extractZip": "ZIP 파일 추출",
     "compressToZip": "ZIP 파일로 압축",
     "search": "검색",

@@ -7,9 +7,25 @@ const { trackShareDownload } = require('../../services/sharesService');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
-const { collectInputPaths, encodeContentDisposition, stripBasePath } = require('./utils');
+const { collectInputPaths, encodeContentDisposition, stripBasePath, toPosix } = require('./utils');
 
 const router = require('express').Router();
+
+const getLogicalSegments = (relativePath = '') => toPosix(relativePath).split('/').filter(Boolean);
+
+const isShareRootPath = (relativePath = '') => {
+  const segments = getLogicalSegments(relativePath);
+  return segments.length === 2 && segments[0] === 'share';
+};
+
+const getDownloadBaseName = ({ relativePath, absolutePath }) => {
+  if (isShareRootPath(relativePath)) {
+    return path.basename(absolutePath);
+  }
+
+  const segments = getLogicalSegments(relativePath);
+  return segments[segments.length - 1] || path.basename(absolutePath);
+};
 
 const handleDownloadRequest = async (paths, req, res, basePath = '') => {
   if (!Array.isArray(paths) || paths.length === 0) {
@@ -81,13 +97,7 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   const archiveName = (() => {
     if (targets.length === 1) {
-      const segments = targets[0].relativePath
-        ? targets[0].relativePath.split(path.sep).filter(Boolean)
-        : [];
-      const baseName =
-        segments.length > 0
-          ? segments[segments.length - 1]
-          : path.basename(targets[0].absolutePath);
+      const baseName = getDownloadBaseName(targets[0]);
       return `${baseName || 'download'}.zip`;
     }
 
@@ -118,7 +128,9 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
   archive.pipe(res);
 
   targets.forEach(({ relativePath, absolutePath, stats }) => {
-    const entryNameRaw = stripBasePath(relativePath, baseNormalized);
+    const entryNameRaw = isShareRootPath(relativePath)
+      ? getDownloadBaseName({ relativePath, absolutePath })
+      : stripBasePath(relativePath, baseNormalized);
     const entryName = entryNameRaw
       ? entryNameRaw.replace(/\\/g, '/').replace(/^\/+/, '')
       : path.basename(absolutePath);

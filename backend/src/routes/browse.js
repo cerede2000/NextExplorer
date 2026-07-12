@@ -61,6 +61,9 @@ router.get(
         canShare: accessInfo.canShare,
         canDownload: accessInfo.canDownload,
       },
+      current: {
+        isDirectory: true,
+      },
       path: relativePath,
     };
 
