@@ -9,6 +9,7 @@ const {
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
+const { removeFavoritesForDeletedPath } = require('./favoritesService');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -234,10 +235,16 @@ const deleteItems = async (items = [], options = {}) => {
 
     await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
+    const removedFavoriteCount = context.user?.id
+      ? await removeFavoritesForDeletedPath(context.user.id, relativePath, {
+          includeChildren: isDirectory || stats.isDirectory(),
+        })
+      : 0;
     results.push({
       path: relativePath,
       status: 'deleted',
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
+      ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
     });
   }
 
