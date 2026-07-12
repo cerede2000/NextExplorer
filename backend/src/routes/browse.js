@@ -2,6 +2,7 @@ const express = require('express');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
+const env = require('../config/env');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
@@ -16,7 +17,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const settings = await getSettings();
     const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
-    const thumbsEnabled = settings?.thumbnails?.enabled !== false;
+    const thumbsEnabled = env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const rawPath = req.params[0] || '';
     const inputRelativePath = normalizeRelativePath(rawPath);
