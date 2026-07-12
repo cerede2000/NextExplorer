@@ -44,7 +44,12 @@ const { handleDragOver, handleDragLeave, handleDrop, isDragTarget } = useFileDra
 
 const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
+const VIRTUAL_LIST_THRESHOLD = 1000;
+const LIST_ROW_HEIGHT = 37;
+const LIST_ROW_OVERSCAN = 20;
 let loadMoreObserver = null;
+const scrollTop = ref(0);
+const scrollViewportHeight = ref(0);
 
 const getScrollTarget = () => {
   const localTarget = dropTargetRef.value;
@@ -65,8 +70,36 @@ const applySelectionFromQuery = () => {
 };
 
 const sortedItems = computed(() => fileStore.getCurrentPathItems);
-const visibleItems = computed(() => sortedItems.value.slice(0, visibleLimit.value));
-const hasMoreItems = computed(() => visibleItems.value.length < sortedItems.value.length);
+const useVirtualList = computed(
+  () => settings.view === 'list' && sortedItems.value.length > VIRTUAL_LIST_THRESHOLD
+);
+const virtualStartIndex = computed(() => {
+  if (!useVirtualList.value) return 0;
+  return Math.max(0, Math.floor(scrollTop.value / LIST_ROW_HEIGHT) - LIST_ROW_OVERSCAN);
+});
+const virtualEndIndex = computed(() => {
+  if (!useVirtualList.value) return visibleLimit.value;
+  const visibleCount =
+    Math.ceil(scrollViewportHeight.value / LIST_ROW_HEIGHT) + LIST_ROW_OVERSCAN * 2;
+  return Math.min(sortedItems.value.length, virtualStartIndex.value + visibleCount);
+});
+const visibleItems = computed(() => {
+  if (useVirtualList.value) {
+    return sortedItems.value.slice(virtualStartIndex.value, virtualEndIndex.value);
+  }
+  return sortedItems.value.slice(0, visibleLimit.value);
+});
+const hasMoreItems = computed(
+  () => !useVirtualList.value && visibleItems.value.length < sortedItems.value.length
+);
+const virtualTopSpacerHeight = computed(() =>
+  useVirtualList.value ? virtualStartIndex.value * LIST_ROW_HEIGHT : 0
+);
+const virtualBottomSpacerHeight = computed(() =>
+  useVirtualList.value
+    ? Math.max(0, (sortedItems.value.length - virtualEndIndex.value) * LIST_ROW_HEIGHT)
+    : 0
+);
 
 const getItemKey = (item) => {
   if (!item || !item.name) return '';
@@ -109,6 +142,8 @@ const updateScrollState = () => {
   }
 
   const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+  scrollTop.value = target.scrollTop;
+  scrollViewportHeight.value = target.clientHeight;
   isScrollable.value = maxScrollTop > 2;
   canScrollUp.value = target.scrollTop > 2;
   canScrollDown.value = target.scrollTop < maxScrollTop - 2;
@@ -126,14 +161,19 @@ const revealAllItems = async () => {
 };
 
 const scrollToTop = () => {
-  getScrollTarget()?.scrollTo?.({ top: 0, behavior: 'smooth' });
+  getScrollTarget()?.scrollTo?.({ top: 0, behavior: useVirtualList.value ? 'auto' : 'smooth' });
 };
 
 const scrollToBottom = async () => {
-  await revealAllItems();
+  if (!useVirtualList.value) {
+    await revealAllItems();
+  }
   await nextTick();
   const target = getScrollTarget();
-  target?.scrollTo?.({ top: target.scrollHeight, behavior: 'smooth' });
+  target?.scrollTo?.({
+    top: target.scrollHeight,
+    behavior: useVirtualList.value ? 'auto' : 'smooth',
+  });
   updateScrollState();
 };
 
@@ -212,7 +252,7 @@ watch(hasMoreItems, () => {
 });
 
 watch(
-  () => [visibleItems.value.length, sortedItems.value.length, settings.view],
+  () => [visibleItems.value.length, sortedItems.value.length, settings.view, useVirtualList.value],
   () => {
     nextTick(updateScrollState);
   }
@@ -414,6 +454,12 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <div
+            v-if="useVirtualList && virtualTopSpacerHeight > 0"
+            class="shrink-0"
+            :style="{ height: `${virtualTopSpacerHeight}px` }"
+          ></div>
+
           <FileObject
             v-for="item in visibleItems"
             :key="(item.path || '') + '::' + item.name"
@@ -429,6 +475,12 @@ onBeforeUnmount(() => {
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
           />
+
+          <div
+            v-if="useVirtualList && virtualBottomSpacerHeight > 0"
+            class="shrink-0"
+            :style="{ height: `${virtualBottomSpacerHeight}px` }"
+          ></div>
 
           <div
             v-if="hasMoreItems"
