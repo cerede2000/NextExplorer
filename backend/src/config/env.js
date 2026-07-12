@@ -103,6 +103,10 @@ module.exports = {
     process.env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS != null
       ? Number(process.env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS)
       : 60 * 60 * 1000,
+  THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE:
+    process.env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE != null
+      ? Number(process.env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
+      : 500,
 
   // Favorites
   FAVORITES_DEFAULT_ICON: process.env.FAVORITES_DEFAULT_ICON || 'outline:StarIcon',

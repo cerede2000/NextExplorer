@@ -95,6 +95,7 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `FFMPEG_HWACCEL_DEVICE`               | _none_             | Optional ffmpeg `-hwaccel_device` value used with `FFMPEG_HWACCEL` (e.g. `0` or `/dev/dri/renderD128`).                                 |
 | `THUMBNAIL_CACHE_MAX_FILES`           | `3000`             | Maximum number of files kept in the thumbnail cache. Set `0` to disable automatic cleanup.                                              |
 | `THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS` | `3600000`          | Minimum delay between thumbnail cache cleanup scans.                                                                                    |
+| `THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE`  | `500`              | Maximum number of thumbnail cache files deleted per cleanup pass.                                                                       |
 
 ## Collabora (WOPI)
 

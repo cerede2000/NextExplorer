@@ -91,7 +91,10 @@ const THUMBNAIL_CACHE_MAX_FILES = Number.isFinite(env.THUMBNAIL_CACHE_MAX_FILES)
 const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS)
   ? Math.max(60 * 1000, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS))
   : 60 * 60 * 1000;
-const THUMBNAIL_CACHE_TARGET_RATIO = 0.9;
+const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
+  ? Math.max(1, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE))
+  : 500;
+const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
 
 // Create thumbnail generation queue with concurrency limit
 // This prevents overwhelming the system with too many concurrent sharp/ffmpeg operations
@@ -377,6 +380,7 @@ const cleanupThumbnailCache = async () => {
 
   thumbnailCacheCleanupPromise = (async () => {
     lastThumbnailCacheCleanupAt = Date.now();
+    let shouldContinueCleanup = false;
 
     try {
       await ensureDir(directories.thumbnails);
@@ -387,33 +391,16 @@ const cleanupThumbnailCache = async () => {
         return;
       }
 
-      const files = [];
-      for (const name of fileNames) {
-        const filePath = path.join(directories.thumbnails, name);
-        try {
-          const stats = await fsPromises.stat(filePath);
-          files.push({ filePath, mtimeMs: stats.mtimeMs });
-        } catch (_) {
-          // File may have been removed by another request.
-        }
-      }
-
-      if (files.length <= THUMBNAIL_CACHE_MAX_FILES) {
-        return;
-      }
-
-      files.sort((a, b) => a.mtimeMs - b.mtimeMs);
-      const targetCount = Math.max(
-        0,
-        Math.floor(THUMBNAIL_CACHE_MAX_FILES * THUMBNAIL_CACHE_TARGET_RATIO)
+      const deleteCount = Math.min(
+        fileNames.length - THUMBNAIL_CACHE_MAX_FILES,
+        THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE
       );
-      const deleteCount = Math.max(0, files.length - targetCount);
-      const toDelete = files.slice(0, deleteCount);
+      const toDelete = fileNames.slice(0, deleteCount);
 
       let deleted = 0;
-      for (const file of toDelete) {
+      for (const name of toDelete) {
         try {
-          await fsPromises.rm(file.filePath, { force: true });
+          await fsPromises.rm(path.join(directories.thumbnails, name), { force: true });
           deleted += 1;
         } catch (_) {
           // Best-effort cache cleanup.
@@ -423,16 +410,27 @@ const cleanupThumbnailCache = async () => {
       logger.info(
         {
           deleted,
-          before: files.length,
-          target: targetCount,
+          before: fileNames.length,
+          remainingEstimate: Math.max(0, fileNames.length - deleted),
           max: THUMBNAIL_CACHE_MAX_FILES,
+          batchSize: THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE,
         },
-        'Thumbnail cache cleanup completed'
+        'Thumbnail cache cleanup batch completed'
       );
+
+      if (fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES) {
+        shouldContinueCleanup = true;
+      }
     } catch (error) {
       logger.warn({ err: error }, 'Thumbnail cache cleanup failed');
     } finally {
       thumbnailCacheCleanupPromise = null;
+      if (shouldContinueCleanup) {
+        scheduleThumbnailCacheCleanup({
+          force: true,
+          delayMs: THUMBNAIL_CACHE_CONTINUE_DELAY_MS,
+        });
+      }
     }
   })();
 
@@ -462,7 +460,7 @@ const scheduleThumbnailCacheCleanup = ({ force = false, delayMs = 5000 } = {}) =
   }
 };
 
-scheduleThumbnailCacheCleanup({ force: true, delayMs: 30 * 1000 });
+scheduleThumbnailCacheCleanup({ force: true, delayMs: 2 * 60 * 1000 });
 
 const getThumbnailPathIfExists = async (filePath, stats = null) => {
   if (filePath.includes(directories.thumbnails)) {
