@@ -18,6 +18,7 @@ import {
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFolderSizeStore } from '@/stores/folderSize';
 
 export const useFileStore = defineStore('fileStore', () => {
   // State
@@ -30,6 +31,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const clipboardOperation = ref(null);
   const volumeUsageStore = useVolumeUsageStore();
+  const folderSizeStore = useFolderSizeStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -139,6 +141,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
       await fetchPathItems(refreshTarget);
       volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
     } finally {
       clipboardOperation.value = null;
     }
@@ -152,6 +155,7 @@ export const useFileStore = defineStore('fileStore', () => {
     clearSelection();
     await fetchPathItems(currentPath.value);
     volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
   };
 
   const createFolder = async (baseName) => {
@@ -161,6 +165,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     await fetchPathItems(destination);
     volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
 
     if (createdName) {
       const createdKey = `${destination}::${createdName}`;
@@ -205,6 +210,7 @@ export const useFileStore = defineStore('fileStore', () => {
     // Refresh and start rename for the created item
     await fetchPathItems(destination);
     volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
 
     const createdKey = `${destination}::${candidate}`;
     const createdItem = findItemByKey(createdKey);
@@ -229,6 +235,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     await fetchPathItems(parent);
     volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
 
     const createdName = response?.item?.name;
     if (createdName) {
@@ -252,6 +259,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     await fetchPathItems(destination);
     volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
 
     if (createdName) {
       const createdKey = `${destination}::${createdName}`;
@@ -394,17 +402,34 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const getCurrentPath = computed(() => currentPath.value);
 
+  // When sorting by size, directories must be ranked by their pre-computed
+  // recursive size (from the folder size index), not by the near-zero directory
+  // inode size on `item.size` — otherwise the sort order does not match the
+  // sizes shown in the UI.
+  const sortValue = (item, key) => {
+    if (key === 'size') {
+      if (item.kind === 'directory') {
+        const full = item.path ? `${item.path}/${item.name}` : item.name;
+        const entry = folderSizeStore.sizeFor(full);
+        if (entry && entry.sizeBytes != null) return entry.sizeBytes;
+      }
+      return Number(item.size) || 0;
+    }
+    return item[key];
+  };
+
   const getCurrentPathItems = computed(() => {
     const settings = useSettingsStore();
     const direction = settings.sortBy.order === 'asc' ? 1 : -1;
+    const sortKey = settings.sortBy.by;
 
     return [...currentPathItems.value].sort((a, b) => {
       // keep directories first
       const isDirDiff = (b.kind === 'directory') - (a.kind === 'directory');
       if (isDirDiff) return isDirDiff; // returns -1 or 1
 
-      const aValue = a[settings.sortBy.by];
-      const bValue = b[settings.sortBy.by];
+      const aValue = sortValue(a, sortKey);
+      const bValue = sortValue(b, sortKey);
       if (aValue === bValue) return 0;
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {

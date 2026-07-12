@@ -1,0 +1,429 @@
+/**
+ * Folder size indexer — core logic.
+ *
+ * This module owns the three ways the `folder_size_index` table is kept up to
+ * date, all designed to keep HTTP reads O(1) and filesystem load negligible:
+ *
+ *   1. `runBaseline`  — a one-off recursive walk of a volume, run once (or on
+ *                       explicit rebuild) with bounded concurrency and event
+ *                       loop yields, writing authoritative sizes in batches.
+ *   2. `applyDelta`   — incremental, ancestor-propagating updates (re-exported
+ *                       from the storage layer) used by the write hooks and by
+ *                       the watcher flush; never recomputes a subtree.
+ *   3. `reconcile`    — a low-cost safety net that stat()s the mtime of every
+ *                       known folder and only re-aggregates the *direct* level
+ *                       of folders that changed since their last scan, then
+ *                       propagates the resulting delta upward.
+ *
+ * Every function takes an explicit `db` and `scope` ({ root, label }) so the
+ * logic can be unit tested against a temp database and directory tree, and so
+ * the same code runs unchanged in the worker thread.
+ */
+const fs = require('fs/promises');
+const fsSync = require('fs');
+const path = require('path');
+const pLimit = require('p-limit');
+
+const config = require('../config/index');
+const folderSizeIndex = require('./folderSizeIndex');
+
+const NETWORK_FS_TYPES = new Set(['nfs', 'nfs4', 'cifs', 'smbfs', 'smb', 'smb2', 'fuse.sshfs']);
+
+const nowIso = () => new Date().toISOString();
+const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Whether a folder needs re-aggregation given a fresh stat of it: it is unknown
+ * to the index, or its on-disk mtime is newer than the most recent time we
+ * recorded a size for it (a full scan or an incremental delta). Used by the
+ * on-view refresh and the reconciler to skip untouched folders for free.
+ */
+const isStale = (entry, mtimeMs) => {
+  if (!entry) return true;
+  const lastKnown = Math.max(
+    entry.lastFullScanAt ? Date.parse(entry.lastFullScanAt) : 0,
+    entry.lastDeltaAt ? Date.parse(entry.lastDeltaAt) : 0
+  );
+  return !Number.isFinite(lastKnown) || mtimeMs > lastKnown;
+};
+
+/**
+ * Next adaptive reconciliation delay: reset to `minMs` whenever the last pass
+ * found external changes (stay responsive while activity continues), otherwise
+ * double the previous delay up to `maxMs` (back off while idle). Mirrors the
+ * accelerate-on-change / decelerate-when-idle scheduling that keeps periodic
+ * scanning cheap without a filesystem watcher.
+ */
+const nextReconcileDelay = (prevDelay, changed, { minMs, maxMs }) => {
+  if (changed > 0) return minMs;
+  const base = prevDelay > 0 ? prevDelay : minMs;
+  return Math.min(base * 2, maxMs);
+};
+
+/** The default volume scope derived from configuration (main volume root). */
+const getVolumeScope = () => ({ root: config.directories.volume, label: 'volume' });
+
+/**
+ * Best-effort detection of whether `absPath` sits on a network filesystem, so
+ * the baseline can throttle concurrency there. Linux-only (reads /proc/mounts);
+ * anywhere else it conservatively reports "not network".
+ */
+const detectNetworkFs = (absPath) => {
+  try {
+    const mounts = fsSync.readFileSync('/proc/mounts', 'utf8');
+    let best = null;
+    for (const line of mounts.split('\n')) {
+      const parts = line.split(/\s+/);
+      if (parts.length < 3) continue;
+      const mountPoint = parts[1];
+      const fsType = parts[2];
+      if (absPath === mountPoint || absPath.startsWith(mountPoint.replace(/\/?$/, '/'))) {
+        // Longest matching mount point wins (most specific).
+        if (!best || mountPoint.length > best.mountPoint.length) {
+          best = { mountPoint, fsType };
+        }
+      }
+    }
+    if (!best) return false;
+    const type = best.fsType.toLowerCase();
+    return NETWORK_FS_TYPES.has(type) || type.startsWith('fuse.');
+  } catch {
+    // /proc/mounts absent (non-Linux) or unreadable — assume local.
+    return false;
+  }
+};
+
+/** Resolve the effective baseline concurrency for a scope. */
+const resolveConcurrency = (scope, overrides = {}) => {
+  const isNetwork =
+    typeof overrides.isNetwork === 'boolean' ? overrides.isNetwork : detectNetworkFs(scope.root);
+  const local = overrides.concurrency ?? config.folderSize.concurrency ?? 6;
+  const network = overrides.networkConcurrency ?? config.folderSize.networkConcurrency ?? 2;
+  return Math.max(1, isNetwork ? network : local);
+};
+
+const absOf = (scope, relativePath) =>
+  relativePath ? path.join(scope.root, relativePath) : scope.root;
+
+/**
+ * Recursively walk `scope.root`, writing an authoritative index entry for every
+ * folder. Directory sizes are recursive in `full` mode and direct-entries-only
+ * in `shallow` mode. Writes happen in batched transactions and the event loop
+ * is yielded between batches so the walk never starves concurrent HTTP work.
+ *
+ * @returns {Promise<{ folders: number, bytes: number }>}
+ */
+const runBaseline = async (db, scope, options = {}) => {
+  const {
+    mode = config.folderSize.mode || 'full',
+    concurrency = resolveConcurrency(scope, options),
+    batchSize = 300,
+    yieldEvery = 200,
+    signal,
+  } = options;
+
+  const limit = pLimit(concurrency);
+  const pending = [];
+  let folders = 0;
+
+  const flush = () => {
+    if (!pending.length) return;
+    const batch = pending.splice(0, pending.length);
+    folderSizeIndex.bulkUpsertScanEntries(db, scope, batch);
+  };
+
+  const recordEntry = (absDir, sizeBytes, entryCount) => {
+    pending.push({ absolutePath: absDir, sizeBytes, entryCount, lastFullScanAt: nowIso() });
+    folders += 1;
+    if (pending.length >= batchSize) flush();
+  };
+
+  const newFrame = (abs) => ({
+    abs,
+    childDirs: null, // null until the directory has been read
+    next: 0,
+    directFileBytes: 0,
+    childrenBytes: 0,
+    entryCount: 0,
+  });
+
+  // Iterative post-order DFS. The stack only ever holds the frames on the
+  // current root-to-node path, so peak memory is O(sum of directory widths along
+  // a single path) — never O(total directories in the tree). This is what keeps
+  // the baseline's RAM flat on very large volumes: the previous recursive
+  // version eagerly created a promise (and held the Dirent array) for *every*
+  // directory in the whole tree simultaneously.
+  //
+  // Only the leaf I/O (readdir, stat) goes through the concurrency limiter, and a
+  // frame never holds a limiter slot while awaiting a child — so it cannot
+  // deadlock on deep trees the way limiting the recursion itself would.
+  const stack = [newFrame(scope.root)];
+  let rootTotal = 0;
+
+  while (stack.length) {
+    if (signal?.aborted) break;
+    const frame = stack[stack.length - 1];
+
+    // First visit: read the directory, stat its files (bounded concurrency) and
+    // remember its subdirectories to descend into. An unreadable directory is
+    // still recorded (size 0) so it exists in the index.
+    if (frame.childDirs === null) {
+      let entries = null;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        entries = await limit(() => fs.readdir(frame.abs, { withFileTypes: true }));
+      } catch {
+        frame.childDirs = [];
+      }
+
+      if (entries) {
+        const fileTasks = [];
+        const childDirs = [];
+        for (const entry of entries) {
+          const full = path.join(frame.abs, entry.name);
+          if (entry.isDirectory()) {
+            frame.entryCount += 1;
+            childDirs.push(full);
+          } else if (entry.isFile()) {
+            frame.entryCount += 1;
+            fileTasks.push(
+              limit(async () => {
+                try {
+                  return (await fs.stat(full)).size;
+                } catch {
+                  return 0;
+                }
+              })
+            );
+          } else {
+            // symlink / socket / fifo / device — counted but contributes no size
+            frame.entryCount += 1;
+          }
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const fileSizes = await Promise.all(fileTasks);
+        frame.directFileBytes = fileSizes.reduce((a, b) => a + b, 0);
+        frame.childDirs = childDirs;
+      }
+    }
+
+    // Descend into the next unvisited subdirectory, if any.
+    if (frame.next < frame.childDirs.length) {
+      const childAbs = frame.childDirs[frame.next];
+      frame.childDirs[frame.next] = null; // release the path as we descend
+      frame.next += 1;
+      stack.push(newFrame(childAbs));
+      continue;
+    }
+
+    // All children processed: finalize this directory (post-order) and bubble
+    // its recursive total up to its parent.
+    stack.pop();
+    const recursiveTotal = frame.directFileBytes + frame.childrenBytes;
+    const sizeBytes = mode === 'full' ? recursiveTotal : frame.directFileBytes;
+    recordEntry(frame.abs, sizeBytes, frame.entryCount);
+
+    if (stack.length) {
+      stack[stack.length - 1].childrenBytes += recursiveTotal;
+    } else {
+      rootTotal = recursiveTotal;
+    }
+
+    if (folders % yieldEvery === 0) await yieldToEventLoop();
+  }
+
+  flush();
+  return { folders, bytes: rootTotal };
+};
+
+/**
+ * Re-aggregate the *direct* level of a single folder: sum the sizes of files
+ * directly inside it and (in `full` mode) the already-indexed sizes of its
+ * direct subfolders. Used by both the reconciler and the watcher flush.
+ *
+ * @returns {Promise<{ sizeBytes: number, entryCount: number } | null>} null if
+ *   the path is not a readable directory.
+ */
+const aggregateDirectory = async (db, scope, absDir, options = {}) => {
+  const mode = options.mode || config.folderSize.mode || 'full';
+  let entries;
+  try {
+    entries = await fs.readdir(absDir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  let directFileBytes = 0;
+  let childrenBytes = 0;
+  let entryCount = 0;
+
+  for (const entry of entries) {
+    const full = path.join(absDir, entry.name);
+    if (entry.isDirectory()) {
+      entryCount += 1;
+      if (mode === 'full') {
+        const child = folderSizeIndex.getByAbsolutePath(db, full);
+        childrenBytes += child ? child.sizeBytes : 0;
+      }
+    } else if (entry.isFile()) {
+      entryCount += 1;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        directFileBytes += (await fs.stat(full)).size;
+      } catch {
+        // Unreadable/removed file mid-scan — treat as zero.
+      }
+    } else {
+      entryCount += 1;
+    }
+  }
+
+  const sizeBytes = mode === 'full' ? directFileBytes + childrenBytes : directFileBytes;
+  return { sizeBytes, entryCount };
+};
+
+/**
+ * Reconcile the index for a folder against a freshly computed aggregate
+ * (synchronous — safe to call inside a wrapping better-sqlite3 transaction).
+ * Applies the size delta to the folder and its ancestors, then records the new
+ * direct entry count / scan time. Returns the byte delta applied.
+ */
+const applyAggregate = (db, scope, absDir, agg) => {
+  const existing = folderSizeIndex.getByAbsolutePath(db, absDir);
+  const oldSize = existing ? existing.sizeBytes : 0;
+  const delta = agg.sizeBytes - oldSize;
+  if (delta !== 0 || !existing) {
+    folderSizeIndex.applyDelta(db, scope, absDir, delta, {});
+  }
+  folderSizeIndex.setScanMeta(db, absDir, {
+    entryCount: agg.entryCount,
+    lastFullScanAt: nowIso(),
+    dirty: 0,
+  });
+  return delta;
+};
+
+/**
+ * Drop a folder that has disappeared (or is no longer a directory) from the
+ * index and remove its recorded size from the ancestors that remain
+ * (synchronous). Returns the negative byte delta applied (0 if it was unknown).
+ */
+const removeMissing = (db, scope, absDir) => {
+  const existing = folderSizeIndex.getByAbsolutePath(db, absDir);
+  if (!existing) return 0;
+  const size = folderSizeIndex.removeSubtree(db, scope, absDir);
+  if (absDir !== scope.root && size) {
+    folderSizeIndex.applyDelta(db, scope, path.dirname(absDir), -size, {});
+  }
+  return -size;
+};
+
+/**
+ * Re-aggregate one folder and reconcile the index with the result, propagating
+ * any delta to the ancestors. Returns the byte delta applied (0 if unchanged,
+ * null if the folder is no longer a readable directory — caller decides what to
+ * do with a vanished folder).
+ */
+const reconcileDirectory = async (db, scope, absDir, options = {}) => {
+  const agg = await aggregateDirectory(db, scope, absDir, options);
+  if (!agg) return null;
+  return applyAggregate(db, scope, absDir, agg);
+};
+
+/**
+ * mtime-based reconciliation pass (safety net for external writes that bypassed
+ * the hooks and the on-view refresh, e.g. another Samba/NFS client on the same
+ * mount).
+ *
+ * For every indexed folder it does a single stat(): folders whose mtime has not
+ * advanced past their last scan (and are not flagged dirty) are skipped for
+ * free; changed folders are re-aggregated at their direct level only and the
+ * delta propagates upward. Vanished folders are pruned and their size removed
+ * from the ancestors.
+ *
+ * Rows are streamed in pages ordered by relative_path DESC — i.e. children
+ * before their parents — so a vanished folder's size is removed from an ancestor
+ * before that ancestor is itself re-aggregated (no double counting), and peak
+ * memory is O(page) rather than O(all folders). Between pages the pass sleeps for
+ * `pauseMs`, so even a volume with hundreds of thousands of folders is scanned
+ * as a gentle background trickle instead of one CPU/IO burst.
+ *
+ * @returns {Promise<{ checked, changed, removed, skipped }>}
+ */
+const reconcile = async (db, scope, options = {}) => {
+  const {
+    mode = config.folderSize.mode || 'full',
+    signal,
+    batch = config.folderSize.reconcileBatch || 100,
+    pauseMs = options.pauseMs ?? config.folderSize.reconcilePauseMs ?? 0,
+  } = options;
+
+  let checked = 0;
+  let changed = 0;
+  let removed = 0;
+  let skipped = 0;
+
+  const pruneStale = (abs) => {
+    const size = folderSizeIndex.removeSubtree(db, scope, abs);
+    if (abs !== scope.root && size) {
+      folderSizeIndex.applyDelta(db, scope, path.dirname(abs), -size, {});
+    }
+    removed += 1;
+  };
+
+  const handleRow = async (row) => {
+    const abs = absOf(scope, row.relativePath);
+    let stat;
+    try {
+      stat = await fs.stat(abs);
+    } catch {
+      pruneStale(abs); // gone entirely
+      return;
+    }
+    if (!stat.isDirectory()) {
+      pruneStale(abs); // replaced by a file of the same name
+      return;
+    }
+    checked += 1;
+    const lastScan = row.lastFullScanAt ? Date.parse(row.lastFullScanAt) : 0;
+    const unchanged = !row.dirty && Number.isFinite(lastScan) && stat.mtimeMs <= lastScan;
+    if (unchanged) {
+      skipped += 1;
+      return;
+    }
+    const delta = await reconcileDirectory(db, scope, abs, { mode });
+    if (delta !== 0) changed += 1;
+  };
+
+  let cursor = null;
+  for (;;) {
+    if (signal?.aborted) break;
+    const rows = folderSizeIndex.listScanTargetsPage(db, scope.label, cursor, batch);
+    if (!rows.length) break;
+    for (const row of rows) {
+      if (signal?.aborted) break;
+      // eslint-disable-next-line no-await-in-loop
+      await handleRow(row);
+    }
+    cursor = rows[rows.length - 1].relativePath;
+    if (rows.length < batch) break;
+    // eslint-disable-next-line no-await-in-loop
+    if (pauseMs > 0) await sleep(pauseMs);
+  }
+
+  return { checked, changed, removed, skipped };
+};
+
+module.exports = {
+  getVolumeScope,
+  isStale,
+  nextReconcileDelay,
+  runBaseline,
+  aggregateDirectory,
+  applyAggregate,
+  removeMissing,
+  reconcile,
+  // Re-export the propagating delta primitive so callers have a single import.
+  applyDelta: folderSizeIndex.applyDelta,
+};

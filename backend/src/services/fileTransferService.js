@@ -8,6 +8,7 @@ const {
   findAvailableName,
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
+const folderSizeHooks = require('./folderSizeHooks');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -122,8 +123,17 @@ const transferItems = async (items, destination, operation, options = {}) => {
 
     if (operation === 'copy') {
       await copyEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
+      folderSizeHooks.onEntryCopied(targetAbsolute, {
+        isDirectory: stats.isDirectory(),
+        size: stats.size,
+        sourceAbsolutePath: sourceAbsolute,
+      });
     } else if (operation === 'move') {
       await moveEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
+      folderSizeHooks.onEntryMoved(sourceAbsolute, targetAbsolute, {
+        isDirectory: stats.isDirectory(),
+        size: stats.size,
+      });
     } else {
       throw new Error(`Unsupported operation: ${operation}`);
     }
@@ -165,6 +175,10 @@ const deleteItems = async (items = [], options = {}) => {
 
     const stats = await fs.stat(absolutePath);
     await fs.rm(absolutePath, { recursive: stats.isDirectory(), force: true });
+    folderSizeHooks.onEntryDeleted(absolutePath, {
+      isDirectory: stats.isDirectory(),
+      size: stats.size,
+    });
     results.push({ path: relativePath, status: 'deleted' });
   }
 

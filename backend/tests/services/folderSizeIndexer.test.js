@@ -1,0 +1,268 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { setupTestEnv } from '../helpers/env-test-utils.js';
+
+const INDEXER_MODULES = ['src/services/folderSizeIndex', 'src/services/folderSizeIndexer'];
+
+/**
+ * Build a fresh, isolated indexer test context: temp volume + database and
+ * freshly-required modules bound to that environment.
+ */
+const createContext = async () => {
+  const env = await setupTestEnv({
+    tag: 'folder-size-indexer-',
+    modules: INDEXER_MODULES,
+    env: { FOLDER_SIZE_MODE: 'full' },
+  });
+  const { getDb } = env.requireFresh('src/services/db');
+  const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
+  const indexer = env.requireFresh('src/services/folderSizeIndexer');
+  const db = await getDb();
+  const scope = { root: env.volumeDir, label: 'volume' };
+  return { env, db, folderSizeIndex, indexer, scope };
+};
+
+const sizeOf = (folderSizeIndex, db, absPath) => {
+  const entry = folderSizeIndex.getByAbsolutePath(db, absPath);
+  return entry ? entry.sizeBytes : null;
+};
+
+describe('folderSizeIndexer', () => {
+  let ctx;
+
+  afterEach(async () => {
+    if (ctx) {
+      await ctx.env.cleanup();
+      ctx = null;
+    }
+  });
+
+  it('baseline scan aggregates recursive sizes across a tree', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    // vol/A/B/f1 (100), vol/A/f2 (50), vol/C/f3 (10)
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.mkdir(path.join(vol, 'C'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await fs.writeFile(path.join(vol, 'A', 'f2'), Buffer.alloc(50));
+    await fs.writeFile(path.join(vol, 'C', 'f3'), Buffer.alloc(10));
+
+    const result = await indexer.runBaseline(db, scope, { mode: 'full' });
+    expect(result.folders).toBe(4); // root, A, A/B, C
+    expect(result.bytes).toBe(160);
+
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(160);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(150);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A', 'B'))).toBe(100);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'C'))).toBe(10);
+
+    const rootEntry = folderSizeIndex.getByAbsolutePath(db, vol);
+    expect(rootEntry.entryCount).toBe(2); // A and C
+  });
+
+  it('a delta on a file propagates to every ancestor', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    const before = {
+      root: sizeOf(folderSizeIndex, db, vol),
+      a: sizeOf(folderSizeIndex, db, path.join(vol, 'A')),
+      ab: sizeOf(folderSizeIndex, db, path.join(vol, 'A', 'B')),
+    };
+
+    // Simulate a 40-byte file added inside A/B.
+    indexer.applyDelta(db, scope, path.join(vol, 'A', 'B'), 40, { entryDelta: 1 });
+
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A', 'B'))).toBe(before.ab + 40);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(before.a + 40);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(before.root + 40);
+    expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'A', 'B')).entryCount).toBe(2);
+  });
+
+  it('reconciliation detects and corrects an out-of-band change via mtime', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.mkdir(path.join(vol, 'C'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await fs.writeFile(path.join(vol, 'C', 'f3'), Buffer.alloc(10));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    // Add a file directly on the filesystem WITHOUT going through applyDelta,
+    // then bump the directory mtime so the reconciler notices it changed.
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f_ext'), Buffer.alloc(25));
+    const future = new Date(Date.now() + 60_000);
+    await fs.utimes(path.join(vol, 'A', 'B'), future, future);
+
+    const result = await indexer.reconcile(db, scope, { mode: 'full' });
+
+    expect(result.changed).toBeGreaterThanOrEqual(1);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A', 'B'))).toBe(125);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(125);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(135); // 125 + C(10)
+    // The untouched C folder should have been skipped, not re-aggregated.
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'C'))).toBe(10);
+    expect(result.skipped).toBeGreaterThanOrEqual(1);
+  });
+
+  it('reconciliation removes vanished folders and subtracts their size', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await fs.writeFile(path.join(vol, 'A', 'f2'), Buffer.alloc(50));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    // Remove A/B out of band.
+    await fs.rm(path.join(vol, 'A', 'B'), { recursive: true, force: true });
+    await indexer.reconcile(db, scope, { mode: 'full' });
+
+    expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'A', 'B'))).toBeNull();
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(50);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(50);
+  });
+
+  it('reconciles correctly when paging (batch smaller than the tree)', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.mkdir(path.join(vol, 'C'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await fs.writeFile(path.join(vol, 'A', 'f2'), Buffer.alloc(50));
+    await fs.writeFile(path.join(vol, 'C', 'f3'), Buffer.alloc(10));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    // Out of band: remove A/B (−100) and add 5 bytes in C.
+    await fs.rm(path.join(vol, 'A', 'B'), { recursive: true, force: true });
+    await fs.writeFile(path.join(vol, 'C', 'f4'), Buffer.alloc(5));
+    const future = new Date(Date.now() + 60_000);
+    await fs.utimes(path.join(vol, 'C'), future, future);
+
+    // batch=1 forces multiple pages; the DESC order must remove A/B's size from A
+    // before A is re-aggregated (no double counting). pauseMs=0 keeps it fast.
+    await indexer.reconcile(db, scope, { mode: 'full', batch: 1, pauseMs: 0 });
+
+    expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'A', 'B'))).toBeNull();
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(50); // only f2 remains
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'C'))).toBe(15); // f3 + f4
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(65); // A(50) + C(15)
+  });
+
+  it('aggregates a deep tree (depth beyond the concurrency budget) correctly', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    // A linear chain L0/L1/.../L9, each level holding a 10-byte file. Depth (10)
+    // far exceeds the concurrency budget (1); the old recursive walk risked a
+    // deadlock/blowup here, the iterative DFS must aggregate it cleanly.
+    const depth = 10;
+    let dir = vol;
+    for (let i = 0; i < depth; i += 1) {
+      dir = path.join(dir, `L${i}`);
+      // eslint-disable-next-line no-await-in-loop
+      await fs.mkdir(dir, { recursive: true });
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(path.join(dir, 'f'), Buffer.alloc(10));
+    }
+
+    const result = await indexer.runBaseline(db, scope, { mode: 'full', concurrency: 1 });
+    expect(result.folders).toBe(depth + 1); // root + L0..L9
+    expect(result.bytes).toBe(depth * 10); // 100
+
+    // Each level Lk holds its own 10 bytes plus everything below it.
+    dir = vol;
+    for (let i = 0; i < depth; i += 1) {
+      dir = path.join(dir, `L${i}`);
+      expect(sizeOf(folderSizeIndex, db, dir)).toBe((depth - i) * 10);
+    }
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(100);
+  });
+
+  it('shallow mode stores only each folder\'s direct file bytes', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await fs.writeFile(path.join(vol, 'A', 'f2'), Buffer.alloc(50));
+
+    await indexer.runBaseline(db, scope, { mode: 'shallow' });
+
+    // Direct-entries-only: A counts f2 (50), not the 100 nested inside A/B.
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(50);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A', 'B'))).toBe(100);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(0); // root has no direct files
+  });
+
+  it('isStale flags only unknown or mtime-advanced folders', async () => {
+    ctx = await createContext();
+    const { indexer } = ctx;
+    expect(indexer.isStale(null, 1000)).toBe(true); // never indexed
+    expect(indexer.isStale({ lastFullScanAt: new Date(1000).toISOString() }, 2000)).toBe(true);
+    expect(indexer.isStale({ lastFullScanAt: new Date(5000).toISOString() }, 2000)).toBe(false);
+    // A recent incremental delta also counts as "known".
+    expect(indexer.isStale({ lastDeltaAt: new Date(5000).toISOString() }, 2000)).toBe(false);
+  });
+
+  it('nextReconcileDelay accelerates on change and backs off when idle', async () => {
+    ctx = await createContext();
+    const { indexer } = ctx;
+    const bounds = { minMs: 300000, maxMs: 43200000 };
+    expect(indexer.nextReconcileDelay(1000000, 3, bounds)).toBe(300000); // change -> reset to min
+    expect(indexer.nextReconcileDelay(0, 0, bounds)).toBe(600000); // idle from cold -> min*2
+    expect(indexer.nextReconcileDelay(600000, 0, bounds)).toBe(1200000); // idle -> double
+    expect(indexer.nextReconcileDelay(40000000, 0, bounds)).toBe(43200000); // capped at max
+  });
+
+  it('does not monopolise the event loop during a baseline scan', async () => {
+    ctx = await createContext();
+    const { env, db, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    // Build enough folders that the baseline yields multiple times.
+    for (let i = 0; i < 60; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.mkdir(path.join(vol, `dir-${i}`, 'sub'), { recursive: true });
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(path.join(vol, `dir-${i}`, 'sub', 'f'), Buffer.alloc(8));
+    }
+
+    let baselineDone = false;
+    const heartbeat = [];
+    const beat = async () => {
+      for (let i = 0; i < 20; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        heartbeat.push(baselineDone);
+      }
+    };
+
+    const scan = indexer
+      .runBaseline(db, scope, { mode: 'full', yieldEvery: 5, concurrency: 2 })
+      .then(() => {
+        baselineDone = true;
+      });
+
+    await Promise.all([scan, beat()]);
+
+    // At least one heartbeat must have fired while the scan was still running,
+    // proving the event loop kept servicing other (HTTP-like) work.
+    expect(heartbeat.some((done) => done === false)).toBe(true);
+  });
+});

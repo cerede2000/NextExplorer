@@ -19,6 +19,7 @@ const {
   ConflictError,
 } = require('../../errors/AppError');
 const { buildItemMetadata } = require('./utils');
+const folderSizeHooks = require('../../services/folderSizeHooks');
 
 const router = require('express').Router();
 
@@ -91,6 +92,8 @@ router.post(
     }
 
     await fs.rename(currentAbsolute, targetAbsolute);
+    // Same-parent rename: no size delta, but re-key an indexed directory subtree.
+    folderSizeHooks.onEntryRenamed(currentAbsolute, targetAbsolute);
 
     const item = await buildItemMetadata(targetAbsolute, parentRelative, validatedNewName);
     res.json({ success: true, item });

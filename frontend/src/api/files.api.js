@@ -17,6 +17,16 @@ async function getUsage(path = '') {
   return requestJson(`/api/usage/${encodedPath}`, { method: 'GET' });
 }
 
+async function getFolderSizesBatch(paths = []) {
+  const normalizedPaths = (Array.isArray(paths) ? paths : [])
+    .map((p) => normalizePath(p))
+    .filter(Boolean);
+  return requestJson('/api/folder-size/batch', {
+    method: 'POST',
+    body: JSON.stringify({ paths: normalizedPaths }),
+  });
+}
+
 async function copyItems(items, destination) {
   return requestJson('/api/files/copy', {
     method: 'POST',
@@ -211,6 +221,7 @@ export {
   browse,
   getVolumes,
   getUsage,
+  getFolderSizesBatch,
   copyItems,
   moveItems,
   deleteItems,

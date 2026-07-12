@@ -1,9 +1,12 @@
 <script setup>
-import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
 import { useFileStore } from '@/stores/fileStore';
+import { useFolderSizeStore } from '@/stores/folderSize';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFeaturesStore } from '@/stores/features';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { useSelection } from '@/composables/itemSelection';
 import { useExplorerContextMenu } from '@/composables/contextMenu';
@@ -20,6 +23,9 @@ import { useFileDragDrop } from '@/composables/useFileDragDrop';
 
 const settings = useSettingsStore();
 const fileStore = useFileStore();
+const folderSizeStore = useFolderSizeStore();
+const volumeUsageStore = useVolumeUsageStore();
+const featuresStore = useFeaturesStore();
 const route = useRoute();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
@@ -65,6 +71,53 @@ const loadFiles = async () => {
 };
 
 onMounted(loadFiles);
+
+// Populate folder sizes for the directories currently in view (one batch
+// request; O(1) index reads server-side). Re-runs whenever the listing changes.
+// Serving a folder also asks the server to re-check these folders' mtime in the
+// background (on-view refresh), so we schedule one follow-up fetch a few seconds
+// later to surface any external change without waiting for the periodic refresh.
+let onViewFollowupTimer = null;
+const refreshFolderSizes = () => {
+  if (!featuresStore.folderSizeEnabled) return;
+  const dirPaths = fileStore.getCurrentPathItems
+    .filter((item) => item?.kind === 'directory')
+    .map((item) => (item.path ? `${item.path}/${item.name}` : item.name));
+  if (dirPaths.length) {
+    folderSizeStore.ensureSizes(dirPaths).catch(() => {});
+    if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
+    onViewFollowupTimer = window.setTimeout(() => folderSizeStore.scheduleRefresh(), 4000);
+  }
+};
+
+watch(
+  () => fileStore.getCurrentPathItems,
+  () => refreshFolderSizes(),
+  { immediate: true }
+);
+
+// Folder sizes and volume usage are updated server-side the moment any client
+// (or the watcher) changes the filesystem, but a given browser tab only re-reads
+// them on demand. To surface changes made elsewhere without a manual refresh,
+// re-fetch both when the tab regains focus/visibility and, while the tab is
+// visible, on a gentle interval. Refreshing them together keeps the folder sizes
+// and the volume usage bar in sync (otherwise a folder size can update while the
+// volume total lags, which looks inconsistent). Both scheduleRefresh helpers are
+// throttled (2.5s) so these triggers never hammer the API.
+const liveRefresh = () => {
+  if (featuresStore.folderSizeEnabled) folderSizeStore.scheduleRefresh();
+  if (featuresStore.volumeUsageEnabled) volumeUsageStore.scheduleRefresh();
+};
+
+useEventListener(window, 'focus', liveRefresh);
+useEventListener(document, 'visibilitychange', () => {
+  if (!document.hidden) liveRefresh();
+});
+
+const LIVE_REFRESH_INTERVAL_MS = 30000;
+const liveRefreshTimer = window.setInterval(() => {
+  if (!document.hidden) liveRefresh();
+}, LIVE_REFRESH_INTERVAL_MS);
 
 const handleBackgroundContextMenu = (event) => {
   if (!contextMenu || !event) return;
@@ -178,6 +231,8 @@ useEventListener(window, 'pointercancel', stopResize);
 
 onBeforeUnmount(() => {
   stopResize();
+  window.clearInterval(liveRefreshTimer);
+  if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
 });
 </script>
 

@@ -22,6 +22,26 @@ const generateId = () =>
     : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 const DEFAULT_FAVORITE_ICON = favorites.defaultIcon;
 
+// DDL for the folder size index. Kept as a constant so it can be applied both by
+// the versioned migration (clean installs) and idempotently on every open — the
+// latter guarantees the table exists even when the recorded schema_version was
+// already advanced past this migration by a different build sharing /config.
+const FOLDER_SIZE_INDEX_DDL = `
+  CREATE TABLE IF NOT EXISTS folder_size_index (
+    path_hash         TEXT PRIMARY KEY,
+    parent_hash       TEXT,
+    volume            TEXT NOT NULL,
+    relative_path     TEXT NOT NULL,
+    size_bytes        INTEGER NOT NULL DEFAULT 0,
+    entry_count       INTEGER NOT NULL DEFAULT 0,
+    last_delta_at     DATETIME,
+    last_full_scan_at DATETIME,
+    dirty             INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_folder_size_parent ON folder_size_index(parent_hash);
+  CREATE INDEX IF NOT EXISTS idx_folder_size_volume ON folder_size_index(volume);
+`;
+
 const migrate = (db) => {
   // Simple schema versioning
   db.exec(`
@@ -353,6 +373,21 @@ const migrate = (db) => {
       );
       version = 8;
     }
+    if (version < 9) {
+      logger.info('[DB Migration] Migrating to v9: Adding folder size index...');
+
+      // Pre-computed recursive folder sizes. Populated and kept up to date out
+      // of band (baseline walk, incremental deltas, mtime reconciliation) so
+      // that HTTP reads stay O(1) and never trigger a filesystem traversal.
+      db.exec(FOLDER_SIZE_INDEX_DDL);
+
+      logger.info('[DB Migration] Migration to v9 completed successfully!');
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(9)
+      );
+      version = 9;
+    }
   })();
 };
 
@@ -502,10 +537,7 @@ const migrateFavoritesFromJson = (db) => {
       }
     }
 
-    logger.info(
-      { migratedCount, targetUserId },
-      '[DB Migration] Migrated favorites to user'
-    );
+    logger.info({ migratedCount, targetUserId }, '[DB Migration] Migrated favorites to user');
 
     // Clear favorites from app-config.json
     configData.favorites = [];
@@ -574,7 +606,26 @@ const getDb = async () => {
   }
 
   const db = new Database(dbPath);
+  // WAL lets the folder-size indexer worker thread write to the same database
+  // file concurrently with the Express request threads reading from it.
+  // busy_timeout makes the odd concurrent writer wait instead of throwing
+  // SQLITE_BUSY. Both are safe no-ops if already applied.
+  try {
+    db.pragma('journal_mode = WAL');
+    db.pragma('busy_timeout = 5000');
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to configure WAL/busy_timeout');
+  }
   migrate(db);
+  // Idempotently ensure feature tables exist regardless of the recorded
+  // schema_version. A database created by another build that shares this
+  // /config volume may already be past migration v9 without this table, which
+  // would otherwise make the folder size indexer crash with "no such table".
+  try {
+    db.exec(FOLDER_SIZE_INDEX_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure folder_size_index table');
+  }
   ensureAnonymousUser(db);
   dbInstance = db;
   return dbInstance;
