@@ -104,6 +104,7 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS` | `3600000`          | Minimum delay between thumbnail cache cleanup scans.                                                                                    |
 | `THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE`  | `500`              | Maximum number of thumbnail cache files deleted per cleanup pass.                                                                       |
 | `THUMBNAIL_SHARP_CACHE_MEMORY_MB`     | `0`                | Memory in MB allowed for Sharp/libvips thumbnail cache. Keep `0` to minimize idle RSS after thumbnail generation.                       |
+| `THUMBNAIL_VIDEO_CONCURRENCY`         | `1`                | Maximum number of concurrent ffmpeg thumbnail jobs. Keep low on small hosts to avoid memory spikes.                                     |
 
 ## Collabora (WOPI)
 
