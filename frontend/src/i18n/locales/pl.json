@@ -416,7 +416,7 @@
       "title": "Preferencje użytkownika",
       "subtitle": "Dostosuj swoje osobiste ustawienia.",
       "showHiddenFiles": "Pokaż ukryte pliki",
-      "showHiddenFilesHelp": "Pokazuje pliki i foldery zaczynające się od kropki (.) w eksploratorze.",
+      "showHiddenFilesHelp": "Pokazuje pliki i foldery pasujące do skonfigurowanych ukrytych wzorców ({patterns}) w eksploratorze.",
       "showThumbnails": "Pokaż miniatury",
       "showThumbnailsHelp": "Wyświetla miniatury obrazów i filmów w przeglądarce.",
       "showSidebarFavorites": "Pokaż sekcję Ulubione",
