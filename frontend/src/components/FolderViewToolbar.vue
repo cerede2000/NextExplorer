@@ -15,14 +15,9 @@ import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
 import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  ArrowDownTrayIcon,
-  ArrowPathIcon,
-  Bars3Icon,
-  CheckIcon,
-  ClipboardDocumentIcon,
-  HomeIcon,
-} from '@heroicons/vue/24/outline';
+import { ArrowDownTrayIcon, ArrowPathIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
+// Same copy affordance as the file/folder rows in the list.
+import { CheckIcon, DocumentDuplicateIcon } from '@heroicons/vue/20/solid';
 import { useInputMode } from '@/composables/useInputMode';
 
 const settings = useSettingsStore();
@@ -136,29 +131,32 @@ const downloadCurrentFolder = () => {
         >
           <HomeIcon class="h-5 w-5" />
         </button>
-        <NavButtons />
         <button
           v-if="!isVolumesView"
           type="button"
-          class="shrink-0 p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 dark:active:bg-neutral-600"
+          class="shrink-0 mr-1 p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 dark:active:bg-neutral-600"
           :title="$t('nav.refresh')"
           :aria-label="$t('nav.refresh')"
           @click="refreshFolder"
         >
           <ArrowPathIcon class="h-5 w-5" :class="{ 'animate-spin': refreshing }" />
         </button>
-        <BreadCrumb class="ml-2" :class="isVolumesView ? 'mr-auto' : ''" />
-        <button
-          v-if="!isVolumesView"
-          type="button"
-          class="shrink-0 ml-1 mr-auto p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 dark:active:bg-neutral-600"
-          :title="pathCopied ? $t('actions.copied') : $t('actions.copyPath')"
-          :aria-label="$t('actions.copyPath')"
-          @click="copyFolderPath"
-        >
-          <CheckIcon v-if="pathCopied" class="h-5 w-5 text-emerald-500" />
-          <ClipboardDocumentIcon v-else class="h-5 w-5" />
-        </button>
+        <NavButtons />
+        <div class="group/crumb flex min-w-0 items-center mr-auto">
+          <BreadCrumb class="ml-2" />
+          <button
+            v-if="!isVolumesView"
+            type="button"
+            class="shrink-0 ml-1 grid h-6 w-6 place-items-center rounded transition-opacity hover:bg-black/10 focus-visible:opacity-100 group-hover/crumb:opacity-100 dark:hover:bg-white/15"
+            :class="pathCopied ? 'opacity-100' : 'opacity-0'"
+            :title="pathCopied ? $t('actions.copied') : $t('actions.copyPath')"
+            :aria-label="$t('actions.copyPath')"
+            @click="copyFolderPath"
+          >
+            <CheckIcon v-if="pathCopied" class="h-4 w-4 text-emerald-500" />
+            <DocumentDuplicateIcon v-else class="h-4 w-4" />
+          </button>
+        </div>
         <button
           v-if="isTouchDevice && !isVolumesView"
           type="button"

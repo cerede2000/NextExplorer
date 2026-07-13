@@ -469,7 +469,8 @@ if (isTouchDevice.value) {
             <MiddleEllipsis :text="item.name" :end-chars="10" />
             <button
               type="button"
-              class="shrink-0 -ml-2 grid h-6 w-6 place-items-center rounded opacity-0 transition-opacity hover:bg-black/10 focus-visible:opacity-100 group-hover/item:opacity-100 dark:hover:bg-white/15"
+              class="shrink-0 grid h-6 w-6 place-items-center rounded transition-opacity hover:bg-black/10 focus-visible:opacity-100 group-hover/item:opacity-100 dark:hover:bg-white/15"
+              :class="nameCopied ? 'opacity-100' : 'opacity-0'"
               :title="nameCopied ? $t('actions.copied') : $t('actions.copyName')"
               :aria-label="$t('actions.copyName')"
               @click.stop.prevent="copyName"
@@ -477,8 +478,8 @@ if (isTouchDevice.value) {
               @mousedown.stop
               @pointerdown.stop
             >
-              <CheckIcon v-if="nameCopied" class="h-3.5 w-3.5 text-emerald-500" />
-              <DocumentDuplicateIcon v-else class="h-3.5 w-3.5" />
+              <CheckIcon v-if="nameCopied" class="h-4 w-4 text-emerald-500" />
+              <DocumentDuplicateIcon v-else class="h-4 w-4" />
             </button>
           </div>
         </template>
