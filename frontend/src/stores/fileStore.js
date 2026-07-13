@@ -29,6 +29,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const renameState = ref(null);
 
   const clipboardOperation = ref(null);
+  const deleteOperation = ref(null);
   const favoritesStore = useFavoritesStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
@@ -155,10 +156,20 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
-    await deleteItems(payload);
-    clearSelection();
-    await favoritesStore.loadFavorites();
-    await fetchPathItems(currentPath.value);
+    deleteOperation.value = {
+      type: 'delete',
+      itemCount: payload.length,
+      startedAt: Date.now(),
+    };
+
+    try {
+      await deleteItems(payload);
+      clearSelection();
+      await favoritesStore.loadFavorites();
+      await fetchPathItems(currentPath.value);
+    } finally {
+      deleteOperation.value = null;
+    }
   };
 
   const createFolder = async (baseName) => {
