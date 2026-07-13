@@ -72,8 +72,8 @@
     "readwrite": "Citire/Scriere"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "Lipește",
     "rename": "Redenumește",
     "download": "Descarcă",
+    "downloadFolder": "Descarcă dosarul",
     "extractZip": "Extrage ZIP",
     "compressToZip": "Comprimă în ZIP",
     "search": "Caută",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "Obține informații",
     "openWithEditor": "Deschide cu editor",
+    "openWithTerminal": "Deschide în terminal",
     "addToFavorites": "Adaugă la favorite",
     "removeFromFavorites": "Elimină din favorite",
     "deleteTitle": {
@@ -415,9 +417,15 @@
       "title": "Preferințe utilizator",
       "subtitle": "Personalizează setările personale.",
       "showHiddenFiles": "Afișează fișierele ascunse",
-      "showHiddenFilesHelp": "Afișează fișierele și folderele care încep cu punct (.) în navigator.",
+      "showHiddenFilesHelp": "Afișează fișierele și folderele care corespund modelelor ascunse configurate ({patterns}) în navigator.",
       "showThumbnails": "Afișează miniaturi",
       "showThumbnailsHelp": "Afișează previzualizări în miniatură pentru imagini și videoclipuri.",
+      "showSidebarFavorites": "Afișează secțiunea Favorite",
+      "showSidebarFavoritesHelp": "Afișează Favorite în bara laterală stângă.",
+      "showSidebarShares": "Afișează secțiunea Partajări",
+      "showSidebarSharesHelp": "Afișează Partajări în bara laterală stângă.",
+      "showSidebarTools": "Afișează secțiunea Instrumente",
+      "showSidebarToolsHelp": "Afișează Instrumente în bara laterală stângă.",
       "defaultShareExpiration": "Expirare implicită pentru partajare",
       "defaultShareExpirationHelp": "Setează o perioadă implicită pentru noile partajări. Data de expirare este completată în prealabil pe baza acestei valori.",
       "expirationValue": "Valoare",
@@ -583,7 +591,8 @@
     "mySharesCount": "{count} linkuri de partajare active",
     "confirmDeleteShare": "Elimini această partajare? Persoanele cu linkul nu vor mai avea acces.",
     "removeShare": "Elimină partajarea",
-    "sharedWithAnyone": "Partajat cu oricine",
-    "sharedWithUsers": "{count} utilizator | {count} utilizatori"
+    "sharedWithAnyone": "Oricine",
+    "sharedWithUsers": "{count} utilizator | {count} utilizatori",
+    "expiresNever": "Niciodată"
   }
 }

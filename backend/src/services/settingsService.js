@@ -232,7 +232,13 @@ const setUserSetting = async (userId, key, value) => {
 
   // Validate and sanitize value based on key
   let sanitizedValue = value;
-  if (key === 'showHiddenFiles' || key === 'showThumbnails') {
+  if (
+    key === 'showHiddenFiles' ||
+    key === 'showThumbnails' ||
+    key === 'showSidebarFavorites' ||
+    key === 'showSidebarShares' ||
+    key === 'showSidebarTools'
+  ) {
     sanitizedValue = Boolean(value);
   } else if (key === 'defaultShareExpiration') {
     // Validate expiration object: { value: number, unit: 'days'|'weeks'|'months' } or null

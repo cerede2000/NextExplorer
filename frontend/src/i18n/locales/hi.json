@@ -72,8 +72,8 @@
     "readwrite": "पढ़ना/लिखना"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "पेस्ट",
     "rename": "नाम बदलें",
     "download": "डाउनलोड",
+    "downloadFolder": "फ़ोल्डर डाउनलोड करें",
     "extractZip": "ZIP निकालें",
     "compressToZip": "ZIP में संपीड़ित करें",
     "search": "खोजें",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "जानकारी प्राप्त करें",
     "openWithEditor": "संपादक में खोलें",
+    "openWithTerminal": "टर्मिनल में खोलें",
     "addToFavorites": "पसंदीदा में जोड़ें",
     "removeFromFavorites": "पसंदीदा से हटाएँ",
     "deleteTitle": {
@@ -415,9 +417,15 @@
       "title": "उपयोगकर्ता प्राथमिकताएँ",
       "subtitle": "अपने व्यक्तिगत सेटिंग्स को अनुकूलित करें।",
       "showHiddenFiles": "छिपी हुई फ़ाइलें दिखाएँ",
-      "showHiddenFilesHelp": "एक्सप्लोरर में डॉट (.) से शुरू होने वाले फ़ाइलों और फ़ोल्डरों को दिखाएँ।",
+      "showHiddenFilesHelp": "एक्सप्लोरर में कॉन्फ़िगर किए गए छिपे पैटर्न ({patterns}) से मेल खाने वाली फ़ाइलें और फ़ोल्डर दिखाएँ।",
       "showThumbnails": "थंबनेल दिखाएँ",
       "showThumbnailsHelp": "इमेज और वीडियो के लिए थंबनेल पूर्वावलोकन दिखाएँ।",
+      "showSidebarFavorites": "पसंदीदा सेक्शन दिखाएँ",
+      "showSidebarFavoritesHelp": "बाएँ साइडबार में पसंदीदा दिखाएँ।",
+      "showSidebarShares": "शेयर सेक्शन दिखाएँ",
+      "showSidebarSharesHelp": "बाएँ साइडबार में शेयर दिखाएँ।",
+      "showSidebarTools": "टूल्स सेक्शन दिखाएँ",
+      "showSidebarToolsHelp": "बाएँ साइडबार में टूल्स दिखाएँ।",
       "defaultShareExpiration": "शेयर के लिए डिफ़ॉल्ट समाप्ति",
       "defaultShareExpirationHelp": "नई शेयरों के लिए एक डिफ़ॉल्ट अवधि सेट करें। यह सेटिंग शेयर बनाने पर समाप्ति तिथि को पूर्व-भरा रखेगी।",
       "expirationValue": "मान",
@@ -583,7 +591,8 @@
     "mySharesCount": "{count} सक्रिय शेयर लिंक",
     "confirmDeleteShare": "क्या आप इस शेयर को हटाना चाहते हैं? लिंक वाले लोगों को अब एक्सेस नहीं मिलेगा।",
     "removeShare": "शेयर हटाएं",
-    "sharedWithAnyone": "किसी के साथ भी साझा किया गया",
-    "sharedWithUsers": "{count} उपयोगकर्ता"
+    "sharedWithAnyone": "सभी",
+    "sharedWithUsers": "{count} उपयोगकर्ता",
+    "expiresNever": "कभी नहीं"
   }
 }

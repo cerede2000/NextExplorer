@@ -72,8 +72,8 @@
     "readwrite": "Lettura/Scrittura"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "Incolla",
     "rename": "Rinomina",
     "download": "Scarica",
+    "downloadFolder": "Scarica cartella",
     "extractZip": "Estrai ZIP",
     "compressToZip": "Comprimi in ZIP",
     "search": "Cerca",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "Ottieni informazioni",
     "openWithEditor": "Apri con editor",
+    "openWithTerminal": "Apri nel terminale",
     "addToFavorites": "Aggiungi ai preferiti",
     "removeFromFavorites": "Rimuovi dai preferiti",
     "deleteTitle": {
@@ -415,9 +417,15 @@
       "title": "Preferenze utente",
       "subtitle": "Personalizza le impostazioni personali.",
       "showHiddenFiles": "Mostra file nascosti",
-      "showHiddenFilesHelp": "Mostra file e cartelle che iniziano con un punto (.) nell'esploratore.",
+      "showHiddenFilesHelp": "Mostra file e cartelle che corrispondono ai pattern nascosti configurati ({patterns}) nell'esploratore.",
       "showThumbnails": "Mostra miniature",
       "showThumbnailsHelp": "Mostra anteprime miniatura per immagini e video.",
+      "showSidebarFavorites": "Mostra sezione Preferiti",
+      "showSidebarFavoritesHelp": "Mostra i Preferiti nella barra laterale sinistra.",
+      "showSidebarShares": "Mostra sezione Condivisioni",
+      "showSidebarSharesHelp": "Mostra le Condivisioni nella barra laterale sinistra.",
+      "showSidebarTools": "Mostra sezione Strumenti",
+      "showSidebarToolsHelp": "Mostra gli Strumenti nella barra laterale sinistra.",
       "defaultShareExpiration": "Scadenza predefinita per la condivisione",
       "defaultShareExpirationHelp": "Imposta un intervallo predefinito per le nuove condivisioni. La data di scadenza viene precompilata secondo questo valore.",
       "expirationValue": "Valore",
@@ -583,7 +591,8 @@
     "mySharesCount": "{count} link di condivisione attivi",
     "confirmDeleteShare": "Rimuovere questa condivisione? Le persone con il link non avranno più accesso.",
     "removeShare": "Rimuovi condivisione",
-    "sharedWithAnyone": "Condiviso con chiunque",
-    "sharedWithUsers": "{count} utente | {count} utenti"
+    "sharedWithAnyone": "Tutti",
+    "sharedWithUsers": "{count} utente | {count} utenti",
+    "expiresNever": "Mai"
   }
 }

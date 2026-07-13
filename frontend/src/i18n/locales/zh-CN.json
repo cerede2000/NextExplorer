@@ -72,8 +72,8 @@
     "readwrite": "读/写"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "粘贴",
     "rename": "重命名",
     "download": "下载",
+    "downloadFolder": "下载文件夹",
     "extractZip": "解压 ZIP",
     "compressToZip": "压缩为 ZIP",
     "search": "搜索",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "获取信息",
     "openWithEditor": "使用编辑器打开",
+    "openWithTerminal": "在终端中打开",
     "addToFavorites": "添加到收藏夹",
     "removeFromFavorites": "从收藏夹移除",
     "deleteTitle": {
@@ -415,9 +417,15 @@
       "title": "用户偏好",
       "subtitle": "自定义你的个人设置。",
       "showHiddenFiles": "显示隐藏文件",
-      "showHiddenFilesHelp": "在文件浏览器中显示以点 (.) 开头的文件和文件夹。",
+      "showHiddenFilesHelp": "在文件浏览器中显示匹配已配置隐藏模式（{patterns}）的文件和文件夹。",
       "showThumbnails": "显示缩略图",
       "showThumbnailsHelp": "在浏览器中显示图像和视频的缩略预览。",
+      "showSidebarFavorites": "显示收藏夹区域",
+      "showSidebarFavoritesHelp": "在左侧边栏显示收藏夹。",
+      "showSidebarShares": "显示共享区域",
+      "showSidebarSharesHelp": "在左侧边栏显示共享。",
+      "showSidebarTools": "显示工具区域",
+      "showSidebarToolsHelp": "在左侧边栏显示工具。",
       "defaultShareExpiration": "分享默认过期时间",
       "defaultShareExpirationHelp": "为新的分享设置默认期限。创建分享时将自动填充到期日期。",
       "expirationValue": "值",
@@ -583,7 +591,8 @@
     "mySharesCount": "{count} 个有效共享链接",
     "confirmDeleteShare": "确定要移除此共享吗？拥有该链接的人将不再能够访问。",
     "removeShare": "移除共享",
-    "sharedWithAnyone": "与所有人共享",
-    "sharedWithUsers": "{count} 位用户"
+    "sharedWithAnyone": "所有人",
+    "sharedWithUsers": "{count} 位用户",
+    "expiresNever": "永不"
   }
 }

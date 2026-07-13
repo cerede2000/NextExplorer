@@ -18,9 +18,15 @@ module.exports = {
   CACHE_DIR: process.env.CACHE_DIR || '/cache',
   USER_ROOT: process.env.USER_ROOT || '',
   USER_FOLDER_NAME_ORDER: process.env.USER_FOLDER_NAME_ORDER?.trim() || null,
+  HIDDEN_FILE_PATTERNS: process.env.HIDDEN_FILE_PATTERNS,
 
   // Public URL & Network
   PUBLIC_URL: process.env.PUBLIC_URL?.trim() || null,
+  // Additional origin(s) the app can legitimately be reached from (e.g. a LAN IP
+  // used for fast local uploads). Comma-separated. These are treated as valid
+  // (no public-URL mismatch warning) and accepted by CORS, while PUBLIC_URL stays
+  // the canonical URL used to build share links, OIDC callbacks, etc.
+  INTERNAL_URL: process.env.INTERNAL_URL?.trim() || null,
   TRUST_PROXY: process.env.TRUST_PROXY?.trim().toLowerCase(),
 
   // CORS
@@ -83,6 +89,7 @@ module.exports = {
   USER_VOLUMES: normalizeBoolean(process.env.USER_VOLUMES) || false,
   SKIP_HOME: normalizeBoolean(process.env.SKIP_HOME) || false,
   TERMINAL_ENABLED: normalizeBoolean(process.env.TERMINAL_ENABLED) ?? true,
+  TERMINAL_FILE_EXTENSIONS: process.env.TERMINAL_FILE_EXTENSIONS || 'sh',
 
   // Editor
   EDITOR_EXTENSIONS: process.env.EDITOR_EXTENSIONS || '',

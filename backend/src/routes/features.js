@@ -1,5 +1,13 @@
 const express = require('express');
-const { onlyoffice, collabora, editor, features, public: publicConfig } = require('../config/index');
+const {
+  onlyoffice,
+  collabora,
+  editor,
+  terminal,
+  features,
+  hiddenFiles,
+  public: publicConfig,
+} = require('../config/index');
 const terminalService = require('../services/terminalService');
 const packageJson = require('../../package.json');
 
@@ -11,6 +19,8 @@ router.get('/features', (_req, res) => {
     public: {
       url: publicConfig?.url || null,
       origin: publicConfig?.origin || null,
+      // All origins the app may legitimately be reached from (public + internal).
+      origins: Array.isArray(publicConfig?.origins) ? publicConfig.origins : [],
     },
     onlyoffice: {
       enabled: Boolean(onlyoffice && onlyoffice.serverUrl),
@@ -22,6 +32,9 @@ router.get('/features', (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+    },
+    hiddenFiles: {
+      patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),
@@ -37,6 +50,7 @@ router.get('/features', (_req, res) => {
     },
     terminal: {
       enabled: Boolean(features?.terminal) && terminalService.isAvailable(),
+      extensions: Array.isArray(terminal?.extensions) ? terminal.extensions : [],
     },
     version: {
       app: packageJson.version || '1.0.0',

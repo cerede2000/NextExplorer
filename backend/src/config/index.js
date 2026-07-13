@@ -11,6 +11,83 @@ const parseCommaOrSpaceList = (raw) => {
   return parts.map((s) => s.trim()).filter(Boolean);
 };
 
+const DEFAULT_HIDDEN_FILE_PATTERNS = ['.'];
+
+const parseRegexPattern = (token) => {
+  if (token.startsWith('regex:')) {
+    return { source: token.slice('regex:'.length), flags: '' };
+  }
+
+  if (token.startsWith('/')) {
+    const lastSlash = token.lastIndexOf('/');
+    if (lastSlash > 0) {
+      return {
+        source: token.slice(1, lastSlash),
+        flags: token.slice(lastSlash + 1),
+      };
+    }
+  }
+
+  return null;
+};
+
+const escapeRipgrepGlob = (value) => String(value).replace(/[\\*?\[\]{}]/g, '\\$&');
+
+const parseHiddenFilePatterns = (raw) => {
+  const tokens = raw == null ? DEFAULT_HIDDEN_FILE_PATTERNS : parseCommaOrSpaceList(raw);
+  const prefixes = [];
+  const regexes = [];
+
+  for (const token of tokens) {
+    const regexPattern = parseRegexPattern(token);
+    if (!regexPattern) {
+      prefixes.push(token);
+      continue;
+    }
+
+    try {
+      regexes.push(new RegExp(regexPattern.source, regexPattern.flags));
+    } catch (err) {
+      console.warn(`[Config] Invalid hidden file regex "${token}": ${err.message}`);
+    }
+  }
+
+  const isHiddenName = (name) => {
+    if (!name) return false;
+    const baseName = String(name);
+    if (prefixes.some((prefix) => prefix && baseName.startsWith(prefix))) return true;
+
+    return regexes.some((regex) => {
+      regex.lastIndex = 0;
+      return regex.test(baseName);
+    });
+  };
+
+  const isHiddenPath = (value) =>
+    String(value || '')
+      .split(/[\\/]+/)
+      .filter(Boolean)
+      .some(isHiddenName);
+
+  return {
+    patterns: tokens,
+    prefixes,
+    regexes,
+    isHiddenName,
+    isHiddenPath,
+    ripgrepGlobExcludes: prefixes
+      .filter((prefix) => prefix && !/[\\/]/.test(prefix))
+      .map((prefix) => `!${escapeRipgrepGlob(prefix)}*`),
+  };
+};
+
+const parseExtensionList = (raw) =>
+  String(raw || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .map((s) => (s.startsWith('.') ? s.slice(1) : s))
+    .filter(Boolean);
+
 // Helper: Parse comma/space-separated scopes
 const parseScopes = (raw) => {
   const list = parseCommaOrSpaceList(raw);
@@ -69,6 +146,29 @@ if (env.PUBLIC_URL) {
   }
 }
 
+// --- Additional (internal) origins ---
+// Extra origins the app can be reached from (e.g. a LAN IP), comma-separated.
+// They are considered valid so accessing the app that way doesn't raise the
+// public-URL mismatch warning, and they're accepted by CORS. PUBLIC_URL remains
+// the canonical URL used to build absolute links (shares, OIDC callbacks, WOPI).
+const parseOriginList = (value) =>
+  (typeof value === 'string' ? value.split(',') : [])
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      try {
+        return new URL(entry).origin;
+      } catch (err) {
+        console.warn(`[Config] Invalid INTERNAL_URL entry: ${entry}`);
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+const internalOrigins = parseOriginList(env.INTERNAL_URL);
+// All origins the frontend should treat as valid (publicOrigin first, deduped).
+const knownOrigins = [...new Set([publicOrigin, ...internalOrigins].filter(Boolean))];
+
 // --- CORS ---
 const buildCorsConfig = () => {
   if (env.CORS_ORIGINS) {
@@ -80,7 +180,7 @@ const buildCorsConfig = () => {
         .filter(Boolean),
     };
   }
-  if (publicOrigin) return { allowAll: false, origins: [publicOrigin] };
+  if (knownOrigins.length) return { allowAll: false, origins: [...knownOrigins] };
   return { allowAll: true, origins: [] }; // Backwards compatibility
 };
 
@@ -189,11 +289,13 @@ const editorMaxFileSizeBytes = (() => {
 })();
 
 const editor = {
-  extensions: env.EDITOR_EXTENSIONS.split(',')
-    .map((s) => s.trim().toLowerCase())
-    .map((s) => (s.startsWith('.') ? s.slice(1) : s))
-    .filter(Boolean),
+  extensions: parseExtensionList(env.EDITOR_EXTENSIONS),
   maxFileSizeBytes: editorMaxFileSizeBytes,
+};
+
+// --- Terminal ---
+const terminal = {
+  extensions: parseExtensionList(env.TERMINAL_FILE_EXTENSIONS),
 };
 
 // --- Favorites ---
@@ -205,6 +307,9 @@ const favorites = {
 const personal = {
   userFolderNameOrder: parseUserFolderNameOrder(env.USER_FOLDER_NAME_ORDER),
 };
+
+// --- Hidden file patterns ---
+const hiddenFiles = parseHiddenFilePatterns(env.HIDDEN_FILE_PATTERNS);
 
 // --- Shares ---
 const shares = {
@@ -230,7 +335,7 @@ module.exports = {
     passwordConfig: path.join(configDir, 'app-config.json'),
   },
 
-  public: { url: publicUrl, origin: publicOrigin },
+  public: { url: publicUrl, origin: publicOrigin, origins: knownOrigins },
 
   extensions: {
     images: constants.IMAGE_EXTENSIONS,
@@ -258,8 +363,10 @@ module.exports = {
   onlyoffice,
   collabora,
   editor,
+  terminal,
   favorites,
   shares,
+  hiddenFiles,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,

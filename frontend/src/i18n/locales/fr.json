@@ -72,8 +72,8 @@
     "readwrite": "Lecture/Écriture"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "Coller",
     "rename": "Renommer",
     "download": "Télécharger",
+    "downloadFolder": "Télécharger le dossier",
     "extractZip": "Extraire ZIP",
     "compressToZip": "Compresser en ZIP",
     "search": "Rechercher",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "Obtenir des informations",
     "openWithEditor": "Ouvrir avec l’éditeur",
+    "openWithTerminal": "Ouvrir dans le terminal",
     "addToFavorites": "Ajouter aux favoris",
     "removeFromFavorites": "Retirer des favoris",
     "deleteTitle": {
@@ -226,7 +228,10 @@
       "single": "Voulez-vous vraiment supprimer \"{name}\" ? Cette action est irréversible.",
       "multiple": "Voulez-vous vraiment supprimer ces {count} éléments ? Cette action est irréversible.",
       "generic": "Aucun élément sélectionné."
-    }
+    },
+    "checkingDeleteImpact": "Vérification des partages associés...",
+    "deleteImpactUnavailable": "Impossible de vérifier les partages associés. La suppression restera contrôlée côté serveur.",
+    "deleteLinkedShares": "Ce contenu possède {count} lien de partage associé qui sera supprimé avec lui. | Ce contenu possède {count} liens de partage associés qui seront supprimés avec lui."
   },
   "folder": {
     "kind": "Type",
@@ -234,7 +239,11 @@
     "noPhotos": "Aucune photo dans ce dossier",
     "noPhotosHint": "Passez à un autre mode d’affichage pour voir tous les fichiers",
     "empty": "Ce dossier est vide",
-    "emptyHint": "Importez ou créez des fichiers pour commencer."
+    "emptyHint": "Importez ou créez des fichiers pour commencer.",
+    "scrollTop": "Haut",
+    "scrollBottom": "Bas",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner"
   },
   "volumes": {
     "quickAccess": "Accès rapide",
@@ -415,9 +424,15 @@
       "title": "Préférences utilisateur",
       "subtitle": "Personnalisez vos réglages personnels.",
       "showHiddenFiles": "Afficher les fichiers cachés",
-      "showHiddenFilesHelp": "Affiche les fichiers et dossiers commençant par un point (.) dans l’explorateur.",
+      "showHiddenFilesHelp": "Affiche les fichiers et dossiers correspondant aux patterns cachés configurés ({patterns}) dans l’explorateur.",
       "showThumbnails": "Afficher les miniatures",
       "showThumbnailsHelp": "Affiche des aperçus miniatures pour les images et vidéos.",
+      "showSidebarFavorites": "Afficher la section Favoris",
+      "showSidebarFavoritesHelp": "Affiche les Favoris dans la barre latérale gauche.",
+      "showSidebarShares": "Afficher la section Partages",
+      "showSidebarSharesHelp": "Affiche les Partages dans la barre latérale gauche.",
+      "showSidebarTools": "Afficher la section Outils",
+      "showSidebarToolsHelp": "Affiche les Outils dans la barre latérale gauche.",
       "defaultShareExpiration": "Expiration par défaut des partages",
       "defaultShareExpirationHelp": "Définissez un délai par défaut pour les nouveaux partages. La date d’expiration est pré-remplie selon ce délai.",
       "expirationValue": "Valeur",
@@ -536,6 +551,18 @@
     "shareCreated": "Partage créé",
     "createShareLink": "Créer un lien de partage",
     "shareLink": "Lien de partage",
+    "directFileLink": "Lien direct du fichier",
+    "directFolderLink": "Lien direct ZIP du dossier",
+    "copyShareLink": "Copier le lien de partage",
+    "directLinkMode": "Mode du lien direct",
+    "copyDirectFileLink": "Copier le lien direct du fichier",
+    "copyDirectFolderLink": "Copier le lien direct ZIP du dossier",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visualiser",
+      "raw": "Raw",
+      "download": "Télécharger"
+    },
     "shareLinkCreatedSuccess": "Lien de partage créé avec succès !",
     "access": "Access Mode",
     "type": "Target",
@@ -595,8 +622,11 @@
     "noMySharesDescription": "Créez un partage à partir de n'importe quel fichier ou dossier pour le voir apparaître ici.",
     "mySharesCount": "{count} liens de partage actifs",
     "confirmDeleteShare": "Supprimer ce partage ? Les personnes disposant du lien n'y auront plus accès.",
+    "deleteShareTitle": "Supprimer le partage ?",
+    "deleteShareMessage": "Les personnes disposant de ce lien ne pourront plus accéder à l’élément partagé.",
     "removeShare": "Supprimer le partage",
-    "sharedWithAnyone": "Partagé avec tout le monde",
-    "sharedWithUsers": "{count} utilisateur | {count} utilisateurs"
+    "sharedWithAnyone": "Tout le monde",
+    "sharedWithUsers": "{count} utilisateur | {count} utilisateurs",
+    "expiresNever": "Jamais"
   }
 }

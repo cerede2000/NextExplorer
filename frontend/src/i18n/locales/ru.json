@@ -72,8 +72,8 @@
     "readwrite": "Чтение/Запись"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "Вставить",
     "rename": "Переименовать",
     "download": "Скачать",
+    "downloadFolder": "Скачать папку",
     "extractZip": "Распаковать ZIP",
     "compressToZip": "Сжать в ZIP",
     "search": "Поиск",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "Свойства",
     "openWithEditor": "Открыть в редакторе",
+    "openWithTerminal": "Открыть в терминале",
     "addToFavorites": "Добавить в избранное",
     "removeFromFavorites": "Удалить из избранного",
     "deleteTitle": {
@@ -415,9 +417,15 @@
       "title": "Настройки пользователя",
       "subtitle": "Настройте личные параметры.",
       "showHiddenFiles": "Показывать скрытые файлы",
-      "showHiddenFilesHelp": "Отображает файлы и папки, начинающиеся с точки (.) в проводнике.",
+      "showHiddenFilesHelp": "Отображает файлы и папки, соответствующие настроенным скрытым шаблонам ({patterns}), в проводнике.",
       "showThumbnails": "Показывать миниатюры",
       "showThumbnailsHelp": "Показывает миниатюры для изображений и видео.",
+      "showSidebarFavorites": "Показывать раздел избранного",
+      "showSidebarFavoritesHelp": "Показывает избранное в левой боковой панели.",
+      "showSidebarShares": "Показывать раздел общего доступа",
+      "showSidebarSharesHelp": "Показывает общий доступ в левой боковой панели.",
+      "showSidebarTools": "Показывать раздел инструментов",
+      "showSidebarToolsHelp": "Показывает инструменты в левой боковой панели.",
       "defaultShareExpiration": "Стандартный срок действия ссылки",
       "defaultShareExpirationHelp": "Установите интервал по умолчанию для новых ссылок. Дата истечения будет автоматически заполнена согласно этому значению.",
       "expirationValue": "Значение",
@@ -583,7 +591,8 @@
     "mySharesCount": "Активных ссылок: {count}",
     "confirmDeleteShare": "Удалить этот общий доступ? Люди с этой ссылкой больше не смогут получить доступ.",
     "removeShare": "Удалить доступ",
-    "sharedWithAnyone": "Доступно всем",
-    "sharedWithUsers": "{count} пользователь | {count} пользователей"
+    "sharedWithAnyone": "Все",
+    "sharedWithUsers": "{count} пользователь | {count} пользователей",
+    "expiresNever": "Никогда"
   }
 }

@@ -17,6 +17,7 @@ import { useFavoritesStore } from '@/stores/favorites';
 import {
   StarIcon as StarOutline,
   DocumentTextIcon,
+  CommandLineIcon,
   ArrowDownTrayIcon,
   ShareIcon,
   ArchiveBoxArrowDownIcon,
@@ -24,6 +25,9 @@ import {
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
+import { useTerminalStore } from '@/stores/terminal';
+import { useFeaturesStore } from '@/stores/features';
+import { isTerminalExtension } from '@/config/terminal';
 // Icons
 import {
   CreateNewFolderRound,
@@ -41,6 +45,8 @@ const infoPanel = useInfoPanelStore();
 const { clearSelection } = useSelection();
 const favoritesStore = useFavoritesStore();
 const { openEditorForFavorite } = useFavoriteEditor();
+const terminalStore = useTerminalStore();
+const featuresStore = useFeaturesStore();
 const router = useRouter();
 
 const isOpen = ref(false);
@@ -128,10 +134,28 @@ const deleteDialogMessage = computed(() => {
   return t('context.deleteMessage.generic');
 });
 
-const { isDeleteConfirmOpen, isDeleting, requestDelete, confirmDelete } = useDeleteConfirm();
+const {
+  isDeleteConfirmOpen,
+  isDeleting,
+  isLoadingDeleteImpact,
+  deleteImpact,
+  deleteImpactError,
+  requestDelete,
+  confirmDelete,
+} = useDeleteConfirm();
+
+const deleteShareImpactMessage = computed(() => {
+  const count = Number(deleteImpact.value?.shareCount || 0);
+  if (count <= 0) return '';
+  return t('context.deleteLinkedShares', { count });
+});
 
 const closeMenu = () => {
   isOpen.value = false;
+};
+
+const clearTextSelection = () => {
+  window.getSelection?.()?.removeAllRanges?.();
 };
 
 const getItemKey = (item) => {
@@ -143,7 +167,7 @@ const getItemKey = (item) => {
 const ensureItemInSelection = (item) => {
   if (!item) return;
   const key = getItemKey(item);
-  const alreadySelected = fileStore.selectedItems.some((selected) => getItemKey(selected) === key);
+  const alreadySelected = fileStore.selectedItemKeys.has(key);
 
   if (alreadySelected) {
     return;
@@ -156,6 +180,7 @@ const ensureItemInSelection = (item) => {
 
 const openMenuAt = (event, kind, item = null) => {
   if (!event) return;
+  clearTextSelection();
   const clientX = event.clientX ?? 0;
   const clientY = event.clientY ?? 0;
 
@@ -235,6 +260,42 @@ const runOpenWithEditor = () => {
   // Encode each segment for editor path
   const encodedPath = fileToEdit.split('/').map(encodeURIComponent).join('/');
   router.push({ path: `/editor/${encodedPath}` });
+};
+
+const getItemExtension = (item) => {
+  const name = String(item?.name || '');
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot > 0 && lastDot < name.length - 1) {
+    return name.slice(lastDot + 1).toLowerCase();
+  }
+
+  const kind = String(item?.kind || '').toLowerCase();
+  return kind && kind !== 'file' && kind !== 'directory' && kind !== 'volume' ? kind : '';
+};
+
+const shellEscape = (value) => String(value).replace(/([^A-Za-z0-9_@%+=:,./-])/g, '\\$1');
+
+const buildTerminalInputForItem = (item) => {
+  const name = String(item?.name || '').trim();
+  if (!name) return '';
+
+  return shellEscape(`./${name}`);
+};
+
+const canOpenWithTerminal = computed(() => {
+  if (!featuresStore.terminalEnabled || contextKind.value !== 'file' || !primaryItem.value) {
+    return false;
+  }
+
+  return isTerminalExtension(getItemExtension(primaryItem.value));
+});
+
+const runOpenWithTerminal = () => {
+  if (!canOpenWithTerminal.value || !primaryItem.value) return;
+  const item = primaryItem.value;
+  const parentPath = normalizePath(item.path || fileStore.getCurrentPath || '');
+  const initialInput = buildTerminalInputForItem(item);
+  terminalStore.open(parentPath, initialInput);
 };
 
 // Favorites support
@@ -355,11 +416,27 @@ const menuSections = computed(() => {
 
   // Add "Open with Editor" for files only
   if (contextKind.value === 'file') {
-    sections.push([
+    const openSection = [
       mk('open-with-editor', t('context.openWithEditor'), DocumentTextIcon, runOpenWithEditor, {
         disabled: !primaryItem.value,
       }),
-    ]);
+    ];
+
+    if (canOpenWithTerminal.value) {
+      openSection.push(
+        mk(
+          'open-with-terminal',
+          t('context.openWithTerminal'),
+          CommandLineIcon,
+          runOpenWithTerminal,
+          {
+            disabled: !primaryItem.value,
+          }
+        )
+      );
+    }
+
+    sections.push(openSection);
   }
 
   // Add download option
@@ -586,6 +663,18 @@ provide(explorerContextMenuSymbol, {
     <template #title>{{ deleteDialogTitle }}</template>
     <p class="mb-6 text-base text-zinc-700 dark:text-zinc-200">
       {{ deleteDialogMessage }}
+    </p>
+    <p v-if="isLoadingDeleteImpact" class="-mt-3 mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+      {{ $t('context.checkingDeleteImpact') }}
+    </p>
+    <p
+      v-else-if="deleteShareImpactMessage"
+      class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
+    >
+      {{ deleteShareImpactMessage }}
+    </p>
+    <p v-else-if="deleteImpactError" class="-mt-3 mb-6 text-sm text-amber-700 dark:text-amber-300">
+      {{ $t('context.deleteImpactUnavailable') }}
     </p>
     <div class="flex justify-end gap-3">
       <button

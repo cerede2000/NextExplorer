@@ -13,7 +13,8 @@ const createSettingsContext = async () => {
     modules: SETTINGS_MODULES,
   });
   const settingsService = envContext.requireFresh('src/services/settingsService');
-  return { envContext, settingsService };
+  const dbService = envContext.requireFresh('src/services/db');
+  return { envContext, settingsService, dbService };
 };
 
 describe('Settings Service', () => {
@@ -58,6 +59,34 @@ describe('Settings Service', () => {
         expect(updated.access.rules.length).toBe(2);
         expect(updated.access.rules[0].path).toBe('Projects');
         expect(updated.access.rules[1].permissions).toBe('rw');
+      } finally {
+        await envContext.cleanup();
+      }
+    });
+  });
+
+  describe('user sidebar settings', () => {
+    it('should persist sidebar visibility preferences as booleans', async () => {
+      const { envContext, settingsService, dbService } = await createSettingsContext();
+      try {
+        const db = await dbService.getDb();
+        const now = new Date().toISOString();
+        db.prepare(
+          `
+          INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `
+        ).run('user-1', 'user-1@example.com', 1, 'user-1', 'User 1', '["user"]', now, now);
+
+        await settingsService.setUserSetting('user-1', 'showSidebarFavorites', false);
+        await settingsService.setUserSetting('user-1', 'showSidebarShares', 0);
+        await settingsService.setUserSetting('user-1', 'showSidebarTools', 'yes');
+
+        const settings = await settingsService.getUserSettings('user-1');
+
+        expect(settings.showSidebarFavorites).toBe(false);
+        expect(settings.showSidebarShares).toBe(false);
+        expect(settings.showSidebarTools).toBe(true);
       } finally {
         await envContext.cleanup();
       }

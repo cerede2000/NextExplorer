@@ -9,6 +9,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                       |
 | `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads). |
 | `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).   |
+| `INTERNAL_URL`                                   | _none_                                          | Additional origin(s) the app may also be reached from (e.g. a LAN IP for fast local uploads), comma-separated. Treated as valid (no public-URL mismatch warning) and accepted by CORS; `PUBLIC_URL` stays canonical for share links / OIDC. |
 | `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                           |
 | `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                 |
 
@@ -29,6 +30,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                    |
 | `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                           |
 | `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`). |
+| `HIDDEN_FILE_PATTERNS`   | `.`                               | Comma- or space-separated hidden filename patterns used by directory listings, volume pickers, and search. Plain values are fast filename prefixes, e.g. `.,@` hides dotfiles and Synology `@...` entries. Advanced entries can use `regex:<source>` or `/source/flags`. Set to an empty value to disable pattern hiding. |
 
 ## Authentication
 
@@ -60,25 +62,26 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Feature toggles
 
-| Variable              | Default     | Description                                                                                                                                                     |
-| --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SEARCH_DEEP`         | _false_     | Enables deep content search; ripgrep is used when `SEARCH_RIPGREP` is true.                                                                                     |
-| `SEARCH_RIPGREP`      | _true_      | Prefer ripgrep for fast searches; fallback search is used when unavailable.                                                                                     |
-| `SEARCH_MAX_FILESIZE` | _unbounded_ | Skip ripgrep for files larger than this (e.g., `5MB`).                                                                                                          |
-| `SHOW_VOLUME_USAGE`   | `false`     | Show volume usage badges in the sidebar.                                                                                                                        |
-| `USER_DIR_ENABLED`    | `false`     | When `true`, enables a **personal “My Files” space** for each authenticated user under `USER_ROOT`. The frontend shows a “My Files” entry when this flag is on. |
-| `USER_VOLUMES`        | `false`     | When `true`, non-admin users only see volumes assigned to them by an admin. See [User volumes](/admin/user-volumes).                                            |
-| `SKIP_HOME`           | `false`     | When `true`, visits to the home view (`/browse/`) automatically redirect into the first volume instead.                                                         |
-| `TERMINAL_ENABLED`    | `true`      | Controls the admin terminal feature. When `false`, terminal routes/UI are disabled. When `true`, nextExplorer attempts to load terminal dependencies and automatically hides/disables terminal if dependencies are unavailable (startup continues). |
+| Variable                   | Default     | Description                                                                                                                                                                                                                                         |
+| -------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SEARCH_DEEP`              | _false_     | Enables deep content search; ripgrep is used when `SEARCH_RIPGREP` is true.                                                                                                                                                                         |
+| `SEARCH_RIPGREP`           | _true_      | Prefer ripgrep for fast searches; fallback search is used when unavailable.                                                                                                                                                                         |
+| `SEARCH_MAX_FILESIZE`      | _unbounded_ | Skip ripgrep for files larger than this (e.g., `5MB`).                                                                                                                                                                                              |
+| `SHOW_VOLUME_USAGE`        | `false`     | Show volume usage badges in the sidebar.                                                                                                                                                                                                            |
+| `USER_DIR_ENABLED`         | `false`     | When `true`, enables a **personal “My Files” space** for each authenticated user under `USER_ROOT`. The frontend shows a “My Files” entry when this flag is on.                                                                                     |
+| `USER_VOLUMES`             | `false`     | When `true`, non-admin users only see volumes assigned to them by an admin. See [User volumes](/admin/user-volumes).                                                                                                                                |
+| `SKIP_HOME`                | `false`     | When `true`, visits to the home view (`/browse/`) automatically redirect into the first volume instead.                                                                                                                                             |
+| `TERMINAL_ENABLED`         | `true`      | Controls the admin terminal feature. When `false`, terminal routes/UI are disabled. When `true`, nextExplorer attempts to load terminal dependencies and automatically hides/disables terminal if dependencies are unavailable (startup continues). |
+| `TERMINAL_FILE_EXTENSIONS` | `sh`        | Comma-separated list of file extensions that show the context-menu action to open the file in the admin terminal (for example `sh,bash` or `.sh,.bash`).                                                                                            |
 
 The sharing system (toolbar **Share** button, guest links such as `/share/:token`, and the **Shared with me** page) works out of the box with the feature flags above. Advanced share tuning knobs are documented under **Sharing (advanced)** below.
 
 ## Editor
 
-| Variable            | Default | Description                                                                                                                                                                                                                                                                                                  |
-| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `EDITOR_EXTENSIONS` | _empty_ | Comma-separated list of additional file extensions to support in the inline text editor (e.g., `toml,proto,graphql` or `.toml,.proto`). These are **added to** the built-in defaults (txt, md, json, js, ts, py, etc.), not replacing them. Changes take effect on container restart—no frontend rebuild required. |
-| `EDITOR_MAX_FILESIZE` | `2M` | Maximum file size allowed to open in the inline text editor. Accepts a byte count or a size with `K`, `M`, `G`, `T` suffix (base 1024), e.g. `512K`, `2M`, `1G`. Files larger than this will show “This file is too large to open in the text editor.” |
+| Variable              | Default | Description                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EDITOR_EXTENSIONS`   | _empty_ | Comma-separated list of additional file extensions to support in the inline text editor (e.g., `toml,proto,graphql` or `.toml,.proto`). These are **added to** the built-in defaults (txt, md, json, js, ts, py, etc.), not replacing them. Changes take effect on container restart—no frontend rebuild required. |
+| `EDITOR_MAX_FILESIZE` | `2M`    | Maximum file size allowed to open in the inline text editor. Accepts a byte count or a size with `K`, `M`, `G`, `T` suffix (base 1024), e.g. `512K`, `2M`, `1G`. Files larger than this will show “This file is too large to open in the text editor.”                                                             |
 
 ## OnlyOffice & thumbnails
 

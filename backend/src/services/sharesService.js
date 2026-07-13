@@ -367,6 +367,70 @@ const deleteShare = async (shareId) => {
   return result.changes > 0;
 };
 
+const normalizeShareSourcePath = (sourcePath = '') =>
+  String(sourcePath || '')
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '');
+
+const escapeLikePattern = (value = '') => String(value).replace(/[\\%_]/g, '\\$&');
+
+const getSharesForSourceTargets = async (targets = []) => {
+  const normalizedTargets = (Array.isArray(targets) ? targets : [])
+    .map((target) => ({
+      sourceSpace: target?.sourceSpace,
+      sourcePath: normalizeShareSourcePath(target?.sourcePath),
+      includeChildren: Boolean(target?.includeChildren),
+    }))
+    .filter((target) => target.sourceSpace && target.sourcePath);
+
+  if (normalizedTargets.length === 0) {
+    return [];
+  }
+
+  const db = await getDb();
+  const sharesById = new Map();
+
+  const exactQuery = db.prepare('SELECT * FROM shares WHERE source_space = ? AND source_path = ?');
+  const childQuery = db.prepare(
+    "SELECT * FROM shares WHERE source_space = ? AND source_path LIKE ? ESCAPE '\\'"
+  );
+
+  for (const target of normalizedTargets) {
+    const exactRows = exactQuery.all(target.sourceSpace, target.sourcePath);
+    exactRows.forEach((row) => sharesById.set(row.id, row));
+
+    if (target.includeChildren) {
+      const childRows = childQuery.all(
+        target.sourceSpace,
+        `${escapeLikePattern(target.sourcePath)}/%`
+      );
+      childRows.forEach((row) => sharesById.set(row.id, row));
+    }
+  }
+
+  return Array.from(sharesById.values()).map(toClientShare);
+};
+
+const deleteSharesByIds = async (shareIds = []) => {
+  const uniqueIds = [...new Set((Array.isArray(shareIds) ? shareIds : []).filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return 0;
+  }
+
+  const db = await getDb();
+  const deleteOne = db.prepare('DELETE FROM shares WHERE id = ?');
+  const transaction = db.transaction((ids) => {
+    let changes = 0;
+    ids.forEach((id) => {
+      changes += deleteOne.run(id).changes;
+    });
+    return changes;
+  });
+
+  return transaction(uniqueIds);
+};
+
 /**
  * Verify share password
  */
@@ -520,9 +584,11 @@ module.exports = {
   getShareById,
   getShareByToken,
   getSharesByOwnerId,
+  getSharesForSourceTargets,
   getSharesForUser,
   updateShare,
   deleteShare,
+  deleteSharesByIds,
   verifySharePassword,
   hasUserPermission,
   isShareExpired,

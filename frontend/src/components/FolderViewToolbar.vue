@@ -10,11 +10,12 @@ import NotificationBell from '@/components/NotificationBell.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import MenuShare from '@/components/MenuShare.vue';
 import CreateNew from '@/components/CreateNew.vue';
+import { useFileActions } from '@/composables/fileActions';
 import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
 import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
-import { Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
+import { ArrowDownTrayIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
 import { useInputMode } from '@/composables/useInputMode';
 
 const settings = useSettingsStore();
@@ -23,6 +24,7 @@ const fileStore = useFileStore();
 const route = useRoute();
 const router = useRouter();
 const { isTouchDevice } = useInputMode();
+const actions = useFileActions();
 
 defineEmits(['toggle-sidebar']);
 
@@ -60,6 +62,10 @@ const goHome = async () => {
 
 const toggleSelectionMode = () => {
   fileStore.toggleSelectionMode({ clearOnDisable: true });
+};
+
+const downloadCurrentFolder = () => {
+  actions.runDownloadCurrentFolder();
 };
 </script>
 
@@ -109,6 +115,16 @@ const toggleSelectionMode = () => {
 
       <div class="flex items-center ml-auto">
         <template v-if="!isVolumesView">
+          <button
+            v-if="actions.canDownloadCurrentFolder.value"
+            type="button"
+            class="p-[6px] rounded-md transition-colors hover:bg-[rgb(239,239,240)] active:bg-zinc-200 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
+            :title="$t('actions.downloadFolder')"
+            :aria-label="$t('actions.downloadFolder')"
+            @click="downloadCurrentFolder"
+          >
+            <ArrowDownTrayIcon class="w-6" />
+          </button>
           <MenuItemInfo class="ml-auto" />
           <MenuShare />
           <div class="h-8 w-px mx-1 md:mx-3 bg-neutral-200 dark:bg-neutral-700"></div>

@@ -72,8 +72,8 @@
     "readwrite": "Odczyt/Zapis"
   },
   "editor": {
-    "editing":"Editing",
-    "unsavedChanges":"Unsaved changes",
+    "editing": "Editing",
+    "unsavedChanges": "Unsaved changes",
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
@@ -95,6 +95,7 @@
     "paste": "Wklej",
     "rename": "Zmień nazwę",
     "download": "Pobierz",
+    "downloadFolder": "Pobierz folder",
     "extractZip": "Wypakuj ZIP",
     "compressToZip": "Spakuj do ZIP",
     "search": "Szukaj",
@@ -215,6 +216,7 @@
   "context": {
     "getInfo": "Informacje",
     "openWithEditor": "Otwórz w edytorze",
+    "openWithTerminal": "Otwórz w terminalu",
     "addToFavorites": "Dodaj do ulubionych",
     "removeFromFavorites": "Usuń z ulubionych",
     "deleteTitle": {
@@ -415,9 +417,15 @@
       "title": "Preferencje użytkownika",
       "subtitle": "Dostosuj swoje osobiste ustawienia.",
       "showHiddenFiles": "Pokaż ukryte pliki",
-      "showHiddenFilesHelp": "Pokazuje pliki i foldery zaczynające się od kropki (.) w eksploratorze.",
+      "showHiddenFilesHelp": "Pokazuje pliki i foldery pasujące do skonfigurowanych ukrytych wzorców ({patterns}) w eksploratorze.",
       "showThumbnails": "Pokaż miniatury",
       "showThumbnailsHelp": "Wyświetla miniatury obrazów i filmów w przeglądarce.",
+      "showSidebarFavorites": "Pokaż sekcję Ulubione",
+      "showSidebarFavoritesHelp": "Wyświetla Ulubione na lewym pasku bocznym.",
+      "showSidebarShares": "Pokaż sekcję Udostępnienia",
+      "showSidebarSharesHelp": "Wyświetla Udostępnienia na lewym pasku bocznym.",
+      "showSidebarTools": "Pokaż sekcję Narzędzia",
+      "showSidebarToolsHelp": "Wyświetla Narzędzia na lewym pasku bocznym.",
       "defaultShareExpiration": "Domyślny czas wygaśnięcia udostępnień",
       "defaultShareExpirationHelp": "Ustaw domyślny okres dla nowych udostępnień. Data wygaśnięcia zostanie wstępnie ustawiona zgodnie z tym okresem.",
       "expirationValue": "Wartość",
@@ -583,7 +591,8 @@
     "mySharesCount": "{count} aktywne linki udostępnień",
     "confirmDeleteShare": "Usunąć to udostępnienie? Osoby posiadające link stracą dostęp.",
     "removeShare": "Usuń udostępnienie",
-    "sharedWithAnyone": "Udostępnione dla wszystkich",
-    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników"
+    "sharedWithAnyone": "Wszyscy",
+    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
+    "expiresNever": "Nigdy"
   }
 }
