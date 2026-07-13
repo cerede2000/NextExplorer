@@ -13,7 +13,7 @@ import {
 // in what order — reconciled against the catalog so the stored value survives
 // catalog changes (new actions appear, removed ones drop out).
 export const useQuickActionsStore = defineStore('quickActions', () => {
-  const enabled = useStorage('settings:quickActions:enabled', true);
+  const enabled = useStorage('settings:quickActions:enabled', false);
   // 'full' = all icons appear on row hover; 'compact' = a "…" appears on hover
   // and expands to the icons when hovered.
   const displayMode = useStorage('settings:quickActions:mode', 'full');
@@ -69,7 +69,7 @@ export const useQuickActionsStore = defineStore('quickActions', () => {
   };
 
   const reset = () => {
-    enabled.value = true;
+    enabled.value = false;
     displayMode.value = 'full';
     persist(defaultQuickActionConfig());
   };
