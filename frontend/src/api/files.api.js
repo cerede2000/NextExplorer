@@ -86,13 +86,6 @@ async function getDeleteImpact(items) {
   };
 }
 
-async function getDeleteImpact(items) {
-  return requestJson('/api/files/delete-impact', {
-    method: 'POST',
-    body: JSON.stringify({ items }),
-  });
-}
-
 async function createFolder(destination, name) {
   const normalizedDestination = normalizePath(destination || '');
   const payload = { path: normalizedDestination };
