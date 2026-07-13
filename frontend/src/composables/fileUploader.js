@@ -61,12 +61,47 @@ export function useFileUploader() {
   let uppy = uppyStore.uppy;
   const createdHere = ref(false);
 
-  const getUploadSettings = () => ({
-    chunkedEnabled: Boolean(appSettings.state?.uploads?.chunkedEnabled),
-    chunkSizeBytes: Number.isFinite(appSettings.state?.uploads?.chunkSizeBytes)
+  const MIB_BYTES = 1024 * 1024;
+  // Per-origin remembered fallback chunk size (localStorage is scoped to the
+  // origin, so the public URL and a LAN IP each keep their own value — direct
+  // uploads stay on the fast local origin, chunked kicks in only where a proxy
+  // needs it).
+  const FALLBACK_KEY = 'nextExplorer_upload_fallback_chunk_mib';
+  const FALLBACK_LADDER_MIB = [64, 32, 16, 8];
+
+  const autoFallbackAllowed = () => Boolean(appSettings.state?.uploads?.chunkedAutoFallback);
+  const readFallbackMiB = () => {
+    try {
+      const value = Number(localStorage.getItem(FALLBACK_KEY));
+      return Number.isFinite(value) && value >= 1 ? value : null;
+    } catch (_) {
+      return null;
+    }
+  };
+  const writeFallbackMiB = (mib) => {
+    try {
+      localStorage.setItem(FALLBACK_KEY, String(mib));
+    } catch (_) {
+      /* noop */
+    }
+  };
+
+  const getUploadSettings = () => {
+    const adminChunked = Boolean(appSettings.state?.uploads?.chunkedEnabled);
+    const adminChunkBytes = Number.isFinite(appSettings.state?.uploads?.chunkSizeBytes)
       ? appSettings.state.uploads.chunkSizeBytes
-      : 8 * 1024 * 1024,
-  });
+      : 8 * MIB_BYTES;
+    if (adminChunked) {
+      return { chunkedEnabled: true, chunkSizeBytes: adminChunkBytes };
+    }
+    // Direct (XHR) mode: if a previous direct upload on this origin was rejected
+    // by a proxy, use chunked with the remembered size instead.
+    const fallbackMiB = autoFallbackAllowed() ? readFallbackMiB() : null;
+    if (fallbackMiB) {
+      return { chunkedEnabled: true, chunkSizeBytes: fallbackMiB * MIB_BYTES };
+    }
+    return { chunkedEnabled: false, chunkSizeBytes: adminChunkBytes };
+  };
 
   const removeUploadPlugin = (id) => {
     const plugin = uppy?.getPlugin?.(id);
@@ -173,6 +208,59 @@ export function useFileUploader() {
     uploadPluginMode = nextMode;
   };
 
+  // Bounded per-file fallback attempts, so a genuinely failing upload can't loop.
+  const fallbackAttempts = new Map();
+
+  // On a direct (XHR) upload rejected by a reverse proxy body-size limit, switch
+  // this origin to chunked uploads with a safe size and retry — stepping the size
+  // down the ladder if a chunk is still too large. Returns true when it took over
+  // (so the caller suppresses the error).
+  const maybeAutoFallback = (file, error, response) => {
+    if (!autoFallbackAllowed()) return false;
+    // Only the direct→chunked path; a forced-chunked size is the admin's call.
+    if (appSettings.state?.uploads?.chunkedEnabled) return false;
+    if (!file?.id) return false;
+
+    const status = getTusErrorStatus(error) ?? response?.status ?? null;
+    const bytesUploaded = Number(file?.progress?.bytesUploaded) || 0;
+    const fileSize = Number(file?.size) || 0;
+    const looksLikeProxyLimit =
+      status === 413 ||
+      (isNetworkUploadError(error) && fileSize > 32 * MIB_BYTES && bytesUploaded > 4 * MIB_BYTES);
+    if (!looksLikeProxyLimit) return false;
+
+    const attempts = fallbackAttempts.get(file.id) || 0;
+    if (attempts >= FALLBACK_LADDER_MIB.length) return false; // exhausted → surface the error
+
+    const currentFallback = readFallbackMiB();
+    let nextMiB;
+    if (!currentFallback) {
+      // First fallback: pick the largest ladder size below where the direct
+      // upload got cut off (a hint at the proxy limit), else the largest.
+      const observedMiB = bytesUploaded > 0 ? Math.floor(bytesUploaded / MIB_BYTES) : Infinity;
+      nextMiB = FALLBACK_LADDER_MIB.find((size) => size < observedMiB) ?? FALLBACK_LADDER_MIB[0];
+    } else {
+      const idx = FALLBACK_LADDER_MIB.indexOf(currentFallback);
+      nextMiB =
+        idx >= 0 && idx + 1 < FALLBACK_LADDER_MIB.length ? FALLBACK_LADDER_MIB[idx + 1] : null;
+    }
+    if (!nextMiB) return false; // already at the smallest size → give up
+
+    writeFallbackMiB(nextMiB);
+    fallbackAttempts.set(file.id, attempts + 1);
+    configureUploadPlugin(); // switch to chunked (TUS) with the new size
+    try {
+      uppy.retryUpload(file.id);
+    } catch (_) {
+      try {
+        uppy.upload();
+      } catch (_) {
+        /* noop */
+      }
+    }
+    return true;
+  };
+
   if (!uppy) {
     uppy = new Uppy({
       debug: import.meta.env.DEV,
@@ -244,12 +332,17 @@ export function useFileUploader() {
     });
 
     uppy.on('complete', (result) => {
+      fallbackAttempts.clear();
       const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
       const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
       [...successfulFiles, ...failedFiles].forEach(removeUploadFile);
     });
 
     uppy.on('upload-error', (file, error, response) => {
+      // A proxy body-size rejection on a direct upload: switch this origin to
+      // chunked and retry instead of surfacing the error.
+      if (maybeAutoFallback(file, error, response)) return;
+
       const body = response?.body;
       const nested = body && typeof body === 'object' ? body?.error : null;
       const nestedObj = nested && typeof nested === 'object' ? nested : null;

@@ -7,6 +7,8 @@ export const useFeaturesStore = defineStore('features', () => {
   const publicOrigin = ref('');
   // Every origin the app may legitimately be reached from (public + internal).
   const publicOrigins = ref([]);
+  // Admin-configured upper bound (bytes) for the upload chunk size.
+  const maxUploadChunkSizeBytes = ref(0);
   const editorExtensions = ref([]);
   const hiddenFilePatterns = ref(['.']);
   const onlyofficeEnabled = ref(false);
@@ -51,6 +53,9 @@ export const useFeaturesStore = defineStore('features', () => {
         publicOrigins.value = Array.isArray(features?.public?.origins)
           ? features.public.origins.filter((o) => typeof o === 'string' && o)
           : [];
+        maxUploadChunkSizeBytes.value = Number.isFinite(features?.uploads?.maxChunkSizeBytes)
+          ? features.uploads.maxChunkSizeBytes
+          : 0;
 
         // Editor extensions
         editorExtensions.value = Array.isArray(features?.editor?.extensions)
@@ -108,6 +113,7 @@ export const useFeaturesStore = defineStore('features', () => {
         publicUrl.value = '';
         publicOrigin.value = '';
         publicOrigins.value = [];
+        maxUploadChunkSizeBytes.value = 0;
         editorExtensions.value = [];
         hiddenFilePatterns.value = ['.'];
         onlyofficeEnabled.value = false;
@@ -143,6 +149,7 @@ export const useFeaturesStore = defineStore('features', () => {
     publicUrl,
     publicOrigin,
     publicOrigins,
+    maxUploadChunkSizeBytes,
     editorExtensions,
     hiddenFilePatterns,
     onlyofficeEnabled,

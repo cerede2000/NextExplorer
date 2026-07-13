@@ -1,23 +1,39 @@
 <script setup>
-import { computed, reactive, watch } from 'vue';
+import { computed, onMounted, reactive, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
 
 const appSettings = useAppSettings();
+const features = useFeaturesStore();
 const { t } = useI18n();
 
 const MIB = 1024 * 1024;
 const MIN_CHUNK_SIZE_MIB = 1;
-const MAX_CHUNK_SIZE_MIB = 512;
+const FALLBACK_MAX_CHUNK_SIZE_MIB = 512;
 const DEFAULT_CHUNK_SIZE_MIB = 8;
 
+onMounted(() => features.ensureLoaded());
+
+// Server-driven ceiling (env MAX_CHUNK_SIZE_MIB); caps the slider/input.
+const maxChunkSizeMiB = computed(() => {
+  const bytes = features.maxUploadChunkSizeBytes;
+  const mib =
+    Number.isFinite(bytes) && bytes > 0
+      ? Math.floor(bytes / MIB)
+      : FALLBACK_MAX_CHUNK_SIZE_MIB;
+  return Math.max(MIN_CHUNK_SIZE_MIB, mib);
+});
+
 const bytesToMiB = (bytes) => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return DEFAULT_CHUNK_SIZE_MIB;
-  return Math.max(MIN_CHUNK_SIZE_MIB, Math.min(MAX_CHUNK_SIZE_MIB, Math.round(bytes / MIB)));
+  const cap = maxChunkSizeMiB.value;
+  if (!Number.isFinite(bytes) || bytes <= 0) return Math.min(DEFAULT_CHUNK_SIZE_MIB, cap);
+  return Math.max(MIN_CHUNK_SIZE_MIB, Math.min(cap, Math.round(bytes / MIB)));
 };
 
 const local = reactive({
   chunkedEnabled: false,
+  chunkedAutoFallback: false,
   chunkSizeMiB: DEFAULT_CHUNK_SIZE_MIB,
 });
 
@@ -26,6 +42,7 @@ const originalChunkSizeMiB = computed(() => bytesToMiB(original.value?.chunkSize
 const dirty = computed(
   () =>
     local.chunkedEnabled !== Boolean(original.value?.chunkedEnabled) ||
+    local.chunkedAutoFallback !== Boolean(original.value?.chunkedAutoFallback) ||
     local.chunkSizeMiB !== originalChunkSizeMiB.value
 );
 
@@ -34,14 +51,25 @@ watch(
   (uploads) => {
     if (!uploads) return;
     local.chunkedEnabled = Boolean(uploads.chunkedEnabled);
+    local.chunkedAutoFallback = Boolean(uploads.chunkedAutoFallback);
     local.chunkSizeMiB = bytesToMiB(uploads.chunkSizeBytes);
   },
   { immediate: true }
 );
 
+// Keep the edited value within [min, server max] — auto-correct a value typed
+// above the ceiling (e.g. after MAX_CHUNK_SIZE_MIB was lowered on the server).
+watch([() => local.chunkSizeMiB, maxChunkSizeMiB], () => {
+  const v = local.chunkSizeMiB;
+  if (!Number.isFinite(v)) return;
+  const clamped = Math.max(MIN_CHUNK_SIZE_MIB, Math.min(maxChunkSizeMiB.value, Math.round(v)));
+  if (clamped !== v) local.chunkSizeMiB = clamped;
+});
+
 const reset = () => {
   const uploads = original.value;
   local.chunkedEnabled = Boolean(uploads?.chunkedEnabled);
+  local.chunkedAutoFallback = Boolean(uploads?.chunkedAutoFallback);
   local.chunkSizeMiB = bytesToMiB(uploads?.chunkSizeBytes);
 };
 
@@ -49,6 +77,7 @@ const save = async () => {
   await appSettings.save({
     uploads: {
       chunkedEnabled: local.chunkedEnabled,
+      chunkedAutoFallback: local.chunkedAutoFallback,
       chunkSizeBytes: local.chunkSizeMiB * MIB,
     },
   });
@@ -131,7 +160,7 @@ const save = async () => {
               v-model.number="local.chunkSizeMiB"
               type="range"
               :min="MIN_CHUNK_SIZE_MIB"
-              :max="MAX_CHUNK_SIZE_MIB"
+              :max="maxChunkSizeMiB"
               step="1"
               class="h-2 w-64 appearance-none rounded-lg bg-zinc-200 accent-zinc-900 dark:bg-zinc-700 dark:accent-zinc-100"
             />
@@ -139,12 +168,35 @@ const save = async () => {
               v-model.number="local.chunkSizeMiB"
               type="number"
               :min="MIN_CHUNK_SIZE_MIB"
-              :max="MAX_CHUNK_SIZE_MIB"
+              :max="maxChunkSizeMiB"
               step="1"
               class="w-24 rounded-md border border-zinc-300 bg-white p-2 text-center text-zinc-900 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 sm:text-sm"
             />
             <span class="text-sm text-zinc-500 dark:text-zinc-400">MiB</span>
           </div>
+        </div>
+
+        <div
+          class="flex items-center justify-between border-t border-zinc-100 py-3 dark:border-zinc-800"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.uploads.autoFallback') }}
+            </div>
+            <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ t('settings.uploads.autoFallbackHelp') }}
+            </div>
+          </div>
+          <label class="inline-flex cursor-pointer items-center">
+            <input v-model="local.chunkedAutoFallback" type="checkbox" class="peer sr-only" />
+            <div
+              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
+            >
+              <div
+                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
+              ></div>
+            </div>
+          </label>
         </div>
       </div>
     </div>
