@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
-import { offset, flip, shift, useFloating } from '@floating-ui/vue';
+import { offset, flip, shift, useFloating, autoUpdate } from '@floating-ui/vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { explorerContextMenuSymbol } from '@/composables/contextMenu';
@@ -61,6 +61,9 @@ const floatingRef = ref(null);
 const { x, y, strategy, update } = useFloating(referenceRef, floatingRef, {
   placement: 'right-start',
   middleware: [offset(4), flip(), shift()],
+  // Position as soon as the menu mounts (and keep it pinned) so it appears
+  // instantly at the cursor instead of flashing at the top-left for a frame.
+  whileElementsMounted: autoUpdate,
 });
 
 const floatingStyles = computed(() => ({
@@ -675,12 +678,9 @@ const handleGlobalKeydown = (event) => {
   }
 };
 
-watch(isOpen, async (open) => {
-  if (!open) return;
-  await nextTick();
-  update();
-});
-
+// `whileElementsMounted: autoUpdate` positions the menu the moment it opens, so no
+// explicit reposition-on-open is needed. Reopening at a new cursor position while
+// the menu is already mounted still needs a nudge.
 watch(
   pointer,
   async () => {

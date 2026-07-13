@@ -429,9 +429,11 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
-          <div class="flex items-center min-w-0">
-            <MiddleEllipsis :text="item.name" :end-chars="10" />
-            <InlineQuickActions :item="item" class="ml-0.5" />
+          <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+            <InlineQuickActions :item="item" />
+            <div class="min-w-0 flex-1 basis-32">
+              <MiddleEllipsis :text="item.name" :end-chars="10" />
+            </div>
           </div>
         </template>
       </div>
