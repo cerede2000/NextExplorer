@@ -95,6 +95,7 @@
     "paste": "Вставить",
     "rename": "Переименовать",
     "download": "Скачать",
+    "downloadFolder": "Скачать папку",
     "extractZip": "Распаковать ZIP",
     "compressToZip": "Сжать в ZIP",
     "search": "Поиск",
@@ -416,7 +417,7 @@
       "title": "Настройки пользователя",
       "subtitle": "Настройте личные параметры.",
       "showHiddenFiles": "Показывать скрытые файлы",
-      "showHiddenFilesHelp": "Отображает файлы и папки, начинающиеся с точки (.) в проводнике.",
+      "showHiddenFilesHelp": "Отображает файлы и папки, соответствующие настроенным скрытым шаблонам ({patterns}), в проводнике.",
       "showThumbnails": "Показывать миниатюры",
       "showThumbnailsHelp": "Показывает миниатюры для изображений и видео.",
       "showSidebarFavorites": "Показывать раздел избранного",
@@ -590,7 +591,8 @@
     "mySharesCount": "Активных ссылок: {count}",
     "confirmDeleteShare": "Удалить этот общий доступ? Люди с этой ссылкой больше не смогут получить доступ.",
     "removeShare": "Удалить доступ",
-    "sharedWithAnyone": "Доступно всем",
-    "sharedWithUsers": "{count} пользователь | {count} пользователей"
+    "sharedWithAnyone": "Все",
+    "sharedWithUsers": "{count} пользователь | {count} пользователей",
+    "expiresNever": "Никогда"
   }
 }

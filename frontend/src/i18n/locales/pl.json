@@ -95,6 +95,7 @@
     "paste": "Wklej",
     "rename": "Zmień nazwę",
     "download": "Pobierz",
+    "downloadFolder": "Pobierz folder",
     "extractZip": "Wypakuj ZIP",
     "compressToZip": "Spakuj do ZIP",
     "search": "Szukaj",
@@ -416,7 +417,7 @@
       "title": "Preferencje użytkownika",
       "subtitle": "Dostosuj swoje osobiste ustawienia.",
       "showHiddenFiles": "Pokaż ukryte pliki",
-      "showHiddenFilesHelp": "Pokazuje pliki i foldery zaczynające się od kropki (.) w eksploratorze.",
+      "showHiddenFilesHelp": "Pokazuje pliki i foldery pasujące do skonfigurowanych ukrytych wzorców ({patterns}) w eksploratorze.",
       "showThumbnails": "Pokaż miniatury",
       "showThumbnailsHelp": "Wyświetla miniatury obrazów i filmów w przeglądarce.",
       "showSidebarFavorites": "Pokaż sekcję Ulubione",
@@ -590,7 +591,8 @@
     "mySharesCount": "{count} aktywne linki udostępnień",
     "confirmDeleteShare": "Usunąć to udostępnienie? Osoby posiadające link stracą dostęp.",
     "removeShare": "Usuń udostępnienie",
-    "sharedWithAnyone": "Udostępnione dla wszystkich",
-    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników"
+    "sharedWithAnyone": "Wszyscy",
+    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
+    "expiresNever": "Nigdy"
   }
 }

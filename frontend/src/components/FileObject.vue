@@ -75,6 +75,8 @@ const isCut = computed(() =>
   )
 );
 
+const selected = computed(() => isSelected(props.item));
+
 const showSelectionControl = computed(() => !isTouchDevice.value || selectionMode.value);
 
 const selectionButtonBaseClass =
@@ -238,7 +240,7 @@ if (isTouchDevice.value) {
       :draggable="canDragDrop() && !isRenaming"
       class="photo-cell relative w-full rounded-md overflow-hidden cursor-pointer select-none bg-neutral-100 dark:bg-zinc-800/60 hover:brightness-105"
       :class="{
-        'ring-2 ring-blue-500 dark:ring-blue-400': isSelected(item),
+        'ring-2 ring-blue-500 dark:ring-blue-400': selected,
         'opacity-60': isCut,
         'cursor-move': canDragDrop() && !isRenaming,
       }"
@@ -248,10 +250,8 @@ if (isTouchDevice.value) {
         type="button"
         :class="[
           selectionButtonBaseClass,
-          selectionButtonStateClass(isSelected(item)),
-          selectionMode || isSelected(item)
-            ? 'opacity-100'
-            : 'opacity-0 group-hover/item:opacity-100',
+          selectionButtonStateClass(selected),
+          selectionMode || selected ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100',
           'absolute right-2 top-2 z-10 h-5 w-5 rounded-md',
         ]"
         :aria-label="`Select ${item.name}`"
@@ -275,7 +275,7 @@ if (isTouchDevice.value) {
       class="relative flex flex-col items-center gap-2 p-2 rounded-xl cursor-pointer select-none"
       :class="[
         { 'opacity-60': isCut },
-        isSelected(item) ? 'bg-zinc-200/70 dark:bg-zinc-700/60' : '',
+        selected ? 'bg-zinc-200/70 dark:bg-zinc-700/60' : '',
         canDragDrop() && !isRenaming ? 'cursor-move' : '',
       ]"
     >
@@ -284,10 +284,8 @@ if (isTouchDevice.value) {
         type="button"
         :class="[
           selectionButtonBaseClass,
-          selectionButtonStateClass(isSelected(item)),
-          selectionMode || isSelected(item)
-            ? 'opacity-100'
-            : 'opacity-0 group-hover/item:opacity-100',
+          selectionButtonStateClass(selected),
+          selectionMode || selected ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100',
           'absolute right-2 top-2 z-10 h-5 w-5 rounded-md',
         ]"
         :aria-label="`Select ${item.name}`"
@@ -300,7 +298,7 @@ if (isTouchDevice.value) {
       <div
         class="text-sm text-center break-all line-clamp-2 rounded-md"
         :class="{
-          'bg-blue-500 text-white dark:bg-blue-600': isSelected(item) && !isRenaming,
+          'bg-blue-500 text-white dark:bg-blue-600': selected && !isRenaming,
         }"
       >
         <template v-if="isRenaming">
@@ -334,7 +332,7 @@ if (isTouchDevice.value) {
       class="relative flex items-center gap-2 p-4 rounded-md cursor-pointer select-none"
       :class="[
         { 'opacity-60': isCut },
-        isSelected(item) ? 'bg-zinc-200/70 dark:bg-zinc-700/60' : '',
+        selected ? 'bg-zinc-200/70 dark:bg-zinc-700/60' : '',
         canDragDrop() && !isRenaming ? 'cursor-move' : '',
       ]"
     >
@@ -343,10 +341,8 @@ if (isTouchDevice.value) {
         type="button"
         :class="[
           selectionButtonBaseClass,
-          selectionButtonStateClass(isSelected(item)),
-          selectionMode || isSelected(item)
-            ? 'opacity-100'
-            : 'opacity-0 group-hover/item:opacity-100',
+          selectionButtonStateClass(selected),
+          selectionMode || selected ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100',
           'absolute right-2 top-2 z-10 h-5 w-5 rounded-md',
         ]"
         :aria-label="`Select ${item.name}`"
@@ -359,7 +355,7 @@ if (isTouchDevice.value) {
       <div
         class="grow rounded-md px-2 -mx-2"
         :class="{
-          'bg-blue-500 text-white dark:bg-blue-600': isSelected(item) && !isRenaming,
+          'bg-blue-500 text-white dark:bg-blue-600': selected && !isRenaming,
         }"
       >
         <div class="break-all line-clamp-2">
@@ -402,8 +398,8 @@ if (isTouchDevice.value) {
         'group-even/item:bg-zinc-100 dark:group-even/item:bg-neutral-700/30',
         {
           'text-white dark:text-white bg-blue-600 dark:bg-blue-600/80 group-even/item:bg-blue-600! dark:group-even/item:bg-blue-600/80!':
-            isSelected(item),
-          'opacity-60': isCut && !isSelected(item),
+            selected,
+          'opacity-60': isCut && !selected,
           'cursor-move': canDragDrop() && !isRenaming,
         },
       ]"
@@ -415,18 +411,25 @@ if (isTouchDevice.value) {
           v-if="showSelectionControl"
           type="button"
           :class="[
-            selectionButtonBaseClass,
-            selectionButtonStateClass(isSelected(item)),
-            selectionMode || isSelected(item)
-              ? 'opacity-100'
-              : 'opacity-0 group-hover/item:opacity-100',
-            'absolute left-1/2 top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-md',
+            'absolute -top-1 -bottom-1 left-1/2 z-20 flex w-7 -translate-x-1/2 items-center justify-center',
+            selectionMode || selected ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100',
           ]"
           :aria-label="`Select ${item.name}`"
+          @pointerdown.stop
+          @mousedown.stop
+          @mouseup.stop
           @click="handleToggleSelection"
           @dblclick.stop.prevent
         >
-          <CheckIcon class="h-4 w-4" />
+          <span
+            :class="[
+              selectionButtonBaseClass,
+              selectionButtonStateClass(selected),
+              'flex h-5 w-5 items-center justify-center rounded-md',
+            ]"
+          >
+            <CheckIcon class="h-4 w-4" />
+          </span>
         </button>
       </div>
       <div :title="item.name" class="min-w-0 overflow-hidden text-sm">

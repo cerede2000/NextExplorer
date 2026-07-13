@@ -35,6 +35,7 @@ describe('Features Routes', () => {
         COLLABORA_SECRET: undefined,
         COLLABORA_FILE_EXTENSIONS: undefined,
         EDITOR_EXTENSIONS: undefined,
+        HIDDEN_FILE_PATTERNS: undefined,
         TERMINAL_FILE_EXTENSIONS: undefined,
         SHOW_VOLUME_USAGE: undefined,
         SKIP_HOME: undefined,
@@ -52,6 +53,7 @@ describe('Features Routes', () => {
       expect(response.body.collabora.enabled).toBe(false);
       expect(response.body.collabora.extensions).toEqual([]);
       expect(response.body.editor.extensions).toEqual([]);
+      expect(response.body.hiddenFiles.patterns).toEqual(['.']);
       expect(response.body.terminal.extensions).toEqual(['sh']);
       expect(response.body.volumeUsage.enabled).toBe(false);
       expect(response.body.navigation.skipHome).toBe(false);
@@ -69,6 +71,7 @@ describe('Features Routes', () => {
         COLLABORA_SECRET: 'collabora-secret',
         COLLABORA_FILE_EXTENSIONS: '.odt, .ODS',
         EDITOR_EXTENSIONS: '.MD,.txt',
+        HIDDEN_FILE_PATTERNS: '.,@',
         TERMINAL_FILE_EXTENSIONS: '.SH,.bash',
         SHOW_VOLUME_USAGE: 'true',
         SKIP_HOME: 'true',
@@ -86,6 +89,7 @@ describe('Features Routes', () => {
       expect(response.body.collabora.enabled).toBe(true);
       expect(response.body.collabora.extensions).toEqual(['.odt', '.ods']);
       expect(response.body.editor.extensions).toEqual(['md', 'txt']);
+      expect(response.body.hiddenFiles.patterns).toEqual(['.', '@']);
       expect(response.body.terminal.extensions).toEqual(['sh', 'bash']);
       expect(response.body.volumeUsage.enabled).toBe(true);
       expect(response.body.navigation.skipHome).toBe(true);

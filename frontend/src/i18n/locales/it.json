@@ -95,6 +95,7 @@
     "paste": "Incolla",
     "rename": "Rinomina",
     "download": "Scarica",
+    "downloadFolder": "Scarica cartella",
     "extractZip": "Estrai ZIP",
     "compressToZip": "Comprimi in ZIP",
     "search": "Cerca",
@@ -416,7 +417,7 @@
       "title": "Preferenze utente",
       "subtitle": "Personalizza le impostazioni personali.",
       "showHiddenFiles": "Mostra file nascosti",
-      "showHiddenFilesHelp": "Mostra file e cartelle che iniziano con un punto (.) nell'esploratore.",
+      "showHiddenFilesHelp": "Mostra file e cartelle che corrispondono ai pattern nascosti configurati ({patterns}) nell'esploratore.",
       "showThumbnails": "Mostra miniature",
       "showThumbnailsHelp": "Mostra anteprime miniatura per immagini e video.",
       "showSidebarFavorites": "Mostra sezione Preferiti",
@@ -590,7 +591,8 @@
     "mySharesCount": "{count} link di condivisione attivi",
     "confirmDeleteShare": "Rimuovere questa condivisione? Le persone con il link non avranno più accesso.",
     "removeShare": "Rimuovi condivisione",
-    "sharedWithAnyone": "Condiviso con chiunque",
-    "sharedWithUsers": "{count} utente | {count} utenti"
+    "sharedWithAnyone": "Tutti",
+    "sharedWithUsers": "{count} utente | {count} utenti",
+    "expiresNever": "Mai"
   }
 }

@@ -95,6 +95,7 @@
     "paste": "貼上",
     "rename": "重新命名",
     "download": "下載",
+    "downloadFolder": "下載資料夾",
     "extractZip": "解壓縮 ZIP",
     "compressToZip": "壓縮為 ZIP",
     "search": "搜尋",
@@ -416,7 +417,7 @@
       "title": "使用者偏好設定",
       "subtitle": "自訂你的個人設定。",
       "showHiddenFiles": "顯示隱藏檔案",
-      "showHiddenFilesHelp": "在檔案瀏覽器中顯示以點 (.) 開頭的檔案和檔案夾。",
+      "showHiddenFilesHelp": "在檔案瀏覽器中顯示符合已設定隱藏模式（{patterns}）的檔案和資料夾。",
       "showThumbnails": "顯示縮圖",
       "showThumbnailsHelp": "在瀏覽器中顯示圖片和影片的縮圖預覽。",
       "showSidebarFavorites": "顯示我的最愛區段",
@@ -590,7 +591,8 @@
     "mySharesCount": "{count} 個有效分享連結",
     "confirmDeleteShare": "確定要移除此分享嗎？擁有該連結的人將不再能夠存取。",
     "removeShare": "移除分享",
-    "sharedWithAnyone": "與所有人分享",
-    "sharedWithUsers": "{count} 位使用者"
+    "sharedWithAnyone": "所有人",
+    "sharedWithUsers": "{count} 位使用者",
+    "expiresNever": "永不"
   }
 }

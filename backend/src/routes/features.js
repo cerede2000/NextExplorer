@@ -5,6 +5,7 @@ const {
   editor,
   terminal,
   features,
+  hiddenFiles,
   public: publicConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
@@ -18,6 +19,8 @@ router.get('/features', (_req, res) => {
     public: {
       url: publicConfig?.url || null,
       origin: publicConfig?.origin || null,
+      // All origins the app may legitimately be reached from (public + internal).
+      origins: Array.isArray(publicConfig?.origins) ? publicConfig.origins : [],
     },
     onlyoffice: {
       enabled: Boolean(onlyoffice && onlyoffice.serverUrl),
@@ -29,6 +32,9 @@ router.get('/features', (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+    },
+    hiddenFiles: {
+      patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

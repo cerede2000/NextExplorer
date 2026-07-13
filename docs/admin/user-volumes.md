@@ -57,7 +57,7 @@ Go to **Settings → Admin → Users**, then:
   - Reserved labels are not allowed: `personal`, `share`, `volumes`.
 - **Directory** (required): an existing directory path on the server/container.
   - Must exist and be accessible to the nextExplorer container process.
-  - In the UI, the directory picker starts at `VOLUME_ROOT`, hides dot-directories, and excludes reserved/system names like `_users`.
+  - In the UI, the directory picker starts at `VOLUME_ROOT`, hides entries matching `HIDDEN_FILE_PATTERNS`, and excludes reserved/system names like `_users`.
 - **Access mode**:
   - `readwrite`: user can upload, create folders, rename, move, and delete.
   - `readonly`: user can browse and download, but cannot modify content.

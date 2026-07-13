@@ -9,6 +9,7 @@ const {
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const folderSizeHooks = require('./folderSizeHooks');
+const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -144,16 +145,33 @@ const transferItems = async (items, destination, operation, options = {}) => {
   return { destination: destinationRelative, items: results };
 };
 
-const deleteItems = async (items = [], options = {}) => {
+const getShareSourceTarget = (resolved, includeChildren = false) => {
+  if (!resolved) return null;
+
+  if (resolved.userVolume) {
+    const sourcePath = resolved.innerRelativePath
+      ? `${resolved.userVolume.id}/${resolved.innerRelativePath}`
+      : resolved.userVolume.id;
+    return {
+      sourceSpace: 'user_volume',
+      sourcePath,
+      includeChildren,
+    };
+  }
+
+  return {
+    sourceSpace: resolved.space || 'volume',
+    sourcePath: resolved.innerRelativePath || resolved.relativePath || '',
+    includeChildren,
+  };
+};
+
+const resolveDeleteTargets = async (items = [], context) => {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('At least one item is required.');
   }
 
-  const results = [];
-  const context = {
-    user: options.user || null,
-    guestSession: options.guestSession || null,
-  };
+  const targets = [];
 
   for (const item of items) {
     const combined = combineRelativePath(item.path || '', item.name);
@@ -167,19 +185,76 @@ const deleteItems = async (items = [], options = {}) => {
     }
 
     const { relativePath, absolutePath } = resolved;
+    const exists = await pathExists(absolutePath);
+    const stats = exists ? await fs.stat(absolutePath) : null;
+    const isDirectory = stats ? stats.isDirectory() : item?.kind === 'directory';
 
-    if (!(await pathExists(absolutePath))) {
+    targets.push({
+      item,
+      relativePath,
+      absolutePath,
+      exists,
+      stats,
+      isDirectory,
+      shareSourceTarget: getShareSourceTarget(resolved, isDirectory),
+    });
+  }
+
+  return targets;
+};
+
+const getDeleteImpact = async (items = [], options = {}) => {
+  const context = {
+    user: options.user || null,
+    guestSession: options.guestSession || null,
+  };
+  const targets = await resolveDeleteTargets(items, context);
+  const shares = await getSharesForSourceTargets(
+    targets.map((target) => target.shareSourceTarget).filter(Boolean)
+  );
+
+  return {
+    shareCount: shares.length,
+    shares,
+  };
+};
+
+const deleteItems = async (items = [], options = {}) => {
+  const results = [];
+  const context = {
+    user: options.user || null,
+    guestSession: options.guestSession || null,
+  };
+  const targets = await resolveDeleteTargets(items, context);
+
+  for (const target of targets) {
+    const { relativePath, absolutePath, exists, stats, isDirectory, shareSourceTarget } = target;
+    const affectedShares = shareSourceTarget
+      ? await getSharesForSourceTargets([shareSourceTarget])
+      : [];
+
+    if (!exists) {
+      const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
       results.push({ path: relativePath, status: 'missing' });
+      if (deletedShareCount > 0) {
+        results[results.length - 1].deletedShareCount = deletedShareCount;
+      }
       continue;
     }
 
-    const stats = await fs.stat(absolutePath);
-    await fs.rm(absolutePath, { recursive: stats.isDirectory(), force: true });
+    const deletedEntryStats = stats || (await fs.stat(absolutePath));
+    const deletedIsDirectory = isDirectory || deletedEntryStats.isDirectory();
+    await fs.rm(absolutePath, { recursive: deletedIsDirectory, force: true });
     folderSizeHooks.onEntryDeleted(absolutePath, {
-      isDirectory: stats.isDirectory(),
-      size: stats.size,
+      isDirectory: deletedIsDirectory,
+      size: deletedEntryStats.size,
     });
-    results.push({ path: relativePath, status: 'deleted' });
+    const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
+    results.push({
+      path: relativePath,
+      status: 'deleted',
+      ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
+    });
   }
 
   return results;
@@ -187,5 +262,6 @@ const deleteItems = async (items = [], options = {}) => {
 
 module.exports = {
   transferItems,
+  getDeleteImpact,
   deleteItems,
 };

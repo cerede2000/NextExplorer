@@ -75,6 +75,7 @@ services:
 
 
       # Reverse proxy / networking (optional)
+      # INTERNAL_URL: "http://192.168.1.250:3017" # Extra origin(s) the app may also be reached from (e.g. a LAN IP for fast local uploads), comma-separated. Treated as valid (no public-URL mismatch warning) and accepted by CORS; PUBLIC_URL stays the canonical URL for share links / OIDC.
       # TRUST_PROXY: "loopback,uniquelocal" # Express trust proxy config; set when running behind a reverse proxy (often auto-derived when `PUBLIC_URL` is set).
       # CORS_ORIGINS: "" # Comma-separated allowed origins; aliases: `CORS_ORIGIN`, `ALLOWED_ORIGINS` (defaults to `PUBLIC_URL` origin when set).
 
