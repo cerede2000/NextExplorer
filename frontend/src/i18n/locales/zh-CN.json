@@ -591,7 +591,8 @@
     "mySharesCount": "{count} 个有效共享链接",
     "confirmDeleteShare": "确定要移除此共享吗？拥有该链接的人将不再能够访问。",
     "removeShare": "移除共享",
-    "sharedWithAnyone": "与所有人共享",
-    "sharedWithUsers": "{count} 位用户"
+    "sharedWithAnyone": "所有人",
+    "sharedWithUsers": "{count} 位用户",
+    "expiresNever": "永不"
   }
 }

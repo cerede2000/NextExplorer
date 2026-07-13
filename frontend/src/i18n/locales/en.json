@@ -608,7 +608,8 @@
     "deleteShareTitle": "Remove share?",
     "deleteShareMessage": "People with this link will no longer be able to access the shared item.",
     "removeShare": "Remove share",
-    "sharedWithAnyone": "Shared with anyone",
-    "sharedWithUsers": "{count} user | {count} users"
+    "sharedWithAnyone": "Everyone",
+    "sharedWithUsers": "{count} user | {count} users",
+    "expiresNever": "Never"
   }
 }

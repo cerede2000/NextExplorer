@@ -591,7 +591,8 @@
     "mySharesCount": "{count} linkuri de partajare active",
     "confirmDeleteShare": "Elimini această partajare? Persoanele cu linkul nu vor mai avea acces.",
     "removeShare": "Elimină partajarea",
-    "sharedWithAnyone": "Partajat cu oricine",
-    "sharedWithUsers": "{count} utilizator | {count} utilizatori"
+    "sharedWithAnyone": "Oricine",
+    "sharedWithUsers": "{count} utilizator | {count} utilizatori",
+    "expiresNever": "Niciodată"
   }
 }

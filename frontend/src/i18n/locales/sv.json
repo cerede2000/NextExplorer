@@ -591,7 +591,8 @@
     "mySharesCount": "{count} aktiva utdelningslänkar",
     "confirmDeleteShare": "Ta bort denna utdelning? Personer som har länken kommer inte längre ha åtkomst.",
     "removeShare": "Ta bort utdelning",
-    "sharedWithAnyone": "Delad med någon",
-    "sharedWithUsers": "{count} användare | {count} användare"
+    "sharedWithAnyone": "Alla",
+    "sharedWithUsers": "{count} användare | {count} användare",
+    "expiresNever": "Aldrig"
   }
 }

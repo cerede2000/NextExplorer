@@ -591,7 +591,8 @@
     "mySharesCount": "Активных ссылок: {count}",
     "confirmDeleteShare": "Удалить этот общий доступ? Люди с этой ссылкой больше не смогут получить доступ.",
     "removeShare": "Удалить доступ",
-    "sharedWithAnyone": "Доступно всем",
-    "sharedWithUsers": "{count} пользователь | {count} пользователей"
+    "sharedWithAnyone": "Все",
+    "sharedWithUsers": "{count} пользователь | {count} пользователей",
+    "expiresNever": "Никогда"
   }
 }
