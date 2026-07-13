@@ -790,7 +790,7 @@ const handleDirectFileRequest = async (req, res) => {
 
   const stats = await fs.stat(resolved.absolutePath);
   if (stats.isDirectory()) {
-    await trackShareAccess(share.id);
+    await trackShareAccess(share.id, { ipAddress: req.ip });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
       archiveName:
@@ -803,7 +803,7 @@ const handleDirectFileRequest = async (req, res) => {
     return;
   }
 
-  await trackShareAccess(share.id);
+  await trackShareAccess(share.id, { ipAddress: req.ip });
   await streamResolvedFile({ absolutePath: resolved.absolutePath, stats, mode, req, res });
 };
 

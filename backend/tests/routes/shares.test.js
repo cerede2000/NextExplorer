@@ -354,6 +354,49 @@ describe('Shares Routes', () => {
       expect(download.headers['content-disposition']).toContain('hello.txt');
     });
 
+    it('records the client IP when a shared file is accessed directly', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-ip');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'ip.txt'), 'track my ip');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-ip@example.com',
+        username: 'direct-ip',
+        displayName: 'Direct Ip',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectIpVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectIpVol/ip.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      // Accessing the file directly is the common path for viewing a share; it
+      // must record the access IP (regression: it previously tracked with none).
+      const direct = await request(buildApp()).get(`/api/share/${create.body.shareToken}/file`);
+      expect(direct.status).toBe(200);
+
+      const details = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(details.status).toBe(200);
+      expect(details.body.stats.accessCount).toBeGreaterThan(0);
+      expect(typeof details.body.stats.lastAccessIp).toBe('string');
+      expect(details.body.stats.lastAccessIp.length).toBeGreaterThan(0);
+    });
+
     it('should redirect a password-protected direct file until the password is verified', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
