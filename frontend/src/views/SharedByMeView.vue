@@ -1,18 +1,24 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getMyShares, deleteShare, copyShareUrl } from '@/api/shares.api';
+import {
+  getMyShares,
+  deleteShare,
+  copyDirectShareFileUrl,
+  copyShareUrl,
+  DIRECT_SHARE_FILE_MODES,
+} from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
+import ModalDialog from '@/components/ModalDialog.vue';
 import {
   ShareIcon,
-  ClockIcon,
   LockClosedIcon,
   LockOpenIcon,
   TrashIcon,
   GlobeAltIcon,
-  UsersIcon,
   ClipboardDocumentIcon,
   CheckIcon,
+  LinkIcon,
   MagnifyingGlassIcon,
   ArrowsUpDownIcon,
 } from '@heroicons/vue/24/outline';
@@ -27,12 +33,17 @@ const error = ref('');
 const deletingId = ref(null);
 const copyingId = ref(null);
 const copiedId = ref(null);
+const directCopyingId = ref(null);
+const directCopiedId = ref(null);
+const directLinkModes = ref({});
+const sharePendingDelete = ref(null);
+const isDeleteShareDialogOpen = ref(false);
 const searchQuery = ref('');
 const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
 
 // Grid columns configuration
-const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_100px]';
+const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_170px]';
 
 // Create a map of userId -> user for quick lookup
 const usersMap = computed(() => {
@@ -53,6 +64,11 @@ const loadShares = async () => {
       fetchShareableUsers().catch(() => ({ users: [] })),
     ]);
     shares.value = sharesResponse?.shares || [];
+    shares.value.forEach((share) => {
+      if (share?.id && !directLinkModes.value[share.id]) {
+        directLinkModes.value[share.id] = 'auto';
+      }
+    });
     users.value = usersResponse?.users || [];
   } catch (err) {
     console.error('Failed to load my shares:', err);
@@ -128,6 +144,13 @@ const visibleShares = computed(() => {
   return list;
 });
 
+const directLinkModeOptions = computed(() =>
+  DIRECT_SHARE_FILE_MODES.map((mode) => ({
+    ...mode,
+    label: t(mode.labelKey, mode.fallback),
+  }))
+);
+
 const getShareLabel = (share) => {
   if (share.label) return share.label;
   if (share.sourcePath) {
@@ -158,20 +181,32 @@ const getIconItem = (share) => {
 
 const handleDeleteShare = async (share) => {
   if (!share?.id) return;
+  sharePendingDelete.value = share;
+  isDeleteShareDialogOpen.value = true;
+};
 
-  const confirmed = window.confirm(t('share.confirmDeleteShare'));
-  if (!confirmed) return;
+const confirmDeleteShare = async () => {
+  const share = sharePendingDelete.value;
+  if (!share?.id) return;
 
   deletingId.value = share.id;
   try {
     await deleteShare(share.id);
     shares.value = shares.value.filter((s) => s.id !== share.id);
+    isDeleteShareDialogOpen.value = false;
+    sharePendingDelete.value = null;
   } catch (err) {
     console.error('Failed to delete share:', err);
     error.value = err.message || t('errors.deleteShare');
   } finally {
     deletingId.value = null;
   }
+};
+
+const closeDeleteShareDialog = () => {
+  if (deletingId.value) return;
+  isDeleteShareDialogOpen.value = false;
+  sharePendingDelete.value = null;
 };
 
 const handleCopyLink = async (share) => {
@@ -190,6 +225,25 @@ const handleCopyLink = async (share) => {
     console.error('Failed to copy link:', err);
   } finally {
     copyingId.value = null;
+  }
+};
+
+const handleCopyDirectFileLink = async (share) => {
+  if (!share?.id || !share?.shareToken) return;
+
+  try {
+    directCopyingId.value = share.id;
+    await copyDirectShareFileUrl(share.shareToken, '', directLinkModes.value[share.id] || 'auto');
+    directCopiedId.value = share.id;
+    setTimeout(() => {
+      if (directCopiedId.value === share.id) {
+        directCopiedId.value = null;
+      }
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy direct file link:', err);
+  } finally {
+    directCopyingId.value = null;
   }
 };
 
@@ -372,16 +426,18 @@ onMounted(async () => {
             <!-- Expires -->
             <div class="text-neutral-600 dark:text-neutral-300">
               <span :class="{ 'text-red-500': isExpired(share) }">
-                {{ share.expiresAt ? formatDate(share.expiresAt) : t('common.noExpiration') }}
+                {{ share.expiresAt ? formatDate(share.expiresAt) : t('share.expiresNever') }}
               </span>
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center justify-end gap-1">
+            <div class="flex items-center justify-end gap-1.5">
+              <!-- Copy the standard share-page link -->
               <button
                 @click.stop="handleCopyLink(share)"
+                :disabled="copyingId === share.id"
                 class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
-                :title="t('actions.copy')"
+                :title="t('share.copyShareLink', 'Copy share link')"
               >
                 <component
                   :is="copiedId === share.id ? CheckIcon : ClipboardDocumentIcon"
@@ -389,6 +445,52 @@ onMounted(async () => {
                   :class="{ 'text-green-500': copiedId === share.id }"
                 />
               </button>
+              <!--
+                Direct link control. The mode selector and the copy button are one
+                control (pick a mode, then copy the direct link in that mode), so
+                they live in a single segmented box with a shared border to signal
+                they belong together — instead of reading as two unrelated icons
+                next to the copy/delete buttons (issue #265).
+              -->
+              <div
+                class="flex min-w-0 items-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus-within:ring-2 focus-within:ring-blue-500/40"
+              >
+                <select
+                  v-model="directLinkModes[share.id]"
+                  @click.stop
+                  class="min-w-0 rounded-l-md border-0 bg-transparent py-1 pl-1.5 pr-0.5 text-xs text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 cursor-pointer"
+                  :title="t('share.directLinkMode', 'Direct link mode')"
+                  :aria-label="t('share.directLinkMode', 'Direct link mode')"
+                >
+                  <option
+                    v-for="mode in directLinkModeOptions"
+                    :key="mode.value"
+                    :value="mode.value"
+                  >
+                    {{ mode.label }}
+                  </option>
+                </select>
+                <span
+                  class="w-px self-stretch bg-neutral-200 dark:bg-neutral-700 shrink-0"
+                  aria-hidden="true"
+                ></span>
+                <button
+                  @click.stop="handleCopyDirectFileLink(share)"
+                  :disabled="directCopyingId === share.id"
+                  class="shrink-0 rounded-r-md p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                  :title="
+                    share.isDirectory
+                      ? t('share.copyDirectFolderLink', 'Copy direct folder ZIP link')
+                      : t('share.copyDirectFileLink', 'Copy direct file link')
+                  "
+                >
+                  <component
+                    :is="directCopiedId === share.id ? CheckIcon : LinkIcon"
+                    class="w-4 h-4"
+                    :class="{ 'text-green-500': directCopiedId === share.id }"
+                  />
+                </button>
+              </div>
               <button
                 @click.stop="handleDeleteShare(share)"
                 class="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-neutral-500 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400"
@@ -401,5 +503,38 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <ModalDialog v-model="isDeleteShareDialogOpen">
+      <template #title>
+        {{ t('share.deleteShareTitle', 'Remove share?') }}
+      </template>
+      <p class="mb-6 text-base text-zinc-700 dark:text-zinc-200">
+        {{
+          t(
+            'share.deleteShareMessage',
+            'People with this link will no longer be able to access the shared item.'
+          )
+        }}
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
+          :disabled="Boolean(deletingId)"
+          @click="closeDeleteShareDialog"
+        >
+          {{ t('common.cancel') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 active:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
+          :disabled="Boolean(deletingId)"
+          @click="confirmDeleteShare"
+        >
+          <span v-if="deletingId">{{ t('common.deleting') }}</span>
+          <span v-else>{{ t('common.delete') }}</span>
+        </button>
+      </div>
+    </ModalDialog>
   </div>
 </template>
