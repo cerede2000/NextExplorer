@@ -33,6 +33,9 @@
     "unknown": "unknown",
     "optional": "Optional",
     "clear": "Clear",
+    "reset": "Reset",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "name": "Name",
     "size": "Size",
     "type": "Type",
@@ -94,6 +97,10 @@
     "cut": "Cut",
     "paste": "Paste",
     "rename": "Rename",
+    "copyPath": "Copy path",
+    "copyName": "Copy name",
+    "share": "Share",
+    "copied": "Copied",
     "download": "Download",
     "downloadFolder": "Download folder",
     "extractZip": "Extract ZIP",
@@ -303,6 +310,9 @@
     "moving": "Moving {count} {items}…",
     "working": "Working…"
   },
+  "quickActions": {
+    "menu": "Quick actions"
+  },
   "upload": {
     "toggleDetailsShow": "Show details",
     "toggleDetailsHide": "Hide details",
@@ -441,7 +451,10 @@
       "months": "Months",
       "skipHome": "Skip home page",
       "skipHomeHelp": "Automatically redirect to the first volume when visiting the home page. If not set, follows the server configuration.",
-      "useEnvSetting": "Use server setting"
+      "useEnvSetting": "Use server setting",
+      "quickActions": "Quick actions menu",
+      "quickActionsHelp": "Shows a small hover menu of actions on each file/folder row and on the folder name at the top.",
+      "quickActionsReorder": "Choose and reorder the actions shown."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",

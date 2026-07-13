@@ -17,6 +17,7 @@ import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
 import { CheckIcon } from '@heroicons/vue/20/solid';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import InlineQuickActions from '@/components/InlineQuickActions.vue';
 
 const props = defineProps(['item', 'view']);
 const settings = useSettingsStore();
@@ -428,7 +429,10 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
-          <MiddleEllipsis :text="item.name" :end-chars="10" />
+          <div class="flex items-center min-w-0">
+            <MiddleEllipsis :text="item.name" :end-chars="10" />
+            <InlineQuickActions :item="item" class="ml-0.5" />
+          </div>
         </template>
       </div>
       <div class="text-sm">

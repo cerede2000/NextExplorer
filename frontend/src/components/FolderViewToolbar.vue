@@ -17,6 +17,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
 import { ArrowDownTrayIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
 import { useInputMode } from '@/composables/useInputMode';
+import InlineQuickActions from '@/components/InlineQuickActions.vue';
 
 const settings = useSettingsStore();
 const auth = useAuthStore();
@@ -97,7 +98,10 @@ const downloadCurrentFolder = () => {
           <HomeIcon class="h-5 w-5" />
         </button>
         <NavButtons />
-        <BreadCrumb class="ml-2 mr-auto" />
+        <div class="group/crumb flex min-w-0 items-center mr-auto">
+          <BreadCrumb class="ml-2" />
+          <InlineQuickActions v-if="!isVolumesView" folder class="ml-1" />
+        </div>
         <button
           v-if="isTouchDevice && !isVolumesView"
           type="button"
