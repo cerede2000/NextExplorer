@@ -590,7 +590,8 @@
     "mySharesCount": "{count} active share links",
     "confirmDeleteShare": "Remove this share? People with the link will no longer have access.",
     "removeShare": "Remove share",
-    "sharedWithAnyone": "Shared with anyone",
-    "sharedWithUsers": "{count} user | {count} users"
+    "sharedWithAnyone": "Everyone",
+    "sharedWithUsers": "{count} user | {count} users",
+    "expiresNever": "Never"
   }
 }

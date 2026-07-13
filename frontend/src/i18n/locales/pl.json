@@ -590,7 +590,8 @@
     "mySharesCount": "{count} aktywne linki udostępnień",
     "confirmDeleteShare": "Usunąć to udostępnienie? Osoby posiadające link stracą dostęp.",
     "removeShare": "Usuń udostępnienie",
-    "sharedWithAnyone": "Udostępnione dla wszystkich",
-    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników"
+    "sharedWithAnyone": "Wszyscy",
+    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
+    "expiresNever": "Nigdy"
   }
 }

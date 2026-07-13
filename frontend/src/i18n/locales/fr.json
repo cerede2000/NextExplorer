@@ -590,7 +590,8 @@
     "mySharesCount": "{count} liens de partage actifs",
     "confirmDeleteShare": "Supprimer ce partage ? Les personnes disposant du lien n'y auront plus accès.",
     "removeShare": "Supprimer le partage",
-    "sharedWithAnyone": "Partagé avec tout le monde",
-    "sharedWithUsers": "{count} utilisateur | {count} utilisateurs"
+    "sharedWithAnyone": "Tout le monde",
+    "sharedWithUsers": "{count} utilisateur | {count} utilisateurs",
+    "expiresNever": "Jamais"
   }
 }

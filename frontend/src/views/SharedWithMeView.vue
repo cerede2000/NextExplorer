@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n';
 import { getSharedWithMe } from '@/api/shares.api';
 import {
   ShareIcon,
-  ClockIcon,
   LockClosedIcon,
   LockOpenIcon,
   UserIcon,
@@ -301,7 +300,7 @@ onMounted(async () => {
             <!-- Expires -->
             <div class="text-neutral-600 dark:text-neutral-300">
               <span :class="{ 'text-red-500': isExpired(share) }">
-                {{ share.expiresAt ? formatDate(share.expiresAt) : t('common.noExpiration') }}
+                {{ share.expiresAt ? formatDate(share.expiresAt) : t('share.expiresNever') }}
               </span>
             </div>
           </div>

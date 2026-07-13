@@ -5,12 +5,10 @@ import { getMyShares, deleteShare, copyShareUrl } from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
 import {
   ShareIcon,
-  ClockIcon,
   LockClosedIcon,
   LockOpenIcon,
   TrashIcon,
   GlobeAltIcon,
-  UsersIcon,
   ClipboardDocumentIcon,
   CheckIcon,
   MagnifyingGlassIcon,
@@ -32,7 +30,9 @@ const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
 
 // Grid columns configuration
-const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1.5fr_1fr_1.5fr_100px]';
+// Shared-with / access / expire hold short labels ("Everyone", "Read only",
+// "Never" or a date), so keep those columns narrow.
+const GRID_COLS = 'grid-cols-[30px_minmax(0,3fr)_1fr_1fr_1fr_100px]';
 
 // Create a map of userId -> user for quick lookup
 const usersMap = computed(() => {
@@ -372,7 +372,7 @@ onMounted(async () => {
             <!-- Expires -->
             <div class="text-neutral-600 dark:text-neutral-300">
               <span :class="{ 'text-red-500': isExpired(share) }">
-                {{ share.expiresAt ? formatDate(share.expiresAt) : t('common.noExpiration') }}
+                {{ share.expiresAt ? formatDate(share.expiresAt) : t('share.expiresNever') }}
               </span>
             </div>
 

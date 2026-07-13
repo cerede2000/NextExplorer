@@ -590,7 +590,8 @@
     "mySharesCount": "{count} 個有效分享連結",
     "confirmDeleteShare": "確定要移除此分享嗎？擁有該連結的人將不再能夠存取。",
     "removeShare": "移除分享",
-    "sharedWithAnyone": "與所有人分享",
-    "sharedWithUsers": "{count} 位使用者"
+    "sharedWithAnyone": "所有人",
+    "sharedWithUsers": "{count} 位使用者",
+    "expiresNever": "永不"
   }
 }
