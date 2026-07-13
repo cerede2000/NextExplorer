@@ -3,25 +3,43 @@ import { setActivePinia, createPinia } from 'pinia';
 import { useQuickActionsStore } from '@/stores/quickActions';
 import { QUICK_ACTION_IDS, DEFAULT_QUICK_ACTIONS_ON } from '@/config/quickActions';
 
+const defaultOnIds = QUICK_ACTION_IDS.filter((id) => DEFAULT_QUICK_ACTIONS_ON.includes(id));
+
 describe('quickActions store', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
 
-  it('reset seeds the full catalog in order with the default enabled set', () => {
+  it('is disabled by default', () => {
     const store = useQuickActionsStore();
+    // Fresh store (no stored preference) ships with the feature off.
+    expect(store.enabled).toBe(false);
+    expect(store.enabledActionIds).toEqual([]);
+  });
+
+  it('reset restores the default (disabled) config: full catalog in order, default on-set', () => {
+    const store = useQuickActionsStore();
+    store.setEnabled(true);
     store.reset();
 
-    expect(store.enabled).toBe(true);
+    // Reset is a factory reset — it also turns the feature back off (the default).
+    expect(store.enabled).toBe(false);
+    // The action selection/order is independent of the master switch.
     expect(store.config.map((e) => e.id)).toEqual(QUICK_ACTION_IDS);
-    expect(store.enabledActionIds).toEqual(
-      QUICK_ACTION_IDS.filter((id) => DEFAULT_QUICK_ACTIONS_ON.includes(id))
-    );
+    expect(store.config.filter((e) => e.on).map((e) => e.id)).toEqual(defaultOnIds);
+  });
+
+  it('enabledActionIds reflects the default on-set once enabled', () => {
+    const store = useQuickActionsStore();
+    store.reset();
+    store.setEnabled(true);
+    expect(store.enabledActionIds).toEqual(defaultOnIds);
   });
 
   it('setActionOn toggles a single action in/out of the enabled list', () => {
     const store = useQuickActionsStore();
     store.reset();
+    store.setEnabled(true);
 
     store.setActionOn('info', false);
     expect(store.enabledActionIds).not.toContain('info');
@@ -33,6 +51,7 @@ describe('quickActions store', () => {
   it('enabledActionIds is empty when the feature is disabled', () => {
     const store = useQuickActionsStore();
     store.reset();
+    store.setEnabled(true);
     expect(store.enabledActionIds.length).toBeGreaterThan(0);
 
     store.setEnabled(false);
@@ -42,6 +61,7 @@ describe('quickActions store', () => {
   it('move reorders actions and the enabled list follows the new order', () => {
     const store = useQuickActionsStore();
     store.reset();
+    store.setEnabled(true);
 
     const [first, second] = store.config.map((e) => e.id);
     store.move(second, -1); // pull the 2nd action above the 1st
