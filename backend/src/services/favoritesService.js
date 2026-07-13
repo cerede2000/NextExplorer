@@ -201,6 +201,46 @@ const removeFavorite = async (userId, path) => {
   return getFavorites(userId);
 };
 
+const escapeLikePattern = (value = '') => String(value).replace(/[\\%_]/g, '\\$&');
+
+/**
+ * Remove favorites that point to a deleted path.
+ * For directories, nested favorites are also removed.
+ */
+const removeFavoritesForDeletedPath = async (userId, path, { includeChildren = false } = {}) => {
+  ensureUserId(userId);
+
+  const normalizedPath = normalizeRelativePath(path);
+  if (!normalizedPath) {
+    return 0;
+  }
+
+  const db = await getDb();
+  if (!includeChildren) {
+    const result = db
+      .prepare(
+        `
+      DELETE FROM favorites
+      WHERE user_id = ? AND path = ?
+    `
+      )
+      .run(userId, normalizedPath);
+    return result.changes;
+  }
+
+  const result = db
+    .prepare(
+      `
+    DELETE FROM favorites
+    WHERE user_id = ?
+      AND (path = ? OR path LIKE ? ESCAPE '\\')
+  `
+    )
+    .run(userId, normalizedPath, `${escapeLikePattern(normalizedPath)}/%`);
+
+  return result.changes;
+};
+
 /**
  * Update a favorite's label or icon
  */
@@ -362,6 +402,7 @@ module.exports = {
   getFavorites,
   addFavorite,
   removeFavorite,
+  removeFavoritesForDeletedPath,
   updateFavorite,
   reorderFavorites,
 };

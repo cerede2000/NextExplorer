@@ -4,7 +4,13 @@ import { useI18n } from 'vue-i18n';
 import { useAppSettings } from '@/stores/appSettings';
 import { calculateExpirationDate } from '@/utils/datetime';
 import ModalDialog from '@/components/ModalDialog.vue';
-import { createShare, copyShareUrl } from '@/api/shares.api';
+import {
+  createShare,
+  copyDirectShareFileUrl,
+  copyShareUrl,
+  DIRECT_SHARE_FILE_MODES,
+  getDirectShareFileUrl,
+} from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
@@ -48,6 +54,8 @@ const isCreating = ref(false);
 const error = ref('');
 const shareResult = ref(null);
 const linkCopied = ref(false);
+const directLinkCopied = ref(false);
+const directLinkMode = ref('auto');
 const availableUsers = ref([]);
 const loadingUsers = ref(false);
 const expiresAtInputRef = ref(null);
@@ -59,6 +67,16 @@ const sourcePath = computed(() => {
   if (!props.item) return '';
   const parentPath = props.item.path || '';
   return parentPath ? `${parentPath}/${props.item.name}` : props.item.name;
+});
+const directLinkModeOptions = computed(() =>
+  DIRECT_SHARE_FILE_MODES.map((mode) => ({
+    ...mode,
+    label: t(mode.labelKey, mode.fallback),
+  }))
+);
+const directShareUrl = computed(() => {
+  if (!shareResult.value?.shareToken) return '';
+  return getDirectShareFileUrl(shareResult.value.shareToken, '', directLinkMode.value);
 });
 
 // Reset form when dialog opens/closes
@@ -106,6 +124,8 @@ function resetForm() {
   error.value = '';
   shareResult.value = null;
   linkCopied.value = false;
+  directLinkCopied.value = false;
+  directLinkMode.value = 'auto';
 }
 
 function destroyExpiresPicker() {
@@ -245,6 +265,20 @@ async function copyLink() {
   }
 }
 
+async function copyDirectLink() {
+  if (!shareResult.value?.shareToken) return;
+
+  try {
+    await copyDirectShareFileUrl(shareResult.value.shareToken, '', directLinkMode.value);
+    directLinkCopied.value = true;
+    setTimeout(() => {
+      directLinkCopied.value = false;
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy direct file link:', err);
+  }
+}
+
 function closeDialog() {
   isOpen.value = false;
 }
@@ -281,6 +315,43 @@ function closeDialog() {
             :class="linkCopied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'"
           >
             <ClipboardDocumentIcon v-if="!linkCopied" class="w-5 h-5" />
+            <CheckIcon v-else class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <label class="block text-sm font-medium">
+            {{
+              shareResult.isDirectory
+                ? t('share.directFolderLink', 'Direct folder ZIP link')
+                : t('share.directFileLink', 'Direct file link')
+            }}
+          </label>
+          <select
+            v-model="directLinkMode"
+            class="px-2 py-1 text-xs border rounded-md bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :title="t('share.directLinkMode', 'Direct link mode')"
+          >
+            <option v-for="mode in directLinkModeOptions" :key="mode.value" :value="mode.value">
+              {{ mode.label }}
+            </option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            :value="directShareUrl"
+            readonly
+            class="flex-1 px-3 py-2 text-sm border rounded-lg bg-gray-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            @click="copyDirectLink"
+            class="px-4 py-2 text-sm font-medium text-white transition rounded-lg"
+            :class="directLinkCopied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'"
+          >
+            <ClipboardDocumentIcon v-if="!directLinkCopied" class="w-5 h-5" />
             <CheckIcon v-else class="w-5 h-5" />
           </button>
         </div>
