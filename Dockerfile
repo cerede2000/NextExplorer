@@ -50,22 +50,32 @@ RUN addgroup -S appuser && \
 
 # Runtime packages only.
 #
-# Core:
-#   ffmpeg          – video thumbnail extraction & HW-accel transcoding
+# Core (always installed):
+#   ffmpeg          – video thumbnail extraction & software transcoding
 #   gosu            – UID/GID remapping in entrypoint
 #   ripgrep         – fast file-content search
 #   imagemagick     – HEIC → PNG thumbnail conversion
-#   openssh-client  – optional SSH remote access
+#   openssh-client  – optional SSH remote access (terminal only)
 #   unzip           – demo mode sample extraction (downloadSamples.js)
 #   bash            – entrypoint.sh is a bash script
 #   shadow          – provides usermod/groupmod for UID/GID remapping
-#   perl            – required by exiftool-vendored for RAW image previews
-#   curl            – For terminal users 
+#   curl            – For terminal users
 #
-# VA-API hardware-accelerated video decode (Intel Quick Sync / AMD):
+# Optional (see INCLUDE_RAW / INCLUDE_VAAPI build args below):
+#   perl            – required by exiftool-vendored for RAW image previews
 #   libva           – core VA-API runtime (includes libva-drm)
-#   mesa-va-gallium – Mesa VA-API GPU drivers
+#   mesa-va-gallium – Mesa VA-API GPU drivers (pulls Mesa + LLVM, ~80 MB)
 
+
+# Optional feature stacks — toggled at build time. Defaults keep the FULL image
+# byte-for-byte identical to before.
+#   INCLUDE_RAW=false    drops perl + the exiftool-vendored node module: removes
+#                        RAW-photo previews only (normal EXIF still works via exifr).
+#   INCLUDE_VAAPI=false  drops libva + mesa-va-gallium (Mesa + LLVM, ~80 MB): ffmpeg
+#                        still decodes video in software. VA-API is opt-in anyway,
+#                        used only when FFMPEG_HWACCEL is set with a GPU passed in.
+ARG INCLUDE_RAW=true
+ARG INCLUDE_VAAPI=true
 
 RUN apk add --no-cache \
       ffmpeg \
@@ -76,10 +86,9 @@ RUN apk add --no-cache \
       unzip \
       bash \
       shadow \
-      perl \
-      libva \
-      mesa-va-gallium \
       curl \
+  && if [ "$INCLUDE_RAW" = "true" ]; then apk add --no-cache perl; fi \
+  && if [ "$INCLUDE_VAAPI" = "true" ]; then apk add --no-cache libva mesa-va-gallium; fi \
   && rm -rf /tmp/* /var/cache/apk/*
 
 WORKDIR /app
@@ -96,6 +105,13 @@ ENV REPO_URL=${REPO_URL}
 # Build tools from backend_deps stage are NOT included — only the output.
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY --from=backend_deps /app/package.json ./
+
+# When RAW support is disabled, drop the vendored ExifTool (~20 MB) from the
+# runtime node_modules. rawPreviewService.js already degrades gracefully when the
+# module is absent (the require is wrapped in try/catch).
+RUN if [ "$INCLUDE_RAW" != "true" ]; then \
+      rm -rf node_modules/exiftool-vendored node_modules/exiftool-vendored.pl; \
+    fi
 
 # Copy backend source and healthcheck.
 COPY backend/src ./src
