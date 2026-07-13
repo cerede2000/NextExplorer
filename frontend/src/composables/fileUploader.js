@@ -84,14 +84,18 @@ export function useFileUploader() {
   const createdHere = ref(false);
 
   const MIB_BYTES = 1024 * 1024;
+  const LARGE_FILE_BYTES = 8 * MIB_BYTES;
   // Chunk sizes tried on fallback (largest first, near the value that works
   // manually). Each PATCH stays well under a typical reverse-proxy body limit.
   const FALLBACK_LADDER_MIB = [96, 64, 32, 16, 8];
-  // A direct upload that makes no progress for this long is considered stalled
-  // (a proxy that silently stops reading an over-limit body never errors).
-  const DIRECT_STALL_MS = 25000;
+  // A direct upload that makes no progress for this long is treated as stalled.
+  // A reverse proxy that silently stops reading an over-limit body never errors,
+  // so a stall is the only signal we get for that case. Also used as the XHR
+  // progress-timeout so Uppy emits `upload-stalled` on the same deadline.
+  const DIRECT_STALL_MS = 20000;
 
   const autoFallbackAllowed = () => Boolean(appSettings.state?.uploads?.chunkedAutoFallback);
+  const adminChunkedForced = () => Boolean(appSettings.state?.uploads?.chunkedEnabled);
   const readFallbackMiB = getUploadFallbackMiB;
   const writeFallbackMiB = (mib) => {
     try {
@@ -103,21 +107,28 @@ export function useFileUploader() {
   const clearFallbackMiB = resetUploadFallback;
 
   const getUploadSettings = () => {
-    const adminChunked = Boolean(appSettings.state?.uploads?.chunkedEnabled);
     const adminChunkBytes = Number.isFinite(appSettings.state?.uploads?.chunkSizeBytes)
       ? appSettings.state.uploads.chunkSizeBytes
       : 8 * MIB_BYTES;
-    if (adminChunked) {
+    if (adminChunkedForced()) {
       return { chunkedEnabled: true, chunkSizeBytes: adminChunkBytes };
     }
     // Direct (XHR) mode: if a previous direct upload on this origin was rejected
-    // by a proxy, use chunked with the remembered size instead.
+    // or stalled by a proxy, use chunked (TUS) with the remembered size instead.
     const fallbackMiB = autoFallbackAllowed() ? readFallbackMiB() : null;
     if (fallbackMiB) {
       return { chunkedEnabled: true, chunkSizeBytes: fallbackMiB * MIB_BYTES };
     }
     return { chunkedEnabled: false, chunkSizeBytes: adminChunkBytes };
   };
+
+  // Auto-fallback modes (auto on, admin hasn't force-enabled chunking):
+  //  - "direct":  no size learned yet  → uploads go out as a single XHR
+  //  - "chunked": a size is remembered → uploads go through TUS
+  const inDirectMode = () => autoFallbackAllowed() && !adminChunkedForced() && !readFallbackMiB();
+  const inFallbackChunkedMode = () =>
+    autoFallbackAllowed() && !adminChunkedForced() && Boolean(readFallbackMiB());
+  const isLargeFile = (file) => (Number(file?.size) || 0) > LARGE_FILE_BYTES;
 
   const removeUploadPlugin = (id) => {
     const plugin = uppy?.getPlugin?.(id);
@@ -218,76 +229,97 @@ export function useFileUploader() {
         // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
         allowedMetaFields: true,
         withCredentials: true,
+        // Uppy's fetcher retries a failed request up to 3x by default, re-sending
+        // the ENTIRE (possibly multi-GB) body each time. Against a proxy body-size
+        // limit that just repeats a doomed upload and buries the chunked fallback
+        // behind minutes of re-uploading. Fail on the FIRST error so auto-fallback
+        // can switch to TUS immediately (TUS is our resilience mechanism, and it
+        // resumes from the last stored offset rather than re-sending the file).
+        shouldRetry: () => false,
+        // Emit `upload-stalled` after this long with no progress, so a silently
+        // stalled body (proxy stopped reading, no error) is caught quickly.
+        timeout: DIRECT_STALL_MS,
       });
     }
 
     uploadPluginMode = nextMode;
   };
 
-  // True while uploads currently go out directly (XHR) — i.e. auto-fallback is on,
-  // forced chunking is off, and no per-origin fallback size has been learned yet.
-  const directModeActive = () => autoFallbackAllowed() && !getUploadSettings().chunkedEnabled;
-
-  // Restart a file as a FRESH chunked upload (identical to the working manual
-  // chunked path — a mid-flight plugin swap + retryUpload proved unreliable),
-  // stepping the chunk size down the ladder. Clears the fallback (→ back to
-  // direct) if even the smallest chunk fails, so a non-size failure doesn't stick.
-  const restarting = new Set();
-  const performFallbackRestart = (file, observedBytes) => {
-    if (!file?.id || restarting.has(file.id)) return true;
-
-    const currentFallback = readFallbackMiB();
-    let nextMiB;
-    if (!currentFallback) {
-      // First fallback: pick the largest ladder size below where the direct
-      // upload got cut off (a hint at the proxy limit), else the largest.
+  // Pick the next chunk size to try. First fallback (no size learned yet): the
+  // largest ladder step below where the direct upload got cut off (a hint at the
+  // proxy limit), else the largest. Otherwise step down to the next smaller size.
+  const nextLadderMiB = (observedBytes) => {
+    const current = readFallbackMiB();
+    if (!current) {
       const observedMiB = observedBytes > 0 ? Math.floor(observedBytes / MIB_BYTES) : Infinity;
-      nextMiB = FALLBACK_LADDER_MIB.find((size) => size < observedMiB) ?? FALLBACK_LADDER_MIB[0];
-    } else {
-      const idx = FALLBACK_LADDER_MIB.indexOf(currentFallback);
-      nextMiB =
-        idx >= 0 && idx + 1 < FALLBACK_LADDER_MIB.length ? FALLBACK_LADDER_MIB[idx + 1] : null;
+      return FALLBACK_LADDER_MIB.find((size) => size < observedMiB) ?? FALLBACK_LADDER_MIB[0];
     }
+    const idx = FALLBACK_LADDER_MIB.indexOf(current);
+    return idx >= 0 && idx + 1 < FALLBACK_LADDER_MIB.length ? FALLBACK_LADDER_MIB[idx + 1] : null;
+  };
+
+  // Restart a file as a FRESH chunked (TUS) upload — identical to the working
+  // manual chunked path (a page load with chunking configured), which is why it
+  // is reliable where a mid-flight plugin swap + retryUpload was not: the swap
+  // happens while Uppy is idle (after the failed/stalled batch settles), then a
+  // brand-new file is added and uploaded by the freshly-installed TUS plugin.
+  // Returns true if a restart was scheduled (caller suppresses the error),
+  // false if we exhausted the ladder and gave up.
+  const restarting = new Set();
+  const restartAsChunked = (file, observedBytes) => {
+    if (!file?.id) return false;
+    if (restarting.has(file.id)) return true;
+
+    const nextMiB = nextLadderMiB(observedBytes);
     if (!nextMiB) {
+      // Even the smallest chunk failed → not a body-size problem. Revert to
+      // direct so a future upload isn't stuck in chunked mode, and let the error
+      // surface to the user.
       clearFallbackMiB();
       return false;
     }
 
     restarting.add(file.id);
     writeFallbackMiB(nextMiB);
-    const descriptor = {
-      name: file.name,
-      type: file.type,
-      data: file.data,
-      meta: file.meta ? { ...file.meta } : {},
-    };
+    const originalMeta = file.meta ? { ...file.meta } : {};
+    const descriptor = { name: file.name, type: file.type, data: file.data, meta: originalMeta };
+    // Defer until Uppy has settled the current (failed/stalled) batch, so the
+    // plugin swap runs on an idle instance — the reliable path.
     setTimeout(() => {
       try {
-        uppy.removeFile(file.id);
-        configureUploadPlugin(); // now chunked (TUS) with the new size
-        uppy.addFile(descriptor); // autoProceed re-uploads via TUS
+        removeUploadFile(file); // aborts the in-flight XHR if it is still hanging
+        configureUploadPlugin(); // now TUS with the chosen chunk size
+        const newId = uppy.addFile(descriptor); // autoProceed re-uploads via TUS
+        // file-added rewrites uploadTo/relativePath from the current path; restore
+        // the original target in case the user navigated during the upload.
+        if (newId) uppy.setFileMeta(newId, originalMeta);
       } catch (err) {
         console.error('Auto-fallback restart failed', err);
+        restarting.delete(file.id);
       }
     }, 0);
     return true;
   };
 
-  // Error path: any failure of a large direct upload (proxy 413, network drop,
-  // timeout) → chunked. Skip errors chunking can't fix (auth / storage full).
-  const maybeAutoFallback = (file, error, response) => {
-    if (!directModeActive() || !file?.data) return false;
-    if ((Number(file?.size) || 0) <= 8 * MIB_BYTES) return false;
-    const status = getTusErrorStatus(error) ?? response?.status ?? null;
+  // A large upload failed or stalled. Decide whether/how to fall back to chunks.
+  //  - direct mode  → switch this origin to chunked (learn a size)
+  //  - chunked mode → step the ladder down (the current size also failed)
+  // Skip errors chunking can't fix (auth / permission / storage full).
+  const handleUploadFailure = (file, status, observedBytes) => {
+    if (!file?.data || !isLargeFile(file)) return false;
     if (status === 401 || status === 403 || status === 507) return false;
-    return performFallbackRestart(file, Number(file?.progress?.bytesUploaded) || 0);
+    if (inDirectMode() || inFallbackChunkedMode()) {
+      return restartAsChunked(file, observedBytes);
+    }
+    return false;
   };
 
-  // Stall path: a proxy that silently stops reading an over-limit body never
-  // errors, so a watchdog trips the same fallback when a direct upload freezes.
+  // Stall watchdog: a proxy that silently stops reading an over-limit body never
+  // errors, so a timer trips the fallback when a DIRECT upload freezes. Armed at
+  // upload start (so even a 0-byte stall is caught) and cleared on `complete`.
   const progressAt = new Map(); // fileId -> { bytes, at }
   let watchdogTimer = null;
-  const stopWatchdog = () => {
+  const clearFallbackTracking = () => {
     if (watchdogTimer) {
       clearInterval(watchdogTimer);
       watchdogTimer = null;
@@ -296,21 +328,22 @@ export function useFileUploader() {
     restarting.clear();
   };
   const startWatchdog = () => {
-    if (watchdogTimer) return;
+    if (watchdogTimer || !inDirectMode()) return;
     watchdogTimer = setInterval(() => {
-      const files = typeof uppy?.getFiles === 'function' ? uppy.getFiles() : [];
-      if (files.length === 0) {
-        stopWatchdog();
+      const list = typeof uppy?.getFiles === 'function' ? uppy.getFiles() : [];
+      const active = list.filter((f) => !f?.progress?.uploadComplete && isLargeFile(f));
+      // Nothing left to watch, or we've already switched to chunked — stop the
+      // timer (a pending restart is already scheduled and guarded independently).
+      if (active.length === 0 || !inDirectMode()) {
+        clearFallbackTracking();
         return;
       }
-      if (!directModeActive()) return;
       const now = Date.now();
-      for (const f of files) {
-        if (f?.progress?.uploadComplete || (Number(f?.size) || 0) <= 8 * MIB_BYTES) continue;
+      for (const f of active) {
         const tracked = progressAt.get(f.id);
-        if (tracked && tracked.bytes > 0 && now - tracked.at > DIRECT_STALL_MS) {
+        if (tracked && now - tracked.at > DIRECT_STALL_MS) {
           progressAt.delete(f.id);
-          if (performFallbackRestart(f, tracked.bytes)) break;
+          if (restartAsChunked(f, tracked.bytes)) break;
         }
       }
     }, 5000);
@@ -320,7 +353,16 @@ export function useFileUploader() {
     const prev = progressAt.get(file.id);
     // Only advance the timestamp when bytes actually grow, so a freeze is caught.
     if (!prev || bytes > prev.bytes) progressAt.set(file.id, { bytes, at: Date.now() });
-    if (directModeActive()) startWatchdog();
+  };
+  // Arm the watchdog when a direct-mode batch starts (seed each large file's
+  // progress clock now, so a stall that never emits a progress event is caught).
+  const armFallbackWatchdog = (batchFiles) => {
+    if (!inDirectMode()) return;
+    const now = Date.now();
+    (Array.isArray(batchFiles) ? batchFiles : []).forEach((f) => {
+      if (isLargeFile(f) && !progressAt.has(f.id)) progressAt.set(f.id, { bytes: 0, at: now });
+    });
+    startWatchdog();
   };
 
   if (!uppy) {
@@ -369,25 +411,40 @@ export function useFileUploader() {
     });
 
     uppy.on('upload', (_uploadID, batchFiles) => {
+      const files = Array.isArray(batchFiles) ? batchFiles : [];
+
       // Safety net: if permissions changed after files were queued, cancel *only* when the
       // batch is targeting the currently-viewed path (avoids canceling uploads after navigation).
       const current = normalizePath(fileStore.currentPath || '');
-      const files = Array.isArray(batchFiles) ? batchFiles : [];
       const targetsCurrentPath =
         files.length > 0 && files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
 
-      if (!targetsCurrentPath) return;
-      if (canUploadToCurrentPath()) return;
-
-      try {
-        uppy.cancelAll?.();
-      } catch (_) {
-        /* noop */
+      if (targetsCurrentPath && !canUploadToCurrentPath()) {
+        try {
+          uppy.cancelAll?.();
+        } catch (_) {
+          /* noop */
+        }
+        notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
+        return;
       }
-      notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
+
+      // Uploads are proceeding — start the stall watchdog for direct-mode uploads.
+      armFallbackWatchdog(files);
     });
 
     uppy.on('upload-progress', trackProgress);
+
+    // XHRUpload emits this after `timeout` ms with no progress — the only signal
+    // for a body a proxy silently stopped reading. Switch to chunks immediately.
+    uppy.on('upload-stalled', (_error, files) => {
+      if (!inDirectMode()) return;
+      (Array.isArray(files) ? files : []).forEach((file) => {
+        if (isLargeFile(file)) {
+          restartAsChunked(file, Number(file?.progress?.bytesUploaded) || 0);
+        }
+      });
+    });
 
     uppy.on('upload-success', () => {
       fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
@@ -396,16 +453,18 @@ export function useFileUploader() {
     });
 
     uppy.on('complete', (result) => {
-      stopWatchdog();
+      clearFallbackTracking();
       const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
       const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
       [...successfulFiles, ...failedFiles].forEach(removeUploadFile);
     });
 
     uppy.on('upload-error', (file, error, response) => {
-      // A proxy body-size rejection on a direct upload: switch this origin to
-      // chunked and retry instead of surfacing the error.
-      if (maybeAutoFallback(file, error, response)) return;
+      // A large direct upload that failed (proxy body-size rejection, network
+      // drop, or a chunked attempt whose size still failed): fall back to chunks
+      // / step the ladder down and retry instead of surfacing the error.
+      const status = getTusErrorStatus(error) ?? response?.status ?? null;
+      if (handleUploadFailure(file, status, Number(file?.progress?.bytesUploaded) || 0)) return;
 
       const body = response?.body;
       const nested = body && typeof body === 'object' ? body?.error : null;
