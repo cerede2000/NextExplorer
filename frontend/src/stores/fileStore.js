@@ -17,6 +17,7 @@ import {
 } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFavoritesStore } from '@/stores/favorites';
 
 export const useFileStore = defineStore('fileStore', () => {
   // How many thumbnail HTTP requests the client keeps in flight at once. The
@@ -34,6 +35,8 @@ export const useFileStore = defineStore('fileStore', () => {
   const renameState = ref(null);
 
   const clipboardOperation = ref(null);
+  const deleteOperation = ref(null);
+  const favoritesStore = useFavoritesStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -44,6 +47,14 @@ export const useFileStore = defineStore('fileStore', () => {
   let thumbnailQueueGeneration = 0;
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
+  const selectedItemKeys = computed(() => {
+    const keys = new Set();
+    for (const item of selectedItems.value) {
+      const key = itemKey(item);
+      if (key) keys.add(key);
+    }
+    return keys;
+  });
   const hasClipboardItems = computed(
     () => copiedItems.value.length > 0 || cutItems.value.length > 0
   );
@@ -221,9 +232,20 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
-    await deleteItems(payload);
-    clearSelection();
-    await fetchPathItems(currentPath.value);
+    deleteOperation.value = {
+      type: 'delete',
+      itemCount: payload.length,
+      startedAt: Date.now(),
+    };
+
+    try {
+      await deleteItems(payload);
+      clearSelection();
+      await favoritesStore.loadFavorites();
+      await fetchPathItems(currentPath.value);
+    } finally {
+      deleteOperation.value = null;
+    }
   };
 
   const createFolder = async (baseName) => {
@@ -584,6 +606,7 @@ export const useFileStore = defineStore('fileStore', () => {
         canDelete: access?.canDelete ?? true,
         canShare: access?.canShare ?? true,
         canDownload: access?.canDownload ?? true,
+        isDirectory: response.current?.isDirectory ?? null,
         // Include share metadata if present
         shareInfo: response.shareInfo || null,
       };
@@ -605,11 +628,13 @@ export const useFileStore = defineStore('fileStore', () => {
     getCurrentPathItems,
     fetchPathItems,
     selectedItems,
+    selectedItemKeys,
     selectionMode,
     setSelectionMode,
     toggleSelectionMode,
     clearSelection,
     clipboardOperation,
+    deleteOperation,
     copiedItems,
     cutItems,
     hasSelection,

@@ -1,5 +1,7 @@
 import { requestJson, requestRaw, normalizePath, encodePath, buildUrl } from './http';
 
+const DELETE_BATCH_SIZE = 100;
+
 async function browse(path = '') {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
@@ -32,10 +34,56 @@ async function moveItems(items, destination) {
 }
 
 async function deleteItems(items) {
-  return requestJson('/api/files', {
-    method: 'DELETE',
-    body: JSON.stringify({ items }),
-  });
+  const normalizedItems = Array.isArray(items) ? items : [];
+  if (normalizedItems.length <= DELETE_BATCH_SIZE) {
+    return requestJson('/api/files', {
+      method: 'DELETE',
+      body: JSON.stringify({ items: normalizedItems }),
+    });
+  }
+
+  const deletedItems = [];
+  for (let index = 0; index < normalizedItems.length; index += DELETE_BATCH_SIZE) {
+    const batch = normalizedItems.slice(index, index + DELETE_BATCH_SIZE);
+    // eslint-disable-next-line no-await-in-loop
+    const response = await requestJson('/api/files', {
+      method: 'DELETE',
+      body: JSON.stringify({ items: batch }),
+    });
+    deletedItems.push(...(Array.isArray(response?.items) ? response.items : []));
+  }
+
+  return { success: true, items: deletedItems };
+}
+
+async function getDeleteImpact(items) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  if (normalizedItems.length <= DELETE_BATCH_SIZE) {
+    return requestJson('/api/files/delete-impact', {
+      method: 'POST',
+      body: JSON.stringify({ items: normalizedItems }),
+    });
+  }
+
+  const sharesById = new Map();
+  for (let index = 0; index < normalizedItems.length; index += DELETE_BATCH_SIZE) {
+    const batch = normalizedItems.slice(index, index + DELETE_BATCH_SIZE);
+    // eslint-disable-next-line no-await-in-loop
+    const response = await requestJson('/api/files/delete-impact', {
+      method: 'POST',
+      body: JSON.stringify({ items: batch }),
+    });
+    const shares = Array.isArray(response?.shares) ? response.shares : [];
+    shares.forEach((share) => {
+      if (share?.id) sharesById.set(share.id, share);
+    });
+  }
+
+  const shares = Array.from(sharesById.values());
+  return {
+    shareCount: shares.length,
+    shares,
+  };
 }
 
 async function createFolder(destination, name) {
@@ -221,6 +269,7 @@ export {
   copyItems,
   moveItems,
   deleteItems,
+  getDeleteImpact,
   createFolder,
   renameItem,
   fetchFileContent,

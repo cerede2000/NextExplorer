@@ -18,9 +18,12 @@ beforeAll(async () => {
       'src/services/users',
       'src/services/userVolumesService',
       'src/services/sharesService',
+      'src/services/guestSessionService',
       'src/utils/pathUtils',
       'src/middleware/errorHandler',
       'src/routes/shares',
+      'src/routes/files/delete',
+      'src/services/fileTransferService',
     ],
   });
 });
@@ -36,18 +39,25 @@ const buildApp = ({ user } = {}) => {
   clearModuleCache('src/config/index');
 
   const sharesRoutes = envContext.requireFresh('src/routes/shares');
+  const deleteRoutes = envContext.requireFresh('src/routes/files/delete');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
 
   const app = express();
   app.use(express.json());
 
-  app.use((req, _res, next) => {
+  app.use(async (req, _res, next) => {
     if (user) req.user = user;
+    const guestSessionId = req.headers['x-guest-session'];
+    if (guestSessionId) {
+      const { getGuestSession } = envContext.requireFresh('src/services/guestSessionService');
+      req.guestSession = await getGuestSession(guestSessionId);
+    }
     next();
   });
 
   app.use('/api/shares', sharesRoutes);
   app.use('/api/share', sharesRoutes);
+  app.use('/api', deleteRoutes);
   app.use(errorHandler);
   return app;
 };
@@ -82,13 +92,11 @@ describe('Shares Routes', () => {
 
       const app = buildApp({ user });
 
-      const create = await request(app)
-        .post('/api/shares')
-        .send({
-          sourcePath: 'MyVol/myfolder',
-          accessMode: 'readonly',
-          sharingType: 'anyone',
-        });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'MyVol/myfolder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
 
       expect(create.status).toBe(201);
       expect(create.body.shareToken).toBeDefined();
@@ -198,6 +206,336 @@ describe('Shares Routes', () => {
       // Browse should be forbidden
       const browse = await request(app).get(`/api/share/${shareToken}/browse/`);
       expect(browse.status).toBe(403);
+    });
+  });
+
+  describe('Delete Cleanup', () => {
+    it('should report and remove linked shares when deleting a shared file', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-delete-file');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'shared.txt'), 'shared file');
+
+      const user = await usersService.createLocalUser({
+        email: 'delete-file@example.com',
+        username: 'delete-file',
+        displayName: 'Delete File',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DeleteFileVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'DeleteFileVol/shared.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+
+      const items = [{ path: 'DeleteFileVol', name: 'shared.txt', kind: 'txt' }];
+      const impact = await request(app).post('/api/files/delete-impact').send({ items });
+      expect(impact.status).toBe(200);
+      expect(impact.body.shareCount).toBe(1);
+
+      const deleted = await request(app).delete('/api/files').send({ items });
+      expect(deleted.status).toBe(200);
+      expect(deleted.body.items[0].status).toBe('deleted');
+      expect(deleted.body.items[0].deletedShareCount).toBe(1);
+
+      const shareAfterDelete = await request(app).get(`/api/shares/${create.body.id}`);
+      expect(shareAfterDelete.status).toBe(404);
+    });
+
+    it('should remove shares inside a deleted folder tree', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-delete-folder');
+      await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'folder', 'nested.txt'), 'nested file');
+
+      const user = await usersService.createLocalUser({
+        email: 'delete-folder@example.com',
+        username: 'delete-folder',
+        displayName: 'Delete Folder',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DeleteFolderVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const create = await request(app).post('/api/shares').send({
+        sourcePath: 'DeleteFolderVol/folder/nested.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+
+      const items = [{ path: 'DeleteFolderVol', name: 'folder', kind: 'directory' }];
+      const impact = await request(app).post('/api/files/delete-impact').send({ items });
+      expect(impact.status).toBe(200);
+      expect(impact.body.shareCount).toBe(1);
+
+      const deleted = await request(app).delete('/api/files').send({ items });
+      expect(deleted.status).toBe(200);
+      expect(deleted.body.items[0].status).toBe('deleted');
+      expect(deleted.body.items[0].deletedShareCount).toBe(1);
+
+      const shareAfterDelete = await request(app).get(`/api/shares/${create.body.id}`);
+      expect(shareAfterDelete.status).toBe(404);
+    });
+  });
+
+  describe('Direct File Links', () => {
+    it('should stream an anyone-with-link file share without a prior guest session', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-public');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'hello.txt'), 'hello direct link');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-public@example.com',
+        username: 'direct-public',
+        displayName: 'Direct Public',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectPublicVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectPublicVol/hello.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-disposition']).toContain('inline');
+      expect(direct.headers['content-disposition']).toContain('hello.txt');
+      expect(direct.text).toBe('hello direct link');
+
+      const download = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/file?mode=download`
+      );
+
+      expect(download.status).toBe(200);
+      expect(download.headers['content-disposition']).toContain('attachment');
+      expect(download.headers['content-disposition']).toContain('hello.txt');
+    });
+
+    it('should redirect a password-protected direct file until the password is verified', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-password');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'secret.txt'), 'protected direct link');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-password@example.com',
+        username: 'direct-password',
+        displayName: 'Direct Password',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectPasswordVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectPasswordVol/secret.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+        password: 'open-sesame',
+      });
+
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const directBeforePassword = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/file`
+      );
+      expect(directBeforePassword.status).toBe(302);
+      expect(directBeforePassword.headers.location).toContain(`/share/${create.body.shareToken}`);
+      expect(directBeforePassword.headers.location).toContain('redirect=');
+
+      const verify = await request(publicApp)
+        .post(`/api/share/${create.body.shareToken}/verify`)
+        .send({ password: 'open-sesame' });
+
+      expect(verify.status).toBe(200);
+      expect(verify.body.guestSessionId).toBeDefined();
+
+      const directAfterPassword = await request(publicApp)
+        .get(`/api/share/${create.body.shareToken}/file`)
+        .set('X-Guest-Session', verify.body.guestSessionId);
+
+      expect(directAfterPassword.status).toBe(200);
+      expect(directAfterPassword.text).toBe('protected direct link');
+    });
+
+    it('should stream direct directory links as ZIP downloads', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-folder');
+      await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'folder', 'nested.txt'), 'nested file');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-folder@example.com',
+        username: 'direct-folder',
+        displayName: 'Direct Folder',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectFolderVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectFolderVol/folder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-type']).toContain('application/zip');
+      expect(direct.headers['content-disposition']).toContain('attachment');
+      expect(direct.headers['content-disposition']).toContain('folder.zip');
+    });
+
+    it('should force binary direct links to download in automatic mode', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-binary');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'archive.zip'), Buffer.from('fake zip payload'));
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-binary@example.com',
+        username: 'direct-binary',
+        displayName: 'Direct Binary',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectBinaryVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectBinaryVol/archive.zip',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-disposition']).toContain('attachment');
+      expect(direct.headers['content-disposition']).toContain('archive.zip');
+    });
+
+    it('should reject direct file access for expired shares', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-expired');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'expired.txt'), 'expired direct link');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-expired@example.com',
+        username: 'direct-expired',
+        displayName: 'Direct Expired',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectExpiredVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const create = await request(app)
+        .post('/api/shares')
+        .send({
+          sourcePath: 'DirectExpiredVol/expired.txt',
+          accessMode: 'readonly',
+          sharingType: 'anyone',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        });
+
+      expect(create.status).toBe(201);
+
+      const updateResponse = await request(app)
+        .put(`/api/shares/${create.body.id}`)
+        .send({ expiresAt: '2000-01-01T00:00:00.000Z' });
+      expect(updateResponse.status).toBe(200);
+
+      const publicApp = buildApp();
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+
+      expect(direct.status).toBe(403);
     });
   });
 });

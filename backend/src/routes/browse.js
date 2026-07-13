@@ -3,7 +3,7 @@ const express = require('express');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const env = require('../config/env');
-const { getSettings } = require('../services/settingsService');
+const { getSettings, getUserSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { NotFoundError } = require('../errors/AppError');
@@ -16,8 +16,10 @@ router.get(
   '/browse/*',
   asyncHandler(async (req, res) => {
     const settings = await getSettings();
+    const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
     const thumbsEnabled =
       env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
+    const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const rawPath = req.params[0] || '';
     const inputRelativePath = normalizeRelativePath(rawPath);
 
@@ -47,6 +49,7 @@ router.get(
       context,
       thumbsEnabled,
       excludeDownloadArtifacts: true,
+      includeHiddenFiles,
       permissionRules: settings?.access?.rules || [],
     });
 
@@ -59,6 +62,9 @@ router.get(
         canDelete: accessInfo.canDelete,
         canShare: accessInfo.canShare,
         canDownload: accessInfo.canDownload,
+      },
+      current: {
+        isDirectory: true,
       },
       path: relativePath,
     };

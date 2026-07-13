@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs/promises');
 
-const { directories, excludedFiles, features } = require('../config/index');
+const { directories, excludedFiles, features, hiddenFiles } = require('../config/index');
 const asyncHandler = require('../utils/asyncHandler');
 const { getVolumesForUser } = require('../services/userVolumesService');
 
@@ -17,6 +17,7 @@ const getAllVolumes = async () => {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter((name) => !excludedFiles.includes(name))
+    .filter((name) => !hiddenFiles.isHiddenName(name))
     .map((name) => ({
       name,
       path: name,

@@ -15,18 +15,19 @@ export function useSelection() {
     return fileStore.getCurrentPathItems.find((candidate) => getItemKey(candidate) === key) || item;
   };
 
-  const isSelected = (item) =>
-    fileStore.selectedItems.some((selected) => getItemKey(selected) === getItemKey(item));
+  const isSelected = (item) => fileStore.selectedItemKeys.has(getItemKey(item));
 
   const toggleSelection = (item) => {
     const key = getItemKey(item);
-    const index = fileStore.selectedItems.findIndex((selected) => getItemKey(selected) === key);
+    const isAlreadySelected = fileStore.selectedItemKeys.has(key);
 
-    if (index === -1) {
+    if (!isAlreadySelected) {
       const resolved = findInCurrentItems(item);
       fileStore.selectedItems = [...fileStore.selectedItems, resolved];
     } else {
       const nextSelection = [...fileStore.selectedItems];
+      const index = nextSelection.findIndex((selected) => getItemKey(selected) === key);
+      if (index === -1) return;
       nextSelection.splice(index, 1);
       fileStore.selectedItems = nextSelection;
     }

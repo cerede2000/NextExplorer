@@ -9,6 +9,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                       |
 | `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads). |
 | `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).   |
+| `INTERNAL_URL`                                   | _none_                                          | Additional origin(s) the app may also be reached from (e.g. a LAN IP for fast local uploads), comma-separated. Treated as valid (no public-URL mismatch warning) and accepted by CORS; `PUBLIC_URL` stays canonical for share links / OIDC. |
 | `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                           |
 | `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                 |
 
@@ -29,6 +30,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                    |
 | `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                           |
 | `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`). |
+| `HIDDEN_FILE_PATTERNS`   | `.`                               | Comma- or space-separated hidden filename patterns used by directory listings, volume pickers, and search. Plain values are fast filename prefixes, e.g. `.,@` hides dotfiles and Synology `@...` entries. Advanced entries can use `regex:<source>` or `/source/flags`. Set to an empty value to disable pattern hiding. |
 
 ## Authentication
 
