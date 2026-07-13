@@ -227,7 +227,10 @@
       "single": "Voulez-vous vraiment supprimer \"{name}\" ? Cette action est irréversible.",
       "multiple": "Voulez-vous vraiment supprimer ces {count} éléments ? Cette action est irréversible.",
       "generic": "Aucun élément sélectionné."
-    }
+    },
+    "checkingDeleteImpact": "Vérification des partages associés...",
+    "deleteImpactUnavailable": "Impossible de vérifier les partages associés. La suppression restera contrôlée côté serveur.",
+    "deleteLinkedShares": "Ce contenu possède {count} lien de partage associé qui sera supprimé avec lui. | Ce contenu possède {count} liens de partage associés qui seront supprimés avec lui."
   },
   "folder": {
     "kind": "Type",
@@ -542,6 +545,18 @@
     "shareCreated": "Partage créé",
     "createShareLink": "Créer un lien de partage",
     "shareLink": "Lien de partage",
+    "directFileLink": "Lien direct du fichier",
+    "directFolderLink": "Lien direct ZIP du dossier",
+    "copyShareLink": "Copier le lien de partage",
+    "directLinkMode": "Mode du lien direct",
+    "copyDirectFileLink": "Copier le lien direct du fichier",
+    "copyDirectFolderLink": "Copier le lien direct ZIP du dossier",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visualiser",
+      "raw": "Raw",
+      "download": "Télécharger"
+    },
     "shareLinkCreatedSuccess": "Lien de partage créé avec succès !",
     "access": "Access Mode",
     "type": "Target",
@@ -589,6 +604,8 @@
     "noMySharesDescription": "Créez un partage à partir de n'importe quel fichier ou dossier pour le voir apparaître ici.",
     "mySharesCount": "{count} liens de partage actifs",
     "confirmDeleteShare": "Supprimer ce partage ? Les personnes disposant du lien n'y auront plus accès.",
+    "deleteShareTitle": "Supprimer le partage ?",
+    "deleteShareMessage": "Les personnes disposant de ce lien ne pourront plus accéder à l’élément partagé.",
     "removeShare": "Supprimer le partage",
     "sharedWithAnyone": "Partagé avec tout le monde",
     "sharedWithUsers": "{count} utilisateur | {count} utilisateurs"
