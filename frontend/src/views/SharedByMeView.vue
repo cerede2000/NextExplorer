@@ -455,12 +455,12 @@ onMounted(async () => {
                 next to the copy/delete buttons (issue #265).
               -->
               <div
-                class="flex items-center rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-white dark:bg-neutral-900 focus-within:ring-2 focus-within:ring-blue-500/40"
+                class="flex min-w-0 items-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus-within:ring-2 focus-within:ring-blue-500/40"
               >
                 <select
                   v-model="directLinkModes[share.id]"
                   @click.stop
-                  class="w-[4.25rem] px-1.5 py-1 text-xs bg-transparent text-neutral-600 dark:text-neutral-300 border-0 focus:outline-none focus:ring-0 cursor-pointer"
+                  class="min-w-0 rounded-l-md border-0 bg-transparent py-1 pl-1.5 pr-0.5 text-xs text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 cursor-pointer"
                   :title="t('share.directLinkMode', 'Direct link mode')"
                   :aria-label="t('share.directLinkMode', 'Direct link mode')"
                 >
@@ -473,13 +473,13 @@ onMounted(async () => {
                   </option>
                 </select>
                 <span
-                  class="w-px self-stretch bg-neutral-200 dark:bg-neutral-700"
+                  class="w-px self-stretch bg-neutral-200 dark:bg-neutral-700 shrink-0"
                   aria-hidden="true"
                 ></span>
                 <button
                   @click.stop="handleCopyDirectFileLink(share)"
                   :disabled="directCopyingId === share.id"
-                  class="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                  class="shrink-0 rounded-r-md p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
                   :title="
                     share.isDirectory
                       ? t('share.copyDirectFolderLink', 'Copy direct folder ZIP link')
