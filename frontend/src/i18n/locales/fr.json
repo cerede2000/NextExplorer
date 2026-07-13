@@ -301,7 +301,8 @@
   "clipboard": {
     "copying": "Copie de {count} {items}…",
     "moving": "Déplacement de {count} {items}…",
-    "working": "Traitement…"
+    "working": "Traitement…",
+    "reposition": "Revenir sur l'élément à la fin"
   },
   "upload": {
     "toggleDetailsShow": "Afficher les détails",

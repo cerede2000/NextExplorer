@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useStorage } from '@vueuse/core';
+import router from '@/router';
 import {
   browse,
   copyItems,
@@ -44,6 +45,11 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
+  // When true, a finished copy/move re-focuses the pasted entry in its destination
+  // folder (navigating there via the router so the address bar stays in sync).
+  // When false, the current view is left untouched — handy for launching a long
+  // transfer and continuing to browse elsewhere. Persisted across sessions.
+  const repositionAfterTransfer = useStorage('nextExplorer_paste_reposition', true);
   const thumbnailRequests = new Map();
   const thumbnailRequestQueue = [];
   const activeThumbnailControllers = new Set();
@@ -193,13 +199,79 @@ export const useFileStore = defineStore('fileStore', () => {
     cutItems.value = selectedItems.value.map((item) => ({ ...item }));
   };
 
+  // Final name of a copied/moved entry, from its destination-relative path.
+  const transferredBaseName = (relativePath) => {
+    const normalized = normalizePath(relativePath || '');
+    const idx = normalized.lastIndexOf('/');
+    return idx >= 0 ? normalized.slice(idx + 1) : normalized;
+  };
+
+  // Collect the final entry names from a streamed transfer result ({ items:[{ to }] }).
+  const collectTransferredNames = (result, out) => {
+    const items = Array.isArray(result?.items) ? result.items : [];
+    for (const entry of items) {
+      const name = transferredBaseName(entry?.to);
+      if (name) out.push(name);
+    }
+  };
+
+  const selectItemsByName = (names) => {
+    const wanted = new Set((names || []).filter(Boolean));
+    if (wanted.size === 0) return;
+    const matches = currentPathItems.value.filter((it) => it && wanted.has(it.name));
+    if (matches.length > 0) {
+      selectedItems.value = matches;
+    }
+  };
+
+  // Refresh the view (and optionally reposition) once a copy/move settles. The
+  // address bar is driven by the router, so "repositioning" navigates through the
+  // router to keep the URL/breadcrumb in sync with the listing. When repositioning
+  // is disabled we only refresh the folder the user is *currently* viewing (which
+  // always matches the route), so navigating away mid-transfer is never disrupted.
+  const settleAfterTransfer = async (finalDestination, moveSourceParents, pastedNames) => {
+    const userLocation = normalizePath(currentPath.value || '');
+    const onDestination = userLocation === finalDestination;
+
+    if (repositionAfterTransfer.value) {
+      if (onDestination || !finalDestination) {
+        // Already at the destination (or destination is the root, which has no
+        // routable path): refresh in place and highlight the result. The address
+        // bar is already correct, so no navigation is needed.
+        await fetchPathItems(userLocation);
+        selectItemsByName(pastedNames);
+      } else {
+        // Elsewhere (navigated away, or pasted into another folder): navigate to
+        // the destination and select the entry, which also updates the address bar.
+        const firstName = pastedNames[0];
+        router
+          .push({
+            name: 'FolderView',
+            params: { path: finalDestination },
+            ...(firstName ? { query: { select: firstName } } : {}),
+          })
+          .catch(() => {});
+      }
+      return;
+    }
+
+    // Repositioning disabled: leave the user where they are. Refresh only when the
+    // current folder was actually affected (it is the destination, or a move source
+    // that just lost entries) so its listing stays accurate without any view jump.
+    if (onDestination || moveSourceParents.has(userLocation)) {
+      await fetchPathItems(userLocation);
+    }
+  };
+
   const paste = async (targetPath) => {
     const hasTarget = typeof targetPath === 'string' && targetPath.trim().length > 0;
     const destination = normalizePath(hasTarget ? targetPath : currentPath.value || '');
-    const refreshTarget = normalizePath(currentPath.value || '');
 
     const copyPayload = serializeItems(copiedItems.value);
     const movePayload = serializeItems(cutItems.value);
+    const moveSourceParents = new Set(
+      movePayload.map((item) => normalizePath(item.path || ''))
+    );
     const totalCount = copyPayload.length + movePayload.length;
 
     if (totalCount > 0) {
@@ -228,21 +300,28 @@ export const useFileStore = defineStore('fileStore', () => {
     };
 
     try {
+      const pastedNames = [];
+      let finalDestination = destination;
+
       if (copiedItems.value.length > 0) {
         if (copyPayload.length > 0) {
-          await copyItems(copyPayload, destination, { onEvent: onTransferEvent });
+          const result = await copyItems(copyPayload, destination, { onEvent: onTransferEvent });
+          collectTransferredNames(result, pastedNames);
+          if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
         copiedItems.value = [];
       }
 
       if (cutItems.value.length > 0) {
         if (movePayload.length > 0) {
-          await moveItems(movePayload, destination, { onEvent: onTransferEvent });
+          const result = await moveItems(movePayload, destination, { onEvent: onTransferEvent });
+          collectTransferredNames(result, pastedNames);
+          if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
         cutItems.value = [];
       }
 
-      await fetchPathItems(refreshTarget);
+      await settleAfterTransfer(finalDestination, moveSourceParents, pastedNames);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
     } finally {
@@ -684,6 +763,7 @@ export const useFileStore = defineStore('fileStore', () => {
     clearSelection,
     clipboardOperation,
     deleteOperation,
+    repositionAfterTransfer,
     copiedItems,
     cutItems,
     hasSelection,
