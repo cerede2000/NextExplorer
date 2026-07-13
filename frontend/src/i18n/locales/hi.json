@@ -69,7 +69,10 @@
     "shares": "शेयर",
     "unsavedChanges": "आपके पास बिना सहेजे परिवर्तन हैं",
     "readonly": "केवल पढ़ने के लिए",
-    "readwrite": "पढ़ना/लिखना"
+    "readwrite": "पढ़ना/लिखना",
+    "reset": "रीसेट करें",
+    "moveUp": "ऊपर ले जाएँ",
+    "moveDown": "नीचे ले जाएँ"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "क्रमबद्ध करें",
     "addRule": "नियम जोड़ें",
     "clearAll": "सभी साफ़ करें",
-    "cancelAll": "सभी रद्द करें"
+    "cancelAll": "सभी रद्द करें",
+    "copyPath": "पथ कॉपी करें",
+    "copyName": "नाम कॉपी करें",
+    "share": "साझा करें",
+    "copied": "कॉपी किया गया"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -434,7 +441,13 @@
       "months": "महीने",
       "skipHome": "होम पेज छोड़ें",
       "skipHomeHelp": "होम पेज पर आने पर पहले वॉल्यूम पर स्वचालित रूप से रीडायरेक्ट करें। यदि सेट नहीं है, तो सर्वर कॉन्फ़िगरेशन का पालन करें।",
-      "useEnvSetting": "सर्वर सेटिंग का उपयोग करें"
+      "useEnvSetting": "सर्वर सेटिंग का उपयोग करें",
+      "quickActions": "त्वरित क्रियाएँ मेनू",
+      "quickActionsHelp": "प्रत्येक फ़ाइल/फ़ोल्डर पंक्ति पर और ऊपर फ़ोल्डर नाम पर होवर करने पर क्रियाओं का एक छोटा मेनू दिखाता है।",
+      "quickActionsReorder": "दिखाई गई क्रियाओं को चुनें और पुनः क्रमबद्ध करें।",
+      "quickActionsMode": "मेनू प्रदर्शन",
+      "quickActionsModeFull": "होवर पर सभी आइकन",
+      "quickActionsModeCompact": "… आइकन (होवर पर विस्तृत करें)"
     },
     "thumbs": {
       "subtitle": "छवियों और वीडियो के लिए पूर्वावलोकन थंबनेल अनुकूलित करें।",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "सभी",
     "sharedWithUsers": "{count} उपयोगकर्ता",
     "expiresNever": "कभी नहीं"
+  },
+  "quickActions": {
+    "menu": "त्वरित क्रियाएँ"
   }
 }

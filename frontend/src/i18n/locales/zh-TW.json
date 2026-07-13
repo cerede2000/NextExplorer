@@ -69,7 +69,10 @@
     "shares": "分享",
     "unsavedChanges": "您有未儲存的變更",
     "readonly": "讀取",
-    "readwrite": "讀寫"
+    "readwrite": "讀寫",
+    "reset": "重設",
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "排序方式",
     "addRule": "新增規則",
     "clearAll": "清除全部",
-    "cancelAll": "全部取消"
+    "cancelAll": "全部取消",
+    "copyPath": "複製路徑",
+    "copyName": "複製名稱",
+    "share": "分享",
+    "copied": "已複製"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -434,7 +441,13 @@
       "months": "月",
       "skipHome": "跳過首頁",
       "skipHomeHelp": "進入首頁時自動導向到第一個儲存卷。未設定時會使用伺服器預設。",
-      "useEnvSetting": "使用伺服器預設"
+      "useEnvSetting": "使用伺服器預設",
+      "quickActions": "快速動作選單",
+      "quickActionsHelp": "在每個檔案/檔案夾列以及頂部的檔案夾名稱上，於懸停時顯示一個小型的動作選單。",
+      "quickActionsReorder": "選擇並重新排序顯示的動作。",
+      "quickActionsMode": "選單顯示",
+      "quickActionsModeFull": "懸停時顯示所有圖示",
+      "quickActionsModeCompact": "… 圖示（懸停時展開）"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位使用者",
     "expiresNever": "永不"
+  },
+  "quickActions": {
+    "menu": "快速動作"
   }
 }

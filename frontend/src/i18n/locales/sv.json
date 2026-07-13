@@ -69,7 +69,10 @@
     "shares": "Utdelningar",
     "unsavedChanges": "Du har osparade ändringar",
     "readonly": "Skrivskyddad",
-    "readwrite": "Läs/Skriv"
+    "readwrite": "Läs/Skriv",
+    "reset": "Återställ",
+    "moveUp": "Flytta upp",
+    "moveDown": "Flytta ner"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortera efter",
     "addRule": "Lägg till regel",
     "clearAll": "Töm allt",
-    "cancelAll": "Avbryt allt"
+    "cancelAll": "Avbryt allt",
+    "copyPath": "Kopiera sökväg",
+    "copyName": "Kopiera namn",
+    "share": "Dela",
+    "copied": "Kopierat"
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",
@@ -434,7 +441,13 @@
       "months": "Månader",
       "skipHome": "Hoppa över startsidan",
       "skipHomeHelp": "Omdirigerar automatiskt till den första volymen när startsidan öppnas. Om inget anges används serverinställningen.",
-      "useEnvSetting": "Använd serverinställning"
+      "useEnvSetting": "Använd serverinställning",
+      "quickActions": "Snabbåtgärdsmeny",
+      "quickActionsHelp": "Visar en liten meny med åtgärder vid hovring på varje fil-/mapprad och på mappnamnet högst upp.",
+      "quickActionsReorder": "Välj och ändra ordning på de åtgärder som visas.",
+      "quickActionsMode": "Menyvisning",
+      "quickActionsModeFull": "Alla ikoner vid hovring",
+      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)"
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "Alla",
     "sharedWithUsers": "{count} användare | {count} användare",
     "expiresNever": "Aldrig"
+  },
+  "quickActions": {
+    "menu": "Snabbåtgärder"
   }
 }

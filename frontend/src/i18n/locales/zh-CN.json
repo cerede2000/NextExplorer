@@ -69,7 +69,10 @@
     "shares": "共享",
     "unsavedChanges": "您有未保存的更改",
     "readonly": "只读",
-    "readwrite": "读/写"
+    "readwrite": "读/写",
+    "reset": "重置",
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "排序方式",
     "addRule": "添加规则",
     "clearAll": "清除全部",
-    "cancelAll": "全部取消"
+    "cancelAll": "全部取消",
+    "copyPath": "复制路径",
+    "copyName": "复制名称",
+    "share": "共享",
+    "copied": "已复制"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -434,7 +441,13 @@
       "months": "月",
       "skipHome": "跳过首页",
       "skipHomeHelp": "访问首页时自动重定向到第一个卷。未设置时遵循服务器配置。",
-      "useEnvSetting": "使用服务器设置"
+      "useEnvSetting": "使用服务器设置",
+      "quickActions": "快捷操作菜单",
+      "quickActionsHelp": "在每个文件/文件夹行以及顶部的文件夹名称上，鼠标悬停时显示一个小型操作菜单。",
+      "quickActionsReorder": "选择并重新排序显示的操作。",
+      "quickActionsMode": "菜单显示",
+      "quickActionsModeFull": "悬停时显示所有图标",
+      "quickActionsModeCompact": "… 图标（悬停时展开）"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位用户",
     "expiresNever": "永不"
+  },
+  "quickActions": {
+    "menu": "快捷操作"
   }
 }

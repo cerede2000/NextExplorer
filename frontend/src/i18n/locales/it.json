@@ -69,7 +69,10 @@
     "shares": "Condivisioni",
     "unsavedChanges": "Hai modifiche non salvate",
     "readonly": "Sola lettura",
-    "readwrite": "Lettura/Scrittura"
+    "readwrite": "Lettura/Scrittura",
+    "reset": "Reimposta",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Ordina per",
     "addRule": "Aggiungi regola",
     "clearAll": "Cancella tutto",
-    "cancelAll": "Annulla tutto"
+    "cancelAll": "Annulla tutto",
+    "copyPath": "Copia percorso",
+    "copyName": "Copia nome",
+    "share": "Condividi",
+    "copied": "Copiato"
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",
@@ -434,7 +441,13 @@
       "months": "Mesi",
       "skipHome": "Salta la home",
       "skipHomeHelp": "Reindirizza automaticamente al primo volume quando si visita la home. Se non impostato, usa la configurazione del server.",
-      "useEnvSetting": "Usa impostazione del server"
+      "useEnvSetting": "Usa impostazione del server",
+      "quickActions": "Menu azioni rapide",
+      "quickActionsHelp": "Mostra un piccolo menu di azioni al passaggio del mouse su ogni riga file/cartella e sul nome della cartella in alto.",
+      "quickActionsReorder": "Scegli e riordina le azioni mostrate.",
+      "quickActionsMode": "Visualizzazione menu",
+      "quickActionsModeFull": "Tutte le icone al passaggio del mouse",
+      "quickActionsModeCompact": "Icona … (espandi al passaggio del mouse)"
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "Tutti",
     "sharedWithUsers": "{count} utente | {count} utenti",
     "expiresNever": "Mai"
+  },
+  "quickActions": {
+    "menu": "Azioni rapide"
   }
 }

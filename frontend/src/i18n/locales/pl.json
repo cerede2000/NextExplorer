@@ -69,7 +69,10 @@
     "shares": "Udostępnienia",
     "unsavedChanges": "Masz niezapisane zmiany",
     "readonly": "Tylko do odczytu",
-    "readwrite": "Odczyt/Zapis"
+    "readwrite": "Odczyt/Zapis",
+    "reset": "Resetuj",
+    "moveUp": "Przesuń w górę",
+    "moveDown": "Przesuń w dół"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortuj według",
     "addRule": "Dodaj regułę",
     "clearAll": "Wyczyść wszystko",
-    "cancelAll": "Anuluj wszystko"
+    "cancelAll": "Anuluj wszystko",
+    "copyPath": "Kopiuj ścieżkę",
+    "copyName": "Kopiuj nazwę",
+    "share": "Udostępnij",
+    "copied": "Skopiowano"
   },
   "placeholders": {
     "email": "uzytkownik{'@'}przyklad.com",
@@ -434,7 +441,13 @@
       "months": "Miesiące",
       "skipHome": "Pomiń stronę główną",
       "skipHomeHelp": "Automatycznie przekierowuje do pierwszego wolumenu przy otwieraniu strony głównej. Jeśli nie ustawiono, stosuje konfigurację serwera.",
-      "useEnvSetting": "Użyj ustawień serwera"
+      "useEnvSetting": "Użyj ustawień serwera",
+      "quickActions": "Menu szybkich akcji",
+      "quickActionsHelp": "Wyświetla po najechaniu małe menu akcji w każdym wierszu pliku/folderu oraz na nazwie folderu u góry.",
+      "quickActionsReorder": "Wybierz i zmień kolejność wyświetlanych akcji.",
+      "quickActionsMode": "Wyświetlanie menu",
+      "quickActionsModeFull": "Wszystkie ikony po najechaniu",
+      "quickActionsModeCompact": "Ikona … (rozwiń po najechaniu)"
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "Wszyscy",
     "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
     "expiresNever": "Nigdy"
+  },
+  "quickActions": {
+    "menu": "Szybkie akcje"
   }
 }

@@ -69,7 +69,10 @@
     "shares": "공유",
     "unsavedChanges": "저장되지 않은 변경 사항이 있습니다",
     "readonly": "읽기 전용",
-    "readwrite": "읽기/쓰기"
+    "readwrite": "읽기/쓰기",
+    "reset": "초기화",
+    "moveUp": "위로 이동",
+    "moveDown": "아래로 이동"
   },
   "editor": {
     "editing": "편집 중",
@@ -102,7 +105,11 @@
     "sortBy": "정렬 기준",
     "addRule": "규칙 추가",
     "clearAll": "전부 지우기",
-    "cancelAll": "전부 취소"
+    "cancelAll": "전부 취소",
+    "copyPath": "경로 복사",
+    "copyName": "이름 복사",
+    "share": "공유",
+    "copied": "복사됨"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -434,7 +441,13 @@
       "months": "개월",
       "skipHome": "홈페이지 건너뛰기",
       "skipHomeHelp": "접속했을 때, 자동으로 첫 번째 볼륨으로 이동합니다. 설정하지 않을 경우 서버 설정을 따릅니다.",
-      "useEnvSetting": "서버 설정 사용"
+      "useEnvSetting": "서버 설정 사용",
+      "quickActions": "빠른 작업 메뉴",
+      "quickActionsHelp": "각 파일/폴더 행과 상단의 폴더 이름 위에 마우스를 올리면 작은 작업 메뉴를 표시합니다.",
+      "quickActionsReorder": "표시할 작업을 선택하고 순서를 변경하세요.",
+      "quickActionsMode": "메뉴 표시",
+      "quickActionsModeFull": "마우스를 올리면 모든 아이콘 표시",
+      "quickActionsModeCompact": "… 아이콘 (마우스를 올리면 펼침)"
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "모두",
     "sharedWithUsers": "{count} 유저 | {count} 유저",
     "expiresNever": "없음"
+  },
+  "quickActions": {
+    "menu": "빠른 작업"
   }
 }

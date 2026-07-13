@@ -69,7 +69,10 @@
     "shares": "Freigaben",
     "unsavedChanges": "Sie haben ungespeicherte Änderungen",
     "readonly": "Schreibgeschützt",
-    "readwrite": "Lesen/Schreiben"
+    "readwrite": "Lesen/Schreiben",
+    "reset": "Zurücksetzen",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortieren nach",
     "addRule": "Regel hinzufügen",
     "clearAll": "Alles löschen",
-    "cancelAll": "Alle abbrechen"
+    "cancelAll": "Alle abbrechen",
+    "copyPath": "Pfad kopieren",
+    "copyName": "Name kopieren",
+    "share": "Freigeben",
+    "copied": "Kopiert"
   },
   "placeholders": {
     "email": "benutzer{'@'}beispiel.com",
@@ -434,7 +441,13 @@
       "months": "Monate",
       "skipHome": "Startseite überspringen",
       "skipHomeHelp": "Leitet beim Besuch der Startseite automatisch zur ersten Volume weiter. Wenn nicht gesetzt, wird die Serverkonfiguration verwendet.",
-      "useEnvSetting": "Servereinstellung verwenden"
+      "useEnvSetting": "Servereinstellung verwenden",
+      "quickActions": "Schnellaktionen-Menü",
+      "quickActionsHelp": "Zeigt beim Überfahren ein kleines Aktionsmenü in jeder Datei-/Ordnerzeile sowie beim Ordnernamen oben an.",
+      "quickActionsReorder": "Wählen Sie die angezeigten Aktionen aus und ordnen Sie sie neu an.",
+      "quickActionsMode": "Menüanzeige",
+      "quickActionsModeFull": "Alle Symbole beim Überfahren",
+      "quickActionsModeCompact": "…-Symbol (beim Überfahren aufklappen)"
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "Alle",
     "sharedWithUsers": "{count} Benutzer",
     "expiresNever": "Nie"
+  },
+  "quickActions": {
+    "menu": "Schnellaktionen"
   }
 }

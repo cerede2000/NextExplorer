@@ -69,7 +69,10 @@
     "shares": "Compartidos",
     "unsavedChanges": "Tienes cambios sin guardar",
     "readonly": "Solo lectura",
-    "readwrite": "Lectura/Escritura"
+    "readwrite": "Lectura/Escritura",
+    "reset": "Restablecer",
+    "moveUp": "Subir",
+    "moveDown": "Bajar"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Ordenar por",
     "addRule": "Añadir regla",
     "clearAll": "Borrar todo",
-    "cancelAll": "Cancelar todo"
+    "cancelAll": "Cancelar todo",
+    "copyPath": "Copiar ruta",
+    "copyName": "Copiar nombre",
+    "share": "Compartir",
+    "copied": "Copiado"
   },
   "placeholders": {
     "email": "usuario{'@'}ejemplo.com",
@@ -434,7 +441,13 @@
       "months": "Meses",
       "skipHome": "Saltar inicio",
       "skipHomeHelp": "Redirige automáticamente a la primera unidad al visitar la pantalla de inicio. Si no se establece, usa la configuración del servidor.",
-      "useEnvSetting": "Usar configuración del servidor"
+      "useEnvSetting": "Usar configuración del servidor",
+      "quickActions": "Menú de acciones rápidas",
+      "quickActionsHelp": "Muestra al pasar el cursor un pequeño menú de acciones en cada fila de archivo/carpeta y en el nombre de la carpeta en la parte superior.",
+      "quickActionsReorder": "Elige y reordena las acciones que se muestran.",
+      "quickActionsMode": "Visualización del menú",
+      "quickActionsModeFull": "Todos los iconos al pasar el cursor",
+      "quickActionsModeCompact": "Icono … (desplegar al pasar el cursor)"
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "Todos",
     "sharedWithUsers": "{count} usuario | {count} usuarios",
     "expiresNever": "Nunca"
+  },
+  "quickActions": {
+    "menu": "Acciones rápidas"
   }
 }

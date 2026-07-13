@@ -69,7 +69,10 @@
     "shares": "Partajări",
     "unsavedChanges": "Ai modificări nesalvate",
     "readonly": "Doar citire",
-    "readwrite": "Citire/Scriere"
+    "readwrite": "Citire/Scriere",
+    "reset": "Resetează",
+    "moveUp": "Mută în sus",
+    "moveDown": "Mută în jos"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortează după",
     "addRule": "Adaugă regulă",
     "clearAll": "Șterge tot",
-    "cancelAll": "Anulează tot"
+    "cancelAll": "Anulează tot",
+    "copyPath": "Copiază calea",
+    "copyName": "Copiază numele",
+    "share": "Partajează",
+    "copied": "Copiat"
   },
   "placeholders": {
     "email": "utilizator{'@'}exemplu.com",
@@ -434,7 +441,13 @@
       "months": "Luni",
       "skipHome": "Sari peste pagina principală",
       "skipHomeHelp": "Redirectează automat către primul volum la deschiderea paginii principale. Dacă nu este setat, se folosește configurația serverului.",
-      "useEnvSetting": "Folosește setarea serverului"
+      "useEnvSetting": "Folosește setarea serverului",
+      "quickActions": "Meniu de acțiuni rapide",
+      "quickActionsHelp": "Afișează la trecerea cu mouse-ul un mic meniu de acțiuni pe fiecare rând de fișier/dosar și pe numele dosarului din partea de sus.",
+      "quickActionsReorder": "Alege și reordonează acțiunile afișate.",
+      "quickActionsMode": "Afișarea meniului",
+      "quickActionsModeFull": "Toate pictogramele la trecerea cu mouse-ul",
+      "quickActionsModeCompact": "Pictograma … (extinde la trecerea cu mouse-ul)"
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -594,5 +607,8 @@
     "sharedWithAnyone": "Oricine",
     "sharedWithUsers": "{count} utilizator | {count} utilizatori",
     "expiresNever": "Niciodată"
+  },
+  "quickActions": {
+    "menu": "Acțiuni rapide"
   }
 }
