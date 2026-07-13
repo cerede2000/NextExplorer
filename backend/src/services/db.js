@@ -580,7 +580,14 @@ const getDb = async () => {
   return dbInstance;
 };
 
+const closeDb = () => {
+  if (!dbInstance) return;
+  dbInstance.close();
+  dbInstance = null;
+};
+
 module.exports = {
   getDb,
+  closeDb,
   getDbPath,
 };

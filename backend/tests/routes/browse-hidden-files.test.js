@@ -17,11 +17,22 @@ const createBrowseContext = async () => {
       'src/middleware/errorHandler',
       'src/services/accessManager',
       'src/services/settingsService',
+      'src/utils/pathUtils',
     ],
   });
 
   const browseRoutes = envContext.requireFresh('src/routes/browse');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
+  const { getDb } = envContext.requireFresh('src/services/db');
+  const db = await getDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `
+    INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `
+  ).run('admin', 'admin@example.com', 1, 'admin', 'Admin', '["admin"]', now, now);
+
   const app = createTestApp({
     router: browseRoutes,
     mountPath: '/api',
