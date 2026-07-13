@@ -459,7 +459,8 @@ onMounted(async () => {
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center justify-end gap-1">
+            <div class="flex items-center justify-end gap-1.5">
+              <!-- Copy the standard share-page link -->
               <button
                 @click.stop="openActivityDetails(share)"
                 class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
@@ -471,7 +472,7 @@ onMounted(async () => {
                 @click.stop="handleCopyLink(share)"
                 :disabled="copyingId === share.id"
                 class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
-                :title="t('actions.copy')"
+                :title="t('share.copyShareLink', 'Copy share link')"
               >
                 <component
                   :is="copiedId === share.id ? CheckIcon : ClipboardDocumentIcon"
@@ -479,12 +480,22 @@ onMounted(async () => {
                   :class="{ 'text-green-500': copiedId === share.id }"
                 />
               </button>
-              <div class="flex items-center gap-1">
+              <!--
+                Direct link control. The mode selector and the copy button are one
+                control (pick a mode, then copy the direct link in that mode), so
+                they live in a single segmented box with a shared border to signal
+                they belong together — instead of reading as two unrelated icons
+                next to the copy/delete buttons (issue #265).
+              -->
+              <div
+                class="flex items-center rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-white dark:bg-neutral-900 focus-within:ring-2 focus-within:ring-blue-500/40"
+              >
                 <select
                   v-model="directLinkModes[share.id]"
                   @click.stop
-                  class="w-20 px-1.5 py-1 text-xs rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300"
+                  class="w-[4.25rem] px-1.5 py-1 text-xs bg-transparent text-neutral-600 dark:text-neutral-300 border-0 focus:outline-none focus:ring-0 cursor-pointer"
                   :title="t('share.directLinkMode', 'Direct link mode')"
+                  :aria-label="t('share.directLinkMode', 'Direct link mode')"
                 >
                   <option
                     v-for="mode in directLinkModeOptions"
@@ -494,10 +505,14 @@ onMounted(async () => {
                     {{ mode.label }}
                   </option>
                 </select>
+                <span
+                  class="w-px self-stretch bg-neutral-200 dark:bg-neutral-700"
+                  aria-hidden="true"
+                ></span>
                 <button
                   @click.stop="handleCopyDirectFileLink(share)"
                   :disabled="directCopyingId === share.id"
-                  class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                  class="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
                   :title="
                     share.isDirectory
                       ? t('share.copyDirectFolderLink', 'Copy direct folder ZIP link')

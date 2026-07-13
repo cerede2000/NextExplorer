@@ -584,6 +584,7 @@
     "shareLink": "Lien de partage",
     "directFileLink": "Lien direct du fichier",
     "directFolderLink": "Lien direct ZIP du dossier",
+    "copyShareLink": "Copier le lien de partage",
     "directLinkMode": "Mode du lien direct",
     "copyDirectFileLink": "Copier le lien direct du fichier",
     "copyDirectFolderLink": "Copier le lien direct ZIP du dossier",
