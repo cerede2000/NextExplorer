@@ -12,6 +12,28 @@ import { apiBase, normalizePath } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
 import DropTarget from '@uppy/drop-target';
 
+// Per-origin remembered auto-fallback chunk size (localStorage is scoped to the
+// origin, so the public URL and a LAN IP each keep their own value). Exported so
+// the settings screen can reset it (revert this origin to direct uploads).
+export const UPLOAD_FALLBACK_STORAGE_KEY = 'nextExplorer_upload_fallback_chunk_mib';
+
+export const getUploadFallbackMiB = () => {
+  try {
+    const value = Number(localStorage.getItem(UPLOAD_FALLBACK_STORAGE_KEY));
+    return Number.isFinite(value) && value >= 1 ? value : null;
+  } catch (_) {
+    return null;
+  }
+};
+
+export const resetUploadFallback = () => {
+  try {
+    localStorage.removeItem(UPLOAD_FALLBACK_STORAGE_KEY);
+  } catch (_) {
+    /* noop */
+  }
+};
+
 export function useFileUploader() {
   // Filtering is centralized in utils/uploads
   const uppyStore = useUppyStore();
@@ -62,36 +84,20 @@ export function useFileUploader() {
   const createdHere = ref(false);
 
   const MIB_BYTES = 1024 * 1024;
-  // Per-origin remembered fallback chunk size (localStorage is scoped to the
-  // origin, so the public URL and a LAN IP each keep their own value — direct
-  // uploads stay on the fast local origin, chunked kicks in only where a proxy
-  // needs it).
-  const FALLBACK_KEY = 'nextExplorer_upload_fallback_chunk_mib';
-  const FALLBACK_LADDER_MIB = [64, 32, 16, 8];
+  // Moderate sizes: small enough to be smooth and resilient (a stalled chunk is
+  // detected/retried quickly) while still well under typical proxy body limits.
+  const FALLBACK_LADDER_MIB = [32, 16, 8];
 
   const autoFallbackAllowed = () => Boolean(appSettings.state?.uploads?.chunkedAutoFallback);
-  const readFallbackMiB = () => {
-    try {
-      const value = Number(localStorage.getItem(FALLBACK_KEY));
-      return Number.isFinite(value) && value >= 1 ? value : null;
-    } catch (_) {
-      return null;
-    }
-  };
+  const readFallbackMiB = getUploadFallbackMiB;
   const writeFallbackMiB = (mib) => {
     try {
-      localStorage.setItem(FALLBACK_KEY, String(mib));
+      localStorage.setItem(UPLOAD_FALLBACK_STORAGE_KEY, String(mib));
     } catch (_) {
       /* noop */
     }
   };
-  const clearFallbackMiB = () => {
-    try {
-      localStorage.removeItem(FALLBACK_KEY);
-    } catch (_) {
-      /* noop */
-    }
-  };
+  const clearFallbackMiB = resetUploadFallback;
 
   const getUploadSettings = () => {
     const adminChunked = Boolean(appSettings.state?.uploads?.chunkedEnabled);

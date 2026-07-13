@@ -480,6 +480,8 @@
       "chunkedEnableHelp": "Use TUS to send large files through multiple smaller requests.",
       "autoFallback": "Auto-fallback to chunked",
       "autoFallbackHelp": "If a direct upload fails (a reverse proxy rejecting the body size), automatically switch to chunked uploads with a safe size, remembered per address. Great for staying direct locally and switching to chunked behind the proxy.",
+      "autoFallbackActive": "Chunked size remembered for this address: {size} MiB.",
+      "autoFallbackReset": "Reset (back to direct)",
       "chunkSize": "Chunk size",
       "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit. Smaller chunks (8–32 MiB) give smoother progress; very large chunks show visible steps (the server writes each chunk before the next)."
     },
