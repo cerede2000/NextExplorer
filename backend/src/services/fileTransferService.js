@@ -400,7 +400,6 @@ const deleteItems = async (items = [], options = {}) => {
       continue;
     }
 
-    await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
     const deletedEntryStats = stats || (await fs.stat(absolutePath));
     await fs.rm(absolutePath, {
       recursive: isDirectory || deletedEntryStats.isDirectory(),
