@@ -339,6 +339,21 @@ const save = async () => {
       </div>
 
       <div v-if="quickActions.enabled" class="mt-4">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <div class="text-sm text-zinc-700 dark:text-zinc-300">
+            {{ t('settings.userPreferences.quickActionsMode') }}
+          </div>
+          <select
+            :value="quickActions.displayMode"
+            class="rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs sm:text-sm p-2"
+            @change="quickActions.setDisplayMode($event.target.value)"
+          >
+            <option value="full">{{ t('settings.userPreferences.quickActionsModeFull') }}</option>
+            <option value="compact">
+              {{ t('settings.userPreferences.quickActionsModeCompact') }}
+            </option>
+          </select>
+        </div>
         <div class="mb-2 flex items-center justify-between">
           <div class="text-sm text-zinc-500 dark:text-zinc-400">
             {{ t('settings.userPreferences.quickActionsReorder') }}

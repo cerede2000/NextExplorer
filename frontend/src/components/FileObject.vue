@@ -90,6 +90,9 @@ const selectionButtonStateClass = (selected) =>
 
 const longPressActive = ref(false);
 
+// Drives lazy rendering of the inline quick-actions (only mounted while hovered).
+const qaHover = ref(false);
+
 const handleToggleSelection = (event) => {
   if (isRenaming.value) return;
   event?.preventDefault?.();
@@ -391,6 +394,8 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @mouseenter="qaHover = true"
+      @mouseleave="qaHover = false"
       :draggable="canDragDrop() && !isRenaming"
       :class="[
         'grid select-none items-center',
@@ -453,7 +458,7 @@ if (isTouchDevice.value) {
                long to leave room. The name never shifts, so browsing isn't jumpy. -->
           <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
             <MiddleEllipsis :text="item.name" :end-chars="10" />
-            <InlineQuickActions :item="item" />
+            <InlineQuickActions :item="item" :active="qaHover" />
           </div>
         </template>
       </div>

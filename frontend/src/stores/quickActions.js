@@ -14,6 +14,9 @@ import {
 // catalog changes (new actions appear, removed ones drop out).
 export const useQuickActionsStore = defineStore('quickActions', () => {
   const enabled = useStorage('settings:quickActions:enabled', true);
+  // 'full' = all icons appear on row hover; 'compact' = a "…" appears on hover
+  // and expands to the icons when hovered.
+  const displayMode = useStorage('settings:quickActions:mode', 'full');
   const rawConfig = useStorage('settings:quickActions:config', defaultQuickActionConfig());
 
   const config = computed(() => {
@@ -47,6 +50,10 @@ export const useQuickActionsStore = defineStore('quickActions', () => {
     enabled.value = Boolean(value);
   };
 
+  const setDisplayMode = (mode) => {
+    displayMode.value = mode === 'compact' ? 'compact' : 'full';
+  };
+
   const setActionOn = (id, on) => {
     persist(config.value.map((entry) => (entry.id === id ? { ...entry, on: Boolean(on) } : entry)));
   };
@@ -63,15 +70,18 @@ export const useQuickActionsStore = defineStore('quickActions', () => {
 
   const reset = () => {
     enabled.value = true;
+    displayMode.value = 'full';
     persist(defaultQuickActionConfig());
   };
 
   return {
     enabled,
+    displayMode,
     config,
     enabledActionIds,
     hasAnyEnabled,
     setEnabled,
+    setDisplayMode,
     setActionOn,
     move,
     reset,

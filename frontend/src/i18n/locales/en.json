@@ -457,7 +457,10 @@
       "useEnvSetting": "Use server setting",
       "quickActions": "Quick actions menu",
       "quickActionsHelp": "Shows a small hover menu of actions on each file/folder row and on the folder name at the top.",
-      "quickActionsReorder": "Choose and reorder the actions shown."
+      "quickActionsReorder": "Choose and reorder the actions shown.",
+      "quickActionsMode": "Menu display",
+      "quickActionsModeFull": "All icons on hover",
+      "quickActionsModeCompact": "… icon (expand on hover)"
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
