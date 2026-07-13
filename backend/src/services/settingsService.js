@@ -5,8 +5,20 @@ const env = require('../config/env');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 
 const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
-const MAX_UPLOAD_CHUNK_SIZE_BYTES = 512 * 1024 * 1024;
+const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
 const DEFAULT_UPLOAD_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
+
+// Admin-configurable upper bound (env MAX_CHUNK_SIZE_MIB), capped at the hard
+// ceiling. Used to clamp both the default and any saved chunk size.
+const resolveMaxChunkSizeBytes = () => {
+  const raw = Number(env.MAX_CHUNK_SIZE_MIB);
+  const mib =
+    Number.isFinite(raw) && raw >= 1
+      ? Math.min(Math.floor(raw), HARD_MAX_UPLOAD_CHUNK_SIZE_MIB)
+      : HARD_MAX_UPLOAD_CHUNK_SIZE_MIB;
+  return Math.max(MIN_UPLOAD_CHUNK_SIZE_BYTES, mib * 1024 * 1024);
+};
+const MAX_UPLOAD_CHUNK_SIZE_BYTES = resolveMaxChunkSizeBytes();
 
 const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -19,6 +31,7 @@ const defaultUploadSettings = () => {
 
   return {
     chunkedEnabled: env.UPLOAD_CHUNKED_ENABLED ?? false,
+    chunkedAutoFallback: env.UPLOAD_CHUNKED_AUTO_FALLBACK ?? false,
     chunkSizeBytes: clampNumber(
       Math.floor(chunkSizeBytes),
       MIN_UPLOAD_CHUNK_SIZE_BYTES,
@@ -117,6 +130,10 @@ const sanitizeUploads = (uploads = {}) => {
       typeof uploads.chunkedEnabled === 'boolean'
         ? uploads.chunkedEnabled
         : defaults.chunkedEnabled,
+    chunkedAutoFallback:
+      typeof uploads.chunkedAutoFallback === 'boolean'
+        ? uploads.chunkedAutoFallback
+        : defaults.chunkedAutoFallback,
     chunkSizeBytes: Number.isFinite(rawChunkSize)
       ? clampNumber(
           Math.floor(rawChunkSize),
@@ -464,6 +481,7 @@ module.exports = {
   setUserSetting,
   setSystemSetting,
   sanitizeUploads,
+  MAX_UPLOAD_CHUNK_SIZE_BYTES,
   // Legacy methods for backward compatibility
   getSettings,
   setSettings,

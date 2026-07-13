@@ -215,6 +215,9 @@ router.patch(
         if (typeof payload.uploads.chunkedEnabled === 'boolean') {
           uploadsUpdate.chunkedEnabled = payload.uploads.chunkedEnabled;
         }
+        if (typeof payload.uploads.chunkedAutoFallback === 'boolean') {
+          uploadsUpdate.chunkedAutoFallback = payload.uploads.chunkedAutoFallback;
+        }
         if (Number.isFinite(payload.uploads.chunkSizeBytes)) {
           uploadsUpdate.chunkSizeBytes = payload.uploads.chunkSizeBytes;
         }

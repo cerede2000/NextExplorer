@@ -5,6 +5,8 @@ import { fetchFeatures } from '@/api';
 export const useFeaturesStore = defineStore('features', () => {
   const publicUrl = ref('');
   const publicOrigin = ref('');
+  // Admin-configured upper bound (bytes) for the upload chunk size.
+  const maxUploadChunkSizeBytes = ref(0);
   const editorExtensions = ref([]);
   const onlyofficeEnabled = ref(false);
   const onlyofficeExtensions = ref([]);
@@ -43,6 +45,9 @@ export const useFeaturesStore = defineStore('features', () => {
         publicUrl.value = typeof features?.public?.url === 'string' ? features.public.url : '';
         publicOrigin.value =
           typeof features?.public?.origin === 'string' ? features.public.origin : '';
+        maxUploadChunkSizeBytes.value = Number.isFinite(features?.uploads?.maxChunkSizeBytes)
+          ? features.uploads.maxChunkSizeBytes
+          : 0;
 
         // Editor extensions
         editorExtensions.value = Array.isArray(features?.editor?.extensions)
@@ -89,6 +94,7 @@ export const useFeaturesStore = defineStore('features', () => {
         // Set defaults on error
         publicUrl.value = '';
         publicOrigin.value = '';
+        maxUploadChunkSizeBytes.value = 0;
         editorExtensions.value = [];
         onlyofficeEnabled.value = false;
         onlyofficeExtensions.value = [];
@@ -120,6 +126,7 @@ export const useFeaturesStore = defineStore('features', () => {
   return {
     publicUrl,
     publicOrigin,
+    maxUploadChunkSizeBytes,
     editorExtensions,
     onlyofficeEnabled,
     onlyofficeExtensions,

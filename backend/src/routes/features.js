@@ -8,6 +8,7 @@ const {
   public: publicConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
+const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
@@ -29,6 +30,10 @@ router.get('/features', (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+    },
+    uploads: {
+      // Admin-configurable upper bound for the chunk size (env MAX_CHUNK_SIZE_MIB).
+      maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

@@ -16,7 +16,13 @@ module.exports = {
       ? Number(process.env.UPLOAD_INACTIVITY_TIMEOUT)
       : 120000,
   UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED) ?? false,
+  // When direct (XHR) upload is used, automatically fall back to chunked uploads
+  // if a request fails because a reverse proxy rejects the body size.
+  UPLOAD_CHUNKED_AUTO_FALLBACK: normalizeBoolean(process.env.UPLOAD_CHUNKED_AUTO_FALLBACK) ?? false,
   UPLOAD_CHUNK_SIZE: process.env.UPLOAD_CHUNK_SIZE?.trim() || null,
+  // Upper bound (MiB) an admin may set for the chunk size; caps the settings
+  // slider/input and clamps saved values. Hard ceiling of 512 MiB still applies.
+  MAX_CHUNK_SIZE_MIB: process.env.MAX_CHUNK_SIZE_MIB?.trim() || null,
   UPLOAD_STORAGE_RESERVE: process.env.UPLOAD_STORAGE_RESERVE?.trim() || '64M',
   TUS_UPLOAD_DIR: process.env.TUS_UPLOAD_DIR?.trim() || null,
   TUS_INCOMPLETE_UPLOAD_TTL_MS:
