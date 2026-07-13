@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import NavButtons from '@/components/NavButtons.vue';
 import BreadCrumb from '@/components/BreadCrumb.vue';
 import MenuItemInfo from '@/components/MenuItemInfo.vue';
@@ -15,7 +15,14 @@ import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
 import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDownTrayIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
+import {
+  ArrowDownTrayIcon,
+  ArrowPathIcon,
+  Bars3Icon,
+  CheckIcon,
+  ClipboardDocumentIcon,
+  HomeIcon,
+} from '@heroicons/vue/24/outline';
 import { useInputMode } from '@/composables/useInputMode';
 
 const settings = useSettingsStore();
@@ -60,6 +67,39 @@ const goHome = async () => {
   await router.push('/browse/');
 };
 
+const currentFolderPath = computed(() => {
+  const p = route.params.path;
+  return Array.isArray(p) ? p.join('/') : p || '';
+});
+
+// Refresh: re-fetch the current folder listing (spins the icon while loading).
+const refreshing = ref(false);
+const refreshFolder = async () => {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await fileStore.fetchPathItems(currentFolderPath.value);
+  } finally {
+    refreshing.value = false;
+  }
+};
+
+// Copy the full logical path of the current folder to the clipboard.
+const pathCopied = ref(false);
+let pathCopiedTimer;
+const copyFolderPath = async () => {
+  try {
+    await navigator.clipboard?.writeText?.(currentFolderPath.value);
+    pathCopied.value = true;
+    clearTimeout(pathCopiedTimer);
+    pathCopiedTimer = setTimeout(() => {
+      pathCopied.value = false;
+    }, 1200);
+  } catch {
+    // Clipboard unavailable (insecure context / denied) — silently ignore.
+  }
+};
+
 const toggleSelectionMode = () => {
   fileStore.toggleSelectionMode({ clearOnDisable: true });
 };
@@ -97,7 +137,28 @@ const downloadCurrentFolder = () => {
           <HomeIcon class="h-5 w-5" />
         </button>
         <NavButtons />
-        <BreadCrumb class="ml-2 mr-auto" />
+        <button
+          v-if="!isVolumesView"
+          type="button"
+          class="shrink-0 p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 dark:active:bg-neutral-600"
+          :title="$t('nav.refresh')"
+          :aria-label="$t('nav.refresh')"
+          @click="refreshFolder"
+        >
+          <ArrowPathIcon class="h-5 w-5" :class="{ 'animate-spin': refreshing }" />
+        </button>
+        <BreadCrumb class="ml-2" :class="isVolumesView ? 'mr-auto' : ''" />
+        <button
+          v-if="!isVolumesView"
+          type="button"
+          class="shrink-0 ml-1 mr-auto p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 dark:active:bg-neutral-600"
+          :title="pathCopied ? $t('actions.copied') : $t('actions.copyPath')"
+          :aria-label="$t('actions.copyPath')"
+          @click="copyFolderPath"
+        >
+          <CheckIcon v-if="pathCopied" class="h-5 w-5 text-emerald-500" />
+          <ClipboardDocumentIcon v-else class="h-5 w-5" />
+        </button>
         <button
           v-if="isTouchDevice && !isVolumesView"
           type="button"

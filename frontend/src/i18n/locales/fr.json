@@ -94,6 +94,9 @@
     "cut": "Couper",
     "paste": "Coller",
     "rename": "Renommer",
+    "copyPath": "Copier le chemin",
+    "copyName": "Copier le nom",
+    "copied": "Copié",
     "download": "Télécharger",
     "downloadFolder": "Télécharger le dossier",
     "extractZip": "Extraire ZIP",
@@ -235,7 +238,7 @@
   },
   "folder": {
     "kind": "Type",
-    "dateModified": "Date de modification",
+    "dateModified": "Modifié le",
     "noPhotos": "Aucune photo dans ce dossier",
     "noPhotosHint": "Passez à un autre mode d’affichage pour voir tous les fichiers",
     "empty": "Ce dossier est vide",
@@ -262,7 +265,8 @@
     "home": "Accueil",
     "back": "Retour",
     "forward": "Avancer",
-    "upOneFolder": "Remonter d'un dossier"
+    "upOneFolder": "Remonter d'un dossier",
+    "refresh": "Actualiser le dossier"
   },
   "view": {
     "list": "Vue liste",

@@ -18,7 +18,7 @@ import { DragSelectOption } from '@coleqiu/vue-drag-select';
 import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
-import { CheckIcon } from '@heroicons/vue/20/solid';
+import { CheckIcon, DocumentDuplicateIcon } from '@heroicons/vue/20/solid';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 
 const props = defineProps(['item', 'view']);
@@ -88,6 +88,24 @@ const selectionButtonStateClass = (selected) =>
     : 'border-neutral-300 bg-white/80 text-transparent ring-neutral-200 dark:border-neutral-600 dark:bg-zinc-900/60 dark:ring-neutral-700';
 
 const longPressActive = ref(false);
+
+// Copy just the entry's name (not its path) to the clipboard, with brief feedback.
+const nameCopied = ref(false);
+let nameCopiedTimer;
+const copyName = async (event) => {
+  event?.stopPropagation?.();
+  event?.preventDefault?.();
+  try {
+    await navigator.clipboard?.writeText?.(props.item?.name || '');
+    nameCopied.value = true;
+    clearTimeout(nameCopiedTimer);
+    nameCopiedTimer = setTimeout(() => {
+      nameCopied.value = false;
+    }, 1200);
+  } catch {
+    // Clipboard unavailable (insecure context / denied) — silently ignore.
+  }
+};
 
 const handleToggleSelection = (event) => {
   if (isRenaming.value) return;
@@ -447,7 +465,22 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
-          <MiddleEllipsis :text="item.name" :end-chars="10" />
+          <div class="flex items-center min-w-0">
+            <MiddleEllipsis :text="item.name" :end-chars="10" />
+            <button
+              type="button"
+              class="shrink-0 -ml-2 grid h-6 w-6 place-items-center rounded opacity-0 transition-opacity hover:bg-black/10 focus-visible:opacity-100 group-hover/item:opacity-100 dark:hover:bg-white/15"
+              :title="nameCopied ? $t('actions.copied') : $t('actions.copyName')"
+              :aria-label="$t('actions.copyName')"
+              @click.stop.prevent="copyName"
+              @dblclick.stop.prevent
+              @mousedown.stop
+              @pointerdown.stop
+            >
+              <CheckIcon v-if="nameCopied" class="h-3.5 w-3.5 text-emerald-500" />
+              <DocumentDuplicateIcon v-else class="h-3.5 w-3.5" />
+            </button>
+          </div>
         </template>
       </div>
       <div class="text-sm">
