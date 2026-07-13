@@ -35,6 +35,14 @@ const isExpired = computed(() => shareInfo.value?.isExpired || false);
 const requiresPassword = computed(() =>
   Boolean(shareInfo.value?.hasPassword && shareInfo.value?.sharingType === 'anyone')
 );
+const redirectTarget = computed(() => {
+  const value = route.query.redirect;
+  const target = Array.isArray(value) ? value[0] : value;
+  if (typeof target !== 'string' || !target.startsWith('/') || target.startsWith('//')) {
+    return null;
+  }
+  return target;
+});
 const expiryDate = computed(() => {
   if (!shareInfo.value?.expiresAt) return null;
   return new Date(shareInfo.value.expiresAt);
@@ -85,14 +93,23 @@ async function loadShareInfo() {
 async function handleUserAccess() {
   try {
     await accessShare(shareToken.value);
-    router.push({
-      name: 'FolderView',
-      params: { path: `share/${shareToken.value}` },
-    });
+    navigateAfterShareAccess();
   } catch (err) {
     logger.error({ err }, 'User access failed');
     error.value = err.message || 'Failed to access share';
   }
+}
+
+function navigateAfterShareAccess() {
+  if (redirectTarget.value) {
+    window.location.assign(redirectTarget.value);
+    return;
+  }
+
+  router.push({
+    name: 'FolderView',
+    params: { path: `share/${shareToken.value}` },
+  });
 }
 
 async function handleAutoAccess() {
@@ -107,14 +124,7 @@ async function handleAutoAccess() {
       setGuestSession(result.guestSessionId);
     }
 
-    const targetPath = `share/${shareToken.value}`;
-    logger.debug('Redirecting to FolderView with path', targetPath);
-
-    // Redirect to browse the share
-    router.push({
-      name: 'FolderView',
-      params: { path: targetPath },
-    });
+    navigateAfterShareAccess();
   } catch (err) {
     logger.error({ err }, 'Auto-access failed');
     error.value = err.message || 'Failed to access share';
@@ -142,20 +152,13 @@ async function handlePasswordSubmit() {
         setGuestSession(result.guestSessionId);
       }
 
-      const targetPath = `share/${shareToken.value}`;
-      logger.debug('Redirecting to FolderView with path', targetPath);
-
-      // Redirect to browse the share
-      router.push({
-        name: 'FolderView',
-        params: { path: targetPath },
-      });
+      navigateAfterShareAccess();
     } else if (result.requiresAuth) {
       // User-specific share with password - redirect to login
       logger.debug('Redirecting to login (requires auth)');
       router.push({
         name: 'auth-login',
-        query: { redirect: `/share/${shareToken.value}` },
+        query: { redirect: route.fullPath },
       });
     }
   } catch (err) {
@@ -302,7 +305,7 @@ async function handlePasswordSubmit() {
             @click="
               router.push({
                 name: 'auth-login',
-                query: { redirect: `/share/${shareToken}` },
+                query: { redirect: route.fullPath },
               })
             "
             class="w-full px-6 py-3 font-medium text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
