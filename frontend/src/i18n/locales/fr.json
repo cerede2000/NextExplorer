@@ -33,6 +33,9 @@
     "unknown": "inconnu",
     "optional": "Optionnel",
     "clear": "Effacer",
+    "reset": "Réinitialiser",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
     "name": "Nom",
     "size": "Taille",
     "type": "Type",
@@ -96,6 +99,7 @@
     "rename": "Renommer",
     "copyPath": "Copier le chemin",
     "copyName": "Copier le nom",
+    "share": "Partager",
     "copied": "Copié",
     "download": "Télécharger",
     "downloadFolder": "Télécharger le dossier",
@@ -308,6 +312,9 @@
     "working": "Traitement…",
     "reposition": "Revenir sur l'élément à la fin"
   },
+  "quickActions": {
+    "menu": "Actions rapides"
+  },
   "upload": {
     "toggleDetailsShow": "Afficher les détails",
     "toggleDetailsHide": "Masquer les détails",
@@ -447,6 +454,9 @@
       "months": "Mois",
       "skipHome": "Passer l’accueil",
       "skipHomeHelp": "Redirige automatiquement vers le premier volume depuis l’accueil. Si non défini, utilise la configuration serveur.",
+      "quickActions": "Menu d’actions rapides",
+      "quickActionsHelp": "Affiche au survol un petit menu d’actions sur chaque ligne fichier/dossier et sur le nom du dossier en haut.",
+      "quickActionsReorder": "Choisissez et réordonnez les actions affichées.",
       "useEnvSetting": "Utiliser la configuration serveur"
     },
     "thumbs": {

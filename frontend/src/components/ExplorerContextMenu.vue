@@ -355,6 +355,105 @@ const runToggleFavoriteForCurrent = async () => {
   }
 };
 
+// Inline quick-actions menu: run a single action against a specific item without
+// opening the full right-click menu. Reuses this component's action machinery
+// (share/delete dialogs, favorites) so there is a single implementation. The item
+// is selected first so the selection-based run functions target it.
+const copyTextToClipboard = async (text) => {
+  try {
+    await navigator.clipboard?.writeText?.(String(text || ''));
+  } catch {
+    // Clipboard unavailable (insecure context / denied) — ignore.
+  }
+};
+
+const toggleFavoriteForItem = async (item) => {
+  if (!item || item.kind !== 'directory' || isMutatingFavorite.value) return;
+  const path = normalizePath(actions.resolveItemPath(item));
+  if (!path) return;
+  isMutatingFavorite.value = true;
+  try {
+    if (favoritesStore.isFavorite(path)) {
+      await favoritesStore.removeFavorite(path);
+    } else {
+      const favorite = await favoritesStore.addFavorite({ path });
+      if (favorite) openEditorForFavorite(favorite);
+    }
+  } finally {
+    isMutatingFavorite.value = false;
+  }
+};
+
+const quickActionAvailable = (item, id) => {
+  if (!item) return false;
+  if (item.kind === 'volume') return id === 'info' || id === 'copyName';
+  const isDir = item.kind === 'directory';
+  switch (id) {
+    case 'info':
+    case 'copyName':
+    case 'copyPath':
+    case 'copy':
+    case 'download':
+      return true;
+    case 'cut':
+      return locationCanWrite.value && locationCanDelete.value;
+    case 'rename':
+      return locationCanWrite.value;
+    case 'share':
+      return !isVolumesView.value && !isShareView.value && locationCanShare.value;
+    case 'compress':
+      return locationCanWrite.value;
+    case 'favorite':
+      return isDir;
+    case 'delete':
+      return locationCanDelete.value;
+    default:
+      return false;
+  }
+};
+
+const runQuickAction = async (item, id) => {
+  if (!item) return;
+  ensureItemInSelection(item);
+  switch (id) {
+    case 'info':
+      runGetInfo();
+      break;
+    case 'download':
+      runDownload();
+      break;
+    case 'copyName':
+      await copyTextToClipboard(item.name || '');
+      break;
+    case 'copyPath':
+      await copyTextToClipboard(actions.resolveItemPath(item));
+      break;
+    case 'copy':
+      runCopy();
+      break;
+    case 'cut':
+      runCut();
+      break;
+    case 'rename':
+      runRename();
+      break;
+    case 'share':
+      runShare();
+      break;
+    case 'compress':
+      runCompressToZip();
+      break;
+    case 'favorite':
+      await toggleFavoriteForItem(item);
+      break;
+    case 'delete':
+      requestDelete();
+      break;
+    default:
+      break;
+  }
+};
+
 // Build grouped, themed menu sections with icons + shortcuts
 const menuSections = computed(() => {
   if (!isOpen.value) return [];
@@ -607,6 +706,8 @@ provide(explorerContextMenuSymbol, {
   openBackgroundMenu,
   closeMenu,
   clearSelection,
+  runQuickAction,
+  quickActionAvailable,
 });
 </script>
 

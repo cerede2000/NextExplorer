@@ -3,10 +3,21 @@ import { computed, onMounted, reactive, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
+import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/vue/20/solid';
+import { useQuickActionsStore } from '@/stores/quickActions';
+import { QUICK_ACTIONS_BY_ID } from '@/config/quickActions';
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
 const { t } = useI18n();
+
+// Inline quick-actions menu config is a client-side (localStorage) preference,
+// applied instantly — it is not part of the server-saved settings above.
+const quickActions = useQuickActionsStore();
+const quickActionLabel = (id) => {
+  const meta = QUICK_ACTIONS_BY_ID[id];
+  return meta ? t(meta.labelKey) : id;
+};
 
 const local = reactive({
   showHiddenFiles: false,
@@ -294,6 +305,98 @@ const save = async () => {
             </select>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Inline quick-actions menu (client-side preference, applied instantly) -->
+    <div
+      class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6"
+    >
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-medium text-zinc-900 dark:text-zinc-100">
+            {{ t('settings.userPreferences.quickActions') }}
+          </div>
+          <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+            {{ t('settings.userPreferences.quickActionsHelp') }}
+          </div>
+        </div>
+        <label class="inline-flex cursor-pointer items-center">
+          <input
+            type="checkbox"
+            :checked="quickActions.enabled"
+            class="peer sr-only"
+            @change="quickActions.setEnabled($event.target.checked)"
+          />
+          <div
+            class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
+          >
+            <div
+              class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
+            ></div>
+          </div>
+        </label>
+      </div>
+
+      <div v-if="quickActions.enabled" class="mt-4">
+        <div class="mb-2 flex items-center justify-between">
+          <div class="text-sm text-zinc-500 dark:text-zinc-400">
+            {{ t('settings.userPreferences.quickActionsReorder') }}
+          </div>
+          <button
+            type="button"
+            class="text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+            @click="quickActions.reset()"
+          >
+            {{ t('common.reset') }}
+          </button>
+        </div>
+        <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <li
+            v-for="(entry, index) in quickActions.config"
+            :key="entry.id"
+            class="flex items-center gap-3 py-2"
+          >
+            <div class="flex flex-col">
+              <button
+                type="button"
+                class="rounded p-0.5 text-zinc-400 hover:text-zinc-800 disabled:opacity-30 dark:hover:text-zinc-100"
+                :disabled="index === 0"
+                :aria-label="t('common.moveUp')"
+                @click="quickActions.move(entry.id, -1)"
+              >
+                <ArrowUpIcon class="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                class="rounded p-0.5 text-zinc-400 hover:text-zinc-800 disabled:opacity-30 dark:hover:text-zinc-100"
+                :disabled="index === quickActions.config.length - 1"
+                :aria-label="t('common.moveDown')"
+                @click="quickActions.move(entry.id, 1)"
+              >
+                <ArrowDownIcon class="h-4 w-4" />
+              </button>
+            </div>
+            <span class="flex-1 text-sm text-zinc-800 dark:text-zinc-200">
+              {{ quickActionLabel(entry.id) }}
+            </span>
+            <label class="inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                :checked="entry.on"
+                class="peer sr-only"
+                @change="quickActions.setActionOn(entry.id, $event.target.checked)"
+              />
+              <div
+                class="peer relative h-5 w-9 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
+              >
+                <div
+                  class="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-4"
+                ></div>
+              </div>
+            </label>
+          </li>
+        </ul>
       </div>
     </div>
   </div>
