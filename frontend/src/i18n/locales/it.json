@@ -228,7 +228,10 @@
       "single": "Sei sicuro di voler eliminare \"{name}\"? Questa azione non può essere annullata.",
       "multiple": "Sei sicuro di voler eliminare questi {count} elementi? Questa azione non può essere annullata.",
       "generic": "Nessun elemento selezionato."
-    }
+    },
+    "checkingDeleteImpact": "Verifica delle condivisioni collegate...",
+    "deleteImpactUnavailable": "Impossibile verificare le condivisioni collegate. L'eliminazione sarà comunque applicata dal server.",
+    "deleteLinkedShares": "Questo contenuto ha {count} condivisione collegata che sarà rimossa con esso. | Questo contenuto ha {count} condivisioni collegate che saranno rimosse con esso."
   },
   "folder": {
     "kind": "Tipo",
@@ -236,7 +239,11 @@
     "noPhotos": "Nessuna foto in questa cartella",
     "noPhotosHint": "Passa a un'altra modalità di visualizzazione per vedere tutti i file",
     "empty": "Questa cartella è vuota",
-    "emptyHint": "Carica o crea file per iniziare."
+    "emptyHint": "Carica o crea file per iniziare.",
+    "scrollTop": "Inizio",
+    "scrollBottom": "Fine",
+    "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto"
   },
   "volumes": {
     "quickAccess": "Accesso rapido",
@@ -593,6 +600,20 @@
     "removeShare": "Rimuovi condivisione",
     "sharedWithAnyone": "Tutti",
     "sharedWithUsers": "{count} utente | {count} utenti",
-    "expiresNever": "Mai"
+    "expiresNever": "Mai",
+    "directFileLink": "Link diretto al file",
+    "directFolderLink": "Link diretto ZIP della cartella",
+    "copyShareLink": "Copia link di condivisione",
+    "directLinkMode": "Modalità link diretto",
+    "copyDirectFileLink": "Copia link diretto al file",
+    "copyDirectFolderLink": "Copia link diretto ZIP della cartella",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visualizza",
+      "raw": "Raw",
+      "download": "Scarica"
+    },
+    "deleteShareTitle": "Rimuovere la condivisione?",
+    "deleteShareMessage": "Le persone con questo link non potranno più accedere all'elemento condiviso."
   }
 }

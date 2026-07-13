@@ -228,7 +228,10 @@
       "single": "确定要删除 \"{name}\" 吗？此操作无法撤销。",
       "multiple": "确定要删除这 {count} 个项目吗？此操作无法撤销。",
       "generic": "未选择任何项目。"
-    }
+    },
+    "checkingDeleteImpact": "正在检查关联共享…",
+    "deleteImpactUnavailable": "无法检查关联共享。删除仍将由服务器强制执行。",
+    "deleteLinkedShares": "此内容有 {count} 个关联共享，将随之一并删除。 | 此内容有 {count} 个关联共享，将随之一并删除。"
   },
   "folder": {
     "kind": "类型",
@@ -236,7 +239,11 @@
     "noPhotos": "此文件夹中没有照片",
     "noPhotosHint": "切换到其他视图模式以查看所有文件",
     "empty": "此文件夹为空",
-    "emptyHint": "上传或创建文件以开始。"
+    "emptyHint": "上传或创建文件以开始。",
+    "scrollTop": "顶部",
+    "scrollBottom": "底部",
+    "selectAll": "全选",
+    "deselectAll": "取消全选"
   },
   "volumes": {
     "quickAccess": "快速访问",
@@ -593,6 +600,20 @@
     "removeShare": "移除共享",
     "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位用户",
-    "expiresNever": "永不"
+    "expiresNever": "永不",
+    "directFileLink": "直接文件链接",
+    "directFolderLink": "文件夹 ZIP 直接链接",
+    "copyShareLink": "复制共享链接",
+    "directLinkMode": "直接链接模式",
+    "copyDirectFileLink": "复制直接文件链接",
+    "copyDirectFolderLink": "复制文件夹 ZIP 直接链接",
+    "directLinkModes": {
+      "auto": "自动",
+      "inline": "查看",
+      "raw": "原始",
+      "download": "下载"
+    },
+    "deleteShareTitle": "移除共享？",
+    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。"
   }
 }

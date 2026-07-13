@@ -228,7 +228,10 @@
       "single": "Är du säker på att du vill radera \"{name}\"? Denna åtgärd går inte att ångra.",
       "multiple": "Är du säker på att du vill radera dessa {count} objekt? Denna åtgärd går inte att ångra.",
       "generic": "Inga objekt valda."
-    }
+    },
+    "checkingDeleteImpact": "Kontrollerar länkade utdelningar...",
+    "deleteImpactUnavailable": "Det gick inte att kontrollera länkade utdelningar. Raderingen verkställs ändå av servern.",
+    "deleteLinkedShares": "Detta innehåll har {count} länkad utdelning som tas bort tillsammans med det. | Detta innehåll har {count} länkade utdelningar som tas bort tillsammans med det."
   },
   "folder": {
     "kind": "Typ",
@@ -236,7 +239,11 @@
     "noPhotos": "Inga bilder i denna mapp",
     "noPhotosHint": "Växla till en annan vy för att se alla filer",
     "empty": "Den här mappen är tom",
-    "emptyHint": "Ladda upp eller skapa filer för att komma igång."
+    "emptyHint": "Ladda upp eller skapa filer för att komma igång.",
+    "scrollTop": "Överst",
+    "scrollBottom": "Nederst",
+    "selectAll": "Markera allt",
+    "deselectAll": "Avmarkera allt"
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
@@ -593,6 +600,20 @@
     "removeShare": "Ta bort utdelning",
     "sharedWithAnyone": "Alla",
     "sharedWithUsers": "{count} användare | {count} användare",
-    "expiresNever": "Aldrig"
+    "expiresNever": "Aldrig",
+    "directFileLink": "Direktlänk till fil",
+    "directFolderLink": "Direkt ZIP-länk till mapp",
+    "copyShareLink": "Kopiera delningslänk",
+    "directLinkMode": "Läge för direktlänk",
+    "copyDirectFileLink": "Kopiera direktlänk till fil",
+    "copyDirectFolderLink": "Kopiera direkt ZIP-länk till mapp",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visa",
+      "raw": "Rå",
+      "download": "Ladda ner"
+    },
+    "deleteShareTitle": "Ta bort utdelning?",
+    "deleteShareMessage": "Personer som har den här länken kommer inte längre att kunna komma åt det utdelade objektet."
   }
 }

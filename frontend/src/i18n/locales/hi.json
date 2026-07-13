@@ -228,7 +228,10 @@
       "single": "क्या आप वाकई \"{name}\" हटाना चाहते हैं? यह क्रिया वापस नहीं की जा सकती।",
       "multiple": "क्या आप वाकई ये {count} आइटम हटाना चाहते हैं? यह क्रिया वापस नहीं की जा सकती।",
       "generic": "कोई आइटम चयनित नहीं है।"
-    }
+    },
+    "checkingDeleteImpact": "संबंधित शेयर जांचे जा रहे हैं...",
+    "deleteImpactUnavailable": "संबंधित शेयर जांचना संभव नहीं। हटाना फिर भी सर्वर द्वारा लागू किया जाएगा।",
+    "deleteLinkedShares": "इस सामग्री से {count} संबंधित शेयर जुड़ा है जो इसके साथ हटा दिया जाएगा। | इस सामग्री से {count} संबंधित शेयर जुड़े हैं जो इसके साथ हटा दिए जाएंगे।"
   },
   "folder": {
     "kind": "प्रकार",
@@ -236,7 +239,11 @@
     "noPhotos": "इस फ़ोल्डर में कोई फ़ोटो नहीं है",
     "noPhotosHint": "सभी फ़ाइलें देखने के लिए दृश्य मोड बदलें",
     "empty": "यह फ़ोल्डर खाली है",
-    "emptyHint": "शुरू करने के लिए फ़ाइलें अपलोड करें या बनाएं।"
+    "emptyHint": "शुरू करने के लिए फ़ाइलें अपलोड करें या बनाएं।",
+    "scrollTop": "ऊपर",
+    "scrollBottom": "नीचे",
+    "selectAll": "सभी चुनें",
+    "deselectAll": "सभी अचयनित करें"
   },
   "volumes": {
     "quickAccess": "त्वरित पहुँच",
@@ -593,6 +600,20 @@
     "removeShare": "शेयर हटाएं",
     "sharedWithAnyone": "सभी",
     "sharedWithUsers": "{count} उपयोगकर्ता",
-    "expiresNever": "कभी नहीं"
+    "expiresNever": "कभी नहीं",
+    "directFileLink": "सीधा फ़ाइल लिंक",
+    "directFolderLink": "सीधा फ़ोल्डर ZIP लिंक",
+    "copyShareLink": "शेयर लिंक कॉपी करें",
+    "directLinkMode": "सीधा लिंक मोड",
+    "copyDirectFileLink": "सीधा फ़ाइल लिंक कॉपी करें",
+    "copyDirectFolderLink": "सीधा फ़ोल्डर ZIP लिंक कॉपी करें",
+    "directLinkModes": {
+      "auto": "ऑटो",
+      "inline": "देखें",
+      "raw": "Raw",
+      "download": "डाउनलोड"
+    },
+    "deleteShareTitle": "शेयर हटाएं?",
+    "deleteShareMessage": "इस लिंक वाले लोग अब साझा किए गए आइटम तक पहुँच नहीं पाएंगे।"
   }
 }

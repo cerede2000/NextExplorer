@@ -228,7 +228,10 @@
       "single": "Na pewno chcesz usunąć \"{name}\"? Tej operacji nie można cofnąć.",
       "multiple": "Na pewno chcesz usunąć te {count} elementy? Tej operacji nie można cofnąć.",
       "generic": "Nie wybrano żadnych elementów."
-    }
+    },
+    "checkingDeleteImpact": "Sprawdzanie powiązanych udostępnień…",
+    "deleteImpactUnavailable": "Nie można sprawdzić powiązanych udostępnień. Usunięcie i tak zostanie wymuszone przez serwer.",
+    "deleteLinkedShares": "Ta zawartość ma {count} powiązane udostępnienie, które zostanie wraz z nią usunięte. | Ta zawartość ma {count} powiązanych udostępnień, które zostaną wraz z nią usunięte."
   },
   "folder": {
     "kind": "Rodzaj",
@@ -236,7 +239,11 @@
     "noPhotos": "Brak zdjęć w tym folderze",
     "noPhotosHint": "Zmień tryb widoku, aby zobaczyć wszystkie pliki",
     "empty": "Ten folder jest pusty",
-    "emptyHint": "Prześlij lub utwórz pliki, aby rozpocząć."
+    "emptyHint": "Prześlij lub utwórz pliki, aby rozpocząć.",
+    "scrollTop": "Góra",
+    "scrollBottom": "Dół",
+    "selectAll": "Zaznacz wszystko",
+    "deselectAll": "Odznacz wszystko"
   },
   "volumes": {
     "quickAccess": "Szybki dostęp",
@@ -593,6 +600,20 @@
     "removeShare": "Usuń udostępnienie",
     "sharedWithAnyone": "Wszyscy",
     "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
-    "expiresNever": "Nigdy"
+    "expiresNever": "Nigdy",
+    "directFileLink": "Bezpośredni link do pliku",
+    "directFolderLink": "Bezpośredni link ZIP do folderu",
+    "copyShareLink": "Kopiuj link udostępniania",
+    "directLinkMode": "Tryb linku bezpośredniego",
+    "copyDirectFileLink": "Kopiuj bezpośredni link do pliku",
+    "copyDirectFolderLink": "Kopiuj bezpośredni link ZIP do folderu",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Podgląd",
+      "raw": "Raw",
+      "download": "Pobierz"
+    },
+    "deleteShareTitle": "Usunąć udostępnienie?",
+    "deleteShareMessage": "Osoby posiadające ten link nie będą już mogły uzyskać dostępu do udostępnionego elementu."
   }
 }

@@ -228,7 +228,10 @@
       "single": "Sigur vrei să ștergi \"{name}\"? Această acțiune nu poate fi anulată.",
       "multiple": "Sigur vrei să ștergi aceste {count} elemente? Această acțiune nu poate fi anulată.",
       "generic": "Niciun element selectat."
-    }
+    },
+    "checkingDeleteImpact": "Se verifică partajările asociate…",
+    "deleteImpactUnavailable": "Nu s-au putut verifica partajările asociate. Ștergerea va fi totuși aplicată de server.",
+    "deleteLinkedShares": "Acest conținut are {count} partajare asociată care va fi eliminată împreună cu el. | Acest conținut are {count} partajări asociate care vor fi eliminate împreună cu el."
   },
   "folder": {
     "kind": "Tip",
@@ -236,7 +239,11 @@
     "noPhotos": "Nu există fotografii în acest dosar",
     "noPhotosHint": "Schimbă modul de vizualizare pentru a vedea toate fișierele",
     "empty": "Acest dosar este gol",
-    "emptyHint": "Încarcă sau creează fișiere pentru a începe."
+    "emptyHint": "Încarcă sau creează fișiere pentru a începe.",
+    "scrollTop": "Sus",
+    "scrollBottom": "Jos",
+    "selectAll": "Selectează tot",
+    "deselectAll": "Deselectează tot"
   },
   "volumes": {
     "quickAccess": "Acces rapid",
@@ -593,6 +600,20 @@
     "removeShare": "Elimină partajarea",
     "sharedWithAnyone": "Oricine",
     "sharedWithUsers": "{count} utilizator | {count} utilizatori",
-    "expiresNever": "Niciodată"
+    "expiresNever": "Niciodată",
+    "directFileLink": "Link direct către fișier",
+    "directFolderLink": "Link direct ZIP către dosar",
+    "copyShareLink": "Copiază linkul de partajare",
+    "directLinkMode": "Mod link direct",
+    "copyDirectFileLink": "Copiază linkul direct către fișier",
+    "copyDirectFolderLink": "Copiază linkul direct ZIP către dosar",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Vizualizează",
+      "raw": "Raw",
+      "download": "Descarcă"
+    },
+    "deleteShareTitle": "Elimini partajarea?",
+    "deleteShareMessage": "Persoanele care au acest link nu vor mai putea accesa elementul partajat."
   }
 }

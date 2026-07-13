@@ -228,7 +228,10 @@
       "single": "¿Seguro que quieres eliminar \"{name}\"? Esta acción no se puede deshacer.",
       "multiple": "¿Seguro que quieres eliminar estos {count} elementos? Esta acción no se puede deshacer.",
       "generic": "No hay elementos seleccionados."
-    }
+    },
+    "checkingDeleteImpact": "Comprobando comparticiones vinculadas...",
+    "deleteImpactUnavailable": "No se pueden comprobar las comparticiones vinculadas. La eliminación se seguirá aplicando desde el servidor.",
+    "deleteLinkedShares": "Este contenido tiene {count} compartición vinculada que se eliminará con él. | Este contenido tiene {count} comparticiones vinculadas que se eliminarán con él."
   },
   "folder": {
     "kind": "Tipo",
@@ -236,7 +239,11 @@
     "noPhotos": "No hay fotos en esta carpeta",
     "noPhotosHint": "Cambia a otro modo de vista para ver todos los archivos",
     "empty": "Esta carpeta está vacía",
-    "emptyHint": "Sube o crea archivos para comenzar."
+    "emptyHint": "Sube o crea archivos para comenzar.",
+    "scrollTop": "Arriba",
+    "scrollBottom": "Abajo",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo"
   },
   "volumes": {
     "quickAccess": "Acceso rápido",
@@ -593,6 +600,20 @@
     "removeShare": "Eliminar compartición",
     "sharedWithAnyone": "Todos",
     "sharedWithUsers": "{count} usuario | {count} usuarios",
-    "expiresNever": "Nunca"
+    "expiresNever": "Nunca",
+    "directFileLink": "Enlace directo del archivo",
+    "directFolderLink": "Enlace directo ZIP de la carpeta",
+    "copyShareLink": "Copiar enlace para compartir",
+    "directLinkMode": "Modo de enlace directo",
+    "copyDirectFileLink": "Copiar enlace directo del archivo",
+    "copyDirectFolderLink": "Copiar enlace directo ZIP de la carpeta",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Ver",
+      "raw": "Raw",
+      "download": "Descargar"
+    },
+    "deleteShareTitle": "¿Eliminar compartición?",
+    "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido."
   }
 }

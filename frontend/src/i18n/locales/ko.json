@@ -228,7 +228,10 @@
       "single": "정말 \"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
       "multiple": "정말 선택한 {count}개 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
       "generic": "선택된 항목이 없습니다."
-    }
+    },
+    "checkingDeleteImpact": "연결된 공유 확인 중...",
+    "deleteImpactUnavailable": "연결된 공유를 확인할 수 없습니다. 삭제는 서버에서 계속 적용됩니다.",
+    "deleteLinkedShares": "이 콘텐츠에는 함께 삭제될 연결된 공유 {count}개가 있습니다. | 이 콘텐츠에는 함께 삭제될 연결된 공유 {count}개가 있습니다."
   },
   "folder": {
     "kind": "종류",
@@ -236,7 +239,11 @@
     "noPhotos": "폴더에 사진이 없습니다",
     "noPhotosHint": "파일을 보려면 다른 보기 모드로 전환하세요.",
     "empty": "폴더가 비었습니다",
-    "emptyHint": "파일을 업로드하거나 새 파일을 만들어주세요."
+    "emptyHint": "파일을 업로드하거나 새 파일을 만들어주세요.",
+    "scrollTop": "맨 위",
+    "scrollBottom": "맨 아래",
+    "selectAll": "전체 선택",
+    "deselectAll": "전체 선택 해제"
   },
   "volumes": {
     "quickAccess": "빠른 접근",
@@ -593,6 +600,20 @@
     "removeShare": "공유 삭제",
     "sharedWithAnyone": "모두",
     "sharedWithUsers": "{count} 유저 | {count} 유저",
-    "expiresNever": "없음"
+    "expiresNever": "없음",
+    "directFileLink": "파일 직접 링크",
+    "directFolderLink": "폴더 ZIP 직접 링크",
+    "copyShareLink": "공유 링크 복사",
+    "directLinkMode": "직접 링크 모드",
+    "copyDirectFileLink": "파일 직접 링크 복사",
+    "copyDirectFolderLink": "폴더 ZIP 직접 링크 복사",
+    "directLinkModes": {
+      "auto": "자동",
+      "inline": "보기",
+      "raw": "원본",
+      "download": "다운로드"
+    },
+    "deleteShareTitle": "공유를 삭제하시겠습니까?",
+    "deleteShareMessage": "이 링크를 가진 사람들이 더 이상 공유된 항목에 접근할 수 없습니다."
   }
 }

@@ -228,7 +228,10 @@
       "single": "確定要刪除 \"{name}\" 嗎？此動作無法還原。",
       "multiple": "確定要刪除這 {count} 個項目嗎？此動作無法還原。",
       "generic": "未選擇任何項目。"
-    }
+    },
+    "checkingDeleteImpact": "正在檢查關聯的分享…",
+    "deleteImpactUnavailable": "無法檢查關聯的分享。刪除仍會由伺服器強制執行。",
+    "deleteLinkedShares": "此內容有 {count} 個關聯的分享，將會一併移除。 | 此內容有 {count} 個關聯的分享，將會一併移除。"
   },
   "folder": {
     "kind": "類型",
@@ -236,7 +239,11 @@
     "noPhotos": "此檔案夾中沒有照片",
     "noPhotosHint": "切換到其他檢視模式以查看所有檔案",
     "empty": "此檔案夾為空",
-    "emptyHint": "上傳或建立檔案以開始。"
+    "emptyHint": "上傳或建立檔案以開始。",
+    "scrollTop": "頂部",
+    "scrollBottom": "底部",
+    "selectAll": "全選",
+    "deselectAll": "取消全選"
   },
   "volumes": {
     "quickAccess": "快速訪問",
@@ -593,6 +600,20 @@
     "removeShare": "移除分享",
     "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位使用者",
-    "expiresNever": "永不"
+    "expiresNever": "永不",
+    "directFileLink": "檔案直接連結",
+    "directFolderLink": "檔案夾 ZIP 直接連結",
+    "copyShareLink": "複製分享連結",
+    "directLinkMode": "直接連結模式",
+    "copyDirectFileLink": "複製檔案直接連結",
+    "copyDirectFolderLink": "複製檔案夾 ZIP 直接連結",
+    "directLinkModes": {
+      "auto": "自動",
+      "inline": "檢視",
+      "raw": "原始",
+      "download": "下載"
+    },
+    "deleteShareTitle": "移除分享？",
+    "deleteShareMessage": "擁有此連結的人將無法再存取已分享的項目。"
   }
 }

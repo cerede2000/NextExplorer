@@ -228,7 +228,10 @@
       "single": "Sind Sie sicher, dass Sie \"{name}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "multiple": "Sind Sie sicher, dass Sie diese {count} Elemente löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "generic": "Keine Elemente ausgewählt."
-    }
+    },
+    "checkingDeleteImpact": "Verknüpfte Freigaben werden überprüft...",
+    "deleteImpactUnavailable": "Verknüpfte Freigaben konnten nicht überprüft werden. Die Löschung wird dennoch serverseitig durchgesetzt.",
+    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden."
   },
   "folder": {
     "kind": "Art",
@@ -236,7 +239,11 @@
     "noPhotos": "Keine Fotos in diesem Ordner",
     "noPhotosHint": "Wechseln Sie in einen anderen Ansichtsmodus, um alle Dateien zu sehen",
     "empty": "Dieser Ordner ist leer",
-    "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen."
+    "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen.",
+    "scrollTop": "Anfang",
+    "scrollBottom": "Ende",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen"
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
@@ -593,6 +600,20 @@
     "removeShare": "Freigabe entfernen",
     "sharedWithAnyone": "Alle",
     "sharedWithUsers": "{count} Benutzer",
-    "expiresNever": "Nie"
+    "expiresNever": "Nie",
+    "directFileLink": "Direkter Dateilink",
+    "directFolderLink": "Direkter ZIP-Link des Ordners",
+    "copyShareLink": "Freigabelink kopieren",
+    "directLinkMode": "Direktlink-Modus",
+    "copyDirectFileLink": "Direkten Dateilink kopieren",
+    "copyDirectFolderLink": "Direkten ZIP-Link des Ordners kopieren",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Ansehen",
+      "raw": "Raw",
+      "download": "Herunterladen"
+    },
+    "deleteShareTitle": "Freigabe entfernen?",
+    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen."
   }
 }
