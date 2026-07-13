@@ -255,7 +255,8 @@
     "home": "Hem",
     "back": "Bakåt",
     "forward": "Framåt",
-    "upOneFolder": "Upp en mapp"
+    "upOneFolder": "Upp en mapp",
+    "refresh": "Uppdatera mapp"
   },
   "view": {
     "list": "Listvy",

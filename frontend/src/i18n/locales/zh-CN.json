@@ -255,7 +255,8 @@
     "home": "主页",
     "back": "后退",
     "forward": "前进",
-    "upOneFolder": "上一级文件夹"
+    "upOneFolder": "上一级文件夹",
+    "refresh": "刷新文件夹"
   },
   "view": {
     "list": "列表视图",

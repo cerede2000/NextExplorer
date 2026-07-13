@@ -255,7 +255,8 @@
     "home": "Home",
     "back": "Indietro",
     "forward": "Avanti",
-    "upOneFolder": "Su di una cartella"
+    "upOneFolder": "Su di una cartella",
+    "refresh": "Aggiorna cartella"
   },
   "view": {
     "list": "Vista elenco",

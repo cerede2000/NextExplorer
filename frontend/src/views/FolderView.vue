@@ -386,7 +386,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="dropTargetRef"
-    class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-y-auto"
+    class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-auto"
     @click.self="clearSelection()"
     @scroll.passive="updateScrollState"
   >
@@ -400,8 +400,12 @@ onBeforeUnmount(() => {
         @click.self="clearSelection()"
         @contextmenu.prevent="handleBackgroundContextMenu"
       >
+        <!-- Horizontal overflow is handled by the outer scroll container so the
+             horizontal scrollbar stays pinned to the bottom of the viewport (you
+             can scroll sideways from anywhere in the list). The bottom padding in
+             list view keeps the last row from hiding under that scrollbar. -->
         <div
-          :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'overflow-x-auto' : '']"
+          :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'pb-5' : '']"
           :style="gridStyle"
         >
           <!-- Detail view header -->

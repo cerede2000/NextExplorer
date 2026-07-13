@@ -255,7 +255,8 @@
     "home": "홈",
     "back": "뒤로 가기",
     "forward": "앞으로 가기",
-    "upOneFolder": "상위 폴더로 이동"
+    "upOneFolder": "상위 폴더로 이동",
+    "refresh": "폴더 새로고침"
   },
   "view": {
     "list": "리스트 형태로 보기",

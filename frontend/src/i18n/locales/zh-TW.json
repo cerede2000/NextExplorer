@@ -255,7 +255,8 @@
     "home": "首頁",
     "back": "後退",
     "forward": "前進",
-    "upOneFolder": "上層檔案夾"
+    "upOneFolder": "上層檔案夾",
+    "refresh": "重新整理檔案夾"
   },
   "view": {
     "list": "列表檢視",

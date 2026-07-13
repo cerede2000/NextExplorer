@@ -255,7 +255,8 @@
     "home": "Strona główna",
     "back": "Wstecz",
     "forward": "Dalej",
-    "upOneFolder": "Folder wyżej"
+    "upOneFolder": "Folder wyżej",
+    "refresh": "Odśwież folder"
   },
   "view": {
     "list": "Widok listy",

@@ -255,7 +255,8 @@
     "home": "Acasă",
     "back": "Înapoi",
     "forward": "Înainte",
-    "upOneFolder": "Sus un nivel"
+    "upOneFolder": "Sus un nivel",
+    "refresh": "Reîmprospătează dosarul"
   },
   "view": {
     "list": "Vizualizare listă",

@@ -73,11 +73,16 @@ export const useSettingsStore = defineStore('settings', () => {
     sortBy.value = created;
   };
 
-  const DEFAULT_LIST_VIEW_COLUMN_WIDTHS = [30, 420, 120, 160, 220];
-  const LIST_VIEW_MIN_WIDTHS = [30, 200, 100, 120, 160];
+  // Widths are sized to their content (icon, name, size, kind, modified date) so
+  // the grid doesn't reserve empty space that would trigger a horizontal
+  // scrollbar over nothing. Non-last columns keep a small surplus over their
+  // content as an inter-column margin; the trailing date column hugs its value.
+  // Key is versioned (:v2) so the tighter defaults replace any stored widths.
+  const DEFAULT_LIST_VIEW_COLUMN_WIDTHS = [30, 340, 96, 136, 150];
+  const LIST_VIEW_MIN_WIDTHS = [30, 160, 70, 96, 140];
 
   const listViewColumnWidths = useStorage(
-    'settings:listView:columns',
+    'settings:listView:columns:v2',
     DEFAULT_LIST_VIEW_COLUMN_WIDTHS
   );
 

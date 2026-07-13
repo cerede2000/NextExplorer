@@ -235,7 +235,7 @@
   },
   "folder": {
     "kind": "Kind",
-    "dateModified": "Date Modified",
+    "dateModified": "Modified",
     "noPhotos": "No photos in this folder",
     "noPhotosHint": "Switch to another view mode to see all files",
     "empty": "This folder is empty",
@@ -262,7 +262,8 @@
     "home": "Home",
     "back": "Back",
     "forward": "Forward",
-    "upOneFolder": "Up one folder"
+    "upOneFolder": "Up one folder",
+    "refresh": "Refresh folder"
   },
   "view": {
     "list": "List view",

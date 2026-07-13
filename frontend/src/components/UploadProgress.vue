@@ -11,9 +11,11 @@ const props = defineProps({
   defaultDetailsOpen: { type: Boolean, default: false },
   defaultPaused: { type: Boolean, default: false },
   draggable: { type: Boolean, default: true },
+  // When omitted, the card opens pinned to the bottom-right corner, matching the
+  // copy/paste/delete progress cards. A caller can still pass an explicit spot.
   initialPosition: {
     type: Object,
-    default: () => ({ x: 400, y: 400 }),
+    default: null,
   },
 });
 
@@ -27,8 +29,15 @@ const { width: viewportWidth, height: viewportHeight } = useWindowSize();
 const { width: panelWidth, height: panelHeight } = useElementSize(el);
 const edgeOffset = 16;
 
+// Default to the bottom-right corner (panel size isn't known yet, so estimate;
+// the clamp watchEffect below corrects it once the element is measured).
+const bottomRightStart = () => ({
+  x: Math.max(edgeOffset, (viewportWidth.value || 1280) - 384 - edgeOffset),
+  y: Math.max(edgeOffset, (viewportHeight.value || 800) - 220 - edgeOffset),
+});
+
 const { x, y, style } = useDraggable(el, {
-  initialValue: props.initialPosition,
+  initialValue: props.initialPosition || bottomRightStart(),
   preventDefault: true,
   disabled: computed(() => !props.draggable),
 });

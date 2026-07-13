@@ -255,7 +255,8 @@
     "home": "Inicio",
     "back": "Atrás",
     "forward": "Adelante",
-    "upOneFolder": "Subir una carpeta"
+    "upOneFolder": "Subir una carpeta",
+    "refresh": "Actualizar carpeta"
   },
   "view": {
     "list": "Vista de lista",
