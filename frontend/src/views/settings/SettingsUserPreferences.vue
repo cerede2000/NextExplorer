@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/vue/20/solid';
 import { useQuickActionsStore } from '@/stores/quickActions';
 import { QUICK_ACTIONS_BY_ID } from '@/config/quickActions';
+import ToggleSwitch from '@/components/ToggleSwitch.vue';
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
@@ -189,16 +190,7 @@ const save = async () => {
               }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input type="checkbox" v-model="local.showHiddenFiles" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local.showHiddenFiles" />
         </div>
 
         <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
@@ -210,16 +202,7 @@ const save = async () => {
               {{ t('settings.userPreferences.showThumbnailsHelp') }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input type="checkbox" v-model="local.showThumbnails" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local.showThumbnails" />
         </div>
 
         <div
@@ -235,16 +218,7 @@ const save = async () => {
               {{ t(row.help) }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input type="checkbox" v-model="local[row.key]" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local[row.key]" />
         </div>
 
         <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
@@ -321,21 +295,10 @@ const save = async () => {
             {{ t('settings.userPreferences.quickActionsHelp') }}
           </div>
         </div>
-        <label class="inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            :checked="quickActions.enabled"
-            class="peer sr-only"
-            @change="quickActions.setEnabled($event.target.checked)"
-          />
-          <div
-            class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-          >
-            <div
-              class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-            ></div>
-          </div>
-        </label>
+        <ToggleSwitch
+          :model-value="quickActions.enabled"
+          @update:model-value="quickActions.setEnabled"
+        />
       </div>
 
       <div v-if="quickActions.enabled" class="mt-4">
@@ -395,21 +358,11 @@ const save = async () => {
             <span class="flex-1 text-sm text-zinc-800 dark:text-zinc-200">
               {{ quickActionLabel(entry.id) }}
             </span>
-            <label class="inline-flex cursor-pointer items-center">
-              <input
-                type="checkbox"
-                :checked="entry.on"
-                class="peer sr-only"
-                @change="quickActions.setActionOn(entry.id, $event.target.checked)"
-              />
-              <div
-                class="peer relative h-5 w-9 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-              >
-                <div
-                  class="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-4"
-                ></div>
-              </div>
-            </label>
+            <ToggleSwitch
+              size="sm"
+              :model-value="entry.on"
+              @update:model-value="(value) => quickActions.setActionOn(entry.id, value)"
+            />
           </li>
         </ul>
       </div>

@@ -4,6 +4,7 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { getUploadFallbackMiB, resetUploadFallback } from '@/composables/fileUploader';
 import { useI18n } from 'vue-i18n';
+import ToggleSwitch from '@/components/ToggleSwitch.vue';
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
@@ -155,16 +156,7 @@ const save = async () => {
               {{ t('settings.uploads.chunkedEnableHelp') }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input v-model="local.chunkedEnabled" type="checkbox" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local.chunkedEnabled" />
         </div>
 
         <div
@@ -211,16 +203,7 @@ const save = async () => {
               {{ t('settings.uploads.autoFallbackHelp') }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input v-model="local.chunkedAutoFallback" type="checkbox" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local.chunkedAutoFallback" />
         </div>
 
         <div v-if="fallbackMiB" class="flex items-center justify-between py-2">
