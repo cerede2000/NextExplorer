@@ -540,6 +540,7 @@
     "shareLink": "Share Link",
     "directFileLink": "Direct file link",
     "directFolderLink": "Direct folder ZIP link",
+    "copyShareLink": "Copy share link",
     "directLinkMode": "Direct link mode",
     "copyDirectFileLink": "Copy direct file link",
     "copyDirectFolderLink": "Copy direct folder ZIP link",
