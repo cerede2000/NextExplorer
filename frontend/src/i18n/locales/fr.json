@@ -479,7 +479,7 @@
       "chunkedEnable": "Activer les téléversements par chunks",
       "chunkedEnableHelp": "Utilise TUS pour envoyer les gros fichiers en plusieurs requêtes plus petites.",
       "chunkSize": "Taille des chunks",
-      "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy."
+      "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy. Des chunks plus petits (8–32 Mio) donnent une progression plus fluide ; de très gros chunks font apparaître des paliers (le serveur écrit chaque chunk avant le suivant)."
     },
     "security": {
       "subtitle": "Contrôlez l'accès à l'application.",

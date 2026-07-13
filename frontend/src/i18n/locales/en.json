@@ -479,7 +479,7 @@
       "chunkedEnable": "Enable chunked uploads",
       "chunkedEnableHelp": "Use TUS to send large files through multiple smaller requests.",
       "chunkSize": "Chunk size",
-      "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit."
+      "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit. Smaller chunks (8–32 MiB) give smoother progress; very large chunks show visible steps (the server writes each chunk before the next)."
     },
     "security": {
       "subtitle": "Control access to the app.",
