@@ -5,6 +5,7 @@ const {
   editor,
   terminal,
   features,
+  hiddenFiles,
   public: publicConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
@@ -19,6 +20,8 @@ router.get('/features', (_req, res) => {
     public: {
       url: publicConfig?.url || null,
       origin: publicConfig?.origin || null,
+      // All origins the app may legitimately be reached from (public + internal).
+      origins: Array.isArray(publicConfig?.origins) ? publicConfig.origins : [],
     },
     onlyoffice: {
       enabled: Boolean(onlyoffice && onlyoffice.serverUrl),
@@ -34,6 +37,9 @@ router.get('/features', (_req, res) => {
     uploads: {
       // Admin-configurable upper bound for the chunk size (env MAX_CHUNK_SIZE_MIB).
       maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
+    },
+    hiddenFiles: {
+      patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

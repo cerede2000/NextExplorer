@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { normalizePath } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
 import { useFileStore } from '@/stores/fileStore';
@@ -13,7 +14,12 @@ import { useViewConfig } from '@/composables/useViewConfig';
 import { DragSelect } from '@coleqiu/vue-drag-select';
 import { useUppyDropTarget } from '@/composables/fileUploader';
 import { FolderOpenIcon } from '@heroicons/vue/24/outline';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/vue/20/solid';
+import {
+  ChevronDoubleDownIcon,
+  ChevronDoubleUpIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+} from '@heroicons/vue/20/solid';
 import { useEventListener } from '@vueuse/core';
 import { useInputMode } from '@/composables/useInputMode';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
@@ -23,6 +29,11 @@ const fileStore = useFileStore();
 const route = useRoute();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
+const visibleLimit = ref(500);
+const loadMoreTrigger = ref(null);
+const isScrollable = ref(false);
+const canScrollUp = ref(false);
+const canScrollDown = ref(false);
 const { clearSelection } = useSelection();
 const contextMenu = useExplorerContextMenu();
 const dropTargetRef = ref(null);
@@ -31,6 +42,24 @@ useUppyDropTarget(dropTargetRef);
 const { isTouchDevice } = useInputMode();
 const { handleDragOver, handleDragLeave, handleDrop, isDragTarget } = useFileDragDrop();
 
+const INITIAL_VISIBLE_ITEMS = 500;
+const VISIBLE_ITEMS_INCREMENT = 500;
+const VIRTUAL_LIST_THRESHOLD = 1000;
+const LIST_ROW_HEIGHT = 37;
+const LIST_ROW_OVERSCAN = 20;
+let loadMoreObserver = null;
+const scrollTop = ref(0);
+const scrollViewportHeight = ref(0);
+
+const getScrollTarget = () => {
+  const localTarget = dropTargetRef.value;
+  if (localTarget && localTarget.scrollHeight - localTarget.clientHeight > 2) {
+    return localTarget;
+  }
+
+  return document.scrollingElement || document.documentElement;
+};
+
 const applySelectionFromQuery = () => {
   const selectName = typeof route.query?.select === 'string' ? route.query.select : '';
   if (!selectName) return;
@@ -38,6 +67,153 @@ const applySelectionFromQuery = () => {
   if (match) {
     fileStore.selectedItems = [match];
   }
+};
+
+const sortedItems = computed(() => fileStore.getCurrentPathItems);
+const useVirtualList = computed(
+  () => settings.view === 'list' && sortedItems.value.length > VIRTUAL_LIST_THRESHOLD
+);
+const virtualStartIndex = computed(() => {
+  if (!useVirtualList.value) return 0;
+  return Math.max(0, Math.floor(scrollTop.value / LIST_ROW_HEIGHT) - LIST_ROW_OVERSCAN);
+});
+const virtualEndIndex = computed(() => {
+  if (!useVirtualList.value) return visibleLimit.value;
+  const visibleCount =
+    Math.ceil(scrollViewportHeight.value / LIST_ROW_HEIGHT) + LIST_ROW_OVERSCAN * 2;
+  return Math.min(sortedItems.value.length, virtualStartIndex.value + visibleCount);
+});
+const visibleItems = computed(() => {
+  if (useVirtualList.value) {
+    return sortedItems.value.slice(virtualStartIndex.value, virtualEndIndex.value);
+  }
+  return sortedItems.value.slice(0, visibleLimit.value);
+});
+const hasMoreItems = computed(
+  () => !useVirtualList.value && visibleItems.value.length < sortedItems.value.length
+);
+const virtualTopSpacerHeight = computed(() =>
+  useVirtualList.value ? virtualStartIndex.value * LIST_ROW_HEIGHT : 0
+);
+const virtualBottomSpacerHeight = computed(() =>
+  useVirtualList.value
+    ? Math.max(0, (sortedItems.value.length - virtualEndIndex.value) * LIST_ROW_HEIGHT)
+    : 0
+);
+
+const getItemKey = (item) => {
+  if (!item || !item.name) return '';
+  const parent = normalizePath(item.path || '');
+  return `${parent}::${item.name}`;
+};
+
+const allItemsSelected = computed(
+  () =>
+    sortedItems.value.length > 0 &&
+    sortedItems.value.every((item) => fileStore.selectedItemKeys.has(getItemKey(item)))
+);
+
+const someItemsSelected = computed(
+  () =>
+    sortedItems.value.length > 0 &&
+    sortedItems.value.some((item) => fileStore.selectedItemKeys.has(getItemKey(item)))
+);
+
+const resetVisibleItems = () => {
+  visibleLimit.value = INITIAL_VISIBLE_ITEMS;
+};
+
+const revealMoreItems = () => {
+  if (!hasMoreItems.value) return;
+  visibleLimit.value = Math.min(
+    sortedItems.value.length,
+    visibleLimit.value + VISIBLE_ITEMS_INCREMENT
+  );
+  nextTick(updateScrollState);
+};
+
+const updateScrollState = () => {
+  const target = getScrollTarget();
+  if (!target) {
+    isScrollable.value = false;
+    canScrollUp.value = false;
+    canScrollDown.value = false;
+    return;
+  }
+
+  const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+  scrollTop.value = target.scrollTop;
+  scrollViewportHeight.value = target.clientHeight;
+  isScrollable.value = maxScrollTop > 2;
+  canScrollUp.value = target.scrollTop > 2;
+  canScrollDown.value = target.scrollTop < maxScrollTop - 2;
+};
+
+const revealAllItems = async () => {
+  while (visibleLimit.value < sortedItems.value.length) {
+    visibleLimit.value = Math.min(
+      sortedItems.value.length,
+      visibleLimit.value + VISIBLE_ITEMS_INCREMENT
+    );
+    await nextTick();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+};
+
+const scrollToTop = () => {
+  getScrollTarget()?.scrollTo?.({ top: 0, behavior: useVirtualList.value ? 'auto' : 'smooth' });
+};
+
+const scrollToBottom = async () => {
+  if (!useVirtualList.value) {
+    await revealAllItems();
+  }
+  await nextTick();
+  const target = getScrollTarget();
+  target?.scrollTo?.({
+    top: target.scrollHeight,
+    behavior: useVirtualList.value ? 'auto' : 'smooth',
+  });
+  updateScrollState();
+};
+
+const toggleSelectAll = () => {
+  if (allItemsSelected.value) {
+    clearSelection();
+    return;
+  }
+
+  fileStore.selectedItems = [...sortedItems.value];
+};
+
+const disconnectLoadMoreObserver = () => {
+  if (loadMoreObserver) {
+    loadMoreObserver.disconnect();
+    loadMoreObserver = null;
+  }
+};
+
+const setupLoadMoreObserver = async () => {
+  disconnectLoadMoreObserver();
+
+  if (!hasMoreItems.value || typeof IntersectionObserver === 'undefined') {
+    return;
+  }
+
+  await nextTick();
+  if (!loadMoreTrigger.value) {
+    return;
+  }
+
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        revealMoreItems();
+      }
+    },
+    { root: null, rootMargin: '800px 0px' }
+  );
+  loadMoreObserver.observe(loadMoreTrigger.value);
 };
 
 const selectionModel = computed({
@@ -53,6 +229,7 @@ const selectionModel = computed({
 
 const loadFiles = async () => {
   loading.value = true;
+  resetVisibleItems();
   const path = route.params.path || '';
   try {
     await fileStore.fetchPathItems(path);
@@ -61,10 +238,32 @@ const loadFiles = async () => {
     console.error('Failed to load directory contents', error);
   } finally {
     loading.value = false;
+    await setupLoadMoreObserver();
+    await nextTick();
+    updateScrollState();
   }
 };
 
 onMounted(loadFiles);
+
+watch(hasMoreItems, () => {
+  setupLoadMoreObserver();
+  nextTick(updateScrollState);
+});
+
+watch(
+  () => [visibleItems.value.length, sortedItems.value.length, settings.view, useVirtualList.value],
+  () => {
+    nextTick(updateScrollState);
+  }
+);
+
+watch(
+  () => route.params.path,
+  () => {
+    resetVisibleItems();
+  }
+);
 
 const handleBackgroundContextMenu = (event) => {
   if (!contextMenu || !event) return;
@@ -175,17 +374,21 @@ useEventListener(window, 'pointermove', (event) => {
 
 useEventListener(window, 'pointerup', stopResize);
 useEventListener(window, 'pointercancel', stopResize);
+useEventListener(window, 'resize', updateScrollState);
+useEventListener(window, 'scroll', updateScrollState, { passive: true });
 
 onBeforeUnmount(() => {
   stopResize();
+  disconnectLoadMoreObserver();
 });
 </script>
 
 <template>
   <div
     ref="dropTargetRef"
-    class="upload-drop-target relative flex flex-col flex-1 min-h-0"
+    class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-y-auto"
     @click.self="clearSelection()"
+    @scroll.passive="updateScrollState"
   >
     <template v-if="!loading">
       <DragSelect
@@ -217,7 +420,17 @@ onBeforeUnmount(() => {
               gridTemplateColumns: settings.listViewGridTemplateColumns,
             }"
           >
-            <div></div>
+            <div class="flex items-center justify-center">
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                :checked="allItemsSelected"
+                :indeterminate.prop="someItemsSelected && !allItemsSelected"
+                :aria-label="allItemsSelected ? $t('folder.deselectAll') : $t('folder.selectAll')"
+                @change="toggleSelectAll"
+                @click.stop
+              />
+            </div>
             <div v-for="col in listColumns" :key="col.key" class="relative flex items-center">
               <button
                 type="button"
@@ -241,8 +454,14 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <div
+            v-if="useVirtualList && virtualTopSpacerHeight > 0"
+            class="shrink-0"
+            :style="{ height: `${virtualTopSpacerHeight}px` }"
+          ></div>
+
           <FileObject
-            v-for="item in fileStore.getCurrentPathItems"
+            v-for="item in visibleItems"
             :key="(item.path || '') + '::' + item.name"
             :item="item"
             :view="settings.view"
@@ -256,6 +475,26 @@ onBeforeUnmount(() => {
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
           />
+
+          <div
+            v-if="useVirtualList && virtualBottomSpacerHeight > 0"
+            class="shrink-0"
+            :style="{ height: `${virtualBottomSpacerHeight}px` }"
+          ></div>
+
+          <div
+            v-if="hasMoreItems"
+            ref="loadMoreTrigger"
+            class="flex items-center justify-center py-4 text-xs text-neutral-500 dark:text-neutral-400"
+          >
+            <button
+              type="button"
+              class="rounded-md border border-neutral-200 px-3 py-1.5 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+              @click="revealMoreItems"
+            >
+              {{ visibleItems.length }} / {{ sortedItems.length }} {{ $t('common.items') }}
+            </button>
+          </div>
 
           <!-- No photos message -->
           <div
@@ -275,6 +514,32 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </DragSelect>
+
+      <div
+        v-if="isScrollable"
+        class="pointer-events-none fixed bottom-6 right-6 z-[100] flex flex-col gap-2"
+      >
+        <button
+          v-if="canScrollUp"
+          type="button"
+          class="pointer-events-auto grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          :aria-label="$t('folder.scrollTop')"
+          :title="$t('folder.scrollTop')"
+          @click="scrollToTop"
+        >
+          <ChevronDoubleUpIcon class="h-5 w-5" />
+        </button>
+        <button
+          v-if="canScrollDown"
+          type="button"
+          class="pointer-events-auto grid h-10 w-10 place-items-center rounded-full border border-neutral-200 bg-white/90 text-neutral-700 shadow-lg backdrop-blur transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          :aria-label="$t('folder.scrollBottom')"
+          :title="$t('folder.scrollBottom')"
+          @click="scrollToBottom"
+        >
+          <ChevronDoubleDownIcon class="h-5 w-5" />
+        </button>
+      </div>
     </template>
 
     <template v-else>

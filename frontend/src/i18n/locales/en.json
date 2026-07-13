@@ -95,6 +95,7 @@
     "paste": "Paste",
     "rename": "Rename",
     "download": "Download",
+    "downloadFolder": "Download folder",
     "extractZip": "Extract ZIP",
     "compressToZip": "Compress to ZIP",
     "search": "Search",
@@ -227,7 +228,10 @@
       "single": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
       "multiple": "Are you sure you want to delete these {count} items? This action cannot be undone.",
       "generic": "No items selected."
-    }
+    },
+    "checkingDeleteImpact": "Checking linked shares...",
+    "deleteImpactUnavailable": "Unable to check linked shares. Deletion will still be enforced by the server.",
+    "deleteLinkedShares": "This content has {count} linked share that will be removed with it. | This content has {count} linked shares that will be removed with it."
   },
   "folder": {
     "kind": "Kind",
@@ -235,7 +239,11 @@
     "noPhotos": "No photos in this folder",
     "noPhotosHint": "Switch to another view mode to see all files",
     "empty": "This folder is empty",
-    "emptyHint": "Upload or create files to get started."
+    "emptyHint": "Upload or create files to get started.",
+    "scrollTop": "Top",
+    "scrollBottom": "Bottom",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
   },
   "volumes": {
     "quickAccess": "Quick access",
@@ -417,7 +425,7 @@
       "title": "User Preferences",
       "subtitle": "Customize your personal settings and preferences.",
       "showHiddenFiles": "Show hidden files",
-      "showHiddenFilesHelp": "Display files and folders that start with a dot (.) in the file browser.",
+      "showHiddenFilesHelp": "Display files and folders matching the configured hidden patterns ({patterns}) in the file browser.",
       "showThumbnails": "Show thumbnails",
       "showThumbnailsHelp": "Display thumbnail previews for images and videos in the file browser.",
       "showSidebarFavorites": "Show Favorites section",
@@ -555,6 +563,18 @@
     "shareCreated": "Share Created",
     "createShareLink": "Create Share Link",
     "shareLink": "Share Link",
+    "directFileLink": "Direct file link",
+    "directFolderLink": "Direct folder ZIP link",
+    "copyShareLink": "Copy share link",
+    "directLinkMode": "Direct link mode",
+    "copyDirectFileLink": "Copy direct file link",
+    "copyDirectFolderLink": "Copy direct folder ZIP link",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "View",
+      "raw": "Raw",
+      "download": "Download"
+    },
     "shareLinkCreatedSuccess": "Share link created successfully!",
     "access": "Access Mode",
     "type": "Target",
@@ -602,8 +622,11 @@
     "noMySharesDescription": "Create a share from any file or folder to see it listed here.",
     "mySharesCount": "{count} active share links",
     "confirmDeleteShare": "Remove this share? People with the link will no longer have access.",
+    "deleteShareTitle": "Remove share?",
+    "deleteShareMessage": "People with this link will no longer be able to access the shared item.",
     "removeShare": "Remove share",
-    "sharedWithAnyone": "Shared with anyone",
-    "sharedWithUsers": "{count} user | {count} users"
+    "sharedWithAnyone": "Everyone",
+    "sharedWithUsers": "{count} user | {count} users",
+    "expiresNever": "Never"
   }
 }

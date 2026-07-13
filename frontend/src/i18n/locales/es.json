@@ -95,6 +95,7 @@
     "paste": "Pegar",
     "rename": "Renombrar",
     "download": "Descargar",
+    "downloadFolder": "Descargar carpeta",
     "extractZip": "Extraer ZIP",
     "compressToZip": "Comprimir a ZIP",
     "search": "Buscar",
@@ -416,7 +417,7 @@
       "title": "Preferencias de usuario",
       "subtitle": "Personaliza tus ajustes personales.",
       "showHiddenFiles": "Mostrar archivos ocultos",
-      "showHiddenFilesHelp": "Muestra archivos y carpetas que comienzan con puntuación (.) en el explorador.",
+      "showHiddenFilesHelp": "Muestra archivos y carpetas que coinciden con los patrones ocultos configurados ({patterns}) en el explorador.",
       "showThumbnails": "Mostrar miniaturas",
       "showThumbnailsHelp": "Muestra previsualizaciones en miniatura para imágenes y vídeos.",
       "showSidebarFavorites": "Mostrar sección Favoritos",
@@ -590,7 +591,8 @@
     "mySharesCount": "{count} enlaces de compartición activos",
     "confirmDeleteShare": "¿Eliminar esta compartición? Las personas con el enlace ya no tendrán acceso.",
     "removeShare": "Eliminar compartición",
-    "sharedWithAnyone": "Compartido con cualquiera",
-    "sharedWithUsers": "{count} usuario | {count} usuarios"
+    "sharedWithAnyone": "Todos",
+    "sharedWithUsers": "{count} usuario | {count} usuarios",
+    "expiresNever": "Nunca"
   }
 }

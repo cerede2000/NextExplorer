@@ -6,7 +6,7 @@ import { useFileStore } from '@/stores/fileStore';
 const fileStore = useFileStore();
 const { t } = useI18n();
 
-const operation = computed(() => fileStore.clipboardOperation);
+const operation = computed(() => fileStore.deleteOperation || fileStore.clipboardOperation);
 
 const title = computed(() => {
   const op = operation.value;
@@ -14,6 +14,10 @@ const title = computed(() => {
 
   const count = Number(op.itemCount) || 0;
   const itemsLabel = count === 1 ? t('common.item') : t('common.items');
+
+  if (op.type === 'delete') {
+    return `${t('common.deleting')} ${count} ${itemsLabel}`;
+  }
 
   return op.type === 'move'
     ? t('clipboard.moving', { count, items: itemsLabel })
