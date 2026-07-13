@@ -16,7 +16,15 @@ export function useConfigErrorGate() {
     try {
       await features.ensureLoaded();
       const expectedOrigin = features.publicOrigin || '';
-      if (expectedOrigin && expectedOrigin !== requestOrigin) {
+      // Accept the public origin AND any configured internal origins (e.g. a LAN
+      // IP). Only warn when the current origin matches none of them.
+      const acceptedOrigins =
+        Array.isArray(features.publicOrigins) && features.publicOrigins.length
+          ? features.publicOrigins
+          : expectedOrigin
+            ? [expectedOrigin]
+            : [];
+      if (acceptedOrigins.length && !acceptedOrigins.includes(requestOrigin)) {
         configError.value = { mode: 'mismatch', expectedOrigin, requestOrigin };
       }
     } catch (_) {

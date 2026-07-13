@@ -5,6 +5,8 @@ import { fetchFeatures } from '@/api';
 export const useFeaturesStore = defineStore('features', () => {
   const publicUrl = ref('');
   const publicOrigin = ref('');
+  // Every origin the app may legitimately be reached from (public + internal).
+  const publicOrigins = ref([]);
   const editorExtensions = ref([]);
   const hiddenFilePatterns = ref(['.']);
   const onlyofficeEnabled = ref(false);
@@ -44,6 +46,9 @@ export const useFeaturesStore = defineStore('features', () => {
         publicUrl.value = typeof features?.public?.url === 'string' ? features.public.url : '';
         publicOrigin.value =
           typeof features?.public?.origin === 'string' ? features.public.origin : '';
+        publicOrigins.value = Array.isArray(features?.public?.origins)
+          ? features.public.origins.filter((o) => typeof o === 'string' && o)
+          : [];
 
         // Editor extensions
         editorExtensions.value = Array.isArray(features?.editor?.extensions)
@@ -95,6 +100,7 @@ export const useFeaturesStore = defineStore('features', () => {
         // Set defaults on error
         publicUrl.value = '';
         publicOrigin.value = '';
+        publicOrigins.value = [];
         editorExtensions.value = [];
         hiddenFilePatterns.value = ['.'];
         onlyofficeEnabled.value = false;
@@ -127,6 +133,7 @@ export const useFeaturesStore = defineStore('features', () => {
   return {
     publicUrl,
     publicOrigin,
+    publicOrigins,
     editorExtensions,
     hiddenFilePatterns,
     onlyofficeEnabled,
