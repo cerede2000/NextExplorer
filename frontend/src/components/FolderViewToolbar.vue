@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import NavButtons from '@/components/NavButtons.vue';
 import BreadCrumb from '@/components/BreadCrumb.vue';
 import MenuItemInfo from '@/components/MenuItemInfo.vue';
@@ -61,6 +61,9 @@ const goHome = async () => {
   await router.push('/browse/');
 };
 
+// Drives lazy rendering of the folder quick-actions (only while hovered).
+const crumbHover = ref(false);
+
 const toggleSelectionMode = () => {
   fileStore.toggleSelectionMode({ clearOnDisable: true });
 };
@@ -98,9 +101,13 @@ const downloadCurrentFolder = () => {
           <HomeIcon class="h-5 w-5" />
         </button>
         <NavButtons />
-        <div class="group/crumb flex min-w-0 items-center mr-auto">
+        <div
+          class="group/crumb flex min-w-0 items-center mr-auto"
+          @mouseenter="crumbHover = true"
+          @mouseleave="crumbHover = false"
+        >
           <BreadCrumb class="ml-2" />
-          <InlineQuickActions v-if="!isVolumesView" folder class="ml-1" />
+          <InlineQuickActions v-if="!isVolumesView" folder :active="crumbHover" class="ml-1" />
         </div>
         <button
           v-if="isTouchDevice && !isVolumesView"

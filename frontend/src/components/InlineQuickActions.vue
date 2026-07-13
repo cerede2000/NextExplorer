@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { EllipsisHorizontalIcon } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { QUICK_ACTIONS_BY_ID } from '@/config/quickActions';
 import { useQuickActionsStore } from '@/stores/quickActions';
@@ -13,6 +14,10 @@ const props = defineProps({
   // A file/folder row item, or null when `folder` is set (current-folder mode).
   item: { type: Object, default: null },
   folder: { type: Boolean, default: false },
+  // Hover signal from the parent (row / breadcrumb). Nothing is rendered until it
+  // is true, so non-hovered rows carry no quick-action DOM at all — this keeps the
+  // list light and its re-renders (e.g. on right-click selection) fast.
+  active: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -22,6 +27,10 @@ const store = useQuickActionsStore();
 const contextMenu = props.folder ? null : useExplorerContextMenu();
 const folderActions = props.folder ? useFolderQuickActions() : null;
 const favoritesStore = useFavoritesStore();
+
+// Compact mode: the "…" is shown until it is hovered, then the icons expand.
+const expanded = ref(false);
+const compact = computed(() => store.displayMode === 'compact');
 
 const isFav = (id) => {
   if (id !== 'favorite') return false;
@@ -67,32 +76,49 @@ const runAction = async (id, event) => {
 </script>
 
 <template>
-  <!-- Icons render inline (revealed when hovering the row / the folder name). They
-       take no space until shown, so the name uses the full width otherwise. In a
-       narrow column the flex-wrap parent pushes the name onto the line below,
-       leaving the icons above it. -->
+  <!-- Rendered only while the row/breadcrumb is hovered (lazy). Name stays to the
+       left; icons sit to its right and wrap onto the line below when there is no
+       room. In compact mode only a "…" shows, expanding to the icons on hover. -->
   <div
-    v-if="show"
-    class="hidden max-w-full flex-wrap items-center gap-0.5 group-hover/item:flex group-hover/crumb:flex"
+    v-if="active && show"
+    class="flex items-center"
+    @mouseenter="expanded = true"
+    @mouseleave="expanded = false"
   >
     <button
-      v-for="id in actionIds"
-      :key="id"
+      v-if="compact && !expanded"
       type="button"
-      class="grid h-6 w-6 shrink-0 place-items-center rounded transition-colors"
-      :class="
-        isDanger(id)
-          ? 'text-red-600 hover:bg-red-500/20 dark:text-red-500'
-          : 'hover:bg-black/10 dark:hover:bg-white/15'
-      "
-      :title="labelFor(id)"
-      :aria-label="labelFor(id)"
-      @click="runAction(id, $event)"
+      class="grid h-6 w-6 shrink-0 place-items-center rounded transition-colors hover:bg-black/10 dark:hover:bg-white/15"
+      :title="t('quickActions.menu')"
+      :aria-label="t('quickActions.menu')"
+      @click.stop.prevent
       @dblclick.stop.prevent
       @mousedown.stop
       @pointerdown.stop
     >
-      <component :is="iconFor(id)" class="h-4 w-4" />
+      <EllipsisHorizontalIcon class="h-4 w-4" />
     </button>
+
+    <div v-else class="flex max-w-full flex-wrap items-center gap-0.5">
+      <button
+        v-for="id in actionIds"
+        :key="id"
+        type="button"
+        class="grid h-6 w-6 shrink-0 place-items-center rounded transition-colors"
+        :class="
+          isDanger(id)
+            ? 'text-red-600 hover:bg-red-500/20 dark:text-red-500'
+            : 'hover:bg-black/10 dark:hover:bg-white/15'
+        "
+        :title="labelFor(id)"
+        :aria-label="labelFor(id)"
+        @click="runAction(id, $event)"
+        @dblclick.stop.prevent
+        @mousedown.stop
+        @pointerdown.stop
+      >
+        <component :is="iconFor(id)" class="h-4 w-4" />
+      </button>
+    </div>
   </div>
 </template>

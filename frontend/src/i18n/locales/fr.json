@@ -454,6 +454,9 @@
       "quickActions": "Menu d’actions rapides",
       "quickActionsHelp": "Affiche au survol un petit menu d’actions sur chaque ligne fichier/dossier et sur le nom du dossier en haut.",
       "quickActionsReorder": "Choisissez et réordonnez les actions affichées.",
+      "quickActionsMode": "Affichage du menu",
+      "quickActionsModeFull": "Toutes les icônes au survol",
+      "quickActionsModeCompact": "Icône … (déplier au survol)",
       "useEnvSetting": "Utiliser la configuration serveur"
     },
     "thumbs": {

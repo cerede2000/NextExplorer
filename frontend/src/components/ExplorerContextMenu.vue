@@ -730,7 +730,7 @@ provide(explorerContextMenuSymbol, {
       v-if="isOpen"
       ref="floatingRef"
       :style="floatingStyles"
-      class="min-w-[220px] rounded-xl border border-white/10 bg-white/70 p-1.5 text-sm text-zinc-800 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-neutral-800/70 dark:text-zinc-200"
+      class="min-w-[220px] rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-800 shadow-2xl dark:border-white/10 dark:bg-neutral-800 dark:text-zinc-200"
       @contextmenu.prevent
       @click.stop
     >
