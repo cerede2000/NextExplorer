@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n';
 import { getSharedWithMe } from '@/api/shares.api';
 import {
   ShareIcon,
-  ClockIcon,
   LockClosedIcon,
   LockOpenIcon,
   UserIcon,

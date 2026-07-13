@@ -629,6 +629,7 @@
     "removeShare": "शेयर हटाएं",
     "sharedWithAnyone": "सभी",
     "sharedWithUsers": "{count} उपयोगकर्ता",
+    "expiresNever": "कभी नहीं",
     "directFileLink": "सीधा फ़ाइल लिंक",
     "directFolderLink": "सीधा फ़ोल्डर ZIP लिंक",
     "copyShareLink": "शेयर लिंक कॉपी करें",
@@ -654,8 +655,7 @@
     "noActivity": "कभी नहीं",
     "noIpRecorded": "कोई IP दर्ज नहीं",
     "deleteShareTitle": "शेयर हटाएं?",
-    "deleteShareMessage": "इस लिंक वाले लोग अब साझा किए गए आइटम तक पहुँच नहीं पाएंगे।",
-    "expiresNever": "कभी नहीं"
+    "deleteShareMessage": "इस लिंक वाले लोग अब साझा किए गए आइटम तक पहुँच नहीं पाएंगे।"
   },
   "quickActions": {
     "menu": "त्वरित क्रियाएँ"

@@ -629,6 +629,7 @@
     "removeShare": "Eliminar compartición",
     "sharedWithAnyone": "Todos",
     "sharedWithUsers": "{count} usuario | {count} usuarios",
+    "expiresNever": "Nunca",
     "directFileLink": "Enlace directo del archivo",
     "directFolderLink": "Enlace directo ZIP de la carpeta",
     "copyShareLink": "Copiar enlace para compartir",
@@ -654,8 +655,7 @@
     "noActivity": "Nunca",
     "noIpRecorded": "Ninguna IP registrada",
     "deleteShareTitle": "¿Eliminar compartición?",
-    "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido.",
-    "expiresNever": "Nunca"
+    "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido."
   },
   "quickActions": {
     "menu": "Acciones rápidas"
