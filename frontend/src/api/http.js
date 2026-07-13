@@ -108,4 +108,82 @@ const requestJson = async (endpoint, options = {}) => {
   return response.json();
 };
 
-export { apiBase, buildUrl, encodePath, normalizePath, requestJson, requestRaw };
+// Consume a newline-delimited JSON (NDJSON) response, invoking `onEvent` for
+// each streamed event and resolving with the final `{type:'done', ...}` payload.
+// A `{type:'error', ...}` line is turned into a thrown Error routed through the
+// global error handler, matching requestJson's behaviour. Pre-flight failures
+// (non-2xx) are still handled by requestRaw before streaming begins.
+const requestStream = async (endpoint, { onEvent, ...options } = {}) => {
+  const response = await requestRaw(endpoint, options);
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    // No readable stream available: fall back to a single JSON parse.
+    return response.json().catch(() => null);
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result = null;
+  let streamError = null;
+
+  const handleLine = (rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return;
+
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch (_) {
+      return;
+    }
+
+    if (event.type === 'error') {
+      streamError = event;
+    } else if (event.type === 'done') {
+      result = event;
+    } else if (typeof onEvent === 'function') {
+      onEvent(event);
+    }
+  };
+
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newlineIndex;
+    while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+      handleLine(buffer.slice(0, newlineIndex));
+      buffer = buffer.slice(newlineIndex + 1);
+    }
+  }
+  buffer += decoder.decode();
+  handleLine(buffer);
+
+  if (streamError) {
+    const errorInfo = {
+      statusCode: streamError.statusCode || 500,
+      message: streamError.message || 'Request failed',
+      code: streamError.code,
+    };
+    const translatedMessage = options.suppressErrorHandler
+      ? errorInfo.message
+      : errorHandler?.(errorInfo) || errorInfo.message;
+    const error = new Error(translatedMessage);
+    if (streamError.code) error.code = streamError.code;
+    throw error;
+  }
+
+  return result;
+};
+
+export {
+  apiBase,
+  buildUrl,
+  encodePath,
+  normalizePath,
+  requestJson,
+  requestRaw,
+  requestStream,
+};
