@@ -60,6 +60,7 @@ const floatingRef = ref(null);
 
 const { x, y, strategy, update } = useFloating(referenceRef, floatingRef, {
   placement: 'right-start',
+  strategy: 'fixed',
   middleware: [offset(4), flip(), shift()],
   // Position as soon as the menu mounts (and keep it pinned) so it appears
   // instantly at the cursor instead of flashing at the top-left for a frame.
@@ -68,8 +69,11 @@ const { x, y, strategy, update } = useFloating(referenceRef, floatingRef, {
 
 const floatingStyles = computed(() => ({
   position: strategy.value,
-  left: `${Math.max(x.value ?? 0, 0)}px`,
-  top: `${Math.max(y.value ?? 0, 0)}px`,
+  // Until floating-ui computes (x/y null on the very first frame), fall back to
+  // the cursor position so the menu paints AT the cursor immediately — no visible
+  // delay or top-left flash — then gets refined (offset/flip/shift) in place.
+  left: `${Math.max(x.value ?? pointer.value.x, 0)}px`,
+  top: `${Math.max(y.value ?? pointer.value.y, 0)}px`,
   zIndex: 1600,
 }));
 
