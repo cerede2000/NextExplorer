@@ -57,6 +57,21 @@ watch(
   { immediate: true }
 );
 
+// Forced chunking and auto-fallback are mutually exclusive: turning one on turns
+// the other off.
+watch(
+  () => local.chunkedAutoFallback,
+  (on) => {
+    if (on) local.chunkedEnabled = false;
+  }
+);
+watch(
+  () => local.chunkedEnabled,
+  (on) => {
+    if (on) local.chunkedAutoFallback = false;
+  }
+);
+
 // Keep the edited value within [min, server max] — auto-correct a value typed
 // above the ceiling (e.g. after MAX_CHUNK_SIZE_MIB was lowered on the server).
 watch([() => local.chunkSizeMiB, maxChunkSizeMiB], () => {

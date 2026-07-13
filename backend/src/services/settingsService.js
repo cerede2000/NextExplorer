@@ -29,9 +29,12 @@ const defaultUploadSettings = () => {
       ? configuredChunkSize
       : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES;
 
+  const chunkedAutoFallback = env.UPLOAD_CHUNKED_AUTO_FALLBACK ?? false;
   return {
-    chunkedEnabled: env.UPLOAD_CHUNKED_ENABLED ?? false,
-    chunkedAutoFallback: env.UPLOAD_CHUNKED_AUTO_FALLBACK ?? false,
+    // Auto-fallback and forced chunked uploads are mutually exclusive — auto is a
+    // direct-with-fallback mode, so it turns forced chunking off.
+    chunkedEnabled: chunkedAutoFallback ? false : (env.UPLOAD_CHUNKED_ENABLED ?? false),
+    chunkedAutoFallback,
     chunkSizeBytes: clampNumber(
       Math.floor(chunkSizeBytes),
       MIN_UPLOAD_CHUNK_SIZE_BYTES,
@@ -125,15 +128,19 @@ const sanitizeUploads = (uploads = {}) => {
       ? parseByteSize(uploads.chunkSizeBytes)
       : uploads.chunkSizeBytes;
 
+  const chunkedAutoFallback =
+    typeof uploads.chunkedAutoFallback === 'boolean'
+      ? uploads.chunkedAutoFallback
+      : defaults.chunkedAutoFallback;
+  const chunkedEnabled = chunkedAutoFallback
+    ? false // mutually exclusive with auto-fallback (auto wins)
+    : typeof uploads.chunkedEnabled === 'boolean'
+      ? uploads.chunkedEnabled
+      : defaults.chunkedEnabled;
+
   return {
-    chunkedEnabled:
-      typeof uploads.chunkedEnabled === 'boolean'
-        ? uploads.chunkedEnabled
-        : defaults.chunkedEnabled,
-    chunkedAutoFallback:
-      typeof uploads.chunkedAutoFallback === 'boolean'
-        ? uploads.chunkedAutoFallback
-        : defaults.chunkedAutoFallback,
+    chunkedEnabled,
+    chunkedAutoFallback,
     chunkSizeBytes: Number.isFinite(rawChunkSize)
       ? clampNumber(
           Math.floor(rawChunkSize),
