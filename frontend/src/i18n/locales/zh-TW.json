@@ -627,7 +627,7 @@
     "mySharesCount": "{count} 個有效分享連結",
     "confirmDeleteShare": "確定要移除此分享嗎？擁有該連結的人將不再能夠存取。",
     "removeShare": "移除分享",
-    "sharedWithAnyone": "與所有人分享",
+    "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位使用者",
     "directFileLink": "檔案直接連結",
     "directFolderLink": "檔案夾 ZIP 直接連結",
@@ -654,7 +654,8 @@
     "noActivity": "從未",
     "noIpRecorded": "未記錄 IP",
     "deleteShareTitle": "移除分享？",
-    "deleteShareMessage": "擁有此連結的人將無法再存取已分享的項目。"
+    "deleteShareMessage": "擁有此連結的人將無法再存取已分享的項目。",
+    "expiresNever": "永不"
   },
   "quickActions": {
     "menu": "快速動作"

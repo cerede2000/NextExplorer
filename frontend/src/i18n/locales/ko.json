@@ -627,7 +627,7 @@
     "mySharesCount": "{count}개 공유 링크 활성화됨",
     "confirmDeleteShare": "이 공유를 삭제하시겠습니까? 이 링크를 가진 사람들이 더 이상 접근할 수 없습니다.",
     "removeShare": "공유 삭제",
-    "sharedWithAnyone": "전체 공유",
+    "sharedWithAnyone": "모두",
     "sharedWithUsers": "{count} 유저 | {count} 유저",
     "directFileLink": "파일 직접 링크",
     "directFolderLink": "폴더 ZIP 직접 링크",
@@ -654,7 +654,8 @@
     "noActivity": "없음",
     "noIpRecorded": "기록된 IP 없음",
     "deleteShareTitle": "공유를 삭제하시겠습니까?",
-    "deleteShareMessage": "이 링크를 가진 사람들이 더 이상 공유된 항목에 접근할 수 없습니다."
+    "deleteShareMessage": "이 링크를 가진 사람들이 더 이상 공유된 항목에 접근할 수 없습니다.",
+    "expiresNever": "없음"
   },
   "quickActions": {
     "menu": "빠른 작업"

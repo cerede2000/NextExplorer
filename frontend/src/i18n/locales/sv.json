@@ -627,7 +627,7 @@
     "mySharesCount": "{count} aktiva utdelningslänkar",
     "confirmDeleteShare": "Ta bort denna utdelning? Personer som har länken kommer inte längre ha åtkomst.",
     "removeShare": "Ta bort utdelning",
-    "sharedWithAnyone": "Delad med någon",
+    "sharedWithAnyone": "Alla",
     "sharedWithUsers": "{count} användare | {count} användare",
     "directFileLink": "Direktlänk till fil",
     "directFolderLink": "Direkt ZIP-länk till mapp",
@@ -654,7 +654,8 @@
     "noActivity": "Aldrig",
     "noIpRecorded": "Ingen IP registrerad",
     "deleteShareTitle": "Ta bort utdelning?",
-    "deleteShareMessage": "Personer som har den här länken kommer inte längre att kunna komma åt det utdelade objektet."
+    "deleteShareMessage": "Personer som har den här länken kommer inte längre att kunna komma åt det utdelade objektet.",
+    "expiresNever": "Aldrig"
   },
   "quickActions": {
     "menu": "Snabbåtgärder"

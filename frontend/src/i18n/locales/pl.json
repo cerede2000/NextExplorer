@@ -627,7 +627,7 @@
     "mySharesCount": "{count} aktywne linki udostępnień",
     "confirmDeleteShare": "Usunąć to udostępnienie? Osoby posiadające link stracą dostęp.",
     "removeShare": "Usuń udostępnienie",
-    "sharedWithAnyone": "Udostępnione dla wszystkich",
+    "sharedWithAnyone": "Wszyscy",
     "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
     "directFileLink": "Bezpośredni link do pliku",
     "directFolderLink": "Bezpośredni link ZIP do folderu",
@@ -654,7 +654,8 @@
     "noActivity": "Nigdy",
     "noIpRecorded": "Brak zarejestrowanego IP",
     "deleteShareTitle": "Usunąć udostępnienie?",
-    "deleteShareMessage": "Osoby posiadające ten link nie będą już mogły uzyskać dostępu do udostępnionego elementu."
+    "deleteShareMessage": "Osoby posiadające ten link nie będą już mogły uzyskać dostępu do udostępnionego elementu.",
+    "expiresNever": "Nigdy"
   },
   "quickActions": {
     "menu": "Szybkie akcje"

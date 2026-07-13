@@ -627,7 +627,7 @@
     "mySharesCount": "{count} 个有效共享链接",
     "confirmDeleteShare": "确定要移除此共享吗？拥有该链接的人将不再能够访问。",
     "removeShare": "移除共享",
-    "sharedWithAnyone": "与所有人共享",
+    "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位用户",
     "directFileLink": "直接文件链接",
     "directFolderLink": "文件夹 ZIP 直接链接",
@@ -654,7 +654,8 @@
     "noActivity": "从不",
     "noIpRecorded": "未记录 IP",
     "deleteShareTitle": "移除共享？",
-    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。"
+    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。",
+    "expiresNever": "永不"
   },
   "quickActions": {
     "menu": "快捷操作"

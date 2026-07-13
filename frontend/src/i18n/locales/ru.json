@@ -627,7 +627,7 @@
     "mySharesCount": "Активных ссылок: {count}",
     "confirmDeleteShare": "Удалить этот общий доступ? Люди с этой ссылкой больше не смогут получить доступ.",
     "removeShare": "Удалить доступ",
-    "sharedWithAnyone": "Доступно всем",
+    "sharedWithAnyone": "Все",
     "sharedWithUsers": "{count} пользователь | {count} пользователей",
     "directFileLink": "Прямая ссылка на файл",
     "directFolderLink": "Прямая ZIP-ссылка на папку",
@@ -654,7 +654,8 @@
     "noActivity": "Никогда",
     "noIpRecorded": "IP не записан",
     "deleteShareTitle": "Удалить доступ?",
-    "deleteShareMessage": "Люди с этой ссылкой больше не смогут получить доступ к общему объекту."
+    "deleteShareMessage": "Люди с этой ссылкой больше не смогут получить доступ к общему объекту.",
+    "expiresNever": "Никогда"
   },
   "quickActions": {
     "menu": "Быстрые действия"
