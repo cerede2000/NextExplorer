@@ -69,7 +69,10 @@
     "shares": "共享",
     "unsavedChanges": "您有未保存的更改",
     "readonly": "只读",
-    "readwrite": "读/写"
+    "readwrite": "读/写",
+    "reset": "重置",
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "排序方式",
     "addRule": "添加规则",
     "clearAll": "清除全部",
-    "cancelAll": "全部取消"
+    "cancelAll": "全部取消",
+    "copyPath": "复制路径",
+    "copyName": "复制名称",
+    "share": "共享",
+    "copied": "已复制"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -228,7 +235,10 @@
       "single": "确定要删除 \"{name}\" 吗？此操作无法撤销。",
       "multiple": "确定要删除这 {count} 个项目吗？此操作无法撤销。",
       "generic": "未选择任何项目。"
-    }
+    },
+    "checkingDeleteImpact": "正在检查关联共享…",
+    "deleteImpactUnavailable": "无法检查关联共享。删除仍将由服务器强制执行。",
+    "deleteLinkedShares": "此内容有 {count} 个关联共享，将随之一并删除。 | 此内容有 {count} 个关联共享，将随之一并删除。"
   },
   "folder": {
     "kind": "类型",
@@ -236,7 +246,11 @@
     "noPhotos": "此文件夹中没有照片",
     "noPhotosHint": "切换到其他视图模式以查看所有文件",
     "empty": "此文件夹为空",
-    "emptyHint": "上传或创建文件以开始。"
+    "emptyHint": "上传或创建文件以开始。",
+    "scrollTop": "顶部",
+    "scrollBottom": "底部",
+    "selectAll": "全选",
+    "deselectAll": "取消全选"
   },
   "volumes": {
     "quickAccess": "快速访问",
@@ -255,7 +269,8 @@
     "home": "主页",
     "back": "后退",
     "forward": "前进",
-    "upOneFolder": "上一级文件夹"
+    "upOneFolder": "上一级文件夹",
+    "refresh": "刷新文件夹"
   },
   "view": {
     "list": "列表视图",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "正在复制 {count} 个{items}…",
     "moving": "正在移动 {count} 个{items}…",
-    "working": "处理中…"
+    "working": "处理中…",
+    "reposition": "完成后返回该项目"
   },
   "upload": {
     "toggleDetailsShow": "显示详细信息",
@@ -384,7 +400,8 @@
       "filesThumbnails": "文件和缩略图",
       "security": "安全",
       "accessControl": "访问控制",
-      "adminUsers": "用户管理"
+      "adminUsers": "用户管理",
+      "uploads": "上传"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -434,7 +451,13 @@
       "months": "月",
       "skipHome": "跳过首页",
       "skipHomeHelp": "访问首页时自动重定向到第一个卷。未设置时遵循服务器配置。",
-      "useEnvSetting": "使用服务器设置"
+      "useEnvSetting": "使用服务器设置",
+      "quickActions": "快捷操作菜单",
+      "quickActionsHelp": "在每个文件/文件夹行以及顶部的文件夹名称上，鼠标悬停时显示一个小型操作菜单。",
+      "quickActionsReorder": "选择并重新排序显示的操作。",
+      "quickActionsMode": "菜单显示",
+      "quickActionsModeFull": "悬停时显示所有图标",
+      "quickActionsModeCompact": "… 图标（悬停时展开）"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -460,7 +483,8 @@
       "recursive": "递归",
       "readWrite": "读写",
       "readOnly": "只读",
-      "hidden": "隐藏"
+      "hidden": "隐藏",
+      "title": "访问"
     },
     "comingSoon": {
       "subtitle": "此设置部分正在构建中，敬请期待！"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "上传",
+      "subtitle": "配置文件发送到服务器的方式。",
+      "chunkedEnable": "启用分块上传",
+      "chunkedEnableHelp": "使用 TUS 通过多个较小的请求发送大文件。",
+      "autoFallback": "自动回退到分块上传",
+      "autoFallbackHelp": "如果直接上传失败（反向代理拒绝请求体大小），则自动切换到安全大小的分块上传，并按地址记住此设置。非常适合在本地保持直接上传，而在代理后切换到分块上传。",
+      "autoFallbackActive": "已为此地址记住分块大小：{size} MiB。",
+      "autoFallbackReset": "重置（恢复直接上传）",
+      "chunkSize": "分块大小",
+      "chunkSizeHelp": "每个上传请求的最大大小。请将其保持在反向代理限制以下。较小的分块（8–32 MiB）进度更平滑；非常大的分块会出现明显的阶段（服务器会先写入每个分块，再处理下一个）。"
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "确定要移除此共享吗？拥有该链接的人将不再能够访问。",
     "removeShare": "移除共享",
     "sharedWithAnyone": "与所有人共享",
-    "sharedWithUsers": "{count} 位用户"
+    "sharedWithUsers": "{count} 位用户",
+    "directFileLink": "直接文件链接",
+    "directFolderLink": "文件夹 ZIP 直接链接",
+    "copyShareLink": "复制共享链接",
+    "directLinkMode": "直接链接模式",
+    "copyDirectFileLink": "复制直接文件链接",
+    "copyDirectFolderLink": "复制文件夹 ZIP 直接链接",
+    "directLinkModes": {
+      "auto": "自动",
+      "inline": "查看",
+      "raw": "原始",
+      "download": "下载"
+    },
+    "sharedWith": "共享对象",
+    "activity": "活动",
+    "activityDetails": "活动详情",
+    "accesses": "访问",
+    "downloads": "下载",
+    "accessCount": "访问次数",
+    "downloadCount": "下载次数",
+    "lastAccessIp": "上次访问 IP",
+    "lastDownloaded": "上次下载",
+    "lastDownloadIp": "上次下载 IP",
+    "noActivity": "从不",
+    "noIpRecorded": "未记录 IP",
+    "deleteShareTitle": "移除共享？",
+    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。"
+  },
+  "quickActions": {
+    "menu": "快捷操作"
   }
 }

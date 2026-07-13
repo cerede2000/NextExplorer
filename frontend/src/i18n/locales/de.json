@@ -69,7 +69,10 @@
     "shares": "Freigaben",
     "unsavedChanges": "Sie haben ungespeicherte Änderungen",
     "readonly": "Schreibgeschützt",
-    "readwrite": "Lesen/Schreiben"
+    "readwrite": "Lesen/Schreiben",
+    "reset": "Zurücksetzen",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortieren nach",
     "addRule": "Regel hinzufügen",
     "clearAll": "Alles löschen",
-    "cancelAll": "Alle abbrechen"
+    "cancelAll": "Alle abbrechen",
+    "copyPath": "Pfad kopieren",
+    "copyName": "Name kopieren",
+    "share": "Freigeben",
+    "copied": "Kopiert"
   },
   "placeholders": {
     "email": "benutzer{'@'}beispiel.com",
@@ -228,7 +235,10 @@
       "single": "Sind Sie sicher, dass Sie \"{name}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "multiple": "Sind Sie sicher, dass Sie diese {count} Elemente löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "generic": "Keine Elemente ausgewählt."
-    }
+    },
+    "checkingDeleteImpact": "Verknüpfte Freigaben werden überprüft...",
+    "deleteImpactUnavailable": "Verknüpfte Freigaben konnten nicht überprüft werden. Die Löschung wird dennoch serverseitig durchgesetzt.",
+    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden."
   },
   "folder": {
     "kind": "Art",
@@ -236,7 +246,11 @@
     "noPhotos": "Keine Fotos in diesem Ordner",
     "noPhotosHint": "Wechseln Sie in einen anderen Ansichtsmodus, um alle Dateien zu sehen",
     "empty": "Dieser Ordner ist leer",
-    "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen."
+    "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen.",
+    "scrollTop": "Anfang",
+    "scrollBottom": "Ende",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen"
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
@@ -255,7 +269,8 @@
     "home": "Startseite",
     "back": "Zurück",
     "forward": "Vorwärts",
-    "upOneFolder": "Einen Ordner nach oben"
+    "upOneFolder": "Einen Ordner nach oben",
+    "refresh": "Ordner aktualisieren"
   },
   "view": {
     "list": "Listenansicht",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "Kopieren von {count} {items}…",
     "moving": "Verschieben von {count} {items}…",
-    "working": "Wird verarbeitet…"
+    "working": "Wird verarbeitet…",
+    "reposition": "Nach Abschluss zum Element zurückkehren"
   },
   "upload": {
     "toggleDetailsShow": "Details anzeigen",
@@ -384,7 +400,8 @@
       "filesThumbnails": "Dateien & Miniaturansichten",
       "security": "Sicherheit",
       "accessControl": "Zugriffskontrolle",
-      "adminUsers": "Benutzerverwaltung"
+      "adminUsers": "Benutzerverwaltung",
+      "uploads": "Uploads"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -434,7 +451,13 @@
       "months": "Monate",
       "skipHome": "Startseite überspringen",
       "skipHomeHelp": "Leitet beim Besuch der Startseite automatisch zur ersten Volume weiter. Wenn nicht gesetzt, wird die Serverkonfiguration verwendet.",
-      "useEnvSetting": "Servereinstellung verwenden"
+      "useEnvSetting": "Servereinstellung verwenden",
+      "quickActions": "Schnellaktionen-Menü",
+      "quickActionsHelp": "Zeigt beim Überfahren ein kleines Aktionsmenü in jeder Datei-/Ordnerzeile sowie beim Ordnernamen oben an.",
+      "quickActionsReorder": "Wählen Sie die angezeigten Aktionen aus und ordnen Sie sie neu an.",
+      "quickActionsMode": "Menüanzeige",
+      "quickActionsModeFull": "Alle Symbole beim Überfahren",
+      "quickActionsModeCompact": "…-Symbol (beim Überfahren aufklappen)"
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
@@ -460,7 +483,8 @@
       "recursive": "Rekursiv",
       "readWrite": "Lesen & Schreiben",
       "readOnly": "Nur Lesen",
-      "hidden": "Ausgeblendet"
+      "hidden": "Ausgeblendet",
+      "title": "Zugriff"
     },
     "comingSoon": {
       "subtitle": "Dieser Einstellungsbereich wird derzeit entwickelt. Bleiben Sie dran!"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "Uploads",
+      "subtitle": "Konfigurieren Sie, wie Dateien an den Server gesendet werden.",
+      "chunkedEnable": "Segmentierte Uploads aktivieren",
+      "chunkedEnableHelp": "Verwendet TUS, um große Dateien über mehrere kleinere Anfragen zu senden.",
+      "autoFallback": "Automatisch auf Segmente umschalten",
+      "autoFallbackHelp": "Wenn ein direkter Upload fehlschlägt (ein Reverse-Proxy, der die Body-Größe ablehnt), wird automatisch mit einer sicheren Größe auf segmentierte Uploads umgeschaltet, gemerkt pro Adresse. Ideal, um lokal direkt zu bleiben und hinter dem Proxy auf segmentiert zu wechseln.",
+      "autoFallbackActive": "Segmentgröße für diese Adresse gemerkt: {size} MiB.",
+      "autoFallbackReset": "Zurücksetzen (zurück zu direkt)",
+      "chunkSize": "Segmentgröße",
+      "chunkSizeHelp": "Maximale Größe jeder Upload-Anfrage. Halten Sie diese unter dem Limit Ihres Reverse-Proxys. Kleinere Segmente (8–32 MiB) sorgen für einen flüssigeren Fortschritt; sehr große Segmente zeigen sichtbare Sprünge (der Server schreibt jedes Segment vor dem nächsten)."
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "Diese Freigabe entfernen? Personen mit dem Link haben danach keinen Zugriff mehr.",
     "removeShare": "Freigabe entfernen",
     "sharedWithAnyone": "Für alle freigegeben",
-    "sharedWithUsers": "{count} Benutzer"
+    "sharedWithUsers": "{count} Benutzer",
+    "directFileLink": "Direkter Dateilink",
+    "directFolderLink": "Direkter ZIP-Link des Ordners",
+    "copyShareLink": "Freigabelink kopieren",
+    "directLinkMode": "Direktlink-Modus",
+    "copyDirectFileLink": "Direkten Dateilink kopieren",
+    "copyDirectFolderLink": "Direkten ZIP-Link des Ordners kopieren",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Ansehen",
+      "raw": "Raw",
+      "download": "Herunterladen"
+    },
+    "sharedWith": "Geteilt mit",
+    "activity": "Aktivität",
+    "activityDetails": "Aktivitätsdetails",
+    "accesses": "Zugriffe",
+    "downloads": "Downloads",
+    "accessCount": "Anzahl der Zugriffe",
+    "downloadCount": "Anzahl der Downloads",
+    "lastAccessIp": "Letzte Zugriffs-IP",
+    "lastDownloaded": "Zuletzt heruntergeladen",
+    "lastDownloadIp": "Letzte Download-IP",
+    "noActivity": "Nie",
+    "noIpRecorded": "Keine IP erfasst",
+    "deleteShareTitle": "Freigabe entfernen?",
+    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen."
+  },
+  "quickActions": {
+    "menu": "Schnellaktionen"
   }
 }

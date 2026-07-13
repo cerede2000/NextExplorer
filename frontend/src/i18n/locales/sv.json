@@ -69,7 +69,10 @@
     "shares": "Utdelningar",
     "unsavedChanges": "Du har osparade ändringar",
     "readonly": "Skrivskyddad",
-    "readwrite": "Läs/Skriv"
+    "readwrite": "Läs/Skriv",
+    "reset": "Återställ",
+    "moveUp": "Flytta upp",
+    "moveDown": "Flytta ner"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortera efter",
     "addRule": "Lägg till regel",
     "clearAll": "Töm allt",
-    "cancelAll": "Avbryt allt"
+    "cancelAll": "Avbryt allt",
+    "copyPath": "Kopiera sökväg",
+    "copyName": "Kopiera namn",
+    "share": "Dela",
+    "copied": "Kopierat"
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",
@@ -228,7 +235,10 @@
       "single": "Är du säker på att du vill radera \"{name}\"? Denna åtgärd går inte att ångra.",
       "multiple": "Är du säker på att du vill radera dessa {count} objekt? Denna åtgärd går inte att ångra.",
       "generic": "Inga objekt valda."
-    }
+    },
+    "checkingDeleteImpact": "Kontrollerar länkade utdelningar...",
+    "deleteImpactUnavailable": "Det gick inte att kontrollera länkade utdelningar. Raderingen verkställs ändå av servern.",
+    "deleteLinkedShares": "Detta innehåll har {count} länkad utdelning som tas bort tillsammans med det. | Detta innehåll har {count} länkade utdelningar som tas bort tillsammans med det."
   },
   "folder": {
     "kind": "Typ",
@@ -236,7 +246,11 @@
     "noPhotos": "Inga bilder i denna mapp",
     "noPhotosHint": "Växla till en annan vy för att se alla filer",
     "empty": "Den här mappen är tom",
-    "emptyHint": "Ladda upp eller skapa filer för att komma igång."
+    "emptyHint": "Ladda upp eller skapa filer för att komma igång.",
+    "scrollTop": "Överst",
+    "scrollBottom": "Nederst",
+    "selectAll": "Markera allt",
+    "deselectAll": "Avmarkera allt"
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
@@ -255,7 +269,8 @@
     "home": "Hem",
     "back": "Bakåt",
     "forward": "Framåt",
-    "upOneFolder": "Upp en mapp"
+    "upOneFolder": "Upp en mapp",
+    "refresh": "Uppdatera mapp"
   },
   "view": {
     "list": "Listvy",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "Kopierar {count} {items}…",
     "moving": "Flyttar {count} {items}…",
-    "working": "Arbetar…"
+    "working": "Arbetar…",
+    "reposition": "Återgå till objektet när det är klart"
   },
   "upload": {
     "toggleDetailsShow": "Visa detaljer",
@@ -384,7 +400,8 @@
       "filesThumbnails": "Filer och miniatyrbilder",
       "security": "Säkerhet",
       "accessControl": "Åtkomstkontroll",
-      "adminUsers": "Användarhantering"
+      "adminUsers": "Användarhantering",
+      "uploads": "Uppladdningar"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -434,7 +451,13 @@
       "months": "Månader",
       "skipHome": "Hoppa över startsidan",
       "skipHomeHelp": "Omdirigerar automatiskt till den första volymen när startsidan öppnas. Om inget anges används serverinställningen.",
-      "useEnvSetting": "Använd serverinställning"
+      "useEnvSetting": "Använd serverinställning",
+      "quickActions": "Snabbåtgärdsmeny",
+      "quickActionsHelp": "Visar en liten meny med åtgärder vid hovring på varje fil-/mapprad och på mappnamnet högst upp.",
+      "quickActionsReorder": "Välj och ändra ordning på de åtgärder som visas.",
+      "quickActionsMode": "Menyvisning",
+      "quickActionsModeFull": "Alla ikoner vid hovring",
+      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)"
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
@@ -460,7 +483,8 @@
       "recursive": "Rekursiv",
       "readWrite": "Läs-skriv",
       "readOnly": "Skrivskyddad",
-      "hidden": "Dold"
+      "hidden": "Dold",
+      "title": "Åtkomst"
     },
     "comingSoon": {
       "subtitle": "Denna inställningssektion håller på att byggas. Vänta och se!"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "Uppladdningar",
+      "subtitle": "Konfigurera hur filer skickas till servern.",
+      "chunkedEnable": "Aktivera uppladdning i delar",
+      "chunkedEnableHelp": "Använd TUS för att skicka stora filer via flera mindre förfrågningar.",
+      "autoFallback": "Automatisk växling till delar",
+      "autoFallbackHelp": "Om en direkt uppladdning misslyckas (en omvänd proxy som avvisar innehållsstorleken) växlas det automatiskt till uppladdning i delar med en säker storlek, som sparas per adress. Perfekt för att förbli direkt lokalt och växla till delar bakom proxyn.",
+      "autoFallbackActive": "Delstorlek sparad för denna adress: {size} MiB.",
+      "autoFallbackReset": "Återställ (tillbaka till direkt)",
+      "chunkSize": "Delstorlek",
+      "chunkSizeHelp": "Maximal storlek för varje uppladdningsförfrågan. Håll den under gränsen för din omvända proxy. Mindre delar (8–32 MiB) ger jämnare förlopp; mycket stora delar ger synliga hopp (servern skriver varje del innan nästa)."
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "Ta bort denna utdelning? Personer som har länken kommer inte längre ha åtkomst.",
     "removeShare": "Ta bort utdelning",
     "sharedWithAnyone": "Delad med någon",
-    "sharedWithUsers": "{count} användare | {count} användare"
+    "sharedWithUsers": "{count} användare | {count} användare",
+    "directFileLink": "Direktlänk till fil",
+    "directFolderLink": "Direkt ZIP-länk till mapp",
+    "copyShareLink": "Kopiera delningslänk",
+    "directLinkMode": "Läge för direktlänk",
+    "copyDirectFileLink": "Kopiera direktlänk till fil",
+    "copyDirectFolderLink": "Kopiera direkt ZIP-länk till mapp",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visa",
+      "raw": "Rå",
+      "download": "Ladda ner"
+    },
+    "sharedWith": "Delad med",
+    "activity": "Aktivitet",
+    "activityDetails": "Aktivitetsdetaljer",
+    "accesses": "åtkomster",
+    "downloads": "nerladdningar",
+    "accessCount": "Antal åtkomster",
+    "downloadCount": "Antal nerladdningar",
+    "lastAccessIp": "Senaste åtkomst-IP",
+    "lastDownloaded": "Senast nerladdad",
+    "lastDownloadIp": "Senaste nerladdnings-IP",
+    "noActivity": "Aldrig",
+    "noIpRecorded": "Ingen IP registrerad",
+    "deleteShareTitle": "Ta bort utdelning?",
+    "deleteShareMessage": "Personer som har den här länken kommer inte längre att kunna komma åt det utdelade objektet."
+  },
+  "quickActions": {
+    "menu": "Snabbåtgärder"
   }
 }

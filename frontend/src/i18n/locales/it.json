@@ -69,7 +69,10 @@
     "shares": "Condivisioni",
     "unsavedChanges": "Hai modifiche non salvate",
     "readonly": "Sola lettura",
-    "readwrite": "Lettura/Scrittura"
+    "readwrite": "Lettura/Scrittura",
+    "reset": "Reimposta",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Ordina per",
     "addRule": "Aggiungi regola",
     "clearAll": "Cancella tutto",
-    "cancelAll": "Annulla tutto"
+    "cancelAll": "Annulla tutto",
+    "copyPath": "Copia percorso",
+    "copyName": "Copia nome",
+    "share": "Condividi",
+    "copied": "Copiato"
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",
@@ -228,7 +235,10 @@
       "single": "Sei sicuro di voler eliminare \"{name}\"? Questa azione non può essere annullata.",
       "multiple": "Sei sicuro di voler eliminare questi {count} elementi? Questa azione non può essere annullata.",
       "generic": "Nessun elemento selezionato."
-    }
+    },
+    "checkingDeleteImpact": "Verifica delle condivisioni collegate...",
+    "deleteImpactUnavailable": "Impossibile verificare le condivisioni collegate. L'eliminazione sarà comunque applicata dal server.",
+    "deleteLinkedShares": "Questo contenuto ha {count} condivisione collegata che sarà rimossa con esso. | Questo contenuto ha {count} condivisioni collegate che saranno rimosse con esso."
   },
   "folder": {
     "kind": "Tipo",
@@ -236,7 +246,11 @@
     "noPhotos": "Nessuna foto in questa cartella",
     "noPhotosHint": "Passa a un'altra modalità di visualizzazione per vedere tutti i file",
     "empty": "Questa cartella è vuota",
-    "emptyHint": "Carica o crea file per iniziare."
+    "emptyHint": "Carica o crea file per iniziare.",
+    "scrollTop": "Inizio",
+    "scrollBottom": "Fine",
+    "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto"
   },
   "volumes": {
     "quickAccess": "Accesso rapido",
@@ -255,7 +269,8 @@
     "home": "Home",
     "back": "Indietro",
     "forward": "Avanti",
-    "upOneFolder": "Su di una cartella"
+    "upOneFolder": "Su di una cartella",
+    "refresh": "Aggiorna cartella"
   },
   "view": {
     "list": "Vista elenco",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "Copia di {count} {items}…",
     "moving": "Spostamento di {count} {items}…",
-    "working": "In corso…"
+    "working": "In corso…",
+    "reposition": "Torna all'elemento al termine"
   },
   "upload": {
     "toggleDetailsShow": "Mostra dettagli",
@@ -384,7 +400,8 @@
       "filesThumbnails": "File e miniature",
       "security": "Sicurezza",
       "accessControl": "Controllo accessi",
-      "adminUsers": "Gestione utenti"
+      "adminUsers": "Gestione utenti",
+      "uploads": "Caricamenti"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -434,7 +451,13 @@
       "months": "Mesi",
       "skipHome": "Salta la home",
       "skipHomeHelp": "Reindirizza automaticamente al primo volume quando si visita la home. Se non impostato, usa la configurazione del server.",
-      "useEnvSetting": "Usa impostazione del server"
+      "useEnvSetting": "Usa impostazione del server",
+      "quickActions": "Menu azioni rapide",
+      "quickActionsHelp": "Mostra un piccolo menu di azioni al passaggio del mouse su ogni riga file/cartella e sul nome della cartella in alto.",
+      "quickActionsReorder": "Scegli e riordina le azioni mostrate.",
+      "quickActionsMode": "Visualizzazione menu",
+      "quickActionsModeFull": "Tutte le icone al passaggio del mouse",
+      "quickActionsModeCompact": "Icona … (espandi al passaggio del mouse)"
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -460,7 +483,8 @@
       "recursive": "Ricorsivo",
       "readWrite": "Lettura e scrittura",
       "readOnly": "Sola lettura",
-      "hidden": "Nascosta"
+      "hidden": "Nascosta",
+      "title": "Accesso"
     },
     "comingSoon": {
       "subtitle": "Questa sezione delle impostazioni è in costruzione. Resta sintonizzato!"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "Caricamenti",
+      "subtitle": "Configura come i file vengono inviati al server.",
+      "chunkedEnable": "Abilita caricamenti a blocchi",
+      "chunkedEnableHelp": "Usa TUS per inviare file di grandi dimensioni tramite più richieste più piccole.",
+      "autoFallback": "Passaggio automatico ai blocchi",
+      "autoFallbackHelp": "Se un caricamento diretto non riesce (un reverse proxy che rifiuta la dimensione del corpo), passa automaticamente ai caricamenti a blocchi con una dimensione sicura, memorizzata per indirizzo. Ideale per restare in modalità diretta in locale e passare ai blocchi dietro il proxy.",
+      "autoFallbackActive": "Dimensione dei blocchi memorizzata per questo indirizzo: {size} MiB.",
+      "autoFallbackReset": "Reimposta (torna a diretto)",
+      "chunkSize": "Dimensione dei blocchi",
+      "chunkSizeHelp": "Dimensione massima di ogni richiesta di caricamento. Mantienila sotto il limite del tuo reverse proxy. Blocchi più piccoli (8–32 MiB) offrono un avanzamento più fluido; blocchi molto grandi mostrano scatti visibili (il server scrive ogni blocco prima del successivo)."
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "Rimuovere questa condivisione? Le persone con il link non avranno più accesso.",
     "removeShare": "Rimuovi condivisione",
     "sharedWithAnyone": "Condiviso con chiunque",
-    "sharedWithUsers": "{count} utente | {count} utenti"
+    "sharedWithUsers": "{count} utente | {count} utenti",
+    "directFileLink": "Link diretto al file",
+    "directFolderLink": "Link diretto ZIP della cartella",
+    "copyShareLink": "Copia link di condivisione",
+    "directLinkMode": "Modalità link diretto",
+    "copyDirectFileLink": "Copia link diretto al file",
+    "copyDirectFolderLink": "Copia link diretto ZIP della cartella",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Visualizza",
+      "raw": "Raw",
+      "download": "Scarica"
+    },
+    "sharedWith": "Condiviso con",
+    "activity": "Attività",
+    "activityDetails": "Dettagli attività",
+    "accesses": "accessi",
+    "downloads": "download",
+    "accessCount": "Numero di accessi",
+    "downloadCount": "Numero di download",
+    "lastAccessIp": "IP ultimo accesso",
+    "lastDownloaded": "Ultimo download",
+    "lastDownloadIp": "IP ultimo download",
+    "noActivity": "Mai",
+    "noIpRecorded": "Nessun IP registrato",
+    "deleteShareTitle": "Rimuovere la condivisione?",
+    "deleteShareMessage": "Le persone con questo link non potranno più accedere all'elemento condiviso."
+  },
+  "quickActions": {
+    "menu": "Azioni rapide"
   }
 }

@@ -69,7 +69,10 @@
     "shares": "分享",
     "unsavedChanges": "您有未儲存的變更",
     "readonly": "讀取",
-    "readwrite": "讀寫"
+    "readwrite": "讀寫",
+    "reset": "重設",
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "排序方式",
     "addRule": "新增規則",
     "clearAll": "清除全部",
-    "cancelAll": "全部取消"
+    "cancelAll": "全部取消",
+    "copyPath": "複製路徑",
+    "copyName": "複製名稱",
+    "share": "分享",
+    "copied": "已複製"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -228,7 +235,10 @@
       "single": "確定要刪除 \"{name}\" 嗎？此動作無法還原。",
       "multiple": "確定要刪除這 {count} 個項目嗎？此動作無法還原。",
       "generic": "未選擇任何項目。"
-    }
+    },
+    "checkingDeleteImpact": "正在檢查關聯的分享…",
+    "deleteImpactUnavailable": "無法檢查關聯的分享。刪除仍會由伺服器強制執行。",
+    "deleteLinkedShares": "此內容有 {count} 個關聯的分享，將會一併移除。 | 此內容有 {count} 個關聯的分享，將會一併移除。"
   },
   "folder": {
     "kind": "類型",
@@ -236,7 +246,11 @@
     "noPhotos": "此檔案夾中沒有照片",
     "noPhotosHint": "切換到其他檢視模式以查看所有檔案",
     "empty": "此檔案夾為空",
-    "emptyHint": "上傳或建立檔案以開始。"
+    "emptyHint": "上傳或建立檔案以開始。",
+    "scrollTop": "頂部",
+    "scrollBottom": "底部",
+    "selectAll": "全選",
+    "deselectAll": "取消全選"
   },
   "volumes": {
     "quickAccess": "快速訪問",
@@ -255,7 +269,8 @@
     "home": "首頁",
     "back": "後退",
     "forward": "前進",
-    "upOneFolder": "上層檔案夾"
+    "upOneFolder": "上層檔案夾",
+    "refresh": "重新整理檔案夾"
   },
   "view": {
     "list": "列表檢視",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "正在複製 {count} 個{items}…",
     "moving": "正在移動 {count} 個{items}…",
-    "working": "處理中…"
+    "working": "處理中…",
+    "reposition": "完成後返回該項目"
   },
   "upload": {
     "toggleDetailsShow": "顯示詳細資訊",
@@ -384,7 +400,8 @@
       "filesThumbnails": "文件縮圖",
       "security": "安全",
       "accessControl": "權限控制",
-      "adminUsers": "使用者管理"
+      "adminUsers": "使用者管理",
+      "uploads": "上傳"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -434,7 +451,13 @@
       "months": "月",
       "skipHome": "跳過首頁",
       "skipHomeHelp": "進入首頁時自動導向到第一個儲存卷。未設定時會使用伺服器預設。",
-      "useEnvSetting": "使用伺服器預設"
+      "useEnvSetting": "使用伺服器預設",
+      "quickActions": "快速動作選單",
+      "quickActionsHelp": "在每個檔案/檔案夾列以及頂部的檔案夾名稱上，於懸停時顯示一個小型的動作選單。",
+      "quickActionsReorder": "選擇並重新排序顯示的動作。",
+      "quickActionsMode": "選單顯示",
+      "quickActionsModeFull": "懸停時顯示所有圖示",
+      "quickActionsModeCompact": "… 圖示（懸停時展開）"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -460,7 +483,8 @@
       "recursive": "遞迴套用",
       "readWrite": "讀寫",
       "readOnly": "只讀",
-      "hidden": "隱藏"
+      "hidden": "隱藏",
+      "title": "存取"
     },
     "comingSoon": {
       "subtitle": "此設置部分正在建置中，敬請期待！"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "上傳",
+      "subtitle": "設定檔案傳送到伺服器的方式。",
+      "chunkedEnable": "啓用分塊上傳",
+      "chunkedEnableHelp": "使用 TUS 透過多個較小的請求傳送大型檔案。",
+      "autoFallback": "自動切換為分塊上傳",
+      "autoFallbackHelp": "若直接上傳失敗（反向代理拒絕了內容大小），系統會自動以安全的大小切換為分塊上傳，並依位址記住此設定。非常適合在本機維持直接上傳，並在代理後方切換為分塊上傳。",
+      "autoFallbackActive": "已為此位址記住分塊大小：{size} MiB。",
+      "autoFallbackReset": "重設（返回直接上傳）",
+      "chunkSize": "分塊大小",
+      "chunkSizeHelp": "每個上傳請求的最大大小。請保持在反向代理的限制以下。較小的分塊（8–32 MiB）能提供更流暢的進度；非常大的分塊會顯示明顯的階段變化（伺服器會在寫入下一個分塊之前先寫入每個分塊）。"
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "確定要移除此分享嗎？擁有該連結的人將不再能夠存取。",
     "removeShare": "移除分享",
     "sharedWithAnyone": "與所有人分享",
-    "sharedWithUsers": "{count} 位使用者"
+    "sharedWithUsers": "{count} 位使用者",
+    "directFileLink": "檔案直接連結",
+    "directFolderLink": "檔案夾 ZIP 直接連結",
+    "copyShareLink": "複製分享連結",
+    "directLinkMode": "直接連結模式",
+    "copyDirectFileLink": "複製檔案直接連結",
+    "copyDirectFolderLink": "複製檔案夾 ZIP 直接連結",
+    "directLinkModes": {
+      "auto": "自動",
+      "inline": "檢視",
+      "raw": "原始",
+      "download": "下載"
+    },
+    "sharedWith": "分享對象",
+    "activity": "活動",
+    "activityDetails": "活動詳細資訊",
+    "accesses": "次存取",
+    "downloads": "次下載",
+    "accessCount": "存取次數",
+    "downloadCount": "下載次數",
+    "lastAccessIp": "上次存取 IP",
+    "lastDownloaded": "上次下載",
+    "lastDownloadIp": "上次下載 IP",
+    "noActivity": "從未",
+    "noIpRecorded": "未記錄 IP",
+    "deleteShareTitle": "移除分享？",
+    "deleteShareMessage": "擁有此連結的人將無法再存取已分享的項目。"
+  },
+  "quickActions": {
+    "menu": "快速動作"
   }
 }

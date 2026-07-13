@@ -69,7 +69,10 @@
     "shares": "Partajări",
     "unsavedChanges": "Ai modificări nesalvate",
     "readonly": "Doar citire",
-    "readwrite": "Citire/Scriere"
+    "readwrite": "Citire/Scriere",
+    "reset": "Resetează",
+    "moveUp": "Mută în sus",
+    "moveDown": "Mută în jos"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "Sortează după",
     "addRule": "Adaugă regulă",
     "clearAll": "Șterge tot",
-    "cancelAll": "Anulează tot"
+    "cancelAll": "Anulează tot",
+    "copyPath": "Copiază calea",
+    "copyName": "Copiază numele",
+    "share": "Partajează",
+    "copied": "Copiat"
   },
   "placeholders": {
     "email": "utilizator{'@'}exemplu.com",
@@ -228,7 +235,10 @@
       "single": "Sigur vrei să ștergi \"{name}\"? Această acțiune nu poate fi anulată.",
       "multiple": "Sigur vrei să ștergi aceste {count} elemente? Această acțiune nu poate fi anulată.",
       "generic": "Niciun element selectat."
-    }
+    },
+    "checkingDeleteImpact": "Se verifică partajările asociate…",
+    "deleteImpactUnavailable": "Nu s-au putut verifica partajările asociate. Ștergerea va fi totuși aplicată de server.",
+    "deleteLinkedShares": "Acest conținut are {count} partajare asociată care va fi eliminată împreună cu el. | Acest conținut are {count} partajări asociate care vor fi eliminate împreună cu el."
   },
   "folder": {
     "kind": "Tip",
@@ -236,7 +246,11 @@
     "noPhotos": "Nu există fotografii în acest dosar",
     "noPhotosHint": "Schimbă modul de vizualizare pentru a vedea toate fișierele",
     "empty": "Acest dosar este gol",
-    "emptyHint": "Încarcă sau creează fișiere pentru a începe."
+    "emptyHint": "Încarcă sau creează fișiere pentru a începe.",
+    "scrollTop": "Sus",
+    "scrollBottom": "Jos",
+    "selectAll": "Selectează tot",
+    "deselectAll": "Deselectează tot"
   },
   "volumes": {
     "quickAccess": "Acces rapid",
@@ -255,7 +269,8 @@
     "home": "Acasă",
     "back": "Înapoi",
     "forward": "Înainte",
-    "upOneFolder": "Sus un nivel"
+    "upOneFolder": "Sus un nivel",
+    "refresh": "Reîmprospătează dosarul"
   },
   "view": {
     "list": "Vizualizare listă",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "Se copiază {count} {items}…",
     "moving": "Se mută {count} {items}…",
-    "working": "În lucru…"
+    "working": "În lucru…",
+    "reposition": "Revino la element la final"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",
@@ -384,7 +400,8 @@
       "filesThumbnails": "Fișiere și miniaturi",
       "security": "Securitate",
       "accessControl": "Control acces",
-      "adminUsers": "Gestionare utilizatori"
+      "adminUsers": "Gestionare utilizatori",
+      "uploads": "Încărcări"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -434,7 +451,13 @@
       "months": "Luni",
       "skipHome": "Sari peste pagina principală",
       "skipHomeHelp": "Redirectează automat către primul volum la deschiderea paginii principale. Dacă nu este setat, se folosește configurația serverului.",
-      "useEnvSetting": "Folosește setarea serverului"
+      "useEnvSetting": "Folosește setarea serverului",
+      "quickActions": "Meniu de acțiuni rapide",
+      "quickActionsHelp": "Afișează la trecerea cu mouse-ul un mic meniu de acțiuni pe fiecare rând de fișier/dosar și pe numele dosarului din partea de sus.",
+      "quickActionsReorder": "Alege și reordonează acțiunile afișate.",
+      "quickActionsMode": "Afișarea meniului",
+      "quickActionsModeFull": "Toate pictogramele la trecerea cu mouse-ul",
+      "quickActionsModeCompact": "Pictograma … (extinde la trecerea cu mouse-ul)"
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -460,7 +483,8 @@
       "recursive": "Recursiv",
       "readWrite": "Citire și scriere",
       "readOnly": "Doar citire",
-      "hidden": "Ascuns"
+      "hidden": "Ascuns",
+      "title": "Acces"
     },
     "comingSoon": {
       "subtitle": "Această secțiune de setări este în lucru. Revino în curând!"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "Încărcări",
+      "subtitle": "Configurează modul în care fișierele sunt trimise către server.",
+      "chunkedEnable": "Activează încărcările fragmentate",
+      "chunkedEnableHelp": "Folosește TUS pentru a trimite fișierele mari prin mai multe cereri mai mici.",
+      "autoFallback": "Comutare automată la fragmentare",
+      "autoFallbackHelp": "Dacă o încărcare directă eșuează (un reverse proxy care respinge dimensiunea corpului), comută automat la încărcări fragmentate cu o dimensiune sigură, memorată pentru fiecare adresă. Ideal pentru a rămâne direct la nivel local și a comuta la fragmentare în spatele proxy-ului.",
+      "autoFallbackActive": "Dimensiunea fragmentelor memorată pentru această adresă: {size} MiB.",
+      "autoFallbackReset": "Resetează (revino la direct)",
+      "chunkSize": "Dimensiunea fragmentelor",
+      "chunkSizeHelp": "Dimensiunea maximă a fiecărei cereri de încărcare. Menține-o sub limita reverse proxy-ului. Fragmentele mai mici (8–32 MiB) oferă o progresie mai fluidă; fragmentele foarte mari afișează paliere vizibile (serverul scrie fiecare fragment înainte de următorul)."
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "Elimini această partajare? Persoanele cu linkul nu vor mai avea acces.",
     "removeShare": "Elimină partajarea",
     "sharedWithAnyone": "Partajat cu oricine",
-    "sharedWithUsers": "{count} utilizator | {count} utilizatori"
+    "sharedWithUsers": "{count} utilizator | {count} utilizatori",
+    "directFileLink": "Link direct către fișier",
+    "directFolderLink": "Link direct ZIP către dosar",
+    "copyShareLink": "Copiază linkul de partajare",
+    "directLinkMode": "Mod link direct",
+    "copyDirectFileLink": "Copiază linkul direct către fișier",
+    "copyDirectFolderLink": "Copiază linkul direct ZIP către dosar",
+    "directLinkModes": {
+      "auto": "Auto",
+      "inline": "Vizualizează",
+      "raw": "Raw",
+      "download": "Descarcă"
+    },
+    "sharedWith": "Partajat cu",
+    "activity": "Activitate",
+    "activityDetails": "Detalii activitate",
+    "accesses": "accesări",
+    "downloads": "descărcări",
+    "accessCount": "Număr de accesări",
+    "downloadCount": "Număr de descărcări",
+    "lastAccessIp": "Ultima IP de accesare",
+    "lastDownloaded": "Ultima descărcare",
+    "lastDownloadIp": "Ultima IP de descărcare",
+    "noActivity": "Niciodată",
+    "noIpRecorded": "Nicio IP înregistrată",
+    "deleteShareTitle": "Elimini partajarea?",
+    "deleteShareMessage": "Persoanele care au acest link nu vor mai putea accesa elementul partajat."
+  },
+  "quickActions": {
+    "menu": "Acțiuni rapide"
   }
 }

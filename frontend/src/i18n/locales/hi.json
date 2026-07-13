@@ -69,7 +69,10 @@
     "shares": "शेयर",
     "unsavedChanges": "आपके पास बिना सहेजे परिवर्तन हैं",
     "readonly": "केवल पढ़ने के लिए",
-    "readwrite": "पढ़ना/लिखना"
+    "readwrite": "पढ़ना/लिखना",
+    "reset": "रीसेट करें",
+    "moveUp": "ऊपर ले जाएँ",
+    "moveDown": "नीचे ले जाएँ"
   },
   "editor": {
     "editing": "Editing",
@@ -102,7 +105,11 @@
     "sortBy": "क्रमबद्ध करें",
     "addRule": "नियम जोड़ें",
     "clearAll": "सभी साफ़ करें",
-    "cancelAll": "सभी रद्द करें"
+    "cancelAll": "सभी रद्द करें",
+    "copyPath": "पथ कॉपी करें",
+    "copyName": "नाम कॉपी करें",
+    "share": "साझा करें",
+    "copied": "कॉपी किया गया"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -228,7 +235,10 @@
       "single": "क्या आप वाकई \"{name}\" हटाना चाहते हैं? यह क्रिया वापस नहीं की जा सकती।",
       "multiple": "क्या आप वाकई ये {count} आइटम हटाना चाहते हैं? यह क्रिया वापस नहीं की जा सकती।",
       "generic": "कोई आइटम चयनित नहीं है।"
-    }
+    },
+    "checkingDeleteImpact": "संबंधित शेयर जांचे जा रहे हैं...",
+    "deleteImpactUnavailable": "संबंधित शेयर जांचना संभव नहीं। हटाना फिर भी सर्वर द्वारा लागू किया जाएगा।",
+    "deleteLinkedShares": "इस सामग्री से {count} संबंधित शेयर जुड़ा है जो इसके साथ हटा दिया जाएगा। | इस सामग्री से {count} संबंधित शेयर जुड़े हैं जो इसके साथ हटा दिए जाएंगे।"
   },
   "folder": {
     "kind": "प्रकार",
@@ -236,7 +246,11 @@
     "noPhotos": "इस फ़ोल्डर में कोई फ़ोटो नहीं है",
     "noPhotosHint": "सभी फ़ाइलें देखने के लिए दृश्य मोड बदलें",
     "empty": "यह फ़ोल्डर खाली है",
-    "emptyHint": "शुरू करने के लिए फ़ाइलें अपलोड करें या बनाएं।"
+    "emptyHint": "शुरू करने के लिए फ़ाइलें अपलोड करें या बनाएं।",
+    "scrollTop": "ऊपर",
+    "scrollBottom": "नीचे",
+    "selectAll": "सभी चुनें",
+    "deselectAll": "सभी अचयनित करें"
   },
   "volumes": {
     "quickAccess": "त्वरित पहुँच",
@@ -255,7 +269,8 @@
     "home": "होम",
     "back": "पीछे",
     "forward": "आगे",
-    "upOneFolder": "एक फ़ोल्डर ऊपर"
+    "upOneFolder": "एक फ़ोल्डर ऊपर",
+    "refresh": "फ़ोल्डर रीफ़्रेश करें"
   },
   "view": {
     "list": "सूची दृश्य",
@@ -294,7 +309,8 @@
   "clipboard": {
     "copying": "{count} {items} कॉपी किए जा रहे हैं…",
     "moving": "{count} {items} स्थानांतरित किए जा रहे हैं…",
-    "working": "प्रक्रिया जारी है…"
+    "working": "प्रक्रिया जारी है…",
+    "reposition": "पूरा होने पर आइटम पर लौटें"
   },
   "upload": {
     "toggleDetailsShow": "विवरण दिखाएँ",
@@ -384,7 +400,8 @@
       "filesThumbnails": "फ़ाइलें और थंबनेल",
       "security": "सुरक्षा",
       "accessControl": "एक्सेस कंट्रोल",
-      "adminUsers": "उपयोगकर्ता प्रबंधन"
+      "adminUsers": "उपयोगकर्ता प्रबंधन",
+      "uploads": "अपलोड"
     },
     "about": {
       "subtitle": "इस एप्लिकेशन के बिल्ड संबंधी जानकारी देखें।",
@@ -434,7 +451,13 @@
       "months": "महीने",
       "skipHome": "होम पेज छोड़ें",
       "skipHomeHelp": "होम पेज पर आने पर पहले वॉल्यूम पर स्वचालित रूप से रीडायरेक्ट करें। यदि सेट नहीं है, तो सर्वर कॉन्फ़िगरेशन का पालन करें।",
-      "useEnvSetting": "सर्वर सेटिंग का उपयोग करें"
+      "useEnvSetting": "सर्वर सेटिंग का उपयोग करें",
+      "quickActions": "त्वरित क्रियाएँ मेनू",
+      "quickActionsHelp": "प्रत्येक फ़ाइल/फ़ोल्डर पंक्ति पर और ऊपर फ़ोल्डर नाम पर होवर करने पर क्रियाओं का एक छोटा मेनू दिखाता है।",
+      "quickActionsReorder": "दिखाई गई क्रियाओं को चुनें और पुनः क्रमबद्ध करें।",
+      "quickActionsMode": "मेनू प्रदर्शन",
+      "quickActionsModeFull": "होवर पर सभी आइकन",
+      "quickActionsModeCompact": "… आइकन (होवर पर विस्तृत करें)"
     },
     "thumbs": {
       "subtitle": "छवियों और वीडियो के लिए पूर्वावलोकन थंबनेल अनुकूलित करें।",
@@ -460,7 +483,8 @@
       "recursive": "रिकर्सिव",
       "readWrite": "पढ़ें और लिखें",
       "readOnly": "केवल पढ़ें",
-      "hidden": "छिपा हुआ"
+      "hidden": "छिपा हुआ",
+      "title": "एक्सेस"
     },
     "comingSoon": {
       "subtitle": "यह सेटिंग सेक्शन बनाया जा रहा है। जुड़े रहें!"
@@ -533,6 +557,18 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "uploads": {
+      "title": "अपलोड",
+      "subtitle": "कॉन्फ़िगर करें कि फ़ाइलें सर्वर पर कैसे भेजी जाती हैं।",
+      "chunkedEnable": "चंक्ड अपलोड सक्षम करें",
+      "chunkedEnableHelp": "बड़ी फ़ाइलों को कई छोटे अनुरोधों के माध्यम से भेजने के लिए TUS का उपयोग करें।",
+      "autoFallback": "चंक्ड पर स्वतः फ़ॉलबैक",
+      "autoFallbackHelp": "यदि कोई सीधा अपलोड विफल होता है (रिवर्स प्रॉक्सी बॉडी आकार को अस्वीकार करता है), तो स्वचालित रूप से एक सुरक्षित आकार के साथ चंक्ड अपलोड पर स्विच करें, जो प्रति पते याद रखा जाता है। लोकल में सीधे रहने और प्रॉक्सी के पीछे चंक्ड पर स्विच करने के लिए उत्तम।",
+      "autoFallbackActive": "इस पते के लिए याद रखा गया चंक आकार: {size} MiB।",
+      "autoFallbackReset": "रीसेट करें (सीधे पर वापस)",
+      "chunkSize": "चंक आकार",
+      "chunkSizeHelp": "प्रत्येक अपलोड अनुरोध का अधिकतम आकार। इसे अपनी रिवर्स प्रॉक्सी सीमा से कम रखें। छोटे चंक (8–32 MiB) अधिक सहज प्रगति देते हैं; बहुत बड़े चंक दृश्यमान चरण दिखाते हैं (सर्वर अगले से पहले प्रत्येक चंक लिखता है)।"
     }
   },
   "share": {
@@ -592,6 +628,35 @@
     "confirmDeleteShare": "क्या आप इस शेयर को हटाना चाहते हैं? लिंक वाले लोगों को अब एक्सेस नहीं मिलेगा।",
     "removeShare": "शेयर हटाएं",
     "sharedWithAnyone": "किसी के साथ भी साझा किया गया",
-    "sharedWithUsers": "{count} उपयोगकर्ता"
+    "sharedWithUsers": "{count} उपयोगकर्ता",
+    "directFileLink": "सीधा फ़ाइल लिंक",
+    "directFolderLink": "सीधा फ़ोल्डर ZIP लिंक",
+    "copyShareLink": "शेयर लिंक कॉपी करें",
+    "directLinkMode": "सीधा लिंक मोड",
+    "copyDirectFileLink": "सीधा फ़ाइल लिंक कॉपी करें",
+    "copyDirectFolderLink": "सीधा फ़ोल्डर ZIP लिंक कॉपी करें",
+    "directLinkModes": {
+      "auto": "ऑटो",
+      "inline": "देखें",
+      "raw": "Raw",
+      "download": "डाउनलोड"
+    },
+    "sharedWith": "इनके साथ साझा",
+    "activity": "गतिविधि",
+    "activityDetails": "गतिविधि विवरण",
+    "accesses": "एक्सेस",
+    "downloads": "डाउनलोड",
+    "accessCount": "एक्सेस संख्या",
+    "downloadCount": "डाउनलोड संख्या",
+    "lastAccessIp": "अंतिम एक्सेस IP",
+    "lastDownloaded": "अंतिम डाउनलोड",
+    "lastDownloadIp": "अंतिम डाउनलोड IP",
+    "noActivity": "कभी नहीं",
+    "noIpRecorded": "कोई IP दर्ज नहीं",
+    "deleteShareTitle": "शेयर हटाएं?",
+    "deleteShareMessage": "इस लिंक वाले लोग अब साझा किए गए आइटम तक पहुँच नहीं पाएंगे।"
+  },
+  "quickActions": {
+    "menu": "त्वरित क्रियाएँ"
   }
 }
