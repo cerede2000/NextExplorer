@@ -146,6 +146,29 @@ if (env.PUBLIC_URL) {
   }
 }
 
+// --- Additional (internal) origins ---
+// Extra origins the app can be reached from (e.g. a LAN IP), comma-separated.
+// They are considered valid so accessing the app that way doesn't raise the
+// public-URL mismatch warning, and they're accepted by CORS. PUBLIC_URL remains
+// the canonical URL used to build absolute links (shares, OIDC callbacks, WOPI).
+const parseOriginList = (value) =>
+  (typeof value === 'string' ? value.split(',') : [])
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      try {
+        return new URL(entry).origin;
+      } catch (err) {
+        console.warn(`[Config] Invalid INTERNAL_URL entry: ${entry}`);
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+const internalOrigins = parseOriginList(env.INTERNAL_URL);
+// All origins the frontend should treat as valid (publicOrigin first, deduped).
+const knownOrigins = [...new Set([publicOrigin, ...internalOrigins].filter(Boolean))];
+
 // --- CORS ---
 const buildCorsConfig = () => {
   if (env.CORS_ORIGINS) {
@@ -157,7 +180,7 @@ const buildCorsConfig = () => {
         .filter(Boolean),
     };
   }
-  if (publicOrigin) return { allowAll: false, origins: [publicOrigin] };
+  if (knownOrigins.length) return { allowAll: false, origins: [...knownOrigins] };
   return { allowAll: true, origins: [] }; // Backwards compatibility
 };
 
@@ -363,7 +386,7 @@ module.exports = {
     passwordConfig: path.join(configDir, 'app-config.json'),
   },
 
-  public: { url: publicUrl, origin: publicOrigin },
+  public: { url: publicUrl, origin: publicOrigin, origins: knownOrigins },
 
   extensions: {
     images: constants.IMAGE_EXTENSIONS,

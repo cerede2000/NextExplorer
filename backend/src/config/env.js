@@ -38,6 +38,11 @@ module.exports = {
 
   // Public URL & Network
   PUBLIC_URL: process.env.PUBLIC_URL?.trim() || null,
+  // Additional origin(s) the app can legitimately be reached from (e.g. a LAN IP
+  // used for fast local uploads). Comma-separated. These are treated as valid
+  // (no public-URL mismatch warning) and accepted by CORS, while PUBLIC_URL stays
+  // the canonical URL used to build share links, OIDC callbacks, etc.
+  INTERNAL_URL: process.env.INTERNAL_URL?.trim() || null,
   TRUST_PROXY: process.env.TRUST_PROXY?.trim().toLowerCase(),
 
   // CORS
