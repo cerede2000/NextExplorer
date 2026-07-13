@@ -502,6 +502,14 @@ export function useFileUploader() {
     });
 
     uppy.on('error', (error) => {
+      // Uppy core re-emits every per-file `upload-error` here as a user-facing
+      // "Failed to upload <name>" error (isUserFacing). Those are already owned by
+      // our `upload-error` handler above — which stays SILENT when it auto-falls
+      // back to chunks and only shows a toast on a genuine, final failure. So
+      // skip them here to avoid a leaked toast during a (successful) fallback and
+      // a duplicate toast on a real failure. Only surface generic (non-per-file)
+      // Uppy errors.
+      if (error?.isUserFacing) return;
       const message = isNetworkUploadError(error)
         ? 'Upload interrupted because the server connection was lost.'
         : error?.message || 'Upload error';
