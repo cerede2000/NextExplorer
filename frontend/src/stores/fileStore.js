@@ -128,20 +128,36 @@ export const useFileStore = defineStore('fileStore', () => {
         destination,
         itemCount: totalCount,
         startedAt: Date.now(),
+        totalBytes: 0,
+        copiedBytes: 0,
       };
     }
+
+    // Fold streamed transfer events into the reactive operation so the progress
+    // bar tracks real bytes copied against the pre-computed total.
+    const onTransferEvent = (event) => {
+      const op = clipboardOperation.value;
+      if (!op || !event) return;
+      if (event.type === 'start') {
+        op.totalBytes = Number(event.totalBytes) || 0;
+        op.copiedBytes = 0;
+      } else if (event.type === 'progress') {
+        if (event.totalBytes != null) op.totalBytes = Number(event.totalBytes) || 0;
+        op.copiedBytes = Number(event.copiedBytes) || 0;
+      }
+    };
 
     try {
       if (copiedItems.value.length > 0) {
         if (copyPayload.length > 0) {
-          await copyItems(copyPayload, destination);
+          await copyItems(copyPayload, destination, { onEvent: onTransferEvent });
         }
         copiedItems.value = [];
       }
 
       if (cutItems.value.length > 0) {
         if (movePayload.length > 0) {
-          await moveItems(movePayload, destination);
+          await moveItems(movePayload, destination, { onEvent: onTransferEvent });
         }
         cutItems.value = [];
       }

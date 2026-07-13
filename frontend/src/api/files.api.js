@@ -1,4 +1,4 @@
-import { requestJson, requestRaw, normalizePath, encodePath, buildUrl } from './http';
+import { requestJson, requestRaw, requestStream, normalizePath, encodePath, buildUrl } from './http';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -19,17 +19,19 @@ async function getUsage(path = '') {
   return requestJson(`/api/usage/${encodedPath}`, { method: 'GET' });
 }
 
-async function copyItems(items, destination) {
-  return requestJson('/api/files/copy', {
+async function copyItems(items, destination, options = {}) {
+  return requestStream('/api/files/copy', {
     method: 'POST',
     body: JSON.stringify({ items, destination }),
+    onEvent: options.onEvent,
   });
 }
 
-async function moveItems(items, destination) {
-  return requestJson('/api/files/move', {
+async function moveItems(items, destination, options = {}) {
+  return requestStream('/api/files/move', {
     method: 'POST',
     body: JSON.stringify({ items, destination }),
+    onEvent: options.onEvent,
   });
 }
 
