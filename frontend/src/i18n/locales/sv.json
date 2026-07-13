@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "Kopierar {count} {items}…",
     "moving": "Flyttar {count} {items}…",
-    "working": "Arbetar…"
+    "working": "Arbetar…",
+    "reposition": "Återgå till objektet när det är klart"
   },
   "upload": {
     "toggleDetailsShow": "Visa detaljer",

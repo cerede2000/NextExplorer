@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "Se copiază {count} {items}…",
     "moving": "Se mută {count} {items}…",
-    "working": "În lucru…"
+    "working": "În lucru…",
+    "reposition": "Revino la element la final"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",

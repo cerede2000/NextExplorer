@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "正在複製 {count} 個{items}…",
     "moving": "正在移動 {count} 個{items}…",
-    "working": "處理中…"
+    "working": "處理中…",
+    "reposition": "完成後返回該項目"
   },
   "upload": {
     "toggleDetailsShow": "顯示詳細資訊",

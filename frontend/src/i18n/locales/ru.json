@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "Копирование {count} {items}…",
     "moving": "Перемещение {count} {items}…",
-    "working": "Обработка…"
+    "working": "Обработка…",
+    "reposition": "Вернуться к объекту по завершении"
   },
   "upload": {
     "toggleDetailsShow": "Показать детали",

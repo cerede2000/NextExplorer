@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "Copia di {count} {items}…",
     "moving": "Spostamento di {count} {items}…",
-    "working": "In corso…"
+    "working": "In corso…",
+    "reposition": "Torna all'elemento al termine"
   },
   "upload": {
     "toggleDetailsShow": "Mostra dettagli",
