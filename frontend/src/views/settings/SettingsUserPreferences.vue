@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
+import ToggleSwitch from '@/components/ToggleSwitch.vue';
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
@@ -178,16 +179,7 @@ const save = async () => {
               }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input type="checkbox" v-model="local.showHiddenFiles" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local.showHiddenFiles" />
         </div>
 
         <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
@@ -199,16 +191,7 @@ const save = async () => {
               {{ t('settings.userPreferences.showThumbnailsHelp') }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input type="checkbox" v-model="local.showThumbnails" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local.showThumbnails" />
         </div>
 
         <div
@@ -224,16 +207,7 @@ const save = async () => {
               {{ t(row.help) }}
             </div>
           </div>
-          <label class="inline-flex cursor-pointer items-center">
-            <input type="checkbox" v-model="local[row.key]" class="peer sr-only" />
-            <div
-              class="peer relative h-6 w-11 rounded-full bg-zinc-200 transition-colors peer-checked:bg-zinc-900 dark:bg-zinc-700 dark:peer-checked:bg-zinc-100"
-            >
-              <div
-                class="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-              ></div>
-            </div>
-          </label>
+          <ToggleSwitch v-model="local[row.key]" />
         </div>
 
         <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
