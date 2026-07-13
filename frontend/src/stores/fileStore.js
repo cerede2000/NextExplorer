@@ -36,6 +36,14 @@ export const useFileStore = defineStore('fileStore', () => {
   const thumbnailRequests = new Map();
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
+  const selectedItemKeys = computed(() => {
+    const keys = new Set();
+    for (const item of selectedItems.value) {
+      const key = itemKey(item);
+      if (key) keys.add(key);
+    }
+    return keys;
+  });
   const hasClipboardItems = computed(
     () => copiedItems.value.length > 0 || cutItems.value.length > 0
   );
@@ -512,11 +520,13 @@ export const useFileStore = defineStore('fileStore', () => {
     getCurrentPathItems,
     fetchPathItems,
     selectedItems,
+    selectedItemKeys,
     selectionMode,
     setSelectionMode,
     toggleSelectionMode,
     clearSelection,
     clipboardOperation,
+    deleteOperation,
     copiedItems,
     cutItems,
     hasSelection,

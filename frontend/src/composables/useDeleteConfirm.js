@@ -60,6 +60,7 @@ export function useDeleteConfirm() {
   const confirmDelete = async () => {
     if (!actions.canDelete.value || isDeleting.value) return;
     isDeleting.value = true;
+    isDeleteConfirmOpen.value = false;
     try {
       await actions.deleteNow();
       isDeleteConfirmOpen.value = false;

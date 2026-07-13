@@ -239,7 +239,11 @@
     "noPhotos": "No photos in this folder",
     "noPhotosHint": "Switch to another view mode to see all files",
     "empty": "This folder is empty",
-    "emptyHint": "Upload or create files to get started."
+    "emptyHint": "Upload or create files to get started.",
+    "scrollTop": "Top",
+    "scrollBottom": "Bottom",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
   },
   "volumes": {
     "quickAccess": "Quick access",

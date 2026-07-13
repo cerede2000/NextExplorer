@@ -239,7 +239,11 @@
     "noPhotos": "Aucune photo dans ce dossier",
     "noPhotosHint": "Passez à un autre mode d’affichage pour voir tous les fichiers",
     "empty": "Ce dossier est vide",
-    "emptyHint": "Importez ou créez des fichiers pour commencer."
+    "emptyHint": "Importez ou créez des fichiers pour commencer.",
+    "scrollTop": "Haut",
+    "scrollBottom": "Bas",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner"
   },
   "volumes": {
     "quickAccess": "Accès rapide",
