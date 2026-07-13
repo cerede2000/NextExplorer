@@ -629,6 +629,7 @@
     "removeShare": "Freigabe entfernen",
     "sharedWithAnyone": "Alle",
     "sharedWithUsers": "{count} Benutzer",
+    "expiresNever": "Nie",
     "directFileLink": "Direkter Dateilink",
     "directFolderLink": "Direkter ZIP-Link des Ordners",
     "copyShareLink": "Freigabelink kopieren",
@@ -654,8 +655,7 @@
     "noActivity": "Nie",
     "noIpRecorded": "Keine IP erfasst",
     "deleteShareTitle": "Freigabe entfernen?",
-    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen.",
-    "expiresNever": "Nie"
+    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen."
   },
   "quickActions": {
     "menu": "Schnellaktionen"

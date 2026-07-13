@@ -629,6 +629,7 @@
     "removeShare": "Elimină partajarea",
     "sharedWithAnyone": "Oricine",
     "sharedWithUsers": "{count} utilizator | {count} utilizatori",
+    "expiresNever": "Niciodată",
     "directFileLink": "Link direct către fișier",
     "directFolderLink": "Link direct ZIP către dosar",
     "copyShareLink": "Copiază linkul de partajare",
@@ -654,8 +655,7 @@
     "noActivity": "Niciodată",
     "noIpRecorded": "Nicio IP înregistrată",
     "deleteShareTitle": "Elimini partajarea?",
-    "deleteShareMessage": "Persoanele care au acest link nu vor mai putea accesa elementul partajat.",
-    "expiresNever": "Niciodată"
+    "deleteShareMessage": "Persoanele care au acest link nu vor mai putea accesa elementul partajat."
   },
   "quickActions": {
     "menu": "Acțiuni rapide"

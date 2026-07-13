@@ -629,6 +629,7 @@
     "removeShare": "移除共享",
     "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位用户",
+    "expiresNever": "永不",
     "directFileLink": "直接文件链接",
     "directFolderLink": "文件夹 ZIP 直接链接",
     "copyShareLink": "复制共享链接",
@@ -654,8 +655,7 @@
     "noActivity": "从不",
     "noIpRecorded": "未记录 IP",
     "deleteShareTitle": "移除共享？",
-    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。",
-    "expiresNever": "永不"
+    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。"
   },
   "quickActions": {
     "menu": "快捷操作"
