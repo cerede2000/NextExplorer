@@ -131,7 +131,7 @@ const save = async () => {
               v-model.number="local.chunkSizeMiB"
               type="range"
               :min="MIN_CHUNK_SIZE_MIB"
-              :max="128"
+              :max="MAX_CHUNK_SIZE_MIB"
               step="1"
               class="h-2 w-64 appearance-none rounded-lg bg-zinc-200 accent-zinc-900 dark:bg-zinc-700 dark:accent-zinc-100"
             />

@@ -137,13 +137,17 @@ export function useFileUploader() {
         allowedMetaFields: ['name', 'type', 'uploadTo', 'relativePath'],
         removeFingerprintOnSuccess: true,
         storeFingerprintForResuming: false,
-        // Resumable uploads are intentionally disabled for now. Automatic TUS retries keep
-        // large files alive in memory and can spam errors when the client network disappears.
-        retryDelays: [],
+        // Resume a dropped chunk a few times before giving up. The browser File is
+        // disk-backed and @tus/server resumes from the last stored offset, so a
+        // retry re-sends only the unacknowledged bytes — not the whole file, and
+        // nothing is held in memory. Without this a single transient drop
+        // ("server connection was lost") kills a whole large-chunk upload.
+        retryDelays: [0, 1000, 3000, 5000, 10000],
         onShouldRetry: (error, _retryAttempt, _options, next) => {
           const status = getTusErrorStatus(error);
-          if (status === 507) return false;
-          if (isNetworkUploadError(error)) return false;
+          if (status === 507) return false; // storage full — retrying won't help
+          if (status && status >= 400 && status < 500) return false; // auth / permission / too large
+          if (isNetworkUploadError(error)) return true; // transient drop — resume from the offset
           return next(error);
         },
         withCredentials: true,
