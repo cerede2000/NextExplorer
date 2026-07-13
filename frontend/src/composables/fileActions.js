@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
-import { normalizePath } from '@/api';
+import { buildUrl, normalizePath } from '@/api';
 
 function isEditableElement(el) {
   if (!el) return false;
@@ -28,6 +28,10 @@ export function useFileActions() {
   const locationCanWrite = computed(() => fileStore.currentPathData?.canWrite ?? true);
   const locationCanUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
   const locationCanDelete = computed(() => fileStore.currentPathData?.canDelete ?? true);
+  const locationCanDownload = computed(() => fileStore.currentPathData?.canDownload ?? true);
+  const currentDirectoryPath = computed(() => normalizePath(fileStore.getCurrentPath || ''));
+  const currentPathIsDirectory = computed(() => fileStore.currentPathData?.isDirectory === true);
+  const isSharePath = computed(() => currentDirectoryPath.value.startsWith('share/'));
 
   const isZipSelected = computed(() => {
     if (!isSingleItemSelected.value || !primaryItem.value) return false;
@@ -70,6 +74,13 @@ export function useFileActions() {
       selectionHasUniformParent.value &&
       selectedItems.value.every((item) => item?.kind !== 'volume')
   );
+  const canDownloadCurrentFolder = computed(
+    () =>
+      isSharePath.value &&
+      locationCanDownload.value &&
+      currentPathIsDirectory.value &&
+      Boolean(currentDirectoryPath.value)
+  );
 
   const isCutActive = computed(() => fileStore.cutItems.length > 0);
   const isCopyActive = computed(() => fileStore.copiedItems.length > 0);
@@ -109,26 +120,16 @@ export function useFileActions() {
     await fileStore.del();
   };
 
-  const runDownload = () => {
-    if (!hasSelection.value) return;
-
-    const paths = selectedItems.value
-      .map((item) => {
-        const parent = normalizePath(item.path || '');
-        const combined = parent ? `${parent}/${item.name}` : item.name;
-        return normalizePath(combined);
-      })
-      .filter(Boolean);
-
+  const submitDownloadRequest = (paths, basePath = '') => {
     if (!paths.length) return;
 
-    const currentPath = normalizePath(fileStore.getCurrentPath || '');
+    const currentPath = normalizePath(basePath || '');
 
     // Create a hidden form to submit the download request
     // This triggers the browser's native download with progress bar
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/api/download';
+    form.action = buildUrl('/api/download');
     form.style.display = 'none';
 
     // Add each path as a separate 'paths' field (form arrays)
@@ -152,6 +153,18 @@ export function useFileActions() {
     document.body.removeChild(form);
   };
 
+  const runDownload = () => {
+    if (!hasSelection.value) return;
+
+    const paths = selectedItems.value.map(resolveItemPath).filter(Boolean);
+    submitDownloadRequest(paths, currentDirectoryPath.value);
+  };
+
+  const runDownloadCurrentFolder = () => {
+    if (!canDownloadCurrentFolder.value) return;
+    submitDownloadRequest([currentDirectoryPath.value], currentDirectoryPath.value);
+  };
+
   return {
     // state
     selectedItems,
@@ -162,6 +175,7 @@ export function useFileActions() {
     locationCanWrite,
     locationCanUpload,
     locationCanDelete,
+    locationCanDownload,
     canCut,
     canCopy,
     canPaste,
@@ -169,6 +183,7 @@ export function useFileActions() {
     canRename,
     canExtractZip,
     canCompressToZip,
+    canDownloadCurrentFolder,
     isCutActive,
     isCopyActive,
     // helpers
@@ -184,5 +199,6 @@ export function useFileActions() {
     runCompressToZip,
     deleteNow,
     runDownload,
+    runDownloadCurrentFolder,
   };
 }

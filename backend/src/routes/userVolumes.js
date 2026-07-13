@@ -5,7 +5,7 @@ const fs = require('fs/promises');
 const asyncHandler = require('../utils/asyncHandler');
 const { ForbiddenError, NotFoundError, ValidationError } = require('../errors/AppError');
 const { getById } = require('../services/users');
-const { directories, excludedFiles, features } = require('../config/index');
+const { directories, excludedFiles, features, hiddenFiles } = require('../config/index');
 const {
   getVolumesForUser,
   getVolumeById,
@@ -181,8 +181,8 @@ router.get(
     // Filter to only directories and exclude hidden/system directories
     const dirs = entries
       .filter((entry) => entry.isDirectory())
-      .filter((entry) => !entry.name.startsWith('.'))
       .filter((entry) => !excludedFiles.includes(entry.name))
+      .filter((entry) => !hiddenFiles.isHiddenName(entry.name))
       .map((entry) => ({
         name: entry.name,
         path: path.join(targetPath, entry.name),

@@ -11,6 +11,76 @@ const parseCommaOrSpaceList = (raw) => {
   return parts.map((s) => s.trim()).filter(Boolean);
 };
 
+const DEFAULT_HIDDEN_FILE_PATTERNS = ['.'];
+
+const parseRegexPattern = (token) => {
+  if (token.startsWith('regex:')) {
+    return { source: token.slice('regex:'.length), flags: '' };
+  }
+
+  if (token.startsWith('/')) {
+    const lastSlash = token.lastIndexOf('/');
+    if (lastSlash > 0) {
+      return {
+        source: token.slice(1, lastSlash),
+        flags: token.slice(lastSlash + 1),
+      };
+    }
+  }
+
+  return null;
+};
+
+const escapeRipgrepGlob = (value) => String(value).replace(/[\\*?\[\]{}]/g, '\\$&');
+
+const parseHiddenFilePatterns = (raw) => {
+  const tokens = raw == null ? DEFAULT_HIDDEN_FILE_PATTERNS : parseCommaOrSpaceList(raw);
+  const prefixes = [];
+  const regexes = [];
+
+  for (const token of tokens) {
+    const regexPattern = parseRegexPattern(token);
+    if (!regexPattern) {
+      prefixes.push(token);
+      continue;
+    }
+
+    try {
+      regexes.push(new RegExp(regexPattern.source, regexPattern.flags));
+    } catch (err) {
+      console.warn(`[Config] Invalid hidden file regex "${token}": ${err.message}`);
+    }
+  }
+
+  const isHiddenName = (name) => {
+    if (!name) return false;
+    const baseName = String(name);
+    if (prefixes.some((prefix) => prefix && baseName.startsWith(prefix))) return true;
+
+    return regexes.some((regex) => {
+      regex.lastIndex = 0;
+      return regex.test(baseName);
+    });
+  };
+
+  const isHiddenPath = (value) =>
+    String(value || '')
+      .split(/[\\/]+/)
+      .filter(Boolean)
+      .some(isHiddenName);
+
+  return {
+    patterns: tokens,
+    prefixes,
+    regexes,
+    isHiddenName,
+    isHiddenPath,
+    ripgrepGlobExcludes: prefixes
+      .filter((prefix) => prefix && !/[\\/]/.test(prefix))
+      .map((prefix) => `!${escapeRipgrepGlob(prefix)}*`),
+  };
+};
+
 const parseExtensionList = (raw) =>
   String(raw || '')
     .split(',')
@@ -215,6 +285,9 @@ const personal = {
   userFolderNameOrder: parseUserFolderNameOrder(env.USER_FOLDER_NAME_ORDER),
 };
 
+// --- Hidden file patterns ---
+const hiddenFiles = parseHiddenFilePatterns(env.HIDDEN_FILE_PATTERNS);
+
 // --- Shares ---
 const shares = {
   enabled: env.SHARES_ENABLED,
@@ -270,6 +343,7 @@ module.exports = {
   terminal,
   favorites,
   shares,
+  hiddenFiles,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,

@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs/promises');
 
-const { excludedFiles, extensions } = require('../config/index');
+const { excludedFiles, extensions, hiddenFiles } = require('../config/index');
 const { combineRelativePath } = require('../utils/pathUtils');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
@@ -33,6 +33,7 @@ const listDirectoryItems = async ({
   context,
   thumbsEnabled,
   excludeDownloadArtifacts = false,
+  includeHiddenFiles = false,
   itemExtras = null,
   permissionRules = null,
   shareCache = null,
@@ -53,6 +54,7 @@ const listDirectoryItems = async ({
 
   const filtered = entries
     .filter((name) => !excludedFiles.includes(name))
+    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name))
     .filter((name) =>
       excludeDownloadArtifacts ? path.extname(name).toLowerCase() !== '.download' : true
     );
