@@ -1,6 +1,6 @@
 {
   "name": "nextexplorer",
-  "version": "2.2.3",
+  "version": "2.2.7",
   "private": true,
   "workspaces": [
     "backend",
