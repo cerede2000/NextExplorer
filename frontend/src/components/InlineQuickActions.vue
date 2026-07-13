@@ -73,7 +73,7 @@ const runAction = async (id, event) => {
        leaving the icons above it. -->
   <div
     v-if="show"
-    class="hidden flex-wrap items-center gap-0.5 group-hover/item:flex group-hover/crumb:flex"
+    class="hidden max-w-full flex-wrap items-center gap-0.5 group-hover/item:flex group-hover/crumb:flex"
   >
     <button
       v-for="id in actionIds"

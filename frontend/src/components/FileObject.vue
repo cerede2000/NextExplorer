@@ -448,11 +448,12 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
+          <!-- Name stays anchored on the left; the hover icons sit to its right in
+               the free space, and wrap onto the line below when the name is too
+               long to leave room. The name never shifts, so browsing isn't jumpy. -->
           <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+            <MiddleEllipsis :text="item.name" :end-chars="10" />
             <InlineQuickActions :item="item" />
-            <div class="min-w-0 flex-1 basis-32">
-              <MiddleEllipsis :text="item.name" :end-chars="10" />
-            </div>
           </div>
         </template>
       </div>
