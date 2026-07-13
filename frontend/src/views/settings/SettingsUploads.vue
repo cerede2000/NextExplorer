@@ -1,12 +1,21 @@
 <script setup>
-import { computed, onMounted, reactive, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
+import { getUploadFallbackMiB, resetUploadFallback } from '@/composables/fileUploader';
 import { useI18n } from 'vue-i18n';
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
 const { t } = useI18n();
+
+// Per-origin remembered auto-fallback chunk size (localStorage). The reset button
+// forgets just this value → this address goes back to direct uploads.
+const fallbackMiB = ref(getUploadFallbackMiB());
+const resetFallback = () => {
+  resetUploadFallback();
+  fallbackMiB.value = null;
+};
 
 const MIB = 1024 * 1024;
 const MIN_CHUNK_SIZE_MIB = 1;
@@ -212,6 +221,19 @@ const save = async () => {
               ></div>
             </div>
           </label>
+        </div>
+
+        <div v-if="fallbackMiB" class="flex items-center justify-between py-2">
+          <div class="text-sm text-zinc-500 dark:text-zinc-400">
+            {{ t('settings.uploads.autoFallbackActive', { size: fallbackMiB }) }}
+          </div>
+          <button
+            type="button"
+            class="rounded-md border border-zinc-300 px-3 py-1 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            @click="resetFallback"
+          >
+            {{ t('settings.uploads.autoFallbackReset') }}
+          </button>
         </div>
       </div>
     </div>

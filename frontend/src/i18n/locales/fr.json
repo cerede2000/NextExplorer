@@ -454,6 +454,8 @@
       "chunkedEnableHelp": "Utilise TUS pour envoyer les gros fichiers en plusieurs requêtes plus petites.",
       "autoFallback": "Bascule automatique en chunks",
       "autoFallbackHelp": "Si l’upload direct échoue (reverse proxy qui limite la taille), bascule automatiquement en chunks avec une taille sûre, mémorisée par adresse. Idéal pour rester en direct en local et basculer en chunks derrière le proxy.",
+      "autoFallbackActive": "Mode chunk mémorisé pour cette adresse : {size} Mio.",
+      "autoFallbackReset": "Réinitialiser (revenir en direct)",
       "chunkSize": "Taille des chunks",
       "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy. Des chunks plus petits (8–32 Mio) donnent une progression plus fluide ; de très gros chunks font apparaître des paliers (le serveur écrit chaque chunk avant le suivant)."
     },
