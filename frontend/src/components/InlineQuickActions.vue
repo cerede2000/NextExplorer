@@ -63,6 +63,11 @@ const iconFor = (id) => (id === 'favorite' && isFav(id) ? StarSolid : QUICK_ACTI
 
 const isDanger = (id) => Boolean(QUICK_ACTIONS_BY_ID[id]?.danger);
 
+// Compact mode only bothers with the "…" trigger when there is more than one
+// action; a single action is shown directly (expanding a "…" to reveal one icon
+// would be pointless).
+const showTrigger = computed(() => compact.value && !expanded.value && actionIds.value.length > 1);
+
 const runAction = async (id, event) => {
   event?.stopPropagation?.();
   event?.preventDefault?.();
@@ -86,7 +91,7 @@ const runAction = async (id, event) => {
     @mouseleave="expanded = false"
   >
     <button
-      v-if="compact && !expanded"
+      v-if="showTrigger"
       type="button"
       class="grid h-6 w-6 shrink-0 place-items-center rounded transition-colors hover:bg-black/10 dark:hover:bg-white/15"
       :title="t('quickActions.menu')"
