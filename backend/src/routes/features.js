@@ -18,6 +18,8 @@ router.get('/features', (_req, res) => {
     public: {
       url: publicConfig?.url || null,
       origin: publicConfig?.origin || null,
+      // All origins the app may legitimately be reached from (public + internal).
+      origins: Array.isArray(publicConfig?.origins) ? publicConfig.origins : [],
     },
     onlyoffice: {
       enabled: Boolean(onlyoffice && onlyoffice.serverUrl),
