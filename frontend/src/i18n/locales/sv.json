@@ -416,7 +416,7 @@
       "title": "Användarpreferenser",
       "subtitle": "Anpassa dina personliga inställningar.",
       "showHiddenFiles": "Visa dolda filer",
-      "showHiddenFilesHelp": "Visar filer och mappar som börjar med punkt (.) i Utforskaren.",
+      "showHiddenFilesHelp": "Visar filer och mappar som matchar de konfigurerade dolda mönstren ({patterns}) i Utforskaren.",
       "showThumbnails": "Visa miniatyrbilder",
       "showThumbnailsHelp": "Visar förhandsgranskningar av bilder och videor i miniatyrformat.",
       "showSidebarFavorites": "Visa Favoriter",

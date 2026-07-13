@@ -419,7 +419,7 @@
       "title": "User Preferences",
       "subtitle": "Customize your personal settings and preferences.",
       "showHiddenFiles": "Show hidden files",
-      "showHiddenFilesHelp": "Display files and folders that start with a dot (.) in the file browser.",
+      "showHiddenFilesHelp": "Display files and folders matching the configured hidden patterns ({patterns}) in the file browser.",
       "showThumbnails": "Show thumbnails",
       "showThumbnailsHelp": "Display thumbnail previews for images and videos in the file browser.",
       "showSidebarFavorites": "Show Favorites section",

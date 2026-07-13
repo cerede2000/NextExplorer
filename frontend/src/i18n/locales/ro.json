@@ -416,7 +416,7 @@
       "title": "Preferințe utilizator",
       "subtitle": "Personalizează setările personale.",
       "showHiddenFiles": "Afișează fișierele ascunse",
-      "showHiddenFilesHelp": "Afișează fișierele și folderele care încep cu punct (.) în navigator.",
+      "showHiddenFilesHelp": "Afișează fișierele și folderele care corespund modelelor ascunse configurate ({patterns}) în navigator.",
       "showThumbnails": "Afișează miniaturi",
       "showThumbnailsHelp": "Afișează previzualizări în miniatură pentru imagini și videoclipuri.",
       "showSidebarFavorites": "Afișează secțiunea Favorite",

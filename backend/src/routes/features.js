@@ -5,6 +5,7 @@ const {
   editor,
   terminal,
   features,
+  hiddenFiles,
   public: publicConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
@@ -29,6 +30,9 @@ router.get('/features', (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+    },
+    hiddenFiles: {
+      patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

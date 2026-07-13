@@ -416,7 +416,7 @@
       "title": "用户偏好",
       "subtitle": "自定义你的个人设置。",
       "showHiddenFiles": "显示隐藏文件",
-      "showHiddenFilesHelp": "在文件浏览器中显示以点 (.) 开头的文件和文件夹。",
+      "showHiddenFilesHelp": "在文件浏览器中显示匹配已配置隐藏模式（{patterns}）的文件和文件夹。",
       "showThumbnails": "显示缩略图",
       "showThumbnailsHelp": "在浏览器中显示图像和视频的缩略预览。",
       "showSidebarFavorites": "显示收藏夹区域",
