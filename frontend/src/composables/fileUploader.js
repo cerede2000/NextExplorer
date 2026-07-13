@@ -81,6 +81,13 @@ export function useFileUploader() {
       /* noop */
     }
   };
+  const clearFallbackMiB = () => {
+    try {
+      localStorage.removeItem(FALLBACK_KEY);
+    } catch (_) {
+      /* noop */
+    }
+  };
 
   const getUploadSettings = () => {
     const adminChunked = Boolean(appSettings.state?.uploads?.chunkedEnabled);
@@ -204,29 +211,26 @@ export function useFileUploader() {
     uploadPluginMode = nextMode;
   };
 
-  // Bounded per-file fallback attempts, so a genuinely failing upload can't loop.
-  const fallbackAttempts = new Map();
-
   // On a direct (XHR) upload rejected by a reverse proxy body-size limit, switch
-  // this origin to chunked uploads with a safe size and retry — stepping the size
-  // down the ladder if a chunk is still too large. Returns true when it took over
-  // (so the caller suppresses the error).
+  // this origin to chunked uploads with a safe size and restart the file as a
+  // FRESH chunked upload (identical to the working manual chunked path — a
+  // mid-flight plugin swap + retryUpload proved unreliable). Steps the size down
+  // the ladder if a chunk is still too large; clears the fallback if even the
+  // smallest size fails (so it wasn't a size limit after all). Returns true when
+  // it takes over, so the caller suppresses the error.
   const maybeAutoFallback = (file, error, response) => {
     if (!autoFallbackAllowed()) return false;
     // Only the direct→chunked path; a forced-chunked size is the admin's call.
     if (appSettings.state?.uploads?.chunkedEnabled) return false;
-    if (!file?.id) return false;
+    if (!file?.data) return false;
 
     const status = getTusErrorStatus(error) ?? response?.status ?? null;
-    const bytesUploaded = Number(file?.progress?.bytesUploaded) || 0;
     const fileSize = Number(file?.size) || 0;
+    const bytesUploaded = Number(file?.progress?.bytesUploaded) || 0;
+    // Only large files hit proxy body limits (and small ones don't need chunking).
     const looksLikeProxyLimit =
-      status === 413 ||
-      (isNetworkUploadError(error) && fileSize > 32 * MIB_BYTES && bytesUploaded > 4 * MIB_BYTES);
+      status === 413 || (isNetworkUploadError(error) && fileSize > 8 * MIB_BYTES);
     if (!looksLikeProxyLimit) return false;
-
-    const attempts = fallbackAttempts.get(file.id) || 0;
-    if (attempts >= FALLBACK_LADDER_MIB.length) return false; // exhausted → surface the error
 
     const currentFallback = readFallbackMiB();
     let nextMiB;
@@ -240,20 +244,30 @@ export function useFileUploader() {
       nextMiB =
         idx >= 0 && idx + 1 < FALLBACK_LADDER_MIB.length ? FALLBACK_LADDER_MIB[idx + 1] : null;
     }
-    if (!nextMiB) return false; // already at the smallest size → give up
+    if (!nextMiB) {
+      // Even the smallest chunk failed → not a body-size limit. Forget the
+      // fallback so the next attempt uses direct upload again, and surface the error.
+      clearFallbackMiB();
+      return false;
+    }
 
     writeFallbackMiB(nextMiB);
-    fallbackAttempts.set(file.id, attempts + 1);
-    configureUploadPlugin(); // switch to chunked (TUS) with the new size
-    try {
-      uppy.retryUpload(file.id);
-    } catch (_) {
+    const descriptor = {
+      name: file.name,
+      type: file.type,
+      data: file.data,
+      meta: file.meta ? { ...file.meta } : {},
+    };
+    // Defer to escape the current error-handling cycle, then restart cleanly.
+    setTimeout(() => {
       try {
-        uppy.upload();
-      } catch (_) {
-        /* noop */
+        uppy.removeFile(file.id);
+        configureUploadPlugin(); // now chunked (TUS) with the new size
+        uppy.addFile(descriptor); // autoProceed re-uploads via TUS
+      } catch (err) {
+        console.error('Auto-fallback restart failed', err);
       }
-    }
+    }, 0);
     return true;
   };
 
@@ -326,7 +340,6 @@ export function useFileUploader() {
     });
 
     uppy.on('complete', (result) => {
-      fallbackAttempts.clear();
       const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
       const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
       [...successfulFiles, ...failedFiles].forEach(removeUploadFile);

@@ -72,9 +72,27 @@ const getContext = (req) => {
   };
 };
 
+// Cache the "is TUS allowed" check briefly so it isn't a fresh DB read on every
+// chunk (each PATCH hits onIncomingRequest) — trims per-chunk latency.
+let tusEnabledCache = { enabled: null, at: 0 };
+const TUS_ENABLED_TTL_MS = 5000;
+
 const ensureTusEnabled = async () => {
-  const settings = await getSystemSettings();
-  if (!settings.uploads?.chunkedEnabled) {
+  const now = Date.now();
+  if (tusEnabledCache.enabled === null || now - tusEnabledCache.at >= TUS_ENABLED_TTL_MS) {
+    const settings = await getSystemSettings();
+    // TUS serves both forced chunked uploads AND the client-side auto-fallback,
+    // which uses TUS even though forced chunking (chunkedEnabled) is off. Without
+    // allowing chunkedAutoFallback here, fallback uploads were rejected with 403
+    // (surfacing as a "network error" in the client).
+    tusEnabledCache = {
+      enabled: Boolean(
+        settings.uploads?.chunkedEnabled || settings.uploads?.chunkedAutoFallback
+      ),
+      at: now,
+    };
+  }
+  if (!tusEnabledCache.enabled) {
     throw tusError(403, 'Chunked uploads are disabled.');
   }
 };
