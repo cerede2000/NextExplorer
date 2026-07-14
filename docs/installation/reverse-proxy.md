@@ -7,6 +7,7 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 | Variable                             | Purpose                                                                                                                                                                                                                                   |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PUBLIC_URL`                         | External URL (no trailing slash) used to set cookies, determine OIDC callbacks, and drive CORS defaults. Example: `https://files.example.com`.                                                                                            |
+| `INTERNAL_URL`                       | Optional comma-separated LAN origins. They are accepted by CORS and can each complete OIDC login without redirecting through `PUBLIC_URL`.                                                                                                |
 | `TRUST_PROXY`                        | Controls Express’s trust level; accepts `false`, a number (hops), or lists such as `loopback,uniquelocal`. If unset and `PUBLIC_URL` exists, defaults to `loopback,uniquelocal`. (`backend/config/trustProxy.js` documents this mapping.) |
 | `CORS_ORIGIN(S)` / `ALLOWED_ORIGINS` | Explicit CORS origins when they differ from `PUBLIC_URL`. Defaults to the origin of `PUBLIC_URL` when provided.                                                                                                                           |
 
@@ -32,7 +33,7 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 
 - Proxy has TLS termination and forwards headers. Without headers, session cookies may appear as `Insecure`.
 - POST, PUT, DELETE operations work through the proxy; test with uploads and metadata edits.
-- If using OIDC, verify the IdP’s redirect URI matches `${PUBLIC_URL}/callback` or your manually supplied `OIDC_CALLBACK_URL`.
+- If using OIDC with `INTERNAL_URL`, register `${PUBLIC_URL}/callback` and every `<INTERNAL_URL>/callback` with the IdP. The browser returns to the exact configured origin where login started.
 
 ## Troubleshooting proxies
 
@@ -40,4 +41,4 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 | ---------------------------- | ---------------------------------------------------------------------------------------------- |
 | CORS errors                  | Add the proxy domain to `CORS_ORIGINS` or set `PUBLIC_URL`.                                    |
 | Sessions drop                | Confirm `TRUST_PROXY` lets Express read `X-Forwarded-Proto` and `COOKIE` is not stripped.      |
-| Redirect URI mismatch (OIDC) | Ensure the IdP redirect equals `${PUBLIC_URL}/callback` or the configured `OIDC_CALLBACK_URL`. |
+| Redirect URI mismatch (OIDC) | Register `${PUBLIC_URL}/callback` and each configured internal `<origin>/callback` with the IdP. |
