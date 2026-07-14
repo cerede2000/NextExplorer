@@ -41,6 +41,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 const isStale = (entry, mtimeMs) => {
   if (!entry) return true;
+  if (entry.dirty) return true;
   const lastKnown = Math.max(
     entry.lastFullScanAt ? Date.parse(entry.lastFullScanAt) : 0,
     entry.lastDeltaAt ? Date.parse(entry.lastDeltaAt) : 0
