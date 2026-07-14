@@ -4,6 +4,8 @@ import { getFolderSizesBatch, normalizePath, refreshFolderSize } from '@/api';
 import { useFeaturesStore } from '@/stores/features';
 
 const REFRESH_THROTTLE_MS = 2500;
+const MANUAL_REFRESH_POLL_MS = 1500;
+const MANUAL_REFRESH_MAX_POLLS = 400;
 
 const normalizeEntry = (raw = {}) => ({
   path: normalizePath(raw.path || ''),
@@ -38,6 +40,16 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
   let trackedPaths = [];
   let queuedRefresh = false;
   let inFlightTargets = null;
+  const pendingManualRefreshes = new Map();
+
+  const mergeEntries = (rawEntries = []) => {
+    const next = { ...sizes.value };
+    for (const raw of rawEntries) {
+      const entry = normalizeEntry(raw);
+      if (entry.path) next[entry.path] = entry;
+    }
+    sizes.value = next;
+  };
 
   const setPaths = (paths = []) => {
     const seen = new Set();
@@ -59,14 +71,14 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
   // Fetch the given paths in one batch and merge the results into `sizes`.
   const fetchSizes = async (targets) => {
     try {
-      const response = await getFolderSizesBatch(targets);
+      const response = await getFolderSizesBatch(targets, {
+        // Folder sizes improve the view but must never turn a transient server
+        // overload during navigation/reload into a global network alert.
+        suppressErrorHandler: true,
+        retryNetworkErrors: true,
+      });
       const results = Array.isArray(response?.results) ? response.results : [];
-      const next = { ...sizes.value };
-      for (const raw of results) {
-        const entry = normalizeEntry(raw);
-        if (entry.path) next[entry.path] = entry;
-      }
-      sizes.value = next;
+      mergeEntries(results);
       lastRefreshAt = Date.now();
     } catch (_) {
       // Non-fatal: leave any previously known sizes in place.
@@ -147,8 +159,46 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
     }, delayMs);
   };
 
-  // Explicit repair for a folder changed outside NextExplorer. The backend
-  // indexes only that subtree, then this updates the visible row immediately.
+  const pollManualRefresh = (path, previousLastUpdated) => {
+    if (pendingManualRefreshes.has(path)) return;
+
+    let attempts = 0;
+    const poll = async () => {
+      try {
+        const response = await getFolderSizesBatch([path], {
+          suppressErrorHandler: true,
+          retryNetworkErrors: false,
+        });
+        const raw = Array.isArray(response?.results) ? response.results[0] : null;
+        const entry = normalizeEntry(raw || {});
+        if (entry.path) {
+          mergeEntries([entry]);
+          if (entry.indexed && entry.lastUpdated && entry.lastUpdated !== previousLastUpdated) {
+            pendingManualRefreshes.delete(path);
+            return;
+          }
+        }
+      } catch (_) {
+        // The normal view refresh will retry later; do not raise a toast for a
+        // background completion check after the user explicitly queued a scan.
+      }
+
+      attempts += 1;
+      if (attempts >= MANUAL_REFRESH_MAX_POLLS) {
+        pendingManualRefreshes.delete(path);
+        return;
+      }
+      const timer = globalThis.setTimeout(poll, MANUAL_REFRESH_POLL_MS);
+      pendingManualRefreshes.set(path, timer);
+    };
+
+    const timer = globalThis.setTimeout(poll, MANUAL_REFRESH_POLL_MS);
+    pendingManualRefreshes.set(path, timer);
+  };
+
+  // Explicit repair for a folder changed outside NextExplorer. The server
+  // acknowledges the queued scan immediately; a tiny single-row poll updates
+  // the UI when the authoritative index entry is committed.
   const refreshFolder = async (path) => {
     const featuresStore = useFeaturesStore();
     await featuresStore.ensureLoaded();
@@ -157,8 +207,9 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
     const raw = await refreshFolderSize(path);
     const entry = normalizeEntry(raw);
     if (!entry.path) return null;
-    sizes.value = { ...sizes.value, [entry.path]: entry };
-    return entry;
+    mergeEntries([entry]);
+    if (raw?.refreshPending) pollManualRefresh(entry.path, entry.lastUpdated);
+    return { ...entry, refreshPending: Boolean(raw?.refreshPending) };
   };
 
   return {
