@@ -11,7 +11,7 @@ Use ONLYOFFICE Document Server to edit office files (DOCX, XLSX, PPTX, ODT, ODS,
 | `ONLYOFFICE_SECRET`                | Yes                  | JWT secret shared between nextExplorer and ONLYOFFICE for signing requests/responses.                                                               |
 | `ONLYOFFICE_LANG`                  | No (default `en`)    | Language code for the editor UI.                                                                                                                    |
 | `ONLYOFFICE_FORCE_SAVE`            | No                   | When true, the editor Save button immediately writes the current version through the callback.                                                      |
-| `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS` | No (default `15000`) | Minimum delay between background force-saves of a changed document. Set `0` to save only on close. Values are clamped between `0` and `300000`.     |
+| `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS` | No (default `30000`) | Minimum delay between background force-saves of a changed document. Set `0` to save only on close. Values are clamped between `0` and `300000`.     |
 | `ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS` | No (default `10000`) | Retry window in milliseconds for a force-save when Document Server is still receiving the final changes. Minimum `7000`; closing remains immediate. |
 | `ONLYOFFICE_FILE_EXTENSIONS`       | No                   | Comma-separated list of extensions you want to surface beyond the defaults.                                                                         |
 

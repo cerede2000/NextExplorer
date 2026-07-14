@@ -124,7 +124,7 @@ module.exports = {
   // conversion on every edit.
   ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: (() => {
     const value = Number(process.env.ONLYOFFICE_AUTO_SAVE_INTERVAL_MS);
-    return Number.isFinite(value) && value >= 0 ? value : 15000;
+    return Number.isFinite(value) && value >= 0 ? value : 30000;
   })(),
   ONLYOFFICE_FILE_EXTENSIONS: process.env.ONLYOFFICE_FILE_EXTENSIONS || '',
 
