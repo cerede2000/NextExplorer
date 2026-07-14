@@ -76,26 +76,26 @@ const handleThemeToggle = () => {
 };
 
 const handleLogout = async () => {
-  // Capture whether the session is OIDC-backed before clearing state
-  const wasOidcUser = auth.currentUser?.provider === 'oidc';
-
-  // Always clear local session on the backend
-  try {
-    await auth.logout();
-  } catch (_) {}
+  // Preserve the OIDC session until the provider-aware logout endpoint has
+  // consumed its ID token. Clearing it first prevents a federated logout.
+  const isOidcUser = auth.currentUser?.provider === 'oidc';
 
   isExpanded.value = false;
 
-  // If the current user was an OIDC user (or OIDC is enabled),
-  // bounce through the provider-aware /logout endpoint to clear IdP session.
-  const isOidcUser = wasOidcUser || auth.strategies?.oidc === true;
   if (isOidcUser) {
+    // The login view uses this same-tab marker to avoid immediately starting a
+    // new OIDC flow when the IdP redirects the browser back after logout.
+    window.sessionStorage.setItem('oidcSignedOut', '1');
     const base = apiBase || '';
     const returnTo = '/auth/login';
     const logoutUrl = `${base}/logout?returnTo=${encodeURIComponent(returnTo)}`;
     window.location.href = logoutUrl;
     return;
   }
+
+  try {
+    await auth.logout();
+  } catch (_) {}
 
   router.push({ name: 'auth-login' });
 };
