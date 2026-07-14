@@ -42,4 +42,14 @@ describe('folder scroll positions', () => {
     expect(store.consumeRestore('volume/parent::list')).toBe(420);
     expect(store.consumeRestore('volume/parent::list')).toBe(0);
   });
+
+  it('preserves an editor return through the generic navigation guard', () => {
+    const store = useFolderScrollStore();
+
+    store.remember('volume/parent::list', 420);
+    store.permitExplicitRestore('volume/parent');
+    store.preventRestore('volume/parent');
+
+    expect(store.consumeRestore('volume/parent::list')).toBe(420);
+  });
 });

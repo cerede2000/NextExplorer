@@ -150,7 +150,7 @@
 
 <script setup>
 import { ref, shallowRef, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Codemirror } from 'vue-codemirror';
 import { Compartment } from '@codemirror/state';
@@ -166,10 +166,12 @@ import {
 } from '@heroicons/vue/24/outline';
 import { Save20Regular, Color20Regular } from '@vicons/fluent';
 import { onClickOutside, onKeyStroke, useLocalStorage } from '@vueuse/core';
+import { useFolderScrollStore } from '@/stores/folderScroll';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const folderScrollStore = useFolderScrollStore();
 
 // State
 const fileContent = ref('');
@@ -249,6 +251,30 @@ const canSave = computed(
   () => hasUnsavedChanges.value && !isSaving.value && !isLoading.value && !loadError.value
 );
 
+const parentFolderPath = () => {
+  const parts = normalizedPath.value.split('/').filter(Boolean);
+  parts.pop();
+  return parts.join('/');
+};
+
+const routeFolderPath = (targetRoute) => {
+  if (targetRoute?.name !== 'FolderView') return '';
+  const raw = Array.isArray(targetRoute.params?.path)
+    ? targetRoute.params.path.join('/')
+    : targetRoute.params?.path || '';
+  return normalizePath(raw);
+};
+
+// BrowserLayout is unmounted while editing text, so the generic folder-to-
+// folder navigation rule cannot infer this return journey. Mark it directly
+// from the editor before every exit, including the browser Back button.
+onBeforeRouteLeave((to) => {
+  const parent = parentFolderPath();
+  if (parent && routeFolderPath(to) === parent) {
+    folderScrollStore.permitExplicitRestore(parent);
+  }
+});
+
 // Operations
 const loadFile = async (path) => {
   if (!path) return (fileContent.value = '');
@@ -295,9 +321,8 @@ const requestClose = () => {
   if (isSaving.value) return;
   if (hasUnsavedChanges.value && !confirm(t('editor.confirmCloseWithoutSaving'))) return;
 
-  const parts = normalizedPath.value.split('/').filter(Boolean);
-  parts.pop();
-  router.replace(`/browse${parts.length ? '/' + parts.join('/') : ''}`);
+  const parent = parentFolderPath();
+  router.replace(`/browse${parent ? '/' + parent : ''}`);
 };
 
 const applyLanguage = async (path) => {
