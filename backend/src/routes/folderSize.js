@@ -99,24 +99,36 @@ const indexResult = (db, scope, absolutePath, logicalPath, canEnter) => {
 };
 
 /**
- * Run one user-requested, authoritative scan of a folder tree. The manager
+ * Queue one user-requested, authoritative scan of a folder tree. The manager
  * deduplicates same-path scans; this route additionally caps distinct pending
  * requests so an authenticated client cannot fill the serialized scan queue.
+ *
+ * The scan itself deliberately continues after the HTTP response. A deep tree
+ * can be paced for minutes, and keeping a browser/proxy request open for that
+ * duration leaves the UI in an unhelpful perpetual loading state.
  */
-const refreshDirectory = async (absolutePath) => {
+const queueRefreshDirectory = (absolutePath) => {
   const pending = manualRefreshes.get(absolutePath);
-  if (pending) return pending;
+  if (pending) return;
   if (manualRefreshes.size >= MAX_MANUAL_REFRESHES) {
     throw new RateLimitError('Too many folder size refreshes are already pending.');
+  }
+  if (!folderSizeManager.isRunning()) {
+    throw new ValidationError('Folder size indexing is not ready.');
   }
 
   const refresh = folderSizeManager.refreshSubtree(absolutePath);
   manualRefreshes.set(absolutePath, refresh);
-  try {
-    return await refresh;
-  } finally {
-    manualRefreshes.delete(absolutePath);
-  }
+  refresh
+    .then((result) => {
+      if (!result) {
+        logger.warn({ path: absolutePath }, 'Manual folder size refresh did not start');
+      }
+    })
+    .catch((err) => {
+      logger.warn({ err, path: absolutePath }, 'Manual folder size refresh failed');
+    })
+    .finally(() => manualRefreshes.delete(absolutePath));
 };
 
 // POST /api/folder-size/refresh/<logical path>
@@ -157,13 +169,12 @@ router.post(
       throw new ValidationError('Folder size refresh requires a directory.');
     }
 
-    const result = await refreshDirectory(absolutePath);
-    if (!result) {
-      throw new ValidationError('Folder size indexing is disabled.');
-    }
-
+    queueRefreshDirectory(absolutePath);
     const db = await getDb();
-    res.json(indexResult(db, scope, absolutePath, resolved.relativePath, true));
+    res.status(202).json({
+      ...indexResult(db, scope, absolutePath, resolved.relativePath, true),
+      refreshPending: true,
+    });
   })
 );
 

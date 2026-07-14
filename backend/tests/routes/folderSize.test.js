@@ -139,11 +139,10 @@ describe('Folder size route', () => {
 
     const response = await request(ctx.app).post('/api/folder-size/refresh/External');
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
     expect(response.body).toMatchObject({
       path: 'External',
-      sizeBytes: 321,
-      indexed: true,
+      refreshPending: true,
     });
   });
 });
