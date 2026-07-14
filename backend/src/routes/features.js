@@ -10,12 +10,15 @@ const {
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
+const { getSupportedArchiveExtensions } = require('../services/archiveService');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
 
 // GET /api/features -> returns enabled/disabled feature flags derived from env
-router.get('/features', (_req, res) => {
+router.get('/features', async (_req, res) => {
+  // Probed once at startup, then cached — this await is effectively free.
+  const archiveExtensions = await getSupportedArchiveExtensions().catch(() => ['zip']);
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -40,6 +43,10 @@ router.get('/features', (_req, res) => {
     uploads: {
       // Admin-configurable upper bound for the chunk size (env MAX_CHUNK_SIZE_MIB).
       maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
+    },
+    archives: {
+      // Extraction formats the server-side 7-Zip build actually supports.
+      extensions: archiveExtensions,
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

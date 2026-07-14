@@ -11,6 +11,8 @@ export const useFeaturesStore = defineStore('features', () => {
   const maxUploadChunkSizeBytes = ref(0);
   const editorExtensions = ref([]);
   const hiddenFilePatterns = ref(['.']);
+  // Archive extraction formats supported by the server (7-Zip probe).
+  const archiveExtensions = ref(['zip']);
   const onlyofficeEnabled = ref(false);
   const onlyofficeExtensions = ref([]);
   const collaboraEnabled = ref(false);
@@ -67,6 +69,12 @@ export const useFeaturesStore = defineStore('features', () => {
           ? features.hiddenFiles.patterns
           : ['.'];
 
+        // Archive extraction formats
+        archiveExtensions.value =
+          Array.isArray(features?.archives?.extensions) && features.archives.extensions.length
+            ? features.archives.extensions
+            : ['zip'];
+
         // OnlyOffice
         onlyofficeEnabled.value = Boolean(features?.onlyoffice?.enabled);
         onlyofficeExtensions.value = Array.isArray(features?.onlyoffice?.extensions)
@@ -116,6 +124,7 @@ export const useFeaturesStore = defineStore('features', () => {
         maxUploadChunkSizeBytes.value = 0;
         editorExtensions.value = [];
         hiddenFilePatterns.value = ['.'];
+        archiveExtensions.value = ['zip'];
         onlyofficeEnabled.value = false;
         onlyofficeExtensions.value = [];
         collaboraEnabled.value = false;
@@ -152,6 +161,7 @@ export const useFeaturesStore = defineStore('features', () => {
     maxUploadChunkSizeBytes,
     editorExtensions,
     hiddenFilePatterns,
+    archiveExtensions,
     onlyofficeEnabled,
     onlyofficeExtensions,
     collaboraEnabled,

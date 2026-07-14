@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
+import { useFeaturesStore } from '@/stores/features';
 import { buildUrl, normalizePath } from '@/api';
 
 function isEditableElement(el) {
@@ -19,6 +20,7 @@ function resolveItemPath(item) {
 
 export function useFileActions() {
   const fileStore = useFileStore();
+  const featuresStore = useFeaturesStore();
 
   const selectedItems = computed(() => fileStore.selectedItems);
   const hasSelection = computed(() => fileStore.hasSelection);
@@ -33,12 +35,17 @@ export function useFileActions() {
   const currentPathIsDirectory = computed(() => fileStore.currentPathData?.isDirectory === true);
   const isSharePath = computed(() => currentDirectoryPath.value.startsWith('share/'));
 
-  const isZipSelected = computed(() => {
+  const isArchiveSelected = computed(() => {
     if (!isSingleItemSelected.value || !primaryItem.value) return false;
+    // Offer extraction only for the formats the server-side 7-Zip build
+    // reported as supported (falls back to plain zip).
+    const supported = Array.isArray(featuresStore.archiveExtensions)
+      ? featuresStore.archiveExtensions
+      : ['zip'];
     const kind = String(primaryItem.value.kind || '').toLowerCase();
-    if (kind === 'zip') return true;
+    if (supported.includes(kind)) return true;
     const name = String(primaryItem.value.name || '').toLowerCase();
-    return name.endsWith('.zip');
+    return supported.some((ext) => name.endsWith(`.${ext}`));
   });
 
   const selectionHasUniformParent = computed(() => {
@@ -64,8 +71,8 @@ export function useFileActions() {
     () =>
       isSingleItemSelected.value && primaryItem.value?.kind !== 'volume' && locationCanWrite.value
   );
-  const canExtractZip = computed(
-    () => isZipSelected.value && locationCanWrite.value && primaryItem.value?.kind !== 'volume'
+  const canExtractArchive = computed(
+    () => isArchiveSelected.value && locationCanWrite.value && primaryItem.value?.kind !== 'volume'
   );
   const canCompressToZip = computed(
     () =>
@@ -103,11 +110,11 @@ export function useFileActions() {
     fileStore.beginRename(primaryItem.value);
   };
 
-  const runExtractZip = async () => {
-    if (!canExtractZip.value || !primaryItem.value) return;
-    const zipPath = resolveItemPath(primaryItem.value);
-    if (!zipPath) return;
-    await fileStore.extractZipArchive(zipPath);
+  const runExtractArchive = async () => {
+    if (!canExtractArchive.value || !primaryItem.value) return;
+    const archivePath = resolveItemPath(primaryItem.value);
+    if (!archivePath) return;
+    await fileStore.extractZipArchive(archivePath);
   };
 
   const runCompressToZip = async () => {
@@ -181,7 +188,8 @@ export function useFileActions() {
     canPaste,
     canDelete,
     canRename,
-    canExtractZip,
+    isArchiveSelected,
+    canExtractArchive,
     canCompressToZip,
     canDownloadCurrentFolder,
     isCutActive,
@@ -195,7 +203,7 @@ export function useFileActions() {
     runPasteToDestination,
     runPasteIntoCurrent,
     runRename,
-    runExtractZip,
+    runExtractArchive,
     runCompressToZip,
     deleteNow,
     runDownload,
