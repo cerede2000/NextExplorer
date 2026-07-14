@@ -25,10 +25,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue';
 import { DocumentEditor } from '@onlyoffice/document-editor-vue';
-import { fetchOnlyOfficeConfig } from '@/api';
+import { fetchOnlyOfficeConfig, requestOnlyOfficeForceSave } from '@/api';
 import logger from '@/utils/logger';
+
+const AUTO_SAVE_DEBOUNCE_MS = 1200;
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -39,10 +41,18 @@ const props = defineProps({
   api: { type: Object, required: true },
 });
 
+// previewState belongs to the preview manager and intentionally carries the
+// small amount of state needed by the plugin close hook.
+const previewState = props.previewState;
 const serverUrl = ref(null);
 const config = ref(null);
 const error = ref(null);
 const ready = computed(() => Boolean(serverUrl.value && config.value));
+let autoSaveTimer = null;
+let autoSaveInFlight = null;
+let lastAutoSaveAt = 0;
+let changesObserved = false;
+let disposed = false;
 const editorId = computed(() => {
   const base = (props.context?.filePath || 'document').toString();
   return (
@@ -54,11 +64,53 @@ const editorId = computed(() => {
   );
 });
 
+const clearAutoSaveTimer = () => {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+};
+
+const requestForceSave = async ({ reason = 'auto' } = {}) => {
+  const sessionId = previewState.forceSaveSessionId;
+  if (!props.filePath || !sessionId) return { queued: false };
+  if (autoSaveInFlight) return autoSaveInFlight;
+
+  autoSaveInFlight = requestOnlyOfficeForceSave(props.filePath, { sessionId, reason })
+    .then((result) => {
+      lastAutoSaveAt = Date.now();
+      previewState.lastForceSaveAt = lastAutoSaveAt;
+      return result;
+    })
+    .catch((saveError) => {
+      logger.debug('ONLYOFFICE force-save request failed', saveError);
+      throw saveError;
+    })
+    .finally(() => {
+      autoSaveInFlight = null;
+    });
+
+  return autoSaveInFlight;
+};
+
+const scheduleAutoSave = () => {
+  const intervalMs = Number(previewState.autoSaveIntervalMs) || 0;
+  if (disposed || !changesObserved || intervalMs <= 0) return;
+
+  clearAutoSaveTimer();
+  const nextDelay = Math.max(AUTO_SAVE_DEBOUNCE_MS, lastAutoSaveAt + intervalMs - Date.now());
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    void requestForceSave({ reason: 'auto' }).catch(() => {});
+  }, nextDelay);
+};
+
 const load = async () => {
+  clearAutoSaveTimer();
+  changesObserved = false;
+  lastAutoSaveAt = 0;
   error.value = null;
   serverUrl.value = null;
   config.value = null;
-  props.previewState.forceSaveSessionId = null;
+  previewState.forceSaveSessionId = null;
   try {
     const path = props.filePath;
     if (!path) throw new Error('Missing file path.');
@@ -66,14 +118,26 @@ const load = async () => {
       documentServerUrl,
       config: cfg,
       forceSaveSessionId,
+      autoSaveIntervalMs,
     } = await fetchOnlyOfficeConfig(path, 'edit');
-    props.previewState.forceSaveSessionId = forceSaveSessionId || null;
+    previewState.forceSaveSessionId = forceSaveSessionId || null;
+    previewState.autoSaveIntervalMs = Number(autoSaveIntervalMs) || 0;
+    previewState.requestForceSave = requestForceSave;
     cfg.events = {
       ...cfg.events,
       onDocumentStateChange(event) {
-        // `false` means the editor delivered its changes to Document Server,
-        // not that the storage callback has already replaced the source file.
-        props.previewState.changesPending = Boolean(event?.data);
+        const pending = Boolean(event?.data);
+        previewState.changesPending = pending;
+
+        if (pending) {
+          changesObserved = true;
+          return;
+        }
+
+        // `false` means ONLYOFFICE delivered the current changes to Document
+        // Server. Save that version at a bounded cadence so the external file
+        // does not remain empty until the editor is closed.
+        scheduleAutoSave();
       },
     };
     serverUrl.value = documentServerUrl;
@@ -85,9 +149,16 @@ const load = async () => {
 };
 
 onMounted(load);
+onBeforeUnmount(() => {
+  disposed = true;
+  clearAutoSaveTimer();
+});
 watch(
   () => props.filePath,
-  () => load()
+  () => {
+    disposed = false;
+    void load();
+  }
 );
 </script>
 

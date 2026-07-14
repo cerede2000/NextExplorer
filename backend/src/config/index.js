@@ -261,6 +261,7 @@ const onlyoffice = {
   lang: env.ONLYOFFICE_LANG,
   forceSave: env.ONLYOFFICE_FORCE_SAVE,
   forceSaveTimeoutMs: Math.min(30000, Math.max(7000, env.ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS)),
+  autoSaveIntervalMs: Math.min(300000, Math.max(0, env.ONLYOFFICE_AUTO_SAVE_INTERVAL_MS)),
   extensions: env.ONLYOFFICE_FILE_EXTENSIONS.split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),

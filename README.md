@@ -130,6 +130,7 @@ services:
       # ONLYOFFICE_SECRET: "" # JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice`.
       # ONLYOFFICE_LANG: "en" # Language code for the editor UI.
       # ONLYOFFICE_FORCE_SAVE: "false" # When `true`, the OnlyOffice Save button writes the current version immediately.
+      # ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: "15000" # Background save cadence for changed OnlyOffice files; set `0` to save only when closing.
       # ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: "10000" # Retry window for the background save started when closing an OnlyOffice document.
       # ONLYOFFICE_FILE_EXTENSIONS: "" # Extra file extensions to surface to the Document Server.
       # FFMPEG_PATH: "" # Point to a custom ffmpeg binary (defaults to bundled binary).
