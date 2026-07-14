@@ -11,3 +11,17 @@ export async function fetchOnlyOfficeConfig(path, mode = 'edit') {
     body: JSON.stringify({ path: normalizedPath, mode }),
   });
 }
+
+export async function requestOnlyOfficeForceSave(path, { signal } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) return { queued: false };
+
+  return requestJson('/api/onlyoffice/force-save', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath }),
+    // Closing the editor must remain possible when Document Server is briefly
+    // unavailable; its ordinary delayed callback is the fallback.
+    suppressErrorHandler: true,
+    signal,
+  });
+}

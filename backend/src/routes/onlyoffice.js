@@ -34,6 +34,15 @@ const getDocumentType = (ext) => {
 
 const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
 
+const buildDocumentKey = (relativePath, stat) =>
+  crypto.createHash('sha256').update(relativePath).update(String(stat.mtimeMs)).digest('hex');
+
+const getCommandServiceUrl = () =>
+  new URL(
+    'coauthoring/CommandService.ashx',
+    `${onlyoffice.serverUrl.replace(/\/+$/, '')}/`
+  ).toString();
+
 const getDsJwtFromReq = (req) => {
   const auth = (req.headers['authorization'] || req.headers['authorizationjwt'] || '').toString();
   if (auth.toLowerCase().startsWith('bearer ')) {
@@ -110,11 +119,7 @@ router.post(
     }
 
     // Unique key should change when file changes to bust DS cache
-    const key = crypto
-      .createHash('sha256')
-      .update(relativePath)
-      .update(String(stat.mtimeMs))
-      .digest('hex');
+    const key = buildDocumentKey(relativePath, stat);
 
     // Disable editing for readonly shares or when mode is view
     const canEdit = mode !== 'view' && !isReadonlyShare;
@@ -139,6 +144,9 @@ router.post(
         callbackUrl: callbackUrl.toString(),
         customization: {
           anonymous: { request: false },
+          // Expose ONLYOFFICE's Save action as a force-save when explicitly
+          // requested. Closing the editor is handled by the route below.
+          forcesave: Boolean(onlyoffice.forceSave && canEdit),
         },
         lang: onlyoffice.lang || 'en',
         // Optionally attach current user info if available
@@ -174,6 +182,74 @@ router.post(
       documentServerUrl: onlyoffice.serverUrl,
       config,
     });
+  })
+);
+
+// Request an immediate save before the embedded editor is closed. ONLYOFFICE
+// normally waits for its server-side save timeout after the final user leaves,
+// which makes a freshly edited document look stale for several seconds.
+router.post(
+  '/onlyoffice/force-save',
+  asyncHandler(async (req, res) => {
+    if (!onlyoffice.serverUrl) {
+      throw new ValidationError('ONLYOFFICE_URL is not configured on the server.');
+    }
+    if (!onlyoffice.secret) {
+      throw new ValidationError('ONLYOFFICE_SECRET is required to force-save documents.');
+    }
+
+    const relativeRaw = req.body?.path || '';
+    if (typeof relativeRaw !== 'string' || !relativeRaw.trim()) {
+      throw new ValidationError('A valid file path is required.');
+    }
+
+    const relativePath = normalizeRelativePath(relativeRaw);
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+
+    if (!accessInfo || !accessInfo.canAccess || !accessInfo.canWrite) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+    }
+
+    const stat = await fsp.stat(resolved.absolutePath);
+    if (stat.isDirectory()) {
+      throw new ValidationError('Cannot force-save a directory.');
+    }
+
+    const key = buildDocumentKey(relativePath, stat);
+    const command = {
+      c: 'forcesave',
+      key,
+    };
+    command.token = jwt.sign(command, onlyoffice.secret, { algorithm: 'HS256' });
+
+    try {
+      const response = await axios.post(getCommandServiceUrl(), command, {
+        timeout: 8000,
+        validateStatus: () => true,
+      });
+      const code = Number(response.data?.error ?? 0);
+
+      // 1 means that the document is no longer active and 4 that it contains
+      // no unsaved changes. In both cases the regular close callback remains
+      // the safe fallback, so closing the preview must stay uneventful.
+      if (response.status < 200 || response.status >= 300 || code !== 0) {
+        logger.debug(
+          { path: relativePath, status: response.status, code },
+          'ONLYOFFICE force-save was not queued'
+        );
+        return res.json({ queued: false, code });
+      }
+
+      logger.debug({ path: relativePath }, 'ONLYOFFICE force-save queued');
+      return res.json({ queued: true });
+    } catch (err) {
+      // The normal status-2 callback still persists the document after the
+      // Document Server timeout. Do not turn a best-effort acceleration into
+      // a user-visible close failure.
+      logger.warn({ err, path: relativePath }, 'ONLYOFFICE force-save request failed');
+      return res.json({ queued: false });
+    }
   })
 );
 

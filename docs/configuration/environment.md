@@ -109,7 +109,7 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `ONLYOFFICE_URL`                      | _none_             | Public URL for Document Server (must reach your app's `PUBLIC_URL`).                                                                    |
 | `ONLYOFFICE_SECRET`                   | _none_             | JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice` calls.                                                          |
 | `ONLYOFFICE_LANG`                     | `en`               | Language code for the editor UI.                                                                                                        |
-| `ONLYOFFICE_FORCE_SAVE`               | `false`            | When true, OnlyOffice forces users to save via the editor UI.                                                                           |
+| `ONLYOFFICE_FORCE_SAVE`               | `false`            | When true, the OnlyOffice Save button writes the current version immediately.                                                           |
 | `ONLYOFFICE_FILE_EXTENSIONS`          | _default list_     | Extra file extensions to surface to the Document Server.                                                                                |
 | `FFMPEG_PATH`, `FFPROBE_PATH`         | _bundled binaries_ | Point to custom ffmpeg/ffprobe if the bundle doesn't suit your needs.                                                                   |
 | `FFMPEG_HWACCEL`                      | _none_             | Optional ffmpeg `-hwaccel` value used for video thumbnail generation when supported by your ffmpeg build (e.g. `vaapi`, `qsv`, `cuda`). |

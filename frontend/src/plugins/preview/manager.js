@@ -9,6 +9,7 @@ export const usePreviewManager = defineStore('preview-manager', () => {
   const activeItem = ref(null);
   const activePlugin = ref(null);
   const isOpen = computed(() => !!activeItem.value);
+  let pendingClose = null;
 
   const getExtension = (item) => {
     if (!item) return '';
@@ -134,16 +135,37 @@ export const usePreviewManager = defineStore('preview-manager', () => {
   };
 
   const close = () => {
+    if (pendingClose) return pendingClose;
     if (!activePlugin.value || !activeItem.value) return;
 
-    try {
-      activePlugin.value.onClose?.(activeItem.value);
-    } catch (error) {
-      console.error(`Plugin ${activePlugin.value.id} onClose error:`, error);
-    }
+    const plugin = activePlugin.value;
+    const item = activeItem.value;
 
-    activeItem.value = null;
-    activePlugin.value = null;
+    pendingClose = Promise.resolve(plugin.onBeforeClose?.(item))
+      .catch((error) => {
+        // A preview must always remain closable. Plugins can use this hook for
+        // best-effort cleanup such as asking ONLYOFFICE to flush changes.
+        console.warn(`Plugin ${plugin.id} onBeforeClose error:`, error);
+      })
+      .then(() => {
+        try {
+          plugin.onClose?.(item);
+        } catch (error) {
+          console.error(`Plugin ${plugin.id} onClose error:`, error);
+        }
+
+        // A new preview may have been opened while an asynchronous close hook
+        // was pending; never close that newer preview by accident.
+        if (activePlugin.value === plugin && activeItem.value === item) {
+          activeItem.value = null;
+          activePlugin.value = null;
+        }
+      })
+      .finally(() => {
+        pendingClose = null;
+      });
+
+    return pendingClose;
   };
 
   return {
