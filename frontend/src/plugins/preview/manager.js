@@ -99,6 +99,9 @@ export const usePreviewManager = defineStore('preview-manager', () => {
       extension,
       filePath: fullPath,
       previewUrl,
+      // Preview components can keep small, ephemeral state which their
+      // lifecycle hooks need when the preview is about to close.
+      previewState: {},
       api,
     };
 

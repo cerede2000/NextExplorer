@@ -16,6 +16,7 @@ const { ValidationError, UnauthorizedError, ForbiddenError } = require('../error
 const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
+const pendingForceSaves = new Map();
 
 // Helpers
 const SUPPORTED_TEXT = new Set(['docx', 'doc', 'odt', 'rtf', 'txt']);
@@ -37,11 +38,14 @@ const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
 const buildDocumentKey = (relativePath, stat) =>
   crypto.createHash('sha256').update(relativePath).update(String(stat.mtimeMs)).digest('hex');
 
-const getCommandServiceUrl = () =>
-  new URL(
-    'coauthoring/CommandService.ashx',
+const getCommandServiceUrl = (key, legacy = false) => {
+  const commandUrl = new URL(
+    legacy ? 'coauthoring/CommandService.ashx' : 'command',
     `${onlyoffice.serverUrl.replace(/\/+$/, '')}/`
-  ).toString();
+  );
+  if (!legacy) commandUrl.searchParams.set('shardkey', key);
+  return commandUrl.toString();
+};
 
 const getDsJwtFromReq = (req) => {
   const auth = (req.headers['authorization'] || req.headers['authorizationjwt'] || '').toString();
@@ -52,6 +56,30 @@ const getDsJwtFromReq = (req) => {
   if (typeof q.token === 'string' && q.token) return q.token;
   if (typeof q.jwt === 'string' && q.jwt) return q.jwt;
   return null;
+};
+
+const waitForForceSave = (requestId) => {
+  let resolveCompletion;
+  const completion = new Promise((resolve) => {
+    resolveCompletion = resolve;
+  });
+  const timeout = setTimeout(() => {
+    if (!pendingForceSaves.has(requestId)) return;
+    pendingForceSaves.delete(requestId);
+    resolveCompletion({ saved: false, timedOut: true });
+  }, onlyoffice.forceSaveTimeoutMs);
+
+  pendingForceSaves.set(requestId, { resolveCompletion, timeout });
+  return completion;
+};
+
+const finishForceSave = (requestId, result) => {
+  if (!requestId) return;
+  const pending = pendingForceSaves.get(requestId);
+  if (!pending) return;
+  pendingForceSaves.delete(requestId);
+  clearTimeout(pending.timeout);
+  pending.resolveCompletion(result);
 };
 
 // POST /api/onlyoffice/config  { path, mode? }
@@ -217,33 +245,47 @@ router.post(
     }
 
     const key = buildDocumentKey(relativePath, stat);
+    const requestId = `nextexplorer-force-save:${crypto.randomUUID()}`;
+    const completion = waitForForceSave(requestId);
     const command = {
       c: 'forcesave',
       key,
+      userdata: requestId,
     };
     command.token = jwt.sign(command, onlyoffice.secret, { algorithm: 'HS256' });
 
     try {
-      const response = await axios.post(getCommandServiceUrl(), command, {
+      let response = await axios.post(getCommandServiceUrl(key), command, {
         timeout: 8000,
         validateStatus: () => true,
       });
+      // ONLYOFFICE Docs 8.2 introduced /command. Keep legacy Document Server
+      // installations working when they explicitly report the new route absent.
+      if (response.status === 404) {
+        response = await axios.post(getCommandServiceUrl(key, true), command, {
+          timeout: 8000,
+          validateStatus: () => true,
+        });
+      }
       const code = Number(response.data?.error ?? 0);
 
       // 1 means that the document is no longer active and 4 that it contains
       // no unsaved changes. In both cases the regular close callback remains
       // the safe fallback, so closing the preview must stay uneventful.
       if (response.status < 200 || response.status >= 300 || code !== 0) {
+        finishForceSave(requestId, { saved: false, code });
         logger.debug(
-          { path: relativePath, status: response.status, code },
+          { path: relativePath, status: response.status, code, requestId },
           'ONLYOFFICE force-save was not queued'
         );
         return res.json({ queued: false, code });
       }
 
-      logger.debug({ path: relativePath }, 'ONLYOFFICE force-save queued');
-      return res.json({ queued: true });
+      logger.debug({ path: relativePath, requestId }, 'ONLYOFFICE force-save queued');
+      const result = await completion;
+      return res.json({ queued: true, ...result });
     } catch (err) {
+      finishForceSave(requestId, { saved: false });
       // The normal status-2 callback still persists the document after the
       // Document Server timeout. Do not turn a best-effort acceleration into
       // a user-visible close failure.
@@ -332,6 +374,7 @@ router.get(
 router.post(
   '/onlyoffice/callback',
   asyncHandler(async (req, res) => {
+    let forceSaveRequestId = null;
     try {
       const relativeRaw = req.query?.path || '';
       if (typeof relativeRaw !== 'string' || !relativeRaw.trim()) {
@@ -369,6 +412,13 @@ router.post(
 
       const body = req.body || {};
       const status = Number(body.status);
+      forceSaveRequestId = typeof body.userdata === 'string' ? body.userdata : null;
+
+      if (status === 7) {
+        finishForceSave(forceSaveRequestId, { saved: false, failed: true });
+        logger.warn({ path: relativePath, forceSaveRequestId }, 'ONLYOFFICE force-save failed');
+        return res.json({ error: 0 });
+      }
       // See ONLYOFFICE callback statuses: 2 - Save, 6 - Force Save
       if ((status === 2 || status === 6) && body.url) {
         let abs = null;
@@ -409,14 +459,20 @@ router.post(
         } else {
           await folderSizeHooks.onFileWritten(abs, updated.size);
         }
-        logger.debug({ path: relativePath }, 'ONLYOFFICE file updated');
+        finishForceSave(forceSaveRequestId, { saved: status === 6 });
+        logger.debug({ path: relativePath, status, forceSaveRequestId }, 'ONLYOFFICE file updated');
         // MUST return {error:0} according to ONLYOFFICE spec
         return res.json({ error: 0 });
+      }
+
+      if (status === 6) {
+        finishForceSave(forceSaveRequestId, { saved: false, failed: true });
       }
 
       // For other statuses, acknowledge
       return res.json({ error: 0 });
     } catch (err) {
+      finishForceSave(forceSaveRequestId, { saved: false, failed: true });
       logger.error({ err }, 'ONLYOFFICE callback failed');
       // Per spec, non-zero error indicates retry; use 1
       return res.status(200).json({ error: 1 });
