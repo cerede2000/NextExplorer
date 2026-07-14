@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 
 const getFolderSizesBatch = vi.fn();
+const refreshFolderSize = vi.fn();
 const ensureLoaded = vi.fn(() => Promise.resolve());
 const featuresState = { folderSizeEnabled: true };
 
 vi.mock('@/api', () => ({
   getFolderSizesBatch: (...args) => getFolderSizesBatch(...args),
+  refreshFolderSize: (...args) => refreshFolderSize(...args),
   normalizePath: (p) => (p || '').replace(/^\/+|\/+$/g, ''),
 }));
 
@@ -27,6 +29,7 @@ describe('folderSize store', () => {
     featuresState.folderSizeEnabled = true;
     ensureLoaded.mockClear();
     getFolderSizesBatch.mockReset();
+    refreshFolderSize.mockReset();
     getFolderSizesBatch.mockResolvedValue({ results: [] });
   });
 
@@ -105,5 +108,22 @@ describe('folderSize store', () => {
 
     expect(getFolderSizesBatch).not.toHaveBeenCalled();
     expect(store.sizeFor('A')).toBeNull();
+  });
+
+  it('updates one folder immediately after an explicit subtree refresh', async () => {
+    refreshFolderSize.mockResolvedValue({
+      path: 'A/External',
+      sizeBytes: 321,
+      entryCount: 4,
+      canEnter: true,
+      indexed: true,
+    });
+
+    const store = useFolderSizeStore();
+    const entry = await store.refreshFolder('A/External');
+
+    expect(refreshFolderSize).toHaveBeenCalledWith('A/External');
+    expect(entry).toMatchObject({ sizeBytes: 321, indexed: true });
+    expect(store.sizeFor('A/External')).toMatchObject({ sizeBytes: 321, entryCount: 4 });
   });
 });

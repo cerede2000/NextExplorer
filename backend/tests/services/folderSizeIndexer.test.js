@@ -224,6 +224,10 @@ describe('folderSizeIndexer', () => {
     await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
     await fs.writeFile(path.join(vol, 'C', 'f3'), Buffer.alloc(10));
     await indexer.runBaseline(db, scope, { mode: 'full' });
+    // Keep this untouched folder decisively older than its scan record. Some
+    // filesystems expose mtimes with a coarser resolution than Date.now().
+    const past = new Date(Date.now() - 60_000);
+    await fs.utimes(path.join(vol, 'C'), past, past);
 
     // Add a file directly on the filesystem WITHOUT going through applyDelta,
     // then bump the directory mtime so the reconciler notices it changed.

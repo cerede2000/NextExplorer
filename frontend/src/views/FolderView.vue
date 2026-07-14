@@ -321,19 +321,40 @@ watch(
 // and the volume usage bar in sync (otherwise a folder size can update while the
 // volume total lags, which looks inconsistent). Both scheduleRefresh helpers are
 // throttled (2.5s) so these triggers never hammer the API.
-const liveRefresh = () => {
+const refreshLiveData = () => {
   if (featuresStore.folderSizeEnabled) folderSizeStore.scheduleRefresh();
   if (featuresStore.volumeUsageEnabled) volumeUsageStore.scheduleRefresh();
 };
 
-useEventListener(window, 'focus', liveRefresh);
+const LIVE_REFRESH_INTERVAL_MS = 30000;
+const RETURN_TO_TAB_REFRESH_THROTTLE_MS = 1500;
+let currentViewRefresh = null;
+let lastCurrentViewRefreshAt = 0;
+
+const refreshCurrentView = async () => {
+  if (document.hidden || loading.value || currentViewRefresh) return currentViewRefresh;
+  if (Date.now() - lastCurrentViewRefreshAt < RETURN_TO_TAB_REFRESH_THROTTLE_MS) return null;
+
+  const path = fileStore.currentPath;
+  lastCurrentViewRefreshAt = Date.now();
+  currentViewRefresh = fileStore.fetchPathItems(path).catch(() => {}).finally(() => {
+    currentViewRefresh = null;
+  });
+  return currentViewRefresh;
+};
+
+const refreshOnTabReturn = () => {
+  refreshCurrentView();
+  refreshLiveData();
+};
+
+useEventListener(window, 'focus', refreshOnTabReturn);
 useEventListener(document, 'visibilitychange', () => {
-  if (!document.hidden) liveRefresh();
+  if (!document.hidden) refreshOnTabReturn();
 });
 
-const LIVE_REFRESH_INTERVAL_MS = 30000;
 const liveRefreshTimer = window.setInterval(() => {
-  if (!document.hidden) liveRefresh();
+  if (!document.hidden) refreshLiveData();
 }, LIVE_REFRESH_INTERVAL_MS);
 
 watch(hasMoreItems, () => {
