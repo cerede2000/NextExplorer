@@ -1,5 +1,6 @@
 import { useFeaturesStore } from '@/stores/features';
 import { useSettingsStore } from '@/stores/settings';
+import { requestOnlyOfficeForceSave } from '@/api';
 
 const DEFAULT_EXTS = [
   'docx',
@@ -14,6 +15,7 @@ const DEFAULT_EXTS = [
   'ppt',
   'odp',
 ];
+const FORCE_SAVE_CLOSE_TIMEOUT_MS = 1500;
 
 export const onlyofficePreviewPlugin = (extensions) => ({
   id: 'onlyoffice-editor',
@@ -40,6 +42,21 @@ export const onlyofficePreviewPlugin = (extensions) => ({
   },
 
   component: () => import('./OnlyOfficePreview.vue'),
+
+  // Ask Document Server to flush its current version before the iframe is
+  // unmounted. Its normal close callback remains in place as a fallback.
+  onBeforeClose: async (context) => {
+    if (!context?.filePath) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), FORCE_SAVE_CLOSE_TIMEOUT_MS);
+    try {
+      await requestOnlyOfficeForceSave(context.filePath, { signal: controller.signal });
+    } catch (error) {
+      if (!controller.signal.aborted) throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  },
 
   actions: (context) => [
     {
