@@ -10,14 +10,14 @@ Use ONLYOFFICE Document Server to edit office files (DOCX, XLSX, PPTX, ODT, ODS,
 | `PUBLIC_URL`                 | Yes               | nextExplorer’s public URL so ONLYOFFICE knows where to download files and post callbacks. |
 | `ONLYOFFICE_SECRET`          | Yes               | JWT secret shared between nextExplorer and ONLYOFFICE for signing requests/responses.     |
 | `ONLYOFFICE_LANG`            | No (default `en`) | Language code for the editor UI.                                                          |
-| `ONLYOFFICE_FORCE_SAVE`      | No                | When true, users must use the editor’s Save button rather than relying on autosave.       |
+| `ONLYOFFICE_FORCE_SAVE`      | No                | When true, the editor Save button immediately writes the current version through the callback. |
 | `ONLYOFFICE_FILE_EXTENSIONS` | No                | Comma-separated list of extensions you want to surface beyond the defaults.               |
 
 ## How it works
 
 1. Opening a compatible file triggers a call to `/api/onlyoffice/config`, which returns editor configuration and a signed `config.token` when `ONLYOFFICE_SECRET` is set.
 2. ONLYOFFICE fetches the file through `/api/onlyoffice/file?path=...` with an `Authorization: Bearer <config.token>` header.
-3. After editing, ONLYOFFICE posts to `/api/onlyoffice/callback?path=...`, again authorized with the token; nextExplorer saves the changes automatically.
+3. When the preview closes, nextExplorer asks Document Server to force-save the current version. Document Server then posts to `/api/onlyoffice/callback?path=...`, again authorized with the token; its normal delayed close callback remains a fallback.
 
 ## Security notes
 

@@ -146,9 +146,9 @@ watch(
 );
 
 // Handlers
-const handleClose = () => {
+const handleClose = async () => {
   if (!isStandalone.value) {
-    manager.close();
+    await manager.close();
   }
 };
 
