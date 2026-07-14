@@ -185,13 +185,30 @@ const folderPathFromRoute = (route) => {
   return String(raw).replace(/^\/+|\/+$/g, '');
 };
 
+// The built-in text editor is a sibling route, not a child of FolderView.
+// Preserve the folder relationship for its close action (and browser Back),
+// otherwise the scroll store correctly has a position but is never allowed to
+// restore it.
+const editorParentPathFromRoute = (route) => {
+  if (!String(route?.path || '').startsWith('/editor/')) return '';
+  const raw = Array.isArray(route.params?.path)
+    ? route.params.path.join('/')
+    : route.params?.path || '';
+  const parts = String(raw)
+    .replace(/^\/+|\/+$/g, '')
+    .split('/')
+    .filter(Boolean);
+  parts.pop();
+  return parts.join('/');
+};
+
 const isAncestorFolder = (candidate, current) =>
   Boolean(candidate && current && current.startsWith(`${candidate}/`));
 
 router.beforeEach(async (to, from) => {
   const folderScrollStore = useFolderScrollStore();
   const destinationPath = folderPathFromRoute(to);
-  const sourcePath = folderPathFromRoute(from);
+  const sourcePath = folderPathFromRoute(from) || editorParentPathFromRoute(from);
   if (destinationPath) {
     if (isAncestorFolder(destinationPath, sourcePath)) {
       folderScrollStore.permitRestore(destinationPath);

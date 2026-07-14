@@ -83,6 +83,12 @@ services:
       # LOG_LEVEL: "info" # `trace|debug|info|warn|error` (defaults to `debug` when `DEBUG=true`).
       # DEBUG: "false" # When `true`, forces `LOG_LEVEL=debug` and enables more verbose diagnostics.
       # ENABLE_HTTP_LOGGING: "false" # When `true`, logs HTTP requests (recommended with centralized logs in production).
+      # PERFORMANCE_DIAGNOSTICS_ENABLED: "false" # Log CPU, Node/cgroup memory, event-loop latency, thumbnail queues, and folder-size activity when a pressure threshold is reached.
+      # PERFORMANCE_DIAGNOSTICS_INTERVAL_MS: "15000" # Sampling interval; at least 5000 ms.
+      # PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL: "false" # Set `true` for a complete time series while investigating an issue.
+      # PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD: "75" # Log a sample when the Node process reaches this CPU percentage.
+      # PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB: "768" # Log a sample when Node RSS reaches this level.
+      # PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS: "250" # Log a sample when p99 event-loop latency reaches this level.
 
       # Paths & volumes (optional)
       # VOLUME_ROOT: "/mnt" # Root directory that houses all mounted volumes. App will display all directores inside this directory as volumes.
