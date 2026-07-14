@@ -211,7 +211,20 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
   throwIfCancelled(signal);
   if (NATIVE_TRANSFER_ENABLED) {
     const stats = await fs.lstat(sourcePath);
-    await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal);
+    if (stats.isDirectory()) {
+      // Keep the target name chosen by findAvailableName. rsync copies the
+      // directory itself when the source lacks a trailing slash; the explorer
+      // contract is to copy its contents into the target directory instead.
+      await ensureDir(destinationPath);
+      await copyWithNativeRsync(
+        `${sourcePath}${path.sep}`,
+        `${destinationPath}${path.sep}`,
+        onBytes,
+        signal
+      );
+    } else {
+      await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal);
+    }
     return stats.isDirectory() ? null : stats.size;
   }
   if (!isDirectory) {
