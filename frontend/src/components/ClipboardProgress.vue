@@ -1,75 +1,72 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { ChevronDownIcon, QueueListIcon } from '@heroicons/vue/24/outline';
 import { useFileStore } from '@/stores/fileStore';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 import { formatBytes } from '@/utils';
 
 const fileStore = useFileStore();
+const operationTasksStore = useOperationTasksStore();
 const { t } = useI18n();
+const isListOpen = ref(false);
 
-const operation = computed(
-  () =>
-    fileStore.extractOperation ||
-    fileStore.compressOperation ||
-    fileStore.deleteOperation ||
-    fileStore.clipboardOperation
-);
+const operation = computed(() => operationTasksStore.activeOperation);
+const operations = computed(() => operationTasksStore.operations);
+const operationCount = computed(() => operationTasksStore.operationCount);
 
-const totalBytes = computed(() => Number(operation.value?.totalBytes) || 0);
-const copiedBytes = computed(() =>
-  Math.min(Number(operation.value?.copiedBytes) || 0, totalBytes.value || Number.POSITIVE_INFINITY)
-);
+watch(operationCount, (count) => {
+  if (count < 2) isListOpen.value = false;
+});
 
-// Determinate when the backend reported a byte total (copy / cross-device
-// move) or streams a raw percentage (archive extraction). Same-filesystem
-// moves and deletes keep the indeterminate animation (percent === null).
-const hasByteProgress = computed(() => totalBytes.value > 0);
-const percent = computed(() => {
-  if (hasByteProgress.value) {
-    return Math.min(100, Math.round((copiedBytes.value / totalBytes.value) * 100));
+const totalBytesFor = (value) => Number(value?.totalBytes) || 0;
+const copiedBytesFor = (value) =>
+  Math.min(Number(value?.copiedBytes) || 0, totalBytesFor(value) || Number.POSITIVE_INFINITY);
+const percentFor = (value) => {
+  const totalBytes = totalBytesFor(value);
+  if (totalBytes > 0) {
+    return Math.min(100, Math.round((copiedBytesFor(value) / totalBytes) * 100));
   }
-  const streamed = operation.value?.percent;
+
+  const streamed = value?.percent;
   return Number.isFinite(streamed) ? Math.min(100, Math.max(0, streamed)) : null;
-});
-const progressLabel = computed(() => {
-  if (hasByteProgress.value) {
-    return `${formatBytes(copiedBytes.value)} / ${formatBytes(totalBytes.value)} · ${percent.value}%`;
+};
+const progressLabelFor = (value) => {
+  const totalBytes = totalBytesFor(value);
+  const percent = percentFor(value);
+  if (totalBytes > 0) {
+    return `${formatBytes(copiedBytesFor(value))} / ${formatBytes(totalBytes)} · ${percent}%`;
   }
-  return percent.value !== null ? `${percent.value}%` : t('clipboard.working');
-});
+  return percent !== null ? `${percent}%` : t('clipboard.working');
+};
+const titleFor = (value) => {
+  if (!value) return '';
 
-const title = computed(() => {
-  const op = operation.value;
-  if (!op) return '';
+  if (value.type === 'extract') return t('clipboard.extracting', { name: value.name || '' });
+  if (value.type === 'compress') return t('clipboard.compressing', { name: value.name || '' });
 
-  if (op.type === 'extract') {
-    return t('clipboard.extracting', { name: op.name || '' });
+  const count = Number(value.itemCount);
+  if (!Number.isInteger(count) || count < 1) {
+    return value.type === 'move' ? t('clipboard.movingUnknown') : t('clipboard.copyingUnknown');
   }
 
-  if (op.type === 'compress') {
-    return t('clipboard.compressing', { name: op.name || '' });
-  }
-
-  const count = Number(op.itemCount) || 0;
   const itemsLabel = count === 1 ? t('common.item') : t('common.items');
+  if (value.type === 'delete') return `${t('common.deleting')} ${count} ${itemsLabel}`;
 
-  if (op.type === 'delete') {
-    return `${t('common.deleting')} ${count} ${itemsLabel}`;
-  }
-
-  return op.type === 'move'
+  return value.type === 'move'
     ? t('clipboard.moving', { count, items: itemsLabel })
     : t('clipboard.copying', { count, items: itemsLabel });
-});
+};
 
+const percent = computed(() => percentFor(operation.value));
+const progressLabel = computed(() => progressLabelFor(operation.value));
 const destination = computed(() => operation.value?.destination ?? '');
+const isTransfer = computed(() => ['copy', 'move'].includes(operation.value?.type));
 
-// The reposition toggle only applies to copy/move (clipboard) operations, never
-// to deletes or extractions.
-const isTransfer = computed(() => {
-  const type = operation.value?.type;
-  return type === 'copy' || type === 'move';
-});
+const selectOperation = (id) => {
+  operationTasksStore.selectOperation(id);
+  isListOpen.value = false;
+};
 </script>
 
 <template>
@@ -79,13 +76,48 @@ const isTransfer = computed(() => {
     role="status"
     aria-live="polite"
   >
-    <h3 class="text-lg font-semibold tracking-tight">
-      {{ title }}
-    </h3>
+    <div class="flex items-start gap-3">
+      <div class="min-w-0 grow">
+        <h3 class="text-lg font-semibold tracking-tight">
+          {{ titleFor(operation) }}
+        </h3>
+        <div v-if="destination" class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+          {{ t('common.to') }}
+          <span class="text-indigo-600 dark:text-indigo-300 font-medium">{{ destination }}</span>
+        </div>
+      </div>
 
-    <div v-if="destination" class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-      {{ t('common.to') }}
-      <span class="text-indigo-600 dark:text-indigo-300 font-medium">{{ destination }}</span>
+      <button
+        v-if="operationCount > 1"
+        type="button"
+        class="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-600"
+        :aria-expanded="isListOpen"
+        :title="t('clipboard.activeTasks', { count: operationCount })"
+        @click="isListOpen = !isListOpen"
+      >
+        <QueueListIcon class="h-4 w-4" />
+        {{ operationCount }}
+        <ChevronDownIcon
+          class="h-3.5 w-3.5 transition-transform"
+          :class="{ 'rotate-180': isListOpen }"
+        />
+      </button>
+    </div>
+
+    <div v-if="isListOpen" class="mt-3 border-y border-zinc-200/70 py-2 dark:border-zinc-600">
+      <button
+        v-for="task in operations"
+        :key="task.id"
+        type="button"
+        class="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600"
+        :class="{ 'bg-zinc-100 dark:bg-zinc-600': task.id === operation.id }"
+        @click="selectOperation(task.id)"
+      >
+        <span class="min-w-0 truncate font-medium">{{ titleFor(task) }}</span>
+        <span class="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-300">
+          {{ progressLabelFor(task) }}
+        </span>
+      </button>
     </div>
 
     <div class="mt-3">
@@ -134,8 +166,6 @@ const isTransfer = computed(() => {
   animation: clipboardSlide 1.35s ease-in-out infinite;
 }
 
-/* Determinate bar: width is driven by the copied/total ratio; the inline width
-   set in the template overrides the base 42% used by the animated variant. */
 .clipboard-bar--determinate {
   transition: width 0.2s ease;
 }
