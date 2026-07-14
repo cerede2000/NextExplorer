@@ -4,11 +4,12 @@
  * Everything runs on the main thread to keep RAM low: no worker thread (no
  * second V8 isolate, no second SQLite connection) and no recursive filesystem
  * watcher (recursive inotify holds memory proportional to the directory count).
- * Heavy work still stays off the request path because it is fully async
+ * Heavy work stays out of read/navigation paths. A mutating operation may await
+ * the final index of the subtree it created, but that scan is fully async
  * (readdir/stat), writes to SQLite in small batched transactions, and yields to
- * the event loop between batches — so Express keeps serving while indexing
- * proceeds. We deliberately do NOT lower the process priority here (on the main
- * thread that would nice request handling too).
+ * the event loop between batches — so Express keeps serving while it proceeds.
+ * We deliberately do NOT lower the process priority here (on the main thread
+ * that would nice request handling too).
  *
  * Freshness has three layers:
  *   1. write hooks — NextExplorer's own operations update the index instantly;
@@ -41,6 +42,13 @@ let reconcileTimer = null;
 let reconcileDelay = 0;
 let reconciling = false;
 let abortController = null;
+
+// Targeted scans are serialized with each other. A completed filesystem
+// operation can therefore await an exact subtree index without racing another
+// operation's ancestor delta or the SQLite writes it produces.
+let subtreeScanChain = Promise.resolve();
+const pendingSubtreeScans = new Map();
+let readyPromise = null;
 
 const log = (level, message, extra = {}) =>
   logger[level]({ component: 'folderSizeIndexer', ...extra }, message);
@@ -79,7 +87,9 @@ const flush = async () => {
     const ops = [];
     for (const abs of dirs) {
       // eslint-disable-next-line no-await-in-loop
-      const agg = await indexer.aggregateDirectory(db, scope, abs, { mode: config.folderSize.mode });
+      const agg = await indexer.aggregateDirectory(db, scope, abs, {
+        mode: config.folderSize.mode,
+      });
       ops.push({ abs, agg });
     }
 
@@ -218,10 +228,12 @@ const start = () => {
   if (running || starting) return;
   starting = true;
   stopped = false;
-  init().catch((err) => {
+  readyPromise = init().catch((err) => {
     starting = false;
     log('error', 'Folder size indexer failed to start', { err });
+    throw err;
   });
+  readyPromise.catch(() => {});
 };
 
 const stop = async () => {
@@ -257,11 +269,45 @@ const requestRebuild = () => {
   })();
 };
 
+/**
+ * Queue an authoritative scan of one newly-created directory tree. Calls for
+ * the same path share the same work. During startup this waits for the baseline
+ * instead of returning a stale size for a completed operation.
+ */
+const refreshSubtree = async (absDir) => {
+  if (!config.folderSize.enabled || stopped || (!running && !starting)) return null;
+  if (pendingSubtreeScans.has(absDir)) return pendingSubtreeScans.get(absDir);
+
+  const scan = async () => {
+    if (starting && readyPromise) await readyPromise;
+    if (!running || !db || !scope || stopped) return null;
+
+    const startedAt = Date.now();
+    const result = await indexer.indexSubtree(db, scope, absDir, {
+      mode: config.folderSize.mode,
+    });
+    if (result?.folders >= 300) reclaimMemory();
+    log('debug', 'Indexed completed directory tree', {
+      path: absDir,
+      ...result,
+      ms: Date.now() - startedAt,
+    });
+    return result;
+  };
+
+  const queued = subtreeScanChain.then(scan, scan);
+  subtreeScanChain = queued.catch(() => {});
+  pendingSubtreeScans.set(absDir, queued);
+  queued.finally(() => pendingSubtreeScans.delete(absDir)).catch(() => {});
+  return queued;
+};
+
 module.exports = {
   start,
   stop,
   touch,
   requestReconcile,
   requestRebuild,
+  refreshSubtree,
   isRunning: () => running,
 };

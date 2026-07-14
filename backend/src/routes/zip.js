@@ -22,6 +22,7 @@ const {
   createZipArchive,
   archiveBaseName,
 } = require('../services/archiveService');
+const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 
@@ -155,6 +156,10 @@ router.post(
         new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
       }
 
+      // The archive has produced an entire new tree. Index it now rather than
+      // waiting for each nested directory to be visited in the UI.
+      await folderSizeHooks.onDirectoryTreeCreated(destinationFolderAbsolutePath);
+
       const item = await buildItemMetadata(
         destinationFolderAbsolutePath,
         parentRelativePath,
@@ -287,6 +292,9 @@ router.post(
         });
         zip.writeZip(zipAbsolutePath);
       }
+
+      const zipStats = await fs.stat(zipAbsolutePath);
+      await folderSizeHooks.onFileWritten(zipAbsolutePath, zipStats.size);
 
       const item = await buildItemMetadata(zipAbsolutePath, normalizedDestination, zipFileName);
       writeEvent({ type: 'done', success: true, item });

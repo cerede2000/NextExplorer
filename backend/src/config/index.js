@@ -373,7 +373,6 @@ const personal = {
 
 // --- Hidden file patterns ---
 const hiddenFiles = parseHiddenFilePatterns(env.HIDDEN_FILE_PATTERNS);
-
 // --- Folder size index ---
 const VALID_FOLDER_SIZE_MODES = new Set(['off', 'shallow', 'full']);
 const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
@@ -393,7 +392,6 @@ const folderSize = {
   reconcilePauseMs: env.FOLDER_SIZE_RECONCILE_PAUSE_MS,
   rebuild: env.FOLDER_SIZE_REBUILD,
 };
-
 // --- Shares ---
 const shares = {
   enabled: env.SHARES_ENABLED,

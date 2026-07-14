@@ -14,6 +14,7 @@ const logger = require('../utils/logger');
 const { getDiscoveryActionsByExt } = require('../services/collaboraDiscoveryService');
 const lockService = require('../services/wopiLockService');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
+const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 
@@ -274,6 +275,15 @@ router.post(
 
     const abs = tokenPayload.absolutePath;
     await ensureDir(path.dirname(abs));
+    let previousSize = 0;
+    let existed = false;
+    try {
+      const previous = await fsp.stat(abs);
+      existed = previous.isFile();
+      previousSize = existed ? previous.size : 0;
+    } catch {
+      // A newly-created document is valid.
+    }
 
     const requestLock = (req.headers['x-wopi-lock'] || '').toString();
     const currentLock = lockService.getLock(fileId);
@@ -295,6 +305,11 @@ router.post(
 
     await fsp.rename(tmp, abs);
     const stat = await fsp.stat(abs);
+    if (existed) {
+      await folderSizeHooks.onFileReplaced(abs, previousSize, stat.size);
+    } else {
+      await folderSizeHooks.onFileWritten(abs, stat.size);
+    }
 
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-WOPI-ItemVersion', versionFromStat(stat));
