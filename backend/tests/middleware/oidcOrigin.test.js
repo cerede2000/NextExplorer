@@ -7,6 +7,7 @@ const {
   getConfiguredRequestOrigin,
   absoluteReturnTo,
   callbackUrlForOrigin,
+  sanitizeOidcPrompt,
 } = require('../../src/utils/oidcRedirect');
 
 const configuredOrigins = ['https://files.example.test', 'http://192.168.1.250:3017'];
@@ -75,5 +76,11 @@ describe('OIDC origin-aware redirects', () => {
     expect(callbackUrlForOrigin('http://192.168.1.250:3017')).toBe(
       'http://192.168.1.250:3017/callback'
     );
+  });
+
+  it('allows only safe OIDC prompts after logout', () => {
+    expect(sanitizeOidcPrompt('login')).toBe('login');
+    expect(sanitizeOidcPrompt('select_account')).toBe('select_account');
+    expect(sanitizeOidcPrompt('none')).toBeNull();
   });
 });

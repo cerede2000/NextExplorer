@@ -25,6 +25,7 @@ const isSubmittingLogin = ref(false);
 const statusError = computed(() => auth.lastError || '');
 const supportsLocal = computed(() => auth.strategies?.local !== false);
 const supportsOidc = computed(() => Boolean(auth.strategies?.oidc));
+const returnedFromLogout = ref(window.sessionStorage.getItem('oidcSignedOut') === '1');
 const redirectTarget = computed(() => {
   const redirect = route.query?.redirect;
   if (typeof redirect === 'string' && redirect.trim()) {
@@ -66,7 +67,7 @@ onMounted(async () => {
     return;
   }
 
-  if (!supportsLocal.value && supportsOidc.value) {
+  if (!supportsLocal.value && supportsOidc.value && !returnedFromLogout.value) {
     handleOidcLogin();
   }
 
@@ -151,10 +152,16 @@ const handleOidcLogin = () => {
   const base = apiBase || '';
   // Prefer EOC's native /login route; Vite proxies /login to backend in dev.
   const loginUrl = `${base}/login`;
-  const finalUrl =
-    returnTo && typeof returnTo === 'string'
-      ? `${loginUrl}?returnTo=${encodeURIComponent(returnTo)}`
-      : loginUrl;
+  const query = new URLSearchParams();
+  if (returnTo && typeof returnTo === 'string') {
+    query.set('returnTo', returnTo);
+  }
+  if (returnedFromLogout.value) {
+    query.set('prompt', 'login');
+    window.sessionStorage.removeItem('oidcSignedOut');
+    returnedFromLogout.value = false;
+  }
+  const finalUrl = query.size ? `${loginUrl}?${query.toString()}` : loginUrl;
   window.location.href = finalUrl;
 };
 </script>

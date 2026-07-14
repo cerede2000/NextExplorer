@@ -48,10 +48,16 @@ const absoluteReturnTo = (origin, candidate) =>
 
 const callbackUrlForOrigin = (origin) => new URL('/callback', origin).toString();
 
+const sanitizeOidcPrompt = (candidate) => {
+  const allowedPrompts = new Set(['login', 'select_account']);
+  return typeof candidate === 'string' && allowedPrompts.has(candidate) ? candidate : null;
+};
+
 module.exports = {
   uniqueOrigins,
   sanitizeReturnTo,
   getConfiguredRequestOrigin,
   absoluteReturnTo,
   callbackUrlForOrigin,
+  sanitizeOidcPrompt,
 };
