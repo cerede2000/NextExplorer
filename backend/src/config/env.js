@@ -111,6 +111,22 @@ module.exports = {
     process.env.FOLDER_SIZE_RECONCILE_PAUSE_MS !== undefined
       ? Number(process.env.FOLDER_SIZE_RECONCILE_PAUSE_MS)
       : 200,
+  // Targeted scans repair one incomplete subtree detected after an external
+  // change. They are serialized to keep ancestor deltas deterministic; file
+  // stats are processed in small batches and optionally paced. When batch/pause
+  // are unset they inherit the reconciliation settings.
+  FOLDER_SIZE_SUBTREE_BATCH:
+    process.env.FOLDER_SIZE_SUBTREE_BATCH !== undefined
+      ? Number(process.env.FOLDER_SIZE_SUBTREE_BATCH)
+      : null,
+  FOLDER_SIZE_SUBTREE_PAUSE_MS:
+    process.env.FOLDER_SIZE_SUBTREE_PAUSE_MS !== undefined
+      ? Number(process.env.FOLDER_SIZE_SUBTREE_PAUSE_MS)
+      : null,
+  FOLDER_SIZE_SUBTREE_SLOW_LOG_MS:
+    process.env.FOLDER_SIZE_SUBTREE_SLOW_LOG_MS !== undefined
+      ? Number(process.env.FOLDER_SIZE_SUBTREE_SLOW_LOG_MS)
+      : 5000,
   // Force a fresh baseline walk even if the volume is already indexed.
   FOLDER_SIZE_REBUILD: normalizeBoolean(process.env.FOLDER_SIZE_REBUILD) || false,
   USER_DIR_ENABLED: normalizeBoolean(process.env.USER_DIR_ENABLED) || false,

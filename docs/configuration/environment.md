@@ -32,6 +32,19 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`). |
 | `HIDDEN_FILE_PATTERNS`   | `.`                               | Comma- or space-separated hidden filename patterns used by directory listings, volume pickers, and search. Plain values are fast filename prefixes, e.g. `.,@` hides dotfiles and Synology `@...` entries. Advanced entries can use `regex:<source>` or `/source/flags`. Set to an empty value to disable pattern hiding. |
 
+## Folder-size index
+
+| Variable                          | Default              | Description                                                                                       |
+| --------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| `FOLDER_SIZE_MODE`                | `off`                | Enables indexed folder sizes: `full` is recursive, `shallow` counts direct entries only.          |
+| `FOLDER_SIZE_RECONCILE_BATCH`     | `100`                | Number of indexed folders checked per periodic reconciliation page.                               |
+| `FOLDER_SIZE_RECONCILE_PAUSE_MS`  | `200`                | Delay between reconciliation pages, used to smooth background I/O.                                |
+| `FOLDER_SIZE_SUBTREE_BATCH`       | reconciliation batch | Metadata checks per batch while recovering a folder tree created or changed outside NextExplorer. |
+| `FOLDER_SIZE_SUBTREE_PAUSE_MS`    | reconciliation pause | Delay between targeted recovery batches. Leave unset to inherit the reconciliation pacing.        |
+| `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS` | `5000`               | Duration after which a targeted recovery emits one `info` performance summary.                    |
+
+Targeted subtree recoveries are always serialized so concurrent external changes cannot race their SQLite ancestor updates. The batch and pause settings govern their I/O intensity without affecting the normal list-view reads.
+
 ## Authentication
 
 | Variable                                | Default                                    | Description                                                                                                                                                                                                                                                                                                                                                           |
