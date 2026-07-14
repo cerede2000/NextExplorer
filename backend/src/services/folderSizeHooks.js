@@ -23,6 +23,7 @@ const { getDb } = require('./db');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
 const folderSizeManager = require('./folderSizeManager');
+const transferState = require('./folderSizeTransferState');
 
 const isEnabled = () => config.folderSize.enabled;
 
@@ -114,6 +115,40 @@ const sizeOfMoved = (db, scope, sourceAbsolutePath, { isDirectory, size }) => {
   return entry ? entry.sizeBytes : 0;
 };
 
+/**
+ * Mark a directory target before rsync starts writing it. A pending index row
+ * makes the UI show an intentional placeholder and blocks all background scans
+ * of that tree until the operation has finished.
+ */
+const beginDirectoryTransfer = async (targetAbsolutePath) => {
+  transferState.begin(targetAbsolutePath);
+  await withIndex((db, scope) => {
+    if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
+
+    const previous = folderSizeIndex.getByAbsolutePath(db, targetAbsolutePath);
+    if (previous) {
+      folderSizeIndex.removeSubtree(db, scope, targetAbsolutePath);
+      folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), -previous.sizeBytes, {
+        entryDelta: -1,
+      });
+    }
+
+    folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+      absolutePath: targetAbsolutePath,
+      sizeBytes: 0,
+      entryCount: 0,
+    });
+    folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+      entryDelta: 1,
+    });
+  });
+};
+
+const cancelDirectoryTransfer = async (targetAbsolutePath) => {
+  transferState.finish(targetAbsolutePath);
+  await onEntryDeleted(targetAbsolutePath, { isDirectory: true });
+};
+
 /** An entry has been moved from `sourceAbsolutePath` to `targetAbsolutePath`. */
 const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
   withIndex((db, scope) => {
@@ -126,7 +161,10 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
       // originated outside NextExplorer. Drop it and let the post-operation
       // authoritative scan rebuild the destination instead of moving bad data.
       folderSizeIndex.removeSubtree(db, scope, sourceAbsolutePath);
-      if (folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) {
+      if (
+        !meta.directoryTransferPrepared &&
+        folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)
+      ) {
         folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
           absolutePath: targetAbsolutePath,
           sizeBytes: 0,
@@ -152,6 +190,7 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
 const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
   return withIndex((db, scope) => {
     if (meta.isDirectory) {
+      if (meta.directoryTransferPrepared) return;
       if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
       folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
         absolutePath: targetAbsolutePath,
@@ -182,8 +221,9 @@ const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
  * own I/O while it is still writing files.
  */
 const refreshTransferredDirectories = (absolutePaths = []) => {
-  if (!isEnabled()) return;
   const uniquePaths = [...new Set(absolutePaths.filter(Boolean))];
+  transferState.finishAll(uniquePaths);
+  if (!isEnabled()) return;
   for (const absolutePath of uniquePaths) {
     folderSizeManager.refreshSubtree(absolutePath).catch((err) => {
       logger.debug(
@@ -212,6 +252,8 @@ module.exports = {
   onFolderCreated,
   onDirectoryTreeCreated,
   onEntryDeleted,
+  beginDirectoryTransfer,
+  cancelDirectoryTransfer,
   onEntryMoved,
   onEntryCopied,
   refreshTransferredDirectories,

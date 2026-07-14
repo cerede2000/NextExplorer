@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useFileActions } from '@/composables/fileActions';
 import { getDeleteImpact, normalizePath } from '@/api';
 
@@ -16,6 +16,7 @@ export function useDeleteConfirm() {
   const deleteImpact = ref({ shareCount: 0, shares: [] });
   const deleteImpactError = ref('');
   const pendingItems = ref([]);
+  const pendingDeleteItems = computed(() => pendingItems.value);
   let deleteImpactRequestId = 0;
 
   const serializeSelectedItems = () =>
@@ -93,6 +94,7 @@ export function useDeleteConfirm() {
     isLoadingDeleteImpact,
     deleteImpact,
     deleteImpactError,
+    pendingDeleteItems,
     openDeleteConfirm,
     closeDeleteConfirm,
     requestDelete,
