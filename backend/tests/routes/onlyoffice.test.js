@@ -24,16 +24,34 @@ describe('ONLYOFFICE routes', () => {
     }
   });
 
-  it('enables Save force-save and tracks a signed close force-save command', async () => {
+  it('queues a signed close force-save without blocking the preview', async () => {
     let commandPayload = null;
     let commandRequestUrl = null;
     let callbackPath = null;
     let callbackToken = null;
-    let callbackPromise = null;
+    const commandPayloads = [];
+    const callbackPromises = [];
+    let resolveCommand;
+    let resolveSecondCommand;
+    const commandReceived = new Promise((resolve) => {
+      resolveCommand = resolve;
+    });
+    const secondCommandReceived = new Promise((resolve) => {
+      resolveSecondCommand = resolve;
+    });
     commandServer = http.createServer((req, res) => {
       if (req.method === 'GET' && req.url === '/saved.docx') {
         res.setHeader('Content-Type', 'application/octet-stream');
         res.end('updated');
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/broken.docx') {
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': '1024',
+        });
+        res.write('partial');
+        setTimeout(() => res.destroy(), 10);
         return;
       }
 
@@ -42,10 +60,11 @@ describe('ONLYOFFICE routes', () => {
       req.on('end', () => {
         commandRequestUrl = req.url;
         commandPayload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        commandPayloads.push(commandPayload);
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 0 }));
 
-        callbackPromise = request(app)
+        const callbackPromise = request(app)
           .post(callbackPath)
           .set('Authorization', `Bearer ${callbackToken}`)
           .send({
@@ -56,6 +75,9 @@ describe('ONLYOFFICE routes', () => {
             url: `http://127.0.0.1:${port}/saved.docx`,
           })
           .then((response) => response);
+        callbackPromises.push(callbackPromise);
+        if (commandPayloads.length === 1) resolveCommand();
+        else resolveSecondCommand();
       });
     });
     await new Promise((resolve, reject) => {
@@ -99,6 +121,7 @@ describe('ONLYOFFICE routes', () => {
 
     expect(configResponse.status).toBe(200);
     expect(configResponse.body.config.editorConfig.customization.forcesave).toBe(true);
+    expect(configResponse.body.forceSaveSessionId).toEqual(expect.any(String));
     callbackPath = `${new URL(configResponse.body.config.editorConfig.callbackUrl).pathname}${
       new URL(configResponse.body.config.editorConfig.callbackUrl).search
     }`;
@@ -106,11 +129,12 @@ describe('ONLYOFFICE routes', () => {
 
     const forceSaveResponse = await request(app)
       .post('/api/onlyoffice/force-save')
-      .send({ path: filename });
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
 
-    expect(forceSaveResponse.status).toBe(200);
-    expect(forceSaveResponse.body).toEqual({ queued: true, saved: true });
-    expect((await callbackPromise).body).toEqual({ error: 0 });
+    expect(forceSaveResponse.status).toBe(202);
+    expect(forceSaveResponse.body).toMatchObject({ queued: true, requestId: expect.any(String) });
+    await commandReceived;
+    expect((await callbackPromises[0]).body).toEqual({ error: 0 });
     expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
     expect(commandPayload).toMatchObject({ c: 'forcesave' });
     expect(new URL(commandRequestUrl, `http://127.0.0.1:${port}`).pathname).toBe('/command');
@@ -123,5 +147,24 @@ describe('ONLYOFFICE routes', () => {
       key: commandPayload.key,
       userdata: commandPayload.userdata,
     });
+
+    const secondForceSaveResponse = await request(app)
+      .post('/api/onlyoffice/force-save')
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
+    expect(secondForceSaveResponse.status).toBe(202);
+    await secondCommandReceived;
+    expect(commandPayloads[1].key).toBe(configResponse.body.config.document.key);
+    expect((await callbackPromises[1]).body).toEqual({ error: 0 });
+
+    const failedCallback = await request(app)
+      .post(callbackPath)
+      .set('Authorization', `Bearer ${callbackToken}`)
+      .send({
+        status: 6,
+        key: commandPayload.key,
+        url: `http://127.0.0.1:${port}/broken.docx`,
+      });
+    expect(failedCallback.body).toEqual({ error: 1 });
+    expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
   });
 });

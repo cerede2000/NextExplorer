@@ -58,19 +58,22 @@ const load = async () => {
   error.value = null;
   serverUrl.value = null;
   config.value = null;
+  props.previewState.forceSaveSessionId = null;
   try {
     const path = props.filePath;
     if (!path) throw new Error('Missing file path.');
-    const { documentServerUrl, config: cfg } = await fetchOnlyOfficeConfig(path, 'edit');
+    const {
+      documentServerUrl,
+      config: cfg,
+      forceSaveSessionId,
+    } = await fetchOnlyOfficeConfig(path, 'edit');
+    props.previewState.forceSaveSessionId = forceSaveSessionId || null;
     cfg.events = {
       ...cfg.events,
       onDocumentStateChange(event) {
-        const changesPending = Boolean(event?.data);
-        props.previewState.changesPending = changesPending;
-        if (!changesPending) {
-          props.previewState.resolveChangesFlushed?.();
-          props.previewState.resolveChangesFlushed = null;
-        }
+        // `false` means the editor delivered its changes to Document Server,
+        // not that the storage callback has already replaced the source file.
+        props.previewState.changesPending = Boolean(event?.data);
       },
     };
     serverUrl.value = documentServerUrl;
