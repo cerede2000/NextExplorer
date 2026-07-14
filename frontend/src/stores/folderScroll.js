@@ -7,6 +7,7 @@ export const FOLDER_SCROLL_POSITION_LIMIT = 100;
 
 export const useFolderScrollStore = defineStore('folderScroll', () => {
   const positions = new Map();
+  const permittedRestorePaths = new Set();
 
   const remember = (key, scrollTop) => {
     if (!key || !Number.isFinite(scrollTop)) return;
@@ -23,7 +24,37 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
 
   const has = (key) => positions.has(key);
 
-  const clear = () => positions.clear();
+  // Positions are retained in the small LRU cache, but are restored only for
+  // an intentional upward navigation within the same mount. This avoids
+  // surprising jumps when the user switches volume and later opens a folder
+  // that happened to be visited earlier in the session.
+  const permitRestore = (path) => {
+    if (path) permittedRestorePaths.add(path);
+  };
 
-  return { remember, get, has, clear };
+  const preventRestore = (path) => {
+    if (path) permittedRestorePaths.delete(path);
+  };
+
+  const consumeRestore = (key) => {
+    const path = String(key || '').split('::')[0];
+    if (!path || !permittedRestorePaths.has(path)) return 0;
+    permittedRestorePaths.delete(path);
+    return get(key);
+  };
+
+  const clear = () => {
+    positions.clear();
+    permittedRestorePaths.clear();
+  };
+
+  return {
+    remember,
+    get,
+    has,
+    permitRestore,
+    preventRestore,
+    consumeRestore,
+    clear,
+  };
 });

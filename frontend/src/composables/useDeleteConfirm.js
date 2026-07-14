@@ -15,6 +15,8 @@ export function useDeleteConfirm() {
   const isLoadingDeleteImpact = ref(false);
   const deleteImpact = ref({ shareCount: 0, shares: [] });
   const deleteImpactError = ref('');
+  const pendingItems = ref([]);
+  let deleteImpactRequestId = 0;
 
   const serializeSelectedItems = () =>
     actions.selectedItems.value
@@ -25,32 +27,45 @@ export function useDeleteConfirm() {
         kind: item.kind,
       }));
 
-  const loadDeleteImpact = async () => {
+  const loadDeleteImpact = async (payload = pendingItems.value) => {
     deleteImpact.value = { shareCount: 0, shares: [] };
     deleteImpactError.value = '';
 
-    const payload = serializeSelectedItems();
     if (payload.length === 0) return;
 
+    const requestId = ++deleteImpactRequestId;
     isLoadingDeleteImpact.value = true;
     try {
-      deleteImpact.value = await getDeleteImpact(payload);
+      const impact = await getDeleteImpact(payload);
+      if (requestId === deleteImpactRequestId) deleteImpact.value = impact;
     } catch (err) {
       console.error('Failed to load delete impact', err);
-      deleteImpactError.value = err?.message || 'Failed to check linked shares.';
+      if (requestId === deleteImpactRequestId) {
+        deleteImpactError.value = err?.message || 'Failed to check linked shares.';
+      }
     } finally {
-      isLoadingDeleteImpact.value = false;
+      if (requestId === deleteImpactRequestId) isLoadingDeleteImpact.value = false;
     }
   };
 
   const openDeleteConfirm = () => {
     if (!actions.canDelete.value) return;
+    const items = serializeSelectedItems();
+    if (items.length === 0) return;
+    // Keep an immutable selection for this confirmation. The live explorer
+    // selection is deliberately cleared when browsing another folder.
+    pendingItems.value = items;
     isDeleteConfirmOpen.value = true;
-    loadDeleteImpact();
+    loadDeleteImpact(items);
   };
 
   const closeDeleteConfirm = () => {
+    deleteImpactRequestId += 1;
     isDeleteConfirmOpen.value = false;
+    isLoadingDeleteImpact.value = false;
+    pendingItems.value = [];
+    deleteImpact.value = { shareCount: 0, shares: [] };
+    deleteImpactError.value = '';
   };
 
   const requestDelete = () => {
@@ -58,13 +73,13 @@ export function useDeleteConfirm() {
   };
 
   const confirmDelete = async () => {
-    if (!actions.canDelete.value || isDeleting.value) return;
+    if (pendingItems.value.length === 0 || isDeleting.value) return;
+    const items = pendingItems.value;
     isDeleting.value = true;
     isDeleteConfirmOpen.value = false;
     try {
-      await actions.deleteNow();
-      isDeleteConfirmOpen.value = false;
-      deleteImpact.value = { shareCount: 0, shares: [] };
+      await actions.deleteNow(items);
+      closeDeleteConfirm();
     } catch (err) {
       console.error('Delete operation failed', err);
     } finally {

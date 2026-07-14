@@ -2,9 +2,11 @@
  * Folder size index — write hooks.
  *
  * NextExplorer's own write operations (upload, delete, move, copy, folder
- * creation) already know the exact byte impact of what they did, so they update
- * the folder_size_index directly with a precise, ancestor-propagating delta —
- * no extra filesystem traversal, no synchronous `du`. This is the fast path;
+ * creation) already know the exact byte impact of files, so they update the
+ * folder_size_index directly with a precise, ancestor-propagating delta — no
+ * extra filesystem traversal, no synchronous `du`. Directory transfers are
+ * intentionally different: an authoritative subtree scan runs after the whole
+ * operation completes, rather than trusting stale copied index metadata.
  * external writes (other Samba/NFS clients) are picked up separately by the
  * watcher and the periodic reconciliation.
  *
@@ -120,7 +122,21 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
       entryDelta: -1,
     });
     if (meta.isDirectory) {
-      folderSizeIndex.reparentSubtree(db, scope, sourceAbsolutePath, targetAbsolutePath);
+      // A cached subtree can be incomplete or out of date when the directory
+      // originated outside NextExplorer. Drop it and let the post-operation
+      // authoritative scan rebuild the destination instead of moving bad data.
+      folderSizeIndex.removeSubtree(db, scope, sourceAbsolutePath);
+      if (folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) {
+        folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+          absolutePath: targetAbsolutePath,
+          sizeBytes: 0,
+          entryCount: 0,
+        });
+        folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+          entryDelta: 1,
+        });
+      }
+      return;
     }
     folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
       entryDelta: 1,
@@ -129,33 +145,53 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
 
 /**
  * An entry has been copied to `targetAbsolutePath`. The destination gains the
- * copied bytes. For a copied directory the transfer already measured the bytes
- * while it wrote them, so record that exact root size without immediately
- * traversing the same tree again. Its descendants are indexed on demand when
- * the copied folder is opened.
+ * copied bytes. A copied directory is marked pending so a single authoritative
+ * scan can rebuild it once the complete transfer has finished. Cloning the
+ * source index is deliberately avoided: source rows may be stale or incomplete.
  */
 const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
   return withIndex((db, scope) => {
-    const sourceEntry = meta.sourceAbsolutePath
-      ? folderSizeIndex.getByAbsolutePath(db, meta.sourceAbsolutePath)
-      : null;
-    const bytes = Number(meta.size) || sourceEntry?.sizeBytes || 0;
-    folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
-      entryDelta: 1,
-    });
-    if (!meta.isDirectory || !folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
-
-    const cloned = meta.sourceAbsolutePath
-      ? folderSizeIndex.cloneSubtree(db, scope, meta.sourceAbsolutePath, targetAbsolutePath)
-      : 0;
-    if (cloned === 0) {
+    if (meta.isDirectory) {
+      if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
       folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
         absolutePath: targetAbsolutePath,
-        sizeBytes: bytes,
-        entryCount: sourceEntry?.entryCount || 0,
+        sizeBytes: 0,
+        entryCount: 0,
       });
+      folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+        entryDelta: 1,
+      });
+      return;
     }
+
+    folderSizeIndex.applyDelta(
+      db,
+      scope,
+      path.dirname(targetAbsolutePath),
+      Number(meta.size) || 0,
+      {
+        entryDelta: 1,
+      }
+    );
   });
+};
+
+/**
+ * Queue authoritative scans once a transfer has settled. The manager deduplicates
+ * paths and serializes scans, so a large multi-item copy never competes with its
+ * own I/O while it is still writing files.
+ */
+const refreshTransferredDirectories = (absolutePaths = []) => {
+  if (!isEnabled()) return;
+  const uniquePaths = [...new Set(absolutePaths.filter(Boolean))];
+  for (const absolutePath of uniquePaths) {
+    folderSizeManager.refreshSubtree(absolutePath).catch((err) => {
+      logger.debug(
+        { err, component: 'folderSizeIndexer', path: absolutePath },
+        'Transferred directory refresh failed (non-fatal)'
+      );
+    });
+  }
 };
 
 /**
@@ -178,5 +214,6 @@ module.exports = {
   onEntryDeleted,
   onEntryMoved,
   onEntryCopied,
+  refreshTransferredDirectories,
   onEntryRenamed,
 };

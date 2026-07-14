@@ -122,9 +122,9 @@ export function useFileActions() {
     await fileStore.compressSelectionToZip();
   };
 
-  const deleteNow = async () => {
-    if (!canDelete.value) return;
-    await fileStore.del();
+  const deleteNow = async (items) => {
+    if (items === undefined && !canDelete.value) return;
+    await fileStore.del(items);
   };
 
   const submitDownloadRequest = (paths, basePath = '') => {
