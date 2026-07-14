@@ -81,6 +81,10 @@ const requestRaw = async (endpoint, options = {}) => {
 
       return response;
     } catch (error) {
+      // An explicit user cancellation must preserve the browser's abort error.
+      // Recasting it as a network/CORS failure would show a misleading alert and
+      // prevent callers from treating cancellation as a normal outcome.
+      if (options.signal?.aborted) throw error;
       if (error instanceof TypeError) {
         if (shouldRetryNetworkError(method, attempt, options)) {
           await wait(NETWORK_RETRY_DELAYS_MS[attempt]);
@@ -178,12 +182,4 @@ const requestStream = async (endpoint, { onEvent, ...options } = {}) => {
   return result;
 };
 
-export {
-  apiBase,
-  buildUrl,
-  encodePath,
-  normalizePath,
-  requestJson,
-  requestRaw,
-  requestStream,
-};
+export { apiBase, buildUrl, encodePath, normalizePath, requestJson, requestRaw, requestStream };

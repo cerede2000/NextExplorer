@@ -57,6 +57,18 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     }
   };
 
+  const cancelOperation = (id) => {
+    const operation = operations.value.find((entry) => entry.id === id);
+    if (!operation?.cancellable || operation.cancelling) return;
+
+    updateOperation(id, { cancelling: true });
+    try {
+      operation.cancel?.();
+    } catch (_) {
+      updateOperation(id, { cancelling: false });
+    }
+  };
+
   return {
     operations,
     activeOperationId,
@@ -66,5 +78,6 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     updateOperation,
     selectOperation,
     finishOperation,
+    cancelOperation,
   };
 });

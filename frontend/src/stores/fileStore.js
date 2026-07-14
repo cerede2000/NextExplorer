@@ -273,6 +273,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const movePayload = serializeItems(cutItems.value);
     const moveSourceParents = new Set(movePayload.map((item) => normalizePath(item.path || '')));
     const totalCount = copyPayload.length + movePayload.length;
+    const controller = new AbortController();
 
     const operationId =
       totalCount > 0
@@ -280,6 +281,8 @@ export const useFileStore = defineStore('fileStore', () => {
             type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
             destination,
             itemCount: totalCount,
+            cancellable: true,
+            cancel: () => controller.abort(),
           })
         : null;
 
@@ -306,7 +309,10 @@ export const useFileStore = defineStore('fileStore', () => {
 
       if (copiedItems.value.length > 0) {
         if (copyPayload.length > 0) {
-          const result = await copyItems(copyPayload, destination, { onEvent: onTransferEvent });
+          const result = await copyItems(copyPayload, destination, {
+            onEvent: onTransferEvent,
+            signal: controller.signal,
+          });
           collectTransferredNames(result, pastedNames);
           if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
@@ -315,7 +321,10 @@ export const useFileStore = defineStore('fileStore', () => {
 
       if (cutItems.value.length > 0) {
         if (movePayload.length > 0) {
-          const result = await moveItems(movePayload, destination, { onEvent: onTransferEvent });
+          const result = await moveItems(movePayload, destination, {
+            onEvent: onTransferEvent,
+            signal: controller.signal,
+          });
           collectTransferredNames(result, pastedNames);
           if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
@@ -325,6 +334,12 @@ export const useFileStore = defineStore('fileStore', () => {
       await settleAfterTransfer(finalDestination, moveSourceParents, pastedNames);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
+    } catch (error) {
+      if (!isAbortError(error)) throw error;
+      await fetchPathItems(currentPath.value);
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
+      return null;
     } finally {
       if (operationId) operationTasksStore.finishOperation(operationId);
     }
@@ -420,10 +435,13 @@ export const useFileStore = defineStore('fileStore', () => {
     if (!normalized) return null;
 
     const archiveName = normalized.split('/').pop() || normalized;
+    const controller = new AbortController();
     const operationId = operationTasksStore.startOperation({
       type: 'extract',
       name: archiveName,
       itemCount: 1,
+      cancellable: true,
+      cancel: () => controller.abort(),
     });
 
     let response;
@@ -434,10 +452,16 @@ export const useFileStore = defineStore('fileStore', () => {
             operationTasksStore.updateOperation(operationId, { percent: event.percent });
           }
         },
+        signal: controller.signal,
       });
+    } catch (error) {
+      if (!isAbortError(error)) throw error;
+      return null;
     } finally {
       operationTasksStore.finishOperation(operationId);
     }
+
+    if (!response) return null;
 
     const parent = (() => {
       const idx = normalized.lastIndexOf('/');
@@ -464,11 +488,14 @@ export const useFileStore = defineStore('fileStore', () => {
     const destination = normalizePath(currentPath.value || '');
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return null;
+    const controller = new AbortController();
 
     const operationId = operationTasksStore.startOperation({
       type: 'compress',
       name: typeof name === 'string' && name.trim() ? name.trim() : '',
       itemCount: payload.length,
+      cancellable: true,
+      cancel: () => controller.abort(),
     });
 
     let response;
@@ -481,10 +508,16 @@ export const useFileStore = defineStore('fileStore', () => {
             operationTasksStore.updateOperation(operationId, { percent: event.percent });
           }
         },
+        signal: controller.signal,
       });
+    } catch (error) {
+      if (!isAbortError(error)) throw error;
+      return null;
     } finally {
       operationTasksStore.finishOperation(operationId);
     }
+
+    if (!response) return null;
 
     const createdName = response?.item?.name;
 
