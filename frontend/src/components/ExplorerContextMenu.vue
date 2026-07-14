@@ -235,7 +235,7 @@ const runRename = () => actions.runRename();
 
 const runDownload = () => actions.runDownload();
 
-const runExtractZip = () => actions.runExtractZip();
+const runExtractArchive = () => actions.runExtractArchive();
 const runCompressToZip = () => actions.runCompressToZip();
 
 const runShare = () => {
@@ -446,22 +446,23 @@ const menuSections = computed(() => {
     }),
   ]);
 
-  // Add zip archive actions
+  // Add archive actions
   if (!isVolumesView.value) {
     const archiveSection = [];
 
     if (actions.primaryItem.value && contextKind.value === 'file') {
-      const kind = String(actions.primaryItem.value.kind || '').toLowerCase();
-      if (
-        kind === 'zip' ||
-        String(actions.primaryItem.value.name || '')
-          .toLowerCase()
-          .endsWith('.zip')
-      ) {
+      // Formats come from the server probe (zip, 7z, iso, rar, tar.gz…).
+      if (actions.isArchiveSelected.value) {
         archiveSection.push(
-          mk('extract-zip', t('actions.extractZip'), ArrowUpOnSquareIcon, runExtractZip, {
-            disabled: !actions.canExtractZip.value,
-          })
+          mk(
+            'extract-archive',
+            t('actions.extractArchive'),
+            ArrowUpOnSquareIcon,
+            runExtractArchive,
+            {
+              disabled: !actions.canExtractArchive.value,
+            }
+          )
         );
       }
     }

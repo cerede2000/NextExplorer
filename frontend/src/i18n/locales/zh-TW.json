@@ -96,7 +96,7 @@
     "rename": "重新命名",
     "download": "下載",
     "downloadFolder": "下載資料夾",
-    "extractZip": "解壓縮 ZIP",
+    "extractArchive": "解壓縮",
     "compressToZip": "壓縮為 ZIP",
     "search": "搜尋",
     "sortBy": "排序方式",

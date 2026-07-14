@@ -9,12 +9,15 @@ const {
   public: publicConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
+const { getSupportedArchiveExtensions } = require('../services/archiveService');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
 
 // GET /api/features -> returns enabled/disabled feature flags derived from env
-router.get('/features', (_req, res) => {
+router.get('/features', async (_req, res) => {
+  // Probed once at startup, then cached — this await is effectively free.
+  const archiveExtensions = await getSupportedArchiveExtensions().catch(() => ['zip']);
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -35,6 +38,10 @@ router.get('/features', (_req, res) => {
     },
     hiddenFiles: {
       patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
+    },
+    archives: {
+      // Extraction formats the server-side 7-Zip build actually supports.
+      extensions: archiveExtensions,
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),

@@ -15,6 +15,12 @@ const {
 } = require('../utils/pathUtils');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const {
+  getSupportedArchiveExtensions,
+  isSevenZipAvailable,
+  extractArchive,
+  archiveBaseName,
+} = require('../services/archiveService');
 
 const router = express.Router();
 
@@ -44,7 +50,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const inputPath = req.body?.path ?? '';
     if (typeof inputPath !== 'string' || !inputPath.trim()) {
-      throw new ValidationError('A zip file path is required.');
+      throw new ValidationError('An archive file path is required.');
     }
 
     const relativePath = normalizeRelativePath(inputPath);
@@ -65,10 +71,16 @@ router.post(
     if (!(await pathExists(zipAbsolutePath))) throw new NotFoundError('File not found.');
 
     const stats = await fs.stat(zipAbsolutePath);
-    if (!stats.isFile()) throw new ValidationError('Only zip files can be extracted.');
+    if (!stats.isFile()) throw new ValidationError('Only archive files can be extracted.');
 
-    if (path.extname(zipAbsolutePath).toLowerCase() !== '.zip') {
-      throw new ValidationError('Only .zip archives are supported.');
+    const archiveExtension = path.extname(zipAbsolutePath).slice(1).toLowerCase();
+    const supportedExtensions = await getSupportedArchiveExtensions();
+    if (!supportedExtensions.includes(archiveExtension)) {
+      throw new ValidationError(
+        `Unsupported archive format ".${archiveExtension}". Supported: ${supportedExtensions
+          .map((ext) => `.${ext}`)
+          .join(', ')}.`
+      );
     }
 
     const parentRelativePath = normalizeRelativePath(
@@ -89,11 +101,9 @@ router.post(
     const parentStats = await fs.stat(parentAbsolutePath);
     if (!parentStats.isDirectory()) throw new ValidationError('Destination must be a directory.');
 
-    const ext = path.extname(zipAbsolutePath);
-    const zipBaseName = path.basename(zipAbsolutePath, ext);
     const baseFolderName = (() => {
       try {
-        return ensureValidName(zipBaseName || 'Archive');
+        return ensureValidName(archiveBaseName(path.basename(zipAbsolutePath)));
       } catch (_) {
         return 'Archive';
       }
@@ -105,9 +115,14 @@ router.post(
     await fs.mkdir(destinationFolderAbsolutePath);
 
     try {
-      new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
+      if (await isSevenZipAvailable()) {
+        // 7-Zip streams to disk, so large archives don't get buffered in RAM.
+        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath);
+      } else {
+        new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
+      }
     } catch (error) {
-      logger.warn({ zipAbsolutePath, err: error }, 'Zip extract failed; cleaning up folder');
+      logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up folder');
       await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
       throw error;
     }
