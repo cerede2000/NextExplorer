@@ -8,7 +8,12 @@ const { getVolumeScope } = require('../services/folderSizeIndexer');
 const folderSizeManager = require('../services/folderSizeManager');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
-const { ValidationError, ForbiddenError, NotFoundError, RateLimitError } = require('../errors/AppError');
+const {
+  ValidationError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+} = require('../errors/AppError');
 
 const router = express.Router();
 
@@ -49,7 +54,9 @@ const lookupFolderSize = async (context, inputRelRaw) => {
 
   const db = await getDb();
   const scope = getVolumeScope();
-  const withinRoot = Boolean(absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath));
+  const withinRoot = Boolean(
+    absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath)
+  );
   const entry = withinRoot ? folderSizeIndex.getByAbsolutePath(db, absolutePath) : null;
 
   return {
@@ -60,6 +67,7 @@ const lookupFolderSize = async (context, inputRelRaw) => {
       entryCount: entry ? entry.entryCount : null,
       lastUpdated: entry ? entry.lastDeltaAt || entry.lastFullScanAt || null : null,
       indexed: Boolean(entry),
+      dirty: Boolean(entry?.dirty),
     },
     // Absolute path (volume-space, within root) for the on-view refresh, or null.
     absolutePath: withinRoot ? absolutePath : null,
@@ -86,6 +94,7 @@ const indexResult = (db, scope, absolutePath, logicalPath, canEnter) => {
     entryCount: entry ? entry.entryCount : null,
     lastUpdated: entry ? entry.lastDeltaAt || entry.lastFullScanAt || null : null,
     indexed: Boolean(entry),
+    dirty: Boolean(entry?.dirty),
   };
 };
 
@@ -188,7 +197,10 @@ router.post(
     for (const p of limited) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        const { result, absolutePath } = await lookupFolderSize(context, typeof p === 'string' ? p : '');
+        const { result, absolutePath } = await lookupFolderSize(
+          context,
+          typeof p === 'string' ? p : ''
+        );
         results.push(result);
         if (absolutePath) touchPaths.push(absolutePath);
       } catch (err) {
@@ -200,6 +212,7 @@ router.post(
           entryCount: null,
           lastUpdated: null,
           indexed: false,
+          dirty: false,
         });
       }
     }

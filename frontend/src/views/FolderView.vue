@@ -189,7 +189,7 @@ const applySavedScrollPosition = (savedScrollTop) => {
 };
 
 const restoreScrollPosition = async () => {
-  const savedScrollTop = folderScrollStore.get(scrollPositionKey);
+  const savedScrollTop = folderScrollStore.consumeRestore(scrollPositionKey);
   if (savedScrollTop <= 0) return;
 
   // Non-virtual lists can initially render only 500 entries. Render their
@@ -360,9 +360,12 @@ const refreshCurrentView = async () => {
 
   const path = fileStore.currentPath;
   lastCurrentViewRefreshAt = Date.now();
-  currentViewRefresh = fileStore.fetchPathItems(path).catch(() => {}).finally(() => {
-    currentViewRefresh = null;
-  });
+  currentViewRefresh = fileStore
+    .fetchPathItems(path)
+    .catch(() => {})
+    .finally(() => {
+      currentViewRefresh = null;
+    });
   return currentViewRefresh;
 };
 
