@@ -22,11 +22,17 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Logging & debugging
 
-| Variable              | Default                               | Description                                                                                                                     |
-| --------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `LOG_LEVEL`           | `info` (or `debug` when `DEBUG=true`) | Application log level: `trace`, `debug`, `info`, `warn`, or `error`.                                                            |
-| `DEBUG`               | `false`                               | When `true`, forces `LOG_LEVEL=debug` and shows more verbose diagnostics (including more detailed error output in development). |
-| `ENABLE_HTTP_LOGGING` | `false`                               | When `true`, enables HTTP request logging in the backend (use with centralized log collection in production).                   |
+| Variable                                           | Default                               | Description                                                                                                                     |
+| -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `LOG_LEVEL`                                        | `info` (or `debug` when `DEBUG=true`) | Application log level: `trace`, `debug`, `info`, `warn`, or `error`.                                                            |
+| `DEBUG`                                            | `false`                               | When `true`, forces `LOG_LEVEL=debug` and shows more verbose diagnostics (including more detailed error output in development). |
+| `ENABLE_HTTP_LOGGING`                              | `false`                               | When `true`, enables HTTP request logging in the backend (use with centralized log collection in production).                   |
+| `PERFORMANCE_DIAGNOSTICS_ENABLED`                  | `false`                               | Logs process CPU, Node and cgroup memory, event-loop delay, active resources, thumbnail queues, and folder-size activity when pressure is detected. |
+| `PERFORMANCE_DIAGNOSTICS_INTERVAL_MS`              | `15000`                               | Sampling interval in milliseconds; minimum `5000`.                                                                              |
+| `PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL`       | `false`                               | Set to `true` to log every sample during a short investigation.                                                                  |
+| `PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD`            | `75`                                  | CPU percentage that triggers a diagnostic entry.                                                                                 |
+| `PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB`         | `768`                                 | Node RSS threshold in MiB that triggers a diagnostic entry.                                                                     |
+| `PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS`      | `250`                                 | p99 event-loop delay threshold in milliseconds that triggers a diagnostic entry.                                                |
 
 ## Paths & volumes
 

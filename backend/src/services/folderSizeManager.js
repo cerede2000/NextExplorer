@@ -335,6 +335,16 @@ const refreshSubtree = async (absDir) => {
   return queued;
 };
 
+const getDiagnosticsSnapshot = () => ({
+  running,
+  starting,
+  flushing,
+  reconciling,
+  dirtyDirectories: dirty.size,
+  pendingSubtreeScans: pendingSubtreeScans.size,
+  reconcileDelayMs: reconcileDelay || null,
+});
+
 module.exports = {
   start,
   stop,
@@ -343,4 +353,5 @@ module.exports = {
   requestRebuild,
   refreshSubtree,
   isRunning: () => running,
+  getDiagnosticsSnapshot,
 };

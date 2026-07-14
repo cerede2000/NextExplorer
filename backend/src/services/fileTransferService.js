@@ -27,6 +27,37 @@ const PROGRESS_THROTTLE_MS = 75;
 const COPY_STREAM_HIGH_WATER_MARK = 4 * 1024 * 1024;
 const NATIVE_TRANSFER_ENABLED =
   process.platform === 'linux' && process.env.FILE_TRANSFER_ENGINE !== 'stream';
+const activeNativeOperations = new Map();
+let nextNativeOperationId = 1;
+
+const registerNativeOperation = (type, child, sourcePath, destinationPath = null) => {
+  const id = nextNativeOperationId;
+  nextNativeOperationId += 1;
+  activeNativeOperations.set(id, {
+    id,
+    type,
+    pid: child?.pid || null,
+    sourceName: path.basename(sourcePath),
+    ...(destinationPath ? { destinationName: path.basename(destinationPath) } : {}),
+    startedAt: Date.now(),
+  });
+  return id;
+};
+
+const unregisterNativeOperation = (id) => {
+  if (id != null) activeNativeOperations.delete(id);
+};
+
+const getDiagnosticsSnapshot = () => {
+  const now = Date.now();
+  return {
+    nativeTransferEnabled: NATIVE_TRANSFER_ENABLED,
+    activeNativeOperations: Array.from(activeNativeOperations.values())
+      .map((operation) => ({ ...operation, ageMs: now - operation.startedAt }))
+      .sort((a, b) => b.ageMs - a.ageMs)
+      .slice(0, 5),
+  };
+};
 
 const createCancellationError = () => {
   const error = new Error('Operation cancelled.');
@@ -101,6 +132,7 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
+    const operationId = registerNativeOperation('rsync', child, sourcePath, destinationPath);
     let output = '';
     let errorOutput = '';
     let settled = false;
@@ -108,6 +140,7 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
     const cleanup = () => {
       signal?.removeEventListener('abort', abort);
       if (killTimer) clearTimeout(killTimer);
+      unregisterNativeOperation(operationId);
     };
     const finish = (callback, value) => {
       if (settled) return;
@@ -148,11 +181,13 @@ const removeWithNativeRm = (absolutePath, signal) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(createCancellationError());
     const child = spawn('rm', ['-rf', '--', absolutePath], { detached: true, stdio: 'ignore' });
+    const operationId = registerNativeOperation('rm', child, absolutePath);
     let settled = false;
     let killTimer = null;
     const cleanup = () => {
       signal?.removeEventListener('abort', abort);
       if (killTimer) clearTimeout(killTimer);
+      unregisterNativeOperation(operationId);
     };
     const finish = (callback, value) => {
       if (settled) return;
@@ -723,4 +758,5 @@ module.exports = {
   transferItems,
   getDeleteImpact,
   deleteItems,
+  getDiagnosticsSnapshot,
 };

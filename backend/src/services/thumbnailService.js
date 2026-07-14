@@ -1106,4 +1106,5 @@ module.exports = {
   getThumbnailPathIfExists,
   isThumbnailCachePath,
   queueThumbnailGeneration,
+  getDiagnosticsSnapshot,
 };

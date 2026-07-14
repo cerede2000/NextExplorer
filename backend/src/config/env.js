@@ -59,6 +59,28 @@ module.exports = {
   LOG_LEVEL: process.env.LOG_LEVEL?.trim().toLowerCase() || null,
   DEBUG: normalizeBoolean(process.env.DEBUG),
   ENABLE_HTTP_LOGGING: normalizeBoolean(process.env.ENABLE_HTTP_LOGGING) || false,
+  // Lightweight process/cgroup diagnostics, off by default. When enabled the
+  // sampler logs only anomalous intervals unless explicitly told otherwise.
+  PERFORMANCE_DIAGNOSTICS_ENABLED:
+    normalizeBoolean(process.env.PERFORMANCE_DIAGNOSTICS_ENABLED) ?? false,
+  PERFORMANCE_DIAGNOSTICS_INTERVAL_MS:
+    process.env.PERFORMANCE_DIAGNOSTICS_INTERVAL_MS != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_INTERVAL_MS)
+      : 15000,
+  PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL:
+    normalizeBoolean(process.env.PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL) ?? false,
+  PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD:
+    process.env.PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD)
+      : 75,
+  PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB:
+    process.env.PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB)
+      : 768,
+  PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS:
+    process.env.PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS)
+      : 250,
 
   // Auth
   AUTH_ENABLED: normalizeBoolean(process.env.AUTH_ENABLED),
@@ -187,8 +209,7 @@ module.exports = {
       : null,
   THUMBNAIL_VIDEO_THREADS:
     process.env.THUMBNAIL_VIDEO_THREADS != null ? Number(process.env.THUMBNAIL_VIDEO_THREADS) : 2,
-  THUMBNAIL_VIDEO_SCALE_FLAGS:
-    process.env.THUMBNAIL_VIDEO_SCALE_FLAGS?.trim() || 'fast_bilinear',
+  THUMBNAIL_VIDEO_SCALE_FLAGS: process.env.THUMBNAIL_VIDEO_SCALE_FLAGS?.trim() || 'fast_bilinear',
   THUMBNAIL_BACKGROUND_QUEUE_LIMIT:
     process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT != null
       ? Number(process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
