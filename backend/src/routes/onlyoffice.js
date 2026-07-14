@@ -13,6 +13,7 @@ const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
+const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 
@@ -308,6 +309,15 @@ router.post(
           abs = resolved.absolutePath;
         }
         await ensureDir(path.dirname(abs));
+        let previousSize = 0;
+        let existed = false;
+        try {
+          const previous = await fsp.stat(abs);
+          existed = previous.isFile();
+          previousSize = existed ? previous.size : 0;
+        } catch {
+          // A newly-created document is valid.
+        }
         // Download updated file from Document Server
         const response = await axios.get(body.url, { responseType: 'stream' });
         await fsp.writeFile(abs, Buffer.from([])); // ensure file exists / truncate
@@ -317,6 +327,12 @@ router.post(
           writeStream.on('finish', resolve);
           writeStream.on('error', reject);
         });
+        const updated = await fsp.stat(abs);
+        if (existed) {
+          await folderSizeHooks.onFileReplaced(abs, previousSize, updated.size);
+        } else {
+          await folderSizeHooks.onFileWritten(abs, updated.size);
+        }
         logger.debug({ path: relativePath }, 'ONLYOFFICE file updated');
         // MUST return {error:0} according to ONLYOFFICE spec
         return res.json({ error: 0 });

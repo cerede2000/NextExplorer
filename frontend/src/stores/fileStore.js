@@ -271,9 +271,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     const copyPayload = serializeItems(copiedItems.value);
     const movePayload = serializeItems(cutItems.value);
-    const moveSourceParents = new Set(
-      movePayload.map((item) => normalizePath(item.path || ''))
-    );
+    const moveSourceParents = new Set(movePayload.map((item) => normalizePath(item.path || '')));
     const totalCount = copyPayload.length + movePayload.length;
 
     if (totalCount > 0) {

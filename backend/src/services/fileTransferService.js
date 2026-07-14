@@ -265,7 +265,7 @@ const executeTransfer = async (prep, operation, onProgress) => {
     if (operation === 'copy') {
       // eslint-disable-next-line no-await-in-loop
       await copyEntryWithProgress(plan.sourceAbsolute, targetAbsolute, plan.isDirectory, onBytes);
-      folderSizeHooks.onEntryCopied(targetAbsolute, {
+      await folderSizeHooks.onEntryCopied(targetAbsolute, {
         isDirectory: plan.isDirectory,
         size: plan.size,
         sourceAbsolutePath: plan.sourceAbsolute,

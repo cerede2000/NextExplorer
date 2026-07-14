@@ -107,14 +107,14 @@ const absOf = (scope, relativePath) =>
   relativePath ? path.join(scope.root, relativePath) : scope.root;
 
 /**
- * Recursively walk `scope.root`, writing an authoritative index entry for every
+ * Recursively walk `rootAbs`, writing an authoritative index entry for every
  * folder. Directory sizes are recursive in `full` mode and direct-entries-only
  * in `shallow` mode. Writes happen in batched transactions and the event loop
  * is yielded between batches so the walk never starves concurrent HTTP work.
  *
  * @returns {Promise<{ folders: number, bytes: number }>}
  */
-const runBaseline = async (db, scope, options = {}) => {
+const scanTree = async (db, scope, rootAbs, options = {}) => {
   const {
     mode = config.folderSize.mode || 'full',
     concurrency = resolveConcurrency(scope, options),
@@ -158,8 +158,9 @@ const runBaseline = async (db, scope, options = {}) => {
   // Only the leaf I/O (readdir, stat) goes through the concurrency limiter, and a
   // frame never holds a limiter slot while awaiting a child — so it cannot
   // deadlock on deep trees the way limiting the recursion itself would.
-  const stack = [newFrame(scope.root)];
+  const stack = [newFrame(rootAbs)];
   let rootTotal = 0;
+  let rootEntryCount = 0;
 
   while (stack.length) {
     if (signal?.aborted) break;
@@ -228,13 +229,41 @@ const runBaseline = async (db, scope, options = {}) => {
       stack[stack.length - 1].childrenBytes += recursiveTotal;
     } else {
       rootTotal = recursiveTotal;
+      rootEntryCount = frame.entryCount;
     }
 
     if (folders % yieldEvery === 0) await yieldToEventLoop();
   }
 
   flush();
-  return { folders, bytes: rootTotal };
+  return { folders, bytes: rootTotal, entryCount: rootEntryCount };
+};
+
+/** Run a full authoritative scan of the configured volume root. */
+const runBaseline = (db, scope, options = {}) => scanTree(db, scope, scope.root, options);
+
+/**
+ * Index a newly-created directory tree and apply its resulting size exactly
+ * once to the parent chain. This is the completion path for operations such as
+ * ZIP extraction and directory copy: it avoids an eventual, view-driven walk
+ * while keeping the scan limited to the newly produced subtree.
+ */
+const indexSubtree = async (db, scope, absDir, options = {}) => {
+  if (!folderSizeIndex.isWithinRoot(scope.root, absDir)) return null;
+
+  const mode = options.mode || config.folderSize.mode || 'full';
+  const previous = folderSizeIndex.getByAbsolutePath(db, absDir);
+  const result = await scanTree(db, scope, absDir, { ...options, mode });
+
+  if (absDir !== scope.root) {
+    // In shallow mode parents deliberately exclude their child folders' bytes.
+    const byteDelta = mode === 'full' ? result.bytes - (previous?.sizeBytes || 0) : 0;
+    folderSizeIndex.applyDelta(db, scope, path.dirname(absDir), byteDelta, {
+      entryDelta: previous ? 0 : 1,
+    });
+  }
+
+  return result;
 };
 
 /**
@@ -420,6 +449,7 @@ module.exports = {
   isStale,
   nextReconcileDelay,
   runBaseline,
+  indexSubtree,
   aggregateDirectory,
   applyAggregate,
   removeMissing,
