@@ -470,6 +470,13 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       nativePercent = null;
       emit(true);
 
+      if (plan.isDirectory) {
+        // Reserve the index entry before rsync creates its first child, so an
+        // on-view refresh cannot publish a size for a partial transfer.
+        // eslint-disable-next-line no-await-in-loop
+        await folderSizeHooks.beginDirectoryTransfer(targetAbsolute);
+      }
+
       const copiedBeforePlan = copiedBytes;
       const onCopyProgress = (progress) => {
         if (typeof progress === 'number') {
@@ -496,6 +503,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           isDirectory: plan.isDirectory,
           size: copiedSize ?? plan.size,
           sourceAbsolutePath: plan.sourceAbsolute,
+          directoryTransferPrepared: plan.isDirectory,
         });
       } else if (operation === 'move') {
         // eslint-disable-next-line no-await-in-loop
@@ -510,6 +518,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
           isDirectory: plan.isDirectory,
           size: movedSize ?? plan.size,
+          directoryTransferPrepared: plan.isDirectory,
         });
       } else {
         throw new Error(`Unsupported operation: ${operation}`);
@@ -541,6 +550,15 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         recursive: activeTarget.isDirectory,
         force: true,
       });
+      if (activeTarget.isDirectory) {
+        await folderSizeHooks.cancelDirectoryTransfer(activeTarget.absolutePath);
+      }
+    }
+    if (error?.code !== 'OPERATION_CANCELLED' && activeTarget?.isDirectory) {
+      // An unexpected I/O failure can leave an inspectable partial directory.
+      // Release its transfer lock and index what remains instead of permanently
+      // suppressing size refreshes until the process restarts.
+      folderSizeHooks.refreshTransferredDirectories([activeTarget.absolutePath]);
     }
     // Completed entries remain after a cancellation and still need their final
     // directory-size scan. The active partial target was removed above.

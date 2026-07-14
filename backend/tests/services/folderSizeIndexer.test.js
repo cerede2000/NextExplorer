@@ -195,6 +195,30 @@ describe('folderSizeIndexer', () => {
     expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'Known', 'AddedLater'))).toBeNull();
   });
 
+  it('skips a directory explicitly marked as an active transfer during reconciliation', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+    const transferring = path.join(vol, 'Transferring');
+
+    await fs.mkdir(transferring, { recursive: true });
+    await fs.writeFile(path.join(transferring, 'before.bin'), Buffer.alloc(10));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    await fs.writeFile(path.join(transferring, 'during-copy.bin'), Buffer.alloc(90));
+    const future = new Date(Date.now() + 60_000);
+    await fs.utimes(transferring, future, future);
+
+    await indexer.reconcile(db, scope, {
+      mode: 'full',
+      shouldSkip: (absolutePath) => absolutePath === transferring,
+    });
+    expect(sizeOf(folderSizeIndex, db, transferring)).toBe(10);
+
+    await indexer.reconcile(db, scope, { mode: 'full' });
+    expect(sizeOf(folderSizeIndex, db, transferring)).toBe(100);
+  });
+
   it('queues a targeted recovery when reconciliation finds an unindexed child subtree', async () => {
     ctx = await createContext();
     const { env, db, indexer, scope } = ctx;

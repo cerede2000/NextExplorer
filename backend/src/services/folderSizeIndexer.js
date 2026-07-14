@@ -400,6 +400,7 @@ const reconcile = async (db, scope, options = {}) => {
     signal,
     batch = config.folderSize.reconcileBatch || 100,
     pauseMs = options.pauseMs ?? config.folderSize.reconcilePauseMs ?? 0,
+    shouldSkip,
     onIncompleteSubtree,
   } = options;
 
@@ -418,6 +419,10 @@ const reconcile = async (db, scope, options = {}) => {
 
   const handleRow = async (row) => {
     const abs = absOf(scope, row.relativePath);
+    if (typeof shouldSkip === 'function' && shouldSkip(abs)) {
+      skipped += 1;
+      return;
+    }
     let stat;
     try {
       stat = await fs.stat(abs);

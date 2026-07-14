@@ -285,6 +285,13 @@ export function useFileUploader() {
         // Uppy v5 expects `allowedMetaFields` to be `true` (all) or an explicit list.
         // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
         allowedMetaFields: true,
+        // Multer may start consuming the file stream before it has received all
+        // multipart fields. Keep the folder batch id in a header as well, so
+        // duplicate folder uploads retain one reserved top-level name.
+        headers: (file) => {
+          const uploadBatchId = file?.meta?.uploadBatchId;
+          return uploadBatchId ? { 'X-NextExplorer-Upload-Batch': uploadBatchId } : {};
+        },
         withCredentials: true,
         // Uppy's fetcher retries a failed request up to 3x by default, re-sending
         // the ENTIRE (possibly multi-GB) body each time. Against a proxy body-size

@@ -120,9 +120,9 @@ const canShare = computed(
 );
 
 const deleteDialogTitle = computed(() => {
-  const count = selectedItems.value.length;
-  if (count === 1 && primaryItem.value) {
-    return t('context.deleteTitle.single', { name: primaryItem.value.name });
+  const count = pendingDeleteItems.value.length;
+  if (count === 1 && pendingDeleteItems.value[0]) {
+    return t('context.deleteTitle.single', { name: pendingDeleteItems.value[0].name });
   }
   if (count > 1) {
     return t('context.deleteTitle.multiple', { count });
@@ -131,9 +131,9 @@ const deleteDialogTitle = computed(() => {
 });
 
 const deleteDialogMessage = computed(() => {
-  const count = selectedItems.value.length;
-  if (count === 1 && primaryItem.value) {
-    return t('context.deleteMessage.single', { name: primaryItem.value.name });
+  const count = pendingDeleteItems.value.length;
+  if (count === 1 && pendingDeleteItems.value[0]) {
+    return t('context.deleteMessage.single', { name: pendingDeleteItems.value[0].name });
   }
   if (count > 1) {
     return t('context.deleteMessage.multiple', { count });
@@ -147,8 +147,10 @@ const {
   isLoadingDeleteImpact,
   deleteImpact,
   deleteImpactError,
+  pendingDeleteItems,
   requestDelete,
   confirmDelete,
+  closeDeleteConfirm,
 } = useDeleteConfirm();
 
 const deleteShareImpactMessage = computed(() => {
@@ -765,7 +767,7 @@ provide(explorerContextMenuSymbol, {
     </div>
   </teleport>
 
-  <ModalDialog v-model="isDeleteConfirmOpen">
+  <ModalDialog :model-value="isDeleteConfirmOpen" @update:model-value="closeDeleteConfirm">
     <template #title>{{ deleteDialogTitle }}</template>
     <p class="mb-6 text-base text-zinc-700 dark:text-zinc-200">
       {{ deleteDialogMessage }}
@@ -786,7 +788,7 @@ provide(explorerContextMenuSymbol, {
       <button
         type="button"
         class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
-        @click="isDeleteConfirmOpen = false"
+        @click="closeDeleteConfirm"
         :disabled="isDeleting"
       >
         {{ $t('common.cancel') }}
