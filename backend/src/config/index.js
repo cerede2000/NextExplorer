@@ -284,6 +284,7 @@ const onlyoffice = {
   secret: env.ONLYOFFICE_SECRET || env.SESSION_SECRET || auth.sessionSecret,
   lang: env.ONLYOFFICE_LANG,
   forceSave: env.ONLYOFFICE_FORCE_SAVE,
+  forceSaveTimeoutMs: Math.min(30000, Math.max(1000, env.ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS)),
   extensions: env.ONLYOFFICE_FILE_EXTENSIONS.split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),

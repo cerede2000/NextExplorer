@@ -136,6 +136,7 @@ services:
       # ONLYOFFICE_SECRET: "" # JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice`.
       # ONLYOFFICE_LANG: "en" # Language code for the editor UI.
       # ONLYOFFICE_FORCE_SAVE: "false" # When `true`, the OnlyOffice Save button writes the current version immediately.
+      # ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: "5000" # Max wait for the verified automatic save when closing an OnlyOffice document.
       # ONLYOFFICE_FILE_EXTENSIONS: "" # Extra file extensions to surface to the Document Server.
       # FFMPEG_PATH: "" # Point to a custom ffmpeg binary (defaults to bundled binary).
       # FFPROBE_PATH: "" # Point to a custom ffprobe binary (defaults to bundled binary).
