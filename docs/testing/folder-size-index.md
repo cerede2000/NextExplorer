@@ -33,7 +33,9 @@ yielding to the event loop between batches.
   sleeps `FOLDER_SIZE_RECONCILE_PAUSE_MS` between pages, streaming rows a page at
   a time — so even a volume with hundreds of thousands of folders is scanned as a
   gentle background trickle (never one CPU/IO burst) using O(page) memory. This
-  is the deep catch-all for changes to folders nobody browses.
+  is the deep catch-all for changes to folders nobody browses. If a changed
+  folder contains a direct child absent from the index, one asynchronous,
+  targeted scan of that folder is queued to recover the complete subtree.
 
 There is deliberately **no filesystem watcher**: recursive inotify holds memory
 proportional to the number of directories (hundreds of MB on large trees), which
@@ -108,7 +110,13 @@ curl -s -b viewer.txt http://localhost:3000/api/folder-size/<volume>/<folder> | 
 
 The indexer logs under the `folderSizeIndexer` name; filter your backend logs
 for it to watch the baseline walk complete and the flush / reconciliation passes
-as files change. Setting `FOLDER_SIZE_REBUILD=true` clears a volume's entries and
+as files change. The index records its format version per volume. When an
+application upgrade introduces an indexer change that older entries cannot
+represent correctly, the next startup performs one cooperative rebuild and only
+records the new version after that rebuild completes. Normal restarts keep a
+current index and do not rescan it.
+
+Setting `FOLDER_SIZE_REBUILD=true` clears a volume's entries and
 re-walks from scratch on the next start — set it back to `false` afterwards so
 ordinary restarts keep the existing index.
 
