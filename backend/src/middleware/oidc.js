@@ -5,6 +5,12 @@ const { auth: envAuthConfig, public: publicConfig } = require('../config/index')
 const { getOrCreateOidcUser, deriveRolesFromClaims } = require('../services/users');
 const { fetchUserInfoClaims } = require('../services/oidcService');
 const { oidcStore } = require('../utils/sessionStore');
+const {
+  uniqueOrigins,
+  sanitizeReturnTo,
+  getConfiguredRequestOrigin,
+  absoluteReturnTo,
+} = require('../utils/oidcRedirect');
 const logger = require('../utils/logger');
 
 /**
@@ -28,7 +34,7 @@ const deriveBaseUrl = (oidc) => {
 };
 
 /**
- * Determines if OIDC cookies should be secure based on baseURL
+ * Determines if OIDC cookies should be secure based on an origin.
  */
 const shouldOidcCookieBeSecure = (baseURL) => {
   try {
@@ -59,11 +65,10 @@ const parseUrl = (urlString) => {
  * Creates a custom logout handler for IdP logout
  * @param {object} options - Configuration options
  * @param {string} options.logoutURL - The IdP logout URL
- * @param {string} options.baseURL - The application base URL
- * @param {boolean} options.cookieSecure - Whether cookies should be secure
+ * @param {Function} options.getReturnTo - Resolves the validated browser return URL
  * @returns {Function} Express route handler
  */
-const createLogoutHandler = ({ logoutURL, baseURL, cookieSecure }) => {
+const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
   // Pre-validate the logout URL at configuration time
   const parsedLogoutUrl = parseUrl(logoutURL);
   if (!parsedLogoutUrl) {
@@ -72,9 +77,7 @@ const createLogoutHandler = ({ logoutURL, baseURL, cookieSecure }) => {
   }
 
   return async (req, res) => {
-    // Calculate returnTo early for use in both success and error paths
-    const defaultReturnTo = baseURL ? `${baseURL}/auth/login` : '/auth/login';
-    const returnTo = req.query.returnTo || defaultReturnTo;
+    const returnTo = getReturnTo(req);
 
     try {
       // Clear local session (promisified for proper sequencing)
@@ -89,7 +92,7 @@ const createLogoutHandler = ({ logoutURL, baseURL, cookieSecure }) => {
 
       // Clear EOC session cookie (both secure variants for robustness)
       const cookieOptions = { path: '/', sameSite: 'Lax', httpOnly: true };
-      res.clearCookie('appSession', { ...cookieOptions, secure: cookieSecure });
+      res.clearCookie('appSession', { ...cookieOptions, secure: true });
       res.clearCookie('appSession', { ...cookieOptions, secure: false });
 
       // Build logout URL with redirect parameter
@@ -279,63 +282,107 @@ const configureOidc = async (app) => {
       return;
     }
 
-    // Determine cookie security
-    const eocCookieSecure = shouldOidcCookieBeSecure(baseURL);
-    logger.debug({ eocCookieSecure }, 'OIDC session cookie security');
-    logger.debug('Using shared SQLite session store for OIDC');
+    // PUBLIC_URL remains canonical for links and integrations. OIDC is the
+    // exception: every explicitly configured INTERNAL_URL needs its own
+    // callback URL so a login can return to the origin where it began.
+    const oidcOrigins = uniqueOrigins([baseURL, ...(publicConfig?.origins || [])]);
+    const oidcMiddlewares = new Map();
 
-    // Add custom logout handler if OIDC_LOGOUT_URL is configured
-    // This must be added before EOC middleware to intercept /logout requests
+    for (const origin of oidcOrigins) {
+      const cookieSecure = shouldOidcCookieBeSecure(origin);
+      oidcMiddlewares.set(
+        origin,
+        eocAuth({
+          authRequired: false,
+          auth0Logout: false,
+          idpLogout: false,
+          issuerBaseURL: oidc.issuer,
+          baseURL: origin,
+          clientID: oidc.clientId,
+          clientSecret: oidc.clientSecret || undefined,
+          secret: sessionSecret,
+          authorizationParams: {
+            response_type: 'code',
+            scope: scopeParam,
+          },
+          session: {
+            store: oidcStore,
+            rolling: true,
+            // Convert milliseconds to seconds for absoluteDuration
+            absoluteDuration: Math.floor(
+              ((envAuthConfig && envAuthConfig.sessionMaxAgeMs) || 30 * 24 * 60 * 60 * 1000) / 1000
+            ), // Default: 30 days in seconds
+            cookie: {
+              sameSite: 'Lax',
+              secure: cookieSecure,
+              httpOnly: true,
+            },
+          },
+          afterCallback: createAfterCallbackHandler(oidc, envAuthConfig),
+          // The native routes always use one baseURL. Register them ourselves
+          // after dispatching the request to its matching origin middleware.
+          routes: {
+            login: false,
+            callback: false,
+            logout: false,
+          },
+        })
+      );
+    }
+
+    const resolveOrigin = (req) => getConfiguredRequestOrigin(req, oidcOrigins) || baseURL;
+
+    // Attach an EOC request/response context selected by the actual, approved
+    // browser origin. Unknown hosts deliberately fall back to PUBLIC_URL.
+    app.use((req, res, next) => oidcMiddlewares.get(resolveOrigin(req))(req, res, next));
+
+    const returnToForRequest = (req) =>
+      absoluteReturnTo(resolveOrigin(req), req.query?.returnTo || '/auth/login');
+
+    app.get('/login', (req, res, next) => {
+      if (!res.oidc || typeof res.oidc.login !== 'function') {
+        next(new Error('OIDC is not configured.'));
+        return;
+      }
+      res.oidc.login({ returnTo: sanitizeReturnTo(req.query?.returnTo) });
+    });
+
+    const callbackHandler = (req, res, next) => {
+      if (!res.oidc || typeof res.oidc.callback !== 'function') {
+        next(new Error('OIDC is not configured.'));
+        return;
+      }
+      res.oidc.callback();
+    };
+    app.get('/callback', callbackHandler);
+    app.post('/callback', callbackHandler);
+
     if (oidc.logoutURL) {
       const logoutHandler = createLogoutHandler({
         logoutURL: oidc.logoutURL,
-        baseURL,
-        cookieSecure: eocCookieSecure,
+        getReturnTo: returnToForRequest,
       });
-
       if (logoutHandler) {
         app.get('/logout', logoutHandler);
         logger.debug({ logoutURL: oidc.logoutURL }, 'Custom logout handler configured');
       }
+    } else {
+      app.get('/logout', (req, res, next) => {
+        if (!res.oidc || typeof res.oidc.logout !== 'function') {
+          next(new Error('OIDC is not configured.'));
+          return;
+        }
+        res.oidc.logout({ returnTo: returnToForRequest(req) });
+      });
     }
 
-    // Configure OIDC middleware
-    app.use(
-      eocAuth({
-        authRequired: false,
-        auth0Logout: false,
-        idpLogout: false,
-        issuerBaseURL: oidc.issuer,
-        baseURL,
-        clientID: oidc.clientId,
-        clientSecret: oidc.clientSecret || undefined,
-        secret: sessionSecret,
-        authorizationParams: {
-          response_type: 'code',
-          scope: scopeParam,
-        },
-        session: {
-          store: oidcStore,
-          rolling: true,
-          // Convert milliseconds to seconds for absoluteDuration
-          absoluteDuration: Math.floor(
-            ((envAuthConfig && envAuthConfig.sessionMaxAgeMs) || 30 * 24 * 60 * 60 * 1000) / 1000
-          ), // Default: 30 days in seconds
-          cookie: {
-            sameSite: 'Lax',
-            secure: eocCookieSecure,
-            httpOnly: true,
-          },
-        },
-        afterCallback: createAfterCallbackHandler(oidc, envAuthConfig),
-      })
-    );
-
-    logger.info('Express OpenID Connect is configured');
-    logger.debug('EOC middleware mounted');
+    logger.info({ origins: oidcOrigins }, 'Express OpenID Connect is configured');
+    logger.debug({ origins: oidcOrigins }, 'Origin-aware EOC middleware mounted');
   } catch (e) {
     logger.warn({ err: e }, 'Failed to configure Express OpenID Connect');
   }
 };
 
-module.exports = { configureOidc };
+module.exports = {
+  configureOidc,
+};

@@ -75,7 +75,7 @@ services:
 
 
       # Reverse proxy / networking (optional)
-      # INTERNAL_URL: "http://192.168.1.250:3017" # Extra origin(s) the app may also be reached from (e.g. a LAN IP for fast local uploads), comma-separated. Treated as valid (no public-URL mismatch warning) and accepted by CORS; PUBLIC_URL stays the canonical URL for share links / OIDC.
+      # INTERNAL_URL: "http://192.168.1.250:3017,http://192.168.1.251:3017" # Extra origin(s) the app may also be reached from, comma-separated. They are accepted by CORS and OIDC returns to the origin used to start login. PUBLIC_URL stays canonical for share links and integrations. Register `${PUBLIC_URL}/callback` and every `${INTERNAL_URL}/callback` with your IdP.
       # TRUST_PROXY: "loopback,uniquelocal" # Express trust proxy config; set when running behind a reverse proxy (often auto-derived when `PUBLIC_URL` is set).
       # CORS_ORIGINS: "" # Comma-separated allowed origins; aliases: `CORS_ORIGIN`, `ALLOWED_ORIGINS` (defaults to `PUBLIC_URL` origin when set).
 
@@ -107,7 +107,7 @@ services:
       # OIDC_USERINFO_URL: "" # Optional discovery override.
       # OIDC_CLIENT_ID: "nextexplorer" # IdP client ID.
       # OIDC_CLIENT_SECRET: "" # IdP client secret.
-      # OIDC_CALLBACK_URL: "http://localhost:3000/callback" # Explicit callback URL (defaults to `${PUBLIC_URL}/callback` when `PUBLIC_URL` is set).
+      # OIDC_CALLBACK_URL: "http://localhost:3000/callback" # Explicit canonical callback URL (defaults to `${PUBLIC_URL}/callback`). When INTERNAL_URL is set, also register each internal `/callback` URL with the IdP.
       # OIDC_SCOPES: "openid profile email" # Add `groups` to propagate group claims.
       # OIDC_ADMIN_GROUPS: "" # Space/comma-separated group names that grant admin rights (matched in `groups`, `roles`, or `entitlements`).
       # OIDC_REQUIRE_EMAIL_VERIFIED: "false" # When `true`, requires IdP to verify user email before allowing user creation/auto-linking.
