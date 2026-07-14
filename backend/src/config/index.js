@@ -392,6 +392,15 @@ const folderSize = {
   reconcileMaxMs: env.FOLDER_SIZE_RECONCILE_MAX_MS,
   reconcileBatch: env.FOLDER_SIZE_RECONCILE_BATCH,
   reconcilePauseMs: env.FOLDER_SIZE_RECONCILE_PAUSE_MS,
+  subtreeBatch:
+    Number.isFinite(env.FOLDER_SIZE_SUBTREE_BATCH) && env.FOLDER_SIZE_SUBTREE_BATCH > 0
+      ? Math.floor(env.FOLDER_SIZE_SUBTREE_BATCH)
+      : env.FOLDER_SIZE_RECONCILE_BATCH,
+  subtreePauseMs:
+    Number.isFinite(env.FOLDER_SIZE_SUBTREE_PAUSE_MS) && env.FOLDER_SIZE_SUBTREE_PAUSE_MS >= 0
+      ? env.FOLDER_SIZE_SUBTREE_PAUSE_MS
+      : env.FOLDER_SIZE_RECONCILE_PAUSE_MS,
+  subtreeSlowLogMs: Math.max(0, env.FOLDER_SIZE_SUBTREE_SLOW_LOG_MS),
   rebuild: env.FOLDER_SIZE_REBUILD,
 };
 // --- Runtime diagnostics ---

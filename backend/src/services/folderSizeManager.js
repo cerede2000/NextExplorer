@@ -51,6 +51,19 @@ let abortController = null;
 // operation's ancestor delta or the SQLite writes it produces.
 let subtreeScanChain = Promise.resolve();
 const pendingSubtreeScans = new Map();
+let activeSubtreeScan = null;
+const subtreeScanStats = {
+  queued: 0,
+  started: 0,
+  completed: 0,
+  failed: 0,
+  folders: 0,
+  files: 0,
+  batches: 0,
+  pauses: 0,
+  totalMs: 0,
+  slow: 0,
+};
 let readyPromise = null;
 
 const log = (level, message, extra = {}) =>
@@ -112,7 +125,6 @@ const flush = async () => {
     for (const abs of incompleteSubtrees) {
       refreshSubtree(abs).catch(() => {});
     }
-    log('debug', 'Flushed folder size updates', { directories: ops.length });
   } catch (err) {
     log('warn', 'Folder size flush failed', { err });
   } finally {
@@ -316,20 +328,55 @@ const refreshSubtree = async (absDir) => {
     if (transferState.isRelatedToActiveTransfer(absDir)) return null;
 
     const startedAt = Date.now();
-    const result = await indexer.indexSubtree(db, scope, absDir, {
-      mode: config.folderSize.mode,
-    });
-    if (result?.folders >= 300) reclaimMemory();
-    log('debug', 'Indexed completed directory tree', {
-      path: absDir,
-      ...result,
-      ms: Date.now() - startedAt,
-    });
-    return result;
+    activeSubtreeScan = { path: absDir, startedAt };
+    subtreeScanStats.started += 1;
+    try {
+      const result = await indexer.indexSubtree(db, scope, absDir, {
+        mode: config.folderSize.mode,
+        batchSize: config.folderSize.subtreeBatch,
+        yieldEvery: config.folderSize.subtreeBatch,
+        pauseMs: config.folderSize.subtreePauseMs,
+      });
+      const ms = Date.now() - startedAt;
+      subtreeScanStats.completed += 1;
+      subtreeScanStats.folders += result?.folders || 0;
+      subtreeScanStats.files += result?.files || 0;
+      subtreeScanStats.batches += result?.batches || 0;
+      subtreeScanStats.pauses += result?.pauses || 0;
+      subtreeScanStats.totalMs += ms;
+      if (result?.folders >= 300) reclaimMemory();
+
+      const details = {
+        path: absDir,
+        ...result,
+        ms,
+        queueDepth: Math.max(0, pendingSubtreeScans.size - 1),
+        batchSize: config.folderSize.subtreeBatch,
+        pauseMs: config.folderSize.subtreePauseMs,
+      };
+      if (ms >= config.folderSize.subtreeSlowLogMs) {
+        subtreeScanStats.slow += 1;
+        log('info', 'Folder size subtree scan complete', details);
+      } else {
+        log('debug', 'Folder size subtree scan complete', details);
+      }
+      return result;
+    } catch (err) {
+      subtreeScanStats.failed += 1;
+      log('warn', 'Folder size subtree scan failed', {
+        path: absDir,
+        ms: Date.now() - startedAt,
+        err,
+      });
+      throw err;
+    } finally {
+      activeSubtreeScan = null;
+    }
   };
 
   const queued = subtreeScanChain.then(scan, scan);
   subtreeScanChain = queued.catch(() => {});
+  subtreeScanStats.queued += 1;
   pendingSubtreeScans.set(absDir, queued);
   queued.finally(() => pendingSubtreeScans.delete(absDir)).catch(() => {});
   return queued;
@@ -343,6 +390,15 @@ const getDiagnosticsSnapshot = () => ({
   dirtyDirectories: dirty.size,
   pendingSubtreeScans: pendingSubtreeScans.size,
   reconcileDelayMs: reconcileDelay || null,
+  subtree: {
+    active: activeSubtreeScan
+      ? { path: activeSubtreeScan.path, ageMs: Date.now() - activeSubtreeScan.startedAt }
+      : null,
+    batchSize: config.folderSize.subtreeBatch,
+    pauseMs: config.folderSize.subtreePauseMs,
+    slowLogMs: config.folderSize.subtreeSlowLogMs,
+    stats: { ...subtreeScanStats },
+  },
 });
 
 module.exports = {
