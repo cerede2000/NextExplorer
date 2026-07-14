@@ -5,6 +5,7 @@ const {
   sanitizeReturnTo,
   getConfiguredRequestOrigin,
   callbackUrlForOrigin,
+  sanitizeOidcPrompt,
 } = require('../utils/oidcRedirect');
 
 const {
@@ -256,7 +257,11 @@ router.get(
         const redirect = sanitizeReturnTo(req.query?.redirect, '/browse/');
         const origins = uniqueOrigins([auth?.oidc?.callbackUrl, ...(publicConfig?.origins || [])]);
         const origin = getConfiguredRequestOrigin(req, origins) || origins[0];
-        const authorizationParams = origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {};
+        const prompt = sanitizeOidcPrompt(req.query?.prompt);
+        const authorizationParams = {
+          ...(origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {}),
+          ...(prompt ? { prompt } : {}),
+        };
         await res.oidc.login({ returnTo: redirect, authorizationParams });
         return;
       }

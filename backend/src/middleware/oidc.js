@@ -11,6 +11,7 @@ const {
   getConfiguredRequestOrigin,
   absoluteReturnTo,
   callbackUrlForOrigin,
+  sanitizeOidcPrompt,
 } = require('../utils/oidcRedirect');
 const logger = require('../utils/logger');
 
@@ -79,6 +80,7 @@ const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
 
   return async (req, res) => {
     const returnTo = getReturnTo(req);
+    const idTokenHint = req.oidc?.idToken;
 
     try {
       // Clear local session (promisified for proper sequencing)
@@ -91,6 +93,12 @@ const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
         });
       }
 
+      // Clear the server-side EOC session while the browser still provides its
+      // session cookie. The client-side cookie is cleared below as well.
+      if ('appSession' in req) {
+        req.appSession = undefined;
+      }
+
       // Clear EOC session cookie (both secure variants for robustness)
       const cookieOptions = { path: '/', sameSite: 'Lax', httpOnly: true };
       res.clearCookie('appSession', { ...cookieOptions, secure: true });
@@ -100,8 +108,14 @@ const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
       // Use post_logout_redirect_uri (OIDC standard) as primary, but also support returnTo for Auth0
       const idpLogoutUrl = new URL(parsedLogoutUrl.toString());
       idpLogoutUrl.searchParams.set('post_logout_redirect_uri', returnTo);
+      if (idTokenHint) {
+        idpLogoutUrl.searchParams.set('id_token_hint', idTokenHint);
+      }
 
-      logger.debug({ logoutUrl: idpLogoutUrl.toString() }, 'Redirecting to IdP logout URL');
+      logger.debug(
+        { logoutOrigin: idpLogoutUrl.origin, hasIdTokenHint: Boolean(idTokenHint) },
+        'Redirecting to IdP logout URL'
+      );
       res.redirect(idpLogoutUrl.toString());
     } catch (e) {
       logger.warn({ err: e }, 'Error during custom logout');
@@ -345,10 +359,12 @@ const configureOidc = async (app) => {
         next(new Error('OIDC is not configured.'));
         return;
       }
+      const prompt = sanitizeOidcPrompt(req.query?.prompt);
       res.oidc.login({
         returnTo: sanitizeReturnTo(req.query?.returnTo),
         authorizationParams: {
           redirect_uri: callbackUrlForOrigin(resolveOrigin(req)),
+          ...(prompt ? { prompt } : {}),
         },
       });
     });
