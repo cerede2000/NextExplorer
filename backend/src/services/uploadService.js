@@ -51,11 +51,13 @@ const readUploadRoutingValue = (req, key) => {
 
 const resolveUploadPaths = async (req, file) => {
   const relativePathMeta = readUploadRoutingValue(req, 'relativePath');
+  const resolvedRelativePathMeta = readUploadRoutingValue(req, 'resolvedRelativePath');
   const uploadToMeta = readUploadRoutingValue(req, 'uploadTo');
 
   const uploadTo = normalizeRelativePath(uploadToMeta);
   const requestedRelativePath =
-    normalizeRelativePath(relativePathMeta) || path.basename(file.originalname);
+    normalizeRelativePath(resolvedRelativePathMeta || relativePathMeta) ||
+    path.basename(file.originalname);
   // Multer can enter the storage callback before trailing multipart metadata
   // has populated req.body. The client supplies these routing fields in the
   // query string too, so every file of a picked folder gets the same target.
@@ -72,12 +74,14 @@ const resolveUploadPaths = async (req, file) => {
   }
 
   const { absolutePath: destinationRoot, relativePath: logicalBase } = resolved;
-  const relativePath = await resolveFolderUploadRelativePath({
-    relativePath: requestedRelativePath,
-    destinationRoot,
-    context,
-    uploadBatchId,
-  });
+  const relativePath = resolvedRelativePathMeta
+    ? requestedRelativePath
+    : await resolveFolderUploadRelativePath({
+        relativePath: requestedRelativePath,
+        destinationRoot,
+        context,
+        uploadBatchId,
+      });
 
   const destinationPath = path.join(destinationRoot, relativePath);
   const destinationDir = path.dirname(destinationPath);

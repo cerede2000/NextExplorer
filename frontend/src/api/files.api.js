@@ -139,6 +139,18 @@ async function createFolder(destination, name) {
   });
 }
 
+async function reserveFolderUploadTarget(destination, sourceRoot) {
+  const uploadTo = normalizePath(destination || '');
+  if (!uploadTo || typeof sourceRoot !== 'string' || !sourceRoot.trim()) {
+    throw new Error('A destination and folder name are required to start a folder upload.');
+  }
+
+  return requestJson('/api/upload/folder-session', {
+    method: 'POST',
+    body: JSON.stringify({ uploadTo, sourceRoot }),
+  });
+}
+
 async function renameItem(path, name, newName) {
   const normalizedPath = normalizePath(path || '');
   return requestJson('/api/files/rename', {
@@ -321,6 +333,7 @@ export {
   deleteItemsStream,
   getDeleteImpact,
   createFolder,
+  reserveFolderUploadTarget,
   renameItem,
   fetchFileContent,
   saveFileContent,
