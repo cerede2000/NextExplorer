@@ -1,5 +1,11 @@
 const express = require('express');
-const { auth } = require('../config/index');
+const { auth, public: publicConfig } = require('../config/index');
+const {
+  uniqueOrigins,
+  sanitizeReturnTo,
+  getConfiguredRequestOrigin,
+  callbackUrlForOrigin,
+} = require('../utils/oidcRedirect');
 
 const {
   countUsers,
@@ -247,8 +253,11 @@ router.get(
   asyncHandler(async (req, res) => {
     try {
       if (res.oidc && typeof res.oidc.login === 'function') {
-        const redirect = typeof req.query?.redirect === 'string' ? req.query.redirect : '/';
-        await res.oidc.login({ returnTo: redirect });
+        const redirect = sanitizeReturnTo(req.query?.redirect, '/browse/');
+        const origins = uniqueOrigins([auth?.oidc?.callbackUrl, ...(publicConfig?.origins || [])]);
+        const origin = getConfiguredRequestOrigin(req, origins) || origins[0];
+        const authorizationParams = origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {};
+        await res.oidc.login({ returnTo: redirect, authorizationParams });
         return;
       }
     } catch (e) {
