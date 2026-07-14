@@ -9,6 +9,7 @@ const ROUTE_MODULES = [
   'src/services/accessManager',
   'src/services/folderSizeIndex',
   'src/services/folderSizeIndexer',
+  'src/services/folderSizeManager',
   'src/utils/pathUtils',
 ];
 
@@ -31,13 +32,14 @@ const buildContext = async ({ user, userVolumes = false } = {}) => {
   const { getDb } = env.requireFresh('src/services/db');
   const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
   const indexer = env.requireFresh('src/services/folderSizeIndexer');
+  const manager = env.requireFresh('src/services/folderSizeManager');
   const routes = env.requireFresh('src/routes/folderSize');
 
   const db = await getDb();
   const scope = { root: env.volumeDir, label: 'volume' };
 
   const app = createTestApp({ router: routes, mountPath: '/api', user });
-  return { env, db, folderSizeIndex, indexer, scope, app };
+  return { env, db, folderSizeIndex, indexer, manager, scope, app };
 };
 
 describe('Folder size route', () => {
@@ -45,6 +47,7 @@ describe('Folder size route', () => {
 
   afterEach(async () => {
     if (ctx) {
+      await ctx.manager.stop();
       await ctx.env.cleanup();
       ctx = null;
     }
@@ -123,5 +126,24 @@ describe('Folder size route', () => {
     expect(response.status).toBe(200);
     expect(response.body.indexed).toBe(false);
     expect(response.body.sizeBytes).toBeNull();
+  });
+
+  it('repairs a selected external directory tree through the explicit refresh endpoint', async () => {
+    ctx = await buildContext({ user: { id: 'admin-user', roles: ['admin'] } });
+    const { env, manager } = ctx;
+    await manager.start();
+
+    const external = path.join(env.volumeDir, 'External', 'nested');
+    await fs.mkdir(external, { recursive: true });
+    await fs.writeFile(path.join(external, 'payload.bin'), Buffer.alloc(321));
+
+    const response = await request(ctx.app).post('/api/folder-size/refresh/External');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      path: 'External',
+      sizeBytes: 321,
+      indexed: true,
+    });
   });
 });

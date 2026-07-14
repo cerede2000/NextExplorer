@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs/promises');
 const { normalizeRelativePath, parsePathSpace, resolveVolumePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { getDb } = require('../services/db');
@@ -7,10 +8,13 @@ const { getVolumeScope } = require('../services/folderSizeIndexer');
 const folderSizeManager = require('../services/folderSizeManager');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
+const { ValidationError, ForbiddenError, NotFoundError, RateLimitError } = require('../errors/AppError');
 
 const router = express.Router();
 
 const MAX_BATCH_PATHS = 500;
+const MAX_MANUAL_REFRESHES = 24;
+const manualRefreshes = new Map();
 
 /**
  * Resolve the absolute filesystem path for a logical path *without* enforcing
@@ -72,6 +76,87 @@ const scheduleOnViewRefresh = (absolutePaths) => {
   if (!dirs.length) return;
   Promise.resolve(folderSizeManager.touch(dirs)).catch(() => {});
 };
+
+const indexResult = (db, scope, absolutePath, logicalPath, canEnter) => {
+  const entry = folderSizeIndex.getByAbsolutePath(db, absolutePath);
+  return {
+    path: logicalPath,
+    canEnter,
+    sizeBytes: entry ? entry.sizeBytes : null,
+    entryCount: entry ? entry.entryCount : null,
+    lastUpdated: entry ? entry.lastDeltaAt || entry.lastFullScanAt || null : null,
+    indexed: Boolean(entry),
+  };
+};
+
+/**
+ * Run one user-requested, authoritative scan of a folder tree. The manager
+ * deduplicates same-path scans; this route additionally caps distinct pending
+ * requests so an authenticated client cannot fill the serialized scan queue.
+ */
+const refreshDirectory = async (absolutePath) => {
+  const pending = manualRefreshes.get(absolutePath);
+  if (pending) return pending;
+  if (manualRefreshes.size >= MAX_MANUAL_REFRESHES) {
+    throw new RateLimitError('Too many folder size refreshes are already pending.');
+  }
+
+  const refresh = folderSizeManager.refreshSubtree(absolutePath);
+  manualRefreshes.set(absolutePath, refresh);
+  try {
+    return await refresh;
+  } finally {
+    manualRefreshes.delete(absolutePath);
+  }
+};
+
+// POST /api/folder-size/refresh/<logical path>
+// An explicit repair action for a folder changed outside NextExplorer. Unlike
+// normal size reads, this is deliberately authoritative and scans only the
+// requested subtree, updating every indexed descendant and its ancestors.
+router.post(
+  '/folder-size/refresh/*',
+  asyncHandler(async (req, res) => {
+    const raw = req.params[0] || '';
+    const relativePath = normalizeRelativePath(raw);
+    if (!relativePath) {
+      throw new ValidationError('A folder path is required.');
+    }
+
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo?.canRead) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Path is not accessible.');
+    }
+
+    const scope = getVolumeScope();
+    const absolutePath = resolved?.absolutePath;
+    if (!absolutePath || !folderSizeIndex.isWithinRoot(scope.root, absolutePath)) {
+      throw new ValidationError('Folder size refresh is only available for volume folders.');
+    }
+
+    let stats;
+    try {
+      // Do not follow a directory symlink here: the indexed volume is a hard
+      // boundary, and a manual refresh must never turn it into a traversal of
+      // an arbitrary target outside that boundary.
+      stats = await fs.lstat(absolutePath);
+    } catch {
+      throw new NotFoundError('Folder not found.');
+    }
+    if (!stats.isDirectory()) {
+      throw new ValidationError('Folder size refresh requires a directory.');
+    }
+
+    const result = await refreshDirectory(absolutePath);
+    if (!result) {
+      throw new ValidationError('Folder size indexing is disabled.');
+    }
+
+    const db = await getDb();
+    res.json(indexResult(db, scope, absolutePath, resolved.relativePath, true));
+  })
+);
 
 // GET /api/folder-size/<logical path>
 // Returns the pre-computed recursive size for a single folder. `sizeBytes` is
