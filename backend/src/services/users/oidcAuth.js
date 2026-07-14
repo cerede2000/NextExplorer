@@ -43,12 +43,12 @@ const getOrCreateOidcUser = async ({
   const normEmail = normalizeEmail(email);
 
   if (!normEmail) {
-    throw new Error('Email is required from OIDC provider');
+    throw new ForbiddenError('Email is required from OIDC provider.');
   }
 
-  // For security, only auto-link if email is verified (when required)
+  // This policy applies to every OIDC login when explicitly enabled.
   if (requireEmailVerified && !emailVerified) {
-    throw new Error('Email must be verified by identity provider');
+    throw new ForbiddenError('Email must be verified by identity provider.');
   }
 
   // Check if this OIDC identity already exists
@@ -74,11 +74,11 @@ const getOrCreateOidcUser = async ({
       UPDATE users
       SET display_name = COALESCE(?, display_name),
           username = COALESCE(?, username),
-          email_verified = 1,
+          email_verified = CASE WHEN ? THEN 1 ELSE email_verified END,
           updated_at = ?
       WHERE id = ?
     `
-    ).run(displayName, username, nowIso(), authMethod.user_id);
+    ).run(displayName, username, emailVerified ? 1 : 0, nowIso(), authMethod.user_id);
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(authMethod.user_id);
     return toClientUser(user);
@@ -88,8 +88,14 @@ const getOrCreateOidcUser = async ({
   let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normEmail);
 
   if (user) {
+    // An unverified email claim must never attach a new OIDC identity to an
+    // existing account, regardless of the provisioning configuration.
+    if (!emailVerified) {
+      throw new ForbiddenError('Email must be verified before linking an existing account.');
+    }
+
     // Auto-link: User exists, add OIDC as new auth method
-    logger.info({ email: user.email }, '[Auth] Auto-linking OIDC to existing user');
+    logger.info('[Auth] Auto-linking OIDC to existing user');
 
     const authId = generateId();
     db.prepare(
@@ -105,11 +111,11 @@ const getOrCreateOidcUser = async ({
       UPDATE users
       SET display_name = COALESCE(?, display_name),
           username = COALESCE(?, username),
-          email_verified = 1,
+          email_verified = CASE WHEN ? THEN 1 ELSE email_verified END,
           updated_at = ?
       WHERE id = ?
     `
-    ).run(displayName, username, nowIso(), user.id);
+    ).run(displayName, username, emailVerified ? 1 : 0, nowIso(), user.id);
 
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
     return toClientUser(user);
@@ -120,7 +126,7 @@ const getOrCreateOidcUser = async ({
     throw new ForbiddenError('Profile does not exist.');
   }
 
-  logger.info({ email: normEmail }, '[Auth] Creating new user from OIDC');
+  logger.info('[Auth] Creating new user from OIDC');
 
   const userId = generateId();
   const now = nowIso();
@@ -130,9 +136,9 @@ const getOrCreateOidcUser = async ({
   db.prepare(
     `
     INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
-    VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `
-  ).run(userId, normEmail, username, displayName, rolesJson, now, now);
+  ).run(userId, normEmail, emailVerified ? 1 : 0, username, displayName, rolesJson, now, now);
 
   // Create OIDC auth method
   const authId = generateId();

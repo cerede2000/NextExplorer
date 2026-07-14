@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+const { sanitizeLogUrl } = require('../utils/logSanitizer');
 
 const isOidcDocumentRequest = (req) => {
   const path = req?.path || '';
@@ -12,27 +13,18 @@ const isOidcDocumentRequest = (req) => {
   return accept.includes('text/html') || secFetchDest === 'document' || secFetchMode === 'navigate';
 };
 
-const clearOidcSessionCookies = (res) => {
-  // express-openid-connect defaults to "appSession"
-  try {
-    res.clearCookie('appSession', {
-      path: '/',
-      sameSite: 'Lax',
-      secure: true,
-      httpOnly: true,
-    });
-  } catch (_) {
-    /* ignore */
-  }
-  try {
-    res.clearCookie('appSession', {
-      path: '/',
-      sameSite: 'Lax',
-      secure: false,
-      httpOnly: true,
-    });
-  } catch (_) {
-    /* ignore */
+const clearOidcSessionCookies = (req, res) => {
+  const cookieNames = new Set([req.nextExplorerOidcSessionCookieName, 'appSession']);
+  for (const cookieName of cookieNames) {
+    if (!cookieName) continue;
+    try {
+      if (cookieName in req) req[cookieName] = undefined;
+      const cookieOptions = { path: '/', sameSite: 'Lax', httpOnly: true };
+      res.clearCookie(cookieName, { ...cookieOptions, secure: true });
+      res.clearCookie(cookieName, { ...cookieOptions, secure: false });
+    } catch (_) {
+      /* ignore */
+    }
   }
 };
 
@@ -56,7 +48,7 @@ const errorHandler = (err, req, res, next) => {
   // For OIDC callback navigations, redirect back into the SPA so the login screen can show the error.
   // Otherwise, the browser will render the JSON payload as a standalone error page.
   if (!res.headersSent && isOidcDocumentRequest(req)) {
-    clearOidcSessionCookies(res);
+    clearOidcSessionCookies(req, res);
     const nextUrl = `/auth/login?error=${encodeURIComponent(message)}`;
     res.setHeader('Cache-Control', 'no-store');
     res.redirect(302, nextUrl);
@@ -67,7 +59,7 @@ const errorHandler = (err, req, res, next) => {
   const errorContext = {
     requestId,
     method: req.method,
-    url: req.originalUrl,
+    url: sanitizeLogUrl(req.originalUrl),
     statusCode,
     isOperational,
     err,
@@ -129,7 +121,7 @@ const errorHandler = (err, req, res, next) => {
  */
 const notFoundHandler = (req, res, next) => {
   const NotFoundError = require('../errors/AppError').NotFoundError;
-  next(new NotFoundError(`Route ${req.method} ${req.originalUrl} not found`));
+  next(new NotFoundError(`Route ${req.method} ${sanitizeLogUrl(req.originalUrl)} not found`));
 };
 
 module.exports = {

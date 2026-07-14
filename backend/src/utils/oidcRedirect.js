@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const normalizeOrigin = (value) => {
   try {
     return new URL(value).origin;
@@ -19,7 +21,18 @@ const sanitizeReturnTo = (candidate, fallback = '/browse/') => {
   return value;
 };
 
+const isTrustedProxyRequest = (req) => {
+  const trustProxy = req.app?.get?.('trust proxy fn');
+  const remoteAddress = req.socket?.remoteAddress || req.connection?.remoteAddress;
+
+  return Boolean(
+    typeof trustProxy === 'function' && remoteAddress && trustProxy(remoteAddress, 0) === true
+  );
+};
+
 const readForwardedHost = (req) => {
+  if (!isTrustedProxyRequest(req)) return null;
+
   const forwarded = req.headers?.['x-forwarded-host'];
   if (typeof forwarded !== 'string') return null;
   return forwarded.split(',')[0]?.trim() || null;
@@ -48,6 +61,21 @@ const absoluteReturnTo = (origin, candidate) =>
 
 const callbackUrlForOrigin = (origin) => new URL('/callback', origin).toString();
 
+const oidcCookieNamesForOrigin = (origin) => {
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin) {
+    throw new Error('Cannot create OIDC cookie names for an invalid origin.');
+  }
+
+  // Cookies are scoped by host and path, not port. Separate names prevent a
+  // session or transaction from one configured origin being used by another.
+  const suffix = crypto.createHash('sha256').update(normalizedOrigin).digest('hex').slice(0, 16);
+  return {
+    session: `appSession.${suffix}`,
+    transaction: `auth_verification.${suffix}`,
+  };
+};
+
 const sanitizeOidcPrompt = (candidate) => {
   const allowedPrompts = new Set(['login', 'select_account']);
   return typeof candidate === 'string' && allowedPrompts.has(candidate) ? candidate : null;
@@ -59,5 +87,6 @@ module.exports = {
   getConfiguredRequestOrigin,
   absoluteReturnTo,
   callbackUrlForOrigin,
+  oidcCookieNamesForOrigin,
   sanitizeOidcPrompt,
 };

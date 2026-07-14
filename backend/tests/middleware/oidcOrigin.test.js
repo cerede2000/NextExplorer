@@ -7,16 +7,21 @@ const {
   getConfiguredRequestOrigin,
   absoluteReturnTo,
   callbackUrlForOrigin,
+  oidcCookieNamesForOrigin,
   sanitizeOidcPrompt,
 } = require('../../src/utils/oidcRedirect');
 
 const configuredOrigins = ['https://files.example.test', 'http://192.168.1.250:3017'];
 
-const makeRequest = ({ protocol = 'https', host, forwardedHost } = {}) => ({
+const makeRequest = ({ protocol = 'https', host, forwardedHost, trustedProxy = false } = {}) => ({
   protocol,
   headers: {
     ...(host ? { host } : {}),
     ...(forwardedHost ? { 'x-forwarded-host': forwardedHost } : {}),
+  },
+  socket: { remoteAddress: '127.0.0.1' },
+  app: {
+    get: (name) => (name === 'trust proxy fn' ? () => trustedProxy : undefined),
   },
   get: (name) => (name.toLowerCase() === 'host' ? host : undefined),
 });
@@ -44,7 +49,18 @@ describe('OIDC origin-aware redirects', () => {
     ).toBe('http://192.168.1.250:3017');
   });
 
-  it('uses a configured forwarded host and rejects unknown hosts', () => {
+  it('uses a configured forwarded host only from a trusted proxy', () => {
+    expect(
+      getConfiguredRequestOrigin(
+        makeRequest({
+          protocol: 'https',
+          host: 'next-explorer:3000',
+          forwardedHost: 'files.example.test',
+          trustedProxy: true,
+        }),
+        configuredOrigins
+      )
+    ).toBe('https://files.example.test');
     expect(
       getConfiguredRequestOrigin(
         makeRequest({
@@ -54,7 +70,7 @@ describe('OIDC origin-aware redirects', () => {
         }),
         configuredOrigins
       )
-    ).toBe('https://files.example.test');
+    ).toBeNull();
     expect(
       getConfiguredRequestOrigin(
         makeRequest({ protocol: 'https', host: 'attacker.example' }),
@@ -76,6 +92,15 @@ describe('OIDC origin-aware redirects', () => {
     expect(callbackUrlForOrigin('http://192.168.1.250:3017')).toBe(
       'http://192.168.1.250:3017/callback'
     );
+  });
+
+  it('isolates OIDC session and transaction cookies per origin', () => {
+    const publicCookies = oidcCookieNamesForOrigin('https://files.example.test');
+    const internalCookies = oidcCookieNamesForOrigin('http://192.168.1.250:3017');
+
+    expect(publicCookies).not.toEqual(internalCookies);
+    expect(publicCookies.session).toMatch(/^appSession\.[a-f0-9]{16}$/);
+    expect(publicCookies.transaction).toMatch(/^auth_verification\.[a-f0-9]{16}$/);
   });
 
   it('allows only safe OIDC prompts after logout', () => {

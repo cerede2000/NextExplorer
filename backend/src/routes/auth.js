@@ -217,27 +217,19 @@ router.post('/logout', (req, res) => {
       /* ignore */
     }
   }
-  // Clear the EOC appSession cookie (local OIDC session) without redirecting
-  try {
-    // Attempt to clear both secure and non-secure variants to be robust.
-    res.clearCookie('appSession', {
-      path: '/',
-      sameSite: 'Lax',
-      secure: true,
-      httpOnly: true,
-    });
-  } catch (_) {
-    /* ignore */
-  }
-  try {
-    res.clearCookie('appSession', {
-      path: '/',
-      sameSite: 'Lax',
-      secure: false,
-      httpOnly: true,
-    });
-  } catch (_) {
-    /* ignore */
+  // Clear the EOC session cookie selected for this browser origin. The
+  // legacy name is also cleared during the origin-scoped cookie migration.
+  const cookieNames = new Set([req.nextExplorerOidcSessionCookieName, 'appSession']);
+  for (const cookieName of cookieNames) {
+    if (!cookieName) continue;
+    try {
+      if (cookieName in req) req[cookieName] = undefined;
+      const cookieOptions = { path: '/', sameSite: 'Lax', httpOnly: true };
+      res.clearCookie(cookieName, { ...cookieOptions, secure: true });
+      res.clearCookie(cookieName, { ...cookieOptions, secure: false });
+    } catch (_) {
+      /* ignore */
+    }
   }
   // For IdP/federated logout, the UI navigates to GET /logout separately.
   res.status(204).end();

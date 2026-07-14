@@ -5,12 +5,14 @@ const { auth: envAuthConfig, public: publicConfig } = require('../config/index')
 const { getOrCreateOidcUser, deriveRolesFromClaims } = require('../services/users');
 const { fetchUserInfoClaims } = require('../services/oidcService');
 const { oidcStore } = require('../utils/sessionStore');
+const { UnauthorizedError } = require('../errors/AppError');
 const {
   uniqueOrigins,
   sanitizeReturnTo,
   getConfiguredRequestOrigin,
   absoluteReturnTo,
   callbackUrlForOrigin,
+  oidcCookieNamesForOrigin,
   sanitizeOidcPrompt,
 } = require('../utils/oidcRedirect');
 const logger = require('../utils/logger');
@@ -70,7 +72,13 @@ const parseUrl = (urlString) => {
  * @param {Function} options.getReturnTo - Resolves the validated browser return URL
  * @returns {Function} Express route handler
  */
-const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
+const clearOidcCookie = (res, name) => {
+  const cookieOptions = { path: '/', sameSite: 'Lax', httpOnly: true };
+  res.clearCookie(name, { ...cookieOptions, secure: true });
+  res.clearCookie(name, { ...cookieOptions, secure: false });
+};
+
+const createLogoutHandler = ({ logoutURL, getReturnTo, getSessionCookieName }) => {
   // Pre-validate the logout URL at configuration time
   const parsedLogoutUrl = parseUrl(logoutURL);
   if (!parsedLogoutUrl) {
@@ -81,6 +89,7 @@ const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
   return async (req, res) => {
     const returnTo = getReturnTo(req);
     const idTokenHint = req.oidc?.idToken;
+    const sessionCookieName = getSessionCookieName(req);
 
     try {
       // Clear local session (promisified for proper sequencing)
@@ -95,14 +104,14 @@ const createLogoutHandler = ({ logoutURL, getReturnTo }) => {
 
       // Clear the server-side EOC session while the browser still provides its
       // session cookie. The client-side cookie is cleared below as well.
-      if ('appSession' in req) {
-        req.appSession = undefined;
+      if (sessionCookieName in req) {
+        req[sessionCookieName] = undefined;
       }
 
-      // Clear EOC session cookie (both secure variants for robustness)
-      const cookieOptions = { path: '/', sameSite: 'Lax', httpOnly: true };
-      res.clearCookie('appSession', { ...cookieOptions, secure: true });
-      res.clearCookie('appSession', { ...cookieOptions, secure: false });
+      // Clear both the active origin-scoped cookie and the legacy name from
+      // versions that used a shared cookie across origins.
+      clearOidcCookie(res, sessionCookieName);
+      if (sessionCookieName !== 'appSession') clearOidcCookie(res, 'appSession');
 
       // Build logout URL with redirect parameter
       // Use post_logout_redirect_uri (OIDC standard) as primary, but also support returnTo for Auth0
@@ -179,6 +188,11 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         });
 
         if (directClaims && directClaims.sub) {
+          if (hasReqUser && directClaims.sub !== req.oidc.user.sub) {
+            throw new UnauthorizedError(
+              'OIDC userinfo subject does not match the authenticated user.'
+            );
+          }
           claims = directClaims;
           logger.debug('afterCallback: direct userinfo fetch succeeded');
         }
@@ -188,36 +202,26 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
       if ((!claims || !claims.sub) && session?.id_token_claims) {
         logger.debug('afterCallback: falling back to id_token_claims');
         claims = session.id_token_claims;
-        logger.debug(claims, 'afterCallback: id_token_claims content');
       } else if ((!claims || !claims.sub) && session?.claims) {
         logger.debug('afterCallback: falling back to session.claims');
         claims = session.claims;
-        logger.debug(claims, 'afterCallback: session.claims content');
       }
 
-      const sub = claims && claims.sub ? claims.sub : null;
+      const sub = typeof claims?.sub === 'string' && claims.sub.trim() ? claims.sub : null;
       if (!sub) {
-        logger.debug('afterCallback: no usable claims found; skipping user sync');
-        return session;
+        throw new UnauthorizedError('OIDC identity is missing a subject claim.');
       }
 
       // Derive user information from claims
       const email = claims.email || null;
-      const emailVerified = claims.email_verified || false;
+      const emailVerified = claims.email_verified === true;
       const preferredUsername = claims.preferred_username || claims.username || email || sub;
       const displayName = claims.name || preferredUsername || null;
       const roles = deriveRolesFromClaims(claims, envAuthConfig?.oidc?.adminGroups);
 
       logger.debug(
-        {
-          sub,
-          preferredUsername,
-          displayName,
-          email,
-          emailVerified,
-          roles,
-        },
-        'afterCallback: derived user info'
+        { emailVerified, roleCount: roles.length },
+        'afterCallback: OIDC claims validated'
       );
 
       // Persist user to database
@@ -302,9 +306,12 @@ const configureOidc = async (app) => {
     // callback URL so a login can return to the origin where it began.
     const oidcOrigins = uniqueOrigins([baseURL, ...(publicConfig?.origins || [])]);
     const oidcMiddlewares = new Map();
+    const oidcCookieNames = new Map();
 
     for (const origin of oidcOrigins) {
       const cookieSecure = shouldOidcCookieBeSecure(origin);
+      const cookieNames = oidcCookieNamesForOrigin(origin);
+      oidcCookieNames.set(origin, cookieNames);
       oidcMiddlewares.set(
         origin,
         eocAuth({
@@ -322,6 +329,7 @@ const configureOidc = async (app) => {
           },
           session: {
             store: oidcStore,
+            name: cookieNames.session,
             rolling: true,
             // Convert milliseconds to seconds for absoluteDuration
             absoluteDuration: Math.floor(
@@ -332,6 +340,10 @@ const configureOidc = async (app) => {
               secure: cookieSecure,
               httpOnly: true,
             },
+          },
+          transactionCookie: {
+            name: cookieNames.transaction,
+            sameSite: 'Lax',
           },
           afterCallback: createAfterCallbackHandler(oidc, envAuthConfig),
           // The native routes always use one baseURL. Register them ourselves
@@ -349,7 +361,11 @@ const configureOidc = async (app) => {
 
     // Attach an EOC request/response context selected by the actual, approved
     // browser origin. Unknown hosts deliberately fall back to PUBLIC_URL.
-    app.use((req, res, next) => oidcMiddlewares.get(resolveOrigin(req))(req, res, next));
+    app.use((req, res, next) => {
+      const origin = resolveOrigin(req);
+      req.nextExplorerOidcSessionCookieName = oidcCookieNames.get(origin).session;
+      oidcMiddlewares.get(origin)(req, res, next);
+    });
 
     const returnToForRequest = (req) =>
       absoluteReturnTo(resolveOrigin(req), req.query?.returnTo || '/auth/login');
@@ -383,10 +399,11 @@ const configureOidc = async (app) => {
       const logoutHandler = createLogoutHandler({
         logoutURL: oidc.logoutURL,
         getReturnTo: returnToForRequest,
+        getSessionCookieName: (req) => req.nextExplorerOidcSessionCookieName,
       });
       if (logoutHandler) {
         app.get('/logout', logoutHandler);
-        logger.debug({ logoutURL: oidc.logoutURL }, 'Custom logout handler configured');
+        logger.debug('Custom OIDC logout handler configured');
       }
     } else {
       app.get('/logout', (req, res, next) => {
