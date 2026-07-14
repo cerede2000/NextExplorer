@@ -310,7 +310,8 @@
     "copying": "Kopierar {count} {items}…",
     "moving": "Flyttar {count} {items}…",
     "working": "Arbetar…",
-    "reposition": "Återgå till objektet när det är klart"
+    "reposition": "Återgå till objektet när det är klart",
+    "extracting": "Extraherar {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Visa detaljer",

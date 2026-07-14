@@ -310,7 +310,8 @@
     "copying": "Копирование {count} {items}…",
     "moving": "Перемещение {count} {items}…",
     "working": "Обработка…",
-    "reposition": "Вернуться к объекту по завершении"
+    "reposition": "Вернуться к объекту по завершении",
+    "extracting": "Извлечение {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Показать детали",

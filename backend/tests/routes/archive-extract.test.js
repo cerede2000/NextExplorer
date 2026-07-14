@@ -48,8 +48,16 @@ const buildApp = ({ user } = {}) => {
 
 const adminUser = { id: 'admin', roles: ['admin'] };
 
+// The extract endpoint streams NDJSON events (start/progress/done/error).
+const parseNdjson = (text) =>
+  String(text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+
 describe('Archive extraction', () => {
-  it('extracts a zip archive into a sibling folder', async () => {
+  it('extracts a zip archive into a sibling folder, streaming its status', async () => {
     const workDir = path.join(envContext.volumeDir, 'archives');
     await fs.mkdir(workDir, { recursive: true });
 
@@ -63,9 +71,15 @@ describe('Archive extraction', () => {
       .post('/api/files/zip/extract')
       .send({ path: 'archives/sample.zip' });
 
-    expect(response.status).toBe(201);
-    expect(response.body.item?.name).toBe('sample');
-    expect(response.body.item?.kind).toBe('directory');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('application/x-ndjson');
+
+    const events = parseNdjson(response.text);
+    expect(events[0]).toMatchObject({ type: 'start', name: 'sample' });
+    const done = events.at(-1);
+    expect(done.type).toBe('done');
+    expect(done.item?.name).toBe('sample');
+    expect(done.item?.kind).toBe('directory');
 
     const extractedRoot = path.join(workDir, 'sample');
     expect(await fs.readFile(path.join(extractedRoot, 'hello.txt'), 'utf8')).toBe('hello archive');

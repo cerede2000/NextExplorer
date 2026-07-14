@@ -310,7 +310,8 @@
     "copying": "{count}개 {items} 복사 중…",
     "moving": "{count}개 {items} 이동 중…",
     "working": "처리 중…",
-    "reposition": "완료 후 항목으로 돌아가기"
+    "reposition": "완료 후 항목으로 돌아가기",
+    "extracting": "{name} 압축 푸는 중…"
   },
   "upload": {
     "toggleDetailsShow": "상세 정보 보기",
