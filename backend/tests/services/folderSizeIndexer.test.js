@@ -87,6 +87,30 @@ describe('folderSizeIndexer', () => {
     expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'A', 'B')).entryCount).toBe(2);
   });
 
+  it('indexes a newly-created subtree and updates its ancestors in one pass', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'Existing'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'Existing', 'before'), Buffer.alloc(10));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    // Mirrors archive extraction: the new tree did not exist in the baseline.
+    const extracted = path.join(vol, 'Existing', 'Extracted');
+    await fs.mkdir(path.join(extracted, 'nested'), { recursive: true });
+    await fs.writeFile(path.join(extracted, 'top.bin'), Buffer.alloc(20));
+    await fs.writeFile(path.join(extracted, 'nested', 'payload.bin'), Buffer.alloc(70));
+
+    const result = await indexer.indexSubtree(db, scope, extracted, { mode: 'full' });
+
+    expect(result).toMatchObject({ folders: 2, bytes: 90 });
+    expect(sizeOf(folderSizeIndex, db, extracted)).toBe(90);
+    expect(sizeOf(folderSizeIndex, db, path.join(extracted, 'nested'))).toBe(70);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'Existing'))).toBe(100);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(100);
+  });
+
   it('reconciliation detects and corrects an out-of-band change via mtime', async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;
@@ -193,7 +217,7 @@ describe('folderSizeIndexer', () => {
     expect(sizeOf(folderSizeIndex, db, vol)).toBe(100);
   });
 
-  it('shallow mode stores only each folder\'s direct file bytes', async () => {
+  it("shallow mode stores only each folder's direct file bytes", async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;
     const vol = env.volumeDir;

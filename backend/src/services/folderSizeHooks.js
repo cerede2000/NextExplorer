@@ -20,6 +20,7 @@ const logger = require('../utils/logger');
 const { getDb } = require('./db');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
+const folderSizeManager = require('./folderSizeManager');
 
 const isEnabled = () => config.folderSize.enabled;
 
@@ -28,7 +29,7 @@ const withIndex = async (fn) => {
   try {
     const db = await getDb();
     const scope = getVolumeScope();
-    fn(db, scope);
+    return await fn(db, scope);
   } catch (err) {
     logger.debug({ err, component: 'folderSizeIndexer' }, 'Folder size hook failed (non-fatal)');
   }
@@ -42,6 +43,17 @@ const onFileWritten = (absolutePath, size) =>
     });
   });
 
+/** A file was replaced in place; only its byte delta changes the index. */
+const onFileReplaced = (absolutePath, previousSize, size) =>
+  withIndex((db, scope) => {
+    folderSizeIndex.applyDelta(
+      db,
+      scope,
+      path.dirname(absolutePath),
+      (Number(size) || 0) - (Number(previousSize) || 0)
+    );
+  });
+
 /** An empty folder has been created at `absolutePath`. */
 const onFolderCreated = (absolutePath) =>
   withIndex((db, scope) => {
@@ -53,6 +65,23 @@ const onFolderCreated = (absolutePath) =>
     });
     folderSizeIndex.applyDelta(db, scope, path.dirname(absolutePath), 0, { entryDelta: 1 });
   });
+
+/**
+ * A complete directory tree was created by an application operation. The
+ * manager scans this tree alone and applies one precise delta to its parent.
+ */
+const onDirectoryTreeCreated = async (absolutePath) => {
+  if (!isEnabled()) return null;
+  try {
+    return await folderSizeManager.refreshSubtree(absolutePath);
+  } catch (err) {
+    logger.debug(
+      { err, component: 'folderSizeIndexer' },
+      'Folder subtree index refresh failed (non-fatal)'
+    );
+    return null;
+  }
+};
 
 /**
  * An entry has been deleted. For a file the size is known; for a directory the
@@ -100,18 +129,18 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
 
 /**
  * An entry has been copied to `targetAbsolutePath`. The destination gains the
- * copied bytes; for a copied directory its inner folders are (re)discovered by
- * the watcher / reconciliation — the top entry is created here as a placeholder.
+ * copied bytes. A copied directory is scanned immediately so its child index
+ * entries and recursive size are available before the operation completes.
  */
-const onEntryCopied = (targetAbsolutePath, meta = {}) =>
-  withIndex((db, scope) => {
-    const bytes = meta.isDirectory
-      ? sizeOfMoved(db, scope, meta.sourceAbsolutePath, meta)
-      : Number(meta.size) || 0;
+const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
+  if (meta.isDirectory) return onDirectoryTreeCreated(targetAbsolutePath);
+  return withIndex((db, scope) => {
+    const bytes = Number(meta.size) || 0;
     folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
       entryDelta: 1,
     });
   });
+};
 
 /**
  * An entry has been renamed in place (same parent directory). Bytes and parent
@@ -127,7 +156,9 @@ const onEntryRenamed = (sourceAbsolutePath, targetAbsolutePath) =>
 
 module.exports = {
   onFileWritten,
+  onFileReplaced,
   onFolderCreated,
+  onDirectoryTreeCreated,
   onEntryDeleted,
   onEntryMoved,
   onEntryCopied,
