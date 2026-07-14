@@ -20,6 +20,7 @@ const logger = require('./utils/logger');
 const { printStartupBanner } = require('./utils/startupBanner');
 const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
+const performanceDiagnostics = require('./services/performanceDiagnostics');
 
 let server = null;
 
@@ -60,11 +61,13 @@ const startServer = async () => {
   // Start the folder size indexer worker (no-op unless FOLDER_SIZE_MODE is set).
   // It runs off the Express event loop and keeps the folder_size_index fresh.
   folderSizeManager.start();
+  performanceDiagnostics.start();
 
   // Cleanup on process termination
   const cleanup = async () => {
     logger.info('Shutting down server...');
     terminalService.cleanup();
+    performanceDiagnostics.stop();
     await folderSizeManager.stop();
     server.close(() => {
       logger.info('Server closed');

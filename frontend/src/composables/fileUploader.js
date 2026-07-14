@@ -119,6 +119,16 @@ export function useFileUploader() {
     }
   };
 
+  const releaseFolderReservations = (batchFiles = []) => {
+    (Array.isArray(batchFiles) ? batchFiles : []).forEach((file) => {
+      const parts = folderUploadParts(file);
+      const uploadTo = normalizePath(file?.meta?.uploadTo || '');
+      const uploadBatchId = file?.meta?.uploadBatchId;
+      if (!parts || !uploadBatchId) return;
+      folderReservationByBatch.delete(`${uploadTo}\u0000${uploadBatchId}\u0000${parts[0]}`);
+    });
+  };
+
   // A folder upload emits one success event per file. Wait for a short quiet
   // period so those events produce one listing refresh instead of repeatedly
   // aborting the preceding browse request.
@@ -602,9 +612,12 @@ export function useFileUploader() {
       clearFallbackTracking();
       const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
       const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
+      releaseFolderReservations([...successfulFiles, ...failedFiles]);
       [...successfulFiles, ...failedFiles].forEach(removeUploadFile);
       scheduleUploadViewRefresh(100);
     });
+
+    uppy.on('cancel-all', () => folderReservationByBatch.clear());
 
     uppy.on('upload-error', (file, error, response) => {
       // A large direct upload that failed (proxy body-size rejection, network
