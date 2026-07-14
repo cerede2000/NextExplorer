@@ -19,6 +19,7 @@ const {
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
   extractArchive,
+  createZipArchive,
   archiveBaseName,
 } = require('../services/archiveService');
 
@@ -237,16 +238,69 @@ router.post(
     const zipFileName = await findAvailableName(destinationAbsolutePath, requestedName);
     const zipAbsolutePath = path.join(destinationAbsolutePath, zipFileName);
 
-    const zip = new AdmZip();
-    sourceTargets.forEach(({ name: entryName, absolutePath, stats }) => {
-      stats.isDirectory()
-        ? zip.addLocalFolder(absolutePath, entryName)
-        : zip.addLocalFile(absolutePath, '', entryName);
-    });
-    zip.writeZip(zipAbsolutePath);
+    // Everything above throws BEFORE any byte is written, so validation errors
+    // still surface as normal HTTP errors. From here on the response streams
+    // NDJSON progress events, mirroring the extract endpoint:
+    //   {type:'start',    name}
+    //   {type:'progress', percent}    (throttled)
+    //   {type:'done',     success, item}
+    //   {type:'error',    message, code}
+    res.status(200);
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    // Disable proxy buffering so progress lines reach the client promptly.
+    res.setHeader('X-Accel-Buffering', 'no');
 
-    const item = await buildItemMetadata(zipAbsolutePath, normalizedDestination, zipFileName);
-    res.status(201).json({ success: true, item });
+    const writeEvent = (event) => {
+      if (res.writableEnded) return;
+      res.write(`${JSON.stringify(event)}\n`);
+    };
+
+    writeEvent({ type: 'start', name: zipFileName });
+
+    const PROGRESS_THROTTLE_MS = 150;
+    let lastProgressAt = 0;
+    let lastPercent = -1;
+    const onPercent = (percent) => {
+      const now = Date.now();
+      if (percent === lastPercent) return;
+      if (percent < 100 && now - lastProgressAt < PROGRESS_THROTTLE_MS) return;
+      lastProgressAt = now;
+      lastPercent = percent;
+      writeEvent({ type: 'progress', percent });
+    };
+
+    try {
+      if (await isSevenZipAvailable()) {
+        // 7-Zip streams the archive to disk instead of assembling it in RAM.
+        await createZipArchive(
+          sourceTargets.map(({ absolutePath }) => absolutePath),
+          zipAbsolutePath,
+          onPercent
+        );
+      } else {
+        const zip = new AdmZip();
+        sourceTargets.forEach(({ name: entryName, absolutePath, stats }) => {
+          stats.isDirectory()
+            ? zip.addLocalFolder(absolutePath, entryName)
+            : zip.addLocalFile(absolutePath, '', entryName);
+        });
+        zip.writeZip(zipAbsolutePath);
+      }
+
+      const item = await buildItemMetadata(zipAbsolutePath, normalizedDestination, zipFileName);
+      writeEvent({ type: 'done', success: true, item });
+    } catch (error) {
+      logger.warn({ zipAbsolutePath, err: error }, 'Archive creation failed; cleaning up file');
+      await fs.rm(zipAbsolutePath, { force: true });
+      writeEvent({
+        type: 'error',
+        message: error.message || 'Archive creation failed.',
+        code: error.code || 'COMPRESS_FAILED',
+      });
+    } finally {
+      res.end();
+    }
   })
 );
 

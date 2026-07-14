@@ -311,7 +311,8 @@
     "moving": "Spostamento di {count} {items}…",
     "working": "In corso…",
     "reposition": "Torna all'elemento al termine",
-    "extracting": "Estrazione di {name}…"
+    "extracting": "Estrazione di {name}…",
+    "compressing": "Compressione di {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Mostra dettagli",

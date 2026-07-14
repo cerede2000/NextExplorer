@@ -311,7 +311,8 @@
     "moving": "Verschieben von {count} {items}…",
     "working": "Wird verarbeitet…",
     "reposition": "Nach Abschluss zum Element zurückkehren",
-    "extracting": "{name} wird entpackt…"
+    "extracting": "{name} wird entpackt…",
+    "compressing": "{name} wird komprimiert…"
   },
   "upload": {
     "toggleDetailsShow": "Details anzeigen",

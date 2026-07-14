@@ -311,7 +311,8 @@
     "moving": "Se mută {count} {items}…",
     "working": "În lucru…",
     "reposition": "Revino la element la final",
-    "extracting": "Se extrage {name}…"
+    "extracting": "Se extrage {name}…",
+    "compressing": "Se comprimă {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",

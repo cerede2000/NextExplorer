@@ -311,7 +311,8 @@
     "moving": "{count} {items} स्थानांतरित किए जा रहे हैं…",
     "working": "प्रक्रिया जारी है…",
     "reposition": "पूरा होने पर आइटम पर लौटें",
-    "extracting": "{name} निकाला जा रहा है…"
+    "extracting": "{name} निकाला जा रहा है…",
+    "compressing": "{name} संपीड़ित किया जा रहा है…"
   },
   "upload": {
     "toggleDetailsShow": "विवरण दिखाएँ",

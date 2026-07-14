@@ -311,7 +311,8 @@
     "moving": "Moviendo {count} {items}…",
     "working": "Procesando…",
     "reposition": "Volver al elemento al terminar",
-    "extracting": "Extrayendo {name}…"
+    "extracting": "Extrayendo {name}…",
+    "compressing": "Comprimiendo {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Mostrar detalles",

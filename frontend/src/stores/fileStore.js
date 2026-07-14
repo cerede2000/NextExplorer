@@ -40,6 +40,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const clipboardOperation = ref(null);
   const deleteOperation = ref(null);
   const extractOperation = ref(null);
+  const compressOperation = ref(null);
   const favoritesStore = useFavoritesStore();
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
@@ -468,7 +469,29 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return null;
 
-    const response = await compressToZipApi(payload, destination, name);
+    compressOperation.value = {
+      type: 'compress',
+      name: typeof name === 'string' && name.trim() ? name.trim() : '',
+      itemCount: payload.length,
+      startedAt: Date.now(),
+      percent: null,
+    };
+
+    let response;
+    try {
+      response = await compressToZipApi(payload, destination, name, {
+        onEvent: (event) => {
+          if (event?.type === 'start' && event.name) {
+            compressOperation.value = { ...compressOperation.value, name: event.name };
+          } else if (event?.type === 'progress' && Number.isFinite(event.percent)) {
+            compressOperation.value = { ...compressOperation.value, percent: event.percent };
+          }
+        },
+      });
+    } finally {
+      compressOperation.value = null;
+    }
+
     const createdName = response?.item?.name;
 
     await fetchPathItems(destination);
@@ -786,6 +809,7 @@ export const useFileStore = defineStore('fileStore', () => {
     deleteOperation,
     repositionAfterTransfer,
     extractOperation,
+    compressOperation,
     copiedItems,
     cutItems,
     hasSelection,
