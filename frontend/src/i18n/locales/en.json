@@ -302,6 +302,9 @@
     "copying": "Copying {count} {items}…",
     "moving": "Moving {count} {items}…",
     "working": "Working…",
+    "copyingUnknown": "Copying…",
+    "movingUnknown": "Moving…",
+    "activeTasks": "{count} operations in progress",
     "extracting": "Extracting {name}…",
     "compressing": "Compressing {name}…"
   },

@@ -18,6 +18,7 @@ import {
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFavoritesStore } from '@/stores/favorites';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 
 export const useFileStore = defineStore('fileStore', () => {
   // State
@@ -28,11 +29,8 @@ export const useFileStore = defineStore('fileStore', () => {
   const selectionMode = ref(false);
   const renameState = ref(null);
 
-  const clipboardOperation = ref(null);
-  const deleteOperation = ref(null);
-  const extractOperation = ref(null);
-  const compressOperation = ref(null);
   const favoritesStore = useFavoritesStore();
+  const operationTasksStore = useOperationTasksStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -124,14 +122,14 @@ export const useFileStore = defineStore('fileStore', () => {
     const movePayload = serializeItems(cutItems.value);
     const totalCount = copyPayload.length + movePayload.length;
 
-    if (totalCount > 0) {
-      clipboardOperation.value = {
-        type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
-        destination,
-        itemCount: totalCount,
-        startedAt: Date.now(),
-      };
-    }
+    const operationId =
+      totalCount > 0
+        ? operationTasksStore.startOperation({
+            type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
+            destination,
+            itemCount: totalCount,
+          })
+        : null;
 
     try {
       if (copiedItems.value.length > 0) {
@@ -150,7 +148,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
       await fetchPathItems(refreshTarget);
     } finally {
-      clipboardOperation.value = null;
+      if (operationId) operationTasksStore.finishOperation(operationId);
     }
   };
 
@@ -158,11 +156,10 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
-    deleteOperation.value = {
+    const operationId = operationTasksStore.startOperation({
       type: 'delete',
       itemCount: payload.length,
-      startedAt: Date.now(),
-    };
+    });
 
     try {
       await deleteItems(payload);
@@ -170,7 +167,7 @@ export const useFileStore = defineStore('fileStore', () => {
       await favoritesStore.loadFavorites();
       await fetchPathItems(currentPath.value);
     } finally {
-      deleteOperation.value = null;
+      operationTasksStore.finishOperation(operationId);
     }
   };
 
@@ -239,25 +236,23 @@ export const useFileStore = defineStore('fileStore', () => {
     if (!normalized) return null;
 
     const archiveName = normalized.split('/').pop() || normalized;
-    extractOperation.value = {
+    const operationId = operationTasksStore.startOperation({
       type: 'extract',
       name: archiveName,
       itemCount: 1,
-      startedAt: Date.now(),
-      percent: null,
-    };
+    });
 
     let response;
     try {
       response = await extractZipApi(normalized, {
         onEvent: (event) => {
           if (event?.type === 'progress' && Number.isFinite(event.percent)) {
-            extractOperation.value = { ...extractOperation.value, percent: event.percent };
+            operationTasksStore.updateOperation(operationId, { percent: event.percent });
           }
         },
       });
     } finally {
-      extractOperation.value = null;
+      operationTasksStore.finishOperation(operationId);
     }
 
     const parent = (() => {
@@ -284,27 +279,25 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return null;
 
-    compressOperation.value = {
+    const operationId = operationTasksStore.startOperation({
       type: 'compress',
       name: typeof name === 'string' && name.trim() ? name.trim() : '',
       itemCount: payload.length,
-      startedAt: Date.now(),
-      percent: null,
-    };
+    });
 
     let response;
     try {
       response = await compressToZipApi(payload, destination, name, {
         onEvent: (event) => {
           if (event?.type === 'start' && event.name) {
-            compressOperation.value = { ...compressOperation.value, name: event.name };
+            operationTasksStore.updateOperation(operationId, { name: event.name });
           } else if (event?.type === 'progress' && Number.isFinite(event.percent)) {
-            compressOperation.value = { ...compressOperation.value, percent: event.percent };
+            operationTasksStore.updateOperation(operationId, { percent: event.percent });
           }
         },
       });
     } finally {
-      compressOperation.value = null;
+      operationTasksStore.finishOperation(operationId);
     }
 
     const createdName = response?.item?.name;
@@ -580,10 +573,6 @@ export const useFileStore = defineStore('fileStore', () => {
     setSelectionMode,
     toggleSelectionMode,
     clearSelection,
-    clipboardOperation,
-    deleteOperation,
-    extractOperation,
-    compressOperation,
     copiedItems,
     cutItems,
     hasSelection,

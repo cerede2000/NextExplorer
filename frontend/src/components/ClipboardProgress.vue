@@ -1,51 +1,56 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useFileStore } from '@/stores/fileStore';
+import { ChevronDownIcon, QueueListIcon } from '@heroicons/vue/24/outline';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 
-const fileStore = useFileStore();
+const operationTasksStore = useOperationTasksStore();
 const { t } = useI18n();
+const isListOpen = ref(false);
 
-const operation = computed(
-  () =>
-    fileStore.extractOperation ||
-    fileStore.compressOperation ||
-    fileStore.deleteOperation ||
-    fileStore.clipboardOperation
-);
+const operation = computed(() => operationTasksStore.activeOperation);
+const operations = computed(() => operationTasksStore.operations);
+const operationCount = computed(() => operationTasksStore.operationCount);
 
-const title = computed(() => {
-  const op = operation.value;
-  if (!op) return '';
+watch(operationCount, (count) => {
+  if (count < 2) isListOpen.value = false;
+});
 
-  if (op.type === 'extract') {
-    return t('clipboard.extracting', { name: op.name || '' });
+const percentFor = (value) => {
+  const streamed = value?.percent;
+  return Number.isFinite(streamed) ? Math.min(100, Math.max(0, streamed)) : null;
+};
+const progressLabelFor = (value) => {
+  const percent = percentFor(value);
+  return percent !== null ? `${percent}%` : t('clipboard.working');
+};
+const titleFor = (value) => {
+  if (!value) return '';
+
+  if (value.type === 'extract') return t('clipboard.extracting', { name: value.name || '' });
+  if (value.type === 'compress') return t('clipboard.compressing', { name: value.name || '' });
+
+  const count = Number(value.itemCount);
+  if (!Number.isInteger(count) || count < 1) {
+    return value.type === 'move' ? t('clipboard.movingUnknown') : t('clipboard.copyingUnknown');
   }
 
-  if (op.type === 'compress') {
-    return t('clipboard.compressing', { name: op.name || '' });
-  }
-
-  const count = Number(op.itemCount) || 0;
   const itemsLabel = count === 1 ? t('common.item') : t('common.items');
+  if (value.type === 'delete') return `${t('common.deleting')} ${count} ${itemsLabel}`;
 
-  if (op.type === 'delete') {
-    return `${t('common.deleting')} ${count} ${itemsLabel}`;
-  }
-
-  return op.type === 'move'
+  return value.type === 'move'
     ? t('clipboard.moving', { count, items: itemsLabel })
     : t('clipboard.copying', { count, items: itemsLabel });
-});
+};
 
+const percent = computed(() => percentFor(operation.value));
+const progressLabel = computed(() => progressLabelFor(operation.value));
 const destination = computed(() => operation.value?.destination ?? '');
 
-// Determinate percentage when the backend streams progress events (extraction
-// via 7-Zip); null keeps the indeterminate animated bar.
-const percent = computed(() => {
-  const value = operation.value?.percent;
-  return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : null;
-});
+const selectOperation = (id) => {
+  operationTasksStore.selectOperation(id);
+  isListOpen.value = false;
+};
 </script>
 
 <template>
@@ -55,13 +60,48 @@ const percent = computed(() => {
     role="status"
     aria-live="polite"
   >
-    <h3 class="text-lg font-semibold tracking-tight">
-      {{ title }}
-    </h3>
+    <div class="flex items-start gap-3">
+      <div class="min-w-0 grow">
+        <h3 class="text-lg font-semibold tracking-tight">
+          {{ titleFor(operation) }}
+        </h3>
+        <div v-if="destination" class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+          {{ t('common.to') }}
+          <span class="text-indigo-600 dark:text-indigo-300 font-medium">{{ destination }}</span>
+        </div>
+      </div>
 
-    <div v-if="destination" class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-      {{ t('common.to') }}
-      <span class="text-indigo-600 dark:text-indigo-300 font-medium">{{ destination }}</span>
+      <button
+        v-if="operationCount > 1"
+        type="button"
+        class="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-600"
+        :aria-expanded="isListOpen"
+        :title="t('clipboard.activeTasks', { count: operationCount })"
+        @click="isListOpen = !isListOpen"
+      >
+        <QueueListIcon class="h-4 w-4" />
+        {{ operationCount }}
+        <ChevronDownIcon
+          class="h-3.5 w-3.5 transition-transform"
+          :class="{ 'rotate-180': isListOpen }"
+        />
+      </button>
+    </div>
+
+    <div v-if="isListOpen" class="mt-3 border-y border-zinc-200/70 py-2 dark:border-zinc-600">
+      <button
+        v-for="task in operations"
+        :key="task.id"
+        type="button"
+        class="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600"
+        :class="{ 'bg-zinc-100 dark:bg-zinc-600': task.id === operation.id }"
+        @click="selectOperation(task.id)"
+      >
+        <span class="min-w-0 truncate font-medium">{{ titleFor(task) }}</span>
+        <span class="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-300">
+          {{ progressLabelFor(task) }}
+        </span>
+      </button>
     </div>
 
     <div class="mt-3">
@@ -70,16 +110,15 @@ const percent = computed(() => {
       >
         <div
           v-if="percent !== null"
-          class="h-full rounded-full clipboard-bar transition-[width] duration-200 ease-out"
+          class="h-full rounded-full clipboard-bar clipboard-bar--determinate"
           :style="{ width: `${percent}%` }"
         />
         <div v-else class="h-full rounded-full clipboard-bar clipboard-bar--animated" />
       </div>
     </div>
 
-    <div class="mt-2 text-xs text-zinc-600 dark:text-zinc-300">
-      <template v-if="percent !== null">{{ percent }}%</template>
-      <template v-else>{{ t('clipboard.working') }}</template>
+    <div class="mt-2 text-xs text-zinc-600 dark:text-zinc-300 tabular-nums">
+      {{ progressLabel }}
     </div>
   </div>
 </template>
@@ -97,6 +136,10 @@ const percent = computed(() => {
 
 .clipboard-bar--animated {
   animation: clipboardSlide 1.35s ease-in-out infinite;
+}
+
+.clipboard-bar--determinate {
+  transition: width 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
