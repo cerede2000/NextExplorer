@@ -1,6 +1,7 @@
 const pinoHttp = require('pino-http');
 const { logging } = require('../config/index');
 const logger = require('../utils/logger');
+const { sanitizeHttpRequestForLog } = require('../utils/logSanitizer');
 
 const configureHttpLogging = (app) => {
   if (!logging.enableHttpLogging) {
@@ -11,6 +12,9 @@ const configureHttpLogging = (app) => {
   app.use(
     pinoHttp({
       logger: logger.child({ context: 'http' }),
+      serializers: {
+        req: sanitizeHttpRequestForLog,
+      },
       customLogLevel: (res, err) => {
         if (err || res.statusCode >= 500) return 'error';
         if (res.statusCode >= 400) return 'warn';
