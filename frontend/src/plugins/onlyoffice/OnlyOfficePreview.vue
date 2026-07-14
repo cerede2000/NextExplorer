@@ -35,6 +35,7 @@ const props = defineProps({
   extension: { type: String, required: true },
   filePath: { type: String, required: true },
   previewUrl: { type: String, required: true },
+  previewState: { type: Object, required: true },
   api: { type: Object, required: true },
 });
 
@@ -61,6 +62,17 @@ const load = async () => {
     const path = props.filePath;
     if (!path) throw new Error('Missing file path.');
     const { documentServerUrl, config: cfg } = await fetchOnlyOfficeConfig(path, 'edit');
+    cfg.events = {
+      ...cfg.events,
+      onDocumentStateChange(event) {
+        const changesPending = Boolean(event?.data);
+        props.previewState.changesPending = changesPending;
+        if (!changesPending) {
+          props.previewState.resolveChangesFlushed?.();
+          props.previewState.resolveChangesFlushed = null;
+        }
+      },
+    };
     serverUrl.value = documentServerUrl;
     logger.debug('ONLYOFFICE config', cfg);
     config.value = cfg;

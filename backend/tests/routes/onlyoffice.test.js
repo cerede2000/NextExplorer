@@ -9,6 +9,7 @@ import { createTestApp, setupTestEnv } from '../helpers/env-test-utils.js';
 describe('ONLYOFFICE routes', () => {
   let env;
   let commandServer;
+  let app;
 
   afterEach(async () => {
     if (commandServer) {
@@ -23,15 +24,38 @@ describe('ONLYOFFICE routes', () => {
     }
   });
 
-  it('enables Save force-save and queues a signed close force-save command', async () => {
+  it('enables Save force-save and tracks a signed close force-save command', async () => {
     let commandPayload = null;
+    let commandRequestUrl = null;
+    let callbackPath = null;
+    let callbackToken = null;
+    let callbackPromise = null;
     commandServer = http.createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/saved.docx') {
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.end('updated');
+        return;
+      }
+
       const chunks = [];
       req.on('data', (chunk) => chunks.push(chunk));
       req.on('end', () => {
+        commandRequestUrl = req.url;
         commandPayload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 0 }));
+
+        callbackPromise = request(app)
+          .post(callbackPath)
+          .set('Authorization', `Bearer ${callbackToken}`)
+          .send({
+            status: 6,
+            key: commandPayload.key,
+            forcesavetype: 0,
+            userdata: commandPayload.userdata,
+            url: `http://127.0.0.1:${port}/saved.docx`,
+          })
+          .then((response) => response);
       });
     });
     await new Promise((resolve, reject) => {
@@ -53,6 +77,7 @@ describe('ONLYOFFICE routes', () => {
         ONLYOFFICE_URL: `http://127.0.0.1:${port}`,
         ONLYOFFICE_SECRET: 'onlyoffice-test-secret',
         ONLYOFFICE_FORCE_SAVE: 'true',
+        ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: '20',
       },
     });
 
@@ -61,7 +86,7 @@ describe('ONLYOFFICE routes', () => {
 
     const routes = env.requireFresh('src/routes/onlyoffice');
     const { errorHandler } = env.requireFresh('src/middleware/errorHandler');
-    const app = createTestApp({
+    app = createTestApp({
       router: routes,
       mountPath: '/api',
       user: { id: 'admin-user', roles: ['admin'] },
@@ -74,17 +99,29 @@ describe('ONLYOFFICE routes', () => {
 
     expect(configResponse.status).toBe(200);
     expect(configResponse.body.config.editorConfig.customization.forcesave).toBe(true);
+    callbackPath = `${new URL(configResponse.body.config.editorConfig.callbackUrl).pathname}${
+      new URL(configResponse.body.config.editorConfig.callbackUrl).search
+    }`;
+    callbackToken = configResponse.body.config.token;
 
     const forceSaveResponse = await request(app)
       .post('/api/onlyoffice/force-save')
       .send({ path: filename });
 
     expect(forceSaveResponse.status).toBe(200);
-    expect(forceSaveResponse.body).toEqual({ queued: true });
+    expect(forceSaveResponse.body).toEqual({ queued: true, saved: true });
+    expect((await callbackPromise).body).toEqual({ error: 0 });
+    expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
     expect(commandPayload).toMatchObject({ c: 'forcesave' });
+    expect(new URL(commandRequestUrl, `http://127.0.0.1:${port}`).pathname).toBe('/command');
+    expect(new URL(commandRequestUrl, `http://127.0.0.1:${port}`).searchParams.get('shardkey')).toBe(
+      commandPayload.key
+    );
+    expect(commandPayload.userdata).toMatch(/^nextexplorer-force-save:/);
     expect(jwt.verify(commandPayload.token, 'onlyoffice-test-secret')).toMatchObject({
       c: 'forcesave',
       key: commandPayload.key,
+      userdata: commandPayload.userdata,
     });
   });
 });
