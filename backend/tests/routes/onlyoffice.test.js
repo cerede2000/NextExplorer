@@ -24,7 +24,7 @@ describe('ONLYOFFICE routes', () => {
     }
   });
 
-  it('queues a signed close force-save without blocking the preview', async () => {
+  it('queues signed close and live force-saves without blocking the preview', async () => {
     let commandPayload = null;
     let commandRequestUrl = null;
     let callbackPath = null;
@@ -33,11 +33,15 @@ describe('ONLYOFFICE routes', () => {
     const callbackPromises = [];
     let resolveCommand;
     let resolveSecondCommand;
+    let releaseFirstCallback;
     const commandReceived = new Promise((resolve) => {
       resolveCommand = resolve;
     });
     const secondCommandReceived = new Promise((resolve) => {
       resolveSecondCommand = resolve;
+    });
+    const firstCallbackReleased = new Promise((resolve) => {
+      releaseFirstCallback = resolve;
     });
     commandServer = http.createServer((req, res) => {
       if (req.method === 'GET' && req.url === '/saved.docx') {
@@ -64,17 +68,20 @@ describe('ONLYOFFICE routes', () => {
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 0 }));
 
-        const callbackPromise = request(app)
-          .post(callbackPath)
-          .set('Authorization', `Bearer ${callbackToken}`)
-          .send({
-            status: 6,
-            key: commandPayload.key,
-            forcesavetype: 0,
-            userdata: commandPayload.userdata,
-            url: `http://127.0.0.1:${port}/saved.docx`,
-          })
-          .then((response) => response);
+        const callback = () =>
+          request(app)
+            .post(callbackPath)
+            .set('Authorization', `Bearer ${callbackToken}`)
+            .send({
+              status: 6,
+              key: commandPayload.key,
+              forcesavetype: 0,
+              userdata: commandPayload.userdata,
+              url: `http://127.0.0.1:${port}/saved.docx`,
+            })
+            .then((response) => response);
+        const callbackPromise =
+          commandPayloads.length === 1 ? firstCallbackReleased.then(callback) : callback();
         callbackPromises.push(callbackPromise);
         if (commandPayloads.length === 1) resolveCommand();
         else resolveSecondCommand();
@@ -100,6 +107,7 @@ describe('ONLYOFFICE routes', () => {
         ONLYOFFICE_SECRET: 'onlyoffice-test-secret',
         ONLYOFFICE_FORCE_SAVE: 'true',
         ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: '20',
+        ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: '15000',
       },
     });
 
@@ -122,6 +130,7 @@ describe('ONLYOFFICE routes', () => {
     expect(configResponse.status).toBe(200);
     expect(configResponse.body.config.editorConfig.customization.forcesave).toBe(true);
     expect(configResponse.body.forceSaveSessionId).toEqual(expect.any(String));
+    expect(configResponse.body.autoSaveIntervalMs).toBe(15000);
     callbackPath = `${new URL(configResponse.body.config.editorConfig.callbackUrl).pathname}${
       new URL(configResponse.body.config.editorConfig.callbackUrl).search
     }`;
@@ -129,18 +138,16 @@ describe('ONLYOFFICE routes', () => {
 
     const forceSaveResponse = await request(app)
       .post('/api/onlyoffice/force-save')
-      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId, reason: 'auto' });
 
     expect(forceSaveResponse.status).toBe(202);
     expect(forceSaveResponse.body).toMatchObject({ queued: true, requestId: expect.any(String) });
     await commandReceived;
-    expect((await callbackPromises[0]).body).toEqual({ error: 0 });
-    expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
     expect(commandPayload).toMatchObject({ c: 'forcesave' });
     expect(new URL(commandRequestUrl, `http://127.0.0.1:${port}`).pathname).toBe('/command');
-    expect(new URL(commandRequestUrl, `http://127.0.0.1:${port}`).searchParams.get('shardkey')).toBe(
-      commandPayload.key
-    );
+    expect(
+      new URL(commandRequestUrl, `http://127.0.0.1:${port}`).searchParams.get('shardkey')
+    ).toBe(commandPayload.key);
     expect(commandPayload.userdata).toMatch(/^nextexplorer-force-save:/);
     expect(jwt.verify(commandPayload.token, 'onlyoffice-test-secret')).toMatchObject({
       c: 'forcesave',
@@ -148,10 +155,20 @@ describe('ONLYOFFICE routes', () => {
       userdata: commandPayload.userdata,
     });
 
-    const secondForceSaveResponse = await request(app)
+    const closeForceSaveResponse = await request(app)
       .post('/api/onlyoffice/force-save')
       .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
-    expect(secondForceSaveResponse.status).toBe(202);
+    expect(closeForceSaveResponse.status).toBe(202);
+    expect(closeForceSaveResponse.body).toMatchObject({
+      queued: true,
+      requestId: forceSaveResponse.body.requestId,
+      coalesced: true,
+      followUp: true,
+    });
+
+    releaseFirstCallback();
+    expect((await callbackPromises[0]).body).toEqual({ error: 0 });
+    expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
     await secondCommandReceived;
     expect(commandPayloads[1].key).toBe(configResponse.body.config.document.key);
     expect((await callbackPromises[1]).body).toEqual({ error: 0 });

@@ -12,16 +12,16 @@ export async function fetchOnlyOfficeConfig(path, mode = 'edit') {
   });
 }
 
-export async function requestOnlyOfficeForceSave(path, { sessionId } = {}) {
+export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'close' } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !sessionId) return { queued: false };
 
   return requestJson('/api/onlyoffice/force-save', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, sessionId }),
-    // Closing the editor is intentionally non-blocking. The backend retries a
-    // late Document Server update and the regular status-2 callback remains a
-    // fallback when a force-save cannot be queued.
+    body: JSON.stringify({ path: normalizedPath, sessionId, reason }),
+    // Keep the short close request eligible to finish while the preview is
+    // being destroyed. The backend owns the longer Document Server workflow.
+    keepalive: reason === 'close',
     suppressErrorHandler: true,
   });
 }

@@ -98,10 +98,41 @@ const getEditorSession = (req, sessionId, relativePath) => {
   cleanupExpiredEditorSessions();
   const session = editorSessions.get(sessionId);
   if (!session || session.relativePath !== relativePath || !matchesSessionOwner(session, req)) {
-    throw new ForbiddenError('The ONLYOFFICE editing session is no longer valid. Reopen the document.');
+    throw new ForbiddenError(
+      'The ONLYOFFICE editing session is no longer valid. Reopen the document.'
+    );
   }
   session.expiresAt = Date.now() + EDITOR_SESSION_TTL_MS;
   return session;
+};
+
+const enqueueForceSave = ({ sessionId, key, relativePath, reason }) => {
+  const requestId = `nextexplorer-force-save:${crypto.randomUUID()}`;
+  const timeout = setTimeout(
+    () => finishForceSave(requestId, { saved: false, timedOut: true }),
+    onlyoffice.forceSaveTimeoutMs
+  );
+  timeout.unref?.();
+  pendingForceSaves.set(requestId, {
+    sessionId,
+    key,
+    relativePath,
+    reason,
+    requestedAt: Date.now(),
+    timeout,
+    retryTimer: null,
+    followUpReason: null,
+  });
+  pendingForceSavesBySession.set(sessionId, requestId);
+
+  logger.debug(
+    { path: relativePath, requestId, reason },
+    'ONLYOFFICE force-save accepted by NextExplorer'
+  );
+  setImmediate(() => {
+    void dispatchForceSave({ requestId, key, relativePath, reason });
+  });
+  return requestId;
 };
 
 const finishForceSave = (requestId, result) => {
@@ -114,11 +145,35 @@ const finishForceSave = (requestId, result) => {
   }
   clearTimeout(pending.timeout);
   if (pending.retryTimer) clearTimeout(pending.retryTimer);
-  logger.debug({ requestId, ...result }, 'ONLYOFFICE force-save finished');
+  logger.debug(
+    {
+      requestId,
+      reason: pending.reason,
+      elapsedMs: Date.now() - pending.requestedAt,
+      ...result,
+    },
+    'ONLYOFFICE force-save finished'
+  );
+
+  // A close may arrive while an automatic save is assembling an earlier
+  // version. Queue one final command so the most recent edits do not rely on
+  // ONLYOFFICE's delayed status-2 callback.
+  if (pending.followUpReason) {
+    const { sessionId, key, relativePath, followUpReason } = pending;
+    logger.debug(
+      { path: relativePath, requestId, reason: followUpReason },
+      'ONLYOFFICE force-save scheduling follow-up request'
+    );
+    enqueueForceSave({ sessionId, key, relativePath, reason: followUpReason });
+  }
 };
 
-const dispatchForceSave = async ({ requestId, key, relativePath, attempt = 0 }) => {
+const dispatchForceSave = async ({ requestId, key, relativePath, reason, attempt = 0 }) => {
   try {
+    logger.debug(
+      { path: relativePath, requestId, reason, attempt },
+      'ONLYOFFICE force-save dispatching'
+    );
     const command = {
       c: 'forcesave',
       key,
@@ -141,7 +196,10 @@ const dispatchForceSave = async ({ requestId, key, relativePath, attempt = 0 }) 
 
     const code = Number(response.data?.error ?? 0);
     if (response.status >= 200 && response.status < 300 && code === 0) {
-      logger.debug({ path: relativePath, requestId }, 'ONLYOFFICE force-save queued');
+      logger.debug(
+        { path: relativePath, requestId, reason, status: response.status },
+        'ONLYOFFICE force-save accepted by Document Server'
+      );
       return;
     }
 
@@ -151,19 +209,22 @@ const dispatchForceSave = async ({ requestId, key, relativePath, attempt = 0 }) 
       const pending = pendingForceSaves.get(requestId);
       if (!pending) return;
       pending.retryTimer = setTimeout(() => {
-        void dispatchForceSave({ requestId, key, relativePath, attempt: attempt + 1 });
+        void dispatchForceSave({ requestId, key, relativePath, reason, attempt: attempt + 1 });
       }, FORCE_SAVE_RETRY_DELAYS_MS[attempt]);
       pending.retryTimer.unref?.();
       return;
     }
 
     logger.debug(
-      { path: relativePath, status: response.status, code, requestId, attempt },
+      { path: relativePath, reason, status: response.status, code, requestId, attempt },
       'ONLYOFFICE force-save was not queued'
     );
     finishForceSave(requestId, { saved: false, code });
   } catch (err) {
-    logger.warn({ err, path: relativePath, requestId, attempt }, 'ONLYOFFICE force-save request failed');
+    logger.warn(
+      { err, path: relativePath, reason, requestId, attempt },
+      'ONLYOFFICE force-save request failed'
+    );
     finishForceSave(requestId, { saved: false });
   }
 };
@@ -297,6 +358,7 @@ router.post(
       documentServerUrl: onlyoffice.serverUrl,
       config,
       forceSaveSessionId,
+      autoSaveIntervalMs: canEdit ? onlyoffice.autoSaveIntervalMs : 0,
     });
   })
 );
@@ -315,6 +377,7 @@ router.post(
 
     const relativeRaw = req.body?.path || '';
     const sessionId = req.body?.sessionId || '';
+    const reason = req.body?.reason === 'auto' ? 'auto' : 'close';
     if (typeof relativeRaw !== 'string' || !relativeRaw.trim()) {
       throw new ValidationError('A valid file path is required.');
     }
@@ -337,23 +400,29 @@ router.post(
 
     const session = getEditorSession(req, sessionId, relativePath);
     const existingRequestId = pendingForceSavesBySession.get(sessionId);
-    if (existingRequestId && pendingForceSaves.has(existingRequestId)) {
-      return res.status(202).json({ queued: true, requestId: existingRequestId, coalesced: true });
+    const pending = existingRequestId ? pendingForceSaves.get(existingRequestId) : null;
+    if (pending) {
+      const followUp = reason === 'close' && pending.reason === 'auto';
+      if (followUp) pending.followUpReason = 'close';
+      logger.debug(
+        { path: relativePath, requestId: existingRequestId, reason, followUp },
+        'ONLYOFFICE force-save coalesced with pending request'
+      );
+      return res.status(202).json({
+        queued: true,
+        requestId: existingRequestId,
+        coalesced: true,
+        followUp,
+      });
     }
 
-    const requestId = `nextexplorer-force-save:${crypto.randomUUID()}`;
-    const timeout = setTimeout(
-      () => finishForceSave(requestId, { saved: false, timedOut: true }),
-      onlyoffice.forceSaveTimeoutMs
-    );
-    timeout.unref?.();
-    pendingForceSaves.set(requestId, { sessionId, timeout, retryTimer: null });
-    pendingForceSavesBySession.set(sessionId, requestId);
-
-    res.status(202).json({ queued: true, requestId });
-    setImmediate(() => {
-      void dispatchForceSave({ requestId, key: session.key, relativePath });
+    const requestId = enqueueForceSave({
+      sessionId,
+      key: session.key,
+      relativePath,
+      reason,
     });
+    res.status(202).json({ queued: true, requestId });
   })
 );
 
@@ -534,7 +603,16 @@ router.post(
           await folderSizeHooks.onFileWritten(abs, updated.size);
         }
         finishForceSave(forceSaveRequestId, { saved: status === 6 });
-        logger.debug({ path: relativePath, status, forceSaveRequestId }, 'ONLYOFFICE file updated');
+        logger.debug(
+          {
+            path: relativePath,
+            status,
+            forceSaveType: body.forcesavetype,
+            forceSaveRequestId,
+            size: updated.size,
+          },
+          'ONLYOFFICE file updated'
+        );
         // MUST return {error:0} according to ONLYOFFICE spec
         return res.json({ error: 0 });
       }
