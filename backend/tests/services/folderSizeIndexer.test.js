@@ -173,6 +173,31 @@ describe('folderSizeIndexer', () => {
     expect(folderSizeIndex.getByAbsolutePath(db, transferred)).toMatchObject({ dirty: 0 });
   });
 
+  it('bounds large-directory metadata work into paced batches', async () => {
+    ctx = await createContext();
+    const { env, db, indexer, scope } = ctx;
+    const target = path.join(env.volumeDir, 'large-directory');
+    await fs.mkdir(target, { recursive: true });
+
+    for (let i = 0; i < 45; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(path.join(target, `file-${i}`), Buffer.alloc(1));
+    }
+
+    const result = await indexer.indexSubtree(db, scope, target, {
+      mode: 'full',
+      concurrency: 2,
+      batchSize: 20,
+      yieldEvery: 20,
+      pauseMs: 0,
+    });
+
+    expect(result).toMatchObject({ folders: 1, files: 45, bytes: 45, pauses: 0 });
+    // 45 files over batches of 20 means two cooperative yields before the
+    // final batch. This guards against returning to an unbounded promise queue.
+    expect(result.batches).toBe(2);
+  });
+
   it('marks an aggregate incomplete when a direct child directory is missing from the index', async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;

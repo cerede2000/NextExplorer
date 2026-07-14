@@ -121,12 +121,25 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
     concurrency = resolveConcurrency(scope, options),
     batchSize = 300,
     yieldEvery = 200,
+    pauseMs = 0,
     signal,
   } = options;
 
   const limit = pLimit(concurrency);
   const pending = [];
   let folders = 0;
+  let files = 0;
+  let batches = 0;
+  let pauses = 0;
+
+  const yieldAndPause = async () => {
+    batches += 1;
+    await yieldToEventLoop();
+    if (pauseMs > 0) {
+      pauses += 1;
+      await sleep(pauseMs);
+    }
+  };
 
   const flush = () => {
     if (!pending.length) return;
@@ -180,7 +193,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
       }
 
       if (entries) {
-        const fileTasks = [];
+        const filePaths = [];
         const childDirs = [];
         for (const entry of entries) {
           const full = path.join(frame.abs, entry.name);
@@ -189,23 +202,37 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
             childDirs.push(full);
           } else if (entry.isFile()) {
             frame.entryCount += 1;
-            fileTasks.push(
-              limit(async () => {
-                try {
-                  return (await fs.stat(full)).size;
-                } catch {
-                  return 0;
-                }
-              })
-            );
+            filePaths.push(full);
           } else {
             // symlink / socket / fifo / device — counted but contributes no size
             frame.entryCount += 1;
           }
         }
-        // eslint-disable-next-line no-await-in-loop
-        const fileSizes = await Promise.all(fileTasks);
-        frame.directFileBytes = fileSizes.reduce((a, b) => a + b, 0);
+        // Do not enqueue a promise for every file in a large directory. The
+        // limiter bounds active I/O, but its pending queue would still retain
+        // thousands of closures and immediately heat the filesystem cache.
+        for (let offset = 0; offset < filePaths.length; offset += batchSize) {
+          if (signal?.aborted) break;
+          const paths = filePaths.slice(offset, offset + batchSize);
+          // eslint-disable-next-line no-await-in-loop
+          const fileSizes = await Promise.all(
+            paths.map((filePath) =>
+              limit(async () => {
+                try {
+                  return (await fs.stat(filePath)).size;
+                } catch {
+                  return 0;
+                }
+              })
+            )
+          );
+          frame.directFileBytes += fileSizes.reduce((total, size) => total + size, 0);
+          files += paths.length;
+          if (offset + paths.length < filePaths.length) {
+            // eslint-disable-next-line no-await-in-loop
+            await yieldAndPause();
+          }
+        }
         frame.childDirs = childDirs;
       }
     }
@@ -233,11 +260,14 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
       rootEntryCount = frame.entryCount;
     }
 
-    if (folders % yieldEvery === 0) await yieldToEventLoop();
+    if (folders % yieldEvery === 0) {
+      // eslint-disable-next-line no-await-in-loop
+      await yieldAndPause();
+    }
   }
 
   flush();
-  return { folders, bytes: rootTotal, entryCount: rootEntryCount };
+  return { folders, files, bytes: rootTotal, entryCount: rootEntryCount, batches, pauses };
 };
 
 /** Run a full authoritative scan of the configured volume root. */
