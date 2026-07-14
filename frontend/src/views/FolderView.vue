@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { normalizePath } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
@@ -74,6 +74,13 @@ const getScrollTarget = () => {
   }
 
   return document.scrollingElement || document.documentElement;
+};
+
+const rememberScrollPosition = () => {
+  const target = getScrollTarget();
+  if (target) {
+    folderScrollStore.remember(scrollPositionKey, target.scrollTop);
+  }
 };
 
 const applySelectionFromQuery = () => {
@@ -164,8 +171,21 @@ const updateScrollState = () => {
   canScrollUp.value = target.scrollTop > 2;
   canScrollDown.value = target.scrollTop < maxScrollTop - 2;
   if (canRememberScroll.value) {
-    folderScrollStore.remember(scrollPositionKey, target.scrollTop);
+    rememberScrollPosition();
   }
+};
+
+const waitForScrollLayout = () =>
+  new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+
+const applySavedScrollPosition = (savedScrollTop) => {
+  const target = getScrollTarget();
+  if (!target) return;
+
+  const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+  target.scrollTop = Math.min(savedScrollTop, maxScrollTop);
 };
 
 const restoreScrollPosition = async () => {
@@ -180,12 +200,15 @@ const restoreScrollPosition = async () => {
   }
 
   await nextTick();
-  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await waitForScrollLayout();
 
-  const target = dropTargetRef.value || getScrollTarget();
-  if (!target) return;
-  const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
-  target.scrollTop = Math.min(savedScrollTop, maxScrollTop);
+  // The virtual window reacts to scrollTop, so restoring it changes the DOM
+  // one frame later. Apply the same saved value again after that frame. This
+  // also covers an IntersectionObserver extending a progressively rendered
+  // list immediately after it becomes visible.
+  applySavedScrollPosition(savedScrollTop);
+  await waitForScrollLayout();
+  applySavedScrollPosition(savedScrollTop);
   updateScrollState();
 };
 
@@ -357,6 +380,13 @@ const liveRefreshTimer = window.setInterval(() => {
   if (!document.hidden) refreshLiveData();
 }, LIVE_REFRESH_INTERVAL_MS);
 
+// The keyed RouterView normally unmounts this component on folder changes, but
+// this guard runs before the route transition starts. It captures the actual
+// scroll container before a view transition or layout change can reset it.
+onBeforeRouteLeave(() => {
+  rememberScrollPosition();
+});
+
 watch(hasMoreItems, () => {
   setupLoadMoreObserver();
   nextTick(updateScrollState);
@@ -489,8 +519,7 @@ useEventListener(window, 'resize', updateScrollState);
 useEventListener(window, 'scroll', updateScrollState, { passive: true });
 
 onBeforeUnmount(() => {
-  const target = getScrollTarget();
-  if (target) folderScrollStore.remember(scrollPositionKey, target.scrollTop);
+  rememberScrollPosition();
   stopResize();
   window.clearInterval(liveRefreshTimer);
   if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
