@@ -1,4 +1,11 @@
-import { requestJson, requestRaw, requestStream, normalizePath, encodePath, buildUrl } from './http';
+import {
+  requestJson,
+  requestRaw,
+  requestStream,
+  normalizePath,
+  encodePath,
+  buildUrl,
+} from './http';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -43,6 +50,7 @@ async function copyItems(items, destination, options = {}) {
     method: 'POST',
     body: JSON.stringify({ items, destination }),
     onEvent: options.onEvent,
+    signal: options.signal,
   });
 }
 
@@ -51,6 +59,7 @@ async function moveItems(items, destination, options = {}) {
     method: 'POST',
     body: JSON.stringify({ items, destination }),
     onEvent: options.onEvent,
+    signal: options.signal,
   });
 }
 
@@ -214,6 +223,7 @@ async function extractZip(relativePath, options = {}) {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath }),
     onEvent: options.onEvent,
+    signal: options.signal,
   });
 }
 
@@ -232,6 +242,7 @@ async function compressToZip(items, destination = '', name, options = {}) {
     method: 'POST',
     body: JSON.stringify(payload),
     onEvent: options.onEvent,
+    signal: options.signal,
   });
 }
 

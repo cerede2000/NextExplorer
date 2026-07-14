@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ChevronDownIcon, QueueListIcon } from '@heroicons/vue/24/outline';
+import { ChevronDownIcon, QueueListIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { useFileStore } from '@/stores/fileStore';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { formatBytes } from '@/utils';
@@ -44,6 +44,10 @@ const titleFor = (value) => {
 
   if (value.type === 'extract') return t('clipboard.extracting', { name: value.name || '' });
   if (value.type === 'compress') return t('clipboard.compressing', { name: value.name || '' });
+  if (value.type === 'upload') {
+    const label = t('upload.uploads', { count: 1, items: t('common.item') });
+    return value.name ? `${label}: ${value.name}` : label;
+  }
 
   const count = Number(value.itemCount);
   if (!Number.isInteger(count) || count < 1) {
@@ -66,6 +70,14 @@ const isTransfer = computed(() => ['copy', 'move'].includes(operation.value?.typ
 const selectOperation = (id) => {
   operationTasksStore.selectOperation(id);
   isListOpen.value = false;
+};
+
+const cancelOperation = () => {
+  if (operation.value?.id) operationTasksStore.cancelOperation(operation.value.id);
+};
+
+const cancelTask = (id) => {
+  operationTasksStore.cancelOperation(id);
 };
 </script>
 
@@ -102,22 +114,48 @@ const selectOperation = (id) => {
           :class="{ 'rotate-180': isListOpen }"
         />
       </button>
+      <button
+        v-if="operation.cancellable"
+        type="button"
+        class="shrink-0 rounded-md p-1.5 text-zinc-600 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-60 dark:text-zinc-200 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
+        :disabled="operation.cancelling"
+        :title="t('common.cancel')"
+        :aria-label="t('common.cancel')"
+        @click="cancelOperation"
+      >
+        <XMarkIcon class="h-5 w-5" />
+      </button>
     </div>
 
     <div v-if="isListOpen" class="mt-3 border-y border-zinc-200/70 py-2 dark:border-zinc-600">
-      <button
+      <div
         v-for="task in operations"
         :key="task.id"
-        type="button"
-        class="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600"
+        class="flex items-center gap-1 rounded-md"
         :class="{ 'bg-zinc-100 dark:bg-zinc-600': task.id === operation.id }"
-        @click="selectOperation(task.id)"
       >
-        <span class="min-w-0 truncate font-medium">{{ titleFor(task) }}</span>
-        <span class="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-300">
-          {{ progressLabelFor(task) }}
-        </span>
-      </button>
+        <button
+          type="button"
+          class="flex min-w-0 grow items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600"
+          @click="selectOperation(task.id)"
+        >
+          <span class="min-w-0 truncate font-medium">{{ titleFor(task) }}</span>
+          <span class="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-300">
+            {{ progressLabelFor(task) }}
+          </span>
+        </button>
+        <button
+          v-if="task.cancellable"
+          type="button"
+          class="mr-1 shrink-0 rounded-md p-1 text-zinc-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
+          :disabled="task.cancelling"
+          :title="t('common.cancel')"
+          :aria-label="t('common.cancel')"
+          @click="cancelTask(task.id)"
+        >
+          <XMarkIcon class="h-4 w-4" />
+        </button>
+      </div>
     </div>
 
     <div class="mt-3">
@@ -134,7 +172,7 @@ const selectOperation = (id) => {
     </div>
 
     <div class="mt-2 text-xs text-zinc-600 dark:text-zinc-300 tabular-nums">
-      {{ progressLabel }}
+      {{ operation.cancelling ? t('common.loading') : progressLabel }}
     </div>
 
     <label

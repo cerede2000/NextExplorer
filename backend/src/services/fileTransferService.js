@@ -17,10 +17,21 @@ const folderSizeHooks = require('./folderSizeHooks');
 // large file emits a steady trickle of updates rather than one per chunk.
 const PROGRESS_THROTTLE_MS = 150;
 
+const createCancellationError = () => {
+  const error = new Error('Operation cancelled.');
+  error.code = 'OPERATION_CANCELLED';
+  return error;
+};
+
+const throwIfCancelled = (signal) => {
+  if (signal?.aborted) throw createCancellationError();
+};
+
 // Recursively sum the byte size of a file or directory subtree. Symlinks count
 // as zero (they are recreated, not byte-copied). Best-effort: entries that
 // cannot be stat()ed are skipped so a partial tree still yields a usable total.
-const computeEntrySize = async (absolutePath, isDirectory) => {
+const computeEntrySize = async (absolutePath, isDirectory, signal) => {
+  throwIfCancelled(signal);
   if (!isDirectory) {
     try {
       const stats = await fs.lstat(absolutePath);
@@ -33,6 +44,7 @@ const computeEntrySize = async (absolutePath, isDirectory) => {
   let total = 0;
   const stack = [absolutePath];
   while (stack.length > 0) {
+    throwIfCancelled(signal);
     const dir = stack.pop();
     let entries;
     try {
@@ -42,6 +54,7 @@ const computeEntrySize = async (absolutePath, isDirectory) => {
       continue;
     }
     for (const entry of entries) {
+      throwIfCancelled(signal);
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         stack.push(full);
@@ -61,31 +74,47 @@ const computeEntrySize = async (absolutePath, isDirectory) => {
 
 // Copy a single regular file through streams so bytes can be reported as they
 // are written. The source mode is applied at creation to mirror fs.copyFile.
-const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes) =>
+const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal) =>
   new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createCancellationError());
+      return;
+    }
+
     const readStream = fsSync.createReadStream(sourcePath);
     const writeStream = fsSync.createWriteStream(
       destinationPath,
       mode != null ? { mode } : undefined
     );
 
+    let settled = false;
+    const cleanup = () => signal?.removeEventListener('abort', abort);
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
     const fail = (error) => {
       readStream.destroy();
       writeStream.destroy();
-      reject(error);
+      finish(reject, error);
     };
+    const abort = () => fail(createCancellationError());
 
     readStream.on('error', fail);
     writeStream.on('error', fail);
     if (typeof onBytes === 'function') {
       readStream.on('data', (chunk) => onBytes(chunk.length));
     }
-    writeStream.on('finish', resolve);
+    writeStream.on('finish', () => finish(resolve));
+    signal?.addEventListener('abort', abort, { once: true });
     readStream.pipe(writeStream);
   });
 
 // Recursively copy a file/dir, reporting copied bytes. Symlinks are recreated.
-const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes) => {
+const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes, signal) => {
+  throwIfCancelled(signal);
   if (!isDirectory) {
     const stats = await fs.lstat(sourcePath);
     if (stats.isSymbolicLink()) {
@@ -93,24 +122,33 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
       await fs.symlink(linkTarget, destinationPath);
       return;
     }
-    await copyFileWithProgress(sourcePath, destinationPath, stats.mode, onBytes);
+    await copyFileWithProgress(sourcePath, destinationPath, stats.mode, onBytes, signal);
     return;
   }
 
   await ensureDir(destinationPath);
   const entries = await fs.readdir(sourcePath, { withFileTypes: true });
   for (const entry of entries) {
+    throwIfCancelled(signal);
     const src = path.join(sourcePath, entry.name);
     const dest = path.join(destinationPath, entry.name);
     // eslint-disable-next-line no-await-in-loop
-    await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes);
+    await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
   }
 };
 
 // Move an entry, reporting progress. A same-filesystem rename is atomic and
 // instant, so the entry's whole size is reported at once; a cross-device move
 // (EXDEV) falls back to a byte-tracked copy followed by removal of the source.
-const moveEntryWithProgress = async (sourcePath, destinationPath, isDirectory, size, onBytes) => {
+const moveEntryWithProgress = async (
+  sourcePath,
+  destinationPath,
+  isDirectory,
+  size,
+  onBytes,
+  signal
+) => {
+  throwIfCancelled(signal);
   try {
     await fs.rename(sourcePath, destinationPath);
     if (typeof onBytes === 'function' && size > 0) {
@@ -118,7 +156,8 @@ const moveEntryWithProgress = async (sourcePath, destinationPath, isDirectory, s
     }
   } catch (error) {
     if (error.code === 'EXDEV') {
-      await copyEntryWithProgress(sourcePath, destinationPath, isDirectory, onBytes);
+      await copyEntryWithProgress(sourcePath, destinationPath, isDirectory, onBytes, signal);
+      throwIfCancelled(signal);
       await fs.rm(sourcePath, { recursive: isDirectory, force: true });
     } else {
       throw error;
@@ -131,6 +170,8 @@ const moveEntryWithProgress = async (sourcePath, destinationPath, isDirectory, s
 // validation/authorization failure — the route runs this BEFORE it commits to a
 // streaming response, so these surface as a normal HTTP error (status + code).
 const prepareTransfer = async (items, destination, operation, options = {}) => {
+  const { signal } = options;
+  throwIfCancelled(signal);
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('At least one item is required.');
   }
@@ -164,6 +205,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
   let totalBytes = 0;
 
   for (const item of items) {
+    throwIfCancelled(signal);
     const sourceCombined = combineRelativePath(item.path || '', item.name);
     const {
       allowed: srcAllowed,
@@ -202,7 +244,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     }
 
     // eslint-disable-next-line no-await-in-loop
-    const size = await computeEntrySize(sourceAbsolute, isDirectory);
+    const size = await computeEntrySize(sourceAbsolute, isDirectory, signal);
     totalBytes += size;
 
     plans.push({
@@ -226,15 +268,18 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
 // Phase 2: perform the copy/move for each prepared plan, reporting progress via
 // onProgress({ copiedBytes, totalBytes, currentName }). Runs after the response
 // has switched to streaming mode, so an error here is surfaced in the stream.
-const executeTransfer = async (prep, operation, onProgress) => {
+const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   const { destinationRelative, destinationAbsolute, plans, totalBytes } = prep;
+  const { signal } = options;
 
+  throwIfCancelled(signal);
   await ensureDir(destinationAbsolute);
 
   const results = [];
   let copiedBytes = 0;
   let lastEmit = 0;
   let currentName = '';
+  let activeTarget = null;
 
   const emit = (force = false) => {
     if (typeof onProgress !== 'function') return;
@@ -245,62 +290,89 @@ const executeTransfer = async (prep, operation, onProgress) => {
   };
 
   const onBytes = (delta) => {
+    const wasAtStart = copiedBytes === 0;
     copiedBytes += delta;
-    emit(false);
+    // Show the first byte immediately, then throttle the steady stream of
+    // updates. Besides making the UI feel responsive, this lets an operation
+    // become cancellable as soon as data starts moving.
+    emit(wasAtStart);
   };
 
-  for (const plan of plans) {
-    if (plan.skipped) {
-      results.push({ from: plan.sourceRelative, to: plan.sourceRelative, skipped: true });
-      continue;
+  try {
+    for (const plan of plans) {
+      throwIfCancelled(signal);
+      if (plan.skipped) {
+        results.push({ from: plan.sourceRelative, to: plan.sourceRelative, skipped: true });
+        continue;
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const availableName = await findAvailableName(destinationAbsolute, plan.desiredName);
+      const targetAbsolute = path.join(destinationAbsolute, availableName);
+      const targetRelative = combineRelativePath(destinationRelative, availableName);
+      activeTarget = { absolutePath: targetAbsolute, isDirectory: plan.isDirectory };
+      currentName = availableName;
+      emit(true);
+
+      if (operation === 'copy') {
+        // eslint-disable-next-line no-await-in-loop
+        await copyEntryWithProgress(
+          plan.sourceAbsolute,
+          targetAbsolute,
+          plan.isDirectory,
+          onBytes,
+          signal
+        );
+        await folderSizeHooks.onEntryCopied(targetAbsolute, {
+          isDirectory: plan.isDirectory,
+          size: plan.size,
+          sourceAbsolutePath: plan.sourceAbsolute,
+        });
+      } else if (operation === 'move') {
+        // eslint-disable-next-line no-await-in-loop
+        await moveEntryWithProgress(
+          plan.sourceAbsolute,
+          targetAbsolute,
+          plan.isDirectory,
+          plan.size,
+          onBytes,
+          signal
+        );
+        folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
+          isDirectory: plan.isDirectory,
+          size: plan.size,
+        });
+      } else {
+        throw new Error(`Unsupported operation: ${operation}`);
+      }
+
+      results.push({ from: plan.sourceRelative, to: targetRelative });
+      activeTarget = null;
     }
 
-    // eslint-disable-next-line no-await-in-loop
-    const availableName = await findAvailableName(destinationAbsolute, plan.desiredName);
-    const targetAbsolute = path.join(destinationAbsolute, availableName);
-    const targetRelative = combineRelativePath(destinationRelative, availableName);
-    currentName = availableName;
+    // Snap to 100% once every entry is done (covers rounding and any skipped work).
+    copiedBytes = totalBytes;
     emit(true);
 
-    if (operation === 'copy') {
-      // eslint-disable-next-line no-await-in-loop
-      await copyEntryWithProgress(plan.sourceAbsolute, targetAbsolute, plan.isDirectory, onBytes);
-      await folderSizeHooks.onEntryCopied(targetAbsolute, {
-        isDirectory: plan.isDirectory,
-        size: plan.size,
-        sourceAbsolutePath: plan.sourceAbsolute,
+    return { destination: destinationRelative, items: results };
+  } catch (error) {
+    // A cancellation can interrupt a recursive copy part-way through an entry.
+    // Remove only that incomplete destination; already completed entries remain
+    // intact, which is the least surprising and safest cancellation semantics.
+    if (error?.code === 'OPERATION_CANCELLED' && activeTarget) {
+      await fs.rm(activeTarget.absolutePath, {
+        recursive: activeTarget.isDirectory,
+        force: true,
       });
-    } else if (operation === 'move') {
-      // eslint-disable-next-line no-await-in-loop
-      await moveEntryWithProgress(
-        plan.sourceAbsolute,
-        targetAbsolute,
-        plan.isDirectory,
-        plan.size,
-        onBytes
-      );
-      folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
-        isDirectory: plan.isDirectory,
-        size: plan.size,
-      });
-    } else {
-      throw new Error(`Unsupported operation: ${operation}`);
     }
-
-    results.push({ from: plan.sourceRelative, to: targetRelative });
+    throw error;
   }
-
-  // Snap to 100% once every entry is done (covers rounding and any skipped work).
-  copiedBytes = totalBytes;
-  emit(true);
-
-  return { destination: destinationRelative, items: results };
 };
 
 // One-shot API preserved for callers that do not need progress reporting.
 const transferItems = async (items, destination, operation, options = {}) => {
   const prep = await prepareTransfer(items, destination, operation, options);
-  return executeTransfer(prep, operation, options.onProgress);
+  return executeTransfer(prep, operation, options.onProgress, { signal: options.signal });
 };
 
 const getShareSourceTarget = (resolved, includeChildren = false) => {
@@ -429,6 +501,7 @@ const deleteItems = async (items = [], options = {}) => {
 module.exports = {
   prepareTransfer,
   executeTransfer,
+  createCancellationError,
   transferItems,
   getDeleteImpact,
   deleteItems,

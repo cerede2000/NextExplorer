@@ -87,19 +87,52 @@ const archiveBaseName = (filename) => {
 
 const EXTRACT_TIMEOUT_MS = 30 * 60 * 1000;
 
+const createCancellationError = () => {
+  const error = new Error('Operation cancelled.');
+  error.code = 'OPERATION_CANCELLED';
+  return error;
+};
+
+const throwIfCancelled = (signal) => {
+  if (signal?.aborted) throw createCancellationError();
+};
+
 /**
  * Run one 7-Zip command. `-bsp1` sends the percentage indicator to stdout, so
  * progress can be parsed from the output stream and forwarded to the caller
  * (0-100 per run).
  */
-const runSevenZip = (args, onPercent) =>
+const runSevenZip = (args, onPercent, options = {}) =>
   new Promise((resolve, reject) => {
+    const { signal } = options;
+    if (signal?.aborted) {
+      reject(createCancellationError());
+      return;
+    }
+
     const child = spawn(SEVEN_ZIP_BIN, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: EXTRACT_TIMEOUT_MS,
     });
 
     let stderrTail = '';
+    let settled = false;
+    let killTimer = null;
+    const cleanup = () => {
+      signal?.removeEventListener('abort', abort);
+      if (killTimer) clearTimeout(killTimer);
+    };
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
+    const abort = () => {
+      child.kill('SIGTERM');
+      killTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      finish(reject, createCancellationError());
+    };
 
     child.stdout.on('data', (chunk) => {
       if (typeof onPercent !== 'function') return;
@@ -115,19 +148,33 @@ const runSevenZip = (args, onPercent) =>
       stderrTail = `${stderrTail}${chunk}`.slice(-2000);
     });
 
-    child.on('error', reject);
+    child.on('error', (error) => finish(reject, error));
     child.on('close', (code) => {
+      if (signal?.aborted) {
+        finish(reject, createCancellationError());
+        return;
+      }
       if (code === 0) {
         onPercent?.(100);
-        resolve();
+        finish(resolve);
       } else {
-        reject(new Error(`7z exited with code ${code}: ${stderrTail.trim().slice(-500)}`));
+        finish(reject, new Error(`7z exited with code ${code}: ${stderrTail.trim().slice(-500)}`));
       }
     });
+    signal?.addEventListener('abort', abort, { once: true });
   });
 
-const runSevenZipExtract = (archiveAbsolutePath, destinationAbsolutePath, onPercent) =>
-  runSevenZip(['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, archiveAbsolutePath], onPercent);
+const runSevenZipExtract = (
+  archiveAbsolutePath,
+  destinationAbsolutePath,
+  onPercent,
+  options = {}
+) =>
+  runSevenZip(
+    ['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, archiveAbsolutePath],
+    onPercent,
+    options
+  );
 
 /**
  * Create a .zip archive from the given absolute paths, reporting progress
@@ -135,8 +182,12 @@ const runSevenZipExtract = (archiveAbsolutePath, destinationAbsolutePath, onPerc
  * matching the behaviour of the previous in-memory implementation — but the
  * archive is streamed to disk instead of being assembled in the Node heap.
  */
-const createZipArchive = (sourceAbsolutePaths, zipAbsolutePath, onPercent) =>
-  runSevenZip(['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, ...sourceAbsolutePaths], onPercent);
+const createZipArchive = (sourceAbsolutePaths, zipAbsolutePath, onPercent, options = {}) =>
+  runSevenZip(
+    ['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, ...sourceAbsolutePaths],
+    onPercent,
+    options
+  );
 
 /**
  * Extract an archive into the given (existing, empty) destination folder,
@@ -144,22 +195,34 @@ const createZipArchive = (sourceAbsolutePaths, zipAbsolutePath, onPercent) =>
  * are peeled in two passes (each mapped to half of the progress range); the
  * intermediate .tar is removed so the folder holds the real content.
  */
-const extractArchive = async (archiveAbsolutePath, destinationAbsolutePath, onPercent) => {
+const extractArchive = async (
+  archiveAbsolutePath,
+  destinationAbsolutePath,
+  onPercent,
+  options = {}
+) => {
+  const { signal } = options;
+  throwIfCancelled(signal);
   const ext = path.extname(archiveAbsolutePath).slice(1).toLowerCase();
   const isCompound = TAR_WRAPPER_EXTENSIONS.has(ext);
 
   await runSevenZipExtract(
     archiveAbsolutePath,
     destinationAbsolutePath,
-    isCompound ? (p) => onPercent?.(Math.round(p / 2)) : onPercent
+    isCompound ? (p) => onPercent?.(Math.round(p / 2)) : onPercent,
+    { signal }
   );
 
   if (isCompound) {
+    throwIfCancelled(signal);
     const entries = await fs.readdir(destinationAbsolutePath);
     if (entries.length === 1 && entries[0].toLowerCase().endsWith('.tar')) {
       const innerTar = path.join(destinationAbsolutePath, entries[0]);
-      await runSevenZipExtract(innerTar, destinationAbsolutePath, (p) =>
-        onPercent?.(50 + Math.round(p / 2))
+      await runSevenZipExtract(
+        innerTar,
+        destinationAbsolutePath,
+        (p) => onPercent?.(50 + Math.round(p / 2)),
+        { signal }
       );
       await fs.rm(innerTar, { force: true });
     } else {

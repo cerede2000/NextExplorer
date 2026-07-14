@@ -50,6 +50,13 @@ const defaultZipNameForItems = (items = []) => {
 router.post(
   '/files/zip/extract',
   asyncHandler(async (req, res) => {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    const onClose = () => {
+      if (!res.writableEnded) abort();
+    };
+    req.once('aborted', abort);
+    res.once('close', onClose);
     const inputPath = req.body?.path ?? '';
     if (typeof inputPath !== 'string' || !inputPath.trim()) {
       throw new ValidationError('An archive file path is required.');
@@ -130,7 +137,7 @@ router.post(
     res.setHeader('X-Accel-Buffering', 'no');
 
     const writeEvent = (event) => {
-      if (res.writableEnded) return;
+      if (res.writableEnded || res.destroyed) return;
       res.write(`${JSON.stringify(event)}\n`);
     };
 
@@ -151,9 +158,16 @@ router.post(
     try {
       if (await isSevenZipAvailable()) {
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
-        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent);
+        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent, {
+          signal: controller.signal,
+        });
       } else {
         new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
+        if (controller.signal.aborted) {
+          const error = new Error('Operation cancelled.');
+          error.code = 'OPERATION_CANCELLED';
+          throw error;
+        }
       }
 
       // The archive has produced an entire new tree. Index it now rather than
@@ -175,6 +189,8 @@ router.post(
         code: error.code || 'EXTRACT_FAILED',
       });
     } finally {
+      req.off('aborted', abort);
+      res.off('close', onClose);
       res.end();
     }
   })
@@ -183,6 +199,13 @@ router.post(
 router.post(
   '/files/zip/compress',
   asyncHandler(async (req, res) => {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    const onClose = () => {
+      if (!res.writableEnded) abort();
+    };
+    req.once('aborted', abort);
+    res.once('close', onClose);
     const { items = [], destination = '', name } = req.body || {};
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -257,7 +280,7 @@ router.post(
     res.setHeader('X-Accel-Buffering', 'no');
 
     const writeEvent = (event) => {
-      if (res.writableEnded) return;
+      if (res.writableEnded || res.destroyed) return;
       res.write(`${JSON.stringify(event)}\n`);
     };
 
@@ -281,7 +304,8 @@ router.post(
         await createZipArchive(
           sourceTargets.map(({ absolutePath }) => absolutePath),
           zipAbsolutePath,
-          onPercent
+          onPercent,
+          { signal: controller.signal }
         );
       } else {
         const zip = new AdmZip();
@@ -291,6 +315,11 @@ router.post(
             : zip.addLocalFile(absolutePath, '', entryName);
         });
         zip.writeZip(zipAbsolutePath);
+        if (controller.signal.aborted) {
+          const error = new Error('Operation cancelled.');
+          error.code = 'OPERATION_CANCELLED';
+          throw error;
+        }
       }
 
       const zipStats = await fs.stat(zipAbsolutePath);
@@ -307,6 +336,8 @@ router.post(
         code: error.code || 'COMPRESS_FAILED',
       });
     } finally {
+      req.off('aborted', abort);
+      res.off('close', onClose);
       res.end();
     }
   })

@@ -8,6 +8,7 @@ import { useNotificationsStore } from '@/stores/notifications';
 import { useAppSettings } from '@/stores/appSettings';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 import { apiBase, normalizePath } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
 import DropTarget from '@uppy/drop-target';
@@ -42,8 +43,10 @@ export function useFileUploader() {
   const appSettings = useAppSettings();
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
+  const operationTasksStore = useOperationTasksStore();
   const inputRef = ref(null);
   const files = ref([]);
+  const uploadTaskIds = new Map();
 
   let lastNotifyAt = 0;
   let lastNotifyKey = '';
@@ -141,21 +144,53 @@ export function useFileUploader() {
     const currentFiles = typeof uppy?.getFiles === 'function' ? uppy.getFiles() : [];
     currentFiles.forEach((file) => {
       if (!file?.id || file?.progress?.uploadComplete !== true) return;
-      try {
-        uppy.removeFile(file.id);
-      } catch (_) {
-        /* noop */
-      }
+      removeUploadFile(file);
     });
+  };
+
+  const finishUploadTask = (fileId) => {
+    const operationId = uploadTaskIds.get(fileId);
+    if (!operationId) return;
+    uploadTaskIds.delete(fileId);
+    operationTasksStore.finishOperation(operationId);
   };
 
   const removeUploadFile = (file) => {
     if (!file?.id) return;
+    finishUploadTask(file.id);
     try {
       uppy.removeFile(file.id);
     } catch (_) {
       /* noop */
     }
+  };
+
+  const startUploadTask = (file, destination) => {
+    if (!file?.id || uploadTaskIds.has(file.id)) return;
+    const operationId = operationTasksStore.startOperation({
+      type: 'upload',
+      name: file.name || file.data?.name || '',
+      destination,
+      itemCount: 1,
+      totalBytes: Number(file.size) || 0,
+      copiedBytes: 0,
+      cancellable: true,
+      cancel: () => removeUploadFile(file),
+    });
+    uploadTaskIds.set(file.id, operationId);
+  };
+
+  const updateUploadTask = (file, progress) => {
+    const operationId = uploadTaskIds.get(file?.id);
+    if (!operationId) return;
+    const totalBytes = Number(progress?.bytesTotal) || Number(file?.size) || 0;
+    operationTasksStore.updateOperation(operationId, {
+      totalBytes,
+      copiedBytes: Math.min(
+        Number(progress?.bytesUploaded) || 0,
+        totalBytes || Number.POSITIVE_INFINITY
+      ),
+    });
   };
 
   const getTusErrorStatus = (error) => {
@@ -404,10 +439,12 @@ export function useFileUploader() {
         }
       }
 
+      const uploadTo = normalizePath(fileStore.currentPath || '');
       uppy.setFileMeta(file.id, {
-        uploadTo: normalizePath(fileStore.currentPath || ''),
+        uploadTo,
         relativePath: inferredRelativePath,
       });
+      startUploadTask(file, uploadTo);
     });
 
     uppy.on('upload', (_uploadID, batchFiles) => {
@@ -425,6 +462,7 @@ export function useFileUploader() {
         } catch (_) {
           /* noop */
         }
+        files.forEach((file) => finishUploadTask(file.id));
         notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
         return;
       }
@@ -433,7 +471,10 @@ export function useFileUploader() {
       armFallbackWatchdog(files);
     });
 
-    uppy.on('upload-progress', trackProgress);
+    uppy.on('upload-progress', (file, progress) => {
+      trackProgress(file, progress);
+      updateUploadTask(file, progress);
+    });
 
     // XHRUpload emits this after `timeout` ms with no progress — the only signal
     // for a body a proxy silently stopped reading. Switch to chunks immediately.
@@ -446,7 +487,8 @@ export function useFileUploader() {
       });
     });
 
-    uppy.on('upload-success', () => {
+    uppy.on('upload-success', (file) => {
+      finishUploadTask(file?.id);
       fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
@@ -611,6 +653,7 @@ export function useFileUploader() {
     inputRef.value?.remove();
     // Only close the singleton if we created it here
     if (createdHere.value) {
+      Array.from(uploadTaskIds.keys()).forEach(finishUploadTask);
       // Uppy v5 uses `destroy()`. Older versions had `close()` in some setups.
       uppy.destroy?.();
       uppy.close?.();
