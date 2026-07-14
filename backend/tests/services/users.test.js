@@ -115,5 +115,30 @@ describe('Users Service', () => {
       const hasOidc = methods.some((m) => m.method_type === 'oidc' && m.provider_sub === 'sub-2');
       expect(hasOidc).toBe(true);
     });
+
+    it('does not auto-link an unverified email to an existing account', async () => {
+      const existing = await users.createLocalUser({
+        email: 'unverified@example.com',
+        password: 'secret123',
+        username: 'unverified',
+        displayName: 'Unverified',
+        roles: ['user'],
+      });
+
+      await expect(
+        users.getOrCreateOidcUser({
+          issuer: 'https://issuer.example.com',
+          sub: 'sub-unverified',
+          email: 'unverified@example.com',
+          emailVerified: false,
+          username: 'unverified-oidc',
+          displayName: 'Unverified OIDC',
+          roles: ['user'],
+        })
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      const methods = await users.getUserAuthMethods(existing.id);
+      expect(methods.some((m) => m.method_type === 'oidc')).toBe(false);
+    });
   });
 });
