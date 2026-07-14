@@ -50,7 +50,11 @@ const resolveUploadPaths = async (req, file) => {
   const uploadTo = normalizeRelativePath(uploadToMeta);
   const requestedRelativePath =
     normalizeRelativePath(relativePathMeta) || path.basename(file.originalname);
-  const uploadBatchId = readMetaField(req, 'uploadBatchId');
+  // Multer can enter the storage callback before trailing multipart metadata
+  // has populated req.body. The client also sends this in a header so every
+  // file of a picked folder reaches the same reservation.
+  const uploadBatchId =
+    req.get('X-NextExplorer-Upload-Batch') || readMetaField(req, 'uploadBatchId');
 
   const context = { user: req.user, guestSession: req.guestSession };
   const { allowed, accessInfo, resolved } = await authorizeAndResolve(
