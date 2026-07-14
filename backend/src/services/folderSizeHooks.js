@@ -129,16 +129,32 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
 
 /**
  * An entry has been copied to `targetAbsolutePath`. The destination gains the
- * copied bytes. A copied directory is scanned immediately so its child index
- * entries and recursive size are available before the operation completes.
+ * copied bytes. For a copied directory the transfer already measured the bytes
+ * while it wrote them, so record that exact root size without immediately
+ * traversing the same tree again. Its descendants are indexed on demand when
+ * the copied folder is opened.
  */
 const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
-  if (meta.isDirectory) return onDirectoryTreeCreated(targetAbsolutePath);
   return withIndex((db, scope) => {
     const bytes = Number(meta.size) || 0;
     folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
       entryDelta: 1,
     });
+    if (!meta.isDirectory || !folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
+
+    const cloned = meta.sourceAbsolutePath
+      ? folderSizeIndex.cloneSubtree(db, scope, meta.sourceAbsolutePath, targetAbsolutePath)
+      : 0;
+    if (cloned === 0) {
+      const sourceEntry = meta.sourceAbsolutePath
+        ? folderSizeIndex.getByAbsolutePath(db, meta.sourceAbsolutePath)
+        : null;
+      folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+        absolutePath: targetAbsolutePath,
+        sizeBytes: bytes,
+        entryCount: sourceEntry?.entryCount || 0,
+      });
+    }
   });
 };
 

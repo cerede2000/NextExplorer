@@ -94,6 +94,27 @@ describe('folderSizeIndexer', () => {
     expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'A', 'B')).entryCount).toBe(2);
   });
 
+  it('clones indexed directory metadata without another filesystem traversal', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+    const source = path.join(vol, 'Source');
+    const target = path.join(vol, 'Copies', 'Source copy');
+
+    await fs.mkdir(path.join(source, 'nested'), { recursive: true });
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(path.join(source, 'top.bin'), Buffer.alloc(30));
+    await fs.writeFile(path.join(source, 'nested', 'deep.bin'), Buffer.alloc(70));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    const copied = folderSizeIndex.cloneSubtree(db, scope, source, target);
+
+    expect(copied).toBe(2);
+    expect(sizeOf(folderSizeIndex, db, target)).toBe(100);
+    expect(sizeOf(folderSizeIndex, db, path.join(target, 'nested'))).toBe(70);
+    expect(folderSizeIndex.getByAbsolutePath(db, target).dirty).toBe(0);
+  });
+
   it('indexes a newly-created subtree and updates its ancestors in one pass', async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;
