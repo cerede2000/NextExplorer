@@ -8,6 +8,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFeaturesStore } from '@/stores/features';
+import { useFolderScrollStore } from '@/stores/folderScroll';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { useSelection } from '@/composables/itemSelection';
 import { useExplorerContextMenu } from '@/composables/contextMenu';
@@ -32,6 +33,7 @@ const fileStore = useFileStore();
 const folderSizeStore = useFolderSizeStore();
 const volumeUsageStore = useVolumeUsageStore();
 const featuresStore = useFeaturesStore();
+const folderScrollStore = useFolderScrollStore();
 const route = useRoute();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
@@ -56,6 +58,14 @@ const LIST_ROW_OVERSCAN = 20;
 let loadMoreObserver = null;
 const scrollTop = ref(0);
 const scrollViewportHeight = ref(0);
+const canRememberScroll = ref(false);
+
+// BrowserLayout keys this view by full route, so navigating into a directory
+// replaces the component. Capture this instance's folder now: during unmount
+// the reactive route may already point to the destination.
+const scrollPositionKey = `${normalizePath(
+  Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
+)}::${settings.view}`;
 
 const getScrollTarget = () => {
   const localTarget = dropTargetRef.value;
@@ -153,6 +163,30 @@ const updateScrollState = () => {
   isScrollable.value = maxScrollTop > 2;
   canScrollUp.value = target.scrollTop > 2;
   canScrollDown.value = target.scrollTop < maxScrollTop - 2;
+  if (canRememberScroll.value) {
+    folderScrollStore.remember(scrollPositionKey, target.scrollTop);
+  }
+};
+
+const restoreScrollPosition = async () => {
+  const savedScrollTop = folderScrollStore.get(scrollPositionKey);
+  if (savedScrollTop <= 0) return;
+
+  // Non-virtual lists can initially render only 500 entries. Render their
+  // small remainder before restoring, otherwise a saved lower position would
+  // be clamped before the user can get back to it.
+  if (!useVirtualList.value && visibleLimit.value < sortedItems.value.length) {
+    visibleLimit.value = sortedItems.value.length;
+  }
+
+  await nextTick();
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  const target = dropTargetRef.value || getScrollTarget();
+  if (!target) return;
+  const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+  target.scrollTop = Math.min(savedScrollTop, maxScrollTop);
+  updateScrollState();
 };
 
 const revealAllItems = async () => {
@@ -235,6 +269,7 @@ const selectionModel = computed({
 
 const loadFiles = async () => {
   loading.value = true;
+  canRememberScroll.value = false;
   resetVisibleItems();
   const path = route.params.path || '';
   try {
@@ -246,6 +281,8 @@ const loadFiles = async () => {
     loading.value = false;
     await setupLoadMoreObserver();
     await nextTick();
+    await restoreScrollPosition();
+    canRememberScroll.value = true;
     updateScrollState();
   }
 };
@@ -431,6 +468,8 @@ useEventListener(window, 'resize', updateScrollState);
 useEventListener(window, 'scroll', updateScrollState, { passive: true });
 
 onBeforeUnmount(() => {
+  const target = getScrollTarget();
+  if (target) folderScrollStore.remember(scrollPositionKey, target.scrollTop);
   stopResize();
   window.clearInterval(liveRefreshTimer);
   if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
