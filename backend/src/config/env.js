@@ -145,6 +145,10 @@ module.exports = {
   EDITOR_EXTENSIONS: process.env.EDITOR_EXTENSIONS || '',
   EDITOR_MAX_FILESIZE: process.env.EDITOR_MAX_FILESIZE?.trim() || null,
 
+  // Archive extraction (comma-separated; leading '+' extends the defaults
+  // instead of replacing them)
+  ARCHIVE_EXTENSIONS: process.env.ARCHIVE_EXTENSIONS || '',
+
   // FFmpeg
   FFMPEG_PATH: process.env.FFMPEG_PATH || null,
   FFPROBE_PATH: process.env.FFPROBE_PATH || null,

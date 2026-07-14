@@ -60,8 +60,9 @@ RUN addgroup -S appuser && \
 #   ripgrep         – fast file-content search
 #   imagemagick     – HEIC → PNG thumbnail conversion
 #   openssh-client  – optional SSH remote access (terminal only)
-#   7zip            – archive extraction (zip, 7z, iso, rar*, tar.gz…) and demo
-#                     mode sample extraction; *rar depends on the Alpine build
+#   p7zip           – archive extraction (zip, 7z, iso, rar, tar.gz…) and demo
+#                     mode sample extraction; p7zip ships the RAR codec that
+#                     the newer Alpine 7zip package strips out
 #   bash            – entrypoint.sh is a bash script
 #   shadow          – provides usermod/groupmod for UID/GID remapping
 #   curl            – For terminal users
@@ -88,7 +89,7 @@ RUN apk add --no-cache \
       ripgrep \
       imagemagick \
       openssh-client \
-      7zip \
+      p7zip \
       bash \
       shadow \
       curl \
