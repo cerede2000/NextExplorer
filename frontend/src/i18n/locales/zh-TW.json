@@ -311,7 +311,8 @@
     "moving": "正在移動 {count} 個{items}…",
     "working": "處理中…",
     "reposition": "完成後返回該項目",
-    "extracting": "正在解壓 {name}…"
+    "extracting": "正在解壓 {name}…",
+    "compressing": "正在壓縮 {name}…"
   },
   "upload": {
     "toggleDetailsShow": "顯示詳細資訊",

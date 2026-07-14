@@ -88,17 +88,16 @@ const archiveBaseName = (filename) => {
 const EXTRACT_TIMEOUT_MS = 30 * 60 * 1000;
 
 /**
- * Run one `7z x` pass. `-bsp1` sends the percentage indicator to stdout, so
+ * Run one 7-Zip command. `-bsp1` sends the percentage indicator to stdout, so
  * progress can be parsed from the output stream and forwarded to the caller
- * (0-100 per pass).
+ * (0-100 per run).
  */
-const runSevenZipExtract = (archiveAbsolutePath, destinationAbsolutePath, onPercent) =>
+const runSevenZip = (args, onPercent) =>
   new Promise((resolve, reject) => {
-    const child = spawn(
-      SEVEN_ZIP_BIN,
-      ['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, archiveAbsolutePath],
-      { stdio: ['ignore', 'pipe', 'pipe'], timeout: EXTRACT_TIMEOUT_MS }
-    );
+    const child = spawn(SEVEN_ZIP_BIN, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: EXTRACT_TIMEOUT_MS,
+    });
 
     let stderrTail = '';
 
@@ -126,6 +125,18 @@ const runSevenZipExtract = (archiveAbsolutePath, destinationAbsolutePath, onPerc
       }
     });
   });
+
+const runSevenZipExtract = (archiveAbsolutePath, destinationAbsolutePath, onPercent) =>
+  runSevenZip(['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, archiveAbsolutePath], onPercent);
+
+/**
+ * Create a .zip archive from the given absolute paths, reporting progress
+ * through `onPercent(0-100)`. 7-Zip stores each entry under its base name,
+ * matching the behaviour of the previous in-memory implementation — but the
+ * archive is streamed to disk instead of being assembled in the Node heap.
+ */
+const createZipArchive = (sourceAbsolutePaths, zipAbsolutePath, onPercent) =>
+  runSevenZip(['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, ...sourceAbsolutePaths], onPercent);
 
 /**
  * Extract an archive into the given (existing, empty) destination folder,
@@ -161,5 +172,6 @@ module.exports = {
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
   extractArchive,
+  createZipArchive,
   archiveBaseName,
 };

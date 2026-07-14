@@ -311,7 +311,8 @@
     "moving": "Przenoszenie {count} {items}…",
     "working": "Przetwarzanie…",
     "reposition": "Wróć do elementu po zakończeniu",
-    "extracting": "Wypakowywanie {name}…"
+    "extracting": "Wypakowywanie {name}…",
+    "compressing": "Kompresowanie {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Pokaż szczegóły",

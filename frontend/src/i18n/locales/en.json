@@ -311,7 +311,8 @@
     "moving": "Moving {count} {items}…",
     "working": "Working…",
     "reposition": "Return to the item when done",
-    "extracting": "Extracting {name}…"
+    "extracting": "Extracting {name}…",
+    "compressing": "Compressing {name}…"
   },
   "quickActions": {
     "menu": "Quick actions"

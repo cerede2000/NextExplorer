@@ -311,7 +311,8 @@
     "moving": "Déplacement de {count} {items}…",
     "working": "Traitement…",
     "reposition": "Revenir sur l'élément à la fin",
-    "extracting": "Extraction de {name}…"
+    "extracting": "Extraction de {name}…",
+    "compressing": "Compression de {name}…"
   },
   "quickActions": {
     "menu": "Actions rapides"
