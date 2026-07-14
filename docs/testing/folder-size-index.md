@@ -55,6 +55,9 @@ fraction of the RAM (the approach filebrowser-quantum also takes).
 | `FOLDER_SIZE_RECONCILE_MAX_MS` | `43200000` | Slowest adaptive reconcile interval (reached when the volume is idle). |
 | `FOLDER_SIZE_RECONCILE_BATCH` | `100` | Folders stat()ed per page during a reconcile sweep. |
 | `FOLDER_SIZE_RECONCILE_PAUSE_MS` | `200` | Sleep between reconcile pages — pacing that keeps the sweep gentle on huge volumes. |
+| `FOLDER_SIZE_SUBTREE_BATCH` | reconciliation batch | File metadata stat()ed per batch while rebuilding one incomplete subtree. The scan is serialized with other subtree recoveries so ancestor updates stay exact. |
+| `FOLDER_SIZE_SUBTREE_PAUSE_MS` | reconciliation pause | Sleep between targeted-scan batches. Leave unset to reuse the reconciliation pacing. |
+| `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS` | `5000` | Emit one `info` summary for a subtree scan taking at least this long; quicker scans remain `debug` only. |
 | `FOLDER_SIZE_REBUILD` | `false` | Force a fresh baseline walk on startup. |
 
 ## Enabling it
@@ -108,9 +111,11 @@ curl -s -b viewer.txt http://localhost:3000/api/folder-size/<volume>/<folder> | 
 
 ## Observe the indexer
 
-The indexer logs under the `folderSizeIndexer` name; filter your backend logs
-for it to watch the baseline walk complete and the flush / reconciliation passes
-as files change. The index records its format version per volume. When an
+The indexer logs under the `folderSizeIndexer` name. Slow recovery scans emit a
+single summary with their duration, folders, files, batches, pauses and queue
+depth; ordinary per-flush logs are intentionally omitted. This makes a CPU/IO
+spike attributable without turning debug logging into a log flood. The index
+records its format version per volume. When an
 application upgrade introduces an indexer change that older entries cannot
 represent correctly, the next startup performs one cooperative rebuild and only
 records the new version after that rebuild completes. Normal restarts keep a
