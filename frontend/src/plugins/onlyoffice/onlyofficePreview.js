@@ -2,6 +2,10 @@ import { useFeaturesStore } from '@/stores/features';
 import { useSettingsStore } from '@/stores/settings';
 import { requestOnlyOfficeForceSave } from '@/api';
 
+const CLOSE_REQUEST_GRACE_MS = 450;
+
+const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
+
 const DEFAULT_EXTS = [
   'docx',
   'doc',
@@ -41,12 +45,18 @@ export const onlyofficePreviewPlugin = (extensions) => ({
 
   component: () => import('./OnlyOfficePreview.vue'),
 
-  // The backend queues and retries this command without holding the preview
-  // open. ONLYOFFICE's normal status-2 callback remains the fallback.
-  onBeforeClose: (context) => {
+  // Wait only for NextExplorer to accept the request, never for Document
+  // Server to assemble and download the document. This makes the request
+  // reliable without making the editor visibly wait for a status-6 callback.
+  onBeforeClose: async (context) => {
     const sessionId = context?.previewState?.forceSaveSessionId;
     if (!context?.filePath || !sessionId) return;
-    void requestOnlyOfficeForceSave(context.filePath, { sessionId }).catch(() => {});
+
+    const request = context.previewState.requestForceSave
+      ? context.previewState.requestForceSave({ reason: 'close' })
+      : requestOnlyOfficeForceSave(context.filePath, { sessionId, reason: 'close' });
+
+    await Promise.race([Promise.resolve(request).catch(() => {}), wait(CLOSE_REQUEST_GRACE_MS)]);
   },
 
   actions: (context) => [

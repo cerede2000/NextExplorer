@@ -119,6 +119,13 @@ module.exports = {
   ONLYOFFICE_LANG: process.env.ONLYOFFICE_LANG?.trim() || 'en',
   ONLYOFFICE_FORCE_SAVE: normalizeBoolean(process.env.ONLYOFFICE_FORCE_SAVE) || false,
   ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: Number(process.env.ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS) || 10000,
+  // 0 disables proactive writes to the external storage. A bounded interval
+  // keeps Document Server's internal autosave from becoming a full document
+  // conversion on every edit.
+  ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: (() => {
+    const value = Number(process.env.ONLYOFFICE_AUTO_SAVE_INTERVAL_MS);
+    return Number.isFinite(value) && value >= 0 ? value : 15000;
+  })(),
   ONLYOFFICE_FILE_EXTENSIONS: process.env.ONLYOFFICE_FILE_EXTENSIONS || '',
 
   // Collabora (WOPI)
