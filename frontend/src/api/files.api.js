@@ -1,4 +1,11 @@
-import { requestJson, requestRaw, requestStream, normalizePath, encodePath, buildUrl } from './http';
+import {
+  requestJson,
+  requestRaw,
+  requestStream,
+  normalizePath,
+  encodePath,
+  buildUrl,
+} from './http';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -24,6 +31,7 @@ async function copyItems(items, destination, options = {}) {
     method: 'POST',
     body: JSON.stringify({ items, destination }),
     onEvent: options.onEvent,
+    signal: options.signal,
   });
 }
 
@@ -32,6 +40,7 @@ async function moveItems(items, destination, options = {}) {
     method: 'POST',
     body: JSON.stringify({ items, destination }),
     onEvent: options.onEvent,
+    signal: options.signal,
   });
 }
 
@@ -56,6 +65,15 @@ async function deleteItems(items) {
   }
 
   return { success: true, items: deletedItems };
+}
+
+async function deleteItemsStream(items, options = {}) {
+  return requestStream('/api/files/delete-stream', {
+    method: 'POST',
+    body: JSON.stringify({ items: Array.isArray(items) ? items : [] }),
+    onEvent: options.onEvent,
+    signal: options.signal,
+  });
 }
 
 async function getDeleteImpact(items) {
@@ -264,6 +282,7 @@ export {
   copyItems,
   moveItems,
   deleteItems,
+  deleteItemsStream,
   getDeleteImpact,
   createFolder,
   renameItem,

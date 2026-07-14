@@ -60,6 +60,7 @@ RUN addgroup -S appuser && \
 #   bash            – entrypoint.sh is a bash script
 #   shadow          – provides usermod/groupmod for UID/GID remapping
 #   curl            – For terminal users
+#   rsync           – native, cancellable local copies with byte progress
 #
 # Optional (see INCLUDE_RAW / INCLUDE_VAAPI build args below):
 #   perl            – required by exiftool-vendored for RAW image previews
@@ -87,6 +88,7 @@ RUN apk add --no-cache \
       bash \
       shadow \
       curl \
+      rsync \
   && if [ "$INCLUDE_RAW" = "true" ]; then apk add --no-cache perl; fi \
   && if [ "$INCLUDE_VAAPI" = "true" ]; then apk add --no-cache libva mesa-va-gallium; fi \
   && rm -rf /tmp/* /var/cache/apk/*

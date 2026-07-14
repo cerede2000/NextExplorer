@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 
@@ -37,5 +37,17 @@ describe('operation task store', () => {
     store.finishOperation(compressId);
 
     expect(store.activeOperation.id).toBe(copyId);
+  });
+
+  it('cancels an operation once and marks it as cancelling', () => {
+    const store = useOperationTasksStore();
+    const cancel = vi.fn();
+    const id = store.startOperation({ type: 'copy', itemCount: 1, cancellable: true, cancel });
+
+    store.cancelOperation(id);
+    store.cancelOperation(id);
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(store.activeOperation.cancelling).toBe(true);
   });
 });

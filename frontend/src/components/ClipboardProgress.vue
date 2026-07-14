@@ -2,8 +2,10 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ChevronDownIcon, QueueListIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+import { useFileStore } from '@/stores/fileStore';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 
+const fileStore = useFileStore();
 const operationTasksStore = useOperationTasksStore();
 const { t } = useI18n();
 const isListOpen = ref(false);
@@ -46,6 +48,7 @@ const titleFor = (value) => {
 const percent = computed(() => percentFor(operation.value));
 const progressLabel = computed(() => progressLabelFor(operation.value));
 const destination = computed(() => operation.value?.destination ?? '');
+const isTransfer = computed(() => ['copy', 'move'].includes(operation.value?.type));
 
 const selectOperation = (id) => {
   operationTasksStore.selectOperation(id);
@@ -154,6 +157,18 @@ const cancelTask = (id) => {
     <div class="mt-2 text-xs text-zinc-600 dark:text-zinc-300 tabular-nums">
       {{ operation.cancelling ? t('common.loading') : progressLabel }}
     </div>
+
+    <label
+      v-if="isTransfer"
+      class="mt-3 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer select-none"
+    >
+      <input
+        v-model="fileStore.repositionAfterTransfer"
+        type="checkbox"
+        class="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+      />
+      {{ t('clipboard.reposition') }}
+    </label>
   </div>
 </template>
 

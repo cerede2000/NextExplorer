@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
+const { spawn } = require('child_process');
 
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const {
@@ -13,122 +14,317 @@ const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesServic
 
 // How often (ms) progress is reported to the caller while bytes stream, so a
 // large file emits a steady trickle of updates rather than one per chunk.
-const PROGRESS_THROTTLE_MS = 150;
+const PROGRESS_THROTTLE_MS = 75;
+// Node defaults file streams to 64 KiB buffers. That makes a 90 GiB transfer
+// cross JavaScript over 1.4 million times. Keep the transfer cancellable, but
+// use a bounded 4 MiB buffer to cut that overhead drastically without growing
+// memory with the size of the copy.
+const COPY_STREAM_HIGH_WATER_MARK = 4 * 1024 * 1024;
+const NATIVE_TRANSFER_ENABLED =
+  process.platform === 'linux' && process.env.FILE_TRANSFER_ENGINE !== 'stream';
+const activeNativeOperations = new Map();
+let nextNativeOperationId = 1;
 
-// Recursively sum the byte size of a file or directory subtree. Symlinks count
-// as zero (they are recreated, not byte-copied). Best-effort: entries that
-// cannot be stat()ed are skipped so a partial tree still yields a usable total.
-const computeEntrySize = async (absolutePath, isDirectory) => {
-  if (!isDirectory) {
-    try {
-      const stats = await fs.lstat(absolutePath);
-      return stats.isSymbolicLink() ? 0 : stats.size;
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  let total = 0;
-  const stack = [absolutePath];
-  while (stack.length > 0) {
-    const dir = stack.pop();
-    let entries;
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch (_) {
-      continue;
-    }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(full);
-      } else if (entry.isFile()) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const stats = await fs.stat(full);
-          total += stats.size;
-        } catch (_) {
-          // Unreadable entry: skip it, keep the total best-effort.
-        }
-      }
-    }
-  }
-  return total;
+const registerNativeOperation = (type, child, sourcePath, destinationPath = null) => {
+  const id = nextNativeOperationId;
+  nextNativeOperationId += 1;
+  activeNativeOperations.set(id, {
+    id,
+    type,
+    pid: child?.pid || null,
+    sourceName: path.basename(sourcePath),
+    ...(destinationPath ? { destinationName: path.basename(destinationPath) } : {}),
+    startedAt: Date.now(),
+  });
+  return id;
 };
+
+const unregisterNativeOperation = (id) => {
+  if (id != null) activeNativeOperations.delete(id);
+};
+
+const getDiagnosticsSnapshot = () => {
+  const now = Date.now();
+  return {
+    nativeTransferEnabled: NATIVE_TRANSFER_ENABLED,
+    activeNativeOperations: Array.from(activeNativeOperations.values())
+      .map((operation) => ({ ...operation, ageMs: now - operation.startedAt }))
+      .sort((a, b) => b.ageMs - a.ageMs)
+      .slice(0, 5),
+  };
+};
+
+const createCancellationError = () => {
+  const error = new Error('Operation cancelled.');
+  error.code = 'OPERATION_CANCELLED';
+  return error;
+};
+
+const throwIfCancelled = (signal) => {
+  if (signal?.aborted) throw createCancellationError();
+};
+
+const parseRsyncProgress = (line) => {
+  const match = line.match(/^\s*([\d,]+)\s+(\d+)%/);
+  if (!match) return null;
+  return {
+    copiedBytes: Number(match[1].replaceAll(',', '')) || 0,
+    percent: Math.min(100, Number(match[2]) || 0),
+  };
+};
+
+const stopChildProcessGroup = (child, signal) => {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, signal);
+  } catch (_) {
+    child.kill(signal);
+  }
+};
+
+// rsync keeps file transfer outside the Node event loop while retaining three
+// properties the UI needs: safe argv handling, global progress, and immediate
+// cancellation. It is used only in the Linux container; local development and
+// the explicit FILE_TRANSFER_ENGINE=stream override keep the JS fallback.
+const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createCancellationError());
+      return;
+    }
+
+    const child = spawn(
+      'rsync',
+      [
+        '-a',
+        '--no-owner',
+        '--no-group',
+        '--info=progress2',
+        '--outbuf=L',
+        '--out-format=%n',
+        '--',
+        sourcePath,
+        destinationPath,
+      ],
+      {
+        detached: true,
+        env: { ...process.env, LC_ALL: 'C' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
+    const operationId = registerNativeOperation('rsync', child, sourcePath, destinationPath);
+    let output = '';
+    let errorOutput = '';
+    let settled = false;
+    let killTimer = null;
+    const cleanup = () => {
+      signal?.removeEventListener('abort', abort);
+      if (killTimer) clearTimeout(killTimer);
+      unregisterNativeOperation(operationId);
+    };
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
+    const emitOutput = (chunk) => {
+      output += chunk.toString();
+      const lines = output.split(/[\r\n]/);
+      output = lines.pop() || '';
+      for (const line of lines) {
+        const progress = parseRsyncProgress(line);
+        if (progress) onProgress?.(progress);
+      }
+    };
+    const abort = () => {
+      stopChildProcessGroup(child, 'SIGTERM');
+      killTimer = setTimeout(() => stopChildProcessGroup(child, 'SIGKILL'), 3000);
+    };
+
+    child.stdout.on('data', emitOutput);
+    child.stderr.on('data', (chunk) => {
+      errorOutput += chunk.toString();
+    });
+    child.once('error', (error) => finish(reject, error));
+    child.once('close', (code) => {
+      if (signal?.aborted) return finish(reject, createCancellationError());
+      if (code === 0) return finish(resolve);
+      const error = new Error(errorOutput.trim() || `Native copy failed with exit code ${code}.`);
+      error.code = 'NATIVE_COPY_FAILED';
+      return finish(reject, error);
+    });
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+
+const removeWithNativeRm = (absolutePath, signal) =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(createCancellationError());
+    const child = spawn('rm', ['-rf', '--', absolutePath], { detached: true, stdio: 'ignore' });
+    const operationId = registerNativeOperation('rm', child, absolutePath);
+    let settled = false;
+    let killTimer = null;
+    const cleanup = () => {
+      signal?.removeEventListener('abort', abort);
+      if (killTimer) clearTimeout(killTimer);
+      unregisterNativeOperation(operationId);
+    };
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
+    const abort = () => {
+      stopChildProcessGroup(child, 'SIGTERM');
+      killTimer = setTimeout(() => stopChildProcessGroup(child, 'SIGKILL'), 3000);
+    };
+    child.once('error', (error) => finish(reject, error));
+    child.once('close', (code) => {
+      if (signal?.aborted) return finish(reject, createCancellationError());
+      if (code === 0) return finish(resolve);
+      const error = new Error(`Native deletion failed with exit code ${code}.`);
+      error.code = 'NATIVE_DELETE_FAILED';
+      return finish(reject, error);
+    });
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 
 // Copy a single regular file through streams so bytes can be reported as they
 // are written. The source mode is applied at creation to mirror fs.copyFile.
-const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes) =>
+const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal) =>
   new Promise((resolve, reject) => {
-    const readStream = fsSync.createReadStream(sourcePath);
+    if (signal?.aborted) {
+      reject(createCancellationError());
+      return;
+    }
+
+    const readStream = fsSync.createReadStream(sourcePath, {
+      highWaterMark: COPY_STREAM_HIGH_WATER_MARK,
+    });
     const writeStream = fsSync.createWriteStream(
       destinationPath,
-      mode != null ? { mode } : undefined
+      mode != null
+        ? { mode, highWaterMark: COPY_STREAM_HIGH_WATER_MARK }
+        : { highWaterMark: COPY_STREAM_HIGH_WATER_MARK }
     );
 
+    let settled = false;
+    const cleanup = () => signal?.removeEventListener('abort', abort);
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
     const fail = (error) => {
       readStream.destroy();
       writeStream.destroy();
-      reject(error);
+      finish(reject, error);
     };
+    const abort = () => fail(createCancellationError());
 
     readStream.on('error', fail);
     writeStream.on('error', fail);
     if (typeof onBytes === 'function') {
       readStream.on('data', (chunk) => onBytes(chunk.length));
     }
-    writeStream.on('finish', resolve);
+    writeStream.on('finish', () => finish(resolve));
+    signal?.addEventListener('abort', abort, { once: true });
     readStream.pipe(writeStream);
   });
 
-// Recursively copy a file/dir, reporting copied bytes. Symlinks are recreated.
-const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes) => {
+// Recursively copy a file/dir, reporting copied bytes. It returns the actual
+// copied byte count, so folder-size updates never need a second filesystem walk.
+const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes, signal) => {
+  throwIfCancelled(signal);
+  if (NATIVE_TRANSFER_ENABLED) {
+    const stats = await fs.lstat(sourcePath);
+    if (stats.isDirectory()) {
+      // Keep the target name chosen by findAvailableName. rsync copies the
+      // directory itself when the source lacks a trailing slash; the explorer
+      // contract is to copy its contents into the target directory instead.
+      await ensureDir(destinationPath);
+      await copyWithNativeRsync(
+        `${sourcePath}${path.sep}`,
+        `${destinationPath}${path.sep}`,
+        onBytes,
+        signal
+      );
+    } else {
+      await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal);
+    }
+    return stats.isDirectory() ? null : stats.size;
+  }
   if (!isDirectory) {
     const stats = await fs.lstat(sourcePath);
     if (stats.isSymbolicLink()) {
       const linkTarget = await fs.readlink(sourcePath);
       await fs.symlink(linkTarget, destinationPath);
-      return;
+      return 0;
     }
-    await copyFileWithProgress(sourcePath, destinationPath, stats.mode, onBytes);
-    return;
+    await copyFileWithProgress(sourcePath, destinationPath, stats.mode, onBytes, signal);
+    return stats.size;
   }
 
   await ensureDir(destinationPath);
   const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+  let copiedBytes = 0;
   for (const entry of entries) {
+    throwIfCancelled(signal);
     const src = path.join(sourcePath, entry.name);
     const dest = path.join(destinationPath, entry.name);
     // eslint-disable-next-line no-await-in-loop
-    await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes);
+    copiedBytes += await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
   }
+  return copiedBytes;
 };
 
 // Move an entry, reporting progress. A same-filesystem rename is atomic and
 // instant, so the entry's whole size is reported at once; a cross-device move
 // (EXDEV) falls back to a byte-tracked copy followed by removal of the source.
-const moveEntryWithProgress = async (sourcePath, destinationPath, isDirectory, size, onBytes) => {
+const moveEntryWithProgress = async (
+  sourcePath,
+  destinationPath,
+  isDirectory,
+  size,
+  onBytes,
+  signal
+) => {
+  throwIfCancelled(signal);
   try {
     await fs.rename(sourcePath, destinationPath);
     if (typeof onBytes === 'function' && size > 0) {
       onBytes(size);
     }
+    return size;
   } catch (error) {
     if (error.code === 'EXDEV') {
-      await copyEntryWithProgress(sourcePath, destinationPath, isDirectory, onBytes);
-      await fs.rm(sourcePath, { recursive: isDirectory, force: true });
+      const copiedBytes = await copyEntryWithProgress(
+        sourcePath,
+        destinationPath,
+        isDirectory,
+        onBytes,
+        signal
+      );
+      throwIfCancelled(signal);
+      if (NATIVE_TRANSFER_ENABLED) await removeWithNativeRm(sourcePath, signal);
+      else await fs.rm(sourcePath, { recursive: isDirectory, force: true });
+      return copiedBytes;
     } else {
       throw error;
     }
   }
 };
 
-// Phase 1: authorize + resolve every item, stat it, and pre-compute the total
-// byte count so the client can render a determinate progress bar. Throws on any
-// validation/authorization failure — the route runs this BEFORE it commits to a
-// streaming response, so these surface as a normal HTTP error (status + code).
+// Phase 1: authorize + resolve every item. Recursive directory-size walks are
+// deliberately avoided here: a large copy used to read every source file once
+// for progress, then read it all again to copy. Indexed directory sizes give a
+// determinate bar in O(1); otherwise the UI uses its indeterminate state while
+// the copy starts immediately.
 const prepareTransfer = async (items, destination, operation, options = {}) => {
+  const { signal } = options;
+  throwIfCancelled(signal);
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('At least one item is required.');
   }
@@ -160,8 +356,10 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
 
   const plans = [];
   let totalBytes = 0;
+  let hasUnknownSize = false;
 
   for (const item of items) {
+    throwIfCancelled(signal);
     const sourceCombined = combineRelativePath(item.path || '', item.name);
     const {
       allowed: srcAllowed,
@@ -194,14 +392,24 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     const isDirectory = stats.isDirectory();
     const sourceParent = normalizeRelativePath(path.dirname(sourceRelative));
 
+    if (
+      isDirectory &&
+      (destinationAbsolute === sourceAbsolute ||
+        destinationAbsolute.startsWith(`${sourceAbsolute}${path.sep}`))
+    ) {
+      throw new Error('Cannot copy or move a folder into itself.');
+    }
+
     if (operation === 'move' && destinationRelative === sourceParent) {
       plans.push({ sourceRelative, skipped: true });
       continue;
     }
 
-    // eslint-disable-next-line no-await-in-loop
-    const size = await computeEntrySize(sourceAbsolute, isDirectory);
-    totalBytes += size;
+    // Avoid walking a directory before copying it: rsync can start immediately
+    // and reports its own progress. Directory transfers stay indeterminate.
+    const size = isDirectory ? null : stats.size;
+    if (Number.isFinite(size)) totalBytes += size;
+    else hasUnknownSize = true;
 
     plans.push({
       sourceAbsolute,
@@ -216,7 +424,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     destinationRelative,
     destinationAbsolute,
     plans,
-    totalBytes,
+    totalBytes: hasUnknownSize ? 0 : totalBytes,
     totalItems: plans.filter((plan) => !plan.skipped).length,
   };
 };
@@ -224,72 +432,123 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
 // Phase 2: perform the copy/move for each prepared plan, reporting progress via
 // onProgress({ copiedBytes, totalBytes, currentName }). Runs after the response
 // has switched to streaming mode, so an error here is surfaced in the stream.
-const executeTransfer = async (prep, operation, onProgress) => {
+const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   const { destinationRelative, destinationAbsolute, plans, totalBytes } = prep;
+  const { signal } = options;
 
+  throwIfCancelled(signal);
   await ensureDir(destinationAbsolute);
 
   const results = [];
   let copiedBytes = 0;
   let lastEmit = 0;
   let currentName = '';
+  let nativePercent = null;
+  let activeTarget = null;
 
   const emit = (force = false) => {
     if (typeof onProgress !== 'function') return;
     const now = Date.now();
     if (!force && now - lastEmit < PROGRESS_THROTTLE_MS) return;
     lastEmit = now;
-    onProgress({ copiedBytes, totalBytes, currentName });
+    onProgress({
+      copiedBytes,
+      totalBytes,
+      currentName,
+      ...(nativePercent != null ? { percent: nativePercent } : {}),
+    });
   };
 
   const onBytes = (delta) => {
+    const wasAtStart = copiedBytes === 0;
     copiedBytes += delta;
-    emit(false);
+    // Show the first byte immediately, then throttle the steady stream of
+    // updates. Besides making the UI feel responsive, this lets an operation
+    // become cancellable as soon as data starts moving.
+    emit(wasAtStart);
   };
 
-  for (const plan of plans) {
-    if (plan.skipped) {
-      results.push({ from: plan.sourceRelative, to: plan.sourceRelative, skipped: true });
-      continue;
+  try {
+    for (const plan of plans) {
+      throwIfCancelled(signal);
+      if (plan.skipped) {
+        results.push({ from: plan.sourceRelative, to: plan.sourceRelative, skipped: true });
+        continue;
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const availableName = await findAvailableName(destinationAbsolute, plan.desiredName);
+      const targetAbsolute = path.join(destinationAbsolute, availableName);
+      const targetRelative = combineRelativePath(destinationRelative, availableName);
+      activeTarget = { absolutePath: targetAbsolute, isDirectory: plan.isDirectory };
+      currentName = availableName;
+      nativePercent = null;
+      emit(true);
+
+      const copiedBeforePlan = copiedBytes;
+      const onCopyProgress = (progress) => {
+        if (typeof progress === 'number') {
+          onBytes(progress);
+          return;
+        }
+        nativePercent = Number.isFinite(progress?.percent) ? progress.percent : null;
+        if (Number.isFinite(plan.size) && nativePercent != null) {
+          copiedBytes = copiedBeforePlan + (plan.size * nativePercent) / 100;
+        }
+        emit(true);
+      };
+
+      if (operation === 'copy') {
+        // eslint-disable-next-line no-await-in-loop
+        await copyEntryWithProgress(
+          plan.sourceAbsolute,
+          targetAbsolute,
+          plan.isDirectory,
+          onCopyProgress,
+          signal
+        );
+      } else if (operation === 'move') {
+        // eslint-disable-next-line no-await-in-loop
+        await moveEntryWithProgress(
+          plan.sourceAbsolute,
+          targetAbsolute,
+          plan.isDirectory,
+          plan.size,
+          onCopyProgress,
+          signal
+        );
+      } else {
+        throw new Error(`Unsupported operation: ${operation}`);
+      }
+
+      results.push({ from: plan.sourceRelative, to: targetRelative });
+      activeTarget = null;
     }
 
-    // eslint-disable-next-line no-await-in-loop
-    const availableName = await findAvailableName(destinationAbsolute, plan.desiredName);
-    const targetAbsolute = path.join(destinationAbsolute, availableName);
-    const targetRelative = combineRelativePath(destinationRelative, availableName);
-    currentName = availableName;
+    // Snap to 100% once every entry is done when the total was known before
+    // starting. Unknown directory totals intentionally stay indeterminate.
+    if (totalBytes > 0) copiedBytes = totalBytes;
     emit(true);
 
-    if (operation === 'copy') {
-      // eslint-disable-next-line no-await-in-loop
-      await copyEntryWithProgress(plan.sourceAbsolute, targetAbsolute, plan.isDirectory, onBytes);
-    } else if (operation === 'move') {
-      // eslint-disable-next-line no-await-in-loop
-      await moveEntryWithProgress(
-        plan.sourceAbsolute,
-        targetAbsolute,
-        plan.isDirectory,
-        plan.size,
-        onBytes
-      );
-    } else {
-      throw new Error(`Unsupported operation: ${operation}`);
+    return { destination: destinationRelative, items: results };
+  } catch (error) {
+    // A cancellation can interrupt a recursive copy part-way through an entry.
+    // Remove only that incomplete destination; already completed entries remain
+    // intact, which is the least surprising and safest cancellation semantics.
+    if (error?.code === 'OPERATION_CANCELLED' && activeTarget) {
+      await fs.rm(activeTarget.absolutePath, {
+        recursive: activeTarget.isDirectory,
+        force: true,
+      });
     }
-
-    results.push({ from: plan.sourceRelative, to: targetRelative });
+    throw error;
   }
-
-  // Snap to 100% once every entry is done (covers rounding and any skipped work).
-  copiedBytes = totalBytes;
-  emit(true);
-
-  return { destination: destinationRelative, items: results };
 };
 
 // One-shot API preserved for callers that do not need progress reporting.
 const transferItems = async (items, destination, operation, options = {}) => {
   const prep = await prepareTransfer(items, destination, operation, options);
-  return executeTransfer(prep, operation, options.onProgress);
+  return executeTransfer(prep, operation, options.onProgress, { signal: options.signal });
 };
 
 const getShareSourceTarget = (resolved, includeChildren = false) => {
@@ -374,7 +633,9 @@ const deleteItems = async (items = [], options = {}) => {
   };
   const targets = await resolveDeleteTargets(items, context);
 
+  let completedItems = 0;
   for (const target of targets) {
+    throwIfCancelled(options.signal);
     const { relativePath, absolutePath, exists, stats, isDirectory, shareSourceTarget } = target;
     const affectedShares = shareSourceTarget
       ? await getSharesForSourceTargets([shareSourceTarget])
@@ -386,15 +647,37 @@ const deleteItems = async (items = [], options = {}) => {
       if (deletedShareCount > 0) {
         results[results.length - 1].deletedShareCount = deletedShareCount;
       }
+      completedItems += 1;
+      options.onProgress?.({
+        completedItems,
+        totalItems: targets.length,
+        currentName: target.item?.name || relativePath,
+        percent: Math.round((completedItems / targets.length) * 100),
+      });
       continue;
     }
 
-    await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
+    const deletedEntryStats = stats || (await fs.stat(absolutePath));
+    if (NATIVE_TRANSFER_ENABLED) {
+      await removeWithNativeRm(absolutePath, options.signal);
+    } else {
+      await fs.rm(absolutePath, {
+        recursive: isDirectory || deletedEntryStats.isDirectory(),
+        force: true,
+      });
+    }
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
     results.push({
       path: relativePath,
       status: 'deleted',
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
+    });
+    completedItems += 1;
+    options.onProgress?.({
+      completedItems,
+      totalItems: targets.length,
+      currentName: target.item?.name || relativePath,
+      percent: Math.round((completedItems / targets.length) * 100),
     });
   }
 
@@ -404,7 +687,9 @@ const deleteItems = async (items = [], options = {}) => {
 module.exports = {
   prepareTransfer,
   executeTransfer,
+  createCancellationError,
   transferItems,
   getDeleteImpact,
   deleteItems,
+  getDiagnosticsSnapshot,
 };

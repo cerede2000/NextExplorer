@@ -5,7 +5,7 @@ import {
   browse,
   copyItems,
   moveItems,
-  deleteItems,
+  deleteItemsStream,
   normalizePath,
   createFolder as createFolderApi,
   renameItem as renameItemApi,
@@ -32,8 +32,15 @@ export const useFileStore = defineStore('fileStore', () => {
   const favoritesStore = useFavoritesStore();
   const operationTasksStore = useOperationTasksStore();
 
+  const isAbortError = (error) =>
+    error?.name === 'AbortError' ||
+    error?.code === 'OPERATION_CANCELLED' ||
+    (typeof DOMException !== 'undefined' && error?.code === DOMException.ABORT_ERR) ||
+    /aborted/i.test(error?.message || '');
+
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
+  const repositionAfterTransfer = useStorage('nextExplorer_paste_reposition', true);
   const thumbnailRequests = new Map();
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
@@ -101,6 +108,50 @@ export const useFileStore = defineStore('fileStore', () => {
     cutItems.value = [];
   };
 
+  const transferredBaseName = (relativePath) => {
+    const normalized = normalizePath(relativePath || '');
+    const index = normalized.lastIndexOf('/');
+    return index >= 0 ? normalized.slice(index + 1) : normalized;
+  };
+
+  const collectTransferredNames = (result, output) => {
+    for (const entry of Array.isArray(result?.items) ? result.items : []) {
+      const name = transferredBaseName(entry?.to);
+      if (name) output.push(name);
+    }
+  };
+
+  const selectItemsByName = (names) => {
+    const wanted = new Set((names || []).filter(Boolean));
+    if (wanted.size === 0) return;
+    const matches = currentPathItems.value.filter((item) => wanted.has(item.name));
+    if (matches.length > 0) selectedItems.value = matches;
+  };
+
+  const settleAfterTransfer = async (destination, moveSourceParents, pastedNames) => {
+    const current = normalizePath(currentPath.value || '');
+    const onDestination = current === destination;
+
+    if (repositionAfterTransfer.value) {
+      if (onDestination || !destination) {
+        await fetchPathItems(current);
+        selectItemsByName(pastedNames);
+      } else {
+        const firstName = pastedNames[0];
+        router
+          .push({
+            name: 'FolderView',
+            params: { path: destination },
+            ...(firstName ? { query: { select: firstName } } : {}),
+          })
+          .catch(() => {});
+      }
+      return;
+    }
+
+    if (onDestination || moveSourceParents.has(current)) await fetchPathItems(current);
+  };
+
   const copy = () => {
     if (!hasSelection.value) return;
     cutItems.value = [];
@@ -116,11 +167,11 @@ export const useFileStore = defineStore('fileStore', () => {
   const paste = async (targetPath) => {
     const hasTarget = typeof targetPath === 'string' && targetPath.trim().length > 0;
     const destination = normalizePath(hasTarget ? targetPath : currentPath.value || '');
-    const refreshTarget = normalizePath(currentPath.value || '');
-
     const copyPayload = serializeItems(copiedItems.value);
     const movePayload = serializeItems(cutItems.value);
+    const moveSourceParents = new Set(movePayload.map((item) => normalizePath(item.path || '')));
     const totalCount = copyPayload.length + movePayload.length;
+    const controller = new AbortController();
 
     const operationId =
       totalCount > 0
@@ -128,25 +179,58 @@ export const useFileStore = defineStore('fileStore', () => {
             type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
             destination,
             itemCount: totalCount,
+            cancellable: true,
+            cancel: () => controller.abort(),
           })
         : null;
 
     try {
+      const pastedNames = [];
+      let finalDestination = destination;
+
       if (copiedItems.value.length > 0) {
         if (copyPayload.length > 0) {
-          await copyItems(copyPayload, destination);
+          const result = await copyItems(copyPayload, destination, {
+            signal: controller.signal,
+            onEvent: (event) => {
+              if (event?.type === 'start' || event?.type === 'progress') {
+                operationTasksStore.updateOperation(operationId, {
+                  totalBytes: Number(event.totalBytes) || 0,
+                  copiedBytes: Number(event.copiedBytes) || 0,
+                  ...(Number.isFinite(event.percent) ? { percent: event.percent } : {}),
+                });
+              }
+            },
+          });
+          collectTransferredNames(result, pastedNames);
+          if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
         copiedItems.value = [];
       }
 
       if (cutItems.value.length > 0) {
         if (movePayload.length > 0) {
-          await moveItems(movePayload, destination);
+          const result = await moveItems(movePayload, destination, {
+            signal: controller.signal,
+            onEvent: (event) => {
+              if (event?.type === 'start' || event?.type === 'progress') {
+                operationTasksStore.updateOperation(operationId, {
+                  totalBytes: Number(event.totalBytes) || 0,
+                  copiedBytes: Number(event.copiedBytes) || 0,
+                  ...(Number.isFinite(event.percent) ? { percent: event.percent } : {}),
+                });
+              }
+            },
+          });
+          collectTransferredNames(result, pastedNames);
+          if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
         cutItems.value = [];
       }
 
-      await fetchPathItems(refreshTarget);
+      await settleAfterTransfer(finalDestination, moveSourceParents, pastedNames);
+    } catch (error) {
+      if (!isAbortError(error)) throw error;
     } finally {
       if (operationId) operationTasksStore.finishOperation(operationId);
     }
@@ -156,14 +240,32 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
+    const controller = new AbortController();
     const operationId = operationTasksStore.startOperation({
       type: 'delete',
       itemCount: payload.length,
+      cancellable: true,
+      cancel: () => controller.abort(),
     });
 
     try {
-      await deleteItems(payload);
+      await deleteItemsStream(payload, {
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (event?.type === 'progress') {
+            operationTasksStore.updateOperation(operationId, {
+              percent: Number(event.percent) || 0,
+              completedItems: Number(event.completedItems) || 0,
+              currentName: event.currentName || '',
+            });
+          }
+        },
+      });
       clearSelection();
+      await favoritesStore.loadFavorites();
+      await fetchPathItems(currentPath.value);
+    } catch (error) {
+      if (!isAbortError(error)) throw error;
       await favoritesStore.loadFavorites();
       await fetchPathItems(currentPath.value);
     } finally {
@@ -575,6 +677,7 @@ export const useFileStore = defineStore('fileStore', () => {
     clearSelection,
     copiedItems,
     cutItems,
+    repositionAfterTransfer,
     hasSelection,
     hasClipboardItems,
     copy,
