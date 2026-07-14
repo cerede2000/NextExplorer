@@ -83,6 +83,12 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `EDITOR_EXTENSIONS`   | _empty_ | Comma-separated list of additional file extensions to support in the inline text editor (e.g., `toml,proto,graphql` or `.toml,.proto`). These are **added to** the built-in defaults (txt, md, json, js, ts, py, etc.), not replacing them. Changes take effect on container restart—no frontend rebuild required. |
 | `EDITOR_MAX_FILESIZE` | `2M`    | Maximum file size allowed to open in the inline text editor. Accepts a byte count or a size with `K`, `M`, `G`, `T` suffix (base 1024), e.g. `512K`, `2M`, `1G`. Files larger than this will show “This file is too large to open in the text editor.”                                                             |
 
+## Archives
+
+| Variable             | Default                                                                                            | Description                                                                                                                                                                                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ARCHIVE_EXTENSIONS` | `7z,zip,iso,rar,tar,gz,tgz,bz2,tbz2,xz,txz,cab,wim,cpio,rpm,deb,z,lzh,arj,zst` | Extensions offered for the “Extract archive” action. A plain list (e.g. `zip,iso,7z`) **replaces** the defaults; prefix the list with `+` (e.g. `+udf,squashfs`) to **extend** them instead. Whatever the list says, a format is only offered when the bundled 7-Zip build actually supports it (probed at startup). |
+
 ## OnlyOffice & thumbnails
 
 | Variable                      | Default            | Description                                                                                                                             |

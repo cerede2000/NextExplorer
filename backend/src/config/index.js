@@ -293,6 +293,45 @@ const editor = {
   maxFileSizeBytes: editorMaxFileSizeBytes,
 };
 
+// --- Archive extraction ---
+// Extensions the app is willing to offer for extraction, provided the local
+// 7-Zip build actually supports them (checked at runtime by archiveService).
+// A whitelist keeps container-ish formats 7-Zip can technically read (docx,
+// apk, exe…) from being presented as archives in the UI.
+const DEFAULT_ARCHIVE_EXTENSIONS = [
+  '7z',
+  'zip',
+  'iso',
+  'rar',
+  'tar',
+  'gz',
+  'tgz',
+  'bz2',
+  'tbz2',
+  'xz',
+  'txz',
+  'cab',
+  'wim',
+  'cpio',
+  'rpm',
+  'deb',
+  'z',
+  'lzh',
+  'arj',
+  'zst',
+];
+
+const archives = (() => {
+  const raw = String(env.ARCHIVE_EXTENSIONS || '').trim();
+  if (!raw) return { extensions: DEFAULT_ARCHIVE_EXTENSIONS };
+  // 'zip,iso' replaces the default list; '+udf,squashfs' extends it.
+  const extend = raw.startsWith('+');
+  const list = parseExtensionList(extend ? raw.slice(1) : raw);
+  return {
+    extensions: extend ? [...new Set([...DEFAULT_ARCHIVE_EXTENSIONS, ...list])] : list,
+  };
+})();
+
 // --- Terminal ---
 const terminal = {
   extensions: parseExtensionList(env.TERMINAL_FILE_EXTENSIONS),
@@ -367,6 +406,7 @@ module.exports = {
   favorites,
   shares,
   hiddenFiles,
+  archives,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,

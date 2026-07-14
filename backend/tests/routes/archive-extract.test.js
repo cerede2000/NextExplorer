@@ -96,4 +96,38 @@ describe('Archive extraction', () => {
     // zip is always available: either through 7-Zip or the bundled fallback.
     expect(extensions).toContain('zip');
   });
+
+  describe('ARCHIVE_EXTENSIONS configuration', () => {
+    const loadConfigWithEnv = (value) => {
+      const previous = process.env.ARCHIVE_EXTENSIONS;
+      if (value === undefined) delete process.env.ARCHIVE_EXTENSIONS;
+      else process.env.ARCHIVE_EXTENSIONS = value;
+      clearModuleCache('src/config/env');
+      clearModuleCache('src/config/index');
+      const config = envContext.requireFresh('src/config/index');
+      if (previous === undefined) delete process.env.ARCHIVE_EXTENSIONS;
+      else process.env.ARCHIVE_EXTENSIONS = previous;
+      return config;
+    };
+
+    it('uses the default whitelist when unset', () => {
+      const { archives } = loadConfigWithEnv(undefined);
+      expect(archives.extensions).toContain('iso');
+      expect(archives.extensions).toContain('rar');
+      expect(archives.extensions).toContain('zip');
+    });
+
+    it('replaces the whitelist with a plain list', () => {
+      const { archives } = loadConfigWithEnv('zip, .ISO');
+      expect(archives.extensions).toEqual(['zip', 'iso']);
+    });
+
+    it('extends the defaults with a leading +', () => {
+      const { archives } = loadConfigWithEnv('+udf,squashfs');
+      expect(archives.extensions).toContain('udf');
+      expect(archives.extensions).toContain('squashfs');
+      expect(archives.extensions).toContain('rar');
+      expect(archives.extensions).toContain('zip');
+    });
+  });
 });
