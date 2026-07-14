@@ -336,6 +336,13 @@ export const useFileStore = defineStore('fileStore', () => {
       folderSizeStore.scheduleRefresh();
     } catch (error) {
       if (!isAbortError(error)) throw error;
+      // A cancelled move can leave its source in place. It must no longer look
+      // cut in the explorer, while a clipboard selection made after this
+      // transfer started must be preserved.
+      const cancelledMoveKeys = new Set(movePayload.map((item) => itemKey(item)));
+      if (cancelledMoveKeys.size > 0) {
+        cutItems.value = cutItems.value.filter((item) => !cancelledMoveKeys.has(itemKey(item)));
+      }
       await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();

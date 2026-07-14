@@ -75,7 +75,10 @@ describe('fileStore paste repositioning', () => {
     await store.paste();
 
     expect(routerPush).not.toHaveBeenCalled();
-    expect(browse).toHaveBeenCalledWith('Usb/temp');
+    expect(browse).toHaveBeenCalledWith(
+      'Usb/temp',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(store.selectedItems.map((i) => i.name)).toEqual(['f.bin']);
     expect(store.copiedItems).toEqual([]);
   });
@@ -118,7 +121,10 @@ describe('fileStore paste repositioning', () => {
     await store.paste();
 
     expect(routerPush).not.toHaveBeenCalled();
-    expect(browse).toHaveBeenCalledWith('Usb/temp');
+    expect(browse).toHaveBeenCalledWith(
+      'Usb/temp',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('reposition OFF, navigated to an unaffected folder: leaves the view untouched (no fetch, no navigation)', async () => {
@@ -153,7 +159,27 @@ describe('fileStore paste repositioning', () => {
     await store.paste('Usb/temp');
 
     expect(routerPush).not.toHaveBeenCalled();
-    expect(browse).toHaveBeenCalledWith('src');
+    expect(browse).toHaveBeenCalledWith(
+      'src',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(store.cutItems).toEqual([]);
+  });
+
+  it('clears only the cancelled move items so their source no longer appears cut', async () => {
+    moveItems.mockRejectedValue(new Error('Request aborted'));
+    browse.mockResolvedValue(listingWith('f.bin', 'src'));
+
+    const store = useFileStore();
+    store.setCurrentPath('src');
+    store.cutItems = [{ name: 'f.bin', path: 'src', kind: 'file' }];
+
+    await store.paste('Usb/temp');
+
+    expect(store.cutItems).toEqual([]);
+    expect(browse).toHaveBeenCalledWith(
+      'src',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 });
