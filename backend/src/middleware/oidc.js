@@ -10,6 +10,7 @@ const {
   sanitizeReturnTo,
   getConfiguredRequestOrigin,
   absoluteReturnTo,
+  callbackUrlForOrigin,
 } = require('../utils/oidcRedirect');
 const logger = require('../utils/logger');
 
@@ -344,7 +345,12 @@ const configureOidc = async (app) => {
         next(new Error('OIDC is not configured.'));
         return;
       }
-      res.oidc.login({ returnTo: sanitizeReturnTo(req.query?.returnTo) });
+      res.oidc.login({
+        returnTo: sanitizeReturnTo(req.query?.returnTo),
+        authorizationParams: {
+          redirect_uri: callbackUrlForOrigin(resolveOrigin(req)),
+        },
+      });
     });
 
     const callbackHandler = (req, res, next) => {
@@ -352,7 +358,7 @@ const configureOidc = async (app) => {
         next(new Error('OIDC is not configured.'));
         return;
       }
-      res.oidc.callback();
+      res.oidc.callback({ redirectUri: callbackUrlForOrigin(resolveOrigin(req)) });
     };
     app.get('/callback', callbackHandler);
     app.post('/callback', callbackHandler);

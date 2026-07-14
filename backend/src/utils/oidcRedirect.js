@@ -46,9 +46,12 @@ const getConfiguredRequestOrigin = (req, allowedOrigins) => {
 const absoluteReturnTo = (origin, candidate) =>
   new URL(sanitizeReturnTo(candidate, '/auth/login'), origin).toString();
 
+const callbackUrlForOrigin = (origin) => new URL('/callback', origin).toString();
+
 module.exports = {
   uniqueOrigins,
   sanitizeReturnTo,
   getConfiguredRequestOrigin,
   absoluteReturnTo,
+  callbackUrlForOrigin,
 };
