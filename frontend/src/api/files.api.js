@@ -86,6 +86,15 @@ async function deleteItems(items) {
   return { success: true, items: deletedItems };
 }
 
+async function deleteItemsStream(items, options = {}) {
+  return requestStream('/api/files/delete-stream', {
+    method: 'POST',
+    body: JSON.stringify({ items: Array.isArray(items) ? items : [] }),
+    onEvent: options.onEvent,
+    signal: options.signal,
+  });
+}
+
 async function getDeleteImpact(items) {
   const normalizedItems = Array.isArray(items) ? items : [];
   if (normalizedItems.length <= DELETE_BATCH_SIZE) {
@@ -309,6 +318,7 @@ export {
   copyItems,
   moveItems,
   deleteItems,
+  deleteItemsStream,
   getDeleteImpact,
   createFolder,
   renameItem,

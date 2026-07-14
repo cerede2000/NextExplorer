@@ -136,7 +136,10 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
  */
 const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
   return withIndex((db, scope) => {
-    const bytes = Number(meta.size) || 0;
+    const sourceEntry = meta.sourceAbsolutePath
+      ? folderSizeIndex.getByAbsolutePath(db, meta.sourceAbsolutePath)
+      : null;
+    const bytes = Number(meta.size) || sourceEntry?.sizeBytes || 0;
     folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
       entryDelta: 1,
     });
@@ -146,9 +149,6 @@ const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
       ? folderSizeIndex.cloneSubtree(db, scope, meta.sourceAbsolutePath, targetAbsolutePath)
       : 0;
     if (cloned === 0) {
-      const sourceEntry = meta.sourceAbsolutePath
-        ? folderSizeIndex.getByAbsolutePath(db, meta.sourceAbsolutePath)
-        : null;
       folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
         absolutePath: targetAbsolutePath,
         sizeBytes: bytes,
