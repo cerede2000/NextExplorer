@@ -8,6 +8,7 @@ const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
+const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 const { upload: uploadConfig } = require('../config');
@@ -47,7 +48,9 @@ const resolveUploadPaths = async (req, file) => {
   const uploadToMeta = readMetaField(req, 'uploadTo');
 
   const uploadTo = normalizeRelativePath(uploadToMeta);
-  const relativePath = normalizeRelativePath(relativePathMeta) || path.basename(file.originalname);
+  const requestedRelativePath =
+    normalizeRelativePath(relativePathMeta) || path.basename(file.originalname);
+  const uploadBatchId = readMetaField(req, 'uploadBatchId');
 
   const context = { user: req.user, guestSession: req.guestSession };
   const { allowed, accessInfo, resolved } = await authorizeAndResolve(
@@ -60,6 +63,12 @@ const resolveUploadPaths = async (req, file) => {
   }
 
   const { absolutePath: destinationRoot, relativePath: logicalBase } = resolved;
+  const relativePath = await resolveFolderUploadRelativePath({
+    relativePath: requestedRelativePath,
+    destinationRoot,
+    context,
+    uploadBatchId,
+  });
 
   const destinationPath = path.join(destinationRoot, relativePath);
   const destinationDir = path.dirname(destinationPath);

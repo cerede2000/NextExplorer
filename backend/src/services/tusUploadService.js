@@ -8,6 +8,7 @@ const { upload: uploadConfig } = require('../config');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
+const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { getSystemSettings } = require('./settingsService');
 const logger = require('../utils/logger');
 
@@ -86,9 +87,7 @@ const ensureTusEnabled = async () => {
     // allowing chunkedAutoFallback here, fallback uploads were rejected with 403
     // (surfacing as a "network error" in the client).
     tusEnabledCache = {
-      enabled: Boolean(
-        settings.uploads?.chunkedEnabled || settings.uploads?.chunkedAutoFallback
-      ),
+      enabled: Boolean(settings.uploads?.chunkedEnabled || settings.uploads?.chunkedAutoFallback),
       at: now,
     };
   }
@@ -230,8 +229,9 @@ const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
       ? metadata.filename.trim()
       : 'upload';
   const uploadTo = normalizeRelativePath(metadata.uploadTo || '');
-  const relativePath =
-    normalizeRelativePath(metadata.relativePath || filename) || path.basename(filename);
+  const requestedRelativePath =
+    normalizeRelativePath(metadata.resolvedRelativePath || metadata.relativePath || filename) ||
+    path.basename(filename);
 
   const context = { user: nodeReq?.user, guestSession: nodeReq?.guestSession };
   const { allowed, accessInfo, resolved } = await authorizeAndResolve(
@@ -244,6 +244,14 @@ const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
   }
 
   const { absolutePath: destinationRoot, relativePath: logicalBase } = resolved;
+  const relativePath = metadata.resolvedRelativePath
+    ? requestedRelativePath
+    : await resolveFolderUploadRelativePath({
+        relativePath: requestedRelativePath,
+        destinationRoot,
+        context,
+        uploadBatchId: metadata.uploadBatchId,
+      });
   const destinationPath = path.join(destinationRoot, relativePath);
   const destinationDir = path.dirname(destinationPath);
   const logicalRelativePath = normalizeRelativePath(path.join(logicalBase, relativePath));
@@ -343,6 +351,7 @@ const server = new Server({
         ...(upload.metadata || {}),
         uploadTo: target.uploadTo,
         relativePath: target.relativePath,
+        resolvedRelativePath: target.relativePath,
         logicalBase: target.logicalBase,
         logicalRelativePath: target.logicalRelativePath,
       },
