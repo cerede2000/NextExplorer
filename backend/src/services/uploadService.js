@@ -43,18 +43,23 @@ const createUploadInactiveError = (timeoutMs) => {
   return error;
 };
 
+const readUploadRoutingValue = (req, key) => {
+  const queryValue = req?.query?.[key];
+  if (typeof queryValue === 'string') return queryValue;
+  return readMetaField(req, key);
+};
+
 const resolveUploadPaths = async (req, file) => {
-  const relativePathMeta = readMetaField(req, 'relativePath');
-  const uploadToMeta = readMetaField(req, 'uploadTo');
+  const relativePathMeta = readUploadRoutingValue(req, 'relativePath');
+  const uploadToMeta = readUploadRoutingValue(req, 'uploadTo');
 
   const uploadTo = normalizeRelativePath(uploadToMeta);
   const requestedRelativePath =
     normalizeRelativePath(relativePathMeta) || path.basename(file.originalname);
   // Multer can enter the storage callback before trailing multipart metadata
-  // has populated req.body. The client also sends this in a header so every
-  // file of a picked folder reaches the same reservation.
-  const uploadBatchId =
-    req.get('X-NextExplorer-Upload-Batch') || readMetaField(req, 'uploadBatchId');
+  // has populated req.body. The client supplies these routing fields in the
+  // query string too, so every file of a picked folder gets the same target.
+  const uploadBatchId = readUploadRoutingValue(req, 'uploadBatchId');
 
   const context = { user: req.user, guestSession: req.guestSession };
   const { allowed, accessInfo, resolved } = await authorizeAndResolve(
