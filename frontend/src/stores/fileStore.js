@@ -6,7 +6,7 @@ import {
   browse,
   copyItems,
   moveItems,
-  deleteItems,
+  deleteItemsStream,
   normalizePath,
   createFolder as createFolderApi,
   renameItem as renameItemApi,
@@ -77,6 +77,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const isAbortError = (error) =>
     error?.name === 'AbortError' ||
+    error?.code === 'OPERATION_CANCELLED' ||
     (typeof DOMException !== 'undefined' && error?.code === DOMException.ABORT_ERR) ||
     /aborted/i.test(error?.message || '');
 
@@ -299,6 +300,7 @@ export const useFileStore = defineStore('fileStore', () => {
         operationTasksStore.updateOperation(operationId, {
           ...(event.totalBytes != null ? { totalBytes: Number(event.totalBytes) || 0 } : {}),
           copiedBytes: Number(event.copiedBytes) || 0,
+          ...(event.percent != null ? { percent: Number(event.percent) || 0 } : {}),
         });
       }
     };
@@ -356,18 +358,38 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
+    const controller = new AbortController();
     const operationId = operationTasksStore.startOperation({
       type: 'delete',
       itemCount: payload.length,
+      cancellable: true,
+      cancel: () => controller.abort(),
     });
 
     try {
-      await deleteItems(payload);
+      await deleteItemsStream(payload, {
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (event.type !== 'progress') return;
+          operationTasksStore.updateOperation(operationId, {
+            percent: Number(event.percent) || 0,
+            completedItems: Number(event.completedItems) || 0,
+            currentName: event.currentName || '',
+          });
+        },
+      });
       clearSelection();
       await favoritesStore.loadFavorites();
       await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
+    } catch (error) {
+      if (!isAbortError(error)) throw error;
+      await favoritesStore.loadFavorites();
+      await fetchPathItems(currentPath.value);
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
+      return null;
     } finally {
       operationTasksStore.finishOperation(operationId);
     }
