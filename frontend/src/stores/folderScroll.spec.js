@@ -30,4 +30,16 @@ describe('folder scroll positions', () => {
       FOLDER_SCROLL_POSITION_LIMIT
     );
   });
+
+  it('restores a remembered position only after an explicit navigation permit', () => {
+    const store = useFolderScrollStore();
+
+    store.remember('volume/parent::list', 420);
+
+    expect(store.consumeRestore('volume/parent::list')).toBe(0);
+
+    store.permitRestore('volume/parent');
+    expect(store.consumeRestore('volume/parent::list')).toBe(420);
+    expect(store.consumeRestore('volume/parent::list')).toBe(0);
+  });
 });

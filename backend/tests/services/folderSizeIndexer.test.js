@@ -139,6 +139,40 @@ describe('folderSizeIndexer', () => {
     expect(sizeOf(folderSizeIndex, db, vol)).toBe(100);
   });
 
+  it('replaces a pending transferred directory with an authoritative post-copy size', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+    const parent = path.join(vol, 'Destination');
+    const transferred = path.join(parent, 'Copied folder');
+
+    await fs.mkdir(parent, { recursive: true });
+    await fs.writeFile(path.join(parent, 'before.bin'), Buffer.alloc(10));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    // During a copy, the folder is recorded as pending without estimating its
+    // recursive bytes from possibly stale source metadata.
+    await fs.mkdir(path.join(transferred, 'nested'), { recursive: true });
+    await fs.writeFile(path.join(transferred, 'top.bin'), Buffer.alloc(20));
+    await fs.writeFile(path.join(transferred, 'nested', 'payload.bin'), Buffer.alloc(70));
+    folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+      absolutePath: transferred,
+      sizeBytes: 0,
+      entryCount: 0,
+    });
+    folderSizeIndex.applyDelta(db, scope, parent, 0, { entryDelta: 1 });
+
+    expect(sizeOf(folderSizeIndex, db, parent)).toBe(10);
+    expect(folderSizeIndex.getByAbsolutePath(db, transferred)).toMatchObject({ dirty: 1 });
+
+    await indexer.indexSubtree(db, scope, transferred, { mode: 'full' });
+
+    expect(sizeOf(folderSizeIndex, db, transferred)).toBe(90);
+    expect(sizeOf(folderSizeIndex, db, parent)).toBe(100);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(100);
+    expect(folderSizeIndex.getByAbsolutePath(db, transferred)).toMatchObject({ dirty: 0 });
+  });
+
   it('marks an aggregate incomplete when a direct child directory is missing from the index', async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;

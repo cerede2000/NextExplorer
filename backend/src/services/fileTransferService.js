@@ -429,6 +429,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   let currentName = '';
   let nativePercent = null;
   let activeTarget = null;
+  const transferredDirectories = [];
 
   const emit = (force = false) => {
     if (typeof onProgress !== 'function') return;
@@ -514,6 +515,8 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         throw new Error(`Unsupported operation: ${operation}`);
       }
 
+      if (plan.isDirectory) transferredDirectories.push(targetAbsolute);
+
       results.push({ from: plan.sourceRelative, to: targetRelative });
       activeTarget = null;
     }
@@ -522,6 +525,11 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
     // starting. Unknown directory totals intentionally stay indeterminate.
     if (totalBytes > 0) copiedBytes = totalBytes;
     emit(true);
+
+    // Rebuild copied/moved directory indexes only after the complete operation
+    // has finished writing. This avoids expensive disk scans competing with the
+    // transfer and makes the eventual size authoritative.
+    folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
 
     return { destination: destinationRelative, items: results };
   } catch (error) {
@@ -534,6 +542,9 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         force: true,
       });
     }
+    // Completed entries remain after a cancellation and still need their final
+    // directory-size scan. The active partial target was removed above.
+    folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
     throw error;
   }
 };

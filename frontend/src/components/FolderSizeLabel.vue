@@ -12,7 +12,11 @@ const props = defineProps({
 });
 
 const hasSize = computed(
-  () => props.entry && props.entry.sizeBytes !== null && Number.isFinite(props.entry.sizeBytes)
+  () =>
+    props.entry &&
+    !props.entry.dirty &&
+    props.entry.sizeBytes !== null &&
+    Number.isFinite(props.entry.sizeBytes)
 );
 
 const label = computed(() =>
@@ -20,7 +24,10 @@ const label = computed(() =>
 );
 
 const title = computed(() => {
-  if (!hasSize.value) return props.entry && !props.entry.indexed ? 'Size not indexed yet' : '';
+  if (!hasSize.value) {
+    if (props.entry?.dirty) return 'Size is being calculated';
+    return props.entry && !props.entry.indexed ? 'Size not indexed yet' : '';
+  }
   const parts = [formatBytes(props.entry.sizeBytes)];
   if (Number.isFinite(props.entry.entryCount)) {
     parts.push(`${props.entry.entryCount} item${props.entry.entryCount === 1 ? '' : 's'}`);

@@ -360,9 +360,13 @@ export const useFileStore = defineStore('fileStore', () => {
     }
   };
 
-  const del = async () => {
-    const payload = serializeItems(selectedItems.value);
+  const del = async (items = selectedItems.value) => {
+    const payload = serializeItems(items);
     if (payload.length === 0) return;
+    const payloadKeys = new Set(payload.map((item) => itemKey(item)));
+    const selectionMatchesPayload =
+      selectedItems.value.length === payloadKeys.size &&
+      selectedItems.value.every((item) => payloadKeys.has(itemKey(item)));
 
     const controller = new AbortController();
     const operationId = operationTasksStore.startOperation({
@@ -384,7 +388,10 @@ export const useFileStore = defineStore('fileStore', () => {
           });
         },
       });
-      clearSelection();
+      // A confirmation can stay open while the user navigates elsewhere. Do
+      // not clear a newer selection in the current view when it deletes the
+      // original, captured selection in the background.
+      if (selectionMatchesPayload) clearSelection();
       await favoritesStore.loadFavorites();
       await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
