@@ -51,6 +51,25 @@ export function useFileUploader() {
   let lastNotifyAt = 0;
   let lastNotifyKey = '';
   let uploadPluginMode = null;
+  let uploadViewRefreshTimer = null;
+
+  const createUploadBatchId = () => {
+    if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+    return `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  };
+
+  // A folder upload emits one success event per file. Wait for a short quiet
+  // period so those events produce one listing refresh instead of repeatedly
+  // aborting the preceding browse request.
+  const scheduleUploadViewRefresh = (delayMs = 700) => {
+    if (uploadViewRefreshTimer) clearTimeout(uploadViewRefreshTimer);
+    uploadViewRefreshTimer = setTimeout(() => {
+      uploadViewRefreshTimer = null;
+      fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
+    }, delayMs);
+  };
 
   const canUploadToCurrentPath = () => {
     const access = fileStore.currentPathData;
@@ -175,7 +194,10 @@ export function useFileUploader() {
       totalBytes: Number(file.size) || 0,
       copiedBytes: 0,
       cancellable: true,
-      cancel: () => removeUploadFile(file),
+      cancel: () => {
+        removeUploadFile(file);
+        scheduleUploadViewRefresh(100);
+      },
     });
     uploadTaskIds.set(file.id, operationId);
   };
@@ -235,7 +257,7 @@ export function useFileUploader() {
       uppy.use(Tus, {
         endpoint: `${apiBase}/api/upload/tus`,
         chunkSize: uploadSettings.chunkSizeBytes,
-        allowedMetaFields: ['name', 'type', 'uploadTo', 'relativePath'],
+        allowedMetaFields: ['name', 'type', 'uploadTo', 'relativePath', 'uploadBatchId'],
         removeFingerprintOnSuccess: true,
         storeFingerprintForResuming: false,
         // Resume a dropped chunk a few times before giving up. The browser File is
@@ -441,6 +463,7 @@ export function useFileUploader() {
 
       const uploadTo = normalizePath(fileStore.currentPath || '');
       uppy.setFileMeta(file.id, {
+        ...(file.meta || {}),
         uploadTo,
         relativePath: inferredRelativePath,
       });
@@ -489,9 +512,7 @@ export function useFileUploader() {
 
     uppy.on('upload-success', (file) => {
       finishUploadTask(file?.id);
-      fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
-      volumeUsageStore.scheduleRefresh();
-      folderSizeStore.scheduleRefresh();
+      scheduleUploadViewRefresh();
     });
 
     uppy.on('complete', (result) => {
@@ -499,6 +520,7 @@ export function useFileUploader() {
       const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
       const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
       [...successfulFiles, ...failedFiles].forEach(removeUploadFile);
+      scheduleUploadViewRefresh(100);
     });
 
     uppy.on('upload-error', (file, error, response) => {
@@ -536,11 +558,7 @@ export function useFileUploader() {
       });
       setTimeout(() => removeUploadFile(file), 0);
       // Keep UI in sync in case some files partially uploaded.
-      if (fileStore.currentPath) {
-        fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
-      }
-      volumeUsageStore.scheduleRefresh();
-      folderSizeStore.scheduleRefresh();
+      scheduleUploadViewRefresh(100);
     });
 
     uppy.on('error', (error) => {
@@ -567,11 +585,12 @@ export function useFileUploader() {
     createdHere.value = true;
   }
 
-  function uppyFile(file) {
+  function uppyFile(file, meta = {}) {
     return {
       name: file.name,
       type: file.type,
       data: file,
+      meta,
     };
   }
 
@@ -624,7 +643,8 @@ export function useFileUploader() {
           (file) => !isDisallowedUpload(file.name)
         );
 
-        files.value = selectedFiles.map((file) => uppyFile(file));
+        const uploadBatchId = createUploadBatchId();
+        files.value = selectedFiles.map((file) => uppyFile(file, { uploadBatchId }));
         files.value.forEach((file) => uppy.addFile(file));
 
         // Reset the input so the same file can be selected again if needed
@@ -650,6 +670,7 @@ export function useFileUploader() {
   });
 
   onBeforeUnmount(() => {
+    if (uploadViewRefreshTimer) clearTimeout(uploadViewRefreshTimer);
     inputRef.value?.remove();
     // Only close the singleton if we created it here
     if (createdHere.value) {

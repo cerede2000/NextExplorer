@@ -14,6 +14,34 @@ const isListOpen = ref(false);
 const operation = computed(() => operationTasksStore.activeOperation);
 const operations = computed(() => operationTasksStore.operations);
 const operationCount = computed(() => operationTasksStore.operationCount);
+const uploadOperations = computed(() => operations.value.filter((task) => task.type === 'upload'));
+
+const displayOperation = computed(() => {
+  const active = operation.value;
+  const uploads = uploadOperations.value;
+  if (active?.type !== 'upload' || uploads.length < 2) return active;
+
+  const totalBytes = uploads.reduce((total, task) => total + totalBytesFor(task), 0);
+  const copiedBytes = uploads.reduce(
+    (total, task) => total + Math.min(copiedBytesFor(task), totalBytesFor(task)),
+    0
+  );
+  const reported = uploads.map(percentFor).filter((percent) => percent !== null);
+  const destinations = new Set(uploads.map((task) => task.destination).filter(Boolean));
+
+  return {
+    ...active,
+    itemCount: uploads.length,
+    name: '',
+    totalBytes,
+    copiedBytes,
+    percent:
+      totalBytes > 0 || reported.length === 0
+        ? null
+        : Math.round(reported.reduce((total, percent) => total + percent, 0) / reported.length),
+    destination: destinations.size === 1 ? uploads[0].destination : '',
+  };
+});
 
 watch(operationCount, (count) => {
   if (count < 2) isListOpen.value = false;
@@ -45,7 +73,11 @@ const titleFor = (value) => {
   if (value.type === 'extract') return t('clipboard.extracting', { name: value.name || '' });
   if (value.type === 'compress') return t('clipboard.compressing', { name: value.name || '' });
   if (value.type === 'upload') {
-    const label = t('upload.uploads', { count: 1, items: t('common.item') });
+    const count = Number(value.itemCount) || 1;
+    const label = t('upload.uploads', {
+      count,
+      items: count === 1 ? t('common.item') : t('common.items'),
+    });
     return value.name ? `${label}: ${value.name}` : label;
   }
 
@@ -62,9 +94,9 @@ const titleFor = (value) => {
     : t('clipboard.copying', { count, items: itemsLabel });
 };
 
-const percent = computed(() => percentFor(operation.value));
-const progressLabel = computed(() => progressLabelFor(operation.value));
-const destination = computed(() => operation.value?.destination ?? '');
+const percent = computed(() => percentFor(displayOperation.value));
+const progressLabel = computed(() => progressLabelFor(displayOperation.value));
+const destination = computed(() => displayOperation.value?.destination ?? '');
 const isTransfer = computed(() => ['copy', 'move'].includes(operation.value?.type));
 
 const selectOperation = (id) => {
@@ -91,7 +123,7 @@ const cancelTask = (id) => {
     <div class="flex items-start gap-3">
       <div class="min-w-0 grow">
         <h3 class="text-lg font-semibold tracking-tight">
-          {{ titleFor(operation) }}
+          {{ titleFor(displayOperation) }}
         </h3>
         <div v-if="destination" class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
           {{ t('common.to') }}

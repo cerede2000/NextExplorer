@@ -81,6 +81,12 @@ export const useFileStore = defineStore('fileStore', () => {
     (typeof DOMException !== 'undefined' && error?.code === DOMException.ABORT_ERR) ||
     /aborted/i.test(error?.message || '');
 
+  const refreshAfterCancelledOperation = async () => {
+    await fetchPathItems(currentPath.value);
+    volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
+  };
+
   const setSelectionMode = (enabled, options = {}) => {
     selectionMode.value = Boolean(enabled);
 
@@ -485,6 +491,7 @@ export const useFileStore = defineStore('fileStore', () => {
       });
     } catch (error) {
       if (!isAbortError(error)) throw error;
+      await refreshAfterCancelledOperation();
       return null;
     } finally {
       operationTasksStore.finishOperation(operationId);
@@ -541,6 +548,7 @@ export const useFileStore = defineStore('fileStore', () => {
       });
     } catch (error) {
       if (!isAbortError(error)) throw error;
+      await refreshAfterCancelledOperation();
       return null;
     } finally {
       operationTasksStore.finishOperation(operationId);

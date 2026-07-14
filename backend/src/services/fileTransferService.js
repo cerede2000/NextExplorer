@@ -19,7 +19,7 @@ const { getVolumeScope } = require('./folderSizeIndexer');
 
 // How often (ms) progress is reported to the caller while bytes stream, so a
 // large file emits a steady trickle of updates rather than one per chunk.
-const PROGRESS_THROTTLE_MS = 150;
+const PROGRESS_THROTTLE_MS = 75;
 // Node defaults file streams to 64 KiB buffers. That makes a 90 GiB transfer
 // cross JavaScript over 1.4 million times. Keep the transfer cancellable, but
 // use a bounded 4 MiB buffer to cut that overhead drastically without growing
@@ -62,6 +62,15 @@ const parseRsyncProgress = (line) => {
   };
 };
 
+const stopChildProcessGroup = (child, signal) => {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, signal);
+  } catch (_) {
+    child.kill(signal);
+  }
+};
+
 // rsync keeps file transfer outside the Node event loop while retaining three
 // properties the UI needs: safe argv handling, global progress, and immediate
 // cancellation. It is used only in the Linux container; local development and
@@ -80,12 +89,17 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
         '--no-owner',
         '--no-group',
         '--info=progress2',
+        '--outbuf=L',
         '--out-format=%n',
         '--',
         sourcePath,
         destinationPath,
       ],
-      { env: { ...process.env, LC_ALL: 'C' }, stdio: ['ignore', 'pipe', 'pipe'] }
+      {
+        detached: true,
+        env: { ...process.env, LC_ALL: 'C' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
     );
     let output = '';
     let errorOutput = '';
@@ -111,8 +125,8 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
       }
     };
     const abort = () => {
-      child.kill('SIGTERM');
-      killTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      stopChildProcessGroup(child, 'SIGTERM');
+      killTimer = setTimeout(() => stopChildProcessGroup(child, 'SIGKILL'), 3000);
     };
 
     child.stdout.on('data', emitOutput);
@@ -133,7 +147,7 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
 const removeWithNativeRm = (absolutePath, signal) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(createCancellationError());
-    const child = spawn('rm', ['-rf', '--', absolutePath], { stdio: 'ignore' });
+    const child = spawn('rm', ['-rf', '--', absolutePath], { detached: true, stdio: 'ignore' });
     let settled = false;
     let killTimer = null;
     const cleanup = () => {
@@ -147,8 +161,8 @@ const removeWithNativeRm = (absolutePath, signal) =>
       callback(value);
     };
     const abort = () => {
-      child.kill('SIGTERM');
-      killTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      stopChildProcessGroup(child, 'SIGTERM');
+      killTimer = setTimeout(() => stopChildProcessGroup(child, 'SIGKILL'), 3000);
     };
     child.once('error', (error) => finish(reject, error));
     child.once('close', (code) => {
