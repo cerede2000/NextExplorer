@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getFolderSizesBatch, normalizePath } from '@/api';
+import { getFolderSizesBatch, normalizePath, refreshFolderSize } from '@/api';
 import { useFeaturesStore } from '@/stores/features';
 
 const REFRESH_THROTTLE_MS = 2500;
@@ -147,12 +147,27 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
     }, delayMs);
   };
 
+  // Explicit repair for a folder changed outside NextExplorer. The backend
+  // indexes only that subtree, then this updates the visible row immediately.
+  const refreshFolder = async (path) => {
+    const featuresStore = useFeaturesStore();
+    await featuresStore.ensureLoaded();
+    if (!featuresStore.folderSizeEnabled) return null;
+
+    const raw = await refreshFolderSize(path);
+    const entry = normalizeEntry(raw);
+    if (!entry.path) return null;
+    sizes.value = { ...sizes.value, [entry.path]: entry };
+    return entry;
+  };
+
   return {
     sizes,
     isLoading,
     refresh,
     ensureSizes,
     scheduleRefresh,
+    refreshFolder,
     setPaths,
     sizeFor,
   };

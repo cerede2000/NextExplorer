@@ -29,6 +29,15 @@ async function getFolderSizesBatch(paths = []) {
   });
 }
 
+async function refreshFolderSize(relativePath) {
+  const normalizedPath = normalizePath(relativePath);
+  if (!normalizedPath) {
+    throw new Error('A folder path is required to refresh its size.');
+  }
+  const encodedPath = encodePath(normalizedPath);
+  return requestJson(`/api/folder-size/refresh/${encodedPath}`, { method: 'POST' });
+}
+
 async function copyItems(items, destination) {
   return requestJson('/api/files/copy', {
     method: 'POST',
@@ -270,6 +279,7 @@ export {
   getVolumes,
   getUsage,
   getFolderSizesBatch,
+  refreshFolderSize,
   copyItems,
   moveItems,
   deleteItems,
