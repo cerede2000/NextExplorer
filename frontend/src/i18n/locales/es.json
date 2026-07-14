@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "Copiando {count} {items}…",
     "moving": "Moviendo {count} {items}…",
-    "working": "Procesando…"
+    "working": "Procesando…",
+    "extracting": "Extrayendo {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Mostrar detalles",

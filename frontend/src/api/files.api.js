@@ -1,4 +1,4 @@
-import { requestJson, requestRaw, normalizePath, encodePath, buildUrl } from './http';
+import { requestJson, requestRaw, requestStream, normalizePath, encodePath, buildUrl } from './http';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -175,14 +175,17 @@ async function downloadItems(paths, basePath = '') {
   });
 }
 
-async function extractZip(relativePath) {
+async function extractZip(relativePath, options = {}) {
   const normalizedPath = normalizePath(relativePath);
   if (!normalizedPath) {
-    throw new Error('A zip file path is required.');
+    throw new Error('An archive file path is required.');
   }
-  return requestJson('/api/files/zip/extract', {
+  // The endpoint streams NDJSON progress events (start/progress/done/error),
+  // like the copy/move endpoints; `onEvent` receives each intermediate event.
+  return requestStream('/api/files/zip/extract', {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath }),
+    onEvent: options.onEvent,
   });
 }
 

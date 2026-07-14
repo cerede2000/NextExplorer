@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "Копирование {count} {items}…",
     "moving": "Перемещение {count} {items}…",
-    "working": "Обработка…"
+    "working": "Обработка…",
+    "extracting": "Извлечение {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Показать детали",

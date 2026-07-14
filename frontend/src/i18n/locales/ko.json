@@ -294,7 +294,8 @@
   "clipboard": {
     "copying": "{count}개 {items} 복사 중…",
     "moving": "{count}개 {items} 이동 중…",
-    "working": "처리 중…"
+    "working": "처리 중…",
+    "extracting": "{name} 압축 푸는 중…"
   },
   "upload": {
     "toggleDetailsShow": "상세 정보 보기",

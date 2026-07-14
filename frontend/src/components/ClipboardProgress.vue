@@ -6,11 +6,17 @@ import { useFileStore } from '@/stores/fileStore';
 const fileStore = useFileStore();
 const { t } = useI18n();
 
-const operation = computed(() => fileStore.deleteOperation || fileStore.clipboardOperation);
+const operation = computed(
+  () => fileStore.extractOperation || fileStore.deleteOperation || fileStore.clipboardOperation
+);
 
 const title = computed(() => {
   const op = operation.value;
   if (!op) return '';
+
+  if (op.type === 'extract') {
+    return t('clipboard.extracting', { name: op.name || '' });
+  }
 
   const count = Number(op.itemCount) || 0;
   const itemsLabel = count === 1 ? t('common.item') : t('common.items');
@@ -25,6 +31,13 @@ const title = computed(() => {
 });
 
 const destination = computed(() => operation.value?.destination ?? '');
+
+// Determinate percentage when the backend streams progress events (extraction
+// via 7-Zip); null keeps the indeterminate animated bar.
+const percent = computed(() => {
+  const value = operation.value?.percent;
+  return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : null;
+});
 </script>
 
 <template>
@@ -47,12 +60,18 @@ const destination = computed(() => operation.value?.destination ?? '');
       <div
         class="w-full h-2 rounded-full overflow-hidden border border-zinc-200/70 dark:border-zinc-700/50 bg-zinc-100/80 dark:bg-zinc-800/70"
       >
-        <div class="h-full rounded-full clipboard-bar clipboard-bar--animated" />
+        <div
+          v-if="percent !== null"
+          class="h-full rounded-full clipboard-bar transition-[width] duration-200 ease-out"
+          :style="{ width: `${percent}%` }"
+        />
+        <div v-else class="h-full rounded-full clipboard-bar clipboard-bar--animated" />
       </div>
     </div>
 
     <div class="mt-2 text-xs text-zinc-600 dark:text-zinc-300">
-      {{ t('clipboard.working') }}
+      <template v-if="percent !== null">{{ percent }}%</template>
+      <template v-else>{{ t('clipboard.working') }}</template>
     </div>
   </div>
 </template>

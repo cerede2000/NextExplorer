@@ -30,6 +30,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const clipboardOperation = ref(null);
   const deleteOperation = ref(null);
+  const extractOperation = ref(null);
   const favoritesStore = useFavoritesStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
@@ -236,7 +237,27 @@ export const useFileStore = defineStore('fileStore', () => {
     const normalized = normalizePath(relativePath || '');
     if (!normalized) return null;
 
-    const response = await extractZipApi(normalized);
+    const archiveName = normalized.split('/').pop() || normalized;
+    extractOperation.value = {
+      type: 'extract',
+      name: archiveName,
+      itemCount: 1,
+      startedAt: Date.now(),
+      percent: null,
+    };
+
+    let response;
+    try {
+      response = await extractZipApi(normalized, {
+        onEvent: (event) => {
+          if (event?.type === 'progress' && Number.isFinite(event.percent)) {
+            extractOperation.value = { ...extractOperation.value, percent: event.percent };
+          }
+        },
+      });
+    } finally {
+      extractOperation.value = null;
+    }
 
     const parent = (() => {
       const idx = normalized.lastIndexOf('/');
@@ -538,6 +559,7 @@ export const useFileStore = defineStore('fileStore', () => {
     clearSelection,
     clipboardOperation,
     deleteOperation,
+    extractOperation,
     copiedItems,
     cutItems,
     hasSelection,

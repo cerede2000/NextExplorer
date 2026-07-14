@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs/promises');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
 
 const logger = require('../utils/logger');
@@ -85,31 +85,74 @@ const archiveBaseName = (filename) => {
   return base || 'Archive';
 };
 
-const runSevenZipExtract = async (archiveAbsolutePath, destinationAbsolutePath) => {
-  // -y assume yes, -bd no progress indicator, -o output dir (no space allowed).
-  await execFileAsync(
-    SEVEN_ZIP_BIN,
-    ['x', '-y', '-bd', `-o${destinationAbsolutePath}`, archiveAbsolutePath],
-    { timeout: 30 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 }
-  );
-};
+const EXTRACT_TIMEOUT_MS = 30 * 60 * 1000;
 
 /**
- * Extract an archive into the given (existing, empty) destination folder.
- * Compound tarballs are peeled in two passes; the intermediate .tar is
- * removed so the folder holds the real content.
+ * Run one `7z x` pass. `-bsp1` sends the percentage indicator to stdout, so
+ * progress can be parsed from the output stream and forwarded to the caller
+ * (0-100 per pass).
  */
-const extractArchive = async (archiveAbsolutePath, destinationAbsolutePath) => {
+const runSevenZipExtract = (archiveAbsolutePath, destinationAbsolutePath, onPercent) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(
+      SEVEN_ZIP_BIN,
+      ['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, archiveAbsolutePath],
+      { stdio: ['ignore', 'pipe', 'pipe'], timeout: EXTRACT_TIMEOUT_MS }
+    );
+
+    let stderrTail = '';
+
+    child.stdout.on('data', (chunk) => {
+      if (typeof onPercent !== 'function') return;
+      // Progress lines look like "  42% 137 - some/file"; keep the last match.
+      const matches = String(chunk).match(/(\d{1,3})%/g);
+      if (matches?.length) {
+        const percent = Number.parseInt(matches[matches.length - 1], 10);
+        if (Number.isFinite(percent)) onPercent(Math.min(100, Math.max(0, percent)));
+      }
+    });
+
+    child.stderr.on('data', (chunk) => {
+      stderrTail = `${stderrTail}${chunk}`.slice(-2000);
+    });
+
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        onPercent?.(100);
+        resolve();
+      } else {
+        reject(new Error(`7z exited with code ${code}: ${stderrTail.trim().slice(-500)}`));
+      }
+    });
+  });
+
+/**
+ * Extract an archive into the given (existing, empty) destination folder,
+ * reporting overall progress through `onPercent(0-100)`. Compound tarballs
+ * are peeled in two passes (each mapped to half of the progress range); the
+ * intermediate .tar is removed so the folder holds the real content.
+ */
+const extractArchive = async (archiveAbsolutePath, destinationAbsolutePath, onPercent) => {
   const ext = path.extname(archiveAbsolutePath).slice(1).toLowerCase();
+  const isCompound = TAR_WRAPPER_EXTENSIONS.has(ext);
 
-  await runSevenZipExtract(archiveAbsolutePath, destinationAbsolutePath);
+  await runSevenZipExtract(
+    archiveAbsolutePath,
+    destinationAbsolutePath,
+    isCompound ? (p) => onPercent?.(Math.round(p / 2)) : onPercent
+  );
 
-  if (TAR_WRAPPER_EXTENSIONS.has(ext)) {
+  if (isCompound) {
     const entries = await fs.readdir(destinationAbsolutePath);
     if (entries.length === 1 && entries[0].toLowerCase().endsWith('.tar')) {
       const innerTar = path.join(destinationAbsolutePath, entries[0]);
-      await runSevenZipExtract(innerTar, destinationAbsolutePath);
+      await runSevenZipExtract(innerTar, destinationAbsolutePath, (p) =>
+        onPercent?.(50 + Math.round(p / 2))
+      );
       await fs.rm(innerTar, { force: true });
+    } else {
+      onPercent?.(100);
     }
   }
 };
