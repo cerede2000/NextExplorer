@@ -107,7 +107,7 @@ describe('ONLYOFFICE routes', () => {
         ONLYOFFICE_SECRET: 'onlyoffice-test-secret',
         ONLYOFFICE_FORCE_SAVE: 'true',
         ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: '20',
-        ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: '15000',
+        ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: '30000',
       },
     });
 
@@ -130,7 +130,7 @@ describe('ONLYOFFICE routes', () => {
     expect(configResponse.status).toBe(200);
     expect(configResponse.body.config.editorConfig.customization.forcesave).toBe(true);
     expect(configResponse.body.forceSaveSessionId).toEqual(expect.any(String));
-    expect(configResponse.body.autoSaveIntervalMs).toBe(15000);
+    expect(configResponse.body.autoSaveIntervalMs).toBe(30000);
     callbackPath = `${new URL(configResponse.body.config.editorConfig.callbackUrl).pathname}${
       new URL(configResponse.body.config.editorConfig.callbackUrl).search
     }`;
