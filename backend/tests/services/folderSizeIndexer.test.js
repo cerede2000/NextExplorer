@@ -3,7 +3,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
-const INDEXER_MODULES = ['src/services/folderSizeIndex', 'src/services/folderSizeIndexer'];
+const INDEXER_MODULES = [
+  'src/services/folderSizeIndex',
+  'src/services/folderSizeIndexer',
+  'src/services/folderSizeManager',
+];
 
 /**
  * Build a fresh, isolated indexer test context: temp volume + database and
@@ -30,8 +34,11 @@ const sizeOf = (folderSizeIndex, db, absPath) => {
 
 describe('folderSizeIndexer', () => {
   let ctx;
+  let manager;
 
   afterEach(async () => {
+    await manager?.stop();
+    manager = null;
     if (ctx) {
       await ctx.env.cleanup();
       ctx = null;
@@ -109,6 +116,102 @@ describe('folderSizeIndexer', () => {
     expect(sizeOf(folderSizeIndex, db, path.join(extracted, 'nested'))).toBe(70);
     expect(sizeOf(folderSizeIndex, db, path.join(vol, 'Existing'))).toBe(100);
     expect(sizeOf(folderSizeIndex, db, vol)).toBe(100);
+  });
+
+  it('marks an aggregate incomplete when a direct child directory is missing from the index', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'Known'), { recursive: true });
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    await fs.mkdir(path.join(vol, 'Known', 'AddedLater', 'nested'), { recursive: true });
+    await fs.writeFile(
+      path.join(vol, 'Known', 'AddedLater', 'nested', 'payload.bin'),
+      Buffer.alloc(25)
+    );
+
+    const aggregate = await indexer.aggregateDirectory(db, scope, path.join(vol, 'Known'), {
+      mode: 'full',
+    });
+
+    expect(aggregate).toMatchObject({ hasUnindexedSubdirectories: true });
+    expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'Known', 'AddedLater'))).toBeNull();
+  });
+
+  it('queues a targeted recovery when reconciliation finds an unindexed child subtree', async () => {
+    ctx = await createContext();
+    const { env, db, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'Known'), { recursive: true });
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    const added = path.join(vol, 'Known', 'AddedLater', 'nested');
+    await fs.mkdir(added, { recursive: true });
+    await fs.writeFile(path.join(added, 'payload.bin'), Buffer.alloc(25));
+    const future = new Date(Date.now() + 60_000);
+    await fs.utimes(path.join(vol, 'Known'), future, future);
+
+    const incomplete = [];
+    await indexer.reconcile(db, scope, {
+      mode: 'full',
+      onIncompleteSubtree: (absolutePath) => incomplete.push(absolutePath),
+    });
+
+    expect(incomplete).toContain(path.join(vol, 'Known'));
+  });
+
+  it('stores a per-volume index version after a successful baseline', async () => {
+    ctx = await createContext();
+    const { db, folderSizeIndex, indexer, scope } = ctx;
+
+    expect(folderSizeIndex.getIndexVersion(db, scope)).toBe(0);
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+    folderSizeIndex.setIndexVersion(db, scope);
+
+    expect(folderSizeIndex.getIndexVersion(db, scope)).toBe(folderSizeIndex.CURRENT_INDEX_VERSION);
+  });
+
+  it('rebuilds a populated legacy index once before serving folder sizes', async () => {
+    const env = await setupTestEnv({
+      tag: 'folder-size-manager-',
+      modules: INDEXER_MODULES,
+      env: { FOLDER_SIZE_MODE: 'full' },
+    });
+    ctx = { env };
+
+    const { getDb } = env.requireFresh('src/services/db');
+    const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
+    const scope = { root: env.volumeDir, label: 'volume' };
+    const legacy = path.join(scope.root, 'Legacy');
+    await fs.mkdir(path.join(legacy, 'nested'), { recursive: true });
+    await fs.writeFile(path.join(legacy, 'nested', 'payload.bin'), Buffer.alloc(42));
+
+    const db = await getDb();
+    const scannedAt = new Date().toISOString();
+    folderSizeIndex.upsertScanEntry(db, scope, {
+      absolutePath: scope.root,
+      sizeBytes: 0,
+      entryCount: 1,
+      lastFullScanAt: scannedAt,
+    });
+    folderSizeIndex.upsertScanEntry(db, scope, {
+      absolutePath: legacy,
+      sizeBytes: 0,
+      entryCount: 1,
+      lastFullScanAt: scannedAt,
+    });
+
+    expect(folderSizeIndex.getIndexVersion(db, scope)).toBe(0);
+
+    manager = env.requireFresh('src/services/folderSizeManager');
+    await manager.start();
+
+    expect(folderSizeIndex.getIndexVersion(db, scope)).toBe(folderSizeIndex.CURRENT_INDEX_VERSION);
+    expect(folderSizeIndex.getByAbsolutePath(db, legacy).sizeBytes).toBe(42);
+    expect(folderSizeIndex.getByAbsolutePath(db, path.join(legacy, 'nested')).sizeBytes).toBe(42);
   });
 
   it('reconciliation detects and corrects an out-of-band change via mtime', async () => {
