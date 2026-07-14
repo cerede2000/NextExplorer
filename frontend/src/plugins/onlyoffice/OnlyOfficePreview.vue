@@ -51,10 +51,11 @@ const ready = computed(() => Boolean(serverUrl.value && config.value));
 let autoSaveTimer = null;
 let autoSaveInFlight = null;
 let lastAutoSaveAt = 0;
+let autoSaveIntervalMs = 0;
 let changesObserved = false;
 let disposed = false;
 const editorId = computed(() => {
-  const base = (props.context?.filePath || 'document').toString();
+  const base = (props.filePath || 'document').toString();
   return (
     'onlyoffice-' +
     base
@@ -70,6 +71,7 @@ const clearAutoSaveTimer = () => {
 };
 
 const requestForceSave = async ({ reason = 'auto' } = {}) => {
+  if (reason === 'close') clearAutoSaveTimer();
   const sessionId = previewState.forceSaveSessionId;
   if (!props.filePath || !sessionId) return { queued: false };
   if (autoSaveInFlight) return autoSaveInFlight;
@@ -77,7 +79,6 @@ const requestForceSave = async ({ reason = 'auto' } = {}) => {
   autoSaveInFlight = requestOnlyOfficeForceSave(props.filePath, { sessionId, reason })
     .then((result) => {
       lastAutoSaveAt = Date.now();
-      previewState.lastForceSaveAt = lastAutoSaveAt;
       return result;
     })
     .catch((saveError) => {
@@ -92,11 +93,13 @@ const requestForceSave = async ({ reason = 'auto' } = {}) => {
 };
 
 const scheduleAutoSave = () => {
-  const intervalMs = Number(previewState.autoSaveIntervalMs) || 0;
-  if (disposed || !changesObserved || intervalMs <= 0) return;
+  if (disposed || !changesObserved || autoSaveIntervalMs <= 0) return;
 
   clearAutoSaveTimer();
-  const nextDelay = Math.max(AUTO_SAVE_DEBOUNCE_MS, lastAutoSaveAt + intervalMs - Date.now());
+  const nextDelay = Math.max(
+    AUTO_SAVE_DEBOUNCE_MS,
+    lastAutoSaveAt + autoSaveIntervalMs - Date.now()
+  );
   autoSaveTimer = setTimeout(() => {
     autoSaveTimer = null;
     void requestForceSave({ reason: 'auto' }).catch(() => {});
@@ -107,6 +110,7 @@ const load = async () => {
   clearAutoSaveTimer();
   changesObserved = false;
   lastAutoSaveAt = 0;
+  autoSaveIntervalMs = 0;
   error.value = null;
   serverUrl.value = null;
   config.value = null;
@@ -118,16 +122,16 @@ const load = async () => {
       documentServerUrl,
       config: cfg,
       forceSaveSessionId,
-      autoSaveIntervalMs,
+      autoSaveIntervalMs: configuredAutoSaveIntervalMs,
     } = await fetchOnlyOfficeConfig(path, 'edit');
     previewState.forceSaveSessionId = forceSaveSessionId || null;
-    previewState.autoSaveIntervalMs = Number(autoSaveIntervalMs) || 0;
+    autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     previewState.requestForceSave = requestForceSave;
     cfg.events = {
       ...cfg.events,
       onDocumentStateChange(event) {
-        const pending = Boolean(event?.data);
-        previewState.changesPending = pending;
+        if (typeof event?.data !== 'boolean') return;
+        const pending = event.data;
 
         if (pending) {
           changesObserved = true;
