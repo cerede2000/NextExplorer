@@ -4,35 +4,14 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const logger = require('../utils/logger');
+const { archives } = require('../config/index');
 
 const execFileAsync = promisify(execFile);
 
-// Archive extensions the app is willing to offer for extraction, provided the
-// local 7-Zip build actually supports them (checked against `7z i` at startup).
-// Kept as a whitelist so container-ish formats 7-Zip can technically read
-// (docx, apk, exe…) are not presented as archives in the UI.
-const CANDIDATE_EXTENSIONS = [
-  '7z',
-  'zip',
-  'iso',
-  'rar',
-  'tar',
-  'gz',
-  'tgz',
-  'bz2',
-  'tbz2',
-  'xz',
-  'txz',
-  'cab',
-  'wim',
-  'cpio',
-  'rpm',
-  'deb',
-  'z',
-  'lzh',
-  'arj',
-  'zst',
-];
+// Whitelist of extensions the app may offer for extraction, provided the
+// local 7-Zip build actually supports them (checked against `7z i` at
+// startup). Configurable through ARCHIVE_EXTENSIONS (see config/index.js).
+const CANDIDATE_EXTENSIONS = Array.isArray(archives?.extensions) ? archives.extensions : ['zip'];
 
 // Compound extensions that decompress to an inner tar archive. 7-Zip only
 // peels one layer per run, so these need a second pass on the produced .tar.
