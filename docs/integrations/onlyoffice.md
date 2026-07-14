@@ -11,10 +11,19 @@ Use ONLYOFFICE Document Server to edit office files (DOCX, XLSX, PPTX, ODT, ODS,
 | `ONLYOFFICE_SECRET`          | Yes               | JWT secret shared between nextExplorer and ONLYOFFICE for signing requests/responses.     |
 | `ONLYOFFICE_LANG`            | No (default `en`) | Language code for the editor UI.                                                          |
 | `ONLYOFFICE_FORCE_SAVE`      | No                | When true, the editor Save button immediately writes the current version through the callback. |
-| `ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS` | No (default `5000`) | Maximum time in milliseconds to wait for the confirmed automatic save when closing the editor. |
+| `ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS` | No (default `10000`) | Retry window in milliseconds for the background save started when closing the editor. Minimum `7000`; closing remains immediate. |
 | `ONLYOFFICE_FILE_EXTENSIONS` | No                | Comma-separated list of extensions you want to surface beyond the defaults.               |
 
 ## How it works
+
+During editing, ONLYOFFICE synchronizes changes with its Document Server first.
+That internal synchronization does not rewrite the source file mounted in
+NextExplorer on every keystroke. The source file is replaced only when
+Document Server calls the storage callback: normally after the last editor
+closes, or immediately after a force-save. NextExplorer queues a force-save in
+the background when its editor closes, retries briefly if the final changes are
+still arriving, and atomically replaces the source file only after the full
+updated document has been downloaded.
 
 1. Opening a compatible file triggers a call to `/api/onlyoffice/config`, which returns editor configuration and a signed `config.token` when `ONLYOFFICE_SECRET` is set.
 2. ONLYOFFICE fetches the file through `/api/onlyoffice/file?path=...` with an `Authorization: Bearer <config.token>` header.
