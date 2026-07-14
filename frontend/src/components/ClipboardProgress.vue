@@ -7,7 +7,11 @@ const fileStore = useFileStore();
 const { t } = useI18n();
 
 const operation = computed(
-  () => fileStore.extractOperation || fileStore.deleteOperation || fileStore.clipboardOperation
+  () =>
+    fileStore.extractOperation ||
+    fileStore.compressOperation ||
+    fileStore.deleteOperation ||
+    fileStore.clipboardOperation
 );
 
 const title = computed(() => {
@@ -16,6 +20,10 @@ const title = computed(() => {
 
   if (op.type === 'extract') {
     return t('clipboard.extracting', { name: op.name || '' });
+  }
+
+  if (op.type === 'compress') {
+    return t('clipboard.compressing', { name: op.name || '' });
   }
 
   const count = Number(op.itemCount) || 0;

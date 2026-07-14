@@ -295,7 +295,8 @@
     "copying": "Copiando {count} {items}…",
     "moving": "Moviendo {count} {items}…",
     "working": "Procesando…",
-    "extracting": "Extrayendo {name}…"
+    "extracting": "Extrayendo {name}…",
+    "compressing": "Comprimiendo {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Mostrar detalles",

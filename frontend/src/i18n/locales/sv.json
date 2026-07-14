@@ -295,7 +295,8 @@
     "copying": "Kopierar {count} {items}…",
     "moving": "Flyttar {count} {items}…",
     "working": "Arbetar…",
-    "extracting": "Extraherar {name}…"
+    "extracting": "Extraherar {name}…",
+    "compressing": "Komprimerar {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Visa detaljer",

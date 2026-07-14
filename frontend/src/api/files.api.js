@@ -189,7 +189,7 @@ async function extractZip(relativePath, options = {}) {
   });
 }
 
-async function compressToZip(items, destination = '', name) {
+async function compressToZip(items, destination = '', name, options = {}) {
   const payload = {
     items: Array.isArray(items) ? items : [],
     destination: normalizePath(destination || ''),
@@ -198,9 +198,12 @@ async function compressToZip(items, destination = '', name) {
     payload.name = name.trim();
   }
 
-  return requestJson('/api/files/zip/compress', {
+  // The endpoint streams NDJSON progress events (start/progress/done/error),
+  // like the extract and copy/move endpoints.
+  return requestStream('/api/files/zip/compress', {
     method: 'POST',
     body: JSON.stringify(payload),
+    onEvent: options.onEvent,
   });
 }
 

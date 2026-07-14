@@ -295,7 +295,8 @@
     "copying": "Se copiază {count} {items}…",
     "moving": "Se mută {count} {items}…",
     "working": "În lucru…",
-    "extracting": "Se extrage {name}…"
+    "extracting": "Se extrage {name}…",
+    "compressing": "Se comprimă {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",

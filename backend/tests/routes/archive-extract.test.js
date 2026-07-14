@@ -102,6 +102,40 @@ describe('Archive extraction', () => {
     expect(response.body?.error?.message || response.text).toMatch(/unsupported archive format/i);
   });
 
+  it('compresses a selection into a zip, streaming its status', async () => {
+    const workDir = path.join(envContext.volumeDir, 'to-compress');
+    await fs.mkdir(path.join(workDir, 'sub'), { recursive: true });
+    await fs.writeFile(path.join(workDir, 'a.txt'), 'alpha');
+    await fs.writeFile(path.join(workDir, 'sub', 'b.txt'), 'beta');
+
+    const app = buildApp({ user: adminUser });
+    const response = await request(app)
+      .post('/api/files/zip/compress')
+      .send({
+        items: [
+          { name: 'a.txt', path: 'to-compress' },
+          { name: 'sub', path: 'to-compress', kind: 'directory' },
+        ],
+        destination: 'to-compress',
+        name: 'bundle',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('application/x-ndjson');
+
+    const events = parseNdjson(response.text);
+    expect(events[0]).toMatchObject({ type: 'start', name: 'bundle.zip' });
+    const done = events.at(-1);
+    expect(done.type).toBe('done');
+    expect(done.item?.name).toBe('bundle.zip');
+
+    const entries = new AdmZip(path.join(workDir, 'bundle.zip'))
+      .getEntries()
+      .map((entry) => entry.entryName.replace(/\\/g, '/'));
+    expect(entries).toContain('a.txt');
+    expect(entries).toContain('sub/b.txt');
+  });
+
   it('reports the supported formats from the 7-Zip probe', async () => {
     const archiveService = envContext.requireFresh('src/services/archiveService');
     const extensions = await archiveService.getSupportedArchiveExtensions();

@@ -295,7 +295,8 @@
     "copying": "Копирование {count} {items}…",
     "moving": "Перемещение {count} {items}…",
     "working": "Обработка…",
-    "extracting": "Извлечение {name}…"
+    "extracting": "Извлечение {name}…",
+    "compressing": "Сжатие {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Показать детали",

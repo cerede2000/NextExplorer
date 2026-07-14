@@ -302,7 +302,8 @@
     "copying": "Copie de {count} {items}…",
     "moving": "Déplacement de {count} {items}…",
     "working": "Traitement…",
-    "extracting": "Extraction de {name}…"
+    "extracting": "Extraction de {name}…",
+    "compressing": "Compression de {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Afficher les détails",

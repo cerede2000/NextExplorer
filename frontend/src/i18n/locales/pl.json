@@ -295,7 +295,8 @@
     "copying": "Kopiowanie {count} {items}…",
     "moving": "Przenoszenie {count} {items}…",
     "working": "Przetwarzanie…",
-    "extracting": "Wypakowywanie {name}…"
+    "extracting": "Wypakowywanie {name}…",
+    "compressing": "Kompresowanie {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Pokaż szczegóły",
