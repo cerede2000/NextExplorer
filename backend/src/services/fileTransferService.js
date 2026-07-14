@@ -12,10 +12,18 @@ const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorization
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
 const { removeFavoritesForDeletedPath } = require('./favoritesService');
 const folderSizeHooks = require('./folderSizeHooks');
+const { getDb } = require('./db');
+const folderSizeIndex = require('./folderSizeIndex');
+const { getVolumeScope } = require('./folderSizeIndexer');
 
 // How often (ms) progress is reported to the caller while bytes stream, so a
 // large file emits a steady trickle of updates rather than one per chunk.
 const PROGRESS_THROTTLE_MS = 150;
+// Node defaults file streams to 64 KiB buffers. That makes a 90 GiB transfer
+// cross JavaScript over 1.4 million times. Keep the transfer cancellable, but
+// use a bounded 4 MiB buffer to cut that overhead drastically without growing
+// memory with the size of the copy.
+const COPY_STREAM_HIGH_WATER_MARK = 4 * 1024 * 1024;
 
 const createCancellationError = () => {
   const error = new Error('Operation cancelled.');
@@ -27,49 +35,19 @@ const throwIfCancelled = (signal) => {
   if (signal?.aborted) throw createCancellationError();
 };
 
-// Recursively sum the byte size of a file or directory subtree. Symlinks count
-// as zero (they are recreated, not byte-copied). Best-effort: entries that
-// cannot be stat()ed are skipped so a partial tree still yields a usable total.
-const computeEntrySize = async (absolutePath, isDirectory, signal) => {
-  throwIfCancelled(signal);
-  if (!isDirectory) {
-    try {
-      const stats = await fs.lstat(absolutePath);
-      return stats.isSymbolicLink() ? 0 : stats.size;
-    } catch (_) {
-      return 0;
-    }
+const getFolderSizeLookup = async () => {
+  try {
+    return { db: await getDb(), scope: getVolumeScope() };
+  } catch (_) {
+    // Folder-size indexing is optional. A transfer must never depend on it.
+    return null;
   }
+};
 
-  let total = 0;
-  const stack = [absolutePath];
-  while (stack.length > 0) {
-    throwIfCancelled(signal);
-    const dir = stack.pop();
-    let entries;
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch (_) {
-      continue;
-    }
-    for (const entry of entries) {
-      throwIfCancelled(signal);
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(full);
-      } else if (entry.isFile()) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const stats = await fs.stat(full);
-          total += stats.size;
-        } catch (_) {
-          // Unreadable entry: skip it, keep the total best-effort.
-        }
-      }
-    }
-  }
-  return total;
+const indexedDirectorySize = (lookup, absolutePath) => {
+  if (!lookup || !folderSizeIndex.isWithinRoot(lookup.scope.root, absolutePath)) return null;
+  const entry = folderSizeIndex.getByAbsolutePath(lookup.db, absolutePath);
+  return Number.isFinite(entry?.sizeBytes) ? entry.sizeBytes : null;
 };
 
 // Copy a single regular file through streams so bytes can be reported as they
@@ -81,10 +59,14 @@ const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal
       return;
     }
 
-    const readStream = fsSync.createReadStream(sourcePath);
+    const readStream = fsSync.createReadStream(sourcePath, {
+      highWaterMark: COPY_STREAM_HIGH_WATER_MARK,
+    });
     const writeStream = fsSync.createWriteStream(
       destinationPath,
-      mode != null ? { mode } : undefined
+      mode != null
+        ? { mode, highWaterMark: COPY_STREAM_HIGH_WATER_MARK }
+        : { highWaterMark: COPY_STREAM_HIGH_WATER_MARK }
     );
 
     let settled = false;
@@ -112,7 +94,8 @@ const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal
     readStream.pipe(writeStream);
   });
 
-// Recursively copy a file/dir, reporting copied bytes. Symlinks are recreated.
+// Recursively copy a file/dir, reporting copied bytes. It returns the actual
+// copied byte count, so folder-size updates never need a second filesystem walk.
 const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes, signal) => {
   throwIfCancelled(signal);
   if (!isDirectory) {
@@ -120,21 +103,23 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
     if (stats.isSymbolicLink()) {
       const linkTarget = await fs.readlink(sourcePath);
       await fs.symlink(linkTarget, destinationPath);
-      return;
+      return 0;
     }
     await copyFileWithProgress(sourcePath, destinationPath, stats.mode, onBytes, signal);
-    return;
+    return stats.size;
   }
 
   await ensureDir(destinationPath);
   const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+  let copiedBytes = 0;
   for (const entry of entries) {
     throwIfCancelled(signal);
     const src = path.join(sourcePath, entry.name);
     const dest = path.join(destinationPath, entry.name);
     // eslint-disable-next-line no-await-in-loop
-    await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
+    copiedBytes += await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
   }
+  return copiedBytes;
 };
 
 // Move an entry, reporting progress. A same-filesystem rename is atomic and
@@ -154,21 +139,30 @@ const moveEntryWithProgress = async (
     if (typeof onBytes === 'function' && size > 0) {
       onBytes(size);
     }
+    return size;
   } catch (error) {
     if (error.code === 'EXDEV') {
-      await copyEntryWithProgress(sourcePath, destinationPath, isDirectory, onBytes, signal);
+      const copiedBytes = await copyEntryWithProgress(
+        sourcePath,
+        destinationPath,
+        isDirectory,
+        onBytes,
+        signal
+      );
       throwIfCancelled(signal);
       await fs.rm(sourcePath, { recursive: isDirectory, force: true });
+      return copiedBytes;
     } else {
       throw error;
     }
   }
 };
 
-// Phase 1: authorize + resolve every item, stat it, and pre-compute the total
-// byte count so the client can render a determinate progress bar. Throws on any
-// validation/authorization failure — the route runs this BEFORE it commits to a
-// streaming response, so these surface as a normal HTTP error (status + code).
+// Phase 1: authorize + resolve every item. Recursive directory-size walks are
+// deliberately avoided here: a large copy used to read every source file once
+// for progress, then read it all again to copy. Indexed directory sizes give a
+// determinate bar in O(1); otherwise the UI uses its indeterminate state while
+// the copy starts immediately.
 const prepareTransfer = async (items, destination, operation, options = {}) => {
   const { signal } = options;
   throwIfCancelled(signal);
@@ -200,9 +194,11 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
   }
 
   const { absolutePath: destinationAbsolute } = destResolved;
+  const folderSizeLookup = await getFolderSizeLookup();
 
   const plans = [];
   let totalBytes = 0;
+  let hasUnknownSize = false;
 
   for (const item of items) {
     throwIfCancelled(signal);
@@ -238,14 +234,22 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     const isDirectory = stats.isDirectory();
     const sourceParent = normalizeRelativePath(path.dirname(sourceRelative));
 
+    if (
+      isDirectory &&
+      (destinationAbsolute === sourceAbsolute ||
+        destinationAbsolute.startsWith(`${sourceAbsolute}${path.sep}`))
+    ) {
+      throw new Error('Cannot copy or move a folder into itself.');
+    }
+
     if (operation === 'move' && destinationRelative === sourceParent) {
       plans.push({ sourceRelative, skipped: true });
       continue;
     }
 
-    // eslint-disable-next-line no-await-in-loop
-    const size = await computeEntrySize(sourceAbsolute, isDirectory, signal);
-    totalBytes += size;
+    const size = isDirectory ? indexedDirectorySize(folderSizeLookup, sourceAbsolute) : stats.size;
+    if (Number.isFinite(size)) totalBytes += size;
+    else hasUnknownSize = true;
 
     plans.push({
       sourceAbsolute,
@@ -260,7 +264,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     destinationRelative,
     destinationAbsolute,
     plans,
-    totalBytes,
+    totalBytes: hasUnknownSize ? 0 : totalBytes,
     totalItems: plans.filter((plan) => !plan.skipped).length,
   };
 };
@@ -316,7 +320,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
 
       if (operation === 'copy') {
         // eslint-disable-next-line no-await-in-loop
-        await copyEntryWithProgress(
+        const copiedSize = await copyEntryWithProgress(
           plan.sourceAbsolute,
           targetAbsolute,
           plan.isDirectory,
@@ -325,12 +329,12 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         );
         await folderSizeHooks.onEntryCopied(targetAbsolute, {
           isDirectory: plan.isDirectory,
-          size: plan.size,
+          size: copiedSize,
           sourceAbsolutePath: plan.sourceAbsolute,
         });
       } else if (operation === 'move') {
         // eslint-disable-next-line no-await-in-loop
-        await moveEntryWithProgress(
+        const movedSize = await moveEntryWithProgress(
           plan.sourceAbsolute,
           targetAbsolute,
           plan.isDirectory,
@@ -340,7 +344,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         );
         folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
           isDirectory: plan.isDirectory,
-          size: plan.size,
+          size: movedSize,
         });
       } else {
         throw new Error(`Unsupported operation: ${operation}`);
@@ -350,8 +354,9 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       activeTarget = null;
     }
 
-    // Snap to 100% once every entry is done (covers rounding and any skipped work).
-    copiedBytes = totalBytes;
+    // Snap to 100% once every entry is done when the total was known before
+    // starting. Unknown directory totals intentionally stay indeterminate.
+    if (totalBytes > 0) copiedBytes = totalBytes;
     emit(true);
 
     return { destination: destinationRelative, items: results };

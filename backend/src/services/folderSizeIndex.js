@@ -249,6 +249,145 @@ const bulkUpsertScanEntries = (db, scope, entries = []) => {
 };
 
 /**
+ * Duplicate existing index rows for a directory copy without reading the
+ * filesystem again. The source and target must belong to the same indexed
+ * volume. Rows are read and written in small pages, so even a large directory
+ * tree does not require materialising all of its SQLite rows in JavaScript
+ * memory. A page is fully read before its write transaction starts because
+ * SQLite does not allow a cursor query and a write on one connection at once.
+ */
+const cloneSubtree = (db, scope, sourceAbsolutePath, targetAbsolutePath) => {
+  const { root, label } = scope;
+  if (
+    !isWithinRoot(root, sourceAbsolutePath) ||
+    !isWithinRoot(root, targetAbsolutePath) ||
+    sourceAbsolutePath === targetAbsolutePath
+  ) {
+    return 0;
+  }
+
+  const sourceRelativePath = relativeOf(root, sourceAbsolutePath);
+  const pageSize = 256;
+  const selectRows =
+    sourceRelativePath === ''
+      ? prep(
+          db,
+          `SELECT * FROM folder_size_index
+             WHERE volume = ? AND (? IS NULL OR relative_path > ?)
+             ORDER BY relative_path ASC LIMIT ?`
+        )
+      : prep(
+          db,
+          `SELECT * FROM folder_size_index
+             WHERE volume = ?
+               AND (relative_path = ? OR (relative_path >= ? AND relative_path < ?))
+               AND (? IS NULL OR relative_path > ?)
+             ORDER BY relative_path ASC LIMIT ?`
+        );
+  const upsert = prep(
+    db,
+    `
+    INSERT INTO folder_size_index
+      (path_hash, parent_hash, volume, relative_path, size_bytes, entry_count, last_delta_at, last_full_scan_at, dirty)
+    VALUES (@pathHash, @parentHash, @volume, @relativePath, @sizeBytes, @entryCount, @lastDeltaAt, @lastFullScanAt, @dirty)
+    ON CONFLICT(path_hash) DO UPDATE SET
+      parent_hash = @parentHash,
+      volume = @volume,
+      relative_path = @relativePath,
+      size_bytes = @sizeBytes,
+      entry_count = @entryCount,
+      last_delta_at = @lastDeltaAt,
+      last_full_scan_at = @lastFullScanAt,
+      dirty = @dirty
+  `
+  );
+
+  let copied = 0;
+  const writePage = db.transaction((rows) => {
+    for (const row of rows) {
+      const sourceRowAbsolutePath = row.relative_path ? path.join(root, row.relative_path) : root;
+      const suffix =
+        sourceRowAbsolutePath === sourceAbsolutePath
+          ? ''
+          : sourceRowAbsolutePath.slice(sourceAbsolutePath.length);
+      const targetRowAbsolutePath = `${targetAbsolutePath}${suffix}`;
+      const parentAbsolutePath =
+        targetRowAbsolutePath === root ? null : path.dirname(targetRowAbsolutePath);
+
+      upsert.run({
+        pathHash: pathHash(targetRowAbsolutePath),
+        parentHash: parentAbsolutePath ? pathHash(parentAbsolutePath) : null,
+        volume: label,
+        relativePath: relativeOf(root, targetRowAbsolutePath),
+        sizeBytes: row.size_bytes,
+        entryCount: row.entry_count,
+        lastDeltaAt: row.last_delta_at,
+        lastFullScanAt: row.last_full_scan_at,
+        dirty: row.dirty,
+      });
+      copied += 1;
+    }
+  });
+
+  let afterRelativePath = null;
+  for (;;) {
+    const rows =
+      sourceRelativePath === ''
+        ? selectRows.all(label, afterRelativePath, afterRelativePath, pageSize)
+        : selectRows.all(
+            label,
+            sourceRelativePath,
+            `${sourceRelativePath}/`,
+            `${sourceRelativePath}0`,
+            afterRelativePath,
+            afterRelativePath,
+            pageSize
+          );
+    if (!rows.length) break;
+    writePage(rows);
+    if (rows.length < pageSize) break;
+    afterRelativePath = rows[rows.length - 1].relative_path;
+  }
+  return copied;
+};
+
+/**
+ * Record a directory whose recursive byte count is known from an operation,
+ * while leaving it marked dirty until its descendant rows are needed. This
+ * keeps a completed directory copy off the filesystem hot path: the list view
+ * can show its exact root size immediately, and a detailed scan happens only
+ * when someone actually opens that tree.
+ */
+const upsertPendingDirectoryEntry = (db, scope, { absolutePath, sizeBytes, entryCount = 0 }) => {
+  const { root, label } = scope;
+  const parentAbs = absolutePath === root ? null : path.dirname(absolutePath);
+  prep(
+    db,
+    `
+    INSERT INTO folder_size_index
+      (path_hash, parent_hash, volume, relative_path, size_bytes, entry_count, last_delta_at, dirty)
+    VALUES (@pathHash, @parentHash, @volume, @relativePath, @sizeBytes, @entryCount, @now, 1)
+    ON CONFLICT(path_hash) DO UPDATE SET
+      parent_hash = @parentHash,
+      volume = @volume,
+      relative_path = @relativePath,
+      size_bytes = @sizeBytes,
+      entry_count = @entryCount,
+      last_delta_at = @now,
+      dirty = 1
+  `
+  ).run({
+    pathHash: pathHash(absolutePath),
+    parentHash: parentAbs ? pathHash(parentAbs) : null,
+    volume: label,
+    relativePath: relativeOf(root, absolutePath),
+    sizeBytes: Math.max(0, Number(sizeBytes) || 0),
+    entryCount: Math.max(0, Number(entryCount) || 0),
+    now: new Date().toISOString(),
+  });
+};
+
+/**
  * Update scan metadata (entry count, last scan timestamp, dirty flag) without
  * touching `size_bytes` — the reconciler adjusts size separately via
  * {@link applyDelta} so the change also propagates to ancestors.
@@ -359,6 +498,8 @@ module.exports = {
   applyDelta,
   upsertScanEntry,
   bulkUpsertScanEntries,
+  cloneSubtree,
+  upsertPendingDirectoryEntry,
   setScanMeta,
   removeSubtree,
   reparentSubtree,
