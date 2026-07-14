@@ -310,7 +310,8 @@
     "copying": "Copiando {count} {items}…",
     "moving": "Moviendo {count} {items}…",
     "working": "Procesando…",
-    "reposition": "Volver al elemento al terminar"
+    "reposition": "Volver al elemento al terminar",
+    "extracting": "Extrayendo {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Mostrar detalles",

@@ -114,25 +114,63 @@ router.post(
 
     await fs.mkdir(destinationFolderAbsolutePath);
 
+    // Everything above throws BEFORE any byte is written, so validation errors
+    // still surface as normal HTTP errors. From here on the response streams
+    // NDJSON progress events, mirroring the copy/move endpoints:
+    //   {type:'start',    name}
+    //   {type:'progress', percent}    (throttled)
+    //   {type:'done',     success, item}
+    //   {type:'error',    message, code}
+    res.status(200);
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    // Disable proxy buffering so progress lines reach the client promptly.
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    const writeEvent = (event) => {
+      if (res.writableEnded) return;
+      res.write(`${JSON.stringify(event)}\n`);
+    };
+
+    writeEvent({ type: 'start', name: folderName });
+
+    const PROGRESS_THROTTLE_MS = 150;
+    let lastProgressAt = 0;
+    let lastPercent = -1;
+    const onPercent = (percent) => {
+      const now = Date.now();
+      if (percent === lastPercent) return;
+      if (percent < 100 && now - lastProgressAt < PROGRESS_THROTTLE_MS) return;
+      lastProgressAt = now;
+      lastPercent = percent;
+      writeEvent({ type: 'progress', percent });
+    };
+
     try {
       if (await isSevenZipAvailable()) {
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
-        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath);
+        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent);
       } else {
         new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
       }
+
+      const item = await buildItemMetadata(
+        destinationFolderAbsolutePath,
+        parentRelativePath,
+        folderName
+      );
+      writeEvent({ type: 'done', success: true, item });
     } catch (error) {
       logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up folder');
       await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
-      throw error;
+      writeEvent({
+        type: 'error',
+        message: error.message || 'Archive extraction failed.',
+        code: error.code || 'EXTRACT_FAILED',
+      });
+    } finally {
+      res.end();
     }
-
-    const item = await buildItemMetadata(
-      destinationFolderAbsolutePath,
-      parentRelativePath,
-      folderName
-    );
-    res.status(201).json({ success: true, item });
   })
 );
 

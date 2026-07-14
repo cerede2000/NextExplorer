@@ -310,7 +310,8 @@
     "copying": "Kopieren von {count} {items}…",
     "moving": "Verschieben von {count} {items}…",
     "working": "Wird verarbeitet…",
-    "reposition": "Nach Abschluss zum Element zurückkehren"
+    "reposition": "Nach Abschluss zum Element zurückkehren",
+    "extracting": "{name} wird entpackt…"
   },
   "upload": {
     "toggleDetailsShow": "Details anzeigen",

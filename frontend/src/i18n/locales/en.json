@@ -310,7 +310,8 @@
     "copying": "Copying {count} {items}…",
     "moving": "Moving {count} {items}…",
     "working": "Working…",
-    "reposition": "Return to the item when done"
+    "reposition": "Return to the item when done",
+    "extracting": "Extracting {name}…"
   },
   "quickActions": {
     "menu": "Quick actions"

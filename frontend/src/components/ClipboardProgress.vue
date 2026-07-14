@@ -7,28 +7,40 @@ import { formatBytes } from '@/utils';
 const fileStore = useFileStore();
 const { t } = useI18n();
 
-const operation = computed(() => fileStore.deleteOperation || fileStore.clipboardOperation);
+const operation = computed(
+  () => fileStore.extractOperation || fileStore.deleteOperation || fileStore.clipboardOperation
+);
 
 const totalBytes = computed(() => Number(operation.value?.totalBytes) || 0);
 const copiedBytes = computed(() =>
   Math.min(Number(operation.value?.copiedBytes) || 0, totalBytes.value || Number.POSITIVE_INFINITY)
 );
 
-// Determinate only when the backend reported a byte total (copy / cross-device
-// move). Same-filesystem moves and deletes keep the indeterminate animation.
-const hasProgress = computed(() => totalBytes.value > 0);
-const percent = computed(() =>
-  hasProgress.value ? Math.min(100, Math.round((copiedBytes.value / totalBytes.value) * 100)) : 0
-);
-const progressLabel = computed(() =>
-  hasProgress.value
-    ? `${formatBytes(copiedBytes.value)} / ${formatBytes(totalBytes.value)} · ${percent.value}%`
-    : t('clipboard.working')
-);
+// Determinate when the backend reported a byte total (copy / cross-device
+// move) or streams a raw percentage (archive extraction). Same-filesystem
+// moves and deletes keep the indeterminate animation (percent === null).
+const hasByteProgress = computed(() => totalBytes.value > 0);
+const percent = computed(() => {
+  if (hasByteProgress.value) {
+    return Math.min(100, Math.round((copiedBytes.value / totalBytes.value) * 100));
+  }
+  const streamed = operation.value?.percent;
+  return Number.isFinite(streamed) ? Math.min(100, Math.max(0, streamed)) : null;
+});
+const progressLabel = computed(() => {
+  if (hasByteProgress.value) {
+    return `${formatBytes(copiedBytes.value)} / ${formatBytes(totalBytes.value)} · ${percent.value}%`;
+  }
+  return percent.value !== null ? `${percent.value}%` : t('clipboard.working');
+});
 
 const title = computed(() => {
   const op = operation.value;
   if (!op) return '';
+
+  if (op.type === 'extract') {
+    return t('clipboard.extracting', { name: op.name || '' });
+  }
 
   const count = Number(op.itemCount) || 0;
   const itemsLabel = count === 1 ? t('common.item') : t('common.items');
@@ -45,7 +57,7 @@ const title = computed(() => {
 const destination = computed(() => operation.value?.destination ?? '');
 
 // The reposition toggle only applies to copy/move (clipboard) operations, never
-// to deletes.
+// to deletes or extractions.
 const isTransfer = computed(() => {
   const type = operation.value?.type;
   return type === 'copy' || type === 'move';
@@ -73,7 +85,7 @@ const isTransfer = computed(() => {
         class="w-full h-2 rounded-full overflow-hidden border border-zinc-200/70 dark:border-zinc-700/50 bg-zinc-100/80 dark:bg-zinc-800/70"
       >
         <div
-          v-if="hasProgress"
+          v-if="percent !== null"
           class="h-full rounded-full clipboard-bar clipboard-bar--determinate"
           :style="{ width: `${percent}%` }"
         />

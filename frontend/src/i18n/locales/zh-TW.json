@@ -310,7 +310,8 @@
     "copying": "正在複製 {count} 個{items}…",
     "moving": "正在移動 {count} 個{items}…",
     "working": "處理中…",
-    "reposition": "完成後返回該項目"
+    "reposition": "完成後返回該項目",
+    "extracting": "正在解壓 {name}…"
   },
   "upload": {
     "toggleDetailsShow": "顯示詳細資訊",

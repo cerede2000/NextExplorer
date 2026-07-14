@@ -310,7 +310,8 @@
     "copying": "Se copiază {count} {items}…",
     "moving": "Se mută {count} {items}…",
     "working": "În lucru…",
-    "reposition": "Revino la element la final"
+    "reposition": "Revino la element la final",
+    "extracting": "Se extrage {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",

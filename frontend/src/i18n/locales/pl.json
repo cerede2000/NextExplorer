@@ -310,7 +310,8 @@
     "copying": "Kopiowanie {count} {items}…",
     "moving": "Przenoszenie {count} {items}…",
     "working": "Przetwarzanie…",
-    "reposition": "Wróć do elementu po zakończeniu"
+    "reposition": "Wróć do elementu po zakończeniu",
+    "extracting": "Wypakowywanie {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Pokaż szczegóły",
