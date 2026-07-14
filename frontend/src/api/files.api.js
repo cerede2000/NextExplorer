@@ -2,11 +2,11 @@ import { requestJson, requestRaw, requestStream, normalizePath, encodePath, buil
 
 const DELETE_BATCH_SIZE = 100;
 
-async function browse(path = '') {
+async function browse(path = '', options = {}) {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
   const endpoint = encodedPath ? `/api/browse/${encodedPath}` : '/api/browse/';
-  return requestJson(endpoint, { method: 'GET' });
+  return requestJson(endpoint, { method: 'GET', signal: options.signal });
 }
 
 async function getVolumes() {
