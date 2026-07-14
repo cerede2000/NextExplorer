@@ -269,10 +269,15 @@ const indexSubtree = async (db, scope, absDir, options = {}) => {
 /**
  * Re-aggregate the *direct* level of a single folder: sum the sizes of files
  * directly inside it and (in `full` mode) the already-indexed sizes of its
- * direct subfolders. Used by both the reconciler and the watcher flush.
+ * direct subfolders. It also reports if one of those children has no index
+ * entry yet, allowing the manager to schedule one targeted subtree rebuild
+ * without adding a recursive scan to the read path.
  *
- * @returns {Promise<{ sizeBytes: number, entryCount: number } | null>} null if
- *   the path is not a readable directory.
+ * @returns {Promise<{
+ *   sizeBytes: number,
+ *   entryCount: number,
+ *   hasUnindexedSubdirectories: boolean
+ * } | null>} null if the path is not a readable directory.
  */
 const aggregateDirectory = async (db, scope, absDir, options = {}) => {
   const mode = options.mode || config.folderSize.mode || 'full';
@@ -286,6 +291,7 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
   let directFileBytes = 0;
   let childrenBytes = 0;
   let entryCount = 0;
+  let hasUnindexedSubdirectories = false;
 
   for (const entry of entries) {
     const full = path.join(absDir, entry.name);
@@ -293,7 +299,11 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
       entryCount += 1;
       if (mode === 'full') {
         const child = folderSizeIndex.getByAbsolutePath(db, full);
-        childrenBytes += child ? child.sizeBytes : 0;
+        if (child) {
+          childrenBytes += child.sizeBytes;
+        } else {
+          hasUnindexedSubdirectories = true;
+        }
       }
     } else if (entry.isFile()) {
       entryCount += 1;
@@ -309,7 +319,7 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
   }
 
   const sizeBytes = mode === 'full' ? directFileBytes + childrenBytes : directFileBytes;
-  return { sizeBytes, entryCount };
+  return { sizeBytes, entryCount, hasUnindexedSubdirectories };
 };
 
 /**
@@ -357,6 +367,9 @@ const removeMissing = (db, scope, absDir) => {
 const reconcileDirectory = async (db, scope, absDir, options = {}) => {
   const agg = await aggregateDirectory(db, scope, absDir, options);
   if (!agg) return null;
+  if (agg.hasUnindexedSubdirectories && options.onIncompleteSubtree) {
+    options.onIncompleteSubtree(absDir);
+  }
   return applyAggregate(db, scope, absDir, agg);
 };
 
@@ -386,6 +399,7 @@ const reconcile = async (db, scope, options = {}) => {
     signal,
     batch = config.folderSize.reconcileBatch || 100,
     pauseMs = options.pauseMs ?? config.folderSize.reconcilePauseMs ?? 0,
+    onIncompleteSubtree,
   } = options;
 
   let checked = 0;
@@ -421,7 +435,7 @@ const reconcile = async (db, scope, options = {}) => {
       skipped += 1;
       return;
     }
-    const delta = await reconcileDirectory(db, scope, abs, { mode });
+    const delta = await reconcileDirectory(db, scope, abs, { mode, onIncompleteSubtree });
     if (delta !== 0) changed += 1;
   };
 

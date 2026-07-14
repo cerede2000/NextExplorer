@@ -16,7 +16,9 @@
  *   2. on-view refresh — opening a folder re-checks the folders on screen
  *      (mtime-gated) so external changes surface within seconds where you look;
  *   3. adaptive reconciliation — a periodic mtime sweep that accelerates when it
- *      finds external changes and backs off when idle.
+ *      finds external changes and backs off when idle. If a changed directory
+ *      exposes an unindexed child subtree, it queues one authoritative scan for
+ *      that subtree rather than leaving an incomplete aggregate behind.
  */
 const fsp = require('fs/promises');
 
@@ -85,12 +87,14 @@ const flush = async () => {
 
     // Phase 1 (async, read-only): compute each directory's new aggregate.
     const ops = [];
+    const incompleteSubtrees = new Set();
     for (const abs of dirs) {
       // eslint-disable-next-line no-await-in-loop
       const agg = await indexer.aggregateDirectory(db, scope, abs, {
         mode: config.folderSize.mode,
       });
       ops.push({ abs, agg });
+      if (agg?.hasUnindexedSubdirectories) incompleteSubtrees.add(abs);
     }
 
     // Phase 2 (sync, one transaction): apply every change atomically.
@@ -101,6 +105,9 @@ const flush = async () => {
       }
     });
     apply();
+    for (const abs of incompleteSubtrees) {
+      refreshSubtree(abs).catch(() => {});
+    }
     log('debug', 'Flushed folder size updates', { directories: ops.length });
   } catch (err) {
     log('warn', 'Folder size flush failed', { err });
@@ -139,10 +146,15 @@ const runReconcile = async (reason) => {
   if (reconciling || stopped || !db) return { changed: 0 };
   reconciling = true;
   try {
+    const incompleteSubtrees = new Set();
     const result = await indexer.reconcile(db, scope, {
       mode: config.folderSize.mode,
       signal: abortController?.signal,
+      onIncompleteSubtree: (absDir) => incompleteSubtrees.add(absDir),
     });
+    for (const abs of incompleteSubtrees) {
+      refreshSubtree(abs).catch(() => {});
+    }
     log('debug', 'Reconciliation pass complete', { reason, ...result });
     // A large sweep grows the heap; hand it back (no-op without --expose-gc).
     reclaimMemory();
@@ -175,18 +187,29 @@ const armReconcile = () => {
 
 const baselineIfNeeded = async () => {
   const existing = folderSizeIndex.countByVolume(db, scope.label);
-  const rebuild = config.folderSize.rebuild;
+  const storedVersion = folderSizeIndex.getIndexVersion(db, scope);
+  const needsVersionUpgrade = existing > 0 && storedVersion < folderSizeIndex.CURRENT_INDEX_VERSION;
+  const rebuild = config.folderSize.rebuild || needsVersionUpgrade;
   if (existing > 0 && !rebuild) {
-    log('info', 'Baseline skipped (volume already indexed)', { folders: existing });
+    log('info', 'Baseline skipped (volume already indexed)', {
+      folders: existing,
+      indexVersion: storedVersion,
+    });
     return;
   }
   if (rebuild && existing > 0) {
     folderSizeIndex.removeSubtree(db, scope, scope.root);
-    log('info', 'Rebuild requested — cleared existing index', { folders: existing });
+    log('info', 'Rebuild requested — cleared existing index', {
+      folders: existing,
+      reason: config.folderSize.rebuild ? 'manual' : 'index-version-upgrade',
+      fromVersion: storedVersion,
+      toVersion: folderSizeIndex.CURRENT_INDEX_VERSION,
+    });
   }
   log('info', 'Starting baseline walk', { root: scope.root, mode: config.folderSize.mode });
   const started = Date.now();
   const result = await indexer.runBaseline(db, scope, { mode: config.folderSize.mode });
+  folderSizeIndex.setIndexVersion(db, scope);
   log('info', 'Baseline walk complete', { ...result, ms: Date.now() - started });
 };
 
@@ -225,7 +248,7 @@ const start = () => {
     logger.debug('[folderSizeIndexer] Disabled (FOLDER_SIZE_MODE=off)');
     return;
   }
-  if (running || starting) return;
+  if (running || starting) return readyPromise;
   starting = true;
   stopped = false;
   readyPromise = init().catch((err) => {
@@ -234,6 +257,7 @@ const start = () => {
     throw err;
   });
   readyPromise.catch(() => {});
+  return readyPromise;
 };
 
 const stop = async () => {
@@ -261,6 +285,7 @@ const requestRebuild = () => {
       folderSizeIndex.removeSubtree(db, scope, scope.root);
       log('info', 'Rebuild requested — cleared existing index');
       const result = await indexer.runBaseline(db, scope, { mode: config.folderSize.mode });
+      folderSizeIndex.setIndexVersion(db, scope);
       reclaimMemory();
       log('info', 'Baseline walk complete', { ...result });
     } catch (err) {
