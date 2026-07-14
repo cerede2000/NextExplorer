@@ -47,6 +47,7 @@ export function useFileUploader() {
   const inputRef = ref(null);
   const files = ref([]);
   const uploadTaskIds = new Map();
+  const folderReservationByBatch = new Map();
 
   let lastNotifyAt = 0;
   let lastNotifyKey = '';
@@ -71,6 +72,51 @@ export function useFileUploader() {
 
     const query = params.toString();
     return query ? `${apiBase}/api/upload?${query}` : `${apiBase}/api/upload`;
+  };
+
+  const folderUploadParts = (file) => {
+    const relativePath =
+      file?.meta?.relativePath || file?.data?.webkitRelativePath || file?.name || '';
+    const parts = String(relativePath).split('/').filter(Boolean);
+    return parts.length > 1 ? parts : null;
+  };
+
+  const reserveFolderUploadPaths = async (fileIDs) => {
+    const groups = new Map();
+
+    (Array.isArray(fileIDs) ? fileIDs : []).forEach((fileId) => {
+      const file = uppy?.getFile?.(fileId);
+      const parts = folderUploadParts(file);
+      if (!file || !parts || file.meta?.resolvedRelativePath) return;
+
+      const uploadTo = normalizePath(file.meta?.uploadTo || fileStore.currentPath || '');
+      const uploadBatchId = file.meta?.uploadBatchId || createUploadBatchId();
+      const key = `${uploadTo}\u0000${uploadBatchId}\u0000${parts[0]}`;
+      if (!groups.has(key))
+        groups.set(key, { uploadTo, uploadBatchId, sourceRoot: parts[0], files: [] });
+      groups.get(key).files.push({ file, parts });
+    });
+
+    for (const [key, group] of groups) {
+      let reservation = folderReservationByBatch.get(key);
+      if (!reservation) {
+        reservation = reserveFolderUploadTarget(group.uploadTo, group.sourceRoot);
+        folderReservationByBatch.set(key, reservation);
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const response = await reservation;
+      const targetRoot = response?.targetRoot;
+      if (!targetRoot) throw new Error('The server did not reserve a destination folder.');
+
+      group.files.forEach(({ file, parts }) => {
+        uppy.setFileMeta(file.id, {
+          ...(file.meta || {}),
+          uploadBatchId: group.uploadBatchId,
+          resolvedRelativePath: [targetRoot, ...parts.slice(1)].join('/'),
+        });
+      });
+    }
   };
 
   // A folder upload emits one success event per file. Wait for a short quiet
@@ -452,6 +498,21 @@ export function useFileUploader() {
     });
 
     configureUploadPlugin();
+
+    // DropTarget bypasses the native folder picker. Give every dropped folder
+    // a common batch id, then reserve its destination in the preprocessor below
+    // before XHRUpload or Tus is allowed to start sending bytes.
+    uppy.on('files-added', (addedFiles) => {
+      const batchId = createUploadBatchId();
+      (Array.isArray(addedFiles) ? addedFiles : []).forEach((file) => {
+        const parts = folderUploadParts(file);
+        if (parts && !file.meta?.uploadBatchId) {
+          uppy.setFileMeta(file.id, { ...(file.meta || {}), uploadBatchId: batchId });
+        }
+      });
+    });
+
+    uppy.addPreProcessor(reserveFolderUploadPaths);
 
     // Cookies carry auth; no token headers
     uppy.on('file-added', (file) => {
