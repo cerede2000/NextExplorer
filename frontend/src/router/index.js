@@ -23,6 +23,7 @@ import SharedByMeView from '@/views/SharedByMeView.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFolderScrollStore } from '@/stores/folderScroll';
 import { getVolumes } from '@/api';
 
 const router = createRouter({
@@ -170,7 +171,29 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach(async (to) => {
+const folderPathFromRoute = (route) => {
+  if (route?.name !== 'FolderView') return '';
+  const raw = Array.isArray(route.params?.path)
+    ? route.params.path.join('/')
+    : route.params?.path || '';
+  return String(raw).replace(/^\/+|\/+$/g, '');
+};
+
+const isAncestorFolder = (candidate, current) =>
+  Boolean(candidate && current && current.startsWith(`${candidate}/`));
+
+router.beforeEach(async (to, from) => {
+  const folderScrollStore = useFolderScrollStore();
+  const destinationPath = folderPathFromRoute(to);
+  const sourcePath = folderPathFromRoute(from);
+  if (destinationPath) {
+    if (isAncestorFolder(destinationPath, sourcePath)) {
+      folderScrollStore.permitRestore(destinationPath);
+    } else {
+      folderScrollStore.preventRestore(destinationPath);
+    }
+  }
+
   const auth = useAuthStore();
   const appSettings = useAppSettings();
 
