@@ -60,7 +60,8 @@ RUN addgroup -S appuser && \
 #   ripgrep         – fast file-content search
 #   imagemagick     – HEIC → PNG thumbnail conversion
 #   openssh-client  – optional SSH remote access (terminal only)
-#   unzip           – demo mode sample extraction (downloadSamples.js)
+#   7zip            – archive extraction (zip, 7z, iso, rar*, tar.gz…) and demo
+#                     mode sample extraction; *rar depends on the Alpine build
 #   bash            – entrypoint.sh is a bash script
 #   shadow          – provides usermod/groupmod for UID/GID remapping
 #   curl            – For terminal users
@@ -87,7 +88,7 @@ RUN apk add --no-cache \
       ripgrep \
       imagemagick \
       openssh-client \
-      unzip \
+      7zip \
       bash \
       shadow \
       curl \
