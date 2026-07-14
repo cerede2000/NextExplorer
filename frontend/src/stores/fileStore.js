@@ -35,6 +35,8 @@ export const useFileStore = defineStore('fileStore', () => {
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
   const thumbnailRequests = new Map();
+  let activeBrowseController = null;
+  let browseRequestGeneration = 0;
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
   const selectedItemKeys = computed(() => {
@@ -52,6 +54,11 @@ export const useFileStore = defineStore('fileStore', () => {
   const clearSelection = () => {
     selectedItems.value = [];
   };
+
+  const isAbortError = (error) =>
+    error?.name === 'AbortError' ||
+    (typeof DOMException !== 'undefined' && error?.code === DOMException.ABORT_ERR) ||
+    /aborted/i.test(error?.message || '');
 
   const setSelectionMode = (enabled, options = {}) => {
     selectionMode.value = Boolean(enabled);
@@ -437,6 +444,10 @@ export const useFileStore = defineStore('fileStore', () => {
     const previousItems = Array.isArray(currentPathItems.value) ? currentPathItems.value : [];
 
     const normalizedPath = normalizePath(typeof path === 'string' ? path : currentPath.value);
+    const requestGeneration = ++browseRequestGeneration;
+    activeBrowseController?.abort();
+    const controller = new AbortController();
+    activeBrowseController = controller;
     currentPath.value = normalizedPath;
     clearSelection();
     // When changing folders, exit selection mode (mobile UX).
@@ -446,13 +457,34 @@ export const useFileStore = defineStore('fileStore', () => {
 
     // For share paths, use the dedicated share browse endpoint so that
     // file shares can be treated as virtual one-item directories.
-    if (normalizedPath && normalizedPath.startsWith('share/')) {
-      const segments = normalizedPath.split('/');
-      const shareToken = segments[1];
-      const innerPath = segments.slice(2).join('/');
-      response = await browseShare(shareToken, innerPath);
-    } else {
-      response = await browse(normalizedPath);
+    try {
+      if (normalizedPath && normalizedPath.startsWith('share/')) {
+        const segments = normalizedPath.split('/');
+        const shareToken = segments[1];
+        const innerPath = segments.slice(2).join('/');
+        response = await browseShare(shareToken, innerPath, { signal: controller.signal });
+      } else {
+        response = await browse(normalizedPath, { signal: controller.signal });
+      }
+    } catch (error) {
+      // A newer navigation supersedes this request. Let it finish quietly:
+      // otherwise a rapid folder traversal can surface a stale failure.
+      if (requestGeneration !== browseRequestGeneration && isAbortError(error)) {
+        return null;
+      }
+      throw error;
+    } finally {
+      if (activeBrowseController === controller) {
+        activeBrowseController = null;
+      }
+    }
+
+    // Browsing a deep tree can start several requests before the first one
+    // returns. Ignore an older response even when it raced with abort(), so it
+    // can never overwrite the listing for the route currently in the address
+    // bar and breadcrumb.
+    if (requestGeneration !== browseRequestGeneration) {
+      return null;
     }
 
     // Merge new items into existing list by stable key so that

@@ -95,14 +95,14 @@ async function accessShare(shareToken) {
 /**
  * Browse share contents
  */
-async function browseShare(shareToken, innerPath = '') {
+async function browseShare(shareToken, innerPath = '', options = {}) {
   const normalizedInnerPath = normalizePath(innerPath);
   const encodedPath = encodePath(normalizedInnerPath);
   const endpoint = encodedPath
     ? `/api/share/${shareToken}/browse/${encodedPath}`
     : `/api/share/${shareToken}/browse/`;
 
-  return requestJson(endpoint, { method: 'GET' });
+  return requestJson(endpoint, { method: 'GET', signal: options.signal });
 }
 
 /**
