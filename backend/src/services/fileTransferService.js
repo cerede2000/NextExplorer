@@ -124,7 +124,7 @@ const transferItems = async (items, destination, operation, options = {}) => {
 
     if (operation === 'copy') {
       await copyEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
-      folderSizeHooks.onEntryCopied(targetAbsolute, {
+      await folderSizeHooks.onEntryCopied(targetAbsolute, {
         isDirectory: stats.isDirectory(),
         size: stats.size,
         sourceAbsolutePath: sourceAbsolute,

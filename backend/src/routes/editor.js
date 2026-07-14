@@ -13,6 +13,7 @@ const {
   NotFoundError,
   UnsupportedMediaTypeError,
 } = require('../errors/AppError');
+const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 
@@ -154,7 +155,22 @@ router.put(
     const { absolutePath } = resolved;
 
     await ensureDir(path.dirname(absolutePath));
+    let previousSize = 0;
+    let existed = false;
+    try {
+      const previous = await fs.stat(absolutePath);
+      existed = previous.isFile();
+      previousSize = existed ? previous.size : 0;
+    } catch {
+      // A new file is the expected path.
+    }
     await fs.writeFile(absolutePath, content, { encoding: 'utf-8' });
+    const updated = await fs.stat(absolutePath);
+    if (existed) {
+      await folderSizeHooks.onFileReplaced(absolutePath, previousSize, updated.size);
+    } else {
+      await folderSizeHooks.onFileWritten(absolutePath, updated.size);
+    }
     res.send({ success: true });
   })
 );
