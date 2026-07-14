@@ -25,6 +25,13 @@ const title = computed(() => item.value?.name || t('common.details'));
 const kindLabel = computed(() => (item.value ? getKindLabel(item.value) : ''));
 const indexedFolderSize = computed(() => folderSizeStore.sizeFor(relativePath.value));
 
+const directorySizeLabel = computed(() => {
+  const indexedSize = indexedFolderSize.value?.sizeBytes;
+  if (Number.isFinite(indexedSize)) return formatBytes(indexedSize);
+  const metadataSize = details.value?.directory?.totalSize;
+  return Number.isFinite(metadataSize) ? formatBytes(metadataSize) : '—';
+});
+
 const sizeLabel = computed(() => {
   const it = item.value;
   if (!it) return '';
@@ -319,7 +326,7 @@ onBeforeUnmount(() => {
               <p class="text-neutral-900 dark:text-neutral-100">
                 {{
                   t('info.folderSize', {
-                    size: formatBytes(details.directory.totalSize || 0),
+                    size: directorySizeLabel,
                   })
                 }}
               </p>

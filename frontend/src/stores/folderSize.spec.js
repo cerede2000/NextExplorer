@@ -42,7 +42,10 @@ describe('folderSize store', () => {
     await store.refresh({ force: true, paths: ['A', 'A/B'] });
 
     expect(getFolderSizesBatch).toHaveBeenCalledTimes(1);
-    expect(getFolderSizesBatch).toHaveBeenCalledWith(['A', 'A/B']);
+    expect(getFolderSizesBatch).toHaveBeenCalledWith(['A', 'A/B'], {
+      suppressErrorHandler: true,
+      retryNetworkErrors: true,
+    });
     expect(store.sizeFor('A')).toMatchObject({ sizeBytes: 100, entryCount: 2 });
   });
 
@@ -110,20 +113,21 @@ describe('folderSize store', () => {
     expect(store.sizeFor('A')).toBeNull();
   });
 
-  it('updates one folder immediately after an explicit subtree refresh', async () => {
+  it('queues an explicit subtree refresh without keeping the UI request open', async () => {
     refreshFolderSize.mockResolvedValue({
       path: 'A/External',
-      sizeBytes: 321,
+      sizeBytes: 0,
       entryCount: 4,
       canEnter: true,
       indexed: true,
+      refreshPending: true,
     });
 
     const store = useFolderSizeStore();
     const entry = await store.refreshFolder('A/External');
 
     expect(refreshFolderSize).toHaveBeenCalledWith('A/External');
-    expect(entry).toMatchObject({ sizeBytes: 321, indexed: true });
-    expect(store.sizeFor('A/External')).toMatchObject({ sizeBytes: 321, entryCount: 4 });
+    expect(entry).toMatchObject({ sizeBytes: 0, indexed: true, refreshPending: true });
+    expect(store.sizeFor('A/External')).toMatchObject({ sizeBytes: 0, entryCount: 4 });
   });
 });

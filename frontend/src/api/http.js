@@ -27,7 +27,10 @@ const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs))
 const shouldRetryNetworkError = (method, attempt, options = {}) => {
   if (options.retryNetworkErrors === false) return false;
   if (options.signal?.aborted) return false;
-  if (method !== 'GET' && method !== 'HEAD') return false;
+  // A small number of read-like POST endpoints (batch lookups) are explicitly
+  // marked idempotent by their caller. Retrying those is safe, while writes
+  // remain protected from accidental duplicate operations.
+  if (method !== 'GET' && method !== 'HEAD' && options.retryNetworkErrors !== true) return false;
   return attempt < NETWORK_RETRY_DELAYS_MS.length;
 };
 
@@ -91,11 +94,23 @@ const requestRaw = async (endpoint, options = {}) => {
           continue;
         }
 
+        const targetUrl = buildUrl(endpoint);
+        if (options.suppressErrorHandler) {
+          throw error;
+        }
         const translatedMessage =
           errorHandler?.({
             message: 'Network Error',
-            details:
-              'Failed to connect to server. This is often caused by a PUBLIC_URL/CORS mismatch or a reverse proxy configuration issue.',
+            details: {
+              message:
+                'The browser did not receive a response. Check the endpoint and browser context below before assuming a PUBLIC_URL/CORS issue.',
+              endpoint: targetUrl,
+              method,
+              attempts: attempt + 1,
+              browserOrigin: globalThis.location?.origin || null,
+              browserOnline: globalThis.navigator?.onLine ?? null,
+              nativeMessage: error.message || null,
+            },
           }) || 'Network Error';
         throw new Error(translatedMessage);
       }
