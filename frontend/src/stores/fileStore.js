@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useStorage } from '@vueuse/core';
-import router from '@/router';
 import {
   browse,
   copyItems,
@@ -19,6 +18,7 @@ import {
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFavoritesStore } from '@/stores/favorites';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 
 export const useFileStore = defineStore('fileStore', () => {
   // State
@@ -29,17 +29,11 @@ export const useFileStore = defineStore('fileStore', () => {
   const selectionMode = ref(false);
   const renameState = ref(null);
 
-  const clipboardOperation = ref(null);
-  const deleteOperation = ref(null);
   const favoritesStore = useFavoritesStore();
+  const operationTasksStore = useOperationTasksStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
-  // When true, a finished copy/move re-focuses the pasted entry in its destination
-  // folder (navigating there via the router so the address bar stays in sync).
-  // When false, the current view is left untouched — handy for launching a long
-  // transfer and continuing to browse elsewhere. Persisted across sessions.
-  const repositionAfterTransfer = useStorage('nextExplorer_paste_reposition', true);
   const thumbnailRequests = new Map();
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
@@ -119,131 +113,42 @@ export const useFileStore = defineStore('fileStore', () => {
     cutItems.value = selectedItems.value.map((item) => ({ ...item }));
   };
 
-  // Final name of a copied/moved entry, from its destination-relative path.
-  const transferredBaseName = (relativePath) => {
-    const normalized = normalizePath(relativePath || '');
-    const idx = normalized.lastIndexOf('/');
-    return idx >= 0 ? normalized.slice(idx + 1) : normalized;
-  };
-
-  // Collect the final entry names from a streamed transfer result ({ items:[{ to }] }).
-  const collectTransferredNames = (result, out) => {
-    const items = Array.isArray(result?.items) ? result.items : [];
-    for (const entry of items) {
-      const name = transferredBaseName(entry?.to);
-      if (name) out.push(name);
-    }
-  };
-
-  const selectItemsByName = (names) => {
-    const wanted = new Set((names || []).filter(Boolean));
-    if (wanted.size === 0) return;
-    const matches = currentPathItems.value.filter((it) => it && wanted.has(it.name));
-    if (matches.length > 0) {
-      selectedItems.value = matches;
-    }
-  };
-
-  // Refresh the view (and optionally reposition) once a copy/move settles. The
-  // address bar is driven by the router, so "repositioning" navigates through the
-  // router to keep the URL/breadcrumb in sync with the listing. When repositioning
-  // is disabled we only refresh the folder the user is *currently* viewing (which
-  // always matches the route), so navigating away mid-transfer is never disrupted.
-  const settleAfterTransfer = async (finalDestination, moveSourceParents, pastedNames) => {
-    const userLocation = normalizePath(currentPath.value || '');
-    const onDestination = userLocation === finalDestination;
-
-    if (repositionAfterTransfer.value) {
-      if (onDestination || !finalDestination) {
-        // Already at the destination (or destination is the root, which has no
-        // routable path): refresh in place and highlight the result. The address
-        // bar is already correct, so no navigation is needed.
-        await fetchPathItems(userLocation);
-        selectItemsByName(pastedNames);
-      } else {
-        // Elsewhere (navigated away, or pasted into another folder): navigate to
-        // the destination and select the entry, which also updates the address bar.
-        const firstName = pastedNames[0];
-        router
-          .push({
-            name: 'FolderView',
-            params: { path: finalDestination },
-            ...(firstName ? { query: { select: firstName } } : {}),
-          })
-          .catch(() => {});
-      }
-      return;
-    }
-
-    // Repositioning disabled: leave the user where they are. Refresh only when the
-    // current folder was actually affected (it is the destination, or a move source
-    // that just lost entries) so its listing stays accurate without any view jump.
-    if (onDestination || moveSourceParents.has(userLocation)) {
-      await fetchPathItems(userLocation);
-    }
-  };
-
   const paste = async (targetPath) => {
     const hasTarget = typeof targetPath === 'string' && targetPath.trim().length > 0;
     const destination = normalizePath(hasTarget ? targetPath : currentPath.value || '');
+    const refreshTarget = normalizePath(currentPath.value || '');
 
     const copyPayload = serializeItems(copiedItems.value);
     const movePayload = serializeItems(cutItems.value);
-    const moveSourceParents = new Set(
-      movePayload.map((item) => normalizePath(item.path || ''))
-    );
     const totalCount = copyPayload.length + movePayload.length;
 
-    if (totalCount > 0) {
-      clipboardOperation.value = {
-        type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
-        destination,
-        itemCount: totalCount,
-        startedAt: Date.now(),
-        totalBytes: 0,
-        copiedBytes: 0,
-      };
-    }
-
-    // Fold streamed transfer events into the reactive operation so the progress
-    // bar tracks real bytes copied against the pre-computed total.
-    const onTransferEvent = (event) => {
-      const op = clipboardOperation.value;
-      if (!op || !event) return;
-      if (event.type === 'start') {
-        op.totalBytes = Number(event.totalBytes) || 0;
-        op.copiedBytes = 0;
-      } else if (event.type === 'progress') {
-        if (event.totalBytes != null) op.totalBytes = Number(event.totalBytes) || 0;
-        op.copiedBytes = Number(event.copiedBytes) || 0;
-      }
-    };
+    const operationId =
+      totalCount > 0
+        ? operationTasksStore.startOperation({
+            type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
+            destination,
+            itemCount: totalCount,
+          })
+        : null;
 
     try {
-      const pastedNames = [];
-      let finalDestination = destination;
-
       if (copiedItems.value.length > 0) {
         if (copyPayload.length > 0) {
-          const result = await copyItems(copyPayload, destination, { onEvent: onTransferEvent });
-          collectTransferredNames(result, pastedNames);
-          if (result?.destination != null) finalDestination = normalizePath(result.destination);
+          await copyItems(copyPayload, destination);
         }
         copiedItems.value = [];
       }
 
       if (cutItems.value.length > 0) {
         if (movePayload.length > 0) {
-          const result = await moveItems(movePayload, destination, { onEvent: onTransferEvent });
-          collectTransferredNames(result, pastedNames);
-          if (result?.destination != null) finalDestination = normalizePath(result.destination);
+          await moveItems(movePayload, destination);
         }
         cutItems.value = [];
       }
 
-      await settleAfterTransfer(finalDestination, moveSourceParents, pastedNames);
+      await fetchPathItems(refreshTarget);
     } finally {
-      clipboardOperation.value = null;
+      if (operationId) operationTasksStore.finishOperation(operationId);
     }
   };
 
@@ -251,11 +156,10 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return;
 
-    deleteOperation.value = {
+    const operationId = operationTasksStore.startOperation({
       type: 'delete',
       itemCount: payload.length,
-      startedAt: Date.now(),
-    };
+    });
 
     try {
       await deleteItems(payload);
@@ -263,7 +167,7 @@ export const useFileStore = defineStore('fileStore', () => {
       await favoritesStore.loadFavorites();
       await fetchPathItems(currentPath.value);
     } finally {
-      deleteOperation.value = null;
+      operationTasksStore.finishOperation(operationId);
     }
   };
 
@@ -331,7 +235,25 @@ export const useFileStore = defineStore('fileStore', () => {
     const normalized = normalizePath(relativePath || '');
     if (!normalized) return null;
 
-    const response = await extractZipApi(normalized);
+    const archiveName = normalized.split('/').pop() || normalized;
+    const operationId = operationTasksStore.startOperation({
+      type: 'extract',
+      name: archiveName,
+      itemCount: 1,
+    });
+
+    let response;
+    try {
+      response = await extractZipApi(normalized, {
+        onEvent: (event) => {
+          if (event?.type === 'progress' && Number.isFinite(event.percent)) {
+            operationTasksStore.updateOperation(operationId, { percent: event.percent });
+          }
+        },
+      });
+    } finally {
+      operationTasksStore.finishOperation(operationId);
+    }
 
     const parent = (() => {
       const idx = normalized.lastIndexOf('/');
@@ -357,7 +279,27 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(selectedItems.value);
     if (payload.length === 0) return null;
 
-    const response = await compressToZipApi(payload, destination, name);
+    const operationId = operationTasksStore.startOperation({
+      type: 'compress',
+      name: typeof name === 'string' && name.trim() ? name.trim() : '',
+      itemCount: payload.length,
+    });
+
+    let response;
+    try {
+      response = await compressToZipApi(payload, destination, name, {
+        onEvent: (event) => {
+          if (event?.type === 'start' && event.name) {
+            operationTasksStore.updateOperation(operationId, { name: event.name });
+          } else if (event?.type === 'progress' && Number.isFinite(event.percent)) {
+            operationTasksStore.updateOperation(operationId, { percent: event.percent });
+          }
+        },
+      });
+    } finally {
+      operationTasksStore.finishOperation(operationId);
+    }
+
     const createdName = response?.item?.name;
 
     await fetchPathItems(destination);
@@ -631,9 +573,6 @@ export const useFileStore = defineStore('fileStore', () => {
     setSelectionMode,
     toggleSelectionMode,
     clearSelection,
-    clipboardOperation,
-    deleteOperation,
-    repositionAfterTransfer,
     copiedItems,
     cutItems,
     hasSelection,

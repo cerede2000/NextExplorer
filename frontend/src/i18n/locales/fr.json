@@ -96,7 +96,7 @@
     "rename": "Renommer",
     "download": "Télécharger",
     "downloadFolder": "Télécharger le dossier",
-    "extractZip": "Extraire ZIP",
+    "extractArchive": "Extraire l'archive",
     "compressToZip": "Compresser en ZIP",
     "search": "Rechercher",
     "sortBy": "Trier par",
@@ -302,7 +302,11 @@
     "copying": "Copie de {count} {items}…",
     "moving": "Déplacement de {count} {items}…",
     "working": "Traitement…",
-    "reposition": "Revenir sur l'élément à la fin"
+    "copyingUnknown": "Copie en cours…",
+    "movingUnknown": "Déplacement en cours…",
+    "activeTasks": "{count} opérations en cours",
+    "extracting": "Extraction de {name}…",
+    "compressing": "Compression de {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Afficher les détails",

@@ -96,7 +96,7 @@
     "rename": "Rename",
     "download": "Download",
     "downloadFolder": "Download folder",
-    "extractZip": "Extract ZIP",
+    "extractArchive": "Extract archive",
     "compressToZip": "Compress to ZIP",
     "search": "Search",
     "sortBy": "Sort by",
@@ -302,7 +302,11 @@
     "copying": "Copying {count} {items}…",
     "moving": "Moving {count} {items}…",
     "working": "Working…",
-    "reposition": "Return to the item when done"
+    "copyingUnknown": "Copying…",
+    "movingUnknown": "Moving…",
+    "activeTasks": "{count} operations in progress",
+    "extracting": "Extracting {name}…",
+    "compressing": "Compressing {name}…"
   },
   "upload": {
     "toggleDetailsShow": "Show details",
