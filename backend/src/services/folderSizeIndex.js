@@ -19,6 +19,11 @@
 const crypto = require('crypto');
 const path = require('path');
 
+// Bump this whenever the indexer gains a capability that older, already
+// populated indexes cannot retroactively provide. The manager performs one
+// cooperative baseline rebuild for each affected volume on upgrade.
+const CURRENT_INDEX_VERSION = 2;
+
 const toPosix = (p) => (p.includes('\\') ? p.split('\\').join('/') : p);
 
 /**
@@ -131,6 +136,24 @@ const listScanTargetsPage = (db, volume, beforeRelativePath, limit) => {
 
 const countByVolume = (db, volume) =>
   prep(db, 'SELECT COUNT(*) AS n FROM folder_size_index WHERE volume = ?').get(volume).n;
+
+const indexVersionKey = (scope) =>
+  `folder_size_index_version:${scope.label}:${pathHash(scope.root)}`;
+
+const getIndexVersion = (db, scope) => {
+  const value = prep(db, 'SELECT value FROM meta WHERE key = ?')
+    .pluck()
+    .get(indexVersionKey(scope));
+  const version = Number(value);
+  return Number.isInteger(version) && version >= 0 ? version : 0;
+};
+
+const setIndexVersion = (db, scope, version = CURRENT_INDEX_VERSION) => {
+  prep(db, 'INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+    indexVersionKey(scope),
+    String(version)
+  );
+};
 
 /**
  * Apply an incremental byte delta to a folder and propagate it up every
@@ -323,6 +346,7 @@ const reparentSubtree = (db, scope, oldAbsolutePath, newAbsolutePath) => {
 };
 
 module.exports = {
+  CURRENT_INDEX_VERSION,
   pathHash,
   relativeOf,
   isWithinRoot,
@@ -330,6 +354,8 @@ module.exports = {
   getByAbsolutePath,
   listScanTargetsPage,
   countByVolume,
+  getIndexVersion,
+  setIndexVersion,
   applyDelta,
   upsertScanEntry,
   bulkUpsertScanEntries,
