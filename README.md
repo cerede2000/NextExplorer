@@ -135,7 +135,7 @@ services:
       # ONLYOFFICE_URL: "" # Public URL for OnlyOffice Document Server (must reach your app's `PUBLIC_URL`).
       # ONLYOFFICE_SECRET: "" # JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice`.
       # ONLYOFFICE_LANG: "en" # Language code for the editor UI.
-      # ONLYOFFICE_FORCE_SAVE: "false" # When `true`, OnlyOffice forces users to save via the editor UI.
+      # ONLYOFFICE_FORCE_SAVE: "false" # When `true`, the OnlyOffice Save button writes the current version immediately.
       # ONLYOFFICE_FILE_EXTENSIONS: "" # Extra file extensions to surface to the Document Server.
       # FFMPEG_PATH: "" # Point to a custom ffmpeg binary (defaults to bundled binary).
       # FFPROBE_PATH: "" # Point to a custom ffprobe binary (defaults to bundled binary).
