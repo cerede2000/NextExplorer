@@ -9,7 +9,7 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useOperationTasksStore } from '@/stores/operationTasks';
-import { apiBase, normalizePath } from '@/api';
+import { apiBase, normalizePath, reserveFolderUploadTarget } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
 import DropTarget from '@uppy/drop-target';
 
@@ -65,7 +65,7 @@ export function useFileUploader() {
     const meta = file?.meta || {};
     const params = new URLSearchParams();
 
-    ['uploadTo', 'relativePath', 'uploadBatchId'].forEach((key) => {
+    ['uploadTo', 'relativePath', 'resolvedRelativePath', 'uploadBatchId'].forEach((key) => {
       if (typeof meta[key] === 'string' && meta[key]) params.set(key, meta[key]);
     });
 
@@ -272,7 +272,14 @@ export function useFileUploader() {
       uppy.use(Tus, {
         endpoint: `${apiBase}/api/upload/tus`,
         chunkSize: uploadSettings.chunkSizeBytes,
-        allowedMetaFields: ['name', 'type', 'uploadTo', 'relativePath', 'uploadBatchId'],
+        allowedMetaFields: [
+          'name',
+          'type',
+          'uploadTo',
+          'relativePath',
+          'resolvedRelativePath',
+          'uploadBatchId',
+        ],
         removeFingerprintOnSuccess: true,
         storeFingerprintForResuming: false,
         // Resume a dropped chunk a few times before giving up. The browser File is
@@ -651,7 +658,7 @@ export function useFileUploader() {
 
       setDialogAttributes(options);
 
-      inputRef.value.onchange = (e) => {
+      inputRef.value.onchange = async (e) => {
         removeCompletedUploadFiles();
 
         const selectedFiles = Array.from(e.target.files || []).filter(
@@ -659,7 +666,40 @@ export function useFileUploader() {
         );
 
         const uploadBatchId = createUploadBatchId();
-        files.value = selectedFiles.map((file) => uppyFile(file, { uploadBatchId }));
+        const firstRelativePath = selectedFiles[0]?.webkitRelativePath || '';
+        const sourceRoot = firstRelativePath.split('/').filter(Boolean)[0] || '';
+        let targetRoot = '';
+
+        if (options.directory && selectedFiles.length > 0 && !sourceRoot) {
+          notifyErrorOnce('Your browser did not provide the selected folder structure.');
+          e.target.value = '';
+          resolve();
+          return;
+        }
+
+        if (options.directory && selectedFiles.length > 0) {
+          try {
+            const reservation = await reserveFolderUploadTarget(fileStore.currentPath, sourceRoot);
+            targetRoot = reservation?.targetRoot || '';
+            if (!targetRoot) throw new Error('The server did not reserve a destination folder.');
+          } catch (err) {
+            notifyErrorOnce(err?.message || 'Unable to reserve the destination folder.');
+            e.target.value = '';
+            resolve();
+            return;
+          }
+        }
+
+        files.value = selectedFiles.map((file) => {
+          const relativePath = file.webkitRelativePath || file.name;
+          const parts = relativePath.split('/').filter(Boolean);
+          const resolvedRelativePath =
+            targetRoot && parts.length > 0 ? [targetRoot, ...parts.slice(1)].join('/') : '';
+          return uppyFile(file, {
+            uploadBatchId,
+            ...(resolvedRelativePath ? { resolvedRelativePath } : {}),
+          });
+        });
         files.value.forEach((file) => uppy.addFile(file));
 
         // Reset the input so the same file can be selected again if needed

@@ -4,16 +4,43 @@ const fs = require('fs/promises');
 
 const { createUploadMiddleware } = require('../services/uploadService');
 const { handleTusUpload } = require('../services/tusUploadService');
+const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
 const { normalizeRelativePath } = require('../utils/pathUtils');
+const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
-const { ValidationError } = require('../errors/AppError');
+const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 const upload = createUploadMiddleware();
 
 router.all('/upload/tus*', handleTusUpload);
+
+router.post(
+  '/upload/folder-session',
+  asyncHandler(async (req, res) => {
+    const uploadTo = normalizeRelativePath(req.body?.uploadTo || '');
+    const sourceRoot = req.body?.sourceRoot;
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { allowed, accessInfo, resolved } = await authorizeAndResolve(
+      context,
+      uploadTo,
+      ACTIONS.upload
+    );
+
+    if (!allowed || !resolved) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Cannot upload files to this path.');
+    }
+
+    const targetRoot = await reserveFolderUploadTarget({
+      destinationRoot: resolved.absolutePath,
+      sourceRoot,
+      context,
+    });
+    res.status(201).json({ targetRoot });
+  })
+);
 
 router.post(
   '/upload',
