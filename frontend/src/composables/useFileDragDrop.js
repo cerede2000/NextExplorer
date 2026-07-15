@@ -10,7 +10,6 @@ import { useOperationTasksStore } from '@/stores/operationTasks';
 // composable instance handles dragover. Keep the preview state module-wide so
 // Option/Alt can still update the same drag image in either destination.
 let activeDragImage = null;
-let activeCopyBadge = null;
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -101,9 +100,9 @@ export function useFileDragDrop() {
     event.dataTransfer.setData('application/json', dragData);
     // Safari is inconsistent about exposing custom types during dragover/drop, so add a fallback.
     event.dataTransfer.setData('text/plain', dragData);
-    // Keep the native cursor in move mode. The actual copy behavior is decided
-    // by Option/Alt when dropping, while the application preview shows the +.
-    event.dataTransfer.effectAllowed = 'move';
+    // Let the browser negotiate the copy operation too. This is the only
+    // reliable way to keep macOS and the terminal drop event in agreement.
+    event.dataTransfer.effectAllowed = 'copyMove';
 
     const copy = isCopyModifierPressed(event);
     activeDragImage = {
@@ -117,7 +116,7 @@ export function useFileDragDrop() {
     // it lets the browser animate the preview back to its source on a cancelled
     // drag, which is smoother than recreating the complete card ourselves.
     createNativeDragImage(event, activeDragImage);
-    updateDragPreviewOperation(event, copy);
+    activeDragImage = { ...activeDragImage, copy };
   };
 
   /**
@@ -199,59 +198,12 @@ export function useFileDragDrop() {
     // Preserve the original native cursor anchor.
     event.dataTransfer.setDragImage(dragImage, -10, 10);
 
-    const previewWidth = dragImage.getBoundingClientRect().width;
-    activeDragImage = {
-      ...activeDragImage,
-      previewWidth: previewWidth > 0 ? previewWidth : 200,
-    };
-
     window.setTimeout(() => dragImage.remove(), 100);
   };
 
-  const clearCopyBadge = () => {
-    activeCopyBadge?.remove();
-    activeCopyBadge = null;
-  };
-
-  const positionCopyBadge = (event) => {
-    const x = Number(event?.clientX);
-    const y = Number(event?.clientY);
-    if (!activeCopyBadge || !Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) {
-      return;
-    }
-
-    // The native preview is composited above page elements. Keep the dynamic
-    // badge just outside it so the browser never partially masks the +.
-    const previewWidth = Number(activeDragImage?.previewWidth) || 200;
-    activeCopyBadge.style.transform = `translate3d(${x + previewWidth + 10}px, ${y - 2}px, 0)`;
-  };
-
-  const updateCopyBadge = (event, copy) => {
-    if (!copy) {
-      clearCopyBadge();
-      return;
-    }
-
-    if (!activeCopyBadge) {
-      activeCopyBadge = document.createElement('div');
-      activeCopyBadge.className = 'file-drag-copy-badge file-drag-copy-overlay';
-      activeCopyBadge.textContent = '+';
-      document.body.appendChild(activeCopyBadge);
-    }
-    positionCopyBadge(event);
-  };
-
-  const updateDragPreviewOperation = (event, copy) => {
+  const updateDragOperation = (copy) => {
     if (!activeDragImage) return;
     activeDragImage = { ...activeDragImage, copy };
-    updateCopyBadge(event, copy);
-  };
-
-  const handleDragMove = (event) => {
-    if (!canDragDrop() || !activeDragImage) return;
-    // Chromium may report altKey as false on source-side drag events. The
-    // operation itself is therefore updated only by destination dragover.
-    if (activeDragImage.copy) positionCopyBadge(event);
   };
 
   /**
@@ -267,10 +219,8 @@ export function useFileDragDrop() {
 
     event.preventDefault();
     const copy = isCopyModifierPressed(event);
-    // Avoid the macOS copy cursor. The green badge in the preview remains the
-    // sole operation indicator and the drop still performs a copy when Alt is held.
-    event.dataTransfer.dropEffect = 'move';
-    updateDragPreviewOperation(event, copy);
+    event.dataTransfer.dropEffect = copy ? 'copy' : 'move';
+    updateDragOperation(copy);
 
     // Store the target folder for drag leave/drop handling
     dragOverTarget.value = targetFolder;
@@ -318,11 +268,12 @@ export function useFileDragDrop() {
     event.preventDefault();
     event.stopPropagation();
 
-    // Chrome can omit altKey from the terminal drop event. Keep the state that
-    // was observed during dragover so Option/Alt reliably selects copy.
-    const copy = activeDragImage?.copy === true || isCopyModifierPressed(event);
-    updateDragPreviewOperation(event, copy);
-    clearCopyBadge();
+    // Chromium can omit altKey from the terminal drop event. Prefer the native
+    // negotiated operation, then the operation seen during dragover.
+    const copy =
+      event.dataTransfer.dropEffect === 'copy' ||
+      activeDragImage?.copy === true ||
+      isCopyModifierPressed(event);
     activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
@@ -433,7 +384,6 @@ export function useFileDragDrop() {
   };
 
   const handleDragEnd = () => {
-    clearCopyBadge();
     activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
@@ -456,7 +406,6 @@ export function useFileDragDrop() {
     isDraggingOver,
     canDragDrop,
     handleDragStart,
-    handleDragMove,
     handleDragOver,
     handleDragLeave,
     handleDrop,
