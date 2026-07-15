@@ -1,7 +1,5 @@
 import { ref } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
-import { useVolumeUsageStore } from '@/stores/volumeUsage';
-import { useFolderSizeStore } from '@/stores/folderSize';
 import { copyItems, moveItems, normalizePath } from '@/api';
 import { useInputMode } from '@/composables/useInputMode';
 import { useOperationTasksStore } from '@/stores/operationTasks';
@@ -17,8 +15,6 @@ let activeDragImage = null;
  */
 export function useFileDragDrop() {
   const fileStore = useFileStore();
-  const volumeUsageStore = useVolumeUsageStore();
-  const folderSizeStore = useFolderSizeStore();
   const operationTasksStore = useOperationTasksStore();
   const { isTouchDevice } = useInputMode();
   const isDraggingOver = ref(false);
@@ -370,13 +366,9 @@ export function useFileDragDrop() {
 
       // Refresh the current path to show the changes
       await fileStore.fetchPathItems(fileStore.currentPath);
-      volumeUsageStore.scheduleRefresh();
-      folderSizeStore.scheduleRefresh();
     } catch (error) {
       if (error?.name === 'AbortError' || /aborted/i.test(error?.message || '')) {
         await fileStore.fetchPathItems(fileStore.currentPath);
-        volumeUsageStore.scheduleRefresh();
-        folderSizeStore.scheduleRefresh();
         return;
       }
       console.error(`Failed to ${copy ? 'copy' : 'move'} items:`, error);

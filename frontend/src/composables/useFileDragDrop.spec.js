@@ -4,8 +4,6 @@ import { ref } from 'vue';
 const copyItems = vi.fn();
 const moveItems = vi.fn();
 const fetchPathItems = vi.fn();
-const scheduleUsageRefresh = vi.fn();
-const scheduleFolderRefresh = vi.fn();
 const startOperation = vi.fn(() => 'operation-test');
 const updateOperation = vi.fn();
 const finishOperation = vi.fn();
@@ -23,12 +21,6 @@ vi.mock('@/api', () => ({
 }));
 
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
-vi.mock('@/stores/volumeUsage', () => ({
-  useVolumeUsageStore: () => ({ scheduleRefresh: scheduleUsageRefresh }),
-}));
-vi.mock('@/stores/folderSize', () => ({
-  useFolderSizeStore: () => ({ scheduleRefresh: scheduleFolderRefresh }),
-}));
 vi.mock('@/stores/operationTasks', () => ({
   useOperationTasksStore: () => ({ startOperation, updateOperation, finishOperation }),
 }));
@@ -64,8 +56,6 @@ describe('useFileDragDrop', () => {
     copyItems.mockReset();
     moveItems.mockReset();
     fetchPathItems.mockReset();
-    scheduleUsageRefresh.mockReset();
-    scheduleFolderRefresh.mockReset();
     startOperation.mockClear();
     updateOperation.mockReset();
     finishOperation.mockReset();
