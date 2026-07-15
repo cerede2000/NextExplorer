@@ -27,18 +27,23 @@ const title = computed(() => {
   return `${formatBytes(used.value)} / ${formatBytes(total.value)} (${percentLabel.value}) · ${formatBytes(free.value)}`;
 });
 
-const barGradient = computed(() => {
+const progressColors = computed(() => {
   const pct = percentUsed.value;
   if (pct >= 92) {
-    return 'linear-gradient(90deg, #ef4444 0%, #e11d48 100%)';
+    return ['#ef4444', '#e11d48'];
   }
   if (pct >= 84) {
-    return 'linear-gradient(90deg, #fb923c 0%, #ef4444 100%)';
+    return ['#fb923c', '#ef4444'];
   }
   if (pct >= 72) {
-    return 'linear-gradient(90deg, #fde047 0%, #f59e0b 55%, #fb923c 100%)';
+    return ['#fde047', '#fb923c'];
   }
-  return 'linear-gradient(90deg, #22d3ee 0%, #0ea5e9 55%, #3b82f6 100%)';
+  return ['#22d3ee', '#3b82f6'];
+});
+
+const barGradient = computed(() => {
+  const [start, end] = progressColors.value;
+  return `linear-gradient(90deg, ${start} 0%, ${end} 100%)`;
 });
 
 const fillStyle = computed(() => {
@@ -49,40 +54,87 @@ const fillStyle = computed(() => {
 });
 
 const showUsage = computed(() => total.value > 0);
+const donutFillStyle = computed(() => ({
+  strokeDasharray: `${percentUsed.value} 100`,
+  stroke: progressColors.value[1],
+}));
+
+// The label is centered in the track. Its background changes once the filled
+// portion reaches the center, so choose a color for that actual surface.
+const percentLabelClass = computed(() => {
+  if (percentUsed.value < 50) {
+    return 'text-neutral-900 dark:text-white';
+  }
+  return percentUsed.value >= 92 ? 'text-white' : 'text-neutral-900';
+});
 </script>
 
 <template>
   <div class="min-w-0 select-none" :title="title">
     <div
-      v-if="loading && !showUsage"
-      class="overflow-hidden rounded-md bg-neutral-200 dark:bg-neutral-700"
-      :class="compact ? 'h-1.5' : 'h-2.5'"
+      v-if="compact && loading && !showUsage"
+      class="h-[1.38rem] w-[1.38rem] shrink-0 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-700"
+    ></div>
+
+    <div
+      v-else-if="compact && showUsage"
+      class="relative grid h-[1.38rem] w-[1.38rem] shrink-0 place-items-center"
+      :aria-label="title"
+    >
+      <svg class="h-full w-full -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
+        <circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          stroke-width="4"
+          class="stroke-neutral-200 dark:stroke-neutral-700"
+        />
+        <circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          pathLength="100"
+          stroke-linecap="round"
+          stroke-width="4"
+          :style="donutFillStyle"
+        />
+      </svg>
+      <span class="absolute text-[0.5rem] font-semibold leading-none tabular-nums text-neutral-700 dark:text-neutral-200">
+        {{ percentLabel }}
+      </span>
+    </div>
+
+    <div
+      v-else-if="loading && !showUsage"
+      class="h-2.5 overflow-hidden rounded-md bg-neutral-200 dark:bg-neutral-700"
     >
       <div class="h-full w-1/2 animate-pulse bg-neutral-300 dark:bg-neutral-600"></div>
     </div>
 
     <template v-else-if="showUsage">
-      <div class="flex items-center gap-2" :class="compact ? 'mb-1' : 'mb-1.5'">
+      <div class="mb-1.5 flex items-center gap-2">
         <div
-          class="relative min-w-0 flex-1 overflow-hidden rounded-md bg-neutral-200/90 shadow-inner ring-1 ring-black/5 dark:bg-neutral-700/80 dark:ring-white/10"
-          :class="compact ? 'h-1.5' : 'h-3'"
+          class="relative h-3 min-w-0 flex-1 overflow-hidden rounded-md bg-neutral-200/90 shadow-inner ring-1 ring-black/5 dark:bg-neutral-700/80 dark:ring-white/10"
         >
           <div
-            class="h-full rounded-md shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
-            :class="compact ? '' : 'transition-[width] duration-500 ease-out'"
+            class="h-full rounded-md shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-[width] duration-500 ease-out"
             :style="fillStyle"
           ></div>
           <span
             v-if="percentInside"
-            class="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold leading-none text-neutral-900 tabular-nums"
+            :class="[
+              'absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold leading-none tabular-nums',
+              percentLabelClass,
+            ]"
           >
             {{ percentLabel }}
           </span>
         </div>
         <span
           v-if="!percentInside"
-          class="shrink-0 tabular-nums font-medium text-neutral-600 dark:text-neutral-300"
-          :class="compact ? 'text-[0.65rem]' : 'text-xs'"
+          class="shrink-0 text-xs font-medium tabular-nums text-neutral-600 dark:text-neutral-300"
         >
           {{ percentLabel }}
         </span>
