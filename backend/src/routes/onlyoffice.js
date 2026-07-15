@@ -600,7 +600,6 @@ router.post(
             status,
             forceSaveType: body.forcesavetype,
             forceSaveRequestId,
-            size: updated.size,
           },
           'ONLYOFFICE file updated'
         );
