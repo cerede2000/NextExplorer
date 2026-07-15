@@ -51,7 +51,6 @@ const listDirectoryItems = async ({
   parentLogicalPath,
   context,
   thumbsEnabled,
-  excludeDownloadArtifacts = false,
   includeHiddenFiles = false,
   itemExtras = null,
   permissionRules = null,
@@ -73,10 +72,7 @@ const listDirectoryItems = async ({
 
   const filtered = entries
     .filter((name) => !excludedFiles.includes(name))
-    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name))
-    .filter((name) =>
-      excludeDownloadArtifacts ? path.extname(name).toLowerCase() !== '.download' : true
-    );
+    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name));
 
   const items = await mapWithConcurrency(filtered, LIST_DIRECTORY_CONCURRENCY, async (name) => {
     const filePath = path.join(absoluteDir, name);

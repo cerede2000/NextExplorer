@@ -47,6 +47,31 @@ describe('Directory listing service', () => {
     expect(items.map((item) => item.name).sort()).toEqual(['visible.txt']);
   });
 
+  it('treats temporary download artifacts as configurable hidden files', async () => {
+    const { envContext, listDirectoryItems } = await createContext();
+    currentEnv = envContext;
+
+    await fs.writeFile(path.join(envContext.volumeDir, 'visible.txt'), 'visible');
+    await fs.writeFile(path.join(envContext.volumeDir, 'video.mkv.download'), 'temporary');
+
+    const hiddenItems = await listDirectoryItems({
+      absoluteDir: envContext.volumeDir,
+      parentLogicalPath: '',
+      context: { user: { id: 'admin', roles: ['admin'] } },
+      thumbsEnabled: false,
+    });
+    expect(hiddenItems.map((item) => item.name)).toEqual(['visible.txt']);
+
+    const allItems = await listDirectoryItems({
+      absoluteDir: envContext.volumeDir,
+      parentLogicalPath: '',
+      context: { user: { id: 'admin', roles: ['admin'] } },
+      thumbsEnabled: false,
+      includeHiddenFiles: true,
+    });
+    expect(allItems.map((item) => item.name).sort()).toEqual(['video.mkv.download', 'visible.txt']);
+  });
+
   it('hides configured prefix patterns', async () => {
     const { envContext, listDirectoryItems } = await createContext({
       HIDDEN_FILE_PATTERNS: '.,@',

@@ -854,7 +854,8 @@ router.get(
     // Determine thumbnail settings
     const settings = await getSettings();
     const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
-    const thumbsEnabled = env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
+    const thumbsEnabled =
+      env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
 
     // Directory share or navigating inside a directory share
@@ -870,7 +871,6 @@ router.get(
         parentLogicalPath: resolved.relativePath,
         context,
         thumbsEnabled,
-        excludeDownloadArtifacts: false,
         includeHiddenFiles,
         permissionRules: settings?.access?.rules || [],
         shareCache,

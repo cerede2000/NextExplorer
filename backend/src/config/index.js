@@ -11,7 +11,8 @@ const parseCommaOrSpaceList = (raw) => {
   return parts.map((s) => s.trim()).filter(Boolean);
 };
 
-const DEFAULT_HIDDEN_FILE_PATTERNS = ['.'];
+// Keep temporary download artifacts under the same configurable policy as other hidden files.
+const DEFAULT_HIDDEN_FILE_PATTERNS = ['.', 'regex:\\.download$'];
 
 const parseRegexPattern = (token) => {
   if (token.startsWith('regex:')) {
