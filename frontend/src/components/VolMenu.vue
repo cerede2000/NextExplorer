@@ -107,7 +107,10 @@ const openPersonal = () => {
           >
             <ServerIcon class="mt-px h-7 shrink-0" />
             <div class="flex h-7 min-w-0 flex-1 flex-col justify-between gap-1">
-              <span class="w-full min-w-0 truncate !text-left leading-none" style="text-align: left">
+              <span
+                class="w-full min-w-0 truncate !text-left leading-none"
+                style="text-align: left"
+              >
                 {{ volume.name }}
               </span>
               <VolumeUsageBar
