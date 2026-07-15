@@ -25,7 +25,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFolderScrollStore } from '@/stores/folderScroll';
-import { getVolumes } from '@/api';
+import { getGuestSessionShareToken, getVolumes } from '@/api';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -147,6 +147,12 @@ const router = createRouter({
       meta: { requiresAuth: true, allowGuest: true },
       children: [
         {
+          path: 'share/:token/:sharedPath(.*)*',
+          name: 'SharedEditor',
+          component: EditorView,
+          meta: { sharedEditor: true },
+        },
+        {
           path: ':path(.*)',
           component: EditorView,
         },
@@ -212,11 +218,19 @@ router.beforeEach(async (to, from) => {
   // Allow guest access for share paths (check if path starts with share/)
   const isGuestRoute = Boolean(to.meta?.allowGuest);
   const pathParam = typeof to.params?.path === 'string' ? to.params.path : '';
-  const isSharePath = pathParam.startsWith('share/');
+  const shareToken =
+    to.name === 'SharedEditor'
+      ? typeof to.params?.token === 'string'
+        ? to.params.token
+        : ''
+      : pathParam.startsWith('share/')
+        ? pathParam.split('/')[1]
+        : '';
 
-  if (isGuestRoute && isSharePath) {
+  if (isGuestRoute && shareToken) {
     // Check for guest session OR authenticated user
     const guestSessionId = sessionStorage.getItem('guestSessionId');
+    const guestSessionShareToken = getGuestSessionShareToken();
 
     // Initialize auth if needed to check authentication status
     if (!auth.hasStatus && !auth.isLoading) {
@@ -226,15 +240,16 @@ router.beforeEach(async (to, from) => {
     }
 
     // Allow if user is authenticated OR has guest session
-    if (auth.isAuthenticated || guestSessionId) {
+    if (auth.isAuthenticated || (guestSessionId && guestSessionShareToken === shareToken)) {
       return true;
     }
 
     // No guest session and not authenticated - redirect to share login
-    const shareToken = pathParam.split('/')[1];
-    if (shareToken) {
-      return { name: 'ShareLogin', params: { token: shareToken } };
-    }
+    return {
+      name: 'ShareLogin',
+      params: { token: shareToken },
+      query: { redirect: to.fullPath },
+    };
   }
 
   // Initialize auth store

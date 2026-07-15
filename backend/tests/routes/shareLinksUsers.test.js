@@ -18,6 +18,7 @@ beforeAll(async () => {
       'src/middleware/errorHandler',
       'src/routes/auth',
       'src/routes/shares',
+      'src/services/textEditorService',
     ],
   });
 });
@@ -66,7 +67,7 @@ const buildApp = () => {
 
 describe('Share Links for Specific Users', () => {
   describe('User-Specific Share Access', () => {
-    it('should allow /api/share/:token/access when logged in as recipient', async () => {
+    it('should restrict the shared editor to the intended recipient', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const app = buildApp();
 
@@ -83,6 +84,13 @@ describe('Share Links for Specific Users', () => {
         email: 'recipient@example.com',
         username: 'recipient',
         displayName: 'Recipient',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      const outsider = await usersService.createLocalUser({
+        email: 'outsider@example.com',
+        username: 'outsider',
+        displayName: 'Outsider',
         password: 'secret123',
         roles: ['user'],
       });
@@ -122,6 +130,19 @@ describe('Share Links for Specific Users', () => {
       expect(access.status).toBe(200);
       expect(access.body?.share?.shareToken).toBe(token);
       expect(access.body?.share?.sourcePath).toBe(`share/${token}`);
+
+      const editor = await recipientAgent.get(`/api/share/${token}/editor/hello.txt`);
+      expect(editor.status).toBe(200);
+      expect(editor.body).toMatchObject({ name: 'hello.txt', content: 'hello' });
+
+      const outsiderAgent = request.agent(app);
+      const outsiderLogin = await outsiderAgent
+        .post('/api/auth/login')
+        .send({ email: outsider.email, password: 'secret123' });
+      expect(outsiderLogin.status).toBe(200);
+
+      const forbidden = await outsiderAgent.get(`/api/share/${token}/editor/hello.txt`);
+      expect(forbidden.status).toBe(403);
     });
   });
 });
