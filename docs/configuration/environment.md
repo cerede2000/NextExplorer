@@ -4,14 +4,14 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Server & networking
 
-| Variable                                         | Default                                         | Description                                                                                                             |
-| ------------------------------------------------ | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                       |
-| `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads). |
-| `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).   |
+| Variable                                         | Default                                         | Description                                                                                                                                                                                                                                 |
+| ------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                           | `3000`                                          | Port the Express API and frontend listen on inside the container.                                                                                                                                                                           |
+| `HTTP_TIMEOUT`                                   | `0`                                             | Node.js HTTP `requestTimeout` (ms). Use `0` to disable (avoids the Node 5-minute default that can abort large uploads).                                                                                                                     |
+| `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).                                                                                                                       |
 | `INTERNAL_URL`                                   | _none_                                          | Additional origin(s) the app may also be reached from (e.g. a LAN IP for fast local uploads), comma-separated. Treated as valid (no public-URL mismatch warning) and accepted by CORS; `PUBLIC_URL` stays canonical for share links / OIDC. |
-| `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                           |
-| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                 |
+| `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                                                                                                                                               |
+| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                                                                                                                                     |
 
 ## Logging & debugging
 
@@ -23,13 +23,13 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Paths & volumes
 
-| Variable                 | Default                           | Description                                                                                                                                      |
-| ------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VOLUME_ROOT`            | `/mnt`                            | Root directory that houses all mounted volumes.                                                                                                  |
-| `CONFIG_DIR`             | `/config`                         | Location for SQLite, `app-config.json`, extensions, and settings.                                                                                |
-| `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                    |
-| `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                           |
-| `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`). |
+| Variable                 | Default                           | Description                                                                                                                                                                                                                                                                                                               |
+| ------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VOLUME_ROOT`            | `/mnt`                            | Root directory that houses all mounted volumes.                                                                                                                                                                                                                                                                           |
+| `CONFIG_DIR`             | `/config`                         | Location for SQLite, `app-config.json`, extensions, and settings.                                                                                                                                                                                                                                                         |
+| `CACHE_DIR`              | `/cache`                          | Location for thumbnails, ripgrep indexes, and temporary data.                                                                                                                                                                                                                                                             |
+| `USER_ROOT`              | `<VOLUME_ROOT>/_users` when unset | Root directory for **per-user personal folders**. Each authenticated user gets their own subdirectory under this path.                                                                                                                                                                                                    |
+| `USER_FOLDER_NAME_ORDER` | `id,username,email_local`         | Controls how per-user folder names are derived for personal folders (e.g. set `username,id` to reuse `/home/<username>` when `USER_ROOT=/home`).                                                                                                                                                                          |
 | `HIDDEN_FILE_PATTERNS`   | `.`                               | Comma- or space-separated hidden filename patterns used by directory listings, volume pickers, and search. Plain values are fast filename prefixes, e.g. `.,@` hides dotfiles and Synology `@...` entries. Advanced entries can use `regex:<source>` or `/source/flags`. Set to an empty value to disable pattern hiding. |
 
 ## Authentication
@@ -85,18 +85,18 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 
 ## OnlyOffice & thumbnails
 
-| Variable                      | Default            | Description                                                                                                                             |
-| ----------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `ONLYOFFICE_URL`              | _none_             | Public URL for Document Server (must reach your app's `PUBLIC_URL`).                                                                    |
-| `ONLYOFFICE_SECRET`           | _none_             | JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice` calls.                                                          |
-| `ONLYOFFICE_LANG`             | `en`               | Language code for the editor UI.                                                                                                        |
-| `ONLYOFFICE_FORCE_SAVE`       | `false`            | When true, OnlyOffice forces users to save via the editor UI.                                                                           |
-| `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS` | `30000`         | Minimum delay between background force-saves of changed documents. Set to `0` to save only on close; values are clamped to `300000`.    |
-| `ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS` | `10000`         | Bounded retry window for the background save started when closing a document; closing the editor remains immediate.                    |
-| `ONLYOFFICE_FILE_EXTENSIONS`  | _default list_     | Extra file extensions to surface to the Document Server.                                                                                |
-| `FFMPEG_PATH`, `FFPROBE_PATH` | _bundled binaries_ | Point to custom ffmpeg/ffprobe if the bundle doesn't suit your needs.                                                                   |
-| `FFMPEG_HWACCEL`              | _none_             | Optional ffmpeg `-hwaccel` value used for video thumbnail generation when supported by your ffmpeg build (e.g. `vaapi`, `qsv`, `cuda`). |
-| `FFMPEG_HWACCEL_DEVICE`       | _none_             | Optional ffmpeg `-hwaccel_device` value used with `FFMPEG_HWACCEL` (e.g. `0` or `/dev/dri/renderD128`).                                 |
+| Variable                           | Default            | Description                                                                                                                             |
+| ---------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `ONLYOFFICE_URL`                   | _none_             | Public URL for Document Server (must reach your app's `PUBLIC_URL`).                                                                    |
+| `ONLYOFFICE_SECRET`                | _none_             | JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice` calls.                                                          |
+| `ONLYOFFICE_LANG`                  | `en`               | Language code for the editor UI.                                                                                                        |
+| `ONLYOFFICE_FORCE_SAVE`            | `false`            | When true, OnlyOffice forces users to save via the editor UI.                                                                           |
+| `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS` | `30000`            | Minimum delay between background force-saves of changed documents. Set to `0` to save only on close; values are clamped to `300000`.    |
+| `ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS` | `10000`            | Bounded retry window for the background save started when closing a document; closing the editor remains immediate.                     |
+| `ONLYOFFICE_FILE_EXTENSIONS`       | _default list_     | Extra file extensions to surface to the Document Server.                                                                                |
+| `FFMPEG_PATH`, `FFPROBE_PATH`      | _bundled binaries_ | Point to custom ffmpeg/ffprobe if the bundle doesn't suit your needs.                                                                   |
+| `FFMPEG_HWACCEL`                   | _none_             | Optional ffmpeg `-hwaccel` value used for video thumbnail generation when supported by your ffmpeg build (e.g. `vaapi`, `qsv`, `cuda`). |
+| `FFMPEG_HWACCEL_DEVICE`            | _none_             | Optional ffmpeg `-hwaccel_device` value used with `FFMPEG_HWACCEL` (e.g. `0` or `/dev/dri/renderD128`).                                 |
 
 ## Collabora (WOPI)
 
