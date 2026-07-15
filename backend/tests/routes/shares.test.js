@@ -632,6 +632,7 @@ describe('Shares Routes', () => {
         `/api/share/${create.body.shareToken}/editor/Analyze-FileServerData.ps1`
       );
       expect(friendly.status).toBe(200);
+      expect(friendly.body.path).toBe('');
 
       const write = await request(publicApp)
         .put(`/api/share/${create.body.shareToken}/editor`)
