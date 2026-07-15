@@ -208,10 +208,7 @@ onBeforeUnmount(() => {
               @end="handleReorderEnd"
             >
               <template #item="{ element: favorite }">
-                <div
-                  class="group/item relative mb-3 flex items-center gap-2 favorite-drag-handle"
-                  :class="isFavoriteDragTarget(favorite) ? 'rounded-lg ring-2 ring-offset-1 dark:ring-offset-zinc-900' : ''"
-                >
+                <div class="group/item relative mb-3 flex items-center gap-2 favorite-drag-handle">
                   <Bars3Icon
                     v-if="isEditMode"
                     class="h-4 w-4 shrink-0 cursor-grab text-neutral-400 group-hover/item:text-white dark:text-neutral-500 dark:group-hover/item:text-neutral-100 transition-colors duration-150"
@@ -229,9 +226,9 @@ onBeforeUnmount(() => {
                         ? 'text-neutral-950 dark:text-white'
                         : 'text-neutral-950 dark:text-neutral-300/90',
                       isFavoriteCopyTarget(favorite)
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 ring-emerald-500 dark:ring-emerald-400'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 ring-2 ring-inset ring-emerald-500 dark:ring-emerald-400'
                         : isFavoriteDragTarget(favorite)
-                          ? 'bg-blue-50 dark:bg-blue-950/40 ring-blue-500 dark:ring-blue-400'
+                          ? 'bg-blue-50 dark:bg-blue-950/40 ring-2 ring-inset ring-blue-500 dark:ring-blue-400'
                           : '',
                     ]"
                   >
