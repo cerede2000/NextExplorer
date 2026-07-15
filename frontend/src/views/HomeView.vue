@@ -82,7 +82,7 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="quickAccess.length"
-        class="grid grid-cols-[repeat(auto-fit,minmax(14rem,14rem))] gap-3"
+        class="grid grid-cols-[repeat(auto-fit,minmax(15.5rem,15.5rem))] gap-5"
       >
         <button
           v-for="fav in quickAccess"
@@ -90,14 +90,16 @@ const openPersonal = () => {
           type="button"
           :title="fav.label"
           @click="handleOpenFavorite(fav)"
-          class="flex items-center gap-3 py-4 rounded-md cursor-pointer select-none text-neutral-700 dark:text-neutral-300"
+          class="flex w-full items-center gap-3 rounded-md py-3 text-left text-neutral-700 select-none dark:text-neutral-300"
         >
-          <component
-            :is="fav.iconComponent"
-            class="h-12 shrink-0"
-            :style="{ color: fav.color || 'currentColor' }"
-          />
-          <div class="text-sm text-left break-all line-clamp-2 rounded-md px-2 -mx-2">
+          <div class="flex h-16 w-16 shrink-0 items-center">
+            <component
+              :is="fav.iconComponent"
+              class="h-12 shrink-0"
+              :style="{ color: fav.color || 'currentColor' }"
+            />
+          </div>
+          <div class="min-w-0 text-left text-sm break-all line-clamp-2">
             {{ fav.label }}
           </div>
         </button>
@@ -116,14 +118,14 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="!loading"
-        class="grid grid-cols-[repeat(auto-fit,minmax(14rem,14rem))] items-start gap-3"
+        class="grid grid-cols-[repeat(auto-fit,minmax(15.5rem,15.5rem))] items-start gap-5"
       >
         <button
           v-for="vol in volumes"
           :key="vol.name"
           type="button"
           @click="openItem(vol)"
-          class="grid w-fit max-w-full grid-cols-[4rem_minmax(0,9rem)] items-start gap-x-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
+          class="grid w-full max-w-full grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 rounded-lg py-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
         >
           <IconDrive class="h-16 shrink-0" />
           <div class="flex w-full min-w-0 flex-col items-stretch gap-2 pt-1">
