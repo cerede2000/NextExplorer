@@ -24,8 +24,9 @@ describe('Hidden files config', () => {
     });
 
     const config = requireFreshConfig();
-    expect(config.hiddenFiles.patterns).toEqual(['.']);
+    expect(config.hiddenFiles.patterns).toEqual(['.', 'regex:\\.download$']);
     expect(config.hiddenFiles.isHiddenName('.env')).toBe(true);
+    expect(config.hiddenFiles.isHiddenName('video.mp4.download')).toBe(true);
     expect(config.hiddenFiles.isHiddenName('visible.txt')).toBe(false);
   });
 

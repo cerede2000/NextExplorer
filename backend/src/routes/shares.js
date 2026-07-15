@@ -867,7 +867,6 @@ router.get(
         parentLogicalPath: resolved.relativePath,
         context,
         thumbsEnabled,
-        excludeDownloadArtifacts: false,
         includeHiddenFiles,
         permissionRules: settings?.access?.rules || [],
         shareCache,

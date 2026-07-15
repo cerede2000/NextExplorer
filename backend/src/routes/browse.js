@@ -46,7 +46,6 @@ router.get(
       parentLogicalPath: relativePath,
       context,
       thumbsEnabled,
-      excludeDownloadArtifacts: true,
       includeHiddenFiles,
       permissionRules: settings?.access?.rules || [],
     });

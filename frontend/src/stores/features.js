@@ -8,7 +8,7 @@ export const useFeaturesStore = defineStore('features', () => {
   // Every origin the app may legitimately be reached from (public + internal).
   const publicOrigins = ref([]);
   const editorExtensions = ref([]);
-  const hiddenFilePatterns = ref(['.']);
+  const hiddenFilePatterns = ref(['.', 'regex:\\.download$']);
   const onlyofficeEnabled = ref(false);
   const onlyofficeExtensions = ref([]);
   const collaboraEnabled = ref(false);
@@ -58,7 +58,7 @@ export const useFeaturesStore = defineStore('features', () => {
         // Hidden file patterns
         hiddenFilePatterns.value = Array.isArray(features?.hiddenFiles?.patterns)
           ? features.hiddenFiles.patterns
-          : ['.'];
+          : ['.', 'regex:\\.download$'];
 
         // OnlyOffice
         onlyofficeEnabled.value = Boolean(features?.onlyoffice?.enabled);
@@ -102,7 +102,7 @@ export const useFeaturesStore = defineStore('features', () => {
         publicOrigin.value = '';
         publicOrigins.value = [];
         editorExtensions.value = [];
-        hiddenFilePatterns.value = ['.'];
+        hiddenFilePatterns.value = ['.', 'regex:\\.download$'];
         onlyofficeEnabled.value = false;
         onlyofficeExtensions.value = [];
         collaboraEnabled.value = false;
