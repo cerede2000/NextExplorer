@@ -2,8 +2,9 @@ import { ref } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
-import { moveItems, normalizePath } from '@/api';
+import { copyItems, moveItems, normalizePath } from '@/api';
 import { useInputMode } from '@/composables/useInputMode';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -13,9 +14,11 @@ export function useFileDragDrop() {
   const fileStore = useFileStore();
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
+  const operationTasksStore = useOperationTasksStore();
   const { isTouchDevice } = useInputMode();
   const isDraggingOver = ref(false);
   const dragOverTarget = ref(null);
+  const dragOperation = ref('move');
 
   const isExternalFileDrag = (event) => {
     const types = event?.dataTransfer?.types;
@@ -42,6 +45,10 @@ export function useFileDragDrop() {
       }));
 
   const resolveFolderDestination = (targetFolder) => {
+    if (targetFolder?.destinationPath) {
+      return normalizePath(targetFolder.destinationPath);
+    }
+
     if (!targetFolder || !targetFolder.name) {
       return normalizePath(fileStore.currentPath || '');
     }
@@ -57,6 +64,10 @@ export function useFileDragDrop() {
   const canDragDrop = () => {
     return !isTouchDevice.value;
   };
+
+  // Option on macOS and Alt on Windows/Linux both set altKey. Copy is kept as
+  // a modifier rather than a persistent mode, matching Finder and Explorer.
+  const isCopyModifierPressed = (event) => Boolean(event?.altKey);
 
   /**
    * Handle drag start on a file/folder item
@@ -84,13 +95,12 @@ export function useFileDragDrop() {
     event.dataTransfer.setData('application/json', dragData);
     // Safari is inconsistent about exposing custom types during dragover/drop, so add a fallback.
     event.dataTransfer.setData('text/plain', dragData);
-    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.effectAllowed = 'copyMove';
 
     // Create custom drag image with badge
     createDragImage(event, itemsToDrag, item);
   };
 
-  /**
   /**
    * Create a custom drag image with a badge showing the number of items
    * @param {DragEvent} event - The drag event
@@ -178,10 +188,12 @@ export function useFileDragDrop() {
     if (!isInternalMoveDrag(event)) return;
 
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    const copy = isCopyModifierPressed(event);
+    event.dataTransfer.dropEffect = copy ? 'copy' : 'move';
 
     // Store the target folder for drag leave/drop handling
     dragOverTarget.value = targetFolder;
+    dragOperation.value = copy ? 'copy' : 'move';
     isDraggingOver.value = true;
   };
 
@@ -202,8 +214,9 @@ export function useFileDragDrop() {
     const y = event.clientY;
 
     if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-      if (dragOverTarget.value === targetFolder) {
+      if (isDragTarget(targetFolder)) {
         dragOverTarget.value = null;
+        dragOperation.value = 'move';
         isDraggingOver.value = false;
       }
     }
@@ -224,14 +237,22 @@ export function useFileDragDrop() {
     event.preventDefault();
     event.stopPropagation();
 
+    const copy = isCopyModifierPressed(event) || event.dataTransfer.dropEffect === 'copy';
     isDraggingOver.value = false;
     dragOverTarget.value = null;
+    dragOperation.value = 'move';
 
     // Get the dragged items from dataTransfer
-    const dragData = event.dataTransfer.getData('application/json');
+    const dragData =
+      event.dataTransfer.getData('application/json') || event.dataTransfer.getData('text/plain');
     if (!dragData) return;
 
-    const draggedItems = JSON.parse(dragData);
+    let draggedItems;
+    try {
+      draggedItems = JSON.parse(dragData);
+    } catch {
+      return;
+    }
     if (!Array.isArray(draggedItems) || draggedItems.length === 0) return;
 
     // Get the destination path (target folder's full relative path)
@@ -261,20 +282,67 @@ export function useFileDragDrop() {
     }
 
     try {
-      // Prepare payload for moveItems API
-      const movePayload = serializeItems(draggedItems);
-      if (movePayload.length === 0) return;
+      const transferPayload = serializeItems(draggedItems);
+      if (transferPayload.length === 0) return;
 
-      // Call the moveItems API
-      await moveItems(movePayload, destination);
+      const controller = new AbortController();
+      const operationId = operationTasksStore.startOperation({
+        type: copy ? 'copy' : 'move',
+        destination,
+        itemCount: transferPayload.length,
+        cancellable: true,
+        cancel: () => controller.abort(),
+      });
+
+      const onTransferEvent = (streamEvent) => {
+        if (!streamEvent) return;
+        if (streamEvent.type === 'start') {
+          operationTasksStore.updateOperation(operationId, {
+            totalBytes: Number(streamEvent.totalBytes) || 0,
+            copiedBytes: 0,
+          });
+        } else if (streamEvent.type === 'progress') {
+          operationTasksStore.updateOperation(operationId, {
+            ...(streamEvent.totalBytes != null
+              ? { totalBytes: Number(streamEvent.totalBytes) || 0 }
+              : {}),
+            copiedBytes: Number(streamEvent.copiedBytes) || 0,
+            ...(streamEvent.percent != null
+              ? { percent: Number(streamEvent.percent) || 0 }
+              : {}),
+          });
+        }
+      };
+
+      try {
+        const transfer = copy ? copyItems : moveItems;
+        await transfer(transferPayload, destination, {
+          signal: controller.signal,
+          onEvent: onTransferEvent,
+        });
+      } finally {
+        operationTasksStore.finishOperation(operationId);
+      }
 
       // Refresh the current path to show the changes
       await fileStore.fetchPathItems(fileStore.currentPath);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
     } catch (error) {
-      console.error('Failed to move items:', error);
+      if (error?.name === 'AbortError' || /aborted/i.test(error?.message || '')) {
+        await fileStore.fetchPathItems(fileStore.currentPath);
+        volumeUsageStore.scheduleRefresh();
+        folderSizeStore.scheduleRefresh();
+        return;
+      }
+      console.error(`Failed to ${copy ? 'copy' : 'move'} items:`, error);
     }
+  };
+
+  const handleDragEnd = () => {
+    isDraggingOver.value = false;
+    dragOverTarget.value = null;
+    dragOperation.value = 'move';
   };
 
   /**
@@ -284,8 +352,10 @@ export function useFileDragDrop() {
    */
   const isDragTarget = (folder) => {
     if (!dragOverTarget.value) return false;
-    return dragOverTarget.value.name === folder.name && dragOverTarget.value.path === folder.path;
+    return resolveFolderDestination(dragOverTarget.value) === resolveFolderDestination(folder);
   };
+
+  const isCopyDragTarget = (folder) => isDragTarget(folder) && dragOperation.value === 'copy';
 
   return {
     isDraggingOver,
@@ -294,6 +364,8 @@ export function useFileDragDrop() {
     handleDragOver,
     handleDragLeave,
     handleDrop,
+    handleDragEnd,
     isDragTarget,
+    isCopyDragTarget,
   };
 }

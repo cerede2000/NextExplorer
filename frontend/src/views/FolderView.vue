@@ -48,7 +48,15 @@ const dropTargetRef = ref(null);
 useUppyDropTarget(dropTargetRef);
 
 const { isTouchDevice } = useInputMode();
-const { handleDragOver, handleDragLeave, handleDrop, isDragTarget } = useFileDragDrop();
+const {
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  handleDragEnd,
+  isDragTarget,
+  isCopyDragTarget,
+} =
+  useFileDragDrop();
 
 const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
@@ -616,15 +624,19 @@ onBeforeUnmount(() => {
             :key="(item.path || '') + '::' + item.name"
             :item="item"
             :view="settings.view"
+            :show-copy-drop-indicator="item.kind === 'directory' && isCopyDragTarget(item)"
             :class="[
               'relative',
               item.kind === 'directory' && isDragTarget(item)
-                ? 'ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                ? isCopyDragTarget(item)
+                  ? 'ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                  : 'ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
                 : '',
             ]"
             @dragover="(e) => item.kind === 'directory' && handleDragOver(e, item)"
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
+            @dragend="handleDragEnd"
           />
 
           <div
