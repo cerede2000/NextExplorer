@@ -305,7 +305,12 @@ async function submitShare() {
     };
 
     if (isEditing.value) {
-      if (passwordDirty.value) {
+      // Passwords apply only to anyone-with-link shares. Clear an old password
+      // when switching to named users so it cannot unexpectedly apply again if
+      // the link is later made public.
+      if (sharingType.value === 'users') {
+        shareData.password = null;
+      } else if (passwordDirty.value) {
         shareData.password = enablePassword.value ? password.value : null;
       }
       const result = await updateShare(props.share.id, shareData);
