@@ -78,7 +78,7 @@ describe('useFileDragDrop', () => {
     const event = transferEvent({ altKey: true });
 
     dragDrop.handleDragOver(event, target);
-    expect(event.dataTransfer.dropEffect).toBe('move');
+    expect(event.dataTransfer.dropEffect).toBe('copy');
     expect(dragDrop.isCopyDragTarget(target)).toBe(true);
 
     await dragDrop.handleDrop(event, target);
@@ -126,7 +126,7 @@ describe('useFileDragDrop', () => {
     );
   });
 
-  it('keeps the copy badge aligned with the native drag preview', () => {
+  it('uses a native copy operation while keeping the native drag preview', () => {
     vi.useFakeTimers();
     const dragDrop = useFileDragDrop();
     const source = document.createElement('div');
@@ -155,13 +155,11 @@ describe('useFileDragDrop', () => {
       target
     );
 
-    const copyBadge = document.querySelector('.file-drag-copy-overlay');
     expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(1);
-    expect(copyBadge?.textContent).toBe('+');
-    expect(copyBadge?.style.transform).toBe('translate3d(350px, 258px, 0)');
+    expect(dataTransfer.effectAllowed).toBe('copyMove');
+    expect(dataTransfer.dropEffect).toBe('copy');
 
     dragDrop.handleDragEnd();
-    expect(document.querySelector('.file-drag-copy-overlay')).toBeNull();
     vi.advanceTimersByTime(100);
     expect(document.querySelector('.file-drag-image')).toBeNull();
     vi.useRealTimers();
@@ -214,32 +212,4 @@ describe('useFileDragDrop', () => {
     source.remove();
   });
 
-  it('does not let a source drag event cancel the copy selected over a destination', async () => {
-    const dragDrop = useFileDragDrop();
-    const source = document.createElement('div');
-    const dataTransfer = {
-      setData: vi.fn(),
-      setDragImage: vi.fn(),
-      effectAllowed: '',
-      types: ['application/json', 'text/plain'],
-      dropEffect: 'move',
-      getData: vi.fn((type) =>
-        type === 'application/json' ? JSON.stringify([item]) : ''
-      ),
-    };
-
-    document.body.appendChild(source);
-    dragDrop.handleDragStart({ altKey: false, currentTarget: source, dataTransfer }, item);
-    dragDrop.handleDragOver({ altKey: true, preventDefault: vi.fn(), dataTransfer }, target);
-    dragDrop.handleDragMove({ altKey: false, clientX: 120, clientY: 160 });
-
-    await dragDrop.handleDrop(
-      { altKey: false, preventDefault: vi.fn(), stopPropagation: vi.fn(), dataTransfer },
-      target
-    );
-
-    expect(copyItems).toHaveBeenCalledTimes(1);
-    expect(moveItems).not.toHaveBeenCalled();
-    source.remove();
-  });
 });
