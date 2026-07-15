@@ -10,6 +10,7 @@ import { useOperationTasksStore } from '@/stores/operationTasks';
 // composable instance handles dragover. Keep the preview state module-wide so
 // Option/Alt can still update the same drag image in either destination.
 let activeDragImage = null;
+let activeDragOverlay = null;
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -110,17 +111,19 @@ export function useFileDragDrop() {
       copy,
     };
 
-    // Create custom drag image with operation and item-count badges.
-    createDragImage(event, activeDragImage);
+    // The browser only applies setDragImage during dragstart. Use a transparent
+    // native image, then keep the visible preview under our own control so the
+    // copy badge can change immediately when Option/Alt is pressed.
+    setNativeDragPlaceholder(event);
+    renderDragOverlay(activeDragImage, event);
   };
 
   /**
-   * Create a custom drag image with a badge showing the number of items
-   * @param {DragEvent} event - The drag event
+   * Build the visible drag preview with operation and item-count badges.
    * @param {Object} state - Source items, primary item and active operation
    */
-  const createDragImage = (event, state) => {
-    if (typeof event?.dataTransfer?.setDragImage !== 'function' || !state) return;
+  const buildDragPreview = (state) => {
+    if (!state) return null;
 
     const { items, primaryItem, sourceEl, copy } = state;
     const count = items.length;
@@ -190,22 +193,51 @@ export function useFileDragDrop() {
     badge.textContent = count.toString();
     badges.appendChild(badge);
     dragImage.appendChild(badges);
-    document.body.appendChild(dragImage);
-
-    const xOffset = -10;
-    const yOffset = 10;
-
-    event.dataTransfer.setDragImage(dragImage, xOffset, yOffset);
-
-    setTimeout(() => {
-      dragImage.remove();
-    }, 100);
+    return dragImage;
   };
 
-  const updateDragImageOperation = (event, copy) => {
-    if (!activeDragImage || activeDragImage.copy === copy) return;
+  const clearDragOverlay = () => {
+    activeDragOverlay?.remove();
+    activeDragOverlay = null;
+  };
+
+  const positionDragOverlay = (event) => {
+    const x = Number(event?.clientX);
+    const y = Number(event?.clientY);
+    if (!activeDragOverlay || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    activeDragOverlay.style.transform = `translate3d(${x + 12}px, ${y + 12}px, 0)`;
+  };
+
+  const renderDragOverlay = (state, event) => {
+    clearDragOverlay();
+    activeDragOverlay = buildDragPreview(state);
+    if (!activeDragOverlay) return;
+    document.body.appendChild(activeDragOverlay);
+    positionDragOverlay(event);
+  };
+
+  const setNativeDragPlaceholder = (event) => {
+    if (typeof event?.dataTransfer?.setDragImage !== 'function') return;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'file-drag-native-placeholder';
+    document.body.appendChild(placeholder);
+    event.dataTransfer.setDragImage(placeholder, 0, 0);
+    setTimeout(() => placeholder.remove(), 0);
+  };
+
+  const updateDragPreviewOperation = (event, copy) => {
+    if (!activeDragImage) return;
+    if (activeDragImage.copy === copy) {
+      positionDragOverlay(event);
+      return;
+    }
     activeDragImage = { ...activeDragImage, copy };
-    createDragImage(event, activeDragImage);
+    renderDragOverlay(activeDragImage, event);
+  };
+
+  const handleDragMove = (event) => {
+    if (!canDragDrop() || !activeDragImage) return;
+    updateDragPreviewOperation(event, isCopyModifierPressed(event));
   };
 
   /**
@@ -222,7 +254,7 @@ export function useFileDragDrop() {
     event.preventDefault();
     const copy = isCopyModifierPressed(event);
     event.dataTransfer.dropEffect = copy ? 'copy' : 'move';
-    updateDragImageOperation(event, copy);
+    updateDragPreviewOperation(event, copy);
 
     // Store the target folder for drag leave/drop handling
     dragOverTarget.value = targetFolder;
@@ -271,7 +303,9 @@ export function useFileDragDrop() {
     event.stopPropagation();
 
     const copy = isCopyModifierPressed(event) || event.dataTransfer.dropEffect === 'copy';
-    updateDragImageOperation(event, copy);
+    updateDragPreviewOperation(event, copy);
+    clearDragOverlay();
+    activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
     dragOperation.value = 'move';
@@ -374,6 +408,7 @@ export function useFileDragDrop() {
   };
 
   const handleDragEnd = () => {
+    clearDragOverlay();
     activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
@@ -396,6 +431,7 @@ export function useFileDragDrop() {
     isDraggingOver,
     canDragDrop,
     handleDragStart,
+    handleDragMove,
     handleDragOver,
     handleDragLeave,
     handleDrop,
