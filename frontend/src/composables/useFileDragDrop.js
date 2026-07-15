@@ -220,11 +220,10 @@ export function useFileDragDrop() {
       return;
     }
 
-    // setDragImage(-10, 10) places the preview at x + 10, y - 10. Its count
-    // bubble sits at the upper-right corner; this positions the copy badge
-    // immediately to its left without replacing the native preview.
+    // The native preview is composited above page elements. Keep the dynamic
+    // badge just outside it so the browser never partially masks the +.
     const previewWidth = Number(activeDragImage?.previewWidth) || 200;
-    activeCopyBadge.style.transform = `translate3d(${x + previewWidth - 46}px, ${y - 14}px, 0)`;
+    activeCopyBadge.style.transform = `translate3d(${x + previewWidth + 10}px, ${y - 2}px, 0)`;
   };
 
   const updateCopyBadge = (event, copy) => {
@@ -250,7 +249,9 @@ export function useFileDragDrop() {
 
   const handleDragMove = (event) => {
     if (!canDragDrop() || !activeDragImage) return;
-    updateDragPreviewOperation(event, isCopyModifierPressed(event));
+    // Chromium may report altKey as false on source-side drag events. The
+    // operation itself is therefore updated only by destination dragover.
+    if (activeDragImage.copy) positionCopyBadge(event);
   };
 
   /**
