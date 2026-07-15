@@ -10,8 +10,7 @@ import { useOperationTasksStore } from '@/stores/operationTasks';
 // composable instance handles dragover. Keep the preview state module-wide so
 // Option/Alt can still update the same drag image in either destination.
 let activeDragImage = null;
-let activeDragOverlay = null;
-let dragDropHandled = false;
+let activeCopyBadge = null;
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -113,23 +112,22 @@ export function useFileDragDrop() {
       sourceEl: event.currentTarget,
       copy,
     };
-    dragDropHandled = false;
 
-    // The browser only applies setDragImage during dragstart. Use a transparent
-    // native image, then keep the visible preview under our own control so the
-    // copy badge can change immediately when Option/Alt is pressed.
-    setNativeDragPlaceholder(event);
-    renderDragOverlay(activeDragImage, event);
+    // Keep the native preview. Besides matching the familiar cursor placement,
+    // it lets the browser animate the preview back to its source on a cancelled
+    // drag, which is smoother than recreating the complete card ourselves.
+    createNativeDragImage(event, activeDragImage);
+    updateDragPreviewOperation(event, copy);
   };
 
   /**
-   * Build the visible drag preview with operation and item-count badges.
+   * Build the native drag preview with its item-count badge.
    * @param {Object} state - Source items, primary item and active operation
    */
   const buildDragPreview = (state) => {
     if (!state) return null;
 
-    const { items, primaryItem, sourceEl, copy } = state;
+    const { items, primaryItem, sourceEl } = state;
     const count = items.length;
     const dragImage = document.createElement('div');
     dragImage.className = 'file-drag-image';
@@ -184,67 +182,70 @@ export function useFileDragDrop() {
     }
 
     dragImage.appendChild(stack);
-    const badges = document.createElement('div');
-    badges.className = 'file-drag-badges';
-    if (copy) {
-      const copyBadge = document.createElement('div');
-      copyBadge.className = 'file-drag-copy-badge';
-      copyBadge.textContent = '+';
-      badges.appendChild(copyBadge);
-    }
     const badge = document.createElement('div');
     badge.className = 'file-drag-badge';
     badge.textContent = count.toString();
-    badges.appendChild(badge);
-    dragImage.appendChild(badges);
+    dragImage.appendChild(badge);
     return dragImage;
   };
 
-  const clearDragOverlay = () => {
-    activeDragOverlay?.remove();
-    activeDragOverlay = null;
+  const createNativeDragImage = (event, state) => {
+    if (typeof event?.dataTransfer?.setDragImage !== 'function' || !state) return;
+
+    const dragImage = buildDragPreview(state);
+    if (!dragImage) return;
+    document.body.appendChild(dragImage);
+
+    // Preserve the original native cursor anchor.
+    event.dataTransfer.setDragImage(dragImage, -10, 10);
+
+    const previewWidth = dragImage.getBoundingClientRect().width;
+    activeDragImage = {
+      ...activeDragImage,
+      previewWidth: previewWidth > 0 ? previewWidth : 200,
+    };
+
+    window.setTimeout(() => dragImage.remove(), 100);
   };
 
-  const positionDragOverlay = (event) => {
+  const clearCopyBadge = () => {
+    activeCopyBadge?.remove();
+    activeCopyBadge = null;
+  };
+
+  const positionCopyBadge = (event) => {
     const x = Number(event?.clientX);
     const y = Number(event?.clientY);
-    // Some browsers emit a final drag event with 0,0. Do not reveal the
-    // preview there or it flashes in the top-left corner of the viewport.
-    if (!activeDragOverlay || !Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) {
+    if (!activeCopyBadge || !Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) {
       return;
     }
-    // Match the former native drag-image anchor: the pointer stays aligned
-    // with the preview rather than leaving it noticeably below the cursor.
-    activeDragOverlay.style.transform = `translate3d(${x + 10}px, ${y - 10}px, 0)`;
-    activeDragOverlay.style.visibility = 'visible';
+
+    // setDragImage(-10, 10) places the preview at x + 10, y - 10. Its count
+    // bubble sits at the upper-right corner; this positions the copy badge
+    // immediately to its left without replacing the native preview.
+    const previewWidth = Number(activeDragImage?.previewWidth) || 200;
+    activeCopyBadge.style.transform = `translate3d(${x + previewWidth - 46}px, ${y - 14}px, 0)`;
   };
 
-  const renderDragOverlay = (state, event) => {
-    clearDragOverlay();
-    activeDragOverlay = buildDragPreview(state);
-    if (!activeDragOverlay) return;
-    activeDragOverlay.style.visibility = 'hidden';
-    document.body.appendChild(activeDragOverlay);
-    positionDragOverlay(event);
-  };
+  const updateCopyBadge = (event, copy) => {
+    if (!copy) {
+      clearCopyBadge();
+      return;
+    }
 
-  const setNativeDragPlaceholder = (event) => {
-    if (typeof event?.dataTransfer?.setDragImage !== 'function') return;
-    const placeholder = document.createElement('div');
-    placeholder.className = 'file-drag-native-placeholder';
-    document.body.appendChild(placeholder);
-    event.dataTransfer.setDragImage(placeholder, 0, 0);
-    setTimeout(() => placeholder.remove(), 0);
+    if (!activeCopyBadge) {
+      activeCopyBadge = document.createElement('div');
+      activeCopyBadge.className = 'file-drag-copy-badge file-drag-copy-overlay';
+      activeCopyBadge.textContent = '+';
+      document.body.appendChild(activeCopyBadge);
+    }
+    positionCopyBadge(event);
   };
 
   const updateDragPreviewOperation = (event, copy) => {
     if (!activeDragImage) return;
-    if (activeDragImage.copy === copy) {
-      positionDragOverlay(event);
-      return;
-    }
     activeDragImage = { ...activeDragImage, copy };
-    renderDragOverlay(activeDragImage, event);
+    updateCopyBadge(event, copy);
   };
 
   const handleDragMove = (event) => {
@@ -316,10 +317,11 @@ export function useFileDragDrop() {
     event.preventDefault();
     event.stopPropagation();
 
-    const copy = isCopyModifierPressed(event);
+    // Chrome can omit altKey from the terminal drop event. Keep the state that
+    // was observed during dragover so Option/Alt reliably selects copy.
+    const copy = activeDragImage?.copy === true || isCopyModifierPressed(event);
     updateDragPreviewOperation(event, copy);
-    dragDropHandled = true;
-    clearDragOverlay();
+    clearCopyBadge();
     activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
@@ -430,22 +432,8 @@ export function useFileDragDrop() {
   };
 
   const handleDragEnd = () => {
-    if (!dragDropHandled && activeDragOverlay && activeDragImage?.sourceEl) {
-      const overlay = activeDragOverlay;
-      const sourceRect = activeDragImage.sourceEl.getBoundingClientRect();
-      overlay.style.transition = 'transform 140ms ease-out, opacity 140ms ease-out';
-      window.requestAnimationFrame(() => {
-        overlay.style.transform = `translate3d(${sourceRect.left}px, ${sourceRect.top}px, 0) scale(0.85)`;
-        overlay.style.opacity = '0';
-      });
-      window.setTimeout(() => {
-        if (activeDragOverlay === overlay) clearDragOverlay();
-      }, 150);
-    } else {
-      clearDragOverlay();
-    }
+    clearCopyBadge();
     activeDragImage = null;
-    dragDropHandled = false;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
     dragOperation.value = 'move';

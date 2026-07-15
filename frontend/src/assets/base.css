@@ -99,23 +99,11 @@
 
   /* Drag and drop image with badge */
   .file-drag-image {
-    position: fixed;
-    top: 0;
-    left: 0;
+    position: absolute;
+    top: -1000px;
+    left: -1000px;
     z-index: 9999;
     display: inline-block;
-    pointer-events: none;
-    will-change: transform;
-  }
-
-  .file-drag-native-placeholder {
-    position: fixed;
-    top: -1px;
-    left: -1px;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
   }
 
   .file-drag-stack {
@@ -149,6 +137,9 @@
   }
 
   .file-drag-badge {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
     background-color: rgb(37 99 235); /* blue-600 */
     color: white;
     border-radius: 9999px;
@@ -180,14 +171,13 @@
     z-index: 50;
   }
 
-  .file-drag-badges {
-    position: absolute;
-    top: -0.25rem;
-    right: -0.25rem;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+  .file-drag-copy-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    pointer-events: none;
+    will-change: transform;
   }
 }
 
