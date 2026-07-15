@@ -104,6 +104,15 @@ router.post(
       throw new ForbiddenError(parentAccessInfo?.denialReason || 'Destination is read-only.');
     }
 
+    const { allowed: filesAllowed, accessInfo: filesAccessInfo } = await authorizeAndResolve(
+      context,
+      parentRelativePath,
+      ACTIONS.createFile
+    );
+    if (!filesAllowed) {
+      throw new ForbiddenError(filesAccessInfo?.denialReason || 'Destination is read-only.');
+    }
+
     const parentAbsolutePath = parentResolved?.absolutePath;
     if (!parentAbsolutePath) throw new ForbiddenError('Cannot resolve destination folder.');
 
@@ -225,7 +234,7 @@ router.post(
       allowed: destAllowed,
       accessInfo: destAccess,
       resolved: destResolved,
-    } = await authorizeAndResolve(context, normalizedDestination, ACTIONS.write);
+    } = await authorizeAndResolve(context, normalizedDestination, ACTIONS.createFile);
     if (!destAllowed || !destResolved) {
       throw new ForbiddenError(destAccess?.denialReason || 'Destination is read-only.');
     }

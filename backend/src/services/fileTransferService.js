@@ -367,13 +367,18 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     allowed: destAllowed,
     accessInfo: destAccess,
     resolved: destResolved,
-  } = await authorizeAndResolve(context, destinationRelative, ACTIONS.write);
+  } = await authorizeAndResolve(context, destinationRelative, ACTIONS.read);
   if (!destAllowed || !destResolved) {
     throw new Error(destAccess?.denialReason || 'Destination path is not writable.');
   }
 
   const { absolutePath: destinationAbsolute } = destResolved;
   const folderSizeLookup = await getFolderSizeLookup();
+
+  const destinationStats = await fs.stat(destinationAbsolute).catch(() => null);
+  if (!destinationStats?.isDirectory()) {
+    throw new Error('Destination path must be an existing directory.');
+  }
 
   const plans = [];
   let totalBytes = 0;
@@ -426,6 +431,33 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       continue;
     }
 
+    const destinationAction = isDirectory ? ACTIONS.createFolder : ACTIONS.createFile;
+    // eslint-disable-next-line no-await-in-loop
+    const { allowed: createAllowed, accessInfo: createAccess } = await authorizePath(
+      context,
+      destinationRelative,
+      destinationAction
+    );
+    if (!createAllowed) {
+      throw new Error(createAccess?.denialReason || 'Cannot create items in the destination path.');
+    }
+
+    // A copied directory may contain files as well as folders. Do not let the
+    // directory permission become a way around the file creation restriction.
+    if (isDirectory) {
+      // eslint-disable-next-line no-await-in-loop
+      const { allowed: filesAllowed, accessInfo: filesAccess } = await authorizePath(
+        context,
+        destinationRelative,
+        ACTIONS.createFile
+      );
+      if (!filesAllowed) {
+        throw new Error(
+          filesAccess?.denialReason || 'Cannot create files in the destination path.'
+        );
+      }
+    }
+
     const size = isDirectory ? indexedDirectorySize(folderSizeLookup, sourceAbsolute) : stats.size;
     if (Number.isFinite(size)) totalBytes += size;
     else hasUnknownSize = true;
@@ -456,7 +488,10 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   const { signal } = options;
 
   throwIfCancelled(signal);
-  await ensureDir(destinationAbsolute);
+  const destinationStats = await fs.stat(destinationAbsolute).catch(() => null);
+  if (!destinationStats?.isDirectory()) {
+    throw new Error('Destination path no longer exists.');
+  }
 
   const results = [];
   let copiedBytes = 0;

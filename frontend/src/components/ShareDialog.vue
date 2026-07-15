@@ -23,6 +23,7 @@ import {
   GlobeAltIcon,
   UsersIcon,
   CalendarIcon,
+  ChevronDownIcon,
 } from '@heroicons/vue/24/outline';
 
 const { t } = useI18n();
@@ -49,6 +50,11 @@ const selectedUserIds = ref([]);
 const expiresAtDate = ref(null);
 const enableExpiry = ref(false);
 const label = ref('');
+const showAdvancedPermissions = ref(false);
+const allowDelete = ref(true);
+const allowCreateFolder = ref(true);
+const allowCreateFile = ref(true);
+const allowUpload = ref(true);
 
 // UI state
 const isCreating = ref(false);
@@ -127,6 +133,11 @@ function resetForm() {
   expiresAtDate.value = null;
   enableExpiry.value = false;
   label.value = '';
+  showAdvancedPermissions.value = false;
+  allowDelete.value = true;
+  allowCreateFolder.value = true;
+  allowCreateFile.value = true;
+  allowUpload.value = true;
   error.value = '';
   shareResult.value = null;
   linkCopied.value = false;
@@ -238,6 +249,10 @@ async function createShareLink() {
     const shareData = {
       sourcePath: sourcePath.value,
       accessMode: accessMode.value,
+      allowDelete: allowDelete.value,
+      allowCreateFolder: allowCreateFolder.value,
+      allowCreateFile: allowCreateFile.value,
+      allowUpload: allowUpload.value,
       sharingType: sharingType.value,
       password: enablePassword.value ? password.value : null,
       userIds: sharingType.value === 'users' ? selectedUserIds.value : [],
@@ -457,6 +472,61 @@ function closeDialog() {
           >
             {{ t('settings.access.readWrite') }}
           </button>
+        </div>
+      </div>
+
+      <div
+        v-if="isDirectory && accessMode === 'readwrite'"
+        class="rounded-lg border border-zinc-200 dark:border-zinc-700"
+      >
+        <button
+          type="button"
+          class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          :aria-expanded="showAdvancedPermissions"
+          @click="showAdvancedPermissions = !showAdvancedPermissions"
+        >
+          {{ t('share.advancedPermissions', 'Advanced') }}
+          <ChevronDownIcon
+            class="h-4 w-4 transition-transform"
+            :class="showAdvancedPermissions ? 'rotate-180' : ''"
+          />
+        </button>
+        <div
+          v-if="showAdvancedPermissions"
+          class="space-y-2 border-t border-zinc-200 p-3 dark:border-zinc-700"
+        >
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowDelete', 'Allow deleting files') }}</span>
+            <input
+              v-model="allowDelete"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowCreateFolder', 'Allow creating folders') }}</span>
+            <input
+              v-model="allowCreateFolder"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowCreateFile', 'Allow creating files') }}</span>
+            <input
+              v-model="allowCreateFile"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowUpload', 'Allow uploading files and folders') }}</span>
+            <input
+              v-model="allowUpload"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
         </div>
       </div>
 

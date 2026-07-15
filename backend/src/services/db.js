@@ -49,6 +49,23 @@ const FOLDER_SIZE_INDEX_DDL = `
   CREATE INDEX IF NOT EXISTS idx_folder_size_volume ON folder_size_index(volume);
 `;
 
+const ensureShareOperationPermissionColumns = (db) => {
+  addColumnIfMissing(db, 'shares', 'allow_delete', 'allow_delete INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing(
+    db,
+    'shares',
+    'allow_create_folder',
+    'allow_create_folder INTEGER NOT NULL DEFAULT 1'
+  );
+  addColumnIfMissing(
+    db,
+    'shares',
+    'allow_create_file',
+    'allow_create_file INTEGER NOT NULL DEFAULT 1'
+  );
+  addColumnIfMissing(db, 'shares', 'allow_upload', 'allow_upload INTEGER NOT NULL DEFAULT 1');
+};
+
 const migrate = (db) => {
   // Simple schema versioning
   db.exec(`
@@ -268,6 +285,10 @@ const migrate = (db) => {
           source_path TEXT NOT NULL,
           is_directory INTEGER NOT NULL,
           access_mode TEXT NOT NULL CHECK(access_mode IN ('readonly', 'readwrite')),
+          allow_delete INTEGER NOT NULL DEFAULT 1,
+          allow_create_folder INTEGER NOT NULL DEFAULT 1,
+          allow_create_file INTEGER NOT NULL DEFAULT 1,
+          allow_upload INTEGER NOT NULL DEFAULT 1,
           sharing_type TEXT NOT NULL CHECK(sharing_type IN ('anyone', 'users')),
           password_hash TEXT,
           expires_at TEXT,
@@ -412,7 +433,21 @@ const migrate = (db) => {
       );
       version = 9;
     }
+    if (version < 10) {
+      logger.info('[DB Migration] Migrating to v10: Adding granular share write permissions...');
+      ensureShareOperationPermissionColumns(db);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(10)
+      );
+      version = 10;
+    }
   })();
+
+  // A shared /config directory may have its schema version advanced by another
+  // image. Keep additive schema available in this mixed-version case.
+  db.exec(FOLDER_SIZE_INDEX_DDL);
+  ensureShareOperationPermissionColumns(db);
 };
 
 /**

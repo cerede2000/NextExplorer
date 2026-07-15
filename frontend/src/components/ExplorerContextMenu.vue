@@ -91,9 +91,13 @@ const primaryItem = actions.primaryItem;
 const isSingleItemSelected = actions.isSingleItemSelected;
 const canRename = actions.canRename;
 const locationCanWrite = actions.locationCanWrite;
+const locationCanCreateFolder = actions.locationCanCreateFolder;
+const locationCanCreateFile = actions.locationCanCreateFile;
 const locationCanUpload = actions.locationCanUpload;
 const locationCanDelete = actions.locationCanDelete;
-const canAcceptPasteHere = computed(() => locationCanWrite.value || locationCanUpload.value);
+const canAcceptPasteHere = computed(
+  () => locationCanCreateFolder.value || locationCanCreateFile.value
+);
 const isShareDialogOpen = ref(false);
 const itemToShare = ref(null);
 
@@ -496,11 +500,17 @@ const menuSections = computed(() => {
       ),
     ]);
 
-    if (locationCanWrite.value) {
-      sections.push([
-        mk('new-folder', t('actions.newFolder'), CreateNewFolderRound, runCreateFolder),
-        mk('new-file', t('actions.newFile'), InsertDriveFileRound, runCreateFile),
-      ]);
+    const createItems = [];
+    if (locationCanCreateFolder.value) {
+      createItems.push(
+        mk('new-folder', t('actions.newFolder'), CreateNewFolderRound, runCreateFolder)
+      );
+    }
+    if (locationCanCreateFile.value) {
+      createItems.push(mk('new-file', t('actions.newFile'), InsertDriveFileRound, runCreateFile));
+    }
+    if (createItems.length > 0) {
+      sections.push(createItems);
     }
 
     if (canAcceptPasteHere.value) {

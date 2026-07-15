@@ -285,6 +285,10 @@ router.post(
     const {
       sourcePath,
       accessMode = 'readonly',
+      allowDelete = true,
+      allowCreateFolder = true,
+      allowCreateFile = true,
+      allowUpload = true,
       sharingType = 'anyone',
       password,
       userIds,
@@ -356,6 +360,10 @@ router.post(
       sourcePath: sourcePathForDb,
       isDirectory,
       accessMode,
+      allowDelete,
+      allowCreateFolder,
+      allowCreateFile,
+      allowUpload,
       sharingType,
       password,
       userIds: sharingType === 'users' ? userIds : [],
@@ -464,6 +472,10 @@ router.put(
 
     if ('accessMode' in req.body) {
       updates.accessMode = req.body.accessMode;
+    }
+
+    for (const key of ['allowDelete', 'allowCreateFolder', 'allowCreateFile', 'allowUpload']) {
+      if (key in req.body) updates[key] = req.body[key];
     }
 
     if ('sharingType' in req.body) {
@@ -965,6 +977,8 @@ router.get(
             canRead: true,
             canWrite: accessInfo.canWrite,
             canDelete: accessInfo.canDelete,
+            canCreateFolder: accessInfo.canCreateFolder,
+            canCreateFile: accessInfo.canCreateFile,
             canShare: false,
             canDownload: true,
           },
@@ -978,6 +992,8 @@ router.get(
           canWrite: accessInfo.canWrite,
           canUpload: accessInfo.canUpload,
           canDelete: accessInfo.canDelete,
+          canCreateFolder: accessInfo.canCreateFolder,
+          canCreateFile: accessInfo.canCreateFile,
           canShare: false,
           canDownload: accessInfo.canDownload,
         },
@@ -1036,6 +1052,8 @@ router.get(
         canWrite: accessInfo.canWrite,
         canUpload: false,
         canDelete: accessInfo.canDelete,
+        canCreateFolder: false,
+        canCreateFile: false,
         canShare: false,
         canDownload: accessInfo.canDownload,
       },
