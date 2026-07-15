@@ -560,6 +560,7 @@
       "auto": "Auto",
       "inline": "View",
       "raw": "Raw",
+      "editor": "Editor",
       "download": "Download"
     },
     "shareLinkCreatedSuccess": "Share link created successfully!",

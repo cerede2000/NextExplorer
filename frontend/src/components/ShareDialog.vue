@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAppSettings } from '@/stores/appSettings';
+import { isEditableExtension } from '@/config/editor';
 import { calculateExpirationDate } from '@/utils/datetime';
 import ModalDialog from '@/components/ModalDialog.vue';
 import {
@@ -63,13 +64,18 @@ let expiresPicker = null;
 
 // Computed
 const isDirectory = computed(() => props.item?.kind === 'directory');
+const supportsSharedEditor = computed(
+  () => !isDirectory.value && isEditableExtension(props.item?.kind || '')
+);
 const sourcePath = computed(() => {
   if (!props.item) return '';
   const parentPath = props.item.path || '';
   return parentPath ? `${parentPath}/${props.item.name}` : props.item.name;
 });
 const directLinkModeOptions = computed(() =>
-  DIRECT_SHARE_FILE_MODES.map((mode) => ({
+  DIRECT_SHARE_FILE_MODES.filter(
+    (mode) => mode.value !== 'editor' || supportsSharedEditor.value
+  ).map((mode) => ({
     ...mode,
     label: t(mode.labelKey, mode.fallback),
   }))

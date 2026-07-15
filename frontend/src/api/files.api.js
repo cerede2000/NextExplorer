@@ -119,6 +119,17 @@ async function fetchFileContent(path) {
   });
 }
 
+async function fetchSharedFileContent(shareToken, innerPath = '') {
+  const encodedToken = encodeURIComponent(shareToken);
+  const normalizedInnerPath = normalizePath(innerPath);
+  const encodedInnerPath = encodePath(normalizedInnerPath);
+  const endpoint = encodedInnerPath
+    ? `/api/share/${encodedToken}/editor/${encodedInnerPath}`
+    : `/api/share/${encodedToken}/editor`;
+
+  return requestJson(endpoint, { method: 'GET' });
+}
+
 async function saveFileContent(path, content) {
   return requestJson('/api/editor', {
     method: 'PUT',
@@ -266,6 +277,7 @@ export {
   createFolder,
   renameItem,
   fetchFileContent,
+  fetchSharedFileContent,
   saveFileContent,
   getRawFileUrl,
   fetchThumbnail,

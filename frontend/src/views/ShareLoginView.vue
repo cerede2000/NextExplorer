@@ -121,7 +121,7 @@ async function handleAutoAccess() {
 
     if (result.guestSessionId) {
       logger.debug('Setting guest session', result.guestSessionId);
-      setGuestSession(result.guestSessionId);
+      setGuestSession(result.guestSessionId, shareToken.value);
     }
 
     navigateAfterShareAccess();
@@ -149,7 +149,7 @@ async function handlePasswordSubmit() {
     if (result.success) {
       if (result.guestSessionId) {
         logger.debug('Setting guest session', result.guestSessionId);
-        setGuestSession(result.guestSessionId);
+        setGuestSession(result.guestSessionId, shareToken.value);
       }
 
       navigateAfterShareAccess();

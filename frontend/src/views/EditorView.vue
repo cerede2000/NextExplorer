@@ -5,10 +5,10 @@
     >
       <div class="min-w-0">
         <p class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          {{ t('editor.editing') }}
+          {{ isSharedEditor ? t('common.readonly') : t('editor.editing') }}
         </p>
         <h1 class="truncate text-md text-neutral-900 dark:text-white">
-          {{ normalizedPath || '—' }}
+          {{ displayPath || '—' }}
         </h1>
       </div>
       <div class="ml-auto flex items-center gap-2">
@@ -19,9 +19,10 @@
           {{ t('editor.unsavedChanges') }}
         </p>
         <button
+          v-if="!isSharedEditor || sharedCanDownload"
           type="button"
           @click="openRaw"
-          :disabled="isLoading || !normalizedPath"
+          :disabled="isLoading || !displayPath"
           class="rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
           aria-label="Raw"
           title="Raw"
@@ -69,6 +70,7 @@
         </div>
 
         <button
+          v-if="!isSharedEditor"
           type="button"
           @click="saveFile"
           :disabled="!canSave"
@@ -153,8 +155,15 @@ import { ref, shallowRef, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Codemirror } from 'vue-codemirror';
-import { Compartment } from '@codemirror/state';
-import { fetchFileContent, saveFileContent, getRawFileUrl, normalizePath } from '@/api';
+import { Compartment, EditorState } from '@codemirror/state';
+import {
+  fetchFileContent,
+  fetchSharedFileContent,
+  saveFileContent,
+  getRawFileUrl,
+  getDirectShareFileUrl,
+  normalizePath,
+} from '@/api';
 import { EditorView, keymap } from '@codemirror/view';
 import * as themeBundle from '@fsegurai/codemirror-theme-bundle';
 import {
@@ -184,6 +193,8 @@ const themeMenuRef = ref(null);
 const isSettingsMenuOpen = ref(false);
 const settingsMenuRef = ref(null);
 const isLineWrapping = ref(true); // Default to true
+const sharedFileName = ref('');
+const sharedCanDownload = ref(false);
 onClickOutside(themeMenuRef, () => {
   isThemeMenuOpen.value = false;
 });
@@ -209,6 +220,7 @@ const currentThemeLabel = computed(
 const languageComp = new Compartment();
 const themeComp = new Compartment();
 const lineWrappingComp = new Compartment();
+const readOnlyComp = new Compartment();
 const customKeymap = keymap.of([
   {
     key: 'Alt-z',
@@ -223,6 +235,7 @@ const extensions = [
   languageComp.of([]),
   themeComp.of(themeBundle[themeId.value] ?? themeBundle.githubDark),
   lineWrappingComp.of([]),
+  readOnlyComp.of([]),
   customKeymap,
 ];
 
@@ -244,30 +257,61 @@ const normalizedPath = computed(() =>
     Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
   )
 );
+const isSharedEditor = computed(() => route.name === 'SharedEditor');
+const sharedToken = computed(() =>
+  typeof route.params?.token === 'string' ? route.params.token : ''
+);
+const sharedPath = computed(() =>
+  normalizePath(
+    Array.isArray(route.params?.sharedPath)
+      ? route.params.sharedPath.join('/')
+      : route.params?.sharedPath || ''
+  )
+);
+const displayPath = computed(() =>
+  isSharedEditor.value ? sharedFileName.value || sharedPath.value : normalizedPath.value
+);
 const hasUnsavedChanges = computed(() => fileContent.value !== originalContent.value);
 const canSave = computed(
-  () => hasUnsavedChanges.value && !isSaving.value && !isLoading.value && !loadError.value
+  () =>
+    !isSharedEditor.value &&
+    hasUnsavedChanges.value &&
+    !isSaving.value &&
+    !isLoading.value &&
+    !loadError.value
 );
 
 // Operations
-const loadFile = async (path) => {
-  if (!path) return (fileContent.value = '');
+const loadFile = async () => {
+  const requestPath = route.fullPath;
+  const path = normalizedPath.value;
+
+  if (!isSharedEditor.value && !path) {
+    fileContent.value = originalContent.value = '';
+    return;
+  }
 
   isLoading.value = true;
   loadError.value = '';
   saveError.value = '';
+  sharedFileName.value = '';
+  sharedCanDownload.value = false;
 
   try {
-    const { content } = await fetchFileContent(path);
-    if (path !== normalizedPath.value) return; // Stale check
+    const response = isSharedEditor.value
+      ? await fetchSharedFileContent(sharedToken.value, sharedPath.value)
+      : await fetchFileContent(path);
+    if (requestPath !== route.fullPath) return;
 
-    fileContent.value = originalContent.value = content || '';
-    applyLanguage(path);
+    sharedFileName.value = isSharedEditor.value ? response.name || '' : '';
+    sharedCanDownload.value = Boolean(isSharedEditor.value && response.canDownload);
+    fileContent.value = originalContent.value = response.content || '';
+    applyLanguage(sharedFileName.value || path);
   } catch (err) {
-    if (path !== normalizedPath.value) return;
+    if (requestPath !== route.fullPath) return;
     loadError.value = err.message;
   } finally {
-    if (path === normalizedPath.value) isLoading.value = false;
+    if (requestPath === route.fullPath) isLoading.value = false;
   }
 };
 
@@ -286,14 +330,23 @@ const saveFile = async () => {
 };
 
 const openRaw = () => {
-  if (!normalizedPath.value) return;
-  const url = getRawFileUrl(normalizedPath.value);
+  const url = isSharedEditor.value
+    ? getDirectShareFileUrl(sharedToken.value, sharedPath.value, 'raw')
+    : normalizedPath.value
+      ? getRawFileUrl(normalizedPath.value)
+      : '';
+  if (!url) return;
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 const requestClose = () => {
   if (isSaving.value) return;
   if (hasUnsavedChanges.value && !confirm(t('editor.confirmCloseWithoutSaving'))) return;
+
+  if (isSharedEditor.value) {
+    router.replace(`/share/${encodeURIComponent(sharedToken.value)}`);
+    return;
+  }
 
   const parts = normalizedPath.value.split('/').filter(Boolean);
   parts.pop();
@@ -327,6 +380,14 @@ const toggleLineWrapping = () => {
   });
 };
 
+const updateReadOnlyMode = () => {
+  view.value?.dispatch({
+    effects: readOnlyComp.reconfigure(
+      isSharedEditor.value ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
+    ),
+  });
+};
+
 onKeyStroke('Escape', () =>
   isThemeMenuOpen.value ? (isThemeMenuOpen.value = false) : requestClose()
 );
@@ -337,8 +398,12 @@ onKeyStroke(['s', 'S'], (e) => {
   }
 });
 
-watch(normalizedPath, loadFile, { immediate: true });
-watch(view, () => applyLanguage(normalizedPath.value));
+watch([normalizedPath, isSharedEditor, sharedToken, sharedPath], loadFile, { immediate: true });
+watch(view, () => {
+  updateReadOnlyMode();
+  applyLanguage(displayPath.value);
+});
+watch(isSharedEditor, updateReadOnlyMode);
 watch(fileContent, () => {
   if (saveError.value) saveError.value = '';
 });

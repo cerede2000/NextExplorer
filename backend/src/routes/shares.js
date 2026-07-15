@@ -33,6 +33,7 @@ const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
 const logger = require('../utils/logger');
+const { readTextFile } = require('../services/textEditorService');
 
 const router = express.Router();
 
@@ -716,10 +717,13 @@ router.get(
   })
 );
 
-const handleDirectFileRequest = async (req, res) => {
+const resolveSharedFileTarget = async (
+  req,
+  res,
+  { requireDownload = false, allowSharedFileName = false } = {}
+) => {
   const shareToken = req.params.token;
   const rawInnerPath = req.params[0] || '';
-  const mode = normalizeDirectFileMode(req.query?.mode);
   let innerPath = '';
 
   try {
@@ -738,13 +742,19 @@ const handleDirectFileRequest = async (req, res) => {
   }
 
   if (!share.isDirectory && innerPath) {
-    throw new NotFoundError('Path not found');
+    // File shares already identify their target. Permit only its exact name so
+    // friendly editor URLs work without opening arbitrary descendant paths.
+    const targetName = path.basename(share.sourcePath || '');
+    if (!allowSharedFileName || innerPath !== targetName) {
+      throw new NotFoundError('Path not found');
+    }
+    innerPath = '';
   }
 
   if (share.sharingType === 'users') {
     if (!req.user || !req.user.id) {
       redirectToShareAccess(req, res, shareToken);
-      return;
+      return null;
     }
 
     const permitted = await hasUserPermission(share.id, req.user.id);
@@ -759,7 +769,7 @@ const handleDirectFileRequest = async (req, res) => {
     if (share.hasPassword) {
       if (!guestSession || guestSession.shareId !== share.id) {
         redirectToShareAccess(req, res, shareToken);
-        return;
+        return null;
       }
     } else {
       // Public direct file links should work without first visiting the Web UI.
@@ -775,7 +785,7 @@ const handleDirectFileRequest = async (req, res) => {
     !accessInfo ||
     !accessInfo.canAccess ||
     !accessInfo.canRead ||
-    !accessInfo.canDownload ||
+    (requireDownload && !accessInfo.canDownload) ||
     !resolved
   ) {
     throw new ForbiddenError(accessInfo?.denialReason || 'File access not allowed.');
@@ -786,6 +796,14 @@ const handleDirectFileRequest = async (req, res) => {
   }
 
   const stats = await fs.stat(resolved.absolutePath);
+  return { share, innerPath, accessInfo, resolved, stats };
+};
+
+const handleDirectFileRequest = async (req, res) => {
+  const target = await resolveSharedFileTarget(req, res, { requireDownload: true });
+  if (!target) return;
+
+  const { share, resolved, stats } = target;
   if (stats.isDirectory()) {
     await trackShareAccess(share.id);
     await streamResolvedDirectoryZip({
@@ -801,7 +819,13 @@ const handleDirectFileRequest = async (req, res) => {
   }
 
   await trackShareAccess(share.id);
-  await streamResolvedFile({ absolutePath: resolved.absolutePath, stats, mode, req, res });
+  await streamResolvedFile({
+    absolutePath: resolved.absolutePath,
+    stats,
+    mode: normalizeDirectFileMode(req.query?.mode),
+    req,
+    res,
+  });
 };
 
 /**
@@ -812,6 +836,34 @@ const handleDirectFileRequest = async (req, res) => {
  */
 router.get('/:token/file', asyncHandler(handleDirectFileRequest));
 router.get('/:token/file/*', asyncHandler(handleDirectFileRequest));
+
+const handleSharedEditorRequest = async (req, res) => {
+  const target = await resolveSharedFileTarget(req, res, { allowSharedFileName: true });
+  if (!target) return;
+
+  const { share, innerPath, accessInfo, resolved } = target;
+  const { buffer } = await readTextFile(resolved.absolutePath);
+
+  await trackShareAccess(share.id);
+  res.set({
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex',
+  });
+  res.json({
+    name: path.basename(resolved.absolutePath),
+    path: innerPath,
+    content: buffer.toString('utf-8'),
+    canDownload: Boolean(accessInfo.canDownload),
+  });
+};
+
+/**
+ * GET /api/share/:token/editor/* - Read a shared text file for the public,
+ * read-only editor. There is deliberately no write counterpart.
+ */
+router.get('/:token/editor', asyncHandler(handleSharedEditorRequest));
+router.get('/:token/editor/*', asyncHandler(handleSharedEditorRequest));
 
 /**
  * GET /api/share/:token/browse/* - Browse share contents
