@@ -109,6 +109,9 @@ router.post(
     }
 
     const relativePath = normalizeRelativePath(rawPath);
+    if (relativePath.startsWith('share/')) {
+      throw new ForbiddenError('Permissions cannot be changed through a share.');
+    }
     const context = { user: req.user, guestSession: req.guestSession };
     const { allowed, accessInfo, resolved } = await authorizeAndResolve(
       context,
@@ -190,6 +193,9 @@ router.post(
     }
 
     const relativePath = normalizeRelativePath(rawPath);
+    if (relativePath.startsWith('share/')) {
+      throw new ForbiddenError('Ownership cannot be changed through a share.');
+    }
     const context = { user: req.user, guestSession: req.guestSession };
     const { allowed, accessInfo, resolved } = await authorizeAndResolve(
       context,

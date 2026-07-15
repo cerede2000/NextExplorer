@@ -26,8 +26,10 @@ import {
   ArrowDownTrayIcon,
   InformationCircleIcon,
   XMarkIcon,
+  PencilSquareIcon,
 } from '@heroicons/vue/24/outline';
 import FileIcon from '@/icons/FileIcon.vue';
+import ShareDialog from '@/components/ShareDialog.vue';
 
 const { t } = useI18n();
 
@@ -44,6 +46,8 @@ const directLinkModes = ref({});
 const sharePendingDelete = ref(null);
 const isDeleteShareDialogOpen = ref(false);
 const selectedActivityShare = ref(null);
+const isEditShareDialogOpen = ref(false);
+const shareBeingEdited = ref(null);
 const searchQuery = ref('');
 const filterMode = ref('active'); // 'active' | 'expired' | 'all'
 const sortMode = ref('recent'); // 'recent' | 'label'
@@ -243,6 +247,22 @@ const closeDeleteShareDialog = () => {
   sharePendingDelete.value = null;
 };
 
+const openEditShare = (share) => {
+  if (!share?.id) return;
+  shareBeingEdited.value = share;
+  isEditShareDialogOpen.value = true;
+};
+
+const closeEditShareDialog = () => {
+  isEditShareDialogOpen.value = false;
+  shareBeingEdited.value = null;
+};
+
+const handleShareUpdated = async () => {
+  await loadShares();
+  closeEditShareDialog();
+};
+
 const handleCopyLink = async (share) => {
   if (!share?.id || !share?.shareToken) return;
 
@@ -403,8 +423,9 @@ onMounted(async () => {
           <div
             v-for="share in visibleShares"
             :key="share.id"
+            @dblclick="openEditShare(share)"
             :class="[
-              'grid items-center gap-4 px-4 py-2 text-sm rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-colors group',
+              'grid cursor-pointer items-center gap-4 px-4 py-2 text-sm rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-colors group',
               GRID_COLS,
             ]"
           >
@@ -541,6 +562,13 @@ onMounted(async () => {
                 </button>
               </div>
               <button
+                @click.stop="openEditShare(share)"
+                class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                :title="t('share.editShareLink', 'Edit share link')"
+              >
+                <PencilSquareIcon class="w-4 h-4" />
+              </button>
+              <button
                 @click.stop="handleDeleteShare(share)"
                 class="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-neutral-500 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400"
                 :title="t('share.removeShare')"
@@ -552,6 +580,13 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <ShareDialog
+      v-model="isEditShareDialogOpen"
+      :share="shareBeingEdited"
+      @update:model-value="(value) => !value && closeEditShareDialog()"
+      @share-updated="handleShareUpdated"
+    />
 
     <ModalDialog v-model="isDeleteShareDialogOpen">
       <template #title>

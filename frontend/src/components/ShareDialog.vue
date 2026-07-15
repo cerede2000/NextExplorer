@@ -7,6 +7,7 @@ import { calculateExpirationDate } from '@/utils/datetime';
 import ModalDialog from '@/components/ModalDialog.vue';
 import {
   createShare,
+  updateShare,
   copyDirectShareFileUrl,
   copyShareUrl,
   DIRECT_SHARE_FILE_MODES,
@@ -32,9 +33,10 @@ const appSettings = useAppSettings();
 const props = defineProps({
   modelValue: Boolean,
   item: Object, // {name, path, kind}
+  share: Object,
 });
 
-const emit = defineEmits(['update:modelValue', 'shareCreated']);
+const emit = defineEmits(['update:modelValue', 'shareCreated', 'shareUpdated']);
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -46,6 +48,7 @@ const accessMode = ref('readonly');
 const sharingType = ref('anyone');
 const password = ref('');
 const enablePassword = ref(false);
+const passwordDirty = ref(false);
 const selectedUserIds = ref([]);
 const expiresAtDate = ref(null);
 const enableExpiry = ref(false);
@@ -69,11 +72,18 @@ const expiresAtInputRef = ref(null);
 let expiresPicker = null;
 
 // Computed
-const isDirectory = computed(() => props.item?.kind === 'directory');
-const supportsSharedEditor = computed(
-  () => !isDirectory.value && isEditableExtension(props.item?.kind || '')
-);
+const isEditing = computed(() => Boolean(props.share?.id));
+const isDirectory = computed(() => {
+  if (props.share?.isDirectory != null) return Boolean(props.share.isDirectory);
+  return props.item?.kind === 'directory';
+});
+const supportsSharedEditor = computed(() => {
+  const name = props.share?.sourcePath || props.item?.name || '';
+  const extension = name.includes('.') ? name.split('.').pop() : '';
+  return !isDirectory.value && isEditableExtension(extension);
+});
 const sourcePath = computed(() => {
+  if (props.share?.sourcePath) return props.share.sourcePath;
   if (!props.item) return '';
   const parentPath = props.item.path || '';
   return parentPath ? `${parentPath}/${props.item.name}` : props.item.name;
@@ -95,17 +105,25 @@ const directShareUrl = computed(() => {
 watch(isOpen, async (opened) => {
   if (opened) {
     resetForm();
-    if (props.item?.name) {
+    if (isEditing.value) {
+      populateShareForm(props.share);
+    } else if (props.item?.name) {
       label.value = props.item.name;
     }
 
-    // Apply default share expiration if user has one set
-    const defaultExpiration = appSettings.userSettings?.defaultShareExpiration;
-    const expirationDate = calculateExpirationDate(defaultExpiration);
+    if (!isEditing.value) {
+      // Apply the default only to new shares; an existing share must keep its
+      // own expiration unchanged until the owner edits it.
+      const defaultExpiration = appSettings.userSettings?.defaultShareExpiration;
+      const expirationDate = calculateExpirationDate(defaultExpiration);
 
-    if (expirationDate) {
-      enableExpiry.value = true;
-      expiresAtDate.value = expirationDate;
+      if (expirationDate) {
+        enableExpiry.value = true;
+        expiresAtDate.value = expirationDate;
+      }
+    }
+
+    if (enableExpiry.value) {
       await nextTick();
       await initExpiresPicker();
     }
@@ -129,6 +147,7 @@ function resetForm() {
   sharingType.value = 'anyone';
   password.value = '';
   enablePassword.value = false;
+  passwordDirty.value = false;
   selectedUserIds.value = [];
   expiresAtDate.value = null;
   enableExpiry.value = false;
@@ -143,6 +162,32 @@ function resetForm() {
   linkCopied.value = false;
   directLinkCopied.value = false;
   directLinkMode.value = 'auto';
+}
+
+function populateShareForm(share) {
+  accessMode.value = share.accessMode || 'readonly';
+  sharingType.value = share.sharingType || 'anyone';
+  enablePassword.value = Boolean(share.hasPassword);
+  selectedUserIds.value = Array.isArray(share.permittedUserIds) ? [...share.permittedUserIds] : [];
+  label.value = share.label || '';
+  allowDelete.value = share.allowDelete !== false;
+  allowCreateFolder.value = share.allowCreateFolder !== false;
+  allowCreateFile.value = share.allowCreateFile !== false;
+  allowUpload.value = share.allowUpload !== false;
+  showAdvancedPermissions.value =
+    isDirectory.value &&
+    (allowDelete.value === false ||
+      allowCreateFolder.value === false ||
+      allowCreateFile.value === false ||
+      allowUpload.value === false);
+
+  if (share.expiresAt) {
+    const date = new Date(share.expiresAt);
+    if (!Number.isNaN(date.getTime())) {
+      enableExpiry.value = true;
+      expiresAtDate.value = date;
+    }
+  }
 }
 
 function destroyExpiresPicker() {
@@ -216,8 +261,8 @@ function toggleUserSelection(userId) {
   }
 }
 
-async function createShareLink() {
-  if (!sourcePath.value) {
+async function submitShare() {
+  if (!isEditing.value && !sourcePath.value) {
     error.value = t(
       'share.errors.invalidSourcePath',
       'Unable to determine the item path to share.'
@@ -247,19 +292,30 @@ async function createShareLink() {
     error.value = '';
 
     const shareData = {
-      sourcePath: sourcePath.value,
       accessMode: accessMode.value,
       allowDelete: allowDelete.value,
       allowCreateFolder: allowCreateFolder.value,
       allowCreateFile: allowCreateFile.value,
       allowUpload: allowUpload.value,
       sharingType: sharingType.value,
-      password: enablePassword.value ? password.value : null,
       userIds: sharingType.value === 'users' ? selectedUserIds.value : [],
       expiresAt:
         enableExpiry.value && expiresAtDate.value ? expiresAtDate.value.toISOString() : null,
       label: label.value || null,
     };
+
+    if (isEditing.value) {
+      if (passwordDirty.value) {
+        shareData.password = enablePassword.value ? password.value : null;
+      }
+      const result = await updateShare(props.share.id, shareData);
+      emit('shareUpdated', result);
+      closeDialog();
+      return;
+    }
+
+    shareData.sourcePath = sourcePath.value;
+    shareData.password = enablePassword.value ? password.value : null;
 
     const result = await createShare(shareData);
     shareResult.value = result;
@@ -309,11 +365,17 @@ function closeDialog() {
   <ModalDialog v-model="isOpen">
     <template #title>
       <ShareIcon class="w-5 h-5" />
-      {{ shareResult ? t('share.shareCreated') : t('share.createShareLink') }}
+      {{
+        shareResult
+          ? t('share.shareCreated')
+          : isEditing
+            ? t('share.editShareLink', 'Edit share link')
+            : t('share.createShareLink')
+      }}
     </template>
 
     <!-- Share created success view -->
-    <div v-if="shareResult" class="space-y-4">
+    <div v-if="shareResult && !isEditing" class="space-y-4">
       <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
         <div class="flex items-center gap-2 text-green-800 dark:text-green-200">
           <CheckIcon class="w-5 h-5" />
@@ -417,7 +479,7 @@ function closeDialog() {
       </div>
     </div>
 
-    <!-- Share creation form -->
+    <!-- Share creation and editing form -->
     <div v-else class="space-y-4">
       <div
         v-if="error"
@@ -431,7 +493,9 @@ function closeDialog() {
         <div class="text-sm text-gray-500 dark:text-gray-400">
           {{ t('share.sharing') }}
         </div>
-        <div class="font-medium">{{ item?.name }}</div>
+        <div class="font-medium">
+          {{ share?.label || share?.sourcePath?.split('/').filter(Boolean).pop() || item?.name }}
+        </div>
         <div class="text-xs text-gray-500">{{ sourcePath }}</div>
       </div>
 
@@ -597,6 +661,7 @@ function closeDialog() {
           <input
             v-model="enablePassword"
             type="checkbox"
+            @change="passwordDirty = true"
             class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
           <LockClosedIcon class="w-4 h-4" />
@@ -606,6 +671,7 @@ function closeDialog() {
           v-if="enablePassword"
           v-model="password"
           type="password"
+          @input="passwordDirty = true"
           :placeholder="t('share.enterPassword')"
           class="w-full px-3 py-2 text-sm border rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -642,11 +708,17 @@ function closeDialog() {
           {{ t('common.cancel') }}
         </button>
         <button
-          @click="createShareLink"
+          @click="submitShare"
           :disabled="isCreating"
           class="px-4 py-2 text-sm font-medium text-white transition bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
-          {{ isCreating ? t('share.creating') : t('share.createShareLink') }}
+          {{
+            isCreating
+              ? t('share.creating')
+              : isEditing
+                ? t('share.saveShare', 'Save changes')
+                : t('share.createShareLink')
+          }}
         </button>
       </div>
     </div>
