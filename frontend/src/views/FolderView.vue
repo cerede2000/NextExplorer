@@ -52,6 +52,7 @@ const {
   handleDragOver,
   handleDragLeave,
   handleDrop,
+  handleDragMove,
   handleDragEnd,
   isDragTarget,
   isCopyDragTarget,
@@ -636,6 +637,7 @@ onBeforeUnmount(() => {
             @dragover="(e) => item.kind === 'directory' && handleDragOver(e, item)"
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
+            @drag="handleDragMove"
             @dragend="handleDragEnd"
           />
 

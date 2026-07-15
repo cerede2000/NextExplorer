@@ -98,13 +98,24 @@
   }
 
   /* Drag and drop image with badge */
-  /* Drag and drop image with badge */
   .file-drag-image {
-    position: absolute;
-    top: -1000px;
-    left: -1000px;
+    position: fixed;
+    top: 0;
+    left: 0;
     z-index: 9999;
     display: inline-block;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  .file-drag-native-placeholder {
+    position: fixed;
+    top: -1px;
+    left: -1px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .file-drag-stack {

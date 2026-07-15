@@ -126,7 +126,7 @@ describe('useFileDragDrop', () => {
     );
   });
 
-  it('attaches the copy badge beside the item count in the drag preview', () => {
+  it('keeps the copy badge attached to the application drag preview', () => {
     const dragDrop = useFileDragDrop();
     const source = document.createElement('div');
     source.innerHTML = '<span class="block aspect-square"><svg></svg></span>';
@@ -139,23 +139,29 @@ describe('useFileDragDrop', () => {
       dropEffect: 'move',
     };
 
-    dragDrop.handleDragStart({ altKey: false, currentTarget: source, dataTransfer }, item);
+    dragDrop.handleDragStart(
+      { altKey: false, clientX: 100, clientY: 200, currentTarget: source, dataTransfer },
+      item
+    );
     dragDrop.handleDragOver(
       {
         altKey: true,
+        clientX: 140,
+        clientY: 260,
         preventDefault: vi.fn(),
         dataTransfer,
       },
       target
     );
 
-    const previews = document.querySelectorAll('.file-drag-image');
-    const badges = previews.item(previews.length - 1)?.querySelector('.file-drag-badges');
-    expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(2);
+    const preview = document.querySelector('.file-drag-image');
+    const badges = preview?.querySelector('.file-drag-badges');
+    expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(1);
     expect(badges?.textContent).toBe('+1');
+    expect(preview?.style.transform).toBe('translate3d(152px, 272px, 0)');
 
     dragDrop.handleDragEnd();
-    document.querySelectorAll('.file-drag-image').forEach((preview) => preview.remove());
+    expect(document.querySelector('.file-drag-image')).toBeNull();
     source.remove();
   });
 });
