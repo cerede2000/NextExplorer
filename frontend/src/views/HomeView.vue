@@ -125,7 +125,7 @@ const openPersonal = () => {
           :key="vol.name"
           type="button"
           @click="openItem(vol)"
-          class="grid w-full max-w-full grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 rounded-lg py-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
+          class="grid w-full max-w-full grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 rounded-lg py-3 pr-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
         >
           <IconDrive class="h-16 shrink-0" />
           <div class="flex w-full min-w-0 flex-col items-stretch gap-2 pt-1">
