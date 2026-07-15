@@ -251,6 +251,6 @@ const handleGuestLogin = () => {
   overflow-y: hidden;
 }
 .scroll-on-hover:hover {
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 </style>
