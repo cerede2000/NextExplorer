@@ -10,6 +10,7 @@ import { useNavigation } from '@/composables/navigation';
 import { normalizePath } from '@/api';
 import { useI18n } from 'vue-i18n';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
+import { useFileDragDrop } from '@/composables/useFileDragDrop';
 
 const {
   ChevronDownIcon,
@@ -17,6 +18,7 @@ const {
   PencilSquareIcon,
   XMarkIcon,
   Bars3Icon,
+  PlusIcon,
 } = OutlineIcons;
 
 const rootEl = ref(null);
@@ -27,6 +29,8 @@ const { favorites } = storeToRefs(favoritesStore);
 const route = useRoute();
 const { openBreadcrumb } = useNavigation();
 const { openEditorForFavorite } = useFavoriteEditor();
+const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTarget } =
+  useFileDragDrop();
 
 const ICON_VARIANTS = {
   outline: OutlineIcons,
@@ -86,6 +90,19 @@ const handleOpenFavorite = (favorite) => {
   }
   openBreadcrumb(favorite.path);
 };
+
+const favoriteDropTarget = (favorite = {}) => {
+  const destinationPath = normalizePath(favorite.path || '');
+  const segments = destinationPath.split('/').filter(Boolean);
+  return {
+    name: segments.at(-1) || '',
+    path: segments.slice(0, -1).join('/'),
+    destinationPath,
+  };
+};
+
+const isFavoriteDragTarget = (favorite) => isDragTarget(favoriteDropTarget(favorite));
+const isFavoriteCopyTarget = (favorite) => isCopyDragTarget(favoriteDropTarget(favorite));
 
 const toggleEditMode = () => {
   if (!favorites.value.length) return;
@@ -192,7 +209,10 @@ onBeforeUnmount(() => {
               @end="handleReorderEnd"
             >
               <template #item="{ element: favorite }">
-                <div class="group/item mb-3 flex items-center gap-2 favorite-drag-handle">
+                <div
+                  class="group/item relative mb-3 flex items-center gap-2 favorite-drag-handle"
+                  :class="isFavoriteDragTarget(favorite) ? 'rounded-lg ring-2 ring-offset-1 dark:ring-offset-zinc-900' : ''"
+                >
                   <Bars3Icon
                     v-if="isEditMode"
                     class="h-4 w-4 shrink-0 cursor-grab text-neutral-400 group-hover/item:text-white dark:text-neutral-500 dark:group-hover/item:text-neutral-100 transition-colors duration-150"
@@ -200,12 +220,20 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     @click="handleOpenFavorite(favorite)"
+                    @dragover="handleDragOver($event, favoriteDropTarget(favorite))"
+                    @dragleave="handleDragLeave($event, favoriteDropTarget(favorite))"
+                    @drop="handleDrop($event, favoriteDropTarget(favorite))"
                     class="truncate"
                     :class="[
-                      'cursor-pointer flex w-full items-center gap-3 rounded-lg text-sm',
+                      'cursor-pointer flex w-full items-center gap-3 rounded-lg text-sm transition-colors',
                       isActiveFav(favorite.path)
                         ? 'text-neutral-950 dark:text-white'
                         : 'text-neutral-950 dark:text-neutral-300/90',
+                      isFavoriteCopyTarget(favorite)
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 ring-emerald-500 dark:ring-emerald-400'
+                        : isFavoriteDragTarget(favorite)
+                          ? 'bg-blue-50 dark:bg-blue-950/40 ring-blue-500 dark:ring-blue-400'
+                          : '',
                     ]"
                   >
                     <component
@@ -214,6 +242,12 @@ onBeforeUnmount(() => {
                       :style="{ color: favorite.color || 'currentColor' }"
                     />
                     <span class="truncate">{{ getFavoriteLabel(favorite) }}</span>
+                    <span
+                      v-if="isFavoriteCopyTarget(favorite)"
+                      class="ml-auto grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-white shadow-sm"
+                    >
+                      <PlusIcon class="h-3.5 w-3.5" />
+                    </span>
                   </button>
                   <template v-if="isEditMode">
                     <button
