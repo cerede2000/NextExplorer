@@ -101,21 +101,18 @@ const openPersonal = () => {
             :key="volume.name"
             @click="openItem(volume)"
             :class="[
-              'cursor-pointer flex w-full flex-col items-stretch gap-1 my-3 rounded-lg transition-colors duration-200 text-sm',
+              'cursor-pointer flex w-full items-center gap-3 my-3 rounded-lg transition-colors duration-200 text-sm',
               isActiveVolume(volume.name) ? 'dark:text-white' : 'dark:text-neutral-300/90',
             ]"
           >
-            <span class="flex min-w-0 items-center gap-3">
-              <ServerIcon class="h-[1.38rem] shrink-0" />
-              <span class="min-w-0 truncate">{{ volume.name }}</span>
-            </span>
+            <ServerIcon class="h-[1.38rem] shrink-0" />
             <VolumeUsageBar
               v-if="showVolumeUsage"
               :usage="usage[volume.path]"
               :loading="volumeUsageStore.isLoadingUsage"
               compact
-              class="w-full"
             />
+            <span class="min-w-0 truncate">{{ volume.name }}</span>
           </button>
         </div>
       </transition>
