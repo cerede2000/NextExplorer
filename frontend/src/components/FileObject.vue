@@ -18,14 +18,13 @@ import { DragSelectOption } from '@coleqiu/vue-drag-select';
 import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
-import { CheckIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import { CheckIcon } from '@heroicons/vue/20/solid';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
 
 const props = defineProps({
   item: { type: Object, required: true },
   view: { type: String, required: true },
-  showCopyDropIndicator: { type: Boolean, default: false },
 });
 const settings = useSettingsStore();
 
@@ -233,7 +232,7 @@ if (isTouchDevice.value) {
 
 <template>
   <DragSelectOption
-    :class="['group/item', { relative: showCopyDropIndicator }]"
+    class="group/item"
     v-if="(view === 'photos' && isPhotoItem) || view != 'photos'"
     :value="props.item"
   >
@@ -479,12 +478,6 @@ if (isTouchDevice.value) {
         {{ formatDate(item.dateModified) }}
       </div>
     </div>
-    <span
-      v-if="showCopyDropIndicator"
-      class="pointer-events-none absolute right-2 top-2 z-40 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white shadow-md ring-2 ring-white dark:ring-zinc-900"
-    >
-      <PlusIcon class="h-4 w-4" />
-    </span>
   </DragSelectOption>
 </template>
 

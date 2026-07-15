@@ -11,6 +11,7 @@ import { useOperationTasksStore } from '@/stores/operationTasks';
 // Option/Alt can still update the same drag image in either destination.
 let activeDragImage = null;
 let activeDragOverlay = null;
+let dragDropHandled = false;
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -101,7 +102,9 @@ export function useFileDragDrop() {
     event.dataTransfer.setData('application/json', dragData);
     // Safari is inconsistent about exposing custom types during dragover/drop, so add a fallback.
     event.dataTransfer.setData('text/plain', dragData);
-    event.dataTransfer.effectAllowed = 'copyMove';
+    // Keep the native cursor in move mode. The actual copy behavior is decided
+    // by Option/Alt when dropping, while the application preview shows the +.
+    event.dataTransfer.effectAllowed = 'move';
 
     const copy = isCopyModifierPressed(event);
     activeDragImage = {
@@ -110,6 +113,7 @@ export function useFileDragDrop() {
       sourceEl: event.currentTarget,
       copy,
     };
+    dragDropHandled = false;
 
     // The browser only applies setDragImage during dragstart. Use a transparent
     // native image, then keep the visible preview under our own control so the
@@ -204,14 +208,22 @@ export function useFileDragDrop() {
   const positionDragOverlay = (event) => {
     const x = Number(event?.clientX);
     const y = Number(event?.clientY);
-    if (!activeDragOverlay || !Number.isFinite(x) || !Number.isFinite(y)) return;
-    activeDragOverlay.style.transform = `translate3d(${x + 12}px, ${y + 12}px, 0)`;
+    // Some browsers emit a final drag event with 0,0. Do not reveal the
+    // preview there or it flashes in the top-left corner of the viewport.
+    if (!activeDragOverlay || !Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) {
+      return;
+    }
+    // Match the former native drag-image anchor: the pointer stays aligned
+    // with the preview rather than leaving it noticeably below the cursor.
+    activeDragOverlay.style.transform = `translate3d(${x + 10}px, ${y - 10}px, 0)`;
+    activeDragOverlay.style.visibility = 'visible';
   };
 
   const renderDragOverlay = (state, event) => {
     clearDragOverlay();
     activeDragOverlay = buildDragPreview(state);
     if (!activeDragOverlay) return;
+    activeDragOverlay.style.visibility = 'hidden';
     document.body.appendChild(activeDragOverlay);
     positionDragOverlay(event);
   };
@@ -253,7 +265,9 @@ export function useFileDragDrop() {
 
     event.preventDefault();
     const copy = isCopyModifierPressed(event);
-    event.dataTransfer.dropEffect = copy ? 'copy' : 'move';
+    // Avoid the macOS copy cursor. The green badge in the preview remains the
+    // sole operation indicator and the drop still performs a copy when Alt is held.
+    event.dataTransfer.dropEffect = 'move';
     updateDragPreviewOperation(event, copy);
 
     // Store the target folder for drag leave/drop handling
@@ -302,8 +316,9 @@ export function useFileDragDrop() {
     event.preventDefault();
     event.stopPropagation();
 
-    const copy = isCopyModifierPressed(event) || event.dataTransfer.dropEffect === 'copy';
+    const copy = isCopyModifierPressed(event);
     updateDragPreviewOperation(event, copy);
+    dragDropHandled = true;
     clearDragOverlay();
     activeDragImage = null;
     isDraggingOver.value = false;
@@ -325,6 +340,13 @@ export function useFileDragDrop() {
 
     // Get the destination path (target folder's full relative path)
     const destination = resolveFolderDestination(targetFolder);
+
+    // Moving an item into its own parent does nothing. Copying there is useful
+    // though: it creates the usual "(1)", "(2)" duplicate in the current folder.
+    const isCurrentFolderDestination = draggedItems.every(
+      (item) => normalizePath(item.path || '') === destination
+    );
+    if (isCurrentFolderDestination && !copy) return;
 
     // Validate: prevent dropping a folder into itself
     const isSelfDrop = draggedItems.some(
@@ -408,8 +430,22 @@ export function useFileDragDrop() {
   };
 
   const handleDragEnd = () => {
-    clearDragOverlay();
+    if (!dragDropHandled && activeDragOverlay && activeDragImage?.sourceEl) {
+      const overlay = activeDragOverlay;
+      const sourceRect = activeDragImage.sourceEl.getBoundingClientRect();
+      overlay.style.transition = 'transform 140ms ease-out, opacity 140ms ease-out';
+      window.requestAnimationFrame(() => {
+        overlay.style.transform = `translate3d(${sourceRect.left}px, ${sourceRect.top}px, 0) scale(0.85)`;
+        overlay.style.opacity = '0';
+      });
+      window.setTimeout(() => {
+        if (activeDragOverlay === overlay) clearDragOverlay();
+      }, 150);
+    } else {
+      clearDragOverlay();
+    }
     activeDragImage = null;
+    dragDropHandled = false;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
     dragOperation.value = 'move';
