@@ -91,6 +91,8 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `ONLYOFFICE_SECRET`           | _none_             | JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice` calls.                                                          |
 | `ONLYOFFICE_LANG`             | `en`               | Language code for the editor UI.                                                                                                        |
 | `ONLYOFFICE_FORCE_SAVE`       | `false`            | When true, OnlyOffice forces users to save via the editor UI.                                                                           |
+| `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS` | `30000`         | Minimum delay between background force-saves of changed documents. Set to `0` to save only on close; values are clamped to `300000`.    |
+| `ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS` | `10000`         | Bounded retry window for the background save started when closing a document; closing the editor remains immediate.                    |
 | `ONLYOFFICE_FILE_EXTENSIONS`  | _default list_     | Extra file extensions to surface to the Document Server.                                                                                |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | _bundled binaries_ | Point to custom ffmpeg/ffprobe if the bundle doesn't suit your needs.                                                                   |
 | `FFMPEG_HWACCEL`              | _none_             | Optional ffmpeg `-hwaccel` value used for video thumbnail generation when supported by your ffmpeg build (e.g. `vaapi`, `qsv`, `cuda`). |
