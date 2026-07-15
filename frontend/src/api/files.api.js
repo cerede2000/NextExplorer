@@ -152,6 +152,20 @@ async function reserveFolderUploadTarget(destination, sourceRoot) {
   });
 }
 
+async function createFile(destination, name) {
+  const normalizedDestination = normalizePath(destination || '');
+  const payload = { path: normalizedDestination };
+
+  if (typeof name === 'string' && name.trim()) {
+    payload.name = name;
+  }
+
+  return requestJson('/api/files/file', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 async function renameItem(path, name, newName) {
   const normalizedPath = normalizePath(path || '');
   return requestJson('/api/files/rename', {
@@ -180,6 +194,20 @@ async function fetchSharedFileContent(shareToken, innerPath = '') {
     : `/api/share/${encodedToken}/editor`;
 
   return requestJson(endpoint, { method: 'GET' });
+}
+
+async function saveSharedFileContent(shareToken, innerPath = '', content) {
+  const encodedToken = encodeURIComponent(shareToken);
+  const normalizedInnerPath = normalizePath(innerPath);
+  const encodedInnerPath = encodePath(normalizedInnerPath);
+  const endpoint = encodedInnerPath
+    ? `/api/share/${encodedToken}/editor/${encodedInnerPath}`
+    : `/api/share/${encodedToken}/editor`;
+
+  return requestJson(endpoint, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
 }
 
 async function saveFileContent(path, content) {
@@ -346,9 +374,11 @@ export {
   getDeleteImpact,
   createFolder,
   reserveFolderUploadTarget,
+  createFile,
   renameItem,
   fetchFileContent,
   fetchSharedFileContent,
+  saveSharedFileContent,
   saveFileContent,
   getRawFileUrl,
   fetchThumbnail,

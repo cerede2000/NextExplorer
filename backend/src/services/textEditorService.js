@@ -47,4 +47,4 @@ async function readTextFile(absolutePath) {
   return { buffer, stats };
 }
 
-module.exports = { readTextFile };
+module.exports = { readTextFile, MAX_EDITOR_FILE_SIZE };

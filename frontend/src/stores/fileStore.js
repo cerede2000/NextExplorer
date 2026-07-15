@@ -8,9 +8,9 @@ import {
   moveItems,
   deleteItemsStream,
   normalizePath,
+  createFile as createFileApi,
   createFolder as createFolderApi,
   renameItem as renameItemApi,
-  saveFileContent as saveFileContentApi,
   fetchThumbnail as fetchThumbnailApi,
   extractZip as extractZipApi,
   compressToZip as compressToZipApi,
@@ -431,45 +431,22 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const createFile = async (baseName) => {
     const destination = normalizePath(currentPath.value || '');
-
-    // Determine a default base name and extension
-    const defaultName =
-      typeof baseName === 'string' && baseName.trim() ? baseName.trim() : 'Untitled.txt';
-
-    // Split name into stem + extension (preserve provided extension if present)
-    const lastDot = defaultName.lastIndexOf('.');
-    const stem = lastDot > 0 ? defaultName.slice(0, lastDot) : defaultName;
-    const ext = lastDot > 0 ? defaultName.slice(lastDot) : '';
-
-    // Ensure the name is unique in current listing
-    const existingNames = new Set(
-      (currentPathItems.value || []).map((it) => it?.name).filter(Boolean)
-    );
-    let candidate = `${stem}${ext}`;
-    let counter = 2;
-    while (existingNames.has(candidate)) {
-      candidate = `${stem} ${counter}${ext}`;
-      counter += 1;
-    }
-
-    const relativePath = destination ? `${destination}/${candidate}` : candidate;
-
-    // Create empty file
-    await saveFileContentApi(relativePath, '');
+    const response = await createFileApi(destination, baseName);
+    const createdName = response?.item?.name;
 
     // Refresh and start rename for the created item
     await fetchPathItems(destination);
     volumeUsageStore.scheduleRefresh();
     folderSizeStore.scheduleRefresh();
 
-    const createdKey = `${destination}::${candidate}`;
+    const createdKey = `${destination}::${createdName}`;
     const createdItem = findItemByKey(createdKey);
     if (createdItem) {
       selectedItems.value = [createdItem];
       beginRename(createdItem, { isNew: true });
     }
 
-    return { success: true, name: candidate };
+    return response;
   };
 
   const extractZipArchive = async (relativePath) => {
