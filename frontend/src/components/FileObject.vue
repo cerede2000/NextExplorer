@@ -28,7 +28,7 @@ const { openItem } = useNavigation();
 const { handleSelection, isSelected, toggleSelection } = useSelection();
 const fileStore = useFileStore();
 const { renameState, selectionMode } = storeToRefs(fileStore);
-const { canDragDrop, handleDragStart } = useFileDragDrop();
+const { canDragDrop, handleDragStart, handleDragEnd } = useFileDragDrop();
 const contextMenu = useExplorerContextMenu();
 const { isTouchDevice } = useInputMode();
 
@@ -222,6 +222,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       class="photo-cell relative w-full rounded-md overflow-hidden cursor-pointer select-none bg-neutral-100 dark:bg-zinc-800/60 hover:brightness-105"
       :class="{
@@ -256,6 +257,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       class="relative flex flex-col items-center gap-2 p-2 rounded-xl cursor-pointer select-none"
       :class="[
@@ -313,6 +315,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       class="relative flex items-center gap-2 p-4 rounded-md cursor-pointer select-none"
       :class="[
@@ -374,6 +377,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       :class="[
         'grid select-none items-center',
