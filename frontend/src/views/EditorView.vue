@@ -29,6 +29,17 @@
         >
           Raw
         </button>
+        <button
+          v-if="isSharedEditor && sharedCanDownload"
+          type="button"
+          @click="openDownload"
+          :disabled="isLoading || !displayPath"
+          class="rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
+          :aria-label="t('share.directLinkModes.download')"
+          :title="t('share.directLinkModes.download')"
+        >
+          {{ t('share.directLinkModes.download') }}
+        </button>
         <div ref="themeMenuRef" class="relative">
           <button
             type="button"
@@ -361,6 +372,13 @@ const openRaw = () => {
     : normalizedPath.value
       ? getRawFileUrl(normalizedPath.value)
       : '';
+  if (!url) return;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const openDownload = () => {
+  if (!isSharedEditor.value || !sharedCanDownload.value) return;
+  const url = getDirectShareFileUrl(sharedToken.value, sharedPath.value, 'download');
   if (!url) return;
   window.open(url, '_blank', 'noopener,noreferrer');
 };
