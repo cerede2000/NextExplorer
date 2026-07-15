@@ -126,7 +126,7 @@ describe('useFileDragDrop', () => {
     );
   });
 
-  it('keeps the copy badge attached to the application drag preview', () => {
+  it('keeps the copy badge aligned with the native drag preview', () => {
     vi.useFakeTimers();
     const dragDrop = useFileDragDrop();
     const source = document.createElement('div');
@@ -155,14 +155,14 @@ describe('useFileDragDrop', () => {
       target
     );
 
-    const preview = document.querySelector('.file-drag-image');
-    const badges = preview?.querySelector('.file-drag-badges');
+    const copyBadge = document.querySelector('.file-drag-copy-overlay');
     expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(1);
-    expect(badges?.textContent).toBe('+1');
-    expect(preview?.style.transform).toBe('translate3d(150px, 250px, 0)');
+    expect(copyBadge?.textContent).toBe('+');
+    expect(copyBadge?.style.transform).toBe('translate3d(294px, 246px, 0)');
 
     dragDrop.handleDragEnd();
-    vi.advanceTimersByTime(150);
+    expect(document.querySelector('.file-drag-copy-overlay')).toBeNull();
+    vi.advanceTimersByTime(100);
     expect(document.querySelector('.file-drag-image')).toBeNull();
     vi.useRealTimers();
     source.remove();
@@ -180,5 +180,37 @@ describe('useFileDragDrop', () => {
       expect.any(Object)
     );
     expect(moveItems).not.toHaveBeenCalled();
+  });
+
+  it('keeps the copy operation when the terminal drop event omits Option/Alt', async () => {
+    const dragDrop = useFileDragDrop();
+    const source = document.createElement('div');
+    const dataTransfer = {
+      setData: vi.fn(),
+      setDragImage: vi.fn(),
+      effectAllowed: '',
+      types: ['application/json', 'text/plain'],
+      dropEffect: 'move',
+      getData: vi.fn((type) =>
+        type === 'application/json' ? JSON.stringify([item]) : ''
+      ),
+    };
+
+    document.body.appendChild(source);
+    dragDrop.handleDragStart({ altKey: false, currentTarget: source, dataTransfer }, item);
+    dragDrop.handleDragOver({ altKey: true, preventDefault: vi.fn(), dataTransfer }, target);
+
+    await dragDrop.handleDrop(
+      { altKey: false, preventDefault: vi.fn(), stopPropagation: vi.fn(), dataTransfer },
+      target
+    );
+
+    expect(copyItems).toHaveBeenCalledWith(
+      [{ name: 'report.txt', path: 'Source', kind: 'file' }],
+      'Volume/Target',
+      expect.any(Object)
+    );
+    expect(moveItems).not.toHaveBeenCalled();
+    source.remove();
   });
 });
