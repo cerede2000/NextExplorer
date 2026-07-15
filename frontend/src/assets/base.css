@@ -138,9 +138,6 @@
   }
 
   .file-drag-badge {
-    position: absolute;
-    top: -0.25rem;
-    right: -0.25rem;
     background-color: rgb(37 99 235); /* blue-600 */
     color: white;
     border-radius: 9999px;
@@ -153,6 +150,33 @@
     min-width: 1.5rem;
     text-align: center;
     z-index: 50;
+  }
+
+  .file-drag-copy-badge {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    place-items: center;
+    background-color: rgb(22 163 74); /* green-600 */
+    color: white;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
+    z-index: 50;
+  }
+
+  .file-drag-badges {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 }
 

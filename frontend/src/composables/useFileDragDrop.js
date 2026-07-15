@@ -6,6 +6,11 @@ import { copyItems, moveItems, normalizePath } from '@/api';
 import { useInputMode } from '@/composables/useInputMode';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 
+// A drag can cross from the file view into the sidebar, where a different
+// composable instance handles dragover. Keep the preview state module-wide so
+// Option/Alt can still update the same drag image in either destination.
+let activeDragImage = null;
+
 /**
  * Composable for handling file and folder drag and drop operations.
  * Desktop only - will not work on touch devices.
@@ -97,17 +102,27 @@ export function useFileDragDrop() {
     event.dataTransfer.setData('text/plain', dragData);
     event.dataTransfer.effectAllowed = 'copyMove';
 
-    // Create custom drag image with badge
-    createDragImage(event, itemsToDrag, item);
+    const copy = isCopyModifierPressed(event);
+    activeDragImage = {
+      items: itemsToDrag,
+      primaryItem: item,
+      sourceEl: event.currentTarget,
+      copy,
+    };
+
+    // Create custom drag image with operation and item-count badges.
+    createDragImage(event, activeDragImage);
   };
 
   /**
    * Create a custom drag image with a badge showing the number of items
    * @param {DragEvent} event - The drag event
-   * @param {Array} items - Items being dragged
-   * @param {Object} primaryItem - The main item being dragged (under cursor)
+   * @param {Object} state - Source items, primary item and active operation
    */
-  const createDragImage = (event, items, primaryItem) => {
+  const createDragImage = (event, state) => {
+    if (typeof event?.dataTransfer?.setDragImage !== 'function' || !state) return;
+
+    const { items, primaryItem, sourceEl, copy } = state;
     const count = items.length;
     const dragImage = document.createElement('div');
     dragImage.className = 'file-drag-image';
@@ -117,9 +132,12 @@ export function useFileDragDrop() {
     const stackDepth = Math.min(count, 3);
 
     let iconNode = null;
-    const sourceEl = event.currentTarget;
     if (sourceEl) {
-      const foundIcon = sourceEl.querySelector('svg') || sourceEl.querySelector('.bg-contain');
+      const foundIcon =
+        sourceEl.querySelector('.block.aspect-square svg') ||
+        sourceEl.querySelector('.block.aspect-square') ||
+        sourceEl.querySelector('svg') ||
+        sourceEl.querySelector('.bg-contain');
       if (foundIcon) {
         iconNode = foundIcon.cloneNode(true);
         iconNode.style.width = '24px';
@@ -159,11 +177,19 @@ export function useFileDragDrop() {
     }
 
     dragImage.appendChild(stack);
+    const badges = document.createElement('div');
+    badges.className = 'file-drag-badges';
+    if (copy) {
+      const copyBadge = document.createElement('div');
+      copyBadge.className = 'file-drag-copy-badge';
+      copyBadge.textContent = '+';
+      badges.appendChild(copyBadge);
+    }
     const badge = document.createElement('div');
     badge.className = 'file-drag-badge';
     badge.textContent = count.toString();
-
-    dragImage.appendChild(badge);
+    badges.appendChild(badge);
+    dragImage.appendChild(badges);
     document.body.appendChild(dragImage);
 
     const xOffset = -10;
@@ -172,8 +198,14 @@ export function useFileDragDrop() {
     event.dataTransfer.setDragImage(dragImage, xOffset, yOffset);
 
     setTimeout(() => {
-      document.body.removeChild(dragImage);
+      dragImage.remove();
     }, 100);
+  };
+
+  const updateDragImageOperation = (event, copy) => {
+    if (!activeDragImage || activeDragImage.copy === copy) return;
+    activeDragImage = { ...activeDragImage, copy };
+    createDragImage(event, activeDragImage);
   };
 
   /**
@@ -190,6 +222,7 @@ export function useFileDragDrop() {
     event.preventDefault();
     const copy = isCopyModifierPressed(event);
     event.dataTransfer.dropEffect = copy ? 'copy' : 'move';
+    updateDragImageOperation(event, copy);
 
     // Store the target folder for drag leave/drop handling
     dragOverTarget.value = targetFolder;
@@ -238,6 +271,7 @@ export function useFileDragDrop() {
     event.stopPropagation();
 
     const copy = isCopyModifierPressed(event) || event.dataTransfer.dropEffect === 'copy';
+    updateDragImageOperation(event, copy);
     isDraggingOver.value = false;
     dragOverTarget.value = null;
     dragOperation.value = 'move';
@@ -340,6 +374,7 @@ export function useFileDragDrop() {
   };
 
   const handleDragEnd = () => {
+    activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
     dragOperation.value = 'move';

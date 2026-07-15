@@ -125,4 +125,37 @@ describe('useFileDragDrop', () => {
       expect.any(Object)
     );
   });
+
+  it('attaches the copy badge beside the item count in the drag preview', () => {
+    const dragDrop = useFileDragDrop();
+    const source = document.createElement('div');
+    source.innerHTML = '<span class="block aspect-square"><svg></svg></span>';
+    document.body.appendChild(source);
+    const dataTransfer = {
+      setData: vi.fn(),
+      setDragImage: vi.fn(),
+      effectAllowed: '',
+      types: ['application/json'],
+      dropEffect: 'move',
+    };
+
+    dragDrop.handleDragStart({ altKey: false, currentTarget: source, dataTransfer }, item);
+    dragDrop.handleDragOver(
+      {
+        altKey: true,
+        preventDefault: vi.fn(),
+        dataTransfer,
+      },
+      target
+    );
+
+    const previews = document.querySelectorAll('.file-drag-image');
+    const badges = previews.item(previews.length - 1)?.querySelector('.file-drag-badges');
+    expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(2);
+    expect(badges?.textContent).toBe('+1');
+
+    dragDrop.handleDragEnd();
+    document.querySelectorAll('.file-drag-image').forEach((preview) => preview.remove());
+    source.remove();
+  });
 });
