@@ -165,7 +165,12 @@ export const useFileStore = defineStore('fileStore', () => {
     try {
       await deleteItems(payload);
       clearSelection();
-      await favoritesStore.loadFavorites();
+      // Favorites belong to an authenticated account. A guest share session
+      // cannot refresh them, and doing so turns a successful delete into a
+      // misleading authentication error.
+      if (!currentPath.value.startsWith('share/')) {
+        await favoritesStore.loadFavorites();
+      }
       await fetchPathItems(currentPath.value);
     } finally {
       deleteOperation.value = null;

@@ -549,6 +549,8 @@
     "sharedByMeDescription": "Liens et dossiers que vous avez partagés avec d'autres personnes.",
     "shareCreated": "Partage créé",
     "createShareLink": "Créer un lien de partage",
+    "editShareLink": "Modifier le lien de partage",
+    "saveShare": "Enregistrer les modifications",
     "shareLink": "Lien de partage",
     "directFileLink": "Lien direct du fichier",
     "directFolderLink": "Lien direct ZIP du dossier",
