@@ -581,4 +581,124 @@ describe('Shares Routes', () => {
       expect(direct.status).toBe(403);
     });
   });
+
+  describe('Shared Pastebin Editor', () => {
+    it('should read a public text share without exposing a write route', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(
+        path.join(assignedRoot, 'Analyze-FileServerData.ps1'),
+        'Write-Output hello'
+      );
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor@example.com',
+        username: 'shared-editor',
+        displayName: 'Shared Editor',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorVol/Analyze-FileServerData.ps1',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const editor = await request(publicApp).get(`/api/share/${create.body.shareToken}/editor`);
+      expect(editor.status).toBe(200);
+      expect(editor.headers['cache-control']).toContain('no-store');
+      expect(editor.body).toMatchObject({
+        name: 'Analyze-FileServerData.ps1',
+        content: 'Write-Output hello',
+        canDownload: true,
+      });
+
+      // Friendly links may include the source filename, but no arbitrary child path.
+      const friendly = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/editor/Analyze-FileServerData.ps1`
+      );
+      expect(friendly.status).toBe(200);
+
+      const write = await request(publicApp)
+        .put(`/api/share/${create.body.shareToken}/editor`)
+        .send({ content: 'should never be written' });
+      expect(write.status).toBe(404);
+    });
+
+    it('should require a verified guest session and reject binary shared files', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-protected');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'protected.txt'), 'protected text');
+      await fs.writeFile(path.join(assignedRoot, 'binary.dat'), Buffer.from([0, 1, 2, 3]));
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-protected@example.com',
+        username: 'shared-editor-protected',
+        displayName: 'Shared Editor Protected',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorProtectedVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const protectedShare = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorProtectedVol/protected.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+        password: 'open-sesame',
+      });
+      const binaryShare = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorProtectedVol/binary.dat',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(protectedShare.status).toBe(201);
+      expect(binaryShare.status).toBe(201);
+
+      const publicApp = buildApp();
+      const beforeVerification = await request(publicApp).get(
+        `/api/share/${protectedShare.body.shareToken}/editor`
+      );
+      expect(beforeVerification.status).toBe(302);
+
+      const verify = await request(publicApp)
+        .post(`/api/share/${protectedShare.body.shareToken}/verify`)
+        .send({ password: 'open-sesame' });
+      expect(verify.status).toBe(200);
+
+      const afterVerification = await request(publicApp)
+        .get(`/api/share/${protectedShare.body.shareToken}/editor`)
+        .set('X-Guest-Session', verify.body.guestSessionId);
+      expect(afterVerification.status).toBe(200);
+      expect(afterVerification.body.content).toBe('protected text');
+
+      const binary = await request(publicApp).get(
+        `/api/share/${binaryShare.body.shareToken}/editor`
+      );
+      expect(binary.status).toBe(415);
+    });
+  });
 });

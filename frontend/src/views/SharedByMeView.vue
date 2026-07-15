@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { isEditableExtension } from '@/config/editor';
 import {
   getMyShares,
   deleteShare,
@@ -173,6 +174,16 @@ const directLinkModeOptions = computed(() =>
     label: t(mode.labelKey, mode.fallback),
   }))
 );
+
+const directLinkModeOptionsForShare = (share) => {
+  const sourceName =
+    String(share?.sourcePath || '')
+      .split('/')
+      .pop() || '';
+  const extension = sourceName.includes('.') ? sourceName.split('.').pop() : '';
+  const supportsEditor = !share?.isDirectory && isEditableExtension(extension);
+  return directLinkModeOptions.value.filter((mode) => mode.value !== 'editor' || supportsEditor);
+};
 
 const getShareLabel = (share) => {
   if (share.label) return share.label;
@@ -501,7 +512,7 @@ onMounted(async () => {
                   :aria-label="t('share.directLinkMode', 'Direct link mode')"
                 >
                   <option
-                    v-for="mode in directLinkModeOptions"
+                    v-for="mode in directLinkModeOptionsForShare(share)"
                     :key="mode.value"
                     :value="mode.value"
                   >
