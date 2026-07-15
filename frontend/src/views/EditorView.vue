@@ -206,6 +206,7 @@ const settingsMenuRef = ref(null);
 const isLineWrapping = ref(true); // Default to true
 const sharedFileName = ref('');
 const sharedCanDownload = ref(false);
+const sharedDirectPath = ref('');
 onClickOutside(themeMenuRef, () => {
   isThemeMenuOpen.value = false;
 });
@@ -307,6 +308,7 @@ const loadFile = async () => {
   saveError.value = '';
   sharedFileName.value = '';
   sharedCanDownload.value = false;
+  sharedDirectPath.value = '';
 
   try {
     const response = isSharedEditor.value
@@ -316,6 +318,7 @@ const loadFile = async () => {
 
     sharedFileName.value = isSharedEditor.value ? response.name || '' : '';
     sharedCanDownload.value = Boolean(isSharedEditor.value && response.canDownload);
+    sharedDirectPath.value = isSharedEditor.value ? response.path || '' : '';
     fileContent.value = originalContent.value = response.content || '';
     applyLanguage(sharedFileName.value || path);
   } catch (err) {
@@ -342,7 +345,7 @@ const saveFile = async () => {
 
 const openRaw = () => {
   const url = isSharedEditor.value
-    ? getDirectShareFileUrl(sharedToken.value, sharedPath.value, 'raw')
+    ? getDirectShareFileUrl(sharedToken.value, sharedDirectPath.value, 'raw')
     : normalizedPath.value
       ? getRawFileUrl(normalizedPath.value)
       : '';
@@ -352,7 +355,7 @@ const openRaw = () => {
 
 const openDownload = () => {
   if (!isSharedEditor.value || !sharedCanDownload.value) return;
-  const url = getDirectShareFileUrl(sharedToken.value, sharedPath.value, 'download');
+  const url = getDirectShareFileUrl(sharedToken.value, sharedDirectPath.value, 'download');
   if (!url) return;
   window.open(url, '_blank', 'noopener,noreferrer');
 };
