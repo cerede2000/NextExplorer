@@ -540,7 +540,7 @@ describe('Shares Routes', () => {
   });
 
   describe('Shared Pastebin Editor', () => {
-    it('should read a public text share without exposing a write route', async () => {
+    it('should keep a read-only public text share read-only', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
 
@@ -582,6 +582,7 @@ describe('Shares Routes', () => {
         name: 'Analyze-FileServerData.ps1',
         content: 'Write-Output hello',
         canDownload: true,
+        canWrite: false,
       });
 
       // Friendly links may include the source filename, but no arbitrary child path.
@@ -594,7 +595,54 @@ describe('Shares Routes', () => {
       const write = await request(publicApp)
         .put(`/api/share/${create.body.shareToken}/editor`)
         .send({ content: 'should never be written' });
-      expect(write.status).toBe(404);
+      expect(write.status).toBe(403);
+      expect(
+        await fs.readFile(path.join(assignedRoot, 'Analyze-FileServerData.ps1'), 'utf-8')
+      ).toBe('Write-Output hello');
+    });
+
+    it('should save a text file only through a read-write share', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-write');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      const filePath = path.join(assignedRoot, 'editable.txt');
+      await fs.writeFile(filePath, 'initial content');
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-write@example.com',
+        username: 'shared-editor-write',
+        displayName: 'Shared Editor Write',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorWriteVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorWriteVol/editable.txt',
+        accessMode: 'readwrite',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const editor = await request(publicApp).get(`/api/share/${create.body.shareToken}/editor`);
+      expect(editor.status).toBe(200);
+      expect(editor.body.canWrite).toBe(true);
+
+      const save = await request(publicApp)
+        .put(`/api/share/${create.body.shareToken}/editor`)
+        .send({ content: 'updated through the share' });
+      expect(save.status).toBe(200);
+      expect(await fs.readFile(filePath, 'utf-8')).toBe('updated through the share');
     });
 
     it('should require a verified guest session and reject binary shared files', async () => {

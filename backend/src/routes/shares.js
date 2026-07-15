@@ -33,7 +33,7 @@ const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
 const logger = require('../utils/logger');
-const { readTextFile } = require('../services/textEditorService');
+const { readTextFile, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
 
 const router = express.Router();
 
@@ -720,7 +720,7 @@ router.get(
 const resolveSharedFileTarget = async (
   req,
   res,
-  { requireDownload = false, allowSharedFileName = false } = {}
+  { requireDownload = false, requireWrite = false, allowSharedFileName = false } = {}
 ) => {
   const shareToken = req.params.token;
   const rawInnerPath = req.params[0] || '';
@@ -786,6 +786,7 @@ const resolveSharedFileTarget = async (
     !accessInfo.canAccess ||
     !accessInfo.canRead ||
     (requireDownload && !accessInfo.canDownload) ||
+    (requireWrite && !accessInfo.canWrite) ||
     !resolved
   ) {
     throw new ForbiddenError(accessInfo?.denialReason || 'File access not allowed.');
@@ -855,15 +856,47 @@ const handleSharedEditorRequest = async (req, res) => {
     path: innerPath,
     content: buffer.toString('utf-8'),
     canDownload: Boolean(accessInfo.canDownload),
+    canWrite: Boolean(accessInfo.canWrite),
   });
 };
 
 /**
- * GET /api/share/:token/editor/* - Read a shared text file for the public,
- * read-only editor. There is deliberately no write counterpart.
+ * GET /api/share/:token/editor/* - Read a shared text file.
  */
 router.get('/:token/editor', asyncHandler(handleSharedEditorRequest));
 router.get('/:token/editor/*', asyncHandler(handleSharedEditorRequest));
+
+const handleSharedEditorSaveRequest = async (req, res) => {
+  const target = await resolveSharedFileTarget(req, res, {
+    requireWrite: true,
+    allowSharedFileName: true,
+  });
+  if (!target) return;
+
+  const { share, resolved } = target;
+  const { content } = req.body || {};
+  if (typeof content !== 'string') {
+    throw new ValidationError('Text editor content must be a string.');
+  }
+  if (Buffer.byteLength(content, 'utf-8') > MAX_EDITOR_FILE_SIZE) {
+    throw new ValidationError('This file is too large to save in the text editor.');
+  }
+
+  // Reuse the editor's text validation before writing so a writable share
+  // cannot be used to modify directories, binaries, or oversized files.
+  await readTextFile(resolved.absolutePath);
+  await fs.writeFile(resolved.absolutePath, content, { encoding: 'utf-8' });
+
+  await trackShareAccess(share.id);
+  res.set({
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.json({ success: true });
+};
+
+router.put('/:token/editor', asyncHandler(handleSharedEditorSaveRequest));
+router.put('/:token/editor/*', asyncHandler(handleSharedEditorSaveRequest));
 
 /**
  * GET /api/share/:token/browse/* - Browse share contents

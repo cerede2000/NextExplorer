@@ -5,7 +5,7 @@
     >
       <div class="min-w-0">
         <p class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          {{ isSharedEditor ? t('common.readonly') : t('editor.editing') }}
+          {{ isSharedReadOnly ? t('common.readonly') : t('editor.editing') }}
         </p>
         <h1 class="truncate text-md text-neutral-900 dark:text-white">
           {{ displayPath || '—' }}
@@ -81,7 +81,7 @@
         </div>
 
         <button
-          v-if="!isSharedEditor"
+          v-if="!isSharedEditor || sharedCanWrite"
           type="button"
           @click="saveFile"
           :disabled="!canSave"
@@ -171,6 +171,7 @@ import {
   fetchFileContent,
   fetchSharedFileContent,
   saveFileContent,
+  saveSharedFileContent,
   getRawFileUrl,
   getDirectShareFileUrl,
   normalizePath,
@@ -206,6 +207,7 @@ const settingsMenuRef = ref(null);
 const isLineWrapping = ref(true); // Default to true
 const sharedFileName = ref('');
 const sharedCanDownload = ref(false);
+const sharedCanWrite = ref(false);
 const sharedDirectPath = ref('');
 onClickOutside(themeMenuRef, () => {
   isThemeMenuOpen.value = false;
@@ -270,6 +272,7 @@ const normalizedPath = computed(() =>
   )
 );
 const isSharedEditor = computed(() => route.name === 'SharedEditor');
+const isSharedReadOnly = computed(() => isSharedEditor.value && !sharedCanWrite.value);
 const sharedToken = computed(() =>
   typeof route.params?.token === 'string' ? route.params.token : ''
 );
@@ -286,7 +289,7 @@ const displayPath = computed(() =>
 const hasUnsavedChanges = computed(() => fileContent.value !== originalContent.value);
 const canSave = computed(
   () =>
-    !isSharedEditor.value &&
+    (!isSharedEditor.value || sharedCanWrite.value) &&
     hasUnsavedChanges.value &&
     !isSaving.value &&
     !isLoading.value &&
@@ -308,6 +311,7 @@ const loadFile = async () => {
   saveError.value = '';
   sharedFileName.value = '';
   sharedCanDownload.value = false;
+  sharedCanWrite.value = false;
   sharedDirectPath.value = '';
 
   try {
@@ -318,6 +322,7 @@ const loadFile = async () => {
 
     sharedFileName.value = isSharedEditor.value ? response.name || '' : '';
     sharedCanDownload.value = Boolean(isSharedEditor.value && response.canDownload);
+    sharedCanWrite.value = Boolean(isSharedEditor.value && response.canWrite);
     sharedDirectPath.value = isSharedEditor.value ? response.path || '' : '';
     fileContent.value = originalContent.value = response.content || '';
     applyLanguage(sharedFileName.value || path);
@@ -330,11 +335,15 @@ const loadFile = async () => {
 };
 
 const saveFile = async () => {
-  if (!canSave.value || !normalizedPath.value) return;
+  if (!canSave.value || (!isSharedEditor.value && !normalizedPath.value)) return;
   isSaving.value = true;
   saveError.value = '';
   try {
-    await saveFileContent(normalizedPath.value, fileContent.value);
+    if (isSharedEditor.value) {
+      await saveSharedFileContent(sharedToken.value, sharedDirectPath.value, fileContent.value);
+    } else {
+      await saveFileContent(normalizedPath.value, fileContent.value);
+    }
     originalContent.value = fileContent.value;
   } catch (err) {
     saveError.value = err.message;
@@ -404,7 +413,7 @@ const toggleLineWrapping = () => {
 const updateReadOnlyMode = () => {
   view.value?.dispatch({
     effects: readOnlyComp.reconfigure(
-      isSharedEditor.value ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
+      isSharedReadOnly.value ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
     ),
   });
 };
@@ -424,7 +433,7 @@ watch(view, () => {
   updateReadOnlyMode();
   applyLanguage(displayPath.value);
 });
-watch(isSharedEditor, updateReadOnlyMode);
+watch([isSharedEditor, sharedCanWrite], updateReadOnlyMode);
 watch(fileContent, () => {
   if (saveError.value) saveError.value = '';
 });
