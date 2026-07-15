@@ -46,7 +46,7 @@ router.post(
     const { allowed, accessInfo, resolved } = await authorizeAndResolve(
       context,
       parentRelative,
-      ACTIONS.write
+      ACTIONS.createFile
     );
     if (!allowed || !resolved) {
       throw new ForbiddenError(accessInfo?.denialReason || 'Cannot create files in this path.');

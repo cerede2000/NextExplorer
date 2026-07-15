@@ -23,6 +23,8 @@ beforeAll(async () => {
       'src/middleware/errorHandler',
       'src/routes/shares',
       'src/routes/files/delete',
+      'src/routes/files/folder',
+      'src/routes/files/file',
       'src/services/fileTransferService',
     ],
   });
@@ -40,6 +42,8 @@ const buildApp = ({ user } = {}) => {
 
   const sharesRoutes = envContext.requireFresh('src/routes/shares');
   const deleteRoutes = envContext.requireFresh('src/routes/files/delete');
+  const folderRoutes = envContext.requireFresh('src/routes/files/folder');
+  const fileRoutes = envContext.requireFresh('src/routes/files/file');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
 
   const app = express();
@@ -58,11 +62,113 @@ const buildApp = ({ user } = {}) => {
   app.use('/api/shares', sharesRoutes);
   app.use('/api/share', sharesRoutes);
   app.use('/api', deleteRoutes);
+  app.use('/api', folderRoutes);
+  app.use('/api', fileRoutes);
   app.use(errorHandler);
   return app;
 };
 
 describe('Shares Routes', () => {
+  describe('Granular write permissions', () => {
+    it('should apply directory write permissions to share access and mutation routes', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-granular-permissions');
+      const sharedFolder = path.join(assignedRoot, 'shared');
+      await fs.mkdir(sharedFolder, { recursive: true });
+      await fs.writeFile(path.join(sharedFolder, 'existing.txt'), 'existing');
+
+      const user = await usersService.createLocalUser({
+        email: 'permissions@example.com',
+        username: 'permissions',
+        displayName: 'Permissions',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'PermissionsVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'PermissionsVol/shared',
+        accessMode: 'readwrite',
+        allowDelete: false,
+        allowCreateFolder: false,
+        allowCreateFile: false,
+        allowUpload: false,
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.allowDelete).toBe(false);
+      expect(create.body.allowCreateFolder).toBe(false);
+      expect(create.body.allowCreateFile).toBe(false);
+      expect(create.body.allowUpload).toBe(false);
+
+      const guestApp = buildApp();
+      const access = await request(guestApp).get(`/api/share/${create.body.shareToken}/access`);
+      expect(access.status).toBe(200);
+      expect(access.body.guestSessionId).toBeTruthy();
+
+      const sessionHeader = { 'X-Guest-Session': access.body.guestSessionId };
+      const browse = await request(guestApp)
+        .get(`/api/share/${create.body.shareToken}/browse/`)
+        .set(sessionHeader);
+      expect(browse.status).toBe(200);
+      expect(browse.body.access).toMatchObject({
+        canWrite: true,
+        canDelete: false,
+        canUpload: false,
+        canCreateFolder: false,
+        canCreateFile: false,
+      });
+
+      const createFolder = await request(guestApp)
+        .post('/api/files/folder')
+        .set(sessionHeader)
+        .send({ path: `share/${create.body.shareToken}`, name: 'blocked-folder' });
+      expect(createFolder.status).toBe(403);
+
+      const createFile = await request(guestApp)
+        .post('/api/files/file')
+        .set(sessionHeader)
+        .send({ path: `share/${create.body.shareToken}`, name: 'blocked.txt' });
+      expect(createFile.status).toBe(403);
+    });
+
+    it('should default granular permissions to the current full read-write behavior', async () => {
+      const sharesService = envContext.requireFresh('src/services/sharesService');
+      const usersService = envContext.requireFresh('src/services/users');
+      const owner = await usersService.createLocalUser({
+        email: 'default-permissions@example.com',
+        username: 'default-permissions',
+        displayName: 'Default Permissions',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      const share = await sharesService.createShare({
+        ownerId: owner.id,
+        sourceSpace: 'volume',
+        sourcePath: 'Volume/default-permissions',
+        isDirectory: true,
+        accessMode: 'readwrite',
+      });
+
+      expect(share).toMatchObject({
+        allowDelete: true,
+        allowCreateFolder: true,
+        allowCreateFile: true,
+        allowUpload: true,
+      });
+    });
+  });
+
   describe('User Volumes', () => {
     it('should create and browse share from assigned volume path', async () => {
       const usersService = envContext.requireFresh('src/services/users');

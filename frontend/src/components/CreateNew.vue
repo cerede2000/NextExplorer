@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { PlusIcon } from '@heroicons/vue/24/outline';
 import { useToggle, onClickOutside } from '@vueuse/core';
 import {
@@ -26,6 +26,9 @@ import { useFileStore } from '@/stores/fileStore';
 const { openDialog } = useFileUploader();
 const fileStore = useFileStore();
 const isCreating = ref(false);
+const canCreateFolder = computed(() => fileStore.currentPathData?.canCreateFolder ?? true);
+const canCreateFile = computed(() => fileStore.currentPathData?.canCreateFile ?? true);
+const canUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
 
 const uploadFolder = async () => {
   await openDialog({ directory: true });
@@ -84,6 +87,7 @@ const createFile = async () => {
       class="absolute top-full mt-2 left-0 z-50 min-w-[200px] bg-white dark:bg-zinc-700 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-600"
     >
       <button
+        v-if="canCreateFolder"
         @click="createFolder"
         :disabled="isCreating"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 rounded-t-lg disabled:opacity-60 disabled:cursor-not-allowed"
@@ -92,6 +96,7 @@ const createFile = async () => {
         {{ $t('actions.newFolder') }}
       </button>
       <button
+        v-if="canCreateFile"
         @click="createFile"
         :disabled="isCreating"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -99,12 +104,14 @@ const createFile = async () => {
         <FileOpenOutlined class="w-6 text-orange-400" />{{ $t('actions.newFile') }}
       </button>
       <button
+        v-if="canUpload"
         @click="uploadFiles"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600"
       >
         <UploadFileOutlined class="w-6 text-sky-400" />{{ $t('actions.fileUpload') }}
       </button>
       <button
+        v-if="canUpload"
         @click="uploadFolder"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white rounded-b-lg"
       >

@@ -36,6 +36,10 @@ const toClientShare = (row) => {
     sourcePath: row.source_path,
     isDirectory: Boolean(row.is_directory),
     accessMode: row.access_mode,
+    allowDelete: row.allow_delete !== 0,
+    allowCreateFolder: row.allow_create_folder !== 0,
+    allowCreateFile: row.allow_create_file !== 0,
+    allowUpload: row.allow_upload !== 0,
     sharingType: row.sharing_type,
     hasPassword: Boolean(row.password_hash),
     expiresAt: row.expires_at || null,
@@ -60,6 +64,10 @@ const createShare = async ({
   sourcePath,
   isDirectory = false,
   accessMode = 'readonly',
+  allowDelete = true,
+  allowCreateFolder = true,
+  allowCreateFile = true,
+  allowUpload = true,
   sharingType = 'anyone',
   password = null,
   userIds = [],
@@ -90,6 +98,20 @@ const createShare = async ({
     throw e;
   }
 
+  const operationPermissions = {
+    allowDelete,
+    allowCreateFolder,
+    allowCreateFile,
+    allowUpload,
+  };
+  for (const [key, value] of Object.entries(operationPermissions)) {
+    if (typeof value !== 'boolean') {
+      const e = new Error(`${key} must be a boolean`);
+      e.status = 400;
+      throw e;
+    }
+  }
+
   if (!['anyone', 'users'].includes(sharingType)) {
     const e = new Error('Invalid sharing type');
     e.status = 400;
@@ -113,9 +135,9 @@ const createShare = async ({
     `
     INSERT INTO shares (
       id, share_token, owner_id, source_space, source_path, is_directory,
-      access_mode, sharing_type, password_hash, expires_at, label,
-      download_count, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      access_mode, allow_delete, allow_create_folder, allow_create_file, allow_upload,
+      sharing_type, password_hash, expires_at, label, download_count, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
   `
   ).run(
     shareId,
@@ -125,6 +147,10 @@ const createShare = async ({
     sourcePath,
     isDirectory ? 1 : 0,
     accessMode,
+    allowDelete ? 1 : 0,
+    allowCreateFolder ? 1 : 0,
+    allowCreateFile ? 1 : 0,
+    allowUpload ? 1 : 0,
     sharingType,
     passwordHash,
     expiresAt,
@@ -292,6 +318,23 @@ const updateShare = async (shareId, updates = {}) => {
   ) {
     fields.push('access_mode = ?');
     values.push(updates.accessMode);
+  }
+
+  const operationPermissionFields = [
+    ['allowDelete', 'allow_delete'],
+    ['allowCreateFolder', 'allow_create_folder'],
+    ['allowCreateFile', 'allow_create_file'],
+    ['allowUpload', 'allow_upload'],
+  ];
+  for (const [key, column] of operationPermissionFields) {
+    if (!(key in updates)) continue;
+    if (typeof updates[key] !== 'boolean') {
+      const e = new Error(`${key} must be a boolean`);
+      e.status = 400;
+      throw e;
+    }
+    fields.push(`${column} = ?`);
+    values.push(updates[key] ? 1 : 0);
   }
 
   if (

@@ -45,9 +45,10 @@ const canCreate = computed(() => {
 
   // If access metadata is available, honor it for everyone (including authenticated users on shares).
   if (currentPathData && typeof currentPathData === 'object') {
-    const canWrite = currentPathData?.canWrite ?? true;
+    const canCreateFolder = currentPathData?.canCreateFolder ?? true;
+    const canCreateFile = currentPathData?.canCreateFile ?? true;
     const canUpload = currentPathData?.canUpload ?? true;
-    return Boolean(canWrite || canUpload);
+    return Boolean(canCreateFolder || canCreateFile || canUpload);
   }
 
   // Backward compat: if backend doesn't send access metadata, fail open for authenticated users.
