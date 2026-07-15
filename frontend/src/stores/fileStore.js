@@ -484,6 +484,8 @@ export const useFileStore = defineStore('fileStore', () => {
         canWrite: access?.canWrite ?? true,
         canUpload: access?.canUpload ?? true,
         canDelete: access?.canDelete ?? true,
+        canCreateFolder: access?.canCreateFolder ?? true,
+        canCreateFile: access?.canCreateFile ?? true,
         canShare: access?.canShare ?? true,
         canDownload: access?.canDownload ?? true,
         isDirectory: response.current?.isDirectory ?? null,

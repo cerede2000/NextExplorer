@@ -6,6 +6,10 @@ import { requestJson, normalizePath, encodePath } from './http';
 async function createShare({
   sourcePath,
   accessMode = 'readonly',
+  allowDelete = true,
+  allowCreateFolder = true,
+  allowCreateFile = true,
+  allowUpload = true,
   sharingType = 'anyone',
   password = null,
   userIds = [],
@@ -19,6 +23,10 @@ async function createShare({
     body: JSON.stringify({
       sourcePath: normalizedPath,
       accessMode,
+      allowDelete,
+      allowCreateFolder,
+      allowCreateFile,
+      allowUpload,
       sharingType,
       password,
       userIds,

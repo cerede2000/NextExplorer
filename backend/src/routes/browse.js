@@ -58,6 +58,8 @@ router.get(
         canWrite: accessInfo.canWrite,
         canUpload: accessInfo.canUpload,
         canDelete: accessInfo.canDelete,
+        canCreateFolder: accessInfo.canCreateFolder,
+        canCreateFile: accessInfo.canCreateFile,
         canShare: accessInfo.canShare,
         canDownload: accessInfo.canDownload,
       },

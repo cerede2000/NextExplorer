@@ -22,6 +22,30 @@ const generateId = () =>
     : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 const DEFAULT_FAVORITE_ICON = favorites.defaultIcon;
 
+const addColumnIfMissing = (db, table, column, definition) => {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((entry) => entry.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+  }
+};
+
+const ensureShareOperationPermissionColumns = (db) => {
+  addColumnIfMissing(db, 'shares', 'allow_delete', 'allow_delete INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing(
+    db,
+    'shares',
+    'allow_create_folder',
+    'allow_create_folder INTEGER NOT NULL DEFAULT 1'
+  );
+  addColumnIfMissing(
+    db,
+    'shares',
+    'allow_create_file',
+    'allow_create_file INTEGER NOT NULL DEFAULT 1'
+  );
+  addColumnIfMissing(db, 'shares', 'allow_upload', 'allow_upload INTEGER NOT NULL DEFAULT 1');
+};
+
 const migrate = (db) => {
   // Simple schema versioning
   db.exec(`
@@ -241,6 +265,10 @@ const migrate = (db) => {
           source_path TEXT NOT NULL,
           is_directory INTEGER NOT NULL,
           access_mode TEXT NOT NULL CHECK(access_mode IN ('readonly', 'readwrite')),
+          allow_delete INTEGER NOT NULL DEFAULT 1,
+          allow_create_folder INTEGER NOT NULL DEFAULT 1,
+          allow_create_file INTEGER NOT NULL DEFAULT 1,
+          allow_upload INTEGER NOT NULL DEFAULT 1,
           sharing_type TEXT NOT NULL CHECK(sharing_type IN ('anyone', 'users')),
           password_hash TEXT,
           expires_at TEXT,
@@ -353,7 +381,20 @@ const migrate = (db) => {
       );
       version = 8;
     }
+    if (version < 9) {
+      logger.info('[DB Migration] Migrating to v9: Adding granular share write permissions...');
+      ensureShareOperationPermissionColumns(db);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(9)
+      );
+      version = 9;
+    }
   })();
+
+  // A shared /config directory may have its schema version advanced by another
+  // image. Keep these additive columns available in that mixed-version case.
+  ensureShareOperationPermissionColumns(db);
 };
 
 /**

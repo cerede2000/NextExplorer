@@ -26,6 +26,10 @@ export function useFileActions() {
   const primaryItem = computed(() => selectedItems.value[0] ?? null);
 
   const locationCanWrite = computed(() => fileStore.currentPathData?.canWrite ?? true);
+  const locationCanCreateFolder = computed(
+    () => fileStore.currentPathData?.canCreateFolder ?? true
+  );
+  const locationCanCreateFile = computed(() => fileStore.currentPathData?.canCreateFile ?? true);
   const locationCanUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
   const locationCanDelete = computed(() => fileStore.currentPathData?.canDelete ?? true);
   const locationCanDownload = computed(() => fileStore.currentPathData?.canDownload ?? true);
@@ -57,7 +61,9 @@ export function useFileActions() {
   );
   const canCopy = computed(() => hasSelection.value);
   const canPaste = computed(
-    () => fileStore.hasClipboardItems && (locationCanWrite.value || locationCanUpload.value)
+    () =>
+      fileStore.hasClipboardItems &&
+      (locationCanCreateFolder.value || locationCanCreateFile.value)
   );
   const canDelete = computed(() => hasSelection.value && locationCanDelete.value);
   const canRename = computed(
@@ -65,12 +71,16 @@ export function useFileActions() {
       isSingleItemSelected.value && primaryItem.value?.kind !== 'volume' && locationCanWrite.value
   );
   const canExtractZip = computed(
-    () => isZipSelected.value && locationCanWrite.value && primaryItem.value?.kind !== 'volume'
+    () =>
+      isZipSelected.value &&
+      locationCanCreateFolder.value &&
+      locationCanCreateFile.value &&
+      primaryItem.value?.kind !== 'volume'
   );
   const canCompressToZip = computed(
     () =>
       hasSelection.value &&
-      locationCanWrite.value &&
+      locationCanCreateFile.value &&
       selectionHasUniformParent.value &&
       selectedItems.value.every((item) => item?.kind !== 'volume')
   );
@@ -173,6 +183,8 @@ export function useFileActions() {
     // guards
     hasSelection,
     locationCanWrite,
+    locationCanCreateFolder,
+    locationCanCreateFile,
     locationCanUpload,
     locationCanDelete,
     locationCanDownload,

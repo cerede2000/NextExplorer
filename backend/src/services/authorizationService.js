@@ -7,6 +7,7 @@ const ACTIONS = Object.freeze({
   delete: 'delete',
   upload: 'upload',
   createFolder: 'createFolder',
+  createFile: 'createFile',
   rename: 'rename',
   download: 'download',
   createShare: 'createShare',
@@ -25,6 +26,8 @@ const actionToFlag = (action) => {
       return 'canUpload';
     case ACTIONS.createFolder:
       return 'canCreateFolder';
+    case ACTIONS.createFile:
+      return 'canCreateFile';
     case ACTIONS.rename:
       return 'canWrite';
     case ACTIONS.download:

@@ -69,14 +69,17 @@ const transferItems = async (items, destination, operation, options = {}) => {
     allowed: destAllowed,
     accessInfo: destAccess,
     resolved: destResolved,
-  } = await authorizeAndResolve(context, destinationRelative, ACTIONS.write);
+  } = await authorizeAndResolve(context, destinationRelative, ACTIONS.read);
   if (!destAllowed || !destResolved) {
     throw new Error(destAccess?.denialReason || 'Destination path is not writable.');
   }
 
   const { absolutePath: destinationAbsolute } = destResolved;
 
-  await ensureDir(destinationAbsolute);
+  const destinationStats = await fs.stat(destinationAbsolute).catch(() => null);
+  if (!destinationStats?.isDirectory()) {
+    throw new Error('Destination path must be an existing directory.');
+  }
 
   const results = [];
 
@@ -114,6 +117,31 @@ const transferItems = async (items, destination, operation, options = {}) => {
     if (operation === 'move' && destinationRelative === sourceParent) {
       results.push({ from: sourceRelative, to: sourceRelative, skipped: true });
       continue;
+    }
+
+    const destinationAction = stats.isDirectory() ? ACTIONS.createFolder : ACTIONS.createFile;
+    const { allowed: createAllowed, accessInfo: createAccess } = await authorizePath(
+      context,
+      destinationRelative,
+      destinationAction
+    );
+    if (!createAllowed) {
+      throw new Error(createAccess?.denialReason || 'Cannot create items in the destination path.');
+    }
+
+    // A copied directory may contain files as well as folders. Do not let the
+    // directory permission become a way around the file creation restriction.
+    if (stats.isDirectory()) {
+      const { allowed: filesAllowed, accessInfo: filesAccess } = await authorizePath(
+        context,
+        destinationRelative,
+        ACTIONS.createFile
+      );
+      if (!filesAllowed) {
+        throw new Error(
+          filesAccess?.denialReason || 'Cannot create files in the destination path.'
+        );
+      }
     }
 
     const desiredName = item.newName || item.name;

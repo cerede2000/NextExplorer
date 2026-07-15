@@ -78,6 +78,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
       canDelete: !effectiveReadOnly,
       canUpload: !effectiveReadOnly,
       canCreateFolder: !effectiveReadOnly,
+      canCreateFile: !effectiveReadOnly,
       canShare: true,
       canDownload: true,
       isShared: false,
@@ -104,6 +105,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     canDelete: !isReadOnly || isAdmin,
     canUpload: !isReadOnly || isAdmin,
     canCreateFolder: !isReadOnly || isAdmin,
+    canCreateFile: !isReadOnly || isAdmin,
     canShare: true,
     canDownload: true,
     isShared: false,
@@ -138,6 +140,7 @@ const getPersonalAccess = async (context, relativePath) => {
     canDelete: true,
     canUpload: true,
     canCreateFolder: true,
+    canCreateFile: true,
     canShare: true,
     canDownload: true,
     isShared: false,
@@ -258,14 +261,19 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
   }
 
   const isReadWrite = shareReadWrite && !underlyingReadOnly;
+  const allowsDelete = share.allowDelete !== false;
+  const allowsCreateFolder = share.allowCreateFolder !== false;
+  const allowsCreateFile = share.allowCreateFile !== false;
+  const allowsUpload = share.allowUpload !== false;
 
   return {
     canAccess: true,
     canRead: true,
     canWrite: isReadWrite,
-    canDelete: isReadWrite,
-    canUpload: isReadWrite,
-    canCreateFolder: isReadWrite,
+    canDelete: isReadWrite && allowsDelete,
+    canUpload: isReadWrite && allowsUpload,
+    canCreateFolder: isReadWrite && allowsCreateFolder,
+    canCreateFile: isReadWrite && allowsCreateFile,
     canShare: false, // Cannot create shares within shares
     canDownload: true,
     isShared: true,
@@ -294,6 +302,7 @@ const createDeniedAccess = (reason) => {
     canDelete: false,
     canUpload: false,
     canCreateFolder: false,
+    canCreateFile: false,
     canShare: false,
     canDownload: false,
     isShared: false,
