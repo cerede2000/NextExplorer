@@ -17,7 +17,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const settings = await getSettings();
     const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
-    const thumbsEnabled = env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
+    const thumbsEnabled =
+      env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const rawPath = req.params[0] || '';
     const inputRelativePath = normalizeRelativePath(rawPath);
@@ -47,7 +48,6 @@ router.get(
       parentLogicalPath: relativePath,
       context,
       thumbsEnabled,
-      excludeDownloadArtifacts: true,
       includeHiddenFiles,
       permissionRules: settings?.access?.rules || [],
     });

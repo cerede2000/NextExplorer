@@ -10,7 +10,7 @@ export const useFeaturesStore = defineStore('features', () => {
   // Admin-configured upper bound (bytes) for the upload chunk size.
   const maxUploadChunkSizeBytes = ref(0);
   const editorExtensions = ref([]);
-  const hiddenFilePatterns = ref(['.']);
+  const hiddenFilePatterns = ref(['.', 'regex:\\.download$']);
   // Archive extraction formats supported by the server (7-Zip probe).
   const archiveExtensions = ref(['zip']);
   const onlyofficeEnabled = ref(false);
@@ -67,7 +67,7 @@ export const useFeaturesStore = defineStore('features', () => {
         // Hidden file patterns
         hiddenFilePatterns.value = Array.isArray(features?.hiddenFiles?.patterns)
           ? features.hiddenFiles.patterns
-          : ['.'];
+          : ['.', 'regex:\\.download$'];
 
         // Archive extraction formats
         archiveExtensions.value =
@@ -123,7 +123,7 @@ export const useFeaturesStore = defineStore('features', () => {
         publicOrigins.value = [];
         maxUploadChunkSizeBytes.value = 0;
         editorExtensions.value = [];
-        hiddenFilePatterns.value = ['.'];
+        hiddenFilePatterns.value = ['.', 'regex:\\.download$'];
         archiveExtensions.value = ['zip'];
         onlyofficeEnabled.value = false;
         onlyofficeExtensions.value = [];
