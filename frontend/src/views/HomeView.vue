@@ -82,7 +82,7 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="quickAccess.length"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        class="grid grid-cols-[repeat(auto-fit,minmax(14rem,14rem))] gap-3"
       >
         <button
           v-for="fav in quickAccess"
@@ -116,7 +116,7 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="!loading"
-        class="grid grid-cols-2 items-start gap-x-2 gap-y-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        class="grid grid-cols-[repeat(auto-fit,minmax(14rem,14rem))] items-start gap-3"
       >
         <button
           v-for="vol in volumes"
