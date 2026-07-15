@@ -19,6 +19,7 @@ const featuresStore = useFeaturesStore();
 const isOpen = computed(() => store.isOpen);
 const item = computed(() => store.item);
 const relativePath = computed(() => store.relativePath);
+const isSharedPath = computed(() => String(relativePath.value || '').startsWith('share/'));
 
 const { t } = useI18n();
 const title = computed(() => item.value?.name || t('common.details'));
@@ -112,7 +113,7 @@ const loadPermissions = async () => {
 };
 
 const handleChangePermissions = async ({ mode, recursive }) => {
-  if (!relativePath.value) return;
+  if (!relativePath.value || isSharedPath.value) return;
 
   permissionsLoading.value = true;
   permissionsError.value = '';
@@ -129,7 +130,7 @@ const handleChangePermissions = async ({ mode, recursive }) => {
 };
 
 const handleChangeOwner = async ({ owner, group }) => {
-  if (!relativePath.value) return;
+  if (!relativePath.value || isSharedPath.value) return;
 
   permissionsLoading.value = true;
   permissionsError.value = '';
@@ -446,6 +447,7 @@ onBeforeUnmount(() => {
               :permissions="permissions"
               :is-directory="item?.kind === 'directory'"
               :loading="permissionsLoading"
+              :read-only="isSharedPath"
               @change-permissions="handleChangePermissions"
               @change-owner="handleChangeOwner"
             />

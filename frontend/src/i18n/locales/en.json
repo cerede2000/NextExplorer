@@ -586,6 +586,8 @@
     "sharedByMeDescription": "Links and folders you have shared with other people.",
     "shareCreated": "Share Created",
     "createShareLink": "Create Share Link",
+    "editShareLink": "Edit share link",
+    "saveShare": "Save changes",
     "shareLink": "Share Link",
     "directFileLink": "Direct file link",
     "directFolderLink": "Direct folder ZIP link",

@@ -309,6 +309,21 @@ const updateShare = async (shareId, updates = {}) => {
     throw e;
   }
 
+  const effectiveSharingType = updates.sharingType || existing.sharing_type;
+  const hasUserIdsUpdate = 'userIds' in updates;
+  if (effectiveSharingType === 'users' && hasUserIdsUpdate) {
+    if (!Array.isArray(updates.userIds) || updates.userIds.length === 0) {
+      const e = new Error('At least one user is required for user-specific shares');
+      e.status = 400;
+      throw e;
+    }
+  }
+  if (effectiveSharingType === 'users' && existing.sharing_type !== 'users' && !hasUserIdsUpdate) {
+    const e = new Error('At least one user is required for user-specific shares');
+    e.status = 400;
+    throw e;
+  }
+
   const fields = [];
   const values = [];
 
@@ -361,25 +376,23 @@ const updateShare = async (shareId, updates = {}) => {
     values.push(updates.label);
   }
 
-  if (fields.length === 0) {
-    return getShareById(shareId);
+  const permissionsWillChange =
+    hasUserIdsUpdate || (effectiveSharingType === 'anyone' && existing.sharing_type === 'users');
+  if (fields.length > 0 || permissionsWillChange) {
+    fields.push('updated_at = ?');
+    values.push(nowIso());
+    values.push(shareId);
+
+    db.prepare(`UPDATE shares SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }
 
-  fields.push('updated_at = ?');
-  values.push(nowIso());
-  values.push(shareId);
+  // A permission list is meaningful only for user-specific shares. Always clear
+  // it when switching back to an anyone link so revoked recipients have no stale
+  // database entries left behind.
+  if (hasUserIdsUpdate || effectiveSharingType === 'anyone') {
+    db.prepare('DELETE FROM share_permissions WHERE share_id = ?').run(shareId);
 
-  db.prepare(`UPDATE shares SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-
-  // Update user permissions if provided and sharing type is 'users'
-  if ('userIds' in updates && Array.isArray(updates.userIds)) {
-    const sharingType = updates.sharingType || existing.sharing_type;
-
-    if (sharingType === 'users') {
-      // Remove all existing permissions
-      db.prepare('DELETE FROM share_permissions WHERE share_id = ?').run(shareId);
-
-      // Add new permissions
+    if (effectiveSharingType === 'users') {
       const insertPerm = db.prepare(`
         INSERT INTO share_permissions (id, share_id, user_id, created_at)
         VALUES (?, ?, ?, ?)

@@ -392,13 +392,20 @@ export const useFileStore = defineStore('fileStore', () => {
       // not clear a newer selection in the current view when it deletes the
       // original, captured selection in the background.
       if (selectionMatchesPayload) clearSelection();
-      await favoritesStore.loadFavorites();
+      // Favorites belong to an authenticated account. A guest share session
+      // cannot refresh them, and doing so turns a successful delete into a
+      // misleading authentication error.
+      if (!currentPath.value.startsWith('share/')) {
+        await favoritesStore.loadFavorites();
+      }
       await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
     } catch (error) {
       if (!isAbortError(error)) throw error;
-      await favoritesStore.loadFavorites();
+      if (!currentPath.value.startsWith('share/')) {
+        await favoritesStore.loadFavorites();
+      }
       await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
