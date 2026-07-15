@@ -123,21 +123,21 @@ const openPersonal = () => {
           :key="vol.name"
           type="button"
           @click="openItem(vol)"
-          class="flex w-fit max-w-full cursor-pointer select-none flex-col items-start gap-2 rounded-lg px-2 py-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
+          class="flex w-fit max-w-full cursor-pointer select-none items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
         >
-          <div class="flex min-w-0 items-center gap-3">
-            <IconDrive class="h-16 shrink-0" />
-            <div class="truncate text-sm font-medium text-neutral-900 dark:text-white">
+          <IconDrive class="h-16 shrink-0" />
+          <div class="flex w-44 max-w-full min-w-0 flex-col items-stretch gap-2 pt-1">
+            <div class="truncate text-left text-sm font-medium text-neutral-900 dark:text-white">
               {{ vol.name }}
             </div>
+            <VolumeUsageBar
+              v-if="showVolumeUsage"
+              :usage="usage[vol.path]"
+              :loading="volumeUsageStore.isLoadingUsage"
+              percent-inside
+              class="w-full"
+            />
           </div>
-          <VolumeUsageBar
-            v-if="showVolumeUsage"
-            :usage="usage[vol.path]"
-            :loading="volumeUsageStore.isLoadingUsage"
-            percent-inside
-            class="w-44 max-w-full"
-          />
         </button>
       </div>
       <div v-else class="text-sm text-neutral-500 dark:text-neutral-400">
