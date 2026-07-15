@@ -497,8 +497,8 @@ onBeforeUnmount(() => {
               'relative',
               item.kind === 'directory' && isDragTarget(item)
                 ? isCopyDragTarget(item)
-                  ? 'ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
-                  : 'ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                  ? 'z-10 ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                  : 'z-10 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
                 : '',
             ]"
             @dragover="(e) => item.kind === 'directory' && handleDragOver(e, item)"
