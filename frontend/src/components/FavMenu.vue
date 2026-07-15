@@ -18,7 +18,6 @@ const {
   PencilSquareIcon,
   XMarkIcon,
   Bars3Icon,
-  PlusIcon,
 } = OutlineIcons;
 
 const rootEl = ref(null);
@@ -242,12 +241,6 @@ onBeforeUnmount(() => {
                       :style="{ color: favorite.color || 'currentColor' }"
                     />
                     <span class="truncate">{{ getFavoriteLabel(favorite) }}</span>
-                    <span
-                      v-if="isFavoriteCopyTarget(favorite)"
-                      class="ml-auto grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-white shadow-sm"
-                    >
-                      <PlusIcon class="h-3.5 w-3.5" />
-                    </span>
                   </button>
                   <template v-if="isEditMode">
                     <button

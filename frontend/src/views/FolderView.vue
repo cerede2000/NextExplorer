@@ -59,6 +59,23 @@ const {
 } =
   useFileDragDrop();
 
+const currentFolderDropTarget = computed(() => ({
+  destinationPath: normalizePath(fileStore.currentPath || ''),
+  kind: 'directory',
+}));
+
+const handleCurrentFolderDragOver = (event) => {
+  handleDragOver(event, currentFolderDropTarget.value);
+};
+
+const handleCurrentFolderDragLeave = (event) => {
+  handleDragLeave(event, currentFolderDropTarget.value);
+};
+
+const handleCurrentFolderDrop = (event) => {
+  handleDrop(event, currentFolderDropTarget.value);
+};
+
 const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
 const VIRTUAL_LIST_THRESHOLD = 1000;
@@ -563,6 +580,9 @@ onBeforeUnmount(() => {
         <div
           :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'pb-5' : '']"
           :style="gridStyle"
+          @dragover.self="handleCurrentFolderDragOver"
+          @dragleave.self="handleCurrentFolderDragLeave"
+          @drop.self="handleCurrentFolderDrop"
         >
           <!-- Detail view header -->
           <div
@@ -625,7 +645,6 @@ onBeforeUnmount(() => {
             :key="(item.path || '') + '::' + item.name"
             :item="item"
             :view="settings.view"
-            :show-copy-drop-indicator="item.kind === 'directory' && isCopyDragTarget(item)"
             :class="[
               'relative',
               item.kind === 'directory' && isDragTarget(item)

@@ -78,7 +78,7 @@ describe('useFileDragDrop', () => {
     const event = transferEvent({ altKey: true });
 
     dragDrop.handleDragOver(event, target);
-    expect(event.dataTransfer.dropEffect).toBe('copy');
+    expect(event.dataTransfer.dropEffect).toBe('move');
     expect(dragDrop.isCopyDragTarget(target)).toBe(true);
 
     await dragDrop.handleDrop(event, target);
@@ -127,6 +127,7 @@ describe('useFileDragDrop', () => {
   });
 
   it('keeps the copy badge attached to the application drag preview', () => {
+    vi.useFakeTimers();
     const dragDrop = useFileDragDrop();
     const source = document.createElement('div');
     source.innerHTML = '<span class="block aspect-square"><svg></svg></span>';
@@ -158,10 +159,26 @@ describe('useFileDragDrop', () => {
     const badges = preview?.querySelector('.file-drag-badges');
     expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(1);
     expect(badges?.textContent).toBe('+1');
-    expect(preview?.style.transform).toBe('translate3d(152px, 272px, 0)');
+    expect(preview?.style.transform).toBe('translate3d(150px, 250px, 0)');
 
     dragDrop.handleDragEnd();
+    vi.advanceTimersByTime(150);
     expect(document.querySelector('.file-drag-image')).toBeNull();
+    vi.useRealTimers();
     source.remove();
+  });
+
+  it('copies into the current folder when Option/Alt is held', async () => {
+    const dragDrop = useFileDragDrop();
+    const event = transferEvent({ altKey: true });
+
+    await dragDrop.handleDrop(event, { destinationPath: 'Source', kind: 'directory' });
+
+    expect(copyItems).toHaveBeenCalledWith(
+      [{ name: 'report.txt', path: 'Source', kind: 'file' }],
+      'Source',
+      expect.any(Object)
+    );
+    expect(moveItems).not.toHaveBeenCalled();
   });
 });
