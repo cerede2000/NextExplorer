@@ -121,6 +121,7 @@ const sizeOfMoved = (db, scope, sourceAbsolutePath, { isDirectory, size }) => {
  * of that tree until the operation has finished.
  */
 const beginDirectoryTransfer = async (targetAbsolutePath) => {
+  if (!isEnabled()) return;
   transferState.begin(targetAbsolutePath);
   await withIndex((db, scope) => {
     if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
@@ -145,6 +146,7 @@ const beginDirectoryTransfer = async (targetAbsolutePath) => {
 };
 
 const cancelDirectoryTransfer = async (targetAbsolutePath) => {
+  if (!isEnabled()) return;
   transferState.finish(targetAbsolutePath);
   await onEntryDeleted(targetAbsolutePath, { isDirectory: true });
 };
@@ -221,9 +223,9 @@ const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
  * own I/O while it is still writing files.
  */
 const refreshTransferredDirectories = (absolutePaths = []) => {
+  if (!isEnabled()) return;
   const uniquePaths = [...new Set(absolutePaths.filter(Boolean))];
   transferState.finishAll(uniquePaths);
-  if (!isEnabled()) return;
   for (const absolutePath of uniquePaths) {
     folderSizeManager.refreshSubtree(absolutePath).catch((err) => {
       logger.debug(
