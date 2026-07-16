@@ -70,7 +70,7 @@ const lookupFolderSize = async (context, inputRelRaw) => {
       canEnter,
       sizeBytes: entry ? entry.sizeBytes : null,
       entryCount: entry ? entry.entryCount : null,
-      lastUpdated: entry ? entry.lastDeltaAt || entry.lastFullScanAt || null : null,
+      lastUpdated: folderSizeIndex.getLastUpdatedAt(entry),
       indexed: Boolean(entry),
     },
     // Absolute path (volume-space, within root) for the on-view refresh, or null.
@@ -96,7 +96,7 @@ const indexResult = (db, scope, absolutePath, logicalPath, canEnter) => {
     canEnter,
     sizeBytes: entry ? entry.sizeBytes : null,
     entryCount: entry ? entry.entryCount : null,
-    lastUpdated: entry ? entry.lastDeltaAt || entry.lastFullScanAt || null : null,
+    lastUpdated: folderSizeIndex.getLastUpdatedAt(entry),
     indexed: Boolean(entry),
   };
 };

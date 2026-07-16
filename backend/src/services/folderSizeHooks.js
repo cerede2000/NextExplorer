@@ -21,6 +21,7 @@ const { getDb } = require('./db');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
 const folderSizeManager = require('./folderSizeManager');
+const transferState = require('./folderSizeTransferState');
 
 const isEnabled = () => config.folderSize.enabled;
 
@@ -112,6 +113,41 @@ const sizeOfMoved = (db, scope, sourceAbsolutePath, { isDirectory, size }) => {
   return entry ? entry.sizeBytes : 0;
 };
 
+/**
+ * Mark a directory target before the transfer starts writing it. A pending
+ * index row blocks background scans from publishing a partial aggregate.
+ */
+const beginDirectoryTransfer = async (targetAbsolutePath) => {
+  if (!isEnabled()) return;
+  transferState.begin(targetAbsolutePath);
+  await withIndex((db, scope) => {
+    if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
+
+    const previous = folderSizeIndex.getByAbsolutePath(db, targetAbsolutePath);
+    if (previous) {
+      folderSizeIndex.removeSubtree(db, scope, targetAbsolutePath);
+      folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), -previous.sizeBytes, {
+        entryDelta: -1,
+      });
+    }
+
+    folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+      absolutePath: targetAbsolutePath,
+      sizeBytes: 0,
+      entryCount: 0,
+    });
+    folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+      entryDelta: 1,
+    });
+  });
+};
+
+const cancelDirectoryTransfer = async (targetAbsolutePath) => {
+  if (!isEnabled()) return;
+  transferState.finish(targetAbsolutePath);
+  await onEntryDeleted(targetAbsolutePath, { isDirectory: true });
+};
+
 /** An entry has been moved from `sourceAbsolutePath` to `targetAbsolutePath`. */
 const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
   withIndex((db, scope) => {
@@ -120,26 +156,89 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
       entryDelta: -1,
     });
     if (meta.isDirectory) {
-      folderSizeIndex.reparentSubtree(db, scope, sourceAbsolutePath, targetAbsolutePath);
+      folderSizeIndex.removeSubtree(db, scope, sourceAbsolutePath);
+      if (
+        !meta.directoryTransferPrepared &&
+        folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)
+      ) {
+        folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+          absolutePath: targetAbsolutePath,
+          sizeBytes: 0,
+          entryCount: 0,
+        });
+        folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+          entryDelta: 1,
+        });
+      }
+      return;
     }
-    folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
-      entryDelta: 1,
-    });
+    folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, { entryDelta: 1 });
   });
 
 /**
  * An entry has been copied to `targetAbsolutePath`. The destination gains the
- * copied bytes. A copied directory is scanned immediately so its child index
- * entries and recursive size are available before the operation completes.
+ * copied bytes. A copied directory is marked pending so a single authoritative
+ * scan can rebuild it once the complete transfer has finished.
  */
 const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
-  if (meta.isDirectory) return onDirectoryTreeCreated(targetAbsolutePath);
   return withIndex((db, scope) => {
-    const bytes = Number(meta.size) || 0;
-    folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, {
-      entryDelta: 1,
-    });
+    if (meta.isDirectory) {
+      if (meta.directoryTransferPrepared) return;
+      if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
+      folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+        absolutePath: targetAbsolutePath,
+        sizeBytes: 0,
+        entryCount: 0,
+      });
+      folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+        entryDelta: 1,
+      });
+      return;
+    }
+
+    folderSizeIndex.applyDelta(
+      db,
+      scope,
+      path.dirname(targetAbsolutePath),
+      Number(meta.size) || 0,
+      {
+        entryDelta: 1,
+      }
+    );
   });
+};
+
+/**
+ * Queue authoritative scans once a transfer has settled. Keep each directory
+ * protected until that scan has committed its root aggregate: otherwise an
+ * on-view refresh can observe only part of the subtree and publish a zero or
+ * partial size over the pending entry.
+ */
+const refreshTransferredDirectories = (absolutePaths = []) => {
+  if (!isEnabled()) return;
+  const uniquePaths = [...new Set(absolutePaths.filter(Boolean))];
+  for (const absolutePath of uniquePaths) {
+    (async () => {
+      try {
+        const result = await folderSizeManager.refreshSubtree(absolutePath, {
+          allowActiveTransfer: true,
+        });
+        if (!result) {
+          logger.warn(
+            { component: 'folderSizeIndexer', path: absolutePath },
+            'Transferred directory refresh did not start'
+          );
+        }
+      } catch (err) {
+        logger.debug(
+          { err, component: 'folderSizeIndexer', path: absolutePath },
+          'Transferred directory refresh failed (non-fatal)'
+        );
+      } finally {
+        transferState.finish(absolutePath);
+      }
+    })();
+  }
 };
 
 /**
@@ -160,7 +259,10 @@ module.exports = {
   onFolderCreated,
   onDirectoryTreeCreated,
   onEntryDeleted,
+  beginDirectoryTransfer,
+  cancelDirectoryTransfer,
   onEntryMoved,
   onEntryCopied,
+  refreshTransferredDirectories,
   onEntryRenamed,
 };

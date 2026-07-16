@@ -80,6 +80,7 @@ const transferItems = async (items, destination, operation, options = {}) => {
   await ensureDir(destinationAbsolute);
 
   const results = [];
+  const transferredDirectories = [];
 
   for (const item of items) {
     const sourceCombined = combineRelativePath(item.path || '', item.name);
@@ -139,8 +140,14 @@ const transferItems = async (items, destination, operation, options = {}) => {
       throw new Error(`Unsupported operation: ${operation}`);
     }
 
+    if (stats.isDirectory()) transferredDirectories.push(targetAbsolute);
     results.push({ from: sourceRelative, to: targetRelative });
   }
+
+  // Directory size metadata is rebuilt only after the whole operation has
+  // settled. This prevents a partial tree from being stored as an authoritative
+  // size while copy or cross-volume move work is still in progress.
+  folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
 
   return { destination: destinationRelative, items: results };
 };

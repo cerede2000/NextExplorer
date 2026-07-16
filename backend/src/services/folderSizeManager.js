@@ -311,13 +311,15 @@ const requestRebuild = () => {
  * the same path share the same work. During startup this waits for the baseline
  * instead of returning a stale size for a completed operation.
  */
-const refreshSubtree = async (absDir) => {
+const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
   if (!config.folderSize.enabled || stopped || (!running && !starting)) return null;
+  if (!allowActiveTransfer && transferState.isRelatedToActiveTransfer(absDir)) return null;
   if (pendingSubtreeScans.has(absDir)) return pendingSubtreeScans.get(absDir);
 
   const scan = async () => {
     if (starting && readyPromise) await readyPromise;
     if (!running || !db || !scope || stopped) return null;
+    if (!allowActiveTransfer && transferState.isRelatedToActiveTransfer(absDir)) return null;
 
     const startedAt = Date.now();
     activeSubtreeScan = { path: absDir, startedAt };

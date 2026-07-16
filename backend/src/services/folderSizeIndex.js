@@ -105,6 +105,20 @@ const getByAbsolutePath = (db, absolutePath) => {
 };
 
 /**
+ * Return the most recent index write timestamp for an entry. A pending
+ * transfer keeps its delta timestamp when its authoritative scan completes,
+ * so using `lastDeltaAt || lastFullScanAt` would permanently hide that later
+ * scan from clients waiting for a refresh.
+ */
+const getLastUpdatedAt = (entry) => {
+  if (!entry) return null;
+  const candidates = [entry.lastDeltaAt, entry.lastFullScanAt]
+    .filter((value) => Number.isFinite(Date.parse(value)))
+    .sort((a, b) => Date.parse(b) - Date.parse(a));
+  return candidates[0] || null;
+};
+
+/**
  * One page of folders for the reconciliation pass, ordered by relative_path
  * DESC (children before their parents) and limited to `limit` rows. Only the
  * three columns reconcile needs are selected. Pass `beforeRelativePath = null`
@@ -352,6 +366,7 @@ module.exports = {
   isWithinRoot,
   ancestorChain,
   getByAbsolutePath,
+  getLastUpdatedAt,
   listScanTargetsPage,
   countByVolume,
   getIndexVersion,

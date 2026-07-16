@@ -113,6 +113,31 @@ describe('Folder size route', () => {
     expect(byPath['DoesNotExist'].sizeBytes).toBeNull();
   });
 
+  it('reports the authoritative scan timestamp after a pending transfer completes', async () => {
+    ctx = await buildContext({ user: { id: 'admin-user', roles: ['admin'] } });
+    const { env, db, folderSizeIndex, scope } = ctx;
+    const target = path.join(env.volumeDir, 'Transferred');
+    await fs.mkdir(target, { recursive: true });
+
+    folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+      absolutePath: target,
+      sizeBytes: 0,
+      entryCount: 0,
+    });
+    folderSizeIndex.upsertScanEntry(db, scope, {
+      absolutePath: target,
+      sizeBytes: 123,
+      entryCount: 1,
+      lastFullScanAt: '2099-01-01T00:00:00.000Z',
+    });
+
+    const response = await request(ctx.app).get('/api/folder-size/Transferred');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ sizeBytes: 123, dirty: false });
+    expect(response.body.lastUpdated).toBe('2099-01-01T00:00:00.000Z');
+  });
+
   it('never triggers a synchronous scan (unindexed folder with real content stays null)', async () => {
     ctx = await buildContext({ user: { id: 'admin-user', roles: ['admin'] } });
 
