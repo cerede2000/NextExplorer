@@ -125,12 +125,27 @@ const openPersonal = () => {
           :key="vol.name"
           type="button"
           @click="openItem(vol)"
-          class="grid w-full max-w-full grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 rounded-lg py-3 pr-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60"
+          :class="[
+            'w-full max-w-full rounded-lg py-3 pr-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60',
+            showVolumeUsage
+              ? 'grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3'
+              : 'flex items-center gap-3',
+          ]"
         >
-          <IconDrive class="h-16 shrink-0" />
-          <div class="flex w-full min-w-0 flex-col items-stretch gap-2 pt-1">
+          <IconDrive :class="showVolumeUsage ? 'h-16 shrink-0' : 'h-12 shrink-0'" />
+          <div
+            :class="
+              showVolumeUsage
+                ? 'flex w-full min-w-0 flex-col items-stretch gap-2 pt-1'
+                : 'min-w-0 flex-1'
+            "
+          >
             <div
-              class="w-full truncate !text-left text-sm font-medium text-neutral-900 dark:text-white"
+              :class="
+                showVolumeUsage
+                  ? 'w-full truncate !text-left text-sm font-medium text-neutral-900 dark:text-white'
+                  : 'truncate text-sm font-medium text-neutral-900 dark:text-white'
+              "
               style="text-align: left"
             >
               {{ vol.name }}
