@@ -218,21 +218,35 @@ const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
 };
 
 /**
- * Queue authoritative scans once a transfer has settled. The manager deduplicates
- * paths and serializes scans, so a large multi-item copy never competes with its
- * own I/O while it is still writing files.
+ * Queue authoritative scans once a transfer has settled. Keep each directory
+ * protected until that scan has committed its root aggregate: otherwise an
+ * on-view refresh can observe only part of the subtree and publish a zero or
+ * partial size over the pending entry.
  */
 const refreshTransferredDirectories = (absolutePaths = []) => {
   if (!isEnabled()) return;
   const uniquePaths = [...new Set(absolutePaths.filter(Boolean))];
-  transferState.finishAll(uniquePaths);
   for (const absolutePath of uniquePaths) {
-    folderSizeManager.refreshSubtree(absolutePath).catch((err) => {
-      logger.debug(
-        { err, component: 'folderSizeIndexer', path: absolutePath },
-        'Transferred directory refresh failed (non-fatal)'
-      );
-    });
+    (async () => {
+      try {
+        const result = await folderSizeManager.refreshSubtree(absolutePath, {
+          allowActiveTransfer: true,
+        });
+        if (!result) {
+          logger.warn(
+            { component: 'folderSizeIndexer', path: absolutePath },
+            'Transferred directory refresh did not start'
+          );
+        }
+      } catch (err) {
+        logger.debug(
+          { err, component: 'folderSizeIndexer', path: absolutePath },
+          'Transferred directory refresh failed (non-fatal)'
+        );
+      } finally {
+        transferState.finish(absolutePath);
+      }
+    })();
   }
 };
 

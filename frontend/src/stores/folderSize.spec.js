@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 
 const getFolderSizesBatch = vi.fn();
@@ -24,6 +24,10 @@ vi.mock('@/stores/features', () => ({
 import { useFolderSizeStore } from '@/stores/folderSize';
 
 describe('folderSize store', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     featuresState.folderSizeEnabled = true;
@@ -138,5 +142,23 @@ describe('folderSize store', () => {
     expect(refreshFolderSize).toHaveBeenCalledWith('A/External');
     expect(entry).toMatchObject({ sizeBytes: 0, indexed: true, refreshPending: true });
     expect(store.sizeFor('A/External')).toMatchObject({ sizeBytes: 0, entryCount: 4 });
+  });
+
+  it('re-fetches a visible directory while its authoritative scan is pending', async () => {
+    vi.useFakeTimers();
+    getFolderSizesBatch
+      .mockResolvedValueOnce({
+        results: [{ path: 'A', sizeBytes: 0, entryCount: 2, indexed: true, dirty: true }],
+      })
+      .mockResolvedValueOnce({
+        results: [{ path: 'A', sizeBytes: 123, entryCount: 2, indexed: true, dirty: false }],
+      });
+
+    const store = useFolderSizeStore();
+    await store.refresh({ force: true, paths: ['A'] });
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(getFolderSizesBatch).toHaveBeenCalledTimes(2);
+    expect(store.sizeFor('A')).toMatchObject({ sizeBytes: 123, dirty: false });
   });
 });

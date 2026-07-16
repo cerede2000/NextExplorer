@@ -173,6 +173,32 @@ describe('folderSizeIndexer', () => {
     expect(folderSizeIndex.getByAbsolutePath(db, transferred)).toMatchObject({ dirty: 0 });
   });
 
+  it('allows only the transfer finalizer to scan a directory still protected from on-view refreshes', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+    const target = path.join(vol, 'Destination', 'Transferred');
+
+    await fs.mkdir(path.join(target, 'nested'), { recursive: true });
+    await fs.writeFile(path.join(target, 'nested', 'payload.bin'), Buffer.alloc(90));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    const transferState = env.requireFresh('src/services/folderSizeTransferState');
+    manager = env.requireFresh('src/services/folderSizeManager');
+    await manager.start();
+    transferState.begin(target);
+
+    await expect(manager.refreshSubtree(target)).resolves.toBeNull();
+    await expect(
+      manager.refreshSubtree(target, { allowActiveTransfer: true })
+    ).resolves.toMatchObject({
+      bytes: 90,
+    });
+    expect(sizeOf(folderSizeIndex, db, target)).toBe(90);
+
+    transferState.finish(target);
+  });
+
   it('bounds large-directory metadata work into paced batches', async () => {
     ctx = await createContext();
     const { env, db, indexer, scope } = ctx;

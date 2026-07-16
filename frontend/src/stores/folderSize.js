@@ -6,6 +6,8 @@ import { useFeaturesStore } from '@/stores/features';
 const REFRESH_THROTTLE_MS = 2500;
 const MANUAL_REFRESH_POLL_MS = 1500;
 const MANUAL_REFRESH_MAX_POLLS = 400;
+const DIRTY_REFRESH_INITIAL_MS = 2000;
+const DIRTY_REFRESH_MAX_MS = 15000;
 
 const normalizeEntry = (raw = {}) => ({
   path: normalizePath(raw.path || ''),
@@ -42,6 +44,8 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
   let queuedRefresh = false;
   let inFlightTargets = null;
   const pendingManualRefreshes = new Map();
+  let dirtyRefreshTimer = null;
+  let dirtyRefreshDelay = DIRTY_REFRESH_INITIAL_MS;
 
   const clearDisabledState = () => {
     sizes.value = {};
@@ -51,6 +55,12 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
       globalThis.clearTimeout(refreshTimer);
       refreshTimer = null;
     }
+
+    if (dirtyRefreshTimer) {
+      globalThis.clearTimeout(dirtyRefreshTimer);
+      dirtyRefreshTimer = null;
+    }
+    dirtyRefreshDelay = DIRTY_REFRESH_INITIAL_MS;
 
     for (const timer of pendingManualRefreshes.values()) {
       globalThis.clearTimeout(timer);
@@ -96,6 +106,31 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
       const results = Array.isArray(response?.results) ? response.results : [];
       mergeEntries(results);
       lastRefreshAt = Date.now();
+
+      // A copied or moved directory is intentionally exposed as dirty while
+      // its final subtree scan runs. Re-read only the current view, with a
+      // bounded exponential backoff, so its final size appears without a page
+      // reload and without polling an entire large tree.
+      const hasDirtyVisibleEntry = results.some((raw) => {
+        const entry = normalizeEntry(raw);
+        return entry.dirty && trackedPaths.includes(entry.path);
+      });
+      if (hasDirtyVisibleEntry) {
+        if (!dirtyRefreshTimer) {
+          const delay = dirtyRefreshDelay;
+          dirtyRefreshDelay = Math.min(dirtyRefreshDelay * 2, DIRTY_REFRESH_MAX_MS);
+          dirtyRefreshTimer = globalThis.setTimeout(() => {
+            dirtyRefreshTimer = null;
+            refresh({ force: true }).catch(() => {});
+          }, delay);
+        }
+      } else {
+        if (dirtyRefreshTimer) {
+          globalThis.clearTimeout(dirtyRefreshTimer);
+          dirtyRefreshTimer = null;
+        }
+        dirtyRefreshDelay = DIRTY_REFRESH_INITIAL_MS;
+      }
     } catch (_) {
       // Non-fatal: leave any previously known sizes in place.
     }
