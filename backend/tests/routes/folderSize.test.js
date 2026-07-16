@@ -19,12 +19,12 @@ const ROUTE_MODULES = [
  * no assigned volume is denied navigation (exercising the "size even when you
  * cannot enter" requirement).
  */
-const buildContext = async ({ user, userVolumes = false } = {}) => {
+const buildContext = async ({ user, userVolumes = false, folderSizeMode = 'full' } = {}) => {
   const env = await setupTestEnv({
     tag: 'folder-size-route-',
     modules: ROUTE_MODULES,
     env: {
-      FOLDER_SIZE_MODE: 'full',
+      FOLDER_SIZE_MODE: folderSizeMode,
       USER_VOLUMES: userVolumes ? 'true' : 'false',
     },
   });
@@ -143,6 +143,31 @@ describe('Folder size route', () => {
     expect(response.body).toMatchObject({
       path: 'External',
       refreshPending: true,
+    });
+  });
+
+  it('does not resolve paths or expose the index endpoints when disabled', async () => {
+    ctx = await buildContext({
+      user: { id: 'admin-user', roles: ['admin'] },
+      folderSizeMode: 'off',
+    });
+
+    const [single, batch, refresh] = await Promise.all([
+      request(ctx.app).get('/api/folder-size/anything'),
+      request(ctx.app)
+        .post('/api/folder-size/batch')
+        .send({ paths: ['anything'] }),
+      request(ctx.app).post('/api/folder-size/refresh/anything'),
+    ]);
+
+    expect(single.status).toBe(404);
+    expect(batch.status).toBe(404);
+    expect(refresh.status).toBe(404);
+    expect(ctx.manager.getDiagnosticsSnapshot()).toMatchObject({
+      running: false,
+      starting: false,
+      dirtyDirectories: 0,
+      pendingSubtreeScans: 0,
     });
   });
 });
