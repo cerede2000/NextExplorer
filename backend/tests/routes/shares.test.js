@@ -335,10 +335,11 @@ describe('Shares Routes', () => {
       });
 
       expect(create.status).toBe(201);
-      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}`);
+      expect(create.body.directFileUrl).not.toContain('/file');
 
       const publicApp = buildApp();
-      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}`);
 
       expect(direct.status).toBe(200);
       expect(direct.headers['content-disposition']).toContain('inline');
@@ -346,12 +347,22 @@ describe('Shares Routes', () => {
       expect(direct.text).toBe('hello direct link');
 
       const download = await request(publicApp).get(
-        `/api/share/${create.body.shareToken}/file?mode=download`
+        `/api/share/${create.body.shareToken}?mode=download`
       );
 
       expect(download.status).toBe(200);
       expect(download.headers['content-disposition']).toContain('attachment');
       expect(download.headers['content-disposition']).toContain('hello.txt');
+
+      const raw = await request(publicApp).get(`/api/share/${create.body.shareToken}?mode=raw`);
+      expect(raw.status).toBe(200);
+      expect(raw.text).toBe('hello direct link');
+
+      const legacyDirect = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/file`
+      );
+      expect(legacyDirect.status).toBe(200);
+      expect(legacyDirect.text).toBe('hello direct link');
     });
 
     it('should redirect a password-protected direct file until the password is verified', async () => {
@@ -389,7 +400,7 @@ describe('Shares Routes', () => {
 
       const publicApp = buildApp();
       const directBeforePassword = await request(publicApp).get(
-        `/api/share/${create.body.shareToken}/file`
+        `/api/share/${create.body.shareToken}`
       );
       expect(directBeforePassword.status).toBe(302);
       expect(directBeforePassword.headers.location).toContain(`/share/${create.body.shareToken}`);
@@ -403,7 +414,7 @@ describe('Shares Routes', () => {
       expect(verify.body.guestSessionId).toBeDefined();
 
       const directAfterPassword = await request(publicApp)
-        .get(`/api/share/${create.body.shareToken}/file`)
+        .get(`/api/share/${create.body.shareToken}`)
         .set('X-Guest-Session', verify.body.guestSessionId);
 
       expect(directAfterPassword.status).toBe(200);
@@ -441,10 +452,11 @@ describe('Shares Routes', () => {
       });
 
       expect(create.status).toBe(201);
-      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}`);
+      expect(create.body.directFileUrl).not.toContain('/file');
 
       const publicApp = buildApp();
-      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}`);
 
       expect(direct.status).toBe(200);
       expect(direct.headers['content-type']).toContain('application/zip');
