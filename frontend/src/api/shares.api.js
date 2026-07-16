@@ -178,7 +178,7 @@ function getDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
   const encodedInnerPath = encodePath(normalizedInnerPath);
   const url = encodedInnerPath
     ? `${baseUrl}/api/share/${encodedToken}/file/${encodedInnerPath}`
-    : `${baseUrl}/api/share/${encodedToken}/file`;
+    : `${baseUrl}/api/share/${encodedToken}`;
   const normalizedMode = normalizeDirectShareFileMode(mode);
   if (normalizedMode === 'editor') {
     return getDirectShareEditorUrl(shareToken, normalizedInnerPath);

@@ -164,7 +164,7 @@ const buildDirectFilePath = (shareToken, innerPath = '', mode = 'auto') => {
   const query = normalizedMode === 'auto' ? '' : `?mode=${encodeURIComponent(normalizedMode)}`;
   const pathPart = encodedInnerPath
     ? `/api/share/${encodedToken}/file/${encodedInnerPath}`
-    : `/api/share/${encodedToken}/file`;
+    : `/api/share/${encodedToken}`;
   return `${pathPart}${query}`;
 };
 
@@ -421,6 +421,16 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
+    // This router is mounted under both /api/shares (management) and
+    // /api/share (public links). The exact public token URL must be handled
+    // here before the management endpoint can interpret the token as a share
+    // ID. Named public routes have an additional path segment and do not match
+    // this route.
+    if (req.baseUrl === '/api/share') {
+      req.params.token = req.params.id;
+      return handleDirectFileRequest(req, res);
+    }
+
     if (!req.user || !req.user.id) {
       throw new UnauthorizedError('Authentication required');
     }
@@ -844,8 +854,10 @@ const handleDirectFileRequest = async (req, res) => {
 /**
  * GET /api/share/:token/file/* - Open a shared file directly.
  *
- * This keeps the same share rules as the Web UI but streams the target file
- * itself, letting the browser preview supported formats or download others.
+ * The exact /api/share/:token alias is handled by the mounted router's
+ * management route above. It intentionally calls this same handler so token,
+ * expiry, password, guest-session and permission checks cannot drift apart.
+ * Keep /file routes for existing external integrations.
  */
 router.get('/:token/file', asyncHandler(handleDirectFileRequest));
 router.get('/:token/file/*', asyncHandler(handleDirectFileRequest));
