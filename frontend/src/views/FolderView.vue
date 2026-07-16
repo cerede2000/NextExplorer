@@ -435,19 +435,30 @@ onBeforeUnmount(() => {
                 @click.stop
               />
             </div>
-            <div v-for="col in listColumns" :key="col.key" class="relative flex items-center">
-              <button
-                type="button"
-                class="flex items-center gap-1 text-left hover:text-neutral-900 dark:hover:text-white"
-                @click="toggleSort(col.by, col.defaultOrder)"
-              >
-                <span>{{ $t(col.labelKey) }}</span>
-                <ChevronUpIcon v-if="sortIndicator(col.by) === 'asc'" class="h-3.5 w-3.5" />
-                <ChevronDownIcon v-else-if="sortIndicator(col.by) === 'desc'" class="h-3.5 w-3.5" />
-              </button>
+            <div
+              v-for="col in listColumns"
+              :key="col.key"
+              role="button"
+              tabindex="0"
+              :aria-sort="
+                sortIndicator(col.by) === 'asc'
+                  ? 'ascending'
+                  : sortIndicator(col.by) === 'desc'
+                    ? 'descending'
+                    : 'none'
+              "
+              class="relative flex cursor-pointer items-center gap-1 text-left outline-none hover:text-neutral-900 focus-visible:text-neutral-900 dark:hover:text-white dark:focus-visible:text-white"
+              @click="toggleSort(col.by, col.defaultOrder)"
+              @keydown.enter.prevent="toggleSort(col.by, col.defaultOrder)"
+              @keydown.space.prevent="toggleSort(col.by, col.defaultOrder)"
+            >
+              <span>{{ $t(col.labelKey) }}</span>
+              <ChevronUpIcon v-if="sortIndicator(col.by) === 'asc'" class="h-3.5 w-3.5" />
+              <ChevronDownIcon v-else-if="sortIndicator(col.by) === 'desc'" class="h-3.5 w-3.5" />
               <div
                 class="absolute -right-2 top-0 h-full w-4 cursor-col-resize touch-none"
                 title="Resize"
+                @click.stop
                 @pointerdown.stop.prevent="startResize(col.widthIndex, $event)"
                 @dblclick.stop.prevent="settings.resetListViewColumnWidths()"
               >
