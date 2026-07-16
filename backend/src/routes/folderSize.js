@@ -6,6 +6,7 @@ const { getDb } = require('../services/db');
 const folderSizeIndex = require('../services/folderSizeIndex');
 const { getVolumeScope } = require('../services/folderSizeIndexer');
 const folderSizeManager = require('../services/folderSizeManager');
+const config = require('../config/index');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
 const { ValidationError, ForbiddenError, NotFoundError, RateLimitError } = require('../errors/AppError');
@@ -15,6 +16,17 @@ const router = express.Router();
 const MAX_BATCH_PATHS = 500;
 const MAX_MANUAL_REFRESHES = 24;
 const manualRefreshes = new Map();
+
+// Keep this router entirely dormant when folder sizes are disabled. The
+// frontend normally never calls it in that mode, but this guard also prevents
+// direct API consumers from resolving paths, opening SQLite, or stat'ing a
+// directory before the manager can reject a refresh request.
+router.use('/folder-size', (_req, res, next) => {
+  if (!config.folderSize.enabled) {
+    return res.status(404).json({ error: 'Folder size indexing is disabled.' });
+  }
+  return next();
+});
 
 /**
  * Resolve the absolute filesystem path for a logical path *without* enforcing

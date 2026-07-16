@@ -42,6 +42,21 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
   let inFlightTargets = null;
   const pendingManualRefreshes = new Map();
 
+  const clearDisabledState = () => {
+    sizes.value = {};
+    queuedRefresh = false;
+
+    if (refreshTimer) {
+      globalThis.clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+
+    for (const timer of pendingManualRefreshes.values()) {
+      globalThis.clearTimeout(timer);
+    }
+    pendingManualRefreshes.clear();
+  };
+
   const mergeEntries = (rawEntries = []) => {
     const next = { ...sizes.value };
     for (const raw of rawEntries) {
@@ -90,7 +105,7 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
     await featuresStore.ensureLoaded();
 
     if (!featuresStore.folderSizeEnabled) {
-      sizes.value = {};
+      clearDisabledState();
       return;
     }
 
@@ -150,6 +165,11 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
   };
 
   const scheduleRefresh = ({ delayMs = 500, force = true } = {}) => {
+    if (!useFeaturesStore().folderSizeEnabled) {
+      clearDisabledState();
+      return;
+    }
+
     if (refreshTimer) {
       globalThis.clearTimeout(refreshTimer);
     }
