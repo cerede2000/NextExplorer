@@ -587,7 +587,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           onCopyProgress,
           signal
         );
-        folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
+        await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
           isDirectory: plan.isDirectory,
           size: movedSize ?? plan.size,
           directoryTransferPrepared: plan.isDirectory,
