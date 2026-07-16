@@ -113,6 +113,15 @@ describe('folderSize store', () => {
     expect(store.sizeFor('A')).toBeNull();
   });
 
+  it('does not schedule an inert refresh timer when the feature is disabled', () => {
+    featuresState.folderSizeEnabled = false;
+    const store = useFolderSizeStore();
+
+    store.scheduleRefresh();
+
+    expect(getFolderSizesBatch).not.toHaveBeenCalled();
+  });
+
   it('queues an explicit subtree refresh without keeping the UI request open', async () => {
     refreshFolderSize.mockResolvedValue({
       path: 'A/External',

@@ -13,6 +13,7 @@ const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorization
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
 const { removeFavoritesForDeletedPath } = require('./favoritesService');
 const folderSizeHooks = require('./folderSizeHooks');
+const config = require('../config/index');
 const { getDb } = require('./db');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
@@ -70,6 +71,7 @@ const throwIfCancelled = (signal) => {
 };
 
 const getFolderSizeLookup = async () => {
+  if (!config.folderSize.enabled) return null;
   try {
     return { db: await getDb(), scope: getVolumeScope() };
   } catch (_) {
