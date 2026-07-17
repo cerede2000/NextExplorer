@@ -179,9 +179,9 @@ router.post(
         }
       }
 
-      // The archive has produced an entire new tree. Index it now rather than
-      // waiting for each nested directory to be visited in the UI.
-      await folderSizeHooks.onDirectoryTreeCreated(destinationFolderAbsolutePath);
+      // The archive has produced an entire new tree. Queue its index refresh,
+      // but never hold the archive operation open on background filesystem I/O.
+      folderSizeHooks.onDirectoryTreeCreated(destinationFolderAbsolutePath);
 
       const item = await buildItemMetadata(
         destinationFolderAbsolutePath,
