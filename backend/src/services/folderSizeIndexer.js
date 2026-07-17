@@ -49,6 +49,15 @@ const isIoCircuitOpenError = (err) => err?.code === 'FOLDER_SIZE_IO_CIRCUIT_OPEN
 
 const isMissingPathError = (err) => err?.code === 'ENOENT' || err?.code === 'ENOTDIR';
 
+const createScanAbortedError = (absolutePath) =>
+  createIoError(
+    'FOLDER_SIZE_SCAN_ABORTED',
+    'Folder-size subtree scan was invalidated by a mutation',
+    {
+      path: absolutePath,
+    }
+  );
+
 /**
  * Bound a filesystem request without pretending Node can cancel it. When the
  * deadline wins, the caller is released immediately; the original fs request
@@ -231,6 +240,10 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
   let pauses = 0;
   let scanTimedOut = false;
 
+  const throwIfAborted = () => {
+    if (signal?.aborted) throw createScanAbortedError(rootAbs);
+  };
+
   const reportProgress = (phase, absolutePath) => {
     if (typeof onProgress !== 'function') return;
     onProgress({
@@ -304,7 +317,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
   let rootEntryCount = 0;
 
   while (stack.length) {
-    if (signal?.aborted) break;
+    throwIfAborted();
     const frame = stack[stack.length - 1];
 
     // First visit: read the directory, stat its files (bounded concurrency) and
@@ -318,6 +331,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
         entries = await limit(() =>
           guardedFs('readdir', frame.abs, () => fs.readdir(frame.abs, { withFileTypes: true }))
         );
+        throwIfAborted();
       } catch (err) {
         if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
         frame.childDirs = [];
@@ -343,7 +357,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
         // limiter bounds active I/O, but its pending queue would still retain
         // thousands of closures and immediately heat the filesystem cache.
         for (let offset = 0; offset < filePaths.length; offset += batchSize) {
-          if (signal?.aborted) break;
+          throwIfAborted();
           const paths = filePaths.slice(offset, offset + batchSize);
           reportProgress('stat', frame.abs);
           // eslint-disable-next-line no-await-in-loop
@@ -359,6 +373,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
               })
             )
           );
+          throwIfAborted();
           frame.directFileBytes += fileSizes.reduce((total, size) => total + size, 0);
           files += paths.length;
           if (offset + paths.length < filePaths.length) {
@@ -399,6 +414,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
     }
   }
 
+  throwIfAborted();
   flush();
   return { folders, files, bytes: rootTotal, entryCount: rootEntryCount, batches, pauses };
 };
