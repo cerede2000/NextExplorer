@@ -33,6 +33,102 @@ const nowIso = () => new Date().toISOString();
 const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const activeStalledIo = new Map();
+let nextStalledIoId = 1;
+
+const createIoError = (code, message, details) => {
+  const err = new Error(message);
+  err.code = code;
+  Object.assign(err, details);
+  return err;
+};
+
+const isIoTimeoutError = (err) => err?.code === 'FOLDER_SIZE_IO_TIMEOUT';
+
+const isIoCircuitOpenError = (err) => err?.code === 'FOLDER_SIZE_IO_CIRCUIT_OPEN';
+
+const isMissingPathError = (err) => err?.code === 'ENOENT' || err?.code === 'ENOTDIR';
+
+/**
+ * Bound a filesystem request without pretending Node can cancel it. When the
+ * deadline wins, the caller is released immediately; the original fs request
+ * stays tracked until it actually settles. A small circuit breaker prevents a
+ * pathological mount from consuming all libuv filesystem workers over time.
+ */
+const withIoTimeout = (operation, absolutePath, run, options = {}) => {
+  const timeoutMs = options.timeoutMs ?? config.folderSize.ioTimeoutMs;
+  const maxStalledIo = options.maxStalledIo ?? config.folderSize.maxStalledIo;
+  if (!timeoutMs || timeoutMs < 0) return Promise.resolve().then(run);
+
+  if (activeStalledIo.size >= maxStalledIo) {
+    return Promise.reject(
+      createIoError(
+        'FOLDER_SIZE_IO_CIRCUIT_OPEN',
+        'Folder-size filesystem safety circuit is open',
+        { operation, path: absolutePath, stalledOperations: activeStalledIo.size, maxStalledIo }
+      )
+    );
+  }
+
+  const operationPromise = Promise.resolve().then(run);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let stalledId = null;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      stalledId = nextStalledIoId++;
+      const timedOutAt = Date.now();
+      activeStalledIo.set(stalledId, { operation, path: absolutePath, timedOutAt });
+      reject(
+        createIoError('FOLDER_SIZE_IO_TIMEOUT', 'Folder-size filesystem operation timed out', {
+          operation,
+          path: absolutePath,
+          timeoutMs,
+        })
+      );
+    }, timeoutMs);
+    if (timer.unref) timer.unref();
+
+    operationPromise.then(
+      (value) => {
+        clearTimeout(timer);
+        if (stalledId !== null) {
+          activeStalledIo.delete(stalledId);
+          return;
+        }
+        if (!settled) {
+          settled = true;
+          resolve(value);
+        }
+      },
+      (err) => {
+        clearTimeout(timer);
+        if (stalledId !== null) {
+          activeStalledIo.delete(stalledId);
+          return;
+        }
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      }
+    );
+  });
+};
+
+const getIoDiagnostics = () => ({
+  stalledOperations: Array.from(activeStalledIo.values()).map(
+    ({ operation, path: absolutePath, timedOutAt }) => ({
+      operation,
+      path: absolutePath,
+      ageMs: Date.now() - timedOutAt,
+    })
+  ),
+  maxStalledIo: config.folderSize.maxStalledIo,
+  timeoutMs: config.folderSize.ioTimeoutMs,
+});
+
 /**
  * Whether a folder needs re-aggregation given a fresh stat of it: it is unknown
  * to the index, or its on-disk mtime is newer than the most recent time we
@@ -122,6 +218,8 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
     yieldEvery = 200,
     pauseMs = 0,
     signal,
+    ioTimeoutMs = config.folderSize.ioTimeoutMs,
+    onProgress,
   } = options;
 
   const limit = pLimit(concurrency);
@@ -130,6 +228,35 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
   let files = 0;
   let batches = 0;
   let pauses = 0;
+  let scanTimedOut = false;
+
+  const reportProgress = (phase, absolutePath) => {
+    if (typeof onProgress !== 'function') return;
+    onProgress({
+      phase,
+      path: absolutePath,
+      folders,
+      files,
+      batches,
+      at: Date.now(),
+    });
+  };
+
+  const guardedFs = async (operation, absolutePath, run) => {
+    if (scanTimedOut) {
+      throw createIoError('FOLDER_SIZE_IO_TIMEOUT', 'Folder-size subtree scan already timed out', {
+        operation,
+        path: absolutePath,
+        timeoutMs: ioTimeoutMs,
+      });
+    }
+    try {
+      return await withIoTimeout(operation, absolutePath, run, { timeoutMs: ioTimeoutMs });
+    } catch (err) {
+      if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) scanTimedOut = true;
+      throw err;
+    }
+  };
 
   const yieldAndPause = async () => {
     batches += 1;
@@ -185,9 +312,13 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
     if (frame.childDirs === null) {
       let entries = null;
       try {
+        reportProgress('readdir', frame.abs);
         // eslint-disable-next-line no-await-in-loop
-        entries = await limit(() => fs.readdir(frame.abs, { withFileTypes: true }));
-      } catch {
+        entries = await limit(() =>
+          guardedFs('readdir', frame.abs, () => fs.readdir(frame.abs, { withFileTypes: true }))
+        );
+      } catch (err) {
+        if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
         frame.childDirs = [];
       }
 
@@ -213,13 +344,15 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
         for (let offset = 0; offset < filePaths.length; offset += batchSize) {
           if (signal?.aborted) break;
           const paths = filePaths.slice(offset, offset + batchSize);
+          reportProgress('stat', frame.abs);
           // eslint-disable-next-line no-await-in-loop
           const fileSizes = await Promise.all(
             paths.map((filePath) =>
               limit(async () => {
                 try {
-                  return (await fs.stat(filePath)).size;
-                } catch {
+                  return (await guardedFs('stat', filePath, () => fs.stat(filePath))).size;
+                } catch (err) {
+                  if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
                   return 0;
                 }
               })
@@ -311,10 +444,19 @@ const indexSubtree = async (db, scope, absDir, options = {}) => {
  */
 const aggregateDirectory = async (db, scope, absDir, options = {}) => {
   const mode = options.mode || config.folderSize.mode || 'full';
+  const ioTimeoutMs = options.ioTimeoutMs ?? config.folderSize.ioTimeoutMs;
   let entries;
   try {
-    entries = await fs.readdir(absDir, { withFileTypes: true });
-  } catch {
+    entries = await withIoTimeout(
+      'readdir',
+      absDir,
+      () => fs.readdir(absDir, { withFileTypes: true }),
+      {
+        timeoutMs: ioTimeoutMs,
+      }
+    );
+  } catch (err) {
+    if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
     return null;
   }
 
@@ -339,8 +481,11 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
       entryCount += 1;
       try {
         // eslint-disable-next-line no-await-in-loop
-        directFileBytes += (await fs.stat(full)).size;
-      } catch {
+        directFileBytes += (
+          await withIoTimeout('stat', full, () => fs.stat(full), { timeoutMs: ioTimeoutMs })
+        ).size;
+      } catch (err) {
+        if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
         // Unreadable/removed file mid-scan — treat as zero.
       }
     } else {
@@ -429,6 +574,8 @@ const reconcile = async (db, scope, options = {}) => {
     signal,
     batch = config.folderSize.reconcileBatch || 100,
     pauseMs = options.pauseMs ?? config.folderSize.reconcilePauseMs ?? 0,
+    ioTimeoutMs = options.ioTimeoutMs ?? config.folderSize.ioTimeoutMs,
+    shouldSkip,
     onIncompleteSubtree,
   } = options;
 
@@ -447,10 +594,19 @@ const reconcile = async (db, scope, options = {}) => {
 
   const handleRow = async (row) => {
     const abs = absOf(scope, row.relativePath);
+    if (typeof shouldSkip === 'function' && shouldSkip(abs)) {
+      skipped += 1;
+      return;
+    }
     let stat;
     try {
-      stat = await fs.stat(abs);
-    } catch {
+      stat = await withIoTimeout('stat', abs, () => fs.stat(abs), { timeoutMs: ioTimeoutMs });
+    } catch (err) {
+      if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
+      if (!isMissingPathError(err)) {
+        skipped += 1;
+        return;
+      }
       pruneStale(abs); // gone entirely
       return;
     }
@@ -492,6 +648,8 @@ module.exports = {
   getVolumeScope,
   isStale,
   nextReconcileDelay,
+  withIoTimeout,
+  getIoDiagnostics,
   runBaseline,
   indexSubtree,
   aggregateDirectory,

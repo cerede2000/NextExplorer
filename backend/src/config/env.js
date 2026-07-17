@@ -127,6 +127,20 @@ module.exports = {
     process.env.FOLDER_SIZE_SUBTREE_SLOW_LOG_MS !== undefined
       ? Number(process.env.FOLDER_SIZE_SUBTREE_SLOW_LOG_MS)
       : 5000,
+  // A filesystem operation that never settles must not block every queued
+  // targeted refresh forever. Zero disables the deadline for unusual filesystems
+  // where operators explicitly prefer waiting indefinitely.
+  FOLDER_SIZE_IO_TIMEOUT_MS:
+    process.env.FOLDER_SIZE_IO_TIMEOUT_MS !== undefined
+      ? Number(process.env.FOLDER_SIZE_IO_TIMEOUT_MS)
+      : 30000,
+  // Timed-out Node fs calls cannot be force-cancelled. Keep at most this many
+  // unresolved calls before pausing further folder-size I/O to preserve libuv
+  // worker capacity for the rest of the application.
+  FOLDER_SIZE_MAX_STALLED_IO:
+    process.env.FOLDER_SIZE_MAX_STALLED_IO !== undefined
+      ? Number(process.env.FOLDER_SIZE_MAX_STALLED_IO)
+      : 2,
   // Force a fresh baseline walk even if the volume is already indexed.
   FOLDER_SIZE_REBUILD: normalizeBoolean(process.env.FOLDER_SIZE_REBUILD) || false,
   USER_DIR_ENABLED: normalizeBoolean(process.env.USER_DIR_ENABLED) || false,

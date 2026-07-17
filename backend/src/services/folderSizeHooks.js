@@ -71,17 +71,16 @@ const onFolderCreated = (absolutePath) =>
  * A complete directory tree was created by an application operation. The
  * manager scans this tree alone and applies one precise delta to its parent.
  */
-const onDirectoryTreeCreated = async (absolutePath) => {
+const onDirectoryTreeCreated = (absolutePath) => {
   if (!isEnabled()) return null;
-  try {
-    return await folderSizeManager.refreshSubtree(absolutePath);
-  } catch (err) {
+  const refresh = folderSizeManager.refreshSubtree(absolutePath);
+  Promise.resolve(refresh).catch((err) => {
     logger.debug(
       { err, component: 'folderSizeIndexer' },
       'Folder subtree index refresh failed (non-fatal)'
     );
-    return null;
-  }
+  });
+  return refresh;
 };
 
 /**

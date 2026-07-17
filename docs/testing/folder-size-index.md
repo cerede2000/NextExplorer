@@ -55,6 +55,8 @@ fraction of the RAM (the approach filebrowser-quantum also takes).
 | `FOLDER_SIZE_RECONCILE_MAX_MS` | `43200000` | Slowest adaptive reconcile interval (reached when the volume is idle). |
 | `FOLDER_SIZE_RECONCILE_BATCH` | `100` | Folders stat()ed per page during a reconcile sweep. |
 | `FOLDER_SIZE_RECONCILE_PAUSE_MS` | `200` | Sleep between reconcile pages — pacing that keeps the sweep gentle on huge volumes. |
+| `FOLDER_SIZE_IO_TIMEOUT_MS` | `30000` | Maximum duration of one folder-size `readdir` or `stat` operation. Set `0` only to allow indefinite waits. |
+| `FOLDER_SIZE_MAX_STALLED_IO` | `2` | Maximum timed-out filesystem calls kept in flight before folder-size work pauses to preserve Node's I/O workers. |
 | `FOLDER_SIZE_SUBTREE_BATCH` | reconciliation batch | File metadata stat()ed per batch while rebuilding one incomplete subtree. The scan is serialized with other subtree recoveries so ancestor updates stay exact. |
 | `FOLDER_SIZE_SUBTREE_PAUSE_MS` | reconciliation pause | Sleep between targeted-scan batches. Leave unset to reuse the reconciliation pacing. |
 | `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS` | `5000` | Emit one `info` summary for a subtree scan taking at least this long; quicker scans remain `debug` only. |
