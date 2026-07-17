@@ -52,6 +52,8 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `FOLDER_SIZE_MODE`                | `off`                | Enables indexed folder sizes: `full` is recursive, `shallow` counts direct entries only.          |
 | `FOLDER_SIZE_RECONCILE_BATCH`     | `100`                | Number of indexed folders checked per periodic reconciliation page.                               |
 | `FOLDER_SIZE_RECONCILE_PAUSE_MS`  | `200`                | Delay between reconciliation pages, used to smooth background I/O.                                |
+| `FOLDER_SIZE_IO_TIMEOUT_MS`       | `30000`              | Deadline for one indexed folder-size filesystem operation; `0` disables this protection.          |
+| `FOLDER_SIZE_MAX_STALLED_IO`      | `2`                  | Timed-out folder-size operations allowed before the indexer pauses further filesystem work.       |
 | `FOLDER_SIZE_SUBTREE_BATCH`       | reconciliation batch | Metadata checks per batch while recovering a folder tree created or changed outside NextExplorer. |
 | `FOLDER_SIZE_SUBTREE_PAUSE_MS`    | reconciliation pause | Delay between targeted recovery batches. Leave unset to inherit the reconciliation pacing.        |
 | `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS` | `5000`               | Duration after which a targeted recovery emits one `info` performance summary.                    |

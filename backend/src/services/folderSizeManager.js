@@ -63,8 +63,13 @@ const subtreeScanStats = {
   pauses: 0,
   totalMs: 0,
   slow: 0,
+  timedOut: 0,
+  circuitOpen: 0,
 };
 let readyPromise = null;
+
+const isFolderSizeIoSafetyError = (err) =>
+  err?.code === 'FOLDER_SIZE_IO_TIMEOUT' || err?.code === 'FOLDER_SIZE_IO_CIRCUIT_OPEN';
 
 const log = (level, message, extra = {}) =>
   logger[level]({ component: 'folderSizeIndexer', ...extra }, message);
@@ -95,6 +100,7 @@ const markDirty = (absPath) => {
 const flush = async () => {
   if (flushing || !db || !dirty.size) return;
   flushing = true;
+  let retryDirs = [];
   try {
     const dirs = Array.from(dirty).filter(
       (absolutePath) => !transferState.isRelatedToActiveTransfer(absolutePath)
@@ -106,10 +112,21 @@ const flush = async () => {
     const ops = [];
     const incompleteSubtrees = new Set();
     for (const abs of dirs) {
-      // eslint-disable-next-line no-await-in-loop
-      const agg = await indexer.aggregateDirectory(db, scope, abs, {
-        mode: config.folderSize.mode,
-      });
+      let agg;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        agg = await indexer.aggregateDirectory(db, scope, abs, {
+          mode: config.folderSize.mode,
+        });
+      } catch (err) {
+        retryDirs.push(abs);
+        log('warn', 'Folder size aggregate deferred by I/O safety guard', {
+          path: abs,
+          code: err?.code,
+          timeoutMs: err?.timeoutMs,
+        });
+        continue;
+      }
       ops.push({ abs, agg });
       if (agg?.hasUnindexedSubdirectories) incompleteSubtrees.add(abs);
     }
@@ -128,6 +145,7 @@ const flush = async () => {
   } catch (err) {
     log('warn', 'Folder size flush failed', { err });
   } finally {
+    for (const abs of retryDirs) dirty.add(abs);
     flushing = false;
   }
 };
@@ -148,8 +166,16 @@ const touch = async (absDirs = []) => {
     let stat;
     try {
       // eslint-disable-next-line no-await-in-loop
-      stat = await fsp.stat(abs);
-    } catch {
+      stat = await indexer.withIoTimeout('stat', abs, () => fsp.stat(abs));
+    } catch (err) {
+      if (isFolderSizeIoSafetyError(err)) {
+        log('warn', 'Folder size on-view stat skipped by I/O safety guard', {
+          path: abs,
+          code: err.code,
+          timeoutMs: err.timeoutMs,
+        });
+        continue;
+      }
       markDirty(abs); // vanished — the flush will remove it and fix ancestors
       continue;
     }
@@ -328,7 +354,7 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
     if (!allowActiveTransfer && transferState.isRelatedToActiveTransfer(absDir)) return null;
 
     const startedAt = Date.now();
-    activeSubtreeScan = { path: absDir, startedAt };
+    activeSubtreeScan = { path: absDir, startedAt, currentPath: absDir, phase: 'queued' };
     subtreeScanStats.started += 1;
     try {
       const result = await indexer.indexSubtree(db, scope, absDir, {
@@ -336,6 +362,19 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
         batchSize: config.folderSize.subtreeBatch,
         yieldEvery: config.folderSize.subtreeBatch,
         pauseMs: config.folderSize.subtreePauseMs,
+        ioTimeoutMs: config.folderSize.ioTimeoutMs,
+        onProgress: (progress) => {
+          if (activeSubtreeScan?.path !== absDir) return;
+          activeSubtreeScan = {
+            ...activeSubtreeScan,
+            currentPath: progress.path,
+            phase: progress.phase,
+            folders: progress.folders,
+            files: progress.files,
+            batches: progress.batches,
+            lastProgressAt: progress.at,
+          };
+        },
       });
       const ms = Date.now() - startedAt;
       subtreeScanStats.completed += 1;
@@ -363,9 +402,13 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
       return result;
     } catch (err) {
       subtreeScanStats.failed += 1;
+      if (err?.code === 'FOLDER_SIZE_IO_TIMEOUT') subtreeScanStats.timedOut += 1;
+      if (err?.code === 'FOLDER_SIZE_IO_CIRCUIT_OPEN') subtreeScanStats.circuitOpen += 1;
       log('warn', 'Folder size subtree scan failed', {
         path: absDir,
         ms: Date.now() - startedAt,
+        currentPath: activeSubtreeScan?.currentPath || absDir,
+        phase: activeSubtreeScan?.phase || null,
         err,
       });
       throw err;
@@ -392,11 +435,23 @@ const getDiagnosticsSnapshot = () => ({
   reconcileDelayMs: reconcileDelay || null,
   subtree: {
     active: activeSubtreeScan
-      ? { path: activeSubtreeScan.path, ageMs: Date.now() - activeSubtreeScan.startedAt }
+      ? {
+          path: activeSubtreeScan.path,
+          currentPath: activeSubtreeScan.currentPath,
+          phase: activeSubtreeScan.phase,
+          folders: activeSubtreeScan.folders || 0,
+          files: activeSubtreeScan.files || 0,
+          batches: activeSubtreeScan.batches || 0,
+          ageMs: Date.now() - activeSubtreeScan.startedAt,
+          lastProgressAgeMs: activeSubtreeScan.lastProgressAt
+            ? Date.now() - activeSubtreeScan.lastProgressAt
+            : null,
+        }
       : null,
     batchSize: config.folderSize.subtreeBatch,
     pauseMs: config.folderSize.subtreePauseMs,
     slowLogMs: config.folderSize.subtreeSlowLogMs,
+    io: indexer.getIoDiagnostics(),
     stats: { ...subtreeScanStats },
   },
 });

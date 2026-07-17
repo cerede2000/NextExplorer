@@ -402,6 +402,14 @@ const folderSize = {
       ? env.FOLDER_SIZE_SUBTREE_PAUSE_MS
       : env.FOLDER_SIZE_RECONCILE_PAUSE_MS,
   subtreeSlowLogMs: Math.max(0, env.FOLDER_SIZE_SUBTREE_SLOW_LOG_MS),
+  ioTimeoutMs:
+    Number.isFinite(env.FOLDER_SIZE_IO_TIMEOUT_MS) && env.FOLDER_SIZE_IO_TIMEOUT_MS >= 0
+      ? env.FOLDER_SIZE_IO_TIMEOUT_MS
+      : 30000,
+  maxStalledIo:
+    Number.isFinite(env.FOLDER_SIZE_MAX_STALLED_IO) && env.FOLDER_SIZE_MAX_STALLED_IO > 0
+      ? Math.floor(env.FOLDER_SIZE_MAX_STALLED_IO)
+      : 2,
   rebuild: env.FOLDER_SIZE_REBUILD,
 };
 // --- Runtime diagnostics ---
