@@ -70,6 +70,38 @@ describe('folderSizeIndexer', () => {
     expect(rootEntry.entryCount).toBe(2); // A and C
   });
 
+  it('releases callers when a filesystem operation stalls and opens a safety circuit', async () => {
+    ctx = await createContext();
+    const { indexer } = ctx;
+
+    await expect(
+      indexer.withIoTimeout('readdir', '/stalled/one', () => new Promise(() => {}), {
+        timeoutMs: 10,
+        maxStalledIo: 1,
+      })
+    ).rejects.toMatchObject({
+      code: 'FOLDER_SIZE_IO_TIMEOUT',
+      operation: 'readdir',
+      path: '/stalled/one',
+    });
+
+    expect(indexer.getIoDiagnostics()).toMatchObject({
+      maxStalledIo: 2,
+      stalledOperations: [{ operation: 'readdir', path: '/stalled/one' }],
+    });
+
+    await expect(
+      indexer.withIoTimeout('stat', '/stalled/two', () => Promise.resolve(), {
+        timeoutMs: 10,
+        maxStalledIo: 1,
+      })
+    ).rejects.toMatchObject({
+      code: 'FOLDER_SIZE_IO_CIRCUIT_OPEN',
+      operation: 'stat',
+      path: '/stalled/two',
+    });
+  });
+
   it('a delta on a file propagates to every ancestor', async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;
