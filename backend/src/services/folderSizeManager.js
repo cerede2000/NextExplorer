@@ -21,6 +21,7 @@
  *      that subtree rather than leaving an incomplete aggregate behind.
  */
 const fsp = require('fs/promises');
+const path = require('path');
 
 const config = require('../config/index');
 const logger = require('../utils/logger');
@@ -64,11 +65,17 @@ const subtreeScanStats = {
   slow: 0,
   timedOut: 0,
   circuitOpen: 0,
+  cancelled: 0,
 };
 let readyPromise = null;
 
 const isFolderSizeIoSafetyError = (err) =>
   err?.code === 'FOLDER_SIZE_IO_TIMEOUT' || err?.code === 'FOLDER_SIZE_IO_CIRCUIT_OPEN';
+
+const pathsOverlap = (left, right) =>
+  left === right ||
+  left.startsWith(`${right}${path.sep}`) ||
+  right.startsWith(`${left}${path.sep}`);
 
 const log = (level, message, extra = {}) =>
   logger[level]({ component: 'folderSizeIndexer', ...extra }, message);
@@ -304,6 +311,7 @@ const stop = async () => {
   flushTimer = null;
   reconcileTimer = null;
   if (abortController) abortController.abort(); // cancel any in-flight paced reconcile
+  activeSubtreeScan?.controller?.abort('indexer-stopped');
   running = false;
   // Final flush of anything still pending, then mark stopped so no late timer
   // callback re-arms.
@@ -333,6 +341,33 @@ const requestRebuild = () => {
 };
 
 /**
+ * A filesystem mutation wins over a background scan. Cancel every queued or
+ * active targeted scan whose subtree overlaps the changed path so stale scan
+ * batches cannot recreate rows that a delete, move or rename just removed.
+ */
+const invalidateSubtree = (absolutePath, reason = 'filesystem-mutation') => {
+  if (!absolutePath) return { active: false, queued: 0 };
+  let queued = 0;
+  for (const [scanPath, pending] of pendingSubtreeScans) {
+    if (!pathsOverlap(scanPath, absolutePath)) continue;
+    pending.invalidated = true;
+    queued += 1;
+  }
+
+  const active = Boolean(activeSubtreeScan && pathsOverlap(activeSubtreeScan.path, absolutePath));
+  if (active) activeSubtreeScan.controller.abort(reason);
+  if (active || queued) {
+    log('debug', 'Folder size subtree scan invalidated by filesystem mutation', {
+      path: absolutePath,
+      reason,
+      active,
+      queued,
+    });
+  }
+  return { active, queued };
+};
+
+/**
  * Queue an authoritative scan of one newly-created directory tree. Calls for
  * the same path share the same work. During startup this waits for the baseline
  * instead of returning a stale size for a completed operation.
@@ -340,15 +375,28 @@ const requestRebuild = () => {
 const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
   if (!config.folderSize.enabled || stopped || (!running && !starting)) return null;
   if (!allowActiveTransfer && transferState.isRelatedToActiveTransfer(absDir)) return null;
-  if (pendingSubtreeScans.has(absDir)) return pendingSubtreeScans.get(absDir);
+  const existing = pendingSubtreeScans.get(absDir);
+  if (existing && !existing.invalidated) return existing.promise;
+  if (existing?.invalidated) pendingSubtreeScans.delete(absDir);
+
+  const pending = { invalidated: false, promise: null };
 
   const scan = async () => {
+    if (pending.invalidated) return null;
     if (starting && readyPromise) await readyPromise;
+    if (pending.invalidated) return null;
     if (!running || !db || !scope || stopped) return null;
     if (!allowActiveTransfer && transferState.isRelatedToActiveTransfer(absDir)) return null;
 
     const startedAt = Date.now();
-    activeSubtreeScan = { path: absDir, startedAt, currentPath: absDir, phase: 'queued' };
+    const controller = new AbortController();
+    activeSubtreeScan = {
+      path: absDir,
+      startedAt,
+      currentPath: absDir,
+      phase: 'queued',
+      controller,
+    };
     subtreeScanStats.started += 1;
     try {
       const result = await indexer.indexSubtree(db, scope, absDir, {
@@ -357,6 +405,7 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
         yieldEvery: config.folderSize.subtreeBatch,
         pauseMs: config.folderSize.subtreePauseMs,
         ioTimeoutMs: config.folderSize.ioTimeoutMs,
+        signal: controller.signal,
         onProgress: (progress) => {
           if (activeSubtreeScan?.path !== absDir) return;
           activeSubtreeScan = {
@@ -395,6 +444,15 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
       }
       return result;
     } catch (err) {
+      if (err?.code === 'FOLDER_SIZE_SCAN_ABORTED') {
+        subtreeScanStats.cancelled += 1;
+        log('debug', 'Folder size subtree scan cancelled by filesystem mutation', {
+          path: absDir,
+          ms: Date.now() - startedAt,
+          currentPath: activeSubtreeScan?.currentPath || absDir,
+        });
+        return null;
+      }
       subtreeScanStats.failed += 1;
       if (err?.code === 'FOLDER_SIZE_IO_TIMEOUT') subtreeScanStats.timedOut += 1;
       if (err?.code === 'FOLDER_SIZE_IO_CIRCUIT_OPEN') subtreeScanStats.circuitOpen += 1;
@@ -414,8 +472,13 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
   const queued = subtreeScanChain.then(scan, scan);
   subtreeScanChain = queued.catch(() => {});
   subtreeScanStats.queued += 1;
-  pendingSubtreeScans.set(absDir, queued);
-  queued.finally(() => pendingSubtreeScans.delete(absDir)).catch(() => {});
+  pending.promise = queued;
+  pendingSubtreeScans.set(absDir, pending);
+  queued
+    .finally(() => {
+      if (pendingSubtreeScans.get(absDir) === pending) pendingSubtreeScans.delete(absDir);
+    })
+    .catch(() => {});
   return queued;
 };
 
@@ -457,6 +520,7 @@ module.exports = {
   requestReconcile,
   requestRebuild,
   refreshSubtree,
+  invalidateSubtree,
   isRunning: () => running,
   getDiagnosticsSnapshot,
 };

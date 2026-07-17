@@ -210,6 +210,46 @@ describe('folderSizeIndexer', () => {
     transferState.finish(target);
   });
 
+  it('cancels an active subtree scan when a mutation invalidates its path', async () => {
+    ctx = await createContext();
+    const { env, indexer } = ctx;
+    const target = path.join(env.volumeDir, 'Mutating');
+    await fs.mkdir(target, { recursive: true });
+
+    manager = env.requireFresh('src/services/folderSizeManager');
+    await manager.start();
+
+    const originalIndexSubtree = indexer.indexSubtree;
+    let scanStarted;
+    const started = new Promise((resolve) => {
+      scanStarted = resolve;
+    });
+    indexer.indexSubtree = (_db, _scope, _absolutePath, { signal }) =>
+      new Promise((_resolve, reject) => {
+        scanStarted();
+        signal.addEventListener(
+          'abort',
+          () => {
+            const error = new Error('scan aborted');
+            error.code = 'FOLDER_SIZE_SCAN_ABORTED';
+            reject(error);
+          },
+          { once: true }
+        );
+      });
+
+    try {
+      const refresh = manager.refreshSubtree(target);
+      await started;
+
+      expect(manager.invalidateSubtree(target, 'entry-deleted')).toMatchObject({ active: true });
+      await expect(refresh).resolves.toBeNull();
+      expect(manager.getDiagnosticsSnapshot().subtree.stats.cancelled).toBe(1);
+    } finally {
+      indexer.indexSubtree = originalIndexSubtree;
+    }
+  });
+
   it('bounds large-directory metadata work into paced batches', async () => {
     ctx = await createContext();
     const { env, db, indexer, scope } = ctx;

@@ -88,8 +88,9 @@ const onDirectoryTreeCreated = (absolutePath) => {
  * recursive size comes from the index (its subtree is dropped and removed from
  * the ancestors).
  */
-const onEntryDeleted = (absolutePath, { isDirectory, size } = {}) =>
-  withIndex((db, scope) => {
+const onEntryDeleted = (absolutePath, { isDirectory, size } = {}) => {
+  folderSizeManager.invalidateSubtree(absolutePath, 'entry-deleted');
+  return withIndex((db, scope) => {
     if (isDirectory) {
       const removed = folderSizeIndex.getByAbsolutePath(db, absolutePath);
       const removedSize = removed ? removed.sizeBytes : 0;
@@ -105,6 +106,7 @@ const onEntryDeleted = (absolutePath, { isDirectory, size } = {}) =>
       });
     }
   });
+};
 
 const sizeOfMoved = (db, scope, sourceAbsolutePath, { isDirectory, size }) => {
   if (!isDirectory) return Number(size) || 0;
@@ -118,6 +120,7 @@ const sizeOfMoved = (db, scope, sourceAbsolutePath, { isDirectory, size }) => {
  */
 const beginDirectoryTransfer = async (targetAbsolutePath) => {
   if (!isEnabled()) return;
+  folderSizeManager.invalidateSubtree(targetAbsolutePath, 'directory-transfer-started');
   transferState.begin(targetAbsolutePath);
   await withIndex((db, scope) => {
     if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
@@ -148,8 +151,9 @@ const cancelDirectoryTransfer = async (targetAbsolutePath) => {
 };
 
 /** An entry has been moved from `sourceAbsolutePath` to `targetAbsolutePath`. */
-const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
-  withIndex((db, scope) => {
+const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) => {
+  folderSizeManager.invalidateSubtree(sourceAbsolutePath, 'entry-moved');
+  return withIndex((db, scope) => {
     const bytes = sizeOfMoved(db, scope, sourceAbsolutePath, meta);
     folderSizeIndex.applyDelta(db, scope, path.dirname(sourceAbsolutePath), -bytes, {
       entryDelta: -1,
@@ -173,6 +177,7 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) =>
     }
     folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), bytes, { entryDelta: 1 });
   });
+};
 
 /**
  * An entry has been copied to `targetAbsolutePath`. The destination gains the
@@ -246,11 +251,13 @@ const refreshTransferredDirectories = (absolutePaths = []) => {
  * must follow the new name. Files are not individually indexed, so this is a
  * no-op for them.
  */
-const onEntryRenamed = (sourceAbsolutePath, targetAbsolutePath) =>
-  withIndex((db, scope) => {
+const onEntryRenamed = (sourceAbsolutePath, targetAbsolutePath) => {
+  folderSizeManager.invalidateSubtree(sourceAbsolutePath, 'entry-renamed');
+  return withIndex((db, scope) => {
     const entry = folderSizeIndex.getByAbsolutePath(db, sourceAbsolutePath);
     if (entry) folderSizeIndex.reparentSubtree(db, scope, sourceAbsolutePath, targetAbsolutePath);
   });
+};
 
 module.exports = {
   onFileWritten,
