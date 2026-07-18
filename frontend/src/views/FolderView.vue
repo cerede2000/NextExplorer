@@ -45,7 +45,7 @@ const loadMoreTrigger = ref(null);
 const isScrollable = ref(false);
 const canScrollUp = ref(false);
 const canScrollDown = ref(false);
-const { clearSelection } = useSelection();
+const { clearSelection, toggleSelection } = useSelection();
 const contextMenu = useExplorerContextMenu();
 const dropTargetRef = ref(null);
 useUppyDropTarget(dropTargetRef);
@@ -89,6 +89,10 @@ let loadMoreObserver = null;
 const scrollTop = ref(0);
 const scrollViewportHeight = ref(0);
 const canRememberScroll = ref(false);
+const keyboardSelectionAnchorKey = ref('');
+const keyboardActiveItemKey = ref('');
+const keyboardTypeahead = ref('');
+let keyboardTypeaheadTimer = null;
 
 // BrowserLayout keys this view by full route, so navigating into a directory
 // replaces the component. Capture this instance's folder now: during unmount
@@ -285,6 +289,39 @@ const isKeyboardNavigationBlocked = () => {
   return actions.isEditableElement ? actions.isEditableElement(active) : false;
 };
 
+const getItemIndexByKey = (key) =>
+  sortedItems.value.findIndex((item) => getItemKey(item) === key);
+
+const getKeyboardActiveIndex = () => {
+  const activeIndex = getItemIndexByKey(keyboardActiveItemKey.value);
+  if (activeIndex >= 0) return activeIndex;
+
+  const selected = fileStore.selectedItems[fileStore.selectedItems.length - 1];
+  return selected ? getItemIndexByKey(getItemKey(selected)) : -1;
+};
+
+const getKeyboardSelectionAnchorIndex = () => {
+  const anchorIndex = getItemIndexByKey(keyboardSelectionAnchorKey.value);
+  if (anchorIndex >= 0 && fileStore.selectedItemKeys.has(keyboardSelectionAnchorKey.value)) {
+    return anchorIndex;
+  }
+
+  const selected = fileStore.selectedItems[0];
+  return selected ? getItemIndexByKey(getItemKey(selected)) : -1;
+};
+
+const selectItemRange = async (anchorIndex, activeIndex) => {
+  const items = sortedItems.value;
+  const [start, end] =
+    anchorIndex <= activeIndex ? [anchorIndex, activeIndex] : [activeIndex, anchorIndex];
+  const activeItem = items[activeIndex];
+  if (!activeItem) return;
+
+  fileStore.selectedItems = items.slice(start, end + 1);
+  keyboardActiveItemKey.value = getItemKey(activeItem);
+  await scrollSelectionIntoView(activeItem, activeIndex);
+};
+
 const scrollSelectionIntoView = async (item, index) => {
   if (!item || index < 0) return;
 
@@ -302,14 +339,11 @@ const scrollSelectionIntoView = async (item, index) => {
   element?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 };
 
-const selectRelativeItem = async (direction) => {
+const selectRelativeItem = async (direction, extendSelection = false) => {
   const items = sortedItems.value;
   if (!items.length) return;
 
-  const selected = fileStore.selectedItems[0];
-  const currentIndex = selected
-    ? items.findIndex((item) => getItemKey(item) === getItemKey(selected))
-    : -1;
+  const currentIndex = getKeyboardActiveIndex();
   const nextIndex =
     currentIndex < 0
       ? direction > 0
@@ -319,8 +353,74 @@ const selectRelativeItem = async (direction) => {
   const nextItem = items[nextIndex];
   if (!nextItem) return;
 
+  if (extendSelection) {
+    const anchorIndex = getKeyboardSelectionAnchorIndex();
+    const resolvedAnchorIndex = anchorIndex >= 0 ? anchorIndex : nextIndex;
+    keyboardSelectionAnchorKey.value = getItemKey(items[resolvedAnchorIndex]);
+    await selectItemRange(resolvedAnchorIndex, nextIndex);
+    return;
+  }
+
   fileStore.selectedItems = [nextItem];
+  keyboardSelectionAnchorKey.value = getItemKey(nextItem);
+  keyboardActiveItemKey.value = getItemKey(nextItem);
   await scrollSelectionIntoView(nextItem, nextIndex);
+};
+
+const toggleKeyboardSelection = async () => {
+  const items = sortedItems.value;
+  if (!items.length) return;
+
+  const activeIndex = getKeyboardActiveIndex();
+  const itemIndex = activeIndex >= 0 ? activeIndex : 0;
+  const item = items[itemIndex];
+  if (!item) return;
+
+  toggleSelection(item);
+  keyboardSelectionAnchorKey.value = getItemKey(item);
+  keyboardActiveItemKey.value = getItemKey(item);
+  await scrollSelectionIntoView(item, itemIndex);
+};
+
+const normalizeTypeaheadText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase();
+
+const selectTypeaheadMatch = async (key) => {
+  const items = sortedItems.value;
+  if (!items.length) return;
+
+  const normalizedKey = normalizeTypeaheadText(key);
+  keyboardTypeahead.value += normalizedKey;
+  window.clearTimeout(keyboardTypeaheadTimer);
+  keyboardTypeaheadTimer = window.setTimeout(() => {
+    keyboardTypeahead.value = '';
+    keyboardTypeaheadTimer = null;
+  }, 800);
+
+  const activeIndex = getKeyboardActiveIndex();
+  const orderedItems = [...items.slice(activeIndex + 1), ...items.slice(0, activeIndex + 1)];
+  let match = orderedItems.find((item) =>
+    normalizeTypeaheadText(item.name).startsWith(keyboardTypeahead.value)
+  );
+
+  if (!match && keyboardTypeahead.value.length > 1) {
+    keyboardTypeahead.value = normalizedKey;
+    match = orderedItems.find((item) =>
+      normalizeTypeaheadText(item.name).startsWith(keyboardTypeahead.value)
+    );
+  }
+
+  if (!match) return;
+  const matchIndex = getItemIndexByKey(getItemKey(match));
+  if (matchIndex < 0) return;
+
+  fileStore.selectedItems = [match];
+  keyboardSelectionAnchorKey.value = getItemKey(match);
+  keyboardActiveItemKey.value = getItemKey(match);
+  await scrollSelectionIntoView(match, matchIndex);
 };
 
 const handleFolderKeydown = (event) => {
@@ -346,13 +446,19 @@ const handleFolderKeydown = (event) => {
 
   if (event.key === 'ArrowDown') {
     event.preventDefault();
-    selectRelativeItem(1);
+    selectRelativeItem(1, event.shiftKey);
     return;
   }
 
   if (event.key === 'ArrowUp') {
     event.preventDefault();
-    selectRelativeItem(-1);
+    selectRelativeItem(-1, event.shiftKey);
+    return;
+  }
+
+  if (event.key === ' ') {
+    event.preventDefault();
+    toggleKeyboardSelection();
     return;
   }
 
@@ -368,6 +474,16 @@ const handleFolderKeydown = (event) => {
     event.preventDefault();
     goUp();
     return;
+  }
+
+  if (
+    event.key.length === 1 &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  ) {
+    event.preventDefault();
+    selectTypeaheadMatch(event.key);
   }
 };
 
@@ -528,6 +644,11 @@ watch(
   () => route.params.path,
   () => {
     resetVisibleItems();
+    keyboardSelectionAnchorKey.value = '';
+    keyboardActiveItemKey.value = '';
+    keyboardTypeahead.value = '';
+    window.clearTimeout(keyboardTypeaheadTimer);
+    keyboardTypeaheadTimer = null;
   }
 );
 
@@ -649,6 +770,7 @@ onBeforeUnmount(() => {
   stopResize();
   window.clearInterval(liveRefreshTimer);
   if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
+  window.clearTimeout(keyboardTypeaheadTimer);
   disconnectLoadMoreObserver();
 });
 </script>
