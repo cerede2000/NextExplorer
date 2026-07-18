@@ -40,6 +40,7 @@ const canScrollDown = ref(false);
 const { clearSelection, toggleSelection } = useSelection();
 const contextMenu = useExplorerContextMenu();
 const dropTargetRef = ref(null);
+const listHeaderRef = ref(null);
 useUppyDropTarget(dropTargetRef);
 
 const { isTouchDevice } = useInputMode();
@@ -258,10 +259,18 @@ const scrollSelectionIntoView = async (item, index) => {
   if (!target) return;
 
   const itemRect = element.getBoundingClientRect();
-  const targetRect =
-    target === document.scrollingElement || target === document.documentElement
-      ? { top: 0, bottom: window.innerHeight }
-      : target.getBoundingClientRect();
+  const isDocumentScroller =
+    target === document.scrollingElement || target === document.documentElement;
+  const scrollContainerRect = dropTargetRef.value?.getBoundingClientRect?.();
+  const headerRect = listHeaderRef.value?.getBoundingClientRect?.();
+  const targetRect = isDocumentScroller
+    ? {
+        // The document can scroll behind the fixed toolbar. Use the folder viewport
+        // and sticky list header as the actual visible bounds for keyboard focus.
+        top: Math.max(scrollContainerRect?.top ?? 0, headerRect?.bottom ?? 0),
+        bottom: Math.min(scrollContainerRect?.bottom ?? window.innerHeight, window.innerHeight),
+      }
+    : target.getBoundingClientRect();
   const padding = 8;
   const topAdjustment = itemRect.top - (targetRect.top + padding);
   const bottomAdjustment = itemRect.bottom - (targetRect.bottom - padding);
@@ -639,6 +648,7 @@ onBeforeUnmount(() => {
   <div
     ref="dropTargetRef"
     class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-y-auto"
+    :class="settings.view === 'list' ? 'overflow-x-auto' : ''"
     @click.self="clearSelection()"
     @scroll.passive="updateScrollState"
   >
@@ -653,14 +663,15 @@ onBeforeUnmount(() => {
         @contextmenu.prevent="handleBackgroundContextMenu"
       >
         <div
-          :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'overflow-x-auto' : '']"
+          :class="[gridClasses, 'min-h-full']"
           :style="gridStyle"
         >
           <!-- Detail view header -->
           <div
             v-if="settings.view === 'list'"
+            ref="listHeaderRef"
             :class="[
-              'grid items-center',
+              'sticky top-0 z-20 grid items-center',
               'px-4 py-2 text-xs',
               'text-neutral-600 dark:text-neutral-300',
               'uppercase tracking-wide select-none',
