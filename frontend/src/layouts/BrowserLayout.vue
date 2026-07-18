@@ -133,7 +133,7 @@ const handleGuestLogin = () => {
 </script>
 
 <template>
-  <div class="relative flex w-full min-h-dvh">
+  <div class="relative flex h-dvh w-full overflow-hidden">
     <aside
       class="flex flex-col bg-default-muted dark:bg-default-muted pt-4 pb-2 px-6 shrink-0 fixed inset-y-0 left-0 transition-transform duration-200 ease-in-out z-50 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0"
       :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
@@ -188,7 +188,7 @@ const handleGuestLogin = () => {
       ></div>
     </div>
 
-    <main class="flex min-w-0 flex-col grow relative bg-default shadow-lg">
+    <main class="relative flex min-h-0 min-w-0 grow flex-col overflow-hidden bg-default shadow-lg">
       <FolderViewToolbar v-if="showBrowseToolbar" @toggle-sidebar="toggleSidebar" />
 
       <!-- Mobile-only toggle for non-browse views (keeps existing view layouts unchanged) -->
@@ -203,7 +203,7 @@ const handleGuestLogin = () => {
       </button>
 
       <ExplorerContextMenu>
-        <div class="flex min-h-0 flex-1 flex-col">
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <RouterView v-slot="{ Component, route: viewRoute }">
             <component :is="Component" :key="viewRoute.fullPath" class="min-h-0 flex-1" />
           </RouterView>
