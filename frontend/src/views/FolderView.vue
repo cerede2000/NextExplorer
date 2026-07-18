@@ -336,7 +336,30 @@ const scrollSelectionIntoView = async (item, index) => {
   const element = Array.from(document.querySelectorAll('[data-keyboard-item-key]')).find(
     (candidate) => candidate.getAttribute('data-keyboard-item-key') === key
   );
-  element?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  if (!element) return;
+
+  element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  const target = getScrollTarget();
+  if (!target) return;
+
+  const itemRect = element.getBoundingClientRect();
+  const targetRect =
+    target === document.scrollingElement || target === document.documentElement
+      ? { top: 0, bottom: window.innerHeight }
+      : target.getBoundingClientRect();
+  const padding = 8;
+  const topAdjustment = itemRect.top - (targetRect.top + padding);
+  const bottomAdjustment = itemRect.bottom - (targetRect.bottom - padding);
+  const adjustment = topAdjustment < 0 ? topAdjustment : bottomAdjustment > 0 ? bottomAdjustment : 0;
+
+  if (adjustment === 0) return;
+  if (typeof target.scrollBy === 'function') {
+    target.scrollBy({ top: adjustment, behavior: 'auto' });
+  } else {
+    target.scrollTop += adjustment;
+  }
 };
 
 const selectRelativeItem = async (direction, extendSelection = false) => {
