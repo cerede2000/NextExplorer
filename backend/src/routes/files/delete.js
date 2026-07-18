@@ -41,13 +41,21 @@ router.post(
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('X-Accel-Buffering', 'no');
+    // Send the stream headers and initial event before the full preflight
+    // validation. Deleting a large selection can legitimately take a moment
+    // to authorize, but the UI must acknowledge the action immediately.
+    res.flushHeaders?.();
     res.once('close', onClose);
     const writeEvent = (event) => {
       if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`);
     };
 
     try {
-      writeEvent({ type: 'start', totalItems: Array.isArray(items) ? items.length : 0 });
+      writeEvent({
+        type: 'start',
+        phase: 'preparing',
+        totalItems: Array.isArray(items) ? items.length : 0,
+      });
       const results = await deleteItems(items, {
         user: req.user,
         guestSession: req.guestSession,
