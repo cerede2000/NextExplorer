@@ -111,6 +111,16 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const findItemByKey = (key) => currentPathItems.value.find((item) => itemKey(item) === key);
 
+  // Reflect a confirmed delete immediately. The authoritative browse refresh
+  // below remains the source of truth and restores the list if the request is
+  // rejected, but this avoids making a successful delete look inert while the
+  // server finishes its cleanup work.
+  const removeItemsFromCurrentView = (items) => {
+    const keys = new Set((Array.isArray(items) ? items : []).map((item) => itemKey(item)));
+    if (keys.size === 0) return;
+    currentPathItems.value = currentPathItems.value.filter((item) => !keys.has(itemKey(item)));
+  };
+
   const resolveItemRelativePath = (item) => {
     if (!item || !item.name) {
       return null;
@@ -377,38 +387,52 @@ export const useFileStore = defineStore('fileStore', () => {
     });
 
     try {
-      await deleteItemsStream(payload, {
+      const deletion = deleteItemsStream(payload, {
         signal: controller.signal,
         onEvent: (event) => {
-          if (event.type !== 'progress') return;
-          operationTasksStore.updateOperation(operationId, {
-            percent: Number(event.percent) || 0,
-            completedItems: Number(event.completedItems) || 0,
-            currentName: event.currentName || '',
-          });
+          if (event.type === 'start') {
+            operationTasksStore.updateOperation(operationId, {
+              phase: event.phase || 'preparing',
+              totalItems: Number(event.totalItems) || payload.length,
+            });
+          } else if (event.type === 'progress') {
+            operationTasksStore.updateOperation(operationId, {
+              phase: 'deleting',
+              percent: Number(event.percent) || 0,
+              completedItems: Number(event.completedItems) || 0,
+              currentName: event.currentName || '',
+            });
+          }
         },
       });
+      removeItemsFromCurrentView(payload);
+      if (selectionMatchesPayload) clearSelection();
+      await deletion;
       // A confirmation can stay open while the user navigates elsewhere. Do
       // not clear a newer selection in the current view when it deletes the
       // original, captured selection in the background.
-      if (selectionMatchesPayload) clearSelection();
       // Favorites belong to an authenticated account. A guest share session
       // cannot refresh them, and doing so turns a successful delete into a
       // misleading authentication error.
       if (!currentPath.value.startsWith('share/')) {
-        await favoritesStore.loadFavorites();
+        await Promise.all([favoritesStore.loadFavorites(), fetchPathItems(currentPath.value)]);
+      } else {
+        await fetchPathItems(currentPath.value);
       }
-      await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
     } catch (error) {
-      if (!isAbortError(error)) throw error;
+      // Optimistic removal must always be reconciled after a rejected or
+      // cancelled request. This restores the actual listing before surfacing
+      // a server-side error to the caller.
       if (!currentPath.value.startsWith('share/')) {
-        await favoritesStore.loadFavorites();
+        await Promise.all([favoritesStore.loadFavorites(), fetchPathItems(currentPath.value)]);
+      } else {
+        await fetchPathItems(currentPath.value);
       }
-      await fetchPathItems(currentPath.value);
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
+      if (!isAbortError(error)) throw error;
       return null;
     } finally {
       operationTasksStore.finishOperation(operationId);
