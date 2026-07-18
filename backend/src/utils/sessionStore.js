@@ -1,42 +1,33 @@
 const path = require('path');
 const logger = require('../utils/logger');
-const session = require('express-session');
 const { directories } = require('../config/index');
+const { BetterSqliteSessionStore } = require('./betterSqliteSessionStore');
 
 const cacheDir = (directories && directories.cache) || '/cache';
 const dbPath = path.join(cacheDir, 'sessions.db');
 
-const SQLiteStore = require('connect-sqlite3')(session);
+const baseStore = new BetterSqliteSessionStore(dbPath);
 
-const baseStore = new SQLiteStore({
-  db: path.basename(dbPath),
-  dir: path.dirname(dbPath),
-  createDirIfNotExists: true,
-});
-
-logger.debug({ dbPath }, 'Initialized shared SQLite session store');
+logger.debug({ dbPath }, 'Initialized shared better-sqlite3 session store');
 
 const localStore = baseStore;
 
-// OIDC sessions use a thin wrapper around the same store to ensure that
-// express-openid-connect's safePromisify treats the methods as callback-based
-// and never calls them without a callback argument.
+// express-openid-connect may call a store method without a callback. Keep a
+// callback-safe facade so OIDC and local authentication use the same sessions.
 const oidcStore = {
   get(sid, cb) {
-    const callback = typeof cb === 'function' ? cb : () => {};
-    return baseStore.get(sid, callback);
+    return baseStore.get(sid, typeof cb === 'function' ? cb : () => {});
   },
   set(sid, sess, cb) {
-    const callback = typeof cb === 'function' ? cb : () => {};
-    return baseStore.set(sid, sess, callback);
+    return baseStore.set(sid, sess, typeof cb === 'function' ? cb : () => {});
   },
   destroy(sid, cb) {
-    const callback = typeof cb === 'function' ? cb : () => {};
-    return baseStore.destroy(sid, callback);
+    return baseStore.destroy(sid, typeof cb === 'function' ? cb : () => {});
   },
 };
 
 module.exports = {
+  BetterSqliteSessionStore,
   localStore,
   oidcStore,
   dbPath,
