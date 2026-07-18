@@ -852,12 +852,14 @@ onBeforeUnmount(() => {
           <div
             v-if="settings.view === 'list'"
             ref="listHeaderRef"
+            class="sticky top-0 z-50 isolate -mx-2 min-w-max bg-white dark:bg-default"
+          >
+            <div
             :class="[
-              'sticky top-0 z-50 isolate grid items-center',
+              'grid items-center',
               'px-4 py-2 text-xs',
               'text-neutral-600 dark:text-neutral-300',
               'uppercase tracking-wide select-none',
-              'bg-white dark:bg-default',
               'backdrop-blur-sm',
               'min-w-max',
             ]"
@@ -907,6 +909,7 @@ onBeforeUnmount(() => {
                   class="mx-auto h-full w-px bg-transparent hover:bg-neutral-300 dark:hover:bg-neutral-600"
                 ></div>
               </div>
+            </div>
             </div>
           </div>
 
