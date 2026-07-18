@@ -23,6 +23,9 @@ import {
 import { useEventListener } from '@vueuse/core';
 import { useInputMode } from '@/composables/useInputMode';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import { useNavigation } from '@/composables/navigation';
+import { useFileActions } from '@/composables/fileActions';
+import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
 
 const settings = useSettingsStore();
 const fileStore = useFileStore();
@@ -41,6 +44,9 @@ useUppyDropTarget(dropTargetRef);
 
 const { isTouchDevice } = useInputMode();
 const { handleDragOver, handleDragLeave, handleDrop, isDragTarget } = useFileDragDrop();
+const { openItem, goNext, goPrev, goUp } = useNavigation();
+const actions = useFileActions();
+const { isDeleteConfirmOpen } = useDeleteConfirm();
 
 const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
@@ -184,6 +190,98 @@ const toggleSelectAll = () => {
   }
 
   fileStore.selectedItems = [...sortedItems.value];
+};
+
+const isKeyboardNavigationBlocked = () => {
+  if (loading.value || fileStore.renameState || isDeleteConfirmOpen.value) return true;
+  const active = document.activeElement;
+  return actions.isEditableElement ? actions.isEditableElement(active) : false;
+};
+
+const scrollSelectionIntoView = async (item, index) => {
+  if (!item || index < 0) return;
+
+  if (useVirtualList.value) {
+    getScrollTarget()?.scrollTo({ top: index * LIST_ROW_HEIGHT, behavior: 'auto' });
+  } else if (index >= visibleLimit.value) {
+    visibleLimit.value = Math.min(sortedItems.value.length, index + 1);
+  }
+
+  await nextTick();
+  const key = getItemKey(item);
+  const element = Array.from(document.querySelectorAll('[data-keyboard-item-key]')).find(
+    (candidate) => candidate.getAttribute('data-keyboard-item-key') === key
+  );
+  element?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+};
+
+const selectRelativeItem = async (direction) => {
+  const items = sortedItems.value;
+  if (!items.length) return;
+
+  const selected = fileStore.selectedItems[0];
+  const currentIndex = selected
+    ? items.findIndex((item) => getItemKey(item) === getItemKey(selected))
+    : -1;
+  const nextIndex =
+    currentIndex < 0
+      ? direction > 0
+        ? 0
+        : items.length - 1
+      : Math.min(items.length - 1, Math.max(0, currentIndex + direction));
+  const nextItem = items[nextIndex];
+  if (!nextItem) return;
+
+  fileStore.selectedItems = [nextItem];
+  await scrollSelectionIntoView(nextItem, nextIndex);
+};
+
+const handleFolderKeydown = (event) => {
+  if (event.defaultPrevented || isKeyboardNavigationBlocked()) return;
+
+  if (event.altKey && event.key === 'ArrowLeft') {
+    event.preventDefault();
+    goPrev();
+    return;
+  }
+
+  if (event.altKey && event.key === 'ArrowRight') {
+    event.preventDefault();
+    goNext();
+    return;
+  }
+
+  if (event.altKey && event.key === 'ArrowUp') {
+    event.preventDefault();
+    goUp();
+    return;
+  }
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    selectRelativeItem(1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    selectRelativeItem(-1);
+    return;
+  }
+
+  const selected = fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null;
+  if (event.key === 'Enter' || (event.key === 'ArrowRight' && selected?.kind === 'directory')) {
+    if (!selected) return;
+    event.preventDefault();
+    openItem(selected);
+    return;
+  }
+
+  if (event.key === 'Backspace' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    goUp();
+    return;
+  }
 };
 
 const disconnectLoadMoreObserver = () => {
@@ -376,6 +474,7 @@ useEventListener(window, 'pointerup', stopResize);
 useEventListener(window, 'pointercancel', stopResize);
 useEventListener(window, 'resize', updateScrollState);
 useEventListener(window, 'scroll', updateScrollState, { passive: true });
+useEventListener(window, 'keydown', handleFolderKeydown);
 
 onBeforeUnmount(() => {
   stopResize();
@@ -465,6 +564,7 @@ onBeforeUnmount(() => {
             :key="(item.path || '') + '::' + item.name"
             :item="item"
             :view="settings.view"
+            :data-keyboard-item-key="getItemKey(item)"
             :class="[
               'relative',
               item.kind === 'directory' && isDragTarget(item)
