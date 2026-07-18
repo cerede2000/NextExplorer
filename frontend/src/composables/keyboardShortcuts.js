@@ -60,7 +60,7 @@ export function useKeyboardShortcuts(options = {}) {
       }
     });
 
-    const deletePressed = computed(() => keys.delete?.value || keys.backspace?.value);
+    const deletePressed = computed(() => keys.delete?.value);
     whenever(deletePressed, () => {
       if (shouldIgnore()) return;
       requestDelete();
