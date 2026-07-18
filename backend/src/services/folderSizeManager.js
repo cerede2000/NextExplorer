@@ -27,6 +27,7 @@ const config = require('../config/index');
 const logger = require('../utils/logger');
 const indexer = require('./folderSizeIndexer');
 const folderSizeIndex = require('./folderSizeIndex');
+const transferState = require('./folderSizeTransferState');
 const { getDb } = require('./db');
 
 let db = null;
@@ -108,8 +109,11 @@ const flush = async () => {
   flushing = true;
   let retryDirs = [];
   try {
-    const dirs = Array.from(dirty);
+    const dirs = Array.from(dirty).filter(
+      (absolutePath) => !transferState.isRelatedToActiveTransfer(absolutePath)
+    );
     dirty.clear();
+    if (!dirs.length) return;
 
     // Phase 1 (async, read-only): compute each directory's new aggregate.
     const ops = [];
@@ -165,6 +169,7 @@ const touch = async (absDirs = []) => {
   if (!running || !db || !Array.isArray(absDirs) || !absDirs.length) return;
   for (const abs of absDirs) {
     if (!folderSizeIndex.isWithinRoot(scope.root, abs)) continue;
+    if (transferState.isRelatedToActiveTransfer(abs)) continue;
     let stat;
     try {
       // eslint-disable-next-line no-await-in-loop
@@ -195,6 +200,7 @@ const runReconcile = async (reason) => {
     const result = await indexer.reconcile(db, scope, {
       mode: config.folderSize.mode,
       signal: abortController?.signal,
+      shouldSkip: transferState.isRelatedToActiveTransfer,
       onIncompleteSubtree: (absDir) => incompleteSubtrees.add(absDir),
     });
     for (const abs of incompleteSubtrees) {

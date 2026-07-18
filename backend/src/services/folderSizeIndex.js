@@ -267,6 +267,35 @@ const bulkUpsertScanEntries = (db, scope, entries = []) => {
  * touching `size_bytes` — the reconciler adjusts size separately via
  * {@link applyDelta} so the change also propagates to ancestors.
  */
+const upsertPendingDirectoryEntry = (db, scope, { absolutePath, sizeBytes, entryCount = 0 }) => {
+  const { root, label } = scope;
+  const parentAbs = absolutePath === root ? null : path.dirname(absolutePath);
+  prep(
+    db,
+    `
+    INSERT INTO folder_size_index
+      (path_hash, parent_hash, volume, relative_path, size_bytes, entry_count, last_delta_at, dirty)
+    VALUES (@pathHash, @parentHash, @volume, @relativePath, @sizeBytes, @entryCount, @now, 1)
+    ON CONFLICT(path_hash) DO UPDATE SET
+      parent_hash = @parentHash,
+      volume = @volume,
+      relative_path = @relativePath,
+      size_bytes = @sizeBytes,
+      entry_count = @entryCount,
+      last_delta_at = @now,
+      dirty = 1
+  `
+  ).run({
+    pathHash: pathHash(absolutePath),
+    parentHash: parentAbs ? pathHash(parentAbs) : null,
+    volume: label,
+    relativePath: relativeOf(root, absolutePath),
+    sizeBytes: Math.max(0, Number(sizeBytes) || 0),
+    entryCount: Math.max(0, Number(entryCount) || 0),
+    now: new Date().toISOString(),
+  });
+};
+
 const setScanMeta = (db, absolutePath, { entryCount, lastFullScanAt, dirty = 0 }) => {
   prep(
     db,
@@ -374,6 +403,7 @@ module.exports = {
   applyDelta,
   upsertScanEntry,
   bulkUpsertScanEntries,
+  upsertPendingDirectoryEntry,
   setScanMeta,
   removeSubtree,
   reparentSubtree,
