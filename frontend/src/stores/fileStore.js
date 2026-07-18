@@ -288,9 +288,6 @@ export const useFileStore = defineStore('fileStore', () => {
       removeItemsFromCurrentView(payload);
       if (selectionMatchesPayload) clearSelection();
       await deletion;
-      // A confirmation can stay open while the user navigates elsewhere. Do
-      // not clear a newer selection in the current view when it deletes the
-      // original, captured selection in the background.
       // Favorites belong to an authenticated account. A guest share session
       // cannot refresh them, and doing so turns a successful delete into a
       // misleading authentication error.
