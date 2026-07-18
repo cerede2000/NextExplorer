@@ -1,17 +1,17 @@
-name: Package drag copy and favorite drop test image
+name: Package container dependency maintenance test image
 
 on:
   push:
     branches:
-      - agent/drag-copy-favorite-drop
+      - agent/container-dependency-maintenance-test
   workflow_dispatch:
 
 env:
   IMAGE_NAME: explorer
-  IMAGE_TAG: drag-copy-favorite-drop-test
+  IMAGE_TAG: container-dependency-maintenance-test
 
 concurrency:
-  group: package-drag-copy-favorite-drop-${{ github.ref }}
+  group: package-container-dependency-maintenance-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
