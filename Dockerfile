@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:24-alpine AS base
+FROM public.ecr.aws/docker/library/node:24.16-alpine3.23 AS base
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
