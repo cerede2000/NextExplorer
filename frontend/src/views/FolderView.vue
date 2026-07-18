@@ -302,12 +302,12 @@ const getKeyboardActiveIndex = () => {
 
 const getKeyboardSelectionAnchorIndex = () => {
   const anchorIndex = getItemIndexByKey(keyboardSelectionAnchorKey.value);
-  if (anchorIndex >= 0 && fileStore.selectedItemKeys.has(keyboardSelectionAnchorKey.value)) {
-    return anchorIndex;
-  }
+  if (anchorIndex >= 0) return anchorIndex;
 
   const selected = fileStore.selectedItems[0];
-  return selected ? getItemIndexByKey(getItemKey(selected)) : -1;
+  if (selected) return getItemIndexByKey(getItemKey(selected));
+
+  return getKeyboardActiveIndex();
 };
 
 const selectItemRange = async (anchorIndex, activeIndex) => {
@@ -355,13 +355,13 @@ const selectRelativeItem = async (direction, extendSelection = false) => {
 
   if (extendSelection) {
     const anchorIndex = getKeyboardSelectionAnchorIndex();
-    const resolvedAnchorIndex = anchorIndex >= 0 ? anchorIndex : nextIndex;
+    const resolvedAnchorIndex =
+      anchorIndex >= 0 ? anchorIndex : currentIndex >= 0 ? currentIndex : nextIndex;
     keyboardSelectionAnchorKey.value = getItemKey(items[resolvedAnchorIndex]);
     await selectItemRange(resolvedAnchorIndex, nextIndex);
     return;
   }
 
-  fileStore.selectedItems = [nextItem];
   keyboardSelectionAnchorKey.value = getItemKey(nextItem);
   keyboardActiveItemKey.value = getItemKey(nextItem);
   await scrollSelectionIntoView(nextItem, nextIndex);
@@ -382,6 +382,12 @@ const toggleKeyboardSelection = async () => {
   await scrollSelectionIntoView(item, itemIndex);
 };
 
+const handleKeyboardItemClick = (item) => {
+  const key = getItemKey(item);
+  keyboardSelectionAnchorKey.value = key;
+  keyboardActiveItemKey.value = key;
+};
+
 const normalizeTypeaheadText = (value) =>
   String(value || '')
     .normalize('NFD')
@@ -398,7 +404,7 @@ const selectTypeaheadMatch = async (key) => {
   keyboardTypeaheadTimer = window.setTimeout(() => {
     keyboardTypeahead.value = '';
     keyboardTypeaheadTimer = null;
-  }, 800);
+  }, 600);
 
   const activeIndex = getKeyboardActiveIndex();
   const orderedItems = [...items.slice(activeIndex + 1), ...items.slice(0, activeIndex + 1)];
@@ -462,7 +468,9 @@ const handleFolderKeydown = (event) => {
     return;
   }
 
-  const selected = fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null;
+  const activeIndex = getKeyboardActiveIndex();
+  const activeItem = activeIndex >= 0 ? sortedItems.value[activeIndex] : null;
+  const selected = activeItem || (fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null);
   if (event.key === 'Enter' || (event.key === 'ArrowRight' && selected?.kind === 'directory')) {
     if (!selected) return;
     event.preventDefault();
@@ -878,6 +886,9 @@ onBeforeUnmount(() => {
             :data-keyboard-item-key="getItemKey(item)"
             :class="[
               'relative',
+              getItemKey(item) === keyboardActiveItemKey
+                ? 'z-10 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-1 dark:ring-offset-zinc-800 rounded-lg'
+                : '',
               item.kind === 'directory' && isDragTarget(item)
                 ? isCopyDragTarget(item)
                   ? 'z-10 ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
@@ -887,6 +898,7 @@ onBeforeUnmount(() => {
             @dragover="(e) => item.kind === 'directory' && handleDragOver(e, item)"
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
+            @click="handleKeyboardItemClick(item)"
           />
 
           <div
