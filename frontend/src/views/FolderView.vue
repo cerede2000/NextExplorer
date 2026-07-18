@@ -350,14 +350,19 @@ const scrollSelectionIntoView = async (item, index) => {
     target === document.scrollingElement || target === document.documentElement;
   const scrollContainerRect = dropTargetRef.value?.getBoundingClientRect?.();
   const headerRect = listHeaderRef.value?.getBoundingClientRect?.();
-  const targetRect = isDocumentScroller
+  const baseTargetRect = isDocumentScroller
     ? {
         // The document can scroll behind the fixed toolbar. Use the folder viewport
-        // and sticky list header as the actual visible bounds for keyboard focus.
-        top: Math.max(scrollContainerRect?.top ?? 0, headerRect?.bottom ?? 0),
+        // as the actual visible bounds for keyboard focus.
+        top: scrollContainerRect?.top ?? 0,
         bottom: Math.min(scrollContainerRect?.bottom ?? window.innerHeight, window.innerHeight),
       }
     : target.getBoundingClientRect();
+  // The sticky header obscures rows at the top of both document and local scrollers.
+  const targetRect = {
+    ...baseTargetRect,
+    top: Math.max(baseTargetRect.top, headerRect?.bottom ?? baseTargetRect.top),
+  };
   const padding = 8;
   const topAdjustment = itemRect.top - (targetRect.top + padding);
   const bottomAdjustment = itemRect.bottom - (targetRect.bottom - padding);
