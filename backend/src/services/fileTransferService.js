@@ -11,7 +11,16 @@ const {
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
-const folderSizeHooks = require('./folderSizeHooks');
+let folderSizeHooks = null;
+try {
+  // Folder-size indexing is an optional feature branch. Transfers remain fully
+  // functional without it, while a combined build can use its post-transfer
+  // hooks without coupling the core transfer service to a migration.
+  // eslint-disable-next-line global-require
+  folderSizeHooks = require('./folderSizeHooks');
+} catch (error) {
+  if (error?.code !== 'MODULE_NOT_FOUND') throw error;
+}
 
 // How often (ms) progress is reported to the caller while bytes stream, so a
 // large file emits a steady trickle of updates rather than one per chunk.
@@ -555,7 +564,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       nativePercent = null;
       emit(true);
 
-      if (plan.isDirectory) {
+      if (plan.isDirectory && folderSizeHooks) {
         // Reserve the index entry before rsync creates its first child, so an
         // on-view refresh cannot publish a partial size.
         await folderSizeHooks.beginDirectoryTransfer(targetAbsolute);
@@ -582,12 +591,14 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           onCopyProgress,
           writeOperation.signal
         );
-        await folderSizeHooks.onEntryCopied(targetAbsolute, {
-          isDirectory: plan.isDirectory,
-          size: copiedSize ?? plan.size,
-          sourceAbsolutePath: plan.sourceAbsolute,
-          directoryTransferPrepared: plan.isDirectory,
-        });
+        if (folderSizeHooks) {
+          await folderSizeHooks.onEntryCopied(targetAbsolute, {
+            isDirectory: plan.isDirectory,
+            size: copiedSize ?? plan.size,
+            sourceAbsolutePath: plan.sourceAbsolute,
+            directoryTransferPrepared: plan.isDirectory,
+          });
+        }
       } else if (operation === 'move') {
         const movedSize = await moveEntryWithProgress(
           plan.sourceAbsolute,
@@ -597,16 +608,18 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           onCopyProgress,
           writeOperation.signal
         );
-        await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
-          isDirectory: plan.isDirectory,
-          size: movedSize ?? plan.size,
-          directoryTransferPrepared: plan.isDirectory,
-        });
+        if (folderSizeHooks) {
+          await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
+            isDirectory: plan.isDirectory,
+            size: movedSize ?? plan.size,
+            directoryTransferPrepared: plan.isDirectory,
+          });
+        }
       } else {
         throw new Error(`Unsupported operation: ${operation}`);
       }
 
-      if (plan.isDirectory) transferredDirectories.push(targetAbsolute);
+      if (plan.isDirectory && folderSizeHooks) transferredDirectories.push(targetAbsolute);
 
       results.push({ from: plan.sourceRelative, to: targetRelative });
       activeWriteOperation.finish();
@@ -630,11 +643,11 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           recursive: activeTarget.isDirectory,
           force: true,
         });
-        if (activeTarget.isDirectory) {
+        if (activeTarget.isDirectory && folderSizeHooks) {
           await folderSizeHooks.cancelDirectoryTransfer(activeTarget.absolutePath);
         }
       }
-      if (error?.code !== 'OPERATION_CANCELLED' && activeTarget?.isDirectory) {
+      if (error?.code !== 'OPERATION_CANCELLED' && activeTarget?.isDirectory && folderSizeHooks) {
         // An unexpected I/O failure can leave an inspectable partial directory.
         // Release its transfer lock and index what remains instead of permanently
         // suppressing size refreshes until the process restarts.
@@ -642,7 +655,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       }
       // Completed entries remain after a cancellation and still need their final
       // directory-size scan. The active partial target was removed above.
-      folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
+      folderSizeHooks?.refreshTransferredDirectories(transferredDirectories);
     } finally {
       // A deletion waiting on this write must always be released, even if one
       // of the optional folder-size hooks fails during transfer cleanup.
