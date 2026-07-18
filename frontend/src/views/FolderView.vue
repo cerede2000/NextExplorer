@@ -676,7 +676,7 @@ onBeforeUnmount(() => {
             v-if="settings.view === 'list'"
             ref="listHeaderRef"
             :class="[
-              'sticky top-0 z-20 grid items-center',
+              'sticky top-0 z-50 isolate grid items-center',
               'px-4 py-2 text-xs',
               'text-neutral-600 dark:text-neutral-300',
               'uppercase tracking-wide select-none',
