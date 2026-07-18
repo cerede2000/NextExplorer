@@ -666,11 +666,13 @@ const getShareSourceTarget = (resolved, includeChildren = false) => {
   };
 };
 
-const resolveDeleteTargets = async (items = [], context) => {
+const resolveDeleteTargets = async (items = [], context, options = {}) => {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('At least one item is required.');
   }
 
+  const includeStats = options.includeStats !== false;
+  const includeShareDescendants = Boolean(options.includeShareDescendants);
   const targets = [];
 
   for (const item of items) {
@@ -685,8 +687,8 @@ const resolveDeleteTargets = async (items = [], context) => {
     }
 
     const { relativePath, absolutePath } = resolved;
-    const exists = await pathExists(absolutePath);
-    const stats = exists ? await fs.stat(absolutePath) : null;
+    const exists = includeStats ? await pathExists(absolutePath) : null;
+    const stats = includeStats && exists ? await fs.stat(absolutePath) : null;
     const isDirectory = stats ? stats.isDirectory() : item?.kind === 'directory';
 
     targets.push({
@@ -696,7 +698,14 @@ const resolveDeleteTargets = async (items = [], context) => {
       exists,
       stats,
       isDirectory,
-      shareSourceTarget: getShareSourceTarget(resolved, isDirectory),
+      // The delete-impact endpoint must include shares nested below a folder,
+      // but it does not need a filesystem stat just to determine that. Looking
+      // below a regular file is harmless (there cannot be matching children),
+      // and avoids an avoidable disk round trip before every confirmation.
+      shareSourceTarget: getShareSourceTarget(
+        resolved,
+        includeShareDescendants ? true : isDirectory
+      ),
     });
   }
 
@@ -708,7 +717,10 @@ const getDeleteImpact = async (items = [], options = {}) => {
     user: options.user || null,
     guestSession: options.guestSession || null,
   };
-  const targets = await resolveDeleteTargets(items, context);
+  const targets = await resolveDeleteTargets(items, context, {
+    includeStats: false,
+    includeShareDescendants: true,
+  });
   const shares = await getSharesForSourceTargets(
     targets.map((target) => target.shareSourceTarget).filter(Boolean)
   );
