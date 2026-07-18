@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:20-bookworm
+FROM public.ecr.aws/docker/library/node:24.16-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     && rm -rf /var/lib/apt/lists/*
