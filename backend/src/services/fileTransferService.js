@@ -29,7 +29,63 @@ const COPY_STREAM_HIGH_WATER_MARK = 4 * 1024 * 1024;
 const NATIVE_TRANSFER_ENABLED =
   process.platform === 'linux' && process.env.FILE_TRANSFER_ENGINE !== 'stream';
 const activeNativeOperations = new Map();
+const activeWriteOperations = new Map();
 let nextNativeOperationId = 1;
+let nextWriteOperationId = 1;
+
+const isPathWithin = (candidatePath, parentPath) =>
+  candidatePath === parentPath || candidatePath.startsWith(`${parentPath}${path.sep}`);
+
+// Coordinate mutation requests with an in-flight write. A destination can be
+// visible before rsync (or the stream fallback) has finished populating it;
+// deleting that directory must stop and reap the writer first, otherwise the
+// child process keeps writing into a path that no longer exists.
+const registerWriteOperation = (sourcePath, destinationPath, parentSignal) => {
+  const id = nextWriteOperationId;
+  nextWriteOperationId += 1;
+  const controller = new AbortController();
+  let complete;
+  const completion = new Promise((resolve) => {
+    complete = resolve;
+  });
+  const abortFromParent = () => controller.abort();
+
+  if (parentSignal?.aborted) abortFromParent();
+  else parentSignal?.addEventListener('abort', abortFromParent, { once: true });
+
+  activeWriteOperations.set(id, {
+    id,
+    sourcePath,
+    destinationPath,
+    sourceName: path.basename(sourcePath),
+    destinationName: path.basename(destinationPath),
+    startedAt: Date.now(),
+    cancel: () => controller.abort(),
+    completion,
+  });
+
+  let finished = false;
+  return {
+    signal: controller.signal,
+    finish: () => {
+      if (finished) return;
+      finished = true;
+      parentSignal?.removeEventListener('abort', abortFromParent);
+      activeWriteOperations.delete(id);
+      complete();
+    },
+  };
+};
+
+const cancelWritesTargeting = async (absolutePath) => {
+  const operations = Array.from(activeWriteOperations.values()).filter((operation) =>
+    isPathWithin(operation.destinationPath, absolutePath)
+  );
+  if (operations.length === 0) return;
+
+  operations.forEach((operation) => operation.cancel());
+  await Promise.all(operations.map((operation) => operation.completion));
+};
 
 const registerNativeOperation = (type, child, sourcePath, destinationPath = null) => {
   const id = nextNativeOperationId;
@@ -55,6 +111,15 @@ const getDiagnosticsSnapshot = () => {
     nativeTransferEnabled: NATIVE_TRANSFER_ENABLED,
     activeNativeOperations: Array.from(activeNativeOperations.values())
       .map((operation) => ({ ...operation, ageMs: now - operation.startedAt }))
+      .sort((a, b) => b.ageMs - a.ageMs)
+      .slice(0, 5),
+    activeWriteOperations: Array.from(activeWriteOperations.values())
+      .map((operation) => ({
+        id: operation.id,
+        sourceName: operation.sourceName,
+        destinationName: operation.destinationName,
+        ageMs: now - operation.startedAt,
+      }))
       .sort((a, b) => b.ageMs - a.ageMs)
       .slice(0, 5),
   };
@@ -501,6 +566,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   let currentName = '';
   let nativePercent = null;
   let activeTarget = null;
+  let activeWriteOperation = null;
   const transferredDirectories = [];
 
   const emit = (force = false) => {
@@ -538,67 +604,73 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       const targetAbsolute = path.join(destinationAbsolute, availableName);
       const targetRelative = combineRelativePath(destinationRelative, availableName);
       activeTarget = { absolutePath: targetAbsolute, isDirectory: plan.isDirectory };
+      const writeOperation = registerWriteOperation(plan.sourceAbsolute, targetAbsolute, signal);
+      activeWriteOperation = writeOperation;
       currentName = availableName;
       nativePercent = null;
       emit(true);
 
-      if (plan.isDirectory) {
-        // Reserve the index entry before rsync creates its first child, so an
-        // on-view refresh cannot publish a size for a partial transfer.
-        // eslint-disable-next-line no-await-in-loop
-        await folderSizeHooks.beginDirectoryTransfer(targetAbsolute);
-      }
-
-      const copiedBeforePlan = copiedBytes;
-      const onCopyProgress = (progress) => {
-        if (typeof progress === 'number') {
-          onBytes(progress);
-          return;
+      {
+        if (plan.isDirectory) {
+          // Reserve the index entry before rsync creates its first child, so an
+          // on-view refresh cannot publish a size for a partial transfer.
+          // eslint-disable-next-line no-await-in-loop
+          await folderSizeHooks.beginDirectoryTransfer(targetAbsolute);
         }
-        nativePercent = Number.isFinite(progress?.percent) ? progress.percent : null;
-        if (Number.isFinite(plan.size) && nativePercent != null) {
-          copiedBytes = copiedBeforePlan + (plan.size * nativePercent) / 100;
-        }
-        emit(true);
-      };
 
-      if (operation === 'copy') {
-        // eslint-disable-next-line no-await-in-loop
-        const copiedSize = await copyEntryWithProgress(
-          plan.sourceAbsolute,
-          targetAbsolute,
-          plan.isDirectory,
-          onCopyProgress,
-          signal
-        );
-        await folderSizeHooks.onEntryCopied(targetAbsolute, {
-          isDirectory: plan.isDirectory,
-          size: copiedSize ?? plan.size,
-          sourceAbsolutePath: plan.sourceAbsolute,
-          directoryTransferPrepared: plan.isDirectory,
-        });
-      } else if (operation === 'move') {
-        // eslint-disable-next-line no-await-in-loop
-        const movedSize = await moveEntryWithProgress(
-          plan.sourceAbsolute,
-          targetAbsolute,
-          plan.isDirectory,
-          plan.size,
-          onCopyProgress,
-          signal
-        );
-        await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
-          isDirectory: plan.isDirectory,
-          size: movedSize ?? plan.size,
-          directoryTransferPrepared: plan.isDirectory,
-        });
-      } else {
-        throw new Error(`Unsupported operation: ${operation}`);
+        const copiedBeforePlan = copiedBytes;
+        const onCopyProgress = (progress) => {
+          if (typeof progress === 'number') {
+            onBytes(progress);
+            return;
+          }
+          nativePercent = Number.isFinite(progress?.percent) ? progress.percent : null;
+          if (Number.isFinite(plan.size) && nativePercent != null) {
+            copiedBytes = copiedBeforePlan + (plan.size * nativePercent) / 100;
+          }
+          emit(true);
+        };
+
+        if (operation === 'copy') {
+          // eslint-disable-next-line no-await-in-loop
+          const copiedSize = await copyEntryWithProgress(
+            plan.sourceAbsolute,
+            targetAbsolute,
+            plan.isDirectory,
+            onCopyProgress,
+            writeOperation.signal
+          );
+          await folderSizeHooks.onEntryCopied(targetAbsolute, {
+            isDirectory: plan.isDirectory,
+            size: copiedSize ?? plan.size,
+            sourceAbsolutePath: plan.sourceAbsolute,
+            directoryTransferPrepared: plan.isDirectory,
+          });
+        } else if (operation === 'move') {
+          // eslint-disable-next-line no-await-in-loop
+          const movedSize = await moveEntryWithProgress(
+            plan.sourceAbsolute,
+            targetAbsolute,
+            plan.isDirectory,
+            plan.size,
+            onCopyProgress,
+            writeOperation.signal
+          );
+          await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
+            isDirectory: plan.isDirectory,
+            size: movedSize ?? plan.size,
+            directoryTransferPrepared: plan.isDirectory,
+          });
+        } else {
+          throw new Error(`Unsupported operation: ${operation}`);
+        }
       }
 
       if (plan.isDirectory) transferredDirectories.push(targetAbsolute);
 
       results.push({ from: plan.sourceRelative, to: targetRelative });
+      activeWriteOperation.finish();
+      activeWriteOperation = null;
       activeTarget = null;
     }
 
@@ -614,27 +686,34 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
 
     return { destination: destinationRelative, items: results };
   } catch (error) {
-    // A cancellation can interrupt a recursive copy part-way through an entry.
-    // Remove only that incomplete destination; already completed entries remain
-    // intact, which is the least surprising and safest cancellation semantics.
-    if (error?.code === 'OPERATION_CANCELLED' && activeTarget) {
-      await fs.rm(activeTarget.absolutePath, {
-        recursive: activeTarget.isDirectory,
-        force: true,
-      });
-      if (activeTarget.isDirectory) {
-        await folderSizeHooks.cancelDirectoryTransfer(activeTarget.absolutePath);
+    try {
+      // A cancellation can interrupt a recursive copy part-way through an entry.
+      // Remove only that incomplete destination; already completed entries remain
+      // intact, which is the least surprising and safest cancellation semantics.
+      if (error?.code === 'OPERATION_CANCELLED' && activeTarget) {
+        await fs.rm(activeTarget.absolutePath, {
+          recursive: activeTarget.isDirectory,
+          force: true,
+        });
+        if (activeTarget.isDirectory) {
+          await folderSizeHooks.cancelDirectoryTransfer(activeTarget.absolutePath);
+        }
       }
+      if (error?.code !== 'OPERATION_CANCELLED' && activeTarget?.isDirectory) {
+        // An unexpected I/O failure can leave an inspectable partial directory.
+        // Release its transfer lock and index what remains instead of permanently
+        // suppressing size refreshes until the process restarts.
+        folderSizeHooks.refreshTransferredDirectories([activeTarget.absolutePath]);
+      }
+      // Completed entries remain after a cancellation and still need their final
+      // directory-size scan. The active partial target was removed above.
+      folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
+    } finally {
+      // A deletion waiting on this write must always be released, even if one
+      // of the optional folder-size hooks fails during transfer cleanup.
+      activeWriteOperation?.finish();
+      activeWriteOperation = null;
     }
-    if (error?.code !== 'OPERATION_CANCELLED' && activeTarget?.isDirectory) {
-      // An unexpected I/O failure can leave an inspectable partial directory.
-      // Release its transfer lock and index what remains instead of permanently
-      // suppressing size refreshes until the process restarts.
-      folderSizeHooks.refreshTransferredDirectories([activeTarget.absolutePath]);
-    }
-    // Completed entries remain after a cancellation and still need their final
-    // directory-size scan. The active partial target was removed above.
-    folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
     throw error;
   }
 };
@@ -764,6 +843,9 @@ const deleteItems = async (items = [], options = {}) => {
     }
 
     const deletedEntryStats = stats || (await fs.stat(absolutePath));
+    // A visible transfer destination may still be actively written. Stop the
+    // writer and wait for its cleanup before removing the destination tree.
+    await cancelWritesTargeting(absolutePath);
     if (NATIVE_TRANSFER_ENABLED) {
       await removeWithNativeRm(absolutePath, options.signal);
     } else {
