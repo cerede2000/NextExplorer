@@ -70,7 +70,7 @@ const downloadCurrentFolder = () => {
 </script>
 
 <template>
-  <div class="sticky top-0 z-[60] bg-white/90 p-3 backdrop-blur dark:bg-default/90">
+  <div class="sticky top-0 z-40 bg-white/90 p-3 backdrop-blur dark:bg-default/90">
     <div class="flex flex-wrap items-center shrink-0">
       <button
         type="button"

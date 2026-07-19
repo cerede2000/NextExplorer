@@ -680,7 +680,7 @@ onBeforeUnmount(() => {
           <div
             v-if="settings.view === 'list'"
             ref="listHeaderRef"
-            class="sticky top-0 z-50 isolate -mx-2 min-w-max bg-white dark:bg-default"
+            class="sticky top-0 z-30 isolate -mx-2 min-w-max bg-white dark:bg-default"
           >
             <div
             :class="[
