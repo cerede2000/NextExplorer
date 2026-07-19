@@ -26,6 +26,7 @@ export function useFileActions() {
   const hasSelection = computed(() => fileStore.hasSelection);
   const isSingleItemSelected = computed(() => selectedItems.value.length === 1);
   const primaryItem = computed(() => selectedItems.value[0] ?? null);
+  const renameTarget = computed(() => fileStore.keyboardActionItem || primaryItem.value);
 
   const locationCanWrite = computed(() => fileStore.currentPathData?.canWrite ?? true);
   const locationCanCreateFolder = computed(
@@ -75,7 +76,9 @@ export function useFileActions() {
   const canDelete = computed(() => hasSelection.value && locationCanDelete.value);
   const canRename = computed(
     () =>
-      isSingleItemSelected.value && primaryItem.value?.kind !== 'volume' && locationCanWrite.value
+      Boolean(renameTarget.value) &&
+      renameTarget.value?.kind !== 'volume' &&
+      locationCanWrite.value
   );
   const canExtractArchive = computed(
     () =>
@@ -116,8 +119,8 @@ export function useFileActions() {
   const runPasteIntoCurrent = async () => runPasteToDestination('');
 
   const runRename = () => {
-    if (!canRename.value || !primaryItem.value) return;
-    fileStore.beginRename(primaryItem.value);
+    if (!canRename.value || !renameTarget.value) return;
+    fileStore.beginRename(renameTarget.value);
   };
 
   const runExtractArchive = async () => {
