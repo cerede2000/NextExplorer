@@ -25,6 +25,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const currentPathItems = ref([]);
   const currentPathData = ref(null);
   const selectedItems = ref([]);
+  const keyboardActionItemKey = ref('');
   const selectionMode = ref(false);
   const renameState = ref(null);
 
@@ -76,6 +77,18 @@ export const useFileStore = defineStore('fileStore', () => {
   };
 
   const findItemByKey = (key) => currentPathItems.value.find((item) => itemKey(item) === key);
+
+  const keyboardActionItem = computed(() =>
+    keyboardActionItemKey.value ? findItemByKey(keyboardActionItemKey.value) || null : null
+  );
+
+  const setKeyboardActionItem = (item) => {
+    keyboardActionItemKey.value = itemKey(item);
+  };
+
+  const clearKeyboardActionItem = () => {
+    keyboardActionItemKey.value = '';
+  };
 
   const resolveItemRelativePath = (item) => {
     if (!item || !item.name) {
@@ -287,6 +300,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const target = existing || { ...item };
 
     selectedItems.value = [target];
+    clearKeyboardActionItem();
 
     renameState.value = {
       key,
@@ -531,6 +545,9 @@ export const useFileStore = defineStore('fileStore', () => {
     getCurrentPathItems,
     fetchPathItems,
     selectedItems,
+    keyboardActionItem,
+    setKeyboardActionItem,
+    clearKeyboardActionItem,
     selectedItemKeys,
     selectionMode,
     setSelectionMode,

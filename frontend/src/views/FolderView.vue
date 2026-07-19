@@ -232,6 +232,7 @@ const selectItemRange = async (anchorIndex, activeIndex) => {
   if (!activeItem) return;
 
   fileStore.selectedItems = items.slice(start, end + 1);
+  fileStore.setKeyboardActionItem(activeItem);
   keyboardActiveItemKey.value = getItemKey(activeItem);
   await scrollSelectionIntoView(activeItem, activeIndex);
 };
@@ -314,6 +315,7 @@ const selectRelativeItem = async (direction, extendSelection = false) => {
 
   keyboardSelectionAnchorKey.value = getItemKey(nextItem);
   keyboardActiveItemKey.value = getItemKey(nextItem);
+  fileStore.setKeyboardActionItem(nextItem);
   await scrollSelectionIntoView(nextItem, nextIndex);
 };
 
@@ -329,6 +331,7 @@ const toggleKeyboardSelection = async () => {
   toggleSelection(item);
   keyboardSelectionAnchorKey.value = getItemKey(item);
   keyboardActiveItemKey.value = getItemKey(item);
+  fileStore.setKeyboardActionItem(item);
   await scrollSelectionIntoView(item, itemIndex);
 };
 
@@ -336,6 +339,7 @@ const handleKeyboardItemClick = (item) => {
   const key = getItemKey(item);
   keyboardSelectionAnchorKey.value = key;
   keyboardActiveItemKey.value = key;
+  fileStore.clearKeyboardActionItem();
 };
 
 const normalizeTypeaheadText = (value) =>
@@ -376,6 +380,7 @@ const selectTypeaheadMatch = async (key) => {
   fileStore.selectedItems = [match];
   keyboardSelectionAnchorKey.value = getItemKey(match);
   keyboardActiveItemKey.value = getItemKey(match);
+  fileStore.setKeyboardActionItem(match);
   await scrollSelectionIntoView(match, matchIndex);
 };
 

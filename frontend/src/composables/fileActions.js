@@ -24,6 +24,7 @@ export function useFileActions() {
   const hasSelection = computed(() => fileStore.hasSelection);
   const isSingleItemSelected = computed(() => selectedItems.value.length === 1);
   const primaryItem = computed(() => selectedItems.value[0] ?? null);
+  const renameTarget = computed(() => fileStore.keyboardActionItem || primaryItem.value);
 
   const locationCanWrite = computed(() => fileStore.currentPathData?.canWrite ?? true);
   const locationCanUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
@@ -62,7 +63,9 @@ export function useFileActions() {
   const canDelete = computed(() => hasSelection.value && locationCanDelete.value);
   const canRename = computed(
     () =>
-      isSingleItemSelected.value && primaryItem.value?.kind !== 'volume' && locationCanWrite.value
+      Boolean(renameTarget.value) &&
+      renameTarget.value?.kind !== 'volume' &&
+      locationCanWrite.value
   );
   const canExtractZip = computed(
     () => isZipSelected.value && locationCanWrite.value && primaryItem.value?.kind !== 'volume'
@@ -99,8 +102,8 @@ export function useFileActions() {
   const runPasteIntoCurrent = async () => runPasteToDestination('');
 
   const runRename = () => {
-    if (!canRename.value || !primaryItem.value) return;
-    fileStore.beginRename(primaryItem.value);
+    if (!canRename.value || !renameTarget.value) return;
+    fileStore.beginRename(renameTarget.value);
   };
 
   const runExtractZip = async () => {
