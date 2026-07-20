@@ -43,6 +43,26 @@ describe('folder scroll positions', () => {
     expect(store.consumeRestore('volume/parent::list')).toBe(0);
   });
 
+  it('restores the active item only with the permitted folder return', () => {
+    const store = useFolderScrollStore();
+
+    store.remember('volume/parent::list', 0);
+    store.rememberActiveItem('volume/parent::list', 'volume/parent::example.txt');
+
+    expect(store.consumeRestoreState('volume/parent::list')).toEqual({
+      permitted: false,
+      scrollTop: 0,
+      activeItemKey: '',
+    });
+
+    store.permitRestore('volume/parent');
+    expect(store.consumeRestoreState('volume/parent::list')).toEqual({
+      permitted: true,
+      scrollTop: 0,
+      activeItemKey: 'volume/parent::example.txt',
+    });
+  });
+
   it('preserves an editor return through the generic navigation guard', () => {
     const store = useFolderScrollStore();
 
