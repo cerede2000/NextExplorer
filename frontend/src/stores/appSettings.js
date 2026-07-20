@@ -31,6 +31,7 @@ export const useAppSettings = defineStore('appSettings', () => {
   const systemSettings = ref({
     thumbnails: { enabled: true, size: 200, quality: 70 },
     access: { rules: [] },
+    folderSize: { excludedPaths: [], environmentExcludedPaths: [] },
   });
 
   // Computed state that combines all settings (for backward compatibility)
@@ -39,6 +40,7 @@ export const useAppSettings = defineStore('appSettings', () => {
     user: userSettings.value,
     thumbnails: systemSettings.value.thumbnails,
     access: systemSettings.value.access,
+    folderSize: systemSettings.value.folderSize,
   }));
 
   // Whether thumbnails should be shown/requested for the current session.
@@ -124,6 +126,13 @@ export const useAppSettings = defineStore('appSettings', () => {
           rules: Array.isArray(s.access.rules) ? s.access.rules : [],
         };
       }
+      if (s?.folderSize) {
+        systemSettings.value.folderSize = {
+          excludedPaths: [],
+          environmentExcludedPaths: [],
+          ...s.folderSize,
+        };
+      }
 
       loaded.value = true;
     } catch (e) {
@@ -189,6 +198,13 @@ export const useAppSettings = defineStore('appSettings', () => {
       if (updated?.access) {
         systemSettings.value.access = {
           rules: Array.isArray(updated.access.rules) ? updated.access.rules : [],
+        };
+      }
+      if (updated?.folderSize) {
+        systemSettings.value.folderSize = {
+          excludedPaths: [],
+          environmentExcludedPaths: [],
+          ...updated.folderSize,
         };
       }
 

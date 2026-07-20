@@ -13,11 +13,11 @@ const INDEXER_MODULES = [
  * Build a fresh, isolated indexer test context: temp volume + database and
  * freshly-required modules bound to that environment.
  */
-const createContext = async () => {
+const createContext = async (extraEnv = {}) => {
   const env = await setupTestEnv({
     tag: 'folder-size-indexer-',
     modules: INDEXER_MODULES,
-    env: { FOLDER_SIZE_MODE: 'full' },
+    env: { FOLDER_SIZE_MODE: 'full', ...extraEnv },
   });
   const { getDb } = env.requireFresh('src/services/db');
   const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
@@ -68,6 +68,27 @@ describe('folderSizeIndexer', () => {
 
     const rootEntry = folderSizeIndex.getByAbsolutePath(db, vol);
     expect(rootEntry.entryCount).toBe(2); // A and C
+  });
+
+  it('does not traverse or index excluded directory trees', async () => {
+    ctx = await createContext({ FOLDER_SIZE_EXCLUDE_PATHS: 'A/excluded' });
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'excluded', 'deep'), { recursive: true });
+    await fs.mkdir(path.join(vol, 'A', 'included'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'excluded', 'deep', 'large.bin'), Buffer.alloc(200));
+    await fs.writeFile(path.join(vol, 'A', 'included', 'kept.bin'), Buffer.alloc(50));
+
+    const exclusions = env.requireFresh('src/services/folderSizeExclusions');
+    const result = await indexer.runBaseline(db, scope, {
+      mode: 'full',
+      shouldExclude: (absolutePath) => exclusions.isExcluded(absolutePath, scope),
+    });
+
+    expect(result.bytes).toBe(50);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(50);
+    expect(folderSizeIndex.getByAbsolutePath(db, path.join(vol, 'A', 'excluded'))).toBeNull();
   });
 
   it('releases callers when a filesystem operation stalls and opens a safety circuit', async () => {

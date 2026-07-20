@@ -389,6 +389,7 @@
       "userPreferences": "Préférences",
       "branding": "Identité visuelle",
       "filesThumbnails": "Fichiers et vignettes",
+      "folderSize": "Taille des dossiers",
       "security": "Sécurité",
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs"
@@ -453,6 +454,14 @@
       "maxDimHelp": "Côté le plus long en pixels. La valeur par défaut est 200.",
       "concurrency": "Génération parallèle",
       "concurrencyHelp": "Nombre de vignettes générées simultanément (1–50). La valeur par défaut est 10."
+    },
+    "folderSize": {
+      "title": "Taille des dossiers",
+      "subtitle": "Exclure des chemins du calcul et de l’indexation des tailles.",
+      "environment": "Exclusions définies par l’environnement",
+      "additional": "Exclusions supplémentaires",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Aucun chemin configuré"
     },
     "security": {
       "subtitle": "Contrôlez l'accès à l'application.",
