@@ -15,6 +15,7 @@ const normalizeEntry = (raw = {}) => ({
   entryCount: Number.isFinite(raw.entryCount) ? raw.entryCount : null,
   canEnter: Boolean(raw.canEnter),
   indexed: Boolean(raw.indexed),
+  excluded: Boolean(raw.excluded),
   lastUpdated: raw.lastUpdated || null,
 });
 

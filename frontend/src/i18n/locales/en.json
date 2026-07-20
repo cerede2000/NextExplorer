@@ -319,7 +319,9 @@
     "dateTaken": "Date Taken: {date}",
     "camera": "Camera: {makeModel}",
     "lens": "Lens: {lens}",
-    "duration": "Duration: {seconds}s"
+    "duration": "Duration: {seconds}s",
+    "folderSizeExcluded": "Excluded",
+    "folderSizeExcludedHelp": "This path is excluded from folder-size indexing."
   },
   "auth": {
     "preparing": "Preparing your explorer…",

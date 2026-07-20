@@ -319,7 +319,9 @@
     "dateTaken": "Date de prise : {date}",
     "camera": "Appareil photo : {makeModel}",
     "lens": "Objectif : {lens}",
-    "duration": "Durée : {seconds}s"
+    "duration": "Durée : {seconds}s",
+    "folderSizeExcluded": "Exclu",
+    "folderSizeExcludedHelp": "Ce chemin est exclu de l’indexation des tailles."
   },
   "auth": {
     "preparing": "Préparation de votre explorateur…",
