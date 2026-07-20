@@ -27,6 +27,7 @@ const kindLabel = computed(() => (item.value ? getKindLabel(item.value) : ''));
 const indexedFolderSize = computed(() => folderSizeStore.sizeFor(relativePath.value));
 
 const directorySizeLabel = computed(() => {
+  if (indexedFolderSize.value?.excluded) return t('info.folderSizeExcluded');
   const indexedSize = indexedFolderSize.value?.sizeBytes;
   if (Number.isFinite(indexedSize)) return formatBytes(indexedSize);
   const metadataSize = details.value?.directory?.totalSize;
@@ -37,6 +38,7 @@ const sizeLabel = computed(() => {
   const it = item.value;
   if (!it) return '';
   if (it.kind === 'directory') {
+    if (indexedFolderSize.value?.excluded) return t('info.folderSizeExcluded');
     const size = indexedFolderSize.value?.sizeBytes;
     return Number.isFinite(size) ? formatBytes(size) : '—';
   }

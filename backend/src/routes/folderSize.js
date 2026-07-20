@@ -6,6 +6,7 @@ const { getDb } = require('../services/db');
 const folderSizeIndex = require('../services/folderSizeIndex');
 const { getVolumeScope } = require('../services/folderSizeIndexer');
 const folderSizeManager = require('../services/folderSizeManager');
+const folderSizeExclusions = require('../services/folderSizeExclusions');
 const config = require('../config/index');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
@@ -66,9 +67,8 @@ const lookupFolderSize = async (context, inputRelRaw) => {
 
   const db = await getDb();
   const scope = getVolumeScope();
-  const withinRoot = Boolean(
-    absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath)
-  );
+  const withinRoot = Boolean(absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath));
+  const excluded = withinRoot && folderSizeExclusions.isExcluded(absolutePath, scope);
   const entry = withinRoot ? folderSizeIndex.getByAbsolutePath(db, absolutePath) : null;
 
   return {
@@ -80,6 +80,7 @@ const lookupFolderSize = async (context, inputRelRaw) => {
       lastUpdated: folderSizeIndex.getLastUpdatedAt(entry),
       indexed: Boolean(entry),
       dirty: Boolean(entry?.dirty),
+      excluded,
     },
     // Absolute path (volume-space, within root) for the on-view refresh, or null.
     absolutePath: withinRoot ? absolutePath : null,
@@ -107,6 +108,7 @@ const indexResult = (db, scope, absolutePath, logicalPath, canEnter) => {
     lastUpdated: folderSizeIndex.getLastUpdatedAt(entry),
     indexed: Boolean(entry),
     dirty: Boolean(entry?.dirty),
+    excluded: folderSizeExclusions.isExcluded(absolutePath, scope),
   };
 };
 
@@ -166,6 +168,9 @@ router.post(
     const absolutePath = resolved?.absolutePath;
     if (!absolutePath || !folderSizeIndex.isWithinRoot(scope.root, absolutePath)) {
       throw new ValidationError('Folder size refresh is only available for volume folders.');
+    }
+    if (folderSizeExclusions.isExcluded(absolutePath, scope)) {
+      throw new ValidationError('Folder size indexing is excluded for this directory.');
     }
 
     let stats;
@@ -236,6 +241,7 @@ router.post(
           lastUpdated: null,
           indexed: false,
           dirty: false,
+          excluded: false,
         });
       }
     }

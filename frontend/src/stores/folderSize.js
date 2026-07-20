@@ -16,6 +16,7 @@ const normalizeEntry = (raw = {}) => ({
   canEnter: Boolean(raw.canEnter),
   indexed: Boolean(raw.indexed),
   dirty: Boolean(raw.dirty),
+  excluded: Boolean(raw.excluded),
   lastUpdated: raw.lastUpdated || null,
 });
 
