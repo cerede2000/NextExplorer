@@ -407,6 +407,7 @@
       "branding": "Identité visuelle",
       "filesThumbnails": "Fichiers et vignettes",
       "uploads": "Téléversements",
+      "folderSize": "Taille des dossiers",
       "security": "Sécurité",
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs"
@@ -489,6 +490,14 @@
       "autoFallbackReset": "Réinitialiser (revenir en direct)",
       "chunkSize": "Taille des chunks",
       "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy. Des chunks plus petits (8–32 Mio) donnent une progression plus fluide ; de très gros chunks font apparaître des paliers (le serveur écrit chaque chunk avant le suivant)."
+    },
+    "folderSize": {
+      "title": "Taille des dossiers",
+      "subtitle": "Exclure des chemins du calcul et de l’indexation des tailles.",
+      "environment": "Exclusions définies par l’environnement",
+      "additional": "Exclusions supplémentaires",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Aucun chemin configuré"
     },
     "security": {
       "subtitle": "Contrôlez l'accès à l'application.",

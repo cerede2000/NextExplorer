@@ -385,6 +385,7 @@ const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
 const folderSize = {
   mode: folderSizeMode,
   enabled: folderSizeMode !== 'off',
+  envExcludedPaths: env.FOLDER_SIZE_EXCLUDE_PATHS,
   concurrency: env.FOLDER_SIZE_CONCURRENCY,
   networkConcurrency: env.FOLDER_SIZE_NETWORK_CONCURRENCY,
   flushMs: env.FOLDER_SIZE_FLUSH_MS,

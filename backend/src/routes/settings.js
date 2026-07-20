@@ -11,6 +11,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
+const folderSizeManager = require('../services/folderSizeManager');
+const folderSizeExclusions = require('../services/folderSizeExclusions');
 
 const router = express.Router();
 
@@ -231,6 +233,21 @@ router.patch(
         }
       }
 
+      if (payload.folderSize && typeof payload.folderSize === 'object') {
+        if (Array.isArray(payload.folderSize.excludedPaths)) {
+          const current = await getSettings();
+          const saved = await setSystemSetting('system', 'folderSize', {
+            ...current.folderSize,
+            excludedPaths: payload.folderSize.excludedPaths,
+          });
+          const applied = await folderSizeManager.setAdminExclusions(saved.excludedPaths);
+          systemUpdates.folderSize = {
+            excludedPaths: applied.excludedPaths,
+            environmentExcludedPaths: applied.environmentExcludedPaths,
+          };
+        }
+      }
+
       // Branding settings
       if (payload.branding && typeof payload.branding === 'object') {
         const brandingUpdate = {};
@@ -268,7 +285,7 @@ router.patch(
       if (resetToDefault) {
         await deleteCustomLogoFiles();
       }
-    } else if (payload.thumbnails || payload.access || payload.branding || payload.uploads) {
+    } else if (payload.thumbnails || payload.access || payload.folderSize || payload.branding || payload.uploads) {
       // Non-admin trying to update system settings
       return res.status(403).json({ error: 'Admin access required for system settings.' });
     }

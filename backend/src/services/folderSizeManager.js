@@ -28,6 +28,7 @@ const logger = require('../utils/logger');
 const indexer = require('./folderSizeIndexer');
 const folderSizeIndex = require('./folderSizeIndex');
 const transferState = require('./folderSizeTransferState');
+const exclusions = require('./folderSizeExclusions');
 const { getDb } = require('./db');
 
 let db = null;
@@ -100,6 +101,7 @@ const reclaimMemory = () => {
 const markDirty = (absPath) => {
   if (!absPath || !scope) return;
   if (!folderSizeIndex.isWithinRoot(scope.root, absPath)) return;
+  if (exclusions.isExcluded(absPath, scope)) return;
   dirty.add(absPath);
 };
 
@@ -110,7 +112,9 @@ const flush = async () => {
   let retryDirs = [];
   try {
     const dirs = Array.from(dirty).filter(
-      (absolutePath) => !transferState.isRelatedToActiveTransfer(absolutePath)
+      (absolutePath) =>
+        !transferState.isRelatedToActiveTransfer(absolutePath) &&
+        !exclusions.isExcluded(absolutePath, scope)
     );
     dirty.clear();
     if (!dirs.length) return;
@@ -124,6 +128,7 @@ const flush = async () => {
         // eslint-disable-next-line no-await-in-loop
         agg = await indexer.aggregateDirectory(db, scope, abs, {
           mode: config.folderSize.mode,
+          shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
         });
       } catch (err) {
         retryDirs.push(abs);
@@ -169,6 +174,7 @@ const touch = async (absDirs = []) => {
   if (!running || !db || !Array.isArray(absDirs) || !absDirs.length) return;
   for (const abs of absDirs) {
     if (!folderSizeIndex.isWithinRoot(scope.root, abs)) continue;
+    if (exclusions.isExcluded(abs, scope)) continue;
     if (transferState.isRelatedToActiveTransfer(abs)) continue;
     let stat;
     try {
@@ -201,6 +207,7 @@ const runReconcile = async (reason) => {
       mode: config.folderSize.mode,
       signal: abortController?.signal,
       shouldSkip: transferState.isRelatedToActiveTransfer,
+      shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
       onIncompleteSubtree: (absDir) => incompleteSubtrees.add(absDir),
     });
     for (const abs of incompleteSubtrees) {
@@ -259,14 +266,30 @@ const baselineIfNeeded = async () => {
   }
   log('info', 'Starting baseline walk', { root: scope.root, mode: config.folderSize.mode });
   const started = Date.now();
-  const result = await indexer.runBaseline(db, scope, { mode: config.folderSize.mode });
+  const result = await indexer.runBaseline(db, scope, {
+    mode: config.folderSize.mode,
+    shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
+  });
   folderSizeIndex.setIndexVersion(db, scope);
   log('info', 'Baseline walk complete', { ...result, ms: Date.now() - started });
+};
+
+const pruneExcludedIndexEntries = (relativePaths = exclusions.effectivePaths()) => {
+  if (!db || !scope) return;
+  for (const relativePath of relativePaths) {
+    const absolutePath = path.resolve(scope.root, relativePath);
+    const removedSize = folderSizeIndex.removeSubtree(db, scope, absolutePath);
+    if (absolutePath !== scope.root && removedSize) {
+      folderSizeIndex.applyDelta(db, scope, path.dirname(absolutePath), -removedSize, {});
+    }
+  }
 };
 
 const init = async () => {
   db = await getDb();
   scope = indexer.getVolumeScope();
+  exclusions.loadFromDatabase(db);
+  pruneExcludedIndexEntries();
 
   // Baseline once (or on explicit rebuild). Async + cooperative yields, so it
   // never blocks request handling even on a large volume.
@@ -336,7 +359,10 @@ const requestRebuild = () => {
       dirty.clear();
       folderSizeIndex.removeSubtree(db, scope, scope.root);
       log('info', 'Rebuild requested — cleared existing index');
-      const result = await indexer.runBaseline(db, scope, { mode: config.folderSize.mode });
+      const result = await indexer.runBaseline(db, scope, {
+        mode: config.folderSize.mode,
+        shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
+      });
       folderSizeIndex.setIndexVersion(db, scope);
       reclaimMemory();
       log('info', 'Baseline walk complete', { ...result });
@@ -380,6 +406,7 @@ const invalidateSubtree = (absolutePath, reason = 'filesystem-mutation') => {
  */
 const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
   if (!config.folderSize.enabled || stopped || (!running && !starting)) return null;
+  if (scope && exclusions.isExcluded(absDir, scope)) return null;
   if (!allowActiveTransfer && transferState.isRelatedToActiveTransfer(absDir)) return null;
   const existing = pendingSubtreeScans.get(absDir);
   if (existing && !existing.invalidated) return existing.promise;
@@ -412,6 +439,7 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
         pauseMs: config.folderSize.subtreePauseMs,
         ioTimeoutMs: config.folderSize.ioTimeoutMs,
         signal: controller.signal,
+        shouldExclude: (absolutePath) => exclusions.isExcluded(absolutePath, scope),
         onProgress: (progress) => {
           if (activeSubtreeScan?.path !== absDir) return;
           activeSubtreeScan = {
@@ -488,6 +516,29 @@ const refreshSubtree = async (absDir, { allowActiveTransfer = false } = {}) => {
   return queued;
 };
 
+/**
+ * Apply administrator-managed exclusions immediately. New exclusions are
+ * removed from the SQLite index and cancel any overlapping targeted walk;
+ * paths that become included are queued for one authoritative refresh.
+ */
+const setAdminExclusions = async (paths) => {
+  const changed = exclusions.setAdminPaths(paths);
+  if (!db || !scope || !config.folderSize.enabled) return { ...changed };
+
+  for (const relativePath of changed.added) {
+    const absolutePath = path.resolve(scope.root, relativePath);
+    invalidateSubtree(absolutePath, 'folder-size-excluded');
+    pruneExcludedIndexEntries([relativePath]);
+    markDirty(path.dirname(absolutePath));
+  }
+
+  for (const relativePath of changed.removed) {
+    const absolutePath = path.resolve(scope.root, relativePath);
+    refreshSubtree(absolutePath).catch(() => {});
+  }
+  return { ...changed };
+};
+
 const getDiagnosticsSnapshot = () => ({
   running,
   starting,
@@ -527,6 +578,7 @@ module.exports = {
   requestRebuild,
   refreshSubtree,
   invalidateSubtree,
+  setAdminExclusions,
   isRunning: () => running,
   getDiagnosticsSnapshot,
 };

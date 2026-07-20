@@ -11,6 +11,7 @@ import {
   BuildingOfficeIcon,
   PhotoIcon,
   ArrowUpTrayIcon,
+  CircleStackIcon,
   KeyIcon,
   UsersIcon,
   UserCircleIcon,
@@ -81,6 +82,12 @@ const adminCategories = [
     i18nKey: 'uploads',
     name: 'Uploads',
     icon: ArrowUpTrayIcon,
+  },
+  {
+    key: 'folder-size',
+    i18nKey: 'folderSize',
+    name: 'Folder size',
+    icon: CircleStackIcon,
   },
   {
     key: 'access-control',

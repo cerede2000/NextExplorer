@@ -47,6 +47,7 @@ fraction of the RAM (the approach filebrowser-quantum also takes).
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `FOLDER_SIZE_MODE` | `off` | `off` disables the feature. `full` = recursive folder sizes. `shallow` = size of a folder's *direct* entries only. |
+| `FOLDER_SIZE_EXCLUDE_PATHS` | empty | Comma- or newline-separated paths relative to `VOLUME_ROOT` which are never traversed or indexed. Useful for Docker storage such as `Stacks/docker/overlay2`. Environment exclusions are immutable from the UI. |
 | `FOLDER_SIZE_CONCURRENCY` | `6` | Baseline walk concurrency on local disks. |
 | `FOLDER_SIZE_NETWORK_CONCURRENCY` | `2` | Concurrency when the mount is detected as network (nfs/cifs via `/proc/mounts`). |
 | `FOLDER_SIZE_FLUSH_MS` | `3000` | How often accumulated dirty directories (on-view refresh, write hooks) are flushed in one transaction. |

@@ -142,6 +142,9 @@ module.exports = {
   // Mode: 'off' (default, feature disabled), 'shallow' (size of a folder's
   // direct entries only) or 'full' (recursive size of the whole subtree).
   FOLDER_SIZE_MODE: process.env.FOLDER_SIZE_MODE?.trim().toLowerCase() || 'off',
+  // Comma or newline separated paths, relative to VOLUME_ROOT, that must never
+  // be traversed by the folder-size indexer.
+  FOLDER_SIZE_EXCLUDE_PATHS: process.env.FOLDER_SIZE_EXCLUDE_PATHS || '',
   // Concurrency of the baseline walk on local vs network-detected mounts.
   FOLDER_SIZE_CONCURRENCY: Number(process.env.FOLDER_SIZE_CONCURRENCY) || 6,
   FOLDER_SIZE_NETWORK_CONCURRENCY: Number(process.env.FOLDER_SIZE_NETWORK_CONCURRENCY) || 2,

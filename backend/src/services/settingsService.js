@@ -3,6 +3,7 @@ const { normalizeRelativePath } = require('../utils/pathUtils');
 const { parseByteSize } = require('../utils/env');
 const env = require('../config/env');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
+const folderSizeExclusions = require('./folderSizeExclusions');
 
 const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
 const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
@@ -67,6 +68,10 @@ const sanitizeThumbnails = (thumbnails = {}) => {
       : 10,
   };
 };
+
+const sanitizeFolderSize = (folderSize = {}) => ({
+  excludedPaths: folderSizeExclusions.sanitizePaths(folderSize.excludedPaths || []),
+});
 
 /**
  * Sanitize access control rules
@@ -224,6 +229,7 @@ const getSystemSettings = async () => {
     const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
     const access = { rules: [] };
     let uploads = defaultUploadSettings();
+    const folderSize = { excludedPaths: [] };
 
     for (const row of rows) {
       try {
@@ -236,6 +242,8 @@ const getSystemSettings = async () => {
           }
         } else if (row.key === 'uploads') {
           uploads = { ...uploads, ...JSON.parse(row.value) };
+        } else if (row.key === 'folderSize') {
+          Object.assign(folderSize, JSON.parse(row.value));
         }
       } catch (err) {
         // Skip invalid JSON
@@ -248,6 +256,10 @@ const getSystemSettings = async () => {
         rules: sanitizeAccessRules(access.rules),
       },
       uploads: sanitizeUploads(uploads),
+      folderSize: {
+        ...sanitizeFolderSize(folderSize),
+        environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+      },
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -260,6 +272,10 @@ const getSystemSettings = async () => {
           rules: sanitizeAccessRules(settings.access?.rules || []),
         },
         uploads: sanitizeUploads(settings.uploads),
+        folderSize: {
+          ...sanitizeFolderSize(settings.folderSize),
+          environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+        },
       };
     } catch (err2) {
       // Return defaults
@@ -267,6 +283,10 @@ const getSystemSettings = async () => {
         thumbnails: sanitizeThumbnails({}),
         access: { rules: [] },
         uploads: sanitizeUploads({}),
+        folderSize: {
+          excludedPaths: [],
+          environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+        },
       };
     }
   }
@@ -294,6 +314,7 @@ const getSettingsForUser = async (user) => {
     if (isAdmin) {
       result.thumbnails = systemSettings.thumbnails;
       result.access = systemSettings.access;
+      result.folderSize = systemSettings.folderSize;
     }
   }
 
@@ -386,6 +407,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeUploads(value);
   } else if (key === 'branding') {
     sanitizedValue = sanitizeBranding(value);
+  } else if (key === 'folderSize') {
+    sanitizedValue = sanitizeFolderSize(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -436,6 +459,12 @@ const setSettings = async (partial) => {
       rules: partial.access?.rules !== undefined ? partial.access.rules : current.access.rules,
     },
     uploads: { ...current.uploads, ...(partial.uploads || {}) },
+    folderSize: {
+      excludedPaths:
+        partial.folderSize?.excludedPaths !== undefined
+          ? partial.folderSize.excludedPaths
+          : current.folderSize.excludedPaths,
+    },
     branding: { ...current.branding, ...(partial.branding || {}) },
   };
 
@@ -445,6 +474,9 @@ const setSettings = async (partial) => {
   }
   if (partial.access) {
     merged.access = await setSystemSetting('system', 'access', merged.access);
+  }
+  if (partial.folderSize) {
+    merged.folderSize = await setSystemSetting('system', 'folderSize', merged.folderSize);
   }
   if (partial.branding) {
     merged.branding = await setSystemSetting('branding', 'branding', merged.branding);
@@ -461,6 +493,7 @@ const setSettings = async (partial) => {
         thumbnails: merged.thumbnails,
         access: merged.access,
         uploads: merged.uploads,
+        folderSize: merged.folderSize,
         branding: merged.branding,
       },
     }));
