@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { formatBytes } from '@/utils';
+import { useI18n } from 'vue-i18n';
 
 // Displays a folder's pre-computed recursive size as formatted text. Styled to
 // match the surrounding size column (VolumeUsageBar's Tailwind-only approach);
@@ -10,6 +11,7 @@ const props = defineProps({
   entry: { type: Object, default: null },
   placeholder: { type: String, default: '—' },
 });
+const { t } = useI18n();
 
 const hasSize = computed(
   () =>
@@ -19,11 +21,13 @@ const hasSize = computed(
     Number.isFinite(props.entry.sizeBytes)
 );
 
-const label = computed(() =>
-  hasSize.value ? formatBytes(props.entry.sizeBytes) : props.placeholder
-);
+const label = computed(() => {
+  if (hasSize.value) return formatBytes(props.entry.sizeBytes);
+  return props.entry?.excluded ? t('info.folderSizeExcluded') : props.placeholder;
+});
 
 const title = computed(() => {
+  if (props.entry?.excluded) return t('info.folderSizeExcludedHelp');
   if (!hasSize.value) {
     if (props.entry?.dirty) return 'Size is being calculated';
     return props.entry && !props.entry.indexed ? 'Size not indexed yet' : '';
