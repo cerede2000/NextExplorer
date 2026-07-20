@@ -116,6 +116,13 @@ const rememberScrollPosition = () => {
   if (target) {
     folderScrollStore.remember(scrollPositionKey, target.scrollTop);
   }
+  rememberActiveItem();
+};
+
+const rememberActiveItem = (itemKey = keyboardActiveItemKey.value) => {
+  const selectedItem = fileStore.selectedItems[fileStore.selectedItems.length - 1];
+  const key = itemKey || getItemKey(selectedItem);
+  if (key) folderScrollStore.rememberActiveItem(scrollPositionKey, key);
 };
 
 const applySelectionFromQuery = () => {
@@ -223,8 +230,25 @@ const applySavedScrollPosition = (savedScrollTop) => {
   target.scrollTop = Math.min(savedScrollTop, maxScrollTop);
 };
 
+const restoreKeyboardActiveItem = (itemKey) => {
+  const itemIndex = getItemIndexByKey(itemKey);
+  if (itemIndex < 0) return;
+
+  const item = sortedItems.value[itemIndex];
+  if (!item) return;
+
+  keyboardSelectionAnchorKey.value = itemKey;
+  keyboardActiveItemKey.value = itemKey;
+  fileStore.selectedItems = [item];
+  fileStore.setKeyboardActionItem(item);
+};
+
 const restoreScrollPosition = async () => {
-  const savedScrollTop = folderScrollStore.consumeRestore(scrollPositionKey);
+  const restoreState = folderScrollStore.consumeRestoreState(scrollPositionKey);
+  if (!restoreState.permitted) return;
+
+  restoreKeyboardActiveItem(restoreState.activeItemKey);
+  const savedScrollTop = restoreState.scrollTop;
   if (savedScrollTop <= 0) return;
 
   // Non-virtual lists can initially render only 500 entries. Render their
@@ -321,6 +345,7 @@ const selectItemRange = async (anchorIndex, activeIndex) => {
   fileStore.selectedItems = items.slice(start, end + 1);
   fileStore.setKeyboardActionItem(activeItem);
   keyboardActiveItemKey.value = getItemKey(activeItem);
+  rememberActiveItem(getItemKey(activeItem));
   await scrollSelectionIntoView(activeItem, activeIndex);
 };
 
@@ -403,6 +428,7 @@ const selectRelativeItem = async (direction, extendSelection = false) => {
   keyboardSelectionAnchorKey.value = getItemKey(nextItem);
   keyboardActiveItemKey.value = getItemKey(nextItem);
   fileStore.setKeyboardActionItem(nextItem);
+  rememberActiveItem(getItemKey(nextItem));
   await scrollSelectionIntoView(nextItem, nextIndex);
 };
 
@@ -419,6 +445,7 @@ const toggleKeyboardSelection = async () => {
   keyboardSelectionAnchorKey.value = getItemKey(item);
   keyboardActiveItemKey.value = getItemKey(item);
   fileStore.setKeyboardActionItem(item);
+  rememberActiveItem(getItemKey(item));
   await scrollSelectionIntoView(item, itemIndex);
 };
 
@@ -427,6 +454,7 @@ const handleKeyboardItemClick = (item) => {
   keyboardSelectionAnchorKey.value = key;
   keyboardActiveItemKey.value = key;
   fileStore.clearKeyboardActionItem();
+  rememberActiveItem(key);
 };
 
 const normalizeTypeaheadText = (value) =>
@@ -468,6 +496,7 @@ const selectTypeaheadMatch = async (key) => {
   keyboardSelectionAnchorKey.value = getItemKey(match);
   keyboardActiveItemKey.value = getItemKey(match);
   fileStore.setKeyboardActionItem(match);
+  rememberActiveItem(getItemKey(match));
   await scrollSelectionIntoView(match, matchIndex);
 };
 

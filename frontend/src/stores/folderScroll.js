@@ -8,6 +8,7 @@ const EXPLICIT_RESTORE_TTL_MS = 30000;
 
 export const useFolderScrollStore = defineStore('folderScroll', () => {
   const positions = new Map();
+  const activeItemKeys = new Map();
   const permittedRestorePaths = new Set();
   const explicitRestoreDeadlines = new Map();
 
@@ -25,6 +26,21 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
   const get = (key) => positions.get(key) ?? 0;
 
   const has = (key) => positions.has(key);
+
+  // Keep the active item with the scroll position so keyboard navigation can
+  // resume from the same row after an intentional return to this folder.
+  const rememberActiveItem = (key, itemKey) => {
+    if (!key || !itemKey) return;
+
+    activeItemKeys.delete(key);
+    activeItemKeys.set(key, itemKey);
+
+    while (activeItemKeys.size > FOLDER_SCROLL_POSITION_LIMIT) {
+      activeItemKeys.delete(activeItemKeys.keys().next().value);
+    }
+  };
+
+  const getActiveItem = (key) => activeItemKeys.get(key) ?? '';
 
   // Positions are retained in the small LRU cache, but are restored only for
   // an intentional upward navigation within the same mount. This avoids
@@ -58,17 +74,28 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
     permittedRestorePaths.delete(path);
   };
 
-  const consumeRestore = (key) => {
+  const consumeRestoreState = (key) => {
     const path = String(key || '').split('::')[0];
-    if (!path || !permittedRestorePaths.has(path)) return 0;
-    if (explicitRestoreDeadlines.has(path) && !hasActiveExplicitRestore(path)) return 0;
+    if (!path || !permittedRestorePaths.has(path)) {
+      return { permitted: false, scrollTop: 0, activeItemKey: '' };
+    }
+    if (explicitRestoreDeadlines.has(path) && !hasActiveExplicitRestore(path)) {
+      return { permitted: false, scrollTop: 0, activeItemKey: '' };
+    }
     permittedRestorePaths.delete(path);
     explicitRestoreDeadlines.delete(path);
-    return get(key);
+    return {
+      permitted: true,
+      scrollTop: get(key),
+      activeItemKey: getActiveItem(key),
+    };
   };
+
+  const consumeRestore = (key) => consumeRestoreState(key).scrollTop;
 
   const clear = () => {
     positions.clear();
+    activeItemKeys.clear();
     permittedRestorePaths.clear();
     explicitRestoreDeadlines.clear();
   };
@@ -77,9 +104,12 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
     remember,
     get,
     has,
+    rememberActiveItem,
+    getActiveItem,
     permitRestore,
     permitExplicitRestore,
     preventRestore,
+    consumeRestoreState,
     consumeRestore,
     clear,
   };
