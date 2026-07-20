@@ -228,9 +228,14 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
     yieldEvery = 200,
     pauseMs = 0,
     signal,
+    shouldExclude,
     ioTimeoutMs = config.folderSize.ioTimeoutMs,
     onProgress,
   } = options;
+
+  if (typeof shouldExclude === 'function' && shouldExclude(rootAbs)) {
+    return { folders: 0, files: 0, bytes: 0, entryCount: 0, batches: 0, pauses: 0, excluded: true };
+  }
 
   const limit = pLimit(concurrency);
   const pending = [];
@@ -344,7 +349,9 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
           const full = path.join(frame.abs, entry.name);
           if (entry.isDirectory()) {
             frame.entryCount += 1;
-            childDirs.push(full);
+            if (typeof shouldExclude !== 'function' || !shouldExclude(full)) {
+              childDirs.push(full);
+            }
           } else if (entry.isFile()) {
             frame.entryCount += 1;
             filePaths.push(full);
@@ -430,6 +437,7 @@ const runBaseline = (db, scope, options = {}) => scanTree(db, scope, scope.root,
  */
 const indexSubtree = async (db, scope, absDir, options = {}) => {
   if (!folderSizeIndex.isWithinRoot(scope.root, absDir)) return null;
+  if (typeof options.shouldExclude === 'function' && options.shouldExclude(absDir)) return null;
 
   const mode = options.mode || config.folderSize.mode || 'full';
   const previous = folderSizeIndex.getByAbsolutePath(db, absDir);
@@ -462,6 +470,8 @@ const indexSubtree = async (db, scope, absDir, options = {}) => {
 const aggregateDirectory = async (db, scope, absDir, options = {}) => {
   const mode = options.mode || config.folderSize.mode || 'full';
   const ioTimeoutMs = options.ioTimeoutMs ?? config.folderSize.ioTimeoutMs;
+  const shouldExclude = options.shouldExclude;
+  if (typeof shouldExclude === 'function' && shouldExclude(absDir)) return null;
   let entries;
   try {
     entries = await withIoTimeout(
@@ -486,6 +496,7 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
     const full = path.join(absDir, entry.name);
     if (entry.isDirectory()) {
       entryCount += 1;
+      if (typeof shouldExclude === 'function' && shouldExclude(full)) continue;
       if (mode === 'full') {
         const child = folderSizeIndex.getByAbsolutePath(db, full);
         if (child) {
@@ -593,6 +604,7 @@ const reconcile = async (db, scope, options = {}) => {
     pauseMs = options.pauseMs ?? config.folderSize.reconcilePauseMs ?? 0,
     ioTimeoutMs = options.ioTimeoutMs ?? config.folderSize.ioTimeoutMs,
     shouldSkip,
+    shouldExclude,
     onIncompleteSubtree,
   } = options;
 
@@ -611,6 +623,11 @@ const reconcile = async (db, scope, options = {}) => {
 
   const handleRow = async (row) => {
     const abs = absOf(scope, row.relativePath);
+    if (typeof shouldExclude === 'function' && shouldExclude(abs)) {
+      pruneStale(abs);
+      skipped += 1;
+      return;
+    }
     if (typeof shouldSkip === 'function' && shouldSkip(abs)) {
       skipped += 1;
       return;
@@ -638,7 +655,11 @@ const reconcile = async (db, scope, options = {}) => {
       skipped += 1;
       return;
     }
-    const delta = await reconcileDirectory(db, scope, abs, { mode, onIncompleteSubtree });
+    const delta = await reconcileDirectory(db, scope, abs, {
+      mode,
+      onIncompleteSubtree,
+      shouldExclude,
+    });
     if (delta !== 0) changed += 1;
   };
 

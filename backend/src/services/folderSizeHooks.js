@@ -24,6 +24,7 @@ const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
 const folderSizeManager = require('./folderSizeManager');
 const transferState = require('./folderSizeTransferState');
+const exclusions = require('./folderSizeExclusions');
 
 const isEnabled = () => config.folderSize.enabled;
 
@@ -41,6 +42,7 @@ const withIndex = async (fn) => {
 /** A file has been created/written at `absolutePath` with `size` bytes. */
 const onFileWritten = (absolutePath, size) =>
   withIndex((db, scope) => {
+    if (exclusions.isExcluded(absolutePath, scope)) return;
     folderSizeIndex.applyDelta(db, scope, path.dirname(absolutePath), Number(size) || 0, {
       entryDelta: 1,
     });
@@ -49,6 +51,7 @@ const onFileWritten = (absolutePath, size) =>
 /** A file was replaced in place; only its byte delta changes the index. */
 const onFileReplaced = (absolutePath, previousSize, size) =>
   withIndex((db, scope) => {
+    if (exclusions.isExcluded(absolutePath, scope)) return;
     folderSizeIndex.applyDelta(
       db,
       scope,
@@ -60,6 +63,7 @@ const onFileReplaced = (absolutePath, previousSize, size) =>
 /** An empty folder has been created at `absolutePath`. */
 const onFolderCreated = (absolutePath) =>
   withIndex((db, scope) => {
+    if (exclusions.isExcluded(absolutePath, scope)) return;
     folderSizeIndex.upsertScanEntry(db, scope, {
       absolutePath,
       sizeBytes: 0,
@@ -93,6 +97,7 @@ const onDirectoryTreeCreated = (absolutePath) => {
 const onEntryDeleted = (absolutePath, { isDirectory, size } = {}) => {
   folderSizeManager.invalidateSubtree(absolutePath, 'entry-deleted');
   return withIndex((db, scope) => {
+    if (exclusions.isExcluded(absolutePath, scope)) return;
     if (isDirectory) {
       const removed = folderSizeIndex.getByAbsolutePath(db, absolutePath);
       const removedSize = removed ? removed.sizeBytes : 0;
@@ -126,6 +131,7 @@ const beginDirectoryTransfer = async (targetAbsolutePath) => {
   folderSizeManager.invalidateSubtree(targetAbsolutePath, 'directory-transfer-started');
   transferState.begin(targetAbsolutePath);
   await withIndex((db, scope) => {
+    if (exclusions.isExcluded(targetAbsolutePath, scope)) return;
     if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
 
     const previous = folderSizeIndex.getByAbsolutePath(db, targetAbsolutePath);
@@ -157,6 +163,40 @@ const cancelDirectoryTransfer = async (targetAbsolutePath) => {
 const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) => {
   folderSizeManager.invalidateSubtree(sourceAbsolutePath, 'entry-moved');
   return withIndex((db, scope) => {
+    const sourceExcluded = exclusions.isExcluded(sourceAbsolutePath, scope);
+    const targetExcluded = exclusions.isExcluded(targetAbsolutePath, scope);
+    if (sourceExcluded && targetExcluded) return;
+    if (sourceExcluded && !targetExcluded) {
+      if (meta.isDirectory) {
+        folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+          absolutePath: targetAbsolutePath,
+          sizeBytes: 0,
+          entryCount: 0,
+        });
+        folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+          entryDelta: 1,
+        });
+      } else {
+        folderSizeIndex.applyDelta(
+          db,
+          scope,
+          path.dirname(targetAbsolutePath),
+          Number(meta.size) || 0,
+          {
+            entryDelta: 1,
+          }
+        );
+      }
+      return;
+    }
+    if (!sourceExcluded && targetExcluded) {
+      const bytes = sizeOfMoved(db, scope, sourceAbsolutePath, meta);
+      folderSizeIndex.applyDelta(db, scope, path.dirname(sourceAbsolutePath), -bytes, {
+        entryDelta: -1,
+      });
+      if (meta.isDirectory) folderSizeIndex.removeSubtree(db, scope, sourceAbsolutePath);
+      return;
+    }
     const bytes = sizeOfMoved(db, scope, sourceAbsolutePath, meta);
     folderSizeIndex.applyDelta(db, scope, path.dirname(sourceAbsolutePath), -bytes, {
       entryDelta: -1,
@@ -195,6 +235,7 @@ const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) => {
  */
 const onEntryCopied = async (targetAbsolutePath, meta = {}) => {
   return withIndex((db, scope) => {
+    if (exclusions.isExcluded(targetAbsolutePath, scope)) return;
     if (meta.isDirectory) {
       if (meta.directoryTransferPrepared) return;
       if (!folderSizeIndex.isWithinRoot(scope.root, targetAbsolutePath)) return;
@@ -263,6 +304,29 @@ const refreshTransferredDirectories = (absolutePaths = []) => {
 const onEntryRenamed = (sourceAbsolutePath, targetAbsolutePath) => {
   folderSizeManager.invalidateSubtree(sourceAbsolutePath, 'entry-renamed');
   return withIndex((db, scope) => {
+    const sourceExcluded = exclusions.isExcluded(sourceAbsolutePath, scope);
+    const targetExcluded = exclusions.isExcluded(targetAbsolutePath, scope);
+    if (sourceExcluded && targetExcluded) return;
+    if (sourceExcluded || targetExcluded) {
+      if (!sourceExcluded) {
+        const entry = folderSizeIndex.getByAbsolutePath(db, sourceAbsolutePath);
+        const removedSize = entry?.sizeBytes || 0;
+        folderSizeIndex.removeSubtree(db, scope, sourceAbsolutePath);
+        folderSizeIndex.applyDelta(db, scope, path.dirname(sourceAbsolutePath), -removedSize, {
+          entryDelta: -1,
+        });
+      } else if (!targetExcluded) {
+        folderSizeIndex.upsertPendingDirectoryEntry(db, scope, {
+          absolutePath: targetAbsolutePath,
+          sizeBytes: 0,
+          entryCount: 0,
+        });
+        folderSizeIndex.applyDelta(db, scope, path.dirname(targetAbsolutePath), 0, {
+          entryDelta: 1,
+        });
+      }
+      return;
+    }
     const entry = folderSizeIndex.getByAbsolutePath(db, sourceAbsolutePath);
     if (entry) folderSizeIndex.reparentSubtree(db, scope, sourceAbsolutePath, targetAbsolutePath);
   });

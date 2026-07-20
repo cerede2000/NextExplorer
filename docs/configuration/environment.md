@@ -50,6 +50,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | Variable                          | Default              | Description                                                                                       |
 | --------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
 | `FOLDER_SIZE_MODE`                | `off`                | Enables indexed folder sizes: `full` is recursive, `shallow` counts direct entries only.          |
+| `FOLDER_SIZE_EXCLUDE_PATHS`       | empty                | Comma- or newline-separated paths relative to `VOLUME_ROOT` excluded from folder-size scans.      |
 | `FOLDER_SIZE_RECONCILE_BATCH`     | `100`                | Number of indexed folders checked per periodic reconciliation page.                               |
 | `FOLDER_SIZE_RECONCILE_PAUSE_MS`  | `200`                | Delay between reconciliation pages, used to smooth background I/O.                                |
 | `FOLDER_SIZE_IO_TIMEOUT_MS`       | `30000`              | Deadline for one indexed folder-size filesystem operation; `0` disables this protection.          |
