@@ -12,6 +12,7 @@ import { normalizePath } from '@/api';
 import { modKeyLabel, deleteKeyLabel } from '@/utils/keyboard';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
 import ModalDialog from '@/components/ModalDialog.vue';
+import ArchivePasswordDialog from '@/components/ArchivePasswordDialog.vue';
 import ShareDialog from '@/components/ShareDialog.vue';
 import { useFavoritesStore } from '@/stores/favorites';
 import {
@@ -100,6 +101,8 @@ const canAcceptPasteHere = computed(
 );
 const isShareDialogOpen = ref(false);
 const itemToShare = ref(null);
+const archivePasswordRequest = ref(null);
+const isArchivePasswordBusy = ref(false);
 
 const isVolumesView = computed(() => {
   const p = normalizePath(fileStore.getCurrentPath || '');
@@ -260,8 +263,46 @@ const runRename = () => actions.runRename();
 
 const runDownload = () => actions.runDownload();
 
-const runExtractArchive = () => actions.runExtractArchive();
-const runExtractArchiveIntoCurrentFolder = () => actions.runExtractArchiveIntoCurrentFolder();
+const openArchivePasswordDialog = (result) => {
+  if (!result?.requiresPassword) return;
+  archivePasswordRequest.value = {
+    path: result.path,
+    destination: result.destination,
+    invalidPassword: result.invalidPassword,
+  };
+};
+
+const runExtractArchive = async () => {
+  openArchivePasswordDialog(await actions.runExtractArchive());
+};
+
+const runExtractArchiveIntoCurrentFolder = async () => {
+  openArchivePasswordDialog(await actions.runExtractArchiveIntoCurrentFolder());
+};
+
+const closeArchivePasswordDialog = () => {
+  if (!isArchivePasswordBusy.value) archivePasswordRequest.value = null;
+};
+
+const submitArchivePassword = async (password) => {
+  const request = archivePasswordRequest.value;
+  if (!request) return;
+
+  isArchivePasswordBusy.value = true;
+  try {
+    const result = await fileStore.extractZipArchive(request.path, {
+      destination: request.destination,
+      password,
+    });
+    if (result?.requiresPassword) {
+      archivePasswordRequest.value = { ...request, invalidPassword: result.invalidPassword };
+    } else {
+      archivePasswordRequest.value = null;
+    }
+  } finally {
+    isArchivePasswordBusy.value = false;
+  }
+};
 const runCompressToZip = () => actions.runCompressToZip();
 
 const runShare = () => {
@@ -844,6 +885,14 @@ provide(explorerContextMenuSymbol, {
       </button>
     </div>
   </ModalDialog>
+
+  <ArchivePasswordDialog
+    :model-value="Boolean(archivePasswordRequest)"
+    :busy="isArchivePasswordBusy"
+    :invalid-password="archivePasswordRequest?.invalidPassword"
+    @update:model-value="closeArchivePasswordDialog"
+    @submit="submitArchivePassword"
+  />
 
   <ShareDialog v-model="isShareDialogOpen" :item="itemToShare" />
 </template>

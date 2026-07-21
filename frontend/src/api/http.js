@@ -132,7 +132,7 @@ const requestJson = async (endpoint, options = {}) => {
 // A `{type:'error', ...}` line is turned into a thrown Error routed through the
 // global error handler, matching requestJson's behaviour. Pre-flight failures
 // (non-2xx) are still handled by requestRaw before streaming begins.
-const requestStream = async (endpoint, { onEvent, ...options } = {}) => {
+const requestStream = async (endpoint, { onEvent, suppressErrorCodes = [], ...options } = {}) => {
   const response = await requestRaw(endpoint, options);
 
   const reader = response.body?.getReader?.();
@@ -186,7 +186,9 @@ const requestStream = async (endpoint, { onEvent, ...options } = {}) => {
       message: streamError.message || 'Request failed',
       code: streamError.code,
     };
-    const translatedMessage = options.suppressErrorHandler
+    const suppressErrorHandler =
+      options.suppressErrorHandler || suppressErrorCodes.includes(errorInfo.code);
+    const translatedMessage = suppressErrorHandler
       ? errorInfo.message
       : errorHandler?.(errorInfo) || errorInfo.message;
     const error = new Error(translatedMessage);

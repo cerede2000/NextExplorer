@@ -112,6 +112,16 @@
     "clearAll": "Clear all",
     "cancelAll": "Cancel all"
   },
+  "archive": {
+    "password": {
+      "title": "Password required",
+      "description": "This archive is protected. Enter its password to extract it.",
+      "label": "Archive password",
+      "invalid": "Incorrect password, or the archive is damaged.",
+      "submit": "Extract",
+      "extracting": "Extracting..."
+    }
+  },
   "placeholders": {
     "email": "user{'@'}example.com",
     "emailCompany": "name{'@'}company.com",

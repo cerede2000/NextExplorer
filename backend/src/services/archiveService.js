@@ -93,6 +93,35 @@ const createCancellationError = () => {
   return error;
 };
 
+const ARCHIVE_PASSWORD_ERROR_PATTERN =
+  /wrong password|(?:enter|password).*(?:password|required|incorrect)|can not open encrypted archive|data error in encrypted file|headers error/i;
+
+const normalizeArchivePassword = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') {
+    const error = new Error('Invalid archive password.');
+    error.code = 'INVALID_ARCHIVE_PASSWORD';
+    throw error;
+  }
+  if (value.length > 4096 || /[\r\n\0]/.test(value)) {
+    const error = new Error('Invalid archive password.');
+    error.code = 'INVALID_ARCHIVE_PASSWORD';
+    throw error;
+  }
+  return value;
+};
+
+const isArchivePasswordError = (error) =>
+  ARCHIVE_PASSWORD_ERROR_PATTERN.test(String(error?.message || ''));
+
+const createArchivePasswordError = (passwordProvided) => {
+  const error = new Error(
+    passwordProvided ? 'Incorrect archive password or corrupted archive.' : 'Archive password required.'
+  );
+  error.code = passwordProvided ? 'ARCHIVE_INVALID_PASSWORD' : 'ARCHIVE_PASSWORD_REQUIRED';
+  return error;
+};
+
 const throwIfCancelled = (signal) => {
   if (signal?.aborted) throw createCancellationError();
 };
@@ -104,19 +133,22 @@ const throwIfCancelled = (signal) => {
  */
 const runSevenZip = (args, onPercent, options = {}) =>
   new Promise((resolve, reject) => {
-    const { signal, cwd } = options;
+    const { signal, cwd, password } = options;
     if (signal?.aborted) {
       reject(createCancellationError());
       return;
     }
 
-    const child = spawn(SEVEN_ZIP_BIN, args, {
+    // `-p` makes 7-Zip read the password from stdin. Keeping it out of argv
+    // prevents it appearing in process listings or diagnostic logs.
+    const commandArgs = password === null || password === undefined ? args : [...args, '-p'];
+    const child = spawn(SEVEN_ZIP_BIN, commandArgs, {
       cwd,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
       timeout: EXTRACT_TIMEOUT_MS,
     });
 
-    let stderrTail = '';
+    let outputTail = '';
     let settled = false;
     let killTimer = null;
     const cleanup = () => {
@@ -136,6 +168,7 @@ const runSevenZip = (args, onPercent, options = {}) =>
     };
 
     child.stdout.on('data', (chunk) => {
+      outputTail = `${outputTail}${chunk}`.slice(-4000);
       if (typeof onPercent !== 'function') return;
       // Progress lines look like "  42% 137 - some/file"; keep the last match.
       const matches = String(chunk).match(/(\d{1,3})%/g);
@@ -146,8 +179,15 @@ const runSevenZip = (args, onPercent, options = {}) =>
     });
 
     child.stderr.on('data', (chunk) => {
-      stderrTail = `${stderrTail}${chunk}`.slice(-2000);
+      outputTail = `${outputTail}${chunk}`.slice(-4000);
     });
+
+    child.stdin.on('error', () => {});
+    if (password === null || password === undefined) {
+      child.stdin.end();
+    } else {
+      child.stdin.end(`${password}\n`);
+    }
 
     child.on('error', (error) => finish(reject, error));
     child.on('close', (code) => {
@@ -159,7 +199,12 @@ const runSevenZip = (args, onPercent, options = {}) =>
         onPercent?.(100);
         finish(resolve);
       } else {
-        finish(reject, new Error(`7z exited with code ${code}: ${stderrTail.trim().slice(-500)}`));
+        const commandError = new Error(`7z exited with code ${code}: ${outputTail.trim().slice(-500)}`);
+        if (isArchivePasswordError(commandError)) {
+          finish(reject, createArchivePasswordError(password !== null && password !== undefined));
+        } else {
+          finish(reject, commandError);
+        }
       }
     });
     signal?.addEventListener('abort', abort, { once: true });
@@ -202,7 +247,7 @@ const extractArchive = async (
   onPercent,
   options = {}
 ) => {
-  const { signal } = options;
+  const { signal, password = null } = options;
   throwIfCancelled(signal);
   const ext = path.extname(archiveAbsolutePath).slice(1).toLowerCase();
   const isCompound = TAR_WRAPPER_EXTENSIONS.has(ext);
@@ -211,7 +256,7 @@ const extractArchive = async (
     archiveAbsolutePath,
     destinationAbsolutePath,
     isCompound ? (p) => onPercent?.(Math.round(p / 2)) : onPercent,
-    { signal }
+    { signal, password }
   );
 
   if (isCompound) {
@@ -223,7 +268,7 @@ const extractArchive = async (
         innerTar,
         destinationAbsolutePath,
         (p) => onPercent?.(50 + Math.round(p / 2)),
-        { signal }
+        { signal, password }
       );
       await fs.rm(innerTar, { force: true });
     } else {
@@ -238,4 +283,6 @@ module.exports = {
   extractArchive,
   createZipArchive,
   archiveBaseName,
+  normalizeArchivePassword,
+  isArchivePasswordError,
 };

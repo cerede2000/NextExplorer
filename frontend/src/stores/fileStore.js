@@ -602,6 +602,8 @@ export const useFileStore = defineStore('fileStore', () => {
     try {
       response = await extractZipApi(normalized, {
         destination: options.destination,
+        password: options.password,
+        suppressErrorCodes: ['ARCHIVE_PASSWORD_REQUIRED', 'ARCHIVE_INVALID_PASSWORD'],
         onEvent: (event) => {
           if (event?.type === 'progress' && Number.isFinite(event.percent)) {
             operationTasksStore.updateOperation(operationId, { percent: event.percent });
@@ -610,6 +612,14 @@ export const useFileStore = defineStore('fileStore', () => {
         signal: controller.signal,
       });
     } catch (error) {
+      if (error?.code === 'ARCHIVE_PASSWORD_REQUIRED' || error?.code === 'ARCHIVE_INVALID_PASSWORD') {
+        return {
+          requiresPassword: true,
+          invalidPassword: error.code === 'ARCHIVE_INVALID_PASSWORD',
+          path: normalized,
+          destination: options.destination,
+        };
+      }
       if (!isAbortError(error)) throw error;
       await refreshAfterCancelledOperation();
       return null;
