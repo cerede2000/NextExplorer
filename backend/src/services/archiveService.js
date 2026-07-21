@@ -103,7 +103,7 @@ const normalizeArchivePassword = (value) => {
     error.code = 'INVALID_ARCHIVE_PASSWORD';
     throw error;
   }
-  if (value.length > 4096 || /[\r\n\0]/.test(value)) {
+  if (value.length > 4096 || /[\x00-\x1F\x7F]/.test(value)) {
     const error = new Error('Invalid archive password.');
     error.code = 'INVALID_ARCHIVE_PASSWORD';
     throw error;
@@ -126,6 +126,91 @@ const throwIfCancelled = (signal) => {
   if (signal?.aborted) throw createCancellationError();
 };
 
+const appendOutput = (current, chunk) => `${current}${chunk}`.slice(-4000);
+
+const reportProgress = (chunk, onPercent) => {
+  if (typeof onPercent !== 'function') return;
+  const matches = String(chunk).match(/(\d{1,3})%/g);
+  if (!matches?.length) return;
+  const percent = Number.parseInt(matches[matches.length - 1], 10);
+  if (Number.isFinite(percent)) onPercent(Math.min(100, Math.max(0, percent)));
+};
+
+const commandErrorFromOutput = (code, output, passwordProvided) => {
+  const error = new Error(`7z exited with code ${code}: ${output.trim().slice(-500)}`);
+  return isArchivePasswordError(error) ? createArchivePasswordError(passwordProvided) : error;
+};
+
+// 7-Zip reads an omitted `-p` argument from its controlling terminal, not a
+// plain pipe. A PTY gives it that prompt while keeping the password out of
+// argv, process listings and logs.
+const runSevenZipWithPassword = (args, onPercent, options = {}) =>
+  new Promise((resolve, reject) => {
+    const { signal, cwd, password } = options;
+    if (signal?.aborted) {
+      reject(createCancellationError());
+      return;
+    }
+
+    let pty;
+    try {
+      // Loaded lazily so archive extraction still works when the terminal
+      // feature is disabled at the UI level.
+      pty = require('@homebridge/node-pty-prebuilt-multiarch');
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    const child = pty.spawn(SEVEN_ZIP_BIN, [...args, '-p'], {
+      name: 'xterm-256color',
+      cols: 120,
+      rows: 40,
+      cwd,
+      env: { ...process.env, TERM: 'xterm-256color' },
+    });
+
+    let outputTail = '';
+    let passwordWritten = false;
+    let settled = false;
+    let killTimer = null;
+    const cleanup = () => {
+      signal?.removeEventListener('abort', abort);
+      if (killTimer) clearTimeout(killTimer);
+    };
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback(value);
+    };
+    const abort = () => {
+      child.kill('SIGTERM');
+      killTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      finish(reject, createCancellationError());
+    };
+
+    child.onData((chunk) => {
+      outputTail = appendOutput(outputTail, chunk);
+      reportProgress(chunk, onPercent);
+      if (!passwordWritten && /enter password/i.test(outputTail)) {
+        passwordWritten = true;
+        child.write(`${password}\r`);
+      }
+    });
+    child.onExit(({ exitCode }) => {
+      if (signal?.aborted) {
+        finish(reject, createCancellationError());
+      } else if (exitCode === 0) {
+        onPercent?.(100);
+        finish(resolve);
+      } else {
+        finish(reject, commandErrorFromOutput(exitCode, outputTail, true));
+      }
+    });
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+
 /**
  * Run one 7-Zip command. `-bsp1` sends the percentage indicator to stdout, so
  * progress can be parsed from the output stream and forwarded to the caller
@@ -134,17 +219,18 @@ const throwIfCancelled = (signal) => {
 const runSevenZip = (args, onPercent, options = {}) =>
   new Promise((resolve, reject) => {
     const { signal, cwd, password } = options;
+    if (password !== null && password !== undefined) {
+      runSevenZipWithPassword(args, onPercent, options).then(resolve, reject);
+      return;
+    }
     if (signal?.aborted) {
       reject(createCancellationError());
       return;
     }
 
-    // `-p` makes 7-Zip read the password from stdin. Keeping it out of argv
-    // prevents it appearing in process listings or diagnostic logs.
-    const commandArgs = password === null || password === undefined ? args : [...args, '-p'];
-    const child = spawn(SEVEN_ZIP_BIN, commandArgs, {
+    const child = spawn(SEVEN_ZIP_BIN, args, {
       cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       timeout: EXTRACT_TIMEOUT_MS,
     });
 
@@ -168,26 +254,13 @@ const runSevenZip = (args, onPercent, options = {}) =>
     };
 
     child.stdout.on('data', (chunk) => {
-      outputTail = `${outputTail}${chunk}`.slice(-4000);
-      if (typeof onPercent !== 'function') return;
-      // Progress lines look like "  42% 137 - some/file"; keep the last match.
-      const matches = String(chunk).match(/(\d{1,3})%/g);
-      if (matches?.length) {
-        const percent = Number.parseInt(matches[matches.length - 1], 10);
-        if (Number.isFinite(percent)) onPercent(Math.min(100, Math.max(0, percent)));
-      }
+      outputTail = appendOutput(outputTail, chunk);
+      reportProgress(chunk, onPercent);
     });
 
     child.stderr.on('data', (chunk) => {
-      outputTail = `${outputTail}${chunk}`.slice(-4000);
+      outputTail = appendOutput(outputTail, chunk);
     });
-
-    child.stdin.on('error', () => {});
-    if (password === null || password === undefined) {
-      child.stdin.end();
-    } else {
-      child.stdin.end(`${password}\n`);
-    }
 
     child.on('error', (error) => finish(reject, error));
     child.on('close', (code) => {
@@ -199,12 +272,7 @@ const runSevenZip = (args, onPercent, options = {}) =>
         onPercent?.(100);
         finish(resolve);
       } else {
-        const commandError = new Error(`7z exited with code ${code}: ${outputTail.trim().slice(-500)}`);
-        if (isArchivePasswordError(commandError)) {
-          finish(reject, createArchivePasswordError(password !== null && password !== undefined));
-        } else {
-          finish(reject, commandError);
-        }
+        finish(reject, commandErrorFromOutput(code, outputTail, false));
       }
     });
     signal?.addEventListener('abort', abort, { once: true });

@@ -17,6 +17,7 @@ describe('archive service password handling', () => {
 
   it('rejects values that cannot safely be sent to the extractor prompt', () => {
     expect(() => normalizeArchivePassword('line one\nline two')).toThrow('Invalid archive password.');
+    expect(() => normalizeArchivePassword('tab\tpassword')).toThrow('Invalid archive password.');
     expect(() => normalizeArchivePassword('x'.repeat(4097))).toThrow('Invalid archive password.');
     expect(() => normalizeArchivePassword({ secret: 'nope' })).toThrow('Invalid archive password.');
   });
