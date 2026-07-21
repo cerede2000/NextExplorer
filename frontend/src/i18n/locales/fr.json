@@ -104,6 +104,7 @@
     "download": "Télécharger",
     "downloadFolder": "Télécharger le dossier",
     "extractArchive": "Extraire l'archive",
+    "extractArchiveIntoCurrentFolder": "Extraire dans le dossier courant",
     "compressToZip": "Compresser en ZIP",
     "search": "Rechercher",
     "sortBy": "Trier par",

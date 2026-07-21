@@ -127,6 +127,13 @@ export function useFileActions() {
     await fileStore.extractZipArchive(archivePath);
   };
 
+  const runExtractArchiveIntoCurrentFolder = async () => {
+    if (!canExtractArchive.value || !primaryItem.value) return;
+    const archivePath = resolveItemPath(primaryItem.value);
+    if (!archivePath) return;
+    await fileStore.extractZipArchive(archivePath, { destination: 'current' });
+  };
+
   const runCompressToZip = async () => {
     if (!canCompressToZip.value) return;
     await fileStore.compressSelectionToZip();
@@ -216,6 +223,7 @@ export function useFileActions() {
     runPasteIntoCurrent,
     runRename,
     runExtractArchive,
+    runExtractArchiveIntoCurrentFolder,
     runCompressToZip,
     deleteNow,
     runDownload,

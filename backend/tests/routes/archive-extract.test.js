@@ -88,6 +88,53 @@ describe('Archive extraction', () => {
     );
   });
 
+  it('extracts root entries directly into the current folder on request', async () => {
+    const workDir = path.join(envContext.volumeDir, 'archives-current');
+    await fs.mkdir(workDir, { recursive: true });
+
+    const zip = new AdmZip();
+    zip.addFile('hello.txt', Buffer.from('hello archive'));
+    zip.addFile('nested/deep.txt', Buffer.from('nested content'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+
+    const app = buildApp({ user: adminUser });
+    const response = await request(app)
+      .post('/api/files/zip/extract')
+      .send({ path: 'archives-current/sample.zip', destination: 'current' });
+
+    expect(response.status).toBe(200);
+    const done = parseNdjson(response.text).at(-1);
+    expect(done).toMatchObject({ type: 'done', success: true });
+    expect(done.item).toBeNull();
+    expect(done.items.map((item) => item.name).sort()).toEqual(['hello.txt', 'nested']);
+    expect(await fs.readFile(path.join(workDir, 'hello.txt'), 'utf8')).toBe('hello archive');
+    expect(await fs.readFile(path.join(workDir, 'nested', 'deep.txt'), 'utf8')).toBe(
+      'nested content'
+    );
+    expect(await fs.readdir(workDir)).not.toContain('sample');
+  });
+
+  it('renames conflicting root entries when extracting into the current folder', async () => {
+    const workDir = path.join(envContext.volumeDir, 'archives-collision');
+    await fs.mkdir(workDir, { recursive: true });
+    await fs.writeFile(path.join(workDir, 'report.txt'), 'existing file');
+
+    const zip = new AdmZip();
+    zip.addFile('report.txt', Buffer.from('archive file'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+
+    const app = buildApp({ user: adminUser });
+    const response = await request(app)
+      .post('/api/files/zip/extract')
+      .send({ path: 'archives-collision/sample.zip', destination: 'current' });
+
+    expect(response.status).toBe(200);
+    const done = parseNdjson(response.text).at(-1);
+    expect(done.item?.name).toBe('report (1).txt');
+    expect(await fs.readFile(path.join(workDir, 'report.txt'), 'utf8')).toBe('existing file');
+    expect(await fs.readFile(path.join(workDir, 'report (1).txt'), 'utf8')).toBe('archive file');
+  });
+
   it('rejects formats the local build does not support', async () => {
     const workDir = path.join(envContext.volumeDir, 'archives-bad');
     await fs.mkdir(workDir, { recursive: true });

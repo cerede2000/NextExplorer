@@ -288,7 +288,10 @@ async function extractZip(relativePath, options = {}) {
   // like the copy/move endpoints; `onEvent` receives each intermediate event.
   return requestStream('/api/files/zip/extract', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath }),
+    body: JSON.stringify({
+      path: normalizedPath,
+      ...(options.destination === 'current' ? { destination: 'current' } : {}),
+    }),
     onEvent: options.onEvent,
     signal: options.signal,
   });
