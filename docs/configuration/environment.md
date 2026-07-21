@@ -47,17 +47,18 @@ nextExplorer is configured almost entirely through environment variables. The ba
 
 ## Folder-size index
 
-| Variable                          | Default              | Description                                                                                       |
-| --------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
-| `FOLDER_SIZE_MODE`                | `off`                | Enables indexed folder sizes: `full` is recursive, `shallow` counts direct entries only.          |
-| `FOLDER_SIZE_EXCLUDE_PATHS`       | empty                | Comma- or newline-separated paths relative to `VOLUME_ROOT` excluded from folder-size scans.      |
-| `FOLDER_SIZE_RECONCILE_BATCH`     | `100`                | Number of indexed folders checked per periodic reconciliation page.                               |
-| `FOLDER_SIZE_RECONCILE_PAUSE_MS`  | `200`                | Delay between reconciliation pages, used to smooth background I/O.                                |
-| `FOLDER_SIZE_IO_TIMEOUT_MS`       | `30000`              | Deadline for one indexed folder-size filesystem operation; `0` disables this protection.          |
-| `FOLDER_SIZE_MAX_STALLED_IO`      | `2`                  | Timed-out folder-size operations allowed before the indexer pauses further filesystem work.       |
-| `FOLDER_SIZE_SUBTREE_BATCH`       | reconciliation batch | Metadata checks per batch while recovering a folder tree created or changed outside NextExplorer. |
-| `FOLDER_SIZE_SUBTREE_PAUSE_MS`    | reconciliation pause | Delay between targeted recovery batches. Leave unset to inherit the reconciliation pacing.        |
-| `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS` | `5000`               | Duration after which a targeted recovery emits one `info` performance summary.                    |
+| Variable                                | Default              | Description                                                                                       |
+| --------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| `FOLDER_SIZE_MODE`                      | `off`                | Enables indexed folder sizes: `full` is recursive, `shallow` counts direct entries only.          |
+| `FOLDER_SIZE_EXCLUDE_PATHS`             | empty                | Comma- or newline-separated paths relative to `VOLUME_ROOT` excluded from folder-size scans.      |
+| `FOLDER_SIZE_RECONCILE_BATCH`           | `100`                | Number of indexed folders checked per periodic reconciliation page.                               |
+| `FOLDER_SIZE_RECONCILE_PAUSE_MS`        | `200`                | Delay between reconciliation pages, used to smooth background I/O.                                |
+| `FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES` | `200`                | Maximum indexed folders checked by one scheduled reconciliation slice. `0` restores a full sweep. |
+| `FOLDER_SIZE_IO_TIMEOUT_MS`             | `30000`              | Deadline for one indexed folder-size filesystem operation; `0` disables this protection.          |
+| `FOLDER_SIZE_MAX_STALLED_IO`            | `2`                  | Timed-out folder-size operations allowed before the indexer pauses further filesystem work.       |
+| `FOLDER_SIZE_SUBTREE_BATCH`             | reconciliation batch | Metadata checks per batch while recovering a folder tree created or changed outside NextExplorer. |
+| `FOLDER_SIZE_SUBTREE_PAUSE_MS`          | reconciliation pause | Delay between targeted recovery batches. Leave unset to inherit the reconciliation pacing.        |
+| `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS`       | `5000`               | Duration after which a targeted recovery emits one `info` performance summary.                    |
 
 Targeted subtree recoveries are always serialized so concurrent external changes cannot race their SQLite ancestor updates. The batch and pause settings govern their I/O intensity without affecting the normal list-view reads.
 

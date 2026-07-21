@@ -47,6 +47,19 @@ let reconcileTimer = null;
 let reconcileDelay = 0;
 let reconciling = false;
 let abortController = null;
+let reconcileCursor = null;
+const reconcileStats = {
+  runs: 0,
+  partialRuns: 0,
+  completedPasses: 0,
+  processed: 0,
+  checked: 0,
+  changed: 0,
+  removed: 0,
+  skipped: 0,
+  lastRunAt: null,
+  lastDurationMs: null,
+};
 
 // Targeted scans are serialized with each other. A completed filesystem
 // operation can therefore await an exact subtree index without racing another
@@ -198,14 +211,17 @@ const touch = async (absDirs = []) => {
   }
 };
 
-const runReconcile = async (reason) => {
+const runReconcile = async (reason, { full = false } = {}) => {
   if (reconciling || stopped || !db) return { changed: 0 };
   reconciling = true;
+  const startedAt = Date.now();
   try {
     const incompleteSubtrees = new Set();
     const result = await indexer.reconcile(db, scope, {
       mode: config.folderSize.mode,
       signal: abortController?.signal,
+      beforeRelativePath: full ? null : reconcileCursor,
+      maxDirectories: full ? 0 : config.folderSize.reconcileMaxDirectories,
       shouldSkip: transferState.isRelatedToActiveTransfer,
       shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
       onIncompleteSubtree: (absDir) => incompleteSubtrees.add(absDir),
@@ -213,13 +229,30 @@ const runReconcile = async (reason) => {
     for (const abs of incompleteSubtrees) {
       refreshSubtree(abs).catch(() => {});
     }
-    log('debug', 'Reconciliation pass complete', { reason, ...result });
+    if (!full) reconcileCursor = result.hasMore ? result.nextCursor : null;
+    reconcileStats.runs += 1;
+    reconcileStats.processed += result.processed || 0;
+    reconcileStats.checked += result.checked || 0;
+    reconcileStats.changed += result.changed || 0;
+    reconcileStats.removed += result.removed || 0;
+    reconcileStats.skipped += result.skipped || 0;
+    reconcileStats.lastRunAt = new Date().toISOString();
+    reconcileStats.lastDurationMs = Date.now() - startedAt;
+    if (result.hasMore) reconcileStats.partialRuns += 1;
+    else reconcileStats.completedPasses += 1;
+    log('debug', 'Reconciliation slice complete', {
+      reason,
+      full,
+      maxDirectories: full ? 0 : config.folderSize.reconcileMaxDirectories,
+      cursor: reconcileCursor,
+      ...result,
+    });
     // A large sweep grows the heap; hand it back (no-op without --expose-gc).
     reclaimMemory();
     return result;
   } catch (err) {
     log('warn', 'Reconciliation failed', { err });
-    return { changed: 0 };
+    return { changed: 0, hasMore: false };
   } finally {
     reconciling = false;
   }
@@ -229,15 +262,17 @@ const runReconcile = async (reason) => {
 const armReconcile = () => {
   if (stopped) return;
   reconcileTimer = setTimeout(async () => {
-    const { changed } = await runReconcile('scheduled');
+    const { changed, hasMore } = await runReconcile('scheduled');
     const { reconcileMs, reconcileMinMs, reconcileMaxMs } = config.folderSize;
     reconcileDelay =
       reconcileMs > 0
         ? reconcileMs
-        : indexer.nextReconcileDelay(reconcileDelay, changed, {
-            minMs: reconcileMinMs,
-            maxMs: reconcileMaxMs,
-          });
+        : hasMore
+          ? reconcileMinMs
+          : indexer.nextReconcileDelay(reconcileDelay, changed, {
+              minMs: reconcileMinMs,
+              maxMs: reconcileMaxMs,
+            });
     armReconcile();
   }, reconcileDelay);
   if (reconcileTimer.unref) reconcileTimer.unref();
@@ -349,7 +384,7 @@ const stop = async () => {
 };
 
 const requestReconcile = () => {
-  if (running) runReconcile('command').catch(() => {});
+  if (running) runReconcile('command', { full: true }).catch(() => {});
 };
 
 const requestRebuild = () => {
@@ -547,6 +582,11 @@ const getDiagnosticsSnapshot = () => ({
   dirtyDirectories: dirty.size,
   pendingSubtreeScans: pendingSubtreeScans.size,
   reconcileDelayMs: reconcileDelay || null,
+  reconcile: {
+    maxDirectories: config.folderSize.reconcileMaxDirectories,
+    cursor: reconcileCursor,
+    stats: { ...reconcileStats },
+  },
   subtree: {
     active: activeSubtreeScan
       ? {

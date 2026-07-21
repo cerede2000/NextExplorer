@@ -166,6 +166,12 @@ module.exports = {
     process.env.FOLDER_SIZE_RECONCILE_PAUSE_MS !== undefined
       ? Number(process.env.FOLDER_SIZE_RECONCILE_PAUSE_MS)
       : 200,
+  // Hard upper bound for one scheduled reconciliation slice. Zero keeps the
+  // historical full-volume sweep behavior; the default keeps idle work small.
+  FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES:
+    process.env.FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES !== undefined
+      ? Number(process.env.FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES)
+      : 200,
   // Targeted scans repair one incomplete subtree detected after an external
   // change. They are serialized to keep ancestor deltas deterministic; file
   // stats are processed in small batches and optionally paced. When batch/pause
