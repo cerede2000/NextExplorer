@@ -584,7 +584,7 @@ export const useFileStore = defineStore('fileStore', () => {
     return response;
   };
 
-  const extractZipArchive = async (relativePath) => {
+  const extractZipArchive = async (relativePath, options = {}) => {
     const normalized = normalizePath(relativePath || '');
     if (!normalized) return null;
 
@@ -601,6 +601,7 @@ export const useFileStore = defineStore('fileStore', () => {
     let response;
     try {
       response = await extractZipApi(normalized, {
+        destination: options.destination,
         onEvent: (event) => {
           if (event?.type === 'progress' && Number.isFinite(event.percent)) {
             operationTasksStore.updateOperation(operationId, { percent: event.percent });

@@ -104,6 +104,7 @@
     "download": "Download",
     "downloadFolder": "Download folder",
     "extractArchive": "Extract archive",
+    "extractArchiveIntoCurrentFolder": "Extract into current folder",
     "compressToZip": "Compress to ZIP",
     "search": "Search",
     "sortBy": "Sort by",

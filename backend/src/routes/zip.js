@@ -47,6 +47,37 @@ const defaultZipNameForItems = (items = []) => {
   return `${ext ? name.slice(0, -ext.length) : name}.zip`;
 };
 
+const extractIntoCurrentFolder = async ({
+  stagingDirectory,
+  destinationDirectory,
+  relativeParentPath,
+  movedPaths,
+}) => {
+  const stagedEntries = await fs.readdir(stagingDirectory, { withFileTypes: true });
+  const items = [];
+
+  for (const entry of stagedEntries) {
+    const entryName = ensureValidName(entry.name);
+    const destinationName = await findAvailableName(destinationDirectory, entryName);
+    const sourcePath = path.join(stagingDirectory, entryName);
+    const destinationPath = path.join(destinationDirectory, destinationName);
+
+    await fs.rename(sourcePath, destinationPath);
+    movedPaths.push(destinationPath);
+
+    if (entry.isDirectory()) {
+      folderSizeHooks.onDirectoryTreeCreated(destinationPath);
+    } else {
+      const stats = await fs.stat(destinationPath);
+      folderSizeHooks.onFileWritten(destinationPath, stats.size);
+    }
+
+    items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
+  }
+
+  return items;
+};
+
 router.post(
   '/files/zip/extract',
   asyncHandler(async (req, res) => {
@@ -58,8 +89,12 @@ router.post(
     req.once('aborted', abort);
     res.once('close', onClose);
     const inputPath = req.body?.path ?? '';
+    const destination = req.body?.destination ?? 'folder';
     if (typeof inputPath !== 'string' || !inputPath.trim()) {
       throw new ValidationError('An archive file path is required.');
+    }
+    if (destination !== 'folder' && destination !== 'current') {
+      throw new ValidationError('Invalid archive extraction destination.');
     }
 
     const relativePath = normalizeRelativePath(inputPath);
@@ -127,10 +162,19 @@ router.post(
       }
     })();
 
-    const folderName = await findAvailableFolderName(parentAbsolutePath, baseFolderName);
-    const destinationFolderAbsolutePath = path.join(parentAbsolutePath, folderName);
+    const folderName =
+      destination === 'folder'
+        ? await findAvailableFolderName(parentAbsolutePath, baseFolderName)
+        : baseFolderName;
+    const destinationFolderAbsolutePath =
+      destination === 'folder'
+        ? path.join(parentAbsolutePath, folderName)
+        : await fs.mkdtemp(path.join(parentAbsolutePath, '.nextexplorer-extract-'));
+    const movedPaths = [];
 
-    await fs.mkdir(destinationFolderAbsolutePath);
+    if (destination === 'folder') {
+      await fs.mkdir(destinationFolderAbsolutePath);
+    }
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
@@ -179,19 +223,34 @@ router.post(
         }
       }
 
-      // The archive has produced an entire new tree. Queue its index refresh,
-      // but never hold the archive operation open on background filesystem I/O.
-      folderSizeHooks.onDirectoryTreeCreated(destinationFolderAbsolutePath);
+      if (destination === 'folder') {
+        // The archive has produced an entire new tree. Queue its index refresh,
+        // but never hold the archive operation open on background filesystem I/O.
+        folderSizeHooks.onDirectoryTreeCreated(destinationFolderAbsolutePath);
 
-      const item = await buildItemMetadata(
-        destinationFolderAbsolutePath,
-        parentRelativePath,
-        folderName
-      );
-      writeEvent({ type: 'done', success: true, item });
+        const item = await buildItemMetadata(
+          destinationFolderAbsolutePath,
+          parentRelativePath,
+          folderName
+        );
+        writeEvent({ type: 'done', success: true, item, items: [item] });
+      } else {
+        // Extract to a private sibling first, then move each root entry into the
+        // current folder. This avoids partial writes and lets us apply the same
+        // collision rule used everywhere else: name, name (1), name (2), ...
+        const items = await extractIntoCurrentFolder({
+          stagingDirectory: destinationFolderAbsolutePath,
+          destinationDirectory: parentAbsolutePath,
+          relativeParentPath: parentRelativePath,
+          movedPaths,
+        });
+        await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
+        writeEvent({ type: 'done', success: true, item: items.length === 1 ? items[0] : null, items });
+      }
     } catch (error) {
-      logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up folder');
+      logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up destination');
       await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
+      await Promise.all(movedPaths.map((movedPath) => fs.rm(movedPath, { recursive: true, force: true })));
       writeEvent({
         type: 'error',
         message: error.message || 'Archive extraction failed.',
@@ -310,11 +369,17 @@ router.post(
     try {
       if (await isSevenZipAvailable()) {
         // 7-Zip streams the archive to disk instead of assembling it in RAM.
+        const sourceParent = path.dirname(sourceTargets[0].absolutePath);
+        const hasCommonParent = sourceTargets.every(
+          ({ absolutePath }) => path.dirname(absolutePath) === sourceParent
+        );
         await createZipArchive(
-          sourceTargets.map(({ absolutePath }) => absolutePath),
+          hasCommonParent
+            ? sourceTargets.map(({ name }) => name)
+            : sourceTargets.map(({ absolutePath }) => absolutePath),
           zipAbsolutePath,
           onPercent,
-          { signal: controller.signal }
+          { signal: controller.signal, cwd: hasCommonParent ? sourceParent : undefined }
         );
       } else {
         const zip = new AdmZip();

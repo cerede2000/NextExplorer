@@ -261,6 +261,7 @@ const runRename = () => actions.runRename();
 const runDownload = () => actions.runDownload();
 
 const runExtractArchive = () => actions.runExtractArchive();
+const runExtractArchiveIntoCurrentFolder = () => actions.runExtractArchiveIntoCurrentFolder();
 const runCompressToZip = () => actions.runCompressToZip();
 
 const runShare = () => {
@@ -589,6 +590,17 @@ const menuSections = computed(() => {
             t('actions.extractArchive'),
             ArrowUpOnSquareIcon,
             runExtractArchive,
+            {
+              disabled: !actions.canExtractArchive.value,
+            }
+          )
+        );
+        archiveSection.push(
+          mk(
+            'extract-archive-current-folder',
+            t('actions.extractArchiveIntoCurrentFolder'),
+            ArrowUpOnSquareIcon,
+            runExtractArchiveIntoCurrentFolder,
             {
               disabled: !actions.canExtractArchive.value,
             }
