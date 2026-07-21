@@ -394,6 +394,11 @@ const folderSize = {
   reconcileMaxMs: env.FOLDER_SIZE_RECONCILE_MAX_MS,
   reconcileBatch: env.FOLDER_SIZE_RECONCILE_BATCH,
   reconcilePauseMs: env.FOLDER_SIZE_RECONCILE_PAUSE_MS,
+  reconcileMaxDirectories:
+    Number.isFinite(env.FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES) &&
+    env.FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES >= 0
+      ? Math.floor(env.FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES)
+      : 200,
   subtreeBatch:
     Number.isFinite(env.FOLDER_SIZE_SUBTREE_BATCH) && env.FOLDER_SIZE_SUBTREE_BATCH > 0
       ? Math.floor(env.FOLDER_SIZE_SUBTREE_BATCH)

@@ -516,6 +516,45 @@ describe('folderSizeIndexer', () => {
     expect(sizeOf(folderSizeIndex, db, vol)).toBe(65); // A(50) + C(15)
   });
 
+  it('resumes a bounded reconciliation pass from its SQLite cursor', async () => {
+    ctx = await createContext();
+    const { env, db, folderSizeIndex, indexer, scope } = ctx;
+    const vol = env.volumeDir;
+
+    await fs.mkdir(path.join(vol, 'A', 'B'), { recursive: true });
+    await fs.mkdir(path.join(vol, 'C'), { recursive: true });
+    await fs.writeFile(path.join(vol, 'A', 'B', 'f1'), Buffer.alloc(100));
+    await fs.writeFile(path.join(vol, 'C', 'f2'), Buffer.alloc(10));
+    await indexer.runBaseline(db, scope, { mode: 'full' });
+
+    await fs.writeFile(path.join(vol, 'A', 'B', 'external'), Buffer.alloc(25));
+    const future = new Date(Date.now() + 60_000);
+    await fs.utimes(path.join(vol, 'A', 'B'), future, future);
+
+    let cursor = null;
+    let result;
+    let slices = 0;
+    do {
+      // eslint-disable-next-line no-await-in-loop
+      result = await indexer.reconcile(db, scope, {
+        mode: 'full',
+        batch: 1,
+        pauseMs: 0,
+        beforeRelativePath: cursor,
+        maxDirectories: 2,
+      });
+      expect(result.processed).toBeLessThanOrEqual(2);
+      cursor = result.nextCursor;
+      slices += 1;
+    } while (result.hasMore && slices < 10);
+
+    expect(slices).toBeGreaterThan(1);
+    expect(result.hasMore).toBe(false);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A', 'B'))).toBe(125);
+    expect(sizeOf(folderSizeIndex, db, path.join(vol, 'A'))).toBe(125);
+    expect(sizeOf(folderSizeIndex, db, vol)).toBe(135);
+  });
+
   it('aggregates a deep tree (depth beyond the concurrency budget) correctly', async () => {
     ctx = await createContext();
     const { env, db, folderSizeIndex, indexer, scope } = ctx;

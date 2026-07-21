@@ -25,8 +25,10 @@ yielding to the event loop between batches.
   re-check the mtime of the folders on screen and re-aggregate only the ones
   that changed. So external changes to folders you actually browse surface within
   seconds — without a filesystem watcher. The read response itself stays O(1).
-- **Adaptive reconciliation** — a periodic mtime sweep of the whole index
-  re-aggregates only changed folders. It accelerates (down to
+- **Adaptive reconciliation** — a periodic, resumable mtime sweep of the index
+  re-aggregates only changed folders. Each scheduled slice checks at most
+  `FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES` entries, stores its SQLite cursor, and
+  resumes from there later. It accelerates (down to
   `FOLDER_SIZE_RECONCILE_MIN_MS`) when a pass finds external changes and backs
   off (doubling, up to `FOLDER_SIZE_RECONCILE_MAX_MS`) when idle. The sweep is
   **paced** — it stat()s folders in pages of `FOLDER_SIZE_RECONCILE_BATCH` and
@@ -44,24 +46,25 @@ fraction of the RAM (the approach filebrowser-quantum also takes).
 
 ## Configuration
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `FOLDER_SIZE_MODE` | `off` | `off` disables the feature. `full` = recursive folder sizes. `shallow` = size of a folder's *direct* entries only. |
-| `FOLDER_SIZE_EXCLUDE_PATHS` | empty | Comma- or newline-separated paths relative to `VOLUME_ROOT` which are never traversed or indexed. Useful for Docker storage such as `Stacks/docker/overlay2`. Environment exclusions are immutable from the UI. |
-| `FOLDER_SIZE_CONCURRENCY` | `6` | Baseline walk concurrency on local disks. |
-| `FOLDER_SIZE_NETWORK_CONCURRENCY` | `2` | Concurrency when the mount is detected as network (nfs/cifs via `/proc/mounts`). |
-| `FOLDER_SIZE_FLUSH_MS` | `3000` | How often accumulated dirty directories (on-view refresh, write hooks) are flushed in one transaction. |
-| `FOLDER_SIZE_RECONCILE_MS` | `0` | `0` = adaptive reconciliation (see MIN/MAX). Set a non-zero value to force a fixed interval instead. |
-| `FOLDER_SIZE_RECONCILE_MIN_MS` | `900000` | Fastest adaptive reconcile interval (used right after external changes are seen). |
-| `FOLDER_SIZE_RECONCILE_MAX_MS` | `43200000` | Slowest adaptive reconcile interval (reached when the volume is idle). |
-| `FOLDER_SIZE_RECONCILE_BATCH` | `100` | Folders stat()ed per page during a reconcile sweep. |
-| `FOLDER_SIZE_RECONCILE_PAUSE_MS` | `200` | Sleep between reconcile pages — pacing that keeps the sweep gentle on huge volumes. |
-| `FOLDER_SIZE_IO_TIMEOUT_MS` | `30000` | Maximum duration of one folder-size `readdir` or `stat` operation. Set `0` only to allow indefinite waits. |
-| `FOLDER_SIZE_MAX_STALLED_IO` | `2` | Maximum timed-out filesystem calls kept in flight before folder-size work pauses to preserve Node's I/O workers. |
-| `FOLDER_SIZE_SUBTREE_BATCH` | reconciliation batch | File metadata stat()ed per batch while rebuilding one incomplete subtree. The scan is serialized with other subtree recoveries so ancestor updates stay exact. |
-| `FOLDER_SIZE_SUBTREE_PAUSE_MS` | reconciliation pause | Sleep between targeted-scan batches. Leave unset to reuse the reconciliation pacing. |
-| `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS` | `5000` | Emit one `info` summary for a subtree scan taking at least this long; quicker scans remain `debug` only. |
-| `FOLDER_SIZE_REBUILD` | `false` | Force a fresh baseline walk on startup. |
+| Variable                                | Default              | Meaning                                                                                                                                                                                                         |
+| --------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FOLDER_SIZE_MODE`                      | `off`                | `off` disables the feature. `full` = recursive folder sizes. `shallow` = size of a folder's _direct_ entries only.                                                                                              |
+| `FOLDER_SIZE_EXCLUDE_PATHS`             | empty                | Comma- or newline-separated paths relative to `VOLUME_ROOT` which are never traversed or indexed. Useful for Docker storage such as `Stacks/docker/overlay2`. Environment exclusions are immutable from the UI. |
+| `FOLDER_SIZE_CONCURRENCY`               | `6`                  | Baseline walk concurrency on local disks.                                                                                                                                                                       |
+| `FOLDER_SIZE_NETWORK_CONCURRENCY`       | `2`                  | Concurrency when the mount is detected as network (nfs/cifs via `/proc/mounts`).                                                                                                                                |
+| `FOLDER_SIZE_FLUSH_MS`                  | `3000`               | How often accumulated dirty directories (on-view refresh, write hooks) are flushed in one transaction.                                                                                                          |
+| `FOLDER_SIZE_RECONCILE_MS`              | `0`                  | `0` = adaptive reconciliation (see MIN/MAX). Set a non-zero value to force a fixed interval instead.                                                                                                            |
+| `FOLDER_SIZE_RECONCILE_MIN_MS`          | `900000`             | Fastest adaptive reconcile interval (used right after external changes are seen).                                                                                                                               |
+| `FOLDER_SIZE_RECONCILE_MAX_MS`          | `43200000`           | Slowest adaptive reconcile interval (reached when the volume is idle).                                                                                                                                          |
+| `FOLDER_SIZE_RECONCILE_BATCH`           | `100`                | Folders stat()ed per page during a reconcile sweep.                                                                                                                                                             |
+| `FOLDER_SIZE_RECONCILE_PAUSE_MS`        | `200`                | Sleep between reconcile pages — pacing that keeps the sweep gentle on huge volumes.                                                                                                                             |
+| `FOLDER_SIZE_RECONCILE_MAX_DIRECTORIES` | `200`                | Maximum folders checked by one scheduled slice. `0` restores an unbounded full-volume scheduled sweep. Manual reconciliation remains complete.                                                                  |
+| `FOLDER_SIZE_IO_TIMEOUT_MS`             | `30000`              | Maximum duration of one folder-size `readdir` or `stat` operation. Set `0` only to allow indefinite waits.                                                                                                      |
+| `FOLDER_SIZE_MAX_STALLED_IO`            | `2`                  | Maximum timed-out filesystem calls kept in flight before folder-size work pauses to preserve Node's I/O workers.                                                                                                |
+| `FOLDER_SIZE_SUBTREE_BATCH`             | reconciliation batch | File metadata stat()ed per batch while rebuilding one incomplete subtree. The scan is serialized with other subtree recoveries so ancestor updates stay exact.                                                  |
+| `FOLDER_SIZE_SUBTREE_PAUSE_MS`          | reconciliation pause | Sleep between targeted-scan batches. Leave unset to reuse the reconciliation pacing.                                                                                                                            |
+| `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS`       | `5000`               | Emit one `info` summary for a subtree scan taking at least this long; quicker scans remain `debug` only.                                                                                                        |
+| `FOLDER_SIZE_REBUILD`                   | `false`              | Force a fresh baseline walk on startup.                                                                                                                                                                         |
 
 ## Enabling it
 
@@ -74,8 +77,8 @@ write hooks, on-view refresh and adaptive reconciliation.
 
 ## Verify in the UI
 
-Browse into any volume. In the **list view** the *Size* column now shows a size
-for folders (previously an em-dash), and sorting by *Size* orders folders by
+Browse into any volume. In the **list view** the _Size_ column now shows a size
+for folders (previously an em-dash), and sorting by _Size_ orders folders by
 their recursive size. If volume usage is enabled, the usage bar lets you compare
 "space used on the disk" against "size of this folder".
 
@@ -150,6 +153,7 @@ npm run test:unit   # frontend (vitest)
 ```
 
 - `src/stores/folderSize.spec.js` — throttle, in-flight de-duplication, and the
-  feature-disabled no-op.
+feature-disabled no-op.
 </content>
+
 </invoke>

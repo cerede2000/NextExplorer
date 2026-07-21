@@ -592,9 +592,11 @@ const reconcileDirectory = async (db, scope, absDir, options = {}) => {
  * before that ancestor is itself re-aggregated (no double counting), and peak
  * memory is O(page) rather than O(all folders). Between pages the pass sleeps for
  * `pauseMs`, so even a volume with hundreds of thousands of folders is scanned
- * as a gentle background trickle instead of one CPU/IO burst.
+ * as a gentle background trickle instead of one CPU/IO burst. Callers may also
+ * set `maxDirectories` and resume from `beforeRelativePath`, making scheduled
+ * reconciliation bounded rather than a permanently active full-volume sweep.
  *
- * @returns {Promise<{ checked, changed, removed, skipped }>}
+ * @returns {Promise<{ checked, changed, removed, skipped, processed, hasMore, nextCursor }>}
  */
 const reconcile = async (db, scope, options = {}) => {
   const {
@@ -602,6 +604,8 @@ const reconcile = async (db, scope, options = {}) => {
     signal,
     batch = config.folderSize.reconcileBatch || 100,
     pauseMs = options.pauseMs ?? config.folderSize.reconcilePauseMs ?? 0,
+    maxDirectories = config.folderSize.reconcileMaxDirectories ?? 200,
+    beforeRelativePath = null,
     ioTimeoutMs = options.ioTimeoutMs ?? config.folderSize.ioTimeoutMs,
     shouldSkip,
     shouldExclude,
@@ -612,6 +616,7 @@ const reconcile = async (db, scope, options = {}) => {
   let changed = 0;
   let removed = 0;
   let skipped = 0;
+  let processed = 0;
 
   const pruneStale = (abs) => {
     const size = folderSizeIndex.removeSubtree(db, scope, abs);
@@ -663,23 +668,44 @@ const reconcile = async (db, scope, options = {}) => {
     if (delta !== 0) changed += 1;
   };
 
-  let cursor = null;
+  let cursor = beforeRelativePath;
+  let exhausted = false;
   for (;;) {
-    if (signal?.aborted) break;
+    if (signal?.aborted || (maxDirectories > 0 && processed >= maxDirectories)) break;
     const rows = folderSizeIndex.listScanTargetsPage(db, scope.label, cursor, batch);
-    if (!rows.length) break;
+    if (!rows.length) {
+      exhausted = true;
+      break;
+    }
     for (const row of rows) {
-      if (signal?.aborted) break;
+      if (signal?.aborted || (maxDirectories > 0 && processed >= maxDirectories)) break;
+      processed += 1;
       // eslint-disable-next-line no-await-in-loop
       await handleRow(row);
+      cursor = row.relativePath;
     }
-    cursor = rows[rows.length - 1].relativePath;
-    if (rows.length < batch) break;
+    if (signal?.aborted || (maxDirectories > 0 && processed >= maxDirectories)) break;
+    if (rows.length < batch) {
+      exhausted = true;
+      break;
+    }
     // eslint-disable-next-line no-await-in-loop
     if (pauseMs > 0) await sleep(pauseMs);
   }
 
-  return { checked, changed, removed, skipped };
+  const hasMore =
+    !signal?.aborted &&
+    !exhausted &&
+    Boolean(cursor && folderSizeIndex.listScanTargetsPage(db, scope.label, cursor, 1).length);
+  return {
+    checked,
+    changed,
+    removed,
+    skipped,
+    processed,
+    hasMore,
+    nextCursor: hasMore ? cursor : null,
+  };
 };
 
 module.exports = {
