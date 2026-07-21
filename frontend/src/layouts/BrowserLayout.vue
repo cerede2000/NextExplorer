@@ -23,6 +23,7 @@ import { useFileUploader } from '@/composables/fileUploader';
 import { useKeyboardShortcuts } from '@/composables/keyboardShortcuts';
 import SpotlightSearch from '@/components/SpotlightSearch.vue';
 import FavoriteEditDialog from '@/components/FavoriteEditDialog.vue';
+import OnlyOfficeTransferConfirm from '@/components/OnlyOfficeTransferConfirm.vue';
 import {
   Bars3Icon,
   ArrowRightOnRectangleIcon,
@@ -223,6 +224,7 @@ const handleGuestLogin = () => {
     <InfoPanel />
     <SpotlightSearch />
     <FavoriteEditDialog />
+    <OnlyOfficeTransferConfirm />
     <NotificationToastContainer />
     <NotificationPanel />
     <TerminalPanel v-if="featuresStore.terminalEnabled" />
