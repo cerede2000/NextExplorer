@@ -15,6 +15,7 @@ const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
+const onlyofficeActivity = require('../services/onlyofficeActivityService');
 
 const router = express.Router();
 const pendingForceSaves = new Map();
@@ -81,7 +82,7 @@ const cleanupExpiredEditorSessions = () => {
   }
 };
 
-const createEditorSession = (req, relativePath, key) => {
+const createEditorSession = (req, relativePath, key, absolutePath) => {
   cleanupExpiredEditorSessions();
   const sessionId = crypto.randomUUID();
   const owner = getSessionOwner(req);
@@ -90,6 +91,17 @@ const createEditorSession = (req, relativePath, key) => {
     relativePath,
     ...owner,
     expiresAt: Date.now() + EDITOR_SESSION_TTL_MS,
+  });
+  onlyofficeActivity.open({
+    absolutePath,
+    sessionId,
+    user: {
+      id: owner.userId || (owner.guestSessionId ? `guest_${owner.guestSessionId}` : null),
+      name:
+        req.user?.displayName ||
+        req.user?.username ||
+        (owner.guestSessionId ? 'Invité' : 'Utilisateur'),
+    },
   });
   return sessionId;
 };
@@ -298,7 +310,7 @@ router.post(
 
     // Disable editing for readonly shares or when mode is view
     const canEdit = mode !== 'view' && !isReadonlyShare;
-    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key) : null;
+    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
 
     const config = {
       documentType, // text | spreadsheet | presentation
@@ -360,6 +372,41 @@ router.post(
       forceSaveSessionId,
       autoSaveIntervalMs: canEdit ? onlyoffice.autoSaveIntervalMs : 0,
     });
+  })
+);
+
+router.post(
+  '/onlyoffice/session-heartbeat',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    const sessionId = req.body?.sessionId || '';
+    if (!relativePath || typeof sessionId !== 'string' || !sessionId) {
+      throw new ValidationError('A valid ONLYOFFICE editing session is required.');
+    }
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
+    getEditorSession(req, sessionId, relativePath);
+    const active = onlyofficeActivity.heartbeat({ absolutePath: resolved.absolutePath, sessionId });
+    res.json({ active });
+  })
+);
+
+router.post(
+  '/onlyoffice/session-close',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    const sessionId = req.body?.sessionId || '';
+    if (!relativePath || typeof sessionId !== 'string' || !sessionId) {
+      throw new ValidationError('A valid ONLYOFFICE editing session is required.');
+    }
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
+    getEditorSession(req, sessionId, relativePath);
+    onlyofficeActivity.close({ absolutePath: resolved.absolutePath, sessionId });
+    editorSessions.delete(sessionId);
+    res.status(204).end();
   })
 );
 
@@ -544,6 +591,19 @@ router.post(
       const body = req.body || {};
       const status = Number(body.status);
       forceSaveRequestId = typeof body.userdata === 'string' ? body.userdata : null;
+      const activityPath = backendCtx?.absolutePath;
+
+      // Status 1 reports the users currently connected to the document. It is
+      // presence only: this never becomes a filesystem lock and expires if
+      // Document Server stops sending callbacks.
+      if (status === 1 && activityPath) {
+        onlyofficeActivity.updateDocumentServerUsers({
+          absolutePath: activityPath,
+          users: Array.isArray(body.users) ? body.users : [],
+        });
+      } else if ((status === 2 || status === 4) && activityPath) {
+        onlyofficeActivity.clearDocumentServerUsers({ absolutePath: activityPath });
+      }
 
       if (status === 7) {
         finishForceSave(forceSaveRequestId, { saved: false, failed: true });

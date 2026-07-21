@@ -27,7 +27,11 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue';
 import { DocumentEditor } from '@onlyoffice/document-editor-vue';
-import { fetchOnlyOfficeConfig, requestOnlyOfficeForceSave } from '@/api';
+import {
+  fetchOnlyOfficeConfig,
+  heartbeatOnlyOfficeSession,
+  requestOnlyOfficeForceSave,
+} from '@/api';
 import logger from '@/utils/logger';
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
@@ -54,6 +58,7 @@ let lastAutoSaveAt = 0;
 let autoSaveIntervalMs = 0;
 let changesObserved = false;
 let disposed = false;
+let sessionHeartbeatTimer = null;
 const editorId = computed(() => {
   const base = (props.filePath || 'document').toString();
   return (
@@ -68,6 +73,20 @@ const editorId = computed(() => {
 const clearAutoSaveTimer = () => {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
   autoSaveTimer = null;
+};
+
+const clearSessionHeartbeat = () => {
+  if (sessionHeartbeatTimer) clearInterval(sessionHeartbeatTimer);
+  sessionHeartbeatTimer = null;
+};
+
+const startSessionHeartbeat = () => {
+  clearSessionHeartbeat();
+  const sessionId = previewState.forceSaveSessionId;
+  if (!props.filePath || !sessionId) return;
+  const heartbeat = () => heartbeatOnlyOfficeSession(props.filePath, { sessionId }).catch(() => {});
+  heartbeat();
+  sessionHeartbeatTimer = setInterval(heartbeat, 60_000);
 };
 
 const requestForceSave = async ({ reason = 'auto' } = {}) => {
@@ -108,6 +127,7 @@ const scheduleAutoSave = () => {
 
 const load = async () => {
   clearAutoSaveTimer();
+  clearSessionHeartbeat();
   changesObserved = false;
   lastAutoSaveAt = 0;
   autoSaveIntervalMs = 0;
@@ -125,6 +145,7 @@ const load = async () => {
       autoSaveIntervalMs: configuredAutoSaveIntervalMs,
     } = await fetchOnlyOfficeConfig(path, 'edit');
     previewState.forceSaveSessionId = forceSaveSessionId || null;
+    startSessionHeartbeat();
     autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     previewState.requestForceSave = requestForceSave;
     cfg.events = {
@@ -156,11 +177,13 @@ onMounted(load);
 onBeforeUnmount(() => {
   disposed = true;
   clearAutoSaveTimer();
+  clearSessionHeartbeat();
 });
 watch(
   () => props.filePath,
   () => {
     disposed = false;
+    clearSessionHeartbeat();
     void load();
   }
 );
