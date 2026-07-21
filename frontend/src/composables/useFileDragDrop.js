@@ -11,6 +11,15 @@ import { useOperationTasksStore } from '@/stores/operationTasks';
 // Option/Alt can still update the same drag image in either destination.
 let activeDragImage = null;
 
+const waitForNextPaint = () =>
+  new Promise((resolve) => {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => resolve());
+      return;
+    }
+    resolve();
+  });
+
 /**
  * Composable for handling file and folder drag and drop operations.
  * Desktop only - will not work on touch devices.
@@ -48,6 +57,16 @@ export function useFileDragDrop() {
         path: normalizePath(item.path || ''),
         kind: item.kind,
       }));
+
+  const resolveCurrentItems = (items) =>
+    (Array.isArray(items) ? items : []).map((draggedItem) => {
+      const currentItem = fileStore.currentPathItems?.find(
+        (item) =>
+          item?.name === draggedItem?.name &&
+          normalizePath(item?.path || '') === normalizePath(draggedItem?.path || '')
+      );
+      return currentItem || draggedItem;
+    });
 
   const resolveFolderDestination = (targetFolder) => {
     if (targetFolder?.destinationPath) {
@@ -329,9 +348,14 @@ export function useFileDragDrop() {
       const transferPayload = serializeItems(draggedItems);
       if (transferPayload.length === 0) return;
 
-      // Drag/drop bypasses the clipboard workflow. Keep the same advisory
-      // warning before an action that can move or remove an edited document.
-      fileStore.warnAboutOnlyOfficeActivity(draggedItems, copy ? 'La copie' : 'Le déplacement');
+      // Drag/drop payloads are only a transport snapshot. Resolve the live
+      // list entries so an OnlyOffice activity change is visible before the
+      // transfer begins, even if the drag was started a moment earlier.
+      const hasOnlyOfficeWarning = fileStore.warnAboutOnlyOfficeActivity(
+        resolveCurrentItems(draggedItems),
+        copy ? 'La copie' : 'Le déplacement'
+      );
+      if (hasOnlyOfficeWarning) await waitForNextPaint();
 
       const controller = new AbortController();
       const operationId = operationTasksStore.startOperation({
