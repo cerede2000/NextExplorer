@@ -82,7 +82,7 @@ export function useDeleteConfirm() {
     isDeleting.value = true;
     isDeleteConfirmOpen.value = false;
     try {
-      await actions.deleteNow(items);
+      await actions.deleteNow(items, { onlyofficeWarningShown: true });
       closeDeleteConfirm();
     } catch (err) {
       console.error('Delete operation failed', err);

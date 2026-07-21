@@ -136,6 +136,23 @@ describe('ONLYOFFICE routes', () => {
     }`;
     callbackToken = configResponse.body.config.token;
 
+    const initialActivityVersion = await request(app).get('/api/onlyoffice/activity-version');
+    expect(initialActivityVersion.status).toBe(200);
+    expect(initialActivityVersion.body.version).toEqual(expect.any(Number));
+
+    const liveActivityUpdate = request(app)
+      .get(`/api/onlyoffice/activity-version?since=${initialActivityVersion.body.version}`)
+      .then((response) => response);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const secondConfigResponse = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: filename });
+    expect(secondConfigResponse.status).toBe(200);
+    const activityUpdate = await liveActivityUpdate;
+    expect(activityUpdate.status).toBe(200);
+    expect(activityUpdate.body).toMatchObject({ changed: true });
+    expect(activityUpdate.body.version).toBeGreaterThan(initialActivityVersion.body.version);
+
     const heartbeatResponse = await request(app).post('/api/onlyoffice/session-heartbeat').send({
       path: filename,
       sessionId: configResponse.body.forceSaveSessionId,
