@@ -136,7 +136,15 @@ ENV REPO_URL=${REPO_URL}
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY --from=backend_deps /app/package.json ./
 COPY --from=seven_zip /out/7z /usr/local/bin/7z
-RUN 7z i | grep -qi 'rar'
+# Verify the RAR codec and the secure password-prompt path while building.
+# The temporary password is a build-only sentinel and never reaches the image.
+RUN 7z i | grep -qi 'rar' \
+  && mkdir -p /tmp/7z-password-check/input /tmp/7z-password-check/output \
+  && printf 'ok' > /tmp/7z-password-check/input/check.txt \
+  && (cd /tmp/7z-password-check/input && 7z a -t7z -y -pbuild-check ../archive.7z check.txt >/dev/null) \
+  && printf 'build-check\n' | 7z x -y -p -o/tmp/7z-password-check/output /tmp/7z-password-check/archive.7z >/dev/null \
+  && test "$(cat /tmp/7z-password-check/output/check.txt)" = 'ok' \
+  && rm -rf /tmp/7z-password-check
 
 # When RAW support is disabled, drop the vendored ExifTool (~20 MB) from the
 # runtime node_modules. rawPreviewService.js already degrades gracefully when the
