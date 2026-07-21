@@ -70,15 +70,12 @@ export function useFileActions() {
   const canCopy = computed(() => hasSelection.value);
   const canPaste = computed(
     () =>
-      fileStore.hasClipboardItems &&
-      (locationCanCreateFolder.value || locationCanCreateFile.value)
+      fileStore.hasClipboardItems && (locationCanCreateFolder.value || locationCanCreateFile.value)
   );
   const canDelete = computed(() => hasSelection.value && locationCanDelete.value);
   const canRename = computed(
     () =>
-      Boolean(renameTarget.value) &&
-      renameTarget.value?.kind !== 'volume' &&
-      locationCanWrite.value
+      Boolean(renameTarget.value) && renameTarget.value?.kind !== 'volume' && locationCanWrite.value
   );
   const canExtractArchive = computed(
     () =>
@@ -135,9 +132,9 @@ export function useFileActions() {
     await fileStore.compressSelectionToZip();
   };
 
-  const deleteNow = async (items) => {
+  const deleteNow = async (items, options) => {
     if (items === undefined && !canDelete.value) return;
-    await fileStore.del(items);
+    await fileStore.del(items, options);
   };
 
   const submitDownloadRequest = (paths, basePath = '') => {

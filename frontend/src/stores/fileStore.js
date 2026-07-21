@@ -15,6 +15,7 @@ import {
   extractZip as extractZipApi,
   compressToZip as compressToZipApi,
   browseShare,
+  waitForOnlyOfficeActivityVersion,
 } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
@@ -60,6 +61,10 @@ export const useFileStore = defineStore('fileStore', () => {
   let thumbnailQueueGeneration = 0;
   let activeBrowseController = null;
   let browseRequestGeneration = 0;
+  let onlyofficeActivityVersion = null;
+  let onlyofficeActivityPollStarted = false;
+  let onlyofficeActivityPollController = null;
+  let onlyofficeVisibilityHandlerBound = false;
 
   const hasSelection = computed(() => selectedItems.value.length > 0);
   const selectedItemKeys = computed(() => {
@@ -83,6 +88,64 @@ export const useFileStore = defineStore('fileStore', () => {
     error?.code === 'OPERATION_CANCELLED' ||
     (typeof DOMException !== 'undefined' && error?.code === DOMException.ABORT_ERR) ||
     /aborted/i.test(error?.message || '');
+
+  const waitForDocumentVisibility = () =>
+    new Promise((resolve) => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+        resolve();
+        return;
+      }
+      document.addEventListener('visibilitychange', resolve, { once: true });
+    });
+
+  const startOnlyOfficeActivityPolling = () => {
+    if (onlyofficeActivityPollStarted || typeof window === 'undefined') return;
+    onlyofficeActivityPollStarted = true;
+
+    const poll = async () => {
+      while (onlyofficeActivityPollStarted) {
+        await waitForDocumentVisibility();
+        if (!onlyofficeActivityPollStarted) return;
+
+        const controller = new AbortController();
+        onlyofficeActivityPollController = controller;
+        try {
+          const response = await waitForOnlyOfficeActivityVersion(onlyofficeActivityVersion, {
+            signal: controller.signal,
+          });
+          const nextVersion = Number(response?.version);
+          const changed =
+            Number.isInteger(nextVersion) &&
+            onlyofficeActivityVersion !== null &&
+            nextVersion !== onlyofficeActivityVersion;
+          if (Number.isInteger(nextVersion)) onlyofficeActivityVersion = nextVersion;
+
+          // A normal listing request is authoritative and must not be aborted
+          // just to render a presence badge. The next activity change will
+          // catch up after navigation settles.
+          if (changed && !activeBrowseController) {
+            await fetchPathItems(currentPath.value, { preserveInteraction: true });
+          }
+        } catch (error) {
+          if (!isAbortError(error)) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        } finally {
+          if (onlyofficeActivityPollController === controller) {
+            onlyofficeActivityPollController = null;
+          }
+        }
+      }
+    };
+
+    if (!onlyofficeVisibilityHandlerBound && typeof document !== 'undefined') {
+      onlyofficeVisibilityHandlerBound = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') onlyofficeActivityPollController?.abort();
+      });
+    }
+    void poll();
+  };
 
   const refreshAfterCancelledOperation = async () => {
     await fetchPathItems(currentPath.value);
@@ -410,10 +473,12 @@ export const useFileStore = defineStore('fileStore', () => {
     }
   };
 
-  const del = async (items = selectedItems.value) => {
+  const del = async (items = selectedItems.value, options = {}) => {
     const payload = serializeItems(items);
     if (payload.length === 0) return;
-    warnAboutOnlyOfficeActivity(items, 'La suppression');
+    if (!options.onlyofficeWarningShown) {
+      warnAboutOnlyOfficeActivity(items, 'La suppression');
+    }
     const payloadKeys = new Set(payload.map((item) => itemKey(item)));
     const selectionMatchesPayload =
       selectedItems.value.length === payloadKeys.size &&
@@ -821,7 +886,7 @@ export const useFileStore = defineStore('fileStore', () => {
     currentPath.value = normalizePath(path);
   }
 
-  async function fetchPathItems(path) {
+  async function fetchPathItems(path, options = {}) {
     const previousItems = Array.isArray(currentPathItems.value) ? currentPathItems.value : [];
 
     const normalizedPath = normalizePath(typeof path === 'string' ? path : currentPath.value);
@@ -831,9 +896,11 @@ export const useFileStore = defineStore('fileStore', () => {
     const controller = new AbortController();
     activeBrowseController = controller;
     currentPath.value = normalizedPath;
-    clearSelection();
-    // When changing folders, exit selection mode (mobile UX).
-    setSelectionMode(false, { clearOnDisable: false });
+    if (!options.preserveInteraction) {
+      clearSelection();
+      // When changing folders, exit selection mode (mobile UX).
+      setSelectionMode(false, { clearOnDisable: false });
+    }
 
     let response;
 
@@ -893,6 +960,12 @@ export const useFileStore = defineStore('fileStore', () => {
           // does not send one, but refresh all other metadata.
           const prevThumbnail = existing.thumbnail;
           Object.assign(existing, incoming);
+          // A missing property is meaningful for transient state such as the
+          // OnlyOffice activity badge: remove the old value immediately when
+          // the server reports that the document is no longer active.
+          if (!Object.hasOwn(incoming, 'onlyofficeActivity')) {
+            delete existing.onlyofficeActivity;
+          }
           if (!incoming.thumbnail && prevThumbnail) {
             existing.thumbnail = prevThumbnail;
           }
@@ -935,6 +1008,7 @@ export const useFileStore = defineStore('fileStore', () => {
       currentPathData.value = null;
     }
 
+    startOnlyOfficeActivityPolling();
     return currentPathItems.value;
   }
 

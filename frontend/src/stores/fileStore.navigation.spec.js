@@ -4,6 +4,7 @@ import { ref } from 'vue';
 
 const browse = vi.fn();
 const browseShare = vi.fn();
+const waitForOnlyOfficeActivityVersion = vi.fn(() => new Promise(() => {}));
 
 vi.mock('@/api', () => ({
   browse: (...args) => browse(...args),
@@ -18,6 +19,7 @@ vi.mock('@/api', () => ({
   fetchThumbnail: vi.fn(),
   extractZip: vi.fn(),
   compressToZip: vi.fn(),
+  waitForOnlyOfficeActivityVersion: (...args) => waitForOnlyOfficeActivityVersion(...args),
 }));
 
 vi.mock('@/stores/settings', () => ({
@@ -51,6 +53,7 @@ describe('fileStore folder navigation', () => {
     setActivePinia(createPinia());
     browse.mockReset();
     browseShare.mockReset();
+    waitForOnlyOfficeActivityVersion.mockClear();
   });
 
   it('keeps the newest listing when a previous folder response arrives late', async () => {
@@ -78,5 +81,31 @@ describe('fileStore folder navigation', () => {
     expect(store.currentPathItems).toEqual([
       { name: 'inside.txt', path: 'Volume/Child', kind: 'file' },
     ]);
+  });
+
+  it('clears an OnlyOffice activity badge when a refresh reports the document closed', async () => {
+    browse
+      .mockResolvedValueOnce({
+        path: 'Volume',
+        items: [
+          {
+            name: 'report.docx',
+            path: 'Volume',
+            kind: 'docx',
+            onlyofficeActivity: { active: true, users: ['Admin'], count: 1 },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        path: 'Volume',
+        items: [{ name: 'report.docx', path: 'Volume', kind: 'docx' }],
+      });
+
+    const store = useFileStore();
+    await store.fetchPathItems('Volume');
+    expect(store.currentPathItems[0].onlyofficeActivity?.active).toBe(true);
+
+    await store.fetchPathItems('Volume', { preserveInteraction: true });
+    expect(store.currentPathItems[0].onlyofficeActivity).toBeUndefined();
   });
 });

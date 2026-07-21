@@ -163,6 +163,18 @@ const deleteShareImpactMessage = computed(() => {
   return t('context.deleteLinkedShares', { count });
 });
 
+const deleteOnlyOfficeActivityMessage = computed(() => {
+  const activeItems = pendingDeleteItems.value.filter((item) => item?.onlyofficeActivity?.active);
+  if (activeItems.length === 0) return '';
+  const names = activeItems
+    .slice(0, 2)
+    .map((item) => item.name)
+    .join(', ');
+  const remaining = activeItems.length - Math.min(activeItems.length, 2);
+  const subject = `${names}${remaining > 0 ? ` et ${remaining} autre(s)` : ''}`;
+  return `${subject} ${activeItems.length > 1 ? 'sont ouverts' : 'est ouvert'} dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue.`;
+});
+
 const closeMenu = () => {
   isOpen.value = false;
 };
@@ -786,7 +798,13 @@ provide(explorerContextMenuSymbol, {
       {{ $t('context.checkingDeleteImpact') }}
     </p>
     <p
-      v-else-if="deleteShareImpactMessage"
+      v-if="deleteOnlyOfficeActivityMessage"
+      class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
+    >
+      {{ deleteOnlyOfficeActivityMessage }}
+    </p>
+    <p
+      v-if="!isLoadingDeleteImpact && deleteShareImpactMessage"
       class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
     >
       {{ deleteShareImpactMessage }}
