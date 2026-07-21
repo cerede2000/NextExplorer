@@ -25,3 +25,24 @@ export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'cl
     suppressErrorHandler: true,
   });
 }
+
+export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId) return { active: false };
+  return requestJson('/api/onlyoffice/session-heartbeat', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId }),
+    suppressErrorHandler: true,
+  });
+}
+
+export async function closeOnlyOfficeSession(path, { sessionId } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId) return;
+  return requestJson('/api/onlyoffice/session-close', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId }),
+    keepalive: true,
+    suppressErrorHandler: true,
+  });
+}

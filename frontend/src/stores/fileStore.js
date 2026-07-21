@@ -22,6 +22,7 @@ import { useFavoritesStore } from '@/stores/favorites';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useOperationTasksStore } from '@/stores/operationTasks';
+import { useNotificationsStore } from '@/stores/notifications';
 
 export const useFileStore = defineStore('fileStore', () => {
   // How many thumbnail HTTP requests the client keeps in flight at once. The
@@ -43,6 +44,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
   const operationTasksStore = useOperationTasksStore();
+  const notificationsStore = useNotificationsStore();
 
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -214,6 +216,29 @@ export const useFileStore = defineStore('fileStore', () => {
         kind: item.kind,
       }));
 
+  // ONLYOFFICE activity is advisory by design. A document can remain safe to
+  // copy, move, rename or delete, but the user deserves a clear heads-up that
+  // an editor may save a newer revision shortly afterwards.
+  const warnAboutOnlyOfficeActivity = (items, action) => {
+    const activeItems = (Array.isArray(items) ? items : []).filter(
+      (item) => item?.onlyofficeActivity?.active
+    );
+    if (activeItems.length === 0) return;
+
+    const names = activeItems
+      .slice(0, 2)
+      .map((item) => item.name)
+      .join(', ');
+    const remaining = activeItems.length - Math.min(activeItems.length, 2);
+    const label = `${names}${remaining > 0 ? ` et ${remaining} autre(s)` : ''}`;
+    notificationsStore.addNotification({
+      type: 'warning',
+      heading: 'Fichier en cours d’édition',
+      body: `${label} ${activeItems.length > 1 ? 'sont ouverts' : 'est ouvert'} dans OnlyOffice. ${action} continue.`,
+      durationMs: 8000,
+    });
+  };
+
   const resetClipboard = () => {
     copiedItems.value = [];
     cutItems.value = [];
@@ -301,6 +326,8 @@ export const useFileStore = defineStore('fileStore', () => {
 
     const copyPayload = serializeItems(copiedItems.value);
     const movePayload = serializeItems(cutItems.value);
+    warnAboutOnlyOfficeActivity(copiedItems.value, 'La copie');
+    warnAboutOnlyOfficeActivity(cutItems.value, 'Le déplacement');
     const moveSourceParents = new Set(movePayload.map((item) => normalizePath(item.path || '')));
     const totalCount = copyPayload.length + movePayload.length;
     const controller = new AbortController();
@@ -386,6 +413,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const del = async (items = selectedItems.value) => {
     const payload = serializeItems(items);
     if (payload.length === 0) return;
+    warnAboutOnlyOfficeActivity(items, 'La suppression');
     const payloadKeys = new Set(payload.map((item) => itemKey(item)));
     const selectionMatchesPayload =
       selectedItems.value.length === payloadKeys.size &&
@@ -644,6 +672,8 @@ export const useFileStore = defineStore('fileStore', () => {
     }
 
     const targetPath = state.path;
+    const item = findItemByKey(state.key);
+    warnAboutOnlyOfficeActivity(item ? [item] : [], 'Le renommage');
 
     const response = await renameItemApi(targetPath, state.originalName, newName);
     const renamedName = response?.item?.name ?? newName;

@@ -26,6 +26,9 @@ export function useDeleteConfirm() {
         name: item.name,
         path: normalizePath(item.path || ''),
         kind: item.kind,
+        // Client-side advisory metadata consumed by fileStore before the
+        // request is sent. File APIs intentionally ignore unknown fields.
+        onlyofficeActivity: item.onlyofficeActivity || null,
       }));
 
   const loadDeleteImpact = async (payload = pendingItems.value) => {
