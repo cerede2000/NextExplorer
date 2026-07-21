@@ -111,6 +111,21 @@ const close = ({ absolutePath, sessionId }) => {
   scheduleExpirationCheck();
 };
 
+// The embedded browser can close before Document Server has finished writing
+// the document. Only its terminal callback proves that the document is truly
+// released, so clear every local presence record for that path at this point.
+const release = ({ absolutePath }) => {
+  const key = absolutePath ? keyFor(absolutePath) : null;
+  if (!key) return;
+
+  const entry = sessionsByPath.get(key);
+  if (!entry) return;
+
+  sessionsByPath.delete(key);
+  notifyActivityChange();
+  scheduleExpirationCheck();
+};
+
 const updateDocumentServerUsers = ({ absolutePath, users }) => {
   if (!absolutePath || !Array.isArray(users)) return;
   const entry = getEntry(absolutePath, true);
@@ -187,6 +202,7 @@ module.exports = {
   open,
   heartbeat,
   close,
+  release,
   updateDocumentServerUsers,
   clearDocumentServerUsers,
   get,

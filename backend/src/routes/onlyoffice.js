@@ -404,7 +404,9 @@ router.post(
     const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
     getEditorSession(req, sessionId, relativePath);
-    onlyofficeActivity.close({ absolutePath: resolved.absolutePath, sessionId });
+    // Closing the embedded frame does not mean Document Server has released
+    // the document yet. Keep the advisory activity until its status-2/4
+    // callback arrives (or until the short session TTL is reached).
     editorSessions.delete(sessionId);
     res.status(204).end();
   })
@@ -622,7 +624,7 @@ router.post(
           users: Array.isArray(body.users) ? body.users : [],
         });
       } else if ((status === 2 || status === 4) && activityPath) {
-        onlyofficeActivity.clearDocumentServerUsers({ absolutePath: activityPath });
+        onlyofficeActivity.release({ absolutePath: activityPath });
       }
 
       if (status === 7) {
