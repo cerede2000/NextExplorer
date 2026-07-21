@@ -6,7 +6,7 @@ if (!archivePath || !outputPath || password === undefined) {
   throw new Error('Expected archive path, output path, and password.');
 }
 
-const child = pty.spawn('7z', ['x', '-y', '-p', `-o${outputPath}`, archivePath], {
+const child = pty.spawn('7z', ['x', '-y', `-o${outputPath}`, archivePath], {
   name: 'xterm-256color',
   cols: 120,
   rows: 40,
