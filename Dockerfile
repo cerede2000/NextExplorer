@@ -136,16 +136,16 @@ ENV REPO_URL=${REPO_URL}
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY --from=backend_deps /app/package.json ./
 COPY --from=seven_zip /out/7z /usr/local/bin/7z
-COPY docker/verify-7zip-password.js /tmp/verify-7zip-password.js
+COPY docker/verify-7zip-password.js ./verify-7zip-password.js
 # Verify both the RAR codec and the non-interactive password flow through the
 # same PTY mechanism used by the backend. The sentinel password is build-only.
 RUN 7z i | grep -qi 'rar' \
   && mkdir -p /tmp/7z-password-check/input /tmp/7z-password-check/output \
   && printf 'ok' > /tmp/7z-password-check/input/check.txt \
   && (cd /tmp/7z-password-check/input && 7z a -t7z -y -pbuild-check ../archive.7z check.txt >/dev/null) \
-  && node /tmp/verify-7zip-password.js /tmp/7z-password-check/archive.7z /tmp/7z-password-check/output build-check \
+  && node ./verify-7zip-password.js /tmp/7z-password-check/archive.7z /tmp/7z-password-check/output build-check \
   && test "$(cat /tmp/7z-password-check/output/check.txt)" = 'ok' \
-  && rm -rf /tmp/7z-password-check /tmp/verify-7zip-password.js
+  && rm -rf /tmp/7z-password-check ./verify-7zip-password.js
 
 # When RAW support is disabled, drop the vendored ExifTool (~20 MB) from the
 # runtime node_modules. rawPreviewService.js already degrades gracefully when the
