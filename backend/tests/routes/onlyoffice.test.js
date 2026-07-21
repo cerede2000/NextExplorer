@@ -148,6 +148,9 @@ describe('ONLYOFFICE routes', () => {
       .post('/api/onlyoffice/config')
       .send({ path: filename });
     expect(secondConfigResponse.status).toBe(200);
+    expect(secondConfigResponse.body.config.document.key).toBe(
+      configResponse.body.config.document.key
+    );
     const activityUpdate = await liveActivityUpdate;
     expect(activityUpdate.status).toBe(200);
     expect(activityUpdate.body).toMatchObject({ changed: true });
@@ -196,6 +199,17 @@ describe('ONLYOFFICE routes', () => {
     await secondCommandReceived;
     expect(commandPayloads[1].key).toBe(configResponse.body.config.document.key);
     expect((await callbackPromises[1]).body).toEqual({ error: 0 });
+
+    // A completed save must yield a new document key on an immediate reopen.
+    // This makes Document Server fetch the current file instead of reusing its
+    // editor cache from the previous revision.
+    const reopenedConfigResponse = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: filename });
+    expect(reopenedConfigResponse.status).toBe(200);
+    expect(reopenedConfigResponse.body.config.document.key).not.toBe(
+      configResponse.body.config.document.key
+    );
 
     const failedCallback = await request(app)
       .post(callbackPath)
