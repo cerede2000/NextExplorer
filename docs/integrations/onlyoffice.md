@@ -30,7 +30,14 @@ version cannot be downloaded completely.
 
 1. Opening a compatible file triggers a call to `/api/onlyoffice/config`, which returns editor configuration and a signed `config.token` when `ONLYOFFICE_SECRET` is set.
 2. ONLYOFFICE fetches the file through `/api/onlyoffice/file?path=...` with an `Authorization: Bearer <config.token>` header.
-3. When ONLYOFFICE has delivered changes to Document Server, nextExplorer asks it to force-save at most once per `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS`. When the preview closes, nextExplorer waits only for its own API to accept a final request, never for the longer document conversion and callback. The normal delayed close callback remains a fallback.
+
+## Editing activity and co-editing
+
+NextExplorer shows a pencil indicator beside a document when it is open in ONLYOFFICE. The state is deliberately advisory: it is not a filesystem lock. Copying, moving, renaming, or deleting an active document remains possible, but the explorer displays a warning before the operation continues.
+
+The indicator uses the local editor session and ONLYOFFICE callback status updates. It expires automatically when a browser or Document Server disappears, so stale state can never block work.
+
+Co-editing is native to ONLYOFFICE. Two people simply open the same file through NextExplorer with write permission; ONLYOFFICE recognizes the shared document key and opens its normal collaborative session. No separate co-edit link, shared session, or additional NextExplorer setting is required. 3. When ONLYOFFICE has delivered changes to Document Server, nextExplorer asks it to force-save at most once per `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS`. When the preview closes, nextExplorer waits only for its own API to accept a final request, never for the longer document conversion and callback. The normal delayed close callback remains a fallback.
 
 ## Security notes
 

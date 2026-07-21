@@ -1,6 +1,6 @@
 import { useFeaturesStore } from '@/stores/features';
 import { useSettingsStore } from '@/stores/settings';
-import { requestOnlyOfficeForceSave } from '@/api';
+import { closeOnlyOfficeSession, requestOnlyOfficeForceSave } from '@/api';
 
 const CLOSE_REQUEST_GRACE_MS = 450;
 
@@ -57,6 +57,7 @@ export const onlyofficePreviewPlugin = (extensions) => ({
       : requestOnlyOfficeForceSave(context.filePath, { sessionId, reason: 'close' });
 
     await Promise.race([Promise.resolve(request).catch(() => {}), wait(CLOSE_REQUEST_GRACE_MS)]);
+    void closeOnlyOfficeSession(context.filePath, { sessionId }).catch(() => {});
   },
 
   actions: (context) => [

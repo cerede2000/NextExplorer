@@ -136,6 +136,13 @@ describe('ONLYOFFICE routes', () => {
     }`;
     callbackToken = configResponse.body.config.token;
 
+    const heartbeatResponse = await request(app).post('/api/onlyoffice/session-heartbeat').send({
+      path: filename,
+      sessionId: configResponse.body.forceSaveSessionId,
+    });
+    expect(heartbeatResponse.status).toBe(200);
+    expect(heartbeatResponse.body).toEqual({ active: true });
+
     const forceSaveResponse = await request(app)
       .post('/api/onlyoffice/force-save')
       .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId, reason: 'auto' });
@@ -183,5 +190,16 @@ describe('ONLYOFFICE routes', () => {
       });
     expect(failedCallback.body).toEqual({ error: 1 });
     expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
+
+    const closeResponse = await request(app).post('/api/onlyoffice/session-close').send({
+      path: filename,
+      sessionId: configResponse.body.forceSaveSessionId,
+    });
+    expect(closeResponse.status).toBe(204);
+
+    const expiredHeartbeatResponse = await request(app)
+      .post('/api/onlyoffice/session-heartbeat')
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
+    expect(expiredHeartbeatResponse.status).toBe(403);
   });
 });

@@ -19,6 +19,7 @@ import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
 import { CheckIcon } from '@heroicons/vue/20/solid';
+import { PencilSquareIcon } from '@heroicons/vue/24/outline';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
 
@@ -80,6 +81,15 @@ const isCut = computed(() =>
 );
 
 const selected = computed(() => isSelected(props.item));
+const onlyofficeActivity = computed(() => props.item?.onlyofficeActivity || null);
+const onlyofficeActivityLabel = computed(() => {
+  const activity = onlyofficeActivity.value;
+  if (!activity?.active) return '';
+  const users = Array.isArray(activity.users) ? activity.users.filter(Boolean) : [];
+  return users.length > 0
+    ? `Édition en cours dans OnlyOffice : ${users.join(', ')}`
+    : 'Édition en cours dans OnlyOffice';
+});
 
 const showSelectionControl = computed(() => !isTouchDevice.value || selectionMode.value);
 
@@ -268,6 +278,13 @@ if (isTouchDevice.value) {
       >
         <CheckIcon class="h-4 w-4" />
       </button>
+      <span
+        v-if="onlyofficeActivity?.active"
+        :title="onlyofficeActivityLabel"
+        class="absolute left-2 top-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100/95 text-amber-700 shadow-sm dark:bg-amber-400/20 dark:text-amber-300"
+      >
+        <PencilSquareIcon class="h-3.5 w-3.5" />
+      </span>
       <FileIcon :item="item" class="w-full h-full" />
     </div>
 
@@ -303,6 +320,13 @@ if (isTouchDevice.value) {
       >
         <CheckIcon class="h-4 w-4" />
       </button>
+      <span
+        v-if="onlyofficeActivity?.active"
+        :title="onlyofficeActivityLabel"
+        class="absolute left-2 top-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100/95 text-amber-700 shadow-sm dark:bg-amber-400/20 dark:text-amber-300"
+      >
+        <PencilSquareIcon class="h-3.5 w-3.5" />
+      </span>
       <FileIcon :item="item" class="h-16 shrink-0" />
       <div
         class="text-sm text-center break-all line-clamp-2 rounded-md"
@@ -368,7 +392,7 @@ if (isTouchDevice.value) {
           'bg-blue-500 text-white dark:bg-blue-600': selected && !isRenaming,
         }"
       >
-        <div class="break-all line-clamp-2">
+        <div class="flex items-center gap-1.5 break-all line-clamp-2">
           <template v-if="isRenaming">
             <input
               ref="renameInputRef"
@@ -384,6 +408,13 @@ if (isTouchDevice.value) {
           </template>
           <template v-else>
             {{ ellipses(item.name, (maxl = 50)) }}
+            <span
+              v-if="onlyofficeActivity?.active"
+              :title="onlyofficeActivityLabel"
+              class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-amber-600 dark:text-amber-400"
+            >
+              <PencilSquareIcon class="h-3.5 w-3.5" />
+            </span>
           </template>
         </div>
         <p class="text-xs text-stone-400">
@@ -465,6 +496,13 @@ if (isTouchDevice.value) {
                long to leave room. The name never shifts, so browsing isn't jumpy. -->
           <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
             <MiddleEllipsis :text="item.name" :end-chars="10" />
+            <span
+              v-if="onlyofficeActivity?.active"
+              :title="onlyofficeActivityLabel"
+              class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-amber-600 dark:text-amber-400"
+            >
+              <PencilSquareIcon class="h-3.5 w-3.5" />
+            </span>
             <InlineQuickActions :item="item" :active="qaHover" />
           </div>
         </template>
