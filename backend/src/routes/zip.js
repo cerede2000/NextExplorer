@@ -21,6 +21,7 @@ const {
   extractArchive,
   createZipArchive,
   archiveBaseName,
+  normalizeArchivePassword,
 } = require('../services/archiveService');
 const folderSizeHooks = require('../services/folderSizeHooks');
 
@@ -90,6 +91,7 @@ router.post(
     res.once('close', onClose);
     const inputPath = req.body?.path ?? '';
     const destination = req.body?.destination ?? 'folder';
+    const archivePassword = normalizeArchivePassword(req.body?.password);
     if (typeof inputPath !== 'string' || !inputPath.trim()) {
       throw new ValidationError('An archive file path is required.');
     }
@@ -213,6 +215,7 @@ router.post(
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
         await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent, {
           signal: controller.signal,
+          password: archivePassword,
         });
       } else {
         new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
@@ -248,7 +251,13 @@ router.post(
         writeEvent({ type: 'done', success: true, item: items.length === 1 ? items[0] : null, items });
       }
     } catch (error) {
-      logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up destination');
+      const isPasswordError =
+        error?.code === 'ARCHIVE_PASSWORD_REQUIRED' || error?.code === 'ARCHIVE_INVALID_PASSWORD';
+      if (isPasswordError) {
+        logger.info({ zipAbsolutePath, code: error.code }, 'Archive password required or rejected');
+      } else {
+        logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up destination');
+      }
       await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
       await Promise.all(movedPaths.map((movedPath) => fs.rm(movedPath, { recursive: true, force: true })));
       writeEvent({
