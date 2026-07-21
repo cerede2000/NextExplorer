@@ -141,8 +141,8 @@ const commandErrorFromOutput = (code, output, passwordProvided) => {
   return isArchivePasswordError(error) ? createArchivePasswordError(passwordProvided) : error;
 };
 
-// 7-Zip reads an omitted `-p` argument from its controlling terminal, not a
-// plain pipe. A PTY gives it that prompt while keeping the password out of
+// When no -p switch is supplied, 7-Zip asks its controlling terminal for the
+// password. A PTY lets us answer that prompt while keeping the secret out of
 // argv, process listings and logs.
 const runSevenZipWithPassword = (args, onPercent, options = {}) =>
   new Promise((resolve, reject) => {
@@ -162,7 +162,7 @@ const runSevenZipWithPassword = (args, onPercent, options = {}) =>
       return;
     }
 
-    const child = pty.spawn(SEVEN_ZIP_BIN, [...args, '-p'], {
+    const child = pty.spawn(SEVEN_ZIP_BIN, args, {
       name: 'xterm-256color',
       cols: 120,
       rows: 40,
