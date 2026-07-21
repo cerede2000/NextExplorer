@@ -214,6 +214,28 @@ describe('ONLYOFFICE routes', () => {
     });
     expect(closeResponse.status).toBe(204);
 
+    // Closing NextExplorer's embedded frame is not the same thing as
+    // Document Server releasing the document. Keep the activity visible until
+    // its terminal callback confirms the release.
+    const versionBeforeDocumentRelease = await request(app).get('/api/onlyoffice/activity-version');
+    const activityAfterRelease = request(app)
+      .get(`/api/onlyoffice/activity-version?since=${versionBeforeDocumentRelease.body.version}`)
+      .then((response) => response);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const documentReleased = await request(app)
+      .post(callbackPath)
+      .set('Authorization', `Bearer ${callbackToken}`)
+      .send({ status: 4 });
+    expect(documentReleased.body).toEqual({ error: 0 });
+
+    const releasedActivity = await activityAfterRelease;
+    expect(releasedActivity.status).toBe(200);
+    expect(releasedActivity.body).toMatchObject({ changed: true });
+    expect(releasedActivity.body.version).toBeGreaterThan(
+      versionBeforeDocumentRelease.body.version
+    );
+
     const expiredHeartbeatResponse = await request(app)
       .post('/api/onlyoffice/session-heartbeat')
       .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });

@@ -329,6 +329,10 @@ export function useFileDragDrop() {
       const transferPayload = serializeItems(draggedItems);
       if (transferPayload.length === 0) return;
 
+      // Drag/drop bypasses the clipboard workflow. Keep the same advisory
+      // warning before an action that can move or remove an edited document.
+      fileStore.warnAboutOnlyOfficeActivity(draggedItems, copy ? 'La copie' : 'Le déplacement');
+
       const controller = new AbortController();
       const operationId = operationTasksStore.startOperation({
         type: copy ? 'copy' : 'move',
@@ -351,9 +355,7 @@ export function useFileDragDrop() {
               ? { totalBytes: Number(streamEvent.totalBytes) || 0 }
               : {}),
             copiedBytes: Number(streamEvent.copiedBytes) || 0,
-            ...(streamEvent.percent != null
-              ? { percent: Number(streamEvent.percent) || 0 }
-              : {}),
+            ...(streamEvent.percent != null ? { percent: Number(streamEvent.percent) || 0 } : {}),
           });
         }
       };

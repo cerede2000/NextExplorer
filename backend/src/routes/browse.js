@@ -15,6 +15,10 @@ const { listDirectoryItems } = require('../services/directoryListingService');
 router.get(
   '/browse/*',
   asyncHandler(async (req, res) => {
+    // Listings carry transient information such as active OnlyOffice sessions.
+    // Keep browser and proxy caches from serving an out-of-date directory view.
+    res.setHeader('Cache-Control', 'private, no-store');
+
     const settings = await getSettings();
     const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
     const thumbsEnabled =
