@@ -43,7 +43,16 @@ const getDocumentType = (ext) => {
 const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
 
 const buildDocumentKey = (relativePath, stat) =>
-  crypto.createHash('sha256').update(relativePath).update(String(stat.mtimeMs)).digest('hex');
+  crypto
+    .createHash('sha256')
+    .update(relativePath)
+    // Keep the key stable while a document is open, but make it unambiguously
+    // change after a save or an external replacement so Document Server never
+    // serves an older cached revision on the next open.
+    .update(String(stat.mtimeMs))
+    .update(String(stat.ctimeMs))
+    .update(String(stat.size))
+    .digest('hex');
 
 const getCommandServiceUrl = (key, legacy = false) => {
   const commandUrl = new URL(
