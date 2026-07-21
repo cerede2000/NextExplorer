@@ -38,7 +38,31 @@ COPY frontend/ ./frontend/
 RUN npm run -w frontend build -- --sourcemap false
 
 # ---------------------------------------------------------------------------
-# Stage 3: Final runtime image — no compilers, no build tools
+# Stage 3: Official static 7-Zip
+#
+# Alpine's p7zip build does not include the RAR codec.  Use the official,
+# architecture-specific static binary instead so zip, 7z and RAR extraction
+# have the same capabilities in the full and lean images.
+# ---------------------------------------------------------------------------
+FROM alpine:3.23 AS seven_zip
+ARG TARGETARCH
+ARG SEVEN_ZIP_VERSION=26.01
+
+RUN apk add --no-cache curl xz \
+  && case "$TARGETARCH" in \
+    amd64) archive_arch=x64; archive_sha256=8ea0fc8a135e7b848e80a4116fe22dff56c8c4518dde1f43cce67f4e340b437a ;; \
+    arm64) archive_arch=arm64; archive_sha256=39f8c9070c300a63c7484d9a983119ef3edf841e1ddf69f1affae29fdec5f612 ;; \
+    *) echo "Unsupported 7-Zip architecture: $TARGETARCH" >&2; exit 1 ;; \
+  esac \
+  && archive_version=$(printf '%s' "$SEVEN_ZIP_VERSION" | tr -d .) \
+  && curl -fsSL -o /tmp/7z.tar.xz "https://github.com/ip7z/7zip/releases/download/${SEVEN_ZIP_VERSION}/7z${archive_version}-linux-${archive_arch}.tar.xz" \
+  && echo "${archive_sha256}  /tmp/7z.tar.xz" | sha256sum -c - \
+  && mkdir -p /out /tmp/7z \
+  && tar -xJf /tmp/7z.tar.xz -C /tmp/7z \
+  && install -m 0755 "$(find /tmp/7z -type f -name 7zzs -print -quit)" /out/7z
+
+# ---------------------------------------------------------------------------
+# Stage 4: Final runtime image — no compilers, no build tools
 # ---------------------------------------------------------------------------
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -60,9 +84,8 @@ RUN addgroup -S appuser && \
 #   ripgrep         – fast file-content search
 #   imagemagick     – HEIC → PNG thumbnail conversion
 #   openssh-client  – optional SSH remote access (terminal only)
-#   p7zip           – archive extraction (zip, 7z, iso, rar, tar.gz…) and demo
-#                     mode sample extraction; p7zip ships the RAR codec that
-#                     the newer Alpine 7zip package strips out
+#   7zzs            – official static 7-Zip binary, copied below; supports
+#                     encrypted ZIP/7z/RAR archives and the RAR codec
 #   bash            – entrypoint.sh is a bash script
 #   shadow          – provides usermod/groupmod for UID/GID remapping
 #   curl            – For terminal users
@@ -90,7 +113,6 @@ RUN apk add --no-cache \
       ripgrep \
       imagemagick \
       openssh-client \
-      p7zip \
       bash \
       shadow \
       curl \
@@ -113,6 +135,8 @@ ENV REPO_URL=${REPO_URL}
 # Build tools from backend_deps stage are NOT included — only the output.
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY --from=backend_deps /app/package.json ./
+COPY --from=seven_zip /out/7z /usr/local/bin/7z
+RUN 7z i | grep -qi 'rar'
 
 # When RAW support is disabled, drop the vendored ExifTool (~20 MB) from the
 # runtime node_modules. rawPreviewService.js already degrades gracefully when the

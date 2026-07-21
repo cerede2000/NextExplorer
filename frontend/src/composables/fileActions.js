@@ -124,14 +124,14 @@ export function useFileActions() {
     if (!canExtractArchive.value || !primaryItem.value) return;
     const archivePath = resolveItemPath(primaryItem.value);
     if (!archivePath) return;
-    await fileStore.extractZipArchive(archivePath);
+    return fileStore.extractZipArchive(archivePath);
   };
 
   const runExtractArchiveIntoCurrentFolder = async () => {
     if (!canExtractArchive.value || !primaryItem.value) return;
     const archivePath = resolveItemPath(primaryItem.value);
     if (!archivePath) return;
-    await fileStore.extractZipArchive(archivePath, { destination: 'current' });
+    return fileStore.extractZipArchive(archivePath, { destination: 'current' });
   };
 
   const runCompressToZip = async () => {

@@ -291,9 +291,11 @@ async function extractZip(relativePath, options = {}) {
     body: JSON.stringify({
       path: normalizedPath,
       ...(options.destination === 'current' ? { destination: 'current' } : {}),
+      ...(typeof options.password === 'string' ? { password: options.password } : {}),
     }),
     onEvent: options.onEvent,
     signal: options.signal,
+    suppressErrorCodes: options.suppressErrorCodes,
   });
 }
 

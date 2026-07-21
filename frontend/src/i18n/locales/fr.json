@@ -112,6 +112,16 @@
     "clearAll": "Tout effacer",
     "cancelAll": "Tout annuler"
   },
+  "archive": {
+    "password": {
+      "title": "Mot de passe requis",
+      "description": "Cette archive est protégée. Saisissez son mot de passe pour l'extraire.",
+      "label": "Mot de passe de l'archive",
+      "invalid": "Mot de passe incorrect ou archive endommagée.",
+      "submit": "Extraire",
+      "extracting": "Extraction en cours..."
+    }
+  },
   "placeholders": {
     "email": "utilisateur{'@'}exemple.com",
     "emailCompany": "nom{'@'}entreprise.com",
