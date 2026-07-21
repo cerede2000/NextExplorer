@@ -13,7 +13,13 @@ async function browse(path = '', options = {}) {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
   const endpoint = encodedPath ? `/api/browse/${encodedPath}` : '/api/browse/';
-  return requestJson(endpoint, { method: 'GET', signal: options.signal });
+  return requestJson(endpoint, {
+    method: 'GET',
+    signal: options.signal,
+    // A directory listing contains short-lived state (including OnlyOffice
+    // activity), so a browser or intermediary cache must never reuse it.
+    cache: 'no-store',
+  });
 }
 
 async function getVolumes() {

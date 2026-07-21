@@ -1049,6 +1049,7 @@ export const useFileStore = defineStore('fileStore', () => {
     cancelRename,
     applyRename,
     isItemBeingRenamed,
+    warnAboutOnlyOfficeActivity,
     ensureItemThumbnail,
   };
 });
