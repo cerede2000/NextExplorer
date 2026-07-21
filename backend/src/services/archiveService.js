@@ -104,13 +104,14 @@ const throwIfCancelled = (signal) => {
  */
 const runSevenZip = (args, onPercent, options = {}) =>
   new Promise((resolve, reject) => {
-    const { signal } = options;
+    const { signal, cwd } = options;
     if (signal?.aborted) {
       reject(createCancellationError());
       return;
     }
 
     const child = spawn(SEVEN_ZIP_BIN, args, {
+      cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: EXTRACT_TIMEOUT_MS,
     });
@@ -182,9 +183,9 @@ const runSevenZipExtract = (
  * matching the behaviour of the previous in-memory implementation — but the
  * archive is streamed to disk instead of being assembled in the Node heap.
  */
-const createZipArchive = (sourceAbsolutePaths, zipAbsolutePath, onPercent, options = {}) =>
+const createZipArchive = (sourcePaths, zipAbsolutePath, onPercent, options = {}) =>
   runSevenZip(
-    ['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, ...sourceAbsolutePaths],
+    ['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, ...sourcePaths],
     onPercent,
     options
   );
