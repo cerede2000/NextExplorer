@@ -9,6 +9,7 @@ const scheduleFolderRefresh = vi.fn();
 const startOperation = vi.fn(() => 'operation-test');
 const updateOperation = vi.fn();
 const finishOperation = vi.fn();
+const requestConfirmation = vi.fn(() => Promise.resolve(true));
 
 const fileStore = {
   currentPath: 'Source',
@@ -36,6 +37,9 @@ vi.mock('@/stores/operationTasks', () => ({
 }));
 vi.mock('@/composables/useInputMode', () => ({
   useInputMode: () => ({ isTouchDevice: ref(false) }),
+}));
+vi.mock('@/composables/useOnlyOfficeTransferConfirm', () => ({
+  useOnlyOfficeTransferConfirm: () => ({ requestConfirmation }),
 }));
 
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
@@ -71,9 +75,9 @@ describe('useFileDragDrop', () => {
     startOperation.mockClear();
     updateOperation.mockReset();
     finishOperation.mockReset();
+    requestConfirmation.mockReset();
+    requestConfirmation.mockResolvedValue(true);
     fileStore.currentPathItems = [];
-    fileStore.warnAboutOnlyOfficeActivity.mockReset();
-    fileStore.warnAboutOnlyOfficeActivity.mockReturnValue(false);
     copyItems.mockResolvedValue({});
     moveItems.mockResolvedValue({});
   });
@@ -120,18 +124,32 @@ describe('useFileDragDrop', () => {
         onlyofficeActivity: { active: true, users: ['Admin'], count: 1 },
       },
     ];
-    fileStore.warnAboutOnlyOfficeActivity.mockReturnValue(true);
-
     const dragDrop = useFileDragDrop();
     const event = transferEvent();
 
     await dragDrop.handleDrop(event, target);
 
-    expect(fileStore.warnAboutOnlyOfficeActivity).toHaveBeenCalledWith(
+    expect(requestConfirmation).toHaveBeenCalledWith(
       [expect.objectContaining({ onlyofficeActivity: expect.objectContaining({ active: true }) })],
       'Le déplacement'
     );
     expect(moveItems).toHaveBeenCalled();
+  });
+
+  it('does not move an edited document when its warning is cancelled', async () => {
+    fileStore.currentPathItems = [
+      {
+        ...item,
+        onlyofficeActivity: { active: true, users: ['Admin'], count: 1 },
+      },
+    ];
+    requestConfirmation.mockResolvedValue(false);
+
+    const dragDrop = useFileDragDrop();
+    await dragDrop.handleDrop(transferEvent(), target);
+
+    expect(moveItems).not.toHaveBeenCalled();
+    expect(startOperation).not.toHaveBeenCalled();
   });
 
   it('uses a favorite destination path instead of its display label', async () => {
