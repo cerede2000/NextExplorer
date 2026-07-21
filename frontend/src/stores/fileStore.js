@@ -286,7 +286,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const activeItems = (Array.isArray(items) ? items : []).filter(
       (item) => item?.onlyofficeActivity?.active
     );
-    if (activeItems.length === 0) return;
+    if (activeItems.length === 0) return false;
 
     const names = activeItems
       .slice(0, 2)
@@ -300,6 +300,7 @@ export const useFileStore = defineStore('fileStore', () => {
       body: `${label} ${activeItems.length > 1 ? 'sont ouverts' : 'est ouvert'} dans OnlyOffice. ${action} continue.`,
       durationMs: 8000,
     });
+    return true;
   };
 
   const resetClipboard = () => {

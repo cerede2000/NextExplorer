@@ -12,8 +12,10 @@ const finishOperation = vi.fn();
 
 const fileStore = {
   currentPath: 'Source',
+  currentPathItems: [],
   selectedItems: [],
   fetchPathItems,
+  warnAboutOnlyOfficeActivity: vi.fn(() => false),
 };
 
 vi.mock('@/api', () => ({
@@ -69,6 +71,9 @@ describe('useFileDragDrop', () => {
     startOperation.mockClear();
     updateOperation.mockReset();
     finishOperation.mockReset();
+    fileStore.currentPathItems = [];
+    fileStore.warnAboutOnlyOfficeActivity.mockReset();
+    fileStore.warnAboutOnlyOfficeActivity.mockReturnValue(false);
     copyItems.mockResolvedValue({});
     moveItems.mockResolvedValue({});
   });
@@ -106,6 +111,27 @@ describe('useFileDragDrop', () => {
     );
     expect(copyItems).not.toHaveBeenCalled();
     expect(startOperation).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
+  });
+
+  it('warns before moving a document currently edited in OnlyOffice', async () => {
+    fileStore.currentPathItems = [
+      {
+        ...item,
+        onlyofficeActivity: { active: true, users: ['Admin'], count: 1 },
+      },
+    ];
+    fileStore.warnAboutOnlyOfficeActivity.mockReturnValue(true);
+
+    const dragDrop = useFileDragDrop();
+    const event = transferEvent();
+
+    await dragDrop.handleDrop(event, target);
+
+    expect(fileStore.warnAboutOnlyOfficeActivity).toHaveBeenCalledWith(
+      [expect.objectContaining({ onlyofficeActivity: expect.objectContaining({ active: true }) })],
+      'Le déplacement'
+    );
+    expect(moveItems).toHaveBeenCalled();
   });
 
   it('uses a favorite destination path instead of its display label', async () => {
@@ -189,9 +215,7 @@ describe('useFileDragDrop', () => {
       effectAllowed: '',
       types: ['application/json', 'text/plain'],
       dropEffect: 'move',
-      getData: vi.fn((type) =>
-        type === 'application/json' ? JSON.stringify([item]) : ''
-      ),
+      getData: vi.fn((type) => (type === 'application/json' ? JSON.stringify([item]) : '')),
     };
 
     document.body.appendChild(source);
@@ -211,5 +235,4 @@ describe('useFileDragDrop', () => {
     expect(moveItems).not.toHaveBeenCalled();
     source.remove();
   });
-
 });
