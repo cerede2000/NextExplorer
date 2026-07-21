@@ -410,6 +410,26 @@ router.post(
   })
 );
 
+router.get(
+  '/onlyoffice/activity-version',
+  asyncHandler(async (req, res) => {
+    const parsedSince = Number(req.query?.since);
+    const since = Number.isInteger(parsedSince) ? parsedSince : null;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    req.once('aborted', abort);
+    req.once('close', abort);
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const result = await onlyofficeActivity.waitForChange(since, 25_000, controller.signal);
+      if (!res.writableEnded && !res.destroyed) res.json(result);
+    } finally {
+      req.off('aborted', abort);
+      req.off('close', abort);
+    }
+  })
+);
+
 // Queue a save before the embedded editor is closed. The request returns right
 // away: Document Server sends the actual status-6 callback asynchronously.
 router.post(

@@ -46,3 +46,13 @@ export async function closeOnlyOfficeSession(path, { sessionId } = {}) {
     suppressErrorHandler: true,
   });
 }
+
+export async function waitForOnlyOfficeActivityVersion(since, options = {}) {
+  const query = Number.isInteger(since) ? `?since=${since}` : '';
+  return requestJson(`/api/onlyoffice/activity-version${query}`, {
+    method: 'GET',
+    signal: options.signal,
+    retryNetworkErrors: false,
+    suppressErrorHandler: true,
+  });
+}
