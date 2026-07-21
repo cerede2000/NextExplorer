@@ -5,20 +5,12 @@ import { useFolderSizeStore } from '@/stores/folderSize';
 import { copyItems, moveItems, normalizePath } from '@/api';
 import { useInputMode } from '@/composables/useInputMode';
 import { useOperationTasksStore } from '@/stores/operationTasks';
+import { useOnlyOfficeTransferConfirm } from '@/composables/useOnlyOfficeTransferConfirm';
 
 // A drag can cross from the file view into the sidebar, where a different
 // composable instance handles dragover. Keep the preview state module-wide so
 // Option/Alt can still update the same drag image in either destination.
 let activeDragImage = null;
-
-const waitForNextPaint = () =>
-  new Promise((resolve) => {
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(() => resolve());
-      return;
-    }
-    resolve();
-  });
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -29,6 +21,7 @@ export function useFileDragDrop() {
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
   const operationTasksStore = useOperationTasksStore();
+  const onlyOfficeTransferConfirm = useOnlyOfficeTransferConfirm();
   const { isTouchDevice } = useInputMode();
   const isDraggingOver = ref(false);
   const dragOverTarget = ref(null);
@@ -348,14 +341,13 @@ export function useFileDragDrop() {
       const transferPayload = serializeItems(draggedItems);
       if (transferPayload.length === 0) return;
 
-      // Drag/drop payloads are only a transport snapshot. Resolve the live
-      // list entries so an OnlyOffice activity change is visible before the
-      // transfer begins, even if the drag was started a moment earlier.
-      const hasOnlyOfficeWarning = fileStore.warnAboutOnlyOfficeActivity(
+      // A native drag cannot render a toast while it is in progress. Present
+      // an application confirmation after the drop and before the transfer.
+      const confirmed = await onlyOfficeTransferConfirm.requestConfirmation(
         resolveCurrentItems(draggedItems),
         copy ? 'La copie' : 'Le déplacement'
       );
-      if (hasOnlyOfficeWarning) await waitForNextPaint();
+      if (!confirmed) return;
 
       const controller = new AbortController();
       const operationId = operationTasksStore.startOperation({
