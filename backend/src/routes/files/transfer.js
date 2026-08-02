@@ -1,6 +1,7 @@
 const { sanitizeClientMessage } = require('../../middleware/errorHandler');
 const { prepareTransfer, executeTransfer } = require('../../services/fileTransferService');
 const asyncHandler = require('../../utils/asyncHandler');
+const { startNdjsonStream } = require('../../utils/ndjsonStream');
 
 const router = require('express').Router();
 
@@ -29,18 +30,8 @@ const runTransfer = (operation) =>
     try {
       const prep = await prepareTransfer(items, destination, operation, options);
 
-      res.status(200);
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-cache, no-transform');
-      // Disable proxy buffering so progress lines reach the client promptly.
-      res.setHeader('X-Accel-Buffering', 'no');
       streaming = true;
-      res.once('close', onClose);
-
-      writeEvent = (event) => {
-        if (res.writableEnded || res.destroyed) return;
-        res.write(`${JSON.stringify(event)}\n`);
-      };
+      writeEvent = startNdjsonStream(res, { onClose });
 
       writeEvent({
         type: 'start',

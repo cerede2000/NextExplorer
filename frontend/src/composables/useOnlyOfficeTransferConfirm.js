@@ -7,21 +7,19 @@ export function useOnlyOfficeTransferConfirm() {
 
   const isOpen = ref(false);
   const pendingItems = ref([]);
-  const pendingAction = ref('Le déplacement');
   let resolvePending = null;
 
   const activeItems = computed(() =>
     pendingItems.value.filter((item) => item?.onlyofficeActivity?.active)
   );
 
-  const requestConfirmation = (items, action) => {
+  const requestConfirmation = (items) => {
     const itemsBeingEdited = (Array.isArray(items) ? items : []).filter(
       (item) => item?.onlyofficeActivity?.active
     );
     if (itemsBeingEdited.length === 0) return Promise.resolve(true);
 
     pendingItems.value = itemsBeingEdited;
-    pendingAction.value = action;
     isOpen.value = true;
 
     return new Promise((resolve) => {
@@ -44,7 +42,6 @@ export function useOnlyOfficeTransferConfirm() {
   instance = {
     isOpen,
     activeItems,
-    pendingAction,
     requestConfirmation,
     cancel,
     confirm,

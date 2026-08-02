@@ -343,9 +343,10 @@ export function useFileDragDrop() {
 
       // A native drag cannot render a toast while it is in progress. Present
       // an application confirmation after the drop and before the transfer.
+      // The dialog names the documents, not the operation, so there is
+      // nothing to pass here — and nothing to hard-code in one language.
       const confirmed = await onlyOfficeTransferConfirm.requestConfirmation(
-        resolveCurrentItems(draggedItems),
-        copy ? 'La copie' : 'Le déplacement'
+        resolveCurrentItems(draggedItems)
       );
       if (!confirmed) return;
 

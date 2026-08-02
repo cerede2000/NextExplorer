@@ -338,6 +338,14 @@ if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
   );
 }
 
+// --- Thumbnails served outside /api ---
+// Its own secret, so a leaked thumbnail URL cannot be turned into anything
+// else. Regenerated on restart when no session secret is configured, which
+// only means already-loaded pages refetch their thumbnails.
+const thumbnailAccess = {
+  secret: deriveSecret('thumbnails'),
+};
+
 // --- Collabora (WOPI) ---
 const collaboraBaseUrl = env.COLLABORA_URL?.replace(/\/$/, '') || null;
 const collaboraDiscoveryUrl =
@@ -544,6 +552,7 @@ module.exports = {
   thumbnails: { size: 200, quality: 70 },
   uploads,
   onlyoffice,
+  thumbnailAccess,
   collabora,
   editor,
   terminal,

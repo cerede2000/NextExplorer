@@ -10,6 +10,7 @@ const {
   queueThumbnailGeneration,
 } = require('../services/thumbnailService');
 const { resolvePathWithAccess } = require('../services/accessManager');
+const { withThumbnailToken } = require('../utils/thumbnailTokens');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError } = require('../errors/AppError');
@@ -83,13 +84,18 @@ router.get(
     }
 
     try {
+      // The access check above is the only one this thumbnail will get: the
+      // file itself is served from /static, outside the auth middleware. The
+      // token carries that decision to the static handler.
       const cachedThumbnail = await getThumbnailPathIfExists(absolutePath, stats);
       if (cachedThumbnail) {
-        return res.json({ thumbnail: cachedThumbnail, pending: false });
+        return res.json({ thumbnail: withThumbnailToken(cachedThumbnail), pending: false });
       }
 
       const result = await queueThumbnailGeneration(absolutePath);
-      return res.status(result.pending ? 202 : 200).json(result);
+      return res
+        .status(result.pending ? 202 : 200)
+        .json({ ...result, thumbnail: withThumbnailToken(result.thumbnail) });
     } catch (error) {
       logger.warn(
         { absolutePath, err: error },

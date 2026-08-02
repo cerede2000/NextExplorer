@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const AdmZip = require('adm-zip');
 
 const asyncHandler = require('../utils/asyncHandler');
+const { startNdjsonStream, throttlePercent } = require('../utils/ndjsonStream');
 const logger = require('../utils/logger');
 const { pathExists } = require('../utils/fsUtils');
 const {
@@ -213,30 +214,11 @@ router.post(
     //   {type:'progress', percent}    (throttled)
     //   {type:'done',     success, item}
     //   {type:'error',    message, code}
-    res.status(200);
-    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    // Disable proxy buffering so progress lines reach the client promptly.
-    res.setHeader('X-Accel-Buffering', 'no');
-
-    const writeEvent = (event) => {
-      if (res.writableEnded || res.destroyed) return;
-      res.write(`${JSON.stringify(event)}\n`);
-    };
+    const writeEvent = startNdjsonStream(res);
 
     writeEvent({ type: 'start', name: folderName });
 
-    const PROGRESS_THROTTLE_MS = 150;
-    let lastProgressAt = 0;
-    let lastPercent = -1;
-    const onPercent = (percent) => {
-      const now = Date.now();
-      if (percent === lastPercent) return;
-      if (percent < 100 && now - lastProgressAt < PROGRESS_THROTTLE_MS) return;
-      lastProgressAt = now;
-      lastPercent = percent;
-      writeEvent({ type: 'progress', percent });
-    };
+    const onPercent = throttlePercent(writeEvent);
 
     try {
       if (await isSevenZipAvailable()) {
@@ -388,30 +370,11 @@ router.post(
     //   {type:'progress', percent}    (throttled)
     //   {type:'done',     success, item}
     //   {type:'error',    message, code}
-    res.status(200);
-    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    // Disable proxy buffering so progress lines reach the client promptly.
-    res.setHeader('X-Accel-Buffering', 'no');
-
-    const writeEvent = (event) => {
-      if (res.writableEnded || res.destroyed) return;
-      res.write(`${JSON.stringify(event)}\n`);
-    };
+    const writeEvent = startNdjsonStream(res);
 
     writeEvent({ type: 'start', name: zipFileName });
 
-    const PROGRESS_THROTTLE_MS = 150;
-    let lastProgressAt = 0;
-    let lastPercent = -1;
-    const onPercent = (percent) => {
-      const now = Date.now();
-      if (percent === lastPercent) return;
-      if (percent < 100 && now - lastProgressAt < PROGRESS_THROTTLE_MS) return;
-      lastProgressAt = now;
-      lastPercent = percent;
-      writeEvent({ type: 'progress', percent });
-    };
+    const onPercent = throttlePercent(writeEvent);
 
     try {
       if (await isSevenZipAvailable()) {

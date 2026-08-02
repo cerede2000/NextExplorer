@@ -9,30 +9,24 @@ const logger = require('./logger');
  *
  * Their filenames are derived from the file path (`v<N>-<hash>.webp`), which
  * makes them guessable by anyone who can guess a path — and a 200 vs 404 also
- * answers "does this file exist". Requiring a session keeps them off the
- * anonymous internet without changing any URL, so existing cached thumbnails
- * stay valid (salting the hash would invalidate every one of them).
+ * answers "does this file exist". A session is not enough to decide here: it
+ * says who is asking, not what they were cleared to see, so any share visitor
+ * could ask for a filename belonging to another share or a private folder.
+ *
+ * The answer comes from /api/thumbnails, which runs the real access check and
+ * signs the one filename it just cleared. This handler only verifies that
+ * signature — no database read, no session, and nothing to confuse.
  */
-const requireSession = async (req, res, next) => {
+const requireThumbnailToken = (req, res, next) => {
   if (auth.enabled === false) return next();
 
-  // The auth middleware only runs on /api, so nothing is attached here yet.
-  // The session cookie itself is already loaded by express-session, so the
-  // common case (a signed-in user) costs nothing extra.
-  if (req.session?.localUserId || req.oidc?.isAuthenticated?.()) return next();
+  const filename = path.basename(req.path || '');
+  const token = typeof req.query?.t === 'string' ? req.query.t : '';
 
-  // Share visitors carry a guest session instead; that one has to be looked
-  // up, but a local SQLite read is cheap and only happens for guests.
-  const guestSessionId = req.cookies?.guestSession || req.headers['x-guest-session'];
-  if (guestSessionId) {
-    try {
-      const { getGuestSession } = require('../services/guestSessionService');
-      if (await getGuestSession(guestSessionId)) return next();
-    } catch (error) {
-      logger.debug({ err: error }, 'Guest session lookup failed for a thumbnail request');
-    }
-  }
+  const { verifyThumbnailToken } = require('./thumbnailTokens');
+  if (filename && verifyThumbnailToken(filename, token)) return next();
 
+  logger.debug({ filename }, 'Thumbnail request without a valid token');
   res.status(401).end();
 };
 
@@ -41,7 +35,7 @@ const requireSession = async (req, res, next) => {
  */
 const configureStaticFiles = (app) => {
   // Serve thumbnails
-  app.use('/static/thumbnails', requireSession, express.static(directories.thumbnails));
+  app.use('/static/thumbnails', requireThumbnailToken, express.static(directories.thumbnails));
   logger.debug('Mounted /static/thumbnails');
 
   // Serve custom logos
