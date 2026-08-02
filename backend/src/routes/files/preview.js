@@ -15,6 +15,23 @@ const logger = require('../../utils/logger');
 
 const router = require('express').Router();
 
+// Formats the browser executes when opened as a top-level document. Served
+// inline they would run their own scripts on the application origin, so they
+// get a sandbox CSP — which still lets an <img> render them normally.
+const ACTIVE_CONTENT_EXTENSIONS = new Set(['svg']);
+
+const buildPreviewSecurityHeaders = (extension) => {
+  const headers = {
+    // Never let the browser second-guess the declared type.
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex',
+  };
+  if (ACTIVE_CONTENT_EXTENSIONS.has(extension)) {
+    headers['Content-Security-Policy'] = 'sandbox';
+  }
+  return headers;
+};
+
 router.get(
   '/preview',
   asyncHandler(async (req, res) => {
@@ -54,6 +71,7 @@ router.get(
       res.writeHead(200, {
         'Content-Type': 'image/jpeg',
         'Content-Length': jpegStats.size,
+        ...buildPreviewSecurityHeaders('jpeg'),
       });
 
       const stream = fss.createReadStream(jpegPath);
@@ -74,6 +92,7 @@ router.get(
     }
 
     const mimeType = mimeTypes[extension] || 'application/octet-stream';
+    const securityHeaders = buildPreviewSecurityHeaders(extension);
     const isSeekableMedia =
       extensions.videos.includes(extension) || (extensions.audios || []).includes(extension);
 
@@ -119,6 +138,7 @@ router.get(
           'Accept-Ranges': 'bytes',
           'Content-Length': chunkSize,
           'Content-Type': mimeType,
+          ...securityHeaders,
         });
         streamFile({ start, end });
         return;
@@ -128,6 +148,7 @@ router.get(
         'Content-Type': mimeType,
         'Content-Length': stats.size,
         'Accept-Ranges': 'bytes',
+        ...securityHeaders,
       });
       streamFile();
       return;
@@ -136,6 +157,7 @@ router.get(
     res.writeHead(200, {
       'Content-Type': mimeType,
       'Content-Length': stats.size,
+      ...securityHeaders,
     });
     streamFile();
   })
