@@ -51,4 +51,10 @@ describe('Suffix ranges', () => {
   it('rejects a zero-length suffix', () => {
     expect(parseByteRange('bytes=-0', 100)).toEqual({ unsatisfiable: true });
   });
+
+  it('rejects a suffix of an empty file', () => {
+    // Otherwise end lands on -1 and the response advertises a range that
+    // cannot exist.
+    expect(parseByteRange('bytes=-500', 0)).toEqual({ unsatisfiable: true });
+  });
 });

@@ -29,7 +29,9 @@ const parseByteRange = (rangeHeader, size) => {
   if (startString === '' && endString !== '' && endString !== undefined) {
     const suffixLength = Number(endString);
     if (Number.isNaN(suffixLength)) return { malformed: true };
-    if (suffixLength === 0) return { unsatisfiable: true };
+    // An empty file has no last N bytes, and a zero-length suffix asks for
+    // nothing: both would otherwise produce end = -1 and a bogus Content-Range.
+    if (suffixLength === 0 || size === 0) return { unsatisfiable: true };
     const start = Math.max(0, size - suffixLength);
     return { start, end: size - 1, chunkSize: size - start };
   }

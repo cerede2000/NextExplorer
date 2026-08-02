@@ -20,11 +20,13 @@ const logger = require('./logger');
 const requireThumbnailToken = (req, res, next) => {
   if (auth.enabled === false) return next();
 
-  const filename = path.basename(req.path || '');
+  // The cache is flat, so the request names one file and nothing else. Taking
+  // the basename instead would let a token for "x.webp" unlock "sub/dir/x.webp".
+  const filename = decodeURIComponent((req.path || '').replace(/^\/+/, ''));
   const token = typeof req.query?.t === 'string' ? req.query.t : '';
 
   const { verifyThumbnailToken } = require('./thumbnailTokens');
-  if (filename && verifyThumbnailToken(filename, token)) return next();
+  if (filename && !filename.includes('/') && verifyThumbnailToken(filename, token)) return next();
 
   logger.debug({ filename }, 'Thumbnail request without a valid token');
   res.status(401).end();
