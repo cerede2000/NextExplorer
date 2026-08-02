@@ -26,4 +26,12 @@ describe('log sanitizer', () => {
       query: { code: '[redacted]', source: 'oidc' },
     });
   });
+
+  it('redacts the thumbnail signature', () => {
+    // It unlocks that file for whoever holds it, so it does not belong in a
+    // proxy or application log any more than the ONLYOFFICE backend token.
+    expect(sanitizeLogUrl('/static/thumbnails/v3-abc.webp?t=1234.signature')).toBe(
+      '/static/thumbnails/v3-abc.webp?t=%5Bredacted%5D'
+    );
+  });
 });
