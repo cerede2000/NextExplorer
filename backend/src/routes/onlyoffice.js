@@ -103,6 +103,20 @@ const ensureAllowedDownloadUrl = (rawUrl) => {
   return parsed.toString();
 };
 
+
+/**
+ * A backend token lives 12 hours; the share it was issued for may not.
+ * Confirm the share still exists before honouring the token's write claim.
+ */
+const assertShareStillValid = async (backendCtx) => {
+  if (!backendCtx?.shareToken) return;
+  const { getShareByToken, isShareExpired } = require('../services/sharesService');
+  const share = await getShareByToken(backendCtx.shareToken);
+  if (!share || isShareExpired(share)) {
+    throw new ForbiddenError('The share for this editing session is no longer available.');
+  }
+};
+
 const getDocumentType = (ext) => {
   // ONLYOFFICE expects: 'word' | 'cell' | 'slide'
   if (SUPPORTED_TEXT.has(ext)) return 'word';
@@ -490,7 +504,7 @@ router.post(
       throw new ValidationError('A valid ONLYOFFICE editing session is required.');
     }
     const context = { user: req.user, guestSession: req.guestSession };
-    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    const { accessInfo } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
     getEditorSession(req, sessionId, relativePath);
     // Closing the embedded frame does not mean Document Server has released
@@ -707,6 +721,7 @@ router.post(
           if (backendCtx.canWrite !== true) {
             throw new ForbiddenError('This editing session is read-only.');
           }
+          await assertShareStillValid(backendCtx);
           abs = backendCtx.absolutePath;
         } else {
           const context = { user: req.user, guestSession: req.guestSession };
