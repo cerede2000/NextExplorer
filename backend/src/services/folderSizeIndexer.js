@@ -26,10 +26,10 @@ const pLimit = require('p-limit');
 
 const config = require('../config/index');
 const folderSizeIndex = require('./folderSizeIndex');
+const { nowIso } = require('../utils/ids');
 
 const NETWORK_FS_TYPES = new Set(['nfs', 'nfs4', 'cifs', 'smbfs', 'smb', 'smb2', 'fuse.sshfs']);
 
-const nowIso = () => new Date().toISOString();
 const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

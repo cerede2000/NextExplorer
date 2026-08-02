@@ -1,16 +1,12 @@
 const fs = require('fs/promises');
-const crypto = require('crypto');
 const { getDb } = require('./db');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('./accessManager');
 const config = require('../config');
+const { generateId } = require('../utils/ids');
 
 const DEFAULT_FAVORITE_ICON = config.favorites.defaultIcon;
 
-const generateId = () =>
-  typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 
 /**
  * Validate and sanitize a favorite

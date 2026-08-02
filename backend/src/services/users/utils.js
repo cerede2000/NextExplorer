@@ -1,6 +1,5 @@
-const crypto = require('crypto');
+const { generateId, nowIso } = require('../../utils/ids');
 
-const nowIso = () => new Date().toISOString();
 
 const toClientUser = (row) => {
   if (!row) return null;
@@ -22,10 +21,6 @@ const toClientUser = (row) => {
   };
 };
 
-const generateId = () =>
-  typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 
 const normalizeEmail = (email) => (typeof email === 'string' ? email.trim().toLowerCase() : '');
 
