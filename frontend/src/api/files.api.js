@@ -25,7 +25,6 @@ const DELETE_STREAM_BATCH_SIZE = 500;
  * the whole selection in one body is refused as too large.
  */
 const TRANSFER_BATCH_SIZE = 500;
-const BATCH_CONCURRENCY = 3;
 
 /**
  * Fold the per-batch results back into the single response the caller expects:
@@ -260,8 +259,7 @@ async function deleteItemsStream(items, options = {}) {
         onEvent,
         signal: options.signal,
       }),
-    options.onEvent,
-    BATCH_CONCURRENCY
+    options.onEvent
   );
 
   if (!Array.isArray(results)) return results;

@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
+const os = require('os');
 const { spawn } = require('child_process');
 
 const env = require('../config/env');
@@ -776,7 +777,15 @@ const getShareSourceTarget = (resolved, includeChildren = false) => {
  * to bury a filesystem that answers quickly. BULK_DELETE_CONCURRENCY tunes it
  * for storage that behaves differently.
  */
-const DELETE_CONCURRENCY = env.BULK_DELETE_CONCURRENCY > 0 ? env.BULK_DELETE_CONCURRENCY : 16;
+// Keep the default aligned with the CPU capacity available to the container.
+// The frontend deliberately sends delete batches one at a time, so this is the
+// real upper bound rather than one of several multiplicative limits.
+const DEFAULT_DELETE_CONCURRENCY = Math.max(
+  1,
+  typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length
+);
+const DELETE_CONCURRENCY =
+  env.BULK_DELETE_CONCURRENCY > 0 ? env.BULK_DELETE_CONCURRENCY : DEFAULT_DELETE_CONCURRENCY;
 
 const resolveDeleteTargets = async (items = [], context, options = {}) => {
   if (!Array.isArray(items) || items.length === 0) {

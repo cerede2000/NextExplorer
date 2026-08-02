@@ -231,12 +231,17 @@ async function* streamContentMatches(
 
     const filePath = data.data?.path?.text;
     if (!filePath) continue;
-    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(filePath)) continue;
+    // `rg` reports content-search paths as `./file`, unlike `rg --files`.
+    // That prefix is not a hidden-file marker; checking it first made every
+    // content match look hidden and in particular hid literal terms such as
+    // `--pre=...` even though the arguments were safely protected by `--`.
+    const normalizedFilePath = filePath.replace(/^(?:\.\/|\.\\)+/, '');
+    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(normalizedFilePath)) continue;
 
     const lineNum = data.data?.line_number;
     const lineText = data.data?.lines?.text;
 
-    const rel = normalizePath(filePath, relBasePath);
+    const rel = normalizePath(normalizedFilePath, relBasePath);
     if (seenPaths.has(rel)) continue;
 
     seenPaths.add(rel);
