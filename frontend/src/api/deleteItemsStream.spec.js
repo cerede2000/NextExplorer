@@ -25,7 +25,7 @@ vi.mock('./http', () => ({
   buildUrl: (p) => p,
 }));
 
-const { deleteItemsStream } = await import('./files.api');
+const { deleteItemsStream, copyItems, moveItems } = await import('./files.api');
 
 const selection = (count) =>
   Array.from({ length: count }, (_, i) => ({ path: 'Photos/2024', name: `IMG_${i}.jpeg` }));
@@ -129,5 +129,85 @@ describe('Streamed deletion', () => {
     requestStream.mock.calls.forEach(([, opts]) => {
       expect(opts.signal).toBe(controller.signal);
     });
+  });
+});
+
+/**
+ * Copy and move send the same shape as delete and had the same ceiling. Their
+ * progress bar is driven by bytes, and a batch only learns its own total when
+ * the server prepares it — so the percentage comes from item counts, which are
+ * known upfront and cannot make the bar jump backwards.
+ */
+describe('Streamed transfers', () => {
+  const respondWithBytes = () =>
+    requestStream.mockImplementation(async (_endpoint, { body, onEvent }) => {
+      const { items } = JSON.parse(body);
+      const totalBytes = items.length * 1000;
+      onEvent?.({ type: 'start', totalBytes, totalItems: items.length, destination: 'Target' });
+      items.forEach((item, index) => {
+        onEvent?.({
+          type: 'progress',
+          completedItems: index + 1,
+          copiedBytes: (index + 1) * 1000,
+          totalBytes,
+        });
+      });
+      return {
+        success: true,
+        destination: 'Target',
+        items: items.map((i) => ({ from: i.name, to: `Target/${i.name}` })),
+      };
+    });
+
+  beforeEach(() => {
+    requestStream.mockReset();
+    respondWithBytes();
+  });
+
+  it.each([
+    ['copy', (...args) => copyItems(...args)],
+    ['move', (...args) => moveItems(...args)],
+  ])('splits a large %s into bounded requests', async (_label, transfer) => {
+    await transfer(selection(2000), 'Target');
+
+    expect(requestStream).toHaveBeenCalledTimes(4);
+    requestStream.mock.calls.forEach(([, opts]) => {
+      const payload = JSON.parse(opts.body);
+      expect(payload.items.length).toBe(500);
+      // The destination travels with every batch, not just the first.
+      expect(payload.destination).toBe('Target');
+      expect(opts.body.length).toBeLessThan(100 * 1024);
+    });
+  });
+
+  it('keeps one progress bar across the batches', async () => {
+    const events = [];
+
+    await copyItems(selection(2000), 'Target', { onEvent: (e) => events.push(e) });
+
+    expect(events.filter((e) => e.type === 'start')).toHaveLength(1);
+
+    const progress = events.filter((e) => e.type === 'progress');
+    const percents = progress.map((e) => e.percent);
+    expect(percents).toEqual([...percents].sort((a, b) => a - b));
+    expect(percents.at(-1)).toBe(100);
+
+    // Bytes accumulate across batches instead of restarting at each one.
+    const copied = progress.map((e) => e.copiedBytes);
+    expect(copied).toEqual([...copied].sort((a, b) => a - b));
+    expect(copied.at(-1)).toBe(2000 * 1000);
+  });
+
+  it('returns every transferred entry and the final destination', async () => {
+    const result = await moveItems(selection(1200), 'Target');
+
+    expect(result.items).toHaveLength(1200);
+    expect(result.destination).toBe('Target');
+  });
+
+  it('sends a small transfer as a single request', async () => {
+    await copyItems(selection(50), 'Target');
+
+    expect(requestStream).toHaveBeenCalledTimes(1);
   });
 });

@@ -244,6 +244,19 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
     signal?.addEventListener('abort', abort, { once: true });
   });
 
+/**
+ * Whether removing this entry is worth a child process.
+ *
+ * `rm -rf` earns its fork on a directory: the recursion happens in one native
+ * call, and killing the process cancels it. A single file has neither — the
+ * unlink is one syscall — so forking per file costs about 1.2 ms of process
+ * setup against 0.06 ms of actual work. On a selection of two thousand files
+ * that is over two seconds spent starting processes, and it only happens on
+ * Linux, which is to say only in the container.
+ */
+const shouldRemoveNatively = (isDirectoryEntry, nativeEnabled = NATIVE_TRANSFER_ENABLED) =>
+  Boolean(nativeEnabled) && Boolean(isDirectoryEntry);
+
 const removeWithNativeRm = (absolutePath, signal) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(createCancellationError());
@@ -395,7 +408,7 @@ const moveEntryWithProgress = async (
         signal
       );
       throwIfCancelled(signal);
-      if (NATIVE_TRANSFER_ENABLED) await removeWithNativeRm(sourcePath, signal);
+      if (shouldRemoveNatively(isDirectory)) await removeWithNativeRm(sourcePath, signal);
       else await fs.rm(sourcePath, { recursive: isDirectory, force: true });
       return copiedBytes;
     } else {
@@ -848,13 +861,11 @@ const deleteItems = async (items = [], options = {}) => {
     // A visible transfer destination may still be actively written. Stop the
     // writer and wait for its cleanup before removing the destination tree.
     await cancelWritesTargeting(absolutePath);
-    if (NATIVE_TRANSFER_ENABLED) {
+    const isDirectoryEntry = isDirectory || deletedEntryStats.isDirectory();
+    if (shouldRemoveNatively(isDirectoryEntry)) {
       await removeWithNativeRm(absolutePath, options.signal);
     } else {
-      await fs.rm(absolutePath, {
-        recursive: isDirectory || deletedEntryStats.isDirectory(),
-        force: true,
-      });
+      await fs.rm(absolutePath, { recursive: isDirectoryEntry, force: true });
     }
     folderSizeHooks.onEntryDeleted(absolutePath, {
       isDirectory: isDirectory || deletedEntryStats.isDirectory(),
@@ -892,5 +903,6 @@ module.exports = {
   getDeleteImpact,
   resolveDeleteTargets,
   deleteItems,
+  shouldRemoveNatively,
   getDiagnosticsSnapshot,
 };

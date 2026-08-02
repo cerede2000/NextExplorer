@@ -126,3 +126,27 @@ describe('Transfer cancellation', () => {
     await expect(fs.stat(destinationPath)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });
+
+/**
+ * Removing a plain file used to fork `rm -rf` for it, on Linux only — which is
+ * to say in the container. That is ~1.2 ms of process setup against ~0.06 ms
+ * of actual work, so a two-thousand-file selection spent over two seconds
+ * doing nothing but starting processes. A directory still earns its fork: the
+ * recursion runs natively and killing the process cancels it.
+ */
+describe('Native removal', () => {
+  it('never forks for a single file, even where the native path exists', async () => {
+    const { shouldRemoveNatively } = await import('../../src/services/fileTransferService.js');
+
+    // The flag is passed explicitly: it is false on anything but Linux, and a
+    // test that only ever sees false would pass without checking anything.
+    expect(shouldRemoveNatively(false, true)).toBe(false);
+  });
+
+  it('keeps the native path for directories', async () => {
+    const { shouldRemoveNatively } = await import('../../src/services/fileTransferService.js');
+
+    expect(shouldRemoveNatively(true, true)).toBe(true);
+    expect(shouldRemoveNatively(true, false)).toBe(false);
+  });
+});
