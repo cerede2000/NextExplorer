@@ -83,7 +83,10 @@ const errorHandler = (err, req, res, next) => {
   // Otherwise, the browser will render the JSON payload as a standalone error page.
   if (!res.headersSent && isOidcDocumentRequest(req)) {
     clearOidcSessionCookies(req, res);
-    const nextUrl = `/auth/login?error=${encodeURIComponent(message)}`;
+    // Same redaction as the JSON body: this one lands in the address bar,
+    // browser history and every proxy log along the way, so a raw server path
+    // here travels further than it would in a response body.
+    const nextUrl = `/auth/login?error=${encodeURIComponent(sanitizeClientMessage(message))}`;
     res.setHeader('Cache-Control', 'no-store');
     res.redirect(302, nextUrl);
     return;
