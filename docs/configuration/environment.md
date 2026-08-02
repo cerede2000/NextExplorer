@@ -15,6 +15,8 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `MAX_CHUNK_SIZE_MIB`                             | `512`                                           | Upper bound (MiB) an admin may set for the chunk size; caps the settings slider/input and clamps saved values. Hard ceiling of 512 MiB.                                                                    |
 | `UPLOAD_STORAGE_RESERVE`                         | `64M`                                           | Free-space reserve kept when accepting TUS uploads. Upload creation is rejected with `507` if temporary or destination storage cannot fit the file plus this reserve.                                      |
 | `TUS_UPLOAD_DIR`                                 | `<CACHE_DIR>/tus-uploads`                       | Temporary storage directory for TUS chunked uploads. Put it on a volume large enough for the biggest in-progress uploads.                                                                                  |
+| `TUS_INCOMPLETE_UPLOAD_TTL_MS`                   | `3600000`                                       | Age after which an abandoned chunked upload is deleted from the temporary directory (1 hour).                                                                                                              |
+| `TUS_CLEANUP_INTERVAL_MS`                        | `600000`                                        | Delay between sweeps looking for abandoned chunked uploads (10 minutes).                                                                                                                                   |
 | `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).                                                                                      |
 | `INTERNAL_URL`                                   | _none_                                          | Additional comma-separated origins. They are accepted by CORS and OIDC returns to the configured origin where login began.                                                                                 |
 | `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                                                                                                              |
@@ -57,6 +59,13 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `FOLDER_SIZE_IO_TIMEOUT_MS`             | `30000`              | Deadline for one indexed folder-size filesystem operation; `0` disables this protection.          |
 | `FOLDER_SIZE_MAX_STALLED_IO`            | `2`                  | Timed-out folder-size operations allowed before the indexer pauses further filesystem work.       |
 | `FOLDER_SIZE_SUBTREE_BATCH`             | reconciliation batch | Metadata checks per batch while recovering a folder tree created or changed outside NextExplorer. |
+| `FOLDER_SIZE_CONCURRENCY`               | `6`                  | Parallel folder-size scans on local storage.                                                     |
+| `FOLDER_SIZE_NETWORK_CONCURRENCY`       | `2`                  | Parallel folder-size scans on network storage, where seek latency dominates.                     |
+| `FOLDER_SIZE_FLUSH_MS`                  | `3000`               | Delay before pending folder-size updates are written to the index.                               |
+| `FOLDER_SIZE_RECONCILE_MS`              | `0`                  | Fixed interval between reconciliation sweeps. `0` uses the adaptive interval below.              |
+| `FOLDER_SIZE_RECONCILE_MIN_MS`          | `900000`             | Shortest adaptive reconciliation interval (15 minutes).                                          |
+| `FOLDER_SIZE_RECONCILE_MAX_MS`          | `43200000`           | Longest adaptive reconciliation interval (12 hours).                                             |
+| `FOLDER_SIZE_REBUILD`                   | `false`              | Drop and rebuild the folder-size index at startup.                                               |
 | `FOLDER_SIZE_SUBTREE_PAUSE_MS`          | reconciliation pause | Delay between targeted recovery batches. Leave unset to inherit the reconciliation pacing.        |
 | `FOLDER_SIZE_SUBTREE_SLOW_LOG_MS`       | `5000`               | Duration after which a targeted recovery emits one `info` performance summary.                    |
 
@@ -153,6 +162,12 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | `THUMBNAIL_VIDEO_CONCURRENCY`         | `1`                | Maximum number of concurrent ffmpeg thumbnail jobs. Keep low on small hosts to avoid memory spikes.                                                            |
 | `THUMBNAIL_DIAGNOSTICS_ENABLED`       | `false`            | Enable periodic thumbnail diagnostics logs with queue, memory, active job, external process, and cache cleanup counters.                                       |
 | `THUMBNAIL_DIAGNOSTICS_INTERVAL_MS`   | `30000`            | Interval between thumbnail diagnostics logs when diagnostics are enabled.                                                                                      |
+| `THUMBNAIL_BACKGROUND_QUEUE_LIMIT`    | `200`              | Maximum thumbnails queued for background generation before new requests are dropped.                                                                          |
+| `THUMBNAIL_PROCESS_NICE`              | `10`               | `nice` value applied to external thumbnail processes, so they yield to interactive work.                                                                       |
+| `THUMBNAIL_VIDEO_SEEK_PERCENT`        | `10`               | Position in the video, as a percentage of its duration, used to grab the thumbnail frame.                                                                      |
+| `THUMBNAIL_VIDEO_SCALE_FLAGS`         | `fast_bilinear`    | ffmpeg scaling algorithm for video thumbnails. Slower flags give a sharper image.                                                                              |
+| `THUMBNAIL_VIDEO_SEEK_SECONDS`        | `5`                | Fixed position in the video used to grab the thumbnail frame, when no percentage is set.                                                                        |
+| `THUMBNAIL_VIDEO_THREADS`             | `2`                | Threads allowed to one ffmpeg thumbnail job.                                                                                                                    |
 | `THUMBNAIL_SLOW_JOB_MS`               | `10000`            | Duration threshold after which a thumbnail job/process is logged even when diagnostics are disabled.                                                           |
 
 ## Collabora (WOPI)

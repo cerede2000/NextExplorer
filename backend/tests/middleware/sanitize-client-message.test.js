@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import express from 'express';
+import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
@@ -52,5 +54,28 @@ describe('sanitizeClientMessage', () => {
     expect(sanitize('Permission denied')).toBe('Permission denied');
     expect(sanitize('')).toBe('');
     expect(sanitize(undefined)).toBe(undefined);
+  });
+});
+
+describe('OIDC error redirect', () => {
+  it('redacts the path before putting it in the URL', async () => {
+    currentEnv = await setupTestEnv({
+      tag: 'oidc-redirect-redaction-',
+      modules: ['src/config/env', 'src/config/index', 'src/middleware/errorHandler'],
+    });
+    const { errorHandler } = currentEnv.requireFresh('src/middleware/errorHandler');
+
+    const app = express();
+    app.get('/callback', (_req, _res, next) => {
+      next(Object.assign(new Error('ENOENT: /srv/data/secret.txt missing'), { status: 500 }));
+    });
+    app.use(errorHandler);
+
+    // A browser navigation to /callback is what triggers the redirect branch.
+    const response = await request(app).get('/callback').set('Accept', 'text/html');
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toContain(encodeURIComponent('…/secret.txt'));
+    expect(response.headers.location).not.toContain('srv');
   });
 });
