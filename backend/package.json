@@ -4,7 +4,7 @@
   "description": "explorer",
   "main": "src/server.js",
   "engines": {
-    "node": ">=22 <25"
+    "node": ">=24 <25"
   },
   "scripts": {
     "download_samples": "node src/scripts/downloadSamples.js",
