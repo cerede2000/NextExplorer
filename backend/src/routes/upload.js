@@ -5,6 +5,7 @@ const fs = require('fs/promises');
 const { createUploadMiddleware } = require('../services/uploadService');
 const { handleTusUpload } = require('../services/tusUploadService');
 const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
+const { uploads } = require('../config/index');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
@@ -44,7 +45,7 @@ router.post(
 
 router.post(
   '/upload',
-  upload.fields([{ name: 'filedata', maxCount: 50 }]),
+  upload.fields([{ name: 'filedata', maxCount: uploads.maxFilesPerRequest }]),
   asyncHandler(async (req, res) => {
     if (!req.files || !Array.isArray(req.files.filedata) || req.files.filedata.length === 0) {
       throw new ValidationError('No files were provided.');

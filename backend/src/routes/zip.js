@@ -18,14 +18,41 @@ const { ACTIONS, authorizeAndResolve } = require('../services/authorizationServi
 const {
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
+  readArchiveFootprint,
   extractArchive,
   createZipArchive,
   archiveBaseName,
   normalizeArchivePassword,
 } = require('../services/archiveService');
 const folderSizeHooks = require('../services/folderSizeHooks');
+const { archives } = require('../config/index');
 
 const router = express.Router();
+
+/**
+ * Refuse archives that would expand far beyond their own size.
+ *
+ * Extraction is otherwise unbounded: a few kilobytes of nested, highly
+ * compressible entries can fill the volume ("zip bomb"). The declared sizes
+ * come from the archive itself, so this is a cheap pre-flight check, not a
+ * guarantee — it stops the accidental and the trivially malicious case.
+ */
+const ensureArchiveWithinLimits = ({ entryCount = 0, totalBytes = 0 }) => {
+  if (entryCount > archives.maxEntries) {
+    throw new ValidationError(
+      `This archive holds more than ${archives.maxEntries} entries and was not extracted.`
+    );
+  }
+  if (totalBytes > archives.maxExtractedBytes) {
+    throw new ValidationError('This archive expands beyond the allowed size and was not extracted.');
+  }
+};
+
+/** Declared footprint of a zip read by the bundled JS extractor. */
+const admZipFootprint = (entries = []) => ({
+  entryCount: entries.length,
+  totalBytes: entries.reduce((total, entry) => total + (entry?.header?.size || 0), 0),
+});
 
 const buildItemMetadata = async (absolutePath, relativeParent, name) => {
   const stats = await fs.stat(absolutePath);
@@ -212,13 +239,19 @@ router.post(
 
     try {
       if (await isSevenZipAvailable()) {
+        // Listing first means an archive that would expand beyond the limits
+        // is refused before anything is written to disk.
+        const footprint = await readArchiveFootprint(zipAbsolutePath, archivePassword);
+        if (footprint) ensureArchiveWithinLimits(footprint);
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
         await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent, {
           signal: controller.signal,
           password: archivePassword,
         });
       } else {
-        new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
+        const fallbackZip = new AdmZip(zipAbsolutePath);
+        ensureArchiveWithinLimits(admZipFootprint(fallbackZip.getEntries()));
+        fallbackZip.extractAllTo(destinationFolderAbsolutePath, true);
         if (controller.signal.aborted) {
           const error = new Error('Operation cancelled.');
           error.code = 'OPERATION_CANCELLED';

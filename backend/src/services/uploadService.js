@@ -4,6 +4,7 @@ const fss = require('fs');
 const { finished, pipeline } = require('stream/promises');
 const multer = require('multer');
 
+const { uploads } = require('../config/index');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
 const { readMetaField } = require('../utils/requestUtils');
@@ -252,7 +253,25 @@ CustomStorage.prototype._removeFile = function removeFile(req, file, cb) {
     });
 };
 
-const createUploadMiddleware = () => multer({ storage: new CustomStorage() });
+/**
+ * Direct (non-chunked) uploads.
+ *
+ * Multer applies no limit of its own, so without these a single request could
+ * stream until the volume is full. The file size ceiling is deliberately high
+ * — this is a file manager, large files are the point — but the field limits
+ * keep a malformed or hostile multipart body from being parsed indefinitely.
+ */
+const createUploadMiddleware = () =>
+  multer({
+    storage: new CustomStorage(),
+    limits: {
+      fileSize: uploads.maxDirectUploadBytes,
+      files: uploads.maxFilesPerRequest,
+      fields: 50,
+      fieldSize: 1024 * 1024,
+      headerPairs: 200,
+    },
+  });
 
 module.exports = {
   createUploadMiddleware,

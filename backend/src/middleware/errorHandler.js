@@ -1,6 +1,34 @@
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { sanitizeLogUrl } = require('../utils/logSanitizer');
+const { directories } = require('../config/index');
+
+/**
+ * Strip server-side absolute paths out of a message shown to a client.
+ *
+ * Errors bubbling up from fs, spawned tools or archive libraries often quote
+ * the full path they failed on. Callers only ever address files by relative
+ * path, so the host layout is of no use to them — and it tells an anonymous
+ * share visitor how the server is organized. The full message is still logged.
+ */
+const REDACTED_ROOTS = [
+  directories?.volume,
+  directories?.userRoot,
+  directories?.config,
+  directories?.cache,
+]
+  .filter((value) => typeof value === 'string' && value.length > 1)
+  // Longest first, so nested roots are replaced by the most specific one.
+  .sort((a, b) => b.length - a.length);
+
+const sanitizeClientMessage = (message) => {
+  if (typeof message !== 'string' || !message) return message;
+  return REDACTED_ROOTS.reduce(
+    (text, root) => text.split(root).join('…'),
+    message
+    // Any remaining absolute path (e.g. a temp dir) keeps only its basename.
+  ).replace(/(^|[\s'"(])\/(?:[\w.@ -]+\/)+([\w.@ -]+)/g, '$1…/$2');
+};
 
 const isOidcDocumentRequest = (req) => {
   const path = req?.path || '';
@@ -88,7 +116,7 @@ const errorHandler = (err, req, res, next) => {
   const errorResponse = {
     success: false,
     error: {
-      message: message,
+      message: sanitizeClientMessage(message),
       statusCode: statusCode,
       requestId: requestId,
       timestamp: new Date().toISOString(),
