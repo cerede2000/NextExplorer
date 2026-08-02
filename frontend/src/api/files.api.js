@@ -9,6 +9,17 @@ import {
 
 const DELETE_BATCH_SIZE = 100;
 
+/**
+ * Items per streamed deletion request.
+ *
+ * The streaming endpoint used to receive the whole selection at once, and a
+ * few thousand paths is more JSON than a server accepts by default: the
+ * request came back as "request entity too large" before anything read it.
+ * The batches are large enough that the progress bar still moves smoothly,
+ * and small enough that no single request depends on a generous body limit.
+ */
+const DELETE_STREAM_BATCH_SIZE = 500;
+
 async function browse(path = '', options = {}) {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
@@ -94,12 +105,53 @@ async function deleteItems(items) {
 }
 
 async function deleteItemsStream(items, options = {}) {
-  return requestStream('/api/files/delete-stream', {
-    method: 'POST',
-    body: JSON.stringify({ items: Array.isArray(items) ? items : [] }),
-    onEvent: options.onEvent,
-    signal: options.signal,
-  });
+  const allItems = Array.isArray(items) ? items : [];
+
+  const runBatch = (batch, { offset, total, emitStart }) =>
+    requestStream('/api/files/delete-stream', {
+      method: 'POST',
+      body: JSON.stringify({ items: batch }),
+      signal: options.signal,
+      onEvent: (event) => {
+        if (typeof options.onEvent !== 'function') return;
+        // Each batch reports on itself; the caller drives one progress bar for
+        // the whole selection, so counts are rebased onto the full total.
+        if (event.type === 'start') {
+          if (emitStart) options.onEvent({ ...event, totalItems: total });
+          return;
+        }
+        if (event.type === 'progress') {
+          const completed = offset + (Number(event.completedItems) || 0);
+          options.onEvent({
+            ...event,
+            completedItems: completed,
+            percent: total ? Math.round((completed / total) * 100) : 0,
+          });
+          return;
+        }
+        options.onEvent(event);
+      },
+    });
+
+  if (allItems.length <= DELETE_STREAM_BATCH_SIZE) {
+    return runBatch(allItems, { offset: 0, total: allItems.length, emitStart: true });
+  }
+
+  const deleted = [];
+  for (let index = 0; index < allItems.length; index += DELETE_STREAM_BATCH_SIZE) {
+    const batch = allItems.slice(index, index + DELETE_STREAM_BATCH_SIZE);
+    // eslint-disable-next-line no-await-in-loop
+    const result = await runBatch(batch, {
+      offset: index,
+      total: allItems.length,
+      emitStart: index === 0,
+    });
+    deleted.push(...(Array.isArray(result?.items) ? result.items : []));
+    // An aborted request rejects, so reaching here means this batch is done;
+    // the batches already deleted stay deleted, as with any cancellation.
+  }
+
+  return { success: true, items: deleted };
 }
 
 async function getDeleteImpact(items) {

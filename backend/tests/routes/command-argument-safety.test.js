@@ -70,6 +70,49 @@ describe('Search term argument safety', () => {
   });
 });
 
+/**
+ * The argument list, checked directly.
+ *
+ * The end-to-end test below only exercises ripgrep when ripgrep is installed:
+ * without it the route falls back to a JavaScript scan, passes, and proves
+ * nothing about the hardening. This one holds wherever it runs.
+ */
+describe('Content search arguments', () => {
+  it('puts every search term behind the -- separator', async () => {
+    const env = await setupTestEnv({
+      tag: 'search-args-',
+      env: { SEARCH_RIPGREP: 'true' },
+      modules: ['src/config/env', 'src/config/index', 'src/routes/search'],
+    });
+    currentEnv = env;
+
+    const { buildContentSearchArgs } = env.requireFresh('src/routes/search');
+
+    for (const term of ['--pre=whoami', '-abc', '-n', 'ordinary']) {
+      const args = buildContentSearchArgs(term, ['-g', '!.git']);
+      // The last three arguments are exactly: separator, term, path. Checking
+      // indexOf would match the wrong slot for a term like "-n", which is also
+      // a legitimate flag earlier in the list.
+      expect(args.slice(-3)).toEqual(['--', term, '.']);
+    }
+  });
+
+  it('keeps the separator when a file-size ceiling is prepended', async () => {
+    const env = await setupTestEnv({
+      tag: 'search-args-limit-',
+      env: { SEARCH_RIPGREP: 'true', SEARCH_MAX_FILESIZE: '5M' },
+      modules: ['src/config/env', 'src/config/index', 'src/routes/search'],
+    });
+    currentEnv = env;
+
+    const { buildContentSearchArgs } = env.requireFresh('src/routes/search');
+    const args = buildContentSearchArgs('--pre=whoami', [], '5M');
+
+    expect(args[0]).toBe('--max-filesize');
+    expect(args.slice(-3)).toEqual(['--', '--pre=whoami', '.']);
+  });
+});
+
 const createPermissionsApp = async () => {
   const envContext = await setupTestEnv({
     tag: 'permissions-argument-safety-',
