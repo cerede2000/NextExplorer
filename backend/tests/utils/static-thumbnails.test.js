@@ -7,9 +7,14 @@ import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
- * Thumbnails live outside /api, so they get their own gate. It has to keep
- * anonymous callers out *without* breaking share visitors: their credential is
- * a cookie, because an <img> tag cannot send a header.
+ * Thumbnails are served from /static, outside the auth middleware, so the URL
+ * carries its own proof: a signature minted by /api/thumbnails once the real
+ * access check passed, naming the one file it unlocks.
+ *
+ * A session cookie cannot do that job — it identifies the caller without
+ * saying what they were cleared to see, so a share visitor could ask for a
+ * filename belonging to another share. These pin that the signature is
+ * required, file-scoped, and time-limited.
  */
 
 let currentEnv;
@@ -21,7 +26,9 @@ afterEach(async () => {
   }
 });
 
-const buildApp = async (env) => {
+const MODULES = ['src/config/env', 'src/config/index', 'src/utils/staticServer'];
+
+const buildApp = (env) => {
   const { configureStaticFiles } = env.requireFresh('src/utils/staticServer');
   const app = express();
   app.use(cookieParser());
@@ -34,91 +41,91 @@ const buildApp = async (env) => {
   return app;
 };
 
-const seedThumbnail = async (env) => {
+const seedThumbnail = async (env, name = 'v3-abc.webp') => {
   const dir = path.join(env.cacheDir, 'thumbnails');
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, 'v3-abc.webp'), Buffer.from('fake-webp'));
+  await fs.writeFile(path.join(dir, name), Buffer.from('fake-webp'));
 };
 
 describe('Thumbnail access', () => {
-  it('refuses an anonymous caller', async () => {
-    const env = await setupTestEnv({
-      tag: 'thumbnails-anon-',
-      modules: ['src/config/env', 'src/config/index', 'src/utils/staticServer'],
-    });
+  it('refuses a request with no token, signed in or not', async () => {
+    const env = await setupTestEnv({ tag: 'thumbnails-no-token-', modules: MODULES });
     currentEnv = env;
     await seedThumbnail(env);
+    const app = buildApp(env);
 
-    const response = await request(await buildApp(env)).get('/static/thumbnails/v3-abc.webp');
-    expect(response.status).toBe(401);
-  });
+    const anonymous = await request(app).get('/static/thumbnails/v3-abc.webp');
+    expect(anonymous.status).toBe(401);
 
-  it('serves a signed-in user', async () => {
-    const env = await setupTestEnv({
-      tag: 'thumbnails-user-',
-      modules: ['src/config/env', 'src/config/index', 'src/utils/staticServer'],
-    });
-    currentEnv = env;
-    await seedThumbnail(env);
-
-    const response = await request(await buildApp(env))
+    // Being signed in is not the point: this endpoint answers to the token
+    // issued for one file, not to whoever happens to hold a session.
+    const signedIn = await request(app)
       .get('/static/thumbnails/v3-abc.webp')
       .set('x-signed-in', '1');
+    expect(signedIn.status).toBe(401);
+  });
+
+  it('serves the file the token was issued for', async () => {
+    const env = await setupTestEnv({ tag: 'thumbnails-token-', modules: MODULES });
+    currentEnv = env;
+    await seedThumbnail(env);
+
+    const { createThumbnailToken } = env.requireFresh('src/utils/thumbnailTokens');
+    const response = await request(buildApp(env))
+      .get('/static/thumbnails/v3-abc.webp')
+      .query({ t: createThumbnailToken('v3-abc.webp') });
+
     expect(response.status).toBe(200);
   });
 
-  // Known limitation: the gate checks that the guest session exists, not that
-  // the thumbnail belongs to that share — the cache filename carries no share.
-  // A visitor who guessed another share's filename would be served. That is
-  // still narrower than before, when the whole directory was public.
-  it('serves any valid guest session, share-scoped or not', async () => {
+  it('refuses a token issued for another file', async () => {
+    const env = await setupTestEnv({ tag: 'thumbnails-other-file-', modules: MODULES });
+    currentEnv = env;
+    await seedThumbnail(env, 'v3-mine.webp');
+    await seedThumbnail(env, 'v3-someone-else.webp');
+
+    const { createThumbnailToken } = env.requireFresh('src/utils/thumbnailTokens');
+    // This is the case a session check could never catch: a legitimate visitor
+    // reusing their own credential against a filename they were never cleared
+    // for.
+    const response = await request(buildApp(env))
+      .get('/static/thumbnails/v3-someone-else.webp')
+      .query({ t: createThumbnailToken('v3-mine.webp') });
+
+    expect(response.status).toBe(401);
+  });
+
+  it('refuses an expired or tampered token', async () => {
+    const env = await setupTestEnv({ tag: 'thumbnails-expired-', modules: MODULES });
+    currentEnv = env;
+    await seedThumbnail(env);
+
+    const { createThumbnailToken, TTL_MS } = env.requireFresh('src/utils/thumbnailTokens');
+    const app = buildApp(env);
+
+    const expired = createThumbnailToken('v3-abc.webp', Date.now() - TTL_MS - 1000);
+    expect((await request(app).get('/static/thumbnails/v3-abc.webp').query({ t: expired })).status).toBe(
+      401
+    );
+
+    // Pushing the expiry out by hand invalidates the signature.
+    const valid = createThumbnailToken('v3-abc.webp');
+    const forged = `${Date.now() + 10 * 60 * 1000}.${valid.split('.')[1]}`;
+    expect((await request(app).get('/static/thumbnails/v3-abc.webp').query({ t: forged })).status).toBe(
+      401
+    );
+  });
+
+  it('serves everything when authentication is disabled', async () => {
     const env = await setupTestEnv({
-      tag: 'thumbnails-guest-',
-      modules: [
-        'src/config/env',
-        'src/config/index',
-        'src/utils/pathUtils',
-        'src/services/db',
-        'src/services/users',
-        'src/services/sharesService',
-        'src/services/guestSessionService',
-        'src/utils/staticServer',
-      ],
+      tag: 'thumbnails-no-auth-',
+      env: { AUTH_MODE: 'disabled' },
+      modules: MODULES,
     });
     currentEnv = env;
     await seedThumbnail(env);
 
-    // The guest session references a real share (foreign key).
-    const usersService = env.requireFresh('src/services/users');
-    const sharesService = env.requireFresh('src/services/sharesService');
-    const owner = await usersService.createLocalUser({
-      email: 'thumb-owner@example.com',
-      username: 'thumb-owner',
-      displayName: 'Thumb Owner',
-      password: 'secret123',
-      roles: ['user'],
-    });
-    await fs.mkdir(path.join(env.volumeDir, 'shared'), { recursive: true });
-    const share = await sharesService.createShare({
-      ownerId: owner.id,
-      sourcePath: 'shared',
-      sourceSpace: 'volume',
-      isDirectory: true,
-      accessMode: 'readonly',
-      sharingType: 'anyone',
-    });
-
-    const { createGuestSession } = env.requireFresh('src/services/guestSessionService');
-    const session = await createGuestSession({
-      shareId: share.id,
-      ipAddress: '127.0.0.1',
-      userAgent: 'test',
-    });
-
-    const response = await request(await buildApp(env))
-      .get('/static/thumbnails/v3-abc.webp')
-      .set('Cookie', `guestSession=${session.id}`);
-
+    const response = await request(buildApp(env)).get('/static/thumbnails/v3-abc.webp');
     expect(response.status).toBe(200);
   });
 });

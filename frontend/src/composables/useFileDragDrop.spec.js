@@ -129,10 +129,9 @@ describe('useFileDragDrop', () => {
 
     await dragDrop.handleDrop(event, target);
 
-    expect(requestConfirmation).toHaveBeenCalledWith(
-      [expect.objectContaining({ onlyofficeActivity: expect.objectContaining({ active: true }) })],
-      'Le déplacement'
-    );
+    expect(requestConfirmation).toHaveBeenCalledWith([
+      expect.objectContaining({ onlyofficeActivity: expect.objectContaining({ active: true }) }),
+    ]);
     expect(moveItems).toHaveBeenCalled();
   });
 

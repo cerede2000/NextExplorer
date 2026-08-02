@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
 
@@ -20,6 +21,7 @@ beforeAll(async () => {
       'src/services/sharesService',
       'src/services/guestSessionService',
       'src/utils/pathUtils',
+      'src/middleware/authMiddleware',
       'src/middleware/errorHandler',
       'src/routes/shares',
       'src/routes/files/delete',
@@ -50,16 +52,19 @@ const buildApp = ({ user } = {}) => {
 
   const app = express();
   app.use(express.json());
+  app.use(cookieParser());
 
-  app.use(async (req, _res, next) => {
-    if (user) req.user = user;
-    const guestSessionId = req.headers['x-guest-session'];
-    if (guestSessionId) {
-      const { getGuestSession } = envContext.requireFresh('src/services/guestSessionService');
-      req.guestSession = await getGuestSession(guestSessionId);
-    }
+  // The real middleware, not a stand-in for it. An earlier version of this
+  // harness attached req.guestSession unconditionally, which the middleware
+  // does not do — and a bug that lived in exactly that gap shipped green.
+  const authMiddleware = envContext.requireFresh('src/middleware/authMiddleware');
+  app.use((req, _res, next) => {
+    // express-session normally provides this; the middleware loads the user
+    // from the database, exactly as it does in production.
+    req.session = user ? { localUserId: user.id } : {};
     next();
   });
+  app.use(authMiddleware);
 
   app.use('/api/shares', sharesRoutes);
   app.use('/api/share', sharesRoutes);

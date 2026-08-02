@@ -5,6 +5,7 @@ const {
   resolveDeleteTargets,
 } = require('../../services/fileTransferService');
 const asyncHandler = require('../../utils/asyncHandler');
+const { startNdjsonStream } = require('../../utils/ndjsonStream');
 
 const router = require('express').Router();
 
@@ -50,15 +51,7 @@ router.post(
     const context = { user: req.user, guestSession: req.guestSession };
     const targets = await resolveDeleteTargets(items, context);
 
-    res.status(200);
-    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.once('close', onClose);
-    res.flushHeaders?.();
-    const writeEvent = (event) => {
-      if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`);
-    };
+    const writeEvent = startNdjsonStream(res, { onClose });
 
     try {
       writeEvent({

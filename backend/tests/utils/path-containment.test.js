@@ -78,4 +78,101 @@ describe('Volume path containment', () => {
       process.env.VOLUME_ROOT = env.volumeDir;
     }
   });
+
+  it('refuses a broken symbolic link pointing outside', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-dangling-',
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    // The target does not exist, so realpath fails on the link itself. Treating
+    // that as "not created yet" and checking the parent instead would accept it
+    // — and the next write would land in /etc.
+    await fs.symlink(path.join(env.tmpRoot, 'nowhere', 'passwd'), path.join(env.volumeDir, 'dead'));
+    const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
+
+    expect(() => resolveVolumePath('dead')).toThrow(/outside the configured volume/i);
+    expect(() => resolveVolumePath('dead/child.txt')).toThrow(/outside the configured volume/i);
+  });
+
+  it('accepts a broken link whose target stays inside the volume', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-dangling-inside-',
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    await fs.symlink(path.join(env.volumeDir, 'not-yet.txt'), path.join(env.volumeDir, 'pending'));
+    const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
+
+    expect(() => resolveVolumePath('pending')).not.toThrow();
+  });
+
+  it('gives up on a symbolic link loop instead of spinning', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-loop-',
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    await fs.symlink(path.join(env.volumeDir, 'b'), path.join(env.volumeDir, 'a'));
+    await fs.symlink(path.join(env.volumeDir, 'a'), path.join(env.volumeDir, 'b'));
+    const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
+
+    expect(() => resolveVolumePath('a')).toThrow(/symbolic links/i);
+  });
+});
+
+/**
+ * The volume was the only space whose containment survived a symbolic link.
+ * A personal folder and an assigned user volume are just as reachable — the
+ * archive that plants the link does not care which space it lands in.
+ */
+describe('Other spaces containment', () => {
+  it('refuses an escape from a personal folder', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-personal-',
+      env: { USER_DIR_ENABLED: 'true' },
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    const { resolvePersonalPath } = env.requireFresh('src/utils/pathUtils');
+    const user = { id: 'user-1', username: 'alice' };
+    const userRoot = resolvePersonalPath('', user);
+    await fs.mkdir(userRoot, { recursive: true });
+
+    const outside = path.join(env.tmpRoot, 'outside-personal');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
+    await fs.symlink(outside, path.join(userRoot, 'escape'));
+
+    expect(() => resolvePersonalPath('escape/secret.txt', user)).toThrow(
+      /outside the configured user directory/i
+    );
+    expect(() => resolvePersonalPath('docs/report.txt', user)).not.toThrow();
+  });
+
+  it('refuses an escape from an assigned user volume', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-user-volume-',
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    const assigned = path.join(env.tmpRoot, 'assigned');
+    await fs.mkdir(assigned, { recursive: true });
+    const outside = path.join(env.tmpRoot, 'outside-assigned');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
+    await fs.symlink(outside, path.join(assigned, 'escape'));
+
+    const { resolveLogicalPath } = env.requireFresh('src/utils/pathUtils');
+    const userVolume = { id: 'vol-1', userId: 'user-1', label: 'Work', path: assigned };
+
+    await expect(
+      resolveLogicalPath('Work/escape/secret.txt', { user: { id: 'user-1' }, userVolume })
+    ).rejects.toThrow(/outside the assigned volume/i);
+  });
 });

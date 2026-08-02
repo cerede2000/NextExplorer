@@ -32,3 +32,23 @@ describe('parseByteRange', () => {
     expect(parseByteRange('bytes=900-100', 1000)).toEqual({ unsatisfiable: true });
   });
 });
+
+describe('Suffix ranges', () => {
+  it('serves the last N bytes, not the first N', () => {
+    // A media player asking for the tail of a file used to receive the head,
+    // with a 206 and a plausible Content-Range to match.
+    expect(parseByteRange('bytes=-500', 2000)).toEqual({
+      start: 1500,
+      end: 1999,
+      chunkSize: 500,
+    });
+  });
+
+  it('clamps a suffix longer than the file to the whole file', () => {
+    expect(parseByteRange('bytes=-5000', 100)).toEqual({ start: 0, end: 99, chunkSize: 100 });
+  });
+
+  it('rejects a zero-length suffix', () => {
+    expect(parseByteRange('bytes=-0', 100)).toEqual({ unsatisfiable: true });
+  });
+});

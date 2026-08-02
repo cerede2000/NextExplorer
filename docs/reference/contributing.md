@@ -60,7 +60,7 @@ Environment tips:
 
 ## Tests & Linting
 
-- Backend tests (Node test runner):
+- Backend tests (Vitest + supertest):
 
 ```
 cd backend && npm test
@@ -95,7 +95,7 @@ cd frontend && npm run build && npm run preview
 ## Pull Requests
 
 - Keep PRs small and atomic. Describe the problem and the approach.
-- Include tests for new behavior when practical (backend: Node test runner + supertest; frontend: Vitest).
+- Include tests for new behavior when practical (backend: Vitest + supertest; frontend: Vitest).
 - Update docs in `docs/` and user-facing `README.md` when behavior or settings change.
 - Run tests and linters locally before submitting.
 

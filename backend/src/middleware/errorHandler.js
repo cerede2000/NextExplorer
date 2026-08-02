@@ -27,7 +27,13 @@ const sanitizeClientMessage = (message) => {
     (text, root) => text.split(root).join('…'),
     message
     // Any remaining absolute path (e.g. a temp dir) keeps only its basename.
-  ).replace(/(^|[\s'"(])\/(?:[\w.@ -]+\/)+([\w.@ -]+)/g, '$1…/$2');
+    //
+    // Directory segments must not contain spaces: allowing them let a single
+    // match run from one path, across the words between, and into the next —
+    // "copy /srv/a.txt to /srv/b.txt" came back as "copy …/b.txt". What has to
+    // stay hidden is the server's directory layout, not the file name the user
+    // typed themselves, so the basename still allows them.
+  ).replace(/(?<=^|[\s'"(])\/(?:[\w.@-]+\/)+([\w.@ -]+)/g, '…/$1');
 };
 
 const isOidcDocumentRequest = (req) => {

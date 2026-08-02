@@ -22,6 +22,18 @@ const parseByteRange = (rangeHeader, size) => {
   }
 
   const [startString, endString] = String(rangeHeader).slice(bytesPrefix.length).split('-');
+
+  // "bytes=-500" asks for the last 500 bytes, not the first 501. Reading the
+  // empty start as 0 turned every suffix request into a request for the head
+  // of the file — silently wrong, since the response still looks valid.
+  if (startString === '' && endString !== '' && endString !== undefined) {
+    const suffixLength = Number(endString);
+    if (Number.isNaN(suffixLength)) return { malformed: true };
+    if (suffixLength === 0) return { unsatisfiable: true };
+    const start = Math.max(0, size - suffixLength);
+    return { start, end: size - 1, chunkSize: size - start };
+  }
+
   let start = Number(startString);
   let end = endString ? Number(endString) : size - 1;
 

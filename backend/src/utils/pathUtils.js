@@ -49,32 +49,82 @@ const realRoot = (root) => {
   return realRootCache.get(root);
 };
 
+// A dangling link may point at another dangling link. Bound the chase the way
+// the kernel does rather than trusting the filesystem to be acyclic.
+const MAX_SYMLINK_HOPS = 32;
+
+const readLinkOrNull = (target) => {
+  try {
+    return fs.readlinkSync(target);
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Confirm a resolved path really lives under its root once symlinks are
  * followed. Paths that do not exist yet (a file about to be created) are
  * checked through their closest existing ancestor.
+ *
+ * A broken link is neither: realpath fails on it, but it is not "not created
+ * yet" either — checking its parent instead would let `link -> /etc` through
+ * on the grounds that the directory holding the link is fine. Such a link is
+ * followed by hand and its target checked as a path in its own right.
  */
-const assertRealPathWithinRoot = (absolutePath, root) => {
+const assertRealPathWithinRoot = (
+  absolutePath,
+  root,
+  label = 'the configured volume root',
+  hops = 0
+) => {
   const expectedRoot = realRoot(root);
-  let candidate = absolutePath;
-  let realCandidate = null;
+  const rootWithSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+  const realWithSep = expectedRoot.endsWith(path.sep)
+    ? expectedRoot
+    : `${expectedRoot}${path.sep}`;
+  const outside = () => new Error(`Resolved path is outside ${label}.`);
+  const contained = (candidate) =>
+    candidate === expectedRoot || candidate.startsWith(realWithSep);
 
-  while (candidate === root || candidate.startsWith(root)) {
+  let candidate = absolutePath;
+
+  for (;;) {
+    let realCandidate = null;
     try {
       realCandidate = fs.realpathSync(candidate);
-      break;
     } catch {
-      const parent = path.dirname(candidate);
-      if (parent === candidate) break;
-      candidate = parent;
+      realCandidate = null;
     }
-  }
 
-  if (!realCandidate) return;
+    if (realCandidate) {
+      if (!contained(realCandidate)) throw outside();
+      return;
+    }
 
-  const withSep = expectedRoot.endsWith(path.sep) ? expectedRoot : `${expectedRoot}${path.sep}`;
-  if (realCandidate !== expectedRoot && !realCandidate.startsWith(withSep)) {
-    throw new Error('Resolved path is outside the configured volume root.');
+    const link = readLinkOrNull(candidate);
+    if (link !== null) {
+      if (hops >= MAX_SYMLINK_HOPS) {
+        throw new Error('Too many levels of symbolic links.');
+      }
+      const target = path.resolve(path.dirname(candidate), link);
+      // The target of a broken link may not exist anywhere, so there is no real
+      // path to compare. Judge it on the name: a target outside both spellings
+      // of the root is an escape whether or not it exists yet.
+      const lexicallyInside =
+        target === root ||
+        target.startsWith(rootWithSep) ||
+        target === expectedRoot ||
+        target.startsWith(realWithSep);
+      if (!lexicallyInside) throw outside();
+      assertRealPathWithinRoot(target, root, label, hops + 1);
+      return;
+    }
+
+    const parent = path.dirname(candidate);
+    // Nothing above the root is ours to judge: the root itself may not exist
+    // yet at startup, and the lexical check ran before we got here.
+    if (parent === candidate || (parent !== root && !parent.startsWith(rootWithSep))) return;
+    candidate = parent;
   }
 };
 
@@ -285,6 +335,8 @@ const resolvePersonalPath = (relativePath = '', user) => {
     throw new Error('Resolved path is outside the configured user directory.');
   }
 
+  assertRealPathWithinRoot(absolutePath, userRoot, 'the configured user directory');
+
   return absolutePath;
 };
 
@@ -352,6 +404,8 @@ const resolveLogicalPath = async (
     if (absolutePath !== userVolume.path && !absolutePath.startsWith(volumePathWithSep)) {
       throw new Error('Resolved path is outside the assigned volume.');
     }
+
+    assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
 
     return {
       space: 'volume',
@@ -474,6 +528,8 @@ const resolveSharePath = async (
     if (absolutePath !== userVolume.path && !absolutePath.startsWith(volumePathWithSep)) {
       throw new Error('Resolved path is outside the assigned volume.');
     }
+
+    assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
   } else {
     const combinedPath =
       isDirShare && innerPath ? combineRelativePath(share.sourcePath, innerPath) : share.sourcePath;
