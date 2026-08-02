@@ -25,6 +25,7 @@ const DELETE_STREAM_BATCH_SIZE = 500;
  * the whole selection in one body is refused as too large.
  */
 const TRANSFER_BATCH_SIZE = 500;
+const BATCH_CONCURRENCY = 3;
 
 /**
  * Fold the per-batch results back into the single response the caller expects:
@@ -109,49 +110,86 @@ async function refreshFolderSize(relativePath, options = {}) {
  * are known upfront — byte totals are not, since each batch only learns its
  * own when the server prepares it.
  */
-async function streamInBatches(items, batchSize, runBatch, onEvent) {
+async function streamInBatches(items, batchSize, runBatch, onEvent, concurrency = 1) {
   const all = Array.isArray(items) ? items : [];
   const emit = typeof onEvent === 'function' ? onEvent : null;
 
   if (all.length <= batchSize) return runBatch(all, emit);
 
-  const results = [];
-  let knownBytes = 0;
-  let doneBytes = 0;
-
+  const batches = [];
   for (let index = 0; index < all.length; index += batchSize) {
-    const batch = all.slice(index, index + batchSize);
-    const offset = index;
-    const bytesBefore = doneBytes;
+    batches.push(all.slice(index, index + batchSize));
+  }
 
-    // eslint-disable-next-line no-await-in-loop
-    const result = await runBatch(batch, (event) => {
+  const results = new Array(batches.length);
+  // Batches may be in flight together, so per-batch counters cannot simply be
+  // offset: the global count is advanced by each batch's own delta, which
+  // keeps it monotonic whatever order they progress in.
+  const seenPerBatch = new Array(batches.length).fill(0);
+  let completed = 0;
+  let knownBytes = 0;
+  let bytesPerBatch = new Array(batches.length).fill(0);
+  let startEmitted = false;
+
+  const runOne = async (batchIndex) => {
+    results[batchIndex] = await runBatch(batches[batchIndex], (event) => {
       if (!emit) return;
       if (event.type === 'start') {
         knownBytes += Number(event.totalBytes) || 0;
-        // One start for the whole run, carrying what is known so far.
-        if (offset === 0) {
+        // One start for the whole run, whichever batch opens first.
+        if (!startEmitted) {
+          startEmitted = true;
           emit({ ...event, totalItems: all.length, totalBytes: knownBytes });
         }
         return;
       }
       if (event.type === 'progress') {
-        const completedItems = offset + (Number(event.completedItems) || 0);
-        doneBytes = bytesBefore + (Number(event.copiedBytes) || 0);
+        const seen = Number(event.completedItems) || 0;
+        completed += Math.max(0, seen - seenPerBatch[batchIndex]);
+        seenPerBatch[batchIndex] = seen;
+
+        const bytes = Number(event.copiedBytes) || 0;
+        bytesPerBatch[batchIndex] = bytes;
+        const copiedBytes = bytesPerBatch.reduce((sum, value) => sum + value, 0);
+
         emit({
           ...event,
-          completedItems,
-          copiedBytes: doneBytes,
+          completedItems: completed,
+          ...(copiedBytes ? { copiedBytes } : {}),
           ...(knownBytes ? { totalBytes: knownBytes } : {}),
-          percent: Math.round((completedItems / all.length) * 100),
+          percent: Math.round((completed / all.length) * 100),
         });
         return;
       }
       emit(event);
     });
+  };
 
-    results.push(result);
-  }
+  // Several requests in flight: on storage where each operation is mostly
+  // latency, waiting for one batch before starting the next leaves most of
+  // the time unused.
+  let next = 0;
+  // Promise.all rejects on the first failure but does not stop the others:
+  // without this flag a cancelled operation would keep sending the batches
+  // already queued behind it.
+  let stopped = false;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, batches.length) }, async () => {
+      for (;;) {
+        if (stopped) return;
+        const batchIndex = next;
+        next += 1;
+        if (batchIndex >= batches.length) return;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await runOne(batchIndex);
+        } catch (error) {
+          stopped = true;
+          throw error;
+        }
+      }
+    })
+  );
 
   return results;
 }
@@ -222,7 +260,8 @@ async function deleteItemsStream(items, options = {}) {
         onEvent,
         signal: options.signal,
       }),
-    options.onEvent
+    options.onEvent,
+    BATCH_CONCURRENCY
   );
 
   if (!Array.isArray(results)) return results;
