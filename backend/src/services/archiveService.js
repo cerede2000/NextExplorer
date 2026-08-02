@@ -309,6 +309,39 @@ const createZipArchive = (sourcePaths, zipAbsolutePath, onPercent, options = {})
  * are peeled in two passes (each mapped to half of the progress range); the
  * intermediate .tar is removed so the folder holds the real content.
  */
+/**
+ * Total uncompressed size and entry count declared by an archive.
+ *
+ * `7z l -slt` lists without extracting, so the caller can refuse an archive
+ * that would expand far beyond its own size before a single byte is written.
+ * Returns null when the listing fails (encrypted headers, unknown layout):
+ * the caller then falls back to extracting, which stays bounded by the
+ * extraction timeout.
+ */
+const readArchiveFootprint = async (archiveAbsolutePath, password = null) => {
+  try {
+    const args = ['l', '-slt', '-y'];
+    if (password) args.push(`-p${password}`);
+    args.push(archiveAbsolutePath);
+    const { stdout } = await execFileAsync(SEVEN_ZIP_BIN, args, {
+      timeout: 30_000,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    let totalBytes = 0;
+    let entryCount = 0;
+    for (const line of stdout.split('\n')) {
+      const match = /^Size\s*=\s*(\d+)\s*$/.exec(line.trim());
+      if (match) {
+        totalBytes += Number.parseInt(match[1], 10) || 0;
+        entryCount += 1;
+      }
+    }
+    return entryCount ? { totalBytes, entryCount } : null;
+  } catch (error) {
+    return null;
+  }
+};
+
 const extractArchive = async (
   archiveAbsolutePath,
   destinationAbsolutePath,
@@ -348,6 +381,7 @@ const extractArchive = async (
 module.exports = {
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
+  readArchiveFootprint,
   extractArchive,
   createZipArchive,
   archiveBaseName,

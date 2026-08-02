@@ -279,6 +279,19 @@ const searchMaxFileSizeBytes = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
 })();
 
+// --- Uploads ---
+// Ceilings for direct (non-chunked) uploads. They exist so a single request
+// cannot stream until the disk is full; they are generous on purpose, since
+// large files are a normal use of a file manager. Chunked uploads have their
+// own storage guard in the TUS service.
+const uploads = {
+  maxDirectUploadBytes: (() => {
+    const parsed = parseByteSize(env.MAX_DIRECT_UPLOAD_SIZE);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;
+  })(),
+  maxFilesPerRequest: env.MAX_FILES_PER_UPLOAD,
+};
+
 // --- OnlyOffice ---
 const onlyoffice = {
   serverUrl: env.ONLYOFFICE_URL?.replace(/\/$/, '') || null,
@@ -353,12 +366,22 @@ const DEFAULT_ARCHIVE_EXTENSIONS = [
 
 const archives = (() => {
   const raw = String(env.ARCHIVE_EXTENSIONS || '').trim();
-  if (!raw) return { extensions: DEFAULT_ARCHIVE_EXTENSIONS };
+  // Extraction guards, generous enough for real archives but low enough that a
+  // crafted one cannot fill the volume before anyone notices.
+  const limits = {
+    maxExtractedBytes: (() => {
+      const parsed = parseByteSize(env.MAX_EXTRACTED_ARCHIVE_SIZE);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 32 * 1024 * 1024 * 1024;
+    })(),
+    maxEntries: env.MAX_ARCHIVE_ENTRIES,
+  };
+  if (!raw) return { extensions: DEFAULT_ARCHIVE_EXTENSIONS, ...limits };
   // 'zip,iso' replaces the default list; '+udf,squashfs' extends it.
   const extend = raw.startsWith('+');
   const list = parseExtensionList(extend ? raw.slice(1) : raw);
   return {
     extensions: extend ? [...new Set([...DEFAULT_ARCHIVE_EXTENSIONS, ...list])] : list,
+    ...limits,
   };
 })();
 
@@ -489,6 +512,7 @@ module.exports = {
   },
 
   thumbnails: { size: 200, quality: 70 },
+  uploads,
   onlyoffice,
   collabora,
   editor,

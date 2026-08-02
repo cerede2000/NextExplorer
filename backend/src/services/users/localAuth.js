@@ -31,7 +31,9 @@ const attemptLocalLogin = async ({ email, password }) => {
   // Find user by email
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(normEmail);
   if (!user) {
-    await incrementFailedAttempts(normEmail);
+    // No counter for an address that has no account: the lock is keyed on the
+    // email alone, so counting here would let anyone lock a colleague out by
+    // guessing their address. Brute force is bounded by the login rate limit.
     return null;
   }
 
