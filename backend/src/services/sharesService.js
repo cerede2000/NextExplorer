@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { getDb } = require('./db');
+const { getDb, prepared } = require('./db');
 const { generateId, nowIso } = require('../utils/ids');
 
 
@@ -127,7 +127,7 @@ const createShare = async ({
   const passwordHash = password ? bcrypt.hashSync(password, 10) : null;
 
   // Create share
-  db.prepare(
+  prepared(db, 
     `
     INSERT INTO shares (
       id, share_token, owner_id, source_space, source_path, is_directory,
@@ -157,7 +157,7 @@ const createShare = async ({
 
   // Add user permissions if user-specific share
   if (sharingType === 'users' && Array.isArray(userIds) && userIds.length > 0) {
-    const insertPerm = db.prepare(`
+    const insertPerm = prepared(db, `
       INSERT INTO share_permissions (id, share_id, user_id, created_at)
       VALUES (?, ?, ?, ?)
     `);
@@ -182,7 +182,7 @@ const createShare = async ({
  */
 const getShareById = async (shareId) => {
   const db = await getDb();
-  const row = db.prepare('SELECT * FROM shares WHERE id = ?').get(shareId);
+  const row = prepared(db, 'SELECT * FROM shares WHERE id = ?').get(shareId);
   if (!row) return null;
 
   const share = toClientShare(row);
@@ -207,7 +207,7 @@ const getShareById = async (shareId) => {
  */
 const getShareByToken = async (token) => {
   const db = await getDb();
-  const row = db.prepare('SELECT * FROM shares WHERE share_token = ?').get(token);
+  const row = prepared(db, 'SELECT * FROM shares WHERE share_token = ?').get(token);
   if (!row) return null;
 
   const share = toClientShare(row);
@@ -298,7 +298,7 @@ const getSharesForUser = async (userId) => {
  */
 const updateShare = async (shareId, updates = {}) => {
   const db = await getDb();
-  const existing = db.prepare('SELECT * FROM shares WHERE id = ?').get(shareId);
+  const existing = prepared(db, 'SELECT * FROM shares WHERE id = ?').get(shareId);
   if (!existing) {
     const e = new Error('Share not found');
     e.status = 404;
@@ -379,17 +379,17 @@ const updateShare = async (shareId, updates = {}) => {
     values.push(nowIso());
     values.push(shareId);
 
-    db.prepare(`UPDATE shares SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    prepared(db, `UPDATE shares SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }
 
   // A permission list is meaningful only for user-specific shares. Always clear
   // it when switching back to an anyone link so revoked recipients have no stale
   // database entries left behind.
   if (hasUserIdsUpdate || effectiveSharingType === 'anyone') {
-    db.prepare('DELETE FROM share_permissions WHERE share_id = ?').run(shareId);
+    prepared(db, 'DELETE FROM share_permissions WHERE share_id = ?').run(shareId);
 
     if (effectiveSharingType === 'users') {
-      const insertPerm = db.prepare(`
+      const insertPerm = prepared(db, `
         INSERT INTO share_permissions (id, share_id, user_id, created_at)
         VALUES (?, ?, ?, ?)
       `);
@@ -415,7 +415,7 @@ const updateShare = async (shareId, updates = {}) => {
  */
 const deleteShare = async (shareId) => {
   const db = await getDb();
-  const result = db.prepare('DELETE FROM shares WHERE id = ?').run(shareId);
+  const result = prepared(db, 'DELETE FROM shares WHERE id = ?').run(shareId);
   return result.changes > 0;
 };
 
@@ -426,6 +426,56 @@ const normalizeShareSourcePath = (sourcePath = '') =>
     .replace(/\/+$/, '');
 
 const escapeLikePattern = (value = '') => String(value).replace(/[\\%_]/g, '\\$&');
+
+/**
+ * Shares affected by each target, in one pass.
+ *
+ * A bulk delete asked this per file — three thousand round trips through the
+ * database to answer a question the whole selection could ask once. Returned
+ * as a map so each entry still knows which shares are its own.
+ */
+const getSharesBySourceTarget = async (targets = []) => {
+  const byTarget = new Map();
+  const normalized = (Array.isArray(targets) ? targets : [])
+    .map((target) => ({
+      key: `${target?.sourceSpace}:${normalizeShareSourcePath(target?.sourcePath)}`,
+      sourceSpace: target?.sourceSpace,
+      sourcePath: normalizeShareSourcePath(target?.sourcePath),
+      includeChildren: Boolean(target?.includeChildren),
+    }))
+    .filter((target) => target.sourceSpace && target.sourcePath);
+
+  if (normalized.length === 0) return byTarget;
+
+  const db = await getDb();
+  const exactQuery = prepared(
+    db,
+    'SELECT * FROM shares WHERE source_space = ? AND source_path = ?'
+  );
+  const childQuery = prepared(
+    db,
+    "SELECT * FROM shares WHERE source_space = ? AND source_path LIKE ? ESCAPE '\\'"
+  );
+
+  for (const target of normalized) {
+    if (byTarget.has(target.key)) continue;
+    const rows = new Map();
+    exactQuery
+      .all(target.sourceSpace, target.sourcePath)
+      .forEach((row) => rows.set(row.id, row));
+    if (target.includeChildren) {
+      childQuery
+        .all(target.sourceSpace, `${escapeLikePattern(target.sourcePath)}/%`)
+        .forEach((row) => rows.set(row.id, row));
+    }
+    byTarget.set(target.key, Array.from(rows.values()).map(toClientShare));
+  }
+
+  return byTarget;
+};
+
+const shareTargetKey = (target) =>
+  `${target?.sourceSpace}:${normalizeShareSourcePath(target?.sourcePath)}`;
 
 const getSharesForSourceTargets = async (targets = []) => {
   const normalizedTargets = (Array.isArray(targets) ? targets : [])
@@ -443,8 +493,8 @@ const getSharesForSourceTargets = async (targets = []) => {
   const db = await getDb();
   const sharesById = new Map();
 
-  const exactQuery = db.prepare('SELECT * FROM shares WHERE source_space = ? AND source_path = ?');
-  const childQuery = db.prepare(
+  const exactQuery = prepared(db, 'SELECT * FROM shares WHERE source_space = ? AND source_path = ?');
+  const childQuery = prepared(db, 
     "SELECT * FROM shares WHERE source_space = ? AND source_path LIKE ? ESCAPE '\\'"
   );
 
@@ -471,7 +521,7 @@ const deleteSharesByIds = async (shareIds = []) => {
   }
 
   const db = await getDb();
-  const deleteOne = db.prepare('DELETE FROM shares WHERE id = ?');
+  const deleteOne = prepared(db, 'DELETE FROM shares WHERE id = ?');
   const transaction = db.transaction((ids) => {
     let changes = 0;
     ids.forEach((id) => {
@@ -488,7 +538,7 @@ const deleteSharesByIds = async (shareIds = []) => {
  */
 const verifySharePassword = async (shareId, password) => {
   const db = await getDb();
-  const row = db.prepare('SELECT password_hash FROM shares WHERE id = ?').get(shareId);
+  const row = prepared(db, 'SELECT password_hash FROM shares WHERE id = ?').get(shareId);
 
   if (!row) {
     return false;
@@ -511,7 +561,7 @@ const verifySharePassword = async (shareId, password) => {
  */
 const hasUserPermission = async (shareId, userId) => {
   const db = await getDb();
-  const share = db.prepare('SELECT sharing_type, owner_id FROM shares WHERE id = ?').get(shareId);
+  const share = prepared(db, 'SELECT sharing_type, owner_id FROM shares WHERE id = ?').get(shareId);
 
   if (!share) {
     return false;
@@ -560,7 +610,7 @@ const isShareExpired = (share) => {
  */
 const trackShareAccess = async (shareId, { ipAddress = null } = {}) => {
   const db = await getDb();
-  db.prepare(
+  prepared(db, 
     `
     UPDATE shares
     SET access_count = access_count + 1,
@@ -576,7 +626,7 @@ const trackShareAccess = async (shareId, { ipAddress = null } = {}) => {
  */
 const trackShareDownload = async (shareId, { ipAddress = null } = {}) => {
   const db = await getDb();
-  db.prepare(
+  prepared(db, 
     `
     UPDATE shares
     SET download_count = download_count + 1,
@@ -592,7 +642,7 @@ const trackShareDownload = async (shareId, { ipAddress = null } = {}) => {
  */
 const getShareStats = async (shareId) => {
   const db = await getDb();
-  const share = db.prepare('SELECT * FROM shares WHERE id = ?').get(shareId);
+  const share = prepared(db, 'SELECT * FROM shares WHERE id = ?').get(shareId);
   if (!share) return null;
 
   // Count guest sessions
@@ -637,6 +687,8 @@ module.exports = {
   getShareByToken,
   getSharesByOwnerId,
   getSharesForSourceTargets,
+  getSharesBySourceTarget,
+  shareTargetKey,
   getSharesForUser,
   updateShare,
   deleteShare,

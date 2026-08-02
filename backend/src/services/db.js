@@ -644,6 +644,30 @@ const ensureAnonymousUser = (db) => {
   }
 };
 
+/**
+ * Prepared statements, compiled once per database handle.
+ *
+ * better-sqlite3 compiles on every prepare() call, and services that run per
+ * item were compiling the same SQL thousands of times: a CPU profile of a
+ * 3000-file delete put prepare() at the top of the applied work, ahead of the
+ * filesystem calls it was meant to support.
+ */
+const statementCache = new WeakMap();
+
+const prepared = (db, sql) => {
+  let cache = statementCache.get(db);
+  if (!cache) {
+    cache = new Map();
+    statementCache.set(db, cache);
+  }
+  let statement = cache.get(sql);
+  if (!statement) {
+    statement = db.prepare(sql);
+    cache.set(sql, statement);
+  }
+  return statement;
+};
+
 const getDb = async () => {
   if (dbInstance) return dbInstance;
 
@@ -694,6 +718,7 @@ const closeDb = () => {
 
 module.exports = {
   getDb,
+  prepared,
   getDbPath,
   closeDb,
 };

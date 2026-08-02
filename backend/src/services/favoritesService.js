@@ -1,5 +1,5 @@
 const fs = require('fs/promises');
-const { getDb } = require('./db');
+const { getDb, prepared } = require('./db');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('./accessManager');
 const config = require('../config');
@@ -143,7 +143,7 @@ const addFavorite = async (userOrId, { path, label, icon, color }) => {
   const id = generateId();
   const position = getNextFavoritePosition(db, userId);
 
-  db.prepare(
+  prepared(db, 
     `
     INSERT INTO favorites (id, user_id, path, label, icon, color, created_at, updated_at, position)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -187,7 +187,7 @@ const removeFavorite = async (userId, path) => {
   const normalizedPath = normalizeRelativePath(path);
 
   const db = await getDb();
-  db.prepare(
+  prepared(db, 
     `
     DELETE FROM favorites WHERE user_id = ? AND path = ?
   `
@@ -366,7 +366,7 @@ const reorderFavorites = async (userId, orderedIds) => {
     throw err;
   }
 
-  const updatePosition = db.prepare(`
+  const updatePosition = prepared(db, `
     UPDATE favorites
     SET position = ?
     WHERE user_id = ? AND id = ?
