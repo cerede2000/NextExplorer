@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import * as OutlineIcons from '@heroicons/vue/24/outline';
-import * as SolidIcons from '@heroicons/vue/24/solid';
 import { storeToRefs } from 'pinia';
 import draggable from 'vuedraggable';
 import { useFavoritesStore } from '@/stores/favorites';
@@ -10,6 +9,7 @@ import { useNavigation } from '@/composables/navigation';
 import { normalizePath } from '@/api';
 import { useI18n } from 'vue-i18n';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
+import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 
 const {
@@ -31,34 +31,7 @@ const { openEditorForFavorite } = useFavoriteEditor();
 const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTarget } =
   useFileDragDrop();
 
-const ICON_VARIANTS = {
-  outline: OutlineIcons,
-  solid: SolidIcons,
-};
-
-const resolveIconComponent = (iconName) => {
-  if (typeof iconName !== 'string') {
-    return StarIconOutline;
-  }
-
-  const trimmed = iconName.trim();
-  if (!trimmed) {
-    return StarIconOutline;
-  }
-
-  if (trimmed.includes(':')) {
-    const [variantRaw, iconRaw] = trimmed.split(':', 2);
-    const variantKey = variantRaw.toLowerCase();
-    const iconKey = iconRaw.trim();
-    const registry = ICON_VARIANTS[variantKey];
-    if (registry && registry[iconKey]) {
-      return registry[iconKey];
-    }
-  }
-
-  return OutlineIcons[trimmed] || SolidIcons[trimmed] || StarIconOutline;
-};
-
+const resolveIconComponent = resolveFavoriteIcon;
 const getFavoriteLabel = (favorite = {}) => {
   const path = favorite.path || '';
   const autoLabel = path.split('/').pop() || path;
