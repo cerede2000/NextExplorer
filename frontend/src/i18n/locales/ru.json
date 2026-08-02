@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "Файл редактируется",
-    "editingBody": "{names} {count, plural, one {открыт} few {открыты} many {открыты} other {открыты}} в OnlyOffice. {action} будет продолжено.",
+    "editingBody": "{names} открыт в OnlyOffice. {action} будет продолжено. | {names} открыты в OnlyOffice. {action} будет продолжено.",
     "andOthers": "и еще {count}",
     "actionCopy": "Копирование",
     "actionMove": "Перемещение",

@@ -21,6 +21,7 @@ import AuthLoginView from '@/views/AuthLoginView.vue';
 import ShareLoginView from '@/views/ShareLoginView.vue';
 import SharedWithMeView from '@/views/SharedWithMeView.vue';
 import SharedByMeView from '@/views/SharedByMeView.vue';
+import { getShareInfo } from '@/api/shares.api';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
@@ -240,9 +241,22 @@ router.beforeEach(async (to, from) => {
       await auth.initialize();
     }
 
-    // Allow if user is authenticated OR has guest session
-    if (auth.isAuthenticated || (guestSessionId && guestSessionShareToken === shareToken)) {
+    // A verified guest session is always enough.
+    if (guestSessionId && guestSessionShareToken === shareToken) {
       return true;
+    }
+
+    // Being signed in is enough too, unless the link is password-protected:
+    // the backend asks every non-owner for it, so send them to the prompt
+    // rather than into a view that will only get refusals.
+    if (auth.isAuthenticated) {
+      try {
+        const info = await getShareInfo(shareToken);
+        if (!info?.hasPassword) return true;
+      } catch (error) {
+        // Unreachable or unknown share: let the view surface the error.
+        return true;
+      }
     }
 
     // No guest session and not authenticated - redirect to share login

@@ -73,7 +73,10 @@ const guestSessionCookieOptions = (req) => ({
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
   sameSite: 'lax',
   secure: req.secure === true,
-  path: '/api', // Ensure cookie is sent for all /api/* requests
+  // Root path, not /api: thumbnails are served from /static, and an <img>
+  // cannot carry the X-Guest-Session header the API client uses. Scoping the
+  // cookie to /api left share visitors with broken thumbnails.
+  path: '/',
 });
 
 const buildPublicBaseUrl = (req) => {
@@ -707,6 +710,16 @@ router.get(
         throw new ForbiddenError('Access denied');
       }
     } else {
+      // A password protects the link from everyone but its owner. Being signed
+      // in is not knowing it, so an authenticated visitor is sent through the
+      // same prompt unless they already verified it (guest session) or own it.
+      if (share.hasPassword && req.user && String(req.user.id) !== String(share.ownerId)) {
+        const verified = req.guestSession && req.guestSession.shareId === share.id;
+        if (!verified) {
+          throw new UnauthorizedError('Password verification required');
+        }
+      }
+
       // Anyone share - always create a new guest session for this share
       // This ensures switching between shares in the same browser works correctly
       if (!req.user) {

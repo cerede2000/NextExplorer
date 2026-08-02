@@ -300,11 +300,13 @@ export const useFileStore = defineStore('fileStore', () => {
     notificationsStore.addNotification({
       type: 'warning',
       heading: t('onlyoffice.editingHeading'),
-      body: t('onlyoffice.editingBody', {
-        names: label,
-        count: activeItems.length,
-        action: t(`onlyoffice.action${action}`),
-      }),
+      // vue-i18n selects the plural form from the third argument, not from a
+      // named one: the message uses its native "singular | plural" syntax.
+      body: t(
+        'onlyoffice.editingBody',
+        { names: label, action: t(`onlyoffice.action${action}`) },
+        activeItems.length
+      ),
       durationMs: 8000,
     });
     return true;

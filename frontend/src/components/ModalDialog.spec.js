@@ -56,3 +56,39 @@ describe('ModalDialog accessibility', () => {
     wrapper.unmount();
   });
 });
+
+describe('ModalDialog focus handling', () => {
+  it('does not steal focus from a field the dialog focused itself', async () => {
+    const wrapper = mount(ModalDialog, {
+      props: { modelValue: false },
+      slots: { title: 'Password required', default: '<input id="pw" />' },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    });
+
+    await wrapper.setProps({ modelValue: true });
+    // Mimic a child dialog focusing its own input right after opening.
+    document.getElementById('pw').focus();
+    await wrapper.vm.$nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.activeElement?.id).toBe('pw');
+    wrapper.unmount();
+  });
+
+  it('focuses the first control when nothing else claimed it', async () => {
+    const wrapper = mount(ModalDialog, {
+      props: { modelValue: true },
+      slots: { title: 'Plain', default: '<button id="ok">OK</button>' },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    });
+
+    await wrapper.vm.$nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    wrapper.unmount();
+  });
+});

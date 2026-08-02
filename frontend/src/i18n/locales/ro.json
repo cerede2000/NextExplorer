@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "Fișierul este în curs de editare",
-    "editingBody": "{names} {count, plural, one {este deschis} few {sunt deschise} other {sunt deschise}} în OnlyOffice. {action} va continua.",
+    "editingBody": "{names} este deschis în OnlyOffice. {action} va continua. | {names} sunt deschise în OnlyOffice. {action} va continua.",
     "andOthers": "și încă {count}",
     "actionCopy": "Copierea",
     "actionMove": "Mutarea",

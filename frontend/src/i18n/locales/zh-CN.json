@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "文件正在编辑中",
-    "editingBody": "{names} {count, plural, other {已在 OnlyOffice 中打开}}。{action}操作将继续。",
+    "editingBody": "{names} 已在 OnlyOffice 中打开。{action}操作将继续。 | {names} 已在 OnlyOffice 中打开。{action}操作将继续。",
     "andOthers": "以及其他 {count} 项",
     "actionCopy": "复制",
     "actionMove": "移动",

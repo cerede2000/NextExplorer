@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "फ़ाइल संपादित की जा रही है",
-    "editingBody": "{names} OnlyOffice में {count, plural, one {खुली है} other {खुली हैं}}। {action} जारी रहेगा।",
+    "editingBody": "{names} OnlyOffice में खुली है। {action} जारी रहेगा। | {names} OnlyOffice में खुली हैं। {action} जारी रहेगा।",
     "andOthers": "और {count} अन्य",
     "actionCopy": "कॉपी करना",
     "actionMove": "स्थानांतरित करना",

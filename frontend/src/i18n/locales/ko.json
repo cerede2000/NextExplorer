@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "파일 편집 중",
-    "editingBody": "{names} {count, plural, other {파일}}이(가) OnlyOffice에서 열려 있습니다. {action} 작업을 계속 진행합니다.",
+    "editingBody": "{names} 파일이(가) OnlyOffice에서 열려 있습니다. {action} 작업을 계속 진행합니다. | {names} 파일이(가) OnlyOffice에서 열려 있습니다. {action} 작업을 계속 진행합니다.",
     "andOthers": "외 {count}개",
     "actionCopy": "복사",
     "actionMove": "이동",

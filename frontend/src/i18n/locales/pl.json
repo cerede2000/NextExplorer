@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "Plik jest edytowany",
-    "editingBody": "{names} {count, plural, one {jest otwarty} few {są otwarte} many {jest otwartych} other {jest otwartych}} w OnlyOffice. {action} będzie kontynuowane.",
+    "editingBody": "{names} jest otwarty w OnlyOffice. {action} będzie kontynuowane. | {names} jest otwartych w OnlyOffice. {action} będzie kontynuowane.",
     "andOthers": "i {count} więcej",
     "actionCopy": "Kopiowanie",
     "actionMove": "Przenoszenie",

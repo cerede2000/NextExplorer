@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "Datei wird bearbeitet",
-    "editingBody": "{names} {count, plural, one {ist} other {sind}} in OnlyOffice geöffnet. {action} wird fortgesetzt.",
+    "editingBody": "{names} ist in OnlyOffice geöffnet. {action} wird fortgesetzt. | {names} sind in OnlyOffice geöffnet. {action} wird fortgesetzt.",
     "andOthers": "und {count} weitere",
     "actionCopy": "Das Kopieren",
     "actionMove": "Das Verschieben",
