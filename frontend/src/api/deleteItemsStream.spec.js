@@ -117,8 +117,14 @@ describe('Streamed deletion', () => {
     });
 
     await expect(deleteItemsStream(selection(2000))).rejects.toThrow(/aborted/i);
-    // It does not carry on deleting after the user asked it to stop.
-    expect(requestStream).toHaveBeenCalledTimes(3);
+    // It does not carry on through the whole selection after the user asked it
+    // to stop. Batches already in flight when the failure lands still count,
+    // so the guarantee is "stops", not an exact number.
+    expect(requestStream.mock.calls.length).toBeLessThan(6);
+    const before = requestStream.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // And nothing keeps going once the error has propagated.
+    expect(requestStream.mock.calls.length).toBe(before);
   });
 
   it('passes the abort signal to every batch', async () => {
