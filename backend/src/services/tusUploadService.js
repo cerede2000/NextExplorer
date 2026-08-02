@@ -264,6 +264,20 @@ const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
     );
   }
 
+  // Same reason as the direct upload path: the destination the client asked
+  // for is authorized above, but the folder the file actually lands in comes
+  // from a client-supplied relative path and must be authorized as well.
+  if (relDestDir !== normalizeRelativePath(logicalBase)) {
+    const { allowed: destAllowed, accessInfo: destAccess } = await authorizeAndResolve(
+      context,
+      relDestDir,
+      ACTIONS.upload
+    );
+    if (!destAllowed) {
+      throw tusError(403, destAccess?.denialReason || 'Cannot upload files to this path.');
+    }
+  }
+
   return {
     uploadTo,
     relativePath,

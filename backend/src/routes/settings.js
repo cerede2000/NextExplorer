@@ -12,7 +12,6 @@ const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
 const folderSizeManager = require('../services/folderSizeManager');
-const folderSizeExclusions = require('../services/folderSizeExclusions');
 
 const router = express.Router();
 

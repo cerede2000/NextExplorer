@@ -5,6 +5,7 @@ const { promisify } = require('util');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const { ensureAdmin } = require('../middleware/ensureAdmin');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const {
@@ -104,6 +105,9 @@ router.get(
  */
 router.post(
   '/permissions/chmod',
+  // Changing modes on a shared volume is an administration task: a plain
+  // write permission on a path is not consent to re-permission its tree.
+  ensureAdmin,
   asyncHandler(async (req, res) => {
     const { path: rawPath, mode, recursive } = req.body;
 
@@ -190,6 +194,7 @@ router.post(
  */
 router.post(
   '/permissions/chown',
+  ensureAdmin,
   asyncHandler(async (req, res) => {
     const { path: rawPath, owner, group } = req.body;
 

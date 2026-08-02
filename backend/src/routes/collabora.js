@@ -48,6 +48,9 @@ const getAccessTokenFromReq = (req) => {
   return null;
 };
 
+// Signed with the same secret as other tokens, so it says what it is.
+const WOPI_TOKEN_TYPE = 'nextexplorer-wopi';
+
 const verifyWopiToken = (req, fileId) => {
   if (!collabora?.secret) {
     throw new UnauthorizedError('COLLABORA_SECRET is not configured.');
@@ -75,6 +78,12 @@ const verifyWopiToken = (req, fileId) => {
 
   if (!payload.absolutePath) {
     throw new UnauthorizedError('access_token missing absolutePath.');
+  }
+
+  // Older tokens predate the type claim; anything that declares another type
+  // is not a WOPI token and must not stand in for one.
+  if (payload.typ && payload.typ !== WOPI_TOKEN_TYPE) {
+    throw new UnauthorizedError('access_token type mismatch.');
   }
 
   return payload;
@@ -143,6 +152,7 @@ router.post(
     const tokenExpiresAtMs = Date.now() + tokenTtlSeconds * 1000;
     const accessToken = jwt.sign(
       {
+        typ: WOPI_TOKEN_TYPE,
         fileId,
         absolutePath: abs,
         logicalPath: resolved.relativePath,
@@ -261,6 +271,24 @@ router.get(
   })
 );
 
+
+/**
+ * A token lives for hours; the share it was issued for may not.
+ *
+ * The token stands in for a permission check, so before writing we confirm the
+ * share still exists and has not expired. Deleting or expiring a share now
+ * ends the editing session instead of leaving it writable until the token
+ * runs out.
+ */
+const assertShareStillValid = async (tokenPayload) => {
+  if (!tokenPayload?.shareToken) return;
+  const { getShareByToken, isShareExpired } = require('../services/sharesService');
+  const share = await getShareByToken(tokenPayload.shareToken);
+  if (!share || isShareExpired(share)) {
+    throw new UnauthorizedError('The share for this editing session is no longer available.');
+  }
+};
+
 // WOPI: PutFile (save)
 router.post(
   '/collabora/wopi/files/:fileId/contents',
@@ -269,6 +297,8 @@ router.post(
     if (!fileId) throw new ValidationError('fileId is required.');
 
     const tokenPayload = verifyWopiToken(req, fileId);
+    await assertShareStillValid(tokenPayload);
+
     if (!tokenPayload.canWrite) {
       throw new ForbiddenError('This file is read-only.');
     }
@@ -325,6 +355,8 @@ router.post(
     if (!fileId) throw new ValidationError('fileId is required.');
 
     const tokenPayload = verifyWopiToken(req, fileId);
+    await assertShareStillValid(tokenPayload);
+
     if (!tokenPayload.canWrite) {
       throw new ForbiddenError('This file is read-only.');
     }

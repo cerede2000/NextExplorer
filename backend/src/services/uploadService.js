@@ -105,12 +105,9 @@ function CustomStorage() {
 CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
   (async () => {
     try {
-      const { destinationPath, destinationDir, logicalRelativePath } = await resolveUploadPaths(
-        req,
-        file
-      );
+      const { destinationPath, destinationDir, logicalRelativePath, logicalBase } =
+        await resolveUploadPaths(req, file);
 
-      // Enforce access control: destination directory must be writable
       const relDestDir = normalizeRelativePath(path.dirname(logicalRelativePath));
 
       // Prevent uploading directly to the root path (no space / volume selected)
@@ -118,6 +115,24 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         throw new ValidationError(
           'Cannot upload files to the root path. Please select a specific volume or folder first.'
         );
+      }
+
+      // The authorization above covers the chosen destination; the file also
+      // carries a client-supplied relative path, so the folder it actually
+      // lands in has to be authorized too. Otherwise a subfolder an admin
+      // marked read-only or hidden would still accept uploads.
+      if (relDestDir !== normalizeRelativePath(logicalBase)) {
+        const context = { user: req.user, guestSession: req.guestSession };
+        const { allowed: destAllowed, accessInfo: destAccess } = await authorizeAndResolve(
+          context,
+          relDestDir,
+          ACTIONS.upload
+        );
+        if (!destAllowed) {
+          throw new ForbiddenError(
+            destAccess?.denialReason || 'Cannot upload files to this path.'
+          );
+        }
       }
 
       await ensureDir(destinationDir);

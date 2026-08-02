@@ -13,21 +13,15 @@ const {
 const asyncHandler = require('../utils/asyncHandler');
 const { searchLocalUsers } = require('../services/userSearchService');
 const {
-  ForbiddenError,
   NotFoundError,
   ValidationError,
   UnauthorizedError,
 } = require('../errors/AppError');
+const { ensureAdmin } = require('../middleware/ensureAdmin');
 
 const router = express.Router();
 
-const ensureAdmin = (req, res, next) => {
-  const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
-  if (!roles.includes('admin')) {
-    throw new ForbiddenError('Admin access required.');
-  }
-  next();
-};
+
 
 // GET /api/users/shareable - list users for sharing (authenticated)
 router.get(

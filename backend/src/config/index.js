@@ -32,7 +32,7 @@ const parseRegexPattern = (token) => {
   return null;
 };
 
-const escapeRipgrepGlob = (value) => String(value).replace(/[\\*?\[\]{}]/g, '\\$&');
+const escapeRipgrepGlob = (value) => String(value).replace(/[\\*?[\]{}]/g, '\\$&');
 
 const parseHiddenFilePatterns = (raw) => {
   const tokens = raw == null ? DEFAULT_HIDDEN_FILE_PATTERNS : parseCommaOrSpaceList(raw);
