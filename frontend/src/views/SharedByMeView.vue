@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { formatLocalDateTime } from '@/utils';
 import { isEditableExtension } from '@/config/editor';
 import {
   getMyShares,
@@ -104,12 +105,7 @@ const isExpired = (share) => {
   return new Date(share.expiresAt) <= new Date();
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return t('common.noExpiration');
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return dateString;
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-};
+const formatDate = (dateString) => formatLocalDateTime(dateString, t('common.noExpiration'));
 
 const formatDetailedDate = (dateString) => {
   if (!dateString) return t('share.noActivity');

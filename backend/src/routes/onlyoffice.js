@@ -7,7 +7,8 @@ const crypto = require('crypto');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 
-const { onlyoffice, public: publicConfig, mimeTypes } = require('../config/index');
+const { onlyoffice, public: publicConfig } = require('../config/index');
+const { toExtension, resolveMimeType } = require('../utils/fileTypes');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
@@ -36,7 +37,6 @@ const SUPPORTED_PRESENTATION = new Set(['pptx', 'ppt', 'odp']);
 const BACKEND_TOKEN_TYPE = 'nextexplorer-backend';
 const BACKEND_TOKEN_TTL_SECONDS = 12 * 60 * 60;
 
-const toExt = (filename = '') => String(filename).split('.').pop().toLowerCase();
 
 /**
  * Read a backend token from the query string.
@@ -125,7 +125,6 @@ const getDocumentType = (ext) => {
   return 'word';
 };
 
-const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
 
 const buildDocumentKey = (relativePath, stat) =>
   crypto
@@ -377,7 +376,7 @@ router.post(
     const canEdit = mode !== 'view' && !isReadonlyShare && accessInfo.canWrite === true;
 
     const filename = path.basename(abs);
-    const ext = toExt(filename);
+    const ext = toExtension(filename);
     const documentType = getDocumentType(ext);
 
     const fileUrl = new URL(`/api/onlyoffice/file`, publicConfig.url);
@@ -644,8 +643,8 @@ router.get(
     if (stat.isDirectory()) {
       throw new ValidationError('Cannot fetch a directory.');
     }
-    const ext = toExt(abs);
-    const mime = resolveMime(ext);
+    const ext = toExtension(abs);
+    const mime = resolveMimeType(ext);
     res.writeHead(200, {
       'Content-Type': mime,
       'Content-Length': stat.size,

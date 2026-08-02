@@ -2,7 +2,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 
-const { ensureDir } = require('../utils/fsUtils');
+const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { directories } = require('../config/index');
 
 let exiftoolSingleton = null;
@@ -54,15 +54,6 @@ const hashForFile = async (filePath) => {
   hash.update(String(stat.size));
   hash.update(String(Math.floor(stat.mtimeMs)));
   return hash.digest('hex');
-};
-
-const pathExists = async (targetPath) => {
-  try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 const ensureRawPreviewCacheDir = async () => {
