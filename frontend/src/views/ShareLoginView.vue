@@ -32,8 +32,10 @@ const verificationError = ref('');
 
 // Computed
 const isExpired = computed(() => shareInfo.value?.isExpired || false);
+// requiresPassword comes from the backend and already accounts for the viewer:
+// the owner of a protected link is not asked for their own password.
 const requiresPassword = computed(() =>
-  Boolean(shareInfo.value?.hasPassword && shareInfo.value?.sharingType === 'anyone')
+  Boolean(shareInfo.value?.requiresPassword && shareInfo.value?.sharingType === 'anyone')
 );
 const redirectTarget = computed(() => {
   const value = route.query.redirect;
@@ -64,7 +66,7 @@ async function loadShareInfo() {
     shareInfo.value = info;
 
     // If share doesn't require password and is public, auto-access
-    if (!info.hasPassword && info.sharingType === 'anyone' && !info.isExpired) {
+    if (!info.requiresPassword && info.sharingType === 'anyone' && !info.isExpired) {
       logger.debug('Auto-accessing share (no password required)');
       await handleAutoAccess();
     }

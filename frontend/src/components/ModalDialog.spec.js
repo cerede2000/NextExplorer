@@ -87,8 +87,59 @@ describe('ModalDialog focus handling', () => {
     await wrapper.vm.$nextTick();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const dialog = document.querySelector('[role="dialog"]');
-    expect(dialog.contains(document.activeElement)).toBe(true);
+    // contains() would also accept the dialog container itself, which is not
+    // what this promises: focus has to land on a real control.
+    expect(document.activeElement?.tagName).toBe('BUTTON');
+    wrapper.unmount();
+  });
+});
+
+describe('ModalDialog keyboard trap', () => {
+  const tab = (shiftKey = false) =>
+    document
+      .querySelector('[role="dialog"]')
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true }));
+
+  it('wraps from the last control back to the first', async () => {
+    const wrapper = mountDialog();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    document.getElementById('inner').focus();
+    tab();
+
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
+    wrapper.unmount();
+  });
+
+  it('wraps backwards from the first control to the last', async () => {
+    const wrapper = mountDialog();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    document.querySelector('[role="dialog"] button').focus();
+    tab(true);
+
+    expect(document.activeElement?.id).toBe('inner');
+    wrapper.unmount();
+  });
+
+  it('pulls focus back in when it sits on something outside the ring', async () => {
+    // A hidden control is filtered out of the ring, so focus parked on it used
+    // to match neither end and Tab walked straight out of the dialog.
+    const wrapper = mount(ModalDialog, {
+      props: { modelValue: true },
+      slots: {
+        title: 'Hidden',
+        default: '<button id="visible">Save</button><button id="ghost" hidden>Ghost</button>',
+      },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    document.getElementById('ghost').focus();
+    tab();
+
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
     wrapper.unmount();
   });
 });

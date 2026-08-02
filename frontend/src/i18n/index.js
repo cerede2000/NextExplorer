@@ -64,12 +64,31 @@ function detectLocale(supportedLocales) {
   return 'en';
 }
 
+/**
+ * Polish and Russian need three plural forms: 2-4 ("few") is not the same word
+ * as 5+ ("many"), and the default two-form rule always picked "many" — wrong
+ * for the most common counts. Messages that only carry two forms fall back to
+ * the default behaviour, so this stays safe for every other string.
+ */
+export const slavicPluralRule = (choice, choicesLength) => {
+  if (choicesLength < 3) return choice === 1 ? 0 : 1;
+  if (choice === 1) return 0;
+  const mod10 = choice % 10;
+  const mod100 = choice % 100;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 1;
+  return 2;
+};
+
 const i18n = createI18n({
   legacy: false,
   globalInjection: true,
   locale: detectLocale(supportedLocales),
   fallbackLocale: 'en',
   messages,
+  pluralRules: {
+    pl: slavicPluralRule,
+    ru: slavicPluralRule,
+  },
 });
 
 export default i18n;

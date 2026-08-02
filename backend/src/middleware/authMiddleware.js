@@ -167,12 +167,11 @@ const authMiddleware = async (req, res, next) => {
       /* ignore */
     }
 
-    // If the user is authenticated, prefer user access over any guest session.
-    // This prevents stale guest sessions from blocking access to volumes/personal paths.
-    if (req.user && req.guestSession) {
-      delete req.guestSession;
-    }
-
+    // The guest session is kept alongside the user: it is the only proof that
+    // this visitor typed the password of a protected share. Dropping it here
+    // made that check unsatisfiable for signed-in visitors. Each access check
+    // decides on its own, and every one of them prefers the user when both are
+    // present, so a stale guest session can no longer shadow user access.
     next();
     return;
   }

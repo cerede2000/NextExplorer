@@ -32,7 +32,7 @@ const { createGuestSession } = require('../services/guestSessionService');
 const { normalizeRelativePath, parsePathSpace } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const { parseByteRange } = require('../utils/httpRange');
-const { resolvePathWithAccess } = require('../services/accessManager');
+const { resolvePathWithAccess, sharePasswordApplies } = require('../services/accessManager');
 const { extensions, mimeTypes } = require('../config/index');
 const env = require('../config/env');
 const { getSettings, getUserSettings } = require('../services/settingsService');
@@ -78,6 +78,21 @@ const guestSessionCookieOptions = (req) => ({
   // cookie to /api left share visitors with broken thumbnails.
   path: '/',
 });
+
+/**
+ * Set the guest session cookie, clearing the /api-scoped one first.
+ *
+ * An earlier build scoped this cookie to /api. Browsers keep both when the
+ * path differs, and RFC 6265 sends the longer path first, so on every /api
+ * request cookie-parser would read the stale value and shadow the session we
+ * just created — a dead end the visitor could not fix by retyping the
+ * password. Deleting it here reaches exactly the people affected, since every
+ * share visitor goes through one of these three endpoints.
+ */
+const setGuestSessionCookie = (req, res, sessionId) => {
+  res.clearCookie('guestSession', { path: '/api' });
+  res.cookie('guestSession', sessionId, guestSessionCookieOptions(req));
+};
 
 const buildPublicBaseUrl = (req) => {
   const { public: publicConfig } = require('../config/index');
@@ -591,12 +606,15 @@ router.get(
       throw new NotFoundError('Share not found');
     }
 
-    // Return limited public info
+    // Return limited public info. requiresPassword mirrors the backend rule
+    // rather than hasPassword alone, so the router does not send the owner to
+    // a password prompt the API would have let them skip.
     res.json({
       shareToken: share.shareToken,
       label: share.label,
       isDirectory: share.isDirectory,
       hasPassword: share.hasPassword,
+      requiresPassword: sharePasswordApplies(share, req.user) || (share.hasPassword && !req.user),
       sharingType: share.sharingType,
       expiresAt: share.expiresAt,
       isExpired: isShareExpired(share),
@@ -635,7 +653,7 @@ router.post(
         await trackShareAccess(share.id, { ipAddress: req.ip });
 
         // Set guest session cookie
-        res.cookie('guestSession', session.id, guestSessionCookieOptions(req));
+        setGuestSessionCookie(req, res, session.id);
 
         res.json({
           success: true,
@@ -665,7 +683,7 @@ router.post(
       await trackShareAccess(share.id, { ipAddress: req.ip });
 
       // Set guest session cookie
-      res.cookie('guestSession', session.id, guestSessionCookieOptions(req));
+      setGuestSessionCookie(req, res, session.id);
 
       res.json({
         success: true,
@@ -713,7 +731,7 @@ router.get(
       // A password protects the link from everyone but its owner. Being signed
       // in is not knowing it, so an authenticated visitor is sent through the
       // same prompt unless they already verified it (guest session) or own it.
-      if (share.hasPassword && req.user && String(req.user.id) !== String(share.ownerId)) {
+      if (sharePasswordApplies(share, req.user)) {
         const verified = req.guestSession && req.guestSession.shareId === share.id;
         if (!verified) {
           throw new UnauthorizedError('Password verification required');
@@ -733,7 +751,7 @@ router.get(
           await trackShareAccess(share.id, { ipAddress: req.ip });
 
           // Set guest session cookie (overwrites any existing session)
-          res.cookie('guestSession', session.id, guestSessionCookieOptions(req));
+          setGuestSessionCookie(req, res, session.id);
 
           return res.json({
             share: {
