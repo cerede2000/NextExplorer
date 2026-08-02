@@ -758,6 +758,16 @@ const getShareSourceTarget = (resolved, includeChildren = false) => {
   };
 };
 
+/**
+ * Entries handled at once.
+ *
+ * The removals are independent, and on network storage each one is dominated
+ * by latency rather than work: waiting for them one after another leaves the
+ * link idle. Bounded, because the point is to overlap the waiting, not to
+ * queue thousands of operations against the filesystem at once.
+ */
+const DELETE_CONCURRENCY = 8;
+
 const resolveDeleteTargets = async (items = [], context, options = {}) => {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('At least one item is required.');
@@ -765,9 +775,9 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
 
   const includeStats = options.includeStats !== false;
   const includeShareDescendants = Boolean(options.includeShareDescendants);
-  const targets = [];
+  const targets = new Array(items.length);
 
-  for (const item of items) {
+  const resolveOne = async (item, index) => {
     const combined = combineRelativePath(item.path || '', item.name);
     const { allowed, accessInfo, resolved } = await authorizeAndResolve(
       context,
@@ -779,11 +789,20 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
     }
 
     const { relativePath, absolutePath } = resolved;
-    const exists = includeStats ? await pathExists(absolutePath) : null;
-    const stats = includeStats && exists ? await fs.stat(absolutePath) : null;
+    // One stat, not an existence probe followed by a stat: stat already answers
+    // both questions, and on network storage each of those is a round trip.
+    let stats = null;
+    if (includeStats) {
+      try {
+        stats = await fs.stat(absolutePath);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+    }
+    const exists = includeStats ? stats !== null : null;
     const isDirectory = stats ? stats.isDirectory() : item?.kind === 'directory';
 
-    targets.push({
+    targets[index] = {
       item,
       relativePath,
       absolutePath,
@@ -798,8 +817,23 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
         resolved,
         includeShareDescendants ? true : isDirectory
       ),
-    });
-  }
+    };
+  };
+
+  // Same reasoning as the removals: each item costs an authorization check and
+  // a stat, and on network storage those are round trips worth overlapping.
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(DELETE_CONCURRENCY, items.length) }, async () => {
+      for (;;) {
+        const index = next;
+        next += 1;
+        if (index >= items.length) return;
+        // eslint-disable-next-line no-await-in-loop
+        await resolveOne(items[index], index);
+      }
+    })
+  );
 
   return targets;
 };
@@ -823,8 +857,8 @@ const getDeleteImpact = async (items = [], options = {}) => {
   };
 };
 
+
 const deleteItems = async (items = [], options = {}) => {
-  const results = [];
   const context = {
     user: options.user || null,
     guestSession: options.guestSession || null,
@@ -833,8 +867,22 @@ const deleteItems = async (items = [], options = {}) => {
   // work is not repeated just to stream the result.
   const targets = options.targets || (await resolveDeleteTargets(items, context));
 
+  // Indexed rather than appended: the removals finish out of order, but the
+  // caller is answered in the order it asked.
+  const results = new Array(targets.length);
   let completedItems = 0;
-  for (const target of targets) {
+
+  const reportProgress = (target, relativePath) => {
+    completedItems += 1;
+    options.onProgress?.({
+      completedItems,
+      totalItems: targets.length,
+      currentName: target.item?.name || relativePath,
+      percent: Math.round((completedItems / targets.length) * 100),
+    });
+  };
+
+  const removeOne = async (target, index) => {
     throwIfCancelled(options.signal);
     const { relativePath, absolutePath, exists, stats, isDirectory, shareSourceTarget } = target;
     const affectedShares = shareSourceTarget
@@ -843,18 +891,13 @@ const deleteItems = async (items = [], options = {}) => {
 
     if (!exists) {
       const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
-      results.push({ path: relativePath, status: 'missing' });
-      if (deletedShareCount > 0) {
-        results[results.length - 1].deletedShareCount = deletedShareCount;
-      }
-      completedItems += 1;
-      options.onProgress?.({
-        completedItems,
-        totalItems: targets.length,
-        currentName: target.item?.name || relativePath,
-        percent: Math.round((completedItems / targets.length) * 100),
-      });
-      continue;
+      results[index] = {
+        path: relativePath,
+        status: 'missing',
+        ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
+      };
+      reportProgress(target, relativePath);
+      return;
     }
 
     const deletedEntryStats = stats || (await fs.stat(absolutePath));
@@ -868,29 +911,36 @@ const deleteItems = async (items = [], options = {}) => {
       await fs.rm(absolutePath, { recursive: isDirectoryEntry, force: true });
     }
     folderSizeHooks.onEntryDeleted(absolutePath, {
-      isDirectory: isDirectory || deletedEntryStats.isDirectory(),
+      isDirectory: isDirectoryEntry,
       size: deletedEntryStats.size,
     });
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
     const removedFavoriteCount = context.user?.id
       ? await removeFavoritesForDeletedPath(context.user.id, relativePath, {
-          includeChildren: isDirectory || deletedEntryStats.isDirectory(),
+          includeChildren: isDirectoryEntry,
         })
       : 0;
-    results.push({
+    results[index] = {
       path: relativePath,
       status: 'deleted',
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
       ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
-    });
-    completedItems += 1;
-    options.onProgress?.({
-      completedItems,
-      totalItems: targets.length,
-      currentName: target.item?.name || relativePath,
-      percent: Math.round((completedItems / targets.length) * 100),
-    });
-  }
+    };
+    reportProgress(target, relativePath);
+  };
+
+  let next = 0;
+  const workers = Array.from({ length: Math.min(DELETE_CONCURRENCY, targets.length) }, async () => {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= targets.length) return;
+      // eslint-disable-next-line no-await-in-loop
+      await removeOne(targets[index], index);
+    }
+  });
+
+  await Promise.all(workers);
 
   return results;
 };
