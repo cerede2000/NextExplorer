@@ -32,6 +32,13 @@ router.get(
     const isAdmin = user?.roles?.includes('admin');
     const userVolumesEnabled = features.userVolumes;
 
+    // A share visitor has no business listing the volumes: they reach files
+    // through their share token only. Without this the next branch would run
+    // for them too, since USER_VOLUMES is off by default.
+    if (!user || !user.id) {
+      return res.json([]);
+    }
+
     // If USER_VOLUMES is disabled or user is admin, show all volumes from VOLUME_ROOT
     if (!userVolumesEnabled || isAdmin) {
       const volumeData = await getAllVolumes();
