@@ -14,6 +14,7 @@ const {
   findAvailableName,
 } = require('../utils/pathUtils');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
+const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const {
   getSupportedArchiveExtensions,
@@ -299,7 +300,7 @@ router.post(
       await Promise.all(movedPaths.map((movedPath) => fs.rm(movedPath, { recursive: true, force: true })));
       writeEvent({
         type: 'error',
-        message: error.message || 'Archive extraction failed.',
+        message: sanitizeClientMessage(error.message || 'Archive extraction failed.'),
         code: error.code || 'EXTRACT_FAILED',
       });
     } finally {
@@ -452,7 +453,7 @@ router.post(
       await fs.rm(zipAbsolutePath, { force: true });
       writeEvent({
         type: 'error',
-        message: error.message || 'Archive creation failed.',
+        message: sanitizeClientMessage(error.message || 'Archive creation failed.'),
         code: error.code || 'COMPRESS_FAILED',
       });
     } finally {

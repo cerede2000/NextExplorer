@@ -53,7 +53,17 @@ const configureStaticFiles = (app) => {
       logger.warn('Failed to create logos directory', { error: error.message });
     }
   }
-  app.use('/static/logos', express.static(logosDir));
+  // A branding logo may be an SVG, which the browser executes when opened
+  // directly. The upload only checks the declared MIME type, so the sandbox is
+  // what actually keeps it from running on the app origin.
+  app.use(
+    '/static/logos',
+    (_req, res, next) => {
+      res.setHeader('Content-Security-Policy', 'sandbox');
+      next();
+    },
+    express.static(logosDir)
+  );
   logger.debug('Mounted /static/logos');
 
   // Serve frontend SPA

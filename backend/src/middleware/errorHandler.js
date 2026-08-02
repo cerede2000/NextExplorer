@@ -153,6 +153,7 @@ const notFoundHandler = (req, res, next) => {
 };
 
 module.exports = {
+  sanitizeClientMessage,
   errorHandler,
   notFoundHandler,
 };

@@ -138,6 +138,7 @@ async function* streamFileListMatches(
     crlfDelay: Infinity,
   });
 
+  try {
   for await (const line of rl) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -164,6 +165,10 @@ async function* streamFileListMatches(
         yield formatResult(fullRel, 'file');
       }
     }
+  }
+  } finally {
+    rl.close();
+    fileListProcess.kill('SIGTERM');
   }
 }
 
@@ -207,6 +212,9 @@ async function* streamContentMatches(
     crlfDelay: Infinity,
   });
 
+  // The consumer stops as soon as it has enough results. Without this the
+  // process would keep scanning the whole tree in the background.
+  try {
   for await (const line of rl) {
     const data = parseJsonLine(line);
     if (!data || data.type !== 'match') continue;
@@ -225,6 +233,10 @@ async function* streamContentMatches(
     if (await shouldInclude(rel)) {
       yield formatResult(rel, 'file', lineText, lineNum);
     }
+  }
+  } finally {
+    rl.close();
+    contentProcess.kill('SIGTERM');
   }
 }
 
@@ -425,9 +437,16 @@ router.get(
       : generateFallbackResults(baseAbs, relBase, q, shouldInclude, deepEnabled, includeHiddenFiles);
 
     const items = [];
-    for await (const item of generator) {
-      items.push(item);
-      if (items.length >= limit) break;
+    try {
+      for await (const item of generator) {
+        items.push(item);
+        if (items.length >= limit) break;
+      }
+    } finally {
+      // Breaking out of a for-await leaves the generator suspended, and with
+      // it the ripgrep processes it spawned — which keep scanning the whole
+      // tree. Returning runs their cleanup so they are killed.
+      await generator.return?.();
     }
 
     res.json({ items });
