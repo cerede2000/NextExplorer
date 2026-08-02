@@ -1,4 +1,9 @@
-const { deleteItems, getDeleteImpact } = require('../../services/fileTransferService');
+const { sanitizeClientMessage } = require('../../middleware/errorHandler');
+const {
+  deleteItems,
+  getDeleteImpact,
+  resolveDeleteTargets,
+} = require('../../services/fileTransferService');
 const asyncHandler = require('../../utils/asyncHandler');
 
 const router = require('express').Router();
@@ -37,14 +42,19 @@ router.post(
       if (!res.writableEnded) abort();
     };
     req.once('aborted', abort);
+
+    // Authorize before switching to the stream: once the headers are out, a
+    // refusal can only be reported as a 200 carrying an error event, which a
+    // client that does not parse NDJSON reads as success. This matches how
+    // the transfer and archive routes behave.
+    const context = { user: req.user, guestSession: req.guestSession };
+    const targets = await resolveDeleteTargets(items, context);
+
     res.status(200);
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('X-Accel-Buffering', 'no');
     res.once('close', onClose);
-    // Send the stream headers and initial event before the full preflight
-    // validation. Deleting a large selection can legitimately take a moment
-    // to authorize, but the UI must acknowledge the action immediately.
     res.flushHeaders?.();
     const writeEvent = (event) => {
       if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`);
@@ -57,6 +67,7 @@ router.post(
         totalItems: Array.isArray(items) ? items.length : 0,
       });
       const results = await deleteItems(items, {
+        targets,
         user: req.user,
         guestSession: req.guestSession,
         signal: controller.signal,
@@ -66,7 +77,7 @@ router.post(
     } catch (error) {
       writeEvent({
         type: 'error',
-        message: error.message || 'Deletion failed.',
+        message: sanitizeClientMessage(error.message || 'Deletion failed.'),
         code: error.code || 'DELETE_FAILED',
       });
     } finally {

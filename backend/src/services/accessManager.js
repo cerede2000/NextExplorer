@@ -206,7 +206,12 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
     if (guestSession && !user && guestSession.shareId !== share.id) {
       return createDeniedAccess('Invalid guest session for this share');
     }
+  } else {
+    // Fail closed: a sharing type we do not know about must not fall through
+    // to the permission grant below.
+    return createDeniedAccess('Unknown sharing type');
   }
+
 
   const isOwner = user && user.id === share.ownerId;
   const shareReadWrite = share.accessMode === 'readwrite';

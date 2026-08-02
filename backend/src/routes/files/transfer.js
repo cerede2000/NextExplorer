@@ -1,3 +1,4 @@
+const { sanitizeClientMessage } = require('../../middleware/errorHandler');
 const { prepareTransfer, executeTransfer } = require('../../services/fileTransferService');
 const asyncHandler = require('../../utils/asyncHandler');
 
@@ -61,7 +62,7 @@ const runTransfer = (operation) =>
       if (!streaming) throw error;
       writeEvent({
         type: 'error',
-        message: error.message || 'Transfer failed.',
+        message: sanitizeClientMessage(error.message || 'Transfer failed.'),
         code: error.code || 'TRANSFER_FAILED',
       });
     } finally {

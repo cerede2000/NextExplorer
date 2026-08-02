@@ -1,5 +1,8 @@
 const SENSITIVE_QUERY_PARAMETERS = new Set([
   'access_token',
+  // The ONLYOFFICE backend token travels in the file/callback URLs and grants
+  // read+write on a path for its whole lifetime.
+  'backend',
   'code',
   'client_secret',
   'id_token',
@@ -7,6 +10,7 @@ const SENSITIVE_QUERY_PARAMETERS = new Set([
   'refresh_token',
   'state',
   'token',
+  'jwt',
 ]);
 
 const REDACTED = '[redacted]';

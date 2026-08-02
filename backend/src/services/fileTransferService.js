@@ -816,7 +816,9 @@ const deleteItems = async (items = [], options = {}) => {
     user: options.user || null,
     guestSession: options.guestSession || null,
   };
-  const targets = await resolveDeleteTargets(items, context);
+  // The route may have resolved (and authorized) the targets already, so the
+  // work is not repeated just to stream the result.
+  const targets = options.targets || (await resolveDeleteTargets(items, context));
 
   let completedItems = 0;
   for (const target of targets) {
@@ -888,6 +890,7 @@ module.exports = {
   createCancellationError,
   transferItems,
   getDeleteImpact,
+  resolveDeleteTargets,
   deleteItems,
   getDiagnosticsSnapshot,
 };
