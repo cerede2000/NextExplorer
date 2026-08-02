@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
         >
           {{ t('common.edit') }}
         </button>
-        <button
+        <button :aria-label="t('common.toggleSection')"
           @click="open = !open"
           class="hidden group-hover:block active:text-black dark:active:text-white text-neutral-500"
           type="button"
@@ -213,14 +213,14 @@ onBeforeUnmount(() => {
                     <span class="truncate">{{ getFavoriteLabel(favorite) }}</span>
                   </button>
                   <template v-if="isEditMode">
-                    <button
+                    <button :aria-label="t('common.edit')"
                       type="button"
                       class="shrink-0 rounded-md text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700 transition-colors duration-150"
                       @click.stop="handleEditFavorite(favorite)"
                     >
                       <PencilSquareIcon class="h-4 w-4" />
                     </button>
-                    <button
+                    <button :aria-label="t('common.remove')"
                       type="button"
                       class="shrink-0 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors duration-150"
                       @click.stop="handleRemoveFavorite(favorite)"

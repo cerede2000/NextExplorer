@@ -2,12 +2,14 @@
 import { ServerIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useNavigation } from '@/composables/navigation';
 import { useFeaturesStore } from '@/stores/features';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { FolderIcon } from '@heroicons/vue/24/outline';
 import VolumeUsageBar from '@/components/VolumeUsageBar.vue';
 
+const { t } = useI18n();
 const { openItem, openBreadcrumb } = useNavigation();
 const route = useRoute();
 const featuresStore = useFeaturesStore();
@@ -76,7 +78,7 @@ const openPersonal = () => {
       class="group flex items-center justify-between pt-2 text-sm text-neutral-400 dark:text-neutral-500 font-medium"
     >
       {{ $t('titles.locations') }}
-      <button
+      <button :aria-label="t('common.toggleSection')"
         @click="open = !open"
         class="hidden group-hover:block active:text-black dark:active:text-white text-neutral-500"
       >

@@ -33,7 +33,7 @@ const toggleTerminal = () => {
       class="group flex items-center justify-between pt-2 text-sm text-neutral-400 dark:text-neutral-500 font-medium"
     >
       {{ t('terminal.menuHeading') }}
-      <button
+      <button :aria-label="t('common.toggleSection')"
         @click="open = !open"
         class="hidden group-hover:block active:text-black dark:active:text-white text-neutral-500"
       >
