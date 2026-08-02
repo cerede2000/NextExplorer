@@ -206,6 +206,16 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
     if (guestSession && !user && guestSession.shareId !== share.id) {
       return createDeniedAccess('Invalid guest session for this share');
     }
+
+    // Being signed in is not the same as knowing the password. Without this,
+    // any authenticated user opening a protected link skipped the prompt the
+    // owner set it up for. The owner is exempt: it is their own share.
+    if (share.hasPassword && user && String(user.id) !== String(share.ownerId)) {
+      const verified = guestSession && guestSession.shareId === share.id;
+      if (!verified) {
+        return createDeniedAccess('Password verification required');
+      }
+    }
   } else {
     // Fail closed: a sharing type we do not know about must not fall through
     // to the permission grant below.

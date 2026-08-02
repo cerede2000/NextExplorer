@@ -18,7 +18,7 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `PUBLIC_URL`                                     | _none_                                          | External URL (no trailing slash). Drives cookie settings, CORS defaults, and derived callback URLs (OIDC/OnlyOffice).                                                                                      |
 | `INTERNAL_URL`                                   | _none_                                          | Additional comma-separated origins. They are accepted by CORS and OIDC returns to the configured origin where login began.                                                                                 |
 | `TRUST_PROXY`                                    | `loopback,uniquelocal` when `PUBLIC_URL` is set | Express trust proxy configuration. Accepts `false`, numbers, CIDRs, or lists.                                                                                                                              |
-| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_                                         | Comma-separated list of allowed CORS origins. Defaults to `PUBLIC_URL` origin when set.                                                                                                                    |
+| `CORS_ORIGIN`, `CORS_ORIGINS`, `ALLOWED_ORIGINS` | _empty_ | Comma-separated list of allowed CORS origins. Defaults to the `PUBLIC_URL` / `INTERNAL_URL` origins when set. When none of them is set, no cross-origin caller is allowed — same-origin use (frontend and API on one host) is unaffected. Use `*` only if you deliberately want to reflect any origin. |
 
 ## Logging & debugging
 
