@@ -16,7 +16,6 @@ import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
-import AboutView from '@/views/AboutView.vue';
 import AuthSetupView from '@/views/AuthSetupView.vue';
 import AuthLoginView from '@/views/AuthLoginView.vue';
 import ShareLoginView from '@/views/ShareLoginView.vue';
@@ -163,10 +162,6 @@ const router = createRouter({
           component: EditorView,
         },
       ],
-    },
-    {
-      path: '/about',
-      component: AboutView,
     },
     {
       path: '/auth/setup',
