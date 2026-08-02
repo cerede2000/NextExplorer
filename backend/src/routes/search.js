@@ -53,6 +53,37 @@ const hasRipgrep = async () => {
 };
 
 // Search implementations
+/**
+ * Arguments for a content search.
+ *
+ * Exported so the `--` separator can be tested without ripgrep on the machine:
+ * the route falls back to a JavaScript scan when ripgrep is missing, so an
+ * end-to-end test passes there while never exercising this at all.
+ */
+const buildContentSearchArgs = (term, globArgs = [], maxFileSize = null) => {
+  const args = [
+    '--json', // Use JSON output for faster parsing (Optimization #2)
+    '-n',
+    '-H',
+    '--hidden',
+    '--no-messages',
+    '--smart-case',
+    '-F',
+    '-m',
+    '1',
+    ...globArgs,
+    // Everything after `--` is positional. Without it a search term starting
+    // with `-` is parsed as a ripgrep flag, and options such as `--pre=<cmd>`
+    // run that command against every scanned file.
+    '--',
+    term,
+    '.',
+  ];
+
+  if (maxFileSize) args.unshift('--max-filesize', maxFileSize);
+  return args;
+};
+
 const buildRipgrepArgs = (includeHiddenFiles = false) => [
   '-g',
   '!.git',
@@ -183,28 +214,7 @@ async function* streamContentMatches(
 ) {
   const globArgs = buildRipgrepArgs(includeHiddenFiles);
 
-  const contentArgs = [
-    '--json', // Use JSON output for faster parsing (Optimization #2)
-    '-n',
-    '-H',
-    '--hidden',
-    '--no-messages',
-    '--smart-case',
-    '-F',
-    '-m',
-    '1',
-    ...globArgs,
-    // Everything after `--` is positional. Without it a search term starting
-    // with `-` is parsed as a ripgrep flag, and options such as `--pre=<cmd>`
-    // run that command against every scanned file.
-    '--',
-    term,
-    '.',
-  ];
-
-  if (searchConfig?.maxFileSize) {
-    contentArgs.unshift('--max-filesize', searchConfig.maxFileSize);
-  }
+  const contentArgs = buildContentSearchArgs(term, globArgs, searchConfig?.maxFileSize);
 
   const contentProcess = spawn('rg', contentArgs, { cwd: baseAbsPath });
   const rl = readline.createInterface({
@@ -454,3 +464,4 @@ router.get(
 );
 
 module.exports = router;
+module.exports.buildContentSearchArgs = buildContentSearchArgs;
