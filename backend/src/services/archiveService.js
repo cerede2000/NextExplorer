@@ -488,6 +488,13 @@ const extractArchive = async (
         onPercent?.(100);
       }
     }
+    // The periodic watcher misses anything that finishes between two polls,
+    // so the decisive check is this one, once everything is on disk.
+    if (Number.isFinite(maxBytes) && maxBytes > 0) {
+      const written = await directorySize(destinationAbsolutePath);
+      if (written > maxBytes) throw createSizeLimitError();
+    }
+
     await assertNoSymlinks(destinationAbsolutePath);
   } catch (error) {
     // A cancellation raised by the watcher is really a size refusal.
