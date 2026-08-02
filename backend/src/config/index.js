@@ -254,6 +254,30 @@ const searchMaxFileSizeBytes = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 1024 * 1024;
 })();
 
+// --- Uploads ---
+// Ceilings for direct (non-chunked) uploads. They exist so a single request
+// cannot stream until the disk is full; they are generous on purpose, since
+// large files are a normal use of a file manager. Chunked uploads have their
+// own storage guard in the TUS service.
+const uploads = {
+  maxDirectUploadBytes: (() => {
+    const parsed = parseByteSize(env.MAX_DIRECT_UPLOAD_SIZE);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;
+  })(),
+  maxFilesPerRequest: env.MAX_FILES_PER_UPLOAD,
+};
+
+// --- Archives ---
+// Extraction guards. Generous enough for real archives, low enough that a
+// crafted one cannot fill the volume before anyone notices.
+const archives = {
+  maxExtractedBytes: (() => {
+    const parsed = parseByteSize(env.MAX_EXTRACTED_ARCHIVE_SIZE);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 32 * 1024 * 1024 * 1024;
+  })(),
+  maxEntries: env.MAX_ARCHIVE_ENTRIES,
+};
+
 // --- OnlyOffice ---
 const onlyoffice = {
   serverUrl: env.ONLYOFFICE_URL?.replace(/\/$/, '') || null,
@@ -360,6 +384,8 @@ module.exports = {
   },
 
   thumbnails: { size: 200, quality: 70 },
+  uploads,
+  archives,
   onlyoffice,
   collabora,
   editor,

@@ -20,6 +20,29 @@ const {
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
 
+/**
+ * Start a fresh session for a newly authenticated user.
+ *
+ * Reusing the pre-login session id would let an attacker who managed to plant
+ * a known id in the victim's browser keep using it once they sign in
+ * (session fixation). Regenerating gives the authenticated user a new id.
+ */
+const startAuthenticatedSession = (req, userId) =>
+  new Promise((resolve, reject) => {
+    if (!req.session) {
+      resolve();
+      return;
+    }
+    req.session.regenerate((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      req.session.localUserId = userId;
+      req.session.save((saveError) => (saveError ? reject(saveError) : resolve()));
+    });
+  });
+
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
   const retryAfterMinutes = Math.ceil(retryAfterSeconds / 60);
@@ -106,7 +129,7 @@ router.post(
       displayName: username || email?.split('@')[0],
       roles: ['admin'],
     });
-    if (req.session) req.session.localUserId = user.id;
+    await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user sets up account
     res.clearCookie('guestSession', { path: '/api' });
@@ -136,7 +159,7 @@ router.post(
     if (!user) {
       throw new UnauthorizedError('Invalid credentials.', ErrorCodes.AUTH_INVALID_CREDENTIALS);
     }
-    if (req.session) req.session.localUserId = user.id;
+    await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user logs in
     res.clearCookie('guestSession', { path: '/api' });

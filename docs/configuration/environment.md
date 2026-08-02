@@ -60,6 +60,17 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `OIDC_REQUIRE_EMAIL_VERIFIED`                                   | `false`                                           | When `true`, requires the IdP to verify the user's email before allowing user creation or auto-linking. Some providers like newer Authentik versions set `email_verified` to `false` by default. |
 | `OIDC_AUTO_CREATE_USERS`                                        | `true`                                            | When `false`, the user must already exist in the nextExplorer database (local or previously OIDC-linked), otherwise OIDC login is denied.                                                        |
 
+## Upload & archive limits
+
+These are safety ceilings, not tuning knobs: they exist so a single request cannot fill the volume. The defaults are high enough for normal use.
+
+| Variable                     | Default   | Description                                                                                                                        |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `MAX_DIRECT_UPLOAD_SIZE`     | `64GB`    | Largest single file accepted by a direct (non-chunked) upload, e.g. `10GB`. Chunked/TUS uploads are bounded by their storage guard. |
+| `MAX_FILES_PER_UPLOAD`       | `50`      | Maximum number of files in one direct upload request.                                                                              |
+| `MAX_EXTRACTED_ARCHIVE_SIZE` | `32GB`    | Refuse to extract an archive whose declared uncompressed size exceeds this ("zip bomb" guard).                                      |
+| `MAX_ARCHIVE_ENTRIES`        | `100000`  | Refuse to extract an archive holding more entries than this.                                                                       |
+
 ## Feature toggles
 
 | Variable                   | Default     | Description                                                                                                                                                                                                                                         |

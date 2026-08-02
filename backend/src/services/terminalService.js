@@ -129,17 +129,17 @@ class TerminalService {
 
         if (!session) {
           logger.warn(
-            { url: req.url },
+            { hasToken: Boolean(token) },
             'Rejected terminal WebSocket connection: invalid or expired token'
           );
           ws.close(1008, 'Invalid or expired terminal session token');
           return;
         }
 
+        // Neither the URL (it carries the one-time terminal token) nor the
+        // headers (session cookie) belong in the logs.
         logger.info(
           {
-            url: req.url,
-            headers: req.headers,
             userId: session.userId,
             roles: session.roles,
           },

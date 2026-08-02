@@ -15,8 +15,34 @@ const {
 } = require('../utils/pathUtils');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const { archives } = require('../config/index');
 
 const router = express.Router();
+
+/**
+ * Refuse archives that would expand far beyond their own size.
+ *
+ * Extraction is otherwise unbounded: a few kilobytes of nested, highly
+ * compressible entries can fill the volume ("zip bomb"). The declared sizes
+ * come from the archive itself, so this is a cheap pre-flight check, not a
+ * guarantee — it stops the accidental and the trivially malicious case.
+ */
+const ensureArchiveWithinLimits = ({ entryCount = 0, totalBytes = 0 }) => {
+  if (entryCount > archives.maxEntries) {
+    throw new ValidationError(
+      `This archive holds more than ${archives.maxEntries} entries and was not extracted.`
+    );
+  }
+  if (totalBytes > archives.maxExtractedBytes) {
+    throw new ValidationError('This archive expands beyond the allowed size and was not extracted.');
+  }
+};
+
+/** Declared footprint of a zip read by the bundled JS extractor. */
+const admZipFootprint = (entries = []) => ({
+  entryCount: entries.length,
+  totalBytes: entries.reduce((total, entry) => total + (entry?.header?.size || 0), 0),
+});
 
 const buildItemMetadata = async (absolutePath, relativeParent, name) => {
   const stats = await fs.stat(absolutePath);
@@ -105,7 +131,9 @@ router.post(
     await fs.mkdir(destinationFolderAbsolutePath);
 
     try {
-      new AdmZip(zipAbsolutePath).extractAllTo(destinationFolderAbsolutePath, true);
+      const zip = new AdmZip(zipAbsolutePath);
+      ensureArchiveWithinLimits(admZipFootprint(zip.getEntries()));
+      zip.extractAllTo(destinationFolderAbsolutePath, true);
     } catch (error) {
       logger.warn({ zipAbsolutePath, err: error }, 'Zip extract failed; cleaning up folder');
       await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });

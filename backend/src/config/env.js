@@ -91,6 +91,14 @@ module.exports = {
   TERMINAL_ENABLED: normalizeBoolean(process.env.TERMINAL_ENABLED) ?? true,
   TERMINAL_FILE_EXTENSIONS: process.env.TERMINAL_FILE_EXTENSIONS || 'sh',
 
+  // Uploads (direct, non-chunked)
+  MAX_DIRECT_UPLOAD_SIZE: process.env.MAX_DIRECT_UPLOAD_SIZE?.trim() || null,
+  MAX_FILES_PER_UPLOAD: Number(process.env.MAX_FILES_PER_UPLOAD) || 50,
+
+  // Archives
+  MAX_EXTRACTED_ARCHIVE_SIZE: process.env.MAX_EXTRACTED_ARCHIVE_SIZE?.trim() || null,
+  MAX_ARCHIVE_ENTRIES: Number(process.env.MAX_ARCHIVE_ENTRIES) || 100000,
+
   // Editor
   EDITOR_EXTENSIONS: process.env.EDITOR_EXTENSIONS || '',
   EDITOR_MAX_FILESIZE: process.env.EDITOR_MAX_FILESIZE?.trim() || null,
