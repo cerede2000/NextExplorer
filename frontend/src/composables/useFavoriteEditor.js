@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { useFavoritesStore } from '@/stores/favorites';
+import { normalizeIconVariant } from '@/utils/favoriteIcons';
 
 // Singleton instance so multiple callers share the same modal state
 let instance = null;
@@ -14,7 +15,7 @@ export function useFavoriteEditor() {
   const editorName = ref('');
   const editorPath = ref('');
   const editorIcon = ref('');
-  const editorIconVariant = ref('outline-solid');
+  const editorIconVariant = ref('outline');
   const editorColor = ref(null);
   const isSaving = ref(false);
 
@@ -29,10 +30,10 @@ export function useFavoriteEditor() {
     const iconStr = favorite.icon || 'outline:StarIcon';
     if (iconStr.includes(':')) {
       const [variant, iconName] = iconStr.split(':', 2);
-      editorIconVariant.value = variant.toLowerCase();
+      editorIconVariant.value = normalizeIconVariant(variant);
       editorIcon.value = iconName.trim();
     } else {
-      editorIconVariant.value = 'outline-solid';
+      editorIconVariant.value = 'outline';
       editorIcon.value = iconStr;
     }
 

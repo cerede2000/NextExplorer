@@ -6,6 +6,7 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useNavigation } from '@/composables/navigation';
 import * as OutlineIcons from '@heroicons/vue/24/outline';
 import * as SolidIcons from '@heroicons/vue/24/solid';
+import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 import VolumeUsageBar from '@/components/VolumeUsageBar.vue';
 import IconDrive from '@/icons/IconDrive.vue';
 
@@ -26,26 +27,7 @@ onMounted(async () => {
   await volumeUsageStore.loadVolumes();
 });
 
-const ICON_VARIANTS = {
-  outline: OutlineIcons,
-  solid: SolidIcons,
-};
-
-const resolveIconComponent = (iconName) => {
-  if (typeof iconName !== 'string') {
-    return OutlineIcons.StarIcon;
-  }
-  const trimmed = iconName.trim();
-  if (!trimmed) return OutlineIcons.StarIcon;
-  if (trimmed.includes(':')) {
-    const [variantRaw, iconRaw] = trimmed.split(':', 2);
-    const variantKey = variantRaw.toLowerCase();
-    const iconKey = iconRaw.trim();
-    const registry = ICON_VARIANTS[variantKey];
-    if (registry && registry[iconKey]) return registry[iconKey];
-  }
-  return OutlineIcons[trimmed] || SolidIcons[trimmed] || OutlineIcons.StarIcon;
-};
+const resolveIconComponent = resolveFavoriteIcon;
 
 const quickAccess = computed(() =>
   favoritesStore.favorites.map((favorite) => {
