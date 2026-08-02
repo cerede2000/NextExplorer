@@ -17,4 +17,13 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 'latest',
   },
+  overrides: [
+    {
+      // Helper scripts shipped with the image run under plain Node.
+      files: ['docker/**/*.js', 'scripts/**/*.js', '*.cjs', '**/*.config.cjs'],
+      env: {
+        node: true,
+      },
+    },
+  ],
 };
