@@ -176,3 +176,75 @@ describe('Other spaces containment', () => {
     ).rejects.toThrow(/outside the assigned volume/i);
   });
 });
+
+/**
+ * Entries in a directory share every path segment but the last, so the check
+ * resolves the parent once and then only asks whether each entry is itself a
+ * link. That shortcut must not become a hole: the escapes below all sit in a
+ * directory whose parent is perfectly legitimate.
+ */
+describe('Containment with a warm parent', () => {
+  it('still refuses a link, a broken link and a nested escape', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-warm-parent-',
+      modules: [
+        'src/config/env',
+        'src/config/index',
+        'src/utils/requestContext',
+        'src/utils/pathUtils',
+      ],
+    });
+    currentEnv = env;
+
+    const context = env.requireFresh('src/utils/requestContext');
+    const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
+
+    const outside = path.join(env.tmpRoot, 'outside-warm');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
+
+    const inside = path.join(env.volumeDir, 'folder');
+    await fs.mkdir(inside, { recursive: true });
+    await fs.writeFile(path.join(inside, 'ok.txt'), 'fine');
+    await fs.symlink(outside, path.join(inside, 'escape'));
+    await fs.symlink(path.join(env.tmpRoot, 'nowhere'), path.join(inside, 'dead'));
+
+    await context.runInRequestContext(() => {
+      // Warms the parent, which is what the shortcut relies on.
+      expect(resolveVolumePath('folder/ok.txt')).toContain('ok.txt');
+
+      expect(() => resolveVolumePath('folder/escape')).toThrow(/outside/i);
+      expect(() => resolveVolumePath('folder/escape/secret.txt')).toThrow(/outside/i);
+      expect(() => resolveVolumePath('folder/dead')).toThrow(/outside/i);
+
+      // And a legitimate sibling still resolves afterwards.
+      expect(resolveVolumePath('folder/ok.txt')).toContain('ok.txt');
+    });
+  });
+
+  it('refuses an entry whose parent is itself a link out', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-warm-parent-link-',
+      modules: [
+        'src/config/env',
+        'src/config/index',
+        'src/utils/requestContext',
+        'src/utils/pathUtils',
+      ],
+    });
+    currentEnv = env;
+
+    const context = env.requireFresh('src/utils/requestContext');
+    const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
+
+    const outside = path.join(env.tmpRoot, 'outside-parent');
+    await fs.mkdir(path.join(outside, 'sub'), { recursive: true });
+    await fs.writeFile(path.join(outside, 'sub', 'secret.txt'), 'not yours');
+    await fs.symlink(outside, path.join(env.volumeDir, 'linked'));
+
+    await context.runInRequestContext(() => {
+      // The entry is a plain file; it is the directory holding it that escapes.
+      expect(() => resolveVolumePath('linked/sub/secret.txt')).toThrow(/outside/i);
+    });
+  });
+});

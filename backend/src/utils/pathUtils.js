@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const { directories, features, personal } = require('../config/index');
 const { pathExists } = require('./fsUtils');
-const { cachedForRequest } = require('./requestContext');
+const { cachedForRequest, hasRequestContext } = require('./requestContext');
 const logger = require('./logger');
 
 const NAME_INVALID_PATTERN = /[\\/]/;
@@ -54,6 +54,14 @@ const realRoot = (root) => {
 // the kernel does rather than trusting the filesystem to be acyclic.
 const MAX_SYMLINK_HOPS = 32;
 
+const lstatOrNull = (target) => {
+  try {
+    return fs.lstatSync(target);
+  } catch {
+    return null;
+  }
+};
+
 const readLinkOrNull = (target) => {
   try {
     return fs.readlinkSync(target);
@@ -101,6 +109,24 @@ const assertRealPathWithinRoot = (
   const outside = () => new Error(`Resolved path is outside ${label}.`);
   const contained = (candidate) =>
     candidate === expectedRoot || candidate.startsWith(realWithSep);
+
+  // Resolving the whole path per entry is the expensive part: realpath walks
+  // every segment, where a bulk operation shares all but the last. If the
+  // parent directory really is inside the root and this entry is not itself a
+  // link, then neither can it leave — one lstat instead of a full walk, and
+  // the parent's own resolution is memoized for the rest of the request.
+  // Only inside a request, where the parent's resolution is memoized and paid
+  // once for the whole batch. On its own it would just add a lookup.
+  if (hops === 0 && hasRequestContext()) {
+    const parent = path.dirname(absolutePath);
+    if (parent !== absolutePath && (parent === root || parent.startsWith(rootWithSep))) {
+      const realParent = realpathOrNull(parent);
+      if (realParent && contained(realParent)) {
+        const entry = lstatOrNull(absolutePath);
+        if (entry && !entry.isSymbolicLink()) return;
+      }
+    }
+  }
 
   let candidate = absolutePath;
 
