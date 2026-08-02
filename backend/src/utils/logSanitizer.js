@@ -9,6 +9,9 @@ const SENSITIVE_QUERY_PARAMETERS = new Set([
   'logout_token',
   'refresh_token',
   'state',
+  // The signature on a /static/thumbnails URL, which unlocks that file for
+  // anyone holding it until it expires.
+  't',
   'token',
   'jwt',
 ]);
