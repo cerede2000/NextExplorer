@@ -5,7 +5,8 @@ const fsp = require('fs/promises');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-const { collabora, public: publicConfig, mimeTypes } = require('../config/index');
+const { collabora, public: publicConfig } = require('../config/index');
+const { toExtension, resolveMimeType } = require('../utils/fileTypes');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
@@ -18,13 +19,7 @@ const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 
-const toExt = (filename = '') => {
-  const base = path.basename(String(filename));
-  const idx = base.lastIndexOf('.');
-  return idx > 0 ? base.slice(idx + 1).toLowerCase() : '';
-};
 
-const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
 
 const toBase64Url = (buf) =>
   Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
@@ -141,7 +136,7 @@ router.post(
     const userCanWrite = Boolean(accessInfo.canWrite) && !isReadonlyShare && mode !== 'view';
 
     const filename = path.basename(abs);
-    const ext = toExt(filename);
+    const ext = toExtension(filename);
     if (!ext) {
       throw new ValidationError('Unknown file extension.');
     }
@@ -252,8 +247,8 @@ router.get(
     const stat = await fsp.stat(abs);
     if (stat.isDirectory()) throw new ValidationError('Cannot fetch a directory.');
 
-    const ext = toExt(abs);
-    const mime = resolveMime(ext);
+    const ext = toExtension(abs);
+    const mime = resolveMimeType(ext);
     res.writeHead(200, {
       'Content-Type': mime,
       'Content-Length': stat.size,

@@ -31,6 +31,7 @@ const {
 const { createGuestSession } = require('../services/guestSessionService');
 const { normalizeRelativePath, parsePathSpace } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
+const { parseByteRange } = require('../utils/httpRange');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { extensions, mimeTypes } = require('../config/index');
 const env = require('../config/env');
@@ -244,34 +245,23 @@ const streamResolvedFile = async ({ absolutePath, stats, mode, req, res }) => {
     'X-Robots-Tag': 'noindex',
   };
 
-  const rangeHeader = req.headers.range;
-  if (rangeHeader) {
-    const bytesPrefix = 'bytes=';
-    if (!rangeHeader.startsWith(bytesPrefix)) {
-      res.status(416).send('Malformed Range header');
-      return;
-    }
-
-    const [startString, endString] = rangeHeader.slice(bytesPrefix.length).split('-');
-    let start = Number(startString);
-    let end = endString ? Number(endString) : stats.size - 1;
-
-    if (Number.isNaN(start)) start = 0;
-    if (Number.isNaN(end) || end >= stats.size) end = stats.size - 1;
-
-    if (start > end) {
-      res.status(416).send('Range Not Satisfiable');
-      return;
-    }
-
-    const chunkSize = end - start + 1;
+  const range = parseByteRange(req.headers.range, stats.size);
+  if (range?.malformed) {
+    res.status(416).send('Malformed Range header');
+    return;
+  }
+  if (range?.unsatisfiable) {
+    res.status(416).send('Range Not Satisfiable');
+    return;
+  }
+  if (range) {
     res.writeHead(206, {
       ...baseHeaders,
-      'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+      'Content-Range': `bytes ${range.start}-${range.end}/${stats.size}`,
       'Accept-Ranges': 'bytes',
-      'Content-Length': chunkSize,
+      'Content-Length': range.chunkSize,
     });
-    streamFile({ start, end });
+    streamFile({ start: range.start, end: range.end });
     return;
   }
 

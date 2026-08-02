@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { formatLocalDateTime } from '@/utils';
 import { getSharedWithMe } from '@/api/shares.api';
 import {
   ShareIcon,
@@ -70,12 +71,7 @@ const getIconItem = (share) => {
   };
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return t('common.noExpiration');
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return dateString;
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-};
+const formatDate = (dateString) => formatLocalDateTime(dateString, t('common.noExpiration'));
 
 const isExpired = (share) => {
   if (!share.expiresAt) return false;
