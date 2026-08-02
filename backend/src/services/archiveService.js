@@ -294,7 +294,10 @@ const runSevenZipExtract = (
   options = {}
 ) =>
   runSevenZip(
-    ['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, '--', archiveAbsolutePath],
+    // -snl- keeps 7-Zip from restoring symbolic links. Path confinement is a
+    // string comparison, so a link like `evil -> /` inside a tar would make
+    // every later access step outside the volume while still looking valid.
+    ['x', '-y', '-bsp1', '-snl-', `-o${destinationAbsolutePath}`, '--', archiveAbsolutePath],
     onPercent,
     options
   );
@@ -410,6 +413,35 @@ const watchExtractionSize = (destinationAbsolutePath, maxBytes, onExceeded) => {
   };
 };
 
+
+/**
+ * Reject an extraction that produced a symbolic link.
+ *
+ * `-snl-` already tells 7-Zip not to restore links, but this is the check
+ * that actually protects the volume boundary, so it does not rely on a
+ * single switch of an external tool.
+ */
+const assertNoSymlinks = async (rootAbsolutePath) => {
+  const stack = [rootAbsolutePath];
+  while (stack.length) {
+    const current = stack.pop();
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) {
+        const error = new Error('This archive contains symbolic links and was not extracted.');
+        error.code = 'ARCHIVE_CONTAINS_SYMLINK';
+        throw error;
+      }
+      if (entry.isDirectory()) stack.push(path.join(current, entry.name));
+    }
+  }
+};
+
 const extractArchive = async (
   archiveAbsolutePath,
   destinationAbsolutePath,
@@ -456,6 +488,7 @@ const extractArchive = async (
         onPercent?.(100);
       }
     }
+    await assertNoSymlinks(destinationAbsolutePath);
   } catch (error) {
     // A cancellation raised by the watcher is really a size refusal.
     if (sizeExceeded) throw createSizeLimitError();
