@@ -182,7 +182,13 @@ const buildCorsConfig = () => {
     };
   }
   if (knownOrigins.length) return { allowAll: false, origins: [...knownOrigins] };
-  return { allowAll: true, origins: [] }; // Backwards compatibility
+  // Nothing configured: allow no cross-origin caller rather than reflecting
+  // whatever origin asks, which combined with credentials:true would let any
+  // site read authenticated responses. Same-origin requests carry no Origin
+  // (or are permitted by the browser's own policy), so the normal setup —
+  // frontend and API on one host — is unaffected. Declare CORS_ORIGINS,
+  // PUBLIC_URL or INTERNAL_URL to allow a real cross-origin client.
+  return { allowAll: false, origins: [] };
 };
 
 const corsConfig = buildCorsConfig();
@@ -273,6 +279,12 @@ const auth = {
   },
 };
 
+const deriveSecret = (purpose) =>
+  crypto
+    .createHmac('sha256', auth.sessionSecret)
+    .update(`nextexplorer:${purpose}`)
+    .digest('hex');
+
 // --- Search ---
 const searchMaxFileSizeBytes = (() => {
   const parsed = parseByteSize(env.SEARCH_MAX_FILESIZE);
@@ -295,7 +307,10 @@ const uploads = {
 // --- OnlyOffice ---
 const onlyoffice = {
   serverUrl: env.ONLYOFFICE_URL?.replace(/\/$/, '') || null,
-  secret: env.ONLYOFFICE_SECRET || env.SESSION_SECRET || auth.sessionSecret,
+  // Never hand the session signing secret to an external service. When no
+  // dedicated secret is configured, derive a distinct one so the value shared
+  // with the Document Server cannot be used to forge session cookies.
+  secret: env.ONLYOFFICE_SECRET || deriveSecret('onlyoffice'),
   // Extra origins the Document Server may serve saved documents from, for
   // deployments where it reports a different host than the one we call.
   downloadOrigins: parseOriginList(env.ONLYOFFICE_DOWNLOAD_ORIGINS, 'ONLYOFFICE_DOWNLOAD_ORIGINS'),
