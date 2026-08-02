@@ -5,7 +5,8 @@ const {
   resolveDeleteTargets,
 } = require('../../services/fileTransferService');
 const asyncHandler = require('../../utils/asyncHandler');
-const { startNdjsonStream } = require('../../utils/ndjsonStream');
+const logger = require('../../utils/logger');
+const { startNdjsonStream, throttleProgress } = require('../../utils/ndjsonStream');
 
 const router = require('express').Router();
 
@@ -49,7 +50,11 @@ router.post(
     // client that does not parse NDJSON reads as success. This matches how
     // the transfer and archive routes behave.
     const context = { user: req.user, guestSession: req.guestSession };
+    // Timed so an installation can see where a slow bulk delete actually
+    // spends its time, instead of guessing between the server and the browser.
+    const startedAt = Date.now();
     const targets = await resolveDeleteTargets(items, context);
+    const resolvedAt = Date.now();
 
     const writeEvent = startNdjsonStream(res, { onClose });
 
@@ -59,13 +64,25 @@ router.post(
         phase: 'preparing',
         totalItems: Array.isArray(items) ? items.length : 0,
       });
+      const reportProgress = throttleProgress((event) => writeEvent(event));
       const results = await deleteItems(items, {
         targets,
         user: req.user,
         guestSession: req.guestSession,
         signal: controller.signal,
-        onProgress: (progress) => writeEvent({ type: 'progress', ...progress }),
+        onProgress: (progress) => reportProgress({ type: 'progress', ...progress }),
       });
+      reportProgress.flush();
+      const finishedAt = Date.now();
+      logger.info(
+        {
+          items: targets.length,
+          resolveMs: resolvedAt - startedAt,
+          deleteMs: finishedAt - resolvedAt,
+          totalMs: finishedAt - startedAt,
+        },
+        'Bulk delete completed'
+      );
       writeEvent({ type: 'done', success: true, items: results });
     } catch (error) {
       writeEvent({

@@ -45,4 +45,37 @@ const throttlePercent = (writeEvent, intervalMs = 150) => {
   };
 };
 
-module.exports = { startNdjsonStream, throttlePercent };
+/**
+ * Let progress events through at a steady rate, keeping the last one.
+ *
+ * A bulk operation reports once per item: three thousand files means three
+ * thousand socket writes, three thousand lines to parse and as many reactive
+ * updates in the browser — for a bar that can only show a hundred distinct
+ * positions. The final event is never dropped, so the bar always lands on
+ * completion rather than stopping just short of it.
+ */
+const throttleProgress = (writeEvent, intervalMs = 100) => {
+  let lastAt = 0;
+  let pending = null;
+
+  const send = (event) => {
+    pending = null;
+    lastAt = Date.now();
+    writeEvent(event);
+  };
+
+  const throttled = (event) => {
+    const now = Date.now();
+    if (now - lastAt >= intervalMs) send(event);
+    else pending = event;
+  };
+
+  // Called once the work is done, so the last position is not lost.
+  throttled.flush = () => {
+    if (pending) send(pending);
+  };
+
+  return throttled;
+};
+
+module.exports = { startNdjsonStream, throttlePercent, throttleProgress };
