@@ -92,7 +92,14 @@ router.get(
         return res.json({ thumbnail: withThumbnailToken(cachedThumbnail), pending: false });
       }
 
-      const result = await queueThumbnailGeneration(absolutePath);
+      // A prefetch is deliberately lower priority and is admitted only while
+      // no interactive thumbnail work is in progress. Authorization remains
+      // identical to a regular thumbnail request.
+      const isBackgroundPrefetch = req.query.background === '1';
+      const result = await queueThumbnailGeneration(
+        absolutePath,
+        isBackgroundPrefetch ? { priority: -10, onlyWhenIdle: true } : undefined
+      );
       return res
         .status(result.pending ? 202 : 200)
         .json({ ...result, thumbnail: withThumbnailToken(result.thumbnail) });

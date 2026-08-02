@@ -24,6 +24,7 @@ const config = require('../config/index');
 const { getDb } = require('./db');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
+const { scheduleThumbnailRemoval } = require('./thumbnailService');
 
 // How often (ms) progress is reported to the caller while bytes stream, so a
 // large file emits a steady trickle of updates rather than one per chunk.
@@ -939,6 +940,7 @@ const deleteItems = async (items = [], options = {}) => {
       await fs.unlink(absolutePath).catch((error) => {
         if (error?.code !== 'ENOENT') throw error;
       });
+      scheduleThumbnailRemoval(absolutePath);
     }
     folderSizeHooks.onEntryDeleted(absolutePath, {
       isDirectory: isDirectoryEntry,
