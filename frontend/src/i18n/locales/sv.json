@@ -73,7 +73,9 @@
     "reset": "Återställ",
     "moveUp": "Flytta upp",
     "moveDown": "Flytta ner",
-    "toggleSection": "Visa eller dölj avsnittet"
+    "toggleSection": "Visa eller dölj avsnittet",
+    "back": "Bakåt",
+    "add": "Lägg till"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "Filen är för stor. Använd en mindre bild (under 500 KB för bästa resultat)",
       "preview": "Förhandsgranskning",
       "showPoweredBy": "Visa attribueringslänk",
-      "showPoweredByHelp": "Visa en \"Powered by nextExplorer\"-länk i sidfoten för att stödja projektet"
+      "showPoweredByHelp": "Visa en \"Powered by nextExplorer\"-länk i sidfoten för att stödja projektet",
+      "defaultLogoSelected": "Standardlogotyp vald. Klicka på Spara för att tillämpa."
     },
     "userPreferences": {
       "title": "Användarpreferenser",
@@ -550,7 +553,8 @@
       "selectedPath": "Vald",
       "volumePath": "Volymsökväg",
       "pathCannotChange": "Sökvägen kan inte ändras i efterhand. Ta bort och skapa ny vid behov.",
-      "accessMode": "Åtkomstläge"
+      "accessMode": "Åtkomstläge",
+      "noUsers": "Inga användare tillgängliga"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "Aldrig",
     "noIpRecorded": "Ingen IP registrerad",
     "deleteShareTitle": "Ta bort utdelning?",
-    "deleteShareMessage": "Personer som har den här länken kommer inte längre att kunna komma åt det utdelade objektet."
+    "deleteShareMessage": "Personer som har den här länken kommer inte längre att kunna komma åt det utdelade objektet.",
+    "password": "Lösenord",
+    "protected": "Skyddad",
+    "expires": "Går ut",
+    "loadingUsers": "Läser in användare...",
+    "creating": "Skapar…"
   },
   "quickActions": {
     "menu": "Snabbåtgärder"

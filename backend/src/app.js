@@ -11,6 +11,7 @@ const cookieParser = require('cookie-parser');
 const { configureTrustProxy } = require('./middleware/trustProxy');
 const { configureSecurityHeaders } = require('./middleware/securityHeaders');
 const { requestContextMiddleware } = require('./utils/requestContext');
+const { uploads } = require('./config/index');
 const { configureHttpLogging } = require('./middleware/logging');
 const { configureCors } = require('./middleware/cors');
 const { configureOidc } = require('./middleware/oidc');
@@ -52,8 +53,10 @@ const createApp = async (options = {}) => {
   configureHttpLogging(app);
 
   configureCors(app);
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // A selection of a few thousand files is a normal request here, and its list
+  // of paths outgrows the 100 kB Express allows by default.
+  app.use(express.json({ limit: uploads.maxJsonBodyBytes }));
+  app.use(express.urlencoded({ extended: true, limit: uploads.maxJsonBodyBytes }));
   app.use(cookieParser());
   logger.debug('Mounted cookie parser middleware');
 

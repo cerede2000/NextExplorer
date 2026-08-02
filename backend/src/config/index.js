@@ -296,7 +296,21 @@ const searchMaxFileSizeBytes = (() => {
 // cannot stream until the disk is full; they are generous on purpose, since
 // large files are a normal use of a file manager. Chunked uploads have their
 // own storage guard in the TUS service.
+/**
+ * Ceiling on a JSON request body.
+ *
+ * Express defaults to 100 kB, which a file manager reaches with an ordinary
+ * selection: deleting 2000 files sends ~150 kB of paths, and the request was
+ * rejected outright with "request entity too large". These bodies are lists of
+ * paths, not file content — uploads have their own, far larger limits.
+ */
+const maxJsonBodyBytes = (() => {
+  const parsed = parseByteSize(env.MAX_JSON_BODY_SIZE);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 8 * 1024 * 1024;
+})();
+
 const uploads = {
+  maxJsonBodyBytes,
   maxDirectUploadBytes: (() => {
     const parsed = parseByteSize(env.MAX_DIRECT_UPLOAD_SIZE);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;

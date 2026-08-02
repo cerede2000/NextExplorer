@@ -213,6 +213,7 @@ module.exports = {
 
   // Uploads (direct, non-chunked)
   MAX_DIRECT_UPLOAD_SIZE: process.env.MAX_DIRECT_UPLOAD_SIZE?.trim() || null,
+  MAX_JSON_BODY_SIZE: process.env.MAX_JSON_BODY_SIZE?.trim() || null,
   MAX_FILES_PER_UPLOAD: Number(process.env.MAX_FILES_PER_UPLOAD) || 50,
 
   // Archives

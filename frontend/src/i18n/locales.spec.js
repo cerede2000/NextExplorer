@@ -67,3 +67,30 @@ describe('locale completeness', () => {
     expect(mismatches).toEqual([]);
   });
 });
+
+/**
+ * Key parity between locales says nothing about the keys the code actually
+ * asks for. Nine of them were missing from every locale at once — including
+ * two on the share dialog, where users read "share.password" instead of
+ * "Password". Parity could not see it: absent everywhere is still parity.
+ */
+describe('every key the code asks for exists', () => {
+  const sources = import.meta.glob('../**/*.{vue,js}', { eager: true, query: '?raw', import: 'default' });
+
+  // t('a.b') and $t("a.b"), literals only — keys built at runtime
+  // (`serverErrors.${code}`) cannot be checked this way.
+  const CALL = /\$?t\(\s*['"]([a-z][\w]*(?:\.[\w]+)+)['"]/g;
+
+  it('finds no missing key', () => {
+    const missing = new Map();
+    for (const [file, code] of Object.entries(sources)) {
+      if (file.includes('/locales/') || file.includes('.spec.')) continue;
+      for (const [, key] of String(code).matchAll(CALL)) {
+        if (reference[key] === undefined && !missing.has(key)) {
+          missing.set(key, file.replace('../', ''));
+        }
+      }
+    }
+    expect(Object.fromEntries(missing)).toEqual({});
+  });
+});

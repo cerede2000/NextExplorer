@@ -107,6 +107,7 @@ These are safety ceilings, not tuning knobs: they exist so a single request cann
 | ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `MAX_DIRECT_UPLOAD_SIZE`     | `64GB`    | Largest single file accepted by a direct (non-chunked) upload, e.g. `10GB`. Chunked/TUS uploads are bounded by their storage guard. |
 | `MAX_FILES_PER_UPLOAD`       | `50`      | Maximum number of files in one direct upload request.                                                                              |
+| `MAX_JSON_BODY_SIZE`         | `8MB`     | Largest JSON request body accepted. These carry lists of paths — deleting or copying a few thousand files needs a few hundred kB — not file content. |
 | `MAX_EXTRACTED_ARCHIVE_SIZE` | `32GB`    | Refuse to extract an archive whose declared uncompressed size exceeds this ("zip bomb" guard).                                      |
 | `MAX_ARCHIVE_ENTRIES`        | `100000`  | Refuse to extract an archive holding more entries than this.                                                                       |
 

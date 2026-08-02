@@ -73,7 +73,9 @@
     "reset": "Zurücksetzen",
     "moveUp": "Nach oben",
     "moveDown": "Nach unten",
-    "toggleSection": "Abschnitt ein-/ausklappen"
+    "toggleSection": "Abschnitt ein-/ausklappen",
+    "back": "Zurück",
+    "add": "Hinzufügen"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "Datei ist zu groß. Bitte verwenden Sie ein kleineres Bild (unter 500 KB für beste Ergebnisse)",
       "preview": "Vorschau",
       "showPoweredBy": "Attributionslink anzeigen",
-      "showPoweredByHelp": "Zeigt in der Fußzeile einen Link 'Powered by nextExplorer', um das Projekt zu unterstützen"
+      "showPoweredByHelp": "Zeigt in der Fußzeile einen Link 'Powered by nextExplorer', um das Projekt zu unterstützen",
+      "defaultLogoSelected": "Standardlogo ausgewählt. Zum Anwenden auf Speichern klicken."
     },
     "userPreferences": {
       "title": "Benutzereinstellungen",
@@ -550,7 +553,8 @@
       "selectedPath": "Ausgewählt",
       "volumePath": "Volumenpfad",
       "pathCannotChange": "Der Pfad kann nach der Erstellung nicht mehr geändert werden. Entfernen Sie dieses Volume und erstellen Sie bei Bedarf ein neues.",
-      "accessMode": "Zugriffsmodus"
+      "accessMode": "Zugriffsmodus",
+      "noUsers": "Keine Benutzer verfügbar"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "Nie",
     "noIpRecorded": "Keine IP erfasst",
     "deleteShareTitle": "Freigabe entfernen?",
-    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen."
+    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen.",
+    "password": "Passwort",
+    "protected": "Geschützt",
+    "expires": "Läuft ab",
+    "loadingUsers": "Benutzer werden geladen...",
+    "creating": "Wird erstellt…"
   },
   "quickActions": {
     "menu": "Schnellaktionen"

@@ -73,7 +73,9 @@
     "reset": "重設",
     "moveUp": "上移",
     "moveDown": "下移",
-    "toggleSection": "展開或摺疊此區段"
+    "toggleSection": "展開或摺疊此區段",
+    "back": "後退",
+    "add": "新增"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "文件過大。請使用更小的圖片（建議小於 500KB 以獲得最佳效果）",
       "preview": "預覽",
       "showPoweredBy": "顯示簽名連結",
-      "showPoweredByHelp": "在頁尾顯示 “Powered by nextExplorer” 連結來支持專案"
+      "showPoweredByHelp": "在頁尾顯示 “Powered by nextExplorer” 連結來支持專案",
+      "defaultLogoSelected": "已選擇預設標誌。點選「儲存」以套用。"
     },
     "userPreferences": {
       "title": "使用者偏好設定",
@@ -550,7 +553,8 @@
       "selectedPath": "已選擇",
       "volumePath": "儲存卷路徑",
       "pathCannotChange": "建立後無法更改路徑。如需更改，請刪除此卷並重新建立。",
-      "accessMode": "存取模式"
+      "accessMode": "存取模式",
+      "noUsers": "沒有可用使用者"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "從未",
     "noIpRecorded": "未記錄 IP",
     "deleteShareTitle": "移除分享？",
-    "deleteShareMessage": "擁有此連結的人將無法再存取已分享的項目。"
+    "deleteShareMessage": "擁有此連結的人將無法再存取已分享的項目。",
+    "password": "密碼",
+    "protected": "已保護",
+    "expires": "到期時間",
+    "loadingUsers": "正在載入使用者...",
+    "creating": "正在建立…"
   },
   "quickActions": {
     "menu": "快速動作"

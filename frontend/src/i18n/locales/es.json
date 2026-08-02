@@ -73,7 +73,9 @@
     "reset": "Restablecer",
     "moveUp": "Subir",
     "moveDown": "Bajar",
-    "toggleSection": "Mostrar u ocultar la sección"
+    "toggleSection": "Mostrar u ocultar la sección",
+    "back": "Atrás",
+    "add": "Añadir"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "El archivo es demasiado grande. Usa una imagen más pequeña (menos de 500 KB para obtener mejores resultados)",
       "preview": "Vista previa",
       "showPoweredBy": "Mostrar enlace de atribución",
-      "showPoweredByHelp": "Muestra un enlace 'Powered by nextExplorer' en el pie de página para ayudar a apoyar el proyecto"
+      "showPoweredByHelp": "Muestra un enlace 'Powered by nextExplorer' en el pie de página para ayudar a apoyar el proyecto",
+      "defaultLogoSelected": "Logotipo predeterminado seleccionado. Haz clic en Guardar para aplicar."
     },
     "userPreferences": {
       "title": "Preferencias de usuario",
@@ -550,7 +553,8 @@
       "selectedPath": "Seleccionado",
       "volumePath": "Ruta del volumen",
       "pathCannotChange": "La ruta no se puede cambiar después de la creación. Elimine este volumen y cree uno nuevo si es necesario.",
-      "accessMode": "Modo de acceso"
+      "accessMode": "Modo de acceso",
+      "noUsers": "No hay usuarios disponibles"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "Nunca",
     "noIpRecorded": "Ninguna IP registrada",
     "deleteShareTitle": "¿Eliminar compartición?",
-    "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido."
+    "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido.",
+    "password": "Contraseña",
+    "protected": "Protegido",
+    "expires": "Expira",
+    "loadingUsers": "Cargando usuarios...",
+    "creating": "Creando…"
   },
   "quickActions": {
     "menu": "Acciones rápidas"
