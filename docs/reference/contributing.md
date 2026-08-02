@@ -19,13 +19,13 @@ Thanks for helping improve nextExplorer! This guide keeps contributions smooth, 
 ## Project Layout
 
 - `frontend/` – Vue 3 + Vite app (Pinia, TailwindCSS, Vitest, ESLint).
-- `backend/` – Express API (Node 18+, Pino logging, OIDC via express-openid-connect).
+- `backend/` – Express API (Node 24, Pino logging, OIDC via express-openid-connect).
 - `docs/` – VitePress docs (site content and guides).
 - `Dockerfile` – Multi-stage build packaging the full app.
 
 ## Prerequisites
 
-- Node.js 18+ and npm 9+.
+- Node.js 24 (the version the image and CI run) and npm 9+.
 - Docker + Docker Compose v2 (optional, recommended for end-to-end dev).
 - FFmpeg/ffprobe available if running backend outside Docker.
 
