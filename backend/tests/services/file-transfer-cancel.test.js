@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
@@ -148,5 +148,92 @@ describe('Native removal', () => {
 
     expect(shouldRemoveNatively(true, true)).toBe(true);
     expect(shouldRemoveNatively(true, false)).toBe(false);
+  });
+});
+
+/**
+ * Removals run several at a time, because on network storage each one is
+ * mostly waiting. Overlapping them must not change what the caller sees: the
+ * results stay in the order they were asked for, the progress counter only
+ * ever moves forward, and cancelling still stops the operation.
+ */
+describe('Bulk deletion', () => {
+  let bulkEnv;
+
+  afterEach(async () => {
+    if (bulkEnv) {
+      await bulkEnv.cleanup();
+      bulkEnv = null;
+    }
+  });
+
+  const seed = async (count) => {
+    bulkEnv = await setupTestEnv({
+      tag: 'bulk-delete-',
+      modules: [
+        'src/config/env',
+        'src/config/index',
+        'src/utils/pathUtils',
+        'src/services/db',
+        'src/services/users',
+        'src/services/sharesService',
+        'src/services/accessManager',
+        'src/services/authorizationService',
+        'src/services/fileTransferService',
+      ],
+    });
+
+    const dir = path.join(bulkEnv.volumeDir, 'bulk');
+    await fs.mkdir(dir, { recursive: true });
+    const items = [];
+    for (let i = 0; i < count; i += 1) {
+      await fs.writeFile(path.join(dir, `f${i}.bin`), 'x');
+      items.push({ path: 'bulk', name: `f${i}.bin` });
+    }
+    return { items, service: bulkEnv.requireFresh('src/services/fileTransferService') };
+  };
+
+  it('answers in the order it was asked, with a counter that only grows', async () => {
+    const { items, service } = await seed(60);
+    const user = { id: 'u1', roles: ['admin'] };
+
+    const counts = [];
+    const results = await service.deleteItems(items, {
+      user,
+      guestSession: null,
+      onProgress: (p) => counts.push(p.completedItems),
+    });
+
+    expect(results).toHaveLength(60);
+    // Out-of-order completion must not leak into the answer.
+    results.forEach((result, index) => {
+      expect(result.path).toContain(`f${index}.bin`);
+      expect(result.status).toBe('deleted');
+    });
+    expect(counts).toEqual([...counts].sort((a, b) => a - b));
+    expect(counts.at(-1)).toBe(60);
+
+    const remaining = await fs.readdir(path.join(bulkEnv.volumeDir, 'bulk'));
+    expect(remaining).toEqual([]);
+  });
+
+  it('stops when cancelled', async () => {
+    const { items, service } = await seed(60);
+    const controller = new AbortController();
+
+    const deletion = service.deleteItems(items, {
+      user: { id: 'u1', roles: ['admin'] },
+      guestSession: null,
+      signal: controller.signal,
+      onProgress: (p) => {
+        if (p.completedItems >= 8) controller.abort();
+      },
+    });
+
+    await expect(deletion).rejects.toThrow();
+    // Cancelling means "stop", not "undo": some files are already gone.
+    const remaining = await fs.readdir(path.join(bulkEnv.volumeDir, 'bulk'));
+    expect(remaining.length).toBeGreaterThan(0);
+    expect(remaining.length).toBeLessThan(60);
   });
 });

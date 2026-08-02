@@ -31,6 +31,21 @@ const TRANSFER_BATCH_SIZE = 500;
  * the transferred entries, and the destination the server settled on (it may
  * rename to avoid a collision).
  */
+/**
+ * Fold impact responses into the single summary the dialog reads. Shares are
+ * deduplicated: a folder and a file inside it can report the same one.
+ */
+const summarizeDeleteImpact = (responses) => {
+  const sharesById = new Map();
+  for (const response of responses) {
+    for (const share of Array.isArray(response?.shares) ? response.shares : []) {
+      if (share?.id) sharesById.set(share.id, share);
+    }
+  }
+  const shares = Array.from(sharesById.values());
+  return { shareCount: shares.length, shares };
+};
+
 const mergeTransferResults = (results) => {
   if (!Array.isArray(results)) return results;
   const merged = { success: true, items: [] };
@@ -219,32 +234,33 @@ async function deleteItemsStream(items, options = {}) {
 
 async function getDeleteImpact(items) {
   const normalizedItems = Array.isArray(items) ? items : [];
-  if (normalizedItems.length <= DELETE_BATCH_SIZE) {
-    return requestJson('/api/files/delete-impact', {
-      method: 'POST',
-      body: JSON.stringify({ items: normalizedItems }),
-    });
+  if (normalizedItems.length <= DELETE_STREAM_BATCH_SIZE) {
+    return summarizeDeleteImpact([
+      await requestJson('/api/files/delete-impact', {
+        method: 'POST',
+        body: JSON.stringify({ items: normalizedItems }),
+      }),
+    ]);
   }
 
-  const sharesById = new Map();
-  for (let index = 0; index < normalizedItems.length; index += DELETE_BATCH_SIZE) {
-    const batch = normalizedItems.slice(index, index + DELETE_BATCH_SIZE);
-    // eslint-disable-next-line no-await-in-loop
-    const response = await requestJson('/api/files/delete-impact', {
-      method: 'POST',
-      body: JSON.stringify({ items: batch }),
-    });
-    const shares = Array.isArray(response?.shares) ? response.shares : [];
-    shares.forEach((share) => {
-      if (share?.id) sharesById.set(share.id, share);
-    });
+  // Read-only and independent, so the batches go out together: this runs
+  // before the confirmation dialog can even be shown, and a serialized chain
+  // of them is latency the user waits through for nothing.
+  const batches = [];
+  for (let index = 0; index < normalizedItems.length; index += DELETE_STREAM_BATCH_SIZE) {
+    batches.push(normalizedItems.slice(index, index + DELETE_STREAM_BATCH_SIZE));
   }
 
-  const shares = Array.from(sharesById.values());
-  return {
-    shareCount: shares.length,
-    shares,
-  };
+  const responses = await Promise.all(
+    batches.map((batch) =>
+      requestJson('/api/files/delete-impact', {
+        method: 'POST',
+        body: JSON.stringify({ items: batch }),
+      })
+    )
+  );
+
+  return summarizeDeleteImpact(responses);
 }
 
 async function createFolder(destination, name) {
