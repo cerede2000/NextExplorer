@@ -42,7 +42,9 @@ const languageSwitcherRef = ref(null);
 const setLocale = (lang) => {
   try {
     localStorage.setItem('locale', lang);
-  } catch (_) {}
+  } catch (_) {
+    // Nothing to recover from here.
+  }
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('lang', lang);
   }

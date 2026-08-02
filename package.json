@@ -19,12 +19,14 @@
     "docs:build": "npm run docs:build -w docs --",
     "docs:preview": "npm run docs:preview -w docs --",
     "build": "npm run build -w frontend",
-    "test": "npm run test -w backend",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "test": "npm run test -w backend && npm run test:unit -w frontend",
+    "lint": "eslint . --ext .js,.cjs,.mjs,.vue",
+    "lint:fix": "eslint . --ext .js,.cjs,.mjs,.vue --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "download_samples": "npm run download_samples - backend"
+    "download_samples": "npm run download_samples - backend",
+    "test:backend": "npm run test -w backend",
+    "test:frontend": "npm run test:unit -w frontend"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

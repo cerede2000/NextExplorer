@@ -86,7 +86,6 @@ const referenceStyles = computed(() => ({
 
 const actions = useFileActions();
 const { t } = useI18n();
-const selectedItems = actions.selectedItems;
 const hasSelection = actions.hasSelection;
 const primaryItem = actions.primaryItem;
 const isSingleItemSelected = actions.isSingleItemSelected;
@@ -94,7 +93,6 @@ const canRename = actions.canRename;
 const locationCanWrite = actions.locationCanWrite;
 const locationCanCreateFolder = actions.locationCanCreateFolder;
 const locationCanCreateFile = actions.locationCanCreateFile;
-const locationCanUpload = actions.locationCanUpload;
 const locationCanDelete = actions.locationCanDelete;
 const canAcceptPasteHere = computed(
   () => locationCanCreateFolder.value || locationCanCreateFile.value

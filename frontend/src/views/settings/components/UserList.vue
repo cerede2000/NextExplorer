@@ -1,9 +1,8 @@
 <script setup>
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { UserCircleIcon, KeyIcon, CloudIcon } from '@heroicons/vue/24/outline';
 
-const props = defineProps({
+defineProps({
   users: {
     type: Array,
     default: () => [],
@@ -11,7 +10,7 @@ const props = defineProps({
   loading: Boolean,
 });
 
-const emit = defineEmits(['select', 'create']);
+defineEmits(['select', 'create']);
 const { t } = useI18n();
 
 const getInitials = (name) => {

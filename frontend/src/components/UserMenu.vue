@@ -95,7 +95,9 @@ const handleLogout = async () => {
 
   try {
     await auth.logout();
-  } catch (_) {}
+  } catch (_) {
+    // Nothing to recover from here.
+  }
 
   router.push({ name: 'auth-login' });
 };

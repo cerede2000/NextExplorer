@@ -4,9 +4,6 @@ import { PlusIcon } from '@heroicons/vue/24/outline';
 import { useToggle, onClickOutside } from '@vueuse/core';
 import {
   CreateNewFolderRound,
-  UploadFileRound,
-  DriveFolderUploadRound,
-  InsertDriveFileRound,
   DriveFolderUploadOutlined,
   UploadFileOutlined,
   FileOpenOutlined,

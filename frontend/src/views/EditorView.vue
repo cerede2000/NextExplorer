@@ -181,7 +181,6 @@ import * as themeBundle from '@fsegurai/codemirror-theme-bundle';
 import {
   XMarkIcon,
   ArrowPathIcon,
-  PaintBrushIcon,
   EllipsisVerticalIcon,
   CheckIcon,
 } from '@heroicons/vue/24/outline';
