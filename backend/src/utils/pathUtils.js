@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const { directories, features, personal } = require('../config/index');
 const { pathExists } = require('./fsUtils');
+const { cachedForRequest } = require('./requestContext');
 const logger = require('./logger');
 
 const NAME_INVALID_PATTERN = /[\\/]/;
@@ -62,6 +63,21 @@ const readLinkOrNull = (target) => {
 };
 
 /**
+ * A bulk operation resolves one path per selected item, and those paths share
+ * their parent directories. Only successful lookups are memoized: a path that
+ * did not exist a moment ago may have just been created by this very request,
+ * and answering "still missing" from a cache would be wrong.
+ */
+const realpathOrNull = (target) =>
+  cachedForRequest('realpath', target, () => {
+    try {
+      return fs.realpathSync(target);
+    } catch {
+      return null;
+    }
+  });
+
+/**
  * Confirm a resolved path really lives under its root once symlinks are
  * followed. Paths that do not exist yet (a file about to be created) are
  * checked through their closest existing ancestor.
@@ -89,12 +105,7 @@ const assertRealPathWithinRoot = (
   let candidate = absolutePath;
 
   for (;;) {
-    let realCandidate = null;
-    try {
-      realCandidate = fs.realpathSync(candidate);
-    } catch {
-      realCandidate = null;
-    }
+    const realCandidate = realpathOrNull(candidate);
 
     if (realCandidate) {
       if (!contained(realCandidate)) throw outside();

@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 
 const { configureTrustProxy } = require('./middleware/trustProxy');
 const { configureSecurityHeaders } = require('./middleware/securityHeaders');
+const { requestContextMiddleware } = require('./utils/requestContext');
 const { configureHttpLogging } = require('./middleware/logging');
 const { configureCors } = require('./middleware/cors');
 const { configureOidc } = require('./middleware/oidc');
@@ -44,6 +45,9 @@ const createApp = async (options = {}) => {
   const app = express();
 
   configureTrustProxy(app);
+  // Opens the per-request scratch space early, so everything downstream can
+  // memoize work that must not be reused by the next request.
+  app.use(requestContextMiddleware);
   configureSecurityHeaders(app);
   configureHttpLogging(app);
 
