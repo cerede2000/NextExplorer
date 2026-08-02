@@ -632,6 +632,105 @@ describe('Shares Routes', () => {
       expect(details.body.stats.lastAccessIp.length).toBeGreaterThan(0);
     });
 
+    it('counts direct attachment deliveries as downloads, inline views as accesses', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-download');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'notes.txt'), 'count my download');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-download@example.com',
+        username: 'direct-download',
+        displayName: 'Direct Download',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectDownloadVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectDownloadVol/notes.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      // Explicit download mode serves an attachment: it must increment the
+      // download counter (regression: it only ever counted an access).
+      const download = await request(buildApp()).get(
+        `/api/share/${create.body.shareToken}/file?mode=download`
+      );
+      expect(download.status).toBe(200);
+      expect(download.headers['content-disposition']).toContain('attachment');
+
+      const afterDownload = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(afterDownload.status).toBe(200);
+      expect(afterDownload.body.stats.downloadCount).toBe(1);
+      expect(afterDownload.body.stats.accessCount).toBe(0);
+      expect(afterDownload.body.stats.lastDownloadedAt).toBeTruthy();
+      expect(typeof afterDownload.body.stats.lastDownloadIp).toBe('string');
+      expect(afterDownload.body.stats.lastDownloadIp.length).toBeGreaterThan(0);
+
+      // An inline view of the same link still counts as an access.
+      const view = await request(buildApp()).get(`/api/share/${create.body.shareToken}/file`);
+      expect(view.status).toBe(200);
+      expect(view.headers['content-disposition']).toContain('inline');
+
+      const afterView = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(afterView.status).toBe(200);
+      expect(afterView.body.stats.accessCount).toBe(1);
+      expect(afterView.body.stats.downloadCount).toBe(1);
+    });
+
+    it('counts a direct directory ZIP delivery as a download', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-zip-count');
+      await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'folder', 'nested.txt'), 'nested file');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-zip-count@example.com',
+        username: 'direct-zip-count',
+        displayName: 'Direct Zip Count',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectZipCountVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectZipCountVol/folder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const direct = await request(buildApp()).get(`/api/share/${create.body.shareToken}/file`);
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-disposition']).toContain('attachment');
+
+      const details = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(details.status).toBe(200);
+      expect(details.body.stats.downloadCount).toBe(1);
+      expect(details.body.stats.accessCount).toBe(0);
+    });
+
     it('should redirect a password-protected direct file until the password is verified', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const userVolumesService = envContext.requireFresh('src/services/userVolumesService');

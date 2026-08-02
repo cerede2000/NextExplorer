@@ -22,6 +22,7 @@ const {
   hasUserPermission,
   isShareExpired,
   trackShareAccess,
+  trackShareDownload,
   getShareStats,
 } = require('../services/sharesService');
 const { createGuestSession } = require('../services/guestSessionService');
@@ -831,7 +832,8 @@ const handleDirectFileRequest = async (req, res) => {
 
   const { share, resolved, stats } = target;
   if (stats.isDirectory()) {
-    await trackShareAccess(share.id, { ipAddress: req.ip });
+    // Directories are always delivered as a ZIP attachment.
+    await trackShareDownload(share.id, { ipAddress: req.ip });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
       archiveName:
@@ -844,11 +846,20 @@ const handleDirectFileRequest = async (req, res) => {
     return;
   }
 
-  await trackShareAccess(share.id, { ipAddress: req.ip });
+  // Count the hit the way the client receives the file: inline previews are
+  // accesses, attachment deliveries (explicit download mode or formats the
+  // browser cannot display) are downloads — same split as POST /api/download.
+  const mode = normalizeDirectFileMode(req.query?.mode);
+  const { disposition } = getDirectFilePresentation(path.basename(resolved.absolutePath), mode);
+  if (disposition === 'attachment') {
+    await trackShareDownload(share.id, { ipAddress: req.ip });
+  } else {
+    await trackShareAccess(share.id, { ipAddress: req.ip });
+  }
   await streamResolvedFile({
     absolutePath: resolved.absolutePath,
     stats,
-    mode: normalizeDirectFileMode(req.query?.mode),
+    mode,
     req,
     res,
   });
