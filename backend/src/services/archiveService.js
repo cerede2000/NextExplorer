@@ -86,6 +86,13 @@ const archiveBaseName = (filename) => {
 };
 
 const EXTRACT_TIMEOUT_MS = 30 * 60 * 1000;
+const EXTRACT_SIZE_POLL_MS = 2000;
+
+const createSizeLimitError = () => {
+  const error = new Error('This archive expands beyond the allowed size and was not extracted.');
+  error.code = 'ARCHIVE_TOO_LARGE';
+  return error;
+};
 
 const createCancellationError = () => {
   const error = new Error('Operation cancelled.');
@@ -103,6 +110,8 @@ const normalizeArchivePassword = (value) => {
     error.code = 'INVALID_ARCHIVE_PASSWORD';
     throw error;
   }
+  // Control characters are exactly what must not reach the extractor prompt.
+  // eslint-disable-next-line no-control-regex
   if (value.length > 4096 || /[\x00-\x1F\x7F]/.test(value)) {
     const error = new Error('Invalid archive password.');
     error.code = 'INVALID_ARCHIVE_PASSWORD';
@@ -285,7 +294,7 @@ const runSevenZipExtract = (
   options = {}
 ) =>
   runSevenZip(
-    ['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, archiveAbsolutePath],
+    ['x', '-y', '-bsp1', `-o${destinationAbsolutePath}`, '--', archiveAbsolutePath],
     onPercent,
     options
   );
@@ -298,7 +307,10 @@ const runSevenZipExtract = (
  */
 const createZipArchive = (sourcePaths, zipAbsolutePath, onPercent, options = {}) =>
   runSevenZip(
-    ['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, ...sourcePaths],
+    // `--` keeps the source names operands: callers pass file names straight
+    // from the volume, and 7-Zip would read a leading dash as a switch
+    // (`-sdel` deletes the sources, `@list` reads paths from a file).
+    ['a', '-tzip', '-y', '-bsp1', zipAbsolutePath, '--', ...sourcePaths],
     onPercent,
     options
   );
@@ -312,21 +324,22 @@ const createZipArchive = (sourcePaths, zipAbsolutePath, onPercent, options = {})
 /**
  * Total uncompressed size and entry count declared by an archive.
  *
- * `7z l -slt` lists without extracting, so the caller can refuse an archive
- * that would expand far beyond its own size before a single byte is written.
- * Returns null when the listing fails (encrypted headers, unknown layout):
- * the caller then falls back to extracting, which stays bounded by the
- * extraction timeout.
+ * `7z l -slt` lists without extracting, so an archive that would expand far
+ * beyond its own size can be refused before a single byte is written. The
+ * password is deliberately NOT passed here: it would land in argv (and in
+ * process listings), and an encrypted archive simply reports no footprint —
+ * which the caller handles by watching the extraction instead.
+ *
+ * Returns null whenever the listing is unusable (encrypted headers, timeout,
+ * output larger than the buffer, unknown layout).
  */
-const readArchiveFootprint = async (archiveAbsolutePath, password = null) => {
+const readArchiveFootprint = async (archiveAbsolutePath) => {
   try {
-    const args = ['l', '-slt', '-y'];
-    if (password) args.push(`-p${password}`);
-    args.push(archiveAbsolutePath);
-    const { stdout } = await execFileAsync(SEVEN_ZIP_BIN, args, {
-      timeout: 30_000,
-      maxBuffer: 16 * 1024 * 1024,
-    });
+    const { stdout } = await execFileAsync(
+      SEVEN_ZIP_BIN,
+      ['l', '-slt', '-y', '--', archiveAbsolutePath],
+      { timeout: 30_000, maxBuffer: 16 * 1024 * 1024 }
+    );
     let totalBytes = 0;
     let entryCount = 0;
     for (const line of stdout.split('\n')) {
@@ -342,39 +355,114 @@ const readArchiveFootprint = async (archiveAbsolutePath, password = null) => {
   }
 };
 
+/** Bytes currently held under a directory, following no symlink. */
+const directorySize = async (absolutePath) => {
+  let total = 0;
+  const stack = [absolutePath];
+  while (stack.length) {
+    const current = stack.pop();
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const child = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(child);
+      } else if (entry.isFile()) {
+        try {
+          total += (await fs.lstat(child)).size;
+        } catch {
+          // The file may already be gone; it simply does not count.
+        }
+      }
+    }
+  }
+  return total;
+};
+
+/**
+ * Abort an extraction that outgrows `maxBytes` while it runs.
+ *
+ * The declared footprint is the cheap check, but it is unavailable for
+ * encrypted or oversized listings — exactly the archives worth guarding
+ * against. Watching what actually lands on disk covers those, plus the second
+ * pass of compound tarballs and any archive that under-reports its own size.
+ */
+const watchExtractionSize = (destinationAbsolutePath, maxBytes, onExceeded) => {
+  if (!Number.isFinite(maxBytes) || maxBytes <= 0) return () => {};
+  let stopped = false;
+  const timer = setInterval(async () => {
+    if (stopped) return;
+    const written = await directorySize(destinationAbsolutePath);
+    if (!stopped && written > maxBytes) {
+      stopped = true;
+      onExceeded(written);
+    }
+  }, EXTRACT_SIZE_POLL_MS);
+  // Never hold the process open for the sake of this watcher.
+  timer.unref?.();
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+};
+
 const extractArchive = async (
   archiveAbsolutePath,
   destinationAbsolutePath,
   onPercent,
   options = {}
 ) => {
-  const { signal, password = null } = options;
+  const { signal, password = null, maxBytes = 0 } = options;
   throwIfCancelled(signal);
   const ext = path.extname(archiveAbsolutePath).slice(1).toLowerCase();
   const isCompound = TAR_WRAPPER_EXTENSIONS.has(ext);
 
-  await runSevenZipExtract(
-    archiveAbsolutePath,
-    destinationAbsolutePath,
-    isCompound ? (p) => onPercent?.(Math.round(p / 2)) : onPercent,
-    { signal, password }
-  );
+  // The watcher cancels through the same signal path as a user cancellation,
+  // so a partial extraction is cleaned up exactly like an aborted one.
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort();
+  signal?.addEventListener('abort', forwardAbort, { once: true });
+  let sizeExceeded = false;
+  const stopWatching = watchExtractionSize(destinationAbsolutePath, maxBytes, () => {
+    sizeExceeded = true;
+    controller.abort();
+  });
 
-  if (isCompound) {
-    throwIfCancelled(signal);
-    const entries = await fs.readdir(destinationAbsolutePath);
-    if (entries.length === 1 && entries[0].toLowerCase().endsWith('.tar')) {
-      const innerTar = path.join(destinationAbsolutePath, entries[0]);
-      await runSevenZipExtract(
-        innerTar,
-        destinationAbsolutePath,
-        (p) => onPercent?.(50 + Math.round(p / 2)),
-        { signal, password }
-      );
-      await fs.rm(innerTar, { force: true });
-    } else {
-      onPercent?.(100);
+  try {
+    await runSevenZipExtract(
+      archiveAbsolutePath,
+      destinationAbsolutePath,
+      isCompound ? (p) => onPercent?.(Math.round(p / 2)) : onPercent,
+      { signal: controller.signal, password }
+    );
+
+    if (isCompound) {
+      throwIfCancelled(controller.signal);
+      const entries = await fs.readdir(destinationAbsolutePath);
+      if (entries.length === 1 && entries[0].toLowerCase().endsWith('.tar')) {
+        const innerTar = path.join(destinationAbsolutePath, entries[0]);
+        await runSevenZipExtract(
+          innerTar,
+          destinationAbsolutePath,
+          (p) => onPercent?.(50 + Math.round(p / 2)),
+          { signal: controller.signal, password }
+        );
+        await fs.rm(innerTar, { force: true });
+      } else {
+        onPercent?.(100);
+      }
     }
+  } catch (error) {
+    // A cancellation raised by the watcher is really a size refusal.
+    if (sizeExceeded) throw createSizeLimitError();
+    throw error;
+  } finally {
+    stopWatching();
+    signal?.removeEventListener('abort', forwardAbort);
   }
 };
 

@@ -241,12 +241,16 @@ router.post(
       if (await isSevenZipAvailable()) {
         // Listing first means an archive that would expand beyond the limits
         // is refused before anything is written to disk.
-        const footprint = await readArchiveFootprint(zipAbsolutePath, archivePassword);
+        // Cheap pre-flight when the archive declares a usable listing...
+        const footprint = await readArchiveFootprint(zipAbsolutePath);
         if (footprint) ensureArchiveWithinLimits(footprint);
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
+        // ...and a running guard for everything else: encrypted archives,
+        // listings too large to parse, and the second pass of tarballs.
         await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent, {
           signal: controller.signal,
           password: archivePassword,
+          maxBytes: archives.maxExtractedBytes,
         });
       } else {
         const fallbackZip = new AdmZip(zipAbsolutePath);
