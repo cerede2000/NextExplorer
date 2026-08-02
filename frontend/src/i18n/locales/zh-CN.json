@@ -72,7 +72,8 @@
     "readwrite": "读/写",
     "reset": "重置",
     "moveUp": "上移",
-    "moveDown": "下移"
+    "moveDown": "下移",
+    "toggleSection": "展开或折叠此部分"
   },
   "editor": {
     "editing": "Editing",
@@ -100,6 +101,7 @@
     "download": "下载",
     "downloadFolder": "下载文件夹",
     "extractArchive": "解压缩",
+    "extractArchiveIntoCurrentFolder": "解压到当前文件夹",
     "compressToZip": "压缩为 ZIP",
     "search": "搜索",
     "sortBy": "排序方式",
@@ -110,6 +112,16 @@
     "copyName": "复制名称",
     "share": "共享",
     "copied": "已复制"
+  },
+  "archive": {
+    "password": {
+      "title": "需要密码",
+      "description": "此压缩包受密码保护。请输入密码以解压。",
+      "label": "压缩包密码",
+      "invalid": "密码不正确，或压缩包已损坏。",
+      "submit": "解压",
+      "extracting": "正在解压..."
+    }
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -310,6 +322,9 @@
     "copying": "正在复制 {count} 个{items}…",
     "moving": "正在移动 {count} 个{items}…",
     "working": "处理中…",
+    "copyingUnknown": "正在复制…",
+    "movingUnknown": "正在移动…",
+    "activeTasks": "{count} 个操作进行中",
     "reposition": "完成后返回该项目",
     "extracting": "正在解压 {name}…",
     "compressing": "正在压缩 {name}…"
@@ -330,7 +345,9 @@
     "dateTaken": "拍摄日期：{date}",
     "camera": "相机：{makeModel}",
     "lens": "镜头：{lens}",
-    "duration": "时长：{seconds}s"
+    "duration": "时长：{seconds}s",
+    "folderSizeExcluded": "已排除",
+    "folderSizeExcludedHelp": "此路径已从文件夹大小索引中排除。"
   },
   "auth": {
     "preparing": "正在为您准备 Explorer…",
@@ -403,7 +420,8 @@
       "security": "安全",
       "accessControl": "访问控制",
       "adminUsers": "用户管理",
-      "uploads": "上传"
+      "uploads": "上传",
+      "folderSize": "文件夹大小"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -571,6 +589,14 @@
       "autoFallbackReset": "重置（恢复直接上传）",
       "chunkSize": "分块大小",
       "chunkSizeHelp": "每个上传请求的最大大小。请将其保持在反向代理限制以下。较小的分块（8–32 MiB）进度更平滑；非常大的分块会出现明显的阶段（服务器会先写入每个分块，再处理下一个）。"
+    },
+    "folderSize": {
+      "title": "文件夹大小",
+      "subtitle": "将路径排除在文件夹大小计算和索引之外。",
+      "environment": "由环境定义的排除项",
+      "additional": "额外的排除项",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "未配置任何路径"
     }
   },
   "share": {
@@ -580,6 +606,8 @@
     "sharedByMeDescription": "你与其他人共享的链接和文件夹。",
     "shareCreated": "共享已创建",
     "createShareLink": "创建共享链接",
+    "editShareLink": "编辑共享链接",
+    "saveShare": "保存更改",
     "shareLink": "共享链接",
     "shareLinkCreatedSuccess": "共享链接创建成功！",
     "access": "Access Mode",
@@ -593,6 +621,11 @@
     "label": "Label",
     "labelPlaceholder": "e.g. My Project",
     "accessMode": "访问模式",
+    "advancedPermissions": "高级",
+    "allowDelete": "允许删除文件",
+    "allowCreateFolder": "允许创建文件夹",
+    "allowCreateFile": "允许创建文件",
+    "allowUpload": "允许上传文件和文件夹",
     "whoCanAccess": "可访问的用户",
     "anyoneWithLink": "拥有链接的任何人",
     "specificUsers": "特定用户",
@@ -642,6 +675,7 @@
       "auto": "自动",
       "inline": "查看",
       "raw": "原始",
+      "editor": "编辑器",
       "download": "下载"
     },
     "sharedWith": "共享对象",
@@ -661,5 +695,18 @@
   },
   "quickActions": {
     "menu": "快捷操作"
+  },
+  "onlyoffice": {
+    "editingHeading": "文件正在编辑中",
+    "editingBody": "{names} {count, plural, other {已在 OnlyOffice 中打开}}。{action}操作将继续。",
+    "andOthers": "以及其他 {count} 项",
+    "actionCopy": "复制",
+    "actionMove": "移动",
+    "actionDelete": "删除",
+    "actionRename": "重命名",
+    "transferHeading": "文件正在编辑中",
+    "transferBody": "此文件已在 OnlyOffice 中打开。继续可能会干扰正在进行的保存。是否继续？",
+    "transferConfirm": "继续",
+    "transferCancel": "取消"
   }
 }

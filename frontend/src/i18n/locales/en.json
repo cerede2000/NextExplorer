@@ -72,7 +72,8 @@
     "shares": "Shares",
     "unsavedChanges": "You have unsaved changes",
     "readonly": "Read Only",
-    "readwrite": "Read/Write"
+    "readwrite": "Read/Write",
+    "toggleSection": "Toggle section"
   },
   "editor": {
     "editing": "Editing",
@@ -694,5 +695,18 @@
     "sharedWithAnyone": "Everyone",
     "sharedWithUsers": "{count} user | {count} users",
     "expiresNever": "Never"
+  },
+  "onlyoffice": {
+    "editingHeading": "File is being edited",
+    "editingBody": "{names} {count, plural, one {is} other {are}} open in OnlyOffice. The {action} will continue.",
+    "andOthers": "and {count} more",
+    "actionCopy": "copy",
+    "actionMove": "move",
+    "actionDelete": "deletion",
+    "actionRename": "rename",
+    "transferHeading": "File is being edited",
+    "transferBody": "This file is open in OnlyOffice. Continuing may disturb a save in progress. Do you want to continue?",
+    "transferConfirm": "Continue",
+    "transferCancel": "Cancel"
   }
 }

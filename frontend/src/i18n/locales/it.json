@@ -72,7 +72,8 @@
     "readwrite": "Lettura/Scrittura",
     "reset": "Reimposta",
     "moveUp": "Sposta su",
-    "moveDown": "Sposta giù"
+    "moveDown": "Sposta giù",
+    "toggleSection": "Mostra o nascondi la sezione"
   },
   "editor": {
     "editing": "Editing",
@@ -100,6 +101,7 @@
     "download": "Scarica",
     "downloadFolder": "Scarica cartella",
     "extractArchive": "Estrai archivio",
+    "extractArchiveIntoCurrentFolder": "Estrai nella cartella corrente",
     "compressToZip": "Comprimi in ZIP",
     "search": "Cerca",
     "sortBy": "Ordina per",
@@ -110,6 +112,16 @@
     "copyName": "Copia nome",
     "share": "Condividi",
     "copied": "Copiato"
+  },
+  "archive": {
+    "password": {
+      "title": "Password richiesta",
+      "description": "Questo archivio è protetto. Inserisci la sua password per estrarlo.",
+      "label": "Password dell'archivio",
+      "invalid": "Password errata o archivio danneggiato.",
+      "submit": "Estrai",
+      "extracting": "Estrazione in corso..."
+    }
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",
@@ -310,6 +322,9 @@
     "copying": "Copia di {count} {items}…",
     "moving": "Spostamento di {count} {items}…",
     "working": "In corso…",
+    "copyingUnknown": "Copia in corso…",
+    "movingUnknown": "Spostamento in corso…",
+    "activeTasks": "{count} operazioni in corso",
     "reposition": "Torna all'elemento al termine",
     "extracting": "Estrazione di {name}…",
     "compressing": "Compressione di {name}…"
@@ -330,7 +345,9 @@
     "dateTaken": "Data scatto: {date}",
     "camera": "Fotocamera: {makeModel}",
     "lens": "Obiettivo: {lens}",
-    "duration": "Durata: {seconds}s"
+    "duration": "Durata: {seconds}s",
+    "folderSizeExcluded": "Escluso",
+    "folderSizeExcludedHelp": "Questo percorso è escluso dall'indicizzazione delle dimensioni delle cartelle."
   },
   "auth": {
     "preparing": "Preparazione del tuo explorer…",
@@ -403,7 +420,8 @@
       "security": "Sicurezza",
       "accessControl": "Controllo accessi",
       "adminUsers": "Gestione utenti",
-      "uploads": "Caricamenti"
+      "uploads": "Caricamenti",
+      "folderSize": "Dimensioni cartelle"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -571,6 +589,14 @@
       "autoFallbackReset": "Reimposta (torna a diretto)",
       "chunkSize": "Dimensione dei blocchi",
       "chunkSizeHelp": "Dimensione massima di ogni richiesta di caricamento. Mantienila sotto il limite del tuo reverse proxy. Blocchi più piccoli (8–32 MiB) offrono un avanzamento più fluido; blocchi molto grandi mostrano scatti visibili (il server scrive ogni blocco prima del successivo)."
+    },
+    "folderSize": {
+      "title": "Dimensioni cartelle",
+      "subtitle": "Escludi percorsi dal calcolo e dall'indicizzazione delle dimensioni delle cartelle.",
+      "environment": "Esclusioni definite dall'ambiente",
+      "additional": "Esclusioni aggiuntive",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Nessun percorso configurato"
     }
   },
   "share": {
@@ -580,6 +606,8 @@
     "sharedByMeDescription": "Link e cartelle che hai condiviso con altre persone.",
     "shareCreated": "Condivisione creata",
     "createShareLink": "Crea link di condivisione",
+    "editShareLink": "Modifica link di condivisione",
+    "saveShare": "Salva modifiche",
     "shareLink": "Link di condivisione",
     "shareLinkCreatedSuccess": "Link di condivisione creato con successo!",
     "access": "Access Mode",
@@ -593,6 +621,11 @@
     "label": "Label",
     "labelPlaceholder": "e.g. My Project",
     "accessMode": "Modalità di accesso",
+    "advancedPermissions": "Avanzate",
+    "allowDelete": "Consenti l'eliminazione dei file",
+    "allowCreateFolder": "Consenti la creazione di cartelle",
+    "allowCreateFile": "Consenti la creazione di file",
+    "allowUpload": "Consenti il caricamento di file e cartelle",
     "whoCanAccess": "Chi può accedere",
     "anyoneWithLink": "Chiunque con il link",
     "specificUsers": "Utenti specifici",
@@ -642,6 +675,7 @@
       "auto": "Auto",
       "inline": "Visualizza",
       "raw": "Raw",
+      "editor": "Editor",
       "download": "Scarica"
     },
     "sharedWith": "Condiviso con",
@@ -661,5 +695,18 @@
   },
   "quickActions": {
     "menu": "Azioni rapide"
+  },
+  "onlyoffice": {
+    "editingHeading": "File in fase di modifica",
+    "editingBody": "{names} {count, plural, one {è aperto} other {sono aperti}} in OnlyOffice. {action} continuerà.",
+    "andOthers": "e altri {count}",
+    "actionCopy": "La copia",
+    "actionMove": "Lo spostamento",
+    "actionDelete": "L'eliminazione",
+    "actionRename": "La rinomina",
+    "transferHeading": "File in fase di modifica",
+    "transferBody": "Questo file è aperto in OnlyOffice. Continuare potrebbe interferire con un salvataggio in corso. Vuoi continuare?",
+    "transferConfirm": "Continua",
+    "transferCancel": "Annulla"
   }
 }

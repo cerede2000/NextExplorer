@@ -72,7 +72,8 @@
     "readwrite": "Чтение/Запись",
     "reset": "Сбросить",
     "moveUp": "Переместить вверх",
-    "moveDown": "Переместить вниз"
+    "moveDown": "Переместить вниз",
+    "toggleSection": "Показать или скрыть раздел"
   },
   "editor": {
     "editing": "Editing",
@@ -100,6 +101,7 @@
     "download": "Скачать",
     "downloadFolder": "Скачать папку",
     "extractArchive": "Извлечь архив",
+    "extractArchiveIntoCurrentFolder": "Извлечь в текущую папку",
     "compressToZip": "Сжать в ZIP",
     "search": "Поиск",
     "sortBy": "Сортировать по",
@@ -110,6 +112,16 @@
     "copyName": "Копировать имя",
     "share": "Поделиться",
     "copied": "Скопировано"
+  },
+  "archive": {
+    "password": {
+      "title": "Требуется пароль",
+      "description": "Этот архив защищен. Введите пароль, чтобы его извлечь.",
+      "label": "Пароль архива",
+      "invalid": "Неверный пароль или архив поврежден.",
+      "submit": "Извлечь",
+      "extracting": "Извлечение..."
+    }
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -310,6 +322,9 @@
     "copying": "Копирование {count} {items}…",
     "moving": "Перемещение {count} {items}…",
     "working": "Обработка…",
+    "copyingUnknown": "Копирование…",
+    "movingUnknown": "Перемещение…",
+    "activeTasks": "Активных операций: {count}",
     "reposition": "Вернуться к объекту по завершении",
     "extracting": "Извлечение {name}…",
     "compressing": "Сжатие {name}…"
@@ -330,7 +345,9 @@
     "dateTaken": "Дата съемки: {date}",
     "camera": "Камера: {makeModel}",
     "lens": "Объектив: {lens}",
-    "duration": "Длительность: {seconds}с"
+    "duration": "Длительность: {seconds}с",
+    "folderSizeExcluded": "Исключено",
+    "folderSizeExcludedHelp": "Этот путь исключен из индексации размеров папок."
   },
   "auth": {
     "preparing": "Подготовка проводника…",
@@ -403,7 +420,8 @@
       "security": "Безопасность",
       "accessControl": "Контроль доступа",
       "adminUsers": "Управление пользователями",
-      "uploads": "Загрузки"
+      "uploads": "Загрузки",
+      "folderSize": "Размеры папок"
     },
     "about": {
       "subtitle": "Информация о сборке приложения.",
@@ -571,6 +589,14 @@
       "autoFallbackReset": "Сбросить (вернуться к прямой загрузке)",
       "chunkSize": "Размер части",
       "chunkSizeHelp": "Максимальный размер каждого запроса загрузки. Держите его ниже лимита вашего обратного прокси. Меньшие части (8–32 MiB) дают более плавный прогресс; очень большие части показывают заметные скачки (сервер записывает каждую часть перед следующей)."
+    },
+    "folderSize": {
+      "title": "Размеры папок",
+      "subtitle": "Исключите пути из расчета и индексации размеров папок.",
+      "environment": "Исключения, заданные окружением",
+      "additional": "Дополнительные исключения",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Пути не настроены"
     }
   },
   "share": {
@@ -580,6 +606,8 @@
     "sharedByMeDescription": "Ссылки и папки, которыми вы поделились с другими.",
     "shareCreated": "Доступ создан",
     "createShareLink": "Создать ссылку",
+    "editShareLink": "Изменить ссылку доступа",
+    "saveShare": "Сохранить изменения",
     "shareLink": "Ссылка доступа",
     "shareLinkCreatedSuccess": "Ссылка общего доступа успешно создана!",
     "access": "Access Mode",
@@ -593,6 +621,11 @@
     "label": "Label",
     "labelPlaceholder": "e.g. My Project",
     "accessMode": "Режим доступа",
+    "advancedPermissions": "Дополнительно",
+    "allowDelete": "Разрешить удаление файлов",
+    "allowCreateFolder": "Разрешить создание папок",
+    "allowCreateFile": "Разрешить создание файлов",
+    "allowUpload": "Разрешить загрузку файлов и папок",
     "whoCanAccess": "Кто имеет доступ",
     "anyoneWithLink": "Любой, у кого есть ссылка",
     "specificUsers": "Конкретные пользователи",
@@ -642,6 +675,7 @@
       "auto": "Авто",
       "inline": "Просмотр",
       "raw": "Raw",
+      "editor": "Редактор",
       "download": "Скачать"
     },
     "sharedWith": "Кому доступно",
@@ -661,5 +695,18 @@
   },
   "quickActions": {
     "menu": "Быстрые действия"
+  },
+  "onlyoffice": {
+    "editingHeading": "Файл редактируется",
+    "editingBody": "{names} {count, plural, one {открыт} few {открыты} many {открыты} other {открыты}} в OnlyOffice. {action} будет продолжено.",
+    "andOthers": "и еще {count}",
+    "actionCopy": "Копирование",
+    "actionMove": "Перемещение",
+    "actionDelete": "Удаление",
+    "actionRename": "Переименование",
+    "transferHeading": "Файл редактируется",
+    "transferBody": "Этот файл открыт в OnlyOffice. Продолжение может нарушить текущее сохранение. Хотите продолжить?",
+    "transferConfirm": "Продолжить",
+    "transferCancel": "Отмена"
   }
 }

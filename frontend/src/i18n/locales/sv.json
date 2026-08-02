@@ -72,7 +72,8 @@
     "readwrite": "Läs/Skriv",
     "reset": "Återställ",
     "moveUp": "Flytta upp",
-    "moveDown": "Flytta ner"
+    "moveDown": "Flytta ner",
+    "toggleSection": "Visa eller dölj avsnittet"
   },
   "editor": {
     "editing": "Editing",
@@ -100,6 +101,7 @@
     "download": "Ladda ner",
     "downloadFolder": "Ladda ner mapp",
     "extractArchive": "Extrahera arkiv",
+    "extractArchiveIntoCurrentFolder": "Extrahera till aktuell mapp",
     "compressToZip": "Komprimera till ZIP",
     "search": "Sök",
     "sortBy": "Sortera efter",
@@ -110,6 +112,16 @@
     "copyName": "Kopiera namn",
     "share": "Dela",
     "copied": "Kopierat"
+  },
+  "archive": {
+    "password": {
+      "title": "Lösenord krävs",
+      "description": "Detta arkiv är skyddat. Ange lösenordet för att extrahera det.",
+      "label": "Arkivlösenord",
+      "invalid": "Felaktigt lösenord, eller så är arkivet skadat.",
+      "submit": "Extrahera",
+      "extracting": "Extraherar..."
+    }
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",
@@ -310,6 +322,9 @@
     "copying": "Kopierar {count} {items}…",
     "moving": "Flyttar {count} {items}…",
     "working": "Arbetar…",
+    "copyingUnknown": "Kopierar…",
+    "movingUnknown": "Flyttar…",
+    "activeTasks": "{count} åtgärder pågår",
     "reposition": "Återgå till objektet när det är klart",
     "extracting": "Extraherar {name}…",
     "compressing": "Komprimerar {name}…"
@@ -330,7 +345,9 @@
     "dateTaken": "Datum: {date}",
     "camera": "Kamera: {makeModel}",
     "lens": "Lins: {lens}",
-    "duration": "Speltid: {seconds}s"
+    "duration": "Speltid: {seconds}s",
+    "folderSizeExcluded": "Undantagen",
+    "folderSizeExcludedHelp": "Denna sökväg är undantagen från indexering av mappstorlekar."
   },
   "auth": {
     "preparing": "Förbereder din utforskare…",
@@ -403,7 +420,8 @@
       "security": "Säkerhet",
       "accessControl": "Åtkomstkontroll",
       "adminUsers": "Användarhantering",
-      "uploads": "Uppladdningar"
+      "uploads": "Uppladdningar",
+      "folderSize": "Mappstorlekar"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -571,6 +589,14 @@
       "autoFallbackReset": "Återställ (tillbaka till direkt)",
       "chunkSize": "Delstorlek",
       "chunkSizeHelp": "Maximal storlek för varje uppladdningsförfrågan. Håll den under gränsen för din omvända proxy. Mindre delar (8–32 MiB) ger jämnare förlopp; mycket stora delar ger synliga hopp (servern skriver varje del innan nästa)."
+    },
+    "folderSize": {
+      "title": "Mappstorlekar",
+      "subtitle": "Undanta sökvägar från beräkning och indexering av mappstorlekar.",
+      "environment": "Undantag definierade av miljön",
+      "additional": "Ytterligare undantag",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Inga sökvägar konfigurerade"
     }
   },
   "share": {
@@ -580,6 +606,8 @@
     "sharedByMeDescription": "Länkar och mappar som du har delat med andra personer.",
     "shareCreated": "Utdelning skapad",
     "createShareLink": "Skapa utdelningslänk",
+    "editShareLink": "Redigera delningslänk",
+    "saveShare": "Spara ändringar",
     "shareLink": "Delningslänk",
     "shareLinkCreatedSuccess": "Delningslänk skapades!",
     "access": "Access Mode",
@@ -593,6 +621,11 @@
     "label": "Label",
     "labelPlaceholder": "e.g. My Project",
     "accessMode": "Åtkomstläge",
+    "advancedPermissions": "Avancerat",
+    "allowDelete": "Tillåt att radera filer",
+    "allowCreateFolder": "Tillåt att skapa mappar",
+    "allowCreateFile": "Tillåt att skapa filer",
+    "allowUpload": "Tillåt uppladdning av filer och mappar",
     "whoCanAccess": "Vem har åtkomst",
     "anyoneWithLink": "Alla med länken",
     "specificUsers": "Specifika användare",
@@ -642,6 +675,7 @@
       "auto": "Auto",
       "inline": "Visa",
       "raw": "Rå",
+      "editor": "Redigerare",
       "download": "Ladda ner"
     },
     "sharedWith": "Delad med",
@@ -661,5 +695,18 @@
   },
   "quickActions": {
     "menu": "Snabbåtgärder"
+  },
+  "onlyoffice": {
+    "editingHeading": "Filen redigeras",
+    "editingBody": "{names} {count, plural, one {är öppen} other {är öppna}} i OnlyOffice. {action} fortsätter.",
+    "andOthers": "och {count} till",
+    "actionCopy": "Kopieringen",
+    "actionMove": "Flytten",
+    "actionDelete": "Raderingen",
+    "actionRename": "Namnbytet",
+    "transferHeading": "Filen redigeras",
+    "transferBody": "Den här filen är öppen i OnlyOffice. Om du fortsätter kan en pågående sparning störas. Vill du fortsätta?",
+    "transferConfirm": "Fortsätt",
+    "transferCancel": "Avbryt"
   }
 }
