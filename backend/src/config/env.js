@@ -72,6 +72,7 @@ module.exports = {
   // OnlyOffice
   ONLYOFFICE_URL: process.env.ONLYOFFICE_URL?.trim() || null,
   ONLYOFFICE_SECRET: process.env.ONLYOFFICE_SECRET || null,
+  ONLYOFFICE_DOWNLOAD_ORIGINS: process.env.ONLYOFFICE_DOWNLOAD_ORIGINS || '',
   ONLYOFFICE_LANG: process.env.ONLYOFFICE_LANG?.trim() || 'en',
   ONLYOFFICE_FORCE_SAVE: normalizeBoolean(process.env.ONLYOFFICE_FORCE_SAVE) || false,
   ONLYOFFICE_FILE_EXTENSIONS: process.env.ONLYOFFICE_FILE_EXTENSIONS || '',
