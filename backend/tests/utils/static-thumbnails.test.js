@@ -116,6 +116,21 @@ describe('Thumbnail access', () => {
     );
   });
 
+  it('does not let a token unlock a nested path with the same basename', async () => {
+    const env = await setupTestEnv({ tag: 'thumbnails-nested-', modules: MODULES });
+    currentEnv = env;
+    const dir = path.join(env.cacheDir, 'thumbnails', 'sub');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'v3-abc.webp'), Buffer.from('fake-webp'));
+
+    const { createThumbnailToken } = env.requireFresh('src/utils/thumbnailTokens');
+    const response = await request(buildApp(env))
+      .get('/static/thumbnails/sub/v3-abc.webp')
+      .query({ t: createThumbnailToken('v3-abc.webp') });
+
+    expect(response.status).toBe(401);
+  });
+
   it('serves everything when authentication is disabled', async () => {
     const env = await setupTestEnv({
       tag: 'thumbnails-no-auth-',
