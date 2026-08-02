@@ -310,6 +310,10 @@ const onlyoffice = {
   // Never hand the session signing secret to an external service. When no
   // dedicated secret is configured, derive a distinct one so the value shared
   // with the Document Server cannot be used to forge session cookies.
+  //
+  // This used to fall back to SESSION_SECRET verbatim, so a deployment that set
+  // the Document Server's JWT_SECRET to that value worked without ever setting
+  // ONLYOFFICE_SECRET. It no longer matches — see the warning emitted below.
   secret: env.ONLYOFFICE_SECRET || deriveSecret('onlyoffice'),
   // Extra origins the Document Server may serve saved documents from, for
   // deployments where it reports a different host than the one we call.
@@ -322,6 +326,17 @@ const onlyoffice = {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 };
+
+// Silent JWT mismatches surface to the user as "Document security token is not
+// correctly configured", with nothing in the logs pointing at the cause.
+if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[config] ONLYOFFICE_URL is set without ONLYOFFICE_SECRET. A derived secret is used, ' +
+      'which will not match the Document Server unless its JWT_SECRET is set to the same ' +
+      'value. Set ONLYOFFICE_SECRET on both sides.'
+  );
+}
 
 // --- Collabora (WOPI) ---
 const collaboraBaseUrl = env.COLLABORA_URL?.replace(/\/$/, '') || null;

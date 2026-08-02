@@ -119,11 +119,10 @@ router.post(
       throw new ValidationError('Mode must be a 3-digit octal string (e.g., "755").');
     }
 
+    // Guests never reach this point: they have no req.user. Carrying a guest
+    // session on top of a real account does not make the account a guest.
     if (!req.user || !req.user.id) {
       throw new UnauthorizedError('Authentication required');
-    }
-    if (req.guestSession) {
-      throw new ForbiddenError('Guests cannot change permissions.');
     }
 
     const relativePath = normalizeRelativePath(rawPath);
@@ -209,11 +208,9 @@ router.post(
     const safeOwner = ensureValidAccountName(owner, 'owner');
     const safeGroup = ensureValidAccountName(group, 'group');
 
+    // Same as above: only a real account gets here.
     if (!req.user || !req.user.id) {
       throw new UnauthorizedError('Authentication required');
-    }
-    if (req.guestSession) {
-      throw new ForbiddenError('Guests cannot change ownership.');
     }
 
     const relativePath = normalizeRelativePath(rawPath);

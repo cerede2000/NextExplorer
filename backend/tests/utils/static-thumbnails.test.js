@@ -67,7 +67,11 @@ describe('Thumbnail access', () => {
     expect(response.status).toBe(200);
   });
 
-  it('serves a share visitor through their cookie', async () => {
+  // Known limitation: the gate checks that the guest session exists, not that
+  // the thumbnail belongs to that share — the cache filename carries no share.
+  // A visitor who guessed another share's filename would be served. That is
+  // still narrower than before, when the whole directory was public.
+  it('serves any valid guest session, share-scoped or not', async () => {
     const env = await setupTestEnv({
       tag: 'thumbnails-guest-',
       modules: [

@@ -2,7 +2,20 @@ const { parsePathSpace, resolveLogicalPath, combineRelativePath } = require('../
 const { getPermissionForPath } = require('./accessControlService');
 const { getShareByToken, hasUserPermission, isShareExpired } = require('./sharesService');
 const { getUserVolumeForPath, getVolumeById } = require('./userVolumesService');
-const { features } = require('../config/index');
+const { auth, features } = require('../config/index');
+
+/**
+ * Whether a share password still means anything for this caller.
+ *
+ * The owner is exempt: it is their own share. With authentication disabled
+ * everyone is the same synthetic admin who already browses the whole
+ * filesystem, so the prompt would only lock the share without protecting it.
+ */
+const sharePasswordApplies = (share, user) =>
+  Boolean(share.hasPassword) &&
+  auth.enabled !== false &&
+  Boolean(user) &&
+  String(user.id) !== String(share.ownerId);
 
 /**
  * Get comprehensive access information for a path
@@ -209,8 +222,8 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
 
     // Being signed in is not the same as knowing the password. Without this,
     // any authenticated user opening a protected link skipped the prompt the
-    // owner set it up for. The owner is exempt: it is their own share.
-    if (share.hasPassword && user && String(user.id) !== String(share.ownerId)) {
+    // owner set it up for.
+    if (sharePasswordApplies(share, user)) {
       const verified = guestSession && guestSession.shareId === share.id;
       if (!verified) {
         return createDeniedAccess('Password verification required');
@@ -378,8 +391,9 @@ const resolvePathWithAccess = async (context, relativePath, options = {}) => {
 const canCreateShare = (context) => {
   const { user, guestSession } = context;
 
-  // Guests cannot create shares
-  if (guestSession) {
+  // Guests cannot create shares. A signed-in visitor who also carries a guest
+  // session (they opened a protected link) is still a user, not a guest.
+  if (guestSession && !user) {
     return false;
   }
 
@@ -406,6 +420,7 @@ module.exports = {
   canAccess,
   canWrite,
   canCreateShare,
+  sharePasswordApplies,
   getContextFromRequest,
   createDeniedAccess,
   resolvePathWithAccess,

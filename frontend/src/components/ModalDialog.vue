@@ -32,10 +32,11 @@ const FOCUSABLE = [
 ].join(',');
 
 // Deliberately not based on layout (offsetParent): that is untestable outside
-// a real browser, and an element hidden by CSS alone is rare here.
+// a real browser. The checks below are the ones jsdom can answer honestly —
+// the selector already excludes [disabled], so only hidden markup is left.
 const focusableElements = () =>
   Array.from(dialogRef.value?.querySelectorAll(FOCUSABLE) || []).filter(
-    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true'
+    (el) => !el.hidden && !el.closest('[aria-hidden="true"],[hidden]')
   );
 
 /**
@@ -58,14 +59,17 @@ const onKeydown = (event) => {
     return;
   }
 
-  const first = elements[0];
-  const last = elements[elements.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
+  // Wrap on position, not on identity: if focus sits on something the filter
+  // above rejected (or on the dialog itself), comparing against first/last
+  // would never match and Tab would walk out of the dialog.
+  const index = elements.indexOf(document.activeElement);
+  const last = elements.length - 1;
+  if (event.shiftKey && index <= 0) {
     event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
+    elements[last].focus();
+  } else if (!event.shiftKey && (index === -1 || index === last)) {
     event.preventDefault();
-    first.focus();
+    elements[0].focus();
   }
 };
 

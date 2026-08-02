@@ -196,6 +196,29 @@ const folderPathFromRoute = (route) => {
 const isAncestorFolder = (candidate, current) =>
   Boolean(candidate && current && current.startsWith(`${candidate}/`));
 
+/**
+ * The guard runs on every folder change inside a share, and the answer for a
+ * given token does not change while the tab is open. Without this cache each
+ * click paid a serialized round-trip before the folder even started loading.
+ */
+const shareInfoCache = new Map();
+const getCachedShareInfo = (shareToken, viewerId) => {
+  // The answer depends on who is asking (the owner skips the prompt), so the
+  // viewer is part of the key: signing in as someone else re-asks.
+  const key = `${viewerId || 'anonymous'}:${shareToken}`;
+  if (!shareInfoCache.has(key)) {
+    shareInfoCache.set(
+      key,
+      getShareInfo(shareToken).catch((error) => {
+        // Do not cache a failure: the next navigation should retry.
+        shareInfoCache.delete(key);
+        throw error;
+      })
+    );
+  }
+  return shareInfoCache.get(key);
+};
+
 router.beforeEach(async (to, from) => {
   const folderScrollStore = useFolderScrollStore();
   const destinationPath = folderPathFromRoute(to);
@@ -248,11 +271,13 @@ router.beforeEach(async (to, from) => {
 
     // Being signed in is enough too, unless the link is password-protected:
     // the backend asks every non-owner for it, so send them to the prompt
-    // rather than into a view that will only get refusals.
+    // rather than into a view that will only get refusals. requiresPassword
+    // already accounts for who is asking, so the owner is not sent to a
+    // prompt for their own share.
     if (auth.isAuthenticated) {
       try {
-        const info = await getShareInfo(shareToken);
-        if (!info?.hasPassword) return true;
+        const info = await getCachedShareInfo(shareToken, auth.currentUser?.id);
+        if (!info?.requiresPassword) return true;
       } catch (error) {
         // Unreachable or unknown share: let the view surface the error.
         return true;

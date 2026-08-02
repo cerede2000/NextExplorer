@@ -37,3 +37,4 @@ Keep this page handy when deployment, authentication, or UI behaviors need quick
 ## ONLYOFFICE token errors
 
 - "Document security token is not correctly configured" typically means the Document Server and nextExplorer share mismatched `ONLYOFFICE_SECRET`. Double-check the secret stored in `/etc/onlyoffice/documentserver/local.json` and update both sides to match.
+- If `ONLYOFFICE_SECRET` is not set at all, nextExplorer signs with a secret derived from the session secret instead of reusing it, and logs a warning at startup. Deployments that relied on the old fallback — Document Server configured with the value of `SESSION_SECRET`, no `ONLYOFFICE_SECRET` — must now set `ONLYOFFICE_SECRET` explicitly on both sides.
