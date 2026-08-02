@@ -777,7 +777,7 @@ export const useFileStore = defineStore('fileStore', () => {
     return itemKey(item) === renameState.value.key;
   };
 
-  const ensureItemThumbnail = async (item) => {
+  const ensureItemThumbnail = async (item, { background = false } = {}) => {
     if (!item || !item.name) {
       return null;
     }
@@ -823,6 +823,7 @@ export const useFileStore = defineStore('fileStore', () => {
           const response = await fetchThumbnailApi(relativePath, {
             signal,
             retryNetworkErrors: false,
+            background,
           });
           const thumbnail = response?.thumbnail || '';
           if (thumbnail) {
@@ -861,6 +862,37 @@ export const useFileStore = defineStore('fileStore', () => {
     }
 
     return pending;
+  };
+
+  const prefetchItemThumbnail = async (item) => {
+    if (!item || !item.name || item.kind === 'directory' || !item.supportsThumbnail) {
+      return false;
+    }
+
+    try {
+      const appSettings = useAppSettings();
+      if (appSettings.thumbnailsEnabledForSession === false) return false;
+    } catch (_) {
+      return false;
+    }
+
+    const relativePath = resolveItemRelativePath(item);
+    if (!relativePath) return false;
+
+    try {
+      const response = await fetchThumbnailApi(relativePath, {
+        background: true,
+        retryNetworkErrors: false,
+      });
+      if (response?.thumbnail) {
+        const target = findItemByKey(itemKey(item));
+        if (target) target.thumbnail = response.thumbnail;
+        return true;
+      }
+      return Boolean(response?.queued);
+    } catch (_) {
+      return false;
+    }
   };
 
   const getCurrentPath = computed(() => currentPath.value);
@@ -1072,5 +1104,6 @@ export const useFileStore = defineStore('fileStore', () => {
     isItemBeingRenamed,
     warnAboutOnlyOfficeActivity,
     ensureItemThumbnail,
+    prefetchItemThumbnail,
   };
 });

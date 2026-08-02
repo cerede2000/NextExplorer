@@ -248,6 +248,10 @@ module.exports = {
     process.env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE != null
       ? Number(process.env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
       : 500,
+  THUMBNAIL_CACHE_TTL_DAYS:
+    process.env.THUMBNAIL_CACHE_TTL_DAYS != null
+      ? Number(process.env.THUMBNAIL_CACHE_TTL_DAYS)
+      : 30,
   THUMBNAIL_SHARP_CACHE_MEMORY_MB:
     process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB != null
       ? Number(process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)

@@ -110,6 +110,9 @@ const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_CACHE_
 const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
   ? Math.max(1, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE))
   : 500;
+const THUMBNAIL_CACHE_TTL_MS = Number.isFinite(env.THUMBNAIL_CACHE_TTL_DAYS)
+  ? Math.max(0, Math.floor(env.THUMBNAIL_CACHE_TTL_DAYS)) * 24 * 60 * 60 * 1000
+  : 30 * 24 * 60 * 60 * 1000;
 const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
   ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
   : 3;
@@ -171,6 +174,10 @@ const videoThumbnailQueue = new PQueue({
   timeout: 30000,
   throwOnTimeout: false,
 });
+// Removing an obsolete cache entry is never worth delaying a file operation.
+// Keep it small and serial so a large deletion cannot turn cache housekeeping
+// into another source of filesystem pressure.
+const thumbnailRemovalQueue = new PQueue({ concurrency: 1 });
 
 let queueConcurrencyRefreshPromise = null;
 let lastQueueConcurrencyRefreshAt = 0;
@@ -758,7 +765,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
   });
 };
 
-const generateThumbnail = async (filePath, thumbPath) => {
+const generateThumbnail = async (filePath, thumbPath, { priority = 0 } = {}) => {
   const extension = path.extname(filePath).toLowerCase().slice(1);
 
   if (isPdf(extension)) {
@@ -781,7 +788,7 @@ const generateThumbnail = async (filePath, thumbPath) => {
   }
 
   if (isVideo(extension)) {
-    await videoThumbnailQueue.add(() => makeVideoThumb(filePath, thumbPath));
+    await videoThumbnailQueue.add(() => makeVideoThumb(filePath, thumbPath), { priority });
     return;
   }
 
@@ -793,6 +800,49 @@ const buildThumbnailPaths = async (filePath) => {
   const thumbFile = `v${THUMBNAIL_CACHE_VERSION}-${key}.webp`;
   const thumbPath = path.join(directories.thumbnails, thumbFile);
   return { thumbFile, thumbPath };
+};
+
+const removeThumbnailForSource = async (filePath) => {
+  if (!filePath || isThumbnailCachePath(filePath)) return false;
+
+  const { thumbPath } = await buildThumbnailPaths(filePath);
+  await fsPromises.rm(thumbPath, { force: true });
+  return true;
+};
+
+const scheduleThumbnailRemoval = (filePath) => {
+  // A bulk deletion can contain thousands of files. The expiration pass will
+  // reclaim the rest, so cap immediate bookkeeping rather than competing with
+  // the deletion itself.
+  if (thumbnailRemovalQueue.size + thumbnailRemovalQueue.pending >= 256) return;
+  thumbnailRemovalQueue.add(() => removeThumbnailForSource(filePath).catch(() => false));
+};
+
+const findExpiredThumbnails = async (fileNames, now) => {
+  if (THUMBNAIL_CACHE_TTL_MS <= 0) return [];
+
+  const expired = [];
+  const candidates = fileNames.filter((name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name));
+  const statConcurrency = 16;
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(statConcurrency, candidates.length) }, async () => {
+      for (;;) {
+        const index = next;
+        next += 1;
+        if (index >= candidates.length) return;
+        const name = candidates[index];
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const stats = await fsPromises.stat(path.join(directories.thumbnails, name));
+          if (now - stats.mtimeMs >= THUMBNAIL_CACHE_TTL_MS) expired.push(name);
+        } catch (_) {
+          // A concurrent cleanup may already have removed this entry.
+        }
+      }
+    })
+  );
+  return expired;
 };
 
 const getThumbnailQueueLoad = () =>
@@ -862,9 +912,11 @@ const cleanupThumbnailCache = async () => {
       const oldVersionNames = fileNames.filter(
         (name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name) && !name.startsWith(currentVersionPrefix)
       );
+      const expiredNames = await findExpiredThumbnails(fileNames, Date.now());
+      const removableNames = new Set([...oldVersionNames, ...expiredNames]);
       const oversizedCount = Math.max(0, fileNames.length - THUMBNAIL_CACHE_MAX_FILES);
       const deleteCount = Math.min(
-        Math.max(oldVersionNames.length, oversizedCount),
+        Math.max(removableNames.size, oversizedCount),
         THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE
       );
 
@@ -873,8 +925,8 @@ const cleanupThumbnailCache = async () => {
       }
 
       const toDelete = [
-        ...oldVersionNames,
-        ...fileNames.filter((name) => !oldVersionNames.includes(name)),
+        ...removableNames,
+        ...fileNames.filter((name) => !removableNames.has(name)),
       ].slice(0, deleteCount);
 
       let deleted = 0;
@@ -895,6 +947,7 @@ const cleanupThumbnailCache = async () => {
           max: THUMBNAIL_CACHE_MAX_FILES,
           batchSize: THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE,
           oldVersionCandidates: oldVersionNames.length,
+          expiredCandidates: expiredNames.length,
         },
         'Thumbnail cache cleanup batch completed'
       );
@@ -902,7 +955,7 @@ const cleanupThumbnailCache = async () => {
       logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
 
       if (
-        oldVersionNames.length > deleted ||
+        removableNames.size > deleted ||
         fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES
       ) {
         shouldContinueCleanup = true;
@@ -970,7 +1023,7 @@ const getThumbnailPathIfExists = async (filePath, stats = null) => {
   }
 };
 
-const getThumbnail = async (filePath) => {
+const getThumbnail = async (filePath, { priority = 0 } = {}) => {
   if (!THUMBNAILS_ENABLED || isThumbnailCachePath(filePath)) {
     return '';
   }
@@ -1020,7 +1073,7 @@ const getThumbnail = async (filePath) => {
             // Still doesn't exist, generate it
           }
 
-          await generateThumbnail(filePath, thumbPath);
+          await generateThumbnail(filePath, thumbPath, { priority });
           scheduleThumbnailCacheCleanup();
 
           // Verify generation succeeded
@@ -1044,7 +1097,7 @@ const getThumbnail = async (filePath) => {
           finishThumbnailJob(jobId, 'error', error);
           throw error;
         }
-      })
+      }, { priority })
       .finally(() => {
         // Clean up inflight map when done
         inflight.delete(thumbPath);
@@ -1057,7 +1110,7 @@ const getThumbnail = async (filePath) => {
   return pending;
 };
 
-const queueThumbnailGeneration = async (filePath) => {
+const queueThumbnailGeneration = async (filePath, { priority = 0, onlyWhenIdle = false } = {}) => {
   if (!THUMBNAILS_ENABLED || !filePath || isThumbnailCachePath(filePath)) {
     return { thumbnail: '', pending: false, queued: false };
   }
@@ -1088,12 +1141,19 @@ const queueThumbnailGeneration = async (filePath) => {
     return { thumbnail: '', pending: true, queued: true };
   }
 
+  // Opportunistic work must never compete with thumbnails already needed by a
+  // visible item. The browser retries it later, after the queue is quiet again.
+  if (onlyWhenIdle && getThumbnailQueueLoad() > 0) {
+    thumbnailStats.backgroundQueueSkipped += 1;
+    return { thumbnail: '', pending: true, queued: false, retryAfterMs: 2000 };
+  }
+
   if (getThumbnailQueueLoad() >= THUMBNAIL_BACKGROUND_QUEUE_LIMIT) {
     thumbnailStats.backgroundQueueSkipped += 1;
     return { thumbnail: '', pending: true, queued: false, retryAfterMs: 1500 };
   }
 
-  getThumbnail(filePath).catch((error) => {
+  getThumbnail(filePath, { priority }).catch((error) => {
     logger.warn({ filePath, err: error }, 'Queued thumbnail generation failed');
   });
 
@@ -1107,4 +1167,5 @@ module.exports = {
   isThumbnailCachePath,
   queueThumbnailGeneration,
   getDiagnosticsSnapshot,
+  scheduleThumbnailRemoval,
 };

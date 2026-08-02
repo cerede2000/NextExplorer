@@ -30,6 +30,7 @@ import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useNavigation } from '@/composables/navigation';
 import { useFileActions } from '@/composables/fileActions';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 
 const settings = useSettingsStore();
 const fileStore = useFileStore();
@@ -37,6 +38,7 @@ const folderSizeStore = useFolderSizeStore();
 const volumeUsageStore = useVolumeUsageStore();
 const featuresStore = useFeaturesStore();
 const folderScrollStore = useFolderScrollStore();
+const operationTasksStore = useOperationTasksStore();
 const route = useRoute();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
@@ -86,7 +88,13 @@ const VISIBLE_ITEMS_INCREMENT = 500;
 const VIRTUAL_LIST_THRESHOLD = 1000;
 const LIST_ROW_HEIGHT = 37;
 const LIST_ROW_OVERSCAN = 20;
+const IDLE_THUMBNAIL_PREFETCH_DELAY_MS = 1500;
+const IDLE_THUMBNAIL_PREFETCH_INTERVAL_MS = 2000;
+const IDLE_THUMBNAIL_PREFETCH_LIMIT = 24;
 let loadMoreObserver = null;
+let idleThumbnailPrefetchTimer = null;
+let idleThumbnailPrefetchGeneration = 0;
+const idleThumbnailPrefetchedKeys = new Set();
 const scrollTop = ref(0);
 const scrollViewportHeight = ref(0);
 const canRememberScroll = ref(false);
@@ -154,6 +162,64 @@ const visibleItems = computed(() => {
   }
   return sortedItems.value.slice(0, visibleLimit.value);
 });
+const hasActiveFileOperation = computed(() => operationTasksStore.operationCount > 0);
+
+const isIdleThumbnailCandidate = (item) => {
+  if (!item || item.kind === 'directory' || item.thumbnail || item.thumbnailUnavailable) return false;
+  return Boolean(item.supportsThumbnail);
+};
+
+const stopIdleThumbnailPrefetch = () => {
+  idleThumbnailPrefetchGeneration += 1;
+  if (idleThumbnailPrefetchTimer) {
+    window.clearTimeout(idleThumbnailPrefetchTimer);
+    idleThumbnailPrefetchTimer = null;
+  }
+};
+
+const scheduleIdleThumbnailPrefetch = (delayMs = IDLE_THUMBNAIL_PREFETCH_DELAY_MS) => {
+  stopIdleThumbnailPrefetch();
+  if (
+    loading.value ||
+    document.hidden ||
+    hasActiveFileOperation.value ||
+    idleThumbnailPrefetchedKeys.size >= IDLE_THUMBNAIL_PREFETCH_LIMIT
+  ) {
+    return;
+  }
+
+  const generation = idleThumbnailPrefetchGeneration;
+  idleThumbnailPrefetchTimer = window.setTimeout(async () => {
+    idleThumbnailPrefetchTimer = null;
+    if (
+      generation !== idleThumbnailPrefetchGeneration ||
+      loading.value ||
+      document.hidden ||
+      hasActiveFileOperation.value
+    ) {
+      return;
+    }
+
+    const nextItem = sortedItems.value.find((item) => {
+      const key = getItemKey(item);
+      return key && !idleThumbnailPrefetchedKeys.has(key) && isIdleThumbnailCandidate(item);
+    });
+    if (!nextItem) return;
+
+    const key = getItemKey(nextItem);
+    const accepted = await fileStore.prefetchItemThumbnail(nextItem);
+    if (accepted) idleThumbnailPrefetchedKeys.add(key);
+
+    if (generation === idleThumbnailPrefetchGeneration) {
+      scheduleIdleThumbnailPrefetch(IDLE_THUMBNAIL_PREFETCH_INTERVAL_MS);
+    }
+  }, delayMs);
+};
+
+const resetIdleThumbnailPrefetch = () => {
+  idleThumbnailPrefetchedKeys.clear();
+  scheduleIdleThumbnailPrefetch();
+};
 const hasMoreItems = computed(
   () => !useVirtualList.value && visibleItems.value.length < sortedItems.value.length
 );
@@ -215,6 +281,7 @@ const updateScrollState = () => {
   if (canRememberScroll.value) {
     rememberScrollPosition();
   }
+  scheduleIdleThumbnailPrefetch();
 };
 
 const waitForScrollLayout = () =>
@@ -624,6 +691,7 @@ const loadFiles = async () => {
     await restoreScrollPosition();
     canRememberScroll.value = true;
     updateScrollState();
+    resetIdleThumbnailPrefetch();
   }
 };
 
@@ -649,9 +717,20 @@ const refreshFolderSizes = () => {
 
 watch(
   () => fileStore.getCurrentPathItems,
-  () => refreshFolderSizes(),
+  () => {
+    refreshFolderSizes();
+    resetIdleThumbnailPrefetch();
+  },
   { immediate: true }
 );
+
+watch(hasActiveFileOperation, (active) => {
+  if (active) {
+    stopIdleThumbnailPrefetch();
+    return;
+  }
+  scheduleIdleThumbnailPrefetch();
+});
 
 // Folder sizes and volume usage are updated server-side the moment any client
 // (or the watcher) changes the filesystem, but a given browser tab only re-reads
@@ -692,8 +771,16 @@ const refreshOnTabReturn = () => {
 };
 
 useEventListener(window, 'focus', refreshOnTabReturn);
+useEventListener(window, 'pointerdown', () => scheduleIdleThumbnailPrefetch());
+useEventListener(window, 'keydown', () => scheduleIdleThumbnailPrefetch());
+useEventListener(window, 'wheel', () => scheduleIdleThumbnailPrefetch(), { passive: true });
 useEventListener(document, 'visibilitychange', () => {
-  if (!document.hidden) refreshOnTabReturn();
+  if (!document.hidden) {
+    refreshOnTabReturn();
+    scheduleIdleThumbnailPrefetch();
+  } else {
+    stopIdleThumbnailPrefetch();
+  }
 });
 
 const liveRefreshTimer = window.setInterval(() => {
@@ -722,6 +809,8 @@ watch(
 watch(
   () => route.params.path,
   () => {
+    stopIdleThumbnailPrefetch();
+    idleThumbnailPrefetchedKeys.clear();
     resetVisibleItems();
     keyboardSelectionAnchorKey.value = '';
     keyboardActiveItemKey.value = '';
@@ -845,6 +934,7 @@ useEventListener(window, 'scroll', updateScrollState, { passive: true });
 useEventListener(window, 'keydown', handleFolderKeydown);
 
 onBeforeUnmount(() => {
+  stopIdleThumbnailPrefetch();
   rememberScrollPosition();
   stopResize();
   window.clearInterval(liveRefreshTimer);
