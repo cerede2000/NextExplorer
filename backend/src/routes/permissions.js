@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs/promises');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
@@ -15,7 +15,21 @@ const {
 } = require('../errors/AppError');
 
 const router = express.Router();
-const execAsync = promisify(exec);
+// execFile never spawns a shell: user-supplied owner/group names and file paths
+// stay plain arguments instead of being interpolated into a command string.
+const execFileAsync = promisify(execFile);
+
+// POSIX-portable account name, or a numeric id. Rejecting anything else keeps
+// `chown` from receiving a value it would read as an option.
+const ACCOUNT_NAME_PATTERN = /^[a-zA-Z0-9_][a-zA-Z0-9._-]*$/;
+
+const ensureValidAccountName = (value, label) => {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || !ACCOUNT_NAME_PATTERN.test(value)) {
+    throw new ValidationError(`Invalid ${label} name.`);
+  }
+  return value;
+};
 
 /**
  * Get file permissions, owner, and group information
@@ -52,7 +66,7 @@ router.get(
       if (process.platform !== 'win32') {
         try {
           // Get owner name from uid
-          const { stdout: ownerOut } = await execAsync(`id -nu ${stats.uid}`);
+          const { stdout: ownerOut } = await execFileAsync('id', ['-nu', String(stats.uid)]);
           owner = ownerOut.trim();
         } catch (e) {
           logger.debug({ err: e }, 'Failed to get owner name');
@@ -60,7 +74,7 @@ router.get(
 
         try {
           // Get group name from gid
-          const { stdout: groupOut } = await execAsync(`id -gn ${stats.gid}`);
+          const { stdout: groupOut } = await execFileAsync('id', ['-gn', String(stats.gid)]);
           group = groupOut.trim();
         } catch (e) {
           logger.debug({ err: e }, 'Failed to get group name');
@@ -137,7 +151,9 @@ router.post(
           // Use chmod -R for recursive on Unix systems
           if (process.platform !== 'win32') {
             try {
-              await execAsync(`chmod -R ${mode} "${resolved.absolutePath}"`);
+              // No `--` separator here: BSD chmod (macOS) does not accept it.
+              // The path is always absolute, so it can never look like a flag.
+              await execFileAsync('chmod', ['-R', mode, resolved.absolutePath]);
             } catch (e) {
               logger.error({ err: e }, 'Failed to apply recursive chmod');
               throw new Error('Failed to apply permissions recursively.');
@@ -185,6 +201,9 @@ router.post(
       throw new ValidationError('Either owner or group must be specified.');
     }
 
+    const safeOwner = ensureValidAccountName(owner, 'owner');
+    const safeGroup = ensureValidAccountName(group, 'group');
+
     if (!req.user || !req.user.id) {
       throw new UnauthorizedError('Authentication required');
     }
@@ -210,21 +229,27 @@ router.post(
       // Check if path exists
       await fs.stat(resolved.absolutePath);
 
-      // chown requires shell execution as Node.js doesn't have built-in owner/group change
-      // This requires elevated privileges on most systems
+      // Node has no built-in owner/group change by name, so the system tools do
+      // it. Arguments are passed as an array, never through a shell, and the
+      // account names were validated above so they cannot look like flags
+      // (the path is absolute, so it cannot either).
       if (process.platform !== 'win32') {
-        let chownCmd = '';
+        let command = '';
+        let args = [];
 
-        if (owner && group) {
-          chownCmd = `chown "${owner}:${group}" "${resolved.absolutePath}"`;
-        } else if (owner) {
-          chownCmd = `chown "${owner}" "${resolved.absolutePath}"`;
-        } else if (group) {
-          chownCmd = `chgrp "${group}" "${resolved.absolutePath}"`;
+        if (safeOwner && safeGroup) {
+          command = 'chown';
+          args = [`${safeOwner}:${safeGroup}`, resolved.absolutePath];
+        } else if (safeOwner) {
+          command = 'chown';
+          args = [safeOwner, resolved.absolutePath];
+        } else {
+          command = 'chgrp';
+          args = [safeGroup, resolved.absolutePath];
         }
 
         try {
-          await execAsync(chownCmd);
+          await execFileAsync(command, args);
           logger.info({ path: relativePath, owner, group }, 'Ownership changed');
         } catch (e) {
           logger.error({ err: e }, 'Failed to change ownership');

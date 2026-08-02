@@ -186,11 +186,15 @@ async function* streamContentMatches(
     '--no-messages',
     '--smart-case',
     '-F',
-    term,
-    '.',
     '-m',
     '1',
     ...globArgs,
+    // Everything after `--` is positional. Without it a search term starting
+    // with `-` is parsed as a ripgrep flag, and options such as `--pre=<cmd>`
+    // run that command against every scanned file.
+    '--',
+    term,
+    '.',
   ];
 
   if (searchConfig?.maxFileSize) {
