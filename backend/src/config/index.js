@@ -152,7 +152,7 @@ if (env.PUBLIC_URL) {
 // They are considered valid so accessing the app that way doesn't raise the
 // public-URL mismatch warning, and they're accepted by CORS. PUBLIC_URL remains
 // the canonical URL used to build absolute links (shares, OIDC callbacks, WOPI).
-const parseOriginList = (value) =>
+const parseOriginList = (value, variableName = 'INTERNAL_URL') =>
   (typeof value === 'string' ? value.split(',') : [])
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -160,7 +160,7 @@ const parseOriginList = (value) =>
       try {
         return new URL(entry).origin;
       } catch (err) {
-        console.warn(`[Config] Invalid INTERNAL_URL entry: ${entry}`);
+        console.warn(`[Config] Invalid ${variableName} entry: ${entry}`);
         return null;
       }
     })
@@ -283,6 +283,9 @@ const searchMaxFileSizeBytes = (() => {
 const onlyoffice = {
   serverUrl: env.ONLYOFFICE_URL?.replace(/\/$/, '') || null,
   secret: env.ONLYOFFICE_SECRET || env.SESSION_SECRET || auth.sessionSecret,
+  // Extra origins the Document Server may serve saved documents from, for
+  // deployments where it reports a different host than the one we call.
+  downloadOrigins: parseOriginList(env.ONLYOFFICE_DOWNLOAD_ORIGINS, 'ONLYOFFICE_DOWNLOAD_ORIGINS'),
   lang: env.ONLYOFFICE_LANG,
   forceSave: env.ONLYOFFICE_FORCE_SAVE,
   forceSaveTimeoutMs: Math.min(30000, Math.max(7000, env.ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS)),

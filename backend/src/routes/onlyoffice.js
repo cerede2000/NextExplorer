@@ -30,7 +30,78 @@ const SUPPORTED_TEXT = new Set(['docx', 'doc', 'odt', 'rtf', 'txt']);
 const SUPPORTED_SHEET = new Set(['xlsx', 'xls', 'ods', 'csv']);
 const SUPPORTED_PRESENTATION = new Set(['pptx', 'ppt', 'odp']);
 
+// The backend token is signed with the same secret as the Document Server
+// tokens, so it carries a type claim to keep the two apart, and a lifetime
+// long enough for an editing session but not indefinite.
+const BACKEND_TOKEN_TYPE = 'nextexplorer-backend';
+const BACKEND_TOKEN_TTL_SECONDS = 12 * 60 * 60;
+
 const toExt = (filename = '') => String(filename).split('.').pop().toLowerCase();
+
+/**
+ * Read a backend token from the query string.
+ *
+ * Returns null unless the token is valid, is a backend token (not a Document
+ * Server one signed with the same secret) and carries an absolute path.
+ */
+const readBackendToken = (req) => {
+  const raw = typeof req.query?.backend === 'string' ? req.query.backend : null;
+  if (!raw || !onlyoffice.secret) return null;
+  try {
+    const payload = jwt.verify(raw, onlyoffice.secret, { algorithms: ['HS256'] });
+    if (!payload || typeof payload !== 'object') return null;
+    if (payload.typ !== BACKEND_TOKEN_TYPE) return null;
+    if (typeof payload.absolutePath !== 'string' || !payload.absolutePath) return null;
+    return payload;
+  } catch (e) {
+    logger.warn({ err: e }, 'ONLYOFFICE backend token verification failed');
+    return null;
+  }
+};
+
+/**
+ * Document Server origins we accept a saved document from.
+ *
+ * The callback hands us a URL to download the edited file; without this check
+ * the server would fetch any address an authorized editor asks for. Extra
+ * origins can be declared when the Document Server reports itself under a
+ * different host than the one we call it on.
+ */
+const buildAllowedDownloadOrigins = () => {
+  const origins = new Set();
+  const add = (value) => {
+    if (!value) return;
+    try {
+      origins.add(new URL(value).origin);
+    } catch {
+      // Ignore malformed configuration entries.
+    }
+  };
+  add(onlyoffice.serverUrl);
+  (onlyoffice.downloadOrigins || []).forEach(add);
+  return origins;
+};
+
+const ensureAllowedDownloadUrl = (rawUrl) => {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl));
+  } catch {
+    throw new ValidationError('The document URL is not a valid URL.');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError('The document URL must use HTTP or HTTPS.');
+  }
+  const allowed = buildAllowedDownloadOrigins();
+  if (!allowed.has(parsed.origin)) {
+    logger.warn(
+      { origin: parsed.origin, allowed: Array.from(allowed) },
+      'ONLYOFFICE callback rejected: document URL origin is not allowed. Add it to ONLYOFFICE_DOWNLOAD_ORIGINS if the Document Server reports a different host.'
+    );
+    throw new ForbiddenError('The document URL does not come from the configured Document Server.');
+  }
+  return parsed.toString();
+};
 
 const getDocumentType = (ext) => {
   // ONLYOFFICE expects: 'word' | 'cell' | 'slide'
@@ -286,6 +357,11 @@ router.post(
     // Check if this is a readonly share
     const isReadonlyShare = resolved.shareInfo && resolved.shareInfo.accessMode === 'readonly';
 
+    // Disable editing for readonly shares, readonly locations, or view mode.
+    // Computed before the backend token is signed: the token carries this
+    // decision, so a viewer never receives one that allows writing.
+    const canEdit = mode !== 'view' && !isReadonlyShare && accessInfo.canWrite === true;
+
     const filename = path.basename(abs);
     const ext = toExt(filename);
     const documentType = getDocumentType(ext);
@@ -300,15 +376,20 @@ router.post(
     let backendToken = null;
     if (onlyoffice.secret) {
       const backendPayload = {
+        typ: BACKEND_TOKEN_TYPE,
         absolutePath: abs,
         logicalPath: resolved.relativePath,
         space: resolved.space,
+        // The callback trusts this flag instead of re-resolving permissions,
+        // so it must reflect what this session is actually allowed to do.
+        canWrite: canEdit,
         userId: req.user && req.user.id ? String(req.user.id) : null,
         guestSessionId: req.guestSession?.id || null,
         shareToken: resolved.shareInfo?.shareToken || null,
       };
       backendToken = jwt.sign(backendPayload, onlyoffice.secret, {
         algorithm: 'HS256',
+        expiresIn: BACKEND_TOKEN_TTL_SECONDS,
       });
       fileUrl.searchParams.set('backend', backendToken);
       callbackUrl.searchParams.set('backend', backendToken);
@@ -317,8 +398,7 @@ router.post(
     // Unique key should change when file changes to bust DS cache
     const key = buildDocumentKey(relativePath, stat);
 
-    // Disable editing for readonly shares or when mode is view
-    const canEdit = mode !== 'view' && !isReadonlyShare;
+    // canEdit is decided above, before the backend token is signed.
     const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
 
     const config = {
@@ -527,26 +607,13 @@ router.get(
     }
 
     // Optionally, resolve from backend token (supports personal paths)
-    let backendCtx = null;
-    const backendToken = typeof req.query?.backend === 'string' ? req.query.backend : null;
-    if (backendToken && onlyoffice.secret) {
-      try {
-        const payload = jwt.verify(backendToken, onlyoffice.secret, {
-          algorithms: ['HS256'],
-        });
-        if (payload && typeof payload === 'object' && payload.absolutePath) {
-          backendCtx = payload;
-        }
-      } catch (e) {
-        logger.warn({ err: e }, 'ONLYOFFICE backend token verification failed');
-      }
-    }
+    const backendCtx = readBackendToken(req);
 
     // Determine absolute path:
     // - Prefer signed backend context when available (works for personal/share paths)
     // - Fallback to resolving logical path without user for volume-only paths
     let abs = null;
-    if (backendCtx && typeof backendCtx.absolutePath === 'string' && backendCtx.absolutePath) {
+    if (backendCtx) {
       abs = backendCtx.absolutePath;
     } else {
       const context = { user: req.user, guestSession: req.guestSession };
@@ -604,20 +671,7 @@ router.post(
       }
 
       // Optionally, resolve from backend token (supports personal paths)
-      let backendCtx = null;
-      const backendToken = typeof req.query?.backend === 'string' ? req.query.backend : null;
-      if (backendToken && onlyoffice.secret) {
-        try {
-          const payload = jwt.verify(backendToken, onlyoffice.secret, {
-            algorithms: ['HS256'],
-          });
-          if (payload && typeof payload === 'object' && payload.absolutePath) {
-            backendCtx = payload;
-          }
-        } catch (e) {
-          logger.warn({ err: e }, 'ONLYOFFICE backend token verification failed (callback)');
-        }
-      }
+      const backendCtx = readBackendToken(req);
 
       const body = req.body || {};
       const status = Number(body.status);
@@ -643,8 +697,16 @@ router.post(
       }
       // See ONLYOFFICE callback statuses: 2 - Save, 6 - Force Save
       if ((status === 2 || status === 6) && body.url) {
+        // The Document Server hands us a URL to pull the saved document from.
+        // Only the configured server may be contacted.
+        const downloadUrl = ensureAllowedDownloadUrl(body.url);
         let abs = null;
-        if (backendCtx && typeof backendCtx.absolutePath === 'string' && backendCtx.absolutePath) {
+        if (backendCtx) {
+          // The token stands in for a permission check, so it only counts when
+          // the session it was issued for was allowed to write.
+          if (backendCtx.canWrite !== true) {
+            throw new ForbiddenError('This editing session is read-only.');
+          }
           abs = backendCtx.absolutePath;
         } else {
           const context = { user: req.user, guestSession: req.guestSession };
@@ -677,7 +739,7 @@ router.post(
         );
         const sourceMode = existed ? previousMode : 0o600;
         try {
-          const response = await axios.get(body.url, { responseType: 'stream', timeout: 30000 });
+          const response = await axios.get(downloadUrl, { responseType: 'stream', timeout: 30000 });
           await pipeline(
             response.data,
             fs.createWriteStream(temporaryPath, { flags: 'wx', mode: sourceMode })
