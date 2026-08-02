@@ -4,6 +4,7 @@ const { parseByteSize } = require('../utils/env');
 const env = require('../config/env');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 const folderSizeExclusions = require('./folderSizeExclusions');
+const { generateId } = require('../utils/ids');
 
 const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
 const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
@@ -44,12 +45,6 @@ const defaultUploadSettings = () => {
   };
 };
 
-const generateId = () => {
-  const crypto = require('crypto');
-  return typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
-};
 
 /**
  * Sanitize thumbnail settings

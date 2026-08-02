@@ -1,15 +1,10 @@
-const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
 
 const { getDb } = require('./db');
+const { generateId, nowIso } = require('../utils/ids');
 
-const generateId = () =>
-  typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 
-const nowIso = () => new Date().toISOString();
 
 const RESERVED_VOLUME_LABELS = new Set(['personal', 'share', 'volumes']);
 

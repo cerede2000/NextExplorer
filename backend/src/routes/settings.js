@@ -8,6 +8,7 @@ const {
 } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
+const { ensureAdmin } = require('../middleware/ensureAdmin');
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
@@ -34,15 +35,6 @@ const deleteCustomLogoFiles = async () => {
       }
     })
   );
-};
-
-// Middleware to check if user is admin
-const requireAdmin = (req, res, next) => {
-  const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
-  if (!roles.includes('admin')) {
-    return res.status(403).json({ error: 'Admin access required.' });
-  }
-  next();
 };
 
 // Configure multer for logo uploads
@@ -93,7 +85,7 @@ router.get(
  */
 router.post(
   '/settings/upload-logo',
-  requireAdmin,
+  ensureAdmin,
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) {

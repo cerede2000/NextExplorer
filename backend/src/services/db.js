@@ -14,12 +14,8 @@ const getDbPath = () => {
   return path.join(configDir, 'app.db');
 };
 
-const crypto = require('crypto');
+const { generateId } = require('../utils/ids');
 
-const generateId = () =>
-  typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 const DEFAULT_FAVORITE_ICON = favorites.defaultIcon;
 
 const addColumnIfMissing = (db, tableName, columnName, definition) => {

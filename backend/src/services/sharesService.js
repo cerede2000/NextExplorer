@@ -1,13 +1,9 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('./db');
+const { generateId, nowIso } = require('../utils/ids');
 
-const nowIso = () => new Date().toISOString();
 
-const generateId = () =>
-  typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 
 /**
  * Generate a URL-safe share token
