@@ -31,9 +31,11 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+// Deliberately not based on layout (offsetParent): that is untestable outside
+// a real browser, and an element hidden by CSS alone is rare here.
 const focusableElements = () =>
   Array.from(dialogRef.value?.querySelectorAll(FOCUSABLE) || []).filter(
-    (el) => el.offsetParent !== null || el === document.activeElement
+    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true'
   );
 
 /**
@@ -73,6 +75,10 @@ watch(
     if (opened) {
       previouslyFocused = document.activeElement;
       await nextTick();
+      // A dialog that focuses its own field (the archive password prompt, for
+      // one) runs its watcher before this one. Do not steal that focus: only
+      // place it when nothing inside the dialog holds it yet.
+      if (dialogRef.value?.contains(document.activeElement)) return;
       const [firstFocusable] = focusableElements();
       (firstFocusable || dialogRef.value)?.focus();
       return;

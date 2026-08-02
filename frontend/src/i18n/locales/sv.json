@@ -698,7 +698,7 @@
   },
   "onlyoffice": {
     "editingHeading": "Filen redigeras",
-    "editingBody": "{names} {count, plural, one {är öppen} other {är öppna}} i OnlyOffice. {action} fortsätter.",
+    "editingBody": "{names} är öppen i OnlyOffice. {action} fortsätter. | {names} är öppna i OnlyOffice. {action} fortsätter.",
     "andOthers": "och {count} till",
     "actionCopy": "Kopieringen",
     "actionMove": "Flytten",

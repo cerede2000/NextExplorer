@@ -139,6 +139,9 @@ router.post(
     await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user sets up account
+    // Clear both scopes: the cookie used to be set on /api, and browsers
+    // still holding that one would otherwise keep it.
+    res.clearCookie('guestSession', { path: '/' });
     res.clearCookie('guestSession', { path: '/api' });
 
     res.status(201).json({ user });
@@ -169,6 +172,9 @@ router.post(
     await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user logs in
+    // Clear both scopes: the cookie used to be set on /api, and browsers
+    // still holding that one would otherwise keep it.
+    res.clearCookie('guestSession', { path: '/' });
     res.clearCookie('guestSession', { path: '/api' });
 
     res.json({ user });
