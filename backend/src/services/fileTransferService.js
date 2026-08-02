@@ -11,7 +11,12 @@ const {
   findAvailableName,
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
-const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
+const {
+  getSharesForSourceTargets,
+  getSharesBySourceTarget,
+  shareTargetKey,
+  deleteSharesByIds,
+} = require('./sharesService');
 const { removeFavoritesForDeletedPath } = require('./favoritesService');
 const folderSizeHooks = require('./folderSizeHooks');
 const config = require('../config/index');
@@ -872,6 +877,11 @@ const deleteItems = async (items = [], options = {}) => {
   // work is not repeated just to stream the result.
   const targets = options.targets || (await resolveDeleteTargets(items, context));
 
+  // One database pass for the whole selection instead of one per file.
+  const sharesByTarget = await getSharesBySourceTarget(
+    targets.map((target) => target.shareSourceTarget).filter(Boolean)
+  );
+
   // Indexed rather than appended: the removals finish out of order, but the
   // caller is answered in the order it asked.
   const results = new Array(targets.length);
@@ -891,7 +901,7 @@ const deleteItems = async (items = [], options = {}) => {
     throwIfCancelled(options.signal);
     const { relativePath, absolutePath, exists, stats, isDirectory, shareSourceTarget } = target;
     const affectedShares = shareSourceTarget
-      ? await getSharesForSourceTargets([shareSourceTarget])
+      ? sharesByTarget.get(shareTargetKey(shareSourceTarget)) || []
       : [];
 
     if (!exists) {
@@ -912,8 +922,14 @@ const deleteItems = async (items = [], options = {}) => {
     const isDirectoryEntry = isDirectory || deletedEntryStats.isDirectory();
     if (shouldRemoveNatively(isDirectoryEntry)) {
       await removeWithNativeRm(absolutePath, options.signal);
+    } else if (isDirectoryEntry) {
+      await fs.rm(absolutePath, { recursive: true, force: true });
     } else {
-      await fs.rm(absolutePath, { recursive: isDirectoryEntry, force: true });
+      // The type is already known from the stat above; fs.rm would lstat again
+      // just to decide what it is.
+      await fs.unlink(absolutePath).catch((error) => {
+        if (error?.code !== 'ENOENT') throw error;
+      });
     }
     folderSizeHooks.onEntryDeleted(absolutePath, {
       isDirectory: isDirectoryEntry,

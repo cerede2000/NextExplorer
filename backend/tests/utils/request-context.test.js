@@ -105,3 +105,39 @@ describe('Per-request realpath cache', () => {
     expect(pathUtils.resolveVolumePath('plain')).toContain('plain');
   });
 });
+
+/**
+ * The access rules are consulted for every path, so a bulk operation asked for
+ * the settings thousands of times over — several queries and a JSON parse each
+ * time, to re-read values that cannot change during one request.
+ */
+describe('Settings read once per request', () => {
+  it('answers repeated callers from one read', async () => {
+    const { context, env } = await load('settings-per-request-');
+    const settings = env.requireFresh('src/services/settingsService');
+
+    const reads = await context.runInRequestContext(async () => {
+      const first = await settings.getSettings();
+      const rest = await Promise.all(
+        Array.from({ length: 49 }, () => settings.getSettings())
+      );
+      return [first, ...rest];
+    });
+
+    // The same object throughout: one read, shared. Counting queries would
+    // prove nothing, since prepared statements are cached either way.
+    reads.forEach((value) => expect(value).toBe(reads[0]));
+  });
+
+  it('reads again on the next request', async () => {
+    const { context, env } = await load('settings-next-request-');
+    const settings = env.requireFresh('src/services/settingsService');
+
+    const first = await context.runInRequestContext(() => settings.getSettings());
+    const second = await context.runInRequestContext(() => settings.getSettings());
+
+    // Two requests, two reads: a change between them has to be visible.
+    expect(second).not.toBe(first);
+    expect(second).toEqual(first);
+  });
+});

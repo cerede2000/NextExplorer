@@ -1,4 +1,5 @@
-const { getDb } = require('./db');
+const { getDb, prepared } = require('./db');
+const { cachedForRequest } = require('../utils/requestContext');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { parseByteSize } = require('../utils/env');
 const env = require('../config/env');
@@ -194,7 +195,7 @@ const getUserSettings = async (userId) => {
 
   try {
     const db = await getDb();
-    const rows = db.prepare('SELECT key, value FROM user_settings WHERE user_id = ?').all(userId);
+    const rows = prepared(db, 'SELECT key, value FROM user_settings WHERE user_id = ?').all(userId);
 
     const settings = {};
     for (const row of rows) {
@@ -367,11 +368,11 @@ const setUserSetting = async (userId, key, value) => {
     .get(userId, key);
 
   if (existing) {
-    db.prepare(
+    prepared(db, 
       'UPDATE user_settings SET value = ?, updated_at = ? WHERE user_id = ? AND key = ?'
     ).run(valueJson, now, userId, key);
   } else {
-    db.prepare(
+    prepared(db, 
       'INSERT INTO user_settings (id, user_id, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).run(generateId(), userId, key, valueJson, now);
   }
@@ -414,11 +415,11 @@ const setSystemSetting = async (category, key, value) => {
     .get(category, key);
 
   if (existing) {
-    db.prepare(
+    prepared(db, 
       'UPDATE system_settings SET value = ?, updated_at = ? WHERE category = ? AND key = ?'
     ).run(valueJson, now, category, key);
   } else {
-    db.prepare(
+    prepared(db, 
       'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).run(generateId(), category, key, valueJson, now);
   }
@@ -430,15 +431,24 @@ const setSystemSetting = async (category, key, value) => {
  * Legacy method: Get all settings (for backward compatibility)
  * Returns system settings + branding
  */
-const getSettings = async () => {
-  const systemSettings = await getSystemSettings();
-  const publicSettings = await getPublicSettings();
+/**
+ * Settings, read once per request.
+ *
+ * The access rules are consulted for every path, so a bulk operation asked for
+ * these thousands of times over — each one several queries and a JSON parse,
+ * to re-read values that cannot change while a single request is running. The
+ * promise is memoized, not the value, so concurrent callers share one read.
+ */
+const getSettings = async () =>
+  cachedForRequest('settings', 'all', async () => {
+    const systemSettings = await getSystemSettings();
+    const publicSettings = await getPublicSettings();
 
-  return {
-    ...systemSettings,
-    branding: publicSettings.branding,
-  };
-};
+    return {
+      ...systemSettings,
+      branding: publicSettings.branding,
+    };
+  });
 
 /**
  * Legacy method: Set settings (for backward compatibility)
