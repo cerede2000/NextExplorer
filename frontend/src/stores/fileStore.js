@@ -17,6 +17,7 @@ import {
   browseShare,
   waitForOnlyOfficeActivityVersion,
 } from '@/api';
+import i18n from '@/i18n';
 import { useSettingsStore } from '@/stores/settings';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFavoritesStore } from '@/stores/favorites';
@@ -288,16 +289,22 @@ export const useFileStore = defineStore('fileStore', () => {
     );
     if (activeItems.length === 0) return false;
 
+    const { t } = i18n.global;
     const names = activeItems
       .slice(0, 2)
       .map((item) => item.name)
       .join(', ');
     const remaining = activeItems.length - Math.min(activeItems.length, 2);
-    const label = `${names}${remaining > 0 ? ` et ${remaining} autre(s)` : ''}`;
+    const label =
+      remaining > 0 ? `${names} ${t('onlyoffice.andOthers', { count: remaining })}` : names;
     notificationsStore.addNotification({
       type: 'warning',
-      heading: 'Fichier en cours d’édition',
-      body: `${label} ${activeItems.length > 1 ? 'sont ouverts' : 'est ouvert'} dans OnlyOffice. ${action} continue.`,
+      heading: t('onlyoffice.editingHeading'),
+      body: t('onlyoffice.editingBody', {
+        names: label,
+        count: activeItems.length,
+        action: t(`onlyoffice.action${action}`),
+      }),
       durationMs: 8000,
     });
     return true;
@@ -390,8 +397,8 @@ export const useFileStore = defineStore('fileStore', () => {
 
     const copyPayload = serializeItems(copiedItems.value);
     const movePayload = serializeItems(cutItems.value);
-    warnAboutOnlyOfficeActivity(copiedItems.value, 'La copie');
-    warnAboutOnlyOfficeActivity(cutItems.value, 'Le déplacement');
+    warnAboutOnlyOfficeActivity(copiedItems.value, 'Copy');
+    warnAboutOnlyOfficeActivity(cutItems.value, 'Move');
     const moveSourceParents = new Set(movePayload.map((item) => normalizePath(item.path || '')));
     const totalCount = copyPayload.length + movePayload.length;
     const controller = new AbortController();
@@ -478,7 +485,7 @@ export const useFileStore = defineStore('fileStore', () => {
     const payload = serializeItems(items);
     if (payload.length === 0) return;
     if (!options.onlyofficeWarningShown) {
-      warnAboutOnlyOfficeActivity(items, 'La suppression');
+      warnAboutOnlyOfficeActivity(items, 'Delete');
     }
     const payloadKeys = new Set(payload.map((item) => itemKey(item)));
     const selectionMatchesPayload =
@@ -750,7 +757,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
     const targetPath = state.path;
     const item = findItemByKey(state.key);
-    warnAboutOnlyOfficeActivity(item ? [item] : [], 'Le renommage');
+    warnAboutOnlyOfficeActivity(item ? [item] : [], 'Rename');
 
     const response = await renameItemApi(targetPath, state.originalName, newName);
     const renamedName = response?.item?.name ?? newName;

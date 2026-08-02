@@ -72,7 +72,8 @@
     "readwrite": "Citire/Scriere",
     "reset": "Resetează",
     "moveUp": "Mută în sus",
-    "moveDown": "Mută în jos"
+    "moveDown": "Mută în jos",
+    "toggleSection": "Afișează sau ascunde secțiunea"
   },
   "editor": {
     "editing": "Editing",
@@ -100,6 +101,7 @@
     "download": "Descarcă",
     "downloadFolder": "Descarcă dosarul",
     "extractArchive": "Extrage arhiva",
+    "extractArchiveIntoCurrentFolder": "Extrage în dosarul curent",
     "compressToZip": "Comprimă în ZIP",
     "search": "Caută",
     "sortBy": "Sortează după",
@@ -110,6 +112,16 @@
     "copyName": "Copiază numele",
     "share": "Partajează",
     "copied": "Copiat"
+  },
+  "archive": {
+    "password": {
+      "title": "Parolă necesară",
+      "description": "Această arhivă este protejată. Introdu parola pentru a o extrage.",
+      "label": "Parola arhivei",
+      "invalid": "Parolă incorectă sau arhivă deteriorată.",
+      "submit": "Extrage",
+      "extracting": "Se extrage..."
+    }
   },
   "placeholders": {
     "email": "utilizator{'@'}exemplu.com",
@@ -310,6 +322,9 @@
     "copying": "Se copiază {count} {items}…",
     "moving": "Se mută {count} {items}…",
     "working": "În lucru…",
+    "copyingUnknown": "Se copiază…",
+    "movingUnknown": "Se mută…",
+    "activeTasks": "{count} operațiuni în curs",
     "reposition": "Revino la element la final",
     "extracting": "Se extrage {name}…",
     "compressing": "Se comprimă {name}…"
@@ -330,7 +345,9 @@
     "dateTaken": "Data realizării: {date}",
     "camera": "Cameră: {makeModel}",
     "lens": "Obiectiv: {lens}",
-    "duration": "Durată: {seconds}s"
+    "duration": "Durată: {seconds}s",
+    "folderSizeExcluded": "Exclus",
+    "folderSizeExcludedHelp": "Această cale este exclusă din indexarea dimensiunii dosarelor."
   },
   "auth": {
     "preparing": "Se pregătește explorerul…",
@@ -403,7 +420,8 @@
       "security": "Securitate",
       "accessControl": "Control acces",
       "adminUsers": "Gestionare utilizatori",
-      "uploads": "Încărcări"
+      "uploads": "Încărcări",
+      "folderSize": "Dimensiunea dosarelor"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -571,6 +589,14 @@
       "autoFallbackReset": "Resetează (revino la direct)",
       "chunkSize": "Dimensiunea fragmentelor",
       "chunkSizeHelp": "Dimensiunea maximă a fiecărei cereri de încărcare. Menține-o sub limita reverse proxy-ului. Fragmentele mai mici (8–32 MiB) oferă o progresie mai fluidă; fragmentele foarte mari afișează paliere vizibile (serverul scrie fiecare fragment înainte de următorul)."
+    },
+    "folderSize": {
+      "title": "Dimensiunea dosarelor",
+      "subtitle": "Exclude căi din calculul și indexarea dimensiunii dosarelor.",
+      "environment": "Excluderi definite de mediu",
+      "additional": "Excluderi suplimentare",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Nicio cale configurată"
     }
   },
   "share": {
@@ -580,6 +606,8 @@
     "sharedByMeDescription": "Linkuri și dosare pe care le-ai partajat cu alți oameni.",
     "shareCreated": "Partajare creată",
     "createShareLink": "Creează link de partajare",
+    "editShareLink": "Editează linkul de partajare",
+    "saveShare": "Salvează modificările",
     "shareLink": "Link de partajare",
     "shareLinkCreatedSuccess": "Linkul de partajare a fost creat cu succes!",
     "access": "Access Mode",
@@ -593,6 +621,11 @@
     "label": "Label",
     "labelPlaceholder": "e.g. My Project",
     "accessMode": "Mod de acces",
+    "advancedPermissions": "Avansat",
+    "allowDelete": "Permite ștergerea fișierelor",
+    "allowCreateFolder": "Permite crearea de dosare",
+    "allowCreateFile": "Permite crearea de fișiere",
+    "allowUpload": "Permite încărcarea de fișiere și dosare",
     "whoCanAccess": "Cine poate accesa",
     "anyoneWithLink": "Oricine are linkul",
     "specificUsers": "Utilizatori specifici",
@@ -642,6 +675,7 @@
       "auto": "Auto",
       "inline": "Vizualizează",
       "raw": "Raw",
+      "editor": "Editor",
       "download": "Descarcă"
     },
     "sharedWith": "Partajat cu",
@@ -661,5 +695,18 @@
   },
   "quickActions": {
     "menu": "Acțiuni rapide"
+  },
+  "onlyoffice": {
+    "editingHeading": "Fișierul este în curs de editare",
+    "editingBody": "{names} {count, plural, one {este deschis} few {sunt deschise} other {sunt deschise}} în OnlyOffice. {action} va continua.",
+    "andOthers": "și încă {count}",
+    "actionCopy": "Copierea",
+    "actionMove": "Mutarea",
+    "actionDelete": "Ștergerea",
+    "actionRename": "Redenumirea",
+    "transferHeading": "Fișierul este în curs de editare",
+    "transferBody": "Acest fișier este deschis în OnlyOffice. Continuarea poate perturba o salvare în curs. Vrei să continui?",
+    "transferConfirm": "Continuă",
+    "transferCancel": "Anulează"
   }
 }
