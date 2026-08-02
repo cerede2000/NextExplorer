@@ -73,7 +73,9 @@
     "reset": "초기화",
     "moveUp": "위로 이동",
     "moveDown": "아래로 이동",
-    "toggleSection": "섹션 펼치기/접기"
+    "toggleSection": "섹션 펼치기/접기",
+    "back": "뒤로 가기",
+    "add": "추가"
   },
   "editor": {
     "editing": "편집 중",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "파일 크기가 너무 큽니다. 더 작은 이미지를 사용해주세요 (500KB 이하가 가장 좋음)",
       "preview": "미리보기",
       "showPoweredBy": "기여 링크 표시",
-      "showPoweredByHelp": "페이지 하단에 'Powered by nextExplorer' 링크를 표시하여 프로젝트를 지원해주세요."
+      "showPoweredByHelp": "페이지 하단에 'Powered by nextExplorer' 링크를 표시하여 프로젝트를 지원해주세요.",
+      "defaultLogoSelected": "기본 로고가 선택되었습니다. 적용하려면 저장을 클릭하세요."
     },
     "userPreferences": {
       "title": "유저 설정",
@@ -550,7 +553,8 @@
       "selectedPath": "선택된 경로",
       "volumePath": "볼륨 경로",
       "pathCannotChange": "생성된 이후에는 경로를 변경할 수 없습니다. 필요 시에는 이 볼륨을 제거하고 새로운 볼륨을 생성해야 합니다.",
-      "accessMode": "접근 모드"
+      "accessMode": "접근 모드",
+      "noUsers": "유저가 없습니다"
     },
     "userDetails": {
       "profileTab": "프로필",
@@ -691,7 +695,12 @@
     "noActivity": "없음",
     "noIpRecorded": "기록된 IP 없음",
     "deleteShareTitle": "공유를 삭제하시겠습니까?",
-    "deleteShareMessage": "이 링크를 가진 사람들이 더 이상 공유된 항목에 접근할 수 없습니다."
+    "deleteShareMessage": "이 링크를 가진 사람들이 더 이상 공유된 항목에 접근할 수 없습니다.",
+    "password": "비밀번호",
+    "protected": "보호됨",
+    "expires": "만료",
+    "loadingUsers": "유저 정보 로딩 중...",
+    "creating": "생성 중…"
   },
   "quickActions": {
     "menu": "빠른 작업"

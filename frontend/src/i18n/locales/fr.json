@@ -73,7 +73,9 @@
     "unsavedChanges": "Vous avez des modifications non enregistrées",
     "readonly": "Lecture seule",
     "readwrite": "Lecture/Écriture",
-    "toggleSection": "Afficher ou masquer la section"
+    "toggleSection": "Afficher ou masquer la section",
+    "back": "Retour",
+    "add": "Ajouter"
   },
   "editor": {
     "editing": "Editing",
@@ -451,7 +453,8 @@
       "fileTooLargeForDataUri": "Le fichier est trop volumineux. Veuillez utiliser une image plus petite (moins de 500 Ko pour de meilleurs résultats)",
       "preview": "Aperçu",
       "showPoweredBy": "Afficher le lien d’attribution",
-      "showPoweredByHelp": "Afficher un lien « Powered by nextExplorer » dans le pied de page pour aider à soutenir le projet"
+      "showPoweredByHelp": "Afficher un lien « Powered by nextExplorer » dans le pied de page pour aider à soutenir le projet",
+      "defaultLogoSelected": "Logo par défaut sélectionné. Cliquez sur Enregistrer pour appliquer."
     },
     "userPreferences": {
       "title": "Préférences utilisateur",
@@ -573,7 +576,8 @@
       "selectedPath": "Sélectionné",
       "volumePath": "Chemin du volume",
       "pathCannotChange": "Le chemin ne peut pas être modifié après la création. Supprimez ce volume et créez-en un nouveau si nécessaire.",
-      "accessMode": "Mode d'accès"
+      "accessMode": "Mode d'accès",
+      "noUsers": "Aucun utilisateur disponible"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -694,7 +698,12 @@
     "removeShare": "Supprimer le partage",
     "sharedWithAnyone": "Tout le monde",
     "sharedWithUsers": "{count} utilisateur | {count} utilisateurs",
-    "expiresNever": "Jamais"
+    "expiresNever": "Jamais",
+    "password": "Mot de passe",
+    "protected": "Protégé",
+    "expires": "Expire",
+    "loadingUsers": "Chargement des utilisateurs...",
+    "creating": "Création…"
   },
   "onlyoffice": {
     "editingHeading": "Fichier en cours d’édition",

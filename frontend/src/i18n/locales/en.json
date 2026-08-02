@@ -73,7 +73,9 @@
     "unsavedChanges": "You have unsaved changes",
     "readonly": "Read Only",
     "readwrite": "Read/Write",
-    "toggleSection": "Toggle section"
+    "toggleSection": "Toggle section",
+    "back": "Back",
+    "add": "Add"
   },
   "editor": {
     "editing": "Editing",
@@ -451,7 +453,8 @@
       "fileTooLargeForDataUri": "File is too large. Please use a smaller image (under 500KB for best results)",
       "preview": "Preview",
       "showPoweredBy": "Display attribution link",
-      "showPoweredByHelp": "Show a 'Powered by nextExplorer' link in the footer to help support the project"
+      "showPoweredByHelp": "Show a 'Powered by nextExplorer' link in the footer to help support the project",
+      "defaultLogoSelected": "Default logo selected. Click Save to apply."
     },
     "userPreferences": {
       "title": "User Preferences",
@@ -573,7 +576,8 @@
       "selectedPath": "Selected",
       "volumePath": "Volume Path",
       "pathCannotChange": "The path cannot be changed after creation. Remove this volume and create a new one if needed.",
-      "accessMode": "Access Mode"
+      "accessMode": "Access Mode",
+      "noUsers": "No users available"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -694,7 +698,12 @@
     "removeShare": "Remove share",
     "sharedWithAnyone": "Everyone",
     "sharedWithUsers": "{count} user | {count} users",
-    "expiresNever": "Never"
+    "expiresNever": "Never",
+    "password": "Password",
+    "protected": "Protected",
+    "expires": "Expires",
+    "loadingUsers": "Loading users...",
+    "creating": "Creating…"
   },
   "onlyoffice": {
     "editingHeading": "File is being edited",

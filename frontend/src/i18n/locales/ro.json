@@ -73,7 +73,9 @@
     "reset": "Resetează",
     "moveUp": "Mută în sus",
     "moveDown": "Mută în jos",
-    "toggleSection": "Afișează sau ascunde secțiunea"
+    "toggleSection": "Afișează sau ascunde secțiunea",
+    "back": "Înapoi",
+    "add": "Adaugă"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "Fișierul este prea mare. Folosește o imagine mai mică (sub 500 KB pentru cele mai bune rezultate)",
       "preview": "Previzualizare",
       "showPoweredBy": "Afișează linkul de atribuire",
-      "showPoweredByHelp": "Afișează în subsol un link „Powered by nextExplorer” pentru a ajuta la susținerea proiectului"
+      "showPoweredByHelp": "Afișează în subsol un link „Powered by nextExplorer” pentru a ajuta la susținerea proiectului",
+      "defaultLogoSelected": "Siglă implicită selectată. Faceți clic pe Salvare pentru a aplica."
     },
     "userPreferences": {
       "title": "Preferințe utilizator",
@@ -550,7 +553,8 @@
       "selectedPath": "Selectat",
       "volumePath": "Cale volum",
       "pathCannotChange": "Calea nu poate fi schimbată după creare. Șterge și creează unul nou dacă e necesar.",
-      "accessMode": "Mod acces"
+      "accessMode": "Mod acces",
+      "noUsers": "Nu există utilizatori disponibili"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "Niciodată",
     "noIpRecorded": "Nicio IP înregistrată",
     "deleteShareTitle": "Elimini partajarea?",
-    "deleteShareMessage": "Persoanele care au acest link nu vor mai putea accesa elementul partajat."
+    "deleteShareMessage": "Persoanele care au acest link nu vor mai putea accesa elementul partajat.",
+    "password": "Parolă",
+    "protected": "Protejat",
+    "expires": "Expiră",
+    "loadingUsers": "Se încarcă utilizatorii...",
+    "creating": "Se creează…"
   },
   "quickActions": {
     "menu": "Acțiuni rapide"

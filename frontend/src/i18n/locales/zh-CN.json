@@ -73,7 +73,9 @@
     "reset": "重置",
     "moveUp": "上移",
     "moveDown": "下移",
-    "toggleSection": "展开或折叠此部分"
+    "toggleSection": "展开或折叠此部分",
+    "back": "后退",
+    "add": "添加"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "文件过大。请使用更小的图片（建议小于 500KB 以获得最佳效果）",
       "preview": "预览",
       "showPoweredBy": "显示署名链接",
-      "showPoweredByHelp": "在页脚显示 “Powered by nextExplorer” 链接以支持项目"
+      "showPoweredByHelp": "在页脚显示 “Powered by nextExplorer” 链接以支持项目",
+      "defaultLogoSelected": "已选择默认徽标。点击\"保存\"以应用。"
     },
     "userPreferences": {
       "title": "用户偏好",
@@ -550,7 +553,8 @@
       "selectedPath": "已选择",
       "volumePath": "卷路径",
       "pathCannotChange": "创建后无法更改路径。如需更改，请删除此卷并重新创建。",
-      "accessMode": "访问模式"
+      "accessMode": "访问模式",
+      "noUsers": "没有可用用户"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "从不",
     "noIpRecorded": "未记录 IP",
     "deleteShareTitle": "移除共享？",
-    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。"
+    "deleteShareMessage": "拥有此链接的人将无法再访问共享的项目。",
+    "password": "密码",
+    "protected": "已保护",
+    "expires": "到期",
+    "loadingUsers": "正在加载用户...",
+    "creating": "正在创建…"
   },
   "quickActions": {
     "menu": "快捷操作"

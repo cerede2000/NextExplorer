@@ -73,7 +73,9 @@
     "reset": "Resetuj",
     "moveUp": "Przesuń w górę",
     "moveDown": "Przesuń w dół",
-    "toggleSection": "Pokaż lub ukryj sekcję"
+    "toggleSection": "Pokaż lub ukryj sekcję",
+    "back": "Wstecz",
+    "add": "Dodaj"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "Plik jest za duży. Użyj mniejszego obrazu (poniżej 500 KB dla najlepszych efektów)",
       "preview": "Podgląd",
       "showPoweredBy": "Wyświetl link z atrybucją",
-      "showPoweredByHelp": "Pokaż w stopce link „Powered by nextExplorer”, aby wesprzeć projekt"
+      "showPoweredByHelp": "Pokaż w stopce link „Powered by nextExplorer”, aby wesprzeć projekt",
+      "defaultLogoSelected": "Wybrano domyślne logo. Kliknij Zapisz, aby zastosować."
     },
     "userPreferences": {
       "title": "Preferencje użytkownika",
@@ -550,7 +553,8 @@
       "selectedPath": "Wybrano",
       "volumePath": "Ścieżka woluminu",
       "pathCannotChange": "Ścieżki nie można zmienić po utworzeniu. Usuń ten wolumin i utwórz nowy w razie potrzeby.",
-      "accessMode": "Tryb dostępu"
+      "accessMode": "Tryb dostępu",
+      "noUsers": "Brak dostępnych użytkowników"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "Nigdy",
     "noIpRecorded": "Brak zarejestrowanego IP",
     "deleteShareTitle": "Usunąć udostępnienie?",
-    "deleteShareMessage": "Osoby posiadające ten link nie będą już mogły uzyskać dostępu do udostępnionego elementu."
+    "deleteShareMessage": "Osoby posiadające ten link nie będą już mogły uzyskać dostępu do udostępnionego elementu.",
+    "password": "Hasło",
+    "protected": "Chronione",
+    "expires": "Wygasa",
+    "loadingUsers": "Ładowanie użytkowników...",
+    "creating": "Tworzenie…"
   },
   "quickActions": {
     "menu": "Szybkie akcje"

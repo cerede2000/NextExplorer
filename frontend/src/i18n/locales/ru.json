@@ -73,7 +73,9 @@
     "reset": "Сбросить",
     "moveUp": "Переместить вверх",
     "moveDown": "Переместить вниз",
-    "toggleSection": "Показать или скрыть раздел"
+    "toggleSection": "Показать или скрыть раздел",
+    "back": "Назад",
+    "add": "Добавить"
   },
   "editor": {
     "editing": "Editing",
@@ -448,7 +450,8 @@
       "fileTooLargeForDataUri": "Файл слишком велик. Используйте изображение поменьше (до 500КБ для лучшего результата)",
       "preview": "Предпросмотр",
       "showPoweredBy": "Отображать ссылку на автора",
-      "showPoweredByHelp": "Показывать ссылку 'Powered by nextExplorer' в футере для поддержки проекта"
+      "showPoweredByHelp": "Показывать ссылку 'Powered by nextExplorer' в футере для поддержки проекта",
+      "defaultLogoSelected": "Выбран логотип по умолчанию. Нажмите «Сохранить», чтобы применить."
     },
     "userPreferences": {
       "title": "Настройки пользователя",
@@ -550,7 +553,8 @@
       "selectedPath": "Выбрано",
       "volumePath": "Путь к тому",
       "pathCannotChange": "Путь нельзя изменить после создания. При необходимости удалите этот том и создайте новый.",
-      "accessMode": "Режим доступа"
+      "accessMode": "Режим доступа",
+      "noUsers": "Нет доступных пользователей"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -691,7 +695,12 @@
     "noActivity": "Никогда",
     "noIpRecorded": "IP не записан",
     "deleteShareTitle": "Удалить доступ?",
-    "deleteShareMessage": "Люди с этой ссылкой больше не смогут получить доступ к общему объекту."
+    "deleteShareMessage": "Люди с этой ссылкой больше не смогут получить доступ к общему объекту.",
+    "password": "Пароль",
+    "protected": "Защищено",
+    "expires": "Истекает",
+    "loadingUsers": "Загрузка пользователей...",
+    "creating": "Создание…"
   },
   "quickActions": {
     "menu": "Быстрые действия"
