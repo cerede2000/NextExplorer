@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
 import session from 'express-session';
-import bodyParser from 'body-parser';
 import request from 'supertest';
 import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
 
@@ -48,7 +47,7 @@ const buildApp = ({ authEnabled } = {}) => {
   const authRoutes = envContext.requireFresh('src/routes/auth');
   const { notFoundHandler, errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
   const app = express();
-  app.use(bodyParser.json());
+  app.use(express.json());
   app.use(
     session({
       secret: process.env.SESSION_SECRET,
