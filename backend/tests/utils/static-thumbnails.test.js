@@ -131,6 +131,15 @@ describe('Thumbnail access', () => {
     expect(response.status).toBe(401);
   });
 
+  it('answers a malformed URL with 401 rather than a crash', async () => {
+    const env = await setupTestEnv({ tag: 'thumbnails-malformed-', modules: MODULES });
+    currentEnv = env;
+    await seedThumbnail(env);
+
+    const response = await request(buildApp(env)).get('/static/thumbnails/%zz.webp');
+    expect(response.status).toBe(401);
+  });
+
   it('serves everything when authentication is disabled', async () => {
     const env = await setupTestEnv({
       tag: 'thumbnails-no-auth-',
