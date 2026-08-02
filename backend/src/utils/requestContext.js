@@ -36,8 +36,16 @@ const cachedForRequest = (namespace, key, compute) => {
   return value;
 };
 
+/** Whether a per-request cache is available to memoize into. */
+const hasRequestContext = () => storage.getStore() !== undefined;
+
 const requestContextMiddleware = (_req, _res, next) => {
   runInRequestContext(() => next());
 };
 
-module.exports = { runInRequestContext, cachedForRequest, requestContextMiddleware };
+module.exports = {
+  runInRequestContext,
+  cachedForRequest,
+  hasRequestContext,
+  requestContextMiddleware,
+};
