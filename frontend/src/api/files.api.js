@@ -20,6 +20,27 @@ const DELETE_BATCH_SIZE = 100;
  */
 const DELETE_STREAM_BATCH_SIZE = 500;
 
+/**
+ * Items per streamed copy or move request. Same reason as the deletion batch:
+ * the whole selection in one body is refused as too large.
+ */
+const TRANSFER_BATCH_SIZE = 500;
+
+/**
+ * Fold the per-batch results back into the single response the caller expects:
+ * the transferred entries, and the destination the server settled on (it may
+ * rename to avoid a collision).
+ */
+const mergeTransferResults = (results) => {
+  if (!Array.isArray(results)) return results;
+  const merged = { success: true, items: [] };
+  for (const result of results) {
+    if (Array.isArray(result?.items)) merged.items.push(...result.items);
+    if (result?.destination != null) merged.destination = result.destination;
+  }
+  return merged;
+};
+
 async function browse(path = '', options = {}) {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
@@ -63,22 +84,93 @@ async function refreshFolderSize(relativePath, options = {}) {
   return requestJson(`/api/folder-size/refresh/${encodedPath}`, { ...options, method: 'POST' });
 }
 
+/**
+ * Run one streamed operation over a large selection, a batch at a time.
+ *
+ * A single request carrying thousands of paths is refused as too large, but
+ * the caller still drives one progress bar: the events of each batch are
+ * rebased onto the whole selection, so the bar never restarts and never goes
+ * backwards at a boundary. Percentages are computed from item counts, which
+ * are known upfront — byte totals are not, since each batch only learns its
+ * own when the server prepares it.
+ */
+async function streamInBatches(items, batchSize, runBatch, onEvent) {
+  const all = Array.isArray(items) ? items : [];
+  const emit = typeof onEvent === 'function' ? onEvent : null;
+
+  if (all.length <= batchSize) return runBatch(all, emit);
+
+  const results = [];
+  let knownBytes = 0;
+  let doneBytes = 0;
+
+  for (let index = 0; index < all.length; index += batchSize) {
+    const batch = all.slice(index, index + batchSize);
+    const offset = index;
+    const bytesBefore = doneBytes;
+
+    // eslint-disable-next-line no-await-in-loop
+    const result = await runBatch(batch, (event) => {
+      if (!emit) return;
+      if (event.type === 'start') {
+        knownBytes += Number(event.totalBytes) || 0;
+        // One start for the whole run, carrying what is known so far.
+        if (offset === 0) {
+          emit({ ...event, totalItems: all.length, totalBytes: knownBytes });
+        }
+        return;
+      }
+      if (event.type === 'progress') {
+        const completedItems = offset + (Number(event.completedItems) || 0);
+        doneBytes = bytesBefore + (Number(event.copiedBytes) || 0);
+        emit({
+          ...event,
+          completedItems,
+          copiedBytes: doneBytes,
+          ...(knownBytes ? { totalBytes: knownBytes } : {}),
+          percent: Math.round((completedItems / all.length) * 100),
+        });
+        return;
+      }
+      emit(event);
+    });
+
+    results.push(result);
+  }
+
+  return results;
+}
+
 async function copyItems(items, destination, options = {}) {
-  return requestStream('/api/files/copy', {
-    method: 'POST',
-    body: JSON.stringify({ items, destination }),
-    onEvent: options.onEvent,
-    signal: options.signal,
-  });
+  const results = await streamInBatches(
+    items,
+    TRANSFER_BATCH_SIZE,
+    (batch, onEvent) =>
+      requestStream('/api/files/copy', {
+        method: 'POST',
+        body: JSON.stringify({ items: batch, destination }),
+        onEvent,
+        signal: options.signal,
+      }),
+    options.onEvent
+  );
+  return mergeTransferResults(results);
 }
 
 async function moveItems(items, destination, options = {}) {
-  return requestStream('/api/files/move', {
-    method: 'POST',
-    body: JSON.stringify({ items, destination }),
-    onEvent: options.onEvent,
-    signal: options.signal,
-  });
+  const results = await streamInBatches(
+    items,
+    TRANSFER_BATCH_SIZE,
+    (batch, onEvent) =>
+      requestStream('/api/files/move', {
+        method: 'POST',
+        body: JSON.stringify({ items: batch, destination }),
+        onEvent,
+        signal: options.signal,
+      }),
+    options.onEvent
+  );
+  return mergeTransferResults(results);
 }
 
 async function deleteItems(items) {
@@ -105,53 +197,24 @@ async function deleteItems(items) {
 }
 
 async function deleteItemsStream(items, options = {}) {
-  const allItems = Array.isArray(items) ? items : [];
+  const results = await streamInBatches(
+    items,
+    DELETE_STREAM_BATCH_SIZE,
+    (batch, onEvent) =>
+      requestStream('/api/files/delete-stream', {
+        method: 'POST',
+        body: JSON.stringify({ items: batch }),
+        onEvent,
+        signal: options.signal,
+      }),
+    options.onEvent
+  );
 
-  const runBatch = (batch, { offset, total, emitStart }) =>
-    requestStream('/api/files/delete-stream', {
-      method: 'POST',
-      body: JSON.stringify({ items: batch }),
-      signal: options.signal,
-      onEvent: (event) => {
-        if (typeof options.onEvent !== 'function') return;
-        // Each batch reports on itself; the caller drives one progress bar for
-        // the whole selection, so counts are rebased onto the full total.
-        if (event.type === 'start') {
-          if (emitStart) options.onEvent({ ...event, totalItems: total });
-          return;
-        }
-        if (event.type === 'progress') {
-          const completed = offset + (Number(event.completedItems) || 0);
-          options.onEvent({
-            ...event,
-            completedItems: completed,
-            percent: total ? Math.round((completed / total) * 100) : 0,
-          });
-          return;
-        }
-        options.onEvent(event);
-      },
-    });
-
-  if (allItems.length <= DELETE_STREAM_BATCH_SIZE) {
-    return runBatch(allItems, { offset: 0, total: allItems.length, emitStart: true });
-  }
-
-  const deleted = [];
-  for (let index = 0; index < allItems.length; index += DELETE_STREAM_BATCH_SIZE) {
-    const batch = allItems.slice(index, index + DELETE_STREAM_BATCH_SIZE);
-    // eslint-disable-next-line no-await-in-loop
-    const result = await runBatch(batch, {
-      offset: index,
-      total: allItems.length,
-      emitStart: index === 0,
-    });
-    deleted.push(...(Array.isArray(result?.items) ? result.items : []));
-    // An aborted request rejects, so reaching here means this batch is done;
-    // the batches already deleted stay deleted, as with any cancellation.
-  }
-
-  return { success: true, items: deleted };
+  if (!Array.isArray(results)) return results;
+  return {
+    success: true,
+    items: results.flatMap((result) => (Array.isArray(result?.items) ? result.items : [])),
+  };
 }
 
 async function getDeleteImpact(items) {
