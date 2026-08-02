@@ -18,6 +18,8 @@ const { createApp } = require('./app');
 const { port, http, features, address } = require('./config/index');
 const logger = require('./utils/logger');
 const { printStartupBanner } = require('./utils/startupBanner');
+const { cleanupExpiredShares } = require('./services/sharesService');
+const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
@@ -63,9 +65,32 @@ const startServer = async () => {
   folderSizeManager.start();
   performanceDiagnostics.start();
 
+  // Expired shares and guest sessions were never purged: the services had a
+  // cleanup function each, and nothing ever called them, so both tables grew
+  // forever and an expired share stayed on disk indefinitely.
+  const EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+  const sweepExpiredRecords = async () => {
+    try {
+      const [shares, sessions] = await Promise.all([
+        cleanupExpiredShares(),
+        cleanupExpiredSessions(),
+      ]);
+      if (shares || sessions) {
+        logger.info({ shares, sessions }, 'Purged expired shares and guest sessions');
+      }
+    } catch (error) {
+      logger.warn({ err: error }, 'Expiry sweep failed');
+    }
+  };
+  const expirySweep = setInterval(sweepExpiredRecords, EXPIRY_SWEEP_INTERVAL_MS);
+  // Never keep the process alive just for the sweep.
+  expirySweep.unref?.();
+  sweepExpiredRecords();
+
   // Cleanup on process termination
   const cleanup = async () => {
     logger.info('Shutting down server...');
+    clearInterval(expirySweep);
     terminalService.cleanup();
     performanceDiagnostics.stop();
     await folderSizeManager.stop();
