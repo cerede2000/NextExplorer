@@ -719,6 +719,9 @@
     "transferCancel": "Abbrechen",
     "savedAsHeading": "In diesem Ordner gespeichert",
     "savedAsBody": "{name} wurde neben dem Original abgelegt.",
-    "saveAsFailed": "{name} konnte nicht gespeichert werden"
+    "saveAsFailed": "{name} konnte nicht gespeichert werden",
+    "renamedHeading": "Umbenannt",
+    "renamedBody": "Das Dokument heißt jetzt {name}.",
+    "renameFailed": "Umbenennen in {name} nicht möglich"
   }
 }

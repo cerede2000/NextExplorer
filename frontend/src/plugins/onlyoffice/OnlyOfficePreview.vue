@@ -32,6 +32,7 @@ import {
   fetchOnlyOfficeConfig,
   heartbeatOnlyOfficeSession,
   requestOnlyOfficeForceSave,
+  renameOnlyOfficeDocument,
   saveOnlyOfficeDocumentAs,
 } from '@/api';
 import { useFileStore } from '@/stores/fileStore';
@@ -52,6 +53,12 @@ const props = defineProps({
 // previewState belongs to the preview manager and intentionally carries the
 // small amount of state needed by the plugin close hook.
 const previewState = props.previewState;
+
+// The path the session is bound to. Starts as the prop and follows the file if
+// it is renamed from the editor: the prop belongs to the preview manager, which
+// has no way of knowing the rename happened, and every later call — heartbeat,
+// force-save — would keep naming a file that no longer exists.
+const documentPath = ref(props.filePath);
 const { t } = useI18n();
 const fileStore = useFileStore();
 const notifications = useNotificationsStore();
@@ -90,8 +97,8 @@ const clearSessionHeartbeat = () => {
 const startSessionHeartbeat = () => {
   clearSessionHeartbeat();
   const sessionId = previewState.forceSaveSessionId;
-  if (!props.filePath || !sessionId) return;
-  const heartbeat = () => heartbeatOnlyOfficeSession(props.filePath, { sessionId }).catch(() => {});
+  if (!documentPath.value || !sessionId) return;
+  const heartbeat = () => heartbeatOnlyOfficeSession(documentPath.value, { sessionId }).catch(() => {});
   heartbeat();
   sessionHeartbeatTimer = setInterval(heartbeat, 60_000);
 };
@@ -104,13 +111,13 @@ const startSessionHeartbeat = () => {
 const saveDocumentAs = async (data) => {
   const title = data?.title;
   const url = data?.url;
-  if (!props.filePath || !title || !url) {
+  if (!documentPath.value || !title || !url) {
     logger.warn('ONLYOFFICE save-as request was incomplete', { title: title || null });
     return;
   }
 
   try {
-    const saved = await saveOnlyOfficeDocumentAs(props.filePath, { url, title });
+    const saved = await saveOnlyOfficeDocumentAs(documentPath.value, { url, title });
     notifications.addNotification({
       type: 'success',
       heading: t('onlyoffice.savedAsHeading'),
@@ -120,7 +127,7 @@ const saveDocumentAs = async (data) => {
     // for the next navigation.
     await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
   } catch (e) {
-    logger.error('ONLYOFFICE save-as failed', { path: props.filePath, err: e });
+    logger.error('ONLYOFFICE save-as failed', { path: documentPath.value, err: e });
     notifications.addNotification({
       type: 'error',
       heading: t('onlyoffice.saveAsFailed', { name: title }),
@@ -129,13 +136,53 @@ const saveDocumentAs = async (data) => {
   }
 };
 
+/**
+ * ONLYOFFICE sends the new title, sometimes as a bare string and sometimes
+ * wrapped, depending on the editor. It does not include the extension, so it is
+ * carried over from the current name — a document renamed to "Report" must not
+ * become extensionless and stop opening.
+ */
+const renameDocument = async (data) => {
+  const requested = String((typeof data === 'string' ? data : data?.title) || '').trim();
+  const sessionId = previewState.forceSaveSessionId;
+  if (!documentPath.value || !requested || !sessionId) return;
+
+  const currentName = documentPath.value.split('/').pop() || '';
+  const dot = currentName.lastIndexOf('.');
+  const extension = dot > 0 ? currentName.slice(dot) : '';
+  const newName = extension && !requested.toLowerCase().endsWith(extension.toLowerCase())
+    ? `${requested}${extension}`
+    : requested;
+
+  try {
+    const renamed = await renameOnlyOfficeDocument(documentPath.value, { sessionId, newName });
+    // Follow the file. previewState carries it to the plugin's close hook,
+    // which force-saves on the way out and would otherwise name the old path.
+    documentPath.value = renamed?.path || documentPath.value;
+    previewState.documentPath = documentPath.value;
+    notifications.addNotification({
+      type: 'success',
+      heading: t('onlyoffice.renamedHeading'),
+      body: t('onlyoffice.renamedBody', { name: renamed?.name || newName }),
+    });
+    await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+  } catch (e) {
+    logger.error('ONLYOFFICE rename failed', { path: documentPath.value, err: e });
+    notifications.addNotification({
+      type: 'error',
+      heading: t('onlyoffice.renameFailed', { name: newName }),
+      body: e?.message || '',
+    });
+  }
+};
+
 const requestForceSave = async ({ reason = 'auto' } = {}) => {
   if (reason === 'close') clearAutoSaveTimer();
   const sessionId = previewState.forceSaveSessionId;
-  if (!props.filePath || !sessionId) return { queued: false };
+  if (!documentPath.value || !sessionId) return { queued: false };
   if (autoSaveInFlight) return autoSaveInFlight;
 
-  autoSaveInFlight = requestOnlyOfficeForceSave(props.filePath, { sessionId, reason })
+  autoSaveInFlight = requestOnlyOfficeForceSave(documentPath.value, { sessionId, reason })
     .then((result) => {
       lastAutoSaveAt = Date.now();
       return result;
@@ -178,6 +225,8 @@ const load = async () => {
   try {
     const path = props.filePath;
     if (!path) throw new Error('Missing file path.');
+    documentPath.value = path;
+    previewState.documentPath = path;
     const {
       documentServerUrl,
       config: cfg,
@@ -195,7 +244,7 @@ const load = async () => {
       // a file the editor refused used to be shown to everyone as being edited
       // until the session expired.
       onDocumentReady() {
-        logger.debug('ONLYOFFICE document ready', { path: props.filePath });
+        logger.debug('ONLYOFFICE document ready', { path: documentPath.value });
         startSessionHeartbeat();
       },
 
@@ -205,7 +254,7 @@ const load = async () => {
       // own logs, when it had written any.
       onError(event) {
         logger.error('ONLYOFFICE editor error', {
-          path: props.filePath,
+          path: documentPath.value,
           code: event?.data?.errorCode ?? null,
           description: event?.data?.errorDescription || null,
         });
@@ -213,7 +262,7 @@ const load = async () => {
 
       onWarning(event) {
         logger.warn('ONLYOFFICE editor warning', {
-          path: props.filePath,
+          path: documentPath.value,
           code: event?.data?.warningCode ?? null,
           description: event?.data?.warningDescription || null,
         });
@@ -224,6 +273,12 @@ const load = async () => {
       // the browser's downloads, not the volume — is the only way out.
       onRequestSaveAs(event) {
         void saveDocumentAs(event?.data);
+      },
+
+      // Renaming from the editor's title bar. ONLYOFFICE only asks; the file
+      // is ours to move, and the editing session has to follow it.
+      onRequestRename(event) {
+        void renameDocument(event?.data);
       },
 
       onDocumentStateChange(event) {

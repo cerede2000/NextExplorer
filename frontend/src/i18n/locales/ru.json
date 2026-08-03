@@ -719,6 +719,9 @@
     "transferCancel": "Отмена",
     "savedAsHeading": "Сохранено в эту папку",
     "savedAsBody": "{name} добавлен рядом с оригиналом.",
-    "saveAsFailed": "Не удалось сохранить {name}"
+    "saveAsFailed": "Не удалось сохранить {name}",
+    "renamedHeading": "Переименовано",
+    "renamedBody": "Документ теперь называется {name}.",
+    "renameFailed": "Не удалось переименовать в {name}"
   }
 }

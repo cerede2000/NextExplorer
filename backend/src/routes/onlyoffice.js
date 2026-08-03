@@ -18,6 +18,7 @@ const {
 } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
+const { renameEntry } = require('../services/renameService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
@@ -210,17 +211,36 @@ const cleanupExpiredEditorSessions = () => {
  * edited, by everyone, until the session expired. The client reports presence
  * once ONLYOFFICE says the document is ready, through the heartbeat below.
  */
-const createEditorSession = (req, relativePath, key) => {
+const createEditorSession = (req, relativePath, key, absolutePath) => {
   cleanupExpiredEditorSessions();
   const sessionId = crypto.randomUUID();
   const owner = getSessionOwner(req);
   editorSessions.set(sessionId, {
     key,
     relativePath,
+    // Where the document is *now*. The backend token carries the path as it
+    // was when the editor opened, and renaming makes that copy wrong; a save
+    // arriving afterwards would recreate the old name beside the new one.
+    absolutePath,
     ...owner,
     expiresAt: Date.now() + EDITOR_SESSION_TTL_MS,
   });
   return sessionId;
+};
+
+/**
+ * Where a save should be written for this token.
+ *
+ * The token is minted once and handed to the Document Server, which returns it
+ * unchanged however long the editing session lasts. The session, which lives
+ * here, is what follows the document if it is renamed meanwhile. Sessions are
+ * in memory, so a restart falls back to the token — right in every case except
+ * a rename that the restart also erased the record of.
+ */
+const resolveSaveTarget = (backendCtx) => {
+  const session = backendCtx?.sessionId ? editorSessions.get(backendCtx.sessionId) : null;
+  if (session?.absolutePath && session.expiresAt > Date.now()) return session.absolutePath;
+  return backendCtx.absolutePath;
 };
 
 const describeSessionUser = (req) => {
@@ -428,6 +448,12 @@ router.post(
     const callbackUrl = new URL(`/api/onlyoffice/callback`, publicConfig.url);
     callbackUrl.searchParams.set('path', relativePath);
 
+    // Unique key should change when file changes to bust DS cache
+    const key = buildDocumentKey(relativePath, stat, documentType);
+
+    // canEdit is decided above, before the backend token is signed.
+    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
+
     // Backend context for storage requests (signed separately and passed via query)
     let backendToken = null;
     if (onlyoffice.secret) {
@@ -439,6 +465,9 @@ router.post(
         // The callback trusts this flag instead of re-resolving permissions,
         // so it must reflect what this session is actually allowed to do.
         canWrite: canEdit,
+        // Lets a save find the document again if it was renamed while open;
+        // the path above is only what it was called when the editor started.
+        sessionId: forceSaveSessionId,
         userId: req.user && req.user.id ? String(req.user.id) : null,
         guestSessionId: req.guestSession?.id || null,
         shareToken: resolved.shareInfo?.shareToken || null,
@@ -450,12 +479,6 @@ router.post(
       fileUrl.searchParams.set('backend', backendToken);
       callbackUrl.searchParams.set('backend', backendToken);
     }
-
-    // Unique key should change when file changes to bust DS cache
-    const key = buildDocumentKey(relativePath, stat, documentType);
-
-    // canEdit is decided above, before the backend token is signed.
-    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key) : null;
 
     const config = {
       documentType, // word | cell | slide | pdf | diagram
@@ -540,6 +563,51 @@ router.post(
       user: describeSessionUser(req),
     });
     res.json({ active });
+  })
+);
+
+/**
+ * Rename the open document from the editor's title bar.
+ *
+ * The rename itself is the ordinary one, with the ordinary permission checks.
+ * What is specific here is keeping the editing session pointed at the file
+ * afterwards: the Document Server holds a token naming the path as it was when
+ * the editor opened, and returns it unchanged with every save. Left alone, the
+ * next autosave would recreate the old name beside the new one.
+ */
+router.post(
+  '/onlyoffice/rename',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    const sessionId = req.body?.sessionId || '';
+    if (!relativePath || typeof sessionId !== 'string' || !sessionId) {
+      throw new ValidationError('A valid ONLYOFFICE editing session is required.');
+    }
+
+    // Only the session that opened this document may rename it from inside the
+    // editor, and only sessions allowed to write ever get one.
+    const session = getEditorSession(req, sessionId, relativePath);
+
+    const parentPath = path.posix.dirname(relativePath);
+    const renamed = await renameEntry({
+      context: { user: req.user, guestSession: req.guestSession },
+      parentRelative: parentPath === '.' ? '' : parentPath,
+      currentName: path.posix.basename(relativePath),
+      newName: req.body?.newName,
+    });
+
+    if (renamed.changed) {
+      // Both records follow the file: the session decides where a save lands,
+      // presence decides which row shows as being edited.
+      session.relativePath = renamed.relativePath;
+      session.absolutePath = renamed.absolutePath;
+      onlyofficeActivity.rename({
+        from: renamed.previousAbsolutePath,
+        to: renamed.absolutePath,
+      });
+    }
+
+    res.json({ path: renamed.relativePath, name: renamed.name });
   })
 );
 
@@ -748,7 +816,7 @@ router.get(
     // - Fallback to resolving logical path without user for volume-only paths
     let abs = null;
     if (backendCtx) {
-      abs = backendCtx.absolutePath;
+      abs = resolveSaveTarget(backendCtx);
     } else {
       const context = { user: req.user, guestSession: req.guestSession };
       const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
@@ -842,7 +910,7 @@ router.post(
             throw new ForbiddenError('This editing session is read-only.');
           }
           await assertShareStillValid(backendCtx);
-          abs = backendCtx.absolutePath;
+          abs = resolveSaveTarget(backendCtx);
         } else {
           const context = { user: req.user, guestSession: req.guestSession };
           const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);

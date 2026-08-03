@@ -719,6 +719,9 @@
     "transferCancel": "रद्द करें",
     "savedAsHeading": "इस फ़ोल्डर में सहेजा गया",
     "savedAsBody": "{name} को मूल फ़ाइल के बगल में जोड़ा गया।",
-    "saveAsFailed": "{name} को सहेजा नहीं जा सका"
+    "saveAsFailed": "{name} को सहेजा नहीं जा सका",
+    "renamedHeading": "नाम बदला गया",
+    "renamedBody": "दस्तावेज़ का नाम अब {name} है।",
+    "renameFailed": "{name} में नाम नहीं बदला जा सका"
   }
 }

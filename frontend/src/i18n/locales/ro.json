@@ -719,6 +719,9 @@
     "transferCancel": "Anulează",
     "savedAsHeading": "Salvat în acest folder",
     "savedAsBody": "{name} a fost adăugat lângă original.",
-    "saveAsFailed": "{name} nu a putut fi salvat"
+    "saveAsFailed": "{name} nu a putut fi salvat",
+    "renamedHeading": "Redenumit",
+    "renamedBody": "Documentul se numește acum {name}.",
+    "renameFailed": "Nu s-a putut redenumi în {name}"
   }
 }

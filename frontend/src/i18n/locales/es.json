@@ -719,6 +719,9 @@
     "transferCancel": "Cancelar",
     "savedAsHeading": "Guardado en esta carpeta",
     "savedAsBody": "{name} se ha añadido junto al original.",
-    "saveAsFailed": "No se ha podido guardar {name}"
+    "saveAsFailed": "No se ha podido guardar {name}",
+    "renamedHeading": "Renombrado",
+    "renamedBody": "El documento se llama ahora {name}.",
+    "renameFailed": "No se ha podido renombrar a {name}"
   }
 }

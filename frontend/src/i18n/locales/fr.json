@@ -719,6 +719,9 @@
     "transferCancel": "Annuler",
     "savedAsHeading": "Enregistré dans ce dossier",
     "savedAsBody": "{name} a été ajouté à côté de l’original.",
-    "saveAsFailed": "Impossible d’enregistrer {name}"
+    "saveAsFailed": "Impossible d’enregistrer {name}",
+    "renamedHeading": "Renommé",
+    "renamedBody": "Le document s’appelle maintenant {name}.",
+    "renameFailed": "Impossible de renommer en {name}"
   }
 }

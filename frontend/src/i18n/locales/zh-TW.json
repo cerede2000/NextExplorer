@@ -719,6 +719,9 @@
     "transferCancel": "取消",
     "savedAsHeading": "已儲存到此資料夾",
     "savedAsBody": "{name} 已新增至原檔案旁。",
-    "saveAsFailed": "無法儲存 {name}"
+    "saveAsFailed": "無法儲存 {name}",
+    "renamedHeading": "已重新命名",
+    "renamedBody": "文件現在名為 {name}。",
+    "renameFailed": "無法重新命名為 {name}"
   }
 }

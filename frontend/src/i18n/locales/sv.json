@@ -719,6 +719,9 @@
     "transferCancel": "Avbryt",
     "savedAsHeading": "Sparad i den här mappen",
     "savedAsBody": "{name} lades till bredvid originalet.",
-    "saveAsFailed": "Det gick inte att spara {name}"
+    "saveAsFailed": "Det gick inte att spara {name}",
+    "renamedHeading": "Namnet ändrat",
+    "renamedBody": "Dokumentet heter nu {name}.",
+    "renameFailed": "Det gick inte att byta namn till {name}"
   }
 }
