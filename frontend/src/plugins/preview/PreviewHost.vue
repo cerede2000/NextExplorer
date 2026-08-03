@@ -73,14 +73,30 @@
 
           <!-- Content -->
           <main class="flex-1 overflow-hidden bg-neutral-50 dark:bg-zinc-950/40">
-            <!-- Minimal floating close button -->
+            <!--
+              Minimal floating close button.
+
+              Sized and placed to sit over the editor's own logo in the top left
+              corner, hiding it: the right-hand side belongs to the editor's
+              toolbar, where a floating button sat among real controls and read
+              as one of them. The offset was trimmed against the running editor
+              rather than computed, so adjust it the same way. Any larger and it
+              spills onto the File menu underneath.
+
+              Solid fill in the app's primary blue with a white ring, so it
+              stays visible against a toolbar that is light in one theme and
+              dark in the other — the previous translucent grey disappeared into
+              both.
+            -->
             <button
               v-if="isMinimal"
               type="button"
-              class="absolute right-12 top-0 z-2100 rounded-md bg-black/50 p-1 text-white shadow-sm transition hover:bg-black/70"
+              :title="$t('common.close')"
+              :aria-label="$t('common.close')"
+              class="absolute left-1.75 top-0.5 z-2100 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md ring-1 ring-white/80 transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:ring-zinc-900/80"
               @click="handleClose"
             >
-              <XMarkIcon class="h-5 w-5" />
+              <XMarkSolidIcon class="h-4 w-4" />
             </button>
 
             <component v-if="component" :is="component" v-bind="activeItem" class="h-full" />
@@ -106,6 +122,9 @@ import {
   PencilSquareIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/vue/24/outline';
+// Solid, only for the floating button: an outline glyph on a filled circle
+// reads as thin at that size.
+import { XMarkIcon as XMarkSolidIcon } from '@heroicons/vue/24/solid';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 
