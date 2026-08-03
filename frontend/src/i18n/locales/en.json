@@ -719,6 +719,9 @@
     "transferCancel": "Cancel",
     "savedAsHeading": "Saved to this folder",
     "savedAsBody": "{name} was added next to the original.",
-    "saveAsFailed": "Could not save {name}"
+    "saveAsFailed": "Could not save {name}",
+    "renamedHeading": "Renamed",
+    "renamedBody": "The document is now called {name}.",
+    "renameFailed": "Could not rename to {name}"
   }
 }

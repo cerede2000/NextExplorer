@@ -109,6 +109,32 @@ const touch = ({ absolutePath, sessionId, user }) => {
   return true;
 };
 
+/**
+ * Follow a document that was renamed while open.
+ *
+ * Presence is keyed by path, so without this the old name would keep showing
+ * as being edited until it expired, and the new one would show nothing.
+ */
+const rename = ({ from, to }) => {
+  if (!from || !to) return;
+  const fromKey = keyFor(from);
+  const entry = sessionsByPath.get(fromKey);
+  if (!entry) return;
+
+  sessionsByPath.delete(fromKey);
+  const target = getEntry(to, true);
+  for (const [sessionId, session] of entry.sessions) {
+    target.sessions.set(sessionId, session);
+  }
+  target.documentServerUsers = [
+    ...new Set([...target.documentServerUsers, ...entry.documentServerUsers]),
+  ];
+  target.documentServerSeenAt = Math.max(target.documentServerSeenAt, entry.documentServerSeenAt);
+
+  notifyActivityChange();
+  scheduleExpirationCheck();
+};
+
 const close = ({ absolutePath, sessionId }) => {
   const entry = getEntry(absolutePath);
   if (!entry) return;
@@ -207,6 +233,7 @@ const get = (absolutePath) => {
 
 module.exports = {
   touch,
+  rename,
   close,
   release,
   updateDocumentServerUsers,

@@ -42,6 +42,25 @@ export async function saveOnlyOfficeDocumentAs(path, { url, title } = {}) {
   });
 }
 
+/**
+ * Rename the open document from the editor's title bar.
+ *
+ * Goes through the ONLYOFFICE route rather than the generic rename so the
+ * editing session follows the file; a save arriving afterwards would otherwise
+ * recreate the old name.
+ */
+export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId || !newName) {
+    throw new Error('Path, session and new name are required.');
+  }
+
+  return requestJson('/api/onlyoffice/rename', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId, newName }),
+  });
+}
+
 export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !sessionId) return { active: false };

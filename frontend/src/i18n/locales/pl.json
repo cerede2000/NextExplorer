@@ -719,6 +719,9 @@
     "transferCancel": "Anuluj",
     "savedAsHeading": "Zapisano w tym folderze",
     "savedAsBody": "{name} został dodany obok oryginału.",
-    "saveAsFailed": "Nie można zapisać {name}"
+    "saveAsFailed": "Nie można zapisać {name}",
+    "renamedHeading": "Zmieniono nazwę",
+    "renamedBody": "Dokument nazywa się teraz {name}.",
+    "renameFailed": "Nie można zmienić nazwy na {name}"
   }
 }

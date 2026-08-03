@@ -719,6 +719,9 @@
     "transferCancel": "취소",
     "savedAsHeading": "이 폴더에 저장됨",
     "savedAsBody": "{name}이(가) 원본 옆에 추가되었습니다.",
-    "saveAsFailed": "{name}을(를) 저장하지 못했습니다"
+    "saveAsFailed": "{name}을(를) 저장하지 못했습니다",
+    "renamedHeading": "이름 변경됨",
+    "renamedBody": "문서 이름이 {name}(으)로 바뀌었습니다.",
+    "renameFailed": "{name}(으)로 이름을 바꾸지 못했습니다"
   }
 }

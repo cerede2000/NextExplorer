@@ -50,14 +50,17 @@ export const onlyofficePreviewPlugin = (extensions) => ({
   // reliable without making the editor visibly wait for a status-6 callback.
   onBeforeClose: async (context) => {
     const sessionId = context?.previewState?.forceSaveSessionId;
-    if (!context?.filePath || !sessionId) return;
+    // The document may have been renamed from the editor's title bar, in which
+    // case the context still names the file the preview was opened on.
+    const filePath = context?.previewState?.documentPath || context?.filePath;
+    if (!filePath || !sessionId) return;
 
     const request = context.previewState.requestForceSave
       ? context.previewState.requestForceSave({ reason: 'close' })
-      : requestOnlyOfficeForceSave(context.filePath, { sessionId, reason: 'close' });
+      : requestOnlyOfficeForceSave(filePath, { sessionId, reason: 'close' });
 
     await Promise.race([Promise.resolve(request).catch(() => {}), wait(CLOSE_REQUEST_GRACE_MS)]);
-    void closeOnlyOfficeSession(context.filePath, { sessionId }).catch(() => {});
+    void closeOnlyOfficeSession(filePath, { sessionId }).catch(() => {});
   },
 
   actions: (context) => [
