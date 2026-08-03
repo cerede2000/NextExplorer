@@ -171,7 +171,16 @@ const cleanupExpiredEditorSessions = () => {
   }
 };
 
-const createEditorSession = (req, relativePath, key, absolutePath) => {
+/**
+ * Presence is deliberately not recorded here.
+ *
+ * This runs when the editor asks for its configuration, which says nothing
+ * about whether the document will open. A file the editor then refused — a
+ * drawing announced with the wrong editor, say — was still displayed as being
+ * edited, by everyone, until the session expired. The client reports presence
+ * once ONLYOFFICE says the document is ready, through the heartbeat below.
+ */
+const createEditorSession = (req, relativePath, key) => {
   cleanupExpiredEditorSessions();
   const sessionId = crypto.randomUUID();
   const owner = getSessionOwner(req);
@@ -181,18 +190,18 @@ const createEditorSession = (req, relativePath, key, absolutePath) => {
     ...owner,
     expiresAt: Date.now() + EDITOR_SESSION_TTL_MS,
   });
-  onlyofficeActivity.open({
-    absolutePath,
-    sessionId,
-    user: {
-      id: owner.userId || (owner.guestSessionId ? `guest_${owner.guestSessionId}` : null),
-      name:
-        req.user?.displayName ||
-        req.user?.username ||
-        (owner.guestSessionId ? 'Invité' : 'Utilisateur'),
-    },
-  });
   return sessionId;
+};
+
+const describeSessionUser = (req) => {
+  const owner = getSessionOwner(req);
+  return {
+    id: owner.userId || (owner.guestSessionId ? `guest_${owner.guestSessionId}` : null),
+    name:
+      req.user?.displayName ||
+      req.user?.username ||
+      (owner.guestSessionId ? 'Invité' : 'Utilisateur'),
+  };
 };
 
 const getEditorSession = (req, sessionId, relativePath) => {
@@ -416,7 +425,7 @@ router.post(
     const key = buildDocumentKey(relativePath, stat, documentType);
 
     // canEdit is decided above, before the backend token is signed.
-    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
+    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key) : null;
 
     const config = {
       documentType, // word | cell | slide | pdf | diagram
@@ -493,7 +502,13 @@ router.post(
     const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
     getEditorSession(req, sessionId, relativePath);
-    const active = onlyofficeActivity.heartbeat({ absolutePath: resolved.absolutePath, sessionId });
+    // The client starts beating once ONLYOFFICE reports the document ready, so
+    // the first beat is what declares the document open.
+    const active = onlyofficeActivity.touch({
+      absolutePath: resolved.absolutePath,
+      sessionId,
+      user: describeSessionUser(req),
+    });
     res.json({ active });
   })
 );

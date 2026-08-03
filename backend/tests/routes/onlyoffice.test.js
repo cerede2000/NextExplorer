@@ -140,10 +140,11 @@ describe('ONLYOFFICE routes', () => {
     expect(initialActivityVersion.status).toBe(200);
     expect(initialActivityVersion.body.version).toEqual(expect.any(Number));
 
-    const liveActivityUpdate = request(app)
-      .get(`/api/onlyoffice/activity-version?since=${initialActivityVersion.body.version}`)
-      .then((response) => response);
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    // Asking for a configuration says nothing about whether the document will
+    // open, so it must not announce presence — a file the editor then refuses
+    // would otherwise be shown to everyone as being edited until it expired.
+    // The key still has to be stable, so reopening an untouched document reuses
+    // the Document Server's cache.
     const secondConfigResponse = await request(app)
       .post('/api/onlyoffice/config')
       .send({ path: filename });
@@ -151,10 +152,16 @@ describe('ONLYOFFICE routes', () => {
     expect(secondConfigResponse.body.config.document.key).toBe(
       configResponse.body.config.document.key
     );
-    const activityUpdate = await liveActivityUpdate;
-    expect(activityUpdate.status).toBe(200);
-    expect(activityUpdate.body).toMatchObject({ changed: true });
-    expect(activityUpdate.body.version).toBeGreaterThan(initialActivityVersion.body.version);
+    const afterSecondConfig = await request(app).get('/api/onlyoffice/activity-version');
+    expect(afterSecondConfig.body.version).toBe(initialActivityVersion.body.version);
+
+    // The heartbeat declares the document open. The client starts it when
+    // ONLYOFFICE reports the document ready, which is the only point at which
+    // the document is known to have opened.
+    const liveActivityUpdate = request(app)
+      .get(`/api/onlyoffice/activity-version?since=${initialActivityVersion.body.version}`)
+      .then((response) => response);
+    await new Promise((resolve) => setTimeout(resolve, 5));
 
     const heartbeatResponse = await request(app).post('/api/onlyoffice/session-heartbeat').send({
       path: filename,
@@ -162,6 +169,11 @@ describe('ONLYOFFICE routes', () => {
     });
     expect(heartbeatResponse.status).toBe(200);
     expect(heartbeatResponse.body).toEqual({ active: true });
+
+    const activityUpdate = await liveActivityUpdate;
+    expect(activityUpdate.status).toBe(200);
+    expect(activityUpdate.body).toMatchObject({ changed: true });
+    expect(activityUpdate.body.version).toBeGreaterThan(initialActivityVersion.body.version);
 
     const forceSaveResponse = await request(app)
       .post('/api/onlyoffice/force-save')
