@@ -45,13 +45,7 @@ describe('ONLYOFFICE save as', () => {
         'src/routes/onlyoffice',
         'src/services/accessManager',
         'src/services/folderSizeHooks',
-        'src/services/onlyofficeActivityService',
         'src/middleware/errorHandler',
-        // These read the configured directories at load time. Left cached, the
-        // second test in this file would still be resolving paths against the
-        // first one's temporary volume, which by then no longer exists.
-        'src/utils/pathUtils',
-        'src/utils/fsUtils',
       ],
       env: {
         PUBLIC_URL: 'https://files.example.com',

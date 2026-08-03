@@ -48,15 +48,8 @@ describe('ONLYOFFICE rename', () => {
       modules: [
         'src/routes/onlyoffice',
         'src/services/accessManager',
-        'src/services/authorizationService',
         'src/services/folderSizeHooks',
-        'src/services/onlyofficeActivityService',
-        'src/services/renameService',
         'src/middleware/errorHandler',
-        // Read the configured directories at load time; left cached, the second
-        // test resolves paths against the first one's temporary volume.
-        'src/utils/pathUtils',
-        'src/utils/fsUtils',
       ],
       env: {
         PUBLIC_URL: 'https://files.example.com',

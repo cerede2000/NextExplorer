@@ -12,7 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const REPO_ROOT = path.join(__dirname, '..', '..');
-const DEFAULT_MODULES = ['src/config/env', 'src/config/index', 'src/services/db'];
+const SRC_ROOT = path.join(REPO_ROOT, 'src') + path.sep;
 
 /**
  * Override environment variables and return a restore function.
@@ -72,6 +72,26 @@ const clearModulesCache = (modules) => {
 };
 
 /**
+ * Drop every module of the application from the require cache.
+ *
+ * Most of them read the configured directories once, at load time, and keep
+ * what they computed. A test that only cleared the modules it names therefore
+ * ran against the *first* test's temporary volume as soon as a helper it never
+ * mentioned sat in between — pathUtils, fsUtils, authorizationService have all
+ * played that role. The failures were the worst kind: green in isolation, red
+ * in a suite, and pointing at the assertion rather than the cause.
+ *
+ * Clearing the whole tree removes the guessing. It costs a reload of whatever
+ * the test actually requires afterwards, which is a few milliseconds, and it
+ * cannot be forgotten.
+ */
+const clearApplicationModules = () => {
+  for (const resolved of Object.keys(require.cache)) {
+    if (resolved.startsWith(SRC_ROOT)) delete require.cache[resolved];
+  }
+};
+
+/**
  * Create temporary directories for test isolation.
  * @param {string} tag - Prefix for the temp directory name
  * @returns {Promise<{tmpRoot: string, configDir: string, cacheDir: string, volumeDir: string}>}
@@ -92,18 +112,18 @@ const createTempDirs = async (tag = 'backend-tests-') => {
 /**
  * Set up a complete test environment with temp dirs and env overrides.
  *
+ * Every application module is dropped from the require cache, so nothing
+ * carries the previous test's directories over. `modules` is therefore no
+ * longer needed and is kept only for callers that still pass it.
+ *
  * @param {Object} options - Setup options
  * @param {string} options.tag - Prefix for temp directory
- * @param {string[]} options.modules - Additional modules to clear from cache
+ * @param {string[]} [options.modules] - Unused; all application modules are cleared
  * @param {Record<string, string>} options.env - Additional env vars to set
  * @returns {Promise<TestEnvContext>} Context object with cleanup and helper methods
  *
  * @example
- * const env = await setupTestEnv({
- *   tag: 'my-test-',
- *   modules: ['src/services/myService'],
- *   env: { MY_VAR: 'value' }
- * });
+ * const env = await setupTestEnv({ tag: 'my-test-', env: { MY_VAR: 'value' } });
  *
  * const myService = env.requireFresh('src/services/myService');
  * // ... run tests ...
@@ -121,9 +141,9 @@ const setupTestEnv = async ({ tag, modules = [], env = {} } = {}) => {
   };
   const restoreEnv = overrideEnv(envOverrides);
 
-  const modulesToClear = Array.from(new Set([...DEFAULT_MODULES, ...modules]));
-  const clearAll = () => modulesToClear.forEach(clearModuleCache);
-  clearAll();
+  // `modules` is accepted for compatibility; clearing everything covers it.
+  void modules;
+  clearApplicationModules();
 
   return {
     ...dirs,
@@ -134,7 +154,7 @@ const setupTestEnv = async ({ tag, modules = [], env = {} } = {}) => {
      */
     cleanup: async () => {
       restoreEnv();
-      clearAll();
+      clearApplicationModules();
       await fs.rm(dirs.tmpRoot, { recursive: true, force: true });
     },
     /**
@@ -200,6 +220,7 @@ module.exports = {
   overrideEnv,
   clearModuleCache,
   clearModulesCache,
+  clearApplicationModules,
   createTempDirs,
   setupTestEnv,
   createTestApp,
