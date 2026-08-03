@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 
 const { onlyoffice, public: publicConfig } = require('../config/index');
 const { toExtension, resolveMimeType } = require('../utils/fileTypes');
+const { getDocumentType } = require('../utils/onlyofficeDocumentTypes');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
@@ -26,10 +27,6 @@ const editorSessions = new Map();
 const EDITOR_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const FORCE_SAVE_RETRY_DELAYS_MS = [250, 750, 1500, 2500];
 
-// Helpers
-const SUPPORTED_TEXT = new Set(['docx', 'doc', 'odt', 'rtf', 'txt']);
-const SUPPORTED_SHEET = new Set(['xlsx', 'xls', 'ods', 'csv']);
-const SUPPORTED_PRESENTATION = new Set(['pptx', 'ppt', 'odp']);
 
 // The backend token is signed with the same secret as the Document Server
 // tokens, so it carries a type claim to keep the two apart, and a lifetime
@@ -117,13 +114,6 @@ const assertShareStillValid = async (backendCtx) => {
   }
 };
 
-const getDocumentType = (ext) => {
-  // ONLYOFFICE expects: 'word' | 'cell' | 'slide'
-  if (SUPPORTED_TEXT.has(ext)) return 'word';
-  if (SUPPORTED_SHEET.has(ext)) return 'cell';
-  if (SUPPORTED_PRESENTATION.has(ext)) return 'slide';
-  return 'word';
-};
 
 
 const buildDocumentKey = (relativePath, stat) =>
@@ -378,6 +368,14 @@ router.post(
     const filename = path.basename(abs);
     const ext = toExtension(filename);
     const documentType = getDocumentType(ext);
+    if (!documentType) {
+      // Refuse here rather than let the Document Server open it with the wrong
+      // editor: the answer it gives back names the file, never the setting.
+      throw new ValidationError(
+        `ONLYOFFICE has no editor for .${ext} files. Remove it from ONLYOFFICE_FILE_EXTENSIONS, ` +
+          'or open it with Collabora instead.'
+      );
+    }
 
     const fileUrl = new URL(`/api/onlyoffice/file`, publicConfig.url);
     fileUrl.searchParams.set('path', relativePath);
@@ -415,7 +413,7 @@ router.post(
     const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
 
     const config = {
-      documentType, // text | spreadsheet | presentation
+      documentType, // word | cell | slide | pdf | diagram
       type: 'desktop',
       document: {
         fileType: ext,
