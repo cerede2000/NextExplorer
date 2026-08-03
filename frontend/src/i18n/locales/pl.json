@@ -716,6 +716,9 @@
     "transferHeading": "Plik jest edytowany",
     "transferBody": "Ten plik jest otwarty w OnlyOffice. Kontynuowanie może zakłócić trwający zapis. Czy chcesz kontynuować?",
     "transferConfirm": "Kontynuuj",
-    "transferCancel": "Anuluj"
+    "transferCancel": "Anuluj",
+    "savedAsHeading": "Zapisano w tym folderze",
+    "savedAsBody": "{name} został dodany obok oryginału.",
+    "saveAsFailed": "Nie można zapisać {name}"
   }
 }

@@ -716,6 +716,9 @@
     "transferHeading": "Datei wird bearbeitet",
     "transferBody": "Diese Datei ist in OnlyOffice geöffnet. Fortfahren kann einen laufenden Speichervorgang stören. Möchten Sie fortfahren?",
     "transferConfirm": "Fortfahren",
-    "transferCancel": "Abbrechen"
+    "transferCancel": "Abbrechen",
+    "savedAsHeading": "In diesem Ordner gespeichert",
+    "savedAsBody": "{name} wurde neben dem Original abgelegt.",
+    "saveAsFailed": "{name} konnte nicht gespeichert werden"
   }
 }

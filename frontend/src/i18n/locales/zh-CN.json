@@ -716,6 +716,9 @@
     "transferHeading": "文件正在编辑中",
     "transferBody": "此文件已在 OnlyOffice 中打开。继续可能会干扰正在进行的保存。是否继续？",
     "transferConfirm": "继续",
-    "transferCancel": "取消"
+    "transferCancel": "取消",
+    "savedAsHeading": "已保存到此文件夹",
+    "savedAsBody": "{name} 已添加到原文件旁边。",
+    "saveAsFailed": "无法保存 {name}"
   }
 }

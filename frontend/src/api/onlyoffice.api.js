@@ -26,6 +26,22 @@ export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'cl
   });
 }
 
+/**
+ * Save the open document under a new name or format.
+ *
+ * ONLYOFFICE has already converted it and gives us a URL to fetch the result
+ * from; the backend is what pulls it in and writes it beside the original.
+ */
+export async function saveOnlyOfficeDocumentAs(path, { url, title } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !url || !title) throw new Error('Path, url and title are required.');
+
+  return requestJson('/api/onlyoffice/save-as', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, url, title }),
+  });
+}
+
 export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !sessionId) return { active: false };

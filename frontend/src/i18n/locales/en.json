@@ -716,6 +716,9 @@
     "transferHeading": "File is being edited",
     "transferBody": "This file is open in OnlyOffice. Continuing may disturb a save in progress. Do you want to continue?",
     "transferConfirm": "Continue",
-    "transferCancel": "Cancel"
+    "transferCancel": "Cancel",
+    "savedAsHeading": "Saved to this folder",
+    "savedAsBody": "{name} was added next to the original.",
+    "saveAsFailed": "Could not save {name}"
   }
 }

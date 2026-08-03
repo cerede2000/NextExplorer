@@ -716,6 +716,9 @@
     "transferHeading": "फ़ाइल संपादित की जा रही है",
     "transferBody": "यह फ़ाइल OnlyOffice में खुली है। जारी रखने से चल रही सेव प्रक्रिया बाधित हो सकती है। क्या आप जारी रखना चाहते हैं?",
     "transferConfirm": "जारी रखें",
-    "transferCancel": "रद्द करें"
+    "transferCancel": "रद्द करें",
+    "savedAsHeading": "इस फ़ोल्डर में सहेजा गया",
+    "savedAsBody": "{name} को मूल फ़ाइल के बगल में जोड़ा गया।",
+    "saveAsFailed": "{name} को सहेजा नहीं जा सका"
   }
 }

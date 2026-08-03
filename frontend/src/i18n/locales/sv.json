@@ -716,6 +716,9 @@
     "transferHeading": "Filen redigeras",
     "transferBody": "Den här filen är öppen i OnlyOffice. Om du fortsätter kan en pågående sparning störas. Vill du fortsätta?",
     "transferConfirm": "Fortsätt",
-    "transferCancel": "Avbryt"
+    "transferCancel": "Avbryt",
+    "savedAsHeading": "Sparad i den här mappen",
+    "savedAsBody": "{name} lades till bredvid originalet.",
+    "saveAsFailed": "Det gick inte att spara {name}"
   }
 }

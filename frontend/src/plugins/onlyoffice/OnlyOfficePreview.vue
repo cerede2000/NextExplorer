@@ -27,11 +27,15 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue';
 import { DocumentEditor } from '@onlyoffice/document-editor-vue';
+import { useI18n } from 'vue-i18n';
 import {
   fetchOnlyOfficeConfig,
   heartbeatOnlyOfficeSession,
   requestOnlyOfficeForceSave,
+  saveOnlyOfficeDocumentAs,
 } from '@/api';
+import { useFileStore } from '@/stores/fileStore';
+import { useNotificationsStore } from '@/stores/notifications';
 import logger from '@/utils/logger';
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
@@ -48,6 +52,9 @@ const props = defineProps({
 // previewState belongs to the preview manager and intentionally carries the
 // small amount of state needed by the plugin close hook.
 const previewState = props.previewState;
+const { t } = useI18n();
+const fileStore = useFileStore();
+const notifications = useNotificationsStore();
 const serverUrl = ref(null);
 const config = ref(null);
 const error = ref(null);
@@ -87,6 +94,39 @@ const startSessionHeartbeat = () => {
   const heartbeat = () => heartbeatOnlyOfficeSession(props.filePath, { sessionId }).catch(() => {});
   heartbeat();
   sessionHeartbeatTimer = setInterval(heartbeat, 60_000);
+};
+
+/**
+ * Fetch the converted document through the backend and land it beside the
+ * original. The editor stays open on the document it already had — this saves a
+ * copy, it does not switch to it.
+ */
+const saveDocumentAs = async (data) => {
+  const title = data?.title;
+  const url = data?.url;
+  if (!props.filePath || !title || !url) {
+    logger.warn('ONLYOFFICE save-as request was incomplete', { title: title || null });
+    return;
+  }
+
+  try {
+    const saved = await saveOnlyOfficeDocumentAs(props.filePath, { url, title });
+    notifications.addNotification({
+      type: 'success',
+      heading: t('onlyoffice.savedAsHeading'),
+      body: t('onlyoffice.savedAsBody', { name: saved?.name || title }),
+    });
+    // The file landed in the folder being browsed, so show it without waiting
+    // for the next navigation.
+    await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+  } catch (e) {
+    logger.error('ONLYOFFICE save-as failed', { path: props.filePath, err: e });
+    notifications.addNotification({
+      type: 'error',
+      heading: t('onlyoffice.saveAsFailed', { name: title }),
+      body: e?.message || '',
+    });
+  }
 };
 
 const requestForceSave = async ({ reason = 'auto' } = {}) => {
@@ -177,6 +217,13 @@ const load = async () => {
           code: event?.data?.warningCode ?? null,
           description: event?.data?.warningDescription || null,
         });
+      },
+
+      // ONLYOFFICE converts the document and hands over a URL; writing it is
+      // ours to do. Without this the menu entry is hidden and Download — into
+      // the browser's downloads, not the volume — is the only way out.
+      onRequestSaveAs(event) {
+        void saveDocumentAs(event?.data);
       },
 
       onDocumentStateChange(event) {

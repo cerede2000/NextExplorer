@@ -716,6 +716,9 @@
     "transferHeading": "Файл редактируется",
     "transferBody": "Этот файл открыт в OnlyOffice. Продолжение может нарушить текущее сохранение. Хотите продолжить?",
     "transferConfirm": "Продолжить",
-    "transferCancel": "Отмена"
+    "transferCancel": "Отмена",
+    "savedAsHeading": "Сохранено в эту папку",
+    "savedAsBody": "{name} добавлен рядом с оригиналом.",
+    "saveAsFailed": "Не удалось сохранить {name}"
   }
 }

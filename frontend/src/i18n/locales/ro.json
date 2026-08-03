@@ -716,6 +716,9 @@
     "transferHeading": "Fișierul este în curs de editare",
     "transferBody": "Acest fișier este deschis în OnlyOffice. Continuarea poate perturba o salvare în curs. Vrei să continui?",
     "transferConfirm": "Continuă",
-    "transferCancel": "Anulează"
+    "transferCancel": "Anulează",
+    "savedAsHeading": "Salvat în acest folder",
+    "savedAsBody": "{name} a fost adăugat lângă original.",
+    "saveAsFailed": "{name} nu a putut fi salvat"
   }
 }

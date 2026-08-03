@@ -716,6 +716,9 @@
     "transferHeading": "El archivo se está editando",
     "transferBody": "Este archivo está abierto en OnlyOffice. Continuar puede interrumpir un guardado en curso. ¿Quieres continuar?",
     "transferConfirm": "Continuar",
-    "transferCancel": "Cancelar"
+    "transferCancel": "Cancelar",
+    "savedAsHeading": "Guardado en esta carpeta",
+    "savedAsBody": "{name} se ha añadido junto al original.",
+    "saveAsFailed": "No se ha podido guardar {name}"
   }
 }
