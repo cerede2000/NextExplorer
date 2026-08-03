@@ -81,23 +81,30 @@ const getEntry = (absolutePath, create = false) => {
   return entry;
 };
 
-const open = ({ absolutePath, sessionId, user }) => {
-  if (!absolutePath || !sessionId) return;
+/**
+ * Record that someone has this document open, and keep that record alive.
+ *
+ * One call for both because presence starts when the editor reports the
+ * document open, not when its configuration is requested — a document that
+ * failed to open used to be shown as being edited, since the marker was placed
+ * before anyone knew whether the editor would succeed. The first call from a
+ * session creates the record, later ones only extend it.
+ *
+ * Only the first one notifies: a heartbeat every sixty seconds must not wake
+ * every browser waiting on a presence change.
+ */
+const touch = ({ absolutePath, sessionId, user }) => {
+  if (!absolutePath || !sessionId) return false;
   const entry = getEntry(absolutePath, true);
+  const existing = entry.sessions.get(sessionId);
+
   entry.sessions.set(sessionId, {
-    userId: user?.id ? String(user.id) : null,
-    name: user?.name || 'Utilisateur',
+    userId: existing?.userId ?? (user?.id ? String(user.id) : null),
+    name: existing?.name || user?.name || 'Utilisateur',
     expiresAt: Date.now() + SESSION_TTL_MS,
   });
-  notifyActivityChange();
-  scheduleExpirationCheck();
-};
 
-const heartbeat = ({ absolutePath, sessionId }) => {
-  const entry = getEntry(absolutePath);
-  const session = entry?.sessions.get(sessionId);
-  if (!session) return false;
-  session.expiresAt = Date.now() + SESSION_TTL_MS;
+  if (!existing) notifyActivityChange();
   scheduleExpirationCheck();
   return true;
 };
@@ -199,8 +206,7 @@ const get = (absolutePath) => {
 };
 
 module.exports = {
-  open,
-  heartbeat,
+  touch,
   close,
   release,
   updateDocumentServerUsers,

@@ -145,11 +145,40 @@ const load = async () => {
       autoSaveIntervalMs: configuredAutoSaveIntervalMs,
     } = await fetchOnlyOfficeConfig(path, 'edit');
     previewState.forceSaveSessionId = forceSaveSessionId || null;
-    startSessionHeartbeat();
     autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     previewState.requestForceSave = requestForceSave;
     cfg.events = {
       ...cfg.events,
+
+      // Presence starts here, not when the configuration was fetched. Asking
+      // for a configuration says nothing about whether the document opens, so
+      // a file the editor refused used to be shown to everyone as being edited
+      // until the session expired.
+      onDocumentReady() {
+        logger.debug('ONLYOFFICE document ready', { path: props.filePath });
+        startSessionHeartbeat();
+      },
+
+      // ONLYOFFICE reports failures to whoever asks. Nobody did, so a document
+      // that would not open showed a dialog to the user and left nothing
+      // behind — the reason had to be reconstructed from the Document Server's
+      // own logs, when it had written any.
+      onError(event) {
+        logger.error('ONLYOFFICE editor error', {
+          path: props.filePath,
+          code: event?.data?.errorCode ?? null,
+          description: event?.data?.errorDescription || null,
+        });
+      },
+
+      onWarning(event) {
+        logger.warn('ONLYOFFICE editor warning', {
+          path: props.filePath,
+          code: event?.data?.warningCode ?? null,
+          description: event?.data?.warningDescription || null,
+        });
+      },
+
       onDocumentStateChange(event) {
         if (typeof event?.data !== 'boolean') return;
         const pending = event.data;
