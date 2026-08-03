@@ -10,7 +10,12 @@ const jwt = require('jsonwebtoken');
 const { onlyoffice, public: publicConfig } = require('../config/index');
 const { toExtension, resolveMimeType } = require('../utils/fileTypes');
 const { getDocumentType } = require('../utils/onlyofficeDocumentTypes');
-const { normalizeRelativePath } = require('../utils/pathUtils');
+const {
+  normalizeRelativePath,
+  combineRelativePath,
+  ensureValidName,
+  findAvailableName,
+} = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
@@ -115,6 +120,31 @@ const assertShareStillValid = async (backendCtx) => {
 };
 
 
+
+/**
+ * Pull a document the Document Server prepared into a file, atomically.
+ *
+ * Written to a temporary name in the destination directory and renamed over
+ * the target, so a slow or failed response never leaves a valid document
+ * truncated to nothing. Used both when saving an edited document back over
+ * itself and when saving one under a new name.
+ */
+const downloadDocumentTo = async (downloadUrl, targetPath, mode = 0o600) => {
+  const temporaryPath = path.join(
+    path.dirname(targetPath),
+    `.${path.basename(targetPath)}.onlyoffice-${crypto.randomUUID()}.tmp`
+  );
+
+  try {
+    const response = await axios.get(downloadUrl, { responseType: 'stream', timeout: 30000 });
+    await pipeline(response.data, fs.createWriteStream(temporaryPath, { flags: 'wx', mode }));
+    // The write stream's mode is subject to the umask; this is not.
+    await fsp.chmod(temporaryPath, mode);
+    await fsp.rename(temporaryPath, targetPath);
+  } finally {
+    await fsp.unlink(temporaryPath).catch(() => {});
+  }
+};
 
 const buildDocumentKey = (relativePath, stat, documentType) =>
   crypto
@@ -513,6 +543,78 @@ router.post(
   })
 );
 
+/**
+ * "Save as" from inside the editor.
+ *
+ * ONLYOFFICE does not write anything itself: it converts the document, then
+ * hands the integration a URL to fetch the result from. Without a route to
+ * receive it the menu entry is hidden, which left Download as the only way out
+ * — through the browser, into the user's downloads, not their volume.
+ *
+ * Deliberately not tied to an editing session: saving a copy is not a change to
+ * the original, so viewers may do it too. What it does require is the right to
+ * read the document it came from and to write into the folder it lands in,
+ * exactly as an upload would.
+ */
+router.post(
+  '/onlyoffice/save-as',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) {
+      throw new ValidationError('A valid file path is required.');
+    }
+
+    // The URL comes from the editor, so it is only ever fetched when it points
+    // at the configured Document Server — same rule as the save callback.
+    const downloadUrl = ensureAllowedDownloadUrl(req.body?.url);
+
+    let desiredName;
+    try {
+      // Refused, not trimmed down to its last segment. A title carrying a
+      // separator means the request is not what this route is for, and quietly
+      // reinterpreting it would turn "../invoice.pdf" into a silent success in
+      // a folder the caller never named.
+      desiredName = ensureValidName(String(req.body?.title || ''));
+    } catch (error) {
+      throw new ValidationError(error.message);
+    }
+
+    const context = { user: req.user, guestSession: req.guestSession };
+
+    // Reading the source is what entitles someone to save a copy of it.
+    const { accessInfo: sourceAccess } = await resolvePathWithAccess(context, relativePath);
+    if (!sourceAccess?.canAccess || !sourceAccess.canRead) {
+      throw new ForbiddenError(sourceAccess?.denialReason || 'Access denied.');
+    }
+
+    const parentPath = path.posix.dirname(relativePath);
+    const targetFolder = parentPath === '.' ? '' : parentPath;
+    const { accessInfo: folderAccess, resolved: folder } = await resolvePathWithAccess(
+      context,
+      targetFolder
+    );
+    if (!folderAccess?.canAccess || !folderAccess.canWrite) {
+      throw new ForbiddenError(folderAccess?.denialReason || 'Access denied.');
+    }
+
+    // A copy never overwrites: an existing name gets the same "(1)" treatment
+    // as everywhere else in the app.
+    const name = await findAvailableName(folder.absolutePath, desiredName);
+    const absolute = path.join(folder.absolutePath, name);
+
+    await ensureDir(folder.absolutePath);
+    await downloadDocumentTo(downloadUrl, absolute);
+
+    const written = await fsp.stat(absolute);
+    await folderSizeHooks.onFileWritten(absolute, written.size);
+
+    const savedPath = combineRelativePath(targetFolder, name);
+    logger.info({ path: savedPath, size: written.size }, 'ONLYOFFICE document saved under a new name');
+
+    res.json({ path: savedPath, name, size: written.size });
+  })
+);
+
 router.post(
   '/onlyoffice/session-close',
   asyncHandler(async (req, res) => {
@@ -763,25 +865,9 @@ router.post(
         } catch {
           // A newly-created document is valid.
         }
-        // Download into the same directory, then atomically replace the
-        // original. A failed or slow Document Server response must never leave
-        // a valid document truncated to 0 bytes.
-        const temporaryPath = path.join(
-          path.dirname(abs),
-          `.${path.basename(abs)}.onlyoffice-${crypto.randomUUID()}.tmp`
-        );
-        const sourceMode = existed ? previousMode : 0o600;
-        try {
-          const response = await axios.get(downloadUrl, { responseType: 'stream', timeout: 30000 });
-          await pipeline(
-            response.data,
-            fs.createWriteStream(temporaryPath, { flags: 'wx', mode: sourceMode })
-          );
-          if (existed) await fsp.chmod(temporaryPath, sourceMode);
-          await fsp.rename(temporaryPath, abs);
-        } finally {
-          await fsp.unlink(temporaryPath).catch(() => {});
-        }
+        // Keep the permissions the document already had; a new one starts
+        // private.
+        await downloadDocumentTo(downloadUrl, abs, existed ? previousMode : 0o600);
         const updated = await fsp.stat(abs);
         if (existed) {
           await folderSizeHooks.onFileReplaced(abs, previousSize, updated.size);
