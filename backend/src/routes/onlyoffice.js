@@ -116,7 +116,7 @@ const assertShareStillValid = async (backendCtx) => {
 
 
 
-const buildDocumentKey = (relativePath, stat) =>
+const buildDocumentKey = (relativePath, stat, documentType) =>
   crypto
     .createHash('sha256')
     .update(relativePath)
@@ -126,6 +126,12 @@ const buildDocumentKey = (relativePath, stat) =>
     .update(String(stat.mtimeMs))
     .update(String(stat.ctimeMs))
     .update(String(stat.size))
+    // The cache is keyed on this alone, and what it holds is the file as one
+    // editor prepared it. An unchanged file opened with a different editor is a
+    // different document: a drawing once opened as text kept answering with
+    // that failed attempt, from cache, long after the mapping was corrected —
+    // no conversion was even retried, so nothing appeared in the logs either.
+    .update(String(documentType))
     .digest('hex');
 
 const getCommandServiceUrl = (key, legacy = false) => {
@@ -407,7 +413,7 @@ router.post(
     }
 
     // Unique key should change when file changes to bust DS cache
-    const key = buildDocumentKey(relativePath, stat);
+    const key = buildDocumentKey(relativePath, stat, documentType);
 
     // canEdit is decided above, before the backend token is signed.
     const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
