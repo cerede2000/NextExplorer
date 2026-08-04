@@ -116,7 +116,11 @@
     "copied": "Copiado",
     "newWordDocument": "Nuevo documento de Word",
     "newSpreadsheet": "Nueva hoja de cálculo de Excel",
-    "newPresentation": "Nueva presentación de PowerPoint"
+    "newPresentation": "Nueva presentación de PowerPoint",
+    "newPdf": "Nuevo documento PDF",
+    "newTextFile": "Nuevo archivo de texto",
+    "newMarkdownFile": "Nuevo archivo Markdown",
+    "newCsvFile": "Nuevo archivo CSV"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "No se pudo crear el documento",
     "defaultDocumentName": "Documento",
     "defaultSpreadsheetName": "Hoja de cálculo",
-    "defaultPresentationName": "Presentación"
+    "defaultPresentationName": "Presentación",
+    "defaultDataName": "Datos"
   },
   "context": {
     "getInfo": "Obtener información",

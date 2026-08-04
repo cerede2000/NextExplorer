@@ -109,6 +109,35 @@ describe('new office document', () => {
     expect(second.body.item.name).toMatch(/^Report \d+\.docx$/);
   });
 
+  it('creates the text formats empty, which is what makes them valid', async () => {
+    // A .txt with nothing in it is a .txt. Giving these a template would be
+    // inventing content nobody asked for.
+    await setup();
+
+    for (const [format, expected] of [
+      ['txt', 'Document.txt'],
+      ['md', 'Document.md'],
+      ['csv', 'Data.csv'],
+    ]) {
+      const response = await create({ path: 'docs', format });
+      expect(response.status).toBe(201);
+      expect(response.body.item.name).toBe(expected);
+
+      const written = await fs.readFile(path.join(env.volumeDir, 'docs', expected));
+      expect(written.length).toBe(0);
+    }
+  });
+
+  it('creates a PDF from a real template, not an empty file', async () => {
+    await setup();
+
+    const response = await create({ path: 'docs', format: 'pdf', name: 'Form' });
+
+    expect(response.status).toBe(201);
+    const written = await fs.readFile(path.join(env.volumeDir, 'docs', 'Form.pdf'));
+    expect(written.subarray(0, 4).toString()).toBe('%PDF');
+  });
+
   it('refuses a format it has no template for', async () => {
     await setup();
 

@@ -116,7 +116,11 @@
     "copied": "Kopiert",
     "newWordDocument": "Neues Word-Dokument",
     "newSpreadsheet": "Neue Excel-Arbeitsmappe",
-    "newPresentation": "Neue PowerPoint-Präsentation"
+    "newPresentation": "Neue PowerPoint-Präsentation",
+    "newPdf": "Neues PDF-Dokument",
+    "newTextFile": "Neue Textdatei",
+    "newMarkdownFile": "Neue Markdown-Datei",
+    "newCsvFile": "Neue CSV-Datei"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "Dokument konnte nicht erstellt werden",
     "defaultDocumentName": "Dokument",
     "defaultSpreadsheetName": "Arbeitsmappe",
-    "defaultPresentationName": "Präsentation"
+    "defaultPresentationName": "Präsentation",
+    "defaultDataName": "Daten"
   },
   "context": {
     "getInfo": "Informationen",

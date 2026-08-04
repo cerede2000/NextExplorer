@@ -116,7 +116,11 @@
     "copied": "Copiat",
     "newWordDocument": "Document Word nou",
     "newSpreadsheet": "Registru Excel nou",
-    "newPresentation": "Prezentare PowerPoint nouă"
+    "newPresentation": "Prezentare PowerPoint nouă",
+    "newPdf": "Document PDF nou",
+    "newTextFile": "Fișier text nou",
+    "newMarkdownFile": "Fișier Markdown nou",
+    "newCsvFile": "Fișier CSV nou"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "Documentul nu a putut fi creat",
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Registru",
-    "defaultPresentationName": "Prezentare"
+    "defaultPresentationName": "Prezentare",
+    "defaultDataName": "Date"
   },
   "context": {
     "getInfo": "Obține informații",

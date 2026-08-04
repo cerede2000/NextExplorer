@@ -116,7 +116,11 @@
     "copied": "Kopierat",
     "newWordDocument": "Nytt Word-dokument",
     "newSpreadsheet": "Ny Excel-arbetsbok",
-    "newPresentation": "Ny PowerPoint-presentation"
+    "newPresentation": "Ny PowerPoint-presentation",
+    "newPdf": "Nytt PDF-dokument",
+    "newTextFile": "Ny textfil",
+    "newMarkdownFile": "Ny Markdown-fil",
+    "newCsvFile": "Ny CSV-fil"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "Det gick inte att skapa dokumentet",
     "defaultDocumentName": "Dokument",
     "defaultSpreadsheetName": "Arbetsbok",
-    "defaultPresentationName": "Presentation"
+    "defaultPresentationName": "Presentation",
+    "defaultDataName": "Data"
   },
   "context": {
     "getInfo": "Hämta info",

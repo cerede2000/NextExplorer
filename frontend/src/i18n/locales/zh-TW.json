@@ -116,7 +116,11 @@
     "copied": "已複製",
     "newWordDocument": "新增 Word 文件",
     "newSpreadsheet": "新增 Excel 活頁簿",
-    "newPresentation": "新增 PowerPoint 簡報"
+    "newPresentation": "新增 PowerPoint 簡報",
+    "newPdf": "新增 PDF 文件",
+    "newTextFile": "新增文字檔",
+    "newMarkdownFile": "新增 Markdown 檔",
+    "newCsvFile": "新增 CSV 檔"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "無法建立文件",
     "defaultDocumentName": "文件",
     "defaultSpreadsheetName": "活頁簿",
-    "defaultPresentationName": "簡報"
+    "defaultPresentationName": "簡報",
+    "defaultDataName": "資料"
   },
   "context": {
     "getInfo": "詳細資訊",
