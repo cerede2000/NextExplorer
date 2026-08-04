@@ -186,6 +186,41 @@ const renameDocument = async (data) => {
   }
 };
 
+/**
+ * Point the running editor at the document as it now stands on disk.
+ *
+ * The Document Server reports the open version as outdated when the file it
+ * was given has been replaced since — another editor saved it, or it was
+ * overwritten from the file list. Fetching a fresh configuration is what
+ * produces a new document key; handing it to `refreshFile` swaps the content
+ * underneath the editor without tearing it down, which a full reload would do
+ * at the cost of the cursor position and the co-editing session.
+ *
+ * The configuration carries a new editing session, so the identifier the
+ * heartbeat and force-save calls quote has to be swapped with it.
+ */
+const refreshDocument = async () => {
+  const path = documentPath.value;
+  if (!path) return;
+
+  const fresh = await fetchOnlyOfficeConfig(path, 'edit', {
+    theme: settings.isDark ? 'dark' : 'light',
+  });
+  previewState.forceSaveSessionId = fresh.forceSaveSessionId || null;
+  autoSaveIntervalMs = Number(fresh.autoSaveIntervalMs) || 0;
+
+  const editor = window.DocEditor?.instances?.[editorId.value];
+  if (typeof editor?.refreshFile !== 'function') {
+    // Older Document Servers have no such method; rebuilding the editor is the
+    // only way left to stop showing a document that no longer exists.
+    await load();
+    return;
+  }
+
+  editor.refreshFile(fresh.config);
+  startSessionHeartbeat();
+};
+
 const requestForceSave = async ({ reason = 'auto' } = {}) => {
   if (reason === 'close') clearAutoSaveTimer();
   const sessionId = previewState.forceSaveSessionId;
@@ -270,6 +305,19 @@ const load = async () => {
       // still runs and the last changes are force-saved on the way out.
       onRequestClose() {
         void previewManager.close();
+      },
+
+      // The document on disk moved on without this editor. Until now nothing
+      // listened, so the stale copy stayed on screen and the next save wrote
+      // over whatever had replaced it.
+      onOutdatedVersion() {
+        logger.debug('ONLYOFFICE reported an outdated document', { path: documentPath.value });
+        void refreshDocument().catch((refreshError) => {
+          logger.error('ONLYOFFICE refresh failed', {
+            path: documentPath.value,
+            err: refreshError,
+          });
+        });
       },
 
       // ONLYOFFICE reports failures to whoever asks. Nobody did, so a document
