@@ -43,16 +43,25 @@ const createUniqueFile = async (parentAbsolute, requestedName, contents = null) 
 };
 
 /**
- * The blank documents a new office file starts from.
+ * What a new document can be created as.
  *
- * Copied from ONLYOFFICE's own templates rather than assembled here: a
- * hand-written OOXML package is only nearly valid, and the editors disagree
- * about which near-misses they will repair.
+ * The office formats start from ONLYOFFICE's own blank templates rather than
+ * from something assembled here: a hand-written OOXML package is only nearly
+ * valid, and the editors disagree about which near-misses they will repair.
+ *
+ * The text formats need no template — an empty .txt is a valid .txt, unlike an
+ * empty .docx — but they belong on the same route because everything else about
+ * creating them is identical, down to the extension the caller must not have to
+ * spell out.
  */
-const OFFICE_TEMPLATES = {
+const DOCUMENT_TEMPLATES = {
   docx: { file: 'new.docx', fallbackName: 'Document.docx' },
   xlsx: { file: 'new.xlsx', fallbackName: 'Spreadsheet.xlsx' },
   pptx: { file: 'new.pptx', fallbackName: 'Presentation.pptx' },
+  pdf: { file: 'new.pdf', fallbackName: 'Document.pdf' },
+  txt: { file: null, fallbackName: 'Document.txt' },
+  md: { file: null, fallbackName: 'Document.md' },
+  csv: { file: null, fallbackName: 'Data.csv' },
 };
 
 const templateDirectory = path.join(__dirname, '..', '..', 'assets', 'office-templates');
@@ -106,7 +115,7 @@ router.post(
 );
 
 /**
- * Create a blank office document, ready to be opened in an editor.
+ * Create a blank document of a known type, ready to be opened in an editor.
  *
  * Separate from the empty-file route above because the two differ in what they
  * produce, not in how they are called: a zero-byte `.docx` is not a document an
@@ -129,10 +138,10 @@ router.post(
       );
     }
 
-    const template = OFFICE_TEMPLATES[format];
+    const template = DOCUMENT_TEMPLATES[format];
     if (!template) {
       throw new ValidationError(
-        `Unsupported document format. Expected one of: ${Object.keys(OFFICE_TEMPLATES).join(', ')}.`
+        `Unsupported document format. Expected one of: ${Object.keys(DOCUMENT_TEMPLATES).join(', ')}.`
       );
     }
 
@@ -168,13 +177,15 @@ router.post(
       : template.fallbackName;
     const baseName = ensureValidName(withExtension);
 
-    const contents = await fs.readFile(path.join(templateDirectory, template.file));
+    const contents = template.file
+      ? await fs.readFile(path.join(templateDirectory, template.file))
+      : null;
     const { absolutePath, finalName } = await createUniqueFile(
       resolved.absolutePath,
       baseName,
       contents
     );
-    await folderSizeHooks.onFileWritten(absolutePath, contents.length);
+    if (contents) await folderSizeHooks.onFileWritten(absolutePath, contents.length);
 
     const item = await buildItemMetadata(absolutePath, parentRelative, finalName);
     res.status(201).json({ success: true, item });

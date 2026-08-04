@@ -116,7 +116,11 @@
     "copied": "कॉपी किया गया",
     "newWordDocument": "नया Word दस्तावेज़",
     "newSpreadsheet": "नई Excel स्प्रेडशीट",
-    "newPresentation": "नई PowerPoint प्रस्तुति"
+    "newPresentation": "नई PowerPoint प्रस्तुति",
+    "newPdf": "नया PDF दस्तावेज़",
+    "newTextFile": "नई टेक्स्ट फ़ाइल",
+    "newMarkdownFile": "नई Markdown फ़ाइल",
+    "newCsvFile": "नई CSV फ़ाइल"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "दस्तावेज़ नहीं बनाया जा सका",
     "defaultDocumentName": "दस्तावेज़",
     "defaultSpreadsheetName": "स्प्रेडशीट",
-    "defaultPresentationName": "प्रस्तुति"
+    "defaultPresentationName": "प्रस्तुति",
+    "defaultDataName": "डेटा"
   },
   "context": {
     "getInfo": "जानकारी प्राप्त करें",

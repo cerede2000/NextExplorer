@@ -116,7 +116,11 @@
     "copied": "已复制",
     "newWordDocument": "新建 Word 文档",
     "newSpreadsheet": "新建 Excel 工作簿",
-    "newPresentation": "新建 PowerPoint 演示文稿"
+    "newPresentation": "新建 PowerPoint 演示文稿",
+    "newPdf": "新建 PDF 文档",
+    "newTextFile": "新建文本文件",
+    "newMarkdownFile": "新建 Markdown 文件",
+    "newCsvFile": "新建 CSV 文件"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "无法创建文档",
     "defaultDocumentName": "文档",
     "defaultSpreadsheetName": "工作簿",
-    "defaultPresentationName": "演示文稿"
+    "defaultPresentationName": "演示文稿",
+    "defaultDataName": "数据"
   },
   "context": {
     "getInfo": "获取信息",

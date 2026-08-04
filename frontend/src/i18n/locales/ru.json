@@ -116,7 +116,11 @@
     "copied": "Скопировано",
     "newWordDocument": "Новый документ Word",
     "newSpreadsheet": "Новая книга Excel",
-    "newPresentation": "Новая презентация PowerPoint"
+    "newPresentation": "Новая презентация PowerPoint",
+    "newPdf": "Новый документ PDF",
+    "newTextFile": "Новый текстовый файл",
+    "newMarkdownFile": "Новый файл Markdown",
+    "newCsvFile": "Новый файл CSV"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "Не удалось создать документ",
     "defaultDocumentName": "Документ",
     "defaultSpreadsheetName": "Книга",
-    "defaultPresentationName": "Презентация"
+    "defaultPresentationName": "Презентация",
+    "defaultDataName": "Данные"
   },
   "context": {
     "getInfo": "Свойства",

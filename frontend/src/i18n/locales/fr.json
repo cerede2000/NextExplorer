@@ -116,7 +116,11 @@
     "cancelAll": "Tout annuler",
     "newWordDocument": "Nouveau document Word",
     "newSpreadsheet": "Nouveau classeur Excel",
-    "newPresentation": "Nouvelle présentation PowerPoint"
+    "newPresentation": "Nouvelle présentation PowerPoint",
+    "newPdf": "Nouveau document PDF",
+    "newTextFile": "Nouveau fichier texte",
+    "newMarkdownFile": "Nouveau fichier Markdown",
+    "newCsvFile": "Nouveau fichier CSV"
   },
   "archive": {
     "password": {
@@ -241,7 +245,8 @@
     "documentFailed": "Impossible de créer le document",
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Classeur",
-    "defaultPresentationName": "Présentation"
+    "defaultPresentationName": "Présentation",
+    "defaultDataName": "Données"
   },
   "context": {
     "getInfo": "Obtenir des informations",
