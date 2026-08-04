@@ -34,6 +34,8 @@ const props = defineProps({
   modelValue: Boolean,
   item: Object, // {name, path, kind}
   share: Object,
+  // Passed through when opened from above a full-screen overlay.
+  elevated: Boolean,
 });
 
 const emit = defineEmits(['update:modelValue', 'shareCreated', 'shareUpdated']);
@@ -367,7 +369,7 @@ function closeDialog() {
 </script>
 
 <template>
-  <ModalDialog v-model="isOpen">
+  <ModalDialog v-model="isOpen" :elevated="props.elevated">
     <template #title>
       <ShareIcon class="w-5 h-5" />
       {{

@@ -706,6 +706,85 @@ router.post(
 );
 
 /**
+ * Hand the editor a file from the user's storage.
+ *
+ * ONLYOFFICE inserts images, merges spreadsheets and compares documents by
+ * being given a URL it fetches itself, so the choice made in NextExplorer has
+ * to become something the Document Server can download. It gets the same
+ * `/onlyoffice/file` route the open document uses, with a short-lived token
+ * naming this file and nothing else.
+ *
+ * `c` comes from the event and travels back untouched: the editor uses it to
+ * match the answer to the request it made, and it is part of what the token
+ * signs — a token covering a different object is rejected.
+ *
+ * Read access to the chosen file is the whole permission check. Writing is
+ * never involved: the file is copied into the open document, not modified.
+ */
+const STORAGE_FILE_TOKEN_TTL_SECONDS = 15 * 60;
+
+router.post(
+  '/onlyoffice/storage-file',
+  asyncHandler(async (req, res) => {
+    if (!publicConfig?.url) {
+      throw new ValidationError(
+        'PUBLIC_URL is required on the server to build absolute URLs for ONLYOFFICE.'
+      );
+    }
+    if (!onlyoffice.secret) {
+      throw new ValidationError('ONLYOFFICE_SECRET is required to hand files to the editor.');
+    }
+
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) {
+      throw new ValidationError('A valid file path is required.');
+    }
+    const command = typeof req.body?.c === 'string' ? req.body.c.slice(0, 64) : undefined;
+
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo.canRead) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+    }
+
+    const stat = await fsp.stat(resolved.absolutePath);
+    if (stat.isDirectory()) {
+      throw new ValidationError('A file is required.');
+    }
+
+    const backendToken = jwt.sign(
+      {
+        typ: BACKEND_TOKEN_TYPE,
+        absolutePath: resolved.absolutePath,
+        logicalPath: resolved.relativePath,
+        space: resolved.space,
+        // Nothing is ever written back through this token.
+        canWrite: false,
+        sessionId: null,
+        userId: req.user?.id ? String(req.user.id) : null,
+        guestSessionId: req.guestSession?.id || null,
+        shareToken: resolved.shareInfo?.shareToken || null,
+      },
+      onlyoffice.secret,
+      { algorithm: 'HS256', expiresIn: STORAGE_FILE_TOKEN_TTL_SECONDS }
+    );
+
+    const fileUrl = new URL('/api/onlyoffice/file', publicConfig.url);
+    fileUrl.searchParams.set('path', relativePath);
+    fileUrl.searchParams.set('backend', backendToken);
+
+    const payload = {
+      ...(command === undefined ? {} : { c: command }),
+      fileType: toExtension(resolved.absolutePath),
+      url: fileUrl.toString(),
+    };
+    payload.token = jwt.sign(payload, onlyoffice.secret, { algorithm: 'HS256' });
+
+    res.json(payload);
+  })
+);
+
+/**
  * Who can be mentioned in a comment.
  *
  * ONLYOFFICE asks for the whole list and filters it in the editor as the

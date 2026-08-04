@@ -24,11 +24,11 @@
 
     <!--
       NextExplorer's own share dialog, opened from the editor's Share button.
-      Rendered inside the overlay rather than teleported: the overlay owns the
-      stacking context, so a dialog placed here sits above the editor frame,
-      while one attached to the body would end up behind it.
+      Dialogs teleport to the body, so they stack against the page and not
+      against the overlay they were opened from — hence `elevated`, without
+      which this one opens behind the editor.
     -->
-    <ShareDialog v-model="isShareDialogOpen" :item="shareItem" />
+    <ShareDialog v-model="isShareDialogOpen" :item="shareItem" elevated />
   </div>
 </template>
 
