@@ -147,7 +147,11 @@ const clearSessionHeartbeat = () => {
 const startSessionHeartbeat = () => {
   clearSessionHeartbeat();
   const sessionId = previewState.forceSaveSessionId;
-  if (!documentPath.value || !sessionId) return;
+  // Never start one on the way out. Anything that can run after the preview is
+  // gone — a refresh whose request was still in flight — would otherwise leave
+  // an interval nobody owns, reporting the document as open every minute for
+  // as long as the tab stays open.
+  if (disposed || !documentPath.value || !sessionId) return;
   const heartbeat = () =>
     heartbeatOnlyOfficeSession(documentPath.value, { sessionId }).catch(() => {});
   heartbeat();
@@ -324,11 +328,15 @@ const handlePickerSelect = async (selectedPath) => {
  */
 const refreshDocument = async () => {
   const path = documentPath.value;
-  if (!path) return;
+  if (disposed || !path) return;
 
   const fresh = await fetchOnlyOfficeConfig(path, 'edit', {
     theme: settings.isDark ? 'dark' : 'light',
   });
+  // Closing while this was in flight is ordinary: the editor reports an
+  // outdated document as it saves on the way out. Adopting the session it just
+  // created would revive a preview that no longer exists.
+  if (disposed) return;
   previewState.forceSaveSessionId = fresh.forceSaveSessionId || null;
   autoSaveIntervalMs = Number(fresh.autoSaveIntervalMs) || 0;
 
