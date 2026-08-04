@@ -384,12 +384,28 @@ const dispatchForceSave = async ({ requestId, key, relativePath, reason, attempt
   }
 };
 
-// POST /api/onlyoffice/config  { path, mode? }
+/**
+ * Which ONLYOFFICE theme to dress the editor in.
+ *
+ * The appearance is a client preference, but it has to be decided here: the
+ * Document Server reads the configuration from the signed token and ignores
+ * whatever the page sets on the object afterwards. So the client sends what it
+ * is currently showing, and anything unrecognised falls back to the editor's
+ * own default rather than being passed through.
+ */
+const resolveUiTheme = (requested) => {
+  if (requested === 'dark') return 'theme-dark';
+  if (requested === 'light') return 'theme-light';
+  return null;
+};
+
+// POST /api/onlyoffice/config  { path, mode?, theme? }
 router.post(
   '/onlyoffice/config',
   asyncHandler(async (req, res) => {
     const relativeRaw = req.body?.path || '';
     const mode = (req.body?.mode || 'edit').toLowerCase();
+    const uiTheme = resolveUiTheme(String(req.body?.theme || '').toLowerCase());
 
     if (!publicConfig?.url) {
       throw new ValidationError(
@@ -503,6 +519,9 @@ router.post(
           // hoping nothing underneath moved; the client closes the preview when
           // ONLYOFFICE asks it to instead.
           close: { visible: true },
+          // Omitted when the client sends no usable preference, so the editor
+          // keeps its own default instead of being forced light.
+          ...(uiTheme ? { uiTheme } : {}),
         },
         lang: onlyoffice.lang || 'en',
         // Optionally attach current user info if available

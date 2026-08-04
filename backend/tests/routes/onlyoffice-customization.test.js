@@ -17,7 +17,7 @@ describe('ONLYOFFICE editor customization', () => {
   let env;
   let app;
 
-  const setup = async (filename = 'report.docx') => {
+  const setup = async (filename = 'report.docx', body = {}) => {
     env = await setupTestEnv({
       tag: 'onlyoffice-customization-',
       modules: [
@@ -43,7 +43,9 @@ describe('ONLYOFFICE editor customization', () => {
       errorHandler,
     });
 
-    const response = await request(app).post('/api/onlyoffice/config').send({ path: filename });
+    const response = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: filename, ...body });
     expect(response.status).toBe(200);
     return response.body.config;
   };
@@ -61,6 +63,25 @@ describe('ONLYOFFICE editor customization', () => {
     // Without this the editor draws no close control at all, and the overlay
     // has no header — the only way out was a button laid over the toolbar.
     expect(config.editorConfig.customization.close).toEqual({ visible: true });
+  });
+
+  it('dresses the editor in the theme the client is showing', async () => {
+    const dark = await setup('dark.docx', { theme: 'dark' });
+    expect(dark.editorConfig.customization.uiTheme).toBe('theme-dark');
+
+    await env.cleanup();
+    env = null;
+
+    const light = await setup('light.docx', { theme: 'light' });
+    expect(light.editorConfig.customization.uiTheme).toBe('theme-light');
+  });
+
+  it('leaves the theme to the editor when the client sends nothing usable', async () => {
+    // A client that predates this, or one sending something unexpected, must
+    // not end up forcing a theme — the editor has a sensible default of its own.
+    const config = await setup('report.docx', { theme: 'sepia' });
+
+    expect(config.editorConfig.customization).not.toHaveProperty('uiTheme');
   });
 
   it('keeps the customization inside the signed token', async () => {
