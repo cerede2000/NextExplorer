@@ -113,7 +113,10 @@
     "copyPath": "Pfad kopieren",
     "copyName": "Name kopieren",
     "share": "Freigeben",
-    "copied": "Kopiert"
+    "copied": "Kopiert",
+    "newWordDocument": "Neues Word-Dokument",
+    "newSpreadsheet": "Neue Excel-Arbeitsmappe",
+    "newPresentation": "Neue PowerPoint-Präsentation"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Dunkles Design"
   },
   "create": {
-    "createNew": "Neu"
+    "createNew": "Neu",
+    "documentName": "Dokumentname",
+    "createAndOpen": "Erstellen und öffnen",
+    "documentFailed": "Dokument konnte nicht erstellt werden",
+    "defaultDocumentName": "Dokument",
+    "defaultSpreadsheetName": "Arbeitsmappe",
+    "defaultPresentationName": "Präsentation"
   },
   "context": {
     "getInfo": "Informationen",

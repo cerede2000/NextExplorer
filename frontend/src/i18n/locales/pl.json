@@ -113,7 +113,10 @@
     "copyPath": "Kopiuj ścieżkę",
     "copyName": "Kopiuj nazwę",
     "share": "Udostępnij",
-    "copied": "Skopiowano"
+    "copied": "Skopiowano",
+    "newWordDocument": "Nowy dokument Word",
+    "newSpreadsheet": "Nowy arkusz Excel",
+    "newPresentation": "Nowa prezentacja PowerPoint"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Ciemny motyw"
   },
   "create": {
-    "createNew": "Nowy"
+    "createNew": "Nowy",
+    "documentName": "Nazwa dokumentu",
+    "createAndOpen": "Utwórz i otwórz",
+    "documentFailed": "Nie udało się utworzyć dokumentu",
+    "defaultDocumentName": "Dokument",
+    "defaultSpreadsheetName": "Arkusz",
+    "defaultPresentationName": "Prezentacja"
   },
   "context": {
     "getInfo": "Informacje",

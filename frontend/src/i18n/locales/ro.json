@@ -113,7 +113,10 @@
     "copyPath": "Copiază calea",
     "copyName": "Copiază numele",
     "share": "Partajează",
-    "copied": "Copiat"
+    "copied": "Copiat",
+    "newWordDocument": "Document Word nou",
+    "newSpreadsheet": "Registru Excel nou",
+    "newPresentation": "Prezentare PowerPoint nouă"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Temă închisă"
   },
   "create": {
-    "createNew": "Nou"
+    "createNew": "Nou",
+    "documentName": "Numele documentului",
+    "createAndOpen": "Creează și deschide",
+    "documentFailed": "Documentul nu a putut fi creat",
+    "defaultDocumentName": "Document",
+    "defaultSpreadsheetName": "Registru",
+    "defaultPresentationName": "Prezentare"
   },
   "context": {
     "getInfo": "Obține informații",

@@ -113,7 +113,10 @@
     "sortBy": "Trier par",
     "addRule": "Ajouter une règle",
     "clearAll": "Tout effacer",
-    "cancelAll": "Tout annuler"
+    "cancelAll": "Tout annuler",
+    "newWordDocument": "Nouveau document Word",
+    "newSpreadsheet": "Nouveau classeur Excel",
+    "newPresentation": "Nouvelle présentation PowerPoint"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Thème sombre"
   },
   "create": {
-    "createNew": "Nouveau"
+    "createNew": "Nouveau",
+    "documentName": "Nom du document",
+    "createAndOpen": "Créer et ouvrir",
+    "documentFailed": "Impossible de créer le document",
+    "defaultDocumentName": "Document",
+    "defaultSpreadsheetName": "Classeur",
+    "defaultPresentationName": "Présentation"
   },
   "context": {
     "getInfo": "Obtenir des informations",

@@ -9,6 +9,7 @@ import {
   deleteItemsStream,
   normalizePath,
   createFile as createFileApi,
+  createOfficeDocument as createOfficeDocumentApi,
   createFolder as createFolderApi,
   renameItem as renameItemApi,
   fetchThumbnail as fetchThumbnailApi,
@@ -593,6 +594,29 @@ export const useFileStore = defineStore('fileStore', () => {
     return response;
   };
 
+  /**
+   * Create a blank office document in the current folder and return it.
+   *
+   * Unlike createFile, this does not start an inline rename: the name was
+   * settled before the document existed, and the caller opens it in an editor
+   * straight away — a rename box behind the editor overlay is a rename box
+   * nobody can see.
+   */
+  const createOfficeDocument = async ({ format, name } = {}) => {
+    const destination = normalizePath(currentPath.value || '');
+    const response = await createOfficeDocumentApi(destination, { format, name });
+    const createdName = response?.item?.name;
+
+    await fetchPathItems(destination);
+    volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
+
+    const createdItem = createdName ? findItemByKey(`${destination}::${createdName}`) : null;
+    if (createdItem) selectedItems.value = [createdItem];
+
+    return createdItem || response?.item || null;
+  };
+
   const extractZipArchive = async (relativePath, options = {}) => {
     const normalized = normalizePath(relativePath || '');
     if (!normalized) return null;
@@ -621,7 +645,10 @@ export const useFileStore = defineStore('fileStore', () => {
         signal: controller.signal,
       });
     } catch (error) {
-      if (error?.code === 'ARCHIVE_PASSWORD_REQUIRED' || error?.code === 'ARCHIVE_INVALID_PASSWORD') {
+      if (
+        error?.code === 'ARCHIVE_PASSWORD_REQUIRED' ||
+        error?.code === 'ARCHIVE_INVALID_PASSWORD'
+      ) {
         return {
           requiresPassword: true,
           invalidPassword: error.code === 'ARCHIVE_INVALID_PASSWORD',
@@ -1094,6 +1121,7 @@ export const useFileStore = defineStore('fileStore', () => {
     resetClipboard,
     createFolder,
     createFile,
+    createOfficeDocument,
     extractZipArchive,
     compressSelectionToZip,
     renameState,

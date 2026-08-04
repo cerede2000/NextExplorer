@@ -113,7 +113,10 @@
     "copyPath": "Копировать путь",
     "copyName": "Копировать имя",
     "share": "Поделиться",
-    "copied": "Скопировано"
+    "copied": "Скопировано",
+    "newWordDocument": "Новый документ Word",
+    "newSpreadsheet": "Новая книга Excel",
+    "newPresentation": "Новая презентация PowerPoint"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Темная тема"
   },
   "create": {
-    "createNew": "Создать"
+    "createNew": "Создать",
+    "documentName": "Имя документа",
+    "createAndOpen": "Создать и открыть",
+    "documentFailed": "Не удалось создать документ",
+    "defaultDocumentName": "Документ",
+    "defaultSpreadsheetName": "Книга",
+    "defaultPresentationName": "Презентация"
   },
   "context": {
     "getInfo": "Свойства",

@@ -113,7 +113,10 @@
     "copyPath": "复制路径",
     "copyName": "复制名称",
     "share": "共享",
-    "copied": "已复制"
+    "copied": "已复制",
+    "newWordDocument": "新建 Word 文档",
+    "newSpreadsheet": "新建 Excel 工作簿",
+    "newPresentation": "新建 PowerPoint 演示文稿"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "深色主题"
   },
   "create": {
-    "createNew": "新建"
+    "createNew": "新建",
+    "documentName": "文档名称",
+    "createAndOpen": "创建并打开",
+    "documentFailed": "无法创建文档",
+    "defaultDocumentName": "文档",
+    "defaultSpreadsheetName": "工作簿",
+    "defaultPresentationName": "演示文稿"
   },
   "context": {
     "getInfo": "获取信息",

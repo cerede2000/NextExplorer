@@ -113,7 +113,10 @@
     "copyPath": "Kopiera sökväg",
     "copyName": "Kopiera namn",
     "share": "Dela",
-    "copied": "Kopierat"
+    "copied": "Kopierat",
+    "newWordDocument": "Nytt Word-dokument",
+    "newSpreadsheet": "Ny Excel-arbetsbok",
+    "newPresentation": "Ny PowerPoint-presentation"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Mörkt tema"
   },
   "create": {
-    "createNew": "Ny"
+    "createNew": "Ny",
+    "documentName": "Dokumentnamn",
+    "createAndOpen": "Skapa och öppna",
+    "documentFailed": "Det gick inte att skapa dokumentet",
+    "defaultDocumentName": "Dokument",
+    "defaultSpreadsheetName": "Arbetsbok",
+    "defaultPresentationName": "Presentation"
   },
   "context": {
     "getInfo": "Hämta info",

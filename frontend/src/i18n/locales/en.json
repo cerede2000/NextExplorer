@@ -113,7 +113,10 @@
     "sortBy": "Sort by",
     "addRule": "Add rule",
     "clearAll": "Clear all",
-    "cancelAll": "Cancel all"
+    "cancelAll": "Cancel all",
+    "newWordDocument": "New Word document",
+    "newSpreadsheet": "New Excel spreadsheet",
+    "newPresentation": "New PowerPoint presentation"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Dark theme"
   },
   "create": {
-    "createNew": "New"
+    "createNew": "New",
+    "documentName": "Document name",
+    "createAndOpen": "Create and open",
+    "documentFailed": "Could not create the document",
+    "defaultDocumentName": "Document",
+    "defaultSpreadsheetName": "Spreadsheet",
+    "defaultPresentationName": "Presentation"
   },
   "context": {
     "getInfo": "Get Info",

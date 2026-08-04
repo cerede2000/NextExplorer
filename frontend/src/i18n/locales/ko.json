@@ -113,7 +113,10 @@
     "copyPath": "경로 복사",
     "copyName": "이름 복사",
     "share": "공유",
-    "copied": "복사됨"
+    "copied": "복사됨",
+    "newWordDocument": "새 Word 문서",
+    "newSpreadsheet": "새 Excel 통합 문서",
+    "newPresentation": "새 PowerPoint 프레젠테이션"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "다크 테마"
   },
   "create": {
-    "createNew": "추가"
+    "createNew": "추가",
+    "documentName": "문서 이름",
+    "createAndOpen": "만들고 열기",
+    "documentFailed": "문서를 만들 수 없습니다",
+    "defaultDocumentName": "문서",
+    "defaultSpreadsheetName": "통합 문서",
+    "defaultPresentationName": "프레젠테이션"
   },
   "context": {
     "getInfo": "속성",

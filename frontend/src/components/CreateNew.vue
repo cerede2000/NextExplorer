@@ -7,6 +7,7 @@ import {
   DriveFolderUploadOutlined,
   UploadFileOutlined,
   FileOpenOutlined,
+  DescriptionOutlined,
 } from '@vicons/material';
 
 const popuplRef = ref(null);
@@ -17,15 +18,74 @@ onClickOutside(popuplRef, () => {
   menuOpen.value = false;
 });
 
+import { useI18n } from 'vue-i18n';
 import { useFileUploader } from '@/composables/fileUploader';
 import { useFileStore } from '@/stores/fileStore';
+import { useFeaturesStore } from '@/stores/features';
+import { useNotificationsStore } from '@/stores/notifications';
+import { usePreviewManager } from '@/plugins/preview/manager';
+import NewOfficeDocumentDialog from '@/components/NewOfficeDocumentDialog.vue';
 
 const { openDialog } = useFileUploader();
+const { t } = useI18n();
 const fileStore = useFileStore();
+const featuresStore = useFeaturesStore();
+const notifications = useNotificationsStore();
+const previewManager = usePreviewManager();
 const isCreating = ref(false);
 const canCreateFolder = computed(() => fileStore.currentPathData?.canCreateFolder ?? true);
 const canCreateFile = computed(() => fileStore.currentPathData?.canCreateFile ?? true);
 const canUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
+
+/**
+ * Blank documents are only worth offering when something can open them: with
+ * no editor configured, this would create files the app can only download.
+ */
+const hasOfficeEditor = computed(
+  () => featuresStore.onlyofficeEnabled || featuresStore.collaboraEnabled
+);
+
+const OFFICE_DOCUMENTS = [
+  { format: 'docx', titleKey: 'actions.newWordDocument', nameKey: 'create.defaultDocumentName' },
+  { format: 'xlsx', titleKey: 'actions.newSpreadsheet', nameKey: 'create.defaultSpreadsheetName' },
+  {
+    format: 'pptx',
+    titleKey: 'actions.newPresentation',
+    nameKey: 'create.defaultPresentationName',
+  },
+];
+
+const officeDialogOpen = ref(false);
+const officeDocument = ref(OFFICE_DOCUMENTS[0]);
+
+const promptOfficeDocument = (document) => {
+  officeDocument.value = document;
+  menuOpen.value = false;
+  officeDialogOpen.value = true;
+};
+
+/**
+ * Create the document, then open it in the editor it was made for. Landing
+ * back in the file list would leave the user to find and open a document they
+ * just asked for by name.
+ */
+const createOfficeDocument = async ({ format, name }) => {
+  if (isCreating.value) return;
+
+  isCreating.value = true;
+  try {
+    const item = await fileStore.createOfficeDocument({ format, name });
+    if (item) previewManager.open(item);
+  } catch (error) {
+    notifications.addNotification({
+      type: 'error',
+      heading: t('create.documentFailed'),
+      body: error?.message || '',
+    });
+  } finally {
+    isCreating.value = false;
+  }
+};
 
 const uploadFolder = async () => {
   await openDialog({ directory: true });
@@ -101,6 +161,23 @@ const createFile = async () => {
         <FileOpenOutlined class="w-6 text-orange-400" />{{ $t('actions.newFile') }}
       </button>
       <button
+        v-for="document in hasOfficeEditor && canCreateFile ? OFFICE_DOCUMENTS : []"
+        :key="document.format"
+        @click="promptOfficeDocument(document)"
+        :disabled="isCreating"
+        class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <DescriptionOutlined
+          class="w-6"
+          :class="{
+            'text-blue-500': document.format === 'docx',
+            'text-green-600': document.format === 'xlsx',
+            'text-orange-500': document.format === 'pptx',
+          }"
+        />
+        {{ $t(document.titleKey) }}
+      </button>
+      <button
         v-if="canUpload"
         @click="uploadFiles"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600"
@@ -115,5 +192,13 @@ const createFile = async () => {
         <DriveFolderUploadOutlined class="w-6 text-green-400" />{{ $t('actions.folderUpload') }}
       </button>
     </div>
+
+    <NewOfficeDocumentDialog
+      v-model="officeDialogOpen"
+      :format="officeDocument.format"
+      :title="$t(officeDocument.titleKey)"
+      :default-name="$t(officeDocument.nameKey)"
+      @create="createOfficeDocument"
+    />
   </div>
 </template>
