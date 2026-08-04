@@ -722,6 +722,16 @@
     "saveAsFailed": "{name}을(를) 저장하지 못했습니다",
     "renamedHeading": "이름 변경됨",
     "renamedBody": "문서 이름이 {name}(으)로 바뀌었습니다.",
-    "renameFailed": "{name}(으)로 이름을 바꾸지 못했습니다"
+    "renameFailed": "{name}(으)로 이름을 바꾸지 못했습니다",
+    "pickImage": "이미지 삽입",
+    "pickDocument": "문서 선택",
+    "pickSpreadsheet": "스프레드시트 선택",
+    "pickCompare": "문서와 비교",
+    "pickFailed": "선택한 파일을 사용할 수 없습니다"
+  },
+  "storagePicker": {
+    "root": "저장소",
+    "empty": "선택할 항목이 없습니다",
+    "breadcrumb": "폴더 경로"
   }
 }

@@ -722,6 +722,16 @@
     "saveAsFailed": "{name} को सहेजा नहीं जा सका",
     "renamedHeading": "नाम बदला गया",
     "renamedBody": "दस्तावेज़ का नाम अब {name} है।",
-    "renameFailed": "{name} में नाम नहीं बदला जा सका"
+    "renameFailed": "{name} में नाम नहीं बदला जा सका",
+    "pickImage": "छवि डालें",
+    "pickDocument": "दस्तावेज़ चुनें",
+    "pickSpreadsheet": "स्प्रेडशीट चुनें",
+    "pickCompare": "दस्तावेज़ से तुलना करें",
+    "pickFailed": "चयनित फ़ाइल का उपयोग नहीं किया जा सका"
+  },
+  "storagePicker": {
+    "root": "भंडारण",
+    "empty": "यहाँ चुनने के लिए कुछ नहीं है",
+    "breadcrumb": "फ़ोल्डर पथ"
   }
 }

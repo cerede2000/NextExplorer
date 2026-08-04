@@ -722,6 +722,16 @@
     "saveAsFailed": "{name} nu a putut fi salvat",
     "renamedHeading": "Redenumit",
     "renamedBody": "Documentul se numește acum {name}.",
-    "renameFailed": "Nu s-a putut redenumi în {name}"
+    "renameFailed": "Nu s-a putut redenumi în {name}",
+    "pickImage": "Inserează o imagine",
+    "pickDocument": "Alege un document",
+    "pickSpreadsheet": "Alege o foaie de calcul",
+    "pickCompare": "Compară cu un document",
+    "pickFailed": "Fișierul selectat nu a putut fi folosit"
+  },
+  "storagePicker": {
+    "root": "Stocare",
+    "empty": "Nu este nimic de ales aici",
+    "breadcrumb": "Calea folderului"
   }
 }

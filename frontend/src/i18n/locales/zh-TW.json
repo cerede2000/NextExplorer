@@ -722,6 +722,16 @@
     "saveAsFailed": "無法儲存 {name}",
     "renamedHeading": "已重新命名",
     "renamedBody": "文件現在名為 {name}。",
-    "renameFailed": "無法重新命名為 {name}"
+    "renameFailed": "無法重新命名為 {name}",
+    "pickImage": "插入圖片",
+    "pickDocument": "選擇文件",
+    "pickSpreadsheet": "選擇試算表",
+    "pickCompare": "與文件比較",
+    "pickFailed": "無法使用所選檔案"
+  },
+  "storagePicker": {
+    "root": "儲存空間",
+    "empty": "這裡沒有可選項目",
+    "breadcrumb": "資料夾路徑"
   }
 }

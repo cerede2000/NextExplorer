@@ -722,6 +722,16 @@
     "saveAsFailed": "No se ha podido guardar {name}",
     "renamedHeading": "Renombrado",
     "renamedBody": "El documento se llama ahora {name}.",
-    "renameFailed": "No se ha podido renombrar a {name}"
+    "renameFailed": "No se ha podido renombrar a {name}",
+    "pickImage": "Insertar una imagen",
+    "pickDocument": "Elegir un documento",
+    "pickSpreadsheet": "Elegir una hoja de cálculo",
+    "pickCompare": "Comparar con un documento",
+    "pickFailed": "No se pudo usar el archivo seleccionado"
+  },
+  "storagePicker": {
+    "root": "Almacenamiento",
+    "empty": "No hay nada que elegir aquí",
+    "breadcrumb": "Ruta de la carpeta"
   }
 }
