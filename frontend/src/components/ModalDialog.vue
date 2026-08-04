@@ -6,6 +6,15 @@ import { XMarkIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
   modelValue: Boolean,
+  /**
+   * Raise the dialog above a full-screen overlay.
+   *
+   * The dialog teleports to the body, so it stacks against the page rather
+   * than against whatever opened it. That is fine everywhere except above the
+   * preview overlay, which sits far higher than a dialog's usual level and
+   * would otherwise cover it completely.
+   */
+  elevated: Boolean,
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -109,7 +118,8 @@ function onBackgroundClick() {
   <Teleport to="body" v-if="popupOpened">
     <div
       @click="onBackgroundClick"
-      class="fixed top-0 z-50 flex items-center justify-center w-full h-full max-sm:items-end bg-zinc-700/50 dark:bg-neutral-700/50 backdrop-blur-xs"
+      class="fixed top-0 flex items-center justify-center w-full h-full max-sm:items-end bg-zinc-700/50 dark:bg-neutral-700/50 backdrop-blur-xs"
+      :class="elevated ? 'z-2200' : 'z-50'"
     >
       <div
         ref="dialogRef"
