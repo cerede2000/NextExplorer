@@ -722,6 +722,16 @@
     "saveAsFailed": "Impossible d’enregistrer {name}",
     "renamedHeading": "Renommé",
     "renamedBody": "Le document s’appelle maintenant {name}.",
-    "renameFailed": "Impossible de renommer en {name}"
+    "renameFailed": "Impossible de renommer en {name}",
+    "pickImage": "Insérer une image",
+    "pickDocument": "Choisir un document",
+    "pickSpreadsheet": "Choisir un classeur",
+    "pickCompare": "Comparer avec un document",
+    "pickFailed": "Impossible d'utiliser le fichier choisi"
+  },
+  "storagePicker": {
+    "root": "Stockage",
+    "empty": "Rien à choisir ici",
+    "breadcrumb": "Chemin du dossier"
   }
 }

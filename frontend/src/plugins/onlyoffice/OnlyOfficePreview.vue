@@ -29,6 +29,21 @@
       which this one opens behind the editor.
     -->
     <ShareDialog v-model="isShareDialogOpen" :item="shareItem" elevated />
+
+    <!--
+      One picker for every request the editor makes — insert an image, choose a
+      spreadsheet to merge from, pick a document to compare against. Which one
+      is being answered is held in `pickerRequest`, since the editor only ever
+      has one open at a time.
+    -->
+    <StoragePickerDialog
+      v-model="isPickerOpen"
+      :title="pickerTitle"
+      :extensions="pickerExtensions"
+      :initial-path="shareItem.path"
+      elevated
+      @select="handlePickerSelect"
+    />
   </div>
 </template>
 
@@ -39,6 +54,7 @@ import { useI18n } from 'vue-i18n';
 import {
   fetchOnlyOfficeConfig,
   fetchOnlyOfficeMentionUsers,
+  fetchOnlyOfficeStorageFile,
   heartbeatOnlyOfficeSession,
   notifyOnlyOfficeMention,
   requestOnlyOfficeForceSave,
@@ -50,6 +66,7 @@ import { useNotificationsStore } from '@/stores/notifications';
 import { useSettingsStore } from '@/stores/settings';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import ShareDialog from '@/components/ShareDialog.vue';
+import StoragePickerDialog from '@/components/StoragePickerDialog.vue';
 import logger from '@/utils/logger';
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
@@ -212,6 +229,87 @@ const renameDocument = async (data) => {
 };
 
 /**
+ * What the editor can ask NextExplorer to find for it.
+ *
+ * Each entry says which files are worth showing and which editor method takes
+ * the answer. The extensions are what the Document Server can actually read for
+ * that purpose — offering a `.docx` to insert as an image only produces a
+ * failure once it has been chosen.
+ */
+const PICKER_REQUESTS = {
+  image: {
+    titleKey: 'onlyoffice.pickImage',
+    extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'],
+    method: 'insertImage',
+  },
+  document: {
+    titleKey: 'onlyoffice.pickDocument',
+    extensions: ['docx', 'doc', 'odt', 'rtf', 'txt'],
+    method: 'setRequestedDocument',
+  },
+  spreadsheet: {
+    titleKey: 'onlyoffice.pickSpreadsheet',
+    extensions: ['xlsx', 'xls', 'ods', 'csv'],
+    method: 'setRequestedSpreadsheet',
+  },
+  compare: {
+    titleKey: 'onlyoffice.pickCompare',
+    extensions: ['docx', 'doc', 'odt', 'rtf', 'txt'],
+    method: 'setRevisedFile',
+  },
+};
+
+const isPickerOpen = ref(false);
+// Which request is being answered, and the `c` value that came with it: the
+// editor uses `c` to match the answer to its request, and the backend signs it
+// along with the URL.
+const pickerRequest = ref(null);
+const pickerCommand = ref(undefined);
+
+const pickerTitle = computed(() => {
+  const request = pickerRequest.value ? PICKER_REQUESTS[pickerRequest.value] : null;
+  return request ? t(request.titleKey) : '';
+});
+const pickerExtensions = computed(() => {
+  const request = pickerRequest.value ? PICKER_REQUESTS[pickerRequest.value] : null;
+  return request ? request.extensions : [];
+});
+
+const openPicker = (kind, event) => {
+  pickerRequest.value = kind;
+  pickerCommand.value = event?.data?.c;
+  isPickerOpen.value = true;
+};
+
+/**
+ * Hand the chosen file back to the editor.
+ *
+ * The backend turns the path into a URL the Document Server can fetch, signed
+ * for this one file; the editor downloads it itself, so nothing is streamed
+ * through the browser.
+ */
+const handlePickerSelect = async (selectedPath) => {
+  const request = pickerRequest.value ? PICKER_REQUESTS[pickerRequest.value] : null;
+  const editor = window.DocEditor?.instances?.[editorId.value];
+  if (!request || !editor) return;
+
+  try {
+    const payload = await fetchOnlyOfficeStorageFile(selectedPath, { c: pickerCommand.value });
+    editor[request.method]?.(payload);
+  } catch (pickerError) {
+    logger.error('ONLYOFFICE could not hand over the selected file', {
+      path: selectedPath,
+      err: pickerError,
+    });
+    notifications.addNotification({
+      type: 'error',
+      heading: t('onlyoffice.pickFailed'),
+      body: pickerError?.message || '',
+    });
+  }
+};
+
+/**
  * Point the running editor at the document as it now stands on disk.
  *
  * The Document Server reports the open version as outdated when the file it
@@ -337,6 +435,27 @@ const load = async () => {
       // integration, so it opens the dialog the file list uses.
       onRequestSharingSettings() {
         isShareDialogOpen.value = true;
+      },
+
+      // Until now these three offered the local disk and a URL box, which is
+      // an odd thing to be shown by a file manager: the document being edited
+      // and the image to insert usually live in the same place.
+      onRequestInsertImage(event) {
+        openPicker('image', event);
+      },
+
+      onRequestSelectDocument(event) {
+        openPicker('document', event);
+      },
+
+      onRequestSelectSpreadsheet(event) {
+        openPicker('spreadsheet', event);
+      },
+
+      // Comparing against another version of the same document, which is
+      // almost always the copy sitting beside it.
+      onRequestCompareFile(event) {
+        openPicker('compare', event);
       },
 
       // A comment was started with @. The editor takes the whole list and

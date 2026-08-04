@@ -722,6 +722,16 @@
     "saveAsFailed": "{name} konnte nicht gespeichert werden",
     "renamedHeading": "Umbenannt",
     "renamedBody": "Das Dokument heißt jetzt {name}.",
-    "renameFailed": "Umbenennen in {name} nicht möglich"
+    "renameFailed": "Umbenennen in {name} nicht möglich",
+    "pickImage": "Bild einfügen",
+    "pickDocument": "Dokument auswählen",
+    "pickSpreadsheet": "Tabelle auswählen",
+    "pickCompare": "Mit einem Dokument vergleichen",
+    "pickFailed": "Die ausgewählte Datei konnte nicht verwendet werden"
+  },
+  "storagePicker": {
+    "root": "Speicher",
+    "empty": "Hier gibt es nichts auszuwählen",
+    "breadcrumb": "Ordnerpfad"
   }
 }

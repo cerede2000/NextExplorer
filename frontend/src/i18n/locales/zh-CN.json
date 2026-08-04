@@ -722,6 +722,16 @@
     "saveAsFailed": "无法保存 {name}",
     "renamedHeading": "已重命名",
     "renamedBody": "文档现在名为 {name}。",
-    "renameFailed": "无法重命名为 {name}"
+    "renameFailed": "无法重命名为 {name}",
+    "pickImage": "插入图片",
+    "pickDocument": "选择文档",
+    "pickSpreadsheet": "选择电子表格",
+    "pickCompare": "与文档比较",
+    "pickFailed": "无法使用所选文件"
+  },
+  "storagePicker": {
+    "root": "存储",
+    "empty": "这里没有可选项",
+    "breadcrumb": "文件夹路径"
   }
 }

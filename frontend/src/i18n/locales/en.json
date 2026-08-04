@@ -722,6 +722,16 @@
     "saveAsFailed": "Could not save {name}",
     "renamedHeading": "Renamed",
     "renamedBody": "The document is now called {name}.",
-    "renameFailed": "Could not rename to {name}"
+    "renameFailed": "Could not rename to {name}",
+    "pickImage": "Insert an image",
+    "pickDocument": "Choose a document",
+    "pickSpreadsheet": "Choose a spreadsheet",
+    "pickCompare": "Compare with a document",
+    "pickFailed": "Could not use the selected file"
+  },
+  "storagePicker": {
+    "root": "Storage",
+    "empty": "Nothing here to pick",
+    "breadcrumb": "Folder path"
   }
 }

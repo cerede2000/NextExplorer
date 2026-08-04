@@ -722,6 +722,16 @@
     "saveAsFailed": "Nie można zapisać {name}",
     "renamedHeading": "Zmieniono nazwę",
     "renamedBody": "Dokument nazywa się teraz {name}.",
-    "renameFailed": "Nie można zmienić nazwy na {name}"
+    "renameFailed": "Nie można zmienić nazwy na {name}",
+    "pickImage": "Wstaw obraz",
+    "pickDocument": "Wybierz dokument",
+    "pickSpreadsheet": "Wybierz arkusz",
+    "pickCompare": "Porównaj z dokumentem",
+    "pickFailed": "Nie udało się użyć wybranego pliku"
+  },
+  "storagePicker": {
+    "root": "Magazyn",
+    "empty": "Nie ma tu nic do wyboru",
+    "breadcrumb": "Ścieżka folderu"
   }
 }

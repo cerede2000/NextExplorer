@@ -67,6 +67,24 @@ export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}
 }
 
 /**
+ * Turn a file the user picked into something the Document Server can fetch.
+ *
+ * The editor inserts images and opens comparison documents by downloading a
+ * URL itself, so the backend answers with a signed, short-lived one. `c` comes
+ * from the event and is part of what the signature covers, so it has to be
+ * passed through rather than added afterwards.
+ */
+export async function fetchOnlyOfficeStorageFile(path, { c } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/storage-file', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, c }),
+  });
+}
+
+/**
  * The people the editor offers when a comment starts with @.
  *
  * ONLYOFFICE takes the whole list and filters it itself as the name is typed,

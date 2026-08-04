@@ -722,6 +722,16 @@
     "saveAsFailed": "Det gick inte att spara {name}",
     "renamedHeading": "Namnet ändrat",
     "renamedBody": "Dokumentet heter nu {name}.",
-    "renameFailed": "Det gick inte att byta namn till {name}"
+    "renameFailed": "Det gick inte att byta namn till {name}",
+    "pickImage": "Infoga en bild",
+    "pickDocument": "Välj ett dokument",
+    "pickSpreadsheet": "Välj ett kalkylblad",
+    "pickCompare": "Jämför med ett dokument",
+    "pickFailed": "Det gick inte att använda den valda filen"
+  },
+  "storagePicker": {
+    "root": "Lagring",
+    "empty": "Det finns inget att välja här",
+    "breadcrumb": "Mappsökväg"
   }
 }

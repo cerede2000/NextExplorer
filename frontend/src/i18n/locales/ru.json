@@ -722,6 +722,16 @@
     "saveAsFailed": "Не удалось сохранить {name}",
     "renamedHeading": "Переименовано",
     "renamedBody": "Документ теперь называется {name}.",
-    "renameFailed": "Не удалось переименовать в {name}"
+    "renameFailed": "Не удалось переименовать в {name}",
+    "pickImage": "Вставить изображение",
+    "pickDocument": "Выбрать документ",
+    "pickSpreadsheet": "Выбрать таблицу",
+    "pickCompare": "Сравнить с документом",
+    "pickFailed": "Не удалось использовать выбранный файл"
+  },
+  "storagePicker": {
+    "root": "Хранилище",
+    "empty": "Здесь нечего выбрать",
+    "breadcrumb": "Путь к папке"
   }
 }
