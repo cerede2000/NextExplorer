@@ -80,7 +80,42 @@ const searchUsersForMentions = async (query, limit = 10) => {
   return { Users: users };
 };
 
+/**
+ * Everyone who can be mentioned, without a search term.
+ *
+ * ONLYOFFICE asks for the list once and filters it in the editor as the comment
+ * is typed, so there is nothing to search on here — which is why this cannot go
+ * through `searchLocalUsers`, whose pattern match is what makes it safe to run
+ * on user input in the first place. Bounded by `limit` for the same reason a
+ * search is: an unbounded list is a mistake waiting for a large deployment.
+ */
+const listUsersForMentions = async (limit = 100) => {
+  try {
+    const db = await getDb();
+    const rows = db
+      .prepare(
+        `
+      SELECT id, email, username, display_name
+      FROM users
+      ORDER BY display_name ASC, email ASC
+      LIMIT ?
+    `
+      )
+      .all(limit);
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      name: row.display_name || row.username || row.email || 'Unknown',
+      email: row.email || '',
+    }));
+  } catch (err) {
+    logger.error({ err }, '[UserSearch] Error listing users for mentions');
+    return [];
+  }
+};
+
 module.exports = {
   searchUsersForMentions,
   searchLocalUsers,
+  listUsersForMentions,
 };

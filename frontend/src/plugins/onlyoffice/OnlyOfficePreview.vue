@@ -38,7 +38,9 @@ import { DocumentEditor } from '@onlyoffice/document-editor-vue';
 import { useI18n } from 'vue-i18n';
 import {
   fetchOnlyOfficeConfig,
+  fetchOnlyOfficeMentionUsers,
   heartbeatOnlyOfficeSession,
+  notifyOnlyOfficeMention,
   requestOnlyOfficeForceSave,
   renameOnlyOfficeDocument,
   saveOnlyOfficeDocumentAs,
@@ -335,6 +337,38 @@ const load = async () => {
       // integration, so it opens the dialog the file list uses.
       onRequestSharingSettings() {
         isShareDialogOpen.value = true;
+      },
+
+      // A comment was started with @. The editor takes the whole list and
+      // filters it itself as the name is typed, so there is nothing to search
+      // on; it also expects an answer even when the list is empty, or the
+      // mention popup waits forever.
+      onRequestUsers(event) {
+        const editor = window.DocEditor?.instances?.[editorId.value];
+        if (!editor?.setUsers) return;
+        void fetchOnlyOfficeMentionUsers()
+          .then((result) => {
+            editor.setUsers({ c: event?.data?.c, users: result?.users || [] });
+          })
+          .catch((usersError) => {
+            logger.debug('ONLYOFFICE mention list unavailable', usersError);
+            editor.setUsers({ c: event?.data?.c, users: [] });
+          });
+      },
+
+      // The mention is already written into the document; this is the separate
+      // "tell them about it" step. NextExplorer has no channel to deliver it
+      // on, so the backend records it and answers plainly instead of leaving
+      // the editor waiting on a handler that does nothing.
+      onRequestSendNotify(event) {
+        const data = event?.data || {};
+        void notifyOnlyOfficeMention(documentPath.value, {
+          emails: data.emails,
+          actionLink: data.actionLink,
+          comment: data.message,
+        }).catch((notifyError) => {
+          logger.debug('ONLYOFFICE mention could not be recorded', notifyError);
+        });
       },
 
       // The document on disk moved on without this editor. Until now nothing
