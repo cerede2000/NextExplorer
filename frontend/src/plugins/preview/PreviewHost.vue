@@ -74,7 +74,13 @@
           <!-- Content -->
           <main class="flex-1 overflow-hidden bg-neutral-50 dark:bg-zinc-950/40">
             <!--
-              Minimal floating close button.
+              Fallback close button, shown only until the plugin reports that
+              its own viewer draws one.
+
+              A plugin rendering third-party chrome — ONLYOFFICE — asks that
+              viewer for a close button and clears this flag once the document
+              is ready. Until then, and for anything that never gets there,
+              this is the only way out of a header-less overlay.
 
               Sized and placed to sit over the editor's own logo in the top left
               corner, hiding it: the right-hand side belongs to the editor's
@@ -89,7 +95,7 @@
               both.
             -->
             <button
-              v-if="isMinimal"
+              v-if="isMinimal && !hasNativeClose"
               type="button"
               :title="$t('common.close')"
               :aria-label="$t('common.close')"
@@ -134,6 +140,8 @@ const { isOpen, activeItem, activePlugin } = storeToRefs(manager);
 // Derived state
 const isStandalone = computed(() => activePlugin.value?.standalone ?? false);
 const isMinimal = computed(() => activePlugin.value?.minimalHeader ?? false);
+// Set by plugins whose embedded viewer provides its own close control.
+const hasNativeClose = computed(() => activeItem.value?.previewState?.hasNativeClose === true);
 
 const actions = computed(() => {
   if (!activePlugin.value || !activeItem.value || isStandalone.value || isMinimal.value) {
