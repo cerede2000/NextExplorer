@@ -66,6 +66,33 @@ export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}
   });
 }
 
+/**
+ * The people the editor offers when a comment starts with @.
+ *
+ * ONLYOFFICE takes the whole list and filters it itself as the name is typed,
+ * so there is no search term to pass.
+ */
+export async function fetchOnlyOfficeMentionUsers() {
+  return requestJson('/api/onlyoffice/users', { method: 'GET', suppressErrorHandler: true });
+}
+
+/**
+ * Report a comment that mentions someone.
+ *
+ * The comment is already in the document; this is the separate notification
+ * step, which ONLYOFFICE leaves to the integration.
+ */
+export async function notifyOnlyOfficeMention(path, { emails, actionLink, comment } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/notify', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, emails, actionLink, comment }),
+    suppressErrorHandler: true,
+  });
+}
+
 export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !sessionId) return { active: false };

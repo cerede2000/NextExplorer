@@ -705,6 +705,66 @@ router.post(
   })
 );
 
+/**
+ * Who can be mentioned in a comment.
+ *
+ * ONLYOFFICE asks for the whole list and filters it in the editor as the
+ * comment is typed, so this returns names and addresses rather than answering a
+ * query. Only signed-in users get it: a guest editing through a share link has
+ * no business being handed the user directory.
+ */
+router.get(
+  '/onlyoffice/users',
+  asyncHandler(async (req, res) => {
+    if (!req.user?.id) {
+      throw new ForbiddenError('Mentions require a signed-in user.');
+    }
+    const { listUsersForMentions } = require('../services/userSearchService');
+    res.json({ users: await listUsersForMentions() });
+  })
+);
+
+/**
+ * A comment mentioning someone was posted.
+ *
+ * ONLYOFFICE has already written the comment into the document; this is the
+ * separate "tell them about it" step, which it leaves entirely to the
+ * integration. NextExplorer has no notification channel to deliver it on, so
+ * the mention is recorded and nothing is sent — deliberately, rather than
+ * leaving the editor waiting on a handler that silently does nothing.
+ */
+router.post(
+  '/onlyoffice/notify',
+  asyncHandler(async (req, res) => {
+    if (!req.user?.id) {
+      throw new ForbiddenError('Mentions require a signed-in user.');
+    }
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) {
+      throw new ValidationError('A valid file path is required.');
+    }
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo.canRead) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+    }
+
+    const emails = Array.isArray(req.body?.emails)
+      ? req.body.emails.filter((email) => typeof email === 'string').slice(0, 50)
+      : [];
+    logger.info(
+      {
+        path: relativePath,
+        by: String(req.user.id),
+        recipients: emails.length,
+      },
+      'ONLYOFFICE comment mention recorded, no notification channel configured'
+    );
+
+    res.json({ delivered: false });
+  })
+);
+
 router.post(
   '/onlyoffice/session-close',
   asyncHandler(async (req, res) => {
