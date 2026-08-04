@@ -113,7 +113,10 @@
     "copyPath": "पथ कॉपी करें",
     "copyName": "नाम कॉपी करें",
     "share": "साझा करें",
-    "copied": "कॉपी किया गया"
+    "copied": "कॉपी किया गया",
+    "newWordDocument": "नया Word दस्तावेज़",
+    "newSpreadsheet": "नई Excel स्प्रेडशीट",
+    "newPresentation": "नई PowerPoint प्रस्तुति"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "डार्क थीम"
   },
   "create": {
-    "createNew": "नया"
+    "createNew": "नया",
+    "documentName": "दस्तावेज़ का नाम",
+    "createAndOpen": "बनाएँ और खोलें",
+    "documentFailed": "दस्तावेज़ नहीं बनाया जा सका",
+    "defaultDocumentName": "दस्तावेज़",
+    "defaultSpreadsheetName": "स्प्रेडशीट",
+    "defaultPresentationName": "प्रस्तुति"
   },
   "context": {
     "getInfo": "जानकारी प्राप्त करें",

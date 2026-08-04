@@ -113,7 +113,10 @@
     "copyPath": "Copia percorso",
     "copyName": "Copia nome",
     "share": "Condividi",
-    "copied": "Copiato"
+    "copied": "Copiato",
+    "newWordDocument": "Nuovo documento Word",
+    "newSpreadsheet": "Nuovo foglio di calcolo Excel",
+    "newPresentation": "Nuova presentazione PowerPoint"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "Tema scuro"
   },
   "create": {
-    "createNew": "Nuovo"
+    "createNew": "Nuovo",
+    "documentName": "Nome del documento",
+    "createAndOpen": "Crea e apri",
+    "documentFailed": "Impossibile creare il documento",
+    "defaultDocumentName": "Documento",
+    "defaultSpreadsheetName": "Foglio di calcolo",
+    "defaultPresentationName": "Presentazione"
   },
   "context": {
     "getInfo": "Ottieni informazioni",

@@ -326,6 +326,28 @@ async function reserveFolderUploadTarget(destination, sourceRoot) {
   });
 }
 
+/**
+ * Create a blank Word, Excel or PowerPoint document.
+ *
+ * `format` is the extension the document will carry ('docx', 'xlsx', 'pptx');
+ * the server owns it, so a name that lacks it gains it. Separate from
+ * createFile because an empty file with an office extension is not a document
+ * any editor will open.
+ */
+async function createOfficeDocument(destination, { format, name } = {}) {
+  const normalizedDestination = normalizePath(destination || '');
+  const payload = { path: normalizedDestination, format };
+
+  if (typeof name === 'string' && name.trim()) {
+    payload.name = name.trim();
+  }
+
+  return requestJson('/api/files/office-document', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 async function createFile(destination, name) {
   const normalizedDestination = normalizePath(destination || '');
   const payload = { path: normalizedDestination };
@@ -556,6 +578,7 @@ export {
   createFolder,
   reserveFolderUploadTarget,
   createFile,
+  createOfficeDocument,
   renameItem,
   fetchFileContent,
   fetchSharedFileContent,

@@ -113,7 +113,10 @@
     "copyPath": "複製路徑",
     "copyName": "複製名稱",
     "share": "分享",
-    "copied": "已複製"
+    "copied": "已複製",
+    "newWordDocument": "新增 Word 文件",
+    "newSpreadsheet": "新增 Excel 活頁簿",
+    "newPresentation": "新增 PowerPoint 簡報"
   },
   "archive": {
     "password": {
@@ -232,7 +235,13 @@
     "darkTheme": "深色主題"
   },
   "create": {
-    "createNew": "建立"
+    "createNew": "建立",
+    "documentName": "文件名稱",
+    "createAndOpen": "建立並開啟",
+    "documentFailed": "無法建立文件",
+    "defaultDocumentName": "文件",
+    "defaultSpreadsheetName": "活頁簿",
+    "defaultPresentationName": "簡報"
   },
   "context": {
     "getInfo": "詳細資訊",
