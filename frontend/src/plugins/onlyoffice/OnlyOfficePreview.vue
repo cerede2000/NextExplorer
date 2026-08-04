@@ -37,6 +37,7 @@ import {
 } from '@/api';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
+import { usePreviewManager } from '@/plugins/preview/manager';
 import logger from '@/utils/logger';
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
@@ -62,6 +63,7 @@ const documentPath = ref(props.filePath);
 const { t } = useI18n();
 const fileStore = useFileStore();
 const notifications = useNotificationsStore();
+const previewManager = usePreviewManager();
 const serverUrl = ref(null);
 const config = ref(null);
 const error = ref(null);
@@ -98,7 +100,8 @@ const startSessionHeartbeat = () => {
   clearSessionHeartbeat();
   const sessionId = previewState.forceSaveSessionId;
   if (!documentPath.value || !sessionId) return;
-  const heartbeat = () => heartbeatOnlyOfficeSession(documentPath.value, { sessionId }).catch(() => {});
+  const heartbeat = () =>
+    heartbeatOnlyOfficeSession(documentPath.value, { sessionId }).catch(() => {});
   heartbeat();
   sessionHeartbeatTimer = setInterval(heartbeat, 60_000);
 };
@@ -150,9 +153,10 @@ const renameDocument = async (data) => {
   const currentName = documentPath.value.split('/').pop() || '';
   const dot = currentName.lastIndexOf('.');
   const extension = dot > 0 ? currentName.slice(dot) : '';
-  const newName = extension && !requested.toLowerCase().endsWith(extension.toLowerCase())
-    ? `${requested}${extension}`
-    : requested;
+  const newName =
+    extension && !requested.toLowerCase().endsWith(extension.toLowerCase())
+      ? `${requested}${extension}`
+      : requested;
 
   try {
     const renamed = await renameOnlyOfficeDocument(documentPath.value, { sessionId, newName });
@@ -222,6 +226,7 @@ const load = async () => {
   serverUrl.value = null;
   config.value = null;
   previewState.forceSaveSessionId = null;
+  previewState.hasNativeClose = false;
   try {
     const path = props.filePath;
     if (!path) throw new Error('Missing file path.');
@@ -246,6 +251,17 @@ const load = async () => {
       onDocumentReady() {
         logger.debug('ONLYOFFICE document ready', { path: documentPath.value });
         startSessionHeartbeat();
+        // The editor now draws its own close button, so the floating fallback
+        // can step aside. It stays until this point on purpose: a document that
+        // never opens leaves no editor chrome, and with it no way out.
+        previewState.hasNativeClose = true;
+      },
+
+      // The editor's own close button. Route it through the preview manager
+      // rather than closing the frame directly, so the plugin's close hook
+      // still runs and the last changes are force-saved on the way out.
+      onRequestClose() {
+        void previewManager.close();
       },
 
       // ONLYOFFICE reports failures to whoever asks. Nobody did, so a document

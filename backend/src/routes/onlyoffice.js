@@ -33,13 +33,11 @@ const editorSessions = new Map();
 const EDITOR_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const FORCE_SAVE_RETRY_DELAYS_MS = [250, 750, 1500, 2500];
 
-
 // The backend token is signed with the same secret as the Document Server
 // tokens, so it carries a type claim to keep the two apart, and a lifetime
 // long enough for an editing session but not indefinite.
 const BACKEND_TOKEN_TYPE = 'nextexplorer-backend';
 const BACKEND_TOKEN_TTL_SECONDS = 12 * 60 * 60;
-
 
 /**
  * Read a backend token from the query string.
@@ -106,7 +104,6 @@ const ensureAllowedDownloadUrl = (rawUrl) => {
   return parsed.toString();
 };
 
-
 /**
  * A backend token lives 12 hours; the share it was issued for may not.
  * Confirm the share still exists before honouring the token's write claim.
@@ -119,8 +116,6 @@ const assertShareStillValid = async (backendCtx) => {
     throw new ForbiddenError('The share for this editing session is no longer available.');
   }
 };
-
-
 
 /**
  * Pull a document the Document Server prepared into a file, atomically.
@@ -503,6 +498,11 @@ router.post(
           // Expose ONLYOFFICE's Save action as a force-save when explicitly
           // requested. Closing the editor is handled by the route below.
           forcesave: Boolean(onlyoffice.forceSave && canEdit),
+          // Let the editor draw its own close button. NextExplorer used to lay
+          // one over the toolbar, which meant covering the editor's logo and
+          // hoping nothing underneath moved; the client closes the preview when
+          // ONLYOFFICE asks it to instead.
+          close: { visible: true },
         },
         lang: onlyoffice.lang || 'en',
         // Optionally attach current user info if available
@@ -677,7 +677,10 @@ router.post(
     await folderSizeHooks.onFileWritten(absolute, written.size);
 
     const savedPath = combineRelativePath(targetFolder, name);
-    logger.info({ path: savedPath, size: written.size }, 'ONLYOFFICE document saved under a new name');
+    logger.info(
+      { path: savedPath, size: written.size },
+      'ONLYOFFICE document saved under a new name'
+    );
 
     res.json({ path: savedPath, name, size: written.size });
   })
