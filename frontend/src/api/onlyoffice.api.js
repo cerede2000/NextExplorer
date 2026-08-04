@@ -2,13 +2,18 @@
 
 import { requestJson, normalizePath } from './http';
 
-export async function fetchOnlyOfficeConfig(path, mode = 'edit') {
+/**
+ * `theme` is 'light' or 'dark'. It has to travel with the request rather than
+ * be applied to the returned config: the Document Server reads its settings
+ * from the signed token, so anything set on the object afterwards is dropped.
+ */
+export async function fetchOnlyOfficeConfig(path, mode = 'edit', { theme } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
   return requestJson('/api/onlyoffice/config', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, mode }),
+    body: JSON.stringify({ path: normalizedPath, mode, theme }),
   });
 }
 

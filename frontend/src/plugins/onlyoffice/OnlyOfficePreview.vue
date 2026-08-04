@@ -37,6 +37,7 @@ import {
 } from '@/api';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useSettingsStore } from '@/stores/settings';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import logger from '@/utils/logger';
 
@@ -64,6 +65,11 @@ const { t } = useI18n();
 const fileStore = useFileStore();
 const notifications = useNotificationsStore();
 const previewManager = usePreviewManager();
+// The editor is dressed to match the app when it opens. ONLYOFFICE exposes no
+// method to change the theme of a running editor — the only way to follow a
+// switch made mid-edit would be to rebuild the editor, losing the cursor and
+// the connection to co-authors for a change of colour.
+const settings = useSettingsStore();
 const serverUrl = ref(null);
 const config = ref(null);
 const error = ref(null);
@@ -237,7 +243,9 @@ const load = async () => {
       config: cfg,
       forceSaveSessionId,
       autoSaveIntervalMs: configuredAutoSaveIntervalMs,
-    } = await fetchOnlyOfficeConfig(path, 'edit');
+    } = await fetchOnlyOfficeConfig(path, 'edit', {
+      theme: settings.isDark ? 'dark' : 'light',
+    });
     previewState.forceSaveSessionId = forceSaveSessionId || null;
     autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     previewState.requestForceSave = requestForceSave;
