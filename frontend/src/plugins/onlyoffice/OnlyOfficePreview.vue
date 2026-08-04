@@ -21,6 +21,14 @@
       :documentServerUrl="serverUrl"
       :config="config"
     />
+
+    <!--
+      NextExplorer's own share dialog, opened from the editor's Share button.
+      Rendered inside the overlay rather than teleported: the overlay owns the
+      stacking context, so a dialog placed here sits above the editor frame,
+      while one attached to the body would end up behind it.
+    -->
+    <ShareDialog v-model="isShareDialogOpen" :item="shareItem" />
   </div>
 </template>
 
@@ -39,6 +47,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useSettingsStore } from '@/stores/settings';
 import { usePreviewManager } from '@/plugins/preview/manager';
+import ShareDialog from '@/components/ShareDialog.vue';
 import logger from '@/utils/logger';
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
@@ -73,6 +82,20 @@ const settings = useSettingsStore();
 const serverUrl = ref(null);
 const config = ref(null);
 const error = ref(null);
+const isShareDialogOpen = ref(false);
+// Built from the live path rather than the item the preview was opened with,
+// which still carries the old name after a rename from the title bar.
+const shareItem = computed(() => {
+  const full = documentPath.value || '';
+  const cut = full.lastIndexOf('/');
+  const name = cut === -1 ? full : full.slice(cut + 1);
+  const dot = name.lastIndexOf('.');
+  return {
+    name,
+    path: cut === -1 ? '' : full.slice(0, cut),
+    kind: dot > 0 ? name.slice(dot + 1).toLowerCase() : '',
+  };
+});
 const ready = computed(() => Boolean(serverUrl.value && config.value));
 let autoSaveTimer = null;
 let autoSaveInFlight = null;
@@ -305,6 +328,13 @@ const load = async () => {
       // still runs and the last changes are force-saved on the way out.
       onRequestClose() {
         void previewManager.close();
+      },
+
+      // The Share button in the editor's header. ONLYOFFICE offers it as soon
+      // as something is listening and leaves the sharing itself to the
+      // integration, so it opens the dialog the file list uses.
+      onRequestSharingSettings() {
+        isShareDialogOpen.value = true;
       },
 
       // The document on disk moved on without this editor. Until now nothing
