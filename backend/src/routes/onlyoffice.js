@@ -24,6 +24,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
 const onlyofficeActivity = require('../services/onlyofficeActivityService');
+const documentKeys = require('../services/onlyofficeDocumentKeyService');
 
 const router = express.Router();
 const pendingForceSaves = new Map();
@@ -142,23 +143,25 @@ const downloadDocumentTo = async (downloadUrl, targetPath, mode = 0o600) => {
   }
 };
 
-const buildDocumentKey = (relativePath, stat, documentType) =>
-  crypto
-    .createHash('sha256')
-    .update(relativePath)
-    // Keep the key stable while a document is open, but make it unambiguously
-    // change after a save or an external replacement so Document Server never
-    // serves an older cached revision on the next open.
-    .update(String(stat.mtimeMs))
-    .update(String(stat.ctimeMs))
-    .update(String(stat.size))
-    // The cache is keyed on this alone, and what it holds is the file as one
-    // editor prepared it. An unchanged file opened with a different editor is a
-    // different document: a drawing once opened as text kept answering with
-    // that failed attempt, from cache, long after the mapping was corrected —
-    // no conversion was even retried, so nothing appeared in the logs either.
-    .update(String(documentType))
-    .digest('hex');
+/**
+ * The key this document is currently open under.
+ *
+ * Delegated to the key store: it has to stay the same for everyone who has the
+ * document open — including across the saves they are making, which change the
+ * file — and change once the Document Server has let go. Computing it from the
+ * file alone, as this used to, meant the second person to open a document that
+ * had just been saved got a different key, and therefore a separate editing
+ * session on the same file, with no sign that anyone else was in it.
+ */
+const resolveKeyForOpen = async ({ absolutePath, relativePath, stat, documentType }) => {
+  const presence = onlyofficeActivity.get(absolutePath);
+  return documentKeys.resolveDocumentKey({
+    relativePath,
+    stat,
+    documentType,
+    inUse: Boolean(presence?.active),
+  });
+};
 
 const getCommandServiceUrl = (key, legacy = false) => {
   const commandUrl = new URL(
@@ -459,8 +462,14 @@ router.post(
     const callbackUrl = new URL(`/api/onlyoffice/callback`, publicConfig.url);
     callbackUrl.searchParams.set('path', relativePath);
 
-    // Unique key should change when file changes to bust DS cache
-    const key = buildDocumentKey(relativePath, stat, documentType);
+    // Shared with anyone already in this document, so they edit together rather
+    // than in two sessions that overwrite each other.
+    const key = await resolveKeyForOpen({
+      absolutePath: abs,
+      relativePath,
+      stat,
+      documentType,
+    });
 
     // canEdit is decided above, before the backend token is signed.
     const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
@@ -616,13 +625,19 @@ router.post(
     });
 
     if (renamed.changed) {
-      // Both records follow the file: the session decides where a save lands,
-      // presence decides which row shows as being edited.
+      // Three records follow the file: the session decides where a save lands,
+      // presence decides which row shows as being edited, and the key decides
+      // whether the people already in the document stay together.
+      const previousRelativePath = session.relativePath;
       session.relativePath = renamed.relativePath;
       session.absolutePath = renamed.absolutePath;
       onlyofficeActivity.rename({
         from: renamed.previousAbsolutePath,
         to: renamed.absolutePath,
+      });
+      await documentKeys.renameDocumentKey({
+        from: previousRelativePath,
+        to: renamed.relativePath,
       });
     }
 
@@ -1051,6 +1066,17 @@ router.post(
         });
       } else if ((status === 2 || status === 4) && activityPath) {
         onlyofficeActivity.release({ absolutePath: activityPath });
+        // The Document Server has let the document go, so its cached copy is
+        // now the stale one. Dropping the key is what makes the next open fetch
+        // the saved file instead of that copy.
+        //
+        // The session knows where the document is now; the token only knows
+        // where it was when the editor opened, which a rename since then would
+        // have made wrong.
+        const session = backendCtx?.sessionId ? editorSessions.get(backendCtx.sessionId) : null;
+        await documentKeys.releaseDocumentKey(
+          session?.relativePath || backendCtx?.logicalPath || relativePath
+        );
       }
 
       if (status === 7) {

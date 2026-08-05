@@ -212,14 +212,15 @@ describe('ONLYOFFICE routes', () => {
     expect(commandPayloads[1].key).toBe(configResponse.body.config.document.key);
     expect((await callbackPromises[1]).body).toEqual({ error: 0 });
 
-    // A completed save must yield a new document key on an immediate reopen.
-    // This makes Document Server fetch the current file instead of reusing its
-    // editor cache from the previous revision.
+    // Reopening while the document is still open reuses the key, even though
+    // the save just changed the file: a different key would put this viewer in
+    // a second editing session on the same document, invisible to the first,
+    // and whichever saved last would silently overwrite the other.
     const reopenedConfigResponse = await request(app)
       .post('/api/onlyoffice/config')
       .send({ path: filename });
     expect(reopenedConfigResponse.status).toBe(200);
-    expect(reopenedConfigResponse.body.config.document.key).not.toBe(
+    expect(reopenedConfigResponse.body.config.document.key).toBe(
       configResponse.body.config.document.key
     );
 
