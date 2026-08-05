@@ -45,6 +45,22 @@ const FOLDER_SIZE_INDEX_DDL = `
   CREATE INDEX IF NOT EXISTS idx_folder_size_volume ON folder_size_index(volume);
 `;
 
+// The identity the Document Server files an open document under. Shared by
+// everyone who has it open, which is what lets them edit together; see
+// onlyofficeDocumentKeyService for why it has to outlive their saves.
+//
+// Same idempotent treatment as the index above: a /config directory shared with
+// a different build may already record a later schema version.
+const ONLYOFFICE_DOCUMENT_KEYS_DDL = `
+  CREATE TABLE IF NOT EXISTS onlyoffice_document_keys (
+    relative_path TEXT PRIMARY KEY,
+    document_key  TEXT NOT NULL,
+    signature     TEXT NOT NULL,
+    created_at    DATETIME,
+    expires_at    DATETIME
+  );
+`;
+
 const ensureShareOperationPermissionColumns = (db) => {
   addColumnIfMissing(db, 'shares', 'allow_delete', 'allow_delete INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing(
@@ -402,7 +418,9 @@ const migrate = (db) => {
       version = 8;
     }
     if (version < 9) {
-      logger.info('[DB Migration] Migrating to v9: Adding share audit counters and folder size index...');
+      logger.info(
+        '[DB Migration] Migrating to v9: Adding share audit counters and folder size index...'
+      );
 
       addColumnIfMissing(db, 'shares', 'access_count', 'access_count INTEGER DEFAULT 0');
       addColumnIfMissing(db, 'shares', 'last_access_ip', 'last_access_ip TEXT');
@@ -438,11 +456,21 @@ const migrate = (db) => {
       );
       version = 10;
     }
+    if (version < 11) {
+      logger.info('[DB Migration] Migrating to v11: Adding ONLYOFFICE document keys...');
+      db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(11)
+      );
+      version = 11;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
   // image. Keep additive schema available in this mixed-version case.
   db.exec(FOLDER_SIZE_INDEX_DDL);
+  db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
   ensureShareOperationPermissionColumns(db);
 };
 
