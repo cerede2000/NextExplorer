@@ -26,12 +26,14 @@ const folderSizeHooks = require('../services/folderSizeHooks');
 const onlyofficeActivity = require('../services/onlyofficeActivityService');
 const documentKeys = require('../services/onlyofficeDocumentKeyService');
 
+const editorSessions = require('../services/onlyofficeEditorSessionService');
+
 const router = express.Router();
+// In-flight force-save requests only: these are meaningless once the process
+// that issued them is gone, unlike the sessions they refer to.
 const pendingForceSaves = new Map();
 const pendingForceSavesBySession = new Map();
-const editorSessions = new Map();
 
-const EDITOR_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const FORCE_SAVE_RETRY_DELAYS_MS = [250, 750, 1500, 2500];
 
 // The backend token is signed with the same secret as the Document Server
@@ -194,10 +196,7 @@ const matchesSessionOwner = (session, req) => {
 };
 
 const cleanupExpiredEditorSessions = () => {
-  const now = Date.now();
-  for (const [sessionId, session] of editorSessions) {
-    if (session.expiresAt <= now) editorSessions.delete(sessionId);
-  }
+  void editorSessions.purgeExpired();
 };
 
 /**
@@ -209,11 +208,12 @@ const cleanupExpiredEditorSessions = () => {
  * edited, by everyone, until the session expired. The client reports presence
  * once ONLYOFFICE says the document is ready, through the heartbeat below.
  */
-const createEditorSession = (req, relativePath, key, absolutePath) => {
+const createEditorSession = async (req, relativePath, key, absolutePath) => {
   cleanupExpiredEditorSessions();
   const sessionId = crypto.randomUUID();
   const owner = getSessionOwner(req);
-  editorSessions.set(sessionId, {
+  await editorSessions.create({
+    sessionId,
     key,
     relativePath,
     // Where the document is *now*. The backend token carries the path as it
@@ -221,7 +221,6 @@ const createEditorSession = (req, relativePath, key, absolutePath) => {
     // arriving afterwards would recreate the old name beside the new one.
     absolutePath,
     ...owner,
-    expiresAt: Date.now() + EDITOR_SESSION_TTL_MS,
   });
   return sessionId;
 };
@@ -230,15 +229,14 @@ const createEditorSession = (req, relativePath, key, absolutePath) => {
  * Where a save should be written for this token.
  *
  * The token is minted once and handed to the Document Server, which returns it
- * unchanged however long the editing session lasts. The session, which lives
- * here, is what follows the document if it is renamed meanwhile. Sessions are
- * in memory, so a restart falls back to the token — right in every case except
- * a rename that the restart also erased the record of.
+ * unchanged however long the editing session lasts. The session is what follows
+ * the document if it is renamed meanwhile — and it is stored, so a restart no
+ * longer forgets the rename and put the save back under the old name. The token
+ * remains the fallback for a session that has genuinely expired.
  */
-const resolveSaveTarget = (backendCtx) => {
-  const session = backendCtx?.sessionId ? editorSessions.get(backendCtx.sessionId) : null;
-  if (session?.absolutePath && session.expiresAt > Date.now()) return session.absolutePath;
-  return backendCtx.absolutePath;
+const resolveSaveTarget = async (backendCtx) => {
+  const session = backendCtx?.sessionId ? await editorSessions.get(backendCtx.sessionId) : null;
+  return session?.absolutePath || backendCtx.absolutePath;
 };
 
 const describeSessionUser = (req) => {
@@ -252,15 +250,14 @@ const describeSessionUser = (req) => {
   };
 };
 
-const getEditorSession = (req, sessionId, relativePath) => {
-  cleanupExpiredEditorSessions();
-  const session = editorSessions.get(sessionId);
+const getEditorSession = async (req, sessionId, relativePath) => {
+  const session = await editorSessions.get(sessionId);
   if (!session || session.relativePath !== relativePath || !matchesSessionOwner(session, req)) {
     throw new ForbiddenError(
       'The ONLYOFFICE editing session is no longer valid. Reopen the document.'
     );
   }
-  session.expiresAt = Date.now() + EDITOR_SESSION_TTL_MS;
+  await editorSessions.touch(sessionId);
   return session;
 };
 
@@ -472,7 +469,9 @@ router.post(
     });
 
     // canEdit is decided above, before the backend token is signed.
-    const forceSaveSessionId = canEdit ? createEditorSession(req, relativePath, key, abs) : null;
+    const forceSaveSessionId = canEdit
+      ? await createEditorSession(req, relativePath, key, abs)
+      : null;
 
     // Backend context for storage requests (signed separately and passed via query)
     let backendToken = null;
@@ -582,7 +581,7 @@ router.post(
     const context = { user: req.user, guestSession: req.guestSession };
     const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
-    getEditorSession(req, sessionId, relativePath);
+    await getEditorSession(req, sessionId, relativePath);
     // The client starts beating once ONLYOFFICE reports the document ready, so
     // the first beat is what declares the document open.
     const active = onlyofficeActivity.touch({
@@ -614,7 +613,7 @@ router.post(
 
     // Only the session that opened this document may rename it from inside the
     // editor, and only sessions allowed to write ever get one.
-    const session = getEditorSession(req, sessionId, relativePath);
+    const session = await getEditorSession(req, sessionId, relativePath);
 
     const parentPath = path.posix.dirname(relativePath);
     const renamed = await renameEntry({
@@ -629,8 +628,10 @@ router.post(
       // presence decides which row shows as being edited, and the key decides
       // whether the people already in the document stay together.
       const previousRelativePath = session.relativePath;
-      session.relativePath = renamed.relativePath;
-      session.absolutePath = renamed.absolutePath;
+      await editorSessions.move(sessionId, {
+        relativePath: renamed.relativePath,
+        absolutePath: renamed.absolutePath,
+      });
       onlyofficeActivity.rename({
         from: renamed.previousAbsolutePath,
         to: renamed.absolutePath,
@@ -870,11 +871,11 @@ router.post(
     const context = { user: req.user, guestSession: req.guestSession };
     const { accessInfo } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
-    getEditorSession(req, sessionId, relativePath);
+    await getEditorSession(req, sessionId, relativePath);
     // Closing the embedded frame does not mean Document Server has released
     // the document yet. Keep the advisory activity until its status-2/4
     // callback arrives (or until the short session TTL is reached).
-    editorSessions.delete(sessionId);
+    await editorSessions.remove(sessionId);
     res.status(204).end();
   })
 );
@@ -934,7 +935,7 @@ router.post(
       throw new ValidationError('Cannot force-save a directory.');
     }
 
-    const session = getEditorSession(req, sessionId, relativePath);
+    const session = await getEditorSession(req, sessionId, relativePath);
     const existingRequestId = pendingForceSavesBySession.get(sessionId);
     const pending = existingRequestId ? pendingForceSaves.get(existingRequestId) : null;
     if (pending) {
@@ -992,7 +993,7 @@ router.get(
     // - Fallback to resolving logical path without user for volume-only paths
     let abs = null;
     if (backendCtx) {
-      abs = resolveSaveTarget(backendCtx);
+      abs = await resolveSaveTarget(backendCtx);
     } else {
       const context = { user: req.user, guestSession: req.guestSession };
       const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
@@ -1073,7 +1074,9 @@ router.post(
         // The session knows where the document is now; the token only knows
         // where it was when the editor opened, which a rename since then would
         // have made wrong.
-        const session = backendCtx?.sessionId ? editorSessions.get(backendCtx.sessionId) : null;
+        const session = backendCtx?.sessionId
+          ? await editorSessions.get(backendCtx.sessionId)
+          : null;
         await documentKeys.releaseDocumentKey(
           session?.relativePath || backendCtx?.logicalPath || relativePath
         );
@@ -1097,7 +1100,7 @@ router.post(
             throw new ForbiddenError('This editing session is read-only.');
           }
           await assertShareStillValid(backendCtx);
-          abs = resolveSaveTarget(backendCtx);
+          abs = await resolveSaveTarget(backendCtx);
         } else {
           const context = { user: req.user, guestSession: req.guestSession };
           const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);

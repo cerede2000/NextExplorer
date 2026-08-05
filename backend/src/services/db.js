@@ -61,6 +61,22 @@ const ONLYOFFICE_DOCUMENT_KEYS_DDL = `
   );
 `;
 
+// Where a document is while an editor has it open. Outlives the process on
+// purpose: a restart mid-edit used to lose a rename, and the next save then
+// recreated the old name beside the new one.
+const ONLYOFFICE_EDITOR_SESSIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS onlyoffice_editor_sessions (
+    id               TEXT PRIMARY KEY,
+    document_key     TEXT NOT NULL,
+    relative_path    TEXT NOT NULL,
+    absolute_path    TEXT NOT NULL,
+    user_id          TEXT,
+    guest_session_id TEXT,
+    expires_at       DATETIME NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_onlyoffice_sessions_expiry ON onlyoffice_editor_sessions(expires_at);
+`;
+
 const ensureShareOperationPermissionColumns = (db) => {
   addColumnIfMissing(db, 'shares', 'allow_delete', 'allow_delete INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing(
@@ -465,12 +481,22 @@ const migrate = (db) => {
       );
       version = 11;
     }
+    if (version < 12) {
+      logger.info('[DB Migration] Migrating to v12: Persisting ONLYOFFICE editing sessions...');
+      db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(12)
+      );
+      version = 12;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
   // image. Keep additive schema available in this mixed-version case.
   db.exec(FOLDER_SIZE_INDEX_DDL);
   db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
+  db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
   ensureShareOperationPermissionColumns(db);
 };
 
