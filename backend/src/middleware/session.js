@@ -6,10 +6,10 @@ const { localStore } = require('../utils/sessionStore');
 const logger = require('../utils/logger');
 
 const configureSession = (app) => {
+  // The config layer already falls back to a random secret, and reading the
+  // environment again here would bypass SESSION_SECRET_FILE.
   const sessionSecret =
-    (envAuthConfig && envAuthConfig.sessionSecret) ||
-    process.env.SESSION_SECRET ||
-    crypto.randomBytes(32).toString('hex');
+    (envAuthConfig && envAuthConfig.sessionSecret) || crypto.randomBytes(32).toString('hex');
 
   logger.debug({ hasSessionSecret: Boolean(sessionSecret) }, 'Session secret resolved');
 

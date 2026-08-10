@@ -1,4 +1,4 @@
-const { normalizeBoolean } = require('../utils/env');
+const { normalizeBoolean, readSecret } = require('../utils/env');
 
 /**
  * Single source of truth for ALL environment variables.
@@ -85,12 +85,12 @@ module.exports = {
   // Auth
   AUTH_ENABLED: normalizeBoolean(process.env.AUTH_ENABLED),
   AUTH_MODE: process.env.AUTH_MODE?.trim().toLowerCase() || null,
-  SESSION_SECRET: process.env.SESSION_SECRET || process.env.AUTH_SESSION_SECRET || null,
+  SESSION_SECRET: readSecret('SESSION_SECRET', 'AUTH_SESSION_SECRET'),
   SESSION_MAX_AGE_DAYS: Number(process.env.SESSION_MAX_AGE_DAYS) || 30,
   AUTH_MAX_FAILED: Number(process.env.AUTH_MAX_FAILED) || 5,
   AUTH_LOCK_MINUTES: Number(process.env.AUTH_LOCK_MINUTES) || 15,
   AUTH_ADMIN_EMAIL: process.env.AUTH_ADMIN_EMAIL?.trim() || process.env.ADMIN_EMAIL?.trim() || null,
-  AUTH_ADMIN_PASSWORD: process.env.AUTH_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || null,
+  AUTH_ADMIN_PASSWORD: readSecret('AUTH_ADMIN_PASSWORD', 'ADMIN_PASSWORD'),
 
   // OIDC
   OIDC_ENABLED: normalizeBoolean(process.env.OIDC_ENABLED),
@@ -100,7 +100,7 @@ module.exports = {
   OIDC_USERINFO_URL: process.env.OIDC_USERINFO_URL || null,
   OIDC_LOGOUT_URL: process.env.OIDC_LOGOUT_URL || null,
   OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID || null,
-  OIDC_CLIENT_SECRET: process.env.OIDC_CLIENT_SECRET || null,
+  OIDC_CLIENT_SECRET: readSecret('OIDC_CLIENT_SECRET'),
   OIDC_CALLBACK_URL: process.env.OIDC_CALLBACK_URL || process.env.OIDC_REDIRECT_URI || null,
   OIDC_SCOPES: process.env.OIDC_SCOPES || process.env.OIDC_SCOPE || null,
   OIDC_ADMIN_GROUPS: process.env.OIDC_ADMIN_GROUPS || process.env.OIDC_ADMIN_GROUP || null,
@@ -115,7 +115,7 @@ module.exports = {
 
   // OnlyOffice
   ONLYOFFICE_URL: process.env.ONLYOFFICE_URL?.trim() || null,
-  ONLYOFFICE_SECRET: process.env.ONLYOFFICE_SECRET || null,
+  ONLYOFFICE_SECRET: readSecret('ONLYOFFICE_SECRET'),
   ONLYOFFICE_DOWNLOAD_ORIGINS: process.env.ONLYOFFICE_DOWNLOAD_ORIGINS || '',
   ONLYOFFICE_LANG: process.env.ONLYOFFICE_LANG?.trim() || 'en',
   ONLYOFFICE_FORCE_SAVE: normalizeBoolean(process.env.ONLYOFFICE_FORCE_SAVE) || false,
@@ -132,7 +132,7 @@ module.exports = {
   // Collabora (WOPI)
   COLLABORA_URL: process.env.COLLABORA_URL?.trim() || null,
   COLLABORA_DISCOVERY_URL: process.env.COLLABORA_DISCOVERY_URL?.trim() || null,
-  COLLABORA_SECRET: process.env.COLLABORA_SECRET || null,
+  COLLABORA_SECRET: readSecret('COLLABORA_SECRET'),
   COLLABORA_LANG: process.env.COLLABORA_LANG?.trim() || 'en',
   COLLABORA_FILE_EXTENSIONS: process.env.COLLABORA_FILE_EXTENSIONS || '',
 
