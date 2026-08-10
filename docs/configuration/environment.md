@@ -2,6 +2,35 @@
 
 nextExplorer is configured almost entirely through environment variables. The backend (`backend/src/config/env.js`) centralizes the defaults you see here. Use this reference when you want to tune ports, paths, auth, integrations, or feature flags.
 
+## Secrets
+
+Every credential listed below can be read from a file instead of the environment. Append `_FILE` to the variable name and point it at the file holding the value:
+
+| Variable                                    | File variant               |
+| ------------------------------------------- | -------------------------- |
+| `SESSION_SECRET` (or `AUTH_SESSION_SECRET`) | `SESSION_SECRET_FILE`      |
+| `AUTH_ADMIN_PASSWORD` (or `ADMIN_PASSWORD`) | `AUTH_ADMIN_PASSWORD_FILE` |
+| `OIDC_CLIENT_SECRET`                        | `OIDC_CLIENT_SECRET_FILE`  |
+| `ONLYOFFICE_SECRET`                         | `ONLYOFFICE_SECRET_FILE`   |
+| `COLLABORA_SECRET`                          | `COLLABORA_SECRET_FILE`    |
+
+`docker inspect` prints every environment variable a container was started with, so a secret passed inline is readable by anyone who can reach the Docker daemon and stays in the container's stored configuration. Mounting it as a file keeps it out of both:
+
+```yaml
+services:
+  nextexplorer:
+    environment:
+      ONLYOFFICE_SECRET_FILE: /run/secrets/onlyoffice_secret
+    secrets:
+      - onlyoffice_secret
+
+secrets:
+  onlyoffice_secret:
+    file: ./secrets/onlyoffice_secret
+```
+
+The plain variable wins when both are set. Surrounding whitespace is stripped, so a file written with `echo secret > file` behaves as expected. A `_FILE` naming a missing or empty file stops the server at startup instead of quietly running without the secret.
+
 ## Server & networking
 
 | Variable                                         | Default                                         | Description                                                                                                             |
