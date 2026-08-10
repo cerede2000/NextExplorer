@@ -265,9 +265,7 @@ const configureOidc = async (app) => {
     const scopeParam = resolveOidcScopes(oidc);
     const baseURL = deriveBaseUrl(oidc);
     const sessionSecret =
-      (envAuthConfig && envAuthConfig.sessionSecret) ||
-      process.env.SESSION_SECRET ||
-      crypto.randomBytes(32).toString('hex');
+      (envAuthConfig && envAuthConfig.sessionSecret) || crypto.randomBytes(32).toString('hex');
 
     // Check if OIDC should be enabled
     const eocEnabled = Boolean(
