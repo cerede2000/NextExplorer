@@ -19,9 +19,16 @@ const CLEANUP_INTERVAL_MS = uploadConfig?.tusCleanupIntervalMs ?? 10 * 60 * 1000
 
 let lastCleanupAt = 0;
 
+// Deliberately without `expirationPeriodInMilliseconds`. Declaring it turns on
+// the protocol's expiration extension, and @tus/server then re-reads an upload
+// straight after finishing it to work out Upload-Expires — a header it only
+// sends for *unfinished* uploads, so the read is pointless yet fatal: an empty
+// file completes inside its own creation request, and the read fails on the
+// data this hook has just moved to its destination. Expiry is handled by
+// cleanupInactiveUploads below, which covers more ground anyway (it also
+// reclaims data files whose metadata never made it to disk).
 const fileStore = new FileStore({
   directory: TUS_CACHE_DIR,
-  expirationPeriodInMilliseconds: TUS_INCOMPLETE_UPLOAD_TTL_MS,
 });
 
 /**
@@ -215,15 +222,6 @@ const cleanupExpiredUploads = async ({ force = false } = {}) => {
   } catch (err) {
     logger.warn({ err }, 'Failed to prepare TUS upload cache for cleanup');
     return;
-  }
-
-  try {
-    await fileStore.deleteExpired();
-  } catch (err) {
-    const message = String(err?.body || err?.message || '');
-    if (err?.code !== 'ENOENT' && !message.includes('not found')) {
-      logger.warn({ err }, 'Failed to clean up expired TUS uploads');
-    }
   }
 
   try {

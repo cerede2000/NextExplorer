@@ -274,4 +274,45 @@ describe('TUS upload route', () => {
     }
   });
 
+  /**
+   * A zero-byte file finishes inside its own creation request: the server sees
+   * offset === size and calls onUploadFinish from the POST handler. It then
+   * reads the upload back to compute Upload-Expires, so anything the hook
+   * removes has to still be there — otherwise creation answers 404 and the
+   * whole folder the file belonged to fails.
+   */
+  it('accepts an empty file, which completes during creation', async () => {
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setSystemSetting('system', 'uploads', {
+      chunkedEnabled: true,
+      chunkSizeBytes: 1024 * 1024,
+    });
+
+    await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+
+    try {
+      const create = await request(baseUrl)
+        .post('/api/upload/tus')
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Length', '0')
+        .set(
+          'Upload-Metadata',
+          encodeMetadata({
+            filename: 'empty.js',
+            relativePath: 'empty.js',
+            uploadTo: 'Nvm',
+          })
+        );
+
+      expect(create.status).toBe(201);
+      await expect(
+        fs.readFile(path.join(envContext.volumeDir, 'Nvm', 'empty.js'), 'utf8')
+      ).resolves.toBe('');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
 });
