@@ -239,6 +239,7 @@ export function useFileUploader() {
   };
 
   const finishUploadTask = (fileId) => {
+    if (uploadTaskIds.size <= 1) stopWatchingFinalization();
     const operationId = uploadTaskIds.get(fileId);
     if (!operationId) return;
     uploadTaskIds.delete(fileId);
@@ -277,13 +278,66 @@ export function useFileUploader() {
     const operationId = uploadTaskIds.get(file?.id);
     if (!operationId) return;
     const totalBytes = Number(progress?.bytesTotal) || Number(file?.size) || 0;
+    const uploadedBytes = Number(progress?.bytesUploaded) || 0;
     operationTasksStore.updateOperation(operationId, {
       totalBytes,
-      copiedBytes: Math.min(
-        Number(progress?.bytesUploaded) || 0,
-        totalBytes || Number.POSITIVE_INFINITY
-      ),
+      copiedBytes: Math.min(uploadedBytes, totalBytes || Number.POSITIVE_INFINITY),
     });
+
+    // Every byte is out, but the server may still be writing the file where it
+    // belongs — a copy, whenever the upload cache and the destination volume are
+    // separate filesystems. Nothing more will arrive on this progress event, so
+    // from here the server is the only one who knows how far along it is.
+    if (totalBytes > 0 && uploadedBytes >= totalBytes) watchFinalization();
+  };
+
+  // Ask only while something is waiting on it, and stop as soon as the server
+  // has nothing left to report.
+  const FINALIZATION_POLL_MS = 750;
+  let finalizationTimer = null;
+
+  const stopWatchingFinalization = () => {
+    if (finalizationTimer) clearTimeout(finalizationTimer);
+    finalizationTimer = null;
+  };
+
+  const applyFinalization = (items) => {
+    const byName = new Map(items.map((item) => [item.name, item]));
+
+    uploadTaskIds.forEach((operationId, fileId) => {
+      const file = uppy?.getFile?.(fileId);
+      const name = file?.name || '';
+      const item = byName.get(name);
+      if (!item) return;
+
+      operationTasksStore.updateOperation(operationId, {
+        finalizing: true,
+        finalizedBytes: Number(item.copiedBytes) || 0,
+        finalizedTotalBytes: Number(item.totalBytes) || 0,
+      });
+    });
+  };
+
+  const watchFinalization = () => {
+    if (finalizationTimer || uploadTaskIds.size === 0) return;
+
+    finalizationTimer = setTimeout(async () => {
+      finalizationTimer = null;
+      if (uploadTaskIds.size === 0) return;
+
+      let items = [];
+      try {
+        const response = await fetch(`${apiBase}/api/upload/finalizations`, {
+          credentials: 'include',
+        });
+        if (response.ok) items = (await response.json())?.items || [];
+      } catch (_) {
+        // A dropped poll says nothing about the upload itself; try again.
+      }
+
+      applyFinalization(Array.isArray(items) ? items : []);
+      if (uploadTaskIds.size > 0) watchFinalization();
+    }, FINALIZATION_POLL_MS);
   };
 
   const getTusErrorStatus = (error) => {
@@ -804,6 +858,7 @@ export function useFileUploader() {
 
   onBeforeUnmount(() => {
     if (uploadViewRefreshTimer) clearTimeout(uploadViewRefreshTimer);
+    stopWatchingFinalization();
     inputRef.value?.remove();
     // Only close the singleton if we created it here
     if (createdHere.value) {

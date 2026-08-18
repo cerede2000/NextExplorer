@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Ukryj szczegóły",
     "pauseUploads": "Wstrzymaj przesyłanie",
     "resumeUploads": "Wznów przesyłanie",
-    "uploads": "Przesyłanie {count} {items}"
+    "uploads": "Przesyłanie {count} {items}",
+    "finalizing": "Finalizowanie"
   },
   "info": {
     "aria": "Panel informacji",

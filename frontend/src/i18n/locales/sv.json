@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Dölj detaljer",
     "pauseUploads": "Pausa uppladdningar",
     "resumeUploads": "Återuppta uppladdningar",
-    "uploads": "Laddar upp {count} {items}"
+    "uploads": "Laddar upp {count} {items}",
+    "finalizing": "Slutför"
   },
   "info": {
     "aria": "Infopanel",

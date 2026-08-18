@@ -353,7 +353,8 @@
     "toggleDetailsHide": "Hide details",
     "pauseUploads": "Pause uploads",
     "resumeUploads": "Resume uploads",
-    "uploads": "Uploading {count} {items}"
+    "uploads": "Uploading {count} {items}",
+    "finalizing": "Finishing up"
   },
   "info": {
     "aria": "Info panel",

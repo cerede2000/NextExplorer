@@ -59,7 +59,23 @@ const percentFor = (value) => {
   const streamed = value?.percent;
   return Number.isFinite(streamed) ? Math.min(100, Math.max(0, streamed)) : null;
 };
+// Once the last byte is sent the server may still be writing the file into
+// place. That copy is the only thing still moving, so it — not a transfer stuck
+// at 100% — is what the label should be counting.
+const finalizingPercentFor = (value) => {
+  if (!value?.finalizing) return null;
+  const totalBytes = Number(value.finalizedTotalBytes) || 0;
+  if (totalBytes <= 0) return null;
+  const copied = Math.min(Number(value.finalizedBytes) || 0, totalBytes);
+  return Math.min(100, Math.round((copied / totalBytes) * 100));
+};
+
 const progressLabelFor = (value) => {
+  const finalizing = finalizingPercentFor(value);
+  if (finalizing !== null) {
+    return `${t('upload.finalizing')} · ${finalizing}%`;
+  }
+
   const totalBytes = totalBytesFor(value);
   const percent = percentFor(value);
   if (totalBytes > 0) {
@@ -94,7 +110,9 @@ const titleFor = (value) => {
     : t('clipboard.copying', { count, items: itemsLabel });
 };
 
-const percent = computed(() => percentFor(displayOperation.value));
+const percent = computed(
+  () => finalizingPercentFor(displayOperation.value) ?? percentFor(displayOperation.value)
+);
 const progressLabel = computed(() => progressLabelFor(displayOperation.value));
 const destination = computed(() => displayOperation.value?.destination ?? '');
 const isTransfer = computed(() => ['copy', 'move'].includes(operation.value?.type));

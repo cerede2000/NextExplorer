@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Nascondi dettagli",
     "pauseUploads": "Metti in pausa caricamenti",
     "resumeUploads": "Riprendi caricamenti",
-    "uploads": "Caricamento di {count} {items}"
+    "uploads": "Caricamento di {count} {items}",
+    "finalizing": "Completamento"
   },
   "info": {
     "aria": "Pannello informazioni",

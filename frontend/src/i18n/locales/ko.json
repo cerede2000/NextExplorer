@@ -350,7 +350,8 @@
     "toggleDetailsHide": "상세 정보 숨기기",
     "pauseUploads": "업로드 정지",
     "resumeUploads": "업로드 재개",
-    "uploads": "{count}개 {items} 업로드 중"
+    "uploads": "{count}개 {items} 업로드 중",
+    "finalizing": "마무리 중"
   },
   "info": {
     "aria": "정보 패널",

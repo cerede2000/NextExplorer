@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Ocultar detalles",
     "pauseUploads": "Pausar subidas",
     "resumeUploads": "Reanudar subidas",
-    "uploads": "Subiendo {count} {items}"
+    "uploads": "Subiendo {count} {items}",
+    "finalizing": "Finalizando"
   },
   "info": {
     "aria": "Panel de información",

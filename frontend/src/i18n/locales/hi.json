@@ -350,7 +350,8 @@
     "toggleDetailsHide": "विवरण छिपाएँ",
     "pauseUploads": "अपलोड रोकें",
     "resumeUploads": "अपलोड फिर शुरू करें",
-    "uploads": "{count} {items} अपलोड हो रहे हैं"
+    "uploads": "{count} {items} अपलोड हो रहे हैं",
+    "finalizing": "पूरा किया जा रहा है"
   },
   "info": {
     "aria": "जानकारी पैनल",
