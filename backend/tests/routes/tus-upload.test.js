@@ -218,4 +218,60 @@ describe('TUS upload route', () => {
     await expect(fs.access(path.join(tusDir, activeUploadId))).resolves.toBeUndefined();
     await expect(fs.access(path.join(tusDir, `${activeUploadId}.json`))).resolves.toBeUndefined();
   });
+
+  /**
+   * Uppy stringifies every field named in `allowedMetaFields`, whether or not
+   * the file carries it — a field the file doesn't have arrives as the literal
+   * string "undefined". Only folder uploads get `resolvedRelativePath`, so a
+   * plain file sends "undefined" and used to be stored under that name.
+   */
+  it('ignores metadata Uppy stringified from a missing value', async () => {
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setSystemSetting('system', 'uploads', {
+      chunkedEnabled: true,
+      chunkSizeBytes: 1024 * 1024,
+    });
+
+    await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const content = Buffer.from('dropped straight onto the file list');
+
+    try {
+      const create = await request(baseUrl)
+        .post('/api/upload/tus')
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Length', String(content.length))
+        .set(
+          'Upload-Metadata',
+          encodeMetadata({
+            filename: 'report.txt',
+            relativePath: 'report.txt',
+            resolvedRelativePath: 'undefined',
+            uploadTo: 'Nvm',
+          })
+        );
+
+      expect(create.status).toBe(201);
+
+      const uploadPath = new URL(create.headers.location).pathname;
+      const patch = await request(baseUrl)
+        .patch(uploadPath)
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Offset', '0')
+        .set('Content-Type', 'application/offset+octet-stream')
+        .send(content);
+
+      expect(patch.status).toBe(204);
+      await expect(
+        fs.readFile(path.join(envContext.volumeDir, 'Nvm', 'report.txt'), 'utf8')
+      ).resolves.toBe('dropped straight onto the file list');
+      await expect(
+        fs.access(path.join(envContext.volumeDir, 'Nvm', 'undefined'))
+      ).rejects.toBeTruthy();
+    } finally {
+      await closeServer(server);
+    }
+  });
+
 });

@@ -559,6 +559,10 @@ export function useFileUploader() {
         ...(file.meta || {}),
         uploadTo,
         relativePath: inferredRelativePath,
+        // Uppy stringifies every field listed in `allowedMetaFields`, carried by
+        // the file or not, so a field left unset reaches the server as the
+        // literal "undefined". Only folder uploads fill this one in.
+        resolvedRelativePath: file?.meta?.resolvedRelativePath || '',
       });
       startUploadTask(file, uploadTo);
     });
