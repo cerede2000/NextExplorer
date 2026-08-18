@@ -24,6 +24,20 @@ const fileStore = new FileStore({
   expirationPeriodInMilliseconds: TUS_INCOMPLETE_UPLOAD_TTL_MS,
 });
 
+/**
+ * A metadata value, or '' when the client did not really send one.
+ *
+ * Uppy stringifies every field named in `allowedMetaFields`, whether the file
+ * carries it or not, so a field only folder uploads populate arrives as the
+ * literal string "undefined" on every other upload. Taken at face value it
+ * became the name the file was stored under.
+ */
+const metadataValue = (value) => {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return trimmed === 'undefined' || trimmed === 'null' ? '' : trimmed;
+};
+
 const tusError = (statusCode, message) => ({
   status_code: statusCode,
   body: `${message}\n`,
@@ -228,10 +242,12 @@ const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
     typeof metadata.filename === 'string' && metadata.filename.trim()
       ? metadata.filename.trim()
       : 'upload';
-  const uploadTo = normalizeRelativePath(metadata.uploadTo || '');
+  const uploadTo = normalizeRelativePath(metadataValue(metadata.uploadTo));
+  const resolvedRelativePath = metadataValue(metadata.resolvedRelativePath);
   const requestedRelativePath =
-    normalizeRelativePath(metadata.resolvedRelativePath || metadata.relativePath || filename) ||
-    path.basename(filename);
+    normalizeRelativePath(
+      resolvedRelativePath || metadataValue(metadata.relativePath) || filename
+    ) || path.basename(filename);
 
   const context = { user: nodeReq?.user, guestSession: nodeReq?.guestSession };
   const { allowed, accessInfo, resolved } = await authorizeAndResolve(
@@ -244,13 +260,13 @@ const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
   }
 
   const { absolutePath: destinationRoot, relativePath: logicalBase } = resolved;
-  const relativePath = metadata.resolvedRelativePath
+  const relativePath = resolvedRelativePath
     ? requestedRelativePath
     : await resolveFolderUploadRelativePath({
         relativePath: requestedRelativePath,
         destinationRoot,
         context,
-        uploadBatchId: metadata.uploadBatchId,
+        uploadBatchId: metadataValue(metadata.uploadBatchId) || undefined,
       });
   const destinationPath = path.join(destinationRoot, relativePath);
   const destinationDir = path.dirname(destinationPath);
