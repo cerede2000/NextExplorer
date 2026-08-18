@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { createUploadMiddleware } = require('../services/uploadService');
-const { handleTusUpload } = require('../services/tusUploadService');
+const { handleTusUpload, listFinalizations } = require('../services/tusUploadService');
 const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
 const { uploads } = require('../config/index');
 const { normalizeRelativePath } = require('../utils/pathUtils');
@@ -17,6 +17,22 @@ const router = express.Router();
 const upload = createUploadMiddleware();
 
 router.all('/upload/tus*', handleTusUpload);
+
+/**
+ * Files whose transfer is over but which are still being written where they
+ * belong. The client polls this while its own progress bar has nothing left to
+ * report, so a long cross-filesystem copy doesn't look like a frozen 100%.
+ *
+ * Answers only for what the caller uploaded, and says nothing when there is
+ * nothing to say — the usual case, where the move is a rename and returns
+ * before anyone could ask.
+ */
+router.get(
+  '/upload/finalizations',
+  asyncHandler(async (req, res) => {
+    res.json({ items: listFinalizations(req) });
+  })
+);
 
 router.post(
   '/upload/folder-session',

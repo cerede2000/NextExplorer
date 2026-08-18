@@ -315,4 +315,92 @@ describe('TUS upload route', () => {
     }
   });
 
+
+  /**
+   * When the cache and the destination sit on different filesystems — the norm
+   * once a user has more than one volume mounted — the finished file is copied
+   * rather than renamed. The client has stopped sending by then, so without
+   * this its progress bar sits at 100% for the length of the copy.
+   *
+   * The copy is observed from inside `unlink`, which the service calls once the
+   * bytes are written and before it forgets the upload. That is the last moment
+   * the entry is still there, and it makes the assertion deterministic instead
+   * of a race against a copy that finishes in milliseconds.
+   */
+  it('reports the final copy while it is still running', async () => {
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setSystemSetting('system', 'uploads', {
+      chunkedEnabled: true,
+      chunkSizeBytes: 1024 * 1024,
+    });
+
+    await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
+
+    const content = Buffer.alloc(256 * 1024, 'x');
+    let seen = null;
+
+    const originalRename = fs.rename;
+    const originalUnlink = fs.unlink;
+    fs.rename = async () => {
+      const error = new Error('EXDEV: cross-device link not permitted');
+      error.code = 'EXDEV';
+      throw error;
+    };
+
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+
+    fs.unlink = async (...args) => {
+      if (!seen) {
+        const response = await request(baseUrl).get('/api/upload/finalizations');
+        seen = response.body;
+      }
+      return originalUnlink(...args);
+    };
+
+    try {
+      const create = await request(baseUrl)
+        .post('/api/upload/tus')
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Length', String(content.length))
+        .set(
+          'Upload-Metadata',
+          encodeMetadata({
+            filename: 'large.bin',
+            relativePath: 'large.bin',
+            uploadTo: 'Nvm',
+          })
+        );
+
+      expect(create.status).toBe(201);
+
+      const uploadPath = new URL(create.headers.location).pathname;
+      const patch = await request(baseUrl)
+        .patch(uploadPath)
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Offset', '0')
+        .set('Content-Type', 'application/offset+octet-stream')
+        .send(content);
+
+      expect(patch.status).toBe(204);
+
+      // The copy was visible, counted, and named after the file being written.
+      expect(seen?.items).toEqual([
+        { name: 'large.bin', copiedBytes: content.length, totalBytes: content.length },
+      ]);
+
+      // Copied, not just reported: the file is whole at its destination.
+      const stored = await fs.stat(path.join(envContext.volumeDir, 'Nvm', 'large.bin'));
+      expect(stored.size).toBe(content.length);
+
+      // And forgotten once it is done, so nothing lingers in the list.
+      const after = await request(baseUrl).get('/api/upload/finalizations');
+      expect(after.body).toEqual({ items: [] });
+    } finally {
+      fs.rename = originalRename;
+      fs.unlink = originalUnlink;
+      await closeServer(server);
+    }
+  });
+
 });

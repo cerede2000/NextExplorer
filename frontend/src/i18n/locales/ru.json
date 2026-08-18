@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Скрыть детали",
     "pauseUploads": "Приостановить загрузку",
     "resumeUploads": "Возобновить загрузку",
-    "uploads": "Загрузка {count} {items}"
+    "uploads": "Загрузка {count} {items}",
+    "finalizing": "Завершение"
   },
   "info": {
     "aria": "Панель информации",

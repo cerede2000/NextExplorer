@@ -1,5 +1,7 @@
 const path = require('path');
 const fs = require('fs/promises');
+const fsSync = require('node:fs');
+const { pipeline } = require('node:stream/promises');
 
 const { Server } = require('@tus/server');
 const { FileStore } = require('@tus/file-store');
@@ -314,16 +316,57 @@ const validateExistingUploadAccess = async (req, uploadId) => {
   await resolveTusUploadTarget(nodeReq, upload.metadata || {});
 };
 
-const moveFile = async (source, destination) => {
+/**
+ * Uploads whose last byte has arrived but whose file has not reached its
+ * destination yet.
+ *
+ * Chunks are assembled in the cache directory and the finished file is moved
+ * into place, which is instant on one filesystem and a byte-for-byte copy
+ * across two — unavoidable here, since the volumes a user can upload to are
+ * separate mounts. The client has finished sending by then, so its own progress
+ * bar has nothing left to report and sits at 100% for as long as the copy runs.
+ * On a multi-gigabyte file that reads as a freeze. These entries are what the
+ * client polls to show the copy actually moving.
+ */
+const finalizations = new Map();
+
+const ownerOf = (nodeReq) => nodeReq?.user?.id || nodeReq?.guestSession?.id || null;
+
+const copyWithProgress = async (source, destination, onProgress) => {
+  const readStream = fsSync.createReadStream(source);
+  let copiedBytes = 0;
+
+  readStream.on('data', (chunk) => {
+    copiedBytes += chunk.length;
+    onProgress(copiedBytes);
+  });
+
+  await pipeline(readStream, fsSync.createWriteStream(destination));
+};
+
+const moveFile = async (source, destination, onProgress) => {
   try {
     await fs.rename(source, destination);
+    return;
   } catch (err) {
     if (err?.code !== 'EXDEV') {
       throw err;
     }
-    await fs.copyFile(source, destination);
-    await fs.unlink(source);
   }
+
+  // Different filesystems: the bytes have to be read and written again.
+  await copyWithProgress(source, destination, onProgress);
+  await fs.unlink(source);
+};
+
+/** What is still being written to its destination, for one user. */
+const listFinalizations = (nodeReq) => {
+  const owner = ownerOf(nodeReq);
+  if (!owner) return [];
+
+  return [...finalizations.values()]
+    .filter((entry) => entry.owner === owner)
+    .map(({ name, copiedBytes, totalBytes }) => ({ name, copiedBytes, totalBytes }));
 };
 
 const server = new Server({
@@ -401,7 +444,24 @@ const server = new Server({
       finalPath = path.join(target.destinationDir, availableName);
     }
 
-    await moveFile(sourcePath, finalPath);
+    // Only reported once the copy starts moving: a rename within one filesystem
+    // returns before the client could poll, and an entry stuck at zero bytes
+    // would be worse than none at all.
+    finalizations.set(upload.id, {
+      name: path.basename(finalPath),
+      copiedBytes: 0,
+      totalBytes: Number.isFinite(upload.size) ? upload.size : 0,
+      owner: ownerOf(nodeReq),
+    });
+
+    try {
+      await moveFile(sourcePath, finalPath, (copiedBytes) => {
+        const entry = finalizations.get(upload.id);
+        if (entry) entry.copiedBytes = copiedBytes;
+      });
+    } finally {
+      finalizations.delete(upload.id);
+    }
 
     try {
       await fileStore.configstore.delete(upload.id);
@@ -428,6 +488,7 @@ const handleTusUpload = async (req, res) => {
 
 module.exports = {
   handleTusUpload,
+  listFinalizations,
   cleanupExpiredUploads,
   cleanupInactiveUploads,
 };

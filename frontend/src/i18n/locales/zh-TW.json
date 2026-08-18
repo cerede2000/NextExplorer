@@ -350,7 +350,8 @@
     "toggleDetailsHide": "隱藏詳細資訊",
     "pauseUploads": "暫停上傳",
     "resumeUploads": "繼續上傳",
-    "uploads": "正在上傳 {count} 個{items}"
+    "uploads": "正在上傳 {count} 個{items}",
+    "finalizing": "正在收尾"
   },
   "info": {
     "aria": "資訊面板",

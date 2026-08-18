@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Ascunde detalii",
     "pauseUploads": "Pune pe pauză încărcările",
     "resumeUploads": "Reia încărcările",
-    "uploads": "Se încarcă {count} {items}"
+    "uploads": "Se încarcă {count} {items}",
+    "finalizing": "Se finalizează"
   },
   "info": {
     "aria": "Panou informații",

@@ -350,7 +350,8 @@
     "toggleDetailsHide": "Details ausblenden",
     "pauseUploads": "Uploads pausieren",
     "resumeUploads": "Uploads fortsetzen",
-    "uploads": "{count} {items} werden hochgeladen"
+    "uploads": "{count} {items} werden hochgeladen",
+    "finalizing": "Wird abgeschlossen"
   },
   "info": {
     "aria": "Info-Panel",

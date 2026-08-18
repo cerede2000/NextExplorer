@@ -353,7 +353,8 @@
     "toggleDetailsHide": "Masquer les détails",
     "pauseUploads": "Mettre en pause les téléversements",
     "resumeUploads": "Reprendre les téléversements",
-    "uploads": "Téléversement de {count} {items}"
+    "uploads": "Téléversement de {count} {items}",
+    "finalizing": "Finalisation"
   },
   "info": {
     "aria": "Panneau d'informations",
