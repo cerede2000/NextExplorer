@@ -41,7 +41,11 @@ jobs:
             echo "Release tag not detected; aborting."
             exit 1
           fi
+          # Git tags are written v3.0.0; image tags conventionally are not, and
+          # `pull image:3.0.0` is what a reader of the release notes will type.
+          # Publish both so neither form is a dead end.
           echo "version=$VERSION_TAG" >> "$GITHUB_OUTPUT"
+          echo "number=${VERSION_TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -57,6 +61,7 @@ jobs:
             type=raw,value=latest
             type=sha,format=long
             type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ steps.version.outputs.number }}
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
