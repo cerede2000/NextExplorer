@@ -154,6 +154,3 @@ npm run test:unit   # frontend (vitest)
 
 - `src/stores/folderSize.spec.js` — throttle, in-flight de-duplication, and the
 feature-disabled no-op.
-</content>
-
-</invoke>
