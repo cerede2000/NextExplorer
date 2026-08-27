@@ -130,6 +130,16 @@ export default defineConfig({
           { text: 'FAQ', link: '/reference/faq' },
         ],
       },
+      {
+        // Manual test plans for the areas automated tests cannot reach — touch
+        // gestures, and an index that only misbehaves at scale.
+        text: 'Test plans',
+        collapsed: true,
+        items: [
+          { text: 'Media preview', link: '/testing/media-preview-357' },
+          { text: 'Folder size index', link: '/testing/folder-size-index' },
+        ],
+      },
       { text: 'Releases', link: '/reference/releases' },
     ],
     outline: [2, 3],
