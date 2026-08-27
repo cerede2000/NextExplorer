@@ -18,9 +18,24 @@ concurrency:
 
 jobs:
   build:
-    name: Build Docker image
+    name: Build Docker image (${{ matrix.variant }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The full image carries hardware video acceleration and RAW photo
+          # support; the lean one leaves both out, which is a great deal smaller
+          # and all that is needed where neither is used.
+          - variant: full
+            suffix: ''
+            extra_build_args: ''
+          - variant: lean
+            suffix: '-lean'
+            extra_build_args: |
+              INCLUDE_VAAPI=false
+              INCLUDE_RAW=false
     permissions:
       contents: read
       packages: write
@@ -62,6 +77,10 @@ jobs:
             type=sha,format=long
             type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=${{ steps.version.outputs.number }}
+          # onlatest applies the suffix to `latest` too, so the lean build
+          # publishes latest-lean rather than overwriting latest.
+          flavor: |
+            suffix=${{ matrix.suffix }},onlatest=true
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -92,15 +111,16 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             GIT_BRANCH=${{ github.ref_name }}
             REPO_URL=https://github.com/${{ github.repository }}
+            ${{ matrix.extra_build_args }}
           push: ${{ github.event_name == 'release' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
 
       - name: Update Docker Hub description
-        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' }}
+        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' && matrix.variant == 'full' }}
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
