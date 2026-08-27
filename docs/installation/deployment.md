@@ -22,7 +22,7 @@ Deploy nextExplorer via Docker Compose for reproducible self-hosted workflows. T
 ```yaml
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: ghcr.io/cerede2000/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:

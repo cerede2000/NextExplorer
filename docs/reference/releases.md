@@ -1,8 +1,80 @@
 # Changelog
 
-Release notes for nextExplorer. GitHub remains the source of truth: https://github.com/vikramsoni2/nextExplorer/releases
+Release notes for NextExplorer. GitHub remains the source of truth: https://github.com/cerede2000/NextExplorer/releases
+
+Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/nextExplorer/releases.
 
 Releases are listed newest to oldest.
+
+## v3.0.0 (2026-08-27)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.0.0)
+
+First release of this fork. It gathers the work done since the upstream
+repository went quiet in July 2026, and the version is bumped to 3.0.0 to make
+clear that this is a different line of development — not an upstream release.
+
+### Uploads
+
+- Chunked, resumable uploads (TUS), with automatic fallback when a reverse proxy
+  refuses a large body, and a per-origin chunk size that is learned rather than
+  guessed.
+- Transfer rate shown while anything is moving, measured over a trailing window
+  so it reflects the speed you actually have.
+- The final server-side copy is reported separately, instead of a progress bar
+  that appeared to freeze at 100% for the length of it.
+- Empty files and folders containing them upload correctly.
+- Dropped files keep their own names.
+
+### Files
+
+- **Move to** and **Copy to** from the context menu, offering recent
+  destinations and favorites before any browsing — the only route to a transfer
+  on a touch device, where dragging is unavailable.
+- Native, cancellable copy and move with real progress, and the view repositions
+  on what was just transferred.
+- Copy by drag-and-drop onto folders and favorites (Alt/Option), and per-folder
+  sorting that is remembered.
+- Recursive folder sizes and volume usage indicators.
+- Large directories and bulk deletion handled without stalling the interface.
+- Keyboard navigation through folders.
+
+### Media
+
+- One gallery for pictures and videos, navigable by swipe, arrow keys or
+  on-screen arrows.
+- Pinch, double-tap and ctrl-wheel zoom, with dragging that pans a zoomed
+  picture and turns the page otherwise.
+- Portrait videos can be closed again on Android.
+
+### Documents
+
+- ONLYOFFICE: reliable background autosave, shared editing sessions, the
+  editor's own close button, rename and save-as from the editor, mentions,
+  comparison, insertion from the user's own storage, and the app's theme.
+- New blank Word, Excel and PowerPoint documents from a drawer beside New file.
+- Secure shared text editor with granular write controls.
+
+### Access and security
+
+- Per-user access control, personal folders and user volumes.
+- OIDC sessions persisted in SQLite, and the configured origin preserved across
+  authentication.
+- Every credential can be read from a file via a `_FILE` variable, keeping
+  secrets out of `docker inspect`.
+- Public share activity tracking, clean direct share URLs, and hidden-file
+  visibility honoured by download artifacts.
+
+### Under the hood
+
+- Container dependencies refreshed; optional VA-API and RAW support through
+  build arguments, and a lean image without them.
+- Thumbnail queue and cache stabilised, with prefetching only while idle.
+- Translations completed across all 13 locales.
+- Test suites repaired and considerably extended.
+
+**Contributors**: [@jimaek](https://github.com/jimaek) (per-folder sorting,
+media gallery and swiping).
 
 ## v2.0.7 (2025-12-23)
 

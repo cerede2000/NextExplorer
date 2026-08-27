@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitepress';
 
-const githubRepoUrl = 'https://github.com/vikramsoni2/nextExplorer';
+const githubRepoUrl = 'https://github.com/cerede2000/NextExplorer';
 
 export default defineConfig({
   lang: 'en-US',
+  // GitHub Pages serves a project site under /<repository>/, so every asset and
+  // link has to be built with that prefix or the published site loads nothing.
+  base: '/NextExplorer/',
   title: 'nextExplorer',
   description: 'Modern, self-hosted file explorer',
   themeConfig: {

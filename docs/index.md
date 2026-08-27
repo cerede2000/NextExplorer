@@ -46,7 +46,7 @@ nextExplorer arrives ready to run. Drop the container on any host, mount your vo
 ```yaml
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: ghcr.io/cerede2000/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:

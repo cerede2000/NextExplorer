@@ -93,7 +93,7 @@ To enable personal folders in a production deploy (see the full example in [Depl
 ```yaml
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: ghcr.io/cerede2000/explorer:latest
     environment:
       - NODE_ENV=production
       - PUBLIC_URL=https://files.example.com

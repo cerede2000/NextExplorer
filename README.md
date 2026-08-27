@@ -9,14 +9,20 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://explorer.nxz.ai/">explorer.nxz.ai</a>
+  Docs: <a href="https://cerede2000.github.io/NextExplorer/">cerede2000.github.io/NextExplorer</a>
 </p>
 
-## Demo
+## About this fork
 
-- https://explorer-latest.onrender.com
-- Username: `demo@example.com`
-- Password: `password`
+NextExplorer was created by [Vikram Soni](https://github.com/vikramsoni2) and
+developed at [nxzai/NextExplorer](https://github.com/nxzai/NextExplorer). That
+repository has had no commits since 13 July 2026, and its documentation and demo
+sites are offline.
+
+This fork carries the work that accumulated in the meantime — chunked uploads,
+per-user access control, ONLYOFFICE integration, native transfers with progress,
+and a good deal more — and is where issues are answered and releases are cut. It
+remains GPL-3.0, like the original.
 
 ## Highlights
 
@@ -33,7 +39,7 @@
 ```yaml
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: ghcr.io/cerede2000/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:
@@ -55,7 +61,7 @@ services:
 ```yaml
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: ghcr.io/cerede2000/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:
@@ -164,14 +170,14 @@ services:
 
 ## Documentation
 
-- Quick start: https://explorer.nxz.ai/quick-launch/overview.html
-- Visual tour: https://explorer.nxz.ai/quick-launch/visual-tour.html
-- Feature guide: https://explorer.nxz.ai/experience/features.html
-- Admin & access control: https://explorer.nxz.ai/admin/guide.html
-- Deployment & reverse proxy: https://explorer.nxz.ai/installation/deployment.html and https://explorer.nxz.ai/installation/reverse-proxy.html
-- Environment variables: https://explorer.nxz.ai/configuration/environment.html
-- Runtime settings: https://explorer.nxz.ai/configuration/settings.html
-- Integrations (OIDC, Authelia, ONLYOFFICE): https://explorer.nxz.ai/integrations/oidc.html
-- Troubleshooting/FAQ: https://explorer.nxz.ai/reference/troubleshooting.html and https://explorer.nxz.ai/reference/faq.html
-- Releases: https://explorer.nxz.ai/reference/releases.html
-- Contributing: https://explorer.nxz.ai/reference/contributing.html
+- Quick start: https://cerede2000.github.io/NextExplorer/quick-launch/overview.html
+- Visual tour: https://cerede2000.github.io/NextExplorer/quick-launch/visual-tour.html
+- Feature guide: https://cerede2000.github.io/NextExplorer/experience/features.html
+- Admin & access control: https://cerede2000.github.io/NextExplorer/admin/guide.html
+- Deployment & reverse proxy: https://cerede2000.github.io/NextExplorer/installation/deployment.html and https://cerede2000.github.io/NextExplorer/installation/reverse-proxy.html
+- Environment variables: https://cerede2000.github.io/NextExplorer/configuration/environment.html
+- Runtime settings: https://cerede2000.github.io/NextExplorer/configuration/settings.html
+- Integrations (OIDC, Authelia, ONLYOFFICE): https://cerede2000.github.io/NextExplorer/integrations/oidc.html
+- Troubleshooting/FAQ: https://cerede2000.github.io/NextExplorer/reference/troubleshooting.html and https://cerede2000.github.io/NextExplorer/reference/faq.html
+- Releases: https://cerede2000.github.io/NextExplorer/reference/releases.html
+- Contributing: https://cerede2000.github.io/NextExplorer/reference/contributing.html
