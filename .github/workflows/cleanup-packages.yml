@@ -1,0 +1,45 @@
+name: Clean up old container images
+
+# The registry gains a version per build, and a multi-arch image is several of
+# them: an index, plus one manifest per architecture that carries no tag. The
+# obvious cleanup — delete untagged versions — takes those with it, and the
+# published image stops working for whoever pulls it on that architecture.
+# scripts/prune-images.js reads each kept index and keeps what it points at.
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Actually delete (otherwise only lists what would go)'
+        type: boolean
+        default: false
+
+jobs:
+  prune:
+    name: Prune container images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Prune
+        env:
+          # GITHUB_TOKEN cannot delete a personal package; this needs a PAT with
+          # delete:packages. Without it the run lists and changes nothing.
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_CLEANUP_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "PACKAGE_CLEANUP_TOKEN is not set; nothing to do."
+            exit 0
+          fi
+          node scripts/prune-images.js ${{ inputs.apply && '--apply' || '' }}
