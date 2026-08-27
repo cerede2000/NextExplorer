@@ -47,8 +47,8 @@ export const usePreviewManager = defineStore('preview-manager', () => {
         router.push({ path: `/editor/${encodedPath}` });
       }
     },
-    download: async () => {
-      const path = getFullPath(item);
+    download: async (targetItem = item) => {
+      const path = getFullPath(targetItem);
       if (!path) return;
 
       const response = await downloadItems([path]);
@@ -57,7 +57,7 @@ export const usePreviewManager = defineStore('preview-manager', () => {
 
       const link = document.createElement('a');
       link.href = url;
-      link.download = item.name || 'download';
+      link.download = targetItem.name || 'download';
       link.click();
 
       URL.revokeObjectURL(url);
