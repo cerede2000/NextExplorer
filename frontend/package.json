@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
+    "pretest:e2e": "playwright install chromium",
+    "test:e2e": "playwright test --config playwright.config.js",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
     "format": "prettier --config ../prettier.config.cjs --write .",
     "format:check": "prettier --config ../prettier.config.cjs --check ."
@@ -35,12 +37,12 @@
     "pinia": "^2.1.7",
     "vue": "^3.5.0",
     "vue-codemirror": "^6.1.1",
-    "vue-easy-lightbox": "^1.19.0",
     "vue-i18n": "^9.14.0",
     "vue-router": "^4.3.0",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
     "@vicons/fluent": "^0.12.0",

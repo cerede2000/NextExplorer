@@ -760,5 +760,11 @@
     "itselfRejected": "Una cartella non può essere spostata in se stessa",
     "descendantRejected": "Una cartella non può essere spostata in una delle proprie cartelle",
     "alreadyThereRejected": "Già qui"
+  },
+  "mediaPreview": {
+    "download": "Scarica contenuto",
+    "close": "Chiudi anteprima",
+    "previous": "Contenuto precedente",
+    "next": "Contenuto successivo"
   }
 }

@@ -760,5 +760,11 @@
     "itselfRejected": "Un dossier ne peut pas être déplacé dans lui-même",
     "descendantRejected": "Un dossier ne peut pas être déplacé dans un de ses propres dossiers",
     "alreadyThereRejected": "Déjà ici"
+  },
+  "mediaPreview": {
+    "download": "Télécharger le média",
+    "close": "Fermer l'aperçu",
+    "previous": "Média précédent",
+    "next": "Média suivant"
   }
 }

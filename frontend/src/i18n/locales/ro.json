@@ -760,5 +760,11 @@
     "itselfRejected": "Un folder nu poate fi mutat în el însuși",
     "descendantRejected": "Un folder nu poate fi mutat într-unul dintre folderele sale",
     "alreadyThereRejected": "Deja aici"
+  },
+  "mediaPreview": {
+    "download": "Descarcă fișierul media",
+    "close": "Închide previzualizarea",
+    "previous": "Element media anterior",
+    "next": "Element media următor"
   }
 }

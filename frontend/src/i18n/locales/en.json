@@ -760,5 +760,11 @@
     "itselfRejected": "A folder cannot be moved into itself",
     "descendantRejected": "A folder cannot be moved into one of its own folders",
     "alreadyThereRejected": "Already here"
+  },
+  "mediaPreview": {
+    "download": "Download media",
+    "close": "Close preview",
+    "previous": "Previous media",
+    "next": "Next media"
   }
 }

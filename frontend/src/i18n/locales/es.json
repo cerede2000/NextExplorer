@@ -760,5 +760,11 @@
     "itselfRejected": "Una carpeta no puede moverse dentro de sí misma",
     "descendantRejected": "Una carpeta no puede moverse a una de sus propias carpetas",
     "alreadyThereRejected": "Ya está aquí"
+  },
+  "mediaPreview": {
+    "download": "Descargar medio",
+    "close": "Cerrar vista previa",
+    "previous": "Medio anterior",
+    "next": "Medio siguiente"
   }
 }

@@ -760,5 +760,11 @@
     "itselfRejected": "Ein Ordner kann nicht in sich selbst verschoben werden",
     "descendantRejected": "Ein Ordner kann nicht in einen seiner eigenen Ordner verschoben werden",
     "alreadyThereRejected": "Bereits hier"
+  },
+  "mediaPreview": {
+    "download": "Medium herunterladen",
+    "close": "Vorschau schließen",
+    "previous": "Vorheriges Medium",
+    "next": "Nächstes Medium"
   }
 }
