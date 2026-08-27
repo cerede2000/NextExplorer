@@ -1004,6 +1004,7 @@ export const useFileStore = defineStore('fileStore', () => {
     activeBrowseController?.abort();
     const controller = new AbortController();
     activeBrowseController = controller;
+    useSettingsStore().restoreSortForFolder(normalizedPath);
     currentPath.value = normalizedPath;
     if (!options.preserveInteraction) {
       clearSelection();

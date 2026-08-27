@@ -54,23 +54,48 @@ export const useSettingsStore = defineStore('settings', () => {
   ]);
 
   const sortBy = ref(sortOptions[0]);
+  const folderSorts = useStorage('settings:folderSorts', {});
+  const activeFolderPath = ref('');
+
+  const getSortOption = (by, order) => sortOptions.find((o) => o.by === by && o.order === order);
+
+  const saveSortForActiveFolder = (sort) => {
+    if (!activeFolderPath.value) return;
+
+    folderSorts.value = {
+      ...(folderSorts.value && typeof folderSorts.value === 'object' ? folderSorts.value : {}),
+      [activeFolderPath.value]: { by: sort.by, order: sort.order },
+    };
+  };
+
+  const applySort = (sort) => {
+    if (!sort) return;
+    sortBy.value = sort;
+    saveSortForActiveFolder(sort);
+  };
 
   const setSortBy = (key) => {
-    sortBy.value = sortOptions.find((o) => o.key === key);
+    applySort(sortOptions.find((o) => o.key === key));
   };
 
   const setSort = (by, order) => {
     if (!by || !order) return;
-    const existing = sortOptions.find((o) => o.by === by && o.order === order);
+    const existing = getSortOption(by, order);
     if (existing) {
-      sortBy.value = existing;
+      applySort(existing);
       return;
     }
 
     const nextKey = Math.max(0, ...sortOptions.map((o) => Number(o.key) || 0)) + 1;
     const created = { key: nextKey, name: `${by} ${order}`, by, order };
     sortOptions.push(created);
-    sortBy.value = created;
+    applySort(created);
+  };
+
+  const restoreSortForFolder = (path) => {
+    activeFolderPath.value = typeof path === 'string' ? path : '';
+    const saved = folderSorts.value?.[activeFolderPath.value];
+    sortBy.value = getSortOption(saved?.by, saved?.order) || sortOptions[0];
   };
 
   // Widths are sized to their content (icon, name, size, kind, modified date) so
@@ -141,6 +166,7 @@ export const useSettingsStore = defineStore('settings', () => {
     sortBy,
     setSortBy,
     setSort,
+    restoreSortForFolder,
     sortOptions,
     terminalHeight,
     listViewColumnWidths,
