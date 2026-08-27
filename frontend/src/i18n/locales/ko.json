@@ -760,5 +760,11 @@
     "itselfRejected": "폴더를 자기 자신으로 이동할 수 없습니다",
     "descendantRejected": "폴더를 자신의 하위 폴더로 이동할 수 없습니다",
     "alreadyThereRejected": "이미 여기에 있습니다"
+  },
+  "mediaPreview": {
+    "download": "미디어 다운로드",
+    "close": "미리보기 닫기",
+    "previous": "이전 미디어",
+    "next": "다음 미디어"
   }
 }

@@ -760,5 +760,11 @@
     "itselfRejected": "Folderu nie można przenieść do niego samego",
     "descendantRejected": "Folderu nie można przenieść do jednego z jego własnych folderów",
     "alreadyThereRejected": "Już tutaj"
+  },
+  "mediaPreview": {
+    "download": "Pobierz multimedia",
+    "close": "Zamknij podgląd",
+    "previous": "Poprzedni element",
+    "next": "Następny element"
   }
 }

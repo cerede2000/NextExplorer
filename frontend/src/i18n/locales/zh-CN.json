@@ -760,5 +760,11 @@
     "itselfRejected": "文件夹不能移动到自身",
     "descendantRejected": "文件夹不能移动到其自身的子文件夹",
     "alreadyThereRejected": "已在此处"
+  },
+  "mediaPreview": {
+    "download": "下载媒体",
+    "close": "关闭预览",
+    "previous": "上一个媒体",
+    "next": "下一个媒体"
   }
 }

@@ -760,5 +760,11 @@
     "itselfRejected": "En mapp kan inte flyttas in i sig själv",
     "descendantRejected": "En mapp kan inte flyttas till en av sina egna mappar",
     "alreadyThereRejected": "Redan här"
+  },
+  "mediaPreview": {
+    "download": "Ladda ner media",
+    "close": "Stäng förhandsvisning",
+    "previous": "Föregående media",
+    "next": "Nästa media"
   }
 }

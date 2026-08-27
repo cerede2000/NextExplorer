@@ -27,7 +27,10 @@ vi.mock('@/api', () => ({
 }));
 
 vi.mock('@/stores/settings', () => ({
-  useSettingsStore: () => ({ sortBy: { by: 'name', order: 'asc' } }),
+  useSettingsStore: () => ({
+    sortBy: { by: 'name', order: 'asc' },
+    restoreSortForFolder: vi.fn(),
+  }),
 }));
 vi.mock('@/stores/appSettings', () => ({
   useAppSettings: () => ({ thumbnailsEnabledForSession: true }),

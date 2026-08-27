@@ -760,5 +760,11 @@
     "itselfRejected": "資料夾不能移動到自身",
     "descendantRejected": "資料夾不能移動到其自身的子資料夾",
     "alreadyThereRejected": "已在此處"
+  },
+  "mediaPreview": {
+    "download": "下載媒體",
+    "close": "關閉預覽",
+    "previous": "上一個媒體",
+    "next": "下一個媒體"
   }
 }
