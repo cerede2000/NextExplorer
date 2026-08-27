@@ -749,5 +749,16 @@
     "root": "Хранилище",
     "empty": "Здесь нечего выбрать",
     "breadcrumb": "Путь к папке"
+  },
+  "destinationPicker": {
+    "moveTitle": "Переместить в",
+    "copyTitle": "Копировать в",
+    "moveHere": "Переместить сюда",
+    "copyHere": "Копировать сюда",
+    "noFolders": "Здесь нет папок",
+    "rootRejected": "Сначала выберите том или папку",
+    "itselfRejected": "Папку нельзя переместить в саму себя",
+    "descendantRejected": "Папку нельзя переместить в одну из её собственных папок",
+    "alreadyThereRejected": "Уже здесь"
   }
 }

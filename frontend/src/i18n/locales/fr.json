@@ -749,5 +749,16 @@
     "root": "Stockage",
     "empty": "Rien à choisir ici",
     "breadcrumb": "Chemin du dossier"
+  },
+  "destinationPicker": {
+    "moveTitle": "Déplacer vers",
+    "copyTitle": "Copier vers",
+    "moveHere": "Déplacer ici",
+    "copyHere": "Copier ici",
+    "noFolders": "Aucun dossier ici",
+    "rootRejected": "Choisissez d'abord un volume ou un dossier",
+    "itselfRejected": "Un dossier ne peut pas être déplacé dans lui-même",
+    "descendantRejected": "Un dossier ne peut pas être déplacé dans un de ses propres dossiers",
+    "alreadyThereRejected": "Déjà ici"
   }
 }

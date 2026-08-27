@@ -749,5 +749,16 @@
     "root": "Magazyn",
     "empty": "Nie ma tu nic do wyboru",
     "breadcrumb": "Ścieżka folderu"
+  },
+  "destinationPicker": {
+    "moveTitle": "Przenieś do",
+    "copyTitle": "Kopiuj do",
+    "moveHere": "Przenieś tutaj",
+    "copyHere": "Kopiuj tutaj",
+    "noFolders": "Brak folderów",
+    "rootRejected": "Najpierw wybierz wolumin lub folder",
+    "itselfRejected": "Folderu nie można przenieść do niego samego",
+    "descendantRejected": "Folderu nie można przenieść do jednego z jego własnych folderów",
+    "alreadyThereRejected": "Już tutaj"
   }
 }

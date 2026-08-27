@@ -749,5 +749,16 @@
     "root": "Speicher",
     "empty": "Hier gibt es nichts auszuwählen",
     "breadcrumb": "Ordnerpfad"
+  },
+  "destinationPicker": {
+    "moveTitle": "Verschieben nach",
+    "copyTitle": "Kopieren nach",
+    "moveHere": "Hierher verschieben",
+    "copyHere": "Hierher kopieren",
+    "noFolders": "Keine Ordner hier",
+    "rootRejected": "Wählen Sie zuerst ein Volume oder einen Ordner",
+    "itselfRejected": "Ein Ordner kann nicht in sich selbst verschoben werden",
+    "descendantRejected": "Ein Ordner kann nicht in einen seiner eigenen Ordner verschoben werden",
+    "alreadyThereRejected": "Bereits hier"
   }
 }

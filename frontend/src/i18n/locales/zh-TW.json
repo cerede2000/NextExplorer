@@ -749,5 +749,16 @@
     "root": "儲存空間",
     "empty": "這裡沒有可選項目",
     "breadcrumb": "資料夾路徑"
+  },
+  "destinationPicker": {
+    "moveTitle": "移動到",
+    "copyTitle": "複製到",
+    "moveHere": "移動到此處",
+    "copyHere": "複製到此處",
+    "noFolders": "此處沒有資料夾",
+    "rootRejected": "請先選擇磁碟區或資料夾",
+    "itselfRejected": "資料夾不能移動到自身",
+    "descendantRejected": "資料夾不能移動到其自身的子資料夾",
+    "alreadyThereRejected": "已在此處"
   }
 }

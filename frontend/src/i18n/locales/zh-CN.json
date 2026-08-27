@@ -749,5 +749,16 @@
     "root": "存储",
     "empty": "这里没有可选项",
     "breadcrumb": "文件夹路径"
+  },
+  "destinationPicker": {
+    "moveTitle": "移动到",
+    "copyTitle": "复制到",
+    "moveHere": "移动到此处",
+    "copyHere": "复制到此处",
+    "noFolders": "此处没有文件夹",
+    "rootRejected": "请先选择卷或文件夹",
+    "itselfRejected": "文件夹不能移动到自身",
+    "descendantRejected": "文件夹不能移动到其自身的子文件夹",
+    "alreadyThereRejected": "已在此处"
   }
 }

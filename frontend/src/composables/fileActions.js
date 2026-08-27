@@ -2,6 +2,7 @@ import { computed } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
 import { useFeaturesStore } from '@/stores/features';
 import { buildUrl, normalizePath } from '@/api';
+import { useDestinationPicker } from '@/composables/useDestinationPicker';
 
 function isEditableElement(el) {
   if (!el) return false;
@@ -20,6 +21,7 @@ function resolveItemPath(item) {
 
 export function useFileActions() {
   const fileStore = useFileStore();
+  const destinationPicker = useDestinationPicker();
   const featuresStore = useFeaturesStore();
 
   const selectedItems = computed(() => fileStore.selectedItems);
@@ -108,6 +110,29 @@ export function useFileActions() {
   const runCopy = () => {
     if (canCopy.value) fileStore.copy();
   };
+  /**
+   * Ask where to put the selection, then put it there.
+   *
+   * The only route to a transfer that needs no dragging — which matters
+   * because dragging is switched off entirely on touch devices.
+   */
+  const runTransferToDestination = async (mode) => {
+    const items = selectedItems.value.map((item) => ({ ...item }));
+    if (!items.length) return;
+
+    const destination = await destinationPicker.pick({
+      mode,
+      items,
+      from: fileStore.currentPath || '',
+    });
+    if (!destination) return;
+
+    await fileStore.transferSelectionTo(destination, mode);
+  };
+
+  const runMoveTo = async () => runTransferToDestination('move');
+  const runCopyTo = async () => runTransferToDestination('copy');
+
   const runPasteToDestination = async (destinationPath) => {
     if (!canPaste.value) return;
     const dest = typeof destinationPath === 'string' ? destinationPath : '';
@@ -220,6 +245,8 @@ export function useFileActions() {
     runCut,
     runCopy,
     runPasteToDestination,
+    runMoveTo,
+    runCopyTo,
     runPasteIntoCurrent,
     runRename,
     runExtractArchive,

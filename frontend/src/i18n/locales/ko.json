@@ -749,5 +749,16 @@
     "root": "저장소",
     "empty": "선택할 항목이 없습니다",
     "breadcrumb": "폴더 경로"
+  },
+  "destinationPicker": {
+    "moveTitle": "이동 위치",
+    "copyTitle": "복사 위치",
+    "moveHere": "여기로 이동",
+    "copyHere": "여기에 복사",
+    "noFolders": "폴더가 없습니다",
+    "rootRejected": "먼저 볼륨이나 폴더를 선택하세요",
+    "itselfRejected": "폴더를 자기 자신으로 이동할 수 없습니다",
+    "descendantRejected": "폴더를 자신의 하위 폴더로 이동할 수 없습니다",
+    "alreadyThereRejected": "이미 여기에 있습니다"
   }
 }
