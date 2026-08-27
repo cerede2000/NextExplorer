@@ -111,6 +111,114 @@ const RECENT_DESTINATIONS_DDL = `
   );
 `;
 
+/**
+ * What a user chose for one folder: how to sort it, how to show it.
+ *
+ * A row per folder rather than one JSON blob per user. The blob had to be
+ * capped — it was read and rewritten whole on every change, and shipped
+ * entire on every load — so the hundred-and-first folder silently forgot the
+ * oldest. More importantly, a blob cannot be cleaned up: deleting a folder
+ * could not remove what everyone else had chosen for it, and renaming one left
+ * the preferences behind on a path that no longer existed.
+ */
+const FOLDER_PREFERENCES_DDL = `
+  CREATE TABLE IF NOT EXISTS folder_preferences (
+    user_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    sort_by TEXT,
+    sort_order TEXT,
+    view_mode TEXT,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, path)
+  );
+  CREATE INDEX IF NOT EXISTS idx_folder_preferences_path ON folder_preferences(path);
+`;
+
+/**
+ * Carry per-folder preferences out of the JSON blob they used to live in.
+ *
+ * They were two maps under `user_settings` — one for sorting, one for the view
+ * mode — capped at a hundred entries each because the whole blob was rewritten
+ * on every change. As rows they need no cap, and they can finally be cleaned up
+ * when the folder they describe is deleted or renamed.
+ *
+ * Best-effort: a preference that fails to migrate costs a folder its remembered
+ * sort, which is not worth failing a startup over.
+ */
+const migrateFolderPreferencesFromUserSettings = (db) => {
+  let rows = [];
+  try {
+    rows = db
+      .prepare(
+        "SELECT user_id, key, value FROM user_settings WHERE key IN ('folderSorts', 'folderViews')"
+      )
+      .all();
+  } catch (error) {
+    logger.debug({ err: error }, '[DB Migration] No folder preferences to carry over');
+    return;
+  }
+
+  const merged = new Map();
+  for (const row of rows) {
+    let parsed;
+    try {
+      parsed = JSON.parse(row.value);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== 'object') continue;
+
+    for (const [folderPath, entry] of Object.entries(parsed)) {
+      if (!folderPath || !entry || typeof entry !== 'object') continue;
+
+      const key = `${row.user_id}\u0000${folderPath}`;
+      const current = merged.get(key) || {
+        userId: row.user_id,
+        path: folderPath,
+        sortBy: null,
+        sortOrder: null,
+        viewMode: null,
+        updatedAt: 0,
+      };
+
+      if (row.key === 'folderSorts' && typeof entry.by === 'string') {
+        current.sortBy = entry.by;
+        current.sortOrder = entry.order === 'desc' ? 'desc' : 'asc';
+      } else if (row.key === 'folderViews' && typeof entry.mode === 'string') {
+        current.viewMode = entry.mode;
+      }
+
+      const updatedAt = Number(entry.updatedAt);
+      if (Number.isFinite(updatedAt) && updatedAt > current.updatedAt) {
+        current.updatedAt = updatedAt;
+      }
+      merged.set(key, current);
+    }
+  }
+
+  if (merged.size === 0) return;
+
+  const insert = db.prepare(
+    `INSERT OR REPLACE INTO folder_preferences
+       (user_id, path, sort_by, sort_order, view_mode, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  );
+
+  for (const entry of merged.values()) {
+    insert.run(
+      entry.userId,
+      entry.path,
+      entry.sortBy,
+      entry.sortOrder,
+      entry.viewMode,
+      new Date(entry.updatedAt || Date.now()).toISOString()
+    );
+  }
+
+  db.prepare("DELETE FROM user_settings WHERE key IN ('folderSorts', 'folderViews')").run();
+  logger.info({ count: merged.size }, '[DB Migration] Folder preferences moved to their own table');
+};
+
 const migrate = (db) => {
   // Simple schema versioning
   db.exec(`
@@ -517,6 +625,17 @@ const migrate = (db) => {
       );
       version = 13;
     }
+
+    if (version < 14) {
+      logger.info('[DB Migration] Migrating to v14: Per-folder preferences as rows...');
+      db.exec(FOLDER_PREFERENCES_DDL);
+      migrateFolderPreferencesFromUserSettings(db);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(14)
+      );
+      version = 14;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -524,6 +643,7 @@ const migrate = (db) => {
   db.exec(FOLDER_SIZE_INDEX_DDL);
   db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
   db.exec(RECENT_DESTINATIONS_DDL);
+  db.exec(FOLDER_PREFERENCES_DDL);
   db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
   ensureShareOperationPermissionColumns(db);
 };

@@ -496,7 +496,13 @@
       "quickActionsReorder": "표시할 작업을 선택하고 순서를 변경하세요.",
       "quickActionsMode": "메뉴 표시",
       "quickActionsModeFull": "마우스를 올리면 모든 아이콘 표시",
-      "quickActionsModeCompact": "… 아이콘 (마우스를 올리면 펼침)"
+      "quickActionsModeCompact": "… 아이콘 (마우스를 올리면 펼침)",
+      "defaultView": "기본 보기",
+      "defaultViewHelp": "저장된 보기가 없는 폴더에 사용할 보기입니다.",
+      "viewGrid": "그리드",
+      "viewList": "목록",
+      "viewColumns": "열",
+      "viewPhotos": "사진"
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",

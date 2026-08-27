@@ -496,7 +496,13 @@
       "quickActionsReorder": "Välj och ändra ordning på de åtgärder som visas.",
       "quickActionsMode": "Menyvisning",
       "quickActionsModeFull": "Alla ikoner vid hovring",
-      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)"
+      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)",
+      "defaultView": "Standardvy",
+      "defaultViewHelp": "Vyn för en mapp som saknar egen sparad vy.",
+      "viewGrid": "Rutnät",
+      "viewList": "Lista",
+      "viewColumns": "Kolumner",
+      "viewPhotos": "Foton"
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",

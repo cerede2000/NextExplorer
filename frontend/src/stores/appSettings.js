@@ -23,6 +23,8 @@ export const useAppSettings = defineStore('appSettings', () => {
     defaultShareExpiration: null,
     skipHome: null,
     folderSorts: {},
+    folderViews: {},
+    defaultView: null,
   });
 
   const createDefaultSystemSettings = () => ({

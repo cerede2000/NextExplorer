@@ -4,8 +4,14 @@ const fs = require('fs/promises');
 const { combineRelativePath, ensureValidName } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
-const { ValidationError, ForbiddenError, NotFoundError, ConflictError } = require('../errors/AppError');
+const {
+  ValidationError,
+  ForbiddenError,
+  NotFoundError,
+  ConflictError,
+} = require('../errors/AppError');
 const folderSizeHooks = require('./folderSizeHooks');
+const pathBindings = require('./pathBindingsService');
 
 /**
  * Rename an entry within its own folder.
@@ -92,6 +98,11 @@ const renameEntry = async ({ context, parentRelative, currentName, newName }) =>
   await fs.rename(currentAbsolute, targetAbsolute);
   // Same-parent rename: no size delta, but re-key an indexed directory subtree.
   folderSizeHooks.onEntryRenamed(currentAbsolute, targetAbsolute);
+  // Favorites, shares, recent destinations and per-folder preferences follow the
+  // folder to its new name, including everything inside it. Left behind, they
+  // would point at a path that no longer exists — a share silently broken, a
+  // favorite leading nowhere.
+  await pathBindings.movePath(currentRelative, targetRelative);
 
   return {
     absolutePath: targetAbsolute,

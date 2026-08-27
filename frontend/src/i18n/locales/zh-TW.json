@@ -496,7 +496,13 @@
       "quickActionsReorder": "選擇並重新排序顯示的動作。",
       "quickActionsMode": "選單顯示",
       "quickActionsModeFull": "懸停時顯示所有圖示",
-      "quickActionsModeCompact": "… 圖示（懸停時展開）"
+      "quickActionsModeCompact": "… 圖示（懸停時展開）",
+      "defaultView": "預設檢視",
+      "defaultViewHelp": "沒有單獨記住檢視的資料夾所使用的檢視。",
+      "viewGrid": "格狀",
+      "viewList": "清單",
+      "viewColumns": "分欄",
+      "viewPhotos": "相片"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",

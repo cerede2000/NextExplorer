@@ -496,7 +496,13 @@
       "quickActionsReorder": "Alege și reordonează acțiunile afișate.",
       "quickActionsMode": "Afișarea meniului",
       "quickActionsModeFull": "Toate pictogramele la trecerea cu mouse-ul",
-      "quickActionsModeCompact": "Pictograma … (extinde la trecerea cu mouse-ul)"
+      "quickActionsModeCompact": "Pictograma … (extinde la trecerea cu mouse-ul)",
+      "defaultView": "Vizualizare implicită",
+      "defaultViewHelp": "Vizualizarea folosită pentru un folder fără vizualizare memorată.",
+      "viewGrid": "Grilă",
+      "viewList": "Listă",
+      "viewColumns": "Coloane",
+      "viewPhotos": "Fotografii"
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",

@@ -496,7 +496,13 @@
       "quickActionsReorder": "Wählen Sie die angezeigten Aktionen aus und ordnen Sie sie neu an.",
       "quickActionsMode": "Menüanzeige",
       "quickActionsModeFull": "Alle Symbole beim Überfahren",
-      "quickActionsModeCompact": "…-Symbol (beim Überfahren aufklappen)"
+      "quickActionsModeCompact": "…-Symbol (beim Überfahren aufklappen)",
+      "defaultView": "Standardansicht",
+      "defaultViewHelp": "Die Ansicht für Ordner ohne eigene gespeicherte Ansicht.",
+      "viewGrid": "Raster",
+      "viewList": "Liste",
+      "viewColumns": "Spalten",
+      "viewPhotos": "Fotos"
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",

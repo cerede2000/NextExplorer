@@ -499,7 +499,13 @@
       "quickActionsMode": "Affichage du menu",
       "quickActionsModeFull": "Toutes les icônes au survol",
       "quickActionsModeCompact": "Icône … (déplier au survol)",
-      "useEnvSetting": "Utiliser la configuration serveur"
+      "useEnvSetting": "Utiliser la configuration serveur",
+      "defaultView": "Vue par défaut",
+      "defaultViewHelp": "La vue utilisée à l'ouverture d'un dossier qui n'a pas de vue mémorisée.",
+      "viewGrid": "Grille",
+      "viewList": "Liste",
+      "viewColumns": "Colonnes",
+      "viewPhotos": "Photos"
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",

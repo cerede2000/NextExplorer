@@ -45,17 +45,17 @@ describe('settings store folder sorting', () => {
   it('restores each folder sort independently', async () => {
     const settings = createSettingsStore();
 
-    settings.restoreSortForFolder('Projects/reports');
+    settings.restoreFolderPreferences('Projects/reports');
     await settings.setSort('dateModified', 'desc');
 
-    settings.restoreSortForFolder('Projects/archive');
+    settings.restoreFolderPreferences('Projects/archive');
     expect(settings.sortBy).toMatchObject({ by: 'name', order: 'asc' });
 
     await settings.setSort('size', 'desc');
-    settings.restoreSortForFolder('Projects/reports');
+    settings.restoreFolderPreferences('Projects/reports');
     expect(settings.sortBy).toMatchObject({ by: 'dateModified', order: 'desc' });
 
-    settings.restoreSortForFolder('Projects/archive');
+    settings.restoreFolderPreferences('Projects/archive');
     expect(settings.sortBy).toMatchObject({ by: 'size', order: 'desc' });
   });
 
@@ -68,7 +68,7 @@ describe('settings store folder sorting', () => {
     );
     const settings = createSettingsStore();
 
-    settings.restoreSortForFolder('Projects/reports');
+    settings.restoreFolderPreferences('Projects/reports');
     expect(settings.sortBy).toMatchObject({ by: 'name', order: 'asc' });
 
     await settings.setSort('dateModified', 'desc');
@@ -76,7 +76,7 @@ describe('settings store folder sorting', () => {
 
     setActivePinia(createPinia());
     const reloadedSettings = createSettingsStore();
-    reloadedSettings.restoreSortForFolder('Projects/reports');
+    reloadedSettings.restoreFolderPreferences('Projects/reports');
 
     expect(reloadedSettings.sortBy).toMatchObject({ by: 'dateModified', order: 'desc' });
   });
@@ -88,7 +88,7 @@ describe('settings store folder sorting', () => {
     const settings = createSettingsStore();
     await nextTick();
 
-    settings.restoreSortForFolder('Projects/reports');
+    settings.restoreFolderPreferences('Projects/reports');
 
     expect(settings.sortBy).toMatchObject({ by: 'owner', order: 'asc' });
     expect(settings.sortOptions).toContainEqual(
@@ -104,7 +104,7 @@ describe('settings store folder sorting', () => {
     const settings = createSettingsStore();
     const appSettings = useAppSettings();
 
-    settings.restoreSortForFolder('Projects/folder-c');
+    settings.restoreFolderPreferences('Projects/folder-c');
     await settings.setSort('owner', 'desc');
 
     expect(appSettings.save).toHaveBeenCalledWith({
@@ -128,7 +128,7 @@ describe('settings store folder sorting', () => {
   it('removes custom sort options when the authenticated user changes', async () => {
     const settings = createSettingsStore();
 
-    settings.restoreSortForFolder('Projects/reports');
+    settings.restoreFolderPreferences('Projects/reports');
     await settings.setSort('owner', 'desc');
     useAuthStore().currentUser = { id: 'user-2' };
 
@@ -142,12 +142,153 @@ describe('settings store folder sorting', () => {
     const settings = createSettingsStore();
     const appSettings = useAppSettings();
 
-    settings.restoreSortForFolder('Projects/reports');
+    settings.restoreFolderPreferences('Projects/reports');
     const save = settings.setSort('dateModified', 'desc');
     useAuthStore().currentUser = { id: 'user-2' };
     await save;
 
     expect(appSettings.save).not.toHaveBeenCalled();
     expect(settings.sortBy).toMatchObject({ by: 'name', order: 'asc' });
+  });
+});
+
+/**
+ * The view a folder is shown in, remembered the same way its sort is.
+ *
+ * Both are per-folder and per-user, and both fall back to something sensible
+ * when a folder has never been given a preference — a photo folder set to the
+ * photo grid must not turn the next folder of documents into one.
+ */
+describe('settings store folder views', () => {
+  let persistedFolderViews;
+  let persistedDefaultView;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    persistedFolderViews = {};
+    persistedDefaultView = null;
+    useAuthStore().currentUser = { id: 'user-1' };
+  });
+
+  const createSettingsStore = () => {
+    const appSettings = useAppSettings();
+    appSettings.loaded = true;
+    appSettings.userSettings = {
+      ...appSettings.userSettings,
+      folderViews: persistedFolderViews,
+      defaultView: persistedDefaultView,
+    };
+    vi.spyOn(appSettings, 'save').mockImplementation(async ({ user }) => {
+      if (user.folderView) {
+        persistedFolderViews = {
+          ...persistedFolderViews,
+          [user.folderView.path]: { ...user.folderView.view, updatedAt: Date.now() },
+        };
+      }
+      appSettings.userSettings = {
+        ...appSettings.userSettings,
+        folderViews: persistedFolderViews,
+      };
+      return appSettings.state;
+    });
+
+    return useSettingsStore();
+  };
+
+  it('gives each folder back the view it was left in', async () => {
+    const settings = createSettingsStore();
+
+    settings.restoreFolderPreferences('Photos/2026');
+    settings.photosView();
+    await nextTick();
+
+    settings.restoreFolderPreferences('Documents');
+    expect(settings.view).toBe('grid');
+
+    settings.listView();
+    await nextTick();
+
+    settings.restoreFolderPreferences('Photos/2026');
+    expect(settings.view).toBe('photos');
+
+    settings.restoreFolderPreferences('Documents');
+    expect(settings.view).toBe('list');
+  });
+
+  it('falls back to the default rather than keeping the last folder view', async () => {
+    // The failure this prevents: browsing out of a photo folder and finding
+    // every other folder rendered as a photo grid.
+    const settings = createSettingsStore();
+
+    settings.restoreFolderPreferences('Photos/2026');
+    settings.photosView();
+    await nextTick();
+
+    settings.restoreFolderPreferences('Documents/reports');
+
+    expect(settings.view).toBe('grid');
+  });
+
+  it('honours the user default for a folder with no view of its own', async () => {
+    persistedDefaultView = 'list';
+    const settings = createSettingsStore();
+
+    settings.restoreFolderPreferences('Documents');
+
+    expect(settings.view).toBe('list');
+  });
+
+  it('keeps a folder view over the user default', async () => {
+    persistedDefaultView = 'list';
+    const settings = createSettingsStore();
+
+    settings.restoreFolderPreferences('Photos/2026');
+    settings.photosView();
+    await nextTick();
+
+    settings.restoreFolderPreferences('Photos/2026');
+
+    expect(settings.view).toBe('photos');
+  });
+
+  it('persists the view through user settings, not the browser', async () => {
+    // localStorage is shared by every account on a machine; these are one
+    // person's preferences and follow them between devices instead.
+    const settings = createSettingsStore();
+
+    settings.restoreFolderPreferences('Photos/2026');
+    settings.photosView();
+    await nextTick();
+
+    expect(persistedFolderViews['Photos/2026']).toMatchObject({ mode: 'photos' });
+    expect(localStorage.getItem('settings:view')).toBeNull();
+  });
+
+  it('ignores a view mode it does not know', async () => {
+    const settings = createSettingsStore();
+    settings.restoreFolderPreferences('Documents');
+
+    settings.setView('gallery-of-the-mind');
+    await nextTick();
+
+    expect(settings.view).toBe('grid');
+    expect(persistedFolderViews.Documents).toBeUndefined();
+  });
+
+  it('drops the previous account folder views when someone else signs in', async () => {
+    // Not just the view on screen: the remembered map has to go too, or the
+    // next person opening that folder would be shown a stranger's choice.
+    const settings = createSettingsStore();
+    settings.restoreFolderPreferences('Photos/2026');
+    settings.photosView();
+    await nextTick();
+
+    useAuthStore().currentUser = { id: 'user-2' };
+    await nextTick();
+
+    settings.restoreFolderPreferences('Photos/2026');
+
+    expect(settings.view).toBe('grid');
   });
 });

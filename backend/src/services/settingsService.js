@@ -77,22 +77,45 @@ const sanitizeFolderSort = (sort) => {
   };
 };
 
-const sanitizeFolderSorts = (folderSorts) => {
-  if (!folderSorts || typeof folderSorts !== 'object' || Array.isArray(folderSorts)) {
+const VIEW_MODES = ['grid', 'list', 'tab', 'photos'];
+
+/** A remembered view mode for one folder, or null when it is not one we have. */
+const sanitizeFolderView = (view) => {
+  const mode = typeof view === 'string' ? view : view?.mode;
+  if (!VIEW_MODES.includes(mode)) return null;
+
+  return {
+    mode,
+    updatedAt: Number.isFinite(view?.updatedAt) ? Math.floor(view.updatedAt) : 0,
+  };
+};
+
+/**
+ * A map of folder path to preference, keeping only what is valid and only the
+ * most recently used — one entry per folder ever visited would grow forever.
+ */
+const sanitizeFolderPreferences = (preferences, sanitizeEntry) => {
+  if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) {
     return {};
   }
 
   return Object.fromEntries(
-    Object.entries(folderSorts)
-      .map(([folderPath, sort]) => {
-        const sanitizedSort = sanitizeFolderSort(sort);
-        return isValidFolderPath(folderPath) && sanitizedSort ? [folderPath, sanitizedSort] : null;
+    Object.entries(preferences)
+      .map(([folderPath, entry]) => {
+        const sanitized = sanitizeEntry(entry);
+        return isValidFolderPath(folderPath) && sanitized ? [folderPath, sanitized] : null;
       })
       .filter(Boolean)
       .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
       .slice(0, MAX_FOLDER_PREFERENCES)
   );
 };
+
+const sanitizeFolderSorts = (folderSorts) =>
+  sanitizeFolderPreferences(folderSorts, sanitizeFolderSort);
+
+const sanitizeFolderViews = (folderViews) =>
+  sanitizeFolderPreferences(folderViews, sanitizeFolderView);
 
 /**
  * Sanitize thumbnail settings
@@ -252,6 +275,10 @@ const getUserSettings = async (userId) => {
         // Skip invalid JSON
       }
     }
+
+    // Per-folder preferences are rows of their own now, but the client still
+    // receives them among the user's settings.
+    Object.assign(settings, await getUserFolderPreferences(userId));
 
     return settings;
   } catch (err) {
@@ -429,6 +456,12 @@ const setUserSetting = async (userId, key, value) => {
     }
   } else if (key === 'folderSorts') {
     sanitizedValue = sanitizeFolderSorts(value);
+  } else if (key === 'defaultView') {
+    // The view a folder gets when it has none of its own (#360). Anything we
+    // do not recognise falls back to null, meaning "use the built-in default".
+    sanitizedValue = VIEW_MODES.includes(value) ? value : null;
+  } else if (key === 'folderViews') {
+    sanitizedValue = sanitizeFolderViews(value);
   }
 
   upsertUserSetting(db, userId, key, sanitizedValue);
@@ -436,42 +469,96 @@ const setUserSetting = async (userId, key, value) => {
   return sanitizedValue;
 };
 
-const setUserFolderSort = async (userId, folderPath, sort) => {
+/**
+ * Remember one folder's preference, and return the whole map back.
+ *
+ * Written one folder at a time rather than by sending the map: two tabs open
+ * on different folders would otherwise overwrite each other with whichever
+ * copy was saved last. The stored map is re-read here so the entry joins what
+ * is already there.
+ */
+/** Every folder preference this user has, as the client expects them. */
+const getUserFolderPreferences = async (userId) => {
+  if (!userId) return { folderSorts: {}, folderViews: {} };
+
+  const db = await getDb();
+  const rows = prepared(
+    db,
+    'SELECT path, sort_by, sort_order, view_mode, updated_at FROM folder_preferences WHERE user_id = ?'
+  ).all(userId);
+
+  const folderSorts = {};
+  const folderViews = {};
+  for (const row of rows) {
+    const updatedAt = Date.parse(row.updated_at) || 0;
+    if (row.sort_by) {
+      folderSorts[row.path] = {
+        by: row.sort_by,
+        order: row.sort_order === 'desc' ? 'desc' : 'asc',
+        updatedAt,
+      };
+    }
+    if (row.view_mode) {
+      folderViews[row.path] = { mode: row.view_mode, updatedAt };
+    }
+  }
+
+  return { folderSorts, folderViews };
+};
+
+/**
+ * Remember one folder's sort or view.
+ *
+ * One row per folder, so a change touches only that folder: two tabs on
+ * different folders no longer overwrite each other, and there is no ceiling on
+ * how many folders can be remembered. The row carries both preferences, so
+ * setting one must not erase the other.
+ */
+const setUserFolderPreference = async (userId, folderPath, { sort, view }) => {
   if (!userId) {
     throw new Error('User ID is required');
   }
 
-  const sanitizedSort = sanitizeFolderSort(sort);
-  if (!isValidFolderPath(folderPath) || !sanitizedSort) {
+  const normalizedPath = normalizeRelativePath(folderPath);
+  const sanitizedSort = sort === undefined ? undefined : sanitizeFolderSort(sort);
+  const sanitizedView = view === undefined ? undefined : sanitizeFolderView(view);
+
+  if (!isValidFolderPath(normalizedPath) || (!sanitizedSort && !sanitizedView)) {
     return null;
   }
 
   const db = await getDb();
-  const existing = prepared(
+  const now = new Date().toISOString();
+
+  prepared(
     db,
-    'SELECT value FROM user_settings WHERE user_id = ? AND key = ?'
-  ).get(userId, 'folderSorts');
-  let existingFolderSorts = {};
+    `INSERT INTO folder_preferences (user_id, path, sort_by, sort_order, view_mode, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, path) DO UPDATE SET
+       sort_by    = COALESCE(excluded.sort_by, folder_preferences.sort_by),
+       sort_order = COALESCE(excluded.sort_order, folder_preferences.sort_order),
+       view_mode  = COALESCE(excluded.view_mode, folder_preferences.view_mode),
+       updated_at = excluded.updated_at`
+  ).run(
+    userId,
+    normalizedPath,
+    sanitizedSort?.by ?? null,
+    sanitizedSort?.order ?? null,
+    sanitizedView?.mode ?? null,
+    now
+  );
 
-  if (existing) {
-    try {
-      existingFolderSorts = JSON.parse(existing.value);
-    } catch {
-      existingFolderSorts = {};
-    }
-  }
-  existingFolderSorts = sanitizeFolderSorts(existingFolderSorts);
+  return getUserFolderPreferences(userId);
+};
 
-  const folderSorts = sanitizeFolderSorts({
-    ...existingFolderSorts,
-    [folderPath]: {
-      ...sanitizedSort,
-      updatedAt: Date.now(),
-    },
-  });
-  upsertUserSetting(db, userId, 'folderSorts', folderSorts);
+const setUserFolderSort = async (userId, folderPath, sort) => {
+  const preferences = await setUserFolderPreference(userId, folderPath, { sort });
+  return preferences?.folderSorts ?? null;
+};
 
-  return folderSorts;
+const setUserFolderView = async (userId, folderPath, view) => {
+  const preferences = await setUserFolderPreference(userId, folderPath, { view });
+  return preferences?.folderViews ?? null;
 };
 
 /**
@@ -619,6 +706,8 @@ module.exports = {
   getSettingsForUser,
   setUserSetting,
   setUserFolderSort,
+  setUserFolderView,
+  getUserFolderPreferences,
   setSystemSetting,
   sanitizeUploads,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,

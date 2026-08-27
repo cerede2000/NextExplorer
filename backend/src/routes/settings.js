@@ -4,6 +4,7 @@ const {
   getSettingsForUser,
   setUserSetting,
   setUserFolderSort,
+  setUserFolderView,
   setSystemSetting,
   getSettings,
 } = require('../services/settingsService');
@@ -154,6 +155,11 @@ router.patch(
           if (folderSorts) {
             userUpdates.folderSorts = folderSorts;
           }
+        } else if (key === 'folderView') {
+          const folderViews = await setUserFolderView(user.id, value?.path, value?.view);
+          if (folderViews) {
+            userUpdates.folderViews = folderViews;
+          }
         } else if (
           key === 'showHiddenFiles' ||
           key === 'showThumbnails' ||
@@ -161,7 +167,8 @@ router.patch(
           key === 'showSidebarShares' ||
           key === 'showSidebarTools' ||
           key === 'defaultShareExpiration' ||
-          key === 'skipHome'
+          key === 'skipHome' ||
+          key === 'defaultView'
         ) {
           userUpdates[key] = await setUserSetting(user.id, key, value);
         }

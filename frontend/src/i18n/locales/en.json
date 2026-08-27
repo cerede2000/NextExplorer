@@ -499,7 +499,13 @@
       "quickActionsReorder": "Choose and reorder the actions shown.",
       "quickActionsMode": "Menu display",
       "quickActionsModeFull": "All icons on hover",
-      "quickActionsModeCompact": "… icon (expand on hover)"
+      "quickActionsModeCompact": "… icon (expand on hover)",
+      "defaultView": "Default view",
+      "defaultViewHelp": "The view a folder opens in when it has no remembered view of its own.",
+      "viewGrid": "Grid",
+      "viewList": "List",
+      "viewColumns": "Columns",
+      "viewPhotos": "Photos"
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",

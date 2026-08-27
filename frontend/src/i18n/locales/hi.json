@@ -496,7 +496,13 @@
       "quickActionsReorder": "दिखाई गई क्रियाओं को चुनें और पुनः क्रमबद्ध करें।",
       "quickActionsMode": "मेनू प्रदर्शन",
       "quickActionsModeFull": "होवर पर सभी आइकन",
-      "quickActionsModeCompact": "… आइकन (होवर पर विस्तृत करें)"
+      "quickActionsModeCompact": "… आइकन (होवर पर विस्तृत करें)",
+      "defaultView": "डिफ़ॉल्ट दृश्य",
+      "defaultViewHelp": "ऐसे फ़ोल्डर के लिए दृश्य जिसका अपना सहेजा गया दृश्य नहीं है।",
+      "viewGrid": "ग्रिड",
+      "viewList": "सूची",
+      "viewColumns": "कॉलम",
+      "viewPhotos": "तस्वीरें"
     },
     "thumbs": {
       "subtitle": "छवियों और वीडियो के लिए पूर्वावलोकन थंबनेल अनुकूलित करें।",

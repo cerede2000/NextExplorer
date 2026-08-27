@@ -496,7 +496,13 @@
       "quickActionsReorder": "选择并重新排序显示的操作。",
       "quickActionsMode": "菜单显示",
       "quickActionsModeFull": "悬停时显示所有图标",
-      "quickActionsModeCompact": "… 图标（悬停时展开）"
+      "quickActionsModeCompact": "… 图标（悬停时展开）",
+      "defaultView": "默认视图",
+      "defaultViewHelp": "没有单独记住视图的文件夹所使用的视图。",
+      "viewGrid": "网格",
+      "viewList": "列表",
+      "viewColumns": "分栏",
+      "viewPhotos": "照片"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",

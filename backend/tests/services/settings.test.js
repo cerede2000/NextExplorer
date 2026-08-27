@@ -99,7 +99,10 @@ describe('Settings Service', () => {
   });
 
   describe('folder sorts', () => {
-    it('merges custom folder sorts and caps the most recently used folders', async () => {
+    it('keeps every folder a user has set a preference on', async () => {
+      // The cap existed because these lived in one JSON blob, rewritten whole
+      // on every change: past a hundred folders the oldest was silently
+      // forgotten. As rows there is nothing to cap, and nothing to forget.
       const { envContext, settingsService, dbService } = await createSettingsContext();
       try {
         const db = await dbService.getDb();
@@ -111,31 +114,46 @@ describe('Settings Service', () => {
         `
         ).run('user-1', 'user-1@example.com', 1, 'user-1', 'User 1', '["user"]', now, now);
 
-        const folderSorts = Object.fromEntries(
-          Array.from({ length: 101 }, (_, index) => [
-            `Projects/folder-${index}`,
-            { by: 'customColumn', order: 'desc', updatedAt: index },
-          ])
-        );
+        for (let index = 0; index < 150; index += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await settingsService.setUserFolderSort('user-1', `Projects/folder-${index}`, {
+            by: 'customColumn',
+            order: 'desc',
+          });
+        }
 
-        await settingsService.setUserSetting('user-1', 'folderSorts', folderSorts);
-        await settingsService.setUserFolderSort('user-1', 'Projects/new-folder', {
-          by: 'owner',
-          order: 'asc',
-        });
         const settings = await settingsService.getUserSettings('user-1');
 
-        expect(Object.keys(settings.folderSorts)).toHaveLength(100);
-        expect(settings.folderSorts['Projects/folder-0']).toBeUndefined();
-        expect(settings.folderSorts['Projects/folder-1']).toBeUndefined();
-        expect(settings.folderSorts['Projects/folder-100']).toMatchObject({
+        expect(Object.keys(settings.folderSorts)).toHaveLength(150);
+        expect(settings.folderSorts['Projects/folder-0']).toMatchObject({
           by: 'customColumn',
           order: 'desc',
         });
-        expect(settings.folderSorts['Projects/new-folder']).toMatchObject({
-          by: 'owner',
-          order: 'asc',
-        });
+      } finally {
+        await envContext.cleanup();
+      }
+    });
+
+    it('keeps a folder sort and its view side by side', async () => {
+      // One row carries both, so setting one must not wipe the other.
+      const { envContext, settingsService, dbService } = await createSettingsContext();
+      try {
+        const db = await dbService.getDb();
+        const now = new Date().toISOString();
+        db.prepare(
+          `
+          INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `
+        ).run('user-1', 'user-1@example.com', 1, 'user-1', 'User 1', '["user"]', now, now);
+
+        await settingsService.setUserFolderSort('user-1', 'Photos', { by: 'name', order: 'asc' });
+        await settingsService.setUserFolderView('user-1', 'Photos', { mode: 'photos' });
+
+        const settings = await settingsService.getUserSettings('user-1');
+
+        expect(settings.folderSorts.Photos).toMatchObject({ by: 'name', order: 'asc' });
+        expect(settings.folderViews.Photos).toMatchObject({ mode: 'photos' });
       } finally {
         await envContext.cleanup();
       }

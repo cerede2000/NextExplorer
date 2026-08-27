@@ -18,7 +18,7 @@ const {
   shareTargetKey,
   deleteSharesByIds,
 } = require('./sharesService');
-const { removeFavoritesForDeletedPath } = require('./favoritesService');
+const pathBindings = require('./pathBindingsService');
 const folderSizeHooks = require('./folderSizeHooks');
 const config = require('../config/index');
 const { getDb } = require('./db');
@@ -689,6 +689,13 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
 
       if (plan.isDirectory) transferredDirectories.push(targetAbsolute);
 
+      // A move takes the folder's bindings with it — favorites, shares, recent
+      // destinations, per-folder preferences. A copy leaves the original where
+      // it is, so its bindings stay put and the copy starts with none.
+      if (operation === 'move') {
+        await pathBindings.movePath(plan.sourceRelative, targetRelative);
+      }
+
       results.push({ from: plan.sourceRelative, to: targetRelative });
       activeWriteOperation.finish();
       activeWriteOperation = null;
@@ -947,11 +954,11 @@ const deleteItems = async (items = [], options = {}) => {
       size: deletedEntryStats.size,
     });
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
-    const removedFavoriteCount = context.user?.id
-      ? await removeFavoritesForDeletedPath(context.user.id, relativePath, {
-          includeChildren: isDirectoryEntry,
-        })
-      : 0;
+    // Favorites, recent destinations and per-folder preferences, for every user
+    // who had them — not just whoever pressed delete.
+    const removedFavoriteCount = await pathBindings.forgetPath(relativePath, {
+      includeChildren: isDirectoryEntry,
+    });
     results[index] = {
       path: relativePath,
       status: 'deleted',

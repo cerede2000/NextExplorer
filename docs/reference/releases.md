@@ -6,6 +6,42 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.0.1 (2026-08-27)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.0.1)
+
+### What a folder leaves behind
+
+Rows that pointed at a path did not follow it. A favorite outlived the folder it
+named, a share kept pointing at a path that no longer existed, and a folder's
+sort order was inherited by whatever folder was created there next. Deleting
+cleaned up the favorites of whoever pressed delete and nobody else's — which
+made it a bug rather than an omission, since those are other people's rows.
+
+Favorites, shares, recent destinations and per-folder preferences now follow a
+folder when it is renamed or moved, and are forgotten when it is deleted, for
+every user who had them. Everything inside the folder comes along too. A copy
+leaves the original's bindings where they are.
+
+### Per-folder preferences without a ceiling
+
+Sorting and view mode were kept as one JSON document per user, rewritten whole
+on every change and shipped entire on every load. It had to be capped, so the
+hundred-and-first folder silently forgot the oldest — and a document cannot be
+cleaned up when a folder disappears.
+
+They are rows now: no cap, no silent forgetting, and they can be maintained.
+Existing preferences are carried over on first start.
+
+### Also
+
+- The view a folder opens in is remembered per folder and per user, with a
+  default in Settings → User preferences ([#360](https://github.com/nxzai/NextExplorer/issues/360)).
+- Per-folder sorting, contributed by [@jimaek](https://github.com/jimaek)
+  ([#356](https://github.com/nxzai/NextExplorer/pull/356)), reworked after review to store per user.
+- `npm run version:set` sets the version in every manifest at once, and CI fails
+  if they disagree.
+
 ## v3.0.0 (2026-08-27)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.0.0)

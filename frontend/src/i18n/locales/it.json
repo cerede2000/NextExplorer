@@ -496,7 +496,13 @@
       "quickActionsReorder": "Scegli e riordina le azioni mostrate.",
       "quickActionsMode": "Visualizzazione menu",
       "quickActionsModeFull": "Tutte le icone al passaggio del mouse",
-      "quickActionsModeCompact": "Icona … (espandi al passaggio del mouse)"
+      "quickActionsModeCompact": "Icona … (espandi al passaggio del mouse)",
+      "defaultView": "Vista predefinita",
+      "defaultViewHelp": "La vista con cui si apre una cartella senza vista memorizzata.",
+      "viewGrid": "Griglia",
+      "viewList": "Elenco",
+      "viewColumns": "Colonne",
+      "viewPhotos": "Foto"
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",

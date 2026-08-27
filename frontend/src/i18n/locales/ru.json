@@ -496,7 +496,13 @@
       "quickActionsReorder": "Выберите и измените порядок отображаемых действий.",
       "quickActionsMode": "Отображение меню",
       "quickActionsModeFull": "Все иконки при наведении",
-      "quickActionsModeCompact": "Иконка … (раскрыть при наведении)"
+      "quickActionsModeCompact": "Иконка … (раскрыть при наведении)",
+      "defaultView": "Вид по умолчанию",
+      "defaultViewHelp": "Вид для папки, у которой нет сохранённого вида.",
+      "viewGrid": "Сетка",
+      "viewList": "Список",
+      "viewColumns": "Столбцы",
+      "viewPhotos": "Фотографии"
     },
     "thumbs": {
       "subtitle": "Настройте миниатюры предпросмотра для изображений и видео.",

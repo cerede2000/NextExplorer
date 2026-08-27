@@ -29,6 +29,7 @@ const local = reactive({
   defaultShareExpirationValue: null,
   defaultShareExpirationUnit: 'weeks',
   skipHome: null, // null = use env, true/false = override
+  defaultView: null, // null = the built-in default, otherwise a view mode
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -46,7 +47,8 @@ const dirty = computed(() => {
     local.showSidebarShares !== (orig.showSidebarShares ?? true) ||
     local.showSidebarTools !== (orig.showSidebarTools ?? true) ||
     JSON.stringify(localExpiration) !== JSON.stringify(origExpiration) ||
-    local.skipHome !== orig.skipHome
+    local.skipHome !== orig.skipHome ||
+    local.defaultView !== orig.defaultView
   );
 });
 
@@ -96,6 +98,7 @@ watch(
     }
 
     local.skipHome = userSettings.skipHome ?? null;
+    local.defaultView = userSettings.defaultView ?? null;
   },
   { immediate: true }
 );
@@ -118,6 +121,7 @@ const reset = () => {
   }
 
   local.skipHome = userSettings.skipHome ?? null;
+  local.defaultView = userSettings.defaultView ?? null;
 };
 
 const save = async () => {
@@ -134,6 +138,7 @@ const save = async () => {
       showSidebarTools: local.showSidebarTools,
       defaultShareExpiration,
       skipHome: local.skipHome,
+      defaultView: local.defaultView,
     },
   });
 };
@@ -256,6 +261,28 @@ const save = async () => {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.defaultView') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.defaultViewHelp') }}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <select
+              v-model="local.defaultView"
+              class="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
+            >
+              <option :value="null">{{ t('settings.userPreferences.viewGrid') }}</option>
+              <option value="list">{{ t('settings.userPreferences.viewList') }}</option>
+              <option value="tab">{{ t('settings.userPreferences.viewColumns') }}</option>
+              <option value="photos">{{ t('settings.userPreferences.viewPhotos') }}</option>
+            </select>
           </div>
         </div>
 

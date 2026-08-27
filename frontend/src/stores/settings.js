@@ -3,6 +3,9 @@ import { defineStore } from 'pinia';
 import { useColorMode, useStorage } from '@vueuse/core';
 import { useAuthStore } from '@/stores/auth';
 import { useAppSettings } from '@/stores/appSettings';
+import { createFolderPreference } from '@/stores/folderPreference';
+
+const VIEW_MODES = ['grid', 'list', 'tab', 'photos'];
 
 const DEFAULT_SORT_OPTIONS = [
   { key: 1, name: 'Name A to Z', by: 'name', order: 'asc' },
@@ -19,19 +22,32 @@ export const useSettingsStore = defineStore('settings', () => {
   const appSettings = useAppSettings();
   const authStore = useAuthStore();
 
-  const view = useStorage('settings:view', 'grid');
-  const gridView = () => {
-    view.value = 'grid';
+  /**
+   * The view a folder gets when it has no remembered one of its own.
+   *
+   * Requested in #360. It lives with the user rather than in the browser, so it
+   * follows them between machines and does not leak to whoever signs in next on
+   * a shared one.
+   */
+  const defaultView = computed(() => {
+    const preferred = appSettings.userSettings?.defaultView;
+    return VIEW_MODES.includes(preferred) ? preferred : 'grid';
+  });
+
+  const view = ref('grid');
+
+  const setView = (mode) => {
+    if (!VIEW_MODES.includes(mode)) return undefined;
+    view.value = mode;
+    // Remembered against the folder being looked at, so coming back to it looks
+    // the way it was left.
+    return folderViewPreference.set(activeFolderPath.value, { mode });
   };
-  const listView = () => {
-    view.value = 'list';
-  };
-  const tabView = () => {
-    view.value = 'tab';
-  };
-  const photosView = () => {
-    view.value = 'photos';
-  };
+
+  const gridView = () => setView('grid');
+  const listView = () => setView('list');
+  const tabView = () => setView('tab');
+  const photosView = () => setView('photos');
 
   // Photos mode item size (in px)
   const photoSize = useStorage('settings:photos:size', 160);
@@ -59,15 +75,10 @@ export const useSettingsStore = defineStore('settings', () => {
   };
 
   const sortOptions = reactive(DEFAULT_SORT_OPTIONS.map((option) => ({ ...option })));
-
   const sortBy = ref(sortOptions[0]);
-  const MAX_FOLDER_SORTS = 100;
-  const MAX_FOLDER_PATH_LENGTH = 1024;
-  const MAX_SORT_FIELD_LENGTH = 128;
-  const folderSorts = ref({});
   const activeFolderPath = ref('');
-  let hasLocalFolderSortChanges = false;
-  let folderSortSaveChain = Promise.resolve();
+
+  const MAX_SORT_FIELD_LENGTH = 128;
 
   const getSortOption = (by, order) => sortOptions.find((o) => o.by === by && o.order === order);
 
@@ -79,74 +90,38 @@ export const useSettingsStore = defineStore('settings', () => {
     sort.by.length <= MAX_SORT_FIELD_LENGTH &&
     (sort.order === 'asc' || sort.order === 'desc');
 
-  const normalizeFolderSorts = (value) => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      return {};
-    }
+  const folderSortPreference = createFolderPreference({
+    key: 'folderSorts',
+    saveKey: 'folderSort',
+    entryKey: 'sort',
+    sanitizeEntry: (entry) =>
+      isValidSort(entry) ? { by: entry.by.trim(), order: entry.order } : null,
+    appSettings,
+    authStore,
+  });
 
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(
-          ([path, sort]) =>
-            typeof path === 'string' &&
-            path.length > 0 &&
-            path.length <= MAX_FOLDER_PATH_LENGTH &&
-            isValidSort(sort)
-        )
-        .map(([path, sort]) => [
-          path,
-          {
-            by: sort.by.trim(),
-            order: sort.order,
-            updatedAt: Number.isFinite(sort.updatedAt) ? Math.floor(sort.updatedAt) : 0,
-          },
-        ])
-        .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
-        .slice(0, MAX_FOLDER_SORTS)
-    );
-  };
-
-  watch(
-    () => appSettings.userSettings?.folderSorts,
-    (value) => {
-      const savedFolderSorts = normalizeFolderSorts(value);
-      if (!hasLocalFolderSortChanges) {
-        folderSorts.value = savedFolderSorts;
-      } else {
-        folderSorts.value = normalizeFolderSorts({
-          ...savedFolderSorts,
-          ...folderSorts.value,
-        });
-      }
+  const folderViewPreference = createFolderPreference({
+    key: 'folderViews',
+    saveKey: 'folderView',
+    entryKey: 'view',
+    sanitizeEntry: (entry) => {
+      const mode = typeof entry === 'string' ? entry : entry?.mode;
+      return VIEW_MODES.includes(mode) ? { mode } : null;
     },
-    { immediate: true }
-  );
+    appSettings,
+    authStore,
+  });
 
-  watch(
-    () => authStore.currentUser?.id ?? null,
-    () => {
-      hasLocalFolderSortChanges = false;
-      folderSorts.value = normalizeFolderSorts(appSettings.userSettings?.folderSorts);
-      activeFolderPath.value = '';
-      sortOptions.splice(
-        0,
-        sortOptions.length,
-        ...DEFAULT_SORT_OPTIONS.map((option) => ({ ...option }))
-      );
-      sortBy.value = sortOptions[0];
-    },
-    { flush: 'sync' }
-  );
+  const folderSorts = folderSortPreference.entries;
+  const folderViews = folderViewPreference.entries;
 
+  // A sort on a column outside the built-in list is still a sort worth
+  // restoring, so the option is rebuilt rather than falling back to the
+  // default.
   const getOrCreateSortOption = (by, order) => {
     const existing = getSortOption(by, order);
-    if (existing) {
-      return existing;
-    }
-
-    if (!isValidSort({ by, order })) {
-      return null;
-    }
+    if (existing) return existing;
+    if (!isValidSort({ by, order })) return null;
 
     const nextKey = Math.max(0, ...sortOptions.map((o) => Number(o.key) || 0)) + 1;
     const created = { key: nextKey, name: `${by} ${order}`, by, order };
@@ -154,40 +129,23 @@ export const useSettingsStore = defineStore('settings', () => {
     return created;
   };
 
-  const saveSortForActiveFolder = (sort) => {
-    const userId = authStore.currentUser?.id ?? null;
-    const folderPath = activeFolderPath.value;
-    if (!folderPath || !appSettings.loaded || !userId) return;
+  watch(
+    () => authStore.currentUser?.id ?? null,
+    () => {
+      activeFolderPath.value = '';
+      sortOptions.splice(
+        0,
+        sortOptions.length,
+        ...DEFAULT_SORT_OPTIONS.map((option) => ({ ...option }))
+      );
+      sortBy.value = sortOptions[0];
+      view.value = defaultView.value;
+    },
+    { flush: 'sync' }
+  );
 
-    const nextFolderSorts = normalizeFolderSorts({
-      ...folderSorts.value,
-      [folderPath]: {
-        by: sort.by,
-        order: sort.order,
-        updatedAt: Date.now(),
-      },
-    });
-    folderSorts.value = nextFolderSorts;
-    hasLocalFolderSortChanges = true;
-
-    const save = () => {
-      if (authStore.currentUser?.id !== userId) return;
-      return appSettings.save({
-        user: {
-          folderSort: {
-            path: folderPath,
-            sort: {
-              by: sort.by,
-              order: sort.order,
-            },
-          },
-        },
-      });
-    };
-    const result = folderSortSaveChain.then(save, save);
-    folderSortSaveChain = result.catch(() => undefined);
-    return result;
-  };
+  const saveSortForActiveFolder = (sort) =>
+    folderSortPreference.set(activeFolderPath.value, { by: sort.by, order: sort.order });
 
   const applySort = (sort) => {
     if (!sort) return;
@@ -205,10 +163,20 @@ export const useSettingsStore = defineStore('settings', () => {
     return applySort(sort);
   };
 
-  const restoreSortForFolder = (path) => {
+  /**
+   * Put a folder back the way it was left: its sort, and its view.
+   *
+   * A folder with no remembered view falls back to the default rather than
+   * keeping whatever the previous folder was showing — a photo folder set to
+   * the photo grid should not turn a folder of documents into one.
+   */
+  const restoreFolderPreferences = (path) => {
     activeFolderPath.value = typeof path === 'string' ? path : '';
-    const saved = folderSorts.value?.[activeFolderPath.value];
-    sortBy.value = getOrCreateSortOption(saved?.by, saved?.order) || sortOptions[0];
+    const savedSort = folderSorts.value?.[activeFolderPath.value];
+    sortBy.value = getOrCreateSortOption(savedSort?.by, savedSort?.order) || sortOptions[0];
+
+    const savedView = folderViews.value?.[activeFolderPath.value];
+    view.value = VIEW_MODES.includes(savedView?.mode) ? savedView.mode : defaultView.value;
   };
 
   // Widths are sized to their content (icon, name, size, kind, modified date) so
@@ -267,6 +235,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     view,
+    setView,
     gridView,
     listView,
     tabView,
@@ -279,7 +248,9 @@ export const useSettingsStore = defineStore('settings', () => {
     sortBy,
     setSortBy,
     setSort,
-    restoreSortForFolder,
+    restoreFolderPreferences,
+    folderViews,
+    defaultView,
     sortOptions,
     terminalHeight,
     listViewColumnWidths,
