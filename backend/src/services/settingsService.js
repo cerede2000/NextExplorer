@@ -11,6 +11,12 @@ const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
 const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
 const DEFAULT_UPLOAD_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
 
+// Per-folder preferences are kept per user, and bounded: one entry per folder
+// ever visited would otherwise grow without limit.
+const MAX_FOLDER_PREFERENCES = 100;
+const MAX_FOLDER_PATH_LENGTH = 1024;
+const MAX_SORT_FIELD_LENGTH = 128;
+
 // Admin-configurable upper bound (env MAX_CHUNK_SIZE_MIB), capped at the hard
 // ceiling. Used to clamp both the default and any saved chunk size.
 const resolveMaxChunkSizeBytes = () => {
@@ -46,6 +52,47 @@ const defaultUploadSettings = () => {
   };
 };
 
+
+const isValidFolderPath = (folderPath) =>
+  typeof folderPath === 'string' &&
+  folderPath.length > 0 &&
+  folderPath.length <= MAX_FOLDER_PATH_LENGTH;
+
+const sanitizeFolderSort = (sort) => {
+  if (
+    !sort ||
+    typeof sort !== 'object' ||
+    typeof sort.by !== 'string' ||
+    sort.by.trim().length === 0 ||
+    sort.by.length > MAX_SORT_FIELD_LENGTH ||
+    (sort.order !== 'asc' && sort.order !== 'desc')
+  ) {
+    return null;
+  }
+
+  return {
+    by: sort.by.trim(),
+    order: sort.order,
+    updatedAt: Number.isFinite(sort.updatedAt) ? Math.floor(sort.updatedAt) : 0,
+  };
+};
+
+const sanitizeFolderSorts = (folderSorts) => {
+  if (!folderSorts || typeof folderSorts !== 'object' || Array.isArray(folderSorts)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(folderSorts)
+      .map(([folderPath, sort]) => {
+        const sanitizedSort = sanitizeFolderSort(sort);
+        return isValidFolderPath(folderPath) && sanitizedSort ? [folderPath, sanitizedSort] : null;
+      })
+      .filter(Boolean)
+      .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
+      .slice(0, MAX_FOLDER_PREFERENCES)
+  );
+};
 
 /**
  * Sanitize thumbnail settings
@@ -212,6 +259,30 @@ const getUserSettings = async (userId) => {
   }
 };
 
+// Through `prepared` rather than db.prepare: these run on every preference
+// change, and recompiling the same three statements each time is waste the
+// rest of this file already avoids.
+const upsertUserSetting = (db, userId, key, value) => {
+  const now = new Date().toISOString();
+  const valueJson = JSON.stringify(value);
+  const existing = prepared(db, 'SELECT id FROM user_settings WHERE user_id = ? AND key = ?').get(
+    userId,
+    key
+  );
+
+  if (existing) {
+    prepared(
+      db,
+      'UPDATE user_settings SET value = ?, updated_at = ? WHERE user_id = ? AND key = ?'
+    ).run(valueJson, now, userId, key);
+  } else {
+    prepared(
+      db,
+      'INSERT INTO user_settings (id, user_id, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(generateId(), userId, key, valueJson, now);
+  }
+};
+
 /**
  * Get system settings (admin only)
  */
@@ -324,9 +395,7 @@ const setUserSetting = async (userId, key, value) => {
   if (!userId) {
     throw new Error('User ID is required');
   }
-
   const db = await getDb();
-  const now = new Date().toISOString();
 
   // Validate and sanitize value based on key
   let sanitizedValue = value;
@@ -358,26 +427,51 @@ const setUserSetting = async (userId, key, value) => {
     } else {
       sanitizedValue = Boolean(value);
     }
+  } else if (key === 'folderSorts') {
+    sanitizedValue = sanitizeFolderSorts(value);
   }
 
-  const valueJson = JSON.stringify(sanitizedValue);
-
-  // Check if setting exists
-  const existing = db
-    .prepare('SELECT id FROM user_settings WHERE user_id = ? AND key = ?')
-    .get(userId, key);
-
-  if (existing) {
-    prepared(db, 
-      'UPDATE user_settings SET value = ?, updated_at = ? WHERE user_id = ? AND key = ?'
-    ).run(valueJson, now, userId, key);
-  } else {
-    prepared(db, 
-      'INSERT INTO user_settings (id, user_id, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(generateId(), userId, key, valueJson, now);
-  }
+  upsertUserSetting(db, userId, key, sanitizedValue);
 
   return sanitizedValue;
+};
+
+const setUserFolderSort = async (userId, folderPath, sort) => {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  const sanitizedSort = sanitizeFolderSort(sort);
+  if (!isValidFolderPath(folderPath) || !sanitizedSort) {
+    return null;
+  }
+
+  const db = await getDb();
+  const existing = prepared(
+    db,
+    'SELECT value FROM user_settings WHERE user_id = ? AND key = ?'
+  ).get(userId, 'folderSorts');
+  let existingFolderSorts = {};
+
+  if (existing) {
+    try {
+      existingFolderSorts = JSON.parse(existing.value);
+    } catch {
+      existingFolderSorts = {};
+    }
+  }
+  existingFolderSorts = sanitizeFolderSorts(existingFolderSorts);
+
+  const folderSorts = sanitizeFolderSorts({
+    ...existingFolderSorts,
+    [folderPath]: {
+      ...sanitizedSort,
+      updatedAt: Date.now(),
+    },
+  });
+  upsertUserSetting(db, userId, 'folderSorts', folderSorts);
+
+  return folderSorts;
 };
 
 /**
@@ -524,6 +618,7 @@ module.exports = {
   getSystemSettings,
   getSettingsForUser,
   setUserSetting,
+  setUserFolderSort,
   setSystemSetting,
   sanitizeUploads,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,
