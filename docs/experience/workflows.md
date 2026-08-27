@@ -12,8 +12,9 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 
 - **Create a folder/file:** Use the `Create` menu, context menu (right-click background → New Folder/File), or press the `+` toolbar button.
 - **Rename:** Right-click an item and choose Rename or use F2 key to rename.
-- **Move (desktop drag-and-drop):** Select one or more items (Ctrl/⌘-click, Shift-click, or drag a selection rectangle), then drag any selected item onto a destination folder and drop to move everything selected.
-- **Move (touch devices):** Drag-to-move is disabled on touch devices; use the context menu Cut → Paste instead.
+- **Move (desktop drag-and-drop):** Select one or more items (Ctrl/⌘-click, Shift-click, or drag a selection rectangle), then drag any selected item onto a destination folder and drop to move everything selected. Hold Alt (Option on macOS) while dropping to copy instead, and drop onto a favorite in the sidebar to send items there without navigating to it.
+- **Move to / Copy to:** Right-click a selection and choose **Move to** or **Copy to**. The dialog lists the destinations you have used recently, then your favorites, then the storage to browse; destinations that cannot work — the root, a folder inside itself — are refused before the transfer rather than after.
+- **Move (touch devices):** Drag-and-drop is disabled on touch devices, so use **Move to** from the item menu (long-press to open it). Cut → Paste still works if you prefer it.
 - **Delete:** The context menu’s Delete option (or toolbar action) prompts for confirmation and supports multi-select deletions.
 - **Clipboard shortcuts:** ⌘/Ctrl+C/X/V work just like desktop file managers and respect Access Control rules (read-only folders can’t be written).
 - **Mobile multi-select (checkboxes):** Tap **Select** in the toolbar to enter selection mode, then tap items to toggle selection without opening them; tap **Done** to exit (selection clears on exit). Long-press opens the item menu.
@@ -23,7 +24,8 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 - **Drag-and-drop upload:** Drop files/folders from your device onto the main pane to upload; the floating footer upload panel shows per-file and total progress.
 - **Create menu upload:** Select Upload files/folders from the Create menu if you prefer a dialog.
 - **Download:** Select one or more items and hit the Download button; multiple items or folders produce a ZIP archive.
-- **Transfer control:** Pause, resume, or cancel uploads directly from the footer panel.
+- **Transfer control:** Pause, resume, or cancel uploads directly from the footer panel, which also shows the current rate. With several files in flight, the summary adds them up and expanding the list gives each file its own figure.
+- **Large files:** With chunked uploads enabled, a transfer resumes from where it stopped rather than starting over, and gets past reverse proxies that reject large bodies. Once every byte is sent, the server may still be writing the file into place — that phase is shown separately, so a long copy is not mistaken for a stalled upload.
 
 ## Search
 

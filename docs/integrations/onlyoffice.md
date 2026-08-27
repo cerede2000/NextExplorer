@@ -30,6 +30,7 @@ version cannot be downloaded completely.
 
 1. Opening a compatible file triggers a call to `/api/onlyoffice/config`, which returns editor configuration and a signed `config.token` when `ONLYOFFICE_SECRET` is set.
 2. ONLYOFFICE fetches the file through `/api/onlyoffice/file?path=...` with an `Authorization: Bearer <config.token>` header.
+3. When ONLYOFFICE has delivered changes to Document Server, nextExplorer asks it to force-save at most once per `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS`. When the preview closes, nextExplorer waits only for its own API to accept a final request, never for the longer document conversion and callback. The normal delayed close callback remains a fallback.
 
 ## Editing activity and co-editing
 
@@ -37,11 +38,26 @@ NextExplorer shows a pencil indicator beside a document when it is open in ONLYO
 
 The indicator uses the local editor session and ONLYOFFICE callback status updates. It expires automatically when a browser or Document Server disappears, so stale state can never block work.
 
-Co-editing is native to ONLYOFFICE. Two people simply open the same file through NextExplorer with write permission; ONLYOFFICE recognizes the shared document key and opens its normal collaborative session. No separate co-edit link, shared session, or additional NextExplorer setting is required. 3. When ONLYOFFICE has delivered changes to Document Server, nextExplorer asks it to force-save at most once per `ONLYOFFICE_AUTO_SAVE_INTERVAL_MS`. When the preview closes, nextExplorer waits only for its own API to accept a final request, never for the longer document conversion and callback. The normal delayed close callback remains a fallback.
+Co-editing is native to ONLYOFFICE. Two people simply open the same file through NextExplorer with write permission; ONLYOFFICE recognizes the shared document key and opens its normal collaborative session. No separate co-edit link, shared session, or additional NextExplorer setting is required.
+
+The document key is what decides this, and it stays stable for as long as anyone has the document open — two different keys would be two independent sessions on one file, invisible to each other, where whoever saved last would overwrite the other. The key changes once the document is released, so a later reader is served the saved file rather than a cached copy. A document renamed from the editor keeps its session, and anyone opening it under the new name joins the one already running.
+
+## What the editor can do
+
+Beyond editing, the toolbar reaches back into NextExplorer:
+
+- **Close**, drawn by the Document Server itself, which force-saves on the way out rather than leaving the last changes to a delayed callback.
+- **Rename** the open document, and **Save as** under a new name — both keep the running session, so co-editors are not dropped.
+- **Share** the document without leaving it, through the usual share dialog.
+- **Mentions**: typing `@` in a comment offers the users who can already reach the document.
+- **Compare** against another document, and **insert** an image, spreadsheet or presentation picked from your own storage. Each is handed to the Document Server as a short-lived read-only URL for that one file.
+- The editor follows the app's light or dark theme, and reloads the document when it has moved on.
+
+**New file** offers blank Word, Excel and PowerPoint documents from a drawer beside it; the new document opens straight in the editor.
 
 ## Security notes
 
-- Tokens are signed with HS256 using `ONLYOFFICE_SECRET`. Keep this secret in sync with the Document Server’s `services.CoAuthoring.secret` (`local.json`).
+- Tokens are signed with HS256 using `ONLYOFFICE_SECRET`. Keep this secret in sync with the Document Server’s `services.CoAuthoring.secret` (`local.json`). It can be supplied as `ONLYOFFICE_SECRET_FILE` instead, which keeps it out of `docker inspect` — see [Secrets](/configuration/environment#secrets).
 - To inspect the secret, run inside the Document Server container:
   ```bash
   jq -r '.services.CoAuthoring.secret.session.string' /etc/onlyoffice/documentserver/local.json
