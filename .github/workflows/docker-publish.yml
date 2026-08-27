@@ -7,6 +7,10 @@ on:
 
 env:
   IMAGE_NAME: explorer
+  # Empty unless Docker Hub credentials are configured for this repository.
+  # Every Docker Hub step is skipped when it is, so a release still publishes
+  # to GHCR rather than failing at the login.
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 concurrency:
   group: docker-build-${{ github.ref }}
@@ -47,8 +51,8 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+            ${{ env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
           tags: |
             type=raw,value=latest
             type=sha,format=long
@@ -58,7 +62,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'release'
+        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' }}
         uses: docker/login-action@v4
         with:
           registry: docker.io
@@ -91,7 +95,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Update Docker Hub description
-        if: github.event_name == 'release'
+        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' }}
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
