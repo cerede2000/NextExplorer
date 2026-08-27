@@ -343,7 +343,8 @@
     "activeTasks": "{count} 个操作进行中",
     "reposition": "完成后返回该项目",
     "extracting": "正在解压 {name}…",
-    "compressing": "正在压缩 {name}…"
+    "compressing": "正在压缩 {name}…",
+    "perSecond": "{value}/秒"
   },
   "upload": {
     "toggleDetailsShow": "显示详细信息",

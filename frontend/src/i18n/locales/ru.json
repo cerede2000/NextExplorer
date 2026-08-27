@@ -343,7 +343,8 @@
     "activeTasks": "Активных операций: {count}",
     "reposition": "Вернуться к объекту по завершении",
     "extracting": "Извлечение {name}…",
-    "compressing": "Сжатие {name}…"
+    "compressing": "Сжатие {name}…",
+    "perSecond": "{value}/с"
   },
   "upload": {
     "toggleDetailsShow": "Показать детали",

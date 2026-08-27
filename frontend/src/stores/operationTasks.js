@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
+import { createRateMeter } from '@/utils/transferRate';
 
 // File operations can run concurrently (for example an extraction while a ZIP
 // is being created). Keep each operation isolated so a new stream never
@@ -8,6 +9,22 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
   const operations = ref([]);
   const activeOperationId = ref(null);
   let nextOperationId = 0;
+
+  // Rate is measured here rather than by each caller, so every operation that
+  // reports bytes — uploads, copies, moves — gets the same figure computed the
+  // same way. Meters are kept outside the reactive state: they hold a rolling
+  // window that changes on every progress event, and nothing renders from it
+  // directly.
+  const meters = new Map();
+
+  const meterFor = (id) => {
+    let meter = meters.get(id);
+    if (!meter) {
+      meter = createRateMeter();
+      meters.set(id, meter);
+    }
+    return meter;
+  };
 
   const activeOperation = computed(() => {
     const selected = operations.value.find((operation) => operation.id === activeOperationId.value);
@@ -33,13 +50,46 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     return id;
   };
 
+  /**
+   * Bytes per second for one operation, or null when there is nothing honest
+   * to report — too early, paused, or an operation that only reports a
+   * percentage and no byte counts at all (archive extraction, for one).
+   */
+  const rateFor = (id) => meters.get(id)?.rate() ?? null;
+
   const updateOperation = (id, updates) => {
     const index = operations.value.findIndex((operation) => operation.id === id);
     if (index < 0) return;
 
+    const previous = operations.value[index];
     const next = [...operations.value];
-    next[index] = { ...next[index], ...updates };
+    next[index] = { ...previous, ...updates };
     operations.value = next;
+
+    sampleRate(previous, next[index], updates);
+  };
+
+  /**
+   * Feed the meter whichever byte count this operation is currently moving.
+   *
+   * An upload changes course once its last byte is out: the server is then
+   * copying the file into place, a second run of bytes with its own pace. That
+   * hand-over needs no special case — the copy starts below the bytes already
+   * transferred, and the meter treats a count that goes backwards as a fresh
+   * start, exactly as it does for a retried chunk.
+   */
+  const sampleRate = (previous, current, updates) => {
+    if (current.finalizing) {
+      const startedFinalizing = !previous.finalizing;
+      if (updates.finalizedBytes != null || startedFinalizing) {
+        meterFor(current.id).sample(Number(current.finalizedBytes) || 0);
+      }
+      return;
+    }
+
+    if (updates.copiedBytes != null) {
+      meterFor(current.id).sample(Number(current.copiedBytes) || 0);
+    }
   };
 
   const selectOperation = (id) => {
@@ -50,6 +100,7 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
 
   const finishOperation = (id) => {
     const wasSelected = activeOperationId.value === id;
+    meters.delete(id);
     operations.value = operations.value.filter((operation) => operation.id !== id);
 
     if (wasSelected) {
@@ -76,6 +127,7 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     operationCount,
     startOperation,
     updateOperation,
+    rateFor,
     selectOperation,
     finishOperation,
     cancelOperation,
