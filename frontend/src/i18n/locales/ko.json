@@ -343,7 +343,8 @@
     "activeTasks": "{count}개 작업 진행 중",
     "reposition": "완료 후 항목으로 돌아가기",
     "extracting": "{name} 압축 푸는 중…",
-    "compressing": "{name} 압축 중…"
+    "compressing": "{name} 압축 중…",
+    "perSecond": "{value}/초"
   },
   "upload": {
     "toggleDetailsShow": "상세 정보 보기",

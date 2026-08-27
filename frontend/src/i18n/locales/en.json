@@ -343,7 +343,8 @@
     "activeTasks": "{count} operations in progress",
     "reposition": "Return to the item when done",
     "extracting": "Extracting {name}…",
-    "compressing": "Compressing {name}…"
+    "compressing": "Compressing {name}…",
+    "perSecond": "{value}/s"
   },
   "quickActions": {
     "menu": "Quick actions"

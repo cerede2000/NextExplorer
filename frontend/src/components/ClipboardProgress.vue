@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ChevronDownIcon, QueueListIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { useFileStore } from '@/stores/fileStore';
@@ -47,6 +47,57 @@ watch(operationCount, (count) => {
   if (count < 2) isListOpen.value = false;
 });
 
+// Progress events are what normally redraw this panel, and a paused transfer
+// stops sending them — which is exactly when the displayed rate has to go away.
+// This tick gives the rate a heartbeat of its own, and runs only while there is
+// something on screen.
+const RATE_TICK_MS = 1000;
+const rateTick = ref(0);
+let rateTimer = null;
+
+const stopRateTicker = () => {
+  if (rateTimer) clearInterval(rateTimer);
+  rateTimer = null;
+};
+
+watch(
+  operationCount,
+  (count) => {
+    if (count > 0 && !rateTimer) {
+      rateTimer = setInterval(() => {
+        rateTick.value += 1;
+      }, RATE_TICK_MS);
+    } else if (count === 0) {
+      stopRateTicker();
+    }
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(stopRateTicker);
+
+const rateFor = (value) => {
+  if (!value?.id) return null;
+  // Read through the tick so a rate that has gone stale disappears, and through
+  // the byte count so a fresh one shows up without waiting for the next tick.
+  void rateTick.value;
+  void value.copiedBytes;
+  void value.finalizedBytes;
+  return operationTasksStore.rateFor(value.id);
+};
+
+// With several uploads running at once the panel speaks for all of them, so the
+// figure has to be their combined throughput — one file's share of the link
+// would mean nothing to the person watching.
+const displayRate = computed(() => {
+  const uploads = uploadOperations.value;
+  if (operation.value?.type === 'upload' && uploads.length > 1) {
+    const rates = uploads.map(rateFor).filter((rate) => rate !== null);
+    return rates.length ? rates.reduce((total, rate) => total + rate, 0) : null;
+  }
+  return rateFor(operation.value);
+});
+
 const totalBytesFor = (value) => Number(value?.totalBytes) || 0;
 const copiedBytesFor = (value) =>
   Math.min(Number(value?.copiedBytes) || 0, totalBytesFor(value) || Number.POSITIVE_INFINITY);
@@ -70,18 +121,31 @@ const finalizingPercentFor = (value) => {
   return Math.min(100, Math.round((copied / totalBytes) * 100));
 };
 
-const progressLabelFor = (value) => {
+const rateSuffix = (rate) => {
+  // Zero is a real answer — a stalled transfer — but "0 B/s" beside a moving
+  // bar reads as a bug, so only a rate worth naming is named.
+  if (rate === null || rate < 1) return '';
+  return ` · ${t('clipboard.perSecond', { value: formatBytes(rate) })}`;
+};
+
+/**
+ * The rate is passed in rather than looked up, because the summary line speaks
+ * for every upload at once while each row in the expanded list speaks only for
+ * itself. Defaulting to this task's own rate keeps those rows honest.
+ */
+const progressLabelFor = (value, rate = rateFor(value)) => {
+  const suffix = rateSuffix(rate);
   const finalizing = finalizingPercentFor(value);
   if (finalizing !== null) {
-    return `${t('upload.finalizing')} · ${finalizing}%`;
+    return `${t('upload.finalizing')} · ${finalizing}%${suffix}`;
   }
 
   const totalBytes = totalBytesFor(value);
   const percent = percentFor(value);
   if (totalBytes > 0) {
-    return `${formatBytes(copiedBytesFor(value))} / ${formatBytes(totalBytes)} · ${percent}%`;
+    return `${formatBytes(copiedBytesFor(value))} / ${formatBytes(totalBytes)} · ${percent}%${suffix}`;
   }
-  return percent !== null ? `${percent}%` : t('clipboard.working');
+  return percent !== null ? `${percent}%${suffix}` : t('clipboard.working');
 };
 const titleFor = (value) => {
   if (!value) return '';
@@ -113,7 +177,7 @@ const titleFor = (value) => {
 const percent = computed(
   () => finalizingPercentFor(displayOperation.value) ?? percentFor(displayOperation.value)
 );
-const progressLabel = computed(() => progressLabelFor(displayOperation.value));
+const progressLabel = computed(() => progressLabelFor(displayOperation.value, displayRate.value));
 const destination = computed(() => displayOperation.value?.destination ?? '');
 const isTransfer = computed(() => ['copy', 'move'].includes(operation.value?.type));
 

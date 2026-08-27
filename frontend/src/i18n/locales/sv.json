@@ -343,7 +343,8 @@
     "activeTasks": "{count} åtgärder pågår",
     "reposition": "Återgå till objektet när det är klart",
     "extracting": "Extraherar {name}…",
-    "compressing": "Komprimerar {name}…"
+    "compressing": "Komprimerar {name}…",
+    "perSecond": "{value}/s"
   },
   "upload": {
     "toggleDetailsShow": "Visa detaljer",

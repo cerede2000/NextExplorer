@@ -343,7 +343,8 @@
     "activeTasks": "{count} operațiuni în curs",
     "reposition": "Revino la element la final",
     "extracting": "Se extrage {name}…",
-    "compressing": "Se comprimă {name}…"
+    "compressing": "Se comprimă {name}…",
+    "perSecond": "{value}/s"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",

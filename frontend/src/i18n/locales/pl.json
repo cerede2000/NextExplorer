@@ -343,7 +343,8 @@
     "activeTasks": "{count} operacji w toku",
     "reposition": "Wróć do elementu po zakończeniu",
     "extracting": "Wypakowywanie {name}…",
-    "compressing": "Kompresowanie {name}…"
+    "compressing": "Kompresowanie {name}…",
+    "perSecond": "{value}/s"
   },
   "upload": {
     "toggleDetailsShow": "Pokaż szczegóły",
