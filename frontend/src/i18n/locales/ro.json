@@ -749,5 +749,16 @@
     "root": "Stocare",
     "empty": "Nu este nimic de ales aici",
     "breadcrumb": "Calea folderului"
+  },
+  "destinationPicker": {
+    "moveTitle": "Mută în",
+    "copyTitle": "Copiază în",
+    "moveHere": "Mută aici",
+    "copyHere": "Copiază aici",
+    "noFolders": "Niciun folder aici",
+    "rootRejected": "Alegeți mai întâi un volum sau un folder",
+    "itselfRejected": "Un folder nu poate fi mutat în el însuși",
+    "descendantRejected": "Un folder nu poate fi mutat într-unul dintre folderele sale",
+    "alreadyThereRejected": "Deja aici"
   }
 }

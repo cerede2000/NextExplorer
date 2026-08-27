@@ -749,5 +749,16 @@
     "root": "Archiviazione",
     "empty": "Non c'è nulla da scegliere qui",
     "breadcrumb": "Percorso della cartella"
+  },
+  "destinationPicker": {
+    "moveTitle": "Sposta in",
+    "copyTitle": "Copia in",
+    "moveHere": "Sposta qui",
+    "copyHere": "Copia qui",
+    "noFolders": "Nessuna cartella qui",
+    "rootRejected": "Scegli prima un volume o una cartella",
+    "itselfRejected": "Una cartella non può essere spostata in se stessa",
+    "descendantRejected": "Una cartella non può essere spostata in una delle proprie cartelle",
+    "alreadyThereRejected": "Già qui"
   }
 }

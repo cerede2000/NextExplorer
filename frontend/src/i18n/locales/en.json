@@ -749,5 +749,16 @@
     "root": "Storage",
     "empty": "Nothing here to pick",
     "breadcrumb": "Folder path"
+  },
+  "destinationPicker": {
+    "moveTitle": "Move to",
+    "copyTitle": "Copy to",
+    "moveHere": "Move here",
+    "copyHere": "Copy here",
+    "noFolders": "No folders here",
+    "rootRejected": "Pick a volume or folder first",
+    "itselfRejected": "A folder cannot be moved into itself",
+    "descendantRejected": "A folder cannot be moved into one of its own folders",
+    "alreadyThereRejected": "Already here"
   }
 }

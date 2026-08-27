@@ -749,5 +749,16 @@
     "root": "Almacenamiento",
     "empty": "No hay nada que elegir aquí",
     "breadcrumb": "Ruta de la carpeta"
+  },
+  "destinationPicker": {
+    "moveTitle": "Mover a",
+    "copyTitle": "Copiar a",
+    "moveHere": "Mover aquí",
+    "copyHere": "Copiar aquí",
+    "noFolders": "No hay carpetas aquí",
+    "rootRejected": "Elija primero un volumen o una carpeta",
+    "itselfRejected": "Una carpeta no puede moverse dentro de sí misma",
+    "descendantRejected": "Una carpeta no puede moverse a una de sus propias carpetas",
+    "alreadyThereRejected": "Ya está aquí"
   }
 }

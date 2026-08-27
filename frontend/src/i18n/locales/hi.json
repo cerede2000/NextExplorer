@@ -749,5 +749,16 @@
     "root": "भंडारण",
     "empty": "यहाँ चुनने के लिए कुछ नहीं है",
     "breadcrumb": "फ़ोल्डर पथ"
+  },
+  "destinationPicker": {
+    "moveTitle": "यहाँ ले जाएँ",
+    "copyTitle": "यहाँ कॉपी करें",
+    "moveHere": "यहाँ ले जाएँ",
+    "copyHere": "यहाँ कॉपी करें",
+    "noFolders": "यहाँ कोई फ़ोल्डर नहीं",
+    "rootRejected": "पहले कोई वॉल्यूम या फ़ोल्डर चुनें",
+    "itselfRejected": "फ़ोल्डर को उसी में नहीं ले जाया जा सकता",
+    "descendantRejected": "फ़ोल्डर को उसके अपने फ़ोल्डर में नहीं ले जाया जा सकता",
+    "alreadyThereRejected": "पहले से यहाँ है"
   }
 }

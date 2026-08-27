@@ -94,6 +94,23 @@ const ensureShareOperationPermissionColumns = (db) => {
   addColumnIfMissing(db, 'shares', 'allow_upload', 'allow_upload INTEGER NOT NULL DEFAULT 1');
 };
 
+/**
+ * Where a user has recently moved or copied things to.
+ *
+ * Kept as history rather than a preference: the point is that the folders you
+ * actually use rise to the top of the destination picker without anyone
+ * curating a list. One row per user and path — using a destination again moves
+ * it up rather than adding a duplicate.
+ */
+const RECENT_DESTINATIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS recent_destinations (
+    user_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    used_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, path)
+  );
+`;
+
 const migrate = (db) => {
   // Simple schema versioning
   db.exec(`
@@ -490,12 +507,23 @@ const migrate = (db) => {
       );
       version = 12;
     }
+
+    if (version < 13) {
+      logger.info('[DB Migration] Migrating to v13: Remembering recent destinations...');
+      db.exec(RECENT_DESTINATIONS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(13)
+      );
+      version = 13;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
   // image. Keep additive schema available in this mixed-version case.
   db.exec(FOLDER_SIZE_INDEX_DDL);
   db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
+  db.exec(RECENT_DESTINATIONS_DDL);
   db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
   ensureShareOperationPermissionColumns(db);
 };

@@ -1,10 +1,9 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { FolderIcon, DocumentIcon } from '@heroicons/vue/24/outline';
 import ModalDialog from '@/components/ModalDialog.vue';
-import { browse } from '@/api';
-import logger from '@/utils/logger';
+import { useStorageBrowser } from '@/composables/useStorageBrowser';
 
 /**
  * Pick one file from the user's storage.
@@ -37,10 +36,7 @@ const isOpen = computed({
   set: (value) => emit('update:modelValue', value),
 });
 
-const currentPath = ref('');
-const items = ref([]);
-const isLoading = ref(false);
-const error = ref('');
+const { items, isLoading, error, crumbs, navigate, fullPath } = useStorageBrowser();
 
 const accepted = computed(() => new Set(props.extensions.map((ext) => String(ext).toLowerCase())));
 
@@ -51,37 +47,6 @@ const entries = computed(() =>
     return accepted.value.has(String(item.kind || '').toLowerCase());
   })
 );
-
-const crumbs = computed(() => {
-  const segments = String(currentPath.value || '')
-    .split('/')
-    .filter(Boolean);
-  return segments.map((name, index) => ({
-    name,
-    path: segments.slice(0, index + 1).join('/'),
-  }));
-});
-
-const navigate = async (target) => {
-  isLoading.value = true;
-  error.value = '';
-  try {
-    const listing = await browse(target || '');
-    currentPath.value = listing?.path ?? target ?? '';
-    items.value = Array.isArray(listing?.items) ? listing.items : [];
-  } catch (browseError) {
-    logger.debug('Storage picker could not list the folder', browseError);
-    error.value = browseError?.message || '';
-    items.value = [];
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const fullPath = (item) => {
-  const parent = item.path || '';
-  return parent ? `${parent}/${item.name}` : item.name;
-};
 
 const choose = (item) => {
   if (item.kind === 'directory') {

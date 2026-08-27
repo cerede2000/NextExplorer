@@ -37,6 +37,8 @@ import {
   ContentCopyRound,
   ContentPasteRound,
   DriveFileRenameOutlineRound,
+  DriveFileMoveRound,
+  FolderCopyRound,
   InfoRound,
   DeleteRound,
 } from '@vicons/material';
@@ -238,6 +240,8 @@ const resolveItemPath = (item) => {
 
 const runCut = () => actions.runCut();
 const runCopy = () => actions.runCopy();
+const runMoveTo = () => actions.runMoveTo();
+const runCopyTo = () => actions.runCopyTo();
 const runPasteIntoDirectory = async () => {
   if (!actions.canPaste.value) return;
   const destination = resolveItemPath(targetItem.value);
@@ -683,6 +687,18 @@ const menuSections = computed(() => {
     mk('copy', t('actions.copy'), ContentCopyRound, runCopy, {
       disabled: !actions.canCopy.value,
       shortcut: `${modKeyLabel}C`,
+    })
+  );
+  if (locationCanWrite.value && locationCanDelete.value) {
+    clipboardSection.push(
+      mk('moveTo', t('destinationPicker.moveTitle'), DriveFileMoveRound, runMoveTo, {
+        disabled: !actions.canCut.value,
+      })
+    );
+  }
+  clipboardSection.push(
+    mk('copyTo', t('destinationPicker.copyTitle'), FolderCopyRound, runCopyTo, {
+      disabled: !actions.canCopy.value,
     })
   );
   if (contextKind.value === 'directory') {

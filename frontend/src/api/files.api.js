@@ -209,6 +209,16 @@ async function copyItems(items, destination, options = {}) {
   return mergeTransferResults(results);
 }
 
+/**
+ * Folders this user has recently moved or copied things into, most recent
+ * first. The server only returns the ones still reachable, so the picker can
+ * offer them without checking each in turn.
+ */
+async function fetchRecentDestinations() {
+  const payload = await requestJson('/api/files/recent-destinations');
+  return Array.isArray(payload?.items) ? payload.items : [];
+}
+
 async function moveItems(items, destination, options = {}) {
   const results = await streamInBatches(
     items,
@@ -572,6 +582,7 @@ export {
   refreshFolderSize,
   copyItems,
   moveItems,
+  fetchRecentDestinations,
   deleteItems,
   deleteItemsStream,
   getDeleteImpact,

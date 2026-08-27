@@ -484,6 +484,35 @@ export const useFileStore = defineStore('fileStore', () => {
     }
   };
 
+  /**
+   * Move or copy the selection into a folder chosen somewhere else.
+   *
+   * Goes through the clipboard rather than around it: progress, the cancellable
+   * task, the refresh and the repositioning on the transferred entry are all
+   * there already and proven. What the person had cut or copied is theirs
+   * though, so it is put back afterwards — picking a destination from a menu
+   * must not quietly empty their clipboard.
+   */
+  const transferSelectionTo = async (destination, mode = 'move') => {
+    if (!hasSelection.value) return;
+    const target = normalizePath(destination || '');
+    if (!target) return;
+
+    const previousCopied = copiedItems.value;
+    const previousCut = cutItems.value;
+    const staged = selectedItems.value.map((item) => ({ ...item }));
+
+    copiedItems.value = mode === 'copy' ? staged : [];
+    cutItems.value = mode === 'copy' ? [] : staged;
+
+    try {
+      await paste(target);
+    } finally {
+      copiedItems.value = previousCopied;
+      cutItems.value = previousCut;
+    }
+  };
+
   const del = async (items = selectedItems.value, options = {}) => {
     const payload = serializeItems(items);
     if (payload.length === 0) return;
@@ -1117,6 +1146,7 @@ export const useFileStore = defineStore('fileStore', () => {
     copy,
     cut,
     paste,
+    transferSelectionTo,
     del,
     resetClipboard,
     createFolder,

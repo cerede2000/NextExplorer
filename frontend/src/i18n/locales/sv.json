@@ -749,5 +749,16 @@
     "root": "Lagring",
     "empty": "Det finns inget att välja här",
     "breadcrumb": "Mappsökväg"
+  },
+  "destinationPicker": {
+    "moveTitle": "Flytta till",
+    "copyTitle": "Kopiera till",
+    "moveHere": "Flytta hit",
+    "copyHere": "Kopiera hit",
+    "noFolders": "Inga mappar här",
+    "rootRejected": "Välj en volym eller mapp först",
+    "itselfRejected": "En mapp kan inte flyttas in i sig själv",
+    "descendantRejected": "En mapp kan inte flyttas till en av sina egna mappar",
+    "alreadyThereRejected": "Redan här"
   }
 }
