@@ -290,3 +290,60 @@ other's in-flight uploads.
   the new name, and refuses an existing target — despite having no test.
 - **The documentation build is not committed** (`docs/.vitepress/dist` is
   ignored).
+
+---
+
+## Lot 5 — Folder size index
+
+`folderSizeIndexer.js` (725), `folderSizeManager.js` (624),
+`folderSizeIndex.js` (521), `folderSizeHooks.js` (347),
+`folderSizeTransferState.js` (39), `folderSizeExclusions.js` (86). Around 2,200
+lines of concurrent work — expected to be the richest lot, and it is the
+soundest so far.
+
+**No defect found.** The two failure modes worth hunting here — a lock nothing
+releases, and an index that drifts — are both already handled, visibly on
+purpose.
+
+### D14 · A size that should have gone negative is silently clamped — Note
+
+`folderSizeIndex.js:194` updates with `size_bytes = MAX(0, size_bytes +
+@byteDelta)`. Clamping is right: a negative folder size would be worse than a
+wrong one.
+
+But reaching that clamp means a delta was missed or applied twice — a symptom of
+a bug elsewhere — and the `ON CONFLICT DO UPDATE` branch does not set
+`dirty = 1`, so the row is neither corrected promptly nor recorded as suspect.
+The wrong value simply waits for the general reconcile pass, and nobody ever
+learns the inconsistency happened. `dirty = CASE WHEN size_bytes + @byteDelta <
+0 THEN 1 ELSE dirty END` would turn a silent absorption into a targeted repair
+and a usable signal.
+
+### D15 · 2,200 lines of concurrency, five tests — Note
+
+`folderSizeIndexer` is referenced by two test files, `folderSizeManager` by
+three. That is thin for the amount of state and timing involved.
+
+It is mitigated deliberately rather than ignored: `docs/testing/folder-size-index.md`
+is a written manual plan, published in the documentation, covering what
+automated tests cannot easily reach here. Worth knowing that this is the
+arrangement, so nobody assumes the automated suite covers it.
+
+### Checked and sound
+
+- **The in-memory transfer lock is released on all three paths** — success,
+  cancellation, and an unexpected I/O failure. The last one carries a comment
+  naming the exact hazard it avoids: "permanently suppressing size refreshes
+  until the process restarts" (`fileTransferService.js:790`). Someone went
+  looking for this before I did.
+- **Nothing persistent is left stuck.** The row written before a directory
+  transfer is marked `dirty = 1` (`folderSizeIndex.js:391`), so a process killed
+  mid-transfer leaves a row the reconciler picks up rather than a state no
+  restart clears.
+- **Shutdown is orderly** (`folderSizeManager.js:372`): timers cleared, in-flight
+  reconcile aborted, active subtree scan aborted, a final flush, and a `stopped`
+  flag so a late timer callback cannot re-arm anything.
+- **Timers are `unref`'d**, so the indexer never keeps the process alive.
+- **Incremental drift has a designed answer**: periodic reconciliation, paced in
+  batches and resumable through a cursor, so a missed event is corrected rather
+  than accumulating for ever.
