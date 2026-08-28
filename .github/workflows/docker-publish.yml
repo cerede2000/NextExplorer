@@ -56,20 +56,39 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Determine release tag
+      - name: Determine version tags
         id: version
-        if: github.event_name == 'release'
         run: |
-          VERSION_TAG="${GITHUB_REF_NAME}"
-          if [ -z "$VERSION_TAG" ]; then
-            echo "Release tag not detected; aborting."
+          # package.json is the source of the number, so a push to main carries
+          # a version tag too rather than only moving latest. scripts/version.js
+          # keeps the manifests in step and CI checks it.
+          NUMBER="$(node -p "require('./package.json').version")"
+          if [ -z "$NUMBER" ]; then
+            echo "No version found in package.json; aborting."
             exit 1
           fi
+
+          if [ "$GITHUB_EVENT_NAME" = 'release' ]; then
+            VERSION_TAG="${GITHUB_REF_NAME}"
+            if [ -z "$VERSION_TAG" ]; then
+              echo "Release tag not detected; aborting."
+              exit 1
+            fi
+            # A release named for a version the code does not carry would
+            # publish an image whose tag lies about its contents.
+            if [ "${VERSION_TAG#v}" != "$NUMBER" ]; then
+              echo "Release tag $VERSION_TAG does not match package.json ($NUMBER); aborting."
+              exit 1
+            fi
+          else
+            VERSION_TAG="v$NUMBER"
+          fi
+
           # Git tags are written v3.0.0; image tags conventionally are not, and
           # `pull image:3.0.0` is what a reader of the release notes will type.
           # Publish both so neither form is a dead end.
           echo "version=$VERSION_TAG" >> "$GITHUB_OUTPUT"
-          echo "number=${VERSION_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -81,13 +100,13 @@ jobs:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
             ${{ env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
-          # Blank lines are ignored, so the version tags simply do not exist
-          # on a push to main.
+          # The suffix in `flavor` below applies to every tag, so the lean
+          # build publishes 3.0.2-lean alongside latest-lean.
           tags: |
             type=raw,value=latest
             type=sha,format=long
-            ${{ github.event_name == 'release' && format('type=raw,value={0}', steps.version.outputs.version) || '' }}
-            ${{ github.event_name == 'release' && format('type=raw,value={0}', steps.version.outputs.number) || '' }}
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ steps.version.outputs.number }}
           # onlatest applies the suffix to `latest` too, so the lean build
           # publishes latest-lean rather than overwriting latest.
           flavor: |

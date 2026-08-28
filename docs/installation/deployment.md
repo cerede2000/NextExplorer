@@ -27,9 +27,13 @@ ghcr.io/cerede2000/explorer:latest-lean
 They are also on Docker Hub under the same tags.
 
 `latest` and `latest-lean` follow `main`, so a fix reaches them without waiting
-for a release. Pin a version tag instead — `3.0.2`, `3.0.2-lean` — where you
-want an image that never moves under you; those are cut at a release and stay
-exactly as published.
+for a release. Every build is also published under the version in
+`package.json` — `3.0.2`, `3.0.2-lean` — republished for as long as that
+version is current, and left alone once the next one is cut.
+
+Old images are pruned weekly down to the last couple of versions, so pin a
+version you intend to keep running and move it forward deliberately rather than
+expecting an old tag to still be there.
 
 ## Host folder layout
 
