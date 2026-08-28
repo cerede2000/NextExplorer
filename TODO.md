@@ -87,6 +87,41 @@ remains:
 Recent destinations and the destination picker still list a missing volume
 without saying so; only favourites are marked.
 
+## Two users can end up sharing one personal folder
+
+`utils/pathUtils.js` derives a user's personal folder name from
+`USER_FOLDER_NAME_ORDER`, falling back to `id, username, email_local`. Nothing
+guarantees the last two are unique:
+
+- `username` has **no UNIQUE constraint**. The original schema had one
+  (`db.js:240`); the migrated table does not (`db.js:283`), and no code checks
+  for a duplicate — an OIDC provider supplies the value as it pleases.
+- `email_local` cannot be unique by construction: `bob@a.com` and `bob@b.com`
+  both yield `bob`. It sits in the fallback order permanently, so an OIDC login
+  carrying no username lands there.
+
+Two accounts that resolve to the same directory each see the other's private
+files. A default install is safe — the default order puts `id` first, and ids
+are unique — but [the environment reference](docs/configuration/environment.md)
+recommends `username,id` outright, to reuse an existing `/home/<username>`
+layout, without a word about duplicates being possible or what happens then.
+
+Three ways out, and the choice is a real one rather than an oversight to
+correct:
+
+- **Enforce uniqueness on `username`.** The honest fix, and the intrusive one:
+  a migration has to decide what to do with the duplicates it finds on an
+  instance that already has them, and an OIDC provider that supplies a colliding
+  username would then fail the login outright.
+- **Refuse a non-`id` order** unless uniqueness is guaranteed. Safe by
+  construction, but it breaks exactly the deployment the documentation
+  recommends, on upgrade, for people who did as they were told.
+- **Say it plainly in the documentation.** Cheapest, changes no behaviour, and
+  leaves a sharp edge in place for whoever does not read the note.
+
+Worth deciding deliberately. Until then the default is safe and the
+recommendation in the documentation is not.
+
 ## Open, not scheduled
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs

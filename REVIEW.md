@@ -107,7 +107,7 @@ Stated because a review that only lists problems says nothing about the rest:
 `authorizationService.js` (82), `utils/pathUtils.js` (613),
 `middleware/authMiddleware.js` (197). The layer everything else rests on.
 
-### D6 · Two users can end up sharing one personal folder — Defect
+### D6 · Two users can end up sharing one personal folder — Defect — **DEFERRED**
 
 `utils/pathUtils.js:286` derives a user's personal folder name from
 `USER_FOLDER_NAME_ORDER`, falling back to `id, username, email_local`. Nothing
@@ -129,7 +129,9 @@ duplicate usernames are possible and what happens then.
 
 Worth deciding deliberately: enforce uniqueness on `username`, refuse a
 non-`id` order unless uniqueness is guaranteed, or say plainly in the
-documentation what the trade-off is.
+documentation what the trade-off is. The three options and what each costs are
+written up in [TODO.md](TODO.md), where this now waits for a decision — the
+default install is safe, so nothing is on fire while it does.
 
 ### D7 · `assertRealPathWithinRoot` does not assert what its name claims — Fragility
 
@@ -513,7 +515,8 @@ The five defects, most consequential first:
 2. **D16** — OIDC group membership is read once, so admin rights can neither be
    granted nor revoked afterwards, and the documentation says otherwise.
 3. **D6** — two accounts can share one personal folder under a configuration the
-   documentation recommends.
+   documentation recommends. Deferred to [TODO.md](TODO.md): the fix is a
+   decision, not a correction.
 4. **D10** — the default upload path has no free-space guard; the optional one
    does.
 5. **D11** — a `.uploading` file left by a killed process is visible and never
