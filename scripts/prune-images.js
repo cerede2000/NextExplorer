@@ -25,7 +25,7 @@ const PACKAGE = process.env.PACKAGE_NAME || 'explorer';
 const TOKEN = process.env.GITHUB_TOKEN;
 
 // Tags that always survive: they name what is currently published.
-const PROTECTED_TAGS = new Set(['latest', 'latest-lean', 'integration', 'integration-lean']);
+const PROTECTED_TAGS = new Set(['latest', 'latest-lean', 'test', 'test-lean']);
 
 // A released version, as the release workflow writes it.
 const RELEASE_TAG = /^v?\d+\.\d+\.\d+(-lean)?$/;
@@ -125,16 +125,17 @@ const main = async () => {
   }
   const keptReleases = new Set(releases.slice(0, keepVersions));
 
-  // Integration is rebuilt on every push, each build tagged with its commit.
-  // The last few are what makes a rollback possible while testing.
-  const integrationBuilds = [];
+  // The test image is rebuilt on every push to the integration branch, each
+  // build tagged with its commit. The last few are what makes a rollback
+  // possible while testing.
+  const testBuilds = [];
   for (const version of versions) {
-    for (const tag of tagsOf(version).filter((t) => /^integration(-lean)?-[0-9a-f]{40}$/.test(t))) {
+    for (const tag of tagsOf(version).filter((t) => /^test(-lean)?-[0-9a-f]{40}$/.test(t))) {
       const commit = tag.slice(-40);
-      if (!integrationBuilds.includes(commit)) integrationBuilds.push(commit);
+      if (!testBuilds.includes(commit)) testBuilds.push(commit);
     }
   }
-  const keptBuilds = new Set(integrationBuilds.slice(0, keepVersions));
+  const keptBuilds = new Set(testBuilds.slice(0, keepVersions));
 
   const keep = new Set();
   for (const version of versions) {

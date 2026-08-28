@@ -1,8 +1,9 @@
-name: Package integration image
+name: Package test image
 
-# The branch where work is stacked and tried out before it reaches main.
-# Two variants, the same pair a release publishes, so what is tested here is
-# what ships: the full image, and the lean one without VA-API or RAW.
+# The branch where work is stacked and tried out before it reaches main,
+# published as `test` and `test-lean`. Two variants, the same pair a release
+# publishes, so what is tried here is what ships: the full image, and the lean
+# one without VA-API or RAW.
 on:
   push:
     branches:
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build and publish integration image (${{ matrix.variant }})
+    name: Build and publish test image (${{ matrix.variant }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -30,10 +31,10 @@ jobs:
       matrix:
         include:
           - variant: full
-            tag: integration
+            tag: test
             extra_build_args: ''
           - variant: lean
-            tag: integration-lean
+            tag: test-lean
             extra_build_args: |
               INCLUDE_VAAPI=false
               INCLUDE_RAW=false
@@ -75,5 +76,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+          # Cache scope keeps its old name on purpose: renaming it would throw
+          # away a warm cache and make the next push slow for nothing.
           cache-from: type=gha,scope=integration-${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=integration-${{ matrix.variant }}
