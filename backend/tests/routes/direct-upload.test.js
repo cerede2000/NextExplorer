@@ -83,6 +83,23 @@ describe('a direct upload', () => {
     }
   });
 
+  // A full volume takes the database down with it where `/config` shares the
+  // filesystem, so the refusal has to happen before anything is written.
+  it('is refused with 507 when the volume cannot hold it', async () => {
+    const { destination, server } = await build({ UPLOAD_STORAGE_RESERVE: '900T' });
+    const baseUrl = await startServer(server);
+
+    try {
+      const response = await upload(baseUrl, { name: 'too-big.bin' });
+
+      expect(response.status).toBe(507);
+      expect(await exists(path.join(destination, 'too-big.bin'))).toBe(false);
+      expect(await exists(path.join(destination, 'too-big.bin.uploading'))).toBe(false);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it('clears the remains of a killed upload from the folder it writes to', async () => {
     const { destination, server } = await build();
     const stale = path.join(destination, 'holiday.mp4.uploading');

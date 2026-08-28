@@ -122,6 +122,16 @@ class UnsupportedMediaTypeError extends AppError {
   }
 }
 
+/**
+ * 507 Insufficient Storage - the destination cannot hold what was sent
+ */
+class InsufficientStorageError extends AppError {
+  constructor(message = 'Insufficient storage') {
+    super(message, 507);
+    this.name = 'InsufficientStorageError';
+  }
+}
+
 module.exports = {
   AppError,
   ValidationError,
@@ -132,4 +142,5 @@ module.exports = {
   RateLimitError,
   InternalError,
   UnsupportedMediaTypeError,
+  InsufficientStorageError,
 };

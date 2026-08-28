@@ -11,7 +11,9 @@ const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
+const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { getSystemSettings } = require('./settingsService');
+const { InsufficientStorageError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 
 const TUS_PATH = '/api/upload/tus';
@@ -52,38 +54,20 @@ const tusError = (statusCode, message) => ({
   body: `${message}\n`,
 });
 
-const getAvailableBytes = async (directory) => {
-  if (typeof fs.statfs !== 'function') {
-    return null;
-  }
-
+/**
+ * The shared guard, wearing the shape @tus/server answers with. Its own errors
+ * are thrown, not returned, so an AppError would leave here as a 500 and the
+ * client would retry a request that can only fail again — 507 is what tells it
+ * to stop.
+ */
+const ensureTusStorageAvailable = async (directory, uploadSize, label) => {
   try {
-    await ensureDir(directory);
-    const stats = await fs.statfs(directory);
-    return stats.bavail * stats.bsize;
+    await ensureStorageAvailable(directory, uploadSize, label);
   } catch (err) {
-    logger.warn({ directory, err }, 'Unable to inspect available storage for uploads');
-    return null;
-  }
-};
-
-const ensureStorageAvailable = async (directory, uploadSize, label) => {
-  if (!Number.isFinite(uploadSize) || uploadSize < 0) {
-    return;
-  }
-
-  const availableBytes = await getAvailableBytes(directory);
-  if (!Number.isFinite(availableBytes)) {
-    return;
-  }
-
-  const reserveBytes = uploadConfig?.storageReserveBytes ?? 64 * 1024 * 1024;
-  const requiredBytes = uploadSize + reserveBytes;
-  if (availableBytes < requiredBytes) {
-    throw tusError(
-      507,
-      `Not enough storage available in ${label}. Required ${requiredBytes} bytes including reserve, available ${availableBytes} bytes.`
-    );
+    if (err instanceof InsufficientStorageError) {
+      throw tusError(507, err.message);
+    }
+    throw err;
   }
 };
 
@@ -414,8 +398,8 @@ const server = new Server({
     const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
     const uploadSize = Number.isFinite(upload.size) ? upload.size : null;
 
-    await ensureStorageAvailable(TUS_CACHE_DIR, uploadSize, 'temporary upload storage');
-    await ensureStorageAvailable(target.destinationDir, uploadSize, 'destination storage');
+    await ensureTusStorageAvailable(TUS_CACHE_DIR, uploadSize, 'temporary upload storage');
+    await ensureTusStorageAvailable(target.destinationDir, uploadSize, 'destination storage');
 
     return {
       metadata: {

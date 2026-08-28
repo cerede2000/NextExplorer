@@ -10,6 +10,7 @@ const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
+const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
@@ -97,12 +98,17 @@ const resolveUploadPaths = async (req, file) => {
 };
 
 /**
- * Clear the remains of dead uploads from the folder this one is about to be
- * written to.
+ * Clear the remains of dead uploads from the destination, then refuse this one
+ * if what is coming will not fit.
  *
- * Once per request, on its first file: every file of one request lands under
- * the same destination, and reading that directory again for each of them
- * would cost the same work over and over to find nothing new.
+ * Once per request, on its first file. Multer hands files over one at a time
+ * and knows no size in advance, so the only measure of what is coming is the
+ * request's Content-Length — which covers the whole body. Checking it again for
+ * each later file would weigh the whole body against the space left after the
+ * earlier ones had landed, and refuse an upload that fits.
+ *
+ * The sweep comes first because what it removes is space the check is about to
+ * measure.
  */
 const REQUEST_PREPARED = Symbol('uploadDestinationPrepared');
 
@@ -111,6 +117,13 @@ const prepareDestinationOnce = async (req, destinationDir) => {
   req[REQUEST_PREPARED] = true;
 
   await sweepStaleUploadRemnants(destinationDir);
+
+  const declaredBytes = Number(req.headers?.['content-length']);
+  await ensureStorageAvailable(
+    destinationDir,
+    Number.isFinite(declaredBytes) ? declaredBytes : null,
+    'destination storage'
+  );
 };
 
 function CustomStorage() {
