@@ -26,6 +26,34 @@ Why it matters here: [the API reference](docs/reference/api.md) documents this
 gap plainly, and automation against a self-hosted file server is exactly where
 a stolen long-lived session cookie hurts most.
 
+## Per-user rules for what opens with what
+
+Which application opens a file is fixed by the environment
+(`ONLYOFFICE_FILE_EXTENSIONS`, `COLLABORA_FILE_EXTENSIONS`, `EDITOR_EXTENSIONS`)
+and by plugin priorities — ONLYOFFICE and Collabora at 50, markdown at 30, PDF
+at 25, images at 20, media at 10, with the text editor reached only when no
+preview matches. A user who wants `.csv` in the text editor rather than in
+ONLYOFFICE cannot say so.
+
+Not three lists of extensions but **one table of rules**: a line per extension,
+a single destination. The conflict of an extension appearing in two lists then
+cannot happen, and the markdown preference above becomes its first row.
+
+Two things decide whether this is any good:
+
+- **Pre-fill for display, never for storage.** Storing today's inherited values
+  freezes them: an extension added to `ONLYOFFICE_FILE_EXTENSIONS` later would
+  never reach anyone who had opened the screen, and one removed on purpose would
+  stay with them. Keep `null` meaning "inherit" until the user actually changes
+  a row — the motif `skipHome` already uses — so Reset restores inheritance
+  rather than writing a copy of the current defaults.
+- **Offer only destinations that exist.** Without `ONLYOFFICE_URL` its routes
+  are not mounted at all, so listing it would promise what the server cannot do.
+  The text editor already refuses binaries with a 415; say so in the field's
+  help rather than letting people discover it.
+
+No security dimension: what opens a file does not change who may read it.
+
 ## A TUS test that does not test what it says
 
 `backend/tests/routes/tus-upload.test.js` has a case named _rejects TUS uploads
