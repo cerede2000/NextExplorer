@@ -21,9 +21,10 @@ The terminal is admin-only, and it is a shell inside the container. Left on, the
 login you publish is a login to your host. Nothing else in this page matters as
 much as that line.
 
-Sharing is off too (`SHARES_ENABLED: 'false'`): a demo where anyone can mint
-public links to what they upload is a file host, and it will be found and used
-as one.
+Sharing, by contrast, is **on**. Publishing a link is one of the things people
+come to a file manager to try, and turning it off hides a whole feature. What
+stops the demo becoming a file host is the absence of a disk: every link dies
+with the instance, which on a plan that sleeps happens several times a day.
 
 ## No disk, on purpose
 
@@ -79,6 +80,12 @@ it is recreated on every restart along with everything else.
 The free plan gives 512 MB of RAM and sleeps after fifteen minutes without
 traffic — the first visitor then waits about thirty seconds. Both are fine for a
 demo, and the sleeping is what keeps it clean.
+
+Folder sizes run in `full` mode with the usage bar shown, because a demo exists
+to show features rather than to save cycles. On a tenth of a CPU that needs
+pacing, so the blueprint reconciles in batches of 20 with a second between them
+and rescans at most hourly — the walk stays in the background instead of
+competing with the browsing it annotates.
 
 The blueprint pins the region to Frankfurt and the `latest-lean` image: hardware
 video acceleration and RAW decoding are no use on an instance this size, and the
