@@ -1,9 +1,12 @@
 name: Build and Publish Docker Image
 
 # latest and latest-lean follow main, so a fix reaches the images — and the
-# demo running on them — without waiting for a release. Version tags stay tied
-# to releases: `explorer:3.0.2` means the release of that name, not whatever
-# main happened to hold.
+# demo running on them — without waiting for a release. The version in
+# package.json is published alongside them, which is why a release does not
+# build anything: cutting v3.1.0 from main asks for images main has already
+# produced, and building them twice took twenty minutes of runner time to
+# push the same digests to the same tags. What the release event still does is
+# check that the tag it was cut from and the manifests agree.
 on:
   push:
     branches:
@@ -25,8 +28,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A release publishes no image of its own; it names ones that already exist.
+  # Refusing a tag the code does not carry is the part worth keeping, and it
+  # costs seconds rather than a pair of multi-architecture builds.
+  verify-release-tag:
+    name: Release tag matches the manifests
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Compare the tag with package.json
+        run: |
+          NUMBER="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME#v}" != "$NUMBER" ]; then
+            echo "Release $GITHUB_REF_NAME does not match package.json ($NUMBER)."
+            echo "The images tagged $NUMBER are not what this release names."
+            exit 1
+          fi
+          echo "Release $GITHUB_REF_NAME matches package.json ($NUMBER)."
+
   build:
     name: Build Docker image (${{ matrix.variant }})
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -68,21 +93,7 @@ jobs:
             exit 1
           fi
 
-          if [ "$GITHUB_EVENT_NAME" = 'release' ]; then
-            VERSION_TAG="${GITHUB_REF_NAME}"
-            if [ -z "$VERSION_TAG" ]; then
-              echo "Release tag not detected; aborting."
-              exit 1
-            fi
-            # A release named for a version the code does not carry would
-            # publish an image whose tag lies about its contents.
-            if [ "${VERSION_TAG#v}" != "$NUMBER" ]; then
-              echo "Release tag $VERSION_TAG does not match package.json ($NUMBER); aborting."
-              exit 1
-            fi
-          else
-            VERSION_TAG="v$NUMBER"
-          fi
+          VERSION_TAG="v$NUMBER"
 
           # Git tags are written v3.0.0; image tags conventionally are not, and
           # `pull image:3.0.0` is what a reader of the release notes will type.
@@ -101,7 +112,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
             ${{ env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
           # The suffix in `flavor` below applies to every tag, so the lean
-          # build publishes 3.0.2-lean alongside latest-lean.
+          # build publishes 3.1.0-lean alongside latest-lean.
           tags: |
             type=raw,value=latest
             type=sha,format=long

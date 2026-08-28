@@ -1,10 +1,15 @@
 name: Deploy VitePress docs to GitHub Pages
 
+# Only when the site's own sources move. A backend-only push used to rebuild
+# and redeploy the whole site to publish nothing new.
 on:
   push:
     branches:
-      - main # or 'master' or whatever your default branch is
-  workflow_dispatch: # allows manual triggers from the Actions tab
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
