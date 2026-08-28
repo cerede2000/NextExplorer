@@ -10,12 +10,12 @@ Deploy nextExplorer via Docker Compose for reproducible self-hosted workflows. T
 
 ## Image variants
 
-Two images are published for each release, on both registries:
+Two images are published, on both registries:
 
 | Tag                         | Contains                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------- |
-| `latest`, `3.0.0`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
-| `latest-lean`, `3.0.0-lean` | The same application without VA-API or RAW — a considerably smaller image        |
+| `latest`, `3.0.2`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
+| `latest-lean`, `3.0.2-lean` | The same application without VA-API or RAW — a considerably smaller image        |
 
 Take the full image unless you know you need neither: VA-API only helps where the host exposes a render device to the container, and RAW support only matters if you keep camera files. Both variants are built for `linux/amd64` and `linux/arm64`.
 
@@ -25,6 +25,11 @@ ghcr.io/cerede2000/explorer:latest-lean
 ```
 
 They are also on Docker Hub under the same tags.
+
+`latest` and `latest-lean` follow `main`, so a fix reaches them without waiting
+for a release. Pin a version tag instead — `3.0.2`, `3.0.2-lean` — where you
+want an image that never moves under you; those are cut at a release and stay
+exactly as published.
 
 ## Host folder layout
 

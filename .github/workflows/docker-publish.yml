@@ -1,15 +1,23 @@
 name: Build and Publish Docker Image
 
+# latest and latest-lean follow main, so a fix reaches the images — and the
+# demo running on them — without waiting for a release. Version tags stay tied
+# to releases: `explorer:3.0.2` means the release of that name, not whatever
+# main happened to hold.
 on:
+  push:
+    branches:
+      - main
   release:
     types:
       - published
+  workflow_dispatch:
 
 env:
   IMAGE_NAME: explorer
   # Empty unless Docker Hub credentials are configured for this repository.
-  # Every Docker Hub step is skipped when it is, so a release still publishes
-  # to GHCR rather than failing at the login.
+  # Every Docker Hub step is skipped when it is, so a build still publishes to
+  # GHCR rather than failing at the login.
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 concurrency:
@@ -50,6 +58,7 @@ jobs:
 
       - name: Determine release tag
         id: version
+        if: github.event_name == 'release'
         run: |
           VERSION_TAG="${GITHUB_REF_NAME}"
           if [ -z "$VERSION_TAG" ]; then
@@ -72,11 +81,13 @@ jobs:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
             ${{ env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
+          # Blank lines are ignored, so the version tags simply do not exist
+          # on a push to main.
           tags: |
             type=raw,value=latest
             type=sha,format=long
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=${{ steps.version.outputs.number }}
+            ${{ github.event_name == 'release' && format('type=raw,value={0}', steps.version.outputs.version) || '' }}
+            ${{ github.event_name == 'release' && format('type=raw,value={0}', steps.version.outputs.number) || '' }}
           # onlatest applies the suffix to `latest` too, so the lean build
           # publishes latest-lean rather than overwriting latest.
           flavor: |
@@ -86,7 +97,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Log in to Docker Hub
-        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' }}
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
         uses: docker/login-action@v4
         with:
           registry: docker.io
@@ -94,7 +105,6 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to GHCR
-        if: github.event_name == 'release'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -112,7 +122,7 @@ jobs:
             GIT_BRANCH=${{ github.ref_name }}
             REPO_URL=https://github.com/${{ github.repository }}
             ${{ matrix.extra_build_args }}
-          push: ${{ github.event_name == 'release' }}
+          push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
