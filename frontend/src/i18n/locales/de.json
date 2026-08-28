@@ -315,7 +315,8 @@
     "emptyTitle": "Noch keine Favoriten",
     "emptyDescription": "Wählen Sie ein Verzeichnis aus und klicken Sie im Haupttoolbereich auf den Stern, um es hier anzupinnen.",
     "editTitle": "Favorit bearbeiten",
-    "icon": "Symbol"
+    "icon": "Symbol",
+    "volumeUnavailable": "Volume nicht verfügbar — es ist nicht eingebunden oder nicht mehr konfiguriert."
   },
   "notifications": {
     "open": "Benachrichtigungen öffnen",

@@ -315,7 +315,8 @@
     "emptyTitle": "Aún no hay favoritos",
     "emptyDescription": "Selecciona un directorio y toca la estrella en la barra de herramientas principal para fijarlo aquí.",
     "editTitle": "Editar favorito",
-    "icon": "Icono"
+    "icon": "Icono",
+    "volumeUnavailable": "Volumen no disponible: no está montado o ya no está configurado."
   },
   "notifications": {
     "open": "Abrir notificaciones",

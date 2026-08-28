@@ -315,7 +315,8 @@
     "emptyTitle": "尚無最愛",
     "emptyDescription": "選擇一個目錄並點擊主工具欄中的星星，將其固定在此處。",
     "editTitle": "編輯最愛",
-    "icon": "圖標"
+    "icon": "圖標",
+    "volumeUnavailable": "磁碟區無法使用 — 未掛載，或已不再設定。"
   },
   "notifications": {
     "open": "打開通知",

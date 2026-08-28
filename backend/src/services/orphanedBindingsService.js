@@ -121,4 +121,19 @@ const reportOrphanedBindings = async () => {
   }
 };
 
-module.exports = { findOrphanedBindings, reportOrphanedBindings, volumeOf };
+/**
+ * The volume names a stored path may legitimately start with, or null when the
+ * question cannot be answered — an unreadable volume root would otherwise make
+ * everything look missing at once.
+ */
+const listKnownVolumeNames = async () => {
+  const db = await getDb();
+  return knownVolumeNames(db);
+};
+
+module.exports = {
+  findOrphanedBindings,
+  reportOrphanedBindings,
+  listKnownVolumeNames,
+  volumeOf,
+};

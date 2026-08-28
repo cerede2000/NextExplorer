@@ -315,7 +315,8 @@
     "emptyTitle": "尚无收藏",
     "emptyDescription": "选择一个目录并点击主工具栏中的星标，将其固定在此处。",
     "editTitle": "编辑收藏",
-    "icon": "图标"
+    "icon": "图标",
+    "volumeUnavailable": "卷不可用 — 未挂载，或已不再配置。"
   },
   "notifications": {
     "open": "打开通知",

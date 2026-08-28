@@ -315,7 +315,8 @@
     "emptyTitle": "No favorites yet",
     "emptyDescription": "Select a directory and tap the star in the main toolbar to pin it here.",
     "editTitle": "Edit favorite",
-    "icon": "Icon"
+    "icon": "Icon",
+    "volumeUnavailable": "Volume unavailable — it is not mounted, or no longer configured."
   },
   "notifications": {
     "open": "Open notifications",

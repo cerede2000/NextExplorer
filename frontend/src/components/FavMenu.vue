@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import * as OutlineIcons from '@heroicons/vue/24/outline';
+import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import { storeToRefs } from 'pinia';
 import draggable from 'vuedraggable';
 import { useFavoritesStore } from '@/stores/favorites';
@@ -144,7 +145,8 @@ onBeforeUnmount(() => {
         >
           {{ t('common.edit') }}
         </button>
-        <button :aria-label="t('common.toggleSection')"
+        <button
+          :aria-label="t('common.toggleSection')"
           @click="open = !open"
           class="hidden group-hover:block active:text-black dark:active:text-white text-neutral-500"
           type="button"
@@ -193,8 +195,12 @@ onBeforeUnmount(() => {
                     @dragleave="handleDragLeave($event, favoriteDropTarget(favorite))"
                     @drop="handleDrop($event, favoriteDropTarget(favorite))"
                     class="truncate"
+                    :title="
+                      favorite.available === false ? t('favorites.volumeUnavailable') : undefined
+                    "
                     :class="[
                       'cursor-pointer flex w-full items-center gap-3 rounded-lg text-sm transition-colors',
+                      favorite.available === false ? 'opacity-50' : '',
                       isActiveFav(favorite.path)
                         ? 'text-neutral-950 dark:text-white'
                         : 'text-neutral-950 dark:text-neutral-300/90',
@@ -211,16 +217,23 @@ onBeforeUnmount(() => {
                       :style="{ color: favorite.color || 'currentColor' }"
                     />
                     <span class="truncate">{{ getFavoriteLabel(favorite) }}</span>
+                    <ExclamationTriangleIcon
+                      v-if="favorite.available === false"
+                      class="h-4 w-4 shrink-0 text-amber-500"
+                      :aria-label="t('favorites.volumeUnavailable')"
+                    />
                   </button>
                   <template v-if="isEditMode">
-                    <button :aria-label="t('common.edit')"
+                    <button
+                      :aria-label="t('common.edit')"
                       type="button"
                       class="shrink-0 rounded-md text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700 transition-colors duration-150"
                       @click.stop="handleEditFavorite(favorite)"
                     >
                       <PencilSquareIcon class="h-4 w-4" />
                     </button>
-                    <button :aria-label="t('common.remove')"
+                    <button
+                      :aria-label="t('common.remove')"
                       type="button"
                       class="shrink-0 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors duration-150"
                       @click.stop="handleRemoveFavorite(favorite)"

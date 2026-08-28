@@ -315,7 +315,8 @@
     "emptyTitle": "즐겨찾기 없음",
     "emptyDescription": "폴더 컨텍스트 메뉴에서 별표를 눌러 이곳에 고정하세요.",
     "editTitle": "즐겨찾기 편집",
-    "icon": "아이콘"
+    "icon": "아이콘",
+    "volumeUnavailable": "볼륨을 사용할 수 없습니다 — 마운트되지 않았거나 더 이상 구성되어 있지 않습니다."
   },
   "notifications": {
     "open": "알림 열기",

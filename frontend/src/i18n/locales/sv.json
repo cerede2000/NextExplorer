@@ -315,7 +315,8 @@
     "emptyTitle": "Inga favoriter ännu",
     "emptyDescription": "Välj en katalog och tryck på stjärnan i huvudverktygsfältet för att fästa den här.",
     "editTitle": "Redigera favorit",
-    "icon": "Ikon"
+    "icon": "Ikon",
+    "volumeUnavailable": "Volymen är inte tillgänglig – den är inte monterad eller inte längre konfigurerad."
   },
   "notifications": {
     "open": "Öppna aviseringar",

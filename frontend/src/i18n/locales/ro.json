@@ -315,7 +315,8 @@
     "emptyTitle": "Niciun favorit încă",
     "emptyDescription": "Selectează un director și apasă pe stea în bara principală pentru a-l fixa aici.",
     "editTitle": "Editează favorit",
-    "icon": "Pictogramă"
+    "icon": "Pictogramă",
+    "volumeUnavailable": "Volum indisponibil — nu este montat sau nu mai este configurat."
   },
   "notifications": {
     "open": "Deschide notificările",

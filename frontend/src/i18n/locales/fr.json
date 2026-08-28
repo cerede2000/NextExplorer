@@ -315,7 +315,8 @@
     "emptyTitle": "Aucun favori pour le moment",
     "emptyDescription": "Sélectionnez un répertoire et appuyez sur l'étoile dans la barre d'outils principale pour l'épingler ici.",
     "editTitle": "Modifier le favori",
-    "icon": "Icône"
+    "icon": "Icône",
+    "volumeUnavailable": "Volume indisponible — il n'est pas monté, ou n'est plus configuré."
   },
   "notifications": {
     "open": "Ouvrir les notifications",

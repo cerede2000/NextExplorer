@@ -133,3 +133,47 @@ describe('reporting paths that point at a volume which is not there', () => {
     expect(await service.findOrphanedBindings()).toBeNull();
   });
 });
+
+describe('marking favourites whose volume is not there', () => {
+  const listFavourites = async () => {
+    const favoritesService = envContext.requireFresh('src/services/favoritesService');
+    return favoritesService.getFavorites('user-1');
+  };
+
+  it('marks the one whose volume is gone, and leaves the others alone', async () => {
+    const { db } = await build();
+    await fs.mkdir(path.join(envContext.volumeDir, 'Documents'), { recursive: true });
+    addFavourite(db, 'fav-1', 'Documents/Reports');
+    addFavourite(db, 'fav-2', 'OldNAS/Photos');
+
+    const favourites = await listFavourites();
+    const byId = Object.fromEntries(favourites.map((f) => [f.id, f]));
+
+    expect(byId['fav-2'].available).toBe(false);
+    // Present ones carry no flag at all rather than available: true, so nothing
+    // downstream has to know about the field to keep working.
+    expect(byId['fav-1'].available).toBeUndefined();
+  });
+
+  // Marked, not hidden: the volume may well come back, and the favourite with it.
+  it('still returns the favourite it marks', async () => {
+    const { db } = await build();
+    addFavourite(db, 'fav-1', 'OldNAS/Photos');
+
+    const favourites = await listFavourites();
+
+    expect(favourites).toHaveLength(1);
+    expect(favourites[0].path).toBe('OldNAS/Photos');
+  });
+
+  // Marking everything unavailable would be worse than marking nothing.
+  it('marks nothing when the volume list cannot be established', async () => {
+    const { db } = await build();
+    addFavourite(db, 'fav-1', 'Documents/Reports');
+    await fs.rm(envContext.volumeDir, { recursive: true, force: true });
+
+    const favourites = await listFavourites();
+
+    expect(favourites[0].available).toBeUndefined();
+  });
+});

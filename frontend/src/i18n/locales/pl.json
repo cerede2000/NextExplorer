@@ -315,7 +315,8 @@
     "emptyTitle": "Brak ulubionych",
     "emptyDescription": "Wybierz katalog i kliknij gwiazdkę na głównym pasku narzędzi, aby przypiąć go tutaj.",
     "editTitle": "Edytuj ulubiony",
-    "icon": "Ikona"
+    "icon": "Ikona",
+    "volumeUnavailable": "Wolumin niedostępny — nie jest zamontowany lub nie jest już skonfigurowany."
   },
   "notifications": {
     "open": "Otwórz powiadomienia",
