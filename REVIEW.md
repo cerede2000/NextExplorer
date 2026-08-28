@@ -424,3 +424,108 @@ that use it, and a regression there would be both silent and serious.
 - **Local sign-in is defended twice**: rate limiting on login, setup and password
   change (`routes/auth.js:60`), plus per-account lockout after repeated failures
   (`users/localAuth.js:21`).
+
+---
+
+## Lots 8 and 9 — Frontend
+
+`stores/fileStore.js` (1181), `views/FolderView.vue` (1152),
+`composables/fileUploader.js` (900), `components/ExplorerContextMenu.vue` (912),
+`ShareDialog.vue` (769), and the rest of ~25,800 lines.
+
+**No defect found.** The two classic front-end failures — injected markup and
+leaked listeners — are both absent.
+
+### D18 · A guest session id is readable by script — Note
+
+`api/shares.api.js:121` keeps `guestSessionId` in `sessionStorage`, while the
+server sets the same value as an **httpOnly** cookie
+(`routes/shares.js:92`) — expressly so that a script cannot read it.
+
+The copy exists for a reason: the API also accepts an `X-Guest-Session` header,
+which is what makes a share link work where third-party cookies are blocked. And
+the exposure is bounded — `sessionStorage` dies with the tab, and the only
+`v-html` in the codebase is sanitised, so there is no obvious way to run a script
+here in the first place.
+
+Worth stating rather than fixing blindly: the httpOnly cookie buys protection
+that the sibling copy partly gives back, and that trade was presumably made on
+purpose.
+
+### Checked and sound
+
+- **The single `v-html` is sanitised.** `plugins/markdown/MarkdownPreview.vue:16`
+  renders through `DOMPurify.sanitize(marked.parse(content))` — markdown files
+  come from the volume and are not trusted.
+- **The single `innerHTML` is a constant** — a drag icon, no interpolation
+  (`composables/useFileDragDrop.js:180`).
+- **No leaked listeners.** One file adds without removing, and both cases are
+  sound: one is `{ once: true }`, the other is bound once behind a flag in a
+  store that lives as long as the application.
+- **Nothing sensitive is persisted** beyond the note above: a fallback chunk
+  size, a locale, and an OIDC sign-out flag.
+
+---
+
+## Lot 10 — Infrastructure
+
+`Dockerfile`, `docker/entrypoint.sh`, `.github/workflows/`, `scripts/`.
+
+### D19 · GitHub Actions are pinned by tag, not by digest — Note
+
+Every workflow uses `actions/checkout@v6`, `docker/build-push-action@v7` and so
+on. A major-version tag is mutable: whoever controls the action's repository can
+move it.
+
+These workflows hold `packages: write` and the Docker Hub credentials, and they
+build the images people run. That is the shape of a supply-chain problem —
+pinning by commit digest is the usual answer, at the cost of a dependency bot to
+move them along.
+
+Listed as a note rather than a defect because tag-pinning is what nearly
+everyone does, and the alternative has a real maintenance cost. Worth a
+deliberate decision, not a silent default.
+
+### Checked and sound
+
+- **Base images are pinned to exact versions** — `node:24.16-alpine3.23`,
+  `alpine:3.23`. No `latest` anywhere in the build.
+- **The application does not run as root.** The entrypoint starts privileged
+  only to remap ownership, then hands over with `gosu appuser`.
+- **The 7-Zip binary is verified**: downloaded at a pinned version and checked
+  against a SHA-256 before use.
+
+---
+
+## Summary
+
+Ten lots, roughly 67,000 lines.
+
+| Severity  | Count |
+| --------- | ----- |
+| Defect    | 5     |
+| Fragility | 5     |
+| Note      | 9     |
+
+The five defects, most consequential first:
+
+1. **D1** — changing a share's password revokes nothing for up to 24 hours.
+2. **D16** — OIDC group membership is read once, so admin rights can neither be
+   granted nor revoked afterwards, and the documentation says otherwise.
+3. **D6** — two accounts can share one personal folder under a configuration the
+   documentation recommends.
+4. **D10** — the default upload path has no free-space guard; the optional one
+   does.
+5. **D11** — a `.uploading` file left by a killed process is visible and never
+   cleaned up.
+
+Three of the five are about **revocation and cleanup** — states that outlive
+what created them — rather than about anything being computed wrongly. That is
+the shape of this codebase's weak spot, and worth remembering when reviewing the
+next change.
+
+What is conspicuously solid: path containment (verified against hostile input
+rather than read), external command execution (no shell anywhere, separators
+where they matter), the folder-size index (both of its plausible failure modes
+already found and handled), and the ONLYOFFICE callback (three independent
+reasons an unauthenticated write cannot happen).
