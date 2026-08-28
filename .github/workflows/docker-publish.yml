@@ -4,9 +4,9 @@ name: Build and Publish Docker Image
 # demo running on them — without waiting for a release. The version in
 # package.json is published alongside them, which is why a release does not
 # build anything: cutting v3.1.0 from main asks for images main has already
-# produced, and building them twice took twenty minutes of runner time to
-# push the same digests to the same tags. What the release event still does is
-# check that the tag it was cut from and the manifests agree.
+# produced, and building them twice took twenty minutes of runner time to push
+# the same digests to the same tags. What the release event still does is check
+# that the tag it was cut from and the manifests agree.
 on:
   push:
     branches:
@@ -15,13 +15,11 @@ on:
     types:
       - published
   workflow_dispatch:
-
-env:
-  IMAGE_NAME: explorer
-  # Empty unless Docker Hub credentials are configured for this repository.
-  # Every Docker Hub step is skipped when it is, so a build still publishes to
-  # GHCR rather than failing at the login.
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    inputs:
+      dry_run:
+        description: 'Build without publishing. How this path is tried from a branch before it can reach main.'
+        type: boolean
+        default: false
 
 concurrency:
   group: docker-build-${{ github.ref }}
@@ -50,121 +48,19 @@ jobs:
           echo "Release $GITHUB_REF_NAME matches package.json ($NUMBER)."
 
   build:
-    name: Build Docker image (${{ matrix.variant }})
+    name: Build and publish
     if: github.event_name != 'release'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # The full image carries hardware video acceleration and RAW photo
-          # support; the lean one leaves both out, which is a great deal smaller
-          # and all that is needed where neither is used.
-          - variant: full
-            suffix: ''
-            extra_build_args: ''
-          - variant: lean
-            suffix: '-lean'
-            extra_build_args: |
-              INCLUDE_VAAPI=false
-              INCLUDE_RAW=false
     permissions:
       contents: read
       packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Determine version tags
-        id: version
-        run: |
-          # package.json is the source of the number, so a push to main carries
-          # a version tag too rather than only moving latest. scripts/version.js
-          # keeps the manifests in step and CI checks it.
-          NUMBER="$(node -p "require('./package.json').version")"
-          if [ -z "$NUMBER" ]; then
-            echo "No version found in package.json; aborting."
-            exit 1
-          fi
-
-          VERSION_TAG="v$NUMBER"
-
-          # Git tags are written v3.0.0; image tags conventionally are not, and
-          # `pull image:3.0.0` is what a reader of the release notes will type.
-          # Publish both so neither form is a dead end.
-          echo "version=$VERSION_TAG" >> "$GITHUB_OUTPUT"
-          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-            ${{ env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
-          # The suffix in `flavor` below applies to every tag, so the lean
-          # build publishes 3.1.0-lean alongside latest-lean.
-          tags: |
-            type=raw,value=latest
-            type=sha,format=long
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=${{ steps.version.outputs.number }}
-          # onlatest applies the suffix to `latest` too, so the lean build
-          # publishes latest-lean rather than overwriting latest.
-          flavor: |
-            suffix=${{ matrix.suffix }},onlatest=true
-          labels: |
-            org.opencontainers.image.source=${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Log in to Docker Hub
-        if: ${{ env.DOCKERHUB_USERNAME != '' }}
-        uses: docker/login-action@v4
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          pull: true
-          context: .
-          file: ./Dockerfile
-          build-args: |
-            GIT_COMMIT=${{ github.sha }}
-            GIT_BRANCH=${{ github.ref_name }}
-            REPO_URL=https://github.com/${{ github.repository }}
-            ${{ matrix.extra_build_args }}
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
-
-      - name: Update Docker Hub description
-        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' && matrix.variant == 'full' }}
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-          short-description: ${{ github.event.release.name || github.event.repository.description }}
-          readme-filepath: README.md
+    uses: ./.github/workflows/build-image.yml
+    with:
+      channel: release
+      platforms: linux/amd64,linux/arm64
+      # The scope these builds have always used. Empty because the variant name
+      # alone is the whole scope here, where the test channel prefixes its own.
+      cache_scope_prefix: ''
+      # Unset on every event but a manual one, where `!null` is true — so only
+      # someone asking for a dry run gets a build that publishes nothing.
+      push: ${{ !inputs.dry_run }}
+    secrets: inherit
