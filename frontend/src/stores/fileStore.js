@@ -24,6 +24,7 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
+import { useFeaturesStore } from '@/stores/features';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { useNotificationsStore } from '@/stores/notifications';
 
@@ -46,6 +47,7 @@ export const useFileStore = defineStore('fileStore', () => {
   const favoritesStore = useFavoritesStore();
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
+  const featuresStore = useFeaturesStore();
   const operationTasksStore = useOperationTasksStore();
   const notificationsStore = useNotificationsStore();
 
@@ -100,8 +102,19 @@ export const useFileStore = defineStore('fileStore', () => {
       document.addEventListener('visibilitychange', resolve, { once: true });
     });
 
-  const startOnlyOfficeActivityPolling = () => {
+  const startOnlyOfficeActivityPolling = async () => {
     if (onlyofficeActivityPollStarted || typeof window === 'undefined') return;
+
+    // The backend only mounts this endpoint where ONLYOFFICE is configured, so
+    // asking for it anywhere else is a 404 — answered immediately, retried a
+    // second later, for as long as the tab stays open. Every one of them is
+    // logged server-side with a full stack trace, and the badge it feeds cannot
+    // show anything without a document server anyway.
+    await featuresStore.ensureLoaded();
+    if (!featuresStore.onlyofficeEnabled) return;
+    // Another navigation may have got here while features were loading.
+    if (onlyofficeActivityPollStarted) return;
+
     onlyofficeActivityPollStarted = true;
 
     const poll = async () => {
@@ -1118,7 +1131,7 @@ export const useFileStore = defineStore('fileStore', () => {
       currentPathData.value = null;
     }
 
-    startOnlyOfficeActivityPolling();
+    void startOnlyOfficeActivityPolling();
     return currentPathItems.value;
   }
 

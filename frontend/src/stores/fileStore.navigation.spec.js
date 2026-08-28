@@ -5,6 +5,7 @@ import { ref } from 'vue';
 const browse = vi.fn();
 const browseShare = vi.fn();
 const waitForOnlyOfficeActivityVersion = vi.fn(() => new Promise(() => {}));
+let onlyofficeEnabled = false;
 
 vi.mock('@/api', () => ({
   browse: (...args) => browse(...args),
@@ -37,6 +38,17 @@ vi.mock('@/stores/favorites', () => ({
   useFavoritesStore: () => ({ loadFavorites: vi.fn() }),
 }));
 
+// Read through a getter: the store is created inside each test, after this
+// factory has run.
+vi.mock('@/stores/features', () => ({
+  useFeaturesStore: () => ({
+    get onlyofficeEnabled() {
+      return onlyofficeEnabled;
+    },
+    ensureLoaded: async () => {},
+  }),
+}));
+
 vi.mock('@vueuse/core', () => ({
   useStorage: (_key, initialValue) => ref(initialValue),
 }));
@@ -57,6 +69,7 @@ describe('fileStore folder navigation', () => {
     browse.mockReset();
     browseShare.mockReset();
     waitForOnlyOfficeActivityVersion.mockClear();
+    onlyofficeEnabled = false;
   });
 
   it('keeps the newest listing when a previous folder response arrives late', async () => {
@@ -110,5 +123,30 @@ describe('fileStore folder navigation', () => {
 
     await store.fetchPathItems('Volume', { preserveInteraction: true });
     expect(store.currentPathItems[0].onlyofficeActivity).toBeUndefined();
+  });
+
+  // The endpoint is not mounted unless a document server is configured, so a
+  // poll on an instance without one is a 404 answered straight away and retried
+  // a second later, for as long as the tab is open.
+  it('does not poll for editing activity when ONLYOFFICE is not configured', async () => {
+    onlyofficeEnabled = false;
+    browse.mockResolvedValue({ path: 'Volume', items: [] });
+
+    const store = useFileStore();
+    await store.fetchPathItems('Volume');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(waitForOnlyOfficeActivityVersion).not.toHaveBeenCalled();
+  });
+
+  it('polls for editing activity when ONLYOFFICE is configured', async () => {
+    onlyofficeEnabled = true;
+    browse.mockResolvedValue({ path: 'Volume', items: [] });
+
+    const store = useFileStore();
+    await store.fetchPathItems('Volume');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(waitForOnlyOfficeActivityVersion).toHaveBeenCalled();
   });
 });
