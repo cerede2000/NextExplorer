@@ -6,6 +6,109 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.1.0 (2026-08-29)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.1.0)
+
+### Changing a share's password now ends the access it replaces
+
+Rotating the password on a share is what an owner does when a link has leaked.
+It protected nothing until now: a guest session is created the moment someone
+gets in, lasts a day, and was never looked at again — so everyone already
+inside stayed inside, with the old password, for up to twenty-four hours after
+it had been changed.
+
+Setting or replacing a password now revokes the sessions of that share, and
+only that share. Removing a password does not: taking the lock off opens the
+share to everyone, and throwing out the people currently reading it would be a
+surprise rather than a protection.
+
+### OIDC group membership is read at every sign-in
+
+::: warning Read this before upgrading if you use `OIDC_ADMIN_GROUPS`
+Group membership used to be read once, when the account was first created.
+Someone added to the admin group afterwards never became an administrator, and
+— the half that matters — someone **removed** from it stayed one. The
+documentation said membership was re-evaluated at each login. It was not.
+
+It is now, in both directions, and each change of role is logged. If your
+provider's group claim is out of date, or narrower than you think, the roles it
+carries will now be applied.
+:::
+
+Two conditions have to hold before the provider is allowed to decide anything.
+`OIDC_ADMIN_GROUPS` must be configured — without it every login derives the
+plain `user` role, and applying that would demote the administrator promoted
+from Settings, or created by `AUTH_ADMIN_EMAIL`, at their next sign-in and
+leave nobody able to administer the instance. And the provider must actually
+have returned a group claim: a missing `groups` scope looks exactly like a user
+who belongs to nothing, and its documented symptom is "not an admin after
+login", so acting on that silence would turn a misconfiguration into a
+demotion.
+
+If an instance does lock itself out regardless, `AUTH_ADMIN_EMAIL` still
+promotes an account at startup.
+
+### Copying to a dataset that refuses a chmod
+
+Preserving a file's permissions means a `chmod` on the copy, and some
+filesystems refuse one: a ZFS dataset with `aclmode=restricted`, where new
+files must inherit the directory's ACL untouched, fails the copy outright
+rather than the permission change ([#2](https://github.com/cerede2000/NextExplorer/issues/2)).
+
+A copy still preserves permissions by default; where the destination refuses,
+it is retried without preserving them instead of failing. `COPY_PRESERVE_PERMISSIONS=false`
+skips the attempt altogether, for a deployment where it is always refused.
+
+### Uploads: what a killed one leaves, and one that cannot fit
+
+A direct upload writes to `<name>.uploading` and renames on success. Every
+failure it could observe was cleaned up, but nothing survived the process being
+killed: a restart mid-upload left `holiday.mp4.uploading` in the folder, in the
+listing, with nothing anywhere that would remove it. The artifact now joins
+`.download` in the hidden-file defaults, and the destination folder is swept of
+the ones nothing has written to for a day.
+
+`UPLOAD_STORAGE_RESERVE` was enforced only on the chunked upload path, which is
+off by default — so the free-space guard covered the path a deployment opts
+into and missed the one it gets. Both paths now refuse an upload the volume
+cannot hold, with a `507`. What that protects is not the upload: where
+`/config` shares the filesystem, a full disk stops SQLite being able to write,
+and the application stops working for everyone rather than for whoever was
+uploading.
+
+### A favourite whose volume is not there
+
+Remove a volume from the compose file and the rows pointing into it survive.
+The favourite stayed in the sidebar looking perfectly ordinary and answered
+with a 404 when clicked.
+
+Such favourites are now shown as unavailable, and startup reports what points
+at a volume that is not there — favourites, shares, recent destinations and
+folder preferences, counted per volume. **Nothing is removed.** A volume that
+is absent is not a volume that is gone: an NFS mount may not be ready yet, an
+external disk may be unplugged for a weekend, a compose line may be mistyped
+and corrected a minute later. Only a person can tell those from a volume that
+is never coming back.
+
+### Markdown opens in the editor, when asked
+
+A per-user setting, off by default, for opening `.md` files straight in the
+text editor rather than in the preview. It is the first row of what should
+become a table of per-user rules for which application opens which extension.
+
+### Also
+
+- A [full review of the codebase](https://github.com/cerede2000/NextExplorer/blob/main/REVIEW.md)
+  — ten lots, some 67,000 lines — is published, defects and fragilities named
+  and located. Four of its five defects are fixed in this release; the fifth
+  needs a decision rather than a correction and is written up with its options.
+- The default upload path, which had no test of any kind, has three.
+- User preferences are declared in one table instead of being spelled out in
+  three places, which is why a saved Markdown preference used to revert.
+- Every push to the integration branch publishes `test` and `test-lean` images,
+  so a change can be tried before it reaches `latest`.
+
 ## v3.0.2 (2026-08-28)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.0.2)
