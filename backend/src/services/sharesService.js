@@ -2,8 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { getDb, prepared } = require('./db');
 const { generateId, nowIso } = require('../utils/ids');
-
-
+const logger = require('../utils/logger');
 
 /**
  * Generate a URL-safe share token
@@ -127,7 +126,8 @@ const createShare = async ({
   const passwordHash = password ? bcrypt.hashSync(password, 10) : null;
 
   // Create share
-  prepared(db, 
+  prepared(
+    db,
     `
     INSERT INTO shares (
       id, share_token, owner_id, source_space, source_path, is_directory,
@@ -157,10 +157,13 @@ const createShare = async ({
 
   // Add user permissions if user-specific share
   if (sharingType === 'users' && Array.isArray(userIds) && userIds.length > 0) {
-    const insertPerm = prepared(db, `
+    const insertPerm = prepared(
+      db,
+      `
       INSERT INTO share_permissions (id, share_id, user_id, created_at)
       VALUES (?, ?, ?, ?)
-    `);
+    `
+    );
 
     for (const userId of userIds) {
       try {
@@ -356,10 +359,20 @@ const updateShare = async (shareId, updates = {}) => {
     values.push(updates.sharingType);
   }
 
+  // Setting a password is what an owner does when a link has leaked, so it has
+  // to end the access that leaked with it. Guest sessions are the proof someone
+  // typed the old password — or that there was none — and they last a day, so
+  // without this the change accomplishes nothing until they expire on their own.
+  //
+  // Only when a password is set, never when one is removed: taking it off makes
+  // the share more open, and cutting off the people already reading it would be
+  // a surprise rather than a protection.
+  let revokeGuestSessions = false;
   if ('password' in updates) {
     const passwordHash = updates.password ? bcrypt.hashSync(updates.password, 10) : null;
     fields.push('password_hash = ?');
     values.push(passwordHash);
+    revokeGuestSessions = Boolean(passwordHash);
   }
 
   if ('expiresAt' in updates) {
@@ -389,10 +402,13 @@ const updateShare = async (shareId, updates = {}) => {
     prepared(db, 'DELETE FROM share_permissions WHERE share_id = ?').run(shareId);
 
     if (effectiveSharingType === 'users') {
-      const insertPerm = prepared(db, `
+      const insertPerm = prepared(
+        db,
+        `
         INSERT INTO share_permissions (id, share_id, user_id, created_at)
         VALUES (?, ?, ?, ?)
-      `);
+      `
+      );
 
       const now = nowIso();
       for (const userId of updates.userIds) {
@@ -404,6 +420,16 @@ const updateShare = async (shareId, updates = {}) => {
           }
         }
       }
+    }
+  }
+
+  if (revokeGuestSessions) {
+    const revoked = db.prepare('DELETE FROM guest_sessions WHERE share_id = ?').run(shareId);
+    if (revoked.changes > 0) {
+      logger.info(
+        { shareId, sessions: revoked.changes },
+        'Share password changed; existing guest sessions revoked'
+      );
     }
   }
 
@@ -460,9 +486,7 @@ const getSharesBySourceTarget = async (targets = []) => {
   for (const target of normalized) {
     if (byTarget.has(target.key)) continue;
     const rows = new Map();
-    exactQuery
-      .all(target.sourceSpace, target.sourcePath)
-      .forEach((row) => rows.set(row.id, row));
+    exactQuery.all(target.sourceSpace, target.sourcePath).forEach((row) => rows.set(row.id, row));
     if (target.includeChildren) {
       childQuery
         .all(target.sourceSpace, `${escapeLikePattern(target.sourcePath)}/%`)
@@ -493,8 +517,12 @@ const getSharesForSourceTargets = async (targets = []) => {
   const db = await getDb();
   const sharesById = new Map();
 
-  const exactQuery = prepared(db, 'SELECT * FROM shares WHERE source_space = ? AND source_path = ?');
-  const childQuery = prepared(db, 
+  const exactQuery = prepared(
+    db,
+    'SELECT * FROM shares WHERE source_space = ? AND source_path = ?'
+  );
+  const childQuery = prepared(
+    db,
     "SELECT * FROM shares WHERE source_space = ? AND source_path LIKE ? ESCAPE '\\'"
   );
 
@@ -610,7 +638,8 @@ const isShareExpired = (share) => {
  */
 const trackShareAccess = async (shareId, { ipAddress = null } = {}) => {
   const db = await getDb();
-  prepared(db, 
+  prepared(
+    db,
     `
     UPDATE shares
     SET access_count = access_count + 1,
@@ -626,7 +655,8 @@ const trackShareAccess = async (shareId, { ipAddress = null } = {}) => {
  */
 const trackShareDownload = async (shareId, { ipAddress = null } = {}) => {
   const db = await getDb();
-  prepared(db, 
+  prepared(
+    db,
     `
     UPDATE shares
     SET download_count = download_count + 1,

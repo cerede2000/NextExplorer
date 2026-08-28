@@ -36,9 +36,27 @@ Use `AUTH_MODE` to control which authentication methods are available:
 - If any entry matches `OIDC_ADMIN_GROUPS` (case-insensitive), the user is promoted to admin.
 - Without a match, the user receives the standard `user` role and only sees non-admin settings.
 
+**This is re-evaluated at every sign-in**, so removing someone from the admin
+group at the IdP takes their admin rights away here the next time they log in,
+and adding them grants it. Role changes are written to the log.
+
+Two conditions have to hold before the IdP is allowed to decide, and both exist
+to stop a misconfiguration from locking everyone out:
+
+- **`OIDC_ADMIN_GROUPS` must be configured.** Without it every login would
+  derive the plain `user` role, and applying that would strip the rights of
+  anyone promoted from the interface — the bootstrap account included.
+- **The IdP must actually return a group claim.** A missing `groups` scope looks
+  exactly like a user who belongs to no group; roles are left untouched rather
+  than reset on that silence.
+
+Where neither holds, roles stay as they are and are managed from **Settings →
+Users** instead. If you do lock yourself out, setting `AUTH_ADMIN_EMAIL` to your
+address and restarting restores the admin role on that account.
+
 ## Common troubleshooting
 
 - **Invalid redirect URI**: Ensure your IdP’s redirect URI matches `${PUBLIC_URL}/callback` or the explicitly configured `OIDC_CALLBACK_URL`.
 - **Sessions drop after restart**: Supply a stable `SESSION_SECRET` instead of letting the app generate one dynamically.
-- **Not an admin after login**: Verify the IdP includes the expected group claim (e.g., `groups` scope) and that `OIDC_ADMIN_GROUPS` contains the group name exactly.
+- **Not an admin after login**: Verify the IdP includes the expected group claim (e.g., `groups` scope) and that `OIDC_ADMIN_GROUPS` contains the group name exactly. Both are required before the IdP may set roles at all — without them the role stored on the account is kept, whatever the claims say.
 - **Cookies flagged Insecure**: Run the app over HTTPS (`PUBLIC_URL` must use `https`) and confirm your proxy forwards `X-Forwarded-Proto`/`Host` headers (see the Reverse Proxy guide).

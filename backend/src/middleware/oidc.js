@@ -2,7 +2,11 @@ const crypto = require('crypto');
 const { auth: eocAuth } = require('express-openid-connect');
 
 const { auth: envAuthConfig, public: publicConfig } = require('../config/index');
-const { getOrCreateOidcUser, deriveRolesFromClaims } = require('../services/users');
+const {
+  getOrCreateOidcUser,
+  deriveRolesFromClaims,
+  rolesFromClaimsAreAuthoritative,
+} = require('../services/users');
 const { fetchUserInfoClaims } = require('../services/oidcService');
 const { oidcStore } = require('../utils/sessionStore');
 const { UnauthorizedError } = require('../errors/AppError');
@@ -217,7 +221,12 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
       const emailVerified = claims.email_verified === true;
       const preferredUsername = claims.preferred_username || claims.username || email || sub;
       const displayName = claims.name || preferredUsername || null;
-      const roles = deriveRolesFromClaims(claims, envAuthConfig?.oidc?.adminGroups);
+      const adminGroups = envAuthConfig?.oidc?.adminGroups;
+      const roles = deriveRolesFromClaims(claims, adminGroups);
+      // The provider only gets to decide who is an administrator here where an
+      // admin group was configured and the provider actually said something
+      // about groups. Otherwise the roles already stored are left alone.
+      const rolesAreAuthoritative = rolesFromClaimsAreAuthoritative(claims, adminGroups);
 
       logger.debug(
         { emailVerified, roleCount: roles.length },
@@ -233,6 +242,7 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         email,
         emailVerified,
         roles,
+        rolesAreAuthoritative,
         requireEmailVerified: envAuthConfig?.oidc?.requireEmailVerified || false,
         autoCreateUsers: envAuthConfig?.oidc?.autoCreateUsers ?? true,
       });

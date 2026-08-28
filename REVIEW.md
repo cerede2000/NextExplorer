@@ -17,7 +17,7 @@ Severity is about consequence, not effort:
 `services/guestSessionService.js` (221). Reviewed first because it is the only
 surface reachable without an account.
 
-### D1 · Changing a share's password does not revoke access — Defect
+### D1 · Changing a share's password does not revoke access — Defect — **FIXED**
 
 `services/sharesService.js:359` writes a new `password_hash` and nothing else.
 No guest session is invalidated anywhere: the only `DELETE FROM guest_sessions`
@@ -385,7 +385,7 @@ and three separate things prevent it.
 `routes/auth.js` (296), `middleware/oidc.js` (425), `services/oidcService.js`
 (154), `users/localAuth.js`, `users/oidcAuth.js`.
 
-### D16 · OIDC group membership is read once, at account creation — Defect
+### D16 · OIDC group membership is read once, at account creation — Defect — **FIXED**
 
 `users/oidcAuth.js:7` derives roles from the provider's `groups`, `roles` or
 `entitlements` claims. It is called on the INSERT path only (`:141`). Every
