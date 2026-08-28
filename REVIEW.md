@@ -98,3 +98,68 @@ Stated because a review that only lists problems says nothing about the rest:
 - **A file share cannot be walked into.** Inner paths on a non-directory share
   are refused unless they name the file exactly (`routes/shares.js:813`).
 - **No SQL is built by interpolation** anywhere in this lot.
+
+---
+
+## Lot 2 — Access control and path resolution
+
+`services/accessManager.js` (427), `accessControlService.js` (56),
+`authorizationService.js` (82), `utils/pathUtils.js` (613),
+`middleware/authMiddleware.js` (197). The layer everything else rests on.
+
+### D6 · Two users can end up sharing one personal folder — Defect
+
+`utils/pathUtils.js:286` derives a user's personal folder name from
+`USER_FOLDER_NAME_ORDER`, falling back to `id, username, email_local`. Nothing
+guarantees those are unique:
+
+- `username` has **no UNIQUE constraint**. The original schema had one
+  (`db.js:240`); the migrated table does not (`db.js:283`), and no code checks
+  for a duplicate — an OIDC provider supplies the value as it pleases
+  (`users/oidcAuth.js:141`).
+- `email_local` cannot be unique by construction: `bob@a.com` and `bob@b.com`
+  both yield `bob`. It is in the fallback order permanently, so an OIDC login
+  that carries no username lands there.
+
+**What it costs.** Two accounts resolve to the same directory and each sees the
+other's private files. The default order puts `id` first and ids are unique, so
+a default install is safe — but the environment reference recommends
+`username,id` outright, to reuse `/home/<username>`, with no mention that
+duplicate usernames are possible and what happens then.
+
+Worth deciding deliberately: enforce uniqueness on `username`, refuse a
+non-`id` order unless uniqueness is guaranteed, or say plainly in the
+documentation what the trade-off is.
+
+### D7 · `assertRealPathWithinRoot` does not assert what its name claims — Fragility
+
+`utils/pathUtils.js:162` returns — accepting the path — once it has walked above
+the root without finding anything real. The comment explains why: the lexical
+check "ran before we got here". All four callers do run it (`:172`, `:371`,
+`:441`, `:565`), so nothing is wrong today.
+
+But a function named `assert…WithinRoot` silently accepts `/etc/x/y` when none
+of it exists, and its safety depends on a precondition it does not state, does
+not check, and cannot enforce. The fifth caller is the one to worry about.
+
+### Checked and sound
+
+Verified by running the real resolver against hostile input, not by reading
+alone:
+
+- **Traversal is refused** — `../etc/passwd`, `a/../../etc` and `..` all throw.
+- **An absolute path is contained, not honoured**: `/etc/passwd` resolves to
+  `<volume>/etc/passwd`.
+- **A symlink pointing out of the volume is refused**, and so is a _broken_ one
+  aimed outside — judged on its target's name, since there is no real path to
+  compare. A symlink staying inside is allowed.
+- **`escape.txt/../outside.txt` normalises lexically** and stays in the volume,
+  rather than resolving the link first and climbing from its target. That
+  diverges from POSIX semantics, in the safe direction.
+- **Symlinked roots work** (`/mnt` → `/volume1` on a NAS): both sides are
+  resolved, or every request would be refused.
+- **Symlink loops are bounded** at 32 hops.
+- **Guest and user sessions coexist deliberately** (`authMiddleware.js:170`):
+  the guest session is the only proof the visitor typed a share password, so
+  dropping it for signed-in visitors would make that check unsatisfiable. Each
+  access check prefers the user when both are present.
