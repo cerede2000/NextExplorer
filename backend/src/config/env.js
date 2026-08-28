@@ -15,6 +15,12 @@ module.exports = {
     process.env.UPLOAD_INACTIVITY_TIMEOUT != null
       ? Number(process.env.UPLOAD_INACTIVITY_TIMEOUT)
       : 120000,
+  // rsync preserves permissions when copying, which means a chmod on the
+  // destination. Where that is always refused — a ZFS dataset with
+  // aclmode=restricted, where new files must inherit the directory's ACL — set
+  // this to false and skip straight to a copy that does not try, rather than
+  // paying for the failed attempt and its retry on every single copy.
+  COPY_PRESERVE_PERMISSIONS: normalizeBoolean(process.env.COPY_PRESERVE_PERMISSIONS) ?? true,
   UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED) ?? false,
   // When direct (XHR) upload is used, automatically fall back to chunked uploads
   // if a request fails because a reverse proxy rejects the body size.

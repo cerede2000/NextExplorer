@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 
 const env = require('../config/env');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
+const logger = require('../utils/logger');
 const {
   normalizeRelativePath,
   combineRelativePath,
@@ -181,7 +182,15 @@ const stopChildProcessGroup = (child, signal) => {
 // properties the UI needs: safe argv handling, global progress, and immediate
 // cancellation. It is used only in the Linux container; local development and
 // the explicit FILE_TRANSFER_ENGINE=stream override keep the JS fallback.
-const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
+/**
+ * rsync stops at 23 for a "partial transfer due to error", which covers a great
+ * deal more than permissions — a vanished source file gets the same code. The
+ * message is what distinguishes the case worth retrying, so both are required.
+ */
+const isPermissionPreservationFailure = (exitCode, stderr) =>
+  exitCode === 23 && /failed to set permissions/i.test(stderr || '');
+
+const runRsyncCopy = (sourcePath, destinationPath, onProgress, signal, { preservePermissions }) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(createCancellationError());
@@ -194,6 +203,7 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
         '-a',
         '--no-owner',
         '--no-group',
+        ...(preservePermissions ? [] : ['--no-perms']),
         '--info=progress2',
         '--outbuf=L',
         '--out-format=%n',
@@ -247,10 +257,60 @@ const copyWithNativeRsync = (sourcePath, destinationPath, onProgress, signal) =>
       if (code === 0) return finish(resolve);
       const error = new Error(errorOutput.trim() || `Native copy failed with exit code ${code}.`);
       error.code = 'NATIVE_COPY_FAILED';
+      error.exitCode = code;
+      error.stderr = errorOutput;
       return finish(reject, error);
     });
     signal?.addEventListener('abort', abort, { once: true });
   });
+
+/**
+ * Copy with rsync, preserving permissions — and once more without them if that
+ * is the only thing that failed.
+ *
+ * `-a` implies `-p`, so rsync chmods the destination after writing it. A ZFS
+ * dataset with `aclmode=restricted` refuses that chmod, because new files there
+ * must inherit the directory's ACL untouched (nxzai/NextExplorer#367). rsync
+ * copies the contents correctly and only then fails, so the data is already
+ * where it belongs and just the metadata step was refused.
+ *
+ * The retry is safe because rsync is idempotent: everything transferred in the
+ * first pass is seen as up to date in the second, which therefore moves no
+ * bytes and only finishes what the first could not. Preserving permissions
+ * remains the default — the fallback happens where it cannot work, and nowhere
+ * else.
+ *
+ * The retry reports no progress: percentages restart at zero for each rsync
+ * invocation, and the caller turns them into an absolute byte count, so passing
+ * them on would send the bar backwards for the moment the second pass takes.
+ */
+const copyWithNativeRsync = async (sourcePath, destinationPath, onProgress, signal) => {
+  // Where the answer is known in advance, skip the attempt that cannot succeed:
+  // on a dataset that always refuses, every copy would otherwise pay for a
+  // failed pass and a retry.
+  if (!env.COPY_PRESERVE_PERMISSIONS) {
+    return runRsyncCopy(sourcePath, destinationPath, onProgress, signal, {
+      preservePermissions: false,
+    });
+  }
+
+  try {
+    return await runRsyncCopy(sourcePath, destinationPath, onProgress, signal, {
+      preservePermissions: true,
+    });
+  } catch (error) {
+    if (!isPermissionPreservationFailure(error?.exitCode, error?.stderr)) throw error;
+    if (signal?.aborted) throw error;
+
+    logger.info(
+      { sourcePath, destinationPath },
+      'Destination refuses to have its permissions set; copying again without preserving them'
+    );
+    return runRsyncCopy(sourcePath, destinationPath, undefined, signal, {
+      preservePermissions: false,
+    });
+  }
+};
 
 /**
  * Whether removing this entry is worth a child process.
@@ -884,7 +944,6 @@ const getDeleteImpact = async (items = [], options = {}) => {
   };
 };
 
-
 const deleteItems = async (items = [], options = {}) => {
   const context = {
     user: options.user || null,
@@ -994,4 +1053,8 @@ module.exports = {
   deleteItems,
   shouldRemoveNatively,
   getDiagnosticsSnapshot,
+  // Exported for tests: the copy path is chosen inside a spawned process, so
+  // the decision to retry is what can be checked without one.
+  isPermissionPreservationFailure,
+  copyWithNativeRsync,
 };
