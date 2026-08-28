@@ -35,6 +35,17 @@ That is the reset. There is no cleanup job to schedule, nothing accumulates
 between restarts, and nobody can leave anything behind — which on a free plan
 that sleeps after fifteen minutes means several times a day.
 
+The demo folders are copied into `/mnt` when the image is built, not seeded by a
+script at boot. A script that silently fails to run looks exactly like one that
+ran and found nothing — which is what happened first, and the demo came up with
+no volumes at all.
+
+`demo/Dockerfile` also has to `chown` `/mnt`: the image's entrypoint takes
+ownership of `/config` and `/cache` but deliberately leaves the volume root
+alone, because in a real deployment that is the host's filesystem. Without it,
+the demo is read-only, and uploading and renaming — most of what it exists to
+show — do not work.
+
 The image also supports `DEMO_MODE=true`, which downloads a sample archive of
 photos and videos at boot. The demo does not use it: the archive is 80 MB, and
 on a plan that sleeps, that is most of the delay the first visitor after a nap
