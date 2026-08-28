@@ -6,6 +6,61 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.0.2 (2026-08-28)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.0.2)
+
+### Chunked uploads no longer take the server down
+
+Where `UPLOAD_CHUNKED_ENABLED` was on, every upload by a signed-in user killed
+the process. The browser reported a lost connection and a 502; the container
+restarted; and on a deployment whose storage is not persistent, it came back
+with an empty database — favourites, shares and preferences gone with it.
+
+The upload server finishes its responses with `res.end(callback)`, a form Node
+accepts. `express-session` replaces `res.end` with a two-argument version that
+reads that callback as a body and passes it to `res.write()`, which throws where
+nothing catches it. Because the session store implements `touch`, an established
+session took that path on every request — so the failure was systematic rather
+than occasional.
+
+### A poll that never stopped
+
+The client watched for document-editing activity on every navigation, whether or
+not a document server was configured. Where ONLYOFFICE is not set up the
+endpoint does not exist, so each poll returned 404, was retried a second later,
+and was logged server-side with a full stack trace — for as long as a tab stayed
+open. It now waits for the feature flags and starts only where there is
+something to watch.
+
+### A demo you can walk into
+
+With `DEMO_MODE` enabled and demo credentials configured, the sign-in form
+arrives filled in and there is only the button to press. Serving a password to
+whoever loads a page is right for a demo and wrong everywhere else, so it takes
+demo mode _and_ both halves of a credential named for the purpose; the variables
+are separate from the admin bootstrap ones, so nothing set for another reason
+can publish a password. `DEMO_SAMPLES=false` keeps demo mode without the 81 MiB
+sample archive, which is worth having where storage is not persistent and the
+download would repeat at every restart.
+
+### Images follow main
+
+`latest` and `latest-lean` were built only when a release was cut, so a fix
+waited for one. Every push to `main` now builds and publishes both variants to
+GHCR and Docker Hub, each also tagged with the version in `package.json` —
+`3.0.2` and `3.0.2-lean`. A release additionally refuses to publish if the tag
+it was cut from disagrees with the manifests.
+
+### Also
+
+- [The HTTP API is documented](../reference/api.md), with examples run against
+  the live demo: signing in, browsing, resumable uploads, sharing and deletion.
+- The public demo has sharing enabled, folder sizes in full mode with the usage
+  bar, and a `PUBLIC_URL` that is actually parsed — it was previously a bare
+  hostname, which `new URL()` rejects, leaving the instance with no canonical
+  URL.
+
 ## v3.0.1 (2026-08-27)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.0.1)

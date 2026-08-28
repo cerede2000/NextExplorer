@@ -62,6 +62,7 @@ export default defineConfig({
         items: [
           { text: 'Troubleshooting', link: '/reference/troubleshooting' },
           { text: 'CORS errors', link: '/reference/cors' },
+          { text: 'HTTP API', link: '/reference/api' },
           { text: 'Contributing', link: '/reference/contributing' },
           { text: 'FAQ', link: '/reference/faq' },
         ],
@@ -127,6 +128,7 @@ export default defineConfig({
         items: [
           { text: 'Troubleshooting', link: '/reference/troubleshooting' },
           { text: 'CORS errors', link: '/reference/cors' },
+          { text: 'HTTP API', link: '/reference/api' },
           { text: 'Contributing', link: '/reference/contributing' },
           { text: 'FAQ', link: '/reference/faq' },
         ],
