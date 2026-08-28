@@ -347,3 +347,80 @@ arrangement, so nobody assumes the automated suite covers it.
 - **Incremental drift has a designed answer**: periodic reconciliation, paced in
   batches and resumable through a cursor, so a missed event is corrected rather
   than accumulating for ever.
+
+---
+
+## Lot 6 — Editors and previews
+
+`routes/onlyoffice.js` (1165), `routes/collabora.js` (408), the `onlyoffice*`
+services, `thumbnailService.js` (1171). The interesting part is the **inbound**
+surface: a Document Server calls us.
+
+**No defect found.** The callback is where an unauthenticated write would live,
+and three separate things prevent it.
+
+### Checked and sound
+
+- **The JWT check cannot be skipped.** It reads as conditional
+  (`routes/onlyoffice.js:1040`, `if (onlyoffice.secret)`), but the secret is
+  never empty: `config/index.js:328` falls back to a derived one, and `:343`
+  warns at startup that it will not match the Document Server. Missing
+  configuration therefore fails closed and says so, rather than opening the
+  route.
+- **A callback with no valid backend token falls back to the ordinary access
+  check** (`:1105`), which needs a session with write permission — something a
+  Document Server does not have. So even a forged callback writes nothing.
+- **The backend token carries the permission**, and read-only sessions are
+  refused explicitly (`:1099`) rather than trusted because they hold a token.
+- **The save URL is constrained to the configured server** (`:1093`), so the
+  callback cannot be turned into a fetch of any address the caller names.
+- **Thumbnails are bounded**: a concurrency-limited queue, a 30-second timeout
+  per item, `SIGKILL` on cleanup, and child processes niced down — reasonable
+  for running ffmpeg and ImageMagick over files nobody vetted.
+
+---
+
+## Lot 7 — Authentication and OIDC
+
+`routes/auth.js` (296), `middleware/oidc.js` (425), `services/oidcService.js`
+(154), `users/localAuth.js`, `users/oidcAuth.js`.
+
+### D16 · OIDC group membership is read once, at account creation — Defect
+
+`users/oidcAuth.js:7` derives roles from the provider's `groups`, `roles` or
+`entitlements` claims. It is called on the INSERT path only (`:141`). Every
+returning login updates `display_name`, `username` and `email_verified` — and
+never `roles` (`:75`, `:112`).
+
+**What it costs, in both directions.** Someone removed from the admin group at
+the identity provider stays an administrator here, for good. Someone added to it
+never becomes one, no matter how many times they sign in.
+
+The documentation reads the other way round: `docs/integrations/oidc.md:36` says
+"the user is promoted to admin" if a claim matches, and its troubleshooting entry
+for **"Not an admin after login"** tells the reader to check the claim and the
+group name — advice that cannot work, because for an existing account the claim
+is never consulted at all.
+
+Whichever behaviour is intended — evaluate every login, or pin at creation so a
+provider change cannot demote a local admin — the code and the documentation
+currently promise different things.
+
+### D17 · The OIDC middleware has no test at all — Fragility
+
+`middleware/oidc.js` is 425 lines and no test references it; `oidcService.js`
+(154) likewise. This is the path that decides who someone is, in the deployments
+that use it, and a regression there would be both silent and serious.
+
+### Checked and sound
+
+- **Admin roles fail closed.** With no `OIDC_ADMIN_GROUPS` configured, the
+  candidate list is empty and everyone lands on `['user']` — claims alone can
+  never grant admin (`users/oidcAuth.js:23`).
+- **An unverified email cannot take over an existing account.** Linking a new
+  OIDC identity to an account that already exists requires a verified email
+  claim, "regardless of the provisioning configuration" (`:92`) — the guard
+  against a well-known account-takeover route.
+- **Local sign-in is defended twice**: rate limiting on login, setup and password
+  change (`routes/auth.js:60`), plus per-account lockout after repeated failures
+  (`users/localAuth.js:21`).
