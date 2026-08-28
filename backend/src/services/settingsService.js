@@ -414,6 +414,62 @@ const getSettingsForUser = async (user) => {
   return result;
 };
 
+const asBoolean = (value) => Boolean(value);
+
+// null means "no answer of my own": for skipHome, defer to the environment.
+const asNullableBoolean = (value) =>
+  value === null || value === undefined ? null : Boolean(value);
+
+const asShareExpiration = (value) => {
+  if (value === null || value === undefined || typeof value !== 'object') return null;
+  const validUnits = ['days', 'weeks', 'months'];
+  const unit = validUnits.includes(value.unit) ? value.unit : 'weeks';
+  const amount = Number.isFinite(value.value) && value.value > 0 ? Math.floor(value.value) : null;
+  return amount ? { value: amount, unit } : null;
+};
+
+// The view a folder gets when it has none of its own (#360). Anything we do not
+// recognise becomes null, meaning "use the built-in default".
+const asViewMode = (value) => (VIEW_MODES.includes(value) ? value : null);
+
+/**
+ * Every preference a user may set, each with the coercion that belongs to it.
+ *
+ * One line per preference, in one place, because this used to be spread over
+ * three: a list of allowed keys in the settings route, a chain of if/else
+ * sanitising here, and the defaults in the client store. A key present in one
+ * and missing from another was accepted by the API, silently dropped, and
+ * answered with its previous value — which the client then applied, so the
+ * switch flicked itself back off. `markdownOpensInEditor` did exactly that.
+ *
+ * Adding a preference is now adding a line here. Its name and its validation
+ * cannot come apart, because they are the same line.
+ */
+const USER_SETTINGS = {
+  showHiddenFiles: asBoolean,
+  showThumbnails: asBoolean,
+  showSidebarFavorites: asBoolean,
+  showSidebarShares: asBoolean,
+  showSidebarTools: asBoolean,
+  markdownOpensInEditor: asBoolean,
+  defaultShareExpiration: asShareExpiration,
+  skipHome: asNullableBoolean,
+  defaultView: asViewMode,
+};
+
+/**
+ * Written by the application, never straight from a request: a folder
+ * preference is saved one folder at a time, so that two tabs on different
+ * folders do not overwrite each other with whole maps.
+ */
+const INTERNAL_USER_SETTINGS = {
+  folderSorts: sanitizeFolderSorts,
+  folderViews: sanitizeFolderViews,
+};
+
+/** What PATCH /api/settings accepts under `user`. */
+const WRITABLE_USER_SETTINGS = new Set(Object.keys(USER_SETTINGS));
+
 /**
  * Set a user setting
  */
@@ -423,46 +479,10 @@ const setUserSetting = async (userId, key, value) => {
   }
   const db = await getDb();
 
-  // Validate and sanitize value based on key
-  let sanitizedValue = value;
-  if (
-    key === 'showHiddenFiles' ||
-    key === 'showThumbnails' ||
-    key === 'showSidebarFavorites' ||
-    key === 'showSidebarShares' ||
-    key === 'showSidebarTools' ||
-    key === 'markdownOpensInEditor'
-  ) {
-    sanitizedValue = Boolean(value);
-  } else if (key === 'defaultShareExpiration') {
-    // Validate expiration object: { value: number, unit: 'days'|'weeks'|'months' } or null
-    if (value === null || value === undefined) {
-      sanitizedValue = null;
-    } else if (typeof value === 'object' && value !== null) {
-      const validUnits = ['days', 'weeks', 'months'];
-      const unit = validUnits.includes(value.unit) ? value.unit : 'weeks';
-      const numValue =
-        Number.isFinite(value.value) && value.value > 0 ? Math.floor(value.value) : null;
-      sanitizedValue = numValue ? { value: numValue, unit } : null;
-    } else {
-      sanitizedValue = null;
-    }
-  } else if (key === 'skipHome') {
-    // Can be null (use env), true, or false
-    if (value === null || value === undefined) {
-      sanitizedValue = null;
-    } else {
-      sanitizedValue = Boolean(value);
-    }
-  } else if (key === 'folderSorts') {
-    sanitizedValue = sanitizeFolderSorts(value);
-  } else if (key === 'defaultView') {
-    // The view a folder gets when it has none of its own (#360). Anything we
-    // do not recognise falls back to null, meaning "use the built-in default".
-    sanitizedValue = VIEW_MODES.includes(value) ? value : null;
-  } else if (key === 'folderViews') {
-    sanitizedValue = sanitizeFolderViews(value);
-  }
+  // An unknown key is stored as it came: callers are the application itself,
+  // and the route only ever passes what WRITABLE_USER_SETTINGS allows.
+  const sanitize = USER_SETTINGS[key] || INTERNAL_USER_SETTINGS[key];
+  const sanitizedValue = sanitize ? sanitize(value) : value;
 
   upsertUserSetting(db, userId, key, sanitizedValue);
 
@@ -707,6 +727,7 @@ module.exports = {
   getSystemSettings,
   getSettingsForUser,
   setUserSetting,
+  WRITABLE_USER_SETTINGS,
   setUserFolderSort,
   setUserFolderView,
   getUserFolderPreferences,

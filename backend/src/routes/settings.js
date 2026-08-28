@@ -7,6 +7,7 @@ const {
   setUserFolderView,
   setSystemSetting,
   getSettings,
+  WRITABLE_USER_SETTINGS,
 } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
@@ -160,16 +161,7 @@ router.patch(
           if (folderViews) {
             userUpdates.folderViews = folderViews;
           }
-        } else if (
-          key === 'showHiddenFiles' ||
-          key === 'showThumbnails' ||
-          key === 'showSidebarFavorites' ||
-          key === 'showSidebarShares' ||
-          key === 'showSidebarTools' ||
-          key === 'defaultShareExpiration' ||
-          key === 'skipHome' ||
-          key === 'defaultView'
-        ) {
+        } else if (WRITABLE_USER_SETTINGS.has(key)) {
           userUpdates[key] = await setUserSetting(user.id, key, value);
         }
       }
@@ -289,7 +281,13 @@ router.patch(
       if (resetToDefault) {
         await deleteCustomLogoFiles();
       }
-    } else if (payload.thumbnails || payload.access || payload.folderSize || payload.branding || payload.uploads) {
+    } else if (
+      payload.thumbnails ||
+      payload.access ||
+      payload.folderSize ||
+      payload.branding ||
+      payload.uploads
+    ) {
       // Non-admin trying to update system settings
       return res.status(403).json({ error: 'Admin access required for system settings.' });
     }
