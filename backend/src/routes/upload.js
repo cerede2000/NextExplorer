@@ -5,6 +5,7 @@ const fs = require('fs/promises');
 const { createUploadMiddleware } = require('../services/uploadService');
 const { handleTusUpload, listFinalizations } = require('../services/tusUploadService');
 const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
+const { responseEndCompat } = require('../middleware/responseEndCompat');
 const { uploads } = require('../config/index');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
@@ -16,7 +17,11 @@ const folderSizeHooks = require('../services/folderSizeHooks');
 const router = express.Router();
 const upload = createUploadMiddleware();
 
-router.all('/upload/tus*', handleTusUpload);
+// responseEndCompat first: @tus/server finishes its responses with
+// `res.end(callback)`, which express-session's own res.end mistakes for a body
+// and passes to res.write(). That throws where nothing catches it, and the
+// process exits mid-upload.
+router.all('/upload/tus*', responseEndCompat, handleTusUpload);
 
 /**
  * Files whose transfer is over but which are still being written where they
