@@ -1,0 +1,39 @@
+name: Sync Docker Hub description
+
+# The Docker Hub page is the README, and it was only rewritten when a release
+# went out. Anything changed in between — a new demo address, a corrected
+# instruction — sat there stale until the next version, on the page most people
+# reach before the repository.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - .github/workflows/dockerhub-description.yml
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: explorer
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  sync:
+    name: Update Docker Hub description
+    runs-on: ubuntu-latest
+    # Nothing to do where Docker Hub credentials are not configured.
+    if: ${{ github.repository_owner != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Update description
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: README.md
