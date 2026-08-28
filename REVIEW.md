@@ -216,3 +216,77 @@ change without anyone noticing.
   missing `--` is acceptable there (BSD `chmod` rejects it).
 - **Zip bombs are refused before extraction** on both entry count and declared
   size (`routes/zip.js:42`).
+
+---
+
+## Lot 4 — Transfers and uploads
+
+`services/fileTransferService.js` (1060), `tusUploadService.js` (494),
+`uploadService.js` (293), `renameService.js` (116),
+`uploadFolderTargetService.js` (138). Data integrity: loss, overwrite,
+cancellation, resumption.
+
+### D10 · Only the optional upload path guards against filling the disk — Defect
+
+`tusUploadService.js:417` refuses an upload when the temporary or destination
+storage cannot fit it plus `UPLOAD_STORAGE_RESERVE`. `uploadService.js` — the
+**default** path, since `UPLOAD_CHUNKED_ENABLED` is false out of the box — has
+no such check at all.
+
+So the protection covers the path a deployment opts into and misses the one it
+gets by default. The documentation is honest about this (it says "when accepting
+TUS uploads"), which makes it a gap rather than a false promise, but the
+consequence is the same: a direct upload can fill the volume. Where `/config`
+shares that filesystem, SQLite stops being able to write and the application
+stops working — for everyone, not just the uploader.
+
+### D11 · A `.uploading` file outlives the upload that made it — Defect
+
+`uploadService.js:147` writes to `<final>.uploading` and renames on success.
+Failures are cleaned up, but nothing survives a kill: there is no sweep at
+startup and no periodic one, unlike TUS which has `cleanupExpiredUploads`.
+
+The remains are also **visible**. The default hidden patterns are `.` and
+`regex:\.download$` — the second exists precisely to hide another mechanism's
+artefacts, and `.uploading` was never added. So a killed container leaves
+`holiday.mp4.uploading` sitting in the folder, in the listing, for ever, and
+nothing anywhere will remove it.
+
+### D12 · Two upload paths, neither with a test — Fragility
+
+`uploadService.js` (293 lines) and `renameService.js` (116) both write to disk
+after authorising, and no test references either. Reading them found nothing
+wrong — the authorisation chains are complete, and `renameService` checks the
+parent, the source, the new name and the target in turn — but they are the two
+modules where a regression would be silent.
+
+### D13 · A TUS upload is not tied to whoever started it — Note
+
+`tusUploadService.js:307` re-authorises the destination on every request rather
+than checking who created the upload. Someone else who knew the upload id could
+therefore write into it — but only where they may already write to that
+destination, so they gain nothing they did not have.
+
+The bound is real, and re-authorising each time is the right instinct. It is
+listed because the notion of an owner does exist a few lines below (`:333`, for
+the finalisation list), so the asymmetry is a choice worth being deliberate
+about: two people with access to the same folder can currently corrupt each
+other's in-flight uploads.
+
+### Checked and sound
+
+- **Nothing is overwritten.** An existing name goes through `findAvailableName`
+  (`uploadService.js:143`).
+- **The destination is authorised twice** — once for the chosen folder, once for
+  the subfolder the client's relative path lands in, with a comment explaining
+  that otherwise a read-only or hidden subfolder would still accept uploads
+  (`:126`).
+- **Uploading to the volume root is refused** (`:114`).
+- **Multer's limits are all set**: file size, file count, field count, field
+  size, header pairs (`:282`).
+- **TUS requires authentication before anything else** (`:400`), and
+  re-authorises the destination on every non-POST request.
+- **`renameService` authorises the parent, the source and the target**, validates
+  the new name, and refuses an existing target — despite having no test.
+- **The documentation build is not committed** (`docs/.vitepress/dist` is
+  ignored).
