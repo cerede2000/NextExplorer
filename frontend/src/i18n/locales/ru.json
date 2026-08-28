@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "Отображает файлы и папки, соответствующие настроенным скрытым шаблонам ({patterns}), в проводнике.",
       "showThumbnails": "Показывать миниатюры",
       "showThumbnailsHelp": "Показывает миниатюры для изображений и видео.",
+      "markdownOpensInEditor": "Открывать Markdown в редакторе",
+      "markdownOpensInEditorHelp": "Двойной щелчок по файлу .md сразу открывает редактор вместо предпросмотра.",
       "showSidebarFavorites": "Показывать раздел избранного",
       "showSidebarFavoritesHelp": "Показывает избранное в левой боковой панели.",
       "showSidebarShares": "Показывать раздел общего доступа",

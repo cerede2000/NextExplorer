@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "Pokazuje pliki i foldery pasujące do skonfigurowanych ukrytych wzorców ({patterns}) w eksploratorze.",
       "showThumbnails": "Pokaż miniatury",
       "showThumbnailsHelp": "Wyświetla miniatury obrazów i filmów w przeglądarce.",
+      "markdownOpensInEditor": "Otwieraj Markdown w edytorze",
+      "markdownOpensInEditorHelp": "Dwukrotne kliknięcie pliku .md otwiera od razu edytor zamiast podglądu.",
       "showSidebarFavorites": "Pokaż sekcję Ulubione",
       "showSidebarFavoritesHelp": "Wyświetla Ulubione na lewym pasku bocznym.",
       "showSidebarShares": "Pokaż sekcję Udostępnienia",

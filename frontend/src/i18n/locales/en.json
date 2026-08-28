@@ -479,6 +479,8 @@
       "showHiddenFilesHelp": "Display files and folders matching the configured hidden patterns ({patterns}) in the file browser.",
       "showThumbnails": "Show thumbnails",
       "showThumbnailsHelp": "Display thumbnail previews for images and videos in the file browser.",
+      "markdownOpensInEditor": "Open Markdown in the editor",
+      "markdownOpensInEditorHelp": "Double-clicking a .md file goes straight to the editor instead of the preview.",
       "showSidebarFavorites": "Show Favorites section",
       "showSidebarFavoritesHelp": "Display Favorites in the left sidebar.",
       "showSidebarShares": "Show Shares section",

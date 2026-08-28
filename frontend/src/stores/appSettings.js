@@ -25,6 +25,9 @@ export const useAppSettings = defineStore('appSettings', () => {
     folderSorts: {},
     folderViews: {},
     defaultView: null,
+    // Markdown is the one kind of file with both a preview and an editor, so
+    // it is the only one where opening it is a choice (#347).
+    markdownOpensInEditor: false,
   });
 
   const createDefaultSystemSettings = () => ({

@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "एक्सप्लोरर में कॉन्फ़िगर किए गए छिपे पैटर्न ({patterns}) से मेल खाने वाली फ़ाइलें और फ़ोल्डर दिखाएँ।",
       "showThumbnails": "थंबनेल दिखाएँ",
       "showThumbnailsHelp": "इमेज और वीडियो के लिए थंबनेल पूर्वावलोकन दिखाएँ।",
+      "markdownOpensInEditor": "Markdown को संपादक में खोलें",
+      "markdownOpensInEditorHelp": "किसी .md फ़ाइल पर डबल-क्लिक करने पर पूर्वावलोकन के बजाय सीधे संपादक खुलता है।",
       "showSidebarFavorites": "पसंदीदा सेक्शन दिखाएँ",
       "showSidebarFavoritesHelp": "बाएँ साइडबार में पसंदीदा दिखाएँ।",
       "showSidebarShares": "शेयर सेक्शन दिखाएँ",

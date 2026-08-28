@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "Visar filer och mappar som matchar de konfigurerade dolda mönstren ({patterns}) i Utforskaren.",
       "showThumbnails": "Visa miniatyrbilder",
       "showThumbnailsHelp": "Visar förhandsgranskningar av bilder och videor i miniatyrformat.",
+      "markdownOpensInEditor": "Öppna Markdown i redigeraren",
+      "markdownOpensInEditorHelp": "Dubbelklick på en .md-fil öppnar redigeraren direkt i stället för förhandsvisningen.",
       "showSidebarFavorites": "Visa Favoriter",
       "showSidebarFavoritesHelp": "Visar Favoriter i vänster sidofält.",
       "showSidebarShares": "Visa Delningar",

@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "Afișează fișierele și folderele care corespund modelelor ascunse configurate ({patterns}) în navigator.",
       "showThumbnails": "Afișează miniaturi",
       "showThumbnailsHelp": "Afișează previzualizări în miniatură pentru imagini și videoclipuri.",
+      "markdownOpensInEditor": "Deschide Markdown în editor",
+      "markdownOpensInEditorHelp": "Dublu clic pe un fișier .md deschide direct editorul în loc de previzualizare.",
       "showSidebarFavorites": "Afișează secțiunea Favorite",
       "showSidebarFavoritesHelp": "Afișează Favorite în bara laterală stângă.",
       "showSidebarShares": "Afișează secțiunea Partajări",

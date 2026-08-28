@@ -86,12 +86,16 @@ describe('Settings Service', () => {
         await settingsService.setUserSetting('user-1', 'showSidebarFavorites', false);
         await settingsService.setUserSetting('user-1', 'showSidebarShares', 0);
         await settingsService.setUserSetting('user-1', 'showSidebarTools', 'yes');
+        // Whether a .md file opens in the editor rather than the preview (#347)
+        // is a per-user choice, and coerced like the other booleans.
+        await settingsService.setUserSetting('user-1', 'markdownOpensInEditor', 'yes');
 
         const settings = await settingsService.getUserSettings('user-1');
 
         expect(settings.showSidebarFavorites).toBe(false);
         expect(settings.showSidebarShares).toBe(false);
         expect(settings.showSidebarTools).toBe(true);
+        expect(settings.markdownOpensInEditor).toBe(true);
       } finally {
         await envContext.cleanup();
       }

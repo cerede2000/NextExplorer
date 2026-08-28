@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "Mostra file e cartelle che corrispondono ai pattern nascosti configurati ({patterns}) nell'esploratore.",
       "showThumbnails": "Mostra miniature",
       "showThumbnailsHelp": "Mostra anteprime miniatura per immagini e video.",
+      "markdownOpensInEditor": "Apri Markdown nell'editor",
+      "markdownOpensInEditorHelp": "Un doppio clic su un file .md apre direttamente l'editor invece dell'anteprima.",
       "showSidebarFavorites": "Mostra sezione Preferiti",
       "showSidebarFavoritesHelp": "Mostra i Preferiti nella barra laterale sinistra.",
       "showSidebarShares": "Mostra sezione Condivisioni",

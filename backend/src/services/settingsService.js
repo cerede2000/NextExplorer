@@ -52,7 +52,6 @@ const defaultUploadSettings = () => {
   };
 };
 
-
 const isValidFolderPath = (folderPath) =>
   typeof folderPath === 'string' &&
   folderPath.length > 0 &&
@@ -431,7 +430,8 @@ const setUserSetting = async (userId, key, value) => {
     key === 'showThumbnails' ||
     key === 'showSidebarFavorites' ||
     key === 'showSidebarShares' ||
-    key === 'showSidebarTools'
+    key === 'showSidebarTools' ||
+    key === 'markdownOpensInEditor'
   ) {
     sanitizedValue = Boolean(value);
   } else if (key === 'defaultShareExpiration') {
@@ -596,11 +596,13 @@ const setSystemSetting = async (category, key, value) => {
     .get(category, key);
 
   if (existing) {
-    prepared(db, 
+    prepared(
+      db,
       'UPDATE system_settings SET value = ?, updated_at = ? WHERE category = ? AND key = ?'
     ).run(valueJson, now, category, key);
   } else {
-    prepared(db, 
+    prepared(
+      db,
       'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).run(generateId(), category, key, valueJson, now);
   }

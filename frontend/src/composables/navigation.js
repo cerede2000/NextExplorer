@@ -2,11 +2,17 @@ import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
+import { useAppSettings } from '@/stores/appSettings';
+
+// Kept beside the markdown preview plugin's own list, which matches the same
+// two extensions.
+const MARKDOWN_EXTENSIONS = ['md', 'markdown'];
 
 export function useNavigation() {
   const router = useRouter();
   const route = useRoute();
   const previewManager = usePreviewManager();
+  const appSettings = useAppSettings();
 
   const navigate = withViewTransition((to) => router.push(to));
   const goPrev = withViewTransition(() => router.back());
@@ -39,13 +45,23 @@ export function useNavigation() {
       return;
     }
 
-    // Files: try preview first (no view transition – avoids double animations)
-    if (previewManager.open(item)) {
-      return;
-    }
-
     const extensionFromKind = kind.toLowerCase();
     const extensionFromName = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+
+    // Markdown is the one kind of file that has both a preview and an editor,
+    // so it is the only one where opening it is a choice. Whoever mostly writes
+    // markdown was going through the preview and clicking Edit every time
+    // (#347); this sends them straight where they were heading. Everything else
+    // keeps preview-first: an image or a video has no editor to go to.
+    const opensInEditor =
+      appSettings.userSettings?.markdownOpensInEditor &&
+      (MARKDOWN_EXTENSIONS.includes(extensionFromKind) ||
+        MARKDOWN_EXTENSIONS.includes(extensionFromName));
+
+    // Files: try preview first (no view transition – avoids double animations)
+    if (!opensInEditor && previewManager.open(item)) {
+      return;
+    }
 
     if (isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName)) {
       const basePath = item.path ? `${item.path}/${name}` : name;

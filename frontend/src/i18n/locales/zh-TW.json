@@ -476,6 +476,8 @@
       "showHiddenFilesHelp": "在檔案瀏覽器中顯示符合已設定隱藏模式（{patterns}）的檔案和資料夾。",
       "showThumbnails": "顯示縮圖",
       "showThumbnailsHelp": "在瀏覽器中顯示圖片和影片的縮圖預覽。",
+      "markdownOpensInEditor": "在編輯器中開啟 Markdown",
+      "markdownOpensInEditorHelp": "按兩下 .md 檔案會直接開啟編輯器，而不是預覽。",
       "showSidebarFavorites": "顯示我的最愛區段",
       "showSidebarFavoritesHelp": "在左側邊欄顯示我的最愛。",
       "showSidebarShares": "顯示分享區段",
