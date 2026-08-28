@@ -48,6 +48,15 @@ The repository carries a `render.yaml`, so Render can create the service itself:
 4. The first deploy takes a few minutes; afterwards, pushes to `main` redeploy
    it automatically.
 
+The login is `demo@example.com` / `demo1234`, created at boot by
+`AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD`. **The password must be at least
+six characters**: below that the bootstrap is skipped with only a line in the
+log, and the first visitor is met by the setup wizard instead of the demo.
+
+`DEMO_MODE` does not create an account — it only downloads sample files. The
+account comes from the bootstrap variables, and because the service has no disk,
+it is recreated on every restart along with everything else.
+
 The free plan gives 512 MB of RAM and sleeps after fifteen minutes without
 traffic — the first visitor then waits about thirty seconds. Both are fine for a
 demo, and the sleeping is what keeps it clean.

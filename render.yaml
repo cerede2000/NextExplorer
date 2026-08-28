@@ -42,9 +42,11 @@ services:
         value: local
       - key: AUTH_ADMIN_EMAIL
         value: demo@example.com
-      # Published on purpose — this is the demo login.
+      # Published on purpose — this is the demo login. Six characters minimum:
+      # below that the bootstrap is skipped with only a line in the log, and the
+      # first visitor is met by the setup wizard instead of the demo.
       - key: AUTH_ADMIN_PASSWORD
-        value: demo
+        value: demo1234
       # Sessions live as long as the instance does; there is nothing to keep.
       - key: SESSION_SECRET
         generateValue: true
