@@ -163,3 +163,56 @@ alone:
   the guest session is the only proof the visitor typed a share password, so
   dropping it for signed-in visitors would make that check unsatisfiable. Each
   access check prefers the user when both are present.
+
+---
+
+## Lot 3 — External process execution
+
+`routes/search.js`, `routes/permissions.js`, `services/archiveService.js`,
+`thumbnailService.js`, `fileTransferService.js`, `terminalService.js`. One
+question throughout: can a filename become an argument?
+
+**No defect found in this lot.** Stated plainly, because it is the answer.
+
+### D8 · `convert` is the one call without a `--` separator — Note
+
+`services/thumbnailService.js:705` puts `srcPath` first with no separator, where
+every other call site in the codebase uses one. The path is absolute, so it
+cannot be read as an option, and a format prefix (`msl:`, `ephemeral:` — the
+ImageMagick class of problem) cannot apply to a string starting with `/`.
+
+So it is safe, by a property of the input rather than by the guard the rest of
+the code uses. Adding `--` would make it safe by construction and consistent
+with its neighbours.
+
+### D9 · Archive traversal is the libraries' promise, not ours — Note
+
+Nothing in `archiveService.js` or `routes/zip.js` validates entry names before
+extraction. That is delegated, and both delegates hold:
+
+- 7-Zip is invoked with `-snl-`, which refuses to restore symbolic links from an
+  archive — the sharper version of the same attack.
+- `adm-zip` 0.6.0, the fallback when 7-Zip is unavailable, sanitises entry names
+  (`util/utils.js:341`). **Verified rather than assumed**: an archive containing
+  `../../escaped.txt` extracts as `escaped.txt` _inside_ the destination, and
+  nothing is written outside it.
+
+Worth a test of our own all the same. It is a property the application depends
+on, currently guaranteed by a dependency version that a routine upgrade could
+change without anyone noticing.
+
+### Checked and sound
+
+- **No `shell: true` anywhere**, and no `exec()` with a string for an external
+  process. Every call passes an argument array. The `db.exec` hits are SQLite
+  statements, not shells.
+- **`--` where it matters**: ripgrep, rsync, `rm -rf`, and both 7-Zip
+  invocations. The search one carries a comment naming the exact risk it
+  prevents — `--pre=<cmd>` would run a command against every scanned file — and
+  the argument builder is exported so that separator can be tested on a machine
+  without ripgrep.
+- **`chmod`/`chown` are argued rather than trusted**: account names validated
+  before use, path absolute, array arguments, and a comment explaining why the
+  missing `--` is acceptable there (BSD `chmod` rejects it).
+- **Zip bombs are refused before extraction** on both entry count and declared
+  size (`routes/zip.js:42`).
