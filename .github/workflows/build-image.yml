@@ -1,0 +1,159 @@
+name: Build image
+
+# The image build itself, once, called by whoever needs it.
+#
+# There were two copies of these steps — one for the images a release ships,
+# one for the `test` images the integration branch publishes — and they drifted:
+# the version tag was added to one and not the other, so `3.0.2` existed for the
+# full image and not for the lean one. What differs between the two is policy
+# (which tags, which architectures, which registries), and that lives in the
+# callers. What is identical is the mechanics, and that lives here.
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "'release' for the images main publishes, 'test' for the integration branch"
+        required: true
+        type: string
+      platforms:
+        description: 'Architectures to build for'
+        type: string
+        default: linux/amd64
+      cache_scope_prefix:
+        description: 'Prefix of the GitHub Actions cache scope, one per channel'
+        required: true
+        type: string
+      push:
+        description: 'Build without publishing when false — how the release path is tried from a branch'
+        type: boolean
+        default: true
+
+env:
+  IMAGE_NAME: explorer
+  # Empty unless Docker Hub credentials are configured for this repository.
+  # Every Docker Hub step is skipped when it is, so a build still publishes to
+  # GHCR rather than failing at the login.
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  build:
+    name: ${{ inputs.channel }} (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The full image carries hardware video acceleration and RAW photo
+          # support; the lean one leaves both out, which is a great deal smaller
+          # and all that is needed where neither is used.
+          - variant: full
+            suffix: ''
+            extra_build_args: ''
+          - variant: lean
+            suffix: '-lean'
+            extra_build_args: |
+              INCLUDE_VAAPI=false
+              INCLUDE_RAW=false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Only the multi-architecture build needs emulation. A test image is
+      # amd64, and waiting on QEMU it will not use is time before something to try.
+      - name: Set up QEMU
+        if: contains(inputs.platforms, 'arm64')
+        uses: docker/setup-qemu-action@v3
+
+      - name: Work out the tags this channel publishes
+        id: spec
+        run: |
+          if [ '${{ inputs.channel }}' = 'release' ]; then
+            # package.json is the source of the number, so a push to main carries
+            # a version tag too rather than only moving latest. scripts/version.js
+            # keeps the manifests in step and CI checks it.
+            NUMBER="$(node -p "require('./package.json').version")"
+            if [ -z "$NUMBER" ]; then
+              echo 'No version found in package.json; aborting.'
+              exit 1
+            fi
+
+            # Git tags are written v3.1.0; image tags conventionally are not, and
+            # `pull image:3.1.0` is what a reader of the release notes will type.
+            # Publish both so neither form is a dead end. The variant suffix is
+            # applied to all of these through `flavor` below, so the lean build
+            # publishes 3.1.0-lean alongside latest-lean.
+            {
+              echo 'tags<<SPEC'
+              echo 'type=raw,value=latest'
+              echo 'type=sha,format=long'
+              echo "type=raw,value=v$NUMBER"
+              echo "type=raw,value=$NUMBER"
+              echo SPEC
+            } >> "$GITHUB_OUTPUT"
+          else
+            # The suffix is written into the values rather than applied through
+            # `flavor`, which would put it after the commit instead of before it
+            # and rename a tag that has always been test-lean-<sha>.
+            {
+              echo 'tags<<SPEC'
+              echo "type=raw,value=test${{ matrix.suffix }}"
+              echo "type=raw,value=test${{ matrix.suffix }}-${GITHUB_SHA}"
+              echo SPEC
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+            ${{ inputs.channel == 'release' && env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
+          tags: ${{ steps.spec.outputs.tags }}
+          # onlatest applies the suffix to `latest` too, so the lean build
+          # publishes latest-lean rather than overwriting latest.
+          flavor: ${{ inputs.channel == 'release' && format('suffix={0},onlatest=true', matrix.suffix) || '' }}
+
+      - name: Log in to Docker Hub
+        if: ${{ inputs.channel == 'release' && env.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v4
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          pull: true
+          context: .
+          file: ./Dockerfile
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
+            REPO_URL=https://github.com/${{ github.repository }}
+            ${{ matrix.extra_build_args }}
+          push: ${{ inputs.push }}
+          platforms: ${{ inputs.platforms }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # The scope names are the ones each channel already used: renaming one
+          # throws away a warm cache and makes the next build slow for nothing.
+          cache-from: type=gha,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
