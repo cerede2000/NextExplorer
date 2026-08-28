@@ -48,3 +48,9 @@ jobs:
 
       - name: Frontend build
         run: npm run build
+
+      - name: Demo image builds
+        # The demo is deployed from demo/Dockerfile. Building it here means a
+        # change that breaks it fails now, rather than the next time someone
+        # redeploys the public demo.
+        run: docker build -f demo/Dockerfile demo/

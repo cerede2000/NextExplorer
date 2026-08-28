@@ -85,6 +85,7 @@ export default defineConfig({
             text: 'Reverse Proxy & Networking',
             link: '/installation/reverse-proxy',
           },
+          { text: 'Running a public demo', link: '/installation/demo' },
         ],
       },
       {

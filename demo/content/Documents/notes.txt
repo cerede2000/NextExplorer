@@ -1,0 +1,4 @@
+A plain text file.
+
+Double-click it to open the built-in editor, change something, and save.
+Nothing here is permanent.

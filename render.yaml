@@ -1,0 +1,69 @@
+# Public demo, on Render's free plan.
+#
+# Two things shape this file. The service has no persistent disk, on purpose:
+# whatever a visitor does lasts until the next restart, and the demo folders are
+# rebuilt from the image — that is the reset, and there is nothing to schedule.
+# And the demo account is an administrator, which is only safe because the
+# terminal is off: an admin with a terminal is a shell in the container for
+# anyone who reads the login box.
+#
+# Deploy: Render → New → Blueprint → point it at this repository.
+services:
+  - type: web
+    name: nextexplorer-demo
+    runtime: docker
+    dockerfilePath: ./demo/Dockerfile
+    dockerContext: ./demo
+    plan: free
+    region: frankfurt
+    branch: main
+    healthCheckPath: /healthz
+
+    envVars:
+      # The URL Render assigns, so share links and OIDC callbacks are built
+      # against the address people actually use.
+      - key: PUBLIC_URL
+        fromService:
+          type: web
+          name: nextexplorer-demo
+          property: host
+
+      # Not negotiable on a public instance. The terminal is admin-only, and
+      # the demo account below is an admin.
+      - key: TERMINAL_ENABLED
+        value: 'false'
+
+      # A demo is not a file host: without this, anyone could publish links to
+      # content they upload here.
+      - key: SHARES_ENABLED
+        value: 'false'
+
+      - key: AUTH_MODE
+        value: local
+      - key: AUTH_ADMIN_EMAIL
+        value: demo@example.com
+      # Published on purpose — this is the demo login.
+      - key: AUTH_ADMIN_PASSWORD
+        value: demo
+      # Sessions live as long as the instance does; there is nothing to keep.
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # Chunked uploads on, so the demo shows what a large upload actually does.
+      - key: UPLOAD_CHUNKED_ENABLED
+        value: 'true'
+      # Stop accepting uploads well before the instance disk is full: a demo
+      # that runs out of space stops being a demo.
+      - key: UPLOAD_STORAGE_RESERVE
+        value: 512M
+      - key: MAX_FILES_PER_UPLOAD
+        value: '20'
+
+      # 512 MB of RAM, so keep the background work modest. Thumbnail
+      # concurrency is a runtime setting rather than a variable — lower it in
+      # Settings → Files & thumbnails if the instance struggles.
+      - key: FOLDER_SIZE_MODE
+        value: shallow
+
+      - key: LOG_LEVEL
+        value: warn

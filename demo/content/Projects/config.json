@@ -1,0 +1,5 @@
+{
+  "name": "demo",
+  "features": ["previews", "sharing", "uploads"],
+  "note": "Syntax highlighting works for JSON, YAML, and 50 other formats."
+}
