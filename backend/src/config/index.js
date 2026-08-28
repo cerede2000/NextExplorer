@@ -11,8 +11,10 @@ const parseCommaOrSpaceList = (raw) => {
   return parts.map((s) => s.trim()).filter(Boolean);
 };
 
-// Keep temporary download artifacts under the same configurable policy as other hidden files.
-const DEFAULT_HIDDEN_FILE_PATTERNS = ['.', 'regex:\\.download$'];
+// Keep the artifacts of a transfer in progress under the same configurable
+// policy as other hidden files: `.download` while one is being fetched,
+// `.uploading` while one is being written.
+const DEFAULT_HIDDEN_FILE_PATTERNS = ['.', 'regex:\\.download$', 'regex:\\.uploading$'];
 
 const parseRegexPattern = (token) => {
   if (token.startsWith('regex:')) {

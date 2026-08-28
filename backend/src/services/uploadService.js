@@ -10,6 +10,7 @@ const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
+const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 const { upload: uploadConfig } = require('../config');
@@ -95,6 +96,23 @@ const resolveUploadPaths = async (req, file) => {
   };
 };
 
+/**
+ * Clear the remains of dead uploads from the folder this one is about to be
+ * written to.
+ *
+ * Once per request, on its first file: every file of one request lands under
+ * the same destination, and reading that directory again for each of them
+ * would cost the same work over and over to find nothing new.
+ */
+const REQUEST_PREPARED = Symbol('uploadDestinationPrepared');
+
+const prepareDestinationOnce = async (req, destinationDir) => {
+  if (req[REQUEST_PREPARED]) return;
+  req[REQUEST_PREPARED] = true;
+
+  await sweepStaleUploadRemnants(destinationDir);
+};
+
 function CustomStorage() {
   // Custom multer storage engine for handling file uploads with:
   // - Access control checks
@@ -129,13 +147,12 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
           ACTIONS.upload
         );
         if (!destAllowed) {
-          throw new ForbiddenError(
-            destAccess?.denialReason || 'Cannot upload files to this path.'
-          );
+          throw new ForbiddenError(destAccess?.denialReason || 'Cannot upload files to this path.');
         }
       }
 
       await ensureDir(destinationDir);
+      await prepareDestinationOnce(req, destinationDir);
 
       let finalPath = destinationPath;
       if (await pathExists(finalPath)) {
@@ -144,7 +161,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         finalPath = path.join(destinationDir, availableName);
       }
 
-      const temporaryPath = `${finalPath}.uploading`;
+      const temporaryPath = `${finalPath}${UPLOADING_SUFFIX}`;
 
       const cleanupTemporary = async () => {
         let lastError = null;

@@ -24,7 +24,7 @@ describe('Hidden files config', () => {
     });
 
     const config = requireFreshConfig();
-    expect(config.hiddenFiles.patterns).toEqual(['.', 'regex:\\.download$']);
+    expect(config.hiddenFiles.patterns).toEqual(['.', 'regex:\\.download$', 'regex:\\.uploading$']);
     expect(config.hiddenFiles.isHiddenName('.env')).toBe(true);
     expect(config.hiddenFiles.isHiddenName('movie.mkv.download')).toBe(true);
     expect(config.hiddenFiles.isHiddenName('visible.txt')).toBe(false);
