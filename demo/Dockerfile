@@ -21,4 +21,9 @@ COPY content/ /mnt/
 # alone: in a real deployment that is the host's filesystem, and changing its
 # ownership would be rude at best. Here it is ours, and the demo has to be
 # writable — uploading, renaming and moving things is most of what it is for.
-RUN chown -R appuser:appuser /mnt
+#
+# By number, not by name. `adduser -S` gives appuser a system UID, and the
+# entrypoint renumbers it to PUID (1000 by default) at boot — so `chown appuser`
+# here writes an id that is stale by the time the application runs, and every
+# write fails with EACCES on a demo that looks otherwise fine.
+RUN chown -R 1000:1000 /mnt

@@ -46,6 +46,12 @@ alone, because in a real deployment that is the host's filesystem. Without it,
 the demo is read-only, and uploading and renaming — most of what it exists to
 show — do not work.
 
+That `chown` uses the numeric id, not the name. `appuser` is created with a
+system UID, and the entrypoint renumbers it to `PUID` (1000 by default) when the
+container starts — so `chown appuser` at build time writes an id that is already
+stale when the application runs, and every write fails with `EACCES` on a demo
+that otherwise looks perfectly healthy.
+
 The image also supports `DEMO_MODE=true`, which downloads a sample archive of
 photos and videos at boot. The demo does not use it: the archive is 80 MB, and
 on a plan that sleeps, that is most of the delay the first visitor after a nap
