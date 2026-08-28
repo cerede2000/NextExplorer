@@ -228,7 +228,7 @@ change without anyone noticing.
 `uploadFolderTargetService.js` (138). Data integrity: loss, overwrite,
 cancellation, resumption.
 
-### D10 · Only the optional upload path guards against filling the disk — Defect
+### D10 · Only the optional upload path guards against filling the disk — Defect — **FIXED**
 
 `tusUploadService.js:417` refuses an upload when the temporary or destination
 storage cannot fit it plus `UPLOAD_STORAGE_RESERVE`. `uploadService.js` — the
@@ -242,7 +242,7 @@ consequence is the same: a direct upload can fill the volume. Where `/config`
 shares that filesystem, SQLite stops being able to write and the application
 stops working — for everyone, not just the uploader.
 
-### D11 · A `.uploading` file outlives the upload that made it — Defect
+### D11 · A `.uploading` file outlives the upload that made it — Defect — **FIXED**
 
 `uploadService.js:147` writes to `<final>.uploading` and renames on success.
 Failures are cleaned up, but nothing survives a kill: there is no sweep at
@@ -261,6 +261,10 @@ after authorising, and no test references either. Reading them found nothing
 wrong — the authorisation chains are complete, and `renameService` checks the
 parent, the source, the new name and the target in turn — but they are the two
 modules where a regression would be silent.
+
+Half answered since: `tests/routes/direct-upload.test.js` uploads a real file
+through the route, and covers both guards added for D10 and D11.
+`renameService` still has nothing.
 
 ### D13 · A TUS upload is not tied to whoever started it — Note
 
@@ -521,6 +525,11 @@ The five defects, most consequential first:
    does.
 5. **D11** — a `.uploading` file left by a killed process is visible and never
    cleaned up.
+
+Four of the five are fixed. D6 is the exception, and deliberately so: what it
+needs is a decision rather than a correction, so it waits in
+[TODO.md](TODO.md) with the three options costed. Nothing is on fire while it
+does — the folder-name order that ships is unique.
 
 Three of the five are about **revocation and cleanup** — states that outlive
 what created them — rather than about anything being computed wrongly. That is
