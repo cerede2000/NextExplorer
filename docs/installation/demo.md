@@ -53,10 +53,41 @@ container starts — so `chown appuser` at build time writes an id that is alrea
 stale when the application runs, and every write fails with `EACCES` on a demo
 that otherwise looks perfectly healthy.
 
-The image also supports `DEMO_MODE=true`, which downloads a sample archive of
-photos and videos at boot. The demo does not use it: the archive is 80 MB, and
-on a plan that sleeps, that is most of the delay the first visitor after a nap
-would feel. Turn it on if richer content matters more than a fast wake.
+## A sign-in nobody has to retype
+
+The credentials are published on this page, in the README and on the login
+screen, so asking visitors to copy them across is friction for no benefit. With
+`DEMO_LOGIN_EMAIL` and `DEMO_LOGIN_PASSWORD` set, the form arrives filled in and
+there is nothing to do but press the button.
+
+Serving a password to whoever loads a page is right for a demo and wrong
+everywhere else, so it takes three things at once, and any one of them missing
+publishes nothing:
+
+```yaml
+DEMO_MODE: 'true'
+DEMO_LOGIN_EMAIL: demo@example.com
+DEMO_LOGIN_PASSWORD: demo1234
+```
+
+The two credential variables are deliberately separate from `AUTH_ADMIN_EMAIL`
+and `AUTH_ADMIN_PASSWORD`: no flag can ever publish a real password by reaching
+for credentials that were set for another purpose. `DEMO_MODE` on its own only
+seeds sample files. A value it does not recognise — `DEMO_MODE: oui` — counts as
+off, so a typo leaves the credentials unpublished rather than the reverse.
+
+The server says so plainly at startup:
+
+```
+[Config] Demo sign-in enabled: demo@example.com and its password are served to
+anyone who opens the sign-in page.
+```
+
+`DEMO_MODE=true` also downloads a sample archive of photos and videos at boot.
+This demo turns that off with `DEMO_SAMPLES=false`: the archive is 80 MB and,
+with no disk, would be fetched again at every restart — most of the delay the
+first visitor after a nap would feel. Leave it on where richer content matters
+more than a fast wake.
 
 ## Deploying on Render
 

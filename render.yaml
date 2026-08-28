@@ -54,6 +54,19 @@ services:
       - key: SESSION_SECRET
         generateValue: true
 
+      # Demo mode, which is what allows the sign-in form to be pre-filled at
+      # all: the credentials below are served to anyone who opens the page, so
+      # nothing publishes them without this. Samples off — the archive is 80 MB
+      # and, with no disk, would be downloaded again at every restart.
+      - key: DEMO_MODE
+        value: 'true'
+      - key: DEMO_SAMPLES
+        value: 'false'
+      - key: DEMO_LOGIN_EMAIL
+        value: demo@example.com
+      - key: DEMO_LOGIN_PASSWORD
+        value: demo1234
+
       # Chunked uploads on, so the demo shows what a large upload actually does.
       - key: UPLOAD_CHUNKED_ENABLED
         value: 'true'

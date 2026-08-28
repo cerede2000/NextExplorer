@@ -73,6 +73,15 @@ onMounted(async () => {
 
   try {
     await featuresStore.ensureLoaded();
+
+    // A public demo publishes its login anyway, so making visitors retype it is
+    // friction for nothing. The server only ever sends this in demo mode, and
+    // an empty form is left alone if someone has already started typing.
+    const demoLogin = featuresStore.demoLogin;
+    if (demoLogin && !loginEmailValue.value && !loginPasswordValue.value) {
+      loginEmailValue.value = demoLogin.email;
+      loginPasswordValue.value = demoLogin.password;
+    }
   } catch (_) {
     // Non-fatal; version info is optional
   }

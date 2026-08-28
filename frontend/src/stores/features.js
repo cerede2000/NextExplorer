@@ -13,6 +13,9 @@ export const useFeaturesStore = defineStore('features', () => {
   const hiddenFilePatterns = ref(['.', 'regex:\\.download$']);
   // Archive extraction formats supported by the server (7-Zip probe).
   const archiveExtensions = ref(['zip']);
+  // Credentials to pre-fill on the sign-in form. Null unless the server is in
+  // demo mode and was given credentials for it.
+  const demoLogin = ref(null);
   const onlyofficeEnabled = ref(false);
   const onlyofficeExtensions = ref([]);
   const collaboraEnabled = ref(false);
@@ -76,6 +79,10 @@ export const useFeaturesStore = defineStore('features', () => {
             : ['zip'];
 
         // OnlyOffice
+        demoLogin.value =
+          features?.demoLogin?.email && features?.demoLogin?.password
+            ? { email: features.demoLogin.email, password: features.demoLogin.password }
+            : null;
         onlyofficeEnabled.value = Boolean(features?.onlyoffice?.enabled);
         onlyofficeExtensions.value = Array.isArray(features?.onlyoffice?.extensions)
           ? features.onlyoffice.extensions
@@ -125,6 +132,7 @@ export const useFeaturesStore = defineStore('features', () => {
         editorExtensions.value = [];
         hiddenFilePatterns.value = ['.', 'regex:\\.download$'];
         archiveExtensions.value = ['zip'];
+        demoLogin.value = null;
         onlyofficeEnabled.value = false;
         onlyofficeExtensions.value = [];
         collaboraEnabled.value = false;
@@ -162,6 +170,7 @@ export const useFeaturesStore = defineStore('features', () => {
     editorExtensions,
     hiddenFilePatterns,
     archiveExtensions,
+    demoLogin,
     onlyofficeEnabled,
     onlyofficeExtensions,
     collaboraEnabled,

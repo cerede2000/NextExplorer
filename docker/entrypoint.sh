@@ -52,11 +52,16 @@ is_true() {
 }
 
 DEMO_MODE="${DEMO_MODE:-false}"
+# Demo mode also pre-fills the sign-in form, which a demo may want without
+# paying for the sample archive on every boot: it is 80 MB, and where storage is
+# not persistent that download happens at every restart. Defaults to on, so
+# existing demos are unaffected.
+DEMO_SAMPLES="${DEMO_SAMPLES:-true}"
 SAMPLE_URL="${SAMPLE_URL:-https://github.com/vikramsoni2/nextExplorer/releases/download/v2.0.0/samples.zip}"
 SAMPLES_DIR="${SAMPLES_DIR:-/mnt/Samples}"
 
 
-if is_true "$DEMO_MODE"; then
+if is_true "$DEMO_MODE" && is_true "$DEMO_SAMPLES"; then
   echo "INFO: DEMO_MODE enabled; seeding demo samples into ${SAMPLES_DIR} (read-only)"
   mkdir -p "$SAMPLES_DIR"
 

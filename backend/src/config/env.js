@@ -92,6 +92,20 @@ module.exports = {
   AUTH_ADMIN_EMAIL: process.env.AUTH_ADMIN_EMAIL?.trim() || process.env.ADMIN_EMAIL?.trim() || null,
   AUTH_ADMIN_PASSWORD: readSecret('AUTH_ADMIN_PASSWORD', 'ADMIN_PASSWORD'),
 
+  // Demo mode. Also read by the entrypoint, which seeds the sample files; the
+  // two agree on what counts as true. Anything unrecognised normalises to null
+  // and is treated as off, so the default here is closed.
+  DEMO_MODE: normalizeBoolean(process.env.DEMO_MODE) ?? false,
+  // Credentials pre-filled on the sign-in form, for a public demo where the
+  // login is published anyway and asking visitors to retype it is friction for
+  // nothing. Serving a password is never acceptable outside that case, so it
+  // takes both DEMO_MODE and these two variables — deliberately separate from
+  // the admin ones above, so no flag can ever publish a real password by
+  // reaching for credentials that were set for another purpose.
+  DEMO_LOGIN_EMAIL: process.env.DEMO_LOGIN_EMAIL?.trim() || null,
+  // Not trimmed — a password is whatever it is.
+  DEMO_LOGIN_PASSWORD: process.env.DEMO_LOGIN_PASSWORD || null,
+
   // OIDC
   OIDC_ENABLED: normalizeBoolean(process.env.OIDC_ENABLED),
   OIDC_ISSUER: process.env.OIDC_ISSUER || process.env.OIDC_ISSUER_URL || null,

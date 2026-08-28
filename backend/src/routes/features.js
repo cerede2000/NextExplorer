@@ -7,6 +7,7 @@ const {
   features,
   hiddenFiles,
   public: publicConfig,
+  demoLogin,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
@@ -26,6 +27,10 @@ router.get('/features', async (_req, res) => {
       // All origins the app may legitimately be reached from (public + internal).
       origins: Array.isArray(publicConfig?.origins) ? publicConfig.origins : [],
     },
+    // Null unless demo mode is on and demo credentials were set for it. The
+    // config layer is the single place that decides; there is no second rule
+    // here to drift from it.
+    demoLogin: demoLogin ? { email: demoLogin.email, password: demoLogin.password } : null,
     onlyoffice: {
       enabled: Boolean(onlyoffice && onlyoffice.serverUrl),
       extensions: Array.isArray(onlyoffice?.extensions) ? onlyoffice.extensions : [],

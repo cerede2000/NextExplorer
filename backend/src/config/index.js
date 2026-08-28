@@ -280,10 +280,7 @@ const auth = {
 };
 
 const deriveSecret = (purpose) =>
-  crypto
-    .createHmac('sha256', auth.sessionSecret)
-    .update(`nextexplorer:${purpose}`)
-    .digest('hex');
+  crypto.createHmac('sha256', auth.sessionSecret).update(`nextexplorer:${purpose}`).digest('hex');
 
 // --- Search ---
 const searchMaxFileSizeBytes = (() => {
@@ -519,6 +516,32 @@ const shares = {
   allowAnonymous: env.SHARES_ALLOW_ANONYMOUS,
 };
 
+// --- Demo sign-in ---
+// A password served to anyone who loads the sign-in page. That is right for a
+// public demo and wrong everywhere else, so it takes three deliberate things at
+// once: demo mode on, and both halves of a credential named for this purpose.
+// Any one of them missing and nothing is published — no partial state, no way
+// to arrive here by setting something that meant something else.
+const demoLoginRequested = Boolean(env.DEMO_LOGIN_EMAIL || env.DEMO_LOGIN_PASSWORD);
+const demoLogin =
+  env.DEMO_MODE && env.DEMO_LOGIN_EMAIL && env.DEMO_LOGIN_PASSWORD
+    ? { email: env.DEMO_LOGIN_EMAIL, password: env.DEMO_LOGIN_PASSWORD }
+    : null;
+
+if (demoLogin) {
+  console.warn(
+    `[Config] Demo sign-in enabled: ${demoLogin.email} and its password are served to anyone who opens the sign-in page.`
+  );
+} else if (demoLoginRequested && !env.DEMO_MODE) {
+  console.warn(
+    '[Config] DEMO_LOGIN_EMAIL/DEMO_LOGIN_PASSWORD are set but DEMO_MODE is not enabled; no credentials are published and the sign-in form is not pre-filled.'
+  );
+} else if (demoLoginRequested) {
+  console.warn(
+    '[Config] DEMO_LOGIN_EMAIL and DEMO_LOGIN_PASSWORD must both be set; the sign-in form will not be pre-filled.'
+  );
+}
+
 // --- Main Export ---
 module.exports = {
   port: env.PORT,
@@ -555,6 +578,7 @@ module.exports = {
   corsOptions,
 
   auth,
+  demoLogin,
 
   search: {
     deep: env.SEARCH_DEEP ?? true,
