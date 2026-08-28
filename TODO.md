@@ -26,6 +26,23 @@ Why it matters here: [the API reference](docs/reference/api.md) documents this
 gap plainly, and automation against a self-hosted file server is exactly where
 a stolen long-lived session cookie hurts most.
 
+## A TUS test that does not test what it says
+
+`backend/tests/routes/tus-upload.test.js` has a case named _rejects TUS uploads
+when chunked uploads are disabled_ which begins by setting
+`chunkedEnabled: true`. It passes, so the 403 it asserts comes from somewhere
+other than the setting its name points at — the `UPLOAD_CHUNKED_ENABLED`
+environment variable, most likely.
+
+It is also timing-sensitive: mounting `express-session` in that file's
+`buildApp` turns the expected 403 into a 201, without touching the route.
+
+This matters beyond tidiness. The crash fixed in 3.0.2 lived in the seam between
+`express-session` and the upload server, and this suite fakes `req.user` and
+mounts no session at all — so it could not see it, by construction. Mounting a
+real session here would close that gap, once this case is understood and made to
+assert what it claims.
+
 ## Open, not scheduled
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs

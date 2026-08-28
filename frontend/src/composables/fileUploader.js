@@ -11,6 +11,9 @@ import { useFolderSizeStore } from '@/stores/folderSize';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { apiBase, normalizePath, reserveFolderUploadTarget } from '@/api';
 import { isDisallowedUpload } from '@/utils/uploads';
+// The fallback ladder lives in utils so it can be tested without Uppy, a Pinia
+// store and a browser around it.
+import { nextFallbackMiB } from '@/utils/uploadFallback';
 import DropTarget from '@uppy/drop-target';
 
 // Per-origin remembered auto-fallback chunk size (localStorage is scoped to the
@@ -180,7 +183,6 @@ export function useFileUploader() {
   const LARGE_FILE_BYTES = 8 * MIB_BYTES;
   // Chunk sizes tried on fallback (largest first, near the value that works
   // manually). Each PATCH stays well under a typical reverse-proxy body limit.
-  const FALLBACK_LADDER_MIB = [96, 64, 32, 16, 8];
   // A direct upload that makes no progress for this long is treated as stalled.
   // A reverse proxy that silently stops reading an over-limit body never errors,
   // so a stall is the only signal we get for that case. Also used as the XHR
@@ -437,15 +439,7 @@ export function useFileUploader() {
   // Pick the next chunk size to try. First fallback (no size learned yet): the
   // largest ladder step below where the direct upload got cut off (a hint at the
   // proxy limit), else the largest. Otherwise step down to the next smaller size.
-  const nextLadderMiB = (observedBytes) => {
-    const current = readFallbackMiB();
-    if (!current) {
-      const observedMiB = observedBytes > 0 ? Math.floor(observedBytes / MIB_BYTES) : Infinity;
-      return FALLBACK_LADDER_MIB.find((size) => size < observedMiB) ?? FALLBACK_LADDER_MIB[0];
-    }
-    const idx = FALLBACK_LADDER_MIB.indexOf(current);
-    return idx >= 0 && idx + 1 < FALLBACK_LADDER_MIB.length ? FALLBACK_LADDER_MIB[idx + 1] : null;
-  };
+  const nextLadderMiB = (observedBytes) => nextFallbackMiB(readFallbackMiB(), observedBytes);
 
   // Restart a file as a FRESH chunked (TUS) upload — identical to the working
   // manual chunked path (a page load with chunking configured), which is why it
