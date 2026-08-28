@@ -23,6 +23,7 @@ const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
+const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
 
 let server = null;
 
@@ -86,6 +87,11 @@ const startServer = async () => {
   // Never keep the process alive just for the sweep.
   expirySweep.unref?.();
   sweepExpiredRecords();
+
+  // Say what points at a volume that is not there. Removing nothing is the
+  // whole point: an unmounted volume and a deleted one look identical from
+  // here, and only a person can tell them apart.
+  reportOrphanedBindings();
 
   // Cleanup on process termination
   const cleanup = async () => {

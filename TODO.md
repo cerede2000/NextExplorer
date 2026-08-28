@@ -71,6 +71,25 @@ mounts no session at all — so it could not see it, by construction. Mounting a
 real session here would close that gap, once this case is understood and made to
 assert what it claims.
 
+## Showing, not only logging, what points at a missing volume
+
+Startup now reports favourites, shares, recent destinations and folder
+preferences whose volume is not available, and removes nothing — an NFS mount
+that is not ready yet looks exactly like a volume someone deleted, and only a
+person can tell them apart. Two things would build on that:
+
+- **Show the state in the sidebar.** A favourite whose volume is missing is
+  displayed as usual and answers with an error when clicked. Greyed out with a
+  "volume unavailable" tooltip would explain it, and it repairs itself when the
+  volume comes back. Needs the list of available volumes down in the sidebar.
+- **An explicit admin action.** A "clean up orphaned references" button that
+  first _lists_ what it would remove — this volume, that many favourites, that
+  many shares — and asks for confirmation. The judgement that a volume is not
+  coming back stays human; the admin just no longer needs sqlite to act on it.
+
+The log tells us how often this actually happens before either is worth
+building.
+
 ## Open, not scheduled
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
