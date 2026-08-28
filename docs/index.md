@@ -24,6 +24,8 @@ features:
     details: 'Responsive grid/list views, drag-and-drop uploads, keyboard shortcuts, and edit-in-place make navigation fluid.'
 ---
 
+Try it first: **[a live demo](https://nextexplorer-demo.onrender.com)**, signing in with `demo@example.com` / `demo1234`. Anything you do there is undone when it restarts.
+
 ## nextExplorer Documentation
 
 nextExplorer is a modern, self-hosted file explorer crafted for teams, creative agencies, and homelabs that demand both polish and control. It ships as a single Docker container, works perfectly with mounted volumes, and pairs seamlessly with reverse proxies or zero-trust networks.

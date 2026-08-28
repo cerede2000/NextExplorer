@@ -1,5 +1,7 @@
 # Running a public demo
 
+The demo runs at **https://nextexplorer-demo.onrender.com** — `demo@example.com` / `demo1234`.
+
 A demo of a file manager is not an ordinary deployment: strangers will upload to
 it, and the interesting parts of the application are exactly the ones you would
 not normally expose. This describes the setup published at the address in the

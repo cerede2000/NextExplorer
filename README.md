@@ -9,7 +9,12 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://cerede2000.github.io/NextExplorer/">cerede2000.github.io/NextExplorer</a>
+  <a href="https://nextexplorer-demo.onrender.com"><b>Live demo</b></a> ·
+  <a href="https://cerede2000.github.io/NextExplorer/">Documentation</a>
+</p>
+
+<p align="center">
+  <code>demo@example.com</code> / <code>demo1234</code> — everything resets when the demo restarts.
 </p>
 
 ## About this fork
@@ -17,7 +22,7 @@
 NextExplorer was created by [Vikram Soni](https://github.com/vikramsoni2) and
 developed at [nxzai/NextExplorer](https://github.com/nxzai/NextExplorer). That
 repository has had no commits since 13 July 2026, and its documentation and demo
-sites are offline.
+sites are offline — both are back here.
 
 This fork carries the work that accumulated in the meantime — chunked uploads,
 per-user access control, ONLYOFFICE integration, native transfers with progress,
