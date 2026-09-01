@@ -12,6 +12,20 @@ const router = useRouter();
 const items = ref([]);
 const loading = ref(false);
 const errorMsg = ref('');
+/**
+ * Whether a search has actually finished for what is being asked now.
+ *
+ * "No matches" is an answer, and it may only be shown once there is one. Before
+ * this existed the empty list said it from the first frame — and again whenever
+ * an earlier request finished while a newer one was still running, since any
+ * completion cleared `loading`. Someone watching read it as a search that had
+ * run and found nothing.
+ */
+const searched = ref(false);
+
+// Only the newest search may write to the view; an older one that comes back
+// late has been superseded and its results are not the ones being asked for.
+let currentRequest = 0;
 
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''));
 const basePath = computed(() =>
@@ -20,17 +34,30 @@ const basePath = computed(() =>
 
 async function load() {
   const term = q.value.trim();
+  const request = (currentRequest += 1);
+
   items.value = [];
   errorMsg.value = '';
-  if (!term) return;
+  searched.value = false;
+
+  if (!term) {
+    loading.value = false;
+    return;
+  }
+
   loading.value = true;
   try {
     const { items: list = [] } = await searchApi(basePath.value, term);
+    if (request !== currentRequest) return;
     items.value = Array.isArray(list) ? list : [];
+    searched.value = true;
   } catch (e) {
+    if (request !== currentRequest) return;
     errorMsg.value = e?.message || t('errors.searchFailed');
+    searched.value = true;
   } finally {
-    loading.value = false;
+    // Only the search still being awaited may say the waiting is over.
+    if (request === currentRequest) loading.value = false;
   }
 }
 
@@ -82,7 +109,10 @@ function toIconItem(it) {
       {{ $t('search.searching') }}
     </div>
     <div v-else-if="errorMsg" class="text-sm text-red-600">{{ errorMsg }}</div>
-    <div v-else-if="items.length === 0" class="text-sm text-neutral-500 dark:text-neutral-400">
+    <div
+      v-else-if="searched && items.length === 0"
+      class="text-sm text-neutral-500 dark:text-neutral-400"
+    >
       {{ $t('search.noMatches') }}
     </div>
 

@@ -31,6 +31,16 @@ const basePath = computed(() => {
   return normalizePath(fromBrowse || fromQuery || '');
 });
 
+/**
+ * A search is coming, before it has started.
+ *
+ * Typing sets this immediately; the request itself only begins a second later,
+ * once the debounce lets it. Without it there is a second where nothing is
+ * loading and nothing has been found, which the panel showed as "no matches" —
+ * a search that had not run yet, reported as one that had answered.
+ */
+const pending = ref(false);
+
 const performSearch = useDebounceFn(async () => {
   const term = query.value.trim();
 
@@ -39,6 +49,7 @@ const performSearch = useDebounceFn(async () => {
 
   if (!term) {
     results.value = [];
+    pending.value = false;
     return;
   }
 
@@ -53,6 +64,7 @@ const performSearch = useDebounceFn(async () => {
     results.value = [];
   } finally {
     loading.value = false;
+    pending.value = false;
   }
 }, 1000);
 
@@ -123,6 +135,8 @@ function resetSpotlight() {
   errorMsg.value = '';
   activeIndex.value = -1;
   loading.value = false;
+  // Closing the panel cancels the search that was about to run with it.
+  pending.value = false;
 }
 
 // Create a stable item object that won't trigger FileIcon watchers
@@ -143,7 +157,12 @@ function toIconItem(item) {
 }
 
 // Only watch query changes, not spotlight state
-watch(query, performSearch);
+watch(query, () => {
+  // Set here rather than inside the debounced call: the whole point is to
+  // cover the wait before it runs.
+  pending.value = query.value.trim().length > 0;
+  performSearch();
+});
 
 // Separate watcher for spotlight open/close
 watch(
@@ -229,7 +248,10 @@ onKeyStroke(
 
         <!-- Results -->
         <div ref="resultsContainerRef" class="max-h-[60vh] overflow-y-auto">
-          <div v-if="loading" class="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
+          <div
+            v-if="loading || pending"
+            class="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400"
+          >
             {{ t('search.searching') }}
           </div>
           <div v-else-if="errorMsg" class="px-4 py-3 text-sm text-red-600">
