@@ -775,5 +775,8 @@
     "close": "Fermer l'aperçu",
     "previous": "Média précédent",
     "next": "Média suivant"
+  },
+  "preview": {
+    "tooLargeToRender": "Ce document est trop volumineux pour l'aperçu. Ouvrez-le dans l'éditeur ou téléchargez-le."
   }
 }

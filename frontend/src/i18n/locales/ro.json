@@ -775,5 +775,8 @@
     "close": "Închide previzualizarea",
     "previous": "Element media anterior",
     "next": "Element media următor"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

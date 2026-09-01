@@ -775,5 +775,8 @@
     "close": "Zamknij podgląd",
     "previous": "Poprzedni element",
     "next": "Następny element"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

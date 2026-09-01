@@ -24,6 +24,21 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.cache']);
 
+/**
+ * How much of one document is worth indexing, and how much may be held at once.
+ *
+ * A batch used to be counted in documents, which says nothing about memory: a
+ * file of a few megabytes becomes a JavaScript string twice that size, and
+ * twenty-five of them held together while FTS5 tokenises each is hundreds of
+ * megabytes for a background task nobody asked to be noticed. Both are bounded
+ * in bytes now.
+ *
+ * A megabyte of text is some two hundred thousand words. A search that cannot
+ * be answered by those is not one a bigger index would have answered either.
+ */
+const MAX_TEXT_PER_DOCUMENT = 1024 * 1024;
+const MAX_TEXT_PER_BATCH = 4 * 1024 * 1024;
+
 /** Enough of a file to tell prose from a binary. */
 const looksBinary = (buffer) => {
   const length = Math.min(buffer.length, 4096);
@@ -62,6 +77,10 @@ const readIndexableText = async (absolutePath) => {
   }
 };
 
+/** As much of a document as is worth keeping terms for. */
+const capText = (text) =>
+  text.length > MAX_TEXT_PER_DOCUMENT ? text.slice(0, MAX_TEXT_PER_DOCUMENT) : text;
+
 const createAbortedError = () => {
   const error = new Error('Indexing was interrupted.');
   error.code = 'SEARCH_INDEX_ABORTED';
@@ -83,9 +102,12 @@ const indexTree = async ({
   pauseMs = 50,
   maxFileSizeBytes = searchConfig?.maxFileSizeBytes ?? 5 * 1024 * 1024,
   removeMissing = true,
+  onProgress,
+  progressMs = 30 * 1000,
 } = {}) => {
   const seen = new Set();
   const pending = [];
+  let pendingBytes = 0;
   let indexed = 0;
   let skipped = 0;
   let batches = 0;
@@ -95,15 +117,27 @@ const indexTree = async ({
     if (signal?.aborted) throw createAbortedError();
   };
 
+  // A first pass over a large library takes minutes, and silence for minutes
+  // is indistinguishable from nothing happening. Progress is reported on a
+  // timer rather than per batch, so the log says how it is going without
+  // becoming the noisiest thing in it.
+  let lastReport = Date.now();
+
   const flush = () => {
     if (pending.length === 0) return;
 
     const batch = pending.splice(0, pending.length);
+    pendingBytes = 0;
     db.transaction(() => {
       for (const document of batch) store.upsertDocument(db, document);
     })();
     indexed += batch.length;
     batches += 1;
+
+    if (typeof onProgress === 'function' && Date.now() - lastReport >= progressMs) {
+      lastReport = Date.now();
+      onProgress({ indexed, skipped, batches });
+    }
   };
 
   const walk = async (dirAbs, dirRel) => {
@@ -149,14 +183,18 @@ const indexTree = async ({
       const text = await readIndexableText(absolutePath);
       if (text === null || !text.trim()) continue;
 
+      const indexable = capText(text);
       pending.push({
         path: relativePath,
         mtimeMs: stats.mtimeMs,
         size: stats.size,
-        text,
+        text: indexable,
       });
+      pendingBytes += indexable.length;
 
-      if (pending.length >= batchSize) {
+      // Whichever ceiling is reached first. The byte one is what keeps a
+      // handful of large documents from being held together.
+      if (pending.length >= batchSize || pendingBytes >= MAX_TEXT_PER_BATCH) {
         flush();
         // The pause is the whole point: it is what keeps a full walk from
         // being felt by whoever is using the application meanwhile.
@@ -222,7 +260,7 @@ const indexFile = async (db, relativePath, absolutePath) => {
     path: relativePath,
     mtimeMs: stats.mtimeMs,
     size: stats.size,
-    text,
+    text: capText(text),
   });
   return { indexed: true };
 };

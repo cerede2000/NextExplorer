@@ -66,7 +66,10 @@ const performSearch = useDebounceFn(async () => {
     loading.value = false;
     pending.value = false;
   }
-}, 1000);
+  // A second was long enough that the panel felt slower than the search: the
+  // wait before asking was most of what people were waiting for. Short enough
+  // now to feel immediate, long enough that typing a word is still one query.
+}, 350);
 
 function scrollToActiveItem() {
   if (activeIndex.value < 0 || activeIndex.value >= results.value.length) return;

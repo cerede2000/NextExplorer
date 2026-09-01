@@ -775,5 +775,8 @@
     "close": "Stäng förhandsvisning",
     "previous": "Föregående media",
     "next": "Nästa media"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

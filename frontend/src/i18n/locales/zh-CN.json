@@ -775,5 +775,8 @@
     "close": "关闭预览",
     "previous": "上一个媒体",
     "next": "下一个媒体"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

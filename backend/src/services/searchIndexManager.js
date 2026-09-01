@@ -52,6 +52,9 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
       signal: controller.signal,
       batchSize: searchConfig.index.batch,
       pauseMs: searchConfig.index.pauseMs,
+      onProgress: ({ indexed, skipped }) => {
+        logger.info({ indexed, skipped, reason }, 'Search index still building');
+      },
     });
 
     logger.info(

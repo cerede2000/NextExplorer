@@ -775,5 +775,8 @@
     "close": "Закрыть просмотр",
     "previous": "Предыдущий медиафайл",
     "next": "Следующий медиафайл"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

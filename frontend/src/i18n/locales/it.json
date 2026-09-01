@@ -775,5 +775,8 @@
     "close": "Chiudi anteprima",
     "previous": "Contenuto precedente",
     "next": "Contenuto successivo"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

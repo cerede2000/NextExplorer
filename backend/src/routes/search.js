@@ -32,6 +32,10 @@ const router = express.Router();
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'dist', 'build']);
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
+// Filenames lead — they are what someone looking for a file expects first —
+// but they cannot take the whole page from what is inside the documents.
+const NAME_SHARE = 0.75;
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const CONTENT_FALLBACK_MAX_SIZE =
   searchConfig?.maxFileSizeBytes > 0 ? searchConfig.maxFileSizeBytes : 5 * 1024 * 1024;
 
@@ -742,29 +746,65 @@ router.get(
     // results and not one line of content, which is the half people open a
     // deep search for. Names still lead — they are what someone looking for a
     // file expects first — but they can no longer take the whole page.
+    // Names and contents are counted apart so filenames cannot spend the whole
+    // page, and the reserve is the only reason to keep looking once the page
+    // could already be filled.
+    const nameCap = limit;
+    const contentReserve = Math.max(1, limit - Math.floor(limit * NAME_SHARE));
+
     const items = [];
     const contentItems = [];
-    try {
+
+    const collect = (async () => {
       for await (const item of generator) {
         (item.matchLine ? contentItems : items).push(item);
-        if (items.length + contentItems.length >= limit * 2) break;
-        if (items.length >= limit && contentItems.length >= limit) break;
+        if (items.length >= nameCap && contentItems.length >= contentReserve) break;
       }
+    })();
+
+    let truncated = false;
+    try {
+      // Guaranteeing content a share means looking for it until the reserve is
+      // full or the tree runs out — and on a large one that is a long time to
+      // hold someone waiting. The budget ends it: whatever has been found by
+      // then is the answer, which is a better one than a spinner.
+      //
+      // Which of the two won has to be read from the race itself. Ending the
+      // generator below makes the loop exit normally, so anything the
+      // collector sets on its way out would say it finished either way.
+      const outcome = await Promise.race([
+        collect.then(() => 'complete'),
+        delay(searchConfig?.timeoutMs ?? 5000).then(() => 'timeout'),
+      ]);
+      truncated = outcome === 'timeout';
     } finally {
       // Breaking out of a for-await leaves the generator suspended, and with
       // it the ripgrep processes it spawned — which keep scanning the whole
       // tree. Returning runs their cleanup so they are killed.
       await generator.return?.();
+      // The collector is watching a generator that is now finished; let it
+      // notice before the response is built from what it gathered.
+      await collect.catch(() => {});
     }
 
-    const nameQuota = contentItems.length > 0 ? Math.max(1, Math.floor(limit * 0.75)) : limit;
+    const nameQuota = contentItems.length > 0 ? Math.max(1, Math.floor(limit * NAME_SHARE)) : limit;
     const combined = [...items.slice(0, nameQuota), ...contentItems].slice(0, limit);
     // A quota that went unused is not a reason to answer short.
     if (combined.length < limit) {
       combined.push(...items.slice(nameQuota, nameQuota + (limit - combined.length)));
     }
 
-    res.json({ items: combined });
+    // Said out loud rather than left to look like a complete answer: a search
+    // the budget ended has not seen everything, and whoever is reading the
+    // results deserves to know which of the two they are looking at.
+    if (truncated) {
+      logger.info(
+        { term: q, names: items.length, contents: contentItems.length },
+        'Search stopped at its time budget'
+      );
+    }
+
+    res.json({ items: combined, truncated });
   })
 );
 

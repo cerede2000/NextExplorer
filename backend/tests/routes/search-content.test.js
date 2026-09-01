@@ -365,3 +365,49 @@ describe('searching through the index', () => {
     expect((await search('pangolin')).some((item) => item.name === 'pangolin-notes.md')).toBe(true);
   });
 });
+
+/**
+ * A search that keeps looking to be sure there is nothing more is a search
+ * nobody waits for. What it has when the budget runs out is the answer.
+ */
+describe('how long a search may take', () => {
+  it('says so when the budget ended it', async () => {
+    const dir = await seed({ SEARCH_TIMEOUT_MS: '1' });
+    await fs.mkdir(dir, { recursive: true });
+    for (let index = 0; index < 60; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(path.join(dir, `doc-${index}.pdf`), buildPdf('nothing of interest'));
+    }
+
+    const response = await request(buildApp()).get('/api/search').query({ q: 'pangolin' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.truncated).toBe(true);
+  });
+
+  it('does not say so when it saw everything', async () => {
+    const dir = await seed({ SEARCH_TIMEOUT_MS: '5000' });
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'notes.md'), 'the word pangolin is here\n');
+
+    const response = await request(buildApp()).get('/api/search').query({ q: 'pangolin' });
+
+    expect(response.body.truncated).toBe(false);
+    expect(response.body.items.length).toBeGreaterThan(0);
+  });
+
+  // The budget is a ceiling, not a delay: a search with an answer returns as
+  // soon as it has one.
+  it('does not wait for the budget when it is done', async () => {
+    const dir = await seed({ SEARCH_TIMEOUT_MS: '5000' });
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'notes.md'), 'the word pangolin is here\n');
+
+    const started = Date.now();
+    const items = await search('pangolin');
+    const elapsed = Date.now() - started;
+
+    expect(items.length).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThan(3000);
+  });
+});

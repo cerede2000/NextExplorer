@@ -217,3 +217,47 @@ describe('what it leaves out', () => {
     expect(store.stats(db).documents).toBe(1);
   });
 });
+
+/**
+ * A background task must not be the reason a container runs out of memory. A
+ * batch counted in documents says nothing about how much is being held: a file
+ * of a few megabytes becomes a string twice that size, and a handful of them
+ * together is hundreds of megabytes while FTS5 tokenises each in turn.
+ */
+describe('how much it holds at once', () => {
+  beforeEach(async () => {
+    await build({ SEARCH_MAX_FILESIZE: '20M' });
+    await fs.mkdir(volumePath('Docs'), { recursive: true });
+  });
+
+  it('writes in smaller batches when the documents are large', async () => {
+    // Six documents of two megabytes each: counted in documents that is one
+    // batch, counted in bytes it cannot be.
+    for (let index = 0; index < 6; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(
+        volumePath('Docs', `big-${index}.txt`),
+        `pangolin ${'lorem ipsum dolor sit amet '.repeat(80000)}`
+      );
+    }
+
+    const result = await indexAll({ batchSize: 25 });
+
+    expect(result.indexed).toBe(6);
+    expect(result.batches).toBeGreaterThan(1);
+    expect(store.search(db, 'pangolin').length).toBe(6);
+  });
+
+  // Terms are what is kept, and a megabyte of them is two hundred thousand
+  // words. Beyond that an index is carrying weight it cannot be asked about.
+  it('keeps only as much of one document as is worth searching', async () => {
+    const padding = 'lorem ipsum dolor sit amet '.repeat(60000);
+    await fs.writeFile(volumePath('Docs', 'huge.txt'), `pangolin ${padding} tatou`);
+
+    await indexAll();
+
+    expect(store.search(db, 'pangolin')).toEqual(['Docs/huge.txt']);
+    // Past the cap, so never taken in.
+    expect(store.search(db, 'tatou')).toEqual([]);
+  });
+});

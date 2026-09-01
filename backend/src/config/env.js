@@ -132,6 +132,7 @@ module.exports = {
   SEARCH_DEEP: normalizeBoolean(process.env.SEARCH_DEEP),
   SEARCH_RIPGREP: normalizeBoolean(process.env.SEARCH_RIPGREP),
   SEARCH_MAX_FILESIZE: process.env.SEARCH_MAX_FILESIZE?.trim() || null,
+  SEARCH_TIMEOUT_MS: Number(process.env.SEARCH_TIMEOUT_MS) || null,
   SEARCH_INDEX: normalizeBoolean(process.env.SEARCH_INDEX) ?? false,
   SEARCH_INDEX_BATCH: Number(process.env.SEARCH_INDEX_BATCH) || null,
   // Zero is a real answer here — "do not pause" — so it cannot go through

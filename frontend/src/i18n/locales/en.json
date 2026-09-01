@@ -775,5 +775,8 @@
     "close": "Close preview",
     "previous": "Previous media",
     "next": "Next media"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

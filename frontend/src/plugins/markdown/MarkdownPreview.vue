@@ -20,6 +20,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import DOMPurify from 'dompurify';
 
 const props = defineProps({
@@ -30,9 +31,26 @@ const props = defineProps({
   api: { type: Object, required: true },
 });
 
+const { t } = useI18n();
+
 const loading = ref(false);
 const html = ref('');
 const error = ref('');
+
+/**
+ * How much markdown is worth turning into a page.
+ *
+ * Rendering happens on the one thread the interface has: `marked` walks the
+ * whole document, DOMPurify walks the HTML it produced, and the browser then
+ * lays out every node of it. A few megabytes of markdown is minutes of that,
+ * during which nothing else in the application responds — and the result is a
+ * document nobody scrolls through anyway.
+ *
+ * Refusing to render it is not a limitation to hide: the file opens in the
+ * editor, and it downloads, both of which are what someone with a document
+ * that size actually wants.
+ */
+const MAX_PREVIEW_CHARACTERS = 512 * 1024;
 
 onMounted(async () => {
   loading.value = true;
@@ -45,6 +63,11 @@ onMounted(async () => {
     // Fetch content
     const response = await props.api.fetchContent();
     const content = response?.content || '';
+
+    if (content.length > MAX_PREVIEW_CHARACTERS) {
+      error.value = t('preview.tooLargeToRender');
+      return;
+    }
 
     // Parse and sanitize
     const rawHtml = marked.parse(content);

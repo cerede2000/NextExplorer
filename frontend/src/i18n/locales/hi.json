@@ -775,5 +775,8 @@
     "close": "पूर्वावलोकन बंद करें",
     "previous": "पिछला मीडिया",
     "next": "अगला मीडिया"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }

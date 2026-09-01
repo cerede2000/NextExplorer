@@ -775,5 +775,8 @@
     "close": "미리보기 닫기",
     "previous": "이전 미디어",
     "next": "다음 미디어"
+  },
+  "preview": {
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
   }
 }
