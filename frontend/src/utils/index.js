@@ -31,7 +31,16 @@ function withViewTransition(func) {
       func(...args);
       return;
     }
-    document.startViewTransition(() => func(...args));
+    const transition = document.startViewTransition(() => func(...args));
+
+    // A transition that does not get to animate rejects `ready` with
+    // InvalidStateError, and nothing here was listening: every navigation
+    // reached the console as an unhandled rejection reading like a fault.
+    // Nothing is wrong when it happens — `updateCallbackDone` and `finished`
+    // both resolve, so the navigation the callback performed did happen and
+    // only the animation was skipped. Those two are deliberately left alone:
+    // they are where a real error in the callback would surface.
+    transition?.ready?.catch(() => {});
   };
 }
 
