@@ -27,7 +27,6 @@ const normalizeRelativePath = (relativePath = '') => {
   return normalized;
 };
 
-
 /**
  * Real (symlink-free) form of the configured roots, resolved once.
  *
@@ -103,12 +102,24 @@ const assertRealPathWithinRoot = (
 ) => {
   const expectedRoot = realRoot(root);
   const rootWithSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
-  const realWithSep = expectedRoot.endsWith(path.sep)
-    ? expectedRoot
-    : `${expectedRoot}${path.sep}`;
+  const realWithSep = expectedRoot.endsWith(path.sep) ? expectedRoot : `${expectedRoot}${path.sep}`;
   const outside = () => new Error(`Resolved path is outside ${label}.`);
-  const contained = (candidate) =>
-    candidate === expectedRoot || candidate.startsWith(realWithSep);
+  const contained = (candidate) => candidate === expectedRoot || candidate.startsWith(realWithSep);
+  const namedInside = (candidate) =>
+    candidate === root ||
+    candidate.startsWith(rootWithSep) ||
+    candidate === expectedRoot ||
+    candidate.startsWith(realWithSep);
+
+  // The walk below accepts a path it could not resolve once it has climbed
+  // above the root — the root itself may not exist yet at startup, and there is
+  // nothing above it for this function to judge. That is only safe for a path
+  // already known to be inside the root by name, which every caller does check
+  // just before calling. Checking it here as well is what makes the guarantee
+  // this function's own rather than a convention the next caller has to know:
+  // the name says within the root, so nothing outside it gets in, whether or
+  // not any of it exists.
+  if (hops === 0 && !namedInside(absolutePath)) throw outside();
 
   // Resolving the whole path per entry is the expensive part: realpath walks
   // every segment, where a bulk operation shares all but the last. If the
@@ -147,12 +158,7 @@ const assertRealPathWithinRoot = (
       // The target of a broken link may not exist anywhere, so there is no real
       // path to compare. Judge it on the name: a target outside both spellings
       // of the root is an escape whether or not it exists yet.
-      const lexicallyInside =
-        target === root ||
-        target.startsWith(rootWithSep) ||
-        target === expectedRoot ||
-        target.startsWith(realWithSep);
-      if (!lexicallyInside) throw outside();
+      if (!namedInside(target)) throw outside();
       assertRealPathWithinRoot(target, root, label, hops + 1);
       return;
     }
@@ -596,6 +602,9 @@ const resolveItemPaths = async (item = {}, options = {}) => {
 };
 
 module.exports = {
+  // Exported so the guarantee in its name can be tested directly, and so a
+  // caller outside this file gets the same one.
+  assertRealPathWithinRoot,
   normalizeRelativePath,
   resolveVolumePath,
   resolvePersonalPath,

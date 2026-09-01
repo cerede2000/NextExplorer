@@ -248,3 +248,68 @@ describe('Containment with a warm parent', () => {
     });
   });
 });
+
+/**
+ * `assertRealPathWithinRoot` is the check the resolvers lean on, and its name
+ * is a promise. It used to accept a path it could not resolve once the walk
+ * climbed above the root — safe only because every caller happened to have
+ * checked containment just before. The promise is now the function's own.
+ */
+describe('the containment check on its own', () => {
+  const withRoot = async (tag) => {
+    const env = await setupTestEnv({
+      tag,
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+    const { assertRealPathWithinRoot } = env.requireFresh('src/utils/pathUtils');
+    return { env, assertRealPathWithinRoot };
+  };
+
+  // The caller this was waiting for: one that trusts the name and passes a
+  // path it has not checked itself.
+  it('refuses a path outside the root when none of it exists', async () => {
+    const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-');
+
+    expect(() => assertRealPathWithinRoot('/etc/nothing/here', env.volumeDir)).toThrow(
+      /outside the configured volume/i
+    );
+    expect(() =>
+      assertRealPathWithinRoot(path.join(env.tmpRoot, 'elsewhere', 'file.txt'), env.volumeDir)
+    ).toThrow(/outside the configured volume/i);
+  });
+
+  it('refuses a path outside the root when it does exist', async () => {
+    const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-real-');
+    const outside = path.join(env.tmpRoot, 'outside');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
+
+    expect(() => assertRealPathWithinRoot(path.join(outside, 'secret.txt'), env.volumeDir)).toThrow(
+      /outside the configured volume/i
+    );
+  });
+
+  it('accepts what is inside, existing or not', async () => {
+    const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-inside-');
+    await fs.mkdir(path.join(env.volumeDir, 'Documents'), { recursive: true });
+
+    expect(() =>
+      assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents'), env.volumeDir)
+    ).not.toThrow();
+    // A file about to be created is not an escape.
+    expect(() =>
+      assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents', 'new.txt'), env.volumeDir)
+    ).not.toThrow();
+    expect(() => assertRealPathWithinRoot(env.volumeDir, env.volumeDir)).not.toThrow();
+  });
+
+  // A volume root that has not been created yet is the startup case the walk
+  // was written to allow, and it still is.
+  it('accepts a root that does not exist yet', async () => {
+    const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-absent-');
+    const absent = path.join(env.tmpRoot, 'not-mounted-yet');
+
+    expect(() => assertRealPathWithinRoot(path.join(absent, 'file.txt'), absent)).not.toThrow();
+  });
+});
