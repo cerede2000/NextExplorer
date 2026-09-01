@@ -208,6 +208,8 @@ const indexTree = async ({
   const overMemoryBudget = () =>
     memoryBudgetBytes > 0 && readMemory() - memoryAtStart > memoryBudgetBytes;
 
+  const growthMb = () => Math.round((readMemory() - memoryAtStart) / (1024 * 1024));
+
   const payForTimeUsed = async () => {
     if (Date.now() - sliceStartedAt < workSliceMs) return;
 
@@ -246,7 +248,10 @@ const indexTree = async ({
 
     if (typeof onProgress === 'function' && Date.now() - lastReport >= progressMs) {
       lastReport = Date.now();
-      onProgress({ indexed, skipped, batches });
+      // What this pass has added to the process, which is the only number that
+      // says whether the index is the thing using the memory. Without it the
+      // question can only be answered by argument.
+      onProgress({ indexed, skipped, batches, addedMb: growthMb() });
     }
   };
 
@@ -352,7 +357,16 @@ const indexTree = async ({
     }
   }
 
-  return { indexed, skipped, removed, batches, pauses, interrupted, stoppedForMemory };
+  return {
+    indexed,
+    skipped,
+    removed,
+    batches,
+    pauses,
+    interrupted,
+    stoppedForMemory,
+    addedMb: growthMb(),
+  };
 };
 
 /** Bring one file up to date, or forget it if it is gone. */

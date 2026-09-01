@@ -675,10 +675,15 @@ module.exports = {
       // What a pass may add to the process before it gives up and waits for
       // the next one. Every other bound is a belief about what a file costs;
       // this is what holds when one of those beliefs is wrong.
+      //
+      // A hundred and twenty-eight megabytes because a pass over two hundred
+      // thousand documents was measured growing sixty, and a ceiling twice
+      // what the work needs is a guard. Five hundred was not a guard: nothing
+      // reaches it, so nothing is ever caught by it.
       memoryBudgetBytes:
         Number.isFinite(env.SEARCH_INDEX_MEMORY_MB) && env.SEARCH_INDEX_MEMORY_MB > 0
           ? env.SEARCH_INDEX_MEMORY_MB * 1024 * 1024
-          : 512 * 1024 * 1024,
+          : 128 * 1024 * 1024,
       reconcileMs:
         Number.isFinite(env.SEARCH_INDEX_RECONCILE_MS) && env.SEARCH_INDEX_RECONCILE_MS > 0
           ? env.SEARCH_INDEX_RECONCILE_MS

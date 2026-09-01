@@ -101,8 +101,8 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
       cpuPercent: searchConfig.index.cpuPercent,
       memoryBudgetBytes: searchConfig.index.memoryBudgetBytes,
       exclude: searchConfig.index.exclude,
-      onProgress: ({ indexed, skipped }) => {
-        logger.info({ indexed, skipped, reason }, 'Search index still building');
+      onProgress: ({ indexed, skipped, addedMb }) => {
+        logger.info({ indexed, skipped, addedMb, reason }, 'Search index still building');
       },
     });
 
