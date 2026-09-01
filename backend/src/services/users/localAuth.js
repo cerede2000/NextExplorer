@@ -53,7 +53,7 @@ const attemptLocalLogin = async ({ email, password }) => {
   }
 
   // Verify password
-  const valid = bcrypt.compareSync(password || '', authMethod.password_hash);
+  const valid = await bcrypt.compare(password || '', authMethod.password_hash);
   if (!valid) {
     await incrementFailedAttempts(normEmail);
     return null;
@@ -111,7 +111,7 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
     // Auto-link: Add password auth to existing user
     logger.info({ email: user.email }, '[Auth] Adding password auth to existing user');
 
-    const hash = bcrypt.hashSync(password, 12);
+    const hash = await bcrypt.hash(password, 12);
     const authId = generateId();
 
     db.prepare(
@@ -129,7 +129,7 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
   const userId = generateId();
   const now = nowIso();
   const rolesJson = JSON.stringify(Array.isArray(roles) ? roles : ['user']);
-  const hash = bcrypt.hashSync(password, 12);
+  const hash = await bcrypt.hash(password, 12);
 
   // Create user
   db.prepare(
@@ -188,11 +188,14 @@ const changeLocalPassword = async ({ userId, currentPassword, newPassword }) => 
     );
   }
 
-  if (!bcrypt.compareSync(currentPassword, authMethod.password_hash)) {
-    throw new UnauthorizedError('Current password is incorrect.', ErrorCodes.AUTH_PASSWORD_INCORRECT);
+  if (!(await bcrypt.compare(currentPassword, authMethod.password_hash))) {
+    throw new UnauthorizedError(
+      'Current password is incorrect.',
+      ErrorCodes.AUTH_PASSWORD_INCORRECT
+    );
   }
 
-  const hash = bcrypt.hashSync(newPassword, 12);
+  const hash = await bcrypt.hash(newPassword, 12);
   db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
   return true;
 };
@@ -213,7 +216,7 @@ const setLocalPasswordAdmin = async ({ userId, newPassword }) => {
     throw e;
   }
 
-  const hash = bcrypt.hashSync(newPassword, 12);
+  const hash = await bcrypt.hash(newPassword, 12);
 
   // Check if user has local password auth
   const authMethod = db
@@ -263,7 +266,10 @@ const addLocalPassword = async ({ userId, password }) => {
     .get(userId);
 
   if (existing) {
-    throw new ConflictError('You already have password authentication.', ErrorCodes.CONFLICT_PASSWORD_EXISTS);
+    throw new ConflictError(
+      'You already have password authentication.',
+      ErrorCodes.CONFLICT_PASSWORD_EXISTS
+    );
   }
 
   if (!password || password.length < 6) {
@@ -274,7 +280,7 @@ const addLocalPassword = async ({ userId, password }) => {
     );
   }
 
-  const hash = bcrypt.hashSync(password, 12);
+  const hash = await bcrypt.hash(password, 12);
   const authId = generateId();
 
   db.prepare(

@@ -10,12 +10,19 @@ const { auth, features } = require('../config/index');
  * The owner is exempt: it is their own share. With authentication disabled
  * everyone is the same synthetic admin who already browses the whole
  * filesystem, so the prompt would only lock the share without protecting it.
+ *
+ * Everyone else is subject to it, and that includes a visitor with no account
+ * at all — the very people a public password is for. This used to require a
+ * user, so the predicate answered "no password here" for anonymous callers and
+ * each caller made up the difference on its own: one added `|| (hasPassword &&
+ * !user)` to what it reported, another let the case fall through to a later
+ * branch that happened to refuse. The protection was real and lived in two
+ * places under a name that promised one.
  */
 const sharePasswordApplies = (share, user) =>
   Boolean(share.hasPassword) &&
   auth.enabled !== false &&
-  Boolean(user) &&
-  String(user.id) !== String(share.ownerId);
+  !(user && String(user.id) === String(share.ownerId));
 
 /**
  * Get comprehensive access information for a path
@@ -234,7 +241,6 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
     // to the permission grant below.
     return createDeniedAccess('Unknown sharing type');
   }
-
 
   const isOwner = user && user.id === share.ownerId;
   const shareReadWrite = share.accessMode === 'readwrite';

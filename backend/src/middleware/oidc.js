@@ -432,4 +432,11 @@ const configureOidc = async (app) => {
 
 module.exports = {
   configureOidc,
+  // Exported for the tests. This module decides who someone is, and until now
+  // nothing exercised any of it; these are the decisions worth pinning, and
+  // reaching them through a real provider is not something a test can do.
+  deriveBaseUrl,
+  shouldOidcCookieBeSecure,
+  resolveOidcScopes,
+  createAfterCallbackHandler,
 };

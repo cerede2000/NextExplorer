@@ -614,7 +614,7 @@ router.get(
       label: share.label,
       isDirectory: share.isDirectory,
       hasPassword: share.hasPassword,
-      requiresPassword: sharePasswordApplies(share, req.user) || (share.hasPassword && !req.user),
+      requiresPassword: sharePasswordApplies(share, req.user),
       sharingType: share.sharingType,
       expiresAt: share.expiresAt,
       isExpired: isShareExpired(share),
@@ -741,6 +741,26 @@ router.get(
       // Anyone share - always create a new guest session for this share
       // This ensures switching between shares in the same browser works correctly
       if (!req.user) {
+        // Unless there already is one for this share. Reloading the page calls
+        // here again, and a visitor who has just typed the password holds a
+        // session that says so — the check above has already accepted it. Not
+        // looking made the branch below ask for the password a second time,
+        // for a share it had just been given.
+        if (req.guestSession && req.guestSession.shareId === share.id) {
+          await trackShareAccess(share.id, { ipAddress: req.ip });
+
+          return res.json({
+            share: {
+              shareToken: share.shareToken,
+              label: share.label,
+              sourcePath: `share/${share.shareToken}`,
+              accessMode: share.accessMode,
+              isDirectory: share.isDirectory,
+            },
+            guestSessionId: req.guestSession.id,
+          });
+        }
+
         // Create guest session if no password required
         if (!share.hasPassword) {
           const session = await createGuestSession({

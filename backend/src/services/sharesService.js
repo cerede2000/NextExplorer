@@ -123,7 +123,7 @@ const createShare = async ({
   const shareId = generateId();
   const shareToken = generateShareToken(10);
   const now = nowIso();
-  const passwordHash = password ? bcrypt.hashSync(password, 10) : null;
+  const passwordHash = password ? await bcrypt.hash(password, 10) : null;
 
   // Create share
   prepared(
@@ -369,7 +369,7 @@ const updateShare = async (shareId, updates = {}) => {
   // a surprise rather than a protection.
   let revokeGuestSessions = false;
   if ('password' in updates) {
-    const passwordHash = updates.password ? bcrypt.hashSync(updates.password, 10) : null;
+    const passwordHash = updates.password ? await bcrypt.hash(updates.password, 10) : null;
     fields.push('password_hash = ?');
     values.push(passwordHash);
     revokeGuestSessions = Boolean(passwordHash);
@@ -581,7 +581,7 @@ const verifySharePassword = async (shareId, password) => {
     return false;
   }
 
-  return bcrypt.compareSync(password, row.password_hash);
+  return bcrypt.compare(password, row.password_hash);
 };
 
 /**

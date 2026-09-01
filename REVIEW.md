@@ -32,7 +32,7 @@ cut it short other than deleting the share outright.
 Adding a password to a share that had none behaves the same way: visitors who
 opened it while it was public carry on, unprompted.
 
-### D2 · Password checks block the event loop, on a public route — Fragility
+### D2 · Password checks block the event loop, on a public route — Fragility — **FIXED**
 
 `services/sharesService.js:556` uses `bcrypt.compareSync`, and `:127`/`:360` use
 `bcrypt.hashSync`. bcrypt is deliberately slow — roughly 100 ms at cost 10 — and
@@ -41,9 +41,12 @@ the synchronous form stops Node from doing anything else for that time.
 `POST /:token/verify` is reachable without an account. The rate limiter at
 `routes/shares.js:49` allows 20 attempts per 15 minutes **per IP**, so a handful
 of addresses can keep the single thread busy in a way no other public route can.
-The async `bcrypt.compare` exists and is a drop-in.
+The async `bcrypt.compare` exists and is a drop-in. It is what runs now, here
+and on the sign-in path, which had the same shape. What pins it is not the
+speed of one check but that a timer keeps firing while six of them run — with
+the synchronous form it does not fire once.
 
-### D3 · `sharePasswordApplies` is false for an anonymous visitor — Fragility
+### D3 · `sharePasswordApplies` is false for an anonymous visitor — Fragility — **FIXED**
 
 `services/accessManager.js:14` requires `Boolean(user)`, so the function that
 reads as "does this share's password apply?" answers **no** for the very
@@ -266,7 +269,7 @@ artefacts, and `.uploading` was never added. So a killed container leaves
 `holiday.mp4.uploading` sitting in the folder, in the listing, for ever, and
 nothing anywhere will remove it.
 
-### D12 · Two upload paths, neither with a test — Fragility
+### D12 · Two upload paths, neither with a test — Fragility — **FIXED**
 
 `uploadService.js` (293 lines) and `renameService.js` (116) both write to disk
 after authorising, and no test references either. Reading them found nothing
@@ -274,9 +277,10 @@ wrong — the authorisation chains are complete, and `renameService` checks the
 parent, the source, the new name and the target in turn — but they are the two
 modules where a regression would be silent.
 
-Half answered since: `tests/routes/direct-upload.test.js` uploads a real file
-through the route, and covers both guards added for D10 and D11.
-`renameService` still has nothing.
+Both answered since: `tests/routes/direct-upload.test.js` uploads a real file
+through the route, and `tests/services/rename-entry.test.js` covers the rename
+— including the two links of its authorisation chain that only a rule on the
+folder alone, or on the name being taken, can tell apart.
 
 ### D13 · A TUS upload is not tied to whoever started it — Note
 
@@ -424,11 +428,17 @@ Whichever behaviour is intended — evaluate every login, or pin at creation so 
 provider change cannot demote a local admin — the code and the documentation
 currently promise different things.
 
-### D17 · The OIDC middleware has no test at all — Fragility
+### D17 · The OIDC middleware has no test at all — Fragility — **FIXED**
 
 `middleware/oidc.js` is 425 lines and no test references it; `oidcService.js`
 (154) likewise. This is the path that decides who someone is, in the deployments
 that use it, and a regression there would be both silent and serious.
+
+Its decisions are exercised now: where the provider is told to come back to,
+whether the session cookie is marked secure, what scopes are asked for, and what
+the callback does with the claims it gets — including the guarantee that roles
+are left alone where no admin group is configured, which was being tested by
+reproducing the middleware's sequence by hand rather than by running it.
 
 ### Checked and sound
 
@@ -537,7 +547,12 @@ The five defects, most consequential first:
 5. **D11** — a `.uploading` file left by a killed process is visible and never
    cleaned up.
 
-All five are fixed.
+All five are fixed, and so are the five fragilities — the last of them by
+giving the two modules that had no test one each, and by making the two
+functions whose names promised more than they checked keep their promise.
+
+The nine notes are what remains. None is a defect: they are decisions worth
+taking deliberately rather than debts.
 
 Three of the five are about **revocation and cleanup** — states that outlive
 what created them — rather than about anything being computed wrongly. That is
