@@ -6,6 +6,61 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.1.1 (2026-09-01)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.1.1)
+
+### The text editor no longer writes files it will refuse to reopen
+
+Two settings govern the inline editor and nothing tied them together.
+`EDITOR_MAX_FILESIZE` decides what it will open; `MAX_JSON_BODY_SIZE` decides
+how much can be sent back, because saving carries the whole file in a JSON
+request body.
+
+Saving checked neither. Open a small file, paste two megabytes into it, save —
+accepted and written — and the next attempt to open it answered _This file is
+too large to open in the text editor_. A file the editor had written and would
+not take back.
+
+Raising `EDITOR_MAX_FILESIZE` on its own, which [the FAQ](../reference/faq.md)
+recommended for editing larger documents, produced the other half:
+the file opened, and saving answered _request entity too large_ — a message
+naming neither of the two settings involved. It is the failure reported
+upstream as [nxzai#368](https://github.com/nxzai/NextExplorer/issues/368).
+
+The pair is now one decision:
+
+- **Where no body ceiling has been set**, it rises to carry whatever the editor
+  opens, twice over — JSON escaping can double the text, every quote and
+  newline becoming two characters.
+- **Where one has been set**, it is kept. A ceiling someone chose is a guard,
+  not a detail to be talked out of, so the editor is lowered to what that
+  ceiling can carry instead, with a warning naming both values.
+
+Either way the editor cannot open a file it would not be able to save, and
+saving refuses what it could not reopen. A request that really is too large now
+says which setting governs it.
+
+### Every navigation reported an error it had recovered from
+
+Moving between folders left `Uncaught (in promise) InvalidStateError:
+Transition was aborted because of invalid state` in the browser console, on
+every navigation. Nothing was wrong — the view transition simply did not get to
+animate, and the promise that says so had no listener. It is now observed, while
+the two promises that would carry a genuine failure are deliberately left to
+surface.
+
+### Also
+
+- A release no longer rebuilds the images a push to `main` has just built. It
+  checks that its tag and the manifests agree, which takes seconds instead of
+  two multi-architecture builds.
+- The image build itself lives in one place instead of being written out once
+  per channel — the duplication that had let a version tag exist for one
+  variant and not the other.
+- The documentation site is redeployed when documentation changes, rather than
+  on every push.
+
 ## v3.1.0 (2026-08-29)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.1.0)

@@ -35,8 +35,8 @@ Two images are published, on both registries:
 
 | Tag                         | Contains                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------- |
-| `latest`, `3.1.0`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
-| `latest-lean`, `3.1.0-lean` | The same application without VA-API or RAW — a considerably smaller image        |
+| `latest`, `3.1.1`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
+| `latest-lean`, `3.1.1-lean` | The same application without VA-API or RAW — a considerably smaller image        |
 
 Take the full image unless you know you need neither: VA-API only helps where the host exposes a render device to the container, and RAW support only matters if you keep camera files. Both variants are built for `linux/amd64` and `linux/arm64`.
 
@@ -49,7 +49,7 @@ They are also on Docker Hub under the same tags.
 
 `latest` and `latest-lean` follow `main`, so a fix reaches them without waiting
 for a release. Every build is also published under the version in
-`package.json` — `3.1.0`, `3.1.0-lean` — republished for as long as that
+`package.json` — `3.1.1`, `3.1.1-lean` — republished for as long as that
 version is current, and left alone once the next one is cut.
 
 Old images are pruned weekly down to the last couple of versions, so pin a
