@@ -8,7 +8,7 @@ const { ACTIONS, authorizeAndResolve } = require('../services/authorizationServi
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
-const { readTextFile } = require('../services/textEditorService');
+const { readTextFile, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
 
 const router = express.Router();
 
@@ -72,6 +72,16 @@ router.put(
     const { path: relative = '', content = '' } = req.body || {};
     if (typeof relative !== 'string' || !relative) {
       throw new ValidationError('A valid file path is required.');
+    }
+    if (typeof content !== 'string') {
+      throw new ValidationError('Text editor content must be a string.');
+    }
+    // Refused for the same reason the editor refuses to open it. Without this
+    // the editor wrote whatever it was given — paste two megabytes into a small
+    // file, save, and the next attempt to open it answered that the file is too
+    // large. The shared-editor route has always checked; this one did not.
+    if (Buffer.byteLength(content, 'utf-8') > MAX_EDITOR_FILE_SIZE) {
+      throw new ValidationError('This file is too large to save in the text editor.');
     }
 
     const relativePath = normalizeRelativePath(relative);

@@ -40,4 +40,14 @@ environment:
   - EDITOR_MAX_FILESIZE=10M
 ```
 
+That is the only setting to change. Saving sends the file back through a JSON
+request body, so `MAX_JSON_BODY_SIZE` has to stay above what the editor opens —
+it rises on its own to carry it, and says so in the log.
+
+The exception is where you have set `MAX_JSON_BODY_SIZE` yourself. A ceiling
+you chose is never raised behind your back: the editor is lowered to what that
+ceiling can carry instead, with a warning naming both values. If you want to
+edit large files _and_ keep a body ceiling, set the ceiling to a little over
+twice the file size you want to open.
+
 See the [Environment Reference](../configuration/environment#editor) for details.

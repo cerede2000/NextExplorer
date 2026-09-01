@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { sanitizeLogUrl } = require('../utils/logSanitizer');
-const { directories } = require('../config/index');
+const { directories, uploads } = require('../config/index');
 
 /**
  * Strip server-side absolute paths out of a message shown to a client.
@@ -68,6 +68,25 @@ const clearOidcSessionCookies = (req, res) => {
  *
  * Handles both operational errors (AppError instances) and unexpected errors
  */
+/**
+ * What body-parser says when a request is too big is "request entity too
+ * large" — true, and useless to whoever reads it: it names neither the limit
+ * nor the setting that governs it. Someone editing a large document sees it
+ * and has nowhere to go.
+ */
+const describeError = (err) => {
+  if (err?.type === 'entity.too.large') {
+    const megabytes = (uploads?.maxJsonBodyBytes ?? 0) / (1024 * 1024);
+    const limit =
+      megabytes >= 1
+        ? `${Math.round(megabytes * 10) / 10} MB`
+        : `${uploads?.maxJsonBodyBytes} bytes`;
+    return `This request is larger than the ${limit} this server accepts. Raise MAX_JSON_BODY_SIZE to accept more.`;
+  }
+
+  return err?.message || 'An unexpected error occurred';
+};
+
 // Express only recognizes error middleware when it has 4 args: (err, req, res, next)
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
@@ -77,7 +96,7 @@ const errorHandler = (err, req, res, next) => {
   // Determine if this is an operational error (expected) or programmer error (unexpected)
   const isOperational = err.isOperational || false;
   const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'An unexpected error occurred';
+  const message = describeError(err);
 
   // For OIDC callback navigations, redirect back into the SPA so the login screen can show the error.
   // Otherwise, the browser will render the JSON payload as a standalone error page.
