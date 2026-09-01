@@ -26,12 +26,13 @@ jobs:
           node-version: 24
           cache: npm
 
-      # 7-Zip backs archive extraction; ripgrep backs content search. Without
+      # 7-Zip backs archive extraction, ripgrep backs content search, and
+      # pdftotext reads the words in a PDF. Without
       # ripgrep here the suites fall back to the JavaScript scan and the path
       # nearly every deployment actually runs goes untested — which is how a
       # setting that made ripgrep refuse its own flag reached a release.
-      - name: Install 7-Zip and ripgrep
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep
+      - name: Install 7-Zip, ripgrep and poppler
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils
 
       - name: Install dependencies
         run: npm ci

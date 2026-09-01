@@ -70,6 +70,51 @@ remains:
 Recent destinations and the destination picker still list a missing volume
 without saying so; only favourites are marked.
 
+## OCR for scanned documents
+
+A scanned PDF is a picture of a page. Its text is read by nobody — not by
+`pdftotext`, which finds no text layer, and not by any search that follows.
+Making it searchable means optical character recognition.
+
+Deferred on cost, not on interest. What it would take, measured rather than
+guessed:
+
+- **The image grows by 40 to 70 MB for a single language** — tesseract and
+  leptonica, the language data (about 4 MB for a fast model, up to 15 for an
+  accurate one), and a PDF rasteriser, because the image ships none: PDFs are
+  excluded from thumbnails precisely so that none is needed. Each further
+  language adds its own data. The `lean` variant exists to avoid weight of
+  exactly this kind, so this would be the full image only, or a third variant.
+- **One to five seconds per page**, depending on the processor. A twenty-page
+  scan is half a minute to two minutes, for one document.
+
+That second figure decides the shape of it: OCR cannot happen while someone
+waits for search results. It only makes sense against an index built
+beforehand — so this waits on [full-text indexing](#full-text-index-for-search)
+and would be off by default when it arrives.
+
+## Full-text index for search
+
+Searching contents means walking the tree and reading files on every query.
+It works, and it does not rank: results come in the order they are found.
+
+SQLite's FTS5 is already available in `better-sqlite3` — no service to run, no
+dependency to add — and `snippet()` produces exactly the matched line the
+results already show. The hooks to keep an index current exist too:
+`folderSizeHooks` is called on every write, replace and rename, `pathBindings`
+follows moves, and the folder-size index is a working model of periodic
+reconciliation for whatever changes outside the application.
+
+Two things to decide before starting:
+
+- **What is stored.** An FTS5 table that keeps the text is roughly a fifth to a
+  half of it; a contentless one stores only the terms and is far smaller, at
+  the cost of re-reading the file to show the matched line — which is no cost
+  at all, since the path is right there.
+- **Permissions.** The index does not know who may read what, so results are
+  filtered after the query rather than in it, exactly as the live search does
+  now.
+
 ## Open, not scheduled
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs

@@ -5,6 +5,7 @@ import express from 'express';
 import request from 'supertest';
 import AdmZip from 'adm-zip';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { buildPdf } from '../helpers/pdf-fixture.js';
 
 /**
  * Searching inside documents is the half of search nothing tested, and it was
@@ -250,5 +251,32 @@ describe('the arguments a content search is given', () => {
     const args = await argsWith({});
 
     expect(args.indexOf('pangolin')).toBeGreaterThan(args.indexOf('--'));
+  });
+});
+
+/**
+ * A PDF keeps its words in compressed streams, so a content search reads it as
+ * binary. Only ones carrying a text layer, which is most of them — a scan is a
+ * picture and needs OCR.
+ */
+describe('searching inside PDFs', () => {
+  it('finds a word on the page', async () => {
+    const dir = await seed();
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'report.pdf'), buildPdf('the pangolin is here'));
+
+    const items = await search('pangolin');
+
+    const hit = items.find((item) => item.name === 'report.pdf');
+    expect(hit).toBeTruthy();
+    expect(hit.matchLine).toContain('pangolin');
+  });
+
+  it('leaves a PDF that says nothing of the sort alone', async () => {
+    const dir = await seed();
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'other.pdf'), buildPdf('nothing relevant in here'));
+
+    expect(await search('pangolin')).toEqual([]);
   });
 });

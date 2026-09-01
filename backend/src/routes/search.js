@@ -12,10 +12,10 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
 const { createPermissionResolver } = require('../services/accessControlService');
 const {
-  findOfficeTextMatch,
-  isOfficeDocument,
-  SUPPORTED_EXTENSIONS: OFFICE_EXTENSIONS,
-} = require('../services/officeTextExtract');
+  findDocumentTextMatch,
+  isSearchableDocument,
+  SEARCHABLE_EXTENSIONS: DOCUMENT_EXTENSIONS,
+} = require('../services/documentText');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 
@@ -342,17 +342,17 @@ async function* mergeResults(...generators) {
 }
 
 /**
- * Matches inside Office documents.
+ * Matches inside documents whose text has to be extracted first.
  *
- * `.docx`, `.xlsx` and `.pptx` are zip archives, so ripgrep sees compressed
- * bytes and finds nothing in them however the search is configured. Reading
- * them costs an unzip and a parse per document, so this is bounded three ways:
- * only these extensions, only files under the configured size, and only so
- * many documents per search.
+ * Office files are zip archives and PDFs are compressed streams, so ripgrep
+ * reads both as binary and finds nothing in them however the search is
+ * configured. Reading them costs an unzip or a `pdftotext` per document, so
+ * this is bounded three ways: only these extensions, only files under the
+ * configured size, and only so many documents per search.
  */
 const OFFICE_DOCUMENT_LIMIT = 500;
 
-async function* streamOfficeMatches(
+async function* streamDocumentMatches(
   baseAbsPath,
   relBasePath,
   term,
@@ -377,7 +377,7 @@ async function* streamOfficeMatches(
     if (!entry.isFile()) continue;
 
     const extension = path.extname(entry.name).slice(1).toLowerCase();
-    if (!OFFICE_EXTENSIONS.includes(extension)) continue;
+    if (!DOCUMENT_EXTENSIONS.includes(extension)) continue;
 
     const parent = path.relative(baseAbsPath, entry.parentPath || entry.path || baseAbsPath);
     const relFromBase = parent
@@ -396,7 +396,8 @@ async function* streamOfficeMatches(
     }
 
     examined += 1;
-    const match = findOfficeTextMatch(absolutePath, needle);
+    // eslint-disable-next-line no-await-in-loop
+    const match = await findDocumentTextMatch(absolutePath, needle);
     if (!match) continue;
 
     seenPaths.add(rel);
@@ -452,7 +453,7 @@ async function* generateRipgrepResults(
     includeHiddenFiles
   );
 
-  const officeGen = streamOfficeMatches(
+  const documentGen = streamDocumentMatches(
     baseAbsPath,
     relBasePath,
     term,
@@ -461,7 +462,7 @@ async function* generateRipgrepResults(
     includeHiddenFiles
   );
 
-  yield* mergeResults(fileListGen, contentGen, officeGen);
+  yield* mergeResults(fileListGen, contentGen, documentGen);
 }
 
 // Optimized fallback with streaming (Optimization #1)
@@ -508,10 +509,10 @@ async function* generateFallbackResults(
         } else if (deep && !seenPaths.has(rel)) {
           try {
             const st = await fs.stat(abs);
-            if (st.size <= CONTENT_FALLBACK_MAX_SIZE && isOfficeDocument(abs)) {
-              // A .docx read as text is compressed bytes. Its words are in the
-              // XML inside the archive, and that is what gets searched.
-              const match = findOfficeTextMatch(abs, needle);
+            if (st.size <= CONTENT_FALLBACK_MAX_SIZE && isSearchableDocument(abs)) {
+              // A .docx or a .pdf read as text is compressed bytes. Their words
+              // have to be extracted before there is anything to search.
+              const match = await findDocumentTextMatch(abs, needle);
               if (match) {
                 seenPaths.add(rel);
                 if (await shouldInclude(rel)) {

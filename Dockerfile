@@ -83,6 +83,9 @@ RUN addgroup -S appuser && \
 #   gosu            – UID/GID remapping in entrypoint
 #   ripgrep         – fast file-content search
 #   imagemagick     – HEIC → PNG thumbnail conversion
+#   poppler-utils   – pdftotext, so a search can read the words in a PDF. Only
+#                     ones with a text layer; a scan needs OCR, which is
+#                     seconds per page and does not belong in a request.
 #   openssh-client  – optional SSH remote access (terminal only)
 #   7zzs            – official static 7-Zip binary, copied below; supports
 #                     encrypted ZIP/7z/RAR archives and the RAR codec
@@ -112,6 +115,7 @@ RUN apk add --no-cache \
       gosu \
       ripgrep \
       imagemagick \
+      poppler-utils \
       openssh-client \
       bash \
       shadow \
