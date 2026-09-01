@@ -632,6 +632,26 @@ module.exports = {
     ripgrep: env.SEARCH_RIPGREP ?? true,
     maxFileSize: env.SEARCH_MAX_FILESIZE,
     maxFileSizeBytes: searchMaxFileSizeBytes,
+    index: {
+      // Off unless asked for: an index is a promise to keep something up to
+      // date, and that is a decision rather than a default.
+      enabled: env.SEARCH_INDEX === true,
+      // Small batches and a pause between them. The numbers are deliberately
+      // modest — the point is not to finish quickly but not to be noticed.
+      batch:
+        Number.isFinite(env.SEARCH_INDEX_BATCH) && env.SEARCH_INDEX_BATCH > 0
+          ? Math.floor(env.SEARCH_INDEX_BATCH)
+          : 25,
+      // `null >= 0` is true, so the check has to be for a number first.
+      pauseMs:
+        Number.isFinite(env.SEARCH_INDEX_PAUSE_MS) && env.SEARCH_INDEX_PAUSE_MS >= 0
+          ? env.SEARCH_INDEX_PAUSE_MS
+          : 50,
+      reconcileMs:
+        Number.isFinite(env.SEARCH_INDEX_RECONCILE_MS) && env.SEARCH_INDEX_RECONCILE_MS > 0
+          ? env.SEARCH_INDEX_RECONCILE_MS
+          : 60 * 60 * 1000,
+    },
   },
 
   thumbnails: { size: 200, quality: 70 },

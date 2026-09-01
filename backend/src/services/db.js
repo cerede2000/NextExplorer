@@ -619,6 +619,8 @@ const migrate = (db) => {
     if (version < 13) {
       logger.info('[DB Migration] Migrating to v13: Remembering recent destinations...');
       db.exec(RECENT_DESTINATIONS_DDL);
+      // eslint-disable-next-line global-require
+      db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
       db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
         'schema_version',
         String(13)
@@ -653,6 +655,16 @@ const migrate = (db) => {
         String(15)
       );
       version = 15;
+    }
+    if (version < 16) {
+      logger.info('[DB Migration] Migrating to v16: Full-text search index...');
+      // eslint-disable-next-line global-require
+      db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(16)
+      );
+      version = 16;
     }
   })();
 
