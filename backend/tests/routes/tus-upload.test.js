@@ -33,6 +33,14 @@ const startServer = (server) =>
     });
   });
 
+/** Sign in far enough to hold a session cookie, the way a browser does. */
+const establishSession = async (baseUrl) => {
+  const response = await request(baseUrl).get('/api/test-session');
+  const cookies = response.headers['set-cookie'];
+  if (!cookies?.length) throw new Error('no session cookie was issued');
+  return cookies.map((cookie) => cookie.split(';')[0]).join('; ');
+};
+
 const closeServer = (server) =>
   new Promise((resolve, reject) => {
     server.closeAllConnections?.();
@@ -61,6 +69,21 @@ describe('TUS upload route', () => {
 
     const app = express();
     app.use(express.json());
+    // A real session, deliberately: a route suite that mounts none is exercising
+    // a stack nobody runs. The seam it puts back — express-session replaces
+    // `res.end` with a version that reads the callback @tus/server passes as a
+    // body, which is what crashed the server before 3.0.2 — has a guard of its
+    // own in tests/middleware/response-end-compat.test.js. This does not
+    // replace it: removing the fix leaves these green.
+    const { configureSession } = envContext.requireFresh('src/middleware/session');
+    configureSession(app);
+    // Something has to be written to the session for one to exist: the store's
+    // `touch` — the path the crash went through — only runs for a session that
+    // is already established and unmodified.
+    app.get('/api/test-session', (req, res) => {
+      req.session.establishedAt = new Date().toISOString();
+      res.json({ ok: true });
+    });
     app.use((req, _res, next) => {
       req.user = { id: 'admin', email: 'admin@example.com', roles: ['admin'] };
       next();
@@ -70,13 +93,19 @@ describe('TUS upload route', () => {
     return http.createServer(app);
   };
 
-  it('rejects TUS uploads when chunked uploads are disabled', async () => {
+  // Both switches, not one. TUS carries forced chunking *and* the client-side
+  // automatic fallback, so it is refused only when neither is on — which the
+  // old name of this case ("when chunked uploads are disabled") did not say,
+  // leaving the more interesting half untested below.
+  it('refuses an upload when neither forced chunking nor the fallback is on', async () => {
     const server = buildApp();
     const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
 
     try {
       const response = await request(baseUrl)
         .post('/api/upload/tus')
+        .set('Cookie', cookie)
         .set('Tus-Resumable', '1.0.0')
         .set('Upload-Length', '5')
         .set(
@@ -89,6 +118,43 @@ describe('TUS upload route', () => {
         );
 
       expect(response.status).toBe(403);
+      // The status alone would be satisfied by any refusal — an unmounted
+      // route, a failed authorisation. This is the one being tested.
+      expect(String(response.text)).toMatch(/chunked uploads are disabled/i);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  // The gate reads `chunkedEnabled || chunkedAutoFallback`, and the fallback
+  // half had no test. Getting it wrong once already rejected every fallback
+  // upload with a 403 that reached the client as "network error".
+  it('accepts an upload when only the automatic fallback is on', async () => {
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setSystemSetting('system', 'uploads', {
+      chunkedEnabled: false,
+      chunkedAutoFallback: true,
+      chunkSizeBytes: 1024 * 1024,
+    });
+
+    await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+
+    try {
+      const response = await request(baseUrl)
+        .post('/api/upload/tus')
+        .set('Cookie', cookie)
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Length', '5')
+        .set(
+          'Upload-Metadata',
+          encodeMetadata({ filename: 'hello.txt', relativePath: 'hello.txt', uploadTo: 'Nvm' })
+        );
+
+      expect(response.status).toBe(201);
+      expect(response.headers.location).toBeTruthy();
     } finally {
       await closeServer(server);
     }
@@ -104,11 +170,13 @@ describe('TUS upload route', () => {
     await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
     const server = buildApp();
     const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
     const content = Buffer.from('hello through tus');
 
     try {
       const create = await request(baseUrl)
         .post('/api/upload/tus')
+        .set('Cookie', cookie)
         .set('Tus-Resumable', '1.0.0')
         .set('Upload-Length', String(content.length))
         .set(
@@ -155,10 +223,12 @@ describe('TUS upload route', () => {
 
     const server = buildApp();
     const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
 
     try {
       const response = await request(baseUrl)
         .post('/api/upload/tus')
+        .set('Cookie', cookie)
         .set('Tus-Resumable', '1.0.0')
         .set('Upload-Length', String(1024 * 1024))
         .set(
@@ -235,11 +305,13 @@ describe('TUS upload route', () => {
     await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
     const server = buildApp();
     const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
     const content = Buffer.from('dropped straight onto the file list');
 
     try {
       const create = await request(baseUrl)
         .post('/api/upload/tus')
+        .set('Cookie', cookie)
         .set('Tus-Resumable', '1.0.0')
         .set('Upload-Length', String(content.length))
         .set(
@@ -291,10 +363,12 @@ describe('TUS upload route', () => {
     await fs.mkdir(path.join(envContext.volumeDir, 'Nvm'), { recursive: true });
     const server = buildApp();
     const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
 
     try {
       const create = await request(baseUrl)
         .post('/api/upload/tus')
+        .set('Cookie', cookie)
         .set('Tus-Resumable', '1.0.0')
         .set('Upload-Length', '0')
         .set(
@@ -314,7 +388,6 @@ describe('TUS upload route', () => {
       await closeServer(server);
     }
   });
-
 
   /**
    * When the cache and the destination sit on different filesystems — the norm
@@ -349,6 +422,7 @@ describe('TUS upload route', () => {
 
     const server = buildApp();
     const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
 
     fs.unlink = async (...args) => {
       if (!seen) {
@@ -361,6 +435,7 @@ describe('TUS upload route', () => {
     try {
       const create = await request(baseUrl)
         .post('/api/upload/tus')
+        .set('Cookie', cookie)
         .set('Tus-Resumable', '1.0.0')
         .set('Upload-Length', String(content.length))
         .set(
@@ -402,5 +477,4 @@ describe('TUS upload route', () => {
       await closeServer(server);
     }
   });
-
 });

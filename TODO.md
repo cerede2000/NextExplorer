@@ -54,23 +54,6 @@ Two things decide whether this is any good:
 
 No security dimension: what opens a file does not change who may read it.
 
-## A TUS test that does not test what it says
-
-`backend/tests/routes/tus-upload.test.js` has a case named _rejects TUS uploads
-when chunked uploads are disabled_ which begins by setting
-`chunkedEnabled: true`. It passes, so the 403 it asserts comes from somewhere
-other than the setting its name points at — the `UPLOAD_CHUNKED_ENABLED`
-environment variable, most likely.
-
-It is also timing-sensitive: mounting `express-session` in that file's
-`buildApp` turns the expected 403 into a 201, without touching the route.
-
-This matters beyond tidiness. The crash fixed in 3.0.2 lived in the seam between
-`express-session` and the upload server, and this suite fakes `req.user` and
-mounts no session at all — so it could not see it, by construction. Mounting a
-real session here would close that gap, once this case is understood and made to
-assert what it claims.
-
 ## Cleaning up what points at a volume that is gone
 
 Startup reports favourites, shares, recent destinations and folder preferences
