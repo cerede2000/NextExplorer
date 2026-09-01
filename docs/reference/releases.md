@@ -6,6 +6,72 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.1.2 (2026-09-01)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.1.2)
+
+### A share password is asked for once
+
+Opening a link protected by a password, typing it, and then reloading the page
+asked for it again. The reload calls the same endpoint the first visit does, and
+the branch that answered had no idea the check above it had already accepted the
+session the visitor was carrying — so it sent them back to the prompt for a
+share they had just been given.
+
+It came out of straightening the predicate that answers _does this password
+apply to this caller?_. It required a signed-in user, so it said no for visitors
+with no account at all — the very people a public password is for — and each
+caller made up the difference in its own way. Those compensations are gone, and
+this was hiding under one of them.
+
+### Two accounts can no longer share one personal folder
+
+Which folder an account gets was derived from `USER_FOLDER_NAME_ORDER` on every
+request, and nothing about that order guarantees a distinct answer. `username`
+carries no uniqueness constraint, and `bob@a.com` and `bob@b.com` both yield
+`bob` under `email_local`. Two accounts that derived the same name were handed
+the same directory, and each saw the other's private files.
+
+A default install was never affected — `id` comes first and ids are unique — but
+[the documentation recommends](../configuration/personal-folders.md)
+`username,id` to reuse an existing `/home/<username>` layout, which is where it
+bites.
+
+The name is claimed now instead of derived: the first account to be given one
+keeps it, a second walks down its own preference order to the next free name,
+and a unique index makes that a guarantee rather than a check two requests could
+race past. Accounts that already exist are assigned oldest first, so where an
+instance already had a collision, the account that has been using the folder is
+the one that keeps it.
+
+::: warning One behaviour changes with this
+A name that has been given is kept, so changing `USER_FOLDER_NAME_ORDER`
+afterwards applies to accounts created from then on and leaves the existing ones
+where they are. It can no longer quietly take a folder away from whoever is
+working in it. To move existing accounts deliberately, move their directories
+and clear `personal_folder_name` — the [personal folders
+page](../configuration/personal-folders.md) has the statement.
+:::
+
+### Checking a password no longer holds the only thread
+
+bcrypt is slow on purpose, and its synchronous form stops the server doing
+anything else for that time. Verifying a share password is reachable without an
+account and rate limited per address, so a handful of addresses could keep the
+process busy in a way no other public route can. The asynchronous form runs
+now — here and on the sign-in path, which had the same shape.
+
+### Also
+
+- Docker Hub keeps the last two versions. Publishing a third removes the oldest
+  and everything that belongs to it, so the page people reach before the
+  repository stops being a wall of tags nobody runs.
+- The check that keeps a path inside its volume root makes its own containment
+  test rather than trusting each caller to have done it first.
+- Three modules that had no test have one: the rename path, the OIDC
+  middleware, and the automatic-fallback half of the chunked upload gate. With
+  them, every defect and every fragility the code review found is closed.
+
 ## v3.1.1 (2026-09-01)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.1.1)
