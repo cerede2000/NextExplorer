@@ -26,7 +26,7 @@ const build = async (env = {}) => {
 };
 
 const indexAll = (options = {}) =>
-  indexer.indexTree({ db, rootAbs: envContext.volumeDir, pauseMs: 0, ...options });
+  indexer.indexTree({ db, rootAbs: envContext.volumeDir, cpuPercent: 100, ...options });
 
 afterEach(async () => {
   if (envContext) await envContext.cleanup();
@@ -141,7 +141,7 @@ describe('being interruptible', () => {
 
   it('stops when asked and says so', async () => {
     const controller = new AbortController();
-    const running = indexAll({ signal: controller.signal, batchSize: 5, pauseMs: 5 });
+    const running = indexAll({ signal: controller.signal, batchSize: 5, cpuPercent: 1, workSliceMs: 1 });
     // Long enough to have started, far short of sixty files.
     await new Promise((resolve) => setTimeout(resolve, 30));
     controller.abort();
@@ -155,7 +155,7 @@ describe('being interruptible', () => {
   // What it did get through is kept: the next run has that much less to do.
   it('keeps the work it had already done', async () => {
     const controller = new AbortController();
-    const running = indexAll({ signal: controller.signal, batchSize: 5, pauseMs: 5 });
+    const running = indexAll({ signal: controller.signal, batchSize: 5, cpuPercent: 1, workSliceMs: 1 });
     await new Promise((resolve) => setTimeout(resolve, 30));
     controller.abort();
     const first = await running;
@@ -200,10 +200,11 @@ describe('what it leaves out', () => {
 
   // A null byte is the giveaway, and it has to be the one that decides: the
   // rest of this file is perfectly ordinary text, which is what a real binary
-  // with embedded strings looks like.
+  // with embedded strings looks like. The extension is one nothing rules out,
+  // so the sniff is the only thing that can be doing the work here.
   it('leaves binaries alone', async () => {
     await fs.writeFile(
-      volumePath('Docs', 'blob.bin'),
+      volumePath('Docs', 'blob.dat'),
       Buffer.from(
         'pangolin\u0000pangolin\u0000pangolin and a great deal of ordinary text',
         'binary'
@@ -259,5 +260,217 @@ describe('how much it holds at once', () => {
     expect(store.search(db, 'pangolin')).toEqual(['Docs/huge.txt']);
     // Past the cap, so never taken in.
     expect(store.search(db, 'tatou')).toEqual([]);
+  });
+});
+
+/**
+ * What a pass costs the machine it runs on.
+ *
+ * Every defect below was found running against a real volume of some three
+ * hundred thousand files, where a background task settled at half a core and
+ * two gigabytes of resident memory. None of them are visible on a small tree,
+ * which is why each one is pinned by an observable rather than by a timing.
+ */
+describe('what a pass costs', () => {
+  beforeEach(async () => {
+    await build({ SEARCH_MAX_FILESIZE: '20M' });
+    await fs.mkdir(volumePath('Docs'), { recursive: true });
+  });
+
+  // Deciding from the name is the difference between a pass proportional to
+  // the documents and one proportional to the disk. The content here is plain
+  // text, so the sniff would have taken it: only the extension can refuse it.
+  it('does not open what its name says is not text', async () => {
+    await fs.writeFile(volumePath('Docs', 'holiday.mp4'), 'pangolin in plain text\n');
+    await fs.writeFile(volumePath('Docs', 'archive.zip'), 'pangolin in plain text\n');
+    await fs.writeFile(volumePath('Docs', 'notes.txt'), 'pangolin in plain text\n');
+
+    await indexAll();
+
+    expect(store.search(db, 'pangolin')).toEqual(['Docs/notes.txt']);
+  });
+
+  // Reading a file to find out it is a binary costs the same as reading a
+  // document. At a few hundred files a second that was gigabytes of buffers
+  // allocated and thrown away, which is what the memory graph was made of.
+  it('reads a few kilobytes of a binary, not all of it', async () => {
+    const megabyte = Buffer.alloc(4 * 1024 * 1024, 0x41);
+    megabyte[10] = 0;
+    await fs.writeFile(volumePath('Docs', 'opaque.dat'), megabyte);
+
+    let bytesRead = 0;
+    const realOpen = fs.open;
+    fs.open = async (...args) => {
+      const handle = await realOpen(...args);
+      const realRead = handle.read.bind(handle);
+      handle.read = async (...readArgs) => {
+        const result = await realRead(...readArgs);
+        bytesRead += result.bytesRead;
+        return result;
+      };
+      return handle;
+    };
+
+    try {
+      await indexAll();
+    } finally {
+      fs.open = realOpen;
+    }
+
+    expect(store.stats(db).documents).toBe(0);
+    // Both halves matter: reading none of it through this path would pass the
+    // ceiling below while reading all four megabytes some other way.
+    expect(bytesRead).toBeGreaterThan(0);
+    expect(bytesRead).toBeLessThanOrEqual(4096);
+  });
+
+  // The pause used to be taken when a batch was written, so a batch large
+  // enough never to be written was a walk that never stood aside. Time is what
+  // it costs the machine, so time is what it has to be paid in.
+  it('stands aside on elapsed time, not on how many files went by', async () => {
+    for (let index = 0; index < 40; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
+    }
+
+    // A batch this size is never reached, so nothing is written until the end.
+    const paced = await indexAll({ batchSize: 10000, cpuPercent: 50, workSliceMs: 1 });
+    expect(paced.batches).toBe(1);
+    expect(paced.pauses).toBeGreaterThan(0);
+
+    const flatOut = await indexAll({ batchSize: 10000, cpuPercent: 100 });
+    expect(flatOut.pauses).toBe(0);
+  });
+
+  // Compiling a statement holds kilobytes of native memory that V8 cannot see,
+  // so nothing pushes back and nothing is collected. Three per document over a
+  // large volume is where the two gigabytes came from.
+  it('compiles its queries once, not once per document', async () => {
+    for (let index = 0; index < 40; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
+    }
+
+    let compiled = 0;
+    const realPrepare = db.prepare.bind(db);
+    db.prepare = (...args) => {
+      compiled += 1;
+      return realPrepare(...args);
+    };
+
+    try {
+      await indexAll();
+    } finally {
+      db.prepare = realPrepare;
+    }
+
+    expect(store.stats(db).documents).toBe(40);
+    // A handful of distinct queries. Per document it would be over a hundred.
+    expect(compiled).toBeLessThan(12);
+  });
+
+  // The last line of defence. Every bound above is a belief about what a file
+  // costs; this one holds when a belief turns out to be wrong.
+  it('stops rather than let the process grow without end', async () => {
+    for (let index = 0; index < 40; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
+    }
+
+    let reading = 0;
+    const result = await indexAll({
+      batchSize: 1,
+      workSliceMs: 0,
+      memoryBudgetBytes: 1000,
+      // Growing by a kilobyte each time it is asked, so the budget is passed
+      // partway through rather than at the first file or not at all.
+      readMemory: () => {
+        reading += 1;
+        return reading * 500;
+      },
+    });
+
+    expect(result.stoppedForMemory).toBe(true);
+    expect(result.interrupted).toBe(true);
+    expect(result.indexed).toBeGreaterThan(0);
+    expect(result.indexed).toBeLessThan(40);
+    // What it wrote before stopping is kept, so the next pass carries on.
+    expect(store.stats(db).documents).toBe(result.indexed);
+  });
+});
+
+/**
+ * The application announces what it writes, and nobody waits for the answer.
+ * Copying a folder of ten thousand files therefore used to start ten thousand
+ * file reads at once, on top of whatever pass was already running — which is
+ * how a background task came to hold more of a machine than the application it
+ * was serving.
+ */
+describe('how much runs at once', () => {
+  let manager;
+
+  beforeEach(async () => {
+    await build({ SEARCH_INDEX: 'true' });
+    manager = envContext.requireFresh('src/services/searchIndexManager');
+    await fs.mkdir(volumePath('Docs'), { recursive: true });
+  });
+
+  afterEach(() => {
+    manager?.stop();
+  });
+
+  it('reads one announced file at a time, however many are announced', async () => {
+    for (let index = 0; index < 30; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
+    }
+
+    let openNow = 0;
+    let openAtMost = 0;
+    const realOpen = fs.open;
+    fs.open = async (...args) => {
+      openNow += 1;
+      openAtMost = Math.max(openAtMost, openNow);
+      try {
+        const handle = await realOpen(...args);
+        const realClose = handle.close.bind(handle);
+        handle.close = async () => {
+          openNow -= 1;
+          return realClose();
+        };
+        return handle;
+      } catch (error) {
+        openNow -= 1;
+        throw error;
+      }
+    };
+
+    try {
+      // Announced the way the application announces them: all at once, awaited
+      // by nobody.
+      await Promise.all(
+        Array.from({ length: 30 }, (unused, index) =>
+          manager.onFileChanged(volumePath('Docs', `note-${index}.txt`))
+        )
+      );
+    } finally {
+      fs.open = realOpen;
+    }
+
+    expect(openAtMost).toBe(1);
+    expect((await manager.status()).documents).toBe(30);
+  });
+
+  // A backlog with no bottom is a memory leak wearing a queue's clothes.
+  it('drops what it cannot keep up with rather than remember all of it', async () => {
+    const announcements = [];
+    for (let index = 0; index < 1200; index += 1) {
+      announcements.push(manager.onFileChanged(volumePath('Docs', `ghost-${index}.txt`)));
+    }
+    await Promise.all(announcements);
+
+    const status = await manager.status();
+    expect(status.pending).toBe(0);
+    expect(status.dropped).toBeGreaterThan(0);
   });
 });

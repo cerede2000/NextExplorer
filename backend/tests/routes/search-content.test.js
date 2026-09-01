@@ -291,7 +291,7 @@ describe('searching through the index', () => {
     const dbService = envContext.requireFresh('src/services/db');
     const db = await dbService.getDb();
     const { indexTree } = envContext.requireFresh('src/services/searchIndexer');
-    return indexTree({ db, rootAbs: envContext.volumeDir, pauseMs: 0 });
+    return indexTree({ db, rootAbs: envContext.volumeDir, cpuPercent: 100 });
   };
 
   it('finds a word inside a document', async () => {

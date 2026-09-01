@@ -135,12 +135,8 @@ module.exports = {
   SEARCH_TIMEOUT_MS: Number(process.env.SEARCH_TIMEOUT_MS) || null,
   SEARCH_INDEX: normalizeBoolean(process.env.SEARCH_INDEX) ?? false,
   SEARCH_INDEX_BATCH: Number(process.env.SEARCH_INDEX_BATCH) || null,
-  // Zero is a real answer here — "do not pause" — so it cannot go through
-  // `|| null`, which would read it as "not set" and restore the default.
-  SEARCH_INDEX_PAUSE_MS:
-    process.env.SEARCH_INDEX_PAUSE_MS === undefined
-      ? null
-      : Number(process.env.SEARCH_INDEX_PAUSE_MS),
+  SEARCH_INDEX_CPU_PERCENT: Number(process.env.SEARCH_INDEX_CPU_PERCENT) || null,
+  SEARCH_INDEX_MEMORY_MB: Number(process.env.SEARCH_INDEX_MEMORY_MB) || null,
   SEARCH_INDEX_RECONCILE_MS: Number(process.env.SEARCH_INDEX_RECONCILE_MS) || null,
 
   // OnlyOffice

@@ -643,17 +643,29 @@ module.exports = {
       // Off unless asked for: an index is a promise to keep something up to
       // date, and that is a decision rather than a default.
       enabled: env.SEARCH_INDEX === true,
-      // Small batches and a pause between them. The numbers are deliberately
-      // modest — the point is not to finish quickly but not to be noticed.
+      // How many documents share one transaction. Small on purpose: a long
+      // transaction is a long stretch of the only thread the server has.
       batch:
         Number.isFinite(env.SEARCH_INDEX_BATCH) && env.SEARCH_INDEX_BATCH > 0
           ? Math.floor(env.SEARCH_INDEX_BATCH)
           : 25,
-      // `null >= 0` is true, so the check has to be for a number first.
-      pauseMs:
-        Number.isFinite(env.SEARCH_INDEX_PAUSE_MS) && env.SEARCH_INDEX_PAUSE_MS >= 0
-          ? env.SEARCH_INDEX_PAUSE_MS
-          : 50,
+      // The share of one core a pass may take. This replaces a pause counted
+      // per batch, which paced nothing: the cost of a batch is the cost of the
+      // files in it, and a fixed pause after an unbounded amount of work is
+      // not a limit on anything. A share of time is.
+      cpuPercent:
+        Number.isFinite(env.SEARCH_INDEX_CPU_PERCENT) &&
+        env.SEARCH_INDEX_CPU_PERCENT > 0 &&
+        env.SEARCH_INDEX_CPU_PERCENT <= 100
+          ? env.SEARCH_INDEX_CPU_PERCENT
+          : 25,
+      // What a pass may add to the process before it gives up and waits for
+      // the next one. Every other bound is a belief about what a file costs;
+      // this is what holds when one of those beliefs is wrong.
+      memoryBudgetBytes:
+        Number.isFinite(env.SEARCH_INDEX_MEMORY_MB) && env.SEARCH_INDEX_MEMORY_MB > 0
+          ? env.SEARCH_INDEX_MEMORY_MB * 1024 * 1024
+          : 512 * 1024 * 1024,
       reconcileMs:
         Number.isFinite(env.SEARCH_INDEX_RECONCILE_MS) && env.SEARCH_INDEX_RECONCILE_MS > 0
           ? env.SEARCH_INDEX_RECONCILE_MS

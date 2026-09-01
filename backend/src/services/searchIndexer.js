@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs/promises');
 
-const { search: searchConfig, directories } = require('../config/index');
+const { search: searchConfig, directories, extensions } = require('../config/index');
 const { extractPdfTextLines } = require('./pdfTextExtract');
 const { extractOfficeTextLines, isOfficeDocument } = require('./officeTextExtract');
 const store = require('./searchIndexStore');
@@ -14,6 +14,14 @@ const store = require('./searchIndexStore');
  * check an abort signal at every step. A walk that cannot be interrupted is a
  * walk that decides for itself when the server is free, and it is always
  * wrong about that.
+ *
+ * What it did not borrow, and had to learn: pacing on a count of items paces
+ * nothing here. The folder-size walk costs a `stat` per item, so pausing every
+ * two hundred of them is a real pause. Indexing costs a file read, an
+ * extraction and a tokenisation per item, so pausing every twenty-five of them
+ * was fifty milliseconds of rest for seconds of work — a core held at half
+ * load for as long as the pass ran. The pause is taken on elapsed time now, so
+ * the share of a core is what is chosen and it holds whatever the files are.
  *
  * Reading a file is the expensive part, so nothing is read twice: a document
  * whose size and modification time match what was indexed is skipped without
@@ -39,9 +47,35 @@ const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.
 const MAX_TEXT_PER_DOCUMENT = 1024 * 1024;
 const MAX_TEXT_PER_BATCH = 4 * 1024 * 1024;
 
+/**
+ * Files that are never going to yield a search term.
+ *
+ * Reading one to find that out costs the same as reading a document: the sniff
+ * below only rules a file out after it has been opened and read. A volume is
+ * mostly photos, video and archives, so deciding from the name first is what
+ * keeps a pass proportional to the documents rather than to the disk.
+ */
+const NON_TEXT_EXTENSIONS = new Set([
+  ...extensions.images,
+  ...extensions.rawImages,
+  ...extensions.videos,
+  ...extensions.audios,
+  'zip', 'rar', '7z', 'gz', 'bz2', 'xz', 'zst', 'tar', 'tgz', 'iso', 'dmg', 'jar',
+  'exe', 'dll', 'so', 'dylib', 'bin', 'o', 'a', 'class', 'pyc', 'wasm',
+  'ttf', 'otf', 'woff', 'woff2', 'eot',
+  'db', 'sqlite', 'sqlite3', 'mdb', 'pack', 'idx',
+]);
+
+const extensionOf = (absolutePath) => path.extname(absolutePath).slice(1).toLowerCase();
+
+/** Whether the name alone is enough to leave a file unopened. */
+const isProbablyNotText = (absolutePath) => NON_TEXT_EXTENSIONS.has(extensionOf(absolutePath));
+
 /** Enough of a file to tell prose from a binary. */
+const SNIFF_BYTES = 4096;
+
 const looksBinary = (buffer) => {
-  const length = Math.min(buffer.length, 4096);
+  const length = Math.min(buffer.length, SNIFF_BYTES);
   if (!length) return false;
 
   let suspicious = 0;
@@ -54,27 +88,56 @@ const looksBinary = (buffer) => {
 };
 
 /**
+ * The head of a plain file, as text — never more of it than will be kept.
+ *
+ * Read in two steps on purpose. The first is a few kilobytes, enough to tell
+ * prose from a binary; a file that fails that test is closed having cost one
+ * small read. Reading the whole file first and deciding afterwards is what
+ * turned a pass over a volume into gigabytes of buffers and strings allocated
+ * and thrown away, at whatever rate the disk could sustain.
+ */
+const readPlainTextHead = async (absolutePath, size) => {
+  let handle = null;
+  try {
+    handle = await fs.open(absolutePath, 'r');
+
+    const sniffLength = Math.min(size, SNIFF_BYTES);
+    const sniff = Buffer.allocUnsafe(sniffLength);
+    const { bytesRead } = await handle.read(sniff, 0, sniffLength, 0);
+    if (!bytesRead) return null;
+    if (looksBinary(sniff.subarray(0, bytesRead))) return null;
+
+    if (size <= bytesRead) return sniff.subarray(0, bytesRead).toString('utf8');
+
+    const wanted = Math.min(size, MAX_TEXT_PER_DOCUMENT);
+    const buffer = Buffer.allocUnsafe(wanted);
+    const full = await handle.read(buffer, 0, wanted, 0);
+    return buffer.subarray(0, full.bytesRead).toString('utf8');
+  } catch {
+    return null;
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+};
+
+/**
  * The words in a file, or null where there are none to take — a binary, an
  * unreadable file, a document with no text layer.
  */
-const readIndexableText = async (absolutePath) => {
+const readIndexableText = async (absolutePath, size) => {
   if (isOfficeDocument(absolutePath)) {
     const lines = extractOfficeTextLines(absolutePath);
     return lines ? lines.join('\n') : null;
   }
 
-  if (path.extname(absolutePath).toLowerCase() === '.pdf') {
+  if (extensionOf(absolutePath) === 'pdf') {
     const lines = await extractPdfTextLines(absolutePath);
     return lines ? lines.join('\n') : null;
   }
 
-  try {
-    const buffer = await fs.readFile(absolutePath);
-    if (looksBinary(buffer)) return null;
-    return buffer.toString('utf8');
-  } catch {
-    return null;
-  }
+  if (isProbablyNotText(absolutePath)) return null;
+
+  return readPlainTextHead(absolutePath, size);
 };
 
 /** As much of a document as is worth keeping terms for. */
@@ -99,7 +162,10 @@ const indexTree = async ({
   rootRel = '',
   signal,
   batchSize = 25,
-  pauseMs = 50,
+  cpuPercent = 25,
+  workSliceMs = 50,
+  memoryBudgetBytes = 512 * 1024 * 1024,
+  readMemory = () => process.memoryUsage().rss,
   maxFileSizeBytes = searchConfig?.maxFileSizeBytes ?? 5 * 1024 * 1024,
   removeMissing = true,
   onProgress,
@@ -117,20 +183,59 @@ const indexTree = async ({
     if (signal?.aborted) throw createAbortedError();
   };
 
+  // Work for a slice, then stand aside for as long as the chosen share says.
+  // At 25% that is 50 ms of work and 150 ms of rest, whether those 50 ms went
+  // into one large PDF or forty small text files.
+  const share = Math.min(100, Math.max(1, cpuPercent));
+  const restMs = Math.round((workSliceMs * (100 - share)) / share);
+  let sliceStartedAt = Date.now();
+  let pauses = 0;
+
+  // A ceiling on what the pass may add to the process, checked once a slice.
+  //
+  // Not a substitute for the bounds above — it is what stands between a bound
+  // that turns out to be wrong and a container that dies. An index is worth
+  // having; it is not worth being the reason nothing else runs. Stopping is
+  // safe: what was written stays written and the next pass resumes from it.
+  const memoryAtStart = readMemory();
+  let stoppedForMemory = false;
+
+  const overMemoryBudget = () =>
+    memoryBudgetBytes > 0 && readMemory() - memoryAtStart > memoryBudgetBytes;
+
+  const payForTimeUsed = async () => {
+    if (Date.now() - sliceStartedAt < workSliceMs) return;
+
+    if (overMemoryBudget()) {
+      stoppedForMemory = true;
+      throw createAbortedError();
+    }
+    if (restMs > 0) {
+      pauses += 1;
+      await sleep(restMs);
+    }
+    sliceStartedAt = Date.now();
+  };
+
   // A first pass over a large library takes minutes, and silence for minutes
   // is indistinguishable from nothing happening. Progress is reported on a
   // timer rather than per batch, so the log says how it is going without
   // becoming the noisiest thing in it.
   let lastReport = Date.now();
 
+  // Built once. `db.transaction()` compiles its own statements every time it is
+  // called, and it is called once per batch — the same compile-in-a-loop that
+  // made the queries below expensive.
+  const writeBatch = db.transaction((batch) => {
+    for (const document of batch) store.upsertDocument(db, document);
+  });
+
   const flush = () => {
     if (pending.length === 0) return;
 
     const batch = pending.splice(0, pending.length);
     pendingBytes = 0;
-    db.transaction(() => {
-      for (const document of batch) store.upsertDocument(db, document);
-    })();
+    writeBatch(batch);
     indexed += batch.length;
     batches += 1;
 
@@ -176,11 +281,13 @@ const indexTree = async ({
       // second run cost almost nothing.
       if (store.isUpToDate(store.getIndexedDocument(db, relativePath), stats)) {
         skipped += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await payForTimeUsed();
         continue;
       }
 
       // eslint-disable-next-line no-await-in-loop
-      const text = await readIndexableText(absolutePath);
+      const text = await readIndexableText(absolutePath, stats.size);
       if (text === null || !text.trim()) continue;
 
       const indexable = capText(text);
@@ -194,15 +301,10 @@ const indexTree = async ({
 
       // Whichever ceiling is reached first. The byte one is what keeps a
       // handful of large documents from being held together.
-      if (pending.length >= batchSize || pendingBytes >= MAX_TEXT_PER_BATCH) {
-        flush();
-        // The pause is the whole point: it is what keeps a full walk from
-        // being felt by whoever is using the application meanwhile.
-        if (pauseMs > 0) {
-          // eslint-disable-next-line no-await-in-loop
-          await sleep(pauseMs);
-        }
-      }
+      if (pending.length >= batchSize || pendingBytes >= MAX_TEXT_PER_BATCH) flush();
+
+      // eslint-disable-next-line no-await-in-loop
+      await payForTimeUsed();
     }
   };
 
@@ -229,7 +331,7 @@ const indexTree = async ({
     }
   }
 
-  return { indexed, skipped, removed, batches, interrupted };
+  return { indexed, skipped, removed, batches, pauses, interrupted, stoppedForMemory };
 };
 
 /** Bring one file up to date, or forget it if it is gone. */
@@ -250,7 +352,7 @@ const indexFile = async (db, relativePath, absolutePath) => {
     return { unchanged: true };
   }
 
-  const text = await readIndexableText(absolutePath);
+  const text = await readIndexableText(absolutePath, stats.size);
   if (text === null || !text.trim()) {
     store.removeDocument(db, relativePath);
     return { skipped: true };

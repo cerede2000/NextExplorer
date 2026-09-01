@@ -29,6 +29,30 @@ const SEARCH_INDEX_DDL = `
     USING fts5(text, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2');
 `;
 
+/**
+ * Prepared-statement cache, keyed by the db handle then the SQL text.
+ *
+ * Preparing a statement compiles it. A reconcile over a large volume runs these
+ * queries several times per document and hundreds of times per second, and
+ * compiling each one again every time burns CPU and churns native handles for
+ * nothing. The folder-size index learned this on the same scale; this is the
+ * same cache. The WeakMap lets it be collected with its connection.
+ */
+const stmtCache = new WeakMap();
+const prep = (db, sql) => {
+  let bySql = stmtCache.get(db);
+  if (!bySql) {
+    bySql = new Map();
+    stmtCache.set(db, bySql);
+  }
+  let stmt = bySql.get(sql);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    bySql.set(sql, stmt);
+  }
+  return stmt;
+};
+
 /** Apply the schema. Safe to call on every start. */
 const ensureSchema = (db) => {
   db.exec(SEARCH_INDEX_DDL);
@@ -36,9 +60,9 @@ const ensureSchema = (db) => {
 
 /** What the index believes about a path, or null. */
 const getIndexedDocument = (db, path) =>
-  db
-    .prepare('SELECT id, mtime_ms AS mtimeMs, size FROM search_documents WHERE path = ?')
-    .get(path) || null;
+  prep(db, 'SELECT id, mtime_ms AS mtimeMs, size FROM search_documents WHERE path = ?').get(
+    path
+  ) || null;
 
 /** Whether the file on disk is the one already indexed. */
 const isUpToDate = (indexed, { mtimeMs, size }) =>
@@ -53,18 +77,20 @@ const upsertDocument = (db, { path, mtimeMs, size, text }) => {
   const existing = getIndexedDocument(db, path);
 
   if (existing) {
-    db.prepare('DELETE FROM search_terms WHERE rowid = ?').run(existing.id);
-    db.prepare(
+    prep(db, 'DELETE FROM search_terms WHERE rowid = ?').run(existing.id);
+    prep(
+      db,
       'UPDATE search_documents SET mtime_ms = ?, size = ?, indexed_at = ? WHERE id = ?'
     ).run(Math.floor(mtimeMs), size, now, existing.id);
-    db.prepare('INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(existing.id, text);
+    prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(existing.id, text);
     return existing.id;
   }
 
-  const result = db
-    .prepare('INSERT INTO search_documents (path, mtime_ms, size, indexed_at) VALUES (?, ?, ?, ?)')
-    .run(path, Math.floor(mtimeMs), size, now);
-  db.prepare('INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(
+  const result = prep(
+    db,
+    'INSERT INTO search_documents (path, mtime_ms, size, indexed_at) VALUES (?, ?, ?, ?)'
+  ).run(path, Math.floor(mtimeMs), size, now);
+  prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(
     result.lastInsertRowid,
     text
   );
@@ -76,20 +102,21 @@ const removeDocument = (db, path) => {
   const existing = getIndexedDocument(db, path);
   if (!existing) return false;
 
-  db.prepare('DELETE FROM search_terms WHERE rowid = ?').run(existing.id);
-  db.prepare('DELETE FROM search_documents WHERE id = ?').run(existing.id);
+  prep(db, 'DELETE FROM search_terms WHERE rowid = ?').run(existing.id);
+  prep(db, 'DELETE FROM search_documents WHERE id = ?').run(existing.id);
   return true;
 };
 
 /** Forget a folder and everything under it. Answers how many went. */
 const removeUnder = (db, prefix) => {
-  const rows = db
-    .prepare('SELECT id FROM search_documents WHERE path = ? OR path LIKE ? ESCAPE ?')
-    .all(prefix, `${prefix.replace(/[\\%_]/g, '\\$&')}/%`, '\\');
+  const rows = prep(
+    db,
+    'SELECT id FROM search_documents WHERE path = ? OR path LIKE ? ESCAPE ?'
+  ).all(prefix, `${prefix.replace(/[\\%_]/g, '\\$&')}/%`, '\\');
 
   for (const row of rows) {
-    db.prepare('DELETE FROM search_terms WHERE rowid = ?').run(row.id);
-    db.prepare('DELETE FROM search_documents WHERE id = ?').run(row.id);
+    prep(db, 'DELETE FROM search_terms WHERE rowid = ?').run(row.id);
+    prep(db, 'DELETE FROM search_documents WHERE id = ?').run(row.id);
   }
   return rows.length;
 };
@@ -100,17 +127,17 @@ const removeUnder = (db, prefix) => {
  */
 const movePath = (db, fromPath, toPath) => {
   const like = `${fromPath.replace(/[\\%_]/g, '\\$&')}/%`;
-  const moved = db
-    .prepare(
-      `UPDATE search_documents
+  const moved = prep(
+    db,
+    `UPDATE search_documents
        SET path = ? || substr(path, ?)
        WHERE path LIKE ? ESCAPE '\\'`
-    )
-    .run(toPath, fromPath.length + 1, like);
+  ).run(toPath, fromPath.length + 1, like);
 
-  const movedSelf = db
-    .prepare('UPDATE search_documents SET path = ? WHERE path = ?')
-    .run(toPath, fromPath);
+  const movedSelf = prep(db, 'UPDATE search_documents SET path = ? WHERE path = ?').run(
+    toPath,
+    fromPath
+  );
 
   return moved.changes + movedSelf.changes;
 };
@@ -126,15 +153,15 @@ const movePath = (db, fromPath, toPath) => {
 const search = (db, term, limit = 100) => {
   const quoted = `"${String(term).replace(/"/g, '""')}"`;
   try {
-    return db
-      .prepare(
-        `SELECT d.path AS path
+    return prep(
+      db,
+      `SELECT d.path AS path
          FROM search_terms t
          JOIN search_documents d ON d.id = t.rowid
          WHERE search_terms MATCH ?
          ORDER BY rank
          LIMIT ?`
-      )
+    )
       .all(quoted, limit)
       .map((row) => row.path);
   } catch (error) {
@@ -145,7 +172,7 @@ const search = (db, term, limit = 100) => {
 
 /** How much is in there, for the diagnostics page and for tests. */
 const stats = (db) => {
-  const row = db.prepare('SELECT COUNT(*) AS documents FROM search_documents').get();
+  const row = prep(db, 'SELECT COUNT(*) AS documents FROM search_documents').get();
   return { documents: row?.documents ?? 0 };
 };
 
