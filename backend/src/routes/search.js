@@ -6,7 +6,12 @@ const readline = require('readline');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
-const { excludedFiles, hiddenFiles, search: searchConfig } = require('../config/index');
+const {
+  excludedFiles,
+  hiddenFiles,
+  search: searchConfig,
+  directories,
+} = require('../config/index');
 const { resolvePathWithAccess, getAccessInfo } = require('../services/accessManager');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
@@ -16,6 +21,8 @@ const {
   isSearchableDocument,
   SEARCHABLE_EXTENSIONS: DOCUMENT_EXTENSIONS,
 } = require('../services/documentText');
+const searchIndexStore = require('../services/searchIndexStore');
+const { getDb } = require('../services/db');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 
@@ -342,6 +349,72 @@ async function* mergeResults(...generators) {
 }
 
 /**
+ * Matches the index already knows about.
+ *
+ * It stores terms and not text, so the line to show is read back from the file
+ * — which costs one read per result rather than one per document, and only for
+ * the handful actually returned. That is the whole bargain of a contentless
+ * index, and it is a good one.
+ *
+ * It covers the volume root. A search based anywhere else — a personal folder,
+ * an assigned volume — falls back to reading as it goes, because the index
+ * does not hold those.
+ */
+async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit) {
+  let paths;
+  try {
+    const db = await getDb();
+    // Over-fetch: permissions are applied after the query, since the index
+    // does not know who may read what.
+    paths = searchIndexStore.search(db, term, Math.max(limit * 3, 50));
+  } catch (error) {
+    logger.debug({ err: error }, 'Search index query failed; falling back to reading as we go');
+    return;
+  }
+
+  const needle = term.toLowerCase();
+  const prefix = relBasePath ? `${relBasePath}/` : '';
+
+  for (const rel of paths) {
+    if (prefix && !rel.startsWith(prefix) && rel !== relBasePath) continue;
+    if (seenPaths.has(rel)) continue;
+
+    const absolutePath = path.join(directories.volume, rel);
+    let line = '';
+    let lineNumber = null;
+
+    if (isSearchableDocument(absolutePath)) {
+      // eslint-disable-next-line no-await-in-loop
+      const match = await findDocumentTextMatch(absolutePath, needle);
+      if (match) {
+        line = match.line;
+        lineNumber = match.lineNumber;
+      }
+    } else {
+      // eslint-disable-next-line no-await-in-loop
+      const content = await fs.readFile(absolutePath, 'utf8').catch(() => null);
+      if (content !== null) {
+        const index = content.toLowerCase().indexOf(needle);
+        if (index !== -1) {
+          lineNumber = (content.slice(0, index).match(/\n/g)?.length ?? 0) + 1;
+          line = content.split(/\r?\n/)[lineNumber - 1] || '';
+        }
+      }
+    }
+
+    // The file changed since it was indexed and no longer says this. The next
+    // pass will notice; this one simply does not offer it.
+    if (!lineNumber) continue;
+
+    seenPaths.add(rel);
+    // eslint-disable-next-line no-await-in-loop
+    if (await shouldInclude(rel)) {
+      yield formatResult(rel, 'file', line, lineNumber);
+    }
+  }
+}
+
+/**
  * Matches inside documents whose text has to be extracted first.
  *
  * Office files are zip archives and PDFs are compressed streams, so ripgrep
@@ -415,7 +488,8 @@ async function* generateRipgrepResults(
   term,
   shouldInclude,
   deep = true,
-  includeHiddenFiles = false
+  includeHiddenFiles = false,
+  { useIndex = false, limit = 100 } = {}
 ) {
   const needle = term.toLowerCase();
   const seenPaths = new Set();
@@ -444,14 +518,18 @@ async function* generateRipgrepResults(
     shouldInclude,
     includeHiddenFiles
   );
-  const contentGen = streamContentMatches(
-    baseAbsPath,
-    relBasePath,
-    term,
-    seenPaths,
-    shouldInclude,
-    includeHiddenFiles
-  );
+  // With an index in place the live content scan is not run at all: doing both
+  // would be exactly the cost an index exists to remove.
+  const contentGen = useIndex
+    ? streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit)
+    : streamContentMatches(
+        baseAbsPath,
+        relBasePath,
+        term,
+        seenPaths,
+        shouldInclude,
+        includeHiddenFiles
+      );
 
   const documentGen = streamDocumentMatches(
     baseAbsPath,
@@ -462,7 +540,11 @@ async function* generateRipgrepResults(
     includeHiddenFiles
   );
 
-  yield* mergeResults(fileListGen, contentGen, documentGen);
+  // The document pass reads Office files and PDFs one by one; the index has
+  // already read them.
+  yield* useIndex
+    ? mergeResults(fileListGen, contentGen)
+    : mergeResults(fileListGen, contentGen, documentGen);
 }
 
 // Optimized fallback with streaming (Optimization #1)
@@ -472,7 +554,8 @@ async function* generateFallbackResults(
   term,
   shouldInclude,
   deep = true,
-  includeHiddenFiles = false
+  includeHiddenFiles = false,
+  { useIndex = false, limit = 100 } = {}
 ) {
   const seenPaths = new Set();
   const needle = term.toLowerCase();
@@ -540,6 +623,16 @@ async function* generateFallbackResults(
       }
     }
   };
+
+  // With an index in place the walk stops reading files: it looks at names,
+  // and the index answers for what is inside them.
+  if (useIndex) {
+    yield* mergeResults(
+      walk(baseAbsPath, relBasePath),
+      streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit)
+    );
+    return;
+  }
 
   yield* walk(baseAbsPath, relBasePath);
 }
@@ -610,15 +703,37 @@ router.get(
       return ok;
     };
 
+    // The index holds the volume root. A search based anywhere else — a
+    // personal folder, an assigned volume — reads as it goes, because the
+    // index does not hold those.
+    const useIndex =
+      deepEnabled &&
+      searchConfig?.index?.enabled === true &&
+      baseAbs.startsWith(directories.volume);
+
     const generator = useRipgrep
-      ? generateRipgrepResults(baseAbs, relBase, q, shouldInclude, deepEnabled, includeHiddenFiles)
-      : generateFallbackResults(
+      ? generateRipgrepResults(
           baseAbs,
           relBase,
           q,
           shouldInclude,
           deepEnabled,
-          includeHiddenFiles
+          includeHiddenFiles,
+          {
+            useIndex,
+            limit,
+          }
+        )
+      : generateFallbackResults(
+          baseAbs,
+          relBase,
+          q,
+          // With an index the walk does not read files; the index answers for
+          // their contents.
+          shouldInclude,
+          deepEnabled && !useIndex,
+          includeHiddenFiles,
+          { useIndex, limit }
         );
 
     // What a name matched and what a document contained are counted apart, and

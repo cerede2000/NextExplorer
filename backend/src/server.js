@@ -22,6 +22,7 @@ const { cleanupExpiredShares } = require('./services/sharesService');
 const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
+const searchIndexManager = require('./services/searchIndexManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
 
@@ -64,6 +65,7 @@ const startServer = async () => {
   // Start the folder size indexer worker (no-op unless FOLDER_SIZE_MODE is set).
   // It runs off the Express event loop and keeps the folder_size_index fresh.
   folderSizeManager.start();
+  searchIndexManager.start();
   performanceDiagnostics.start();
 
   // Expired shares and guest sessions were never purged: the services had a
@@ -100,6 +102,7 @@ const startServer = async () => {
     terminalService.cleanup();
     performanceDiagnostics.stop();
     await folderSizeManager.stop();
+    searchIndexManager.stop();
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);

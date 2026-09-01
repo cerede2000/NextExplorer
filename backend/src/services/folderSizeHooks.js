@@ -39,18 +39,40 @@ const withIndex = async (fn) => {
   }
 };
 
+/**
+ * Tell the search index what changed, if it is running.
+ *
+ * These hooks are where the application says "something on disk moved", which
+ * is what both indexes need to hear — so the notification lives here rather
+ * than being repeated at every one of the dozen call sites, where one would
+ * eventually be forgotten. Required late and never awaited: a search index
+ * that is off, busy or broken must not slow a write down or fail it.
+ */
+const notifySearchIndex = (method, ...args) => {
+  try {
+    // eslint-disable-next-line global-require
+    const searchIndexManager = require('./searchIndexManager');
+    Promise.resolve(searchIndexManager[method](...args)).catch(() => {});
+  } catch {
+    // The search index is optional; a write is not.
+  }
+};
+
 /** A file has been created/written at `absolutePath` with `size` bytes. */
-const onFileWritten = (absolutePath, size) =>
-  withIndex((db, scope) => {
+const onFileWritten = (absolutePath, size) => {
+  notifySearchIndex('onFileChanged', absolutePath);
+  return withIndex((db, scope) => {
     if (exclusions.isExcluded(absolutePath, scope)) return;
     folderSizeIndex.applyDelta(db, scope, path.dirname(absolutePath), Number(size) || 0, {
       entryDelta: 1,
     });
   });
+};
 
 /** A file was replaced in place; only its byte delta changes the index. */
-const onFileReplaced = (absolutePath, previousSize, size) =>
-  withIndex((db, scope) => {
+const onFileReplaced = (absolutePath, previousSize, size) => {
+  notifySearchIndex('onFileChanged', absolutePath);
+  return withIndex((db, scope) => {
     if (exclusions.isExcluded(absolutePath, scope)) return;
     folderSizeIndex.applyDelta(
       db,
@@ -59,6 +81,7 @@ const onFileReplaced = (absolutePath, previousSize, size) =>
       (Number(size) || 0) - (Number(previousSize) || 0)
     );
   });
+};
 
 /** An empty folder has been created at `absolutePath`. */
 const onFolderCreated = (absolutePath) =>
@@ -95,6 +118,7 @@ const onDirectoryTreeCreated = (absolutePath) => {
  * the ancestors).
  */
 const onEntryDeleted = (absolutePath, { isDirectory, size } = {}) => {
+  notifySearchIndex('onPathRemoved', absolutePath);
   folderSizeManager.invalidateSubtree(absolutePath, 'entry-deleted');
   return withIndex((db, scope) => {
     if (exclusions.isExcluded(absolutePath, scope)) return;
@@ -161,6 +185,7 @@ const cancelDirectoryTransfer = async (targetAbsolutePath) => {
 
 /** An entry has been moved from `sourceAbsolutePath` to `targetAbsolutePath`. */
 const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) => {
+  notifySearchIndex('onPathMoved', sourceAbsolutePath, targetAbsolutePath);
   folderSizeManager.invalidateSubtree(sourceAbsolutePath, 'entry-moved');
   return withIndex((db, scope) => {
     const sourceExcluded = exclusions.isExcluded(sourceAbsolutePath, scope);
@@ -302,6 +327,7 @@ const refreshTransferredDirectories = (absolutePaths = []) => {
  * no-op for them.
  */
 const onEntryRenamed = (sourceAbsolutePath, targetAbsolutePath) => {
+  notifySearchIndex('onPathMoved', sourceAbsolutePath, targetAbsolutePath);
   folderSizeManager.invalidateSubtree(sourceAbsolutePath, 'entry-renamed');
   return withIndex((db, scope) => {
     const sourceExcluded = exclusions.isExcluded(sourceAbsolutePath, scope);

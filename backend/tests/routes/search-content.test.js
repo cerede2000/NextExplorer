@@ -280,3 +280,88 @@ describe('searching inside PDFs', () => {
     expect(await search('pangolin')).toEqual([]);
   });
 });
+
+/**
+ * With the index on, a search answers from what was read earlier instead of
+ * reading the tree again. The point of the whole thing is that the second
+ * search costs nothing the first one did not already pay.
+ */
+describe('searching through the index', () => {
+  const buildIndex = async () => {
+    const dbService = envContext.requireFresh('src/services/db');
+    const db = await dbService.getDb();
+    const { indexTree } = envContext.requireFresh('src/services/searchIndexer');
+    return indexTree({ db, rootAbs: envContext.volumeDir, pauseMs: 0 });
+  };
+
+  it('finds a word inside a document', async () => {
+    const dir = await seed({ SEARCH_INDEX: 'true' });
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'notes.md'), '# Notes\n\nthe word pangolin is here\n');
+    await buildIndex();
+
+    const items = await search('pangolin');
+
+    const hit = items.find((item) => item.name === 'notes.md');
+    expect(hit).toBeTruthy();
+    expect(hit.matchLine).toContain('pangolin');
+    expect(hit.matchLineNumber).toBe(3);
+  });
+
+  it('finds one inside a Word document', async () => {
+    const dir = await seed({ SEARCH_INDEX: 'true' });
+    await fs.mkdir(dir, { recursive: true });
+    const zip = new AdmZip();
+    zip.addFile(
+      'word/document.xml',
+      Buffer.from(
+        '<w:document><w:body><w:p><w:r><w:t>a pangolin appears</w:t></w:r></w:p></w:body></w:document>'
+      )
+    );
+    zip.writeZip(path.join(dir, 'report.docx'));
+    await buildIndex();
+
+    expect((await search('pangolin')).some((item) => item.name === 'report.docx')).toBe(true);
+  });
+
+  // The index says a file matches; the file is what says where. A document
+  // edited since the last pass must not be offered on the strength of words it
+  // no longer contains.
+  it('does not offer a file that no longer says it', async () => {
+    const dir = await seed({ SEARCH_INDEX: 'true' });
+    await fs.mkdir(dir, { recursive: true });
+    const file = path.join(dir, 'notes.md');
+    await fs.writeFile(file, 'the word pangolin is here\n');
+    await buildIndex();
+
+    await fs.writeFile(file, 'it says something else entirely now\n');
+
+    expect((await search('pangolin')).map((item) => item.name)).not.toContain('notes.md');
+  });
+
+  // What proves the answer came from the index rather than from reading the
+  // tree again: a file the index has never seen is not found by its contents,
+  // because with the index on nothing reads contents live. It is also the
+  // honest description of the trade — results are as fresh as the last pass.
+  it('answers from the index, and only from it', async () => {
+    const dir = await seed({ SEARCH_INDEX: 'true' });
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'indexed.md'), 'the word pangolin is here\n');
+    await buildIndex();
+    await fs.writeFile(path.join(dir, 'later.md'), 'a pangolin arrived after the pass\n');
+
+    const names = (await search('pangolin')).map((item) => item.name);
+
+    expect(names).toContain('indexed.md');
+    expect(names).not.toContain('later.md');
+  });
+
+  it('still matches on names, which the index is not for', async () => {
+    const dir = await seed({ SEARCH_INDEX: 'true' });
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'pangolin-notes.md'), 'nothing relevant\n');
+    await buildIndex();
+
+    expect((await search('pangolin')).some((item) => item.name === 'pangolin-notes.md')).toBe(true);
+  });
+});
