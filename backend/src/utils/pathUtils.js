@@ -289,7 +289,14 @@ const parsePathSpace = (relativePath = '') => {
   return { space: 'volume', rel: normalized };
 };
 
-const getUserFolderName = (user = {}) => {
+/**
+ * The folder names this account could be given, best first.
+ *
+ * `USER_FOLDER_NAME_ORDER` decides the preference — `username,id` to reuse an
+ * existing /home/<username> layout, for instance — and `id` is always in the
+ * list, so the walk always ends somewhere unique.
+ */
+const getUserFolderNameCandidates = (user = {}) => {
   const candidates = [];
 
   const configuredOrder = Array.isArray(personal?.userFolderNameOrder)
@@ -324,16 +331,42 @@ const getUserFolderName = (user = {}) => {
 
   candidates.push('user');
 
+  const valid = [];
   for (const candidate of candidates) {
     try {
       const safe = ensureValidName(String(candidate));
-      if (safe) return safe;
+      if (safe && !valid.includes(safe)) valid.push(safe);
     } catch (_) {
       // try next candidate
     }
   }
 
-  return 'user';
+  return valid.length > 0 ? valid : ['user'];
+};
+
+/**
+ * The folder this account owns.
+ *
+ * The name it was given when the account was first seen, if it has one. Two
+ * accounts can otherwise derive the same name — `username` carries no
+ * uniqueness constraint, and `bob@a.com` and `bob@b.com` both yield `bob` —
+ * and each would then be handed the other's private folder. The name is
+ * claimed once and stored (see services/personalFolders.js), so what is
+ * derived here is only the fallback for an account that has not been through
+ * that yet.
+ */
+const getUserFolderName = (user = {}) => {
+  const claimed = user?.personalFolderName || user?.personal_folder_name;
+  if (typeof claimed === 'string' && claimed.trim()) {
+    try {
+      const safe = ensureValidName(claimed.trim());
+      if (safe) return safe;
+    } catch (_) {
+      // A stored name that is no longer valid falls back to derivation.
+    }
+  }
+
+  return getUserFolderNameCandidates(user)[0];
 };
 
 const getUserRootDir = (user) => {
@@ -617,6 +650,7 @@ module.exports = {
   ensureValidName,
   parsePathSpace,
   getUserFolderName,
+  getUserFolderNameCandidates,
   getUserRootDir,
   resolveItemPaths,
 };

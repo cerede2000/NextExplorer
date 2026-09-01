@@ -1,6 +1,5 @@
 const { generateId, nowIso } = require('../../utils/ids');
 
-
 const toClientUser = (row) => {
   if (!row) return null;
   return {
@@ -18,9 +17,11 @@ const toClientUser = (row) => {
     })(),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    // The folder this account owns, claimed once rather than derived per
+    // request — two accounts can otherwise derive the same one.
+    personalFolderName: row.personal_folder_name || null,
   };
 };
-
 
 const normalizeEmail = (email) => (typeof email === 'string' ? email.trim().toLowerCase() : '');
 

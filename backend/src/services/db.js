@@ -636,6 +636,24 @@ const migrate = (db) => {
       );
       version = 14;
     }
+    if (version < 15) {
+      logger.info('[DB Migration] Migrating to v15: One personal folder per account...');
+      addColumnIfMissing(db, 'users', 'personal_folder_name', 'personal_folder_name TEXT');
+      // SQLite lets a unique index hold any number of NULLs, so an account that
+      // has not claimed a name yet does not collide with the others.
+      db.exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_personal_folder ON users(personal_folder_name);'
+      );
+      // eslint-disable-next-line global-require
+      const { claimAllPersonalFolderNames } = require('./personalFolders');
+      const claimed = claimAllPersonalFolderNames(db);
+      logger.info({ claimed }, '[DB Migration] Personal folder names assigned');
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(15)
+      );
+      version = 15;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another

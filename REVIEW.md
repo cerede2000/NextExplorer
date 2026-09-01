@@ -107,7 +107,7 @@ Stated because a review that only lists problems says nothing about the rest:
 `authorizationService.js` (82), `utils/pathUtils.js` (613),
 `middleware/authMiddleware.js` (197). The layer everything else rests on.
 
-### D6 · Two users can end up sharing one personal folder — Defect — **DEFERRED**
+### D6 · Two users can end up sharing one personal folder — Defect — **FIXED**
 
 `utils/pathUtils.js:286` derives a user's personal folder name from
 `USER_FOLDER_NAME_ORDER`, falling back to `id, username, email_local`. Nothing
@@ -127,11 +127,18 @@ a default install is safe — but the environment reference recommends
 `username,id` outright, to reuse `/home/<username>`, with no mention that
 duplicate usernames are possible and what happens then.
 
-Worth deciding deliberately: enforce uniqueness on `username`, refuse a
-non-`id` order unless uniqueness is guaranteed, or say plainly in the
-documentation what the trade-off is. The three options and what each costs are
-written up in [TODO.md](TODO.md), where this now waits for a decision — the
-default install is safe, so nothing is on fire while it does.
+Fixed by none of the three options first considered. Enforcing uniqueness on
+`username` would have left `email_local` untouched, where two domains share one
+local part and no constraint can help; refusing a non-`id` order would have
+broken, on upgrade, the layout the documentation recommends.
+
+The name is claimed instead of derived: the first account to be given one keeps
+it, a second walks down its own preference order to the next free name, and a
+unique index makes that the guarantee rather than a check that could be raced.
+`id` is always last in the order and ids are unique, so the walk always ends.
+Existing accounts were assigned oldest first, so on an instance that already
+had a collision the account that has been using the folder is the one that
+keeps it.
 
 ### D7 · `assertRealPathWithinRoot` does not assert what its name claims — Fragility
 
@@ -519,17 +526,13 @@ The five defects, most consequential first:
 2. **D16** — OIDC group membership is read once, so admin rights can neither be
    granted nor revoked afterwards, and the documentation says otherwise.
 3. **D6** — two accounts can share one personal folder under a configuration the
-   documentation recommends. Deferred to [TODO.md](TODO.md): the fix is a
-   decision, not a correction.
+   documentation recommends.
 4. **D10** — the default upload path has no free-space guard; the optional one
    does.
 5. **D11** — a `.uploading` file left by a killed process is visible and never
    cleaned up.
 
-Four of the five are fixed. D6 is the exception, and deliberately so: what it
-needs is a decision rather than a correction, so it waits in
-[TODO.md](TODO.md) with the three options costed. Nothing is on fire while it
-does — the folder-name order that ships is unique.
+All five are fixed.
 
 Three of the five are about **revocation and cleanup** — states that outlive
 what created them — rather than about anything being computed wrongly. That is

@@ -2,6 +2,22 @@ const { getDb } = require('../db');
 const { auth: envAuthConfig } = require('../../config/index');
 const { toClientUser, normalizeEmail } = require('./utils');
 const { deriveRolesFromClaims } = require('./oidcAuth');
+const { claimPersonalFolderName } = require('../personalFolders');
+
+/**
+ * An account that has no folder name yet gets one here.
+ *
+ * The migration gave every account that existed a name; this covers the ones
+ * created since, wherever they were created from, without every creation path
+ * having to remember. It writes once in an account's life and reads a column
+ * that was already loaded, so the cost after that is a null check.
+ */
+const withPersonalFolder = (db, row) => {
+  if (row && !row.personal_folder_name) {
+    row.personal_folder_name = claimPersonalFolderName(db, row);
+  }
+  return row;
+};
 
 const getRequestUser = async (req) => {
   // Synthetic or pre-populated user (e.g., AUTH_ENABLED=false)
@@ -13,7 +29,7 @@ const getRequestUser = async (req) => {
   if (req?.session?.localUserId) {
     const db = await getDb();
     const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.localUserId);
-    const user = toClientUser(row);
+    const user = toClientUser(withPersonalFolder(db, row));
     if (user) {
       user.provider = 'local';
     }
@@ -44,7 +60,7 @@ const getRequestUser = async (req) => {
 
     if (authMethod) {
       const row = db.prepare('SELECT * FROM users WHERE id = ?').get(authMethod.user_id);
-      const user = toClientUser(row);
+      const user = toClientUser(withPersonalFolder(db, row));
       if (user) {
         user.provider = 'oidc';
         user.oidcIssuer = issuer;
