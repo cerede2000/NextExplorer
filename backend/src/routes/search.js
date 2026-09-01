@@ -11,6 +11,12 @@ const { resolvePathWithAccess, getAccessInfo } = require('../services/accessMana
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
 const { createPermissionResolver } = require('../services/accessControlService');
+const {
+  findOfficeTextMatch,
+  isOfficeDocument,
+  SUPPORTED_EXTENSIONS: OFFICE_EXTENSIONS,
+} = require('../services/officeTextExtract');
+const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 
 const router = express.Router();
@@ -80,9 +86,26 @@ const buildContentSearchArgs = (term, globArgs = [], maxFileSize = null) => {
     '.',
   ];
 
-  if (maxFileSize) args.unshift('--max-filesize', maxFileSize);
+  // Spawn arguments are strings; passing the number through and letting the
+  // conversion happen somewhere else is how a value stops being checkable.
+  if (maxFileSize) args.unshift('--max-filesize', String(maxFileSize));
   return args;
 };
+
+/**
+ * Everything ripgrep is given for a content search, composed in one place.
+ *
+ * Exported so the wiring can be tested where ripgrep is not installed — which
+ * is where this went wrong: the raw `SEARCH_MAX_FILESIZE` was handed over
+ * instead of the parsed byte count, ripgrep refused the flag, and nothing
+ * anywhere ran the code that would have shown it.
+ */
+const contentSearchArgs = (term, includeHiddenFiles = false) =>
+  buildContentSearchArgs(
+    term,
+    buildRipgrepArgs(includeHiddenFiles),
+    searchConfig?.maxFileSizeBytes
+  );
 
 const buildRipgrepArgs = (includeHiddenFiles = false) => [
   '-g',
@@ -170,33 +193,33 @@ async function* streamFileListMatches(
   });
 
   try {
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(trimmed)) continue;
+    for await (const line of rl) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (!includeHiddenFiles && hiddenFiles.isHiddenPath(trimmed)) continue;
 
-    const fullRel = normalizePath(trimmed, relBasePath);
+      const fullRel = normalizePath(trimmed, relBasePath);
 
-    // Extract and yield directory matches immediately
-    for (const dirPath of extractDirMatches(fullRel, needle, includeHiddenFiles)) {
-      if (!dirSet.has(dirPath) && !seenPaths.has(dirPath)) {
-        dirSet.add(dirPath);
-        seenPaths.add(dirPath);
-        if (await shouldInclude(dirPath)) {
-          yield formatResult(dirPath, 'dir');
+      // Extract and yield directory matches immediately
+      for (const dirPath of extractDirMatches(fullRel, needle, includeHiddenFiles)) {
+        if (!dirSet.has(dirPath) && !seenPaths.has(dirPath)) {
+          dirSet.add(dirPath);
+          seenPaths.add(dirPath);
+          if (await shouldInclude(dirPath)) {
+            yield formatResult(dirPath, 'dir');
+          }
+        }
+      }
+
+      // Check filename match and yield immediately
+      const baseName = path.posix.basename(fullRel).toLowerCase();
+      if (baseName.includes(needle) && !seenPaths.has(fullRel)) {
+        seenPaths.add(fullRel);
+        if (await shouldInclude(fullRel)) {
+          yield formatResult(fullRel, 'file');
         }
       }
     }
-
-    // Check filename match and yield immediately
-    const baseName = path.posix.basename(fullRel).toLowerCase();
-    if (baseName.includes(needle) && !seenPaths.has(fullRel)) {
-      seenPaths.add(fullRel);
-      if (await shouldInclude(fullRel)) {
-        yield formatResult(fullRel, 'file');
-      }
-    }
-  }
   } finally {
     rl.close();
     fileListProcess.kill('SIGTERM');
@@ -212,11 +235,31 @@ async function* streamContentMatches(
   shouldInclude,
   includeHiddenFiles = false
 ) {
-  const globArgs = buildRipgrepArgs(includeHiddenFiles);
+  const contentArgs = contentSearchArgs(term, includeHiddenFiles);
 
-  const contentArgs = buildContentSearchArgs(term, globArgs, searchConfig?.maxFileSize);
+  // The parsed byte count, never the raw setting. `SEARCH_MAX_FILESIZE=5MB` —
+  // the form our own README suggests — went to ripgrep verbatim, and ripgrep
+  // only accepts `K`, `M` or `G`. It answered `invalid format for size '5MB'`,
+  // exited, and searched nothing: content search returned no results at all
+  // while filename search, a separate invocation without this flag, went on
+  // working. With --no-messages set and stderr unread, it did it in silence.
 
   const contentProcess = spawn('rg', contentArgs, { cwd: baseAbsPath });
+
+  // Whatever ripgrep has to say about how it was called. `--no-messages`
+  // silences per-file errors, not usage ones, and nothing was reading this: a
+  // refused flag looked exactly like a search that found nothing.
+  let stderr = '';
+  contentProcess.stderr?.on('data', (chunk) => {
+    if (stderr.length < 2000) stderr += String(chunk);
+  });
+  contentProcess.on('close', (code) => {
+    // 1 is ripgrep's "no matches", which is an answer rather than a failure.
+    if (code !== null && code > 1) {
+      logger.warn({ code, stderr: stderr.trim() }, 'Content search failed to run');
+    }
+  });
+
   const rl = readline.createInterface({
     input: contentProcess.stdout,
     crlfDelay: Infinity,
@@ -225,33 +268,142 @@ async function* streamContentMatches(
   // The consumer stops as soon as it has enough results. Without this the
   // process would keep scanning the whole tree in the background.
   try {
-  for await (const line of rl) {
-    const data = parseJsonLine(line);
-    if (!data || data.type !== 'match') continue;
+    for await (const line of rl) {
+      const data = parseJsonLine(line);
+      if (!data || data.type !== 'match') continue;
 
-    const filePath = data.data?.path?.text;
-    if (!filePath) continue;
-    // `rg` reports content-search paths as `./file`, unlike `rg --files`.
-    // That prefix is not a hidden-file marker; checking it first made every
-    // content match look hidden and in particular hid literal terms such as
-    // `--pre=...` even though the arguments were safely protected by `--`.
-    const normalizedFilePath = filePath.replace(/^(?:\.\/|\.\\)+/, '');
-    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(normalizedFilePath)) continue;
+      const filePath = data.data?.path?.text;
+      if (!filePath) continue;
+      // `rg` reports content-search paths as `./file`, unlike `rg --files`.
+      // That prefix is not a hidden-file marker; checking it first made every
+      // content match look hidden and in particular hid literal terms such as
+      // `--pre=...` even though the arguments were safely protected by `--`.
+      const normalizedFilePath = filePath.replace(/^(?:\.\/|\.\\)+/, '');
+      if (!includeHiddenFiles && hiddenFiles.isHiddenPath(normalizedFilePath)) continue;
 
-    const lineNum = data.data?.line_number;
-    const lineText = data.data?.lines?.text;
+      const lineNum = data.data?.line_number;
+      const lineText = data.data?.lines?.text;
 
-    const rel = normalizePath(normalizedFilePath, relBasePath);
-    if (seenPaths.has(rel)) continue;
+      const rel = normalizePath(normalizedFilePath, relBasePath);
+      if (seenPaths.has(rel)) continue;
 
-    seenPaths.add(rel);
-    if (await shouldInclude(rel)) {
-      yield formatResult(rel, 'file', lineText, lineNum);
+      seenPaths.add(rel);
+      if (await shouldInclude(rel)) {
+        yield formatResult(rel, 'file', lineText, lineNum);
+      }
     }
-  }
   } finally {
     rl.close();
     contentProcess.kill('SIGTERM');
+  }
+}
+
+/**
+ * Yield from several generators as their results arrive.
+ *
+ * The two passes used to be drained one after the other despite the comment
+ * that said they ran in parallel, and the route stops at its result limit. So
+ * a term that matched a hundred filenames spent the whole budget before the
+ * content search had produced anything — and content matches, the ones people
+ * come to a deep search for, never appeared at all. The content search did not
+ * even start until the entire file listing had been walked.
+ */
+async function* mergeResults(...generators) {
+  const next = new Map();
+  for (const generator of generators) {
+    next.set(
+      generator,
+      generator.next().then((result) => ({ generator, result }))
+    );
+  }
+
+  try {
+    while (next.size > 0) {
+      // eslint-disable-next-line no-await-in-loop
+      const { generator, result } = await Promise.race(next.values());
+      if (result.done) {
+        next.delete(generator);
+        continue;
+      }
+
+      next.set(
+        generator,
+        generator.next().then((value) => ({ generator, result: value }))
+      );
+      yield result.value;
+    }
+  } finally {
+    // The consumer stops as soon as it has enough. Each generator closes its
+    // own ripgrep process in its `finally`; this is what gets them there.
+    for (const generator of next.keys()) {
+      generator.return?.();
+    }
+  }
+}
+
+/**
+ * Matches inside Office documents.
+ *
+ * `.docx`, `.xlsx` and `.pptx` are zip archives, so ripgrep sees compressed
+ * bytes and finds nothing in them however the search is configured. Reading
+ * them costs an unzip and a parse per document, so this is bounded three ways:
+ * only these extensions, only files under the configured size, and only so
+ * many documents per search.
+ */
+const OFFICE_DOCUMENT_LIMIT = 500;
+
+async function* streamOfficeMatches(
+  baseAbsPath,
+  relBasePath,
+  term,
+  seenPaths,
+  shouldInclude,
+  includeHiddenFiles = false
+) {
+  const needle = term.toLowerCase();
+  const maxBytes = searchConfig?.maxFileSizeBytes > 0 ? searchConfig.maxFileSizeBytes : null;
+  let examined = 0;
+
+  let entries;
+  try {
+    entries = await fs.readdir(baseAbsPath, { withFileTypes: true, recursive: true });
+  } catch (err) {
+    logger.debug({ err }, 'Could not list documents for the content search');
+    return;
+  }
+
+  for (const entry of entries) {
+    if (examined >= OFFICE_DOCUMENT_LIMIT) return;
+    if (!entry.isFile()) continue;
+
+    const extension = path.extname(entry.name).slice(1).toLowerCase();
+    if (!OFFICE_EXTENSIONS.includes(extension)) continue;
+
+    const parent = path.relative(baseAbsPath, entry.parentPath || entry.path || baseAbsPath);
+    const relFromBase = parent
+      ? path.posix.join(parent.split(path.sep).join('/'), entry.name)
+      : entry.name;
+    if (!includeHiddenFiles && hiddenFiles.isHiddenPath(relFromBase)) continue;
+
+    const rel = normalizePath(relFromBase, relBasePath);
+    if (seenPaths.has(rel)) continue;
+
+    const absolutePath = path.join(baseAbsPath, relFromBase);
+    if (maxBytes) {
+      // eslint-disable-next-line no-await-in-loop
+      const stats = await fs.stat(absolutePath).catch(() => null);
+      if (!stats || stats.size > maxBytes) continue;
+    }
+
+    examined += 1;
+    const match = findOfficeTextMatch(absolutePath, needle);
+    if (!match) continue;
+
+    seenPaths.add(rel);
+    // eslint-disable-next-line no-await-in-loop
+    if (await shouldInclude(rel)) {
+      yield formatResult(rel, 'file', match.line, match.lineNumber);
+    }
   }
 }
 
@@ -282,7 +434,6 @@ async function* generateRipgrepResults(
     return;
   }
 
-  // Optimization #3: Run both searches in parallel
   const fileListGen = streamFileListMatches(
     baseAbsPath,
     relBasePath,
@@ -301,15 +452,16 @@ async function* generateRipgrepResults(
     includeHiddenFiles
   );
 
-  // Yield from file list first (directories and filename matches)
-  for await (const result of fileListGen) {
-    yield result;
-  }
+  const officeGen = streamOfficeMatches(
+    baseAbsPath,
+    relBasePath,
+    term,
+    seenPaths,
+    shouldInclude,
+    includeHiddenFiles
+  );
 
-  // Then yield content matches
-  for await (const result of contentGen) {
-    yield result;
-  }
+  yield* mergeResults(fileListGen, contentGen, officeGen);
 }
 
 // Optimized fallback with streaming (Optimization #1)
@@ -356,7 +508,17 @@ async function* generateFallbackResults(
         } else if (deep && !seenPaths.has(rel)) {
           try {
             const st = await fs.stat(abs);
-            if (st.size <= CONTENT_FALLBACK_MAX_SIZE) {
+            if (st.size <= CONTENT_FALLBACK_MAX_SIZE && isOfficeDocument(abs)) {
+              // A .docx read as text is compressed bytes. Its words are in the
+              // XML inside the archive, and that is what gets searched.
+              const match = findOfficeTextMatch(abs, needle);
+              if (match) {
+                seenPaths.add(rel);
+                if (await shouldInclude(rel)) {
+                  yield formatResult(rel, 'file', match.line, match.lineNumber);
+                }
+              }
+            } else if (st.size <= CONTENT_FALLBACK_MAX_SIZE) {
               const content = await fs.readFile(abs, 'utf8');
               const lower = content.toLowerCase();
               const idx = lower.indexOf(needle);
@@ -449,13 +611,28 @@ router.get(
 
     const generator = useRipgrep
       ? generateRipgrepResults(baseAbs, relBase, q, shouldInclude, deepEnabled, includeHiddenFiles)
-      : generateFallbackResults(baseAbs, relBase, q, shouldInclude, deepEnabled, includeHiddenFiles);
+      : generateFallbackResults(
+          baseAbs,
+          relBase,
+          q,
+          shouldInclude,
+          deepEnabled,
+          includeHiddenFiles
+        );
 
+    // What a name matched and what a document contained are counted apart, and
+    // only put together at the end. Sharing one running total let filenames
+    // spend it all: a term matching a hundred of them returned a hundred
+    // results and not one line of content, which is the half people open a
+    // deep search for. Names still lead — they are what someone looking for a
+    // file expects first — but they can no longer take the whole page.
     const items = [];
+    const contentItems = [];
     try {
       for await (const item of generator) {
-        items.push(item);
-        if (items.length >= limit) break;
+        (item.matchLine ? contentItems : items).push(item);
+        if (items.length + contentItems.length >= limit * 2) break;
+        if (items.length >= limit && contentItems.length >= limit) break;
       }
     } finally {
       // Breaking out of a for-await leaves the generator suspended, and with
@@ -464,9 +641,17 @@ router.get(
       await generator.return?.();
     }
 
-    res.json({ items });
+    const nameQuota = contentItems.length > 0 ? Math.max(1, Math.floor(limit * 0.75)) : limit;
+    const combined = [...items.slice(0, nameQuota), ...contentItems].slice(0, limit);
+    // A quota that went unused is not a reason to answer short.
+    if (combined.length < limit) {
+      combined.push(...items.slice(nameQuota, nameQuota + (limit - combined.length)));
+    }
+
+    res.json({ items: combined });
   })
 );
 
 module.exports = router;
 module.exports.buildContentSearchArgs = buildContentSearchArgs;
+module.exports.contentSearchArgs = contentSearchArgs;

@@ -34,6 +34,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 ## Search & metadata
 
 - **Smart search:** The search bar uses ripgrep under the hood (enable or disable via `SEARCH_RIPGREP`, `SEARCH_DEEP`, and `SEARCH_MAX_FILESIZE`) to find filenames and contents inside the current folder and its children.
+- **Inside documents:** Word, Excel and PowerPoint files are archives of XML, so a plain content search finds nothing in them. Their text is read and searched — including a word an author emphasised halfway through, which the format stores in pieces. PDFs are not covered: they are a different format entirely, and a scanned one would need OCR.
 - **Metadata overlays:** List view shows size, kind, modified date, owner, and volume stats (volume usage visibility flips on with `SHOW_VOLUME_USAGE`).
 - **Thumbnail cache:** `/cache` holds thumbnails and search indexes that regenerate when cleared.
 

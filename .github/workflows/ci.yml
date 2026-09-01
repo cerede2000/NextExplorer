@@ -26,10 +26,12 @@ jobs:
           node-version: 24
           cache: npm
 
-      # 7-Zip backs archive extraction and compression; without it those
-      # suites fall back to the bundled JS path and skip the guards.
-      - name: Install 7-Zip
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      # 7-Zip backs archive extraction; ripgrep backs content search. Without
+      # ripgrep here the suites fall back to the JavaScript scan and the path
+      # nearly every deployment actually runs goes untested — which is how a
+      # setting that made ripgrep refuse its own flag reached a release.
+      - name: Install 7-Zip and ripgrep
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep
 
       - name: Install dependencies
         run: npm ci

@@ -69,7 +69,11 @@ const parseByteSize = (value) => {
 
   const s = value.trim();
   if (!s) return null;
-  const m = s.match(/^([0-9]+)\s*([kKmMgGtT]?)b?$/);
+  // `5MB` is how everyone writes it, our own README included, and it used to be
+  // rejected outright for the capital B — leaving the setting silently at its
+  // default. Spaces and either case are accepted; the unit is what carries the
+  // meaning, and `5 mb`, `5MB` and `5m` all mean the same thing to a reader.
+  const m = s.match(/^([0-9]+)\s*([kKmMgGtT]?)[bB]?$/);
   if (!m) return null;
   const num = Number(m[1]);
   if (!Number.isFinite(num)) return null;
