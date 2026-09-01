@@ -31,7 +31,8 @@ for a release. Every build is also published under the version in
 `package.json` — `3.1.1`, `3.1.1-lean` — republished for as long as that
 version is current, and left alone once the next one is cut.
 
-Old images are pruned weekly down to the last couple of versions, so pin a
+Only the last two versions stay published: on Docker Hub the older one is
+removed as the next is published, and on GHCR a weekly job does the same. Pin a
 version you intend to keep running and move it forward deliberately rather than
 expecting an old tag to still be there.
 

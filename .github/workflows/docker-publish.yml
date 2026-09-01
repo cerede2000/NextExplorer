@@ -64,3 +64,34 @@ jobs:
       # someone asking for a dry run gets a build that publishes nothing.
       push: ${{ !inputs.dry_run }}
     secrets: inherit
+
+  # Docker Hub's page is what people see before the repository, and a release
+  # adds six tags to it. Two releases are what anyone needs — the one running
+  # and the one to fall back to — so publishing a third removes the oldest.
+  # Deliberately not gated on the version having changed: a push to main that
+  # only moves `latest` leaves a superseded commit tag behind, and this is what
+  # takes it away.
+  prune-docker-hub:
+    name: Keep the last two versions on Docker Hub
+    needs: build
+    if: ${{ needs.build.result == 'success' && github.event_name != 'release' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Prune
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ]; then
+            echo "Docker Hub is not configured; nothing to do."
+            exit 0
+          fi
+          node scripts/prune-dockerhub.js ${{ inputs.dry_run && '--dry-run' || '--apply' }}
