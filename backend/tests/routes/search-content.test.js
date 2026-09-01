@@ -287,11 +287,16 @@ describe('searching inside PDFs', () => {
  * search costs nothing the first one did not already pay.
  */
 describe('searching through the index', () => {
-  const buildIndex = async () => {
+  // A pass, and the mark that says it reached the end — which is what the
+  // manager records, and what lets search stop reading the tree for itself.
+  const buildIndex = async ({ complete = true } = {}) => {
     const dbService = envContext.requireFresh('src/services/db');
     const db = await dbService.getDb();
     const { indexTree } = envContext.requireFresh('src/services/searchIndexer');
-    return indexTree({ db, rootAbs: envContext.volumeDir, cpuPercent: 100 });
+    const store = envContext.requireFresh('src/services/searchIndexStore');
+    const result = await indexTree({ db, rootAbs: envContext.volumeDir, cpuPercent: 100 });
+    if (complete) store.markPassComplete(db);
+    return result;
   };
 
   it('finds a word inside a document', async () => {
@@ -354,6 +359,25 @@ describe('searching through the index', () => {
 
     expect(names).toContain('indexed.md');
     expect(names).not.toContain('later.md');
+  });
+
+  /**
+   * The index replaces the live content scan rather than adding to it, so an
+   * index that has not finished answers with whatever part of the volume it
+   * happens to have read — and a term that was found yesterday is simply gone,
+   * with nothing in the answer to say why.
+   */
+  it('reads the tree itself until a pass has finished', async () => {
+    const dir = await seed({ SEARCH_INDEX: 'true' });
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'indexed.md'), 'the word pangolin is here\n');
+    await buildIndex({ complete: false });
+    await fs.writeFile(path.join(dir, 'later.md'), 'a pangolin arrived after the pass\n');
+
+    const names = (await search('pangolin')).map((item) => item.name);
+
+    expect(names).toContain('indexed.md');
+    expect(names).toContain('later.md');
   });
 
   it('still matches on names, which the index is not for', async () => {

@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs/promises');
 
 const {
   findOfficeTextMatch,
@@ -45,4 +46,70 @@ const findDocumentTextMatch = async (absolutePath, needle) => {
   return index === -1 ? null : { line: lines[index], lineNumber: index + 1 };
 };
 
-module.exports = { findDocumentTextMatch, isSearchableDocument, SEARCHABLE_EXTENSIONS };
+/**
+ * How much of a plain file is worth reading to show one line of it.
+ *
+ * The same ceiling the index uses. A match further in than this is one the
+ * result list was never going to show anyway.
+ */
+const MAX_PLAIN_TEXT_BYTES = 1024 * 1024;
+
+/**
+ * The first line of a plain file containing `needle`, or null.
+ *
+ * Written by hand rather than with `split`, and the difference is not style.
+ * Splitting a file to take one line of it builds an array of every line it
+ * has; counting newlines with `slice(0, index).match(/\n/g)` copies the whole
+ * prefix and then builds an array of every newline in it. Three or four times
+ * the file, allocated and discarded, per result shown — a hundred results deep
+ * that is what a search costs the machine rather than the disk.
+ */
+const findPlainTextMatch = async (absolutePath, needle, maxBytes = MAX_PLAIN_TEXT_BYTES) => {
+  const lowered = String(needle || '').toLowerCase();
+  if (!lowered) return null;
+
+  let handle = null;
+  try {
+    handle = await fs.open(absolutePath, 'r');
+    // Sized to the file rather than to the ceiling: allocating a megabyte to
+    // read a two-kilobyte note is the same waste in miniature.
+    const { size } = await handle.stat();
+    const wanted = Math.min(size, maxBytes);
+    if (wanted <= 0) return null;
+
+    const buffer = Buffer.allocUnsafe(wanted);
+    const { bytesRead } = await handle.read(buffer, 0, wanted, 0);
+    if (!bytesRead) return null;
+
+    const content = buffer.subarray(0, bytesRead).toString('utf8');
+    const index = content.toLowerCase().indexOf(lowered);
+    if (index === -1) return null;
+
+    let lineNumber = 1;
+    let lineStart = 0;
+    for (let at = 0; at < index; at += 1) {
+      if (content.charCodeAt(at) === 10) {
+        lineNumber += 1;
+        lineStart = at + 1;
+      }
+    }
+
+    let lineEnd = content.indexOf('\n', index);
+    if (lineEnd === -1) lineEnd = content.length;
+    const line = content.slice(lineStart, lineEnd).replace(/\r$/, '');
+
+    return { line, lineNumber };
+  } catch {
+    return null;
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+};
+
+module.exports = {
+  findDocumentTextMatch,
+  findPlainTextMatch,
+  isSearchableDocument,
+  SEARCHABLE_EXTENSIONS,
+  MAX_PLAIN_TEXT_BYTES,
+};

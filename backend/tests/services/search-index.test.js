@@ -342,6 +342,30 @@ describe('what a pass costs', () => {
     expect(flatOut.pauses).toBe(0);
   });
 
+  // The volume is the user's, and what is worth searching in it is theirs to
+  // say. A build tree or a machine backup is hundreds of thousands of files
+  // nobody searches by content, and reading them is the whole overhead.
+  it('leaves out what it was told to leave out', async () => {
+    await fs.mkdir(volumePath('Docs', 'machine-backup'), { recursive: true });
+    await fs.writeFile(volumePath('Docs', 'machine-backup', 'output.txt'), 'pangolin\n');
+    await fs.writeFile(volumePath('Docs', 'kept.txt'), 'pangolin\n');
+
+    const result = await indexAll({ exclude: ['Docs/machine-backup'] });
+
+    expect(store.search(db, 'pangolin')).toEqual(['Docs/kept.txt']);
+    expect(result.indexed).toBe(1);
+  });
+
+  it('reads the same tree when it was told nothing', async () => {
+    await fs.mkdir(volumePath('Docs', 'machine-backup'), { recursive: true });
+    await fs.writeFile(volumePath('Docs', 'machine-backup', 'output.txt'), 'pangolin\n');
+    await fs.writeFile(volumePath('Docs', 'kept.txt'), 'pangolin\n');
+
+    const result = await indexAll({ exclude: [] });
+
+    expect(result.indexed).toBe(2);
+  });
+
   // Compiling a statement holds kilobytes of native memory that V8 cannot see,
   // so nothing pushes back and nothing is collected. Three per document over a
   // large volume is where the two gigabytes came from.

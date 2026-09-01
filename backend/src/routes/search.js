@@ -18,6 +18,7 @@ const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/Ap
 const { createPermissionResolver } = require('../services/accessControlService');
 const {
   findDocumentTextMatch,
+  findPlainTextMatch,
   isSearchableDocument,
   SEARCHABLE_EXTENSIONS: DOCUMENT_EXTENSIONS,
 } = require('../services/documentText');
@@ -396,13 +397,10 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
       }
     } else {
       // eslint-disable-next-line no-await-in-loop
-      const content = await fs.readFile(absolutePath, 'utf8').catch(() => null);
-      if (content !== null) {
-        const index = content.toLowerCase().indexOf(needle);
-        if (index !== -1) {
-          lineNumber = (content.slice(0, index).match(/\n/g)?.length ?? 0) + 1;
-          line = content.split(/\r?\n/)[lineNumber - 1] || '';
-        }
+      const match = await findPlainTextMatch(absolutePath, needle);
+      if (match) {
+        line = match.line;
+        lineNumber = match.lineNumber;
       }
     }
 
@@ -607,16 +605,11 @@ async function* generateFallbackResults(
                 }
               }
             } else if (st.size <= CONTENT_FALLBACK_MAX_SIZE) {
-              const content = await fs.readFile(abs, 'utf8');
-              const lower = content.toLowerCase();
-              const idx = lower.indexOf(needle);
-
-              if (idx !== -1) {
-                const lineNumber = (content.slice(0, idx).match(/\n/g)?.length ?? 0) + 1;
-                const matchedLine = content.split(/\r?\n/)[lineNumber - 1] || '';
+              const match = await findPlainTextMatch(abs, needle, CONTENT_FALLBACK_MAX_SIZE);
+              if (match) {
                 seenPaths.add(rel);
                 if (await shouldInclude(rel)) {
-                  yield formatResult(rel, 'file', matchedLine, lineNumber);
+                  yield formatResult(rel, 'file', match.line, match.lineNumber);
                 }
               }
             }
@@ -710,10 +703,22 @@ router.get(
     // The index holds the volume root. A search based anywhere else — a
     // personal folder, an assigned volume — reads as it goes, because the
     // index does not hold those.
-    const useIndex =
-      deepEnabled &&
-      searchConfig?.index?.enabled === true &&
-      baseAbs.startsWith(directories.volume);
+    //
+    // And it is only used once a pass has finished. The index replaces the live
+    // content scan rather than adding to it, so an index still being built
+    // answers with the part of the volume it happens to have read — a term
+    // found yesterday goes missing today, with nothing in the answer to say
+    // why. Reading the tree meanwhile is slower and right.
+    const indexReady = await (async () => {
+      if (!(deepEnabled && searchConfig?.index?.enabled === true)) return false;
+      try {
+        return searchIndexStore.isReady(await getDb());
+      } catch {
+        return false;
+      }
+    })();
+
+    const useIndex = indexReady && baseAbs.startsWith(directories.volume);
 
     const generator = useRipgrep
       ? generateRipgrepResults(

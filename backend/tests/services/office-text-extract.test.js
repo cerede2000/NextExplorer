@@ -115,3 +115,31 @@ describe('reading a spreadsheet and a deck', () => {
     expect(extractOfficeTextLines(file)).toEqual(['Title here']);
   });
 });
+
+/**
+ * A zip states how large each entry becomes before anything is decompressed,
+ * and for text that number can be enormous next to the file it came in. The
+ * inflation happens on the one thread the server has, so a document nobody
+ * would think twice about — well inside any search size limit — can stop
+ * everything else for as long as it takes.
+ */
+describe('what it refuses to inflate', () => {
+  const bodyOf = (paragraphs) =>
+    `<w:document><w:body>${paragraph('pangolin').repeat(paragraphs)}</w:body></w:document>`;
+
+  // Either side of the ceiling, so the ceiling is what separates them and not
+  // some other property of a large archive. Both files are tiny on disk.
+  it('reads a document that inflates to a reasonable size', async () => {
+    const file = docx(bodyOf(150000));
+
+    expect((await fs.stat(file)).size).toBeLessThan(1024 * 1024);
+    expect(extractOfficeTextLines(file)?.length).toBe(150000);
+  });
+
+  it('leaves an entry that says it inflates to far more', async () => {
+    const file = docx(bodyOf(400000));
+
+    expect((await fs.stat(file)).size).toBeLessThan(1024 * 1024);
+    expect(extractOfficeTextLines(file)).toBeNull();
+  });
+});

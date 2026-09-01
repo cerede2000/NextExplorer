@@ -39,6 +39,21 @@ const FORMATS = {
 
 const SUPPORTED_EXTENSIONS = Object.keys(FORMATS);
 
+/**
+ * How much decompressed XML this will take from one document.
+ *
+ * A zip says how large each entry becomes before anything is decompressed, and
+ * that number is the only warning there is: text compresses enormously, so a
+ * five-megabyte spreadsheet — well inside any search size limit — can hold a
+ * shared-strings table of several hundred megabytes. Inflating it happens on
+ * the one thread the server has, and every other request waits behind it.
+ *
+ * Refusing a document that says it is larger than this costs nothing: the
+ * declared size is read from the header, not from the data.
+ */
+const MAX_ENTRY_BYTES = 8 * 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 16 * 1024 * 1024;
+
 /** Only the five XML predefines; the rest are literal in these documents. */
 const decodeEntities = (value) =>
   value
@@ -78,11 +93,18 @@ const extractOfficeTextLines = (absolutePath, { maxCharacters = 2 * 1024 * 1024 
 
   const lines = [];
   let characters = 0;
+  let inflated = 0;
 
   for (const entry of entries) {
     if (entry.isDirectory) continue;
     const name = entry.entryName.replace(/\\/g, '/');
     if (!format.entries.some((pattern) => pattern.test(name))) continue;
+
+    // What the archive says this becomes, before it becomes it.
+    const declared = Number(entry.header?.size) || 0;
+    if (declared > MAX_ENTRY_BYTES) continue;
+    if (inflated + declared > MAX_DOCUMENT_BYTES) break;
+    inflated += declared;
 
     let xml;
     try {

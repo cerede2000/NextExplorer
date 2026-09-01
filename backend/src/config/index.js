@@ -659,6 +659,19 @@ module.exports = {
         env.SEARCH_INDEX_CPU_PERCENT <= 100
           ? env.SEARCH_INDEX_CPU_PERCENT
           : 25,
+      // Folders the index has no business reading. The volume is the user's,
+      // and what is worth searching in it is theirs to say: a build tree, a
+      // mail spool, a backup of a machine — hundreds of thousands of files
+      // each, none of them anything anyone searches for by content.
+      //
+      // Named rather than guessed at. A list of "obviously noise" directories
+      // baked in here would decide, for everyone, that something is not worth
+      // finding — and with the index answering in place of the live scan, that
+      // decision would be invisible.
+      exclude: String(env.SEARCH_INDEX_EXCLUDE || '')
+        .split(/[\n,]/)
+        .map((entry) => entry.trim().replace(/^\/+|\/+$/g, ''))
+        .filter(Boolean),
       // What a pass may add to the process before it gives up and waits for
       // the next one. Every other bound is a belief about what a file costs;
       // this is what holds when one of those beliefs is wrong.

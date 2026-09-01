@@ -5,6 +5,7 @@ const { normalizeRelativePath } = require('../../utils/pathUtils');
 const { resolvePathWithAccess } = require('../../services/accessManager');
 const { trackShareDownload } = require('../../services/sharesService');
 const asyncHandler = require('../../utils/asyncHandler');
+const { mapWithConcurrency } = require('../../utils/mapWithConcurrency');
 const { ValidationError, ForbiddenError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
 const { collectInputPaths, encodeContentDisposition, stripBasePath, toPosix } = require('./utils');
@@ -43,30 +44,30 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   const context = { user: req.user, guestSession: req.guestSession };
 
-  const targets = await Promise.all(
-    normalizedPaths.map(async (relativePath) => {
-      const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+  // The list came in the request, so the number of resolutions in flight is
+  // not the client's to choose.
+  const targets = await mapWithConcurrency(normalizedPaths, async (relativePath) => {
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
 
-      if (
-        !accessInfo ||
-        !accessInfo.canAccess ||
-        !accessInfo.canRead ||
-        !accessInfo.canDownload ||
-        !resolved
-      ) {
-        throw new ForbiddenError(accessInfo?.denialReason || 'Download not allowed.');
-      }
+    if (
+      !accessInfo ||
+      !accessInfo.canAccess ||
+      !accessInfo.canRead ||
+      !accessInfo.canDownload ||
+      !resolved
+    ) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Download not allowed.');
+    }
 
-      const { absolutePath, relativePath: logicalPath } = resolved;
-      const stats = await fs.stat(absolutePath);
-      const shareId = resolved.shareInfo?.sharingType === 'anyone' ? resolved.shareInfo.id : null;
-      return { relativePath: logicalPath, absolutePath, stats, shareId };
-    })
-  );
+    const { absolutePath, relativePath: logicalPath } = resolved;
+    const stats = await fs.stat(absolutePath);
+    const shareId = resolved.shareInfo?.sharingType === 'anyone' ? resolved.shareInfo.id : null;
+    return { relativePath: logicalPath, absolutePath, stats, shareId };
+  });
 
   const shareDownloadIds = [...new Set(targets.map(({ shareId }) => shareId).filter(Boolean))];
-  await Promise.all(
-    shareDownloadIds.map((shareId) => trackShareDownload(shareId, { ipAddress: req.ip }))
+  await mapWithConcurrency(shareDownloadIds, (shareId) =>
+    trackShareDownload(shareId, { ipAddress: req.ip })
   );
 
   const hasDirectory = targets.some(({ stats }) => stats.isDirectory());

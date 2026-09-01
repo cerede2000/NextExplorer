@@ -165,6 +165,7 @@ const indexTree = async ({
   cpuPercent = 25,
   workSliceMs = 50,
   memoryBudgetBytes = 512 * 1024 * 1024,
+  exclude = searchConfig?.index?.exclude ?? [],
   readMemory = () => process.memoryUsage().rss,
   maxFileSizeBytes = searchConfig?.maxFileSizeBytes ?? 5 * 1024 * 1024,
   removeMissing = true,
@@ -182,6 +183,10 @@ const indexTree = async ({
   const throwIfAborted = () => {
     if (signal?.aborted) throw createAbortedError();
   };
+
+  const excluded = exclude.filter(Boolean);
+  const isExcluded = (relativePath) =>
+    excluded.some((entry) => relativePath === entry || relativePath.startsWith(`${entry}/`));
 
   // Work for a slice, then stand aside for as long as the chosen share says.
   // At 25% that is 50 ms of work and 150 ms of rest, whether those 50 ms went
@@ -263,6 +268,8 @@ const indexTree = async ({
       const absolutePath = path.join(dirAbs, entry.name);
       const relativePath = dirRel ? `${dirRel}/${entry.name}` : entry.name;
 
+      if (isExcluded(relativePath)) continue;
+
       if (entry.isDirectory()) {
         // eslint-disable-next-line no-await-in-loop
         await walk(absolutePath, relativePath);
@@ -321,13 +328,27 @@ const indexTree = async ({
   // Only a run that reached the end knows what is missing; an interrupted one
   // would call everything it never got to deleted.
   if (removeMissing && !interrupted) {
-    const known = db.prepare('SELECT path FROM search_documents').all();
-    const gone = known.filter((row) => !seen.has(row.path));
-    if (gone.length > 0) {
-      db.transaction(() => {
-        for (const row of gone) store.removeDocument(db, row.path);
-      })();
-      removed = gone.length;
+    // Streamed and deleted in batches rather than selected into an array. On a
+    // volume with a few hundred thousand documents, asking for all of them at
+    // once is tens of megabytes materialised in one step, at the end of a pass
+    // that has just spent its whole budget being careful about exactly that.
+    const forget = db.transaction((paths) => {
+      for (const gonePath of paths) store.removeDocument(db, gonePath);
+    });
+
+    let batch = [];
+    for (const row of db.prepare('SELECT path FROM search_documents').iterate()) {
+      if (seen.has(row.path)) continue;
+      batch.push(row.path);
+      if (batch.length >= 500) {
+        forget(batch);
+        removed += batch.length;
+        batch = [];
+      }
+    }
+    if (batch.length > 0) {
+      forget(batch);
+      removed += batch.length;
     }
   }
 

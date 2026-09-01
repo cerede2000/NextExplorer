@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const AdmZip = require('adm-zip');
 
 const asyncHandler = require('../utils/asyncHandler');
+const { mapWithConcurrency } = require('../utils/mapWithConcurrency');
 const { startNdjsonStream, throttlePercent } = require('../utils/ndjsonStream');
 const logger = require('../utils/logger');
 const { pathExists } = require('../utils/fsUtils');
@@ -46,7 +47,9 @@ const ensureArchiveWithinLimits = ({ entryCount = 0, totalBytes = 0 }) => {
     );
   }
   if (totalBytes > archives.maxExtractedBytes) {
-    throw new ValidationError('This archive expands beyond the allowed size and was not extracted.');
+    throw new ValidationError(
+      'This archive expands beyond the allowed size and was not extracted.'
+    );
   }
 };
 
@@ -268,7 +271,12 @@ router.post(
           movedPaths,
         });
         await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
-        writeEvent({ type: 'done', success: true, item: items.length === 1 ? items[0] : null, items });
+        writeEvent({
+          type: 'done',
+          success: true,
+          item: items.length === 1 ? items[0] : null,
+          items,
+        });
       }
     } catch (error) {
       const isPasswordError =
@@ -276,10 +284,15 @@ router.post(
       if (isPasswordError) {
         logger.info({ zipAbsolutePath, code: error.code }, 'Archive password required or rejected');
       } else {
-        logger.warn({ zipAbsolutePath, err: error }, 'Archive extract failed; cleaning up destination');
+        logger.warn(
+          { zipAbsolutePath, err: error },
+          'Archive extract failed; cleaning up destination'
+        );
       }
       await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
-      await Promise.all(movedPaths.map((movedPath) => fs.rm(movedPath, { recursive: true, force: true })));
+      await mapWithConcurrency(movedPaths, (movedPath) =>
+        fs.rm(movedPath, { recursive: true, force: true })
+      );
       writeEvent({
         type: 'error',
         message: sanitizeClientMessage(error.message || 'Archive extraction failed.'),
@@ -331,26 +344,25 @@ router.post(
     const destStats = await fs.stat(destinationAbsolutePath);
     if (!destStats.isDirectory()) throw new ValidationError('Destination must be a directory.');
 
-    const sourceTargets = await Promise.all(
-      items.map(async (item) => {
-        if (!item || typeof item.name !== 'string') {
-          throw new ValidationError('Each item must include a name.');
-        }
-        const itemParent = normalizeRelativePath(item.path || '');
-        const itemRelative = combineRelativePath(itemParent, item.name);
-        const { allowed, accessInfo, resolved } = await authorizeAndResolve(
-          context,
-          itemRelative,
-          ACTIONS.read
-        );
-        if (!allowed || !resolved) {
-          throw new ForbiddenError(accessInfo?.denialReason || 'Source item is not accessible.');
-        }
+    // The list came in the request; the number of checks in flight is ours.
+    const sourceTargets = await mapWithConcurrency(items, async (item) => {
+      if (!item || typeof item.name !== 'string') {
+        throw new ValidationError('Each item must include a name.');
+      }
+      const itemParent = normalizeRelativePath(item.path || '');
+      const itemRelative = combineRelativePath(itemParent, item.name);
+      const { allowed, accessInfo, resolved } = await authorizeAndResolve(
+        context,
+        itemRelative,
+        ACTIONS.read
+      );
+      if (!allowed || !resolved) {
+        throw new ForbiddenError(accessInfo?.denialReason || 'Source item is not accessible.');
+      }
 
-        const stats = await fs.stat(resolved.absolutePath);
-        return { name: item.name, absolutePath: resolved.absolutePath, stats };
-      })
-    );
+      const stats = await fs.stat(resolved.absolutePath);
+      return { name: item.name, absolutePath: resolved.absolutePath, stats };
+    });
 
     const requestedName = (() => {
       if (typeof name === 'string' && name.trim()) {

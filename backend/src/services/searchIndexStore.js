@@ -170,6 +170,33 @@ const search = (db, term, limit = 100) => {
   }
 };
 
+/**
+ * Whether the index has ever been finished.
+ *
+ * It matters because the index does not supplement the live content search, it
+ * replaces it. Half an index therefore answers half a search and says nothing
+ * about the half it did not look at — a term that was found yesterday is simply
+ * absent today, which is worse than a slow answer and much harder to explain.
+ * Until a pass has run to the end, searches read the tree as they always did.
+ *
+ * Kept in the database rather than in memory because a restart does not
+ * invalidate the index: what was read is still read, and the mtime check is
+ * what decides whether it is still true.
+ */
+const READY_KEY = 'search_index_complete_at';
+
+const markPassComplete = (db, at = new Date().toISOString()) => {
+  prep(db, 'INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(READY_KEY, at);
+};
+
+const isReady = (db) => {
+  try {
+    return Boolean(prep(db, 'SELECT value FROM meta WHERE key = ?').pluck().get(READY_KEY));
+  } catch {
+    return false;
+  }
+};
+
 /** How much is in there, for the diagnostics page and for tests. */
 const stats = (db) => {
   const row = prep(db, 'SELECT COUNT(*) AS documents FROM search_documents').get();
@@ -187,4 +214,6 @@ module.exports = {
   movePath,
   search,
   stats,
+  markPassComplete,
+  isReady,
 };

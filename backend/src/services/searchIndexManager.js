@@ -100,13 +100,24 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
       batchSize: searchConfig.index.batch,
       cpuPercent: searchConfig.index.cpuPercent,
       memoryBudgetBytes: searchConfig.index.memoryBudgetBytes,
+      exclude: searchConfig.index.exclude,
       onProgress: ({ indexed, skipped }) => {
         logger.info({ indexed, skipped, reason }, 'Search index still building');
       },
     });
 
+    // Only a pass that reached the end can promise the index answers for the
+    // whole volume, and that promise is what lets search stop reading the tree.
+    if (!result.interrupted) store.markPassComplete(db);
+
     logger.info(
-      { ...result, reason, ms: Date.now() - startedAt, documents: store.stats(db).documents },
+      {
+        ...result,
+        reason,
+        ms: Date.now() - startedAt,
+        documents: store.stats(db).documents,
+        ready: store.isReady(db),
+      },
       'Search index updated'
     );
     return result;
@@ -205,7 +216,14 @@ const status = async () => {
 
   try {
     const db = await getDb();
-    return { enabled: true, running, pending: pending.length, dropped, ...store.stats(db) };
+    return {
+      enabled: true,
+      running,
+      ready: store.isReady(db),
+      pending: pending.length,
+      dropped,
+      ...store.stats(db),
+    };
   } catch {
     return { enabled: true, running, pending: pending.length, dropped, documents: 0 };
   }
