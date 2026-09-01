@@ -140,7 +140,7 @@ Existing accounts were assigned oldest first, so on an instance that already
 had a collision the account that has been using the folder is the one that
 keeps it.
 
-### D7 · `assertRealPathWithinRoot` does not assert what its name claims — Fragility
+### D7 · `assertRealPathWithinRoot` does not assert what its name claims — Fragility — **FIXED**
 
 `utils/pathUtils.js:162` returns — accepting the path — once it has walked above
 the root without finding anything real. The comment explains why: the lexical
@@ -150,6 +150,11 @@ check "ran before we got here". All four callers do run it (`:172`, `:371`,
 But a function named `assert…WithinRoot` silently accepts `/etc/x/y` when none
 of it exists, and its safety depends on a precondition it does not state, does
 not check, and cannot enforce. The fifth caller is the one to worry about.
+
+It makes that check itself now, so the acceptance above the root is unreachable
+for anything not already inside it — by construction rather than by convention.
+Exported too, so the guarantee can be tested directly and the fifth caller
+inherits it.
 
 ### Checked and sound
 
