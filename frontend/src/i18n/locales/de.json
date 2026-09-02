@@ -440,7 +440,8 @@
       "accessControl": "Zugriffskontrolle",
       "adminUsers": "Benutzerverwaltung",
       "uploads": "Uploads",
-      "folderSize": "Ordnergrößen"
+      "folderSize": "Ordnergrößen",
+      "searchIndex": "Suchindex"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -626,6 +627,19 @@
       "additional": "Zusätzliche Ausschlüsse",
       "placeholder": "Stacks/docker/overlay2",
       "none": "Keine Pfade konfiguriert"
+    },
+    "searchIndex": {
+      "title": "Suchindex",
+      "subtitle": "Pfade von der Inhaltsindizierung ausschließen.",
+      "environment": "Über die Umgebung definierte Ausschlüsse",
+      "additional": "Zusätzliche Ausschlüsse",
+      "none": "Kein Pfad konfiguriert",
+      "placeholder": "Backups/2024"
+    },
+    "featureOff": {
+      "title": "Diese Funktion ist nicht aktiviert",
+      "howTo": "Setzen Sie {setting} und starten Sie den Container neu, um sie zu aktivieren.",
+      "kept": "Was Sie hier einstellen, wird gespeichert und gilt, sobald die Funktion aktiv ist."
     }
   },
   "share": {

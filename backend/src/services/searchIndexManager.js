@@ -3,6 +3,7 @@ const path = require('path');
 const { search: searchConfig, directories } = require('../config/index');
 const { getDb } = require('./db');
 const store = require('./searchIndexStore');
+const exclusions = require('./searchIndexExclusions');
 const { indexTree, indexFile } = require('./searchIndexer');
 const logger = require('../utils/logger');
 
@@ -83,6 +84,30 @@ const relativeToVolume = (absolutePath) => {
   return relative.split(path.sep).join('/');
 };
 
+/**
+ * Replace the exclusions an administrator set, and act on what changed.
+ *
+ * A folder newly excluded is forgotten straight away rather than at the next
+ * pass: leaving its documents in the index would go on answering searches from
+ * a folder somebody just said not to read. A folder no longer excluded is
+ * simply picked up by the next pass, which is what a pass is for.
+ */
+const setAdminExclusions = async (paths) => {
+  const changed = exclusions.setAdminPaths(paths);
+  if (!enabled() || changed.added.length === 0) return { ...changed };
+
+  await enqueue(async () => {
+    const db = await getDb();
+    let removed = 0;
+    for (const relativePath of changed.added) removed += store.removeUnder(db, relativePath);
+    if (removed > 0) {
+      logger.info({ paths: changed.added, removed }, 'Search index forgot newly excluded folders');
+    }
+  });
+
+  return { ...changed };
+};
+
 /** A pass over the whole volume. Never throws, never overlaps another. */
 const reconcile = async ({ reason = 'scheduled' } = {}) => {
   if (!enabled() || running || stopped) return null;
@@ -103,7 +128,7 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
       batchSize: searchConfig.index.batch,
       cpuPercent: searchConfig.index.cpuPercent,
       memoryBudgetBytes: searchConfig.index.memoryBudgetBytes,
-      exclude: searchConfig.index.exclude,
+      exclude: exclusions.effectivePaths(),
       onProgress: (progress) => {
         logger.info({ ...progress, batches: undefined, reason }, 'Search index still building');
       },
@@ -172,6 +197,13 @@ const start = () => {
   if (!enabled() || timer) return;
 
   stopped = false;
+
+  // The administrator's list lives in the database, so it has to be read
+  // before the first pass rather than after it.
+  enqueue(async () => {
+    const db = await getDb();
+    exclusions.loadFromDatabase(db);
+  });
 
   if (searchConfig.index.rebuild) {
     // Deliberately before the first pass, so the rebuild is the pass rather
@@ -281,6 +313,7 @@ const status = async () => {
 };
 
 module.exports = {
+  setAdminExclusions,
   start,
   stop,
   reconcile,

@@ -440,7 +440,8 @@
       "accessControl": "Control de acceso",
       "adminUsers": "Gestión de usuarios",
       "uploads": "Subidas",
-      "folderSize": "Tamaño de carpetas"
+      "folderSize": "Tamaño de carpetas",
+      "searchIndex": "Índice de búsqueda"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -626,6 +627,19 @@
       "additional": "Exclusiones adicionales",
       "placeholder": "Stacks/docker/overlay2",
       "none": "No hay rutas configuradas"
+    },
+    "searchIndex": {
+      "title": "Índice de búsqueda",
+      "subtitle": "Excluir rutas de la indexación de contenido.",
+      "environment": "Exclusiones definidas por el entorno",
+      "additional": "Exclusiones adicionales",
+      "none": "Ninguna ruta configurada",
+      "placeholder": "Copias/2024"
+    },
+    "featureOff": {
+      "title": "Esta función no está activada",
+      "howTo": "Para activarla, defina {setting} y reinicie el contenedor.",
+      "kept": "Lo que configure aquí se guarda y se aplicará en cuanto se active."
     }
   },
   "share": {

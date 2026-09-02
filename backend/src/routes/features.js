@@ -4,6 +4,7 @@ const {
   collabora,
   editor,
   preview,
+  search,
   terminal,
   features,
   hiddenFiles,
@@ -49,6 +50,11 @@ router.get('/features', async (_req, res) => {
     },
     preview: {
       maxRenderBytes: preview?.maxRenderBytes ?? null,
+    },
+    search: {
+      // Whether the full-text index is on. The exclusions page is otherwise a
+      // form for a feature that is not running, which nothing on it would say.
+      index: { enabled: search?.index?.enabled === true },
     },
     hiddenFiles: {
       patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],

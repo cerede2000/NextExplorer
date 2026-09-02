@@ -15,6 +15,7 @@ export const useFeaturesStore = defineStore('features', () => {
   // name both.
   const editorMaxFileSizeBytes = ref(null);
   const previewMaxRenderBytes = ref(16 * 1024 * 1024);
+  const searchIndexEnabled = ref(false);
   const hiddenFilePatterns = ref(['.', 'regex:\\.download$']);
   // Archive extraction formats supported by the server (7-Zip probe).
   const archiveExtensions = ref(['zip']);
@@ -71,6 +72,7 @@ export const useFeaturesStore = defineStore('features', () => {
         editorMaxFileSizeBytes.value = Number.isFinite(features?.editor?.maxFileSizeBytes)
           ? features.editor.maxFileSizeBytes
           : null;
+        searchIndexEnabled.value = features?.search?.index?.enabled === true;
         previewMaxRenderBytes.value = Number.isFinite(features?.preview?.maxRenderBytes)
           ? features.preview.maxRenderBytes
           : 16 * 1024 * 1024;
@@ -143,6 +145,7 @@ export const useFeaturesStore = defineStore('features', () => {
         editorExtensions.value = [];
         editorMaxFileSizeBytes.value = null;
         previewMaxRenderBytes.value = 16 * 1024 * 1024;
+        searchIndexEnabled.value = false;
         hiddenFilePatterns.value = ['.', 'regex:\\.download$'];
         archiveExtensions.value = ['zip'];
         demoLogin.value = null;
@@ -183,6 +186,7 @@ export const useFeaturesStore = defineStore('features', () => {
     editorExtensions,
     editorMaxFileSizeBytes,
     previewMaxRenderBytes,
+    searchIndexEnabled,
     hiddenFilePatterns,
     archiveExtensions,
     demoLogin,

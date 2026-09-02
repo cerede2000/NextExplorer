@@ -443,7 +443,8 @@
       "folderSize": "Folder sizes",
       "security": "Security",
       "accessControl": "Access Control",
-      "adminUsers": "User Management"
+      "adminUsers": "User Management",
+      "searchIndex": "Search index"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -629,6 +630,19 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "searchIndex": {
+      "title": "Search index",
+      "subtitle": "Exclude paths from content indexing.",
+      "environment": "Environment-defined exclusions",
+      "additional": "Additional exclusions",
+      "none": "No path configured",
+      "placeholder": "Backups/2024"
+    },
+    "featureOff": {
+      "title": "This feature is not enabled",
+      "howTo": "To turn it on, set {setting} and restart the container.",
+      "kept": "What you configure here is saved and applies as soon as it is enabled."
     }
   },
   "share": {

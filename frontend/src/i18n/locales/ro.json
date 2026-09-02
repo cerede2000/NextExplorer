@@ -440,7 +440,8 @@
       "accessControl": "Control acces",
       "adminUsers": "Gestionare utilizatori",
       "uploads": "Încărcări",
-      "folderSize": "Dimensiunea dosarelor"
+      "folderSize": "Dimensiunea dosarelor",
+      "searchIndex": "Index de căutare"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -626,6 +627,19 @@
       "additional": "Excluderi suplimentare",
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nicio cale configurată"
+    },
+    "searchIndex": {
+      "title": "Index de căutare",
+      "subtitle": "Excludeți căi din indexarea conținutului.",
+      "environment": "Excluderi definite de mediu",
+      "additional": "Excluderi suplimentare",
+      "none": "Nicio cale configurată",
+      "placeholder": "Copii/2024"
+    },
+    "featureOff": {
+      "title": "Această funcție nu este activată",
+      "howTo": "Pentru a o activa, setați {setting} și reporniți containerul.",
+      "kept": "Ce configurați aici este salvat și se aplică imediat ce este activată."
     }
   },
   "share": {

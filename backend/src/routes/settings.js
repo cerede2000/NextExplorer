@@ -16,6 +16,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
 const folderSizeManager = require('../services/folderSizeManager');
+const searchIndexManager = require('../services/searchIndexManager');
 
 const router = express.Router();
 
@@ -244,6 +245,21 @@ router.patch(
         }
       }
 
+      if (payload.searchIndex && typeof payload.searchIndex === 'object') {
+        if (Array.isArray(payload.searchIndex.excludedPaths)) {
+          const current = await getSettings();
+          const saved = await setSystemSetting('system', 'searchIndex', {
+            ...current.searchIndex,
+            excludedPaths: payload.searchIndex.excludedPaths,
+          });
+          const applied = await searchIndexManager.setAdminExclusions(saved.excludedPaths);
+          systemUpdates.searchIndex = {
+            excludedPaths: applied.excludedPaths,
+            environmentExcludedPaths: applied.environmentExcludedPaths,
+          };
+        }
+      }
+
       // Branding settings
       if (payload.branding && typeof payload.branding === 'object') {
         const brandingUpdate = {};
@@ -285,6 +301,7 @@ router.patch(
       payload.thumbnails ||
       payload.access ||
       payload.folderSize ||
+      payload.searchIndex ||
       payload.branding ||
       payload.uploads
     ) {

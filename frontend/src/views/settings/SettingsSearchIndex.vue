@@ -9,16 +9,16 @@ const appSettings = useAppSettings();
 const featuresStore = useFeaturesStore();
 const { t } = useI18n();
 
-// The page was reachable and fully editable with folder sizes switched off,
-// which meant a list could be curated for a feature that was not running and
-// nothing on the page said so.
-const active = computed(() => (featuresStore.folderSizeMode || 'off') !== 'off');
+// The index is off unless someone asked for it, so this page is more often
+// than not a form for something that is not running. It says so rather than
+// accepting a list nobody will read.
+const active = computed(() => featuresStore.searchIndexEnabled === true);
 const localPaths = ref([]);
 const newPath = ref('');
 
 const current = computed(
   () =>
-    appSettings.systemSettings?.folderSize || { excludedPaths: [], environmentExcludedPaths: [] }
+    appSettings.systemSettings?.searchIndex || { excludedPaths: [], environmentExcludedPaths: [] }
 );
 const environmentPaths = computed(() => current.value.environmentExcludedPaths || []);
 const dirty = computed(
@@ -45,7 +45,7 @@ const removePath = (path) => {
   localPaths.value = localPaths.value.filter((value) => value !== path);
 };
 
-const save = () => appSettings.save({ folderSize: { excludedPaths: localPaths.value } });
+const save = () => appSettings.save({ searchIndex: { excludedPaths: localPaths.value } });
 const reset = () => {
   localPaths.value = [...(current.value.excludedPaths || [])];
   newPath.value = '';
@@ -75,14 +75,14 @@ const reset = () => {
       </div>
     </div>
 
-    <FeatureOffNotice v-if="!active" variable="FOLDER_SIZE_MODE" value="full" />
+    <FeatureOffNotice v-if="!active" variable="SEARCH_INDEX" value="true" />
 
     <div>
       <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {{ t('settings.folderSize.title') }}
+        {{ t('settings.searchIndex.title') }}
       </h2>
       <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        {{ t('settings.folderSize.subtitle') }}
+        {{ t('settings.searchIndex.subtitle') }}
       </p>
     </div>
 
@@ -90,7 +90,7 @@ const reset = () => {
       class="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
     >
       <h3 class="font-medium text-zinc-900 dark:text-zinc-100">
-        {{ t('settings.folderSize.environment') }}
+        {{ t('settings.searchIndex.environment') }}
       </h3>
       <div v-if="environmentPaths.length" class="mt-3 space-y-2">
         <div
@@ -102,7 +102,7 @@ const reset = () => {
         </div>
       </div>
       <p v-else class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-        {{ t('settings.folderSize.none') }}
+        {{ t('settings.searchIndex.none') }}
       </p>
     </section>
 
@@ -111,13 +111,13 @@ const reset = () => {
       :class="!active && 'opacity-60'"
     >
       <h3 class="font-medium text-zinc-900 dark:text-zinc-100">
-        {{ t('settings.folderSize.additional') }}
+        {{ t('settings.searchIndex.additional') }}
       </h3>
       <div class="mt-4 flex gap-2">
         <input
           v-model="newPath"
           class="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-          :placeholder="t('settings.folderSize.placeholder')"
+          :placeholder="t('settings.searchIndex.placeholder')"
           :disabled="!active"
           @keydown.enter.prevent="addPath"
         />
@@ -149,7 +149,7 @@ const reset = () => {
         </div>
       </div>
       <p v-else class="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-        {{ t('settings.folderSize.none') }}
+        {{ t('settings.searchIndex.none') }}
       </p>
     </section>
   </div>

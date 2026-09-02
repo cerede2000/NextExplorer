@@ -9,6 +9,7 @@ import SettingsView from '@/views/settings/SettingsView.vue';
 import SettingsBranding from '@/views/settings/SettingsBranding.vue';
 import SettingsFilesThumbnails from '@/views/settings/SettingsFilesThumbnails.vue';
 import SettingsUploads from '@/views/settings/SettingsUploads.vue';
+import SettingsSearchIndex from '@/views/settings/SettingsSearchIndex.vue';
 import SettingsFolderSize from '@/views/settings/SettingsFolderSize.vue';
 import SettingsAccessControl from '@/views/settings/SettingsAccessControl.vue';
 import SettingsComingSoon from '@/views/settings/SettingsComingSoon.vue';
@@ -63,6 +64,11 @@ const router = createRouter({
             {
               path: 'folder-size',
               component: SettingsFolderSize,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'search-index',
+              component: SettingsSearchIndex,
               meta: { requiresAdmin: true },
             },
             { path: 'account-password', component: SettingsPassword },

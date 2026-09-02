@@ -440,7 +440,8 @@
       "accessControl": "访问控制",
       "adminUsers": "用户管理",
       "uploads": "上传",
-      "folderSize": "文件夹大小"
+      "folderSize": "文件夹大小",
+      "searchIndex": "搜索索引"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -626,6 +627,19 @@
       "additional": "额外的排除项",
       "placeholder": "Stacks/docker/overlay2",
       "none": "未配置任何路径"
+    },
+    "searchIndex": {
+      "title": "搜索索引",
+      "subtitle": "将路径排除在内容索引之外。",
+      "environment": "由环境定义的排除项",
+      "additional": "额外的排除项",
+      "none": "未配置任何路径",
+      "placeholder": "备份/2024"
+    },
+    "featureOff": {
+      "title": "此功能未启用",
+      "howTo": "要启用它，请设置 {setting} 并重启容器。",
+      "kept": "此处的配置会被保存，启用后立即生效。"
     }
   },
   "share": {

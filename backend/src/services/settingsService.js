@@ -5,6 +5,7 @@ const { parseByteSize } = require('../utils/env');
 const env = require('../config/env');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 const folderSizeExclusions = require('./folderSizeExclusions');
+const searchIndexExclusions = require('./searchIndexExclusions');
 const { generateId } = require('../utils/ids');
 
 const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
@@ -136,6 +137,10 @@ const sanitizeThumbnails = (thumbnails = {}) => {
 
 const sanitizeFolderSize = (folderSize = {}) => ({
   excludedPaths: folderSizeExclusions.sanitizePaths(folderSize.excludedPaths || []),
+});
+
+const sanitizeSearchIndex = (searchIndex = {}) => ({
+  excludedPaths: searchIndexExclusions.sanitizePaths(searchIndex.excludedPaths || []),
 });
 
 /**
@@ -323,6 +328,7 @@ const getSystemSettings = async () => {
     const access = { rules: [] };
     let uploads = defaultUploadSettings();
     const folderSize = { excludedPaths: [] };
+    const searchIndex = { excludedPaths: [] };
 
     for (const row of rows) {
       try {
@@ -337,6 +343,8 @@ const getSystemSettings = async () => {
           uploads = { ...uploads, ...JSON.parse(row.value) };
         } else if (row.key === 'folderSize') {
           Object.assign(folderSize, JSON.parse(row.value));
+        } else if (row.key === 'searchIndex') {
+          Object.assign(searchIndex, JSON.parse(row.value));
         }
       } catch (err) {
         // Skip invalid JSON
@@ -353,6 +361,10 @@ const getSystemSettings = async () => {
         ...sanitizeFolderSize(folderSize),
         environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
       },
+      searchIndex: {
+        ...sanitizeSearchIndex(searchIndex),
+        environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
+      },
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -368,6 +380,10 @@ const getSystemSettings = async () => {
         folderSize: {
           ...sanitizeFolderSize(settings.folderSize),
           environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+        },
+        searchIndex: {
+          ...sanitizeSearchIndex(settings.searchIndex),
+          environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
         },
       };
     } catch (err2) {

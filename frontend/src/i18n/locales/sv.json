@@ -440,7 +440,8 @@
       "accessControl": "Åtkomstkontroll",
       "adminUsers": "Användarhantering",
       "uploads": "Uppladdningar",
-      "folderSize": "Mappstorlekar"
+      "folderSize": "Mappstorlekar",
+      "searchIndex": "Sökindex"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -626,6 +627,19 @@
       "additional": "Ytterligare undantag",
       "placeholder": "Stacks/docker/overlay2",
       "none": "Inga sökvägar konfigurerade"
+    },
+    "searchIndex": {
+      "title": "Sökindex",
+      "subtitle": "Uteslut sökvägar från innehållsindexering.",
+      "environment": "Uteslutningar från miljön",
+      "additional": "Ytterligare uteslutningar",
+      "none": "Ingen sökväg konfigurerad",
+      "placeholder": "Säkerhetskopior/2024"
+    },
+    "featureOff": {
+      "title": "Funktionen är inte aktiverad",
+      "howTo": "Aktivera den genom att sätta {setting} och starta om containern.",
+      "kept": "Det du ställer in här sparas och gäller så snart funktionen aktiveras."
     }
   },
   "share": {

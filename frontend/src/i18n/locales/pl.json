@@ -440,7 +440,8 @@
       "accessControl": "Kontrola dostępu",
       "adminUsers": "Zarządzanie użytkownikami",
       "uploads": "Przesyłanie",
-      "folderSize": "Rozmiary folderów"
+      "folderSize": "Rozmiary folderów",
+      "searchIndex": "Indeks wyszukiwania"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -626,6 +627,19 @@
       "additional": "Dodatkowe wykluczenia",
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nie skonfigurowano żadnych ścieżek"
+    },
+    "searchIndex": {
+      "title": "Indeks wyszukiwania",
+      "subtitle": "Wyklucz ścieżki z indeksowania treści.",
+      "environment": "Wykluczenia zdefiniowane przez środowisko",
+      "additional": "Dodatkowe wykluczenia",
+      "none": "Nie skonfigurowano ścieżki",
+      "placeholder": "Kopie/2024"
+    },
+    "featureOff": {
+      "title": "Ta funkcja nie jest włączona",
+      "howTo": "Aby ją włączyć, ustaw {setting} i uruchom ponownie kontener.",
+      "kept": "To, co tu skonfigurujesz, zostanie zapisane i zadziała po włączeniu."
     }
   },
   "share": {

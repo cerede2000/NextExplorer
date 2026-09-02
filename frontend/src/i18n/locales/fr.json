@@ -443,7 +443,8 @@
       "folderSize": "Taille des dossiers",
       "security": "Sécurité",
       "accessControl": "Contrôle d'accès",
-      "adminUsers": "Gestion des utilisateurs"
+      "adminUsers": "Gestion des utilisateurs",
+      "searchIndex": "Index de recherche"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -629,6 +630,19 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "searchIndex": {
+      "title": "Index de recherche",
+      "subtitle": "Exclure des chemins de l'indexation du contenu.",
+      "environment": "Exclusions définies par l'environnement",
+      "additional": "Exclusions supplémentaires",
+      "none": "Aucun chemin configuré",
+      "placeholder": "Sauvegardes/2024"
+    },
+    "featureOff": {
+      "title": "Cette fonction n'est pas active",
+      "howTo": "Pour l'activer, positionnez {setting} puis redémarrez le conteneur.",
+      "kept": "Ce que vous configurez ici est enregistré et s'appliquera dès l'activation."
     }
   },
   "share": {

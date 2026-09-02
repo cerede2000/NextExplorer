@@ -12,6 +12,7 @@ import {
   PhotoIcon,
   ArrowUpTrayIcon,
   CircleStackIcon,
+  MagnifyingGlassIcon,
   KeyIcon,
   UsersIcon,
   UserCircleIcon,
@@ -88,6 +89,12 @@ const adminCategories = [
     i18nKey: 'folderSize',
     name: 'Folder size',
     icon: CircleStackIcon,
+  },
+  {
+    key: 'search-index',
+    i18nKey: 'searchIndex',
+    name: 'Search index',
+    icon: MagnifyingGlassIcon,
   },
   {
     key: 'access-control',

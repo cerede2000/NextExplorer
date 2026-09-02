@@ -440,7 +440,8 @@
       "accessControl": "Controllo accessi",
       "adminUsers": "Gestione utenti",
       "uploads": "Caricamenti",
-      "folderSize": "Dimensioni cartelle"
+      "folderSize": "Dimensioni cartelle",
+      "searchIndex": "Indice di ricerca"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -626,6 +627,19 @@
       "additional": "Esclusioni aggiuntive",
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nessun percorso configurato"
+    },
+    "searchIndex": {
+      "title": "Indice di ricerca",
+      "subtitle": "Escludere percorsi dall'indicizzazione dei contenuti.",
+      "environment": "Esclusioni definite dall'ambiente",
+      "additional": "Esclusioni aggiuntive",
+      "none": "Nessun percorso configurato",
+      "placeholder": "Backup/2024"
+    },
+    "featureOff": {
+      "title": "Questa funzione non è attiva",
+      "howTo": "Per attivarla, imposta {setting} e riavvia il contenitore.",
+      "kept": "Ciò che configuri qui viene salvato e si applica non appena è attiva."
     }
   },
   "share": {
