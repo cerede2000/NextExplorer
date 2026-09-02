@@ -265,9 +265,15 @@ states of `fileStore`. Five states, five tests.
 
 ### Worth doing, not blocking
 
-- **Split the bundle.** 2.68 MB in one chunk, 745 kB gzipped. The terminal and
-  the preview plugins are the largest pieces and the least often used; dynamic
-  `import()` for those three is half a day and shows up on first load.
+- **Load Uppy when a file is chosen, not when a page opens.** The bundle is
+  down to 2.33 MB and 655 kB gzipped: the preview plugins already loaded their
+  components on demand, and the terminal now does too, which took xterm's
+  289 kB off every page. Uppy is what is left — `useFileUploader()` constructs
+  it at the top of the composable, and `BrowserLayout` calls that on every
+  page. Deferring construction to the first file chosen or dropped is the right
+  shape, and it is not the same size of job as the other two: it touches the
+  upload path, where a mistake loses somebody's files. It wants the direct and
+  tus suites as a net and its own pass.
 - **Finish the translations.** No key is missing in any of the thirteen
   catalogues, but 41 to 65 strings per language are still the English text —
   `editor.wrapLines`, `errors.deleteShare` and the like. Korean has five, German

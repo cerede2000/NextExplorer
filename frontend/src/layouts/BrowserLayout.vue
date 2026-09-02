@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, defineAsyncComponent } from 'vue';
 import HeaderLogo from '@/components/HeaderLogo.vue';
 import FavMenu from '@/components/FavMenu.vue';
 import VolMenu from '@/components/VolMenu.vue';
@@ -14,7 +14,10 @@ import { useTitle, useStorage, useEventListener, useMediaQuery } from '@vueuse/c
 
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import ExplorerContextMenu from '@/components/ExplorerContextMenu.vue';
-import TerminalPanel from '@/components/TerminalPanel.vue';
+// The terminal carries xterm with it, which is a large library for a panel
+// most sessions never open and only an administrator can. Loaded when it is
+// first shown rather than on every page.
+const TerminalPanel = defineAsyncComponent(() => import('@/components/TerminalPanel.vue'));
 import { useAuthStore } from '@/stores/auth';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
