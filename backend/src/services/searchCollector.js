@@ -25,13 +25,19 @@ const NAME_SHARE = 0.75;
  * @param {() => boolean} contentExhausted  whether anything can still produce
  *   a content match; when nothing can, a full page of names is the whole
  *   answer and there is nothing left to wait for
+ * @param {Array} names     filled as they are found, so a caller that gives up
+ *   on the collector can still answer with what it had reached
+ * @param {Array} contents  the same, for content matches
  */
-const collectResults = async ({ results, limit, contentExhausted = () => false }) => {
+const collectResults = async ({
+  results,
+  limit,
+  contentExhausted = () => false,
+  names = [],
+  contents = [],
+}) => {
   const nameCap = limit;
   const contentReserve = Math.max(1, limit - Math.floor(limit * NAME_SHARE));
-
-  const names = [];
-  const contents = [];
 
   for await (const item of results) {
     (item.matchLine ? contents : names).push(item);

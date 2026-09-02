@@ -333,7 +333,8 @@
     "copyDetails": "세부 정보 복사"
   },
   "spotlight": {
-    "hintWithin": "검색어를 입력하세요"
+    "hintWithin": "검색어를 입력하세요",
+    "hintPattern": "파일 이름을 찾으려면 * 와 ? 를 사용하세요. 예: *.ps1"
   },
   "download": {
     "preparing": "다운로드 준비 중..."

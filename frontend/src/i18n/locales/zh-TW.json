@@ -333,7 +333,8 @@
     "copyDetails": "複製詳細資訊"
   },
   "spotlight": {
-    "hintWithin": "輸入關鍵字來搜尋"
+    "hintWithin": "輸入關鍵字來搜尋",
+    "hintPattern": "使用 * 和 ? 比對檔案名稱，例如 *.ps1"
   },
   "download": {
     "preparing": "正在準備下載..."

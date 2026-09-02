@@ -266,6 +266,9 @@ onKeyStroke(
           >
             {{ t('spotlight.hintWithin') }}
             <span class="font-mono">/{{ basePath }}</span>
+            <p class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+              {{ t('spotlight.hintPattern') }}
+            </p>
           </div>
           <div
             v-else-if="results.length === 0"

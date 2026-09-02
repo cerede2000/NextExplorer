@@ -333,7 +333,8 @@
     "copyDetails": "Kopiera detaljerna"
   },
   "spotlight": {
-    "hintWithin": "Skriv för att söka inom"
+    "hintWithin": "Skriv för att söka inom",
+    "hintPattern": "Använd * och ? för att filtrera filnamn, till exempel *.ps1"
   },
   "download": {
     "preparing": "Förbereder nerladdning..."

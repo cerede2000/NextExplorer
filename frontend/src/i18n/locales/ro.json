@@ -333,7 +333,8 @@
     "copyDetails": "Copiați detaliile"
   },
   "spotlight": {
-    "hintWithin": "Tastează pentru a căuta în interior"
+    "hintWithin": "Tastează pentru a căuta în interior",
+    "hintPattern": "Folosiți * și ? pentru a filtra numele fișierelor, de exemplu *.ps1"
   },
   "download": {
     "preparing": "Se pregătește descărcarea..."

@@ -24,6 +24,7 @@ const {
 } = require('../services/documentText');
 const searchIndexStore = require('../services/searchIndexStore');
 const { collectResults, buildPage } = require('../services/searchCollector');
+const { parseSearchTerm } = require('../services/searchTerm');
 const { getDb } = require('../services/db');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
@@ -142,7 +143,7 @@ const shouldIgnore = (name, includeHiddenFiles = false) =>
   excludedFiles.includes(name) ||
   (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
 
-const extractDirMatches = (fullPath, needle, includeHiddenFiles = false) => {
+const extractDirMatches = (fullPath, matcher, includeHiddenFiles = false) => {
   const dirs = new Set();
   const dirPath = path.posix.dirname(fullPath);
 
@@ -153,7 +154,7 @@ const extractDirMatches = (fullPath, needle, includeHiddenFiles = false) => {
     for (const part of parts) {
       if (!part || shouldIgnore(part, includeHiddenFiles)) continue;
       acc = acc ? `${acc}/${part}` : part;
-      if (part.toLowerCase().includes(needle)) dirs.add(acc);
+      if (matcher.matchesName(part)) dirs.add(acc);
     }
   }
 
@@ -189,7 +190,7 @@ const parseJsonLine = (line) => {
 async function* streamFileListMatches(
   baseAbsPath,
   relBasePath,
-  needle,
+  matcher,
   seenPaths,
   dirSet,
   shouldInclude,
@@ -214,7 +215,7 @@ async function* streamFileListMatches(
       const fullRel = normalizePath(trimmed, relBasePath);
 
       // Extract and yield directory matches immediately
-      for (const dirPath of extractDirMatches(fullRel, needle, includeHiddenFiles)) {
+      for (const dirPath of extractDirMatches(fullRel, matcher, includeHiddenFiles)) {
         if (!dirSet.has(dirPath) && !seenPaths.has(dirPath)) {
           dirSet.add(dirPath);
           seenPaths.add(dirPath);
@@ -225,8 +226,7 @@ async function* streamFileListMatches(
       }
 
       // Check filename match and yield immediately
-      const baseName = path.posix.basename(fullRel).toLowerCase();
-      if (baseName.includes(needle) && !seenPaths.has(fullRel)) {
+      if (matcher.matchesRelativePath(fullRel) && !seenPaths.has(fullRel)) {
         seenPaths.add(fullRel);
         if (await shouldInclude(fullRel)) {
           yield formatResult(fullRel, 'file');
@@ -510,7 +510,7 @@ async function* generateRipgrepResults(
   includeHiddenFiles = false,
   { useIndex = false, limit = 100, onContentSources, onContentSourceDone } = {}
 ) {
-  const needle = term.toLowerCase();
+  const matcher = parseSearchTerm(term);
   const seenPaths = new Set();
   const dirSet = new Set();
 
@@ -519,7 +519,7 @@ async function* generateRipgrepResults(
     yield* streamFileListMatches(
       baseAbsPath,
       relBasePath,
-      needle,
+      matcher,
       seenPaths,
       dirSet,
       shouldInclude,
@@ -531,7 +531,7 @@ async function* generateRipgrepResults(
   const fileListGen = streamFileListMatches(
     baseAbsPath,
     relBasePath,
-    needle,
+    matcher,
     seenPaths,
     dirSet,
     shouldInclude,
@@ -566,7 +566,18 @@ async function* generateRipgrepResults(
   // has to know when a reserve it is holding the page open for can no longer
   // be filled. Without it, every search that finds few content matches waits
   // out the whole time budget for content that had already run out.
-  const contentSources = useIndex ? [contentGen] : [contentGen, documentGen];
+  // A wildcard term describes filenames and nothing else: no file contains
+  // the characters `*.ps1`, so reading the tree for them costs the whole
+  // budget to return files that merely mention the pattern in their text.
+  const contentSources = !matcher.readsFileContents
+    ? []
+    : useIndex
+      ? [contentGen]
+      : [contentGen, documentGen];
+  if (!matcher.readsFileContents) {
+    await contentGen.return?.();
+    await documentGen.return?.();
+  }
   onContentSources?.(contentSources.length);
   const watched = contentSources.map((source) =>
     announceWhenDone(source, () => onContentSourceDone?.())
@@ -586,7 +597,9 @@ async function* generateFallbackResults(
   { useIndex = false, limit = 100 } = {}
 ) {
   const seenPaths = new Set();
-  const needle = term.toLowerCase();
+  const matcher = parseSearchTerm(term);
+  const needle = matcher.needle;
+  const readsFileContents = deep && matcher.readsFileContents;
 
   // Yield results immediately as we find them
   const walk = async function* (dirAbs, dirRel) {
@@ -604,7 +617,7 @@ async function* generateFallbackResults(
       const rel = dirRel ? path.posix.join(dirRel, d.name) : d.name;
 
       if (d.isDirectory()) {
-        if (d.name.toLowerCase().includes(needle) && !seenPaths.has(rel)) {
+        if (matcher.matchesName(d.name) && !seenPaths.has(rel)) {
           seenPaths.add(rel);
           if (await shouldInclude(rel)) {
             yield formatResult(rel, 'dir');
@@ -612,12 +625,12 @@ async function* generateFallbackResults(
         }
         yield* walk(abs, rel);
       } else if (d.isFile()) {
-        if (d.name.toLowerCase().includes(needle) && !seenPaths.has(rel)) {
+        if (matcher.matchesRelativePath(rel) && !seenPaths.has(rel)) {
           seenPaths.add(rel);
           if (await shouldInclude(rel)) {
             yield formatResult(rel, 'file');
           }
-        } else if (deep && !seenPaths.has(rel)) {
+        } else if (readsFileContents && !seenPaths.has(rel)) {
           try {
             const st = await fs.stat(abs);
             if (st.size <= CONTENT_FALLBACK_MAX_SIZE && isSearchableDocument(abs)) {
@@ -649,7 +662,7 @@ async function* generateFallbackResults(
 
   // With an index in place the walk stops reading files: it looks at names,
   // and the index answers for what is inside them.
-  if (useIndex) {
+  if (useIndex && !matcher.isGlob) {
     yield* mergeResults(
       walk(baseAbsPath, relBasePath),
       streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit)
@@ -781,30 +794,27 @@ router.get(
           { useIndex, limit }
         );
 
-    // What a name matched and what a document contained are counted apart, and
-    // only put together at the end. Sharing one running total let filenames
-    // spend it all: a term matching a hundred of them returned a hundred
-    // results and not one line of content, which is the half people open a
-    // deep search for. Names still lead — they are what someone looking for a
-    // file expects first — but they can no longer take the whole page.
-    // Names and contents are counted apart so filenames cannot spend the whole
-    // page, and the reserve is the only reason to keep looking once the page
-    // could already be filled.
-    let items = [];
-    let contentItems = [];
+    // Counted apart and only put together at the end: sharing one running
+    // total let filenames spend it all, and a term matching a hundred of them
+    // returned a hundred names and not one line of content — the half people
+    // open a deep search for.
+    const items = [];
+    const contentItems = [];
 
-    const collect = (async () => {
-      const { names, contents } = await collectResults({
-        results: generator,
-        limit,
-        contentExhausted: () => contentSourcesLeft === 0,
-      });
-      items = names;
-      contentItems = contents;
-    })();
+    // Filled as they are found rather than handed back at the end: when the
+    // budget wins the race, what has been collected so far is the answer, and
+    // waiting for the collector to hand it over is the one thing there is no
+    // time left for.
+    const collect = collectResults({
+      results: generator,
+      limit,
+      contentExhausted: () => contentSourcesLeft === 0,
+      names: items,
+      contents: contentItems,
+    });
 
     let truncated = false;
-    try {
+    {
       // Guaranteeing content a share means looking for it until the reserve is
       // full or the tree runs out — and on a large one that is a long time to
       // hold someone waiting. The budget ends it: whatever has been found by
@@ -818,15 +828,20 @@ router.get(
         delay(searchConfig?.timeoutMs ?? 5000).then(() => 'timeout'),
       ]);
       truncated = outcome === 'timeout';
-    } finally {
-      // Breaking out of a for-await leaves the generator suspended, and with
-      // it the ripgrep processes it spawned — which keep scanning the whole
-      // tree. Returning runs their cleanup so they are killed.
-      await generator.return?.();
-      // The collector is watching a generator that is now finished; let it
-      // notice before the response is built from what it gathered.
-      await collect.catch(() => {});
     }
+
+    // Breaking out of a for-await leaves the generator suspended, and with it
+    // the ripgrep processes it spawned — which keep scanning the whole tree.
+    // Returning runs their cleanup so they are killed.
+    //
+    // It is not awaited before answering, and that is the point: cleanup means
+    // resuming every source at whatever it was in the middle of, which on a
+    // busy tree took six seconds. A budget of five that answers in eleven is
+    // not a budget — the wait it was written to cap simply moved.
+    const cleanup = Promise.resolve(generator.return?.())
+      .catch(() => {})
+      .then(() => collect)
+      .catch(() => {});
 
     const combined = buildPage({ names: items, contents: contentItems, limit });
 
@@ -841,6 +856,7 @@ router.get(
     }
 
     res.json({ items: combined, truncated });
+    await cleanup;
   })
 );
 

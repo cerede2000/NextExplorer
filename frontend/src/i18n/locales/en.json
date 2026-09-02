@@ -333,7 +333,8 @@
     "copyDetails": "Copy details"
   },
   "spotlight": {
-    "hintWithin": "Type to search within"
+    "hintWithin": "Type to search within",
+    "hintPattern": "Use * and ? to match filenames, for example *.ps1"
   },
   "download": {
     "preparing": "Preparing download..."
