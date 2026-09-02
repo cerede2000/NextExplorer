@@ -237,9 +237,9 @@ const getInitials = (name) => {
           <form @submit.prevent="handleSaveProfile" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-                  >{{ t('settings.userDetails.displayName') }}</label
-                >
+                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
+                  t('settings.userDetails.displayName')
+                }}</label>
                 <input
                   v-model="formData.displayName"
                   type="text"
@@ -247,9 +247,9 @@ const getInitials = (name) => {
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-                  >{{ t('settings.userDetails.username') }}</label
-                >
+                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
+                  t('settings.userDetails.username')
+                }}</label>
                 <input
                   v-model="formData.username"
                   type="text"
@@ -258,9 +258,9 @@ const getInitials = (name) => {
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-                >{{ t('settings.userDetails.email') }}</label
-              >
+              <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
+                t('settings.userDetails.email')
+              }}</label>
               <input
                 v-model="formData.email"
                 type="email"
@@ -290,7 +290,9 @@ const getInitials = (name) => {
             <div>
               <div class="flex items-center gap-2">
                 <ShieldCheckIcon class="w-5 h-5 text-zinc-500" />
-                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ t('settings.userDetails.adminRole') }}</span>
+                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{
+                  t('settings.userDetails.adminRole')
+                }}</span>
               </div>
               <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1 ml-7">
                 {{ t('settings.userDetails.adminRoleHint') }}
@@ -320,7 +322,9 @@ const getInitials = (name) => {
           v-if="!isCurrentUser"
           class="bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-900/30 p-4"
         >
-          <h3 class="text-base font-semibold text-red-800 dark:text-red-300 mb-4">{{ t('settings.userDetails.dangerZone') }}</h3>
+          <h3 class="text-base font-semibold text-red-800 dark:text-red-300 mb-4">
+            {{ t('settings.userDetails.dangerZone') }}
+          </h3>
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-red-700 dark:text-red-400">
@@ -344,12 +348,16 @@ const getInitials = (name) => {
         <div
           class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"
         >
-          <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">{{ t('settings.userDetails.password') }}</h3>
+          <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+            {{ t('settings.userDetails.password') }}
+          </h3>
           <div class="flex items-center justify-between">
             <div>
               <div class="flex items-center gap-2">
                 <KeyIcon class="w-5 h-5 text-zinc-500" />
-                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ t('settings.userDetails.localPassword') }}</span>
+                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{
+                  t('settings.userDetails.localPassword')
+                }}</span>
               </div>
               <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1 ml-7">
                 {{
@@ -363,7 +371,11 @@ const getInitials = (name) => {
               @click="$emit('reset-password', user)"
               class="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium"
             >
-              {{ hasLocalAuth ? t('settings.userDetails.resetLocalPassword') : t('settings.userDetails.setLocalPassword') }}
+              {{
+                hasLocalAuth
+                  ? t('settings.userDetails.resetLocalPassword')
+                  : t('settings.userDetails.setLocalPassword')
+              }}
             </button>
           </div>
         </div>
@@ -390,7 +402,9 @@ const getInitials = (name) => {
                   <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                     {{ profile.provider || t('settings.userDetails.oidcProvider') }}
                   </p>
-                  <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ t('settings.userDetails.oidcLinkedProfile') }}</p>
+                  <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ t('settings.userDetails.oidcLinkedProfile') }}
+                  </p>
                 </div>
               </div>
               <!-- Placeholder for unlink action if needed in future -->

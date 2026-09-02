@@ -17,7 +17,13 @@ const i18n = createI18n({
   locale: 'en',
   messages: {
     en: {
-      common: { add: 'Add', delete: 'Delete', save: 'Save', discard: 'Discard', unsavedChanges: '' },
+      common: {
+        add: 'Add',
+        delete: 'Delete',
+        save: 'Save',
+        discard: 'Discard',
+        unsavedChanges: '',
+      },
       settings: {
         searchIndex: {
           title: 'Search index',

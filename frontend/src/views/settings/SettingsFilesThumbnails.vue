@@ -98,7 +98,9 @@ const save = async () => {
       class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6"
     >
       <div class="space-y-6">
-        <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
               {{ t('settings.thumbs.enable') }}

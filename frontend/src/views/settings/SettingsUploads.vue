@@ -29,9 +29,7 @@ onMounted(() => features.ensureLoaded());
 const maxChunkSizeMiB = computed(() => {
   const bytes = features.maxUploadChunkSizeBytes;
   const mib =
-    Number.isFinite(bytes) && bytes > 0
-      ? Math.floor(bytes / MIB)
-      : FALLBACK_MAX_CHUNK_SIZE_MIB;
+    Number.isFinite(bytes) && bytes > 0 ? Math.floor(bytes / MIB) : FALLBACK_MAX_CHUNK_SIZE_MIB;
   return Math.max(MIN_CHUNK_SIZE_MIB, mib);
 });
 
