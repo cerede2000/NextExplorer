@@ -185,8 +185,20 @@ ENV REPO_URL=${REPO_URL}
 
 # Bring in backend production node_modules (pre-compiled for Alpine musl).
 # Build tools from backend_deps stage are NOT included — only the output.
-COPY --from=backend_deps /app/node_modules ./node_modules
-COPY --from=backend_deps /app/package.json ./
+#
+# Mounted and copied in one step rather than COPY'd, so that a build without RAW
+# support can drop the vendored ExifTool before the layer is committed. Deleting
+# it afterwards, which is what this did, removes it from the filesystem and from
+# nothing else: the bytes stay in the earlier layer, get pulled on every pull,
+# and are still counted in the image size. That was 23 MB of Perl in the lean
+# image, with no interpreter present to run it.
+RUN --mount=from=backend_deps,source=/app,target=/deps \
+    set -eu; \
+    cp -a /deps/node_modules ./node_modules; \
+    cp /deps/package.json ./; \
+    if [ "$INCLUDE_RAW" != "true" ]; then \
+      rm -rf node_modules/exiftool-vendored node_modules/exiftool-vendored.pl; \
+    fi
 COPY --from=seven_zip /out/7z /usr/local/bin/7z
 COPY docker/verify-7zip-password.js ./verify-7zip-password.js
 # Verify both the RAR codec and the non-interactive password flow through the
@@ -198,13 +210,6 @@ RUN 7z i | grep -qi 'rar' \
   && node ./verify-7zip-password.js /tmp/7z-password-check/archive.7z /tmp/7z-password-check/output build-check \
   && test "$(cat /tmp/7z-password-check/output/check.txt)" = 'ok' \
   && rm -rf /tmp/7z-password-check ./verify-7zip-password.js
-
-# When RAW support is disabled, drop the vendored ExifTool (~20 MB) from the
-# runtime node_modules. rawPreviewService.js already degrades gracefully when the
-# module is absent (the require is wrapped in try/catch).
-RUN if [ "$INCLUDE_RAW" != "true" ]; then \
-      rm -rf node_modules/exiftool-vendored node_modules/exiftool-vendored.pl; \
-    fi
 
 # Copy backend source and healthcheck.
 COPY backend/src ./src
