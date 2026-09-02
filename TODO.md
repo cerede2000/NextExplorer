@@ -265,15 +265,39 @@ states of `fileStore`. Five states, five tests.
 
 ### Worth doing, not blocking
 
-- **Load Uppy when a file is chosen, not when a page opens.** The bundle is
-  down to 2.33 MB and 655 kB gzipped: the preview plugins already loaded their
-  components on demand, and the terminal now does too, which took xterm's
-  289 kB off every page. Uppy is what is left — `useFileUploader()` constructs
-  it at the top of the composable, and `BrowserLayout` calls that on every
-  page. Deferring construction to the first file chosen or dropped is the right
-  shape, and it is not the same size of job as the other two: it touches the
-  upload path, where a mistake loses somebody's files. It wants the direct and
-  tus suites as a net and its own pass.
+- **Load Uppy when a file is chosen, not when a page opens.** The last large
+  thing in the main chunk, now that the preview plugins and the terminal load on
+  demand: 2.33 MB and 655 kB gzipped, of which Uppy is a few hundred kilobytes
+  carried by every page — the folder view, the settings, the shares — because
+  `BrowserLayout` calls `useFileUploader()` on mount and the composable runs
+  `new Uppy()` at the top.
+
+  It is not the one-line change the terminal was, and it is worth writing down
+  why before somebody starts it:
+
+  - **Three entry points share one instance.** `BrowserLayout` holds the global
+    one, `CreateNew.vue` opens the file dialog, `FolderView.vue` binds the drop
+    target. All three have to land on the same Uppy, whichever runs first.
+  - **Construction is not passive.** It installs the `files-added` handler, a
+    pre-processor that reserves a folder's destination _before_ any bytes are
+    sent, the choice between XHR and tus, and a progress watchdog. Deferring
+    construction defers all of that, and nothing may reach the network before it
+    is back.
+  - **Drag-and-drop is the hard case.** When a file lands on the window there is
+    no acceptable moment to fetch a library. It wants preloading on
+    `dragenter`, or the first drop is slow.
+
+  What it needs first: the composable has **no tests at all** — nine hundred
+  lines, one function of six hundred and thirty. The backend has three suites
+  (`direct-upload`, `tus-upload`, `upload-authorization`); the browser half has
+  none. Cover the failure paths, the XHR/tus fallback and the folder
+  reservation, then defer the construction, then try it in a browser with real
+  files — a drop, and a whole folder.
+
+  The prize is 150–200 kB gzipped on first load, once. It is the highest risk
+  left on this list: a mistake here does not make a page ugly, it loses
+  somebody's files or sends them to the wrong folder.
+
 - **Finish the translations.** No key is missing in any of the thirteen
   catalogues, but 41 to 65 strings per language are still the English text —
   `editor.wrapLines`, `errors.deleteShare` and the like. Korean has five, German
@@ -305,6 +329,16 @@ states of `fileStore`. Five states, five tests.
   worse than a doc that is missing.
 
 ## Open, not scheduled
+
+- **An administrator cannot see or clear a locked account.** Five failed
+  attempts lock an email for fifteen minutes (`AUTH_MAX_FAILED`,
+  `AUTH_LOCK_MINUTES`), it clears itself when the time is up or on the next
+  successful sign-in, and there is nothing in between: no list of who is locked
+  and no way to release one. Someone who has just locked themselves out and
+  needs in now has to wait, or have somebody edit `auth_locks` in the database.
+  Asked for upstream in nxzai/NextExplorer#370, and the request is reasonable —
+  the lock is keyed on the email alone, so it is also the shape that lets one
+  person lock out a colleague whose address they know.
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
   and deletes nothing. It needs a PAT with `delete:packages`. More pressing now
