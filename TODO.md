@@ -3,6 +3,31 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
+## Concurrency that is configured and never used
+
+`api/files.api.js` builds `streamInBatches` around a worker pool: a
+`concurrency` parameter, a `stopped` flag so a rejection cancels the batches
+queued behind it, and a comment explaining that waiting for one batch before
+starting the next leaves most of the time unused on latency-bound storage.
+
+All three callers — copy, move and streamed delete — pass four arguments. The
+default is 1. So the pool is always one worker, the batches are strictly
+sequential, and `stopped` can never be read: removing it breaks nothing, which
+is how it turned up while writing the batching tests.
+
+The per-batch delta accounting is *not* dead and must stay. Each batch counts
+from zero whether it runs beside another or after it, so taking the raw number
+would make the progress bar fall back at every batch boundary.
+
+Two ways out, same shape as the download permission above:
+
+- **Turn it on.** Two or three batches in flight is a real gain on a NAS, and
+  it is one argument at each call site. It needs a test with genuine overlap
+  first — the existing ones drive the batches sequentially because that is all
+  the code does today.
+- **Take it out.** Then `streamInBatches` is a loop, and nobody reads a comment
+  about in-flight requests that never happen.
+
 ## A download permission that is never withheld
 
 `routes/files/download.js` refuses a request when `accessInfo.canDownload` is
