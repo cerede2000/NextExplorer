@@ -92,7 +92,19 @@ const validatePath = async (relativePath, user) => {
     throw err;
   }
 
-  const stats = await fs.stat(resolved.absolutePath);
+  // Resolving a path does not require it to exist. Without this, bookmarking a
+  // folder that has since been deleted answered 500 instead of saying so.
+  let stats;
+  try {
+    stats = await fs.stat(resolved.absolutePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      const err = new Error('Path not found');
+      err.status = 404;
+      throw err;
+    }
+    throw error;
+  }
 
   if (!stats.isDirectory()) {
     const err = new Error('Path must be a directory');

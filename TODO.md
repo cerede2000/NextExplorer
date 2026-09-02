@@ -223,11 +223,11 @@ has the measurements. What follows is the order the work goes in, and it is not
 the order of severity: **two of the three most valuable pieces cannot be done
 safely until the first one exists.**
 
-### 1. Tests for the ten route modules that have none of their own
+### 1. Tests for the ten route modules that have none of their own — done
 
-`permissions`, `users`, `metadata` and `thumbnails` are done. The rest, in order
-of what a defect there costs: `volumes`, `userVolumes`, `upload`, `zip`,
-`favorites`, `index`.
+All ten are done. What they turned up is in the commits: a rule written twice,
+two places answering 500 where 404 belonged, an unreachable branch, and six
+tests of my own that passed whether the guard existed or not.
 
 Some are traversed indirectly by other suites, which is why coverage is not
 zero — but nobody has written down what they must answer. The four done so far
@@ -235,7 +235,14 @@ went from 18–28 % of statements and 0 % of branches to 66–87 % and 26–75 %
 each turned something up: a rule written twice, a 500 where a 404 belonged, and
 three tests of my own that passed whether the guard existed or not.
 
-This is the net the next two steps hang from. It is not optional groundwork.
+This was the net the next two steps hang from. Backend coverage went from 65.3 %
+of statements and 54.4 % of branches to 69.1 % and 57.9 %.
+
+One thing learned worth carrying: `authorizeAndResolve` never returns a resolved
+path when it refuses, so every `if (!allowed || !resolved)` in the codebase has a
+second half no test can reach. It is a guard against the service changing that
+contract, not a branch with a case behind it — do not spend an hour trying to
+cover it, as I did twice.
 
 ### 2. Express 4 → 5, on its own branch
 

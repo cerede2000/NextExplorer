@@ -46,10 +46,6 @@ router.get(
     }
 
     // For regular users when USER_VOLUMES is enabled, show only assigned volumes
-    if (!user || !user.id) {
-      return res.json([]);
-    }
-
     const userVolumes = await getVolumesForUser(user.id);
 
     const volumeData = userVolumes.map((vol) => ({
