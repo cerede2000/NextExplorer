@@ -18,7 +18,7 @@ import {
   TrashIcon,
 } from '@heroicons/vue/24/outline';
 
-export const QUICK_ACTIONS = [
+const QUICK_ACTIONS = [
   { id: 'info', labelKey: 'context.getInfo', icon: InformationCircleIcon, item: true, folder: true },
   { id: 'download', labelKey: 'actions.download', icon: ArrowDownTrayIcon, item: true, folder: false },
   { id: 'copyName', labelKey: 'actions.copyName', icon: DocumentDuplicateIcon, item: true, folder: true },
@@ -38,7 +38,7 @@ export const QUICK_ACTIONS_BY_ID = Object.fromEntries(
   QUICK_ACTIONS.map((action) => [action.id, action])
 );
 
-export const DEFAULT_QUICK_ACTION_ORDER = QUICK_ACTION_IDS.slice();
+const DEFAULT_QUICK_ACTION_ORDER = QUICK_ACTION_IDS.slice();
 
 // Sensible default selection so the menu is useful out of the box.
 export const DEFAULT_QUICK_ACTIONS_ON = [

@@ -54,10 +54,5 @@ const getDocumentType = (ext) => {
 };
 
 module.exports = {
-  SUPPORTED_SHEET,
-  SUPPORTED_PRESENTATION,
-  SUPPORTED_PDF,
-  SUPPORTED_TEXT,
-  SUPPORTED_DIAGRAM,
   getDocumentType,
 };

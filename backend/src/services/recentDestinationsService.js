@@ -84,5 +84,4 @@ module.exports = {
   record,
   list,
   forget,
-  MAX_ENTRIES,
 };

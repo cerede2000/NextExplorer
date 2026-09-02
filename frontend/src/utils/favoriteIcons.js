@@ -8,12 +8,10 @@ import * as SolidIcons from '@heroicons/vue/24/solid';
  * and the edit dialog all render the same stored value, and a variant one of
  * them does not know about silently falls back to a star.
  */
-export const FAVORITE_ICON_VARIANTS = {
+const FAVORITE_ICON_VARIANTS = {
   outline: OutlineIcons,
   solid: SolidIcons,
 };
-
-export const DEFAULT_FAVORITE_ICON = 'outline:StarIcon';
 
 /**
  * Map a stored variant onto a real one.

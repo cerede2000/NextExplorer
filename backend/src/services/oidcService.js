@@ -148,7 +148,5 @@ const fetchUserInfoClaims = async ({
 };
 
 module.exports = {
-  discoverOpenIdConfiguration,
   fetchUserInfoClaims,
-  normalizeIssuer,
 };

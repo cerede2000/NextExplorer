@@ -969,6 +969,5 @@ const closeDb = () => {
 module.exports = {
   getDb,
   prepared,
-  getDbPath,
   closeDb,
 };

@@ -664,7 +664,6 @@ module.exports = {
   resolveVolumePath,
   resolvePersonalPath,
   resolveLogicalPath,
-  resolveSharePath,
   combineRelativePath,
   splitName,
   findAvailableName,
@@ -673,6 +672,5 @@ module.exports = {
   parsePathSpace,
   getUserFolderName,
   getUserFolderNameCandidates,
-  getUserRootDir,
   resolveItemPaths,
 };

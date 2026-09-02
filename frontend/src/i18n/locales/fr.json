@@ -88,8 +88,7 @@
   "status": {
     "updated": "Mis à jour avec succès",
     "failed": "Échec",
-    "passwordUpdated": "Mot de passe mis à jour",
-    "completePercent": "{percent}% terminé"
+    "passwordUpdated": "Mot de passe mis à jour"
   },
   "actions": {
     "newFolder": "Nouveau dossier",
@@ -351,10 +350,6 @@
     "menu": "Actions rapides"
   },
   "upload": {
-    "toggleDetailsShow": "Afficher les détails",
-    "toggleDetailsHide": "Masquer les détails",
-    "pauseUploads": "Mettre en pause les téléversements",
-    "resumeUploads": "Reprendre les téléversements",
     "uploads": "Téléversement de {count} {items}",
     "finalizing": "Finalisation"
   },
@@ -385,24 +380,17 @@
     "login": {
       "welcome": "Bon retour",
       "subtitle": "Connectez-vous pour accéder à {appName}.",
-      "announcementConfirm": "Marquer comme lu",
       "submit": "Se connecter",
       "announcementMigration": {
         "title": "Nous avons mis à jour la façon de vous connecter",
-        "intro": "Vous devez maintenant utiliser votre nouveau nom d'utilisateur au format e-mail.",
-        "bulletAddSuffix": "Ajoutez {suffix} à votre nom d'utilisateur",
-        "bulletPasswordSame": "Votre mot de passe reste inchangé.",
-        "bulletUpdateUsers": "Vous pouvez mettre à jour les utilisateurs existants depuis le menu d'administration"
+        "intro": "Vous devez maintenant utiliser votre nouveau nom d'utilisateur au format e-mail."
       }
     },
     "setup": {
       "headline": "Procédons à la configuration",
       "subtitle": "Créez votre compte administrateur pour sécuriser et gérer vos fichiers.",
-      "formTitle": "Créez votre compte",
-      "formSubtitle": "Indiquez une adresse e-mail et un mot de passe sécurisé pour terminer la configuration.",
       "submit": "Terminer la configuration",
       "bullets": {
-        "encryption": "Chiffrement fort et actions auditables.",
         "permissions": "Autorisations granulaires et gestion des utilisateurs.",
         "sso": "Prise en charge fluide de l'authentification unique."
       }
@@ -460,15 +448,12 @@
       "appName": "Nom de l’application",
       "appNameHelp": "Le nom affiché dans les en-têtes, la page de connexion et le pied de page (max. 100 caractères).",
       "appLogoUrl": "Image du logo",
-      "appLogoUrlHelp": "Téléversez un fichier SVG, PNG ou JPG pour votre logo personnalisé (max. 2 Mo).",
       "logo": "Image du logo",
       "logoHelp": "Téléversez un fichier SVG, PNG ou JPG pour votre logo personnalisé (max. 2 Mo).",
       "uploading": "Téléversement...",
       "uploadSuccess": "Logo téléversé avec succès",
-      "uploadError": "Échec du téléversement du logo",
       "invalidFileType": "Veuillez téléverser un fichier SVG, PNG ou JPG",
       "logoError": "Le fichier doit faire moins de 2 Mo",
-      "fileTooLargeForDataUri": "Le fichier est trop volumineux. Veuillez utiliser une image plus petite (moins de 500 Ko pour de meilleurs résultats)",
       "preview": "Aperçu",
       "showPoweredBy": "Afficher le lien d’attribution",
       "showPoweredByHelp": "Afficher un lien « Powered by nextExplorer » dans le pied de page pour aider à soutenir le projet",
@@ -545,8 +530,7 @@
     "security": {
       "subtitle": "Contrôlez l'accès à l'application.",
       "enable": "Activer l'authentification",
-      "enableHelp": "Lorsque cette option est désactivée, tout le monde peut accéder à vos fichiers.",
-      "confirmDisable": "La désactivation de l'authentification rendra vos fichiers accessibles publiquement. Continuer ?"
+      "enableHelp": "Lorsque cette option est désactivée, tout le monde peut accéder à vos fichiers."
     },
     "access": {
       "title": "Accès",
@@ -578,11 +562,9 @@
       "grantAdmin": "Accorder les droits d'admin",
       "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Nom d'affichage",
-      "makeAdmin": "Rendre admin",
       "resetPassword": "Définir/réinitialiser le mot de passe",
       "removeUser": "Supprimer l'utilisateur",
       "promptNewPassword": "Saisissez un nouveau mot de passe pour {user} (min. 6 caractères) :",
-      "editUser": "Modifier l'utilisateur",
       "volumes": "Volumes",
       "assignedVolumes": "Volumes attribués",
       "addVolume": "Ajouter un volume",
@@ -647,9 +629,7 @@
   },
   "share": {
     "sharedWithMe": "Partagé avec moi",
-    "sharedWithMeDescription": "Fichiers et dossiers que d'autres personnes ont partagés avec votre compte.",
     "sharedByMe": "Partagé par moi",
-    "sharedByMeDescription": "Liens et dossiers que vous avez partagés avec d'autres personnes.",
     "shareCreated": "Partage créé",
     "createShareLink": "Créer un lien de partage",
     "editShareLink": "Modifier le lien de partage",
@@ -711,8 +691,6 @@
     "signInToAccess": "Se connecter pour accéder",
     "requiresAuthentication": "Ce partage nécessite une authentification.",
     "noSharedItemsToShow": "Aucun élément partagé à afficher",
-    "noSharedItemsYet": "Lorsque quelqu'un partage des fichiers ou des dossiers avec vous, ils apparaissent ici.",
-    "adjustFilters": "Ajustez vos filtres ou effacez la recherche pour voir plus d'éléments.",
     "filterByNameOrPath": "Filtrer par nom ou chemin",
     "sharedBy": "Partagé par le propriétaire",
     "lastAccessed": "Dernier accès",
@@ -728,15 +706,11 @@
     "noActivity": "Jamais",
     "noIpRecorded": "Aucune IP enregistrée",
     "created": "Créé",
-    "noMyShares": "Vous n'avez pas encore créé de partage.",
-    "noMySharesDescription": "Créez un partage à partir de n'importe quel fichier ou dossier pour le voir apparaître ici.",
-    "mySharesCount": "{count} liens de partage actifs",
     "confirmDeleteShare": "Supprimer ce partage ? Les personnes disposant du lien n'y auront plus accès.",
     "deleteShareTitle": "Supprimer le partage ?",
     "deleteShareMessage": "Les personnes disposant de ce lien ne pourront plus accéder à l’élément partagé.",
     "removeShare": "Supprimer le partage",
     "sharedWithAnyone": "Tout le monde",
-    "sharedWithUsers": "{count} utilisateur | {count} utilisateurs",
     "expiresNever": "Jamais",
     "password": "Mot de passe",
     "protected": "Protégé",

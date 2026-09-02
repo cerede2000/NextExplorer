@@ -13,10 +13,6 @@ const finish = (absolutePath) => {
   if (absolutePath) activeDirectories.delete(absolutePath);
 };
 
-const finishAll = (absolutePaths = []) => {
-  for (const absolutePath of absolutePaths) finish(absolutePath);
-};
-
 const isRelatedToActiveTransfer = (absolutePath) => {
   if (!absolutePath) return false;
   for (const activePath of activeDirectories) {
@@ -34,6 +30,5 @@ const isRelatedToActiveTransfer = (absolutePath) => {
 module.exports = {
   begin,
   finish,
-  finishAll,
   isRelatedToActiveTransfer,
 };

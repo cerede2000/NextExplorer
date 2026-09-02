@@ -22,7 +22,7 @@ const shareInfoCache = new Map();
 
 const cacheKey = (shareToken, viewerId) => `${viewerId || 'anonymous'}:${shareToken}`;
 
-export const getCachedShareInfo = (shareToken, viewerId) => {
+const getCachedShareInfo = (shareToken, viewerId) => {
   const key = cacheKey(shareToken, viewerId);
   if (!shareInfoCache.has(key)) {
     shareInfoCache.set(

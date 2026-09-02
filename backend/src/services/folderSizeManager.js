@@ -383,30 +383,6 @@ const stop = async () => {
   stopped = true;
 };
 
-const requestReconcile = () => {
-  if (running) runReconcile('command', { full: true }).catch(() => {});
-};
-
-const requestRebuild = () => {
-  if (!running) return;
-  (async () => {
-    try {
-      dirty.clear();
-      folderSizeIndex.removeSubtree(db, scope, scope.root);
-      log('info', 'Rebuild requested — cleared existing index');
-      const result = await indexer.runBaseline(db, scope, {
-        mode: config.folderSize.mode,
-        shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
-      });
-      folderSizeIndex.setIndexVersion(db, scope);
-      reclaimMemory();
-      log('info', 'Baseline walk complete', { ...result });
-    } catch (err) {
-      log('error', 'Rebuild failed', { err });
-    }
-  })();
-};
-
 /**
  * A filesystem mutation wins over a background scan. Cancel every queued or
  * active targeted scan whose subtree overlaps the changed path so stale scan
@@ -614,8 +590,6 @@ module.exports = {
   start,
   stop,
   touch,
-  requestReconcile,
-  requestRebuild,
   refreshSubtree,
   invalidateSubtree,
   setAdminExclusions,

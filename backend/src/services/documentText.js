@@ -111,5 +111,4 @@ module.exports = {
   findPlainTextMatch,
   isSearchableDocument,
   SEARCHABLE_EXTENSIONS,
-  MAX_PLAIN_TEXT_BYTES,
 };

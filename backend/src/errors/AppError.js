@@ -103,16 +103,6 @@ class RateLimitError extends AppError {
 }
 
 /**
- * 500 Internal Server Error - for unexpected server errors
- */
-class InternalError extends AppError {
-  constructor(message = 'Internal server error') {
-    super(message, 500);
-    this.name = 'InternalError';
-  }
-}
-
-/**
  * 415 Unsupported Media Type - for unsupported file types
  */
 class UnsupportedMediaTypeError extends AppError {
@@ -140,7 +130,6 @@ module.exports = {
   NotFoundError,
   ConflictError,
   RateLimitError,
-  InternalError,
   UnsupportedMediaTypeError,
   InsufficientStorageError,
 };

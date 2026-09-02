@@ -88,8 +88,7 @@
   "status": {
     "updated": "Uppdaterades",
     "failed": "Misslyckades",
-    "passwordUpdated": "Lösenordet uppdaterades",
-    "completePercent": "{percent}% färdig"
+    "passwordUpdated": "Lösenordet uppdaterades"
   },
   "actions": {
     "newFolder": "Ny mapp",
@@ -348,10 +347,6 @@
     "perSecond": "{value}/s"
   },
   "upload": {
-    "toggleDetailsShow": "Visa detaljer",
-    "toggleDetailsHide": "Dölj detaljer",
-    "pauseUploads": "Pausa uppladdningar",
-    "resumeUploads": "Återuppta uppladdningar",
     "uploads": "Laddar upp {count} {items}",
     "finalizing": "Slutför"
   },
@@ -382,24 +377,17 @@
     "login": {
       "welcome": "Välkommen tillbaka",
       "subtitle": "Logga in för att komma åt {appName}.",
-      "announcementConfirm": "Markera som läst",
       "submit": "Logga in",
       "announcementMigration": {
         "title": "Vi har uppdaterat hur du loggar in",
-        "intro": "Du behöver nu använda ditt nya användarnamn liknande e-postadress.",
-        "bulletAddSuffix": "Lägg till {suffix} till ditt användarnamn",
-        "bulletPasswordSame": "Ditt lösenord är det samma.",
-        "bulletUpdateUsers": "Du kan uppdatera befintliga användare från Adminmenyn"
+        "intro": "Du behöver nu använda ditt nya användarnamn liknande e-postadress."
       }
     },
     "setup": {
       "headline": "Låt oss komma igång",
       "subtitle": "Skapa ditt administratörskonto för att säkra och hantera dina filer.",
-      "formTitle": "Skapa ditt konto",
-      "formSubtitle": "Ange en e-postadress och säkert lösenord för att färdigställa konfigurationen.",
       "submit": "Färdigställ konfiguration",
       "bullets": {
-        "encryption": "Stark kryptering och revisionsvänliga åtgärder.",
         "permissions": "Granulära behörigheter och användarhantering.",
         "sso": "Sömlöst stöd för enkel inloggning."
       }
@@ -457,15 +445,12 @@
       "appName": "Applikationsnamn",
       "appNameHelp": "Namnet som visas i sidhuvuden, inloggningssidan och sidfoten (max 100 tecken).",
       "appLogoUrl": "Logotypbild",
-      "appLogoUrlHelp": "Ladda upp en SVG-, PNG- eller JPG-fil för din egna logotyp (max 2 MB).",
       "logo": "Logotypbild",
       "logoHelp": "Ladda upp en SVG-, PNG- eller JPG-fil för din egna logotyp (max 2 MB).",
       "uploading": "Laddar upp...",
       "uploadSuccess": "Logotypen laddades upp",
-      "uploadError": "Det gick inte att ladda upp logotypen",
       "invalidFileType": "Ladda upp SVG, PNG eller JPG",
       "logoError": "Filen måste vara mindre än 2 MB",
-      "fileTooLargeForDataUri": "Filen är för stor. Använd en mindre bild (under 500 KB för bästa resultat)",
       "preview": "Förhandsgranskning",
       "showPoweredBy": "Visa attribueringslänk",
       "showPoweredByHelp": "Visa en \"Powered by nextExplorer\"-länk i sidfoten för att stödja projektet",
@@ -522,8 +507,7 @@
     "security": {
       "subtitle": "Kontrollera åtkomst till appen.",
       "enable": "Aktivera autentisering",
-      "enableHelp": "När den är avstängd kan vem som helst komma åt dina filer.",
-      "confirmDisable": "Om du inaktiverar autentisering blir dina filer offentligt tillgängliga. Fortsätt?"
+      "enableHelp": "När den är avstängd kan vem som helst komma åt dina filer."
     },
     "access": {
       "subtitle": "Ställ in behörigheter per mapp: läs-skriv, skrivskyddad eller dold.",
@@ -555,11 +539,9 @@
       "grantAdmin": "Gör till admin",
       "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Visningsnamn",
-      "makeAdmin": "Gör till admin",
       "resetPassword": "Ställ in/återställ lösenord",
       "removeUser": "Ta bort användare",
       "promptNewPassword": "Ange ett nytt lösenord för {user} (min 6 tecken):",
-      "editUser": "Redigera användare",
       "volumes": "Volymer",
       "assignedVolumes": "Tilldelade volymer",
       "addVolume": "Lägg till volym",
@@ -644,9 +626,7 @@
   },
   "share": {
     "sharedWithMe": "Utdelade till mig",
-    "sharedWithMeDescription": "Filer och mappar som andra personer har delat med ditt konto.",
     "sharedByMe": "Utdelade av mig",
-    "sharedByMeDescription": "Länkar och mappar som du har delat med andra personer.",
     "shareCreated": "Utdelning skapad",
     "createShareLink": "Skapa utdelningslänk",
     "editShareLink": "Redigera delningslänk",
@@ -694,19 +674,13 @@
     "signInToAccess": "Logga in för åtkomst",
     "requiresAuthentication": "Denna utdelning kräver autentisering.",
     "noSharedItemsToShow": "Inga utdelade objekt att visa",
-    "noSharedItemsYet": "När någon delar filer eller mappar med dig visas de här.",
-    "adjustFilters": "Justera dina filter eller töm sökningen för att se fler objekt.",
     "filterByNameOrPath": "Filtrera efter namn eller sökväg",
     "sharedBy": "Utdelad av ägaren",
     "lastAccessed": "Senaste åtkomst",
     "created": "Skspad",
-    "noMyShares": "Du har inte skapat några utdelningar än.",
-    "noMySharesDescription": "Skapa en delning från valfri fil eller mapp för att se den listad här.",
-    "mySharesCount": "{count} aktiva utdelningslänkar",
     "confirmDeleteShare": "Ta bort denna utdelning? Personer som har länken kommer inte längre ha åtkomst.",
     "removeShare": "Ta bort utdelning",
     "sharedWithAnyone": "Alla",
-    "sharedWithUsers": "{count} användare | {count} användare",
     "expiresNever": "Aldrig",
     "directFileLink": "Direktlänk till fil",
     "directFolderLink": "Direkt ZIP-länk till mapp",

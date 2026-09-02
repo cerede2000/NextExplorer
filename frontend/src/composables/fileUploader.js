@@ -19,7 +19,7 @@ import DropTarget from '@uppy/drop-target';
 // Per-origin remembered auto-fallback chunk size (localStorage is scoped to the
 // origin, so the public URL and a LAN IP each keep their own value). Exported so
 // the settings screen can reset it (revert this origin to direct uploads).
-export const UPLOAD_FALLBACK_STORAGE_KEY = 'nextExplorer_upload_fallback_chunk_mib';
+const UPLOAD_FALLBACK_STORAGE_KEY = 'nextExplorer_upload_fallback_chunk_mib';
 
 export const getUploadFallbackMiB = () => {
   try {

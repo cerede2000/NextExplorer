@@ -88,8 +88,7 @@
   "status": {
     "updated": "Actualizado correctamente",
     "failed": "Error",
-    "passwordUpdated": "Contraseña actualizada",
-    "completePercent": "{percent}% completado"
+    "passwordUpdated": "Contraseña actualizada"
   },
   "actions": {
     "newFolder": "Nueva carpeta",
@@ -348,10 +347,6 @@
     "perSecond": "{value}/s"
   },
   "upload": {
-    "toggleDetailsShow": "Mostrar detalles",
-    "toggleDetailsHide": "Ocultar detalles",
-    "pauseUploads": "Pausar subidas",
-    "resumeUploads": "Reanudar subidas",
     "uploads": "Subiendo {count} {items}",
     "finalizing": "Finalizando"
   },
@@ -382,24 +377,17 @@
     "login": {
       "welcome": "Bienvenido de nuevo",
       "subtitle": "Inicia sesión para acceder a {appName}.",
-      "announcementConfirm": "Marcar como leído",
       "submit": "Iniciar sesión",
       "announcementMigration": {
         "title": "Hemos actualizado la forma de iniciar sesión",
-        "intro": "Ahora debes usar tu nuevo nombre de usuario con formato de correo electrónico.",
-        "bulletAddSuffix": "Añade {suffix} a tu nombre de usuario",
-        "bulletPasswordSame": "Tu contraseña se mantiene igual.",
-        "bulletUpdateUsers": "Puedes actualizar usuarios existentes desde el menú de administración"
+        "intro": "Ahora debes usar tu nuevo nombre de usuario con formato de correo electrónico."
       }
     },
     "setup": {
       "headline": "Vamos a configurarlo",
       "subtitle": "Crea tu cuenta de administrador para proteger y gestionar tus archivos.",
-      "formTitle": "Crea tu cuenta",
-      "formSubtitle": "Indica un correo electrónico y una contraseña segura para finalizar la configuración.",
       "submit": "Finalizar configuración",
       "bullets": {
-        "encryption": "Cifrado fuerte y acciones auditables.",
         "permissions": "Permisos granulares y gestión de usuarios.",
         "sso": "Compatibilidad fluida con inicio de sesión único."
       }
@@ -457,15 +445,12 @@
       "appName": "Nombre de la aplicación",
       "appNameHelp": "El nombre que se muestra en encabezados, página de inicio de sesión y pie de página (máx. 100 caracteres).",
       "appLogoUrl": "Imagen del logotipo",
-      "appLogoUrlHelp": "Sube un archivo SVG, PNG o JPG para tu logotipo personalizado (máx. 2 MB).",
       "logo": "Imagen del logotipo",
       "logoHelp": "Sube un archivo SVG, PNG o JPG para tu logotipo personalizado (máx. 2 MB).",
       "uploading": "Subiendo...",
       "uploadSuccess": "Logotipo subido correctamente",
-      "uploadError": "No se pudo subir el logotipo",
       "invalidFileType": "Sube un archivo SVG, PNG o JPG",
       "logoError": "El archivo debe ser menor de 2 MB",
-      "fileTooLargeForDataUri": "El archivo es demasiado grande. Usa una imagen más pequeña (menos de 500 KB para obtener mejores resultados)",
       "preview": "Vista previa",
       "showPoweredBy": "Mostrar enlace de atribución",
       "showPoweredByHelp": "Muestra un enlace 'Powered by nextExplorer' en el pie de página para ayudar a apoyar el proyecto",
@@ -522,8 +507,7 @@
     "security": {
       "subtitle": "Controla el acceso a la aplicación.",
       "enable": "Activar autenticación",
-      "enableHelp": "Cuando está desactivada, cualquiera puede acceder a tus archivos.",
-      "confirmDisable": "Desactivar la autenticación hará que tus archivos sean públicos. ¿Continuar?"
+      "enableHelp": "Cuando está desactivada, cualquiera puede acceder a tus archivos."
     },
     "access": {
       "subtitle": "Define permisos por carpeta: lectura y escritura, solo lectura u oculta.",
@@ -555,11 +539,9 @@
       "grantAdmin": "Conceder administrador",
       "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Nombre para mostrar",
-      "makeAdmin": "Hacer administrador",
       "resetPassword": "Establecer/restablecer contraseña",
       "removeUser": "Eliminar usuario",
       "promptNewPassword": "Introduce una nueva contraseña para {user} (mínimo 6 caracteres):",
-      "editUser": "Editar usuario",
       "volumes": "Volúmenes",
       "assignedVolumes": "Volúmenes asignados",
       "addVolume": "Añadir volumen",
@@ -644,9 +626,7 @@
   },
   "share": {
     "sharedWithMe": "Compartido conmigo",
-    "sharedWithMeDescription": "Archivos y carpetas que otras personas han compartido con tu cuenta.",
     "sharedByMe": "Compartido por mí",
-    "sharedByMeDescription": "Enlaces y carpetas que has compartido con otras personas.",
     "shareCreated": "Recurso compartido creado",
     "createShareLink": "Crear enlace para compartir",
     "editShareLink": "Editar enlace para compartir",
@@ -694,19 +674,13 @@
     "signInToAccess": "Inicia sesión para acceder",
     "requiresAuthentication": "Esta compartición requiere autenticación.",
     "noSharedItemsToShow": "No hay elementos compartidos para mostrar",
-    "noSharedItemsYet": "Cuando alguien comparta archivos o carpetas contigo, aparecerán aquí.",
-    "adjustFilters": "Ajusta tus filtros o borra la búsqueda para ver más elementos.",
     "filterByNameOrPath": "Filtrar por nombre o ruta",
     "sharedBy": "Compartido por el propietario",
     "lastAccessed": "Último acceso",
     "created": "Creado",
-    "noMyShares": "Todavía no has creado ninguna compartición.",
-    "noMySharesDescription": "Crea una compartición desde cualquier archivo o carpeta para verla aquí.",
-    "mySharesCount": "{count} enlaces de compartición activos",
     "confirmDeleteShare": "¿Eliminar esta compartición? Las personas con el enlace ya no tendrán acceso.",
     "removeShare": "Eliminar compartición",
     "sharedWithAnyone": "Todos",
-    "sharedWithUsers": "{count} usuario | {count} usuarios",
     "expiresNever": "Nunca",
     "directFileLink": "Enlace directo del archivo",
     "directFolderLink": "Enlace directo ZIP de la carpeta",

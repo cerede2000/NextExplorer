@@ -806,12 +806,6 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   }
 };
 
-// One-shot API preserved for callers that do not need progress reporting.
-const transferItems = async (items, destination, operation, options = {}) => {
-  const prep = await prepareTransfer(items, destination, operation, options);
-  return executeTransfer(prep, operation, options.onProgress, { signal: options.signal });
-};
-
 const getShareSourceTarget = (resolved, includeChildren = false) => {
   if (!resolved) return null;
 
@@ -1047,7 +1041,6 @@ module.exports = {
   prepareTransfer,
   executeTransfer,
   createCancellationError,
-  transferItems,
   getDeleteImpact,
   resolveDeleteTargets,
   deleteItems,

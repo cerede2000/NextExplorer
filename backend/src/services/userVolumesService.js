@@ -63,17 +63,6 @@ const getVolumeById = async (volumeId) => {
 };
 
 /**
- * Get user volume by user ID and path
- */
-const getVolumeByUserAndPath = async (userId, volumePath) => {
-  const db = await getDb();
-  const row = db
-    .prepare('SELECT * FROM user_volumes WHERE user_id = ? AND path = ?')
-    .get(userId, volumePath);
-  return toClientVolume(row);
-};
-
-/**
  * Check if user has access to a given path (for volume access checks)
  * Returns the volume info if user has access, null otherwise
  */
@@ -259,67 +248,11 @@ const removeVolumeFromUser = async (volumeId) => {
   return true;
 };
 
-/**
- * Remove all volumes for a user (called when user is deleted, though CASCADE handles this)
- */
-const removeAllVolumesForUser = async (userId) => {
-  const db = await getDb();
-  db.prepare('DELETE FROM user_volumes WHERE user_id = ?').run(userId);
-  return true;
-};
-
-/**
- * Check if a user has access to a specific volume path
- */
-const userHasVolumeAccess = async (userId, volumePath) => {
-  const volume = await getUserVolumeForPath(userId, volumePath);
-  return volume !== null;
-};
-
-/**
- * Get the base path for a volume (the path segment that matches the volume)
- * Used for resolving logical paths to actual filesystem paths
- */
-const resolveUserVolumePath = async (userId, logicalPath) => {
-  const db = await getDb();
-  const volumes = db.prepare('SELECT * FROM user_volumes WHERE user_id = ?').all(userId);
-
-  // Normalize the logical path
-  const normalizedPath = logicalPath.replace(/^\/+/, '').replace(/\/+$/, '');
-  const pathParts = normalizedPath.split('/').filter(Boolean);
-
-  if (pathParts.length === 0) {
-    return null;
-  }
-
-  const firstSegment = pathParts[0];
-
-  for (const vol of volumes) {
-    if (vol.label === firstSegment) {
-      // Found matching volume - construct the absolute path
-      const remainingPath = pathParts.slice(1).join('/');
-      const absolutePath = remainingPath ? path.join(vol.path, remainingPath) : vol.path;
-
-      return {
-        volume: toClientVolume(vol),
-        absolutePath,
-        relativePath: logicalPath,
-      };
-    }
-  }
-
-  return null;
-};
-
 module.exports = {
   getVolumesForUser,
   getVolumeById,
-  getVolumeByUserAndPath,
   getUserVolumeForPath,
   addVolumeToUser,
   updateUserVolume,
   removeVolumeFromUser,
-  removeAllVolumesForUser,
-  userHasVolumeAccess,
-  resolveUserVolumePath,
 };

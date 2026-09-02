@@ -56,7 +56,6 @@ const resetAllLocks = () => {
 };
 
 module.exports = {
-  DEFAULT_LOCK_TTL_MS,
   getLock,
   tryLock,
   tryUnlock,

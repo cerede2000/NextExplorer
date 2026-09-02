@@ -63,21 +63,15 @@ const audioPreviewExtensionsSet = new Set([
   ...envAudioExtensions,
 ]);
 
-const getImagePreviewExtensions = () => Array.from(imagePreviewExtensionsSet.values());
-
 const isPreviewableImage = (extension = '') => {
   if (!extension) return false;
   return imagePreviewExtensionsSet.has(extension.toLowerCase());
 };
 
-const getVideoPreviewExtensions = () => Array.from(videoPreviewExtensionsSet.values());
-
 const isPreviewableVideo = (extension = '') => {
   if (!extension) return false;
   return videoPreviewExtensionsSet.has(extension.toLowerCase());
 };
-
-const getAudioPreviewExtensions = () => Array.from(audioPreviewExtensionsSet.values());
 
 const isPreviewableAudio = (extension = '') => {
   if (!extension) return false;
@@ -85,10 +79,7 @@ const isPreviewableAudio = (extension = '') => {
 };
 
 export {
-  getImagePreviewExtensions,
   isPreviewableImage,
-  getVideoPreviewExtensions,
   isPreviewableVideo,
-  getAudioPreviewExtensions,
   isPreviewableAudio,
 };

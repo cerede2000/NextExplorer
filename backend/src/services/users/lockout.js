@@ -42,7 +42,6 @@ const incrementFailedAttempts = async (key) => {
 
 module.exports = {
   getLock,
-  setLock,
   clearLock,
   isLocked,
   incrementFailedAttempts,

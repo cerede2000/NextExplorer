@@ -88,8 +88,7 @@
   "status": {
     "updated": "Pomyślnie zaktualizowano",
     "failed": "Niepowodzenie",
-    "passwordUpdated": "Hasło zaktualizowane",
-    "completePercent": "{percent}% ukończone"
+    "passwordUpdated": "Hasło zaktualizowane"
   },
   "actions": {
     "newFolder": "Nowy folder",
@@ -348,10 +347,6 @@
     "perSecond": "{value}/s"
   },
   "upload": {
-    "toggleDetailsShow": "Pokaż szczegóły",
-    "toggleDetailsHide": "Ukryj szczegóły",
-    "pauseUploads": "Wstrzymaj przesyłanie",
-    "resumeUploads": "Wznów przesyłanie",
     "uploads": "Przesyłanie {count} {items}",
     "finalizing": "Finalizowanie"
   },
@@ -382,24 +377,17 @@
     "login": {
       "welcome": "Witaj ponownie",
       "subtitle": "Zaloguj się, aby uzyskać dostęp do {appName}.",
-      "announcementConfirm": "Oznacz jako przeczytane",
       "submit": "Zaloguj się",
       "announcementMigration": {
         "title": "Zmieniliśmy sposób logowania",
-        "intro": "Teraz musisz używać nowej nazwy użytkownika w formacie e-mail.",
-        "bulletAddSuffix": "Dodaj {suffix} do swojej nazwy użytkownika",
-        "bulletPasswordSame": "Twoje hasło pozostaje bez zmian.",
-        "bulletUpdateUsers": "Możesz zaktualizować istniejących użytkowników w menu administracyjnym"
+        "intro": "Teraz musisz używać nowej nazwy użytkownika w formacie e-mail."
       }
     },
     "setup": {
       "headline": "Skonfigurujmy wszystko",
       "subtitle": "Utwórz konto administratora, aby zabezpieczyć i zarządzać plikami.",
-      "formTitle": "Utwórz konto",
-      "formSubtitle": "Podaj adres e-mail i bezpieczne hasło, aby zakończyć konfigurację.",
       "submit": "Zakończ konfigurację",
       "bullets": {
-        "encryption": "Silne szyfrowanie i działania przyjazne audytowi.",
         "permissions": "Granularne uprawnienia i zarządzanie użytkownikami.",
         "sso": "Płynne wsparcie dla logowania jednokrotnego."
       }
@@ -457,15 +445,12 @@
       "appName": "Nazwa aplikacji",
       "appNameHelp": "Nazwa wyświetlana w nagłówkach, na stronie logowania i w stopce (maks. 100 znaków).",
       "appLogoUrl": "Obraz logo",
-      "appLogoUrlHelp": "Prześlij plik SVG, PNG lub JPG dla niestandardowego logo (maks. 2 MB).",
       "logo": "Obraz logo",
       "logoHelp": "Prześlij plik SVG, PNG lub JPG dla niestandardowego logo (maks. 2 MB).",
       "uploading": "Przesyłanie...",
       "uploadSuccess": "Logo przesłano pomyślnie",
-      "uploadError": "Nie udało się przesłać logo",
       "invalidFileType": "Prześlij plik SVG, PNG lub JPG",
       "logoError": "Plik musi mieć mniej niż 2 MB",
-      "fileTooLargeForDataUri": "Plik jest za duży. Użyj mniejszego obrazu (poniżej 500 KB dla najlepszych efektów)",
       "preview": "Podgląd",
       "showPoweredBy": "Wyświetl link z atrybucją",
       "showPoweredByHelp": "Pokaż w stopce link „Powered by nextExplorer”, aby wesprzeć projekt",
@@ -522,8 +507,7 @@
     "security": {
       "subtitle": "Kontroluj dostęp do aplikacji.",
       "enable": "Włącz uwierzytelnianie",
-      "enableHelp": "Gdy wyłączone, każdy może uzyskać dostęp do Twoich plików.",
-      "confirmDisable": "Wyłączenie uwierzytelniania spowoduje, że Twoje pliki będą publicznie dostępne. Kontynuować?"
+      "enableHelp": "Gdy wyłączone, każdy może uzyskać dostęp do Twoich plików."
     },
     "access": {
       "subtitle": "Ustaw uprawnienia dla folderów: odczyt-zapis, tylko odczyt lub ukryte.",
@@ -555,11 +539,9 @@
       "grantAdmin": "Nadaj uprawnienia administratora",
       "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Nazwa wyświetlana",
-      "makeAdmin": "Uczyń administratorem",
       "resetPassword": "Ustaw/Resetuj hasło",
       "removeUser": "Usuń użytkownika",
       "promptNewPassword": "Wprowadź nowe hasło dla {user} (minimum 6 znaków):",
-      "editUser": "Edytuj użytkownika",
       "volumes": "Woluminy",
       "assignedVolumes": "Przypisane woluminy",
       "addVolume": "Dodaj wolumin",
@@ -644,9 +626,7 @@
   },
   "share": {
     "sharedWithMe": "Udostępnione dla mnie",
-    "sharedWithMeDescription": "Pliki i foldery, które inni udostępnili Twojemu kontu.",
     "sharedByMe": "Udostępnione przeze mnie",
-    "sharedByMeDescription": "Linki i foldery, które udostępniłeś innym osobom.",
     "shareCreated": "Udostępnienie utworzone",
     "createShareLink": "Utwórz link udostępniania",
     "editShareLink": "Edytuj link udostępniania",
@@ -694,19 +674,13 @@
     "signInToAccess": "Zaloguj się, aby uzyskać dostęp",
     "requiresAuthentication": "To udostępnienie wymaga uwierzytelnienia.",
     "noSharedItemsToShow": "Brak udostępnionych elementów do wyświetlenia",
-    "noSharedItemsYet": "Gdy ktoś udostępni Ci pliki lub foldery, pojawią się one tutaj.",
-    "adjustFilters": "Dostosuj filtry lub wyczyść wyszukiwanie, aby zobaczyć więcej elementów.",
     "filterByNameOrPath": "Filtruj według nazwy lub ścieżki",
     "sharedBy": "Udostępnione przez właściciela",
     "lastAccessed": "Ostatni dostęp",
     "created": "Utworzono",
-    "noMyShares": "Nie utworzyłeś jeszcze żadnych udostępnień.",
-    "noMySharesDescription": "Utwórz udostępnienie z dowolnego pliku lub folderu, aby pojawiło się na tej liście.",
-    "mySharesCount": "{count} aktywne linki udostępnień",
     "confirmDeleteShare": "Usunąć to udostępnienie? Osoby posiadające link stracą dostęp.",
     "removeShare": "Usuń udostępnienie",
     "sharedWithAnyone": "Wszyscy",
-    "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
     "expiresNever": "Nigdy",
     "directFileLink": "Bezpośredni link do pliku",
     "directFolderLink": "Bezpośredni link ZIP do folderu",

@@ -63,24 +63,6 @@ const getGuestSession = async (sessionId) => {
 };
 
 /**
- * Get all guest sessions for a share
- */
-const getGuestSessionsByShareId = async (shareId) => {
-  const db = await getDb();
-  const rows = db
-    .prepare(
-      `
-    SELECT * FROM guest_sessions
-    WHERE share_id = ?
-    ORDER BY created_at DESC
-  `
-    )
-    .all(shareId);
-
-  return rows.map(toClientSession);
-};
-
-/**
  * Check if a guest session is valid (exists and not expired)
  */
 const isGuestSessionValid = async (sessionId) => {
@@ -115,24 +97,6 @@ const updateGuestSessionActivity = async (sessionId) => {
 };
 
 /**
- * Delete guest session
- */
-const deleteGuestSession = async (sessionId) => {
-  const db = await getDb();
-  const result = db.prepare('DELETE FROM guest_sessions WHERE id = ?').run(sessionId);
-  return result.changes > 0;
-};
-
-/**
- * Delete all guest sessions for a share
- */
-const deleteGuestSessionsByShareId = async (shareId) => {
-  const db = await getDb();
-  const result = db.prepare('DELETE FROM guest_sessions WHERE share_id = ?').run(shareId);
-  return result.changes;
-};
-
-/**
  * Clean up expired guest sessions
  */
 const cleanupExpiredSessions = async () => {
@@ -148,74 +112,10 @@ const cleanupExpiredSessions = async () => {
   return result.changes;
 };
 
-/**
- * Get guest session count for a share
- */
-const getActiveSessionCount = async (shareId) => {
-  const db = await getDb();
-  const row = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count
-    FROM guest_sessions
-    WHERE share_id = ? AND expires_at > ?
-  `
-    )
-    .get(shareId, nowIso());
-
-  return row?.count || 0;
-};
-
-/**
- * Extend guest session expiration
- */
-const extendGuestSession = async (sessionId, additionalHours = DEFAULT_SESSION_HOURS) => {
-  const session = await getGuestSession(sessionId);
-
-  if (!session) {
-    const e = new Error('Guest session not found');
-    e.status = 404;
-    throw e;
-  }
-
-  const currentExpiry = new Date(session.expiresAt);
-  const newExpiry = new Date(currentExpiry.getTime() + additionalHours * 60 * 60 * 1000);
-
-  const db = await getDb();
-  db.prepare(
-    `
-    UPDATE guest_sessions
-    SET expires_at = ?, last_activity_at = ?
-    WHERE id = ?
-  `
-  ).run(newExpiry.toISOString(), nowIso(), sessionId);
-
-  return getGuestSession(sessionId);
-};
-
-/**
- * Verify guest session belongs to a specific share
- */
-const verifyGuestSessionShare = async (sessionId, shareId) => {
-  const session = await getGuestSession(sessionId);
-
-  if (!session) {
-    return false;
-  }
-
-  return session.shareId === shareId;
-};
-
 module.exports = {
   createGuestSession,
   getGuestSession,
-  getGuestSessionsByShareId,
   isGuestSessionValid,
   updateGuestSessionActivity,
-  deleteGuestSession,
-  deleteGuestSessionsByShareId,
   cleanupExpiredSessions,
-  getActiveSessionCount,
-  extendGuestSession,
-  verifyGuestSessionShare,
 };

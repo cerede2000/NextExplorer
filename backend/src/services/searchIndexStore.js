@@ -58,11 +58,6 @@ const prep = (db, sql) => {
   return stmt;
 };
 
-/** Apply the schema. Safe to call on every start. */
-const ensureSchema = (db) => {
-  db.exec(SEARCH_INDEX_DDL);
-};
-
 /** What the index believes about a path, or null. */
 const getIndexedDocument = (db, path) =>
   prep(db, 'SELECT id, mtime_ms AS mtimeMs, size FROM search_documents WHERE path = ?').get(
@@ -256,7 +251,6 @@ const stats = (db) => {
 
 module.exports = {
   SEARCH_INDEX_DDL,
-  ensureSchema,
   getIndexedDocument,
   isUpToDate,
   upsertDocument,

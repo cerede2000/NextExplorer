@@ -104,13 +104,14 @@ const { RateLimitError } = require('../errors/AppError');
 throw new RateLimitError('Too many login attempts', retryAfterSeconds);
 ```
 
-### InternalError (500)
+### InsufficientStorageError (507)
 
-For unexpected server errors.
+For a write the destination has not got room for. Raised before anything is
+written, so a transfer that cannot finish does not start.
 
 ```javascript
-const { InternalError } = require('../errors/AppError');
-throw new InternalError('Database connection failed');
+const { InsufficientStorageError } = require('../errors/AppError');
+throw new InsufficientStorageError('Not enough space on the destination volume');
 ```
 
 ### UnsupportedMediaTypeError (415)

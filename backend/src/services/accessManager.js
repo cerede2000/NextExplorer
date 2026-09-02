@@ -391,43 +391,12 @@ const resolvePathWithAccess = async (context, relativePath, options = {}) => {
   return { accessInfo, resolved };
 };
 
-/**
- * Check if user can create shares (only authenticated users, not guests)
- */
-const canCreateShare = (context) => {
-  const { user, guestSession } = context;
-
-  // Guests cannot create shares. A signed-in visitor who also carries a guest
-  // session (they opened a protected link) is still a user, not a guest.
-  if (guestSession && !user) {
-    return false;
-  }
-
-  // Must be authenticated
-  return Boolean(user && user.id);
-};
-
-/**
- * Get context from request object
- */
-const getContextFromRequest = (req) => {
-  return {
-    user: req.user || null,
-    guestSession: req.guestSession || null,
-    shareToken: req.shareToken || null,
-  };
-};
-
 module.exports = {
   getAccessInfo,
-  getVolumeAccess,
   getPersonalAccess,
   getShareAccess,
   canAccess,
   canWrite,
-  canCreateShare,
   sharePasswordApplies,
-  getContextFromRequest,
-  createDeniedAccess,
   resolvePathWithAccess,
 };

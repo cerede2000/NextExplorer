@@ -177,15 +177,5 @@ function getKindLabel(item) {
 
 export {
   getKindLabel,
-  labelFromKind,
   // export tables for potential reuse/testing
-  imageMap,
-  videoMap,
-  audioMap,
-  archiveMap,
-  docMap,
-  codeMap,
-  fontMap,
-  pkgMap,
-  dataMap,
-};
+  };

@@ -88,8 +88,7 @@
   "status": {
     "updated": "업데이트 성공",
     "failed": "실패",
-    "passwordUpdated": "비밀번호 업데이트 완료",
-    "completePercent": "{percent}% 완료"
+    "passwordUpdated": "비밀번호 업데이트 완료"
   },
   "actions": {
     "newFolder": "새 폴더",
@@ -348,10 +347,6 @@
     "perSecond": "{value}/초"
   },
   "upload": {
-    "toggleDetailsShow": "상세 정보 보기",
-    "toggleDetailsHide": "상세 정보 숨기기",
-    "pauseUploads": "업로드 정지",
-    "resumeUploads": "업로드 재개",
     "uploads": "{count}개 {items} 업로드 중",
     "finalizing": "마무리 중"
   },
@@ -382,24 +377,17 @@
     "login": {
       "welcome": "환영합니다",
       "subtitle": "로그인하여 {appName}에 접속하세요.",
-      "announcementConfirm": "읽음",
       "submit": "로그인",
       "announcementMigration": {
         "title": "로그인 방식이 변경되었습니다",
-        "intro": "이제부터 이메일 형식의 유저 이름으로 로그인해야 합니다.",
-        "bulletAddSuffix": "유저 이름 뒤에 {suffix}을(를) 추가하세요.",
-        "bulletPasswordSame": "비밀번호는 이전과 동일합니다.",
-        "bulletUpdateUsers": "관리자 메뉴에서 기존 유저 설정을 업데이트 할 수 있습니다."
+        "intro": "이제부터 이메일 형식의 유저 이름으로 로그인해야 합니다."
       }
     },
     "setup": {
       "headline": "초기 설정",
       "subtitle": "관리자 계정을 생성하여 안전하게 파일을 관리하세요.",
-      "formTitle": "관리자 계정 생성",
-      "formSubtitle": "설정을 마치려면 이메일 주소와 비밀번호를 입력해주세요.",
       "submit": "설정 완료",
       "bullets": {
-        "encryption": "강력한 암호화와 감사 기능 제공.",
         "permissions": "세분화된 권한 및 사용자 관리.",
         "sso": "간편한 SSO(Single Sign-On) 지원."
       }
@@ -457,15 +445,12 @@
       "appName": "애플리케이션 이름",
       "appNameHelp": "설정된 이름은 헤더, 로그인 페이지, 페이지 하단에 표시됩니다 (최대 100 글자).",
       "appLogoUrl": "로고 이미지",
-      "appLogoUrlHelp": "커스텀 로고로 사용할 SVG, PNG, JPG 파일을 업로드하세요 (최대 2MB).",
       "logo": "로고 이미지",
       "logoHelp": "커스텀 로고로 사용할 SVG, PNG, JPG 파일을 업로드하세요 (최대 2MB).",
       "uploading": "업로드 중...",
       "uploadSuccess": "로고 업로드 성공",
-      "uploadError": "로고 업로드 실패",
       "invalidFileType": "SVG, PNG, JPG 형식의 파일만 업로드 가능합니다",
       "logoError": "크기가 2MB 이하인 파일만 업로드 할 수 있습니다",
-      "fileTooLargeForDataUri": "파일 크기가 너무 큽니다. 더 작은 이미지를 사용해주세요 (500KB 이하가 가장 좋음)",
       "preview": "미리보기",
       "showPoweredBy": "기여 링크 표시",
       "showPoweredByHelp": "페이지 하단에 'Powered by nextExplorer' 링크를 표시하여 프로젝트를 지원해주세요.",
@@ -522,8 +507,7 @@
     "security": {
       "subtitle": "애플리케이션에 대한 접근 방식을 설정합니다.",
       "enable": "인증 활성화",
-      "enableHelp": "비활성화 시 아무나 당신의 파일에 접근할 수 있습니다.",
-      "confirmDisable": "인증을 비활성화할 경우 불특정 다수의 인원이 당신의 파일에 접근할 수 있게 됩니다. 계속하시겠습니까?"
+      "enableHelp": "비활성화 시 아무나 당신의 파일에 접근할 수 있습니다."
     },
     "access": {
       "subtitle": "폴더별 접근 권한을 설정합니다. (권한: 읽기/쓰기, 읽기 전용, 숨김)",
@@ -555,11 +539,9 @@
       "grantAdmin": "관리자 권한 부여",
       "grantAdminHint": "모든 설정과 유저에 대한 접근 권한을 부여합니다.",
       "displayName": "표시 이름",
-      "makeAdmin": "관리자 권한 부여",
       "resetPassword": "비밀번호 설정/재설정",
       "removeUser": "유저 삭제",
       "promptNewPassword": "{user}의 새 비밀번호를 입력하세요 (최소 6 글자):",
-      "editUser": "유저 편집",
       "volumes": "볼륨",
       "assignedVolumes": "할당된 볼륨",
       "addVolume": "볼륨 추가",
@@ -644,9 +626,7 @@
   },
   "share": {
     "sharedWithMe": "받은 공유 파일",
-    "sharedWithMeDescription": "다른 사람이 내 계정에 공유한 파일 및 폴더 목록입니다.",
     "sharedByMe": "보낸 공유 파일",
-    "sharedByMeDescription": "내가 다른 사람에게 공유한 링크 및 폴더 목록입니다.",
     "shareCreated": "공유가 생성되었습니다",
     "createShareLink": "공유 링크 생성",
     "editShareLink": "공유 링크 편집",
@@ -694,19 +674,13 @@
     "signInToAccess": "로그인",
     "requiresAuthentication": "이 공유에 접근하려면 인증이 필요합니다.",
     "noSharedItemsToShow": "표시할 공유 항목이 없습니다",
-    "noSharedItemsYet": "다른 사람이 당신에게 공유한 파일 또는 폴더가 이 곳에 나타납니다.",
-    "adjustFilters": "다른 항목들을 확인하려면 필터를 수정하거나 검색어를 비워주세요.",
     "filterByNameOrPath": "필터: 이름 또는 경로",
     "sharedBy": "소유자에 의해 공유됨",
     "lastAccessed": "마지막 접근",
     "created": "생성됨",
-    "noMyShares": "아직 생성된 공유가 없습니다.",
-    "noMySharesDescription": "파일 및 폴더에 대한 공유를 생성하면 이 곳에 표시됩니다.",
-    "mySharesCount": "{count}개 공유 링크 활성화됨",
     "confirmDeleteShare": "이 공유를 삭제하시겠습니까? 이 링크를 가진 사람들이 더 이상 접근할 수 없습니다.",
     "removeShare": "공유 삭제",
     "sharedWithAnyone": "모두",
-    "sharedWithUsers": "{count} 유저 | {count} 유저",
     "expiresNever": "없음",
     "directFileLink": "파일 직접 링크",
     "directFolderLink": "폴더 ZIP 직접 링크",

@@ -85,7 +85,6 @@ const ancestorChain = (root, dirAbsolutePath) => {
 const mapRow = (row) => {
   if (!row) return null;
   return {
-    pathHash: row.path_hash,
     parentHash: row.parent_hash,
     volume: row.volume,
     relativePath: row.relative_path,
@@ -500,10 +499,7 @@ const reparentSubtree = (db, scope, oldAbsolutePath, newAbsolutePath) => {
 
 module.exports = {
   CURRENT_INDEX_VERSION,
-  pathHash,
-  relativeOf,
   isWithinRoot,
-  ancestorChain,
   getByAbsolutePath,
   getLastUpdatedAt,
   listScanTargetsPage,

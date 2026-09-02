@@ -51,13 +51,6 @@ async function getSharedWithMe() {
 }
 
 /**
- * Get share details by ID
- */
-async function getShareById(shareId) {
-  return requestJson(`/api/shares/${shareId}`, { method: 'GET' });
-}
-
-/**
  * Update an existing share
  */
 async function updateShare(shareId, updates) {
@@ -128,23 +121,8 @@ function setGuestSession(sessionId, shareToken = '') {
   }
 }
 
-/**
- * Get guest session ID from sessionStorage
- */
-function getGuestSession() {
-  return sessionStorage.getItem('guestSessionId');
-}
-
 function getGuestSessionShareToken() {
   return sessionStorage.getItem('guestSessionShareToken');
-}
-
-/**
- * Clear guest session
- */
-function clearGuestSession() {
-  sessionStorage.removeItem('guestSessionId');
-  sessionStorage.removeItem('guestSessionShareToken');
 }
 
 /**
@@ -233,7 +211,6 @@ export {
   createShare,
   getMyShares,
   getSharedWithMe,
-  getShareById,
   updateShare,
   deleteShare,
   getShareInfo,
@@ -241,13 +218,9 @@ export {
   accessShare,
   browseShare,
   setGuestSession,
-  getGuestSession,
   getGuestSessionShareToken,
-  clearGuestSession,
-  getShareUrl,
   DIRECT_SHARE_FILE_MODES,
   getDirectShareFileUrl,
-  getDirectShareEditorUrl,
   copyShareUrl,
   copyDirectShareFileUrl,
 };

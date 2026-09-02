@@ -1161,8 +1161,6 @@ const queueThumbnailGeneration = async (filePath, { priority = 0, onlyWhenIdle =
 };
 
 module.exports = {
-  generateThumbnail,
-  getThumbnail,
   getThumbnailPathIfExists,
   isThumbnailCachePath,
   queueThumbnailGeneration,

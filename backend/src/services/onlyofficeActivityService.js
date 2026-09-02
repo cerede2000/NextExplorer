@@ -172,17 +172,6 @@ const updateDocumentServerUsers = ({ absolutePath, users }) => {
   scheduleExpirationCheck();
 };
 
-const clearDocumentServerUsers = ({ absolutePath }) => {
-  const entry = getEntry(absolutePath);
-  if (!entry) return;
-  const changed = entry.documentServerUsers.length > 0;
-  entry.documentServerUsers = [];
-  entry.documentServerSeenAt = 0;
-  if (!cleanup(entry)) sessionsByPath.delete(keyFor(absolutePath));
-  if (changed) notifyActivityChange();
-  scheduleExpirationCheck();
-};
-
 const getVersion = () => activityVersion;
 
 // Holds one lightweight request until presence changes or the timeout elapses.
@@ -237,7 +226,6 @@ module.exports = {
   close,
   release,
   updateDocumentServerUsers,
-  clearDocumentServerUsers,
   get,
   getVersion,
   waitForChange,

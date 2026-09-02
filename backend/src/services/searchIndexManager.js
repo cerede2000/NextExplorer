@@ -321,5 +321,4 @@ module.exports = {
   onPathRemoved,
   onPathMoved,
   status,
-  relativeToVolume,
 };

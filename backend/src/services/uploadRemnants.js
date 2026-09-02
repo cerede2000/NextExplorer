@@ -81,5 +81,4 @@ const sweepStaleUploadRemnants = async (
 module.exports = {
   sweepStaleUploadRemnants,
   UPLOADING_SUFFIX,
-  DEFAULT_STALE_AFTER_MS,
 };

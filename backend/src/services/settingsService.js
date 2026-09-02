@@ -729,15 +729,6 @@ const setSettings = async (partial) => {
   return merged;
 };
 
-/**
- * Update settings with an updater function
- */
-const updateSettings = async (updater) => {
-  const current = await getSettings();
-  const next = typeof updater === 'function' ? updater(current) : current;
-  return setSettings(next);
-};
-
 module.exports = {
   getPublicSettings,
   getUserSettings,
@@ -747,12 +738,9 @@ module.exports = {
   WRITABLE_USER_SETTINGS,
   setUserFolderSort,
   setUserFolderView,
-  getUserFolderPreferences,
   setSystemSetting,
-  sanitizeUploads,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,
   // Legacy methods for backward compatibility
   getSettings,
   setSettings,
-  updateSettings,
 };

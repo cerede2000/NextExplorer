@@ -33,7 +33,7 @@ export const supportedLocaleOptions = [
     .sort(),
 ].map((code) => ({ code }));
 
-export const supportedLocales = supportedLocaleOptions.map(({ code }) => code);
+const supportedLocales = supportedLocaleOptions.map(({ code }) => code);
 
 function detectLocale(supportedLocales) {
   try {

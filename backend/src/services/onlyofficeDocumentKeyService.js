@@ -142,20 +142,9 @@ const renameDocumentKey = async ({ from, to }) => {
   }
 };
 
-const purgeExpiredDocumentKeys = async () => {
-  try {
-    const db = await getDb();
-    db.prepare('DELETE FROM onlyoffice_document_keys WHERE expires_at <= ?').run(nowIso());
-  } catch {
-    // Expired rows are harmless; they are checked on read.
-  }
-};
-
 module.exports = {
   buildSignature,
   resolveDocumentKey,
   releaseDocumentKey,
   renameDocumentKey,
-  purgeExpiredDocumentKeys,
-  KEY_TTL_MS,
 };
