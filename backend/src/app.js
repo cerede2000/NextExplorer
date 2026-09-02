@@ -17,6 +17,7 @@ const { configureCors } = require('./middleware/cors');
 const { configureOidc } = require('./middleware/oidc');
 const { configureHttpsWarning } = require('./middleware/httpsWarning');
 const authMiddleware = require('./middleware/authMiddleware');
+const { heldRequestLogger } = require('./middleware/heldRequests');
 const registerRoutes = require('./routes');
 const { configureStaticFiles } = require('./utils/staticServer');
 const { bootstrap } = require('./utils/bootstrap');
@@ -53,6 +54,10 @@ const createApp = async (options = {}) => {
   configureHttpLogging(app);
 
   configureCors(app);
+
+  // Before everything that could hold a request, so that what it reports is
+  // the whole of the chain below it.
+  app.use(heldRequestLogger);
 
   // Liveness, before anything that could hold a request.
   //
