@@ -45,7 +45,8 @@ describe('the liveness probe', () => {
    */
   it('is registered before anything that talks to a database or the network', async () => {
     await withApp({ AUTH_MODE: 'local' }, async (app) => {
-      const stack = app._router.stack;
+      // Express 5 renamed `app._router` to `app.router`.
+      const stack = (app.router || app._router).stack;
       const healthAt = stack.findIndex((layer) =>
         layer.handle?.stack?.some((inner) => inner.route?.path === '/healthz')
       );

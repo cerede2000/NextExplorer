@@ -21,7 +21,7 @@ const upload = createUploadMiddleware();
 // `res.end(callback)`, which express-session's own res.end mistakes for a body
 // and passes to res.write(). That throws where nothing catches it, and the
 // process exits mid-upload.
-router.all('/upload/tus*', responseEndCompat, handleTusUpload);
+router.all('/upload/tus{*splat}', responseEndCompat, handleTusUpload);
 
 /**
  * Files whose transfer is over but which are still being written where they

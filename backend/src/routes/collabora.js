@@ -19,8 +19,6 @@ const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 
-
-
 const toBase64Url = (buf) =>
   Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 
@@ -265,7 +263,6 @@ router.get(
     stream.pipe(res);
   })
 );
-
 
 /**
  * A token lives for hours; the share it was issued for may not.
