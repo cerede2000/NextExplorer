@@ -623,15 +623,22 @@ describe('saying why a file was read again', () => {
   // just a total again.
   it('separates a constant offset from one noisy folder', async () => {
     await fs.mkdir(volumePath('Docs', 'Bruyant'), { recursive: true });
+    // Given the same starting date, so that a shared shift really is one
+    // delta. Left to their creation times they differ by a millisecond here
+    // and there, and six files produce six deltas — which is the noise this
+    // report exists to tell apart from a signal.
+    const before = new Date(1_700_000_000_000);
     for (let index = 0; index < 6; index += 1) {
       // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', 'Bruyant', `n-${index}.txt`), `pangolin ${index}\n`);
+      // eslint-disable-next-line no-await-in-loop
+      await fs.utimes(volumePath('Docs', 'Bruyant', `n-${index}.txt`), before, before);
     }
     await indexAll();
 
     // Every file in one folder, all moved by exactly the same amount: the
     // signature of storage that rounds, and of nothing else.
-    const shifted = new Date(Date.now() + 120_000);
+    const shifted = new Date(1_700_000_120_000);
     for (let index = 0; index < 6; index += 1) {
       // eslint-disable-next-line no-await-in-loop
       await fs.utimes(volumePath('Docs', 'Bruyant', `n-${index}.txt`), shifted, shifted);
@@ -645,8 +652,7 @@ describe('saying why a file was read again', () => {
     // One folder accounts for all of it.
     expect(result.topRereadDirs[0]).toEqual({ value: 'Docs/Bruyant', count: 6 });
     // And one delta accounts for all of it.
-    expect(result.topMtimeDeltas).toHaveLength(1);
-    expect(result.topMtimeDeltas[0].count).toBe(6);
+    expect(result.topMtimeDeltas).toEqual([{ value: 120_000, count: 6 }]);
   });
 
   it('says so when it is the size that moved', async () => {
