@@ -424,6 +424,7 @@ const getSettingsForUser = async (user) => {
       result.thumbnails = systemSettings.thumbnails;
       result.access = systemSettings.access;
       result.folderSize = systemSettings.folderSize;
+      result.searchIndex = systemSettings.searchIndex;
     }
   }
 

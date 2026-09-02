@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 
 import SettingsSearchIndex from './SettingsSearchIndex.vue';
 import { useFeaturesStore } from '@/stores/features';
+import { useAppSettings } from '@/stores/appSettings';
 
 /**
  * The index is off unless someone asked for it, so this page is more often
@@ -43,6 +44,39 @@ beforeEach(() => {
 });
 
 describe('the search index settings page', () => {
+  /**
+   * The last link of a chain that broke at three of its four joints: the
+   * environment sets a path, the config parses it, the route has to carry it
+   * to an administrator, the store has to keep it, and this has to show it.
+   * Each of those is now asserted where it lives, because a test one layer
+   * below the defect cannot see the defect.
+   */
+  it('shows the paths the environment set', () => {
+    useFeaturesStore().searchIndexEnabled = true;
+    useAppSettings().systemSettings.searchIndex = {
+      excludedPaths: ['Sauvegardes/2024'],
+      environmentExcludedPaths: ['Stacks/docker'],
+    };
+
+    const wrapper = mountTab();
+
+    expect(wrapper.text()).toContain('Stacks/docker');
+    expect(wrapper.text()).toContain('Sauvegardes/2024');
+    expect(wrapper.text()).not.toContain('No path configured');
+  });
+
+  it('says so, once, when there is genuinely nothing', () => {
+    useFeaturesStore().searchIndexEnabled = true;
+    useAppSettings().systemSettings.searchIndex = {
+      excludedPaths: [],
+      environmentExcludedPaths: [],
+    };
+
+    const wrapper = mountTab();
+
+    expect(wrapper.text()).toContain('No path configured');
+  });
+
   it('says the feature is off, and how to turn it on', () => {
     useFeaturesStore().searchIndexEnabled = false;
     const wrapper = mountTab();
