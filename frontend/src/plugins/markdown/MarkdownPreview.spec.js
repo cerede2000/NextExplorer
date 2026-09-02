@@ -101,7 +101,11 @@ describe('previewing a markdown document', () => {
    * document has to be there, not merely reachable by scrolling to it.
    */
   it('puts the whole document in the page, end included', async () => {
-    const body = Array.from({ length: 2000 }, (unused, index) => `Paragraph ${index}.`).join('\n\n');
+    // Comfortably past one slab, so there really is more than one.
+    const body = Array.from(
+      { length: 2000 },
+      (unused, index) => `Paragraph ${index}. ${'Some ordinary sentence of prose. '.repeat(3)}`
+    ).join('\n\n');
     const wrapper = mountWith(`# Title\n\n${body}\n\nPangolinAtTheVeryEnd`);
     await settleFully();
 
@@ -113,7 +117,11 @@ describe('previewing a markdown document', () => {
   // Rendering the whole thing in one stretch is what froze the tab. It has to
   // arrive in pieces, with the browser given back in between.
   it('arrives in pieces rather than all at once', async () => {
-    const body = Array.from({ length: 2000 }, (unused, index) => `Paragraph ${index}.`).join('\n\n');
+    // Comfortably past one slab, so there really is more than one.
+    const body = Array.from(
+      { length: 2000 },
+      (unused, index) => `Paragraph ${index}. ${'Some ordinary sentence of prose. '.repeat(3)}`
+    ).join('\n\n');
     const wrapper = mountWith(`# Title\n\n${body}`);
 
     await settle();
@@ -170,7 +178,11 @@ describe('previewing a markdown document', () => {
 
   // A reader who closes the preview should not leave it rendering behind them.
   it('stops rendering when the preview is closed', async () => {
-    const body = Array.from({ length: 2000 }, (unused, index) => `Paragraph ${index}.`).join('\n\n');
+    // Comfortably past one slab, so there really is more than one.
+    const body = Array.from(
+      { length: 2000 },
+      (unused, index) => `Paragraph ${index}. ${'Some ordinary sentence of prose. '.repeat(3)}`
+    ).join('\n\n');
     const wrapper = mountWith(`# Title\n\n${body}`);
     await settle();
 
@@ -182,5 +194,55 @@ describe('previewing a markdown document', () => {
     // ran, and none of them queued another.
     expect(pendingBefore).toBeGreaterThan(0);
     expect(turns).toBe(1);
+  });
+});
+
+/**
+ * Reading the document in slabs is what removed the freeze, and it introduces
+ * two ways to get it wrong that a rendered page shows immediately.
+ */
+describe('reading the document in slabs', () => {
+  it('never cuts inside a fenced code block', async () => {
+    // Filler either side, so the fence lands well past a slab boundary.
+    const filler = Array.from(
+      { length: 2000 },
+      (unused, i) => `Line ${i}. ${'Some ordinary sentence of prose. '.repeat(3)}`
+    ).join('\n\n');
+    // Blank lines *inside* the block are the whole point: a split only ever
+    // happens at one, so a code block without any is never at risk and proves
+    // nothing about the guard.
+    const code = Array.from({ length: 4000 }, (unused, i) =>
+      i % 5 === 0 ? '' : `const x${i} = ${i};`
+    );
+    const fenced = ['```js', ...code, '```'].join('\n');
+    const wrapper = mountWith(`${filler}\n\n${fenced}\n\n${filler}`);
+    await settleFully();
+
+    // One fence in, one fence out: a slab cut inside it would leave the rest
+    // of the document inside a second, unclosed code block.
+    const codeBlocks = wrapper.element.querySelectorAll('pre code');
+    expect(codeBlocks.length).toBe(1);
+    expect(codeBlocks[0].textContent).toContain('const x1 = 1;');
+    expect(codeBlocks[0].textContent).toContain('const x3999 = 3999;');
+  });
+
+  // The lexer collects link definitions onto the tokens it produced, so a slab
+  // only knows the ones inside it. A definition at the bottom of a long
+  // document has to reach a reference at the top.
+  it('resolves a reference whose definition is far below it', async () => {
+    // Past one slab, or the definition sits in the same slab as the reference
+    // and the propagation this checks is never exercised.
+    const filler = Array.from(
+      { length: 2000 },
+      (unused, i) => `Line ${i}. ${'Some ordinary sentence of prose. '.repeat(3)}`
+    ).join('\n\n');
+    const wrapper = mountWith(
+      `See [the manual][guide].\n\n${filler}\n\n[guide]: https://example.com/manual\n`
+    );
+    await settleFully();
+
+    const link = wrapper.element.querySelector('a[href="https://example.com/manual"]');
+    expect(link).toBeTruthy();
+    expect(link.textContent).toBe('the manual');
   });
 });

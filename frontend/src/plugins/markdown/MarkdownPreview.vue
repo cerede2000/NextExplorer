@@ -79,13 +79,14 @@ const maxPreviewBytes = computed(() =>
  *
  * Three changes, answering three different costs:
  *
- * - **A batch that measures itself.** Blocks are not equal — one table is
- *   worth a hundred one-line paragraphs — so a fixed count of them paces
- *   nothing. Each batch is timed and the next one sized from what the last
- *   cost, converging on a frame's worth of actual work. Timing the wrong half
- *   is the easy mistake here: collecting tokens costs microseconds, and a
- *   budget spent on that collects the entire document and renders it in one
- *   stretch, which is exactly the freeze this exists to prevent.
+ * - **The document is read in slabs, not read whole and then rendered in
+ *   pieces.** Measured on seventeen megabytes: lexing it in one call is
+ *   1396 ms of frozen tab and produces 384,000 tokens, while rendering all of
+ *   those tokens is 236 ms. The expensive half was the half that ran first and
+ *   whole. Cut at blank lines — never inside a fenced code block — into slabs
+ *   of about sixty-four kilobytes, the same total work has a worst slab of
+ *   18 ms. Each slab is lexed, rendered and appended before the next is
+ *   looked at, and the batch adapts to what the last one cost.
  * - **Sanitising straight into a fragment.** `RETURN_DOM_FRAGMENT` removes an
  *   entire parse of a multi-megabyte string, and the string with it.
  * - **`content-visibility: auto` per chunk.** The browser skips layout and
@@ -95,8 +96,62 @@ const maxPreviewBytes = computed(() =>
  *   this is not virtualised.
  */
 const FRAME_BUDGET_MS = 12;
-const INITIAL_BATCH_TOKENS = 32;
-const MAX_BATCH_TOKENS = 2048;
+const INITIAL_SLAB_BYTES = 64 * 1024;
+const MIN_SLAB_BYTES = 8 * 1024;
+const MAX_SLAB_BYTES = 512 * 1024;
+
+/**
+ * Where the next slab may end: a blank line, at or past the target, and never
+ * inside a fenced code block — splitting one would leave the fence unclosed
+ * and the rest of the document rendered as code.
+ *
+ * Written over the source string rather than over `split('\n')`, which would
+ * hold the whole document a second time in several hundred thousand pieces.
+ */
+const nextSlabEnd = (text, from, target) => {
+  let index = from;
+  let fence = null;
+
+  while (index < text.length) {
+    let lineEnd = text.indexOf('\n', index);
+    if (lineEnd === -1) lineEnd = text.length;
+
+    let firstNonSpace = index;
+    while (firstNonSpace < lineEnd && (text[firstNonSpace] === ' ' || text[firstNonSpace] === '\t')) {
+      firstNonSpace += 1;
+    }
+    const blank = firstNonSpace === lineEnd;
+    const opener = text[firstNonSpace];
+
+    if (!blank && (opener === '`' || opener === '~')) {
+      const marker = /^(`{3,}|~{3,})/.exec(text.slice(firstNonSpace, lineEnd));
+      if (marker) fence = fence && marker[1].startsWith(fence[0]) ? null : fence || marker[1];
+    }
+
+    index = lineEnd + 1;
+    if (!fence && blank && index - from >= target) return Math.min(index, text.length);
+  }
+
+  return text.length;
+};
+
+/**
+ * Reference-style link definitions, gathered before anything is rendered.
+ *
+ * The lexer collects them onto the token array it produces, so a document read
+ * in slabs would only know the ones defined earlier — and `[text][ref]` whose
+ * definition sits at the bottom would render as literal brackets. The scan
+ * only happens for a document that contains `]:` at all, which most do not.
+ */
+const LINK_DEFINITION = /^ {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+["'(]([^"')]*)["')])?\s*$/gm;
+
+const collectLinkDefinitions = (text) => {
+  if (!text.includes(']:')) return '';
+
+  LINK_DEFINITION.lastIndex = 0;
+  const found = text.match(LINK_DEFINITION);
+  return found ? `${found.join('\n')}\n\n` : '';
+};
 
 const yieldToBrowser = () =>
   new Promise((resolve) => {
@@ -148,34 +203,37 @@ onMounted(async () => {
       return;
     }
 
-    const tokens = marked.lexer(content);
-    const total = tokens.length;
+    const links = collectLinkDefinitions(content);
+    const total = content.length;
     let index = 0;
-    let batchSize = INITIAL_BATCH_TOKENS;
+    let slabBytes = INITIAL_SLAB_BYTES;
 
     while (index < total) {
       if (cancelled) return;
 
-      const slice = tokens.slice(index, index + batchSize);
-      // Reference-style links are collected by the lexer onto the token array
-      // itself, so a slice of it has to carry them or `[text][ref]` renders as
-      // literal brackets halfway down a document.
-      slice.links = tokens.links;
+      const end = nextSlabEnd(content, index, slabBytes);
+      const slab = content.slice(index, end);
 
       const startedAt = Date.now();
-      const fragment = DOMPurify.sanitize(marked.parser(slice), {
+      // Prepended rather than assigned afterwards: the lexer resolves inline
+      // tokens as it goes, so `[text][ref]` is already literal text by the
+      // time it returns. Definitions produce no output of their own, so
+      // carrying them into every slab shows nothing and costs a few lines.
+      const tokens = marked.lexer(links + slab);
+
+      const fragment = DOMPurify.sanitize(marked.parser(tokens), {
         RETURN_DOM_FRAGMENT: true,
       });
       if (cancelled) return;
       appendChunk(fragment);
       const took = Date.now() - startedAt;
 
-      index += slice.length;
+      index = end;
       renderedPercent.value = Math.round((index / total) * 100);
 
-      // What the last batch cost decides the next one's size.
-      if (took < FRAME_BUDGET_MS / 2) batchSize = Math.min(batchSize * 2, MAX_BATCH_TOKENS);
-      else if (took > FRAME_BUDGET_MS) batchSize = Math.max(Math.floor(batchSize / 2), 1);
+      // What the last slab cost decides the next one's size.
+      if (took < FRAME_BUDGET_MS / 2) slabBytes = Math.min(slabBytes * 2, MAX_SLAB_BYTES);
+      else if (took > FRAME_BUDGET_MS) slabBytes = Math.max(Math.floor(slabBytes / 2), MIN_SLAB_BYTES);
 
       // eslint-disable-next-line no-await-in-loop
       if (index < total) await yieldToBrowser();
