@@ -75,7 +75,8 @@
     "moveDown": "Переместить вниз",
     "toggleSection": "Показать или скрыть раздел",
     "back": "Назад",
-    "add": "Добавить"
+    "add": "Добавить",
+    "dismissWarning": "Скрыть предупреждение"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "У вас есть несохраненные изменения. Закрыть без сохранения?"
+    "confirmCloseWithoutSaving": "У вас есть несохраненные изменения. Закрыть без сохранения?",
+    "selectTheme": "Выбрать тему редактора",
+    "raw": "Исходный"
   },
   "status": {
     "updated": "Успешно обновлено",
@@ -326,7 +329,8 @@
       "warning": "Предупреждения",
       "success": "Успех",
       "info": "Инфо"
-    }
+    },
+    "copyDetails": "Копировать подробности"
   },
   "spotlight": {
     "hintWithin": "Введите для поиска в"

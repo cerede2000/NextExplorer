@@ -75,7 +75,8 @@
     "moveDown": "Mută în jos",
     "toggleSection": "Afișează sau ascunde secțiunea",
     "back": "Înapoi",
-    "add": "Adaugă"
+    "add": "Adaugă",
+    "dismissWarning": "Închideți avertismentul"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?"
+    "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?",
+    "selectTheme": "Alegeți tema editorului",
+    "raw": "Brut"
   },
   "status": {
     "updated": "Actualizat cu succes",
@@ -326,7 +329,8 @@
       "warning": "Avertismente",
       "success": "Succes",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Copiați detaliile"
   },
   "spotlight": {
     "hintWithin": "Tastează pentru a căuta în interior"

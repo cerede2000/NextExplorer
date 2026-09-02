@@ -75,7 +75,8 @@
     "readwrite": "Lecture/Écriture",
     "toggleSection": "Afficher ou masquer la section",
     "back": "Retour",
-    "add": "Ajouter"
+    "add": "Ajouter",
+    "dismissWarning": "Ignorer l'avertissement"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?"
+    "confirmCloseWithoutSaving": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
+    "selectTheme": "Choisir le thème de l'éditeur",
+    "raw": "Brut"
   },
   "status": {
     "updated": "Mis à jour avec succès",
@@ -326,7 +329,8 @@
       "warning": "Avertissements",
       "success": "Succès",
       "info": "Infos"
-    }
+    },
+    "copyDetails": "Copier les détails"
   },
   "spotlight": {
     "hintWithin": "Tapez pour rechercher à l'intérieur"

@@ -75,7 +75,8 @@
     "moveDown": "Przesuń w dół",
     "toggleSection": "Pokaż lub ukryj sekcję",
     "back": "Wstecz",
-    "add": "Dodaj"
+    "add": "Dodaj",
+    "dismissWarning": "Odrzuć ostrzeżenie"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?"
+    "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?",
+    "selectTheme": "Wybierz motyw edytora",
+    "raw": "Surowy"
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",
@@ -326,7 +329,8 @@
       "warning": "Ostrzeżenia",
       "success": "Sukces",
       "info": "Informacje"
-    }
+    },
+    "copyDetails": "Kopiuj szczegóły"
   },
   "spotlight": {
     "hintWithin": "Wpisz, aby wyszukać wewnątrz"

@@ -660,10 +660,10 @@ router.post(
           guestSessionId: session.id,
         });
         return;
-      } else {
-        // User-specific share without password still requires auth
-        throw new UnauthorizedError('Authentication required');
       }
+
+      // User-specific share without password still requires auth
+      throw new UnauthorizedError('Authentication required');
     }
 
     // Verify password
@@ -783,9 +783,9 @@ router.get(
             },
             guestSessionId: session.id,
           });
-        } else {
-          throw new UnauthorizedError('Password verification required');
         }
+
+        throw new UnauthorizedError('Password verification required');
       }
 
       await trackShareAccess(share.id, { ipAddress: req.ip });

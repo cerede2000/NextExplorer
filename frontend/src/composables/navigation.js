@@ -69,7 +69,6 @@ export function useNavigation() {
       // Encode each segment for editor path
       const encodedPath = fileToEdit.split('/').map(encodeURIComponent).join('/');
       navigate({ path: `/editor/${encodedPath}` });
-      return;
     }
   };
 

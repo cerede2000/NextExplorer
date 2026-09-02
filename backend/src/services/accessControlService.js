@@ -12,15 +12,10 @@ const createPermissionResolver = (rules = []) => {
       const rulePath = normalizeRelativePath(rule.path || '');
       if (!rulePath) continue;
 
-      if (rule.recursive) {
-        if (rel === rulePath || rel.startsWith(rulePath + '/')) {
-          return rule.permissions || 'rw';
-        }
-      } else {
-        if (rel === rulePath) {
-          return rule.permissions || 'rw';
-        }
-      }
+      const matches = rule.recursive
+        ? rel === rulePath || rel.startsWith(`${rulePath}/`)
+        : rel === rulePath;
+      if (matches) return rule.permissions || 'rw';
     }
 
     return 'rw';

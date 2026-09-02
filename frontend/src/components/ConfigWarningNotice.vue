@@ -103,7 +103,7 @@ onKeyStroke('Escape', dismiss);
                     <button
                       type="button"
                       class="inline-flex rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"
-                      aria-label="Dismiss warning"
+                      :aria-label="$t('common.dismissWarning')"
                       @click="dismiss"
                     >
                       <XMarkIcon class="h-5 w-5" />

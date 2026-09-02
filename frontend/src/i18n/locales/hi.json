@@ -75,7 +75,8 @@
     "moveDown": "नीचे ले जाएँ",
     "toggleSection": "अनुभाग दिखाएँ या छिपाएँ",
     "back": "पीछे",
-    "add": "जोड़ें"
+    "add": "जोड़ें",
+    "dismissWarning": "चेतावनी हटाएँ"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "आपके पास बिना सहेजे परिवर्तन हैं। बिना सहेजे बंद करें?"
+    "confirmCloseWithoutSaving": "आपके पास बिना सहेजे परिवर्तन हैं। बिना सहेजे बंद करें?",
+    "selectTheme": "संपादक की थीम चुनें",
+    "raw": "कच्चा"
   },
   "status": {
     "updated": "सफलतापूर्वक अपडेट किया गया",
@@ -326,7 +329,8 @@
       "warning": "चेतावनियाँ",
       "success": "सफलता",
       "info": "जानकारी"
-    }
+    },
+    "copyDetails": "विवरण कॉपी करें"
   },
   "spotlight": {
     "hintWithin": "अंदर खोजने के लिए टाइप करें"

@@ -75,7 +75,8 @@
     "moveDown": "Flytta ner",
     "toggleSection": "Visa eller dölj avsnittet",
     "back": "Bakåt",
-    "add": "Lägg till"
+    "add": "Lägg till",
+    "dismissWarning": "Avfärda varningen"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Du har osparade ändringar. Stäng utan att spara?"
+    "confirmCloseWithoutSaving": "Du har osparade ändringar. Stäng utan att spara?",
+    "selectTheme": "Välj redigerarens tema",
+    "raw": "Rå"
   },
   "status": {
     "updated": "Uppdaterades",
@@ -326,7 +329,8 @@
       "warning": "Varningar",
       "success": "Lyckade",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Kopiera detaljerna"
   },
   "spotlight": {
     "hintWithin": "Skriv för att söka inom"

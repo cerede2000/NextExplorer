@@ -75,7 +75,8 @@
     "readwrite": "Read/Write",
     "toggleSection": "Toggle section",
     "back": "Back",
-    "add": "Add"
+    "add": "Add",
+    "dismissWarning": "Dismiss warning"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "You have unsaved changes. Close without saving?"
+    "confirmCloseWithoutSaving": "You have unsaved changes. Close without saving?",
+    "selectTheme": "Select editor theme",
+    "raw": "Raw"
   },
   "status": {
     "updated": "Updated successfully",
@@ -326,7 +329,8 @@
       "warning": "Warnings",
       "success": "Success",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Copy details"
   },
   "spotlight": {
     "hintWithin": "Type to search within"

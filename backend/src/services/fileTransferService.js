@@ -479,9 +479,9 @@ const moveEntryWithProgress = async (
       if (shouldRemoveNatively(isDirectory)) await removeWithNativeRm(sourcePath, signal);
       else await fs.rm(sourcePath, { recursive: isDirectory, force: true });
       return copiedBytes;
-    } else {
-      throw error;
     }
+
+    throw error;
   }
 };
 

@@ -115,7 +115,7 @@ const formattedTime = computed(() => {
       <div class="flex gap-1 shrink-0">
         <button
           @click="emit('copy', id)"
-          title="Copy details"
+          :title="$t('notifications.copyDetails')"
           class="p-1 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-zinc-900 transition-colors duration-200"
         >
           <DocumentDuplicateIcon class="h-4 w-4" />

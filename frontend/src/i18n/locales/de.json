@@ -75,7 +75,8 @@
     "moveDown": "Nach unten",
     "toggleSection": "Abschnitt ein-/ausklappen",
     "back": "Zurück",
-    "add": "Hinzufügen"
+    "add": "Hinzufügen",
+    "dismissWarning": "Warnung ausblenden"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Sie haben ungespeicherte Änderungen. Ohne Speichern schließen?"
+    "confirmCloseWithoutSaving": "Sie haben ungespeicherte Änderungen. Ohne Speichern schließen?",
+    "selectTheme": "Editor-Thema wählen",
+    "raw": "Roh"
   },
   "status": {
     "updated": "Erfolgreich aktualisiert",
@@ -326,7 +329,8 @@
       "warning": "Warnungen",
       "success": "Erfolg",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Details kopieren"
   },
   "spotlight": {
     "hintWithin": "Tippen, um innerhalb zu suchen"

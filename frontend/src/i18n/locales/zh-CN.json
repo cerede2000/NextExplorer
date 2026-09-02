@@ -75,7 +75,8 @@
     "moveDown": "下移",
     "toggleSection": "展开或折叠此部分",
     "back": "后退",
-    "add": "添加"
+    "add": "添加",
+    "dismissWarning": "忽略此警告"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？"
+    "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？",
+    "selectTheme": "选择编辑器主题",
+    "raw": "原始"
   },
   "status": {
     "updated": "更新成功",
@@ -326,7 +329,8 @@
       "warning": "警告",
       "success": "成功",
       "info": "信息"
-    }
+    },
+    "copyDetails": "复制详细信息"
   },
   "spotlight": {
     "hintWithin": "键入以在其中搜索"

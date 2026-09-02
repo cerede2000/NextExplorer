@@ -75,7 +75,8 @@
     "moveDown": "下移",
     "toggleSection": "展開或摺疊此區段",
     "back": "後退",
-    "add": "新增"
+    "add": "新增",
+    "dismissWarning": "忽略此警告"
   },
   "editor": {
     "editing": "Editing",
@@ -83,7 +84,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "您有未儲存的變更。要在不儲存的情況下關閉嗎？"
+    "confirmCloseWithoutSaving": "您有未儲存的變更。要在不儲存的情況下關閉嗎？",
+    "selectTheme": "選擇編輯器佈景",
+    "raw": "原始"
   },
   "status": {
     "updated": "更新成功",
@@ -326,7 +329,8 @@
       "warning": "警告",
       "success": "成功",
       "info": "資訊"
-    }
+    },
+    "copyDetails": "複製詳細資訊"
   },
   "spotlight": {
     "hintWithin": "輸入關鍵字來搜尋"

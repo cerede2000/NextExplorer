@@ -24,10 +24,9 @@
           @click="openRaw"
           :disabled="isLoading || !displayPath"
           class="rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
-          aria-label="Raw"
-          title="Raw"
+          :title="t('editor.raw')"
         >
-          Raw
+          {{ t('editor.raw') }}
         </button>
         <button
           v-if="isSharedEditor && sharedCanDownload"
@@ -56,7 +55,7 @@
             v-if="isThemeMenuOpen"
             class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-800"
             role="listbox"
-            :aria-label="`Select editor theme`"
+            :aria-label="t('editor.selectTheme')"
           >
             <div class="max-h-80 overflow-auto py-1">
               <button
