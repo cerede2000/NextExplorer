@@ -41,7 +41,14 @@ const requireThumbnailToken = (req, res, next) => {
 /**
  * Configures static file serving for thumbnails, logos, and frontend
  */
-const configureStaticFiles = (app) => {
+/**
+ * @param {import('express').Application} app
+ * @param {string} [frontendDirectory] where the built frontend lives. Defaults
+ *   to where the image puts it; a caller passes its own so this can be
+ *   exercised — the single-page fallback is the one route only production
+ *   registers, and it was the one that stopped the server from starting.
+ */
+const configureStaticFiles = (app, frontendDirectory) => {
   // Serve thumbnails
   app.use('/static/thumbnails', requireThumbnailToken, express.static(directories.thumbnails));
   logger.debug('Mounted /static/thumbnails');
@@ -69,15 +76,21 @@ const configureStaticFiles = (app) => {
   logger.debug('Mounted /static/logos');
 
   // Serve frontend SPA
-  const frontendDir = path.resolve(__dirname, '..', 'public');
+  const frontendDir = frontendDirectory || path.resolve(__dirname, '..', 'public');
   const indexFile = path.join(frontendDir, 'index.html');
 
   if (fs.existsSync(frontendDir) && fs.existsSync(indexFile)) {
     app.use(express.static(frontendDir));
     logger.debug({ frontendDir, indexFile }, 'Mounted static frontend');
 
-    // SPA fallback - serve index.html for all non-API routes
-    app.get('*', (req, res, next) => {
+    // SPA fallback - serve index.html for all non-API routes.
+    //
+    // `{*splat}` and not `*`: path-to-regexp 8, which Express 5 uses, refuses a
+    // bare wildcard outright — and it refuses it while the route is being
+    // registered, so the server does not start at all. The braces are what
+    // keep `/` itself matching, which is the address the application is
+    // usually opened at.
+    app.get('{*splat}', (req, res, next) => {
       // Skip API routes and static asset routes
       if (req.path.startsWith('/api') || req.path.startsWith('/static/')) {
         return next();
