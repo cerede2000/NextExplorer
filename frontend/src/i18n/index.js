@@ -19,6 +19,7 @@ const preferredLocaleOrder = [
   'it',
   'ko',
   'pl',
+  'pt-BR',
   'ro',
   'ru',
   'sv',
@@ -35,10 +36,20 @@ export const supportedLocaleOptions = [
 
 const supportedLocales = supportedLocaleOptions.map(({ code }) => code);
 
-function detectLocale(supportedLocales) {
+/**
+ * A browser says `zh-cn`; the bundle is called `zh-CN`. Compared as written,
+ * those never match — so a Chinese browser was never detected as Chinese, and
+ * neither was a Taiwanese one. The tag is case-insensitive by specification and
+ * this is the only place that treated it otherwise.
+ */
+const matchLocale = (supportedLocales, preference) =>
+  supportedLocales.find((code) => code.toLowerCase() === String(preference).toLowerCase());
+
+export function detectLocale(supportedLocales) {
   try {
     const saved = localStorage.getItem('locale');
-    if (saved && supportedLocales.includes(saved)) return saved;
+    const remembered = saved && matchLocale(supportedLocales, saved);
+    if (remembered) return remembered;
   } catch (_) {
     // Ignore localStorage errors (e.g., in private browsing mode)
   }
@@ -57,8 +68,8 @@ function detectLocale(supportedLocales) {
 
   for (const p of normalized) {
     const base = p.split('-')[0];
-    if (supportedLocales.includes(p)) return p;
-    if (supportedLocales.includes(base)) return base;
+    const hit = matchLocale(supportedLocales, p) || matchLocale(supportedLocales, base);
+    if (hit) return hit;
   }
 
   return 'en';
