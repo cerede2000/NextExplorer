@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import express from 'express';
+import sharp from 'sharp';
 import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
@@ -21,8 +22,8 @@ afterEach(async () => {
   }
 });
 
-const seed = async () => {
-  currentEnv = await setupTestEnv({ tag: 'metadata-' });
+const seed = async (env = {}) => {
+  currentEnv = await setupTestEnv({ tag: 'metadata-', env });
   const dbService = currentEnv.requireFresh('src/services/db');
   const db = await dbService.getDb();
   const now = new Date().toISOString();
@@ -88,11 +89,6 @@ describe('reading a file’s details', () => {
     expect(response.status).toBe(404);
   });
 
-  /**
-   * A path that climbs out of the volume is refused, and the refusal says
-   * forbidden rather than not-found: the caller asked about somewhere they may
-   * not look, which is a different answer from somewhere that is empty.
-   */
   it('refuses a path that leaves the volume', async () => {
     await seed();
 
@@ -100,6 +96,36 @@ describe('reading a file’s details', () => {
 
     expect([403, 404]).toContain(response.status);
     expect(response.status).not.toBe(200);
+  });
+
+  /**
+   * The refusal says forbidden rather than not-found: the caller asked about
+   * somewhere they may not look, which is a different answer from somewhere
+   * that is empty — and the details panel shows a different message for each.
+   *
+   * Reached with USER_VOLUMES on and nothing assigned, so the path resolves and
+   * exists and only the access check says no. A path that climbs out of the
+   * volume never gets there: it is refused while being resolved, which is why
+   * the test above proves nothing about this branch.
+   */
+  it('says forbidden for a file the caller may not read', async () => {
+    const volume = await seed({ USER_VOLUMES: 'true' });
+    await fs.mkdir(path.join(volume, 'Private'), { recursive: true });
+    await fs.writeFile(path.join(volume, 'Private', 'secret.txt'), 'x');
+
+    const routes = currentEnv.requireFresh('src/routes/metadata');
+    const { errorHandler } = currentEnv.requireFresh('src/middleware/errorHandler');
+    const app = express();
+    app.use((req, _res, next) => {
+      req.user = { id: 'restricted', roles: [] };
+      next();
+    });
+    app.use('/api', routes);
+    app.use(errorHandler);
+
+    const response = await request(app).get('/api/metadata/Private/secret.txt');
+
+    expect(response.status).toBe(403);
   });
 });
 
@@ -162,5 +188,52 @@ describe('summing what a folder holds', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.directory).toMatchObject({ totalSize: 15, fileCount: 1 });
+  });
+});
+
+/**
+ * What a picture and a film say about themselves.
+ *
+ * Both branches read a third-party library — sharp for images, ffprobe for
+ * video — and both are wrapped so a file that cannot be read does not cost the
+ * caller the rest of the answer. That wrapping is the part worth pinning: the
+ * details panel still has a name, a size and a date to show for a photo whose
+ * header is damaged.
+ */
+describe('a picture', () => {
+  const writeImage = async (volume, name, { width, height }) => {
+    const file = path.join(volume, name);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await sharp({
+      create: { width, height, channels: 3, background: { r: 10, g: 80, b: 120 } },
+    })
+      .png()
+      .toFile(file);
+  };
+
+  it('reports the size it was taken at', async () => {
+    const volume = await seed();
+    await writeImage(volume, 'Photos/one.png', { width: 48, height: 32 });
+
+    const response = await request(buildApp()).get('/api/metadata/Photos/one.png');
+
+    expect(response.status).toBe(200);
+    expect(response.body.image).toMatchObject({ width: 48, height: 32 });
+  });
+
+  /**
+   * A file named `.png` that is not one. The panel loses the picture's own
+   * details and keeps everything the filesystem knows, which is what somebody
+   * looking at a damaged file most needs.
+   */
+  it('still answers when the file is not the picture it claims to be', async () => {
+    const volume = await seed();
+    await fs.mkdir(path.join(volume, 'Photos'), { recursive: true });
+    await fs.writeFile(path.join(volume, 'Photos', 'broken.png'), 'not a png at all');
+
+    const response = await request(buildApp()).get('/api/metadata/Photos/broken.png');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ name: 'broken.png', kind: 'png', size: 16 });
   });
 });

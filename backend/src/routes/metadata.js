@@ -81,6 +81,106 @@ const sumDirectory = async (dirPath, limit = 200000) => {
   return { totalSize, fileCount, dirCount, truncated: visited > limit };
 };
 
+/**
+ * What a picture says about itself.
+ *
+ * Two libraries, asked separately and both allowed to fail: a file that cannot
+ * be read as an image still has a name, a size and a date, which is what
+ * somebody looking at a damaged file most needs. Losing the whole answer over
+ * a broken header would be the wrong trade.
+ */
+const readImageDetails = async (absolutePath) => {
+  const details = {};
+
+  try {
+    const meta = await sharp(absolutePath).metadata();
+    details.width = meta.width || null;
+    details.height = meta.height || null;
+    details.orientation = meta.orientation || null;
+  } catch (e) {
+    logger.debug({ err: e }, 'sharp.metadata failed');
+  }
+
+  try {
+    const exif = loadExifr()
+      ? await exifr.parse(absolutePath, {
+          tiff: true,
+          ifd0: true,
+          exif: true,
+          gps: true,
+          iptc: true,
+        })
+      : null;
+    if (exif) Object.assign(details, readExifFields(exif), { gps: readCoordinates(exif) });
+  } catch (e) {
+    logger.debug({ err: e }, 'EXIF parse failed');
+  }
+
+  return Object.keys(details).length > 0 ? details : null;
+};
+
+/**
+ * What each detail is called in an EXIF block, in the order to look.
+ *
+ * Cameras disagree about capitalisation and about which date they write, so
+ * every field is several names — a table rather than a chain of `||`, which is
+ * what it plainly is and what makes adding a camera's spelling a one-line
+ * change.
+ */
+const EXIF_FIELDS = {
+  cameraMake: ['Make', 'make'],
+  cameraModel: ['Model', 'model'],
+  lensModel: ['LensModel', 'lensModel'],
+  software: ['Software'],
+  dateTaken: ['DateTimeOriginal', 'CreateDate', 'ModifyDate'],
+};
+
+const readExifFields = (exif) =>
+  Object.fromEntries(
+    Object.entries(EXIF_FIELDS).map(([name, candidates]) => [
+      name,
+      candidates.map((candidate) => exif[candidate]).find(Boolean) ?? null,
+    ])
+  );
+
+/** Where a photograph was taken, under whichever pair of names it was stored. */
+const readCoordinates = (exif) => {
+  if (exif.latitude && exif.longitude) return { lat: exif.latitude, lon: exif.longitude };
+  if (exif.GPSLatitude && exif.GPSLongitude) {
+    return { lat: exif.GPSLatitude, lon: exif.GPSLongitude };
+  }
+  return null;
+};
+
+/** What the filesystem alone knows about a path. */
+const describeEntry = (logicalPath, stats) => {
+  const extension = path.extname(logicalPath).slice(1).toLowerCase();
+
+  return {
+    path: logicalPath,
+    name: path.basename(logicalPath),
+    kind: stats.isDirectory() ? 'directory' : extension || 'unknown',
+    size: stats.size,
+    dateModified: stats.mtime,
+    dateCreated: stats.birthtime,
+  };
+};
+
+/** The file's own details, when its kind has any to give. */
+const readKindDetails = async (absolutePath, extension) => {
+  if (extensions.images.includes(extension)) {
+    const image = await readImageDetails(absolutePath);
+    return image ? { image } : {};
+  }
+
+  if (extensions.videos.includes(extension)) {
+    const video = await probeVideo(absolutePath);
+    return video ? { video } : {};
+  }
+
+  return {};
+};
+
 router.get(
   '/metadata/{*splat}',
   asyncHandler(async (req, res) => {
@@ -104,8 +204,7 @@ router.get(
       throw new ForbiddenError(accessInfo?.denialReason || 'Path is not accessible.');
     }
 
-    const absolutePath = resolved.absolutePath;
-    const logicalPath = resolved.relativePath;
+    const { absolutePath, relativePath: logicalPath } = resolved;
 
     // Resolving a path does not require it to exist, so this is where a file
     // that has just been deleted is discovered. Left unhandled it left the
@@ -120,72 +219,14 @@ router.get(
       }
       throw error;
     }
-    const name = path.basename(logicalPath);
-    const ext = path.extname(logicalPath).slice(1).toLowerCase();
 
-    const base = {
-      path: logicalPath,
-      name,
-      kind: stats.isDirectory() ? 'directory' : ext || 'unknown',
-      size: stats.size,
-      dateModified: stats.mtime,
-      dateCreated: stats.birthtime,
-    };
-
-    const payload = { ...base };
+    const base = describeEntry(logicalPath, stats);
 
     if (stats.isDirectory()) {
-      payload.directory = await sumDirectory(absolutePath);
-      return res.json(payload);
+      return res.json({ ...base, directory: await sumDirectory(absolutePath) });
     }
 
-    // File-specific metadata
-    if (extensions.images.includes(ext)) {
-      try {
-        const meta = await sharp(absolutePath).metadata();
-        payload.image = {
-          width: meta.width || null,
-          height: meta.height || null,
-          orientation: meta.orientation || null,
-        };
-      } catch (e) {
-        logger.debug({ err: e }, 'sharp.metadata failed');
-      }
-
-      try {
-        const ex = loadExifr()
-          ? await exifr.parse(absolutePath, {
-              tiff: true,
-              ifd0: true,
-              exif: true,
-              gps: true,
-              iptc: true,
-            })
-          : null;
-        if (ex) {
-          payload.image = Object.assign(payload.image || {}, {
-            cameraMake: ex.Make || ex.make || null,
-            cameraModel: ex.Model || ex.model || null,
-            lensModel: ex.LensModel || ex.lensModel || null,
-            software: ex.Software || null,
-            dateTaken: ex.DateTimeOriginal || ex.CreateDate || ex.ModifyDate || null,
-            gps:
-              ex.latitude && ex.longitude
-                ? { lat: ex.latitude, lon: ex.longitude }
-                : ex.GPSLatitude && ex.GPSLongitude
-                  ? { lat: ex.GPSLatitude, lon: ex.GPSLongitude }
-                  : null,
-          });
-        }
-      } catch (e) {
-        logger.debug({ err: e }, 'EXIF parse failed');
-      }
-    } else if (extensions.videos.includes(ext)) {
-      const v = await probeVideo(absolutePath);
-      if (v) payload.video = v;
-    }
-
-    return res.json(payload);
+    return res.json({ ...base, ...(await readKindDetails(absolutePath, base.kind)) });
   })
 );
 
