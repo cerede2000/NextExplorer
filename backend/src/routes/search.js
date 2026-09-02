@@ -25,6 +25,9 @@ const {
 const searchIndexStore = require('../services/searchIndexStore');
 const { collectResults, buildPage } = require('../services/searchCollector');
 const { parseSearchTerm } = require('../services/searchTerm');
+const { ripgrepIgnoreGlobs, isIgnoredDirectory } = require('../services/searchIgnore');
+const { whenClientDisconnects } = require('../utils/clientDisconnect');
+const searchIndexExclusions = require('../services/searchIndexExclusions');
 const { getDb } = require('../services/db');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
@@ -114,14 +117,18 @@ const buildContentSearchArgs = (term, globArgs = [], maxFileSize = null) => {
  * instead of the parsed byte count, ripgrep refused the flag, and nothing
  * anywhere ran the code that would have shown it.
  */
-const contentSearchArgs = (term, includeHiddenFiles = false) =>
+const contentSearchArgs = (term, includeHiddenFiles = false, relBasePath = '') =>
   buildContentSearchArgs(
     term,
-    buildRipgrepArgs(includeHiddenFiles),
+    buildRipgrepArgs(includeHiddenFiles, relBasePath),
     searchConfig?.maxFileSizeBytes
   );
 
-const buildRipgrepArgs = (includeHiddenFiles = false) => [
+const buildRipgrepArgs = (includeHiddenFiles = false, relBasePath = '') => [
+  // A folder excluded from search is excluded from all of it, and not only
+  // from the index: walking the Docker overlay by name is what made every
+  // filename search run out its budget.
+  ...ripgrepIgnoreGlobs(relBasePath, excludedSearchPaths()),
   '-g',
   '!.git',
   '-g',
@@ -132,6 +139,18 @@ const buildRipgrepArgs = (includeHiddenFiles = false) => [
   '!build',
   ...(includeHiddenFiles ? [] : hiddenFiles.ripgrepGlobExcludes.flatMap((glob) => ['-g', glob])),
 ];
+
+/**
+ * Reading the list every time rather than once: an administrator changing it
+ * in Settings expects the next search to obey, not the next restart.
+ */
+const excludedSearchPaths = () => {
+  try {
+    return searchIndexExclusions.effectivePaths();
+  } catch {
+    return [];
+  }
+};
 
 const normalizePath = (p, relBasePath) => {
   const normalized = p.replace(/\\/g, '/');
@@ -196,7 +215,7 @@ async function* streamFileListMatches(
   shouldInclude,
   includeHiddenFiles = false
 ) {
-  const globArgs = buildRipgrepArgs(includeHiddenFiles);
+  const globArgs = buildRipgrepArgs(includeHiddenFiles, relBasePath);
   const fileListProcess = spawn('rg', ['--files', '--hidden', '--no-messages', ...globArgs], {
     cwd: baseAbsPath,
   });
@@ -248,7 +267,7 @@ async function* streamContentMatches(
   shouldInclude,
   includeHiddenFiles = false
 ) {
-  const contentArgs = contentSearchArgs(term, includeHiddenFiles);
+  const contentArgs = contentSearchArgs(term, includeHiddenFiles, relBasePath);
 
   // The parsed byte count, never the raw setting. `SEARCH_MAX_FILESIZE=5MB` —
   // the form our own README suggests — went to ripgrep verbatim, and ripgrep
@@ -617,6 +636,9 @@ async function* generateFallbackResults(
       const rel = dirRel ? path.posix.join(dirRel, d.name) : d.name;
 
       if (d.isDirectory()) {
+        // The same folders ripgrep is told to skip, skipped here too — the
+        // fallback answering a different question is how this went unnoticed.
+        if (isIgnoredDirectory(rel, excludedSearchPaths())) continue;
         if (matcher.matchesName(d.name) && !seenPaths.has(rel)) {
           seenPaths.add(rel);
           if (await shouldInclude(rel)) {
@@ -814,6 +836,7 @@ router.get(
     });
 
     let truncated = false;
+    let abandoned = false;
     {
       // Guaranteeing content a share means looking for it until the reserve is
       // full or the tree runs out — and on a large one that is a long time to
@@ -826,7 +849,12 @@ router.get(
       const outcome = await Promise.race([
         collect.then(() => 'complete'),
         delay(searchConfig?.timeoutMs ?? 5000).then(() => 'timeout'),
+        // Typing sends one search per pause and the panel keeps only the last.
+        // Without this the abandoned ones each ran their full budget, with
+        // their own subprocesses, for answers nobody would read.
+        whenClientDisconnects(res).then(() => 'abandoned'),
       ]);
+      abandoned = outcome === 'abandoned';
       truncated = outcome === 'timeout';
     }
 
@@ -842,6 +870,11 @@ router.get(
       .catch(() => {})
       .then(() => collect)
       .catch(() => {});
+
+    if (abandoned) {
+      await cleanup;
+      return;
+    }
 
     const combined = buildPage({ names: items, contents: contentItems, limit });
 

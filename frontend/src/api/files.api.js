@@ -520,7 +520,7 @@ async function compressToZip(items, destination = '', name, options = {}) {
   });
 }
 
-async function search(path = '', q = '', limit) {
+async function search(path = '', q = '', limit, { signal } = {}) {
   const normalizedPath = normalizePath(path || '');
   const params = new URLSearchParams();
   if (normalizedPath) params.set('path', normalizedPath);
@@ -528,7 +528,9 @@ async function search(path = '', q = '', limit) {
   if (Number.isFinite(limit) && limit > 0) params.set('limit', String(limit));
 
   const endpoint = `/api/search?${params.toString()}`;
-  return requestJson(endpoint, { method: 'GET' });
+  // A search the caller has moved on from is aborted rather than waited out:
+  // a deep one runs for seconds, and nobody is going to read its answer.
+  return requestJson(endpoint, { method: 'GET', signal });
 }
 
 const getPreviewUrl = (relativePath) => {

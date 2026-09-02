@@ -86,7 +86,22 @@ const createHeldRequestLogger = ({
       );
     });
 
-    res.on('close', () => clearTimeout(timer));
+    // A request already reported as held, whose connection then goes away, has
+    // an outcome too: the person stopped waiting. Left unsaid it reads as a
+    // hang that never ended, which is the one thing this instrument exists to
+    // tell apart.
+    res.on('close', () => {
+      clearTimeout(timer);
+      if (!warned || res.writableEnded) return;
+      logger.warn(
+        {
+          method: req.method,
+          path: req.originalUrl || req.url,
+          heldMs: Date.now() - startedAt,
+        },
+        'A held request was abandoned by its client'
+      );
+    });
 
     next();
   };

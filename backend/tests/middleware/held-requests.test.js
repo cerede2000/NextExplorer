@@ -106,3 +106,40 @@ describe('reporting a request that is held', () => {
     expect(held).toHaveLength(2);
   });
 });
+
+/**
+ * A request reported as held and then never mentioned again reads as a hang
+ * that never ended. Someone typing a search abandons one request per
+ * keystroke, and telling those apart from a stuck server is the whole purpose
+ * of the instrument.
+ */
+describe('a held request whose client gives up', () => {
+  it('says the client stopped waiting', async () => {
+    const app = express();
+    app.use(createHeldRequestLogger({ heldAfterMs: 20 }));
+    app.get('/slow', (_req, res) => {
+      setTimeout(() => res.status(200).json({ ok: true }), 5000);
+    });
+
+    const pending = request(app).get('/slow');
+    pending.end(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    pending.abort();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/slow' }),
+      'A held request was abandoned by its client'
+    );
+  });
+
+  it('says nothing of the kind about one that answered', async () => {
+    await request(appHolding(120)).get('/slow');
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    const abandoned = warn.mock.calls.filter(
+      ([, message]) => message === 'A held request was abandoned by its client'
+    );
+    expect(abandoned).toHaveLength(0);
+  });
+});

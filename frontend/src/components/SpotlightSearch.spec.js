@@ -118,3 +118,80 @@ describe('the moment after someone types', () => {
     expect(wrapper.text()).not.toContain('Searching…');
   });
 });
+
+/**
+ * Typing `*.doc*`, then `*.docx`, then `*.doc*` sends three searches, and a
+ * deep one runs for seconds. Nothing said which answer belonged to what was
+ * being asked, so the panel showed whichever came back last — a list of `.doc`
+ * files under a box reading `*.docx`, and no way to tell.
+ */
+describe('changing the search while one is running', () => {
+  const typeInto = async (wrapper, term) => {
+    await wrapper.find('input').setValue(term);
+    await vi.advanceTimersByTimeAsync(400);
+  };
+
+  const openPanel = async () => {
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    return wrapper;
+  };
+
+  it('shows the newest answer even when an older one comes back after it', async () => {
+    const settle = {};
+    search.mockImplementation(
+      (path, term) =>
+        new Promise((resolve) => {
+          settle[term] = resolve;
+        })
+    );
+
+    const wrapper = await openPanel();
+    await typeInto(wrapper, '*.doc*');
+    await typeInto(wrapper, '*.docx');
+
+    // The newer search answers first, the older one afterwards — the order
+    // that made the panel wrong.
+    settle['*.docx']({ items: [{ name: 'budget.docx', path: 'Docs', isDirectory: false }] });
+    await flushPromises();
+    settle['*.doc*']({ items: [{ name: 'old.doc', path: 'Docs', isDirectory: false }] });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('budget.docx');
+    expect(wrapper.text()).not.toContain('old.doc');
+  });
+
+  it('aborts the search it replaced, so the server stops looking', async () => {
+    const signals = {};
+    search.mockImplementation(
+      (path, term, limit, options) =>
+        new Promise((resolve) => {
+          signals[term] = options?.signal;
+          if (term === '*.docx') resolve({ items: [] });
+        })
+    );
+
+    const wrapper = await openPanel();
+    await typeInto(wrapper, '*.doc*');
+    expect(signals['*.doc*']?.aborted).toBe(false);
+
+    await typeInto(wrapper, '*.docx');
+    expect(signals['*.doc*'].aborted).toBe(true);
+  });
+
+  it('does not report an abandoned search as a failure', async () => {
+    search.mockImplementation((path, term) =>
+      term === '*.doc*'
+        ? Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+        : Promise.resolve({ items: [] })
+    );
+
+    const wrapper = await openPanel();
+    await typeInto(wrapper, '*.doc*');
+    await typeInto(wrapper, '*.docx');
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('Search failed');
+  });
+});

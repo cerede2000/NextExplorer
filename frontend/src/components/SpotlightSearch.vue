@@ -41,8 +41,25 @@ const basePath = computed(() => {
  */
 const pending = ref(false);
 
+/**
+ * Only the newest search may write to the panel.
+ *
+ * The debounce delays the start of a request; it does nothing about one
+ * already in flight. Typing `*.doc*`, then `*.docx`, then `*.doc*` sent
+ * three searches, and a deep one takes seconds — so the panel showed
+ * whichever came back last, which is not the one being asked for. Superseding
+ * a search also aborts it, so the server stops looking for an answer nobody
+ * will read.
+ */
+let currentRequest = 0;
+let inFlight = null;
+
 const performSearch = useDebounceFn(async () => {
   const term = query.value.trim();
+  const request = (currentRequest += 1);
+
+  inFlight?.abort();
+  inFlight = null;
 
   errorMsg.value = '';
   activeIndex.value = -1;
@@ -53,18 +70,29 @@ const performSearch = useDebounceFn(async () => {
     return;
   }
 
+  const controller = new AbortController();
+  inFlight = controller;
   loading.value = true;
   try {
-    const { items = [] } = await searchApi(basePath.value, term);
+    const { items = [] } = await searchApi(basePath.value, term, undefined, {
+      signal: controller.signal,
+    });
+    if (request !== currentRequest) return;
     // Limit results to prevent performance issues with massive lists
     const limitedItems = Array.isArray(items) ? items : [];
     results.value = Object.freeze(limitedItems);
   } catch (e) {
+    // A search this one replaced has nothing to say, and an abort is not a
+    // failure to report: it is this function having moved on.
+    if (request !== currentRequest) return;
     errorMsg.value = e?.message || t('errors.searchFailed');
     results.value = [];
   } finally {
-    loading.value = false;
-    pending.value = false;
+    if (request === currentRequest) {
+      inFlight = null;
+      loading.value = false;
+      pending.value = false;
+    }
   }
   // A second was long enough that the panel felt slower than the search: the
   // wait before asking was most of what people were waiting for. Short enough
