@@ -53,6 +53,20 @@ const createApp = async (options = {}) => {
   configureHttpLogging(app);
 
   configureCors(app);
+
+  // Liveness, before anything that could hold a request.
+  //
+  // These were mounted with the rest of the routes, which put them behind the
+  // session store, the OpenID Connect middleware and the authorization layer.
+  // A probe that travels through all of that does not answer "is this
+  // container alive" — it answers "is the identity provider reachable, and is
+  // the session store responding", and a container was reported unhealthy for
+  // ten minutes while the application it runs was serving pages perfectly.
+  //
+  // Nothing here reads a cookie, a database or the network, so there is no
+  // state it could wait on.
+  app.use('/', require('./routes/health'));
+
   // A selection of a few thousand files is a normal request here, and its list
   // of paths outgrows the 100 kB Express allows by default.
   app.use(express.json({ limit: uploads.maxJsonBodyBytes }));
