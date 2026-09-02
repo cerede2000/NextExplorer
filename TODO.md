@@ -216,6 +216,79 @@ Two things to decide before starting:
   filtered after the query rather than in it, exactly as the live search does
   now.
 
+## What the code audit of 2 September 2026 decided
+
+The [full report](https://claude.ai/code/artifact/da8cc67c-dc48-48fa-bca2-f878ed783280)
+has the measurements. What follows is the order the work goes in, and it is not
+the order of severity: **two of the three most valuable pieces cannot be done
+safely until the first one exists.**
+
+### 1. Tests for the ten route modules that have none of their own
+
+`permissions` is done. The rest, in order of what a defect there costs:
+`users`, `metadata`, `thumbnails`, `volumes`, `userVolumes`, `upload`, `zip`,
+`favorites`, `index`.
+
+Some are traversed indirectly by other suites, which is why coverage is not
+zero — but nobody has written down what they must answer. `metadata.js` sits at
+18.8 % of statements and 0 % of branches, `users.js` at 23.4 % and 0 %.
+
+This is the net the next two steps hang from. It is not optional groundwork.
+
+### 2. Express 4 → 5, on its own branch
+
+Closes three of the four remaining advisories at once — `express`, `body-parser`
+and `qs` are one chain, and no other fix exists for them. A framework migration
+without a route suite underneath is how something breaks in a way nobody finds
+for three weeks. After step 1, not before.
+
+### 3. Split `accessManager.js:176`
+
+Fifty-three possible paths through the function that decides who may do what.
+Into named predicates, each testable on its own. Same rule: after step 1.
+
+### 4. The frontend, continuously
+
+16.1 % of branches. This is a habit, not a project — a branch nobody executes in
+a test is a state nobody has seen, and in an interface those are the empty
+folder, the refused permission, the interrupted upload. First slice: the error
+states of `fileStore`. Five states, five tests.
+
+### Worth doing, not blocking
+
+- **Split the bundle.** 2.68 MB in one chunk, 745 kB gzipped. The terminal and
+  the preview plugins are the largest pieces and the least often used; dynamic
+  `import()` for those three is half a day and shows up on first load.
+- **Finish the translations.** No key is missing in any of the thirteen
+  catalogues, but 41 to 65 strings per language are still the English text —
+  `editor.wrapLines`, `errors.deleteShare` and the like. Korean has five, German
+  sixty-five; the gap says which have been read by someone.
+- **`FileIcon.vue:205` is a lookup table written as branches** — 72 paths for a
+  mapping from extension to icon. It wants to be data.
+- **Two pairs of screens that copy each other**: `SharedByMeView` /
+  `SharedWithMeView` (103 lines across two clones) and the two exclusion
+  settings pages (84 lines across three). The services behind the second pair
+  were already reduced to one factory; the pages were not. They will diverge at
+  the first fix made on one side only.
+
+### Rules this audit set, for whoever picks the work up
+
+- **Do not chase a coverage percentage.** A number that rises because the
+  getters got tested protects nothing. Cover the states a defect would reach.
+- **Test at the layer the guard lives in, and prove the test fails without it.**
+  Two of the permissions tests passed with the guard removed — a share path is
+  unreachable anyway, so the status code was the same either way. Only asserting
+  the _reason_ made them bite.
+- **Do not fix the 128 silent `catch` blocks in bulk.** None are empty and many
+  are legitimate. The rule is for new ones: a `catch` that swallows says why it
+  does, in a comment. `routes/collabora.js:309` is the model.
+- **Do not update a major version because it is behind.** `p-limit` is four
+  majors back and works. An upgrade without a reason is risk with no return.
+  Upgrade to close an advisory, to get a feature, or not at all.
+- **Do not let the docs describe the previous version.** Two settings pages
+  described behaviour that had changed the same morning. A doc that is wrong is
+  worse than a doc that is missing.
+
 ## Open, not scheduled
 
 - **A route suite fails intermittently in a full run.** Seen twice on 2 September
@@ -225,18 +298,6 @@ Two things to decide before starting:
   or a module registry crossing between workers is the shape to look for. A
   test that fails one run in ten is a test people learn to re-run, and then a
   test nobody believes.
-- **Path resolution is synchronous.** `resolveSafePath` chases symbolic links
-  with `lstatSync` and `readlinkSync`, up to thirty-two hops, on every path a
-  request touches — and a bulk operation resolves one per selected item. On a
-  local disk that is microseconds; on the network mount most deployments point
-  at, each call is a round trip that blocks the only thread the server has,
-  and nothing else is served while it waits. Deliberately not changed during an
-  incident: it is the code that guarantees a request cannot leave the volume,
-  and it wants a quiet week and its own tests, not a hurried patch.
-- **The startup banner shows a commit behind.** `GIT_COMMIT` is passed as a
-  build argument and does not match the commit the image was built from, so a
-  banner naming a version that is not the running one makes diagnosis harder
-  exactly when diagnosis matters. Cosmetic, and it cost real confusion today.
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
   and deletes nothing. It needs a PAT with `delete:packages`. More pressing now
   that every push to `main` publishes images.
