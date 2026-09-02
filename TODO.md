@@ -76,6 +76,57 @@ translations (2 days), documentation (half a day). The first stage plus a
 minimal panel — about a day and a half — already answers the question that
 started this.
 
+## What the comparison against Quantum and Filestash found missing
+
+Established in September 2026 by reading both projects' repositories and
+documentation rather than their marketing. Two things worth keeping in view
+while reading the list: FileBrowser Quantum states plainly that it does **not**
+search file contents, which is the ground NextExplorer now holds alone among
+the three; and Filestash's SSO, RBAC and audit are paid features, so a
+comparison chart that ticks them without saying so is comparing a free green
+box to one costing $290 a month.
+
+Ordered by what the absence costs someone comparing the three today, not by how
+hard each is.
+
+- **WebDAV.** The most structural gap: it turns a website into a network drive
+  — the Finder, the Explorer, a mobile app — and both others have it. The
+  per-path authorization layer already exists; the work is serving WebDAV
+  through it without going around it. High effort, and the security is where
+  the care goes.
+- **A trash.** A file manager with no net is one people distrust. Deletion here
+  is final, which is coherent for something operating on a real filesystem, but
+  it is a choice we ended up with rather than one we made. Done properly: a
+  folder per volume, a retention period, and the space accounting that implies.
+- **An activity log.** Who downloaded what, when, from which share. The share
+  counters are already in the database; what is missing is the table, the
+  retention and the page. This is the feature that decides whether a deployment
+  can account for itself, and Filestash sells it at the top of its range.
+- **Two-factor on local accounts.** With OIDC the provider handles it. Without
+  — the simplest mode, and therefore the most common — a password is all that
+  stands in front of an entire filesystem. TOTP is a small amount of code for a
+  disproportionate gain.
+- **Space quotas.** Needed the moment personal folders are opened to people who
+  are not administrators. The recursive folder-size index already does the
+  counting; a quota is that count, a limit, and a refusal in the right place.
+- **An OpenAPI description.** The API reference is written by hand and every
+  example in it was run, which reads better than a generated one and consumes
+  worse: no generated client, nothing to explore. A description alongside the
+  page would give both.
+- **Tags.** The one I doubt. Both others have them and the FTS5 index could
+  carry them for nothing, but a tag is only worth what people put into it, and
+  in a tool whose files arrive by rsync or a network share, nobody puts any.
+  Only if a real use asks for it.
+
+And three that should **not** be pursued, recorded so the question does not
+come back. Twenty storage protocols are Filestash's ground, built on a plugin
+architecture from its first day; chasing S3 and SharePoint would dilute what
+makes this useful — knowing one filesystem deeply — to arrive second somewhere
+already occupied. Embedded OCR was costed and set aside: 40–70 MB of model per
+language and one to five seconds a page. And removing the terminal to match
+Quantum's choice is their security position, not a norm; ours is switchable by
+variable, which is the right answer.
+
 ## Per-user rules for what opens with what
 
 Which application opens a file is fixed by the environment
@@ -167,6 +218,18 @@ Two things to decide before starting:
 
 ## Open, not scheduled
 
+- **Path resolution is synchronous.** `resolveSafePath` chases symbolic links
+  with `lstatSync` and `readlinkSync`, up to thirty-two hops, on every path a
+  request touches — and a bulk operation resolves one per selected item. On a
+  local disk that is microseconds; on the network mount most deployments point
+  at, each call is a round trip that blocks the only thread the server has,
+  and nothing else is served while it waits. Deliberately not changed during an
+  incident: it is the code that guarantees a request cannot leave the volume,
+  and it wants a quiet week and its own tests, not a hurried patch.
+- **The startup banner shows a commit behind.** `GIT_COMMIT` is passed as a
+  build argument and does not match the commit the image was built from, so a
+  banner naming a version that is not the running one makes diagnosis harder
+  exactly when diagnosis matters. Cosmetic, and it cost real confusion today.
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
   and deletes nothing. It needs a PAT with `delete:packages`. More pressing now
   that every push to `main` publishes images.
