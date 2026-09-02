@@ -28,6 +28,8 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { getVolumes } from '@/api';
 import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
+import { authRedirect } from '@/router/authRedirect';
+import { skipHomeDestination } from '@/router/skipHome';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -202,7 +204,6 @@ const folderPathFromRoute = (route) => {
 const isAncestorFolder = (candidate, current) =>
   Boolean(candidate && current && current.startsWith(`${candidate}/`));
 
-
 router.beforeEach(async (to, from) => {
   const folderScrollStore = useFolderScrollStore();
   const destinationPath = folderPathFromRoute(to);
@@ -260,44 +261,9 @@ router.beforeEach(async (to, from) => {
   }
 
   const isAuthRoute = Boolean(to.meta?.authScreen);
-  const targetRedirect = (fallback) => {
-    const candidate = typeof to.fullPath === 'string' ? to.fullPath : fallback;
-    if (!candidate || candidate.startsWith('/auth/')) {
-      return fallback;
-    }
-    return candidate;
-  };
 
-  if (auth.requiresSetup) {
-    if (!isAuthRoute || to.name !== 'auth-setup') {
-      const redirect = targetRedirect('/browse/');
-      return {
-        name: 'auth-setup',
-        ...(redirect ? { query: { redirect } } : {}),
-      };
-    }
-  } else if (!auth.isAuthenticated) {
-    if (!isAuthRoute) {
-      const redirect = targetRedirect('/browse/');
-      return {
-        name: 'auth-login',
-        ...(redirect ? { query: { redirect } } : {}),
-      };
-    }
-  }
-
-  if (to.name === 'auth-setup' && !auth.requiresSetup) {
-    const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : '/browse/';
-    if (auth.isAuthenticated) {
-      return { path: redirect };
-    }
-    return { name: 'auth-login', ...(redirect ? { query: { redirect } } : {}) };
-  }
-
-  if (to.name === 'auth-login' && auth.isAuthenticated) {
-    const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : '/browse/';
-    return { path: redirect };
-  }
+  const redirect = authRedirect(to, auth);
+  if (redirect) return redirect;
 
   // Ensure app settings are loaded for authenticated sessions.
   // This prevents deep-link refreshes (e.g. /browse/some/path) from leaving `appSettings.loaded`
@@ -313,32 +279,12 @@ router.beforeEach(async (to, from) => {
   // Optional UX: when configured, skip the home dashboard and
   // jump straight into the only available volume (single-volume setups).
   if (to.name === 'HomeView') {
-    const featuresStore = useFeaturesStore();
-
-    try {
-      await featuresStore.ensureLoaded();
-    } catch (_) {
-      // Ignore feature loading errors; fall back to normal home view.
-    }
-
-    // Check user preference first, then fall back to env var
-    const userSkipHome = appSettings.userSettings?.skipHome;
-    const shouldSkipHome =
-      userSkipHome !== null && userSkipHome !== undefined ? userSkipHome : featuresStore.skipHome;
-
-    if (shouldSkipHome) {
-      try {
-        const volumes = await getVolumes();
-        if (Array.isArray(volumes)) {
-          const first = volumes[0];
-          if (first && first.path) {
-            return { name: 'FolderView', params: { path: first.path } };
-          }
-        }
-      } catch (_) {
-        // Ignore volume loading errors; fall through to home view.
-      }
-    }
+    const destination = await skipHomeDestination({
+      appSettings,
+      featuresStore: useFeaturesStore(),
+      getVolumes,
+    });
+    if (destination) return destination;
   }
 
   // Enforce admin-only routes if flagged
