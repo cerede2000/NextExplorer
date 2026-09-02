@@ -154,9 +154,9 @@ const queueRefreshDirectory = (absolutePath) => {
 // normal size reads, this is deliberately authoritative and scans only the
 // requested subtree, updating every indexed descendant and its ancestors.
 router.post(
-  '/folder-size/refresh/*',
+  '/folder-size/refresh/{*splat}',
   asyncHandler(async (req, res) => {
-    const raw = req.params[0] || '';
+    const raw = (req.params.splat || []).join('/');
     const relativePath = normalizeRelativePath(raw);
     if (!relativePath) {
       throw new ValidationError('A folder path is required.');
@@ -204,9 +204,9 @@ router.post(
 // returned regardless of `canEnter`; `indexed:false` (not a 500) when the path
 // is not yet in the index.
 router.get(
-  '/folder-size/*',
+  '/folder-size/{*splat}',
   asyncHandler(async (req, res) => {
-    const raw = req.params[0] || '';
+    const raw = (req.params.splat || []).join('/');
     const context = { user: req.user, guestSession: req.guestSession };
     const { result, absolutePath } = await lookupFolderSize(context, raw);
     res.json(result);

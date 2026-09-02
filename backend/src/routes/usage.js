@@ -40,9 +40,9 @@ const getFilesystemUsage = async (root) => {
 };
 
 router.get(
-  '/usage/*',
+  '/usage/{*splat}',
   asyncHandler(async (req, res) => {
-    const raw = req.params[0] || '';
+    const raw = (req.params.splat || []).join('/');
     const inputRel = normalizeRelativePath(raw);
     const context = { user: req.user, guestSession: req.guestSession };
 

@@ -812,7 +812,7 @@ const resolveSharedFileTarget = async (
   { requireDownload = false, requireWrite = false, allowSharedFileName = false } = {}
 ) => {
   const shareToken = req.params.token;
-  const rawInnerPath = req.params[0] || '';
+  const rawInnerPath = (req.params.splat || []).join('/');
   let innerPath = '';
 
   try {
@@ -937,7 +937,7 @@ const handleDirectFileRequest = async (req, res) => {
  * Keep /file routes for existing external integrations.
  */
 router.get('/:token/file', asyncHandler(handleDirectFileRequest));
-router.get('/:token/file/*', asyncHandler(handleDirectFileRequest));
+router.get('/:token/file/{*splat}', asyncHandler(handleDirectFileRequest));
 
 const handleSharedEditorRequest = async (req, res) => {
   const target = await resolveSharedFileTarget(req, res, { allowSharedFileName: true });
@@ -965,7 +965,7 @@ const handleSharedEditorRequest = async (req, res) => {
  * GET /api/share/:token/editor/* - Read a shared text file.
  */
 router.get('/:token/editor', asyncHandler(handleSharedEditorRequest));
-router.get('/:token/editor/*', asyncHandler(handleSharedEditorRequest));
+router.get('/:token/editor/{*splat}', asyncHandler(handleSharedEditorRequest));
 
 const handleSharedEditorSaveRequest = async (req, res) => {
   const target = await resolveSharedFileTarget(req, res, {
@@ -997,7 +997,7 @@ const handleSharedEditorSaveRequest = async (req, res) => {
 };
 
 router.put('/:token/editor', asyncHandler(handleSharedEditorSaveRequest));
-router.put('/:token/editor/*', asyncHandler(handleSharedEditorSaveRequest));
+router.put('/:token/editor/{*splat}', asyncHandler(handleSharedEditorSaveRequest));
 
 /**
  * GET /api/share/:token/browse/* - Browse share contents
@@ -1014,10 +1014,10 @@ router.put('/:token/editor/*', asyncHandler(handleSharedEditorSaveRequest));
  * }
  */
 router.get(
-  '/:token/browse/*',
+  '/:token/browse/{*splat}',
   asyncHandler(async (req, res) => {
     const shareToken = req.params.token;
-    const innerPath = req.params[0] || '';
+    const innerPath = (req.params.splat || []).join('/');
 
     const logicalPath = innerPath ? `share/${shareToken}/${innerPath}` : `share/${shareToken}`;
 

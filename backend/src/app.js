@@ -76,6 +76,16 @@ const createApp = async (options = {}) => {
   // of paths outgrows the 100 kB Express allows by default.
   app.use(express.json({ limit: uploads.maxJsonBodyBytes }));
   app.use(express.urlencoded({ extended: true, limit: uploads.maxJsonBodyBytes }));
+
+  // Express 5 leaves `req.body` undefined when no parser above matched the
+  // request's content type, where Express 4 left an empty object. Every route
+  // in this application was written against the empty object — and the ones
+  // asking `'field' in req.body` do not fail politely, they throw a TypeError
+  // and answer 500 to a request whose only fault is a missing header.
+  app.use((req, _res, next) => {
+    if (req.body === undefined) req.body = {};
+    next();
+  });
   app.use(cookieParser());
   logger.debug('Mounted cookie parser middleware');
 

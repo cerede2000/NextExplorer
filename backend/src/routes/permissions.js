@@ -36,9 +36,9 @@ const ensureValidAccountName = (value, label) => {
  * Get file permissions, owner, and group information
  */
 router.get(
-  '/permissions/*',
+  '/permissions/{*splat}',
   asyncHandler(async (req, res) => {
-    const rawPath = req.params[0] || '';
+    const rawPath = (req.params.splat || []).join('/');
     const relativePath = normalizeRelativePath(rawPath);
 
     if (!relativePath) {
