@@ -150,6 +150,25 @@ describe('previewing a markdown document', () => {
     expect(section.style.containIntrinsicSize).toContain('auto');
   });
 
+  // A constant placeholder makes the scrollbar lurch every time a chunk is
+  // measured for real, because slabs grow as the document is read.
+  it('estimates each chunk from the source it came from', async () => {
+    const short = mountWith('# Title\n\nShort.');
+    await settleFully();
+    const shortEstimate = short.element.querySelector('section').style.containIntrinsicSize;
+
+    const long = mountWith(
+      Array.from({ length: 400 }, (unused, i) => `Paragraph ${i}. ${'Prose. '.repeat(10)}`).join(
+        '\n\n'
+      )
+    );
+    await settleFully();
+    const longEstimate = long.element.querySelector('section').style.containIntrinsicSize;
+
+    const pixels = (value) => Number.parseInt(String(value).replace(/\D+/g, ''), 10);
+    expect(pixels(longEstimate)).toBeGreaterThan(pixels(shortEstimate));
+  });
+
   it('refuses what the server said is beyond the preview', async () => {
     const store = useFeaturesStore();
     store.previewMaxRenderBytes = 1024;
@@ -244,5 +263,46 @@ describe('reading the document in slabs', () => {
     const link = wrapper.element.querySelector('a[href="https://example.com/manual"]');
     expect(link).toBeTruthy();
     expect(link.textContent).toBe('the manual');
+  });
+});
+
+/**
+ * Handing the browser back costs a frame whether five milliseconds went into
+ * the slab or twelve. One yield per slab over a large document is seconds of
+ * waiting that no amount of faster rendering removes, so the yield belongs to
+ * the budget rather than to the slab.
+ */
+describe('how often it hands the browser back', () => {
+  const manyKilobytes = Array.from(
+    { length: 4000 },
+    (unused, index) => `Paragraph ${index}. ${'Some ordinary sentence of prose. '.repeat(3)}`
+  ).join('\n\n');
+
+  it('does not yield between slabs that fit inside one frame', async () => {
+    // A clock that never advances: the budget is never spent, so nothing is
+    // owed to the browser however many slabs the document is cut into.
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+
+    const wrapper = mountWith(manyKilobytes);
+    await settle();
+
+    expect(frameCallbacks.length).toBe(0);
+    expect(wrapper.text()).toContain('Paragraph 3999.');
+  });
+
+  it('yields once the budget is spent', async () => {
+    // Every reading is a frame later, so the budget is spent on every slab.
+    let clock = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => {
+      clock += 20;
+      return clock;
+    });
+
+    const wrapper = mountWith(manyKilobytes);
+    await settle();
+
+    expect(frameCallbacks.length).toBeGreaterThan(0);
+    await runFrames();
+    expect(wrapper.text()).toContain('Paragraph 3999.');
   });
 });

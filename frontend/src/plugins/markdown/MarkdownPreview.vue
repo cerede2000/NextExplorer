@@ -1,6 +1,6 @@
 <!-- MarkdownPreview.vue -->
 <template>
-  <div class="flex h-full flex-col overflow-y-auto">
+  <div class="relative flex h-full flex-col">
     <div
       v-if="error"
       class="p-6 text-sm text-red-600 dark:text-red-400"
@@ -9,9 +9,14 @@
       {{ error }}
     </div>
     <template v-else>
+      <!--
+        Outside the scrolling container on purpose. Sticky inside one means the
+        browser reworks its position every time the content grows, and the
+        content grows a few hundred times while a large document is read.
+      -->
       <div
         v-if="rendering"
-        class="sticky top-0 z-10 flex items-center gap-2 border-b border-neutral-200 bg-white/90 px-6 py-2 text-xs text-neutral-500 backdrop-blur dark:border-neutral-800 dark:bg-zinc-900/90 dark:text-neutral-400"
+        class="absolute inset-x-0 top-0 z-10 flex items-center gap-2 border-b border-neutral-200 bg-white/90 px-6 py-2 text-xs text-neutral-500 backdrop-blur dark:border-neutral-800 dark:bg-zinc-900/90 dark:text-neutral-400"
         data-testid="markdown-preview-progress"
       >
         <span
@@ -19,10 +24,12 @@
         />
         {{ $t('preview.stillRendering', { percent: renderedPercent }) }}
       </div>
-      <article
-        ref="container"
-        class="markdown-preview prose prose-slate dark:prose-invert mx-auto w-full max-w-3xl flex-1 px-6 py-8"
-      />
+      <div class="flex-1 overflow-y-auto">
+        <article
+          ref="container"
+          class="markdown-preview prose prose-slate dark:prose-invert mx-auto w-full max-w-3xl px-6 py-8"
+        />
+      </div>
     </template>
   </div>
 </template>
@@ -94,6 +101,12 @@ const maxPreviewBytes = computed(() =>
  *   once the whole document exists. Unlike hiding them, the text stays
  *   findable: Ctrl+F still crosses the whole document, which is the reason
  *   this is not virtualised.
+ * - **One yield per frame's worth of work, not one per slab.** Handing the
+ *   browser back costs a frame whether five milliseconds went into the slab or
+ *   twelve, so a yield after each of two hundred and seventy-eight slabs is
+ *   four and a half seconds of waiting that no amount of faster rendering
+ *   removes. Slabs are rendered until the budget is spent, and the frame is
+ *   given back once.
  */
 const FRAME_BUDGET_MS = 12;
 const INITIAL_SLAB_BYTES = 64 * 1024;
@@ -164,14 +177,26 @@ onBeforeUnmount(() => {
   cancelled = true;
 });
 
-/** One chunk of rendered markdown, and the hint that lets it be skipped. */
-const appendChunk = (fragment) => {
+/**
+ * One chunk of rendered markdown, and the hints that let it be skipped.
+ *
+ * The placeholder height is estimated from the source it came from rather than
+ * fixed, because slabs grow as the document is read and a constant would have
+ * a half-megabyte chunk and a sixty-four kilobyte one claim the same space —
+ * the scrollbar then lurches every time one of them is measured for real.
+ * Roughly ninety characters to a line and twenty-four pixels to a line is
+ * crude, and still an order of magnitude closer than one number for all.
+ */
+const CHARACTERS_PER_LINE = 90;
+const PIXELS_PER_LINE = 24;
+
+const appendChunk = (fragment, sourceLength) => {
   const section = document.createElement('section');
-  // `auto` rather than a fixed height: the browser remembers what a chunk
-  // measured once it has been on screen, so the scrollbar stops shifting under
-  // the reader after the first pass over it.
+  const estimate = Math.max(200, Math.round((sourceLength / CHARACTERS_PER_LINE) * PIXELS_PER_LINE));
   section.style.contentVisibility = 'auto';
-  section.style.containIntrinsicSize = 'auto 600px';
+  // `auto` first: once a chunk has been on screen the browser remembers what
+  // it really measured and stops using the estimate at all.
+  section.style.containIntrinsicSize = `auto ${estimate}px`;
   section.appendChild(fragment);
   container.value?.appendChild(section);
 };
@@ -208,6 +233,8 @@ onMounted(async () => {
     let index = 0;
     let slabBytes = INITIAL_SLAB_BYTES;
 
+    let sliceStartedAt = Date.now();
+
     while (index < total) {
       if (cancelled) return;
 
@@ -225,19 +252,28 @@ onMounted(async () => {
         RETURN_DOM_FRAGMENT: true,
       });
       if (cancelled) return;
-      appendChunk(fragment);
+      appendChunk(fragment, slab.length);
       const took = Date.now() - startedAt;
 
       index = end;
-      renderedPercent.value = Math.round((index / total) * 100);
 
       // What the last slab cost decides the next one's size.
       if (took < FRAME_BUDGET_MS / 2) slabBytes = Math.min(slabBytes * 2, MAX_SLAB_BYTES);
       else if (took > FRAME_BUDGET_MS) slabBytes = Math.max(Math.floor(slabBytes / 2), MIN_SLAB_BYTES);
 
-      // eslint-disable-next-line no-await-in-loop
-      if (index < total) await yieldToBrowser();
+      if (index < total && Date.now() - sliceStartedAt >= FRAME_BUDGET_MS) {
+        // The percentage is written here rather than after every slab: it is a
+        // reactive value on a sticky element inside the scrolling container,
+        // and asking for it to be redrawn while the container is growing is
+        // asking the browser to lay the whole thing out again.
+        renderedPercent.value = Math.round((index / total) * 100);
+        // eslint-disable-next-line no-await-in-loop
+        await yieldToBrowser();
+        sliceStartedAt = Date.now();
+      }
     }
+
+    renderedPercent.value = 100;
   } catch (err) {
     console.error('Markdown preview failed:', err);
     error.value = err?.message || 'Unable to render markdown preview.';
