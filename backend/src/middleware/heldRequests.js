@@ -17,7 +17,21 @@ const logger = require('../utils/logger');
  * One timer per request, cleared when the response ends, and a ceiling on how
  * many are reported: a diagnostic for a stuck server must not become the
  * loudest thing in its log.
+ *
+ * A request a route means to hold is not a symptom of anything, and reporting
+ * it is worse than useless here: an open editor long-polls every thirty
+ * seconds, which is enough to spend the whole ceiling in five minutes and
+ * leave the instrument silent for the rest of the process's life — the noise
+ * would not merely clutter, it would switch the thing off. A route that holds
+ * a request on purpose says so with `markLongPoll`.
  */
+
+const LONG_POLL = Symbol('longPollingRequest');
+
+/** Called by a route that means to hold the request open. */
+const markLongPoll = (req) => {
+  if (req) req[LONG_POLL] = true;
+};
 
 const HELD_AFTER_MS = 5000;
 const MAX_REPORTED = 10;
@@ -39,6 +53,7 @@ const createHeldRequestLogger = ({
     let warned = false;
 
     const timer = setTimeout(() => {
+      if (req[LONG_POLL]) return;
       if (reported >= maxReported) return;
       reported += 1;
       warned = true;
@@ -79,4 +94,4 @@ const createHeldRequestLogger = ({
 
 const heldRequestLogger = createHeldRequestLogger();
 
-module.exports = { heldRequestLogger, createHeldRequestLogger, HELD_AFTER_MS };
+module.exports = { heldRequestLogger, createHeldRequestLogger, markLongPoll, HELD_AFTER_MS };

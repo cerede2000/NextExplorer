@@ -8,7 +8,7 @@ import request from 'supertest';
  * container dead with no more to go on than anyone reading afterwards had.
  */
 const logger = require('../../src/utils/logger');
-const { createHeldRequestLogger } = require('../../src/middleware/heldRequests');
+const { createHeldRequestLogger, markLongPoll } = require('../../src/middleware/heldRequests');
 
 // The real logger with its `warn` watched. What this middleware writes is the
 // entire point of it, so a stand-in that never sees the real call would be
@@ -61,6 +61,31 @@ describe('reporting a request that is held', () => {
       expect.objectContaining({ path: '/slow', statusCode: 200 }),
       'A held request finally answered'
     );
+  });
+
+  /**
+   * An open editor long-polls every thirty seconds and is answered after
+   * twenty-five. Reporting that is not merely noise: at ten reports it spends
+   * the whole ceiling in five minutes and leaves the instrument silent for the
+   * rest of the process's life — the noise would switch the thing off.
+   */
+  it('says nothing about a request a route means to hold', async () => {
+    const app = express();
+    app.use(createHeldRequestLogger({ heldAfterMs: 20 }));
+    app.get('/poll', (req, res) => {
+      markLongPoll(req);
+      setTimeout(() => res.status(200).json({ ok: true }), 120);
+    });
+
+    await request(app).get('/poll');
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('still reports one that nobody meant to hold', async () => {
+    await request(appHolding(120)).get('/slow');
+
+    expect(warn).toHaveBeenCalled();
   });
 
   // A diagnostic for a stuck server must not become the loudest thing in its

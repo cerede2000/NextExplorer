@@ -27,6 +27,7 @@ const onlyofficeActivity = require('../services/onlyofficeActivityService');
 const documentKeys = require('../services/onlyofficeDocumentKeyService');
 
 const editorSessions = require('../services/onlyofficeEditorSessionService');
+const { markLongPoll } = require('../middleware/heldRequests');
 
 const router = express.Router();
 // In-flight force-save requests only: these are meaningless once the process
@@ -883,6 +884,10 @@ router.post(
 router.get(
   '/onlyoffice/activity-version',
   asyncHandler(async (req, res) => {
+    // Held open for up to twenty-five seconds on purpose: this is how an open
+    // editor learns that someone else joined without polling every second.
+    markLongPoll(req);
+
     const parsedSince = Number(req.query?.since);
     const since = Number.isInteger(parsedSince) ? parsedSince : null;
     const controller = new AbortController();
