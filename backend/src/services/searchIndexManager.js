@@ -135,13 +135,20 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
     // it only appears when there is a disagreement to explain.
     if (result.rereadSamples?.length) {
       logger.info(
-        { reindexedKnown: result.reindexedKnown, samples: result.rereadSamples, reason },
+        {
+          reindexedKnown: result.reindexedKnown,
+          byField: result.rereadByField,
+          topMtimeDeltas: result.topMtimeDeltas,
+          topFolders: result.topRereadDirs,
+          samples: result.rereadSamples,
+          reason,
+        },
         'Search index re-read files it already knew; here is what disagreed'
       );
     }
 
     // eslint-disable-next-line no-unused-vars
-    const { rereadSamples: _samples, ...summary } = result;
+    const { rereadSamples: _s, topMtimeDeltas: _d, topRereadDirs: _f, ...summary } = result;
 
     logger.info(
       {

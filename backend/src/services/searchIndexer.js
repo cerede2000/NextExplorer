@@ -204,11 +204,39 @@ const indexTree = async ({
    */
   const scratch = Buffer.allocUnsafe(MAX_TEXT_PER_DOCUMENT);
 
-  // Files re-read although the index already knew them, and a handful of the
-  // disagreements themselves.
-  const MAX_REREAD_SAMPLES = 5;
+  /**
+   * Files re-read although the index already knew them.
+   *
+   * A count alone cannot tell a volume that really is that active from a skip
+   * check its storage answers differently each time, so three shapes of the
+   * same fact are kept: which field moved, by how much, and where. A constant
+   * offset in the dates, one noisy folder, or genuine activity spread over the
+   * whole tree each look completely different in those three, and identical in
+   * a total.
+   *
+   * All three are bounded. This is a diagnostic on a volume with six hundred
+   * thousand documents in it; it does not get to be the thing that runs the
+   * machine out of memory.
+   */
+  const MAX_REREAD_SAMPLES = 10;
+  const MAX_TRACKED_KEYS = 500;
   const rereadSamples = [];
+  const rereadByField = { mtime: 0, size: 0, both: 0 };
+  const deltaCounts = new Map();
+  const dirCounts = new Map();
   let reindexedKnown = 0;
+
+  const countCapped = (map, key) => {
+    const seenKey = map.get(key);
+    if (seenKey !== undefined) map.set(key, seenKey + 1);
+    else if (map.size < MAX_TRACKED_KEYS) map.set(key, 1);
+  };
+
+  const topOf = (map, limit = 5) =>
+    [...map.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, limit)
+      .map(([value, count]) => ({ value, count }));
 
   let removed = 0;
   const forgetPaths = db.transaction((paths) => {
@@ -389,23 +417,29 @@ const indexTree = async ({
       // two look identical from a count, so the first few disagreements are
       // reported in full: what was stored, what the disk says now, and which
       // of the two fields differs.
-      if (known && rereadSamples.length < MAX_REREAD_SAMPLES) {
-        rereadSamples.push({
-          path: relativePath,
-          storedMtimeMs: known.mtimeMs,
-          diskMtimeMs: Math.floor(stats.mtimeMs),
-          mtimeDeltaMs: Math.floor(stats.mtimeMs) - known.mtimeMs,
-          storedSize: known.size,
-          diskSize: stats.size,
-          differs:
-            known.mtimeMs !== Math.floor(stats.mtimeMs)
-              ? known.size !== stats.size
-                ? 'both'
-                : 'mtime'
-              : 'size',
-        });
+      if (known) {
+        const diskMtimeMs = Math.floor(stats.mtimeMs);
+        const mtimeMoved = known.mtimeMs !== diskMtimeMs;
+        const sizeMoved = known.size !== stats.size;
+        const differs = mtimeMoved ? (sizeMoved ? 'both' : 'mtime') : 'size';
+
+        reindexedKnown += 1;
+        rereadByField[differs] += 1;
+        if (mtimeMoved) countCapped(deltaCounts, diskMtimeMs - known.mtimeMs);
+        countCapped(dirCounts, dirRel || '/');
+
+        if (rereadSamples.length < MAX_REREAD_SAMPLES) {
+          rereadSamples.push({
+            path: relativePath,
+            storedMtimeMs: known.mtimeMs,
+            diskMtimeMs,
+            mtimeDeltaMs: diskMtimeMs - known.mtimeMs,
+            storedSize: known.size,
+            diskSize: stats.size,
+            differs,
+          });
+        }
       }
-      if (known) reindexedKnown += 1;
 
       // eslint-disable-next-line no-await-in-loop
       const text = await readIndexableText(absolutePath, stats.size, scratch);
@@ -476,6 +510,9 @@ const indexTree = async ({
     interrupted,
     stoppedForMemory,
     reindexedKnown,
+    rereadByField,
+    topMtimeDeltas: topOf(deltaCounts),
+    topRereadDirs: topOf(dirCounts),
     rereadSamples,
     ...cost(),
   };
