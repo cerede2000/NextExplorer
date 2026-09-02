@@ -60,14 +60,19 @@ const buildApp = () => {
 };
 
 describe('what may have a thumbnail', () => {
-  it('answers for an image', async () => {
+  /**
+   * Accepted, not refused. What comes back depends on whether generation has
+   * finished — 200 with a URL, or 202 with nothing to point at yet — so
+   * asserting the shape here made the test fail on a slow runner and pass on
+   * mine. The URL is checked by the test below, which waits for it.
+   */
+  it('accepts an image rather than refusing it', async () => {
     const volume = await seed();
     await writeImage(volume, 'Photos/one.png');
 
     const response = await request(buildApp()).get('/api/thumbnails/Photos/one.png');
 
     expect([200, 202]).toContain(response.status);
-    expect(typeof response.body.thumbnail).toBe('string');
   });
 
   /**
