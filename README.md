@@ -63,7 +63,7 @@ expecting an old tag to still be there.
 - Fast previews: images, videos, PDFs, thumbnails (FFmpeg), and inline players.
 - Built-in editor: edit text/code with syntax highlighting (extensible via `EDITOR_EXTENSIONS`).
 - Sharing workflows: link-based sharing (read-only/read-write), guest access, “Shared with me”.
-- Smart search: ripgrep-backed filename + content search with tunable limits.
+- Smart search: ripgrep-backed filename + content search with tunable limits, filename patterns (`*.ps1`), and an optional full-text index that reads Office documents and PDFs.
 - Modern UX: grid/list/column views, drag-and-drop, context menus, keyboard shortcuts.
 - Docker-native: single image, mount volumes under `/mnt`, reverse-proxy friendly via `PUBLIC_URL`.
 
@@ -162,6 +162,9 @@ services:
       # SEARCH_DEEP: "false" # Enables deep content search (ripgrep used when `SEARCH_RIPGREP=true`).
       # SEARCH_RIPGREP: "true" # Prefer ripgrep for fast searches; fallback search used when unavailable.
       # SEARCH_MAX_FILESIZE: "" # Skip files larger than this when searching contents (e.g., `5MB`, `5M`).
+      # SEARCH_INDEX: "false" # Answer content searches from a full-text index instead of reading the volume every time.
+      # SEARCH_INDEX_CPU_PERCENT: "25" # Share of one core the background indexing pass may take.
+      # SEARCH_INDEX_EXCLUDE: "" # Folders search leaves alone, comma separated, relative to the volume root.
       # SHOW_VOLUME_USAGE: "false" # Show volume usage badges in the sidebar.
       # USER_DIR_ENABLED: "false" # Enables per-user “My Files” spaces under `USER_ROOT`.
       # USER_VOLUMES: "false" # Restrict non-admin users to only volumes assigned by an admin.

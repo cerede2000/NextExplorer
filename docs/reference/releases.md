@@ -6,6 +6,156 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.2.0 (2026-09-02)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.2.0)
+
+### Search answers from an index, and the volume is left alone
+
+Every search used to read the volume. On a large one that is minutes of disk
+for a question asked in a second, so `SEARCH_DEEP` was the setting people
+turned off and then stopped expecting search to find anything.
+
+`SEARCH_INDEX=true` keeps a full-text index of the documents instead. It is
+built by a background pass that takes the share of one core you give it
+(`SEARCH_INDEX_CPU_PERCENT`, a quarter by default), skips everything it has
+already read, and stops when the server is asked to stop. Searches outside the
+volume root — personal folders, assigned volumes — go on reading as they
+always did.
+
+Half an index does not answer a whole search: until a pass has run to the end,
+searches read the tree the old way. An index that answered early would report
+that a file found yesterday no longer exists, which is worse than a slow answer
+and much harder to explain.
+
+### Filename patterns
+
+`*` and `?` in a search term now match filenames rather than text. `*.ps1`
+finds the scripts; `conf?g.json` finds either spelling; `Stacks/*/logs/*.log`
+reaches across folders. The pattern is matched against the whole name, so
+`*.ps1` does not return `deploy.ps1.bak`.
+
+A pattern names a shape, and no file contains the characters `*.ps1`, so
+nothing is read inside files to answer one. Before this, `*.ps1` searched the
+volume for that literal string: it returned the files that mention the pattern
+in their text, took the whole time budget doing it, and returned none of the
+scripts.
+
+### Searching inside Office documents and PDFs
+
+A `.docx` is a zip of XML and a PDF keeps its words in compressed streams, so a
+plain content search finds nothing in either. Their text is extracted and
+searched — including a word an author emphasised halfway through, which Word
+stores in pieces. A scanned PDF is a picture of a page and stays unsearchable;
+that needs OCR.
+
+### A search answers when it is done, and the newest one wins
+
+Three things were making the search box feel unreliable.
+
+A search waited out its whole five-second budget on a reserve it was holding
+for content matches, even when every source of them had already been exhausted.
+A budget is a ceiling, and it had become the normal duration.
+
+When the budget did end a search, cleanup ran before the answer: resuming every
+source at whatever it was in the middle of took six more seconds on a busy
+tree, so a search bounded at five answered in eleven. The bound had not been
+raised — the wait had moved past it.
+
+And typing sends one search per pause. Nothing said which answer belonged to
+which question, so the panel showed whichever came back last: a list of `.doc`
+files under a box reading `*.docx`. Only the newest search may write to the
+panel now, superseding one aborts it, and a search whose reader has gone away
+stops instead of running to the end for nobody.
+
+### Folders search leaves alone
+
+`SEARCH_INDEX_EXCLUDE`, and a matching list in **Settings → Search index**,
+name folders search does not walk into — a Docker overlay, a build tree, a mail
+spool. Hundreds of thousands of files nobody searches, and reading them is the
+whole overhead.
+
+The list is obeyed by the whole of search now, not only by the index. While
+only the index obeyed it, a filename search still enumerated the excluded tree
+and could not finish inside its budget: the same `*.xlsx` came back truncated
+at 58 matches, then at 57. One question, two answers, cut at a different point
+each time.
+
+Standing inside an excluded folder and searching there still works: the list
+keeps the crawl out of a corner, it does not make the corner unreadable to
+someone who navigated into it.
+
+### The index no longer takes the machine it was borrowing
+
+A first pass over a large volume grew to ten gigabytes and drove a host into
+swap.
+
+Every document was indexed through a statement prepared for it and never
+finalised. That memory is native, invisible to the heap, and it was three and a
+half kilobytes a document — over a gigabyte at three hundred thousand files.
+Each pass also allocated a buffer per document and carried a set of every path
+it had seen, fifty megabytes at two hundred thousand paths. The statements are
+cached now, one buffer is reused for the whole pass, and what a folder holds is
+asked of the database instead of remembered.
+
+The pacing was measured wrong on top of that: a fixed pause after each document
+paces cheap documents and not expensive ones, so the load was whatever the
+files happened to be — a hundred and seventy-five percent of a core at its
+worst. A pass now works for a slice of time and stands aside for the rest, so
+the share you asked for is the share you get.
+
+When a pass does approach the container's memory limit it stops and picks up a
+couple of minutes later, rather than for an hour. It reads the limit the
+container actually enforces instead of guessing from the process.
+
+### Large Markdown opens instead of freezing the tab
+
+A six-megabyte Markdown file could be opened in the editor and not in the
+preview: the preview parsed and rendered the whole document in one stretch,
+which is a frozen tab for as long as it takes.
+
+It is read in slabs sized from what the last one cost, handing the browser back
+between them, so the document appears immediately and fills in behind. Slabs
+are cut between blocks, never inside a fenced code block, and link definitions
+travel with each slab because Markdown resolves them while lexing. Chunks off
+screen are skipped for layout and paint but stay in the document, so Ctrl+F
+still crosses all of it. `PREVIEW_MAX_RENDER_SIZE` sets the ceiling.
+
+### A search result opens the folder on the file
+
+Clicking a result opened the folder containing the file and left the list at
+the top, so a file below the fold looked like nothing had been found. The row
+is scrolled to a third of the way down the viewport — what sits above a file is
+the context of where it lives.
+
+### The health check answers, and says why when it does not
+
+`/healthz` sat behind the session store and the identity provider. A container
+whose provider was slow to answer was reported unhealthy for a reason that had
+nothing to do with whether it was serving. The health routes are mounted before
+any of that now.
+
+The check itself reported a bare failure; it now says which of a timeout, a
+refused connection, or a non-200 answer it saw. A request that is accepted and
+never answered is reported with its path and how long it has been held, so a
+hang can be told apart from a slow identity provider — and a long-poll a route
+means to hold is not reported at all.
+
+### Under the hood
+
+Path containment — the checks that keep a request inside the volume it is
+allowed in — stopped the event loop to do its work: `lstat`, `readlink` and
+`realpath` were synchronous, and every request pays for them. They are
+asynchronous now, and the containment is unchanged.
+
+A pass over code nothing calls removed twenty-one dead functions, fifty-four
+unused exports and three hundred and thirty-eight translation strings for text
+no longer on screen. Two services that were eighty-two percent the same file —
+folder-size exclusions and search-index exclusions — are one factory and two
+fifteen-line callers.
+
+**Full Changelog**: https://github.com/cerede2000/NextExplorer/compare/v3.1.2...v3.2.0
+
 ## v3.1.2 (2026-09-01)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.1.2)

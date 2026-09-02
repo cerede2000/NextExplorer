@@ -32,6 +32,8 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 - Click the search icon in the toolbar, type a query, and press Enter.
 - Search covers filenames and file contents thanks to ripgrep; disable deep search with `SEARCH_DEEP=false` if you want faster scans.
 - Large files respect `SEARCH_MAX_FILESIZE`; if ripgrep isn’t available, the app falls back to a built-in indexer that still searches filenames.
+- Type `*` or `?` to search by filename shape rather than by text: `*.ps1` for the scripts, `*.xlsx` for the spreadsheets. A pattern is matched against the whole name, so `*.ps1` does not return `deploy.ps1.bak`.
+- With `SEARCH_INDEX` on, content searches are answered from the index rather than by reading the volume, and a search names any folder it did not have time to finish looking through.
 
 ## Previews & editing
 

@@ -30,7 +30,6 @@ export const onlyofficePreviewPlugin = (extensions) => ({
     const ext = String(context.extension || '').toLowerCase();
     const list = Array.isArray(extensions) && extensions.length > 0 ? extensions : DEFAULT_EXTS;
 
-    //console.log('ONLYOFFICE checking extension:', ext, list);
     if (!list.includes(ext)) return false;
 
     const featuresStore = useFeaturesStore();
