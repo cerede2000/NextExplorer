@@ -19,11 +19,16 @@ const SEARCH_INDEX_DDL = `
   CREATE TABLE IF NOT EXISTS search_documents (
     id INTEGER PRIMARY KEY,
     path TEXT NOT NULL UNIQUE,
+    dir TEXT NOT NULL DEFAULT '',
     mtime_ms INTEGER NOT NULL,
     size INTEGER NOT NULL,
     indexed_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_search_documents_path ON search_documents(path);
+  -- Asking what a folder holds has to be a lookup rather than a scan: it is
+  -- what lets a pass forget a directory as soon as it leaves it, instead of
+  -- carrying every path it has ever seen to the end.
+  CREATE INDEX IF NOT EXISTS idx_search_documents_dir ON search_documents(dir);
 
   CREATE VIRTUAL TABLE IF NOT EXISTS search_terms
     USING fts5(text, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2');
@@ -72,6 +77,11 @@ const isUpToDate = (indexed, { mtimeMs, size }) =>
  * Put a document's words in the index, replacing whatever was there.
  * Both tables move together or not at all.
  */
+const parentOf = (documentPath) => {
+  const at = documentPath.lastIndexOf('/');
+  return at === -1 ? '' : documentPath.slice(0, at);
+};
+
 const upsertDocument = (db, { path, mtimeMs, size, text }) => {
   const now = new Date().toISOString();
   const existing = getIndexedDocument(db, path);
@@ -80,16 +90,16 @@ const upsertDocument = (db, { path, mtimeMs, size, text }) => {
     prep(db, 'DELETE FROM search_terms WHERE rowid = ?').run(existing.id);
     prep(
       db,
-      'UPDATE search_documents SET mtime_ms = ?, size = ?, indexed_at = ? WHERE id = ?'
-    ).run(Math.floor(mtimeMs), size, now, existing.id);
+      'UPDATE search_documents SET dir = ?, mtime_ms = ?, size = ?, indexed_at = ? WHERE id = ?'
+    ).run(parentOf(path), Math.floor(mtimeMs), size, now, existing.id);
     prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(existing.id, text);
     return existing.id;
   }
 
   const result = prep(
     db,
-    'INSERT INTO search_documents (path, mtime_ms, size, indexed_at) VALUES (?, ?, ?, ?)'
-  ).run(path, Math.floor(mtimeMs), size, now);
+    'INSERT INTO search_documents (path, dir, mtime_ms, size, indexed_at) VALUES (?, ?, ?, ?, ?)'
+  ).run(path, parentOf(path), Math.floor(mtimeMs), size, now);
   prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(
     result.lastInsertRowid,
     text
@@ -130,14 +140,27 @@ const movePath = (db, fromPath, toPath) => {
   const moved = prep(
     db,
     `UPDATE search_documents
-       SET path = ? || substr(path, ?)
+       SET path = ? || substr(path, ?),
+           dir = rtrim(? || substr(path, ?), replace(? || substr(path, ?), rtrim(? || substr(path, ?), replace(? || substr(path, ?), '/', '')), ''))
        WHERE path LIKE ? ESCAPE '\\'`
-  ).run(toPath, fromPath.length + 1, like);
-
-  const movedSelf = prep(db, 'UPDATE search_documents SET path = ? WHERE path = ?').run(
+  ).run(
     toPath,
-    fromPath
+    fromPath.length + 1,
+    toPath,
+    fromPath.length + 1,
+    toPath,
+    fromPath.length + 1,
+    toPath,
+    fromPath.length + 1,
+    toPath,
+    fromPath.length + 1,
+    like
   );
+
+  const movedSelf = prep(
+    db,
+    'UPDATE search_documents SET path = ?, dir = ? WHERE path = ?'
+  ).run(toPath, parentOf(toPath), fromPath);
 
   return moved.changes + movedSelf.changes;
 };
@@ -171,6 +194,22 @@ const search = (db, term, limit = 100) => {
 };
 
 /**
+ * What a folder holds, by name, and nothing about what is under it.
+ *
+ * This is the query that replaced carrying every path seen so far in memory:
+ * fifty megabytes for two hundred thousand files, held from the first
+ * directory to the last, on a container whose whole working set is sixty.
+ */
+const listDirectoryPaths = (db, dir) =>
+  prep(db, 'SELECT path FROM search_documents WHERE dir = ?')
+    .pluck()
+    .all(dir);
+
+/** Every folder the index has something in. Streamed, never materialised. */
+const iterateIndexedDirectories = (db) =>
+  prep(db, 'SELECT DISTINCT dir FROM search_documents ORDER BY dir').pluck().iterate();
+
+/**
  * Whether the index has ever been finished.
  *
  * It matters because the index does not supplement the live content search, it
@@ -197,6 +236,18 @@ const isReady = (db) => {
   }
 };
 
+/**
+ * Throw the whole index away.
+ *
+ * Safe at any time: every row in it was read from a file that is still there,
+ * so the only cost of being wrong about needing this is one pass.
+ */
+const clear = (db) => {
+  db.exec('DELETE FROM search_terms');
+  db.exec('DELETE FROM search_documents');
+  prep(db, 'DELETE FROM meta WHERE key = ?').run(READY_KEY);
+};
+
 /** How much is in there, for the diagnostics page and for tests. */
 const stats = (db) => {
   const row = prep(db, 'SELECT COUNT(*) AS documents FROM search_documents').get();
@@ -214,6 +265,9 @@ module.exports = {
   movePath,
   search,
   stats,
+  clear,
+  listDirectoryPaths,
+  iterateIndexedDirectories,
   markPassComplete,
   isReady,
 };

@@ -498,3 +498,59 @@ describe('how much runs at once', () => {
     expect(status.dropped).toBeGreaterThan(0);
   });
 });
+
+/**
+ * A pass used to carry every path it had seen to the end, so it could work out
+ * what had gone. Fifty megabytes for two hundred thousand files, held from the
+ * first folder to the last, on a container whose whole working set is sixty.
+ * It asks the index what a folder held instead, and forgets the folder as soon
+ * as it leaves it.
+ */
+describe('forgetting what is gone', () => {
+  beforeEach(async () => {
+    await build();
+    await fs.mkdir(volumePath('Docs', 'Notes'), { recursive: true });
+    await fs.writeFile(volumePath('Docs', 'Notes', 'one.txt'), 'pangolin one\n');
+    await fs.writeFile(volumePath('Docs', 'Notes', 'two.txt'), 'pangolin two\n');
+    await fs.writeFile(volumePath('Docs', 'kept.txt'), 'pangolin kept\n');
+    await indexAll();
+  });
+
+  it('forgets a file that was removed from a folder', async () => {
+    await fs.rm(volumePath('Docs', 'Notes', 'one.txt'));
+
+    const result = await indexAll();
+
+    expect(result.removed).toBe(1);
+    expect(store.search(db, 'pangolin').sort()).toEqual(['Docs/Notes/two.txt', 'Docs/kept.txt']);
+  });
+
+  // Nothing walks a folder that is not there, so nothing asks what it held.
+  it('forgets a folder that was removed outright', async () => {
+    await fs.rm(volumePath('Docs', 'Notes'), { recursive: true });
+
+    const result = await indexAll();
+
+    expect(result.removed).toBe(2);
+    expect(store.search(db, 'pangolin')).toEqual(['Docs/kept.txt']);
+  });
+
+  // A folder that was listed in full is a folder whose absences are known,
+  // whatever happens to the pass afterwards.
+  it('keeps the deletions it was sure of when it is cut short', async () => {
+    await fs.rm(volumePath('Docs', 'Notes', 'one.txt'));
+    for (let index = 0; index < 60; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', `filler-${index}.txt`), `pangolin ${index}\n`);
+    }
+
+    const controller = new AbortController();
+    const running = indexAll({ signal: controller.signal, cpuPercent: 1, workSliceMs: 1 });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    controller.abort();
+    const result = await running;
+
+    expect(result.interrupted).toBe(true);
+    expect(store.search(db, 'pangolin')).not.toContain('Docs/Notes/one.txt');
+  });
+});

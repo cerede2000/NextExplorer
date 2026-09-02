@@ -138,6 +138,7 @@ module.exports = {
   SEARCH_INDEX_CPU_PERCENT: Number(process.env.SEARCH_INDEX_CPU_PERCENT) || null,
   SEARCH_INDEX_MEMORY_MB: Number(process.env.SEARCH_INDEX_MEMORY_MB) || null,
   SEARCH_INDEX_EXCLUDE: process.env.SEARCH_INDEX_EXCLUDE?.trim() || null,
+  SEARCH_INDEX_REBUILD: normalizeBoolean(process.env.SEARCH_INDEX_REBUILD) ?? false,
   SEARCH_INDEX_RECONCILE_MS: Number(process.env.SEARCH_INDEX_RECONCILE_MS) || null,
 
   // OnlyOffice

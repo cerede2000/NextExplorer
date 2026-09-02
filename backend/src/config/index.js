@@ -643,6 +643,10 @@ module.exports = {
       // Off unless asked for: an index is a promise to keep something up to
       // date, and that is a decision rather than a default.
       enabled: env.SEARCH_INDEX === true,
+      // Throw the index away at startup and read everything again. For when
+      // the index is suspected rather than trusted: it is derived data, so
+      // there is nothing in it that the files themselves do not say.
+      rebuild: env.SEARCH_INDEX_REBUILD === true,
       // How many documents share one transaction. Small on purpose: a long
       // transaction is a long stretch of the only thread the server has.
       batch:

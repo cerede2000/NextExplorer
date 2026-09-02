@@ -101,8 +101,11 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
       cpuPercent: searchConfig.index.cpuPercent,
       memoryBudgetBytes: searchConfig.index.memoryBudgetBytes,
       exclude: searchConfig.index.exclude,
-      onProgress: ({ indexed, skipped, addedMb }) => {
-        logger.info({ indexed, skipped, addedMb, reason }, 'Search index still building');
+      onProgress: ({ indexed, skipped, addedMb, rssMb, cpuPercent, cpuMs, pauses }) => {
+        logger.info(
+          { indexed, skipped, addedMb, rssMb, cpuPercent, cpuMs, pauses, reason },
+          'Search index still building'
+        );
       },
     });
 
@@ -135,6 +138,20 @@ const start = () => {
   if (!enabled() || timer) return;
 
   stopped = false;
+
+  if (searchConfig.index.rebuild) {
+    // Deliberately before the first pass, so the rebuild is the pass rather
+    // than a second one after it.
+    enqueue(async () => {
+      const db = await getDb();
+      store.clear(db);
+      logger.warn(
+        'SEARCH_INDEX_REBUILD is set: the search index was emptied and will be read again ' +
+          'from the files. Unset it once the rebuild has finished, or it happens every start.'
+      );
+    });
+  }
+
   // Deliberately not awaited: a server does not wait for its index to be
   // ready, it answers from the live search until it is.
   reconcile({ reason: 'startup' });

@@ -666,6 +666,24 @@ const migrate = (db) => {
       );
       version = 16;
     }
+
+    if (version < 17) {
+      logger.info('[DB Migration] Migrating to v17: search index by folder...');
+      // Dropped rather than altered, and rebuilt from the files themselves.
+      // The index is derived data — every row in it can be read again from the
+      // disk it describes — so a migration that discards it costs one pass and
+      // cannot leave a half-converted table behind.
+      db.exec('DROP TABLE IF EXISTS search_terms');
+      db.exec('DROP TABLE IF EXISTS search_documents');
+      db.prepare('DELETE FROM meta WHERE key = ?').run('search_index_complete_at');
+      // eslint-disable-next-line global-require
+      db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(17)
+      );
+      version = 17;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another

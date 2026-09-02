@@ -96,13 +96,13 @@ const looksBinary = (buffer) => {
  * turned a pass over a volume into gigabytes of buffers and strings allocated
  * and thrown away, at whatever rate the disk could sustain.
  */
-const readPlainTextHead = async (absolutePath, size) => {
+const readPlainTextHead = async (absolutePath, size, scratch = null) => {
   let handle = null;
   try {
     handle = await fs.open(absolutePath, 'r');
 
     const sniffLength = Math.min(size, SNIFF_BYTES);
-    const sniff = Buffer.allocUnsafe(sniffLength);
+    const sniff = scratch ? scratch.subarray(0, sniffLength) : Buffer.allocUnsafe(sniffLength);
     const { bytesRead } = await handle.read(sniff, 0, sniffLength, 0);
     if (!bytesRead) return null;
     if (looksBinary(sniff.subarray(0, bytesRead))) return null;
@@ -110,7 +110,7 @@ const readPlainTextHead = async (absolutePath, size) => {
     if (size <= bytesRead) return sniff.subarray(0, bytesRead).toString('utf8');
 
     const wanted = Math.min(size, MAX_TEXT_PER_DOCUMENT);
-    const buffer = Buffer.allocUnsafe(wanted);
+    const buffer = scratch ? scratch.subarray(0, wanted) : Buffer.allocUnsafe(wanted);
     const full = await handle.read(buffer, 0, wanted, 0);
     return buffer.subarray(0, full.bytesRead).toString('utf8');
   } catch {
@@ -124,7 +124,7 @@ const readPlainTextHead = async (absolutePath, size) => {
  * The words in a file, or null where there are none to take — a binary, an
  * unreadable file, a document with no text layer.
  */
-const readIndexableText = async (absolutePath, size) => {
+const readIndexableText = async (absolutePath, size, scratch = null) => {
   if (isOfficeDocument(absolutePath)) {
     const lines = extractOfficeTextLines(absolutePath);
     return lines ? lines.join('\n') : null;
@@ -137,7 +137,7 @@ const readIndexableText = async (absolutePath, size) => {
 
   if (isProbablyNotText(absolutePath)) return null;
 
-  return readPlainTextHead(absolutePath, size);
+  return readPlainTextHead(absolutePath, size, scratch);
 };
 
 /** As much of a document as is worth keeping terms for. */
@@ -172,7 +172,11 @@ const indexTree = async ({
   onProgress,
   progressMs = 30 * 1000,
 } = {}) => {
-  const seen = new Set();
+  // Directories visited, not files seen. The difference is the whole point: a
+  // volume has a few tens of thousands of folders and a few hundred thousand
+  // files, and only one of those numbers can be carried to the end of a pass
+  // on a container whose working set is sixty megabytes.
+  const seenDirs = new Set(['']);
   const pending = [];
   let pendingBytes = 0;
   let indexed = 0;
@@ -183,6 +187,26 @@ const indexTree = async ({
   const throwIfAborted = () => {
     if (signal?.aborted) throw createAbortedError();
   };
+
+  /**
+   * One buffer for the whole pass, rather than one per file.
+   *
+   * A megabyte allocated and freed per document is not a leak — the memory is
+   * released — but the allocator keeps the ground it took, and a pass over a
+   * volume with large documents in it leaves the process holding a hundred
+   * megabytes it will not give back. What the user sees is a container that
+   * never returns to what it used before indexing, and no amount of collecting
+   * brings it down, because there is nothing left to collect.
+   *
+   * Safe because index work is serialised: one worker drains the per-file
+   * queue, and a pass holds it for its duration. Nothing else reads into this.
+   */
+  const scratch = Buffer.allocUnsafe(MAX_TEXT_PER_DOCUMENT);
+
+  let removed = 0;
+  const forgetPaths = db.transaction((paths) => {
+    for (const gonePath of paths) store.removeDocument(db, gonePath);
+  });
 
   const excluded = exclude.filter(Boolean);
   const isExcluded = (relativePath) =>
@@ -203,12 +227,35 @@ const indexTree = async ({
   // having; it is not worth being the reason nothing else runs. Stopping is
   // safe: what was written stays written and the next pass resumes from it.
   const memoryAtStart = readMemory();
+  const cpuAtStart = process.cpuUsage();
+  const startedAt = Date.now();
   let stoppedForMemory = false;
 
   const overMemoryBudget = () =>
     memoryBudgetBytes > 0 && readMemory() - memoryAtStart > memoryBudgetBytes;
 
   const growthMb = () => Math.round((readMemory() - memoryAtStart) / (1024 * 1024));
+
+  /**
+   * What the pass has cost so far, as opposed to what the container is using.
+   *
+   * `rssMb` is the whole process — sessions, thumbnails, the folder-size index
+   * — and says nothing on its own about who is holding it. `addedMb` is this
+   * pass's own share, and `cpuPercent` is measured against the wall clock, so
+   * a quarter of a core reads as 25 whatever else the machine is doing.
+   */
+  const cost = () => {
+    const cpu = process.cpuUsage(cpuAtStart);
+    const cpuMs = Math.round((cpu.user + cpu.system) / 1000);
+    const elapsedMs = Math.max(1, Date.now() - startedAt);
+    return {
+      addedMb: growthMb(),
+      rssMb: Math.round(readMemory() / (1024 * 1024)),
+      cpuMs,
+      cpuPercent: Math.round((cpuMs / elapsedMs) * 100),
+      pauses,
+    };
+  };
 
   const payForTimeUsed = async () => {
     if (Date.now() - sliceStartedAt < workSliceMs) return;
@@ -251,12 +298,13 @@ const indexTree = async ({
       // What this pass has added to the process, which is the only number that
       // says whether the index is the thing using the memory. Without it the
       // question can only be answered by argument.
-      onProgress({ indexed, skipped, batches, addedMb: growthMb() });
+      onProgress({ indexed, skipped, batches, ...cost() });
     }
   };
 
   const walk = async (dirAbs, dirRel) => {
     throwIfAborted();
+    seenDirs.add(dirRel);
 
     let entries;
     try {
@@ -264,6 +312,9 @@ const indexTree = async ({
     } catch {
       return; // A directory we cannot read is not a reason to stop.
     }
+
+    // What this directory holds, forgotten as soon as it is left.
+    const seenHere = new Set();
 
     for (const entry of entries) {
       throwIfAborted();
@@ -287,7 +338,7 @@ const indexTree = async ({
       if (!stats) continue;
       if (maxFileSizeBytes && stats.size > maxFileSizeBytes) continue;
 
-      seen.add(relativePath);
+      seenHere.add(relativePath);
 
       // Already indexed, unchanged: not opened at all. This is what makes the
       // second run cost almost nothing.
@@ -299,7 +350,7 @@ const indexTree = async ({
       }
 
       // eslint-disable-next-line no-await-in-loop
-      const text = await readIndexableText(absolutePath, stats.size);
+      const text = await readIndexableText(absolutePath, stats.size, scratch);
       if (text === null || !text.trim()) continue;
 
       const indexable = capText(text);
@@ -318,6 +369,18 @@ const indexTree = async ({
       // eslint-disable-next-line no-await-in-loop
       await payForTimeUsed();
     }
+
+    // Everything the index holds for this folder that is no longer in it. The
+    // listing above is complete, so this is safe even if the pass is stopped
+    // before it reaches the next folder — an interrupted run keeps the
+    // deletions it was sure of, rather than throwing them away.
+    if (removeMissing) {
+      const goneHere = store.listDirectoryPaths(db, dirRel).filter((known) => !seenHere.has(known));
+      if (goneHere.length > 0) {
+        forgetPaths(goneHere);
+        removed += goneHere.length;
+      }
+    }
   };
 
   try {
@@ -329,31 +392,20 @@ const indexTree = async ({
     interrupted = true;
   }
 
-  let removed = 0;
-  // Only a run that reached the end knows what is missing; an interrupted one
-  // would call everything it never got to deleted.
+  // A folder deleted outright is never walked, so nothing above ever asks what
+  // it held. Only a run that reached the end can tell that apart from a folder
+  // it simply had not got to yet.
   if (removeMissing && !interrupted) {
-    // Streamed and deleted in batches rather than selected into an array. On a
-    // volume with a few hundred thousand documents, asking for all of them at
-    // once is tens of megabytes materialised in one step, at the end of a pass
-    // that has just spent its whole budget being careful about exactly that.
-    const forget = db.transaction((paths) => {
-      for (const gonePath of paths) store.removeDocument(db, gonePath);
-    });
-
-    let batch = [];
-    for (const row of db.prepare('SELECT path FROM search_documents').iterate()) {
-      if (seen.has(row.path)) continue;
-      batch.push(row.path);
-      if (batch.length >= 500) {
-        forget(batch);
-        removed += batch.length;
-        batch = [];
-      }
+    const goneDirs = [];
+    for (const dir of store.iterateIndexedDirectories(db)) {
+      if (!seenDirs.has(dir)) goneDirs.push(dir);
     }
-    if (batch.length > 0) {
-      forget(batch);
-      removed += batch.length;
+    for (const dir of goneDirs) {
+      const paths = store.listDirectoryPaths(db, dir);
+      if (paths.length > 0) {
+        forgetPaths(paths);
+        removed += paths.length;
+      }
     }
   }
 
@@ -365,7 +417,7 @@ const indexTree = async ({
     pauses,
     interrupted,
     stoppedForMemory,
-    addedMb: growthMb(),
+    ...cost(),
   };
 };
 
