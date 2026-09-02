@@ -594,6 +594,34 @@ describe('saying why a file was read again', () => {
     await indexAll();
   });
 
+  // Half an hour is too long to wait to learn which folder is responsible.
+  it('carries the count and the folder leading it in every progress line', async () => {
+    await fs.mkdir(volumePath('Docs', 'Churn'), { recursive: true });
+    const settled = new Date(1_700_000_000_000);
+    for (let index = 0; index < 8; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', 'Churn', `c-${index}.txt`), `pangolin ${index}\n`);
+      // eslint-disable-next-line no-await-in-loop
+      await fs.utimes(volumePath('Docs', 'Churn', `c-${index}.txt`), settled, settled);
+    }
+    await indexAll();
+
+    const moved = new Date(1_700_000_060_000);
+    for (let index = 0; index < 8; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.utimes(volumePath('Docs', 'Churn', `c-${index}.txt`), moved, moved);
+    }
+
+    const lines = [];
+    await indexAll({ batchSize: 1, progressMs: 0, onProgress: (line) => lines.push(line) });
+
+    expect(lines.length).toBeGreaterThan(0);
+    const last = lines[lines.length - 1];
+    expect(last.reindexed).toBeGreaterThan(0);
+    expect(last.rereadTopFolder).toBe('Docs/Churn');
+    expect(last.rereadTopCount).toBeGreaterThan(0);
+  });
+
   it('reports nothing when nothing was read again', async () => {
     const result = await indexAll();
 

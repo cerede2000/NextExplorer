@@ -359,7 +359,19 @@ const indexTree = async ({
       // What this pass has added to the process, which is the only number that
       // says whether the index is the thing using the memory. Without it the
       // question can only be answered by argument.
-      onProgress({ indexed, skipped, batches, ...cost() });
+      // The re-read report used to arrive only at the end, which on a volume
+      // this size means waiting half an hour to find out which folder is
+      // responsible. The count and the folder leading it travel with every
+      // progress line instead.
+      const [worstFolder] = topOf(dirCounts, 1);
+      onProgress({
+        indexed,
+        skipped,
+        batches,
+        reindexed: reindexedKnown,
+        ...(worstFolder ? { rereadTopFolder: worstFolder.value, rereadTopCount: worstFolder.count } : {}),
+        ...cost(),
+      });
     }
   };
 
