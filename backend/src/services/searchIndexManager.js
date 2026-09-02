@@ -131,9 +131,21 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
       resume.unref?.();
     }
 
+    // Separated from the summary: a handful of records is worth reading, and
+    // it only appears when there is a disagreement to explain.
+    if (result.rereadSamples?.length) {
+      logger.info(
+        { reindexedKnown: result.reindexedKnown, samples: result.rereadSamples, reason },
+        'Search index re-read files it already knew; here is what disagreed'
+      );
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    const { rereadSamples: _samples, ...summary } = result;
+
     logger.info(
       {
-        ...result,
+        ...summary,
         reason,
         ms: Date.now() - startedAt,
         documents: store.stats(db).documents,

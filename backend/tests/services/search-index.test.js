@@ -579,3 +579,53 @@ describe('forgetting what is gone', () => {
     expect(store.search(db, 'pangolin')).not.toContain('Docs/Notes/one.txt');
   });
 });
+
+/**
+ * A pass that re-reads tens of thousands of files nobody touched is either
+ * looking at a volume that really does change that much, or asking a question
+ * its storage cannot answer the same way twice. From a count the two are
+ * identical, so the disagreement itself has to be reported.
+ */
+describe('saying why a file was read again', () => {
+  beforeEach(async () => {
+    await build();
+    await fs.mkdir(volumePath('Docs'), { recursive: true });
+    await fs.writeFile(volumePath('Docs', 'note.txt'), 'pangolin\n');
+    await indexAll();
+  });
+
+  it('reports nothing when nothing was read again', async () => {
+    const result = await indexAll();
+
+    expect(result.reindexedKnown).toBe(0);
+    expect(result.rereadSamples).toEqual([]);
+  });
+
+  it('names the file and the field that disagreed', async () => {
+    // Same size, different date: the case that a count cannot tell apart from
+    // real activity.
+    const future = new Date(Date.now() + 60_000);
+    await fs.utimes(volumePath('Docs', 'note.txt'), future, future);
+
+    const result = await indexAll();
+
+    expect(result.reindexedKnown).toBe(1);
+    expect(result.rereadSamples).toHaveLength(1);
+
+    const [sample] = result.rereadSamples;
+    expect(sample.path).toBe('Docs/note.txt');
+    expect(sample.differs).toBe('mtime');
+    expect(sample.storedSize).toBe(sample.diskSize);
+    expect(sample.mtimeDeltaMs).toBeGreaterThan(0);
+  });
+
+  it('says so when it is the size that moved', async () => {
+    await fs.writeFile(volumePath('Docs', 'note.txt'), 'pangolin and more\n');
+
+    const result = await indexAll();
+
+    const [sample] = result.rereadSamples;
+    expect(['size', 'both']).toContain(sample.differs);
+    expect(sample.diskSize).toBeGreaterThan(sample.storedSize);
+  });
+});

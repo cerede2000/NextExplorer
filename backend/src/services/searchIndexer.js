@@ -204,6 +204,12 @@ const indexTree = async ({
    */
   const scratch = Buffer.allocUnsafe(MAX_TEXT_PER_DOCUMENT);
 
+  // Files re-read although the index already knew them, and a handful of the
+  // disagreements themselves.
+  const MAX_REREAD_SAMPLES = 5;
+  const rereadSamples = [];
+  let reindexedKnown = 0;
+
   let removed = 0;
   const forgetPaths = db.transaction((paths) => {
     for (const gonePath of paths) store.removeDocument(db, gonePath);
@@ -369,12 +375,37 @@ const indexTree = async ({
 
       // Already indexed, unchanged: not opened at all. This is what makes the
       // second run cost almost nothing.
-      if (store.isUpToDate(store.getIndexedDocument(db, relativePath), stats)) {
+      const known = store.getIndexedDocument(db, relativePath);
+      if (store.isUpToDate(known, stats)) {
         skipped += 1;
         // eslint-disable-next-line no-await-in-loop
         await payForTimeUsed();
         continue;
       }
+
+      // A pass that re-reads tens of thousands of files nobody touched is
+      // either looking at a volume that really does change that much, or
+      // asking a question its storage cannot answer the same way twice. The
+      // two look identical from a count, so the first few disagreements are
+      // reported in full: what was stored, what the disk says now, and which
+      // of the two fields differs.
+      if (known && rereadSamples.length < MAX_REREAD_SAMPLES) {
+        rereadSamples.push({
+          path: relativePath,
+          storedMtimeMs: known.mtimeMs,
+          diskMtimeMs: Math.floor(stats.mtimeMs),
+          mtimeDeltaMs: Math.floor(stats.mtimeMs) - known.mtimeMs,
+          storedSize: known.size,
+          diskSize: stats.size,
+          differs:
+            known.mtimeMs !== Math.floor(stats.mtimeMs)
+              ? known.size !== stats.size
+                ? 'both'
+                : 'mtime'
+              : 'size',
+        });
+      }
+      if (known) reindexedKnown += 1;
 
       // eslint-disable-next-line no-await-in-loop
       const text = await readIndexableText(absolutePath, stats.size, scratch);
@@ -444,6 +475,8 @@ const indexTree = async ({
     pauses,
     interrupted,
     stoppedForMemory,
+    reindexedKnown,
+    rereadSamples,
     ...cost(),
   };
 };
