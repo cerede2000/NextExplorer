@@ -602,7 +602,7 @@
       "rolesAndPermissions": "Roles & Permissions",
       "adminRole": "Administrator",
       "adminRoleHint": "Can access all settings and manage users.",
-      "grantAdmin": "Grand Admin",
+      "grantAdmin": "Grant Admin",
       "revokeAdmin": "Revoke Admin",
       "dangerZone": "Danger Zone",
       "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
