@@ -3,6 +3,29 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
+## Bounds on the document search that are enforced more than once
+
+`streamDocumentMatches` in `routes/search.js` bounds the Office/PDF pass three
+ways — extension, file size, and a deduplication against paths already found by
+name. Writing tests for them turned up that deleting any of the three from that
+function changes no observable behaviour.
+
+One is explained: `findDocumentTextMatch` checks the extension again and returns
+null, so the route's check is an optimisation (it avoids opening the file) and
+not a rule. That is fine, and worth a comment saying so.
+
+The other two are not explained. With `SEARCH_MAX_FILESIZE=1K` an oversized
+document is not searched, and with no limit it is — verified end to end — but
+removing `stats.size > maxBytes` from the generator does not change that.
+Likewise for `seenPaths.has(rel)`. Something upstream is applying both, and
+until somebody finds what, the code reads as if these lines are load-bearing
+when they are not.
+
+Worth untangling because of what it costs later: the next person to touch this
+either keeps a line nothing needs, or removes one and cannot tell from the
+tests whether it mattered. Either the duplicate goes and one place owns the
+rule, or the second enforcement is named in a comment at both ends.
+
 ## Concurrency that is configured and never used
 
 `api/files.api.js` builds `streamInBatches` around a worker pool: a
