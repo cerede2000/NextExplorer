@@ -155,6 +155,38 @@ Two things decide whether this is any good:
 
 No security dimension: what opens a file does not change who may read it.
 
+## Releasing an account that has locked itself out
+
+Five failed attempts on an address lock it for fifteen minutes
+(`AUTH_MAX_FAILED`, `AUTH_LOCK_MINUTES`). It clears itself when the time is up,
+and a successful sign-in clears the counter too — so nothing is ever stuck
+permanently, and the answer to "how do I unlock this" is currently "wait".
+
+What is missing is everything between: **Settings → Users** shows no sign that
+an account is locked, and there is no way to release one. An administrator
+whose colleague locked themselves out five minutes before a meeting has two
+options today, waiting and editing `auth_locks` in the SQLite database.
+
+What it should become:
+
+- A locked account is **visibly locked** in the user list, with the time it
+  frees itself at. Someone looking at the list to work out why a person cannot
+  sign in should find the answer there.
+- An administrator can **release one**, which is a delete of that row and
+  nothing more.
+- The sign-in screen says how long, rather than only that the account is
+  locked. Most of the questions this generates are that message not being
+  written.
+
+Worth knowing before building it: **the lock is keyed on the email address
+alone**, not on a session or an address. Anyone who knows a colleague's address
+can lock it for fifteen minutes by guessing wrong five times — the login rate
+limit bounds how fast, but does not prevent it. An administrator who can see
+and clear the lock is the answer to that, rather than a longer lockout, which
+would make it worse.
+
+Asked for upstream in [nxzai/NextExplorer#370](https://github.com/nxzai/NextExplorer/issues/370).
+
 ## Cleaning up what points at a volume that is gone
 
 Startup reports favourites, shares, recent destinations and folder preferences
@@ -342,16 +374,6 @@ states of `fileStore`. Five states, five tests.
   worse than a doc that is missing.
 
 ## Open, not scheduled
-
-- **An administrator cannot see or clear a locked account.** Five failed
-  attempts lock an email for fifteen minutes (`AUTH_MAX_FAILED`,
-  `AUTH_LOCK_MINUTES`), it clears itself when the time is up or on the next
-  successful sign-in, and there is nothing in between: no list of who is locked
-  and no way to release one. Someone who has just locked themselves out and
-  needs in now has to wait, or have somebody edit `auth_locks` in the database.
-  Asked for upstream in nxzai/NextExplorer#370, and the request is reasonable —
-  the lock is keyed on the email alone, so it is also the shape that lets one
-  person lock out a colleague whose address they know.
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
   and deletes nothing. It needs a PAT with `delete:packages`. More pressing now
