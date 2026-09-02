@@ -97,16 +97,21 @@ RUN addgroup -S appuser && \
 # Optional (see INCLUDE_RAW / INCLUDE_VAAPI build args below):
 #   perl            – required by exiftool-vendored for RAW image previews
 #   libva           – core VA-API runtime (includes libva-drm)
-#   mesa-va-gallium – Mesa VA-API GPU drivers (pulls Mesa + LLVM, ~80 MB)
+#   mesa-va-gallium – Mesa VA-API GPU drivers (pulls Mesa + LLVM: 211 MB, measured
+#                     as the marginal cost of libva + mesa-va-gallium over the
+#                     rest of this list, against the Alpine 3.23 package index)
 
 
 # Optional feature stacks — toggled at build time. Defaults keep the FULL image
 # byte-for-byte identical to before.
 #   INCLUDE_RAW=false    drops perl + the exiftool-vendored node module: removes
 #                        RAW-photo previews only (normal EXIF still works via exifr).
-#   INCLUDE_VAAPI=false  drops libva + mesa-va-gallium (Mesa + LLVM, ~80 MB): ffmpeg
+#   INCLUDE_VAAPI=false  drops libva + mesa-va-gallium (Mesa + LLVM, 211 MB): ffmpeg
 #                        still decodes video in software. VA-API is opt-in anyway,
 #                        used only when FFMPEG_HWACCEL is set with a GPU passed in.
+#                        This is by far the largest thing in the image, and it is
+#                        inert on any host that does not pass a GPU to the
+#                        container: the -lean variant exists mainly to drop it.
 ARG INCLUDE_RAW=true
 ARG INCLUDE_VAAPI=true
 
