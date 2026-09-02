@@ -43,26 +43,36 @@ describe('Per-request realpath cache', () => {
     const { pathUtils, context, env } = await load('request-cache-hit-');
     await fs.mkdir(path.join(env.volumeDir, 'destination'), { recursive: true });
 
-    const resolveTwentyTargets = () => {
-      for (let i = 0; i < 20; i += 1) pathUtils.resolveVolumePath(`destination/new-${i}.txt`);
+    const resolveTwentyTargets = async () => {
+      for (let i = 0; i < 20; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await pathUtils.resolveVolumePath(`destination/new-${i}.txt`);
+      }
     };
 
     // Files a copy is about to create: each one fails to resolve and falls back
     // to its parent, which is the same directory twenty times over.
-    const withoutCache = vi.spyOn(realFs, 'realpathSync');
-    resolveTwentyTargets();
+    //
+    // The spy is on `fs/promises`, which is what containment calls now: these
+    // lookups run on every path a request touches, and on network storage each
+    // synchronous one blocked the only thread the server has.
+    const withoutCache = vi.spyOn(fs, 'realpath');
+    await resolveTwentyTargets();
     const uncached = withoutCache.mock.calls.length;
     withoutCache.mockRestore();
 
-    const withCache = vi.spyOn(realFs, 'realpathSync');
-    context.runInRequestContext(resolveTwentyTargets);
+    const withCache = vi.spyOn(fs, 'realpath');
+    await context.runInRequestContext(resolveTwentyTargets);
     const cached = withCache.mock.calls.length;
 
     // 20 misses (never cached: the file may have just been created) plus one
     // lookup for the parent they share, instead of one parent lookup each.
-    // The uncached run pays one extra for the volume root, which is resolved
-    // once per process and held in its own cache from then on.
-    expect(uncached).toBe(41);
+    //
+    // The volume root does not appear in either count. It is resolved once for
+    // the life of the process and held in its own cache, and it is the one
+    // lookup here that is still synchronous — a single call at startup rather
+    // than one per path, which is why it was left alone.
+    expect(uncached).toBe(40);
     expect(cached).toBe(21);
   });
 
@@ -71,10 +81,10 @@ describe('Per-request realpath cache', () => {
     await fs.mkdir(path.join(env.volumeDir, 'docs'), { recursive: true });
     await fs.writeFile(path.join(env.volumeDir, 'docs', 'a.txt'), 'x');
 
-    context.runInRequestContext(() => pathUtils.resolveVolumePath('docs/a.txt'));
+    await context.runInRequestContext(() => pathUtils.resolveVolumePath('docs/a.txt'));
 
-    const spy = vi.spyOn(realFs, 'realpathSync');
-    context.runInRequestContext(() => pathUtils.resolveVolumePath('docs/a.txt'));
+    const spy = vi.spyOn(fs, 'realpath');
+    await context.runInRequestContext(() => pathUtils.resolveVolumePath('docs/a.txt'));
 
     // A fresh request asks the filesystem again: between two requests the
     // directory may have become a symbolic link somewhere else.
@@ -89,11 +99,11 @@ describe('Per-request realpath cache', () => {
     await fs.mkdir(path.join(env.volumeDir, 'ok'), { recursive: true });
     await fs.symlink(outside, path.join(env.volumeDir, 'escape'));
 
-    context.runInRequestContext(() => {
-      expect(pathUtils.resolveVolumePath('ok')).toContain('ok');
-      expect(() => pathUtils.resolveVolumePath('escape/secret.txt')).toThrow(/outside/i);
+    await context.runInRequestContext(async () => {
+      expect(await pathUtils.resolveVolumePath('ok')).toContain('ok');
+      await expect(pathUtils.resolveVolumePath('escape/secret.txt')).rejects.toThrow(/outside/i);
       // And again, now that the cache holds an answer for it.
-      expect(() => pathUtils.resolveVolumePath('escape/secret.txt')).toThrow(/outside/i);
+      await expect(pathUtils.resolveVolumePath('escape/secret.txt')).rejects.toThrow(/outside/i);
     });
   });
 
@@ -102,7 +112,7 @@ describe('Per-request realpath cache', () => {
     await fs.mkdir(path.join(env.volumeDir, 'plain'), { recursive: true });
 
     // Startup code and background jobs run with no request around them.
-    expect(pathUtils.resolveVolumePath('plain')).toContain('plain');
+    expect(await pathUtils.resolveVolumePath('plain')).toContain('plain');
   });
 });
 
@@ -139,5 +149,57 @@ describe('Settings read once per request', () => {
     // Two requests, two reads: a change between them has to be visible.
     expect(second).not.toBe(first);
     expect(second).toEqual(first);
+  });
+});
+
+/**
+ * The property this conversion exists for, asserted directly.
+ *
+ * Containment runs on every path a request touches, and a bulk operation
+ * resolves one per selected item — up to thirty-two hops each when links are
+ * chased. Synchronously, on the network mount most deployments point at, every
+ * one of those was a round trip during which the only thread the server has
+ * served nothing: not another request, not the liveness probe, not the response
+ * already half written. Nothing stops a synchronous call being reintroduced by
+ * someone who has not read that paragraph, except this.
+ */
+describe('what containment does to the event loop', () => {
+  it('resolves a path without a single synchronous filesystem call', async () => {
+    const { pathUtils, context, env } = await load('containment-async-');
+    await fs.mkdir(path.join(env.volumeDir, 'docs', 'deep'), { recursive: true });
+    await fs.writeFile(path.join(env.volumeDir, 'docs', 'deep', 'a.txt'), 'x');
+
+    // Resolve once first: the volume root is looked up synchronously exactly
+    // once for the life of the process and then held, and that one call is
+    // deliberate — a few at startup rather than one per path.
+    await pathUtils.resolveVolumePath('docs/deep/a.txt');
+
+    const realpathSync = vi.spyOn(realFs, 'realpathSync');
+    const lstatSync = vi.spyOn(realFs, 'lstatSync');
+
+    // Inside a request, which is the only place the shortcut runs — it is the
+    // one that asks for an lstat, so resolving outside a request would leave
+    // that call unexercised and this test asserting nothing about it.
+    await context.runInRequestContext(async () => {
+      await pathUtils.resolveVolumePath('docs/deep/a.txt');
+      await pathUtils.resolveVolumePath('docs/deep/not-created-yet.txt');
+    });
+
+    expect(realpathSync).not.toHaveBeenCalled();
+    expect(lstatSync).not.toHaveBeenCalled();
+  });
+
+  // A broken link is the only thing that reaches `readlink`: a valid one is
+  // resolved by realpath and never gets there.
+  it('follows a broken link asynchronously, and still refuses it', async () => {
+    const { pathUtils, env } = await load('containment-async-broken-');
+    await fs.symlink(path.join(env.tmpRoot, 'nowhere'), path.join(env.volumeDir, 'dead'));
+    await pathUtils.resolveVolumePath('docs').catch(() => {});
+
+    const readlinkSync = vi.spyOn(realFs, 'readlinkSync');
+
+    await expect(pathUtils.resolveVolumePath('dead')).rejects.toThrow(/outside/i);
+
+    expect(readlinkSync).not.toHaveBeenCalled();
   });
 });

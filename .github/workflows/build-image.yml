@@ -157,3 +157,21 @@ jobs:
           # throws away a warm cache and makes the next build slow for nothing.
           cache-from: type=gha,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
+
+      # An image that names a commit it was not built from makes diagnosis
+      # harder exactly when diagnosis matters: a startup banner said 06b739a
+      # while the code inside was demonstrably f3f0389, and an afternoon was
+      # spent reasoning about the wrong source. Rather than argue about how
+      # that happens, the build proves it did not.
+      - name: Check the image names the commit it was built from
+        if: ${{ inputs.push }}
+        run: |
+          tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
+          echo "Inspecting $tag"
+          stamped="$(docker run --rm --entrypoint sh "$tag" -c 'printf "%s" "$GIT_COMMIT"')"
+          if [ "$stamped" != "${{ github.sha }}" ]; then
+            echo "::error::The image is stamped $stamped but was built from ${{ github.sha }}"
+            exit 1
+          fi
+          echo "Stamped $stamped, which is the commit that was built."
+

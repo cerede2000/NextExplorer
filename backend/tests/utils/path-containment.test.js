@@ -37,8 +37,8 @@ describe('Volume path containment', () => {
 
     // The lexical check passes (the string starts with the volume root), so
     // only the real-path check can catch this.
-    expect(() => resolveVolumePath('escape/secret.txt')).toThrow(/outside the configured volume/i);
-    expect(() => resolveVolumePath('escape')).toThrow(/outside the configured volume/i);
+    await expect(resolveVolumePath('escape/secret.txt')).rejects.toThrow(/outside the configured volume/i);
+    await expect(resolveVolumePath('escape')).rejects.toThrow(/outside the configured volume/i);
   });
 
   it('still resolves normal paths, including ones not created yet', async () => {
@@ -51,10 +51,10 @@ describe('Volume path containment', () => {
     await fs.mkdir(path.join(env.volumeDir, 'docs'), { recursive: true });
     const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
 
-    expect(resolveVolumePath('docs')).toContain('docs');
+    expect(await resolveVolumePath('docs')).toContain('docs');
     // A file about to be created must resolve through its existing parent.
-    expect(resolveVolumePath('docs/new-file.txt')).toContain('new-file.txt');
-    expect(resolveVolumePath('brand/new/tree.txt')).toContain('tree.txt');
+    expect(await resolveVolumePath('docs/new-file.txt')).toContain('new-file.txt');
+    expect(await resolveVolumePath('brand/new/tree.txt')).toContain('tree.txt');
   });
 
   it('accepts a volume root that is itself a symbolic link', async () => {
@@ -73,7 +73,7 @@ describe('Volume path containment', () => {
     process.env.VOLUME_ROOT = linkedRoot;
     try {
       const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
-      expect(() => resolveVolumePath('media')).not.toThrow();
+      await expect(resolveVolumePath('media')).resolves.not.toThrow();
     } finally {
       process.env.VOLUME_ROOT = env.volumeDir;
     }
@@ -92,8 +92,8 @@ describe('Volume path containment', () => {
     await fs.symlink(path.join(env.tmpRoot, 'nowhere', 'passwd'), path.join(env.volumeDir, 'dead'));
     const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
 
-    expect(() => resolveVolumePath('dead')).toThrow(/outside the configured volume/i);
-    expect(() => resolveVolumePath('dead/child.txt')).toThrow(/outside the configured volume/i);
+    await expect(resolveVolumePath('dead')).rejects.toThrow(/outside the configured volume/i);
+    await expect(resolveVolumePath('dead/child.txt')).rejects.toThrow(/outside the configured volume/i);
   });
 
   it('accepts a broken link whose target stays inside the volume', async () => {
@@ -106,7 +106,7 @@ describe('Volume path containment', () => {
     await fs.symlink(path.join(env.volumeDir, 'not-yet.txt'), path.join(env.volumeDir, 'pending'));
     const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
 
-    expect(() => resolveVolumePath('pending')).not.toThrow();
+    await expect(resolveVolumePath('pending')).resolves.not.toThrow();
   });
 
   it('gives up on a symbolic link loop instead of spinning', async () => {
@@ -120,7 +120,7 @@ describe('Volume path containment', () => {
     await fs.symlink(path.join(env.volumeDir, 'a'), path.join(env.volumeDir, 'b'));
     const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
 
-    expect(() => resolveVolumePath('a')).toThrow(/symbolic links/i);
+    await expect(resolveVolumePath('a')).rejects.toThrow(/symbolic links/i);
   });
 });
 
@@ -140,7 +140,7 @@ describe('Other spaces containment', () => {
 
     const { resolvePersonalPath } = env.requireFresh('src/utils/pathUtils');
     const user = { id: 'user-1', username: 'alice' };
-    const userRoot = resolvePersonalPath('', user);
+    const userRoot = await resolvePersonalPath('', user);
     await fs.mkdir(userRoot, { recursive: true });
 
     const outside = path.join(env.tmpRoot, 'outside-personal');
@@ -148,10 +148,10 @@ describe('Other spaces containment', () => {
     await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
     await fs.symlink(outside, path.join(userRoot, 'escape'));
 
-    expect(() => resolvePersonalPath('escape/secret.txt', user)).toThrow(
+    await expect(resolvePersonalPath('escape/secret.txt', user)).rejects.toThrow(
       /outside the configured user directory/i
     );
-    expect(() => resolvePersonalPath('docs/report.txt', user)).not.toThrow();
+    await expect(resolvePersonalPath('docs/report.txt', user)).resolves.not.toThrow();
   });
 
   it('refuses an escape from an assigned user volume', async () => {
@@ -209,16 +209,16 @@ describe('Containment with a warm parent', () => {
     await fs.symlink(outside, path.join(inside, 'escape'));
     await fs.symlink(path.join(env.tmpRoot, 'nowhere'), path.join(inside, 'dead'));
 
-    await context.runInRequestContext(() => {
+    await context.runInRequestContext(async () => {
       // Warms the parent, which is what the shortcut relies on.
-      expect(resolveVolumePath('folder/ok.txt')).toContain('ok.txt');
+      expect(await resolveVolumePath('folder/ok.txt')).toContain('ok.txt');
 
-      expect(() => resolveVolumePath('folder/escape')).toThrow(/outside/i);
-      expect(() => resolveVolumePath('folder/escape/secret.txt')).toThrow(/outside/i);
-      expect(() => resolveVolumePath('folder/dead')).toThrow(/outside/i);
+      await expect(resolveVolumePath('folder/escape')).rejects.toThrow(/outside/i);
+      await expect(resolveVolumePath('folder/escape/secret.txt')).rejects.toThrow(/outside/i);
+      await expect(resolveVolumePath('folder/dead')).rejects.toThrow(/outside/i);
 
       // And a legitimate sibling still resolves afterwards.
-      expect(resolveVolumePath('folder/ok.txt')).toContain('ok.txt');
+      expect(await resolveVolumePath('folder/ok.txt')).toContain('ok.txt');
     });
   });
 
@@ -242,9 +242,9 @@ describe('Containment with a warm parent', () => {
     await fs.writeFile(path.join(outside, 'sub', 'secret.txt'), 'not yours');
     await fs.symlink(outside, path.join(env.volumeDir, 'linked'));
 
-    await context.runInRequestContext(() => {
+    await context.runInRequestContext(async () => {
       // The entry is a plain file; it is the directory holding it that escapes.
-      expect(() => resolveVolumePath('linked/sub/secret.txt')).toThrow(/outside/i);
+      await expect(resolveVolumePath('linked/sub/secret.txt')).rejects.toThrow(/outside/i);
     });
   });
 });
@@ -271,12 +271,10 @@ describe('the containment check on its own', () => {
   it('refuses a path outside the root when none of it exists', async () => {
     const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-');
 
-    expect(() => assertRealPathWithinRoot('/etc/nothing/here', env.volumeDir)).toThrow(
+    await expect(assertRealPathWithinRoot('/etc/nothing/here', env.volumeDir)).rejects.toThrow(
       /outside the configured volume/i
     );
-    expect(() =>
-      assertRealPathWithinRoot(path.join(env.tmpRoot, 'elsewhere', 'file.txt'), env.volumeDir)
-    ).toThrow(/outside the configured volume/i);
+    await expect(assertRealPathWithinRoot(path.join(env.tmpRoot, 'elsewhere', 'file.txt'), env.volumeDir)).rejects.toThrow(/outside the configured volume/i);
   });
 
   it('refuses a path outside the root when it does exist', async () => {
@@ -285,7 +283,7 @@ describe('the containment check on its own', () => {
     await fs.mkdir(outside, { recursive: true });
     await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
 
-    expect(() => assertRealPathWithinRoot(path.join(outside, 'secret.txt'), env.volumeDir)).toThrow(
+    await expect(assertRealPathWithinRoot(path.join(outside, 'secret.txt'), env.volumeDir)).rejects.toThrow(
       /outside the configured volume/i
     );
   });
@@ -294,14 +292,10 @@ describe('the containment check on its own', () => {
     const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-inside-');
     await fs.mkdir(path.join(env.volumeDir, 'Documents'), { recursive: true });
 
-    expect(() =>
-      assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents'), env.volumeDir)
-    ).not.toThrow();
+    await expect(assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents'), env.volumeDir)).resolves.not.toThrow();
     // A file about to be created is not an escape.
-    expect(() =>
-      assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents', 'new.txt'), env.volumeDir)
-    ).not.toThrow();
-    expect(() => assertRealPathWithinRoot(env.volumeDir, env.volumeDir)).not.toThrow();
+    await expect(assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents', 'new.txt'), env.volumeDir)).resolves.not.toThrow();
+    await expect(assertRealPathWithinRoot(env.volumeDir, env.volumeDir)).resolves.not.toThrow();
   });
 
   // A volume root that has not been created yet is the startup case the walk
@@ -310,6 +304,6 @@ describe('the containment check on its own', () => {
     const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-absent-');
     const absent = path.join(env.tmpRoot, 'not-mounted-yet');
 
-    expect(() => assertRealPathWithinRoot(path.join(absent, 'file.txt'), absent)).not.toThrow();
+    await expect(assertRealPathWithinRoot(path.join(absent, 'file.txt'), absent)).resolves.not.toThrow();
   });
 });

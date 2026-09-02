@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const fsp = require('fs/promises');
 const { directories, features, personal } = require('../config/index');
 const { pathExists } = require('./fsUtils');
 const { cachedForRequest, hasRequestContext } = require('./requestContext');
@@ -37,6 +38,15 @@ const normalizeRelativePath = (relativePath = '') => {
  */
 const realRootCache = new Map();
 
+/**
+ * The one lookup here that is still synchronous, and deliberately.
+ *
+ * There are a handful of roots and each is resolved once for the life of the
+ * process, so this is a few calls at startup rather than one per path — the
+ * cost the rest of this file was made asynchronous to remove. Making it
+ * asynchronous would turn a memo into a promise several callers could race on,
+ * for nothing.
+ */
 const realRoot = (root) => {
   if (!realRootCache.has(root)) {
     try {
@@ -53,17 +63,27 @@ const realRoot = (root) => {
 // the kernel does rather than trusting the filesystem to be acyclic.
 const MAX_SYMLINK_HOPS = 32;
 
-const lstatOrNull = (target) => {
+/**
+ * Asynchronous on purpose, and it is not a style preference.
+ *
+ * These run on every path a request touches, and a bulk operation resolves one
+ * per selected item — up to thirty-two hops each when links are chased. On a
+ * local disk that is microseconds. On the network mount most deployments point
+ * at, every one of them is a round trip, and the synchronous version made the
+ * only thread the server has wait for it: nothing else was served, not another
+ * request, not the liveness probe, not the response already half written.
+ */
+const lstatOrNull = async (target) => {
   try {
-    return fs.lstatSync(target);
+    return await fsp.lstat(target);
   } catch {
     return null;
   }
 };
 
-const readLinkOrNull = (target) => {
+const readLinkOrNull = async (target) => {
   try {
-    return fs.readlinkSync(target);
+    return await fsp.readlink(target);
   } catch {
     return null;
   }
@@ -76,9 +96,9 @@ const readLinkOrNull = (target) => {
  * and answering "still missing" from a cache would be wrong.
  */
 const realpathOrNull = (target) =>
-  cachedForRequest('realpath', target, () => {
+  cachedForRequest('realpath', target, async () => {
     try {
-      return fs.realpathSync(target);
+      return await fsp.realpath(target);
     } catch {
       return null;
     }
@@ -94,7 +114,7 @@ const realpathOrNull = (target) =>
  * on the grounds that the directory holding the link is fine. Such a link is
  * followed by hand and its target checked as a path in its own right.
  */
-const assertRealPathWithinRoot = (
+const assertRealPathWithinRoot = async (
   absolutePath,
   root,
   label = 'the configured volume root',
@@ -131,9 +151,9 @@ const assertRealPathWithinRoot = (
   if (hops === 0 && hasRequestContext()) {
     const parent = path.dirname(absolutePath);
     if (parent !== absolutePath && (parent === root || parent.startsWith(rootWithSep))) {
-      const realParent = realpathOrNull(parent);
+      const realParent = await realpathOrNull(parent);
       if (realParent && contained(realParent)) {
-        const entry = lstatOrNull(absolutePath);
+        const entry = await lstatOrNull(absolutePath);
         if (entry && !entry.isSymbolicLink()) return;
       }
     }
@@ -142,14 +162,16 @@ const assertRealPathWithinRoot = (
   let candidate = absolutePath;
 
   for (;;) {
-    const realCandidate = realpathOrNull(candidate);
+    // eslint-disable-next-line no-await-in-loop
+    const realCandidate = await realpathOrNull(candidate);
 
     if (realCandidate) {
       if (!contained(realCandidate)) throw outside();
       return;
     }
 
-    const link = readLinkOrNull(candidate);
+    // eslint-disable-next-line no-await-in-loop
+    const link = await readLinkOrNull(candidate);
     if (link !== null) {
       if (hops >= MAX_SYMLINK_HOPS) {
         throw new Error('Too many levels of symbolic links.');
@@ -159,7 +181,7 @@ const assertRealPathWithinRoot = (
       // path to compare. Judge it on the name: a target outside both spellings
       // of the root is an escape whether or not it exists yet.
       if (!namedInside(target)) throw outside();
-      assertRealPathWithinRoot(target, root, label, hops + 1);
+      await assertRealPathWithinRoot(target, root, label, hops + 1);
       return;
     }
 
@@ -171,7 +193,7 @@ const assertRealPathWithinRoot = (
   }
 };
 
-const resolveVolumePath = (relativePath = '') => {
+const resolveVolumePath = async (relativePath = '') => {
   const safeRelativePath = normalizeRelativePath(relativePath);
   const absolutePath = path.resolve(directories.volume, safeRelativePath);
 
@@ -179,7 +201,7 @@ const resolveVolumePath = (relativePath = '') => {
     throw new Error('Resolved path is outside the configured volume root.');
   }
 
-  assertRealPathWithinRoot(absolutePath, directories.volume);
+  await assertRealPathWithinRoot(absolutePath, directories.volume);
 
   return absolutePath;
 };
@@ -402,7 +424,7 @@ const getUserRootDir = (user) => {
   return userRoot;
 };
 
-const resolvePersonalPath = (relativePath = '', user) => {
+const resolvePersonalPath = async (relativePath = '', user) => {
   const safeRelativePath = normalizeRelativePath(relativePath);
   const userRoot = getUserRootDir(user);
   const absolutePath = path.resolve(userRoot, safeRelativePath);
@@ -411,7 +433,7 @@ const resolvePersonalPath = (relativePath = '', user) => {
     throw new Error('Resolved path is outside the configured user directory.');
   }
 
-  assertRealPathWithinRoot(absolutePath, userRoot, 'the configured user directory');
+  await assertRealPathWithinRoot(absolutePath, userRoot, 'the configured user directory');
 
   return absolutePath;
 };
@@ -481,7 +503,7 @@ const resolveLogicalPath = async (
       throw new Error('Resolved path is outside the assigned volume.');
     }
 
-    assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
+    await assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
 
     return {
       space: 'volume',
@@ -492,7 +514,7 @@ const resolveLogicalPath = async (
     };
   }
 
-  const absolutePath = resolveVolumePath(rel);
+  const absolutePath = await resolveVolumePath(rel);
 
   return {
     space: 'volume',
@@ -573,7 +595,7 @@ const resolveSharePath = async (
     const combinedPath =
       isDirShare && innerPath ? combineRelativePath(share.sourcePath, innerPath) : share.sourcePath;
 
-    absolutePath = resolvePersonalPath(combinedPath, owner);
+    absolutePath = await resolvePersonalPath(combinedPath, owner);
   } else if (share.sourceSpace === 'user_volume') {
     const [volumeId, ...rest] = String(share.sourcePath || '')
       .split('/')
@@ -605,12 +627,12 @@ const resolveSharePath = async (
       throw new Error('Resolved path is outside the assigned volume.');
     }
 
-    assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
+    await assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
   } else {
     const combinedPath =
       isDirShare && innerPath ? combineRelativePath(share.sourcePath, innerPath) : share.sourcePath;
 
-    absolutePath = resolveVolumePath(combinedPath);
+    absolutePath = await resolveVolumePath(combinedPath);
   }
 
   return {

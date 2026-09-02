@@ -42,7 +42,7 @@ router.use('/folder-size', (_req, res, next) => {
  * spaces need user context and are left to the access-checked resolution.
  * Returns null when the path cannot be resolved safely.
  */
-const fallbackAbsolutePath = (context, inputRel) => {
+const fallbackAbsolutePath = async (context, inputRel) => {
   // Share visitors never get the fallback: they reach files through their
   // share only, so resolving a volume path for them would turn this endpoint
   // into a size oracle over the whole tree — including paths an admin hid.
@@ -50,7 +50,7 @@ const fallbackAbsolutePath = (context, inputRel) => {
   try {
     const { space, rel } = parsePathSpace(inputRel);
     if (space !== 'volume') return null;
-    return resolveVolumePath(rel);
+    return await resolveVolumePath(rel);
   } catch {
     return null;
   }
@@ -67,7 +67,7 @@ const lookupFolderSize = async (context, inputRelRaw) => {
 
   // Prefer the access-checked absolute path; fall back to a volume-root
   // resolution so size is available even when navigation is denied.
-  const absolutePath = resolved?.absolutePath ?? fallbackAbsolutePath(context, inputRel);
+  const absolutePath = resolved?.absolutePath ?? (await fallbackAbsolutePath(context, inputRel));
 
   const db = await getDb();
   const scope = getVolumeScope();
