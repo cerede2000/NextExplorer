@@ -26,6 +26,56 @@ Why it matters here: [the API reference](docs/reference/api.md) documents this
 gap plainly, and automation against a self-hosted file server is exactly where
 a stolen long-lived session cookie hurts most.
 
+## Browsing inside an archive without extracting it
+
+Answering "what is in this backup?" costs a full extraction today — forty
+gigabytes written to disk to read one filename. FileBrowser Quantum lists this
+as in progress and does not have it; Filestash does.
+
+Half of it is already written. `readArchiveFootprint` runs `7z l -slt` before
+every extraction, to refuse an archive that would expand beyond its limit, and
+throws away everything in that listing except the sum of the sizes. Per-entry
+records — path, size, date, whether it is a folder, whether it is encrypted —
+are what the same output already carries.
+
+**The shape that keeps it cheap:** a dedicated endpoint where the path is always
+a real archive on disk and the position inside it is a separate, validated
+parameter. Not a virtual path like `/mnt/Docs/pack.zip/inner/file`. Twenty-six
+files call `authorizeAndResolve` or `resolvePathWithAccess`, and every one of
+them assumes what comes back is a real file: renaming, deleting, uploading,
+thumbnails, shares, folder sizes, the search index. Teaching all of them a new
+kind of path is where the bugs and the holes would be.
+
+Three things decided in advance:
+
+- **Entry names come from the archive, so they are hostile input.** A crafted
+  zip holds `../../etc/passwd`, or names with newlines in them. They are never
+  used to build a filesystem path and never reach `7z` without validation.
+  `assertNoSymlinks` guards what has already been extracted; this needs a guard
+  before that.
+- **Random access is real for zip and a lie elsewhere.** A zip has a central
+  directory, so one entry costs one entry. A `.tar.gz`, a `.tar.xz` or a solid
+  `.7z` decompresses from the beginning every time — and compound tarballs
+  already take two passes here. Those formats are browsed by extracting once
+  into `CACHE_DIR/archives/<fingerprint of path, mtime and size>`, with the
+  TTL, size budget and eviction the thumbnail cache already models, and the
+  single-flight lock `rawPreviewService` already uses. Never into the user's
+  volume: it would show up in listings, be read by the search index, counted in
+  folder sizes, and swept up by whatever backs that volume up.
+- **Encrypted archives are out of the first version.** The password is
+  deliberately kept out of `argv`, and holding one in memory for a browsing
+  session is a new surface for a secret. Say so rather than improvise it.
+
+`ARCHIVE_BROWSE_MAX_BYTES` refuses to browse what is too large to hold, and
+points at the extraction that already exists. Browsing a forty-gigabyte archive
+by unpacking it first would betray the whole point.
+
+Costed at six and a half days, in three usable stages: listing (1 day), reading
+one entry (1 day), the extraction cache (2 days), the panel and its thirteen
+translations (2 days), documentation (half a day). The first stage plus a
+minimal panel — about a day and a half — already answers the question that
+started this.
+
 ## Per-user rules for what opens with what
 
 Which application opens a file is fixed by the environment
