@@ -247,6 +247,7 @@ onMounted(async () => {
           <div
             v-for="share in visibleShares"
             :key="share.id"
+            data-share-row
             @click="handleOpenShare(share)"
             :class="[
               'grid items-center gap-4 px-4 py-2 text-sm rounded-md transition-colors group',
@@ -267,7 +268,10 @@ onMounted(async () => {
 
             <!-- Name -->
             <div class="min-w-0">
-              <div class="font-medium text-neutral-900 dark:text-neutral-100 truncate">
+              <div
+                data-share-label
+                class="font-medium text-neutral-900 dark:text-neutral-100 truncate"
+              >
                 {{ getShareLabel(share) }}
               </div>
             </div>

@@ -419,6 +419,7 @@ onMounted(async () => {
           <div
             v-for="share in visibleShares"
             :key="share.id"
+            data-share-row
             @dblclick="openEditShare(share)"
             :class="[
               'grid cursor-pointer items-center gap-4 px-4 py-2 text-sm rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-colors group',
@@ -436,7 +437,10 @@ onMounted(async () => {
 
             <!-- Name & Path -->
             <div class="min-w-0">
-              <div class="font-medium text-neutral-900 dark:text-neutral-100 truncate">
+              <div
+                data-share-label
+                class="font-medium text-neutral-900 dark:text-neutral-100 truncate"
+              >
                 {{ getShareLabel(share) }}
               </div>
               <div class="text-xs text-neutral-400 truncate font-mono mt-0.5">
