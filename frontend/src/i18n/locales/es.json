@@ -777,8 +777,8 @@
     "next": "Medio siguiente"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
     "tooLargeToRenderSized": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador. Ábralo en el editor o descárguelo.",
-    "tooLargeToRenderWithEditor": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador; el editor abre hasta {editorLimit}. Ábralo en el editor o descárguelo."
+    "tooLargeToRenderWithEditor": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador; el editor abre hasta {editorLimit}. Ábralo en el editor o descárguelo.",
+    "stillRendering": "Representando… {percent} %"
   }
 }

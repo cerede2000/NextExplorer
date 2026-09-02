@@ -14,7 +14,7 @@ export const useFeaturesStore = defineStore('features', () => {
   // limits over two different kinds of work, and a refusal has to be able to
   // name both.
   const editorMaxFileSizeBytes = ref(null);
-  const previewMaxRenderBytes = ref(512 * 1024);
+  const previewMaxRenderBytes = ref(16 * 1024 * 1024);
   const hiddenFilePatterns = ref(['.', 'regex:\\.download$']);
   // Archive extraction formats supported by the server (7-Zip probe).
   const archiveExtensions = ref(['zip']);
@@ -73,7 +73,7 @@ export const useFeaturesStore = defineStore('features', () => {
           : null;
         previewMaxRenderBytes.value = Number.isFinite(features?.preview?.maxRenderBytes)
           ? features.preview.maxRenderBytes
-          : 512 * 1024;
+          : 16 * 1024 * 1024;
         editorExtensions.value = Array.isArray(features?.editor?.extensions)
           ? features.editor.extensions
           : [];
@@ -142,7 +142,7 @@ export const useFeaturesStore = defineStore('features', () => {
         maxUploadChunkSizeBytes.value = 0;
         editorExtensions.value = [];
         editorMaxFileSizeBytes.value = null;
-        previewMaxRenderBytes.value = 512 * 1024;
+        previewMaxRenderBytes.value = 16 * 1024 * 1024;
         hiddenFilePatterns.value = ['.', 'regex:\\.download$'];
         archiveExtensions.value = ['zip'];
         demoLogin.value = null;

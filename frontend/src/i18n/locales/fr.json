@@ -777,8 +777,8 @@
     "next": "Média suivant"
   },
   "preview": {
-    "tooLargeToRender": "Ce document est trop volumineux pour l'aperçu. Ouvrez-le dans l'éditeur ou téléchargez-le.",
     "tooLargeToRenderSized": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur. Ouvrez-le dans l'éditeur ou téléchargez-le.",
-    "tooLargeToRenderWithEditor": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur ; l'éditeur, lui, ouvre jusqu'à {editorLimit}. Ouvrez-le dans l'éditeur ou téléchargez-le."
+    "tooLargeToRenderWithEditor": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur ; l'éditeur, lui, ouvre jusqu'à {editorLimit}. Ouvrez-le dans l'éditeur ou téléchargez-le.",
+    "stillRendering": "Rendu en cours… {percent} %"
   }
 }

@@ -2,24 +2,33 @@
 <template>
   <div class="flex h-full flex-col overflow-y-auto">
     <div
-      v-if="loading"
-      class="flex flex-1 items-center justify-center text-sm text-neutral-500 dark:text-neutral-400"
+      v-if="error"
+      class="p-6 text-sm text-red-600 dark:text-red-400"
+      data-testid="markdown-preview-error"
     >
-      Loading markdown…
-    </div>
-    <div v-else-if="error" class="p-6 text-sm text-red-600 dark:text-red-400">
       {{ error }}
     </div>
-    <article
-      v-else
-      class="prose prose-slate dark:prose-invert mx-auto w-full max-w-3xl flex-1 px-6 py-8"
-      v-html="html"
-    />
+    <template v-else>
+      <div
+        v-if="rendering"
+        class="sticky top-0 z-10 flex items-center gap-2 border-b border-neutral-200 bg-white/90 px-6 py-2 text-xs text-neutral-500 backdrop-blur dark:border-neutral-800 dark:bg-zinc-900/90 dark:text-neutral-400"
+        data-testid="markdown-preview-progress"
+      >
+        <span
+          class="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+        {{ $t('preview.stillRendering', { percent: renderedPercent }) }}
+      </div>
+      <article
+        ref="container"
+        class="markdown-preview prose prose-slate dark:prose-invert mx-auto w-full max-w-3xl flex-1 px-6 py-8"
+      />
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import DOMPurify from 'dompurify';
 import { useFeaturesStore } from '@/stores/features';
@@ -36,29 +45,20 @@ const props = defineProps({
 const { t } = useI18n();
 const featuresStore = useFeaturesStore();
 
-const loading = ref(false);
-const html = ref('');
+const container = ref(null);
 const error = ref('');
+const rendering = ref(false);
+const renderedPercent = ref(0);
 
 /**
- * How much markdown is worth turning into a page.
- *
- * Rendering happens on the one thread the interface has: `marked` walks the
- * whole document, DOMPurify walks the HTML it produced, and the browser then
- * lays out every node of it. A few megabytes of markdown is minutes of that,
- * during which nothing else in the application responds — and the result is a
- * document nobody scrolls through anyway.
- *
- * Refusing to render it is not a limitation to hide: the file opens in the
- * editor, and it downloads, both of which are what someone with a document
- * that size actually wants.
+ * How much of a document the preview will render.
  *
  * Set by the server (`PREVIEW_MAX_RENDER_SIZE`) rather than fixed here. It was
  * fixed here, which meant someone who raised the editor's limit in good faith
  * was refused at a number that appeared in no setting and no document, and had
  * no way to find out where it came from.
  */
-const DEFAULT_MAX_PREVIEW_BYTES = 512 * 1024;
+const DEFAULT_MAX_PREVIEW_BYTES = 16 * 1024 * 1024;
 
 const maxPreviewBytes = computed(() =>
   Number.isFinite(featuresStore.previewMaxRenderBytes)
@@ -66,15 +66,67 @@ const maxPreviewBytes = computed(() =>
     : DEFAULT_MAX_PREVIEW_BYTES
 );
 
+/**
+ * Rendering a large document without stopping everything else.
+ *
+ * The editor opens the same file without trouble because CodeMirror puts only
+ * the visible lines in the DOM. A preview has to produce the whole document,
+ * and it used to do it in one synchronous stretch: marked walking the text,
+ * DOMPurify parsing the HTML that produced and serialising it back, and the
+ * browser parsing that string a third time before laying out every node. Three
+ * full passes over a growing string, and six megabytes of markdown froze the
+ * tab for as long as all of it took.
+ *
+ * Three changes, answering three different costs:
+ *
+ * - **A batch that measures itself.** Blocks are not equal — one table is
+ *   worth a hundred one-line paragraphs — so a fixed count of them paces
+ *   nothing. Each batch is timed and the next one sized from what the last
+ *   cost, converging on a frame's worth of actual work. Timing the wrong half
+ *   is the easy mistake here: collecting tokens costs microseconds, and a
+ *   budget spent on that collects the entire document and renders it in one
+ *   stretch, which is exactly the freeze this exists to prevent.
+ * - **Sanitising straight into a fragment.** `RETURN_DOM_FRAGMENT` removes an
+ *   entire parse of a multi-megabyte string, and the string with it.
+ * - **`content-visibility: auto` per chunk.** The browser skips layout and
+ *   paint for chunks that are off screen, which is what keeps scrolling smooth
+ *   once the whole document exists. Unlike hiding them, the text stays
+ *   findable: Ctrl+F still crosses the whole document, which is the reason
+ *   this is not virtualised.
+ */
+const FRAME_BUDGET_MS = 12;
+const INITIAL_BATCH_TOKENS = 32;
+const MAX_BATCH_TOKENS = 2048;
+
+const yieldToBrowser = () =>
+  new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 0);
+  });
+
+let cancelled = false;
+onBeforeUnmount(() => {
+  cancelled = true;
+});
+
+/** One chunk of rendered markdown, and the hint that lets it be skipped. */
+const appendChunk = (fragment) => {
+  const section = document.createElement('section');
+  // `auto` rather than a fixed height: the browser remembers what a chunk
+  // measured once it has been on screen, so the scrollbar stops shifting under
+  // the reader after the first pass over it.
+  section.style.contentVisibility = 'auto';
+  section.style.containIntrinsicSize = 'auto 600px';
+  section.appendChild(fragment);
+  container.value?.appendChild(section);
+};
+
 onMounted(async () => {
-  loading.value = true;
+  rendering.value = true;
   error.value = '';
 
   try {
-    // Lazy load marked
     const { marked } = await import('marked');
-
-    // Fetch content
     const response = await props.api.fetchContent();
     const content = response?.content || '';
 
@@ -96,14 +148,43 @@ onMounted(async () => {
       return;
     }
 
-    // Parse and sanitize
-    const rawHtml = marked.parse(content);
-    html.value = DOMPurify.sanitize(rawHtml);
+    const tokens = marked.lexer(content);
+    const total = tokens.length;
+    let index = 0;
+    let batchSize = INITIAL_BATCH_TOKENS;
+
+    while (index < total) {
+      if (cancelled) return;
+
+      const slice = tokens.slice(index, index + batchSize);
+      // Reference-style links are collected by the lexer onto the token array
+      // itself, so a slice of it has to carry them or `[text][ref]` renders as
+      // literal brackets halfway down a document.
+      slice.links = tokens.links;
+
+      const startedAt = Date.now();
+      const fragment = DOMPurify.sanitize(marked.parser(slice), {
+        RETURN_DOM_FRAGMENT: true,
+      });
+      if (cancelled) return;
+      appendChunk(fragment);
+      const took = Date.now() - startedAt;
+
+      index += slice.length;
+      renderedPercent.value = Math.round((index / total) * 100);
+
+      // What the last batch cost decides the next one's size.
+      if (took < FRAME_BUDGET_MS / 2) batchSize = Math.min(batchSize * 2, MAX_BATCH_TOKENS);
+      else if (took > FRAME_BUDGET_MS) batchSize = Math.max(Math.floor(batchSize / 2), 1);
+
+      // eslint-disable-next-line no-await-in-loop
+      if (index < total) await yieldToBrowser();
+    }
   } catch (err) {
     console.error('Markdown preview failed:', err);
     error.value = err?.message || 'Unable to render markdown preview.';
   } finally {
-    loading.value = false;
+    rendering.value = false;
   }
 });
 </script>

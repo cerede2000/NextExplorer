@@ -27,6 +27,7 @@ const i18n = createI18n({
         tooLargeToRenderSized: 'This document is {size}. The preview stops at {limit}.',
         tooLargeToRenderWithEditor:
           'This document is {size}. The preview stops at {limit}; the editor opens up to {editorLimit}.',
+        stillRendering: 'Rendering… {percent}%',
       },
     },
   },
@@ -44,35 +45,104 @@ const mountWith = (content) =>
     global: { plugins: [i18n] },
   });
 
+/**
+ * Frames are driven here rather than waited for. jsdom's own
+ * `requestAnimationFrame` costs sixteen milliseconds a turn, and a document
+ * rendered over hundreds of turns then takes longer to test than to read.
+ * Holding the callbacks also makes "one chunk has arrived, the rest has not"
+ * something a test can state exactly.
+ */
+let frameCallbacks = [];
+
 const settle = async () => {
   // The component imports its renderer on demand; that has to land first.
   await vi.dynamicImportSettled();
   await flushPromises();
 };
 
+/** Run the frames that are waiting, and whatever they queue behind them. */
+const runFrames = async (limit = Infinity) => {
+  let turns = 0;
+  while (frameCallbacks.length > 0 && turns < limit) {
+    const due = frameCallbacks;
+    frameCallbacks = [];
+    for (const callback of due) callback();
+    // eslint-disable-next-line no-await-in-loop
+    await flushPromises();
+    turns += 1;
+  }
+  return turns;
+};
+
+const settleFully = async () => {
+  await settle();
+  await runFrames();
+};
+
 beforeEach(() => {
   setActivePinia(createPinia());
+  frameCallbacks = [];
+  vi.stubGlobal('requestAnimationFrame', (callback) => frameCallbacks.push(callback));
 });
 
 describe('previewing a markdown document', () => {
   it('renders one of an ordinary size', async () => {
     const wrapper = mountWith('# Title\n\nSome **bold** text.');
-    await settle();
+    await settleFully();
 
     expect(wrapper.html()).toContain('<h1');
     expect(wrapper.text()).not.toContain('preview stops');
   });
 
-  // Six megabytes is what someone reported freezing the whole interface.
-  it('refuses one that would freeze the interface', async () => {
-    const wrapper = mountWith(`# Title\n\n${'word '.repeat(1500000)}`);
-    await settle();
+  /**
+   * The reason this is not virtualised. Someone reading a long document
+   * presses Ctrl+F and expects the browser to cross all of it, which it can
+   * only do over text that is really in the page — so the end of a large
+   * document has to be there, not merely reachable by scrolling to it.
+   */
+  it('puts the whole document in the page, end included', async () => {
+    const body = Array.from({ length: 2000 }, (unused, index) => `Paragraph ${index}.`).join('\n\n');
+    const wrapper = mountWith(`# Title\n\n${body}\n\nPangolinAtTheVeryEnd`);
+    await settleFully();
 
-    expect(wrapper.text()).toContain('preview stops');
-    expect(wrapper.html()).not.toContain('<h1');
+    expect(wrapper.text()).toContain('Paragraph 0.');
+    expect(wrapper.text()).toContain('Paragraph 1999.');
+    expect(wrapper.text()).toContain('PangolinAtTheVeryEnd');
   });
 
-  it('names the document size and the limit that stopped it', async () => {
+  // Rendering the whole thing in one stretch is what froze the tab. It has to
+  // arrive in pieces, with the browser given back in between.
+  it('arrives in pieces rather than all at once', async () => {
+    const body = Array.from({ length: 2000 }, (unused, index) => `Paragraph ${index}.`).join('\n\n');
+    const wrapper = mountWith(`# Title\n\n${body}`);
+
+    await settle();
+    const afterFirstChunk = wrapper.text();
+    const turns = await runFrames();
+    const whenFinished = wrapper.text();
+
+    // Something is on screen straight away...
+    expect(afterFirstChunk).toContain('Paragraph 0.');
+    // ...it was not everything, and the browser was handed back in between.
+    expect(afterFirstChunk.length).toBeLessThan(whenFinished.length);
+    expect(turns).toBeGreaterThan(0);
+    expect(whenFinished).toContain('Paragraph 1999.');
+  });
+
+  // Chunks the reader has not reached are skipped by the browser for layout
+  // and paint, which is what keeps a long document scrolling smoothly — and,
+  // unlike hiding them, leaves their text findable.
+  it('marks its chunks so the browser can skip what is off screen', async () => {
+    const wrapper = mountWith('# Title\n\nSome text.');
+    await settleFully();
+
+    const section = wrapper.element.querySelector('section');
+    expect(section).toBeTruthy();
+    expect(section.style.contentVisibility).toBe('auto');
+    expect(section.style.containIntrinsicSize).toContain('auto');
+  });
+
+  it('refuses what the server said is beyond the preview', async () => {
     const store = useFeaturesStore();
     store.previewMaxRenderBytes = 1024;
     store.editorMaxFileSizeBytes = null;
@@ -82,6 +152,7 @@ describe('previewing a markdown document', () => {
 
     expect(wrapper.text()).toContain('4 KB');
     expect(wrapper.text()).toContain('1 KB');
+    expect(wrapper.html()).not.toContain('<h1');
   });
 
   // The whole point: the two limits are different settings over different
@@ -97,15 +168,19 @@ describe('previewing a markdown document', () => {
     expect(wrapper.text()).toContain('editor opens up to 10 MB');
   });
 
-  // The server decides, not the component.
-  it('renders what a raised server limit allows', async () => {
-    const store = useFeaturesStore();
-    store.previewMaxRenderBytes = 8 * 1024 * 1024;
-
-    const wrapper = mountWith(`# Title\n\n${'word '.repeat(300000)}`);
+  // A reader who closes the preview should not leave it rendering behind them.
+  it('stops rendering when the preview is closed', async () => {
+    const body = Array.from({ length: 2000 }, (unused, index) => `Paragraph ${index}.`).join('\n\n');
+    const wrapper = mountWith(`# Title\n\n${body}`);
     await settle();
 
-    expect(wrapper.html()).toContain('<h1');
-    expect(wrapper.text()).not.toContain('preview stops');
+    const pendingBefore = frameCallbacks.length;
+    wrapper.unmount();
+    const turns = await runFrames();
+
+    // It had more to do, and it stopped: the frames it had already asked for
+    // ran, and none of them queued another.
+    expect(pendingBefore).toBeGreaterThan(0);
+    expect(turns).toBe(1);
   });
 });

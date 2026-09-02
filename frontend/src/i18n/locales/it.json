@@ -777,8 +777,8 @@
     "next": "Contenuto successivo"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
     "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",
-    "tooLargeToRenderWithEditor": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser; l'editor apre fino a {editorLimit}. Aprilo nell'editor o scaricalo."
+    "tooLargeToRenderWithEditor": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser; l'editor apre fino a {editorLimit}. Aprilo nell'editor o scaricalo.",
+    "stillRendering": "Rendering in corso… {percent} %"
   }
 }

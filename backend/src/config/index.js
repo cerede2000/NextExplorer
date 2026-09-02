@@ -445,10 +445,17 @@ const editor = {
  * It was hard-coded before this, which meant someone who raised
  * EDITOR_MAX_FILESIZE in good faith was refused at a number that appeared in
  * no setting and no document.
+ *
+ * Generous by default because freezing is no longer the failure mode: the
+ * preview renders in slices of a frame and hands the browser back between
+ * them. What is left is the weight of the document in the tab, which is a
+ * reader's problem rather than an application's. And the preview reads through
+ * the editor's endpoint, so EDITOR_MAX_FILESIZE already caps what can reach
+ * it — this only bites when it is set lower than that.
  */
 const previewMaxRenderBytes = (() => {
   const parsed = parseByteSize(env.PREVIEW_MAX_RENDER_SIZE);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 512 * 1024;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 16 * 1024 * 1024;
 })();
 
 // --- Archive extraction ---
