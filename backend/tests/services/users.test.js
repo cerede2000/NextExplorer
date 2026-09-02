@@ -19,6 +19,15 @@ describe('Users Service', () => {
   });
 
   describe('Local Authentication', () => {
+    /**
+     * A generous timeout, and the reason for it: passwords are hashed with
+     * bcryptjs — pure JavaScript — at cost 12, and this walks through a
+     * creation, two logins, a change and the lockout attempts. Under v8
+     * coverage instrumentation each of those hashes costs several times what it
+     * does normally, and the run went over the five-second default. That is why
+     * `npm run test:coverage` failed on two tests that pass every other way, and
+     * why no coverage figure could be produced in CI.
+     */
     it('should create local user, login, change password, and enforce lockout', async () => {
       // Initially no users
       expect(await users.countUsers()).toBe(0);
@@ -71,7 +80,7 @@ describe('Users Service', () => {
           password: 'nope',
         })
       ).rejects.toMatchObject({ status: 423 });
-    });
+    }, 30_000);
   });
 
   describe('OIDC Authentication', () => {

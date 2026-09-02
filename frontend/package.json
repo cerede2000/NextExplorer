@@ -12,7 +12,8 @@
     "test:e2e": "playwright test --config playwright.config.js",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
     "format": "prettier --config ../prettier.config.cjs --write .",
-    "format:check": "prettier --config ../prettier.config.cjs --check ."
+    "format:check": "prettier --config ../prettier.config.cjs --check .",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary"
   },
   "dependencies": {
     "@codemirror/language-data": "^6.3.2",

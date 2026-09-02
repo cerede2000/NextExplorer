@@ -28,7 +28,9 @@
     "format:check": "prettier . --check",
     "download_samples": "npm run download_samples - backend",
     "test:backend": "npm run test -w backend",
-    "test:frontend": "npm run test:unit -w frontend"
+    "test:frontend": "npm run test:unit -w frontend",
+    "test:coverage:backend": "npm run test:coverage -w backend",
+    "test:coverage:frontend": "npm run test:coverage -w frontend"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

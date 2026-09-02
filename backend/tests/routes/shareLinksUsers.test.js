@@ -67,6 +67,11 @@ const buildApp = () => {
 
 describe('Share Links for Specific Users', () => {
   describe('User-Specific Share Access', () => {
+    /**
+     * Slow for the same reason as the local-auth walk-through: bcryptjs is pure
+     * JavaScript, the share password is hashed, and v8 coverage instrumentation
+     * multiplies that cost past the five-second default.
+     */
     it('should restrict the shared editor to the intended recipient', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const app = buildApp();
@@ -143,6 +148,6 @@ describe('Share Links for Specific Users', () => {
 
       const forbidden = await outsiderAgent.get(`/api/share/${token}/editor/hello.txt`);
       expect(forbidden.status).toBe(403);
-    });
+    }, 30_000);
   });
 });

@@ -48,11 +48,33 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Run under coverage rather than beside it: it is the same suite with
+      # instrumentation, so it costs one extra pass of nothing, and it produces
+      # a number. Without this there was no coverage figure anywhere — and for
+      # a while there could not be one, because two bcryptjs-heavy tests went
+      # over the default five-second timeout once instrumented. They carry their
+      # own timeout now, with the reason written beside them.
       - name: Backend tests
-        run: npm run test:backend
+        run: npm run test:coverage:backend
 
       - name: Frontend tests
-        run: npm run test:frontend
+        run: npm run test:coverage:frontend
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo '## Coverage'
+            echo
+            echo '### Backend'
+            echo '```'
+            node -e "const s=require('./backend/coverage/coverage-summary.json').total;for(const k of ['statements','branches','functions','lines'])console.log(k.padEnd(12)+s[k].pct+'%')"
+            echo '```'
+            echo '### Frontend'
+            echo '```'
+            node -e "const s=require('./frontend/coverage/coverage-summary.json').total;for(const k of ['statements','branches','functions','lines'])console.log(k.padEnd(12)+s[k].pct+'%')"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Frontend build
         run: npm run build
