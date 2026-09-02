@@ -31,8 +31,13 @@ jobs:
       # ripgrep here the suites fall back to the JavaScript scan and the path
       # nearly every deployment actually runs goes untested — which is how a
       # setting that made ripgrep refuse its own flag reached a release.
-      - name: Install 7-Zip, ripgrep and poppler
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils
+      #
+      # ffmpeg makes the video and HEIC thumbnail paths runnable at all. Note
+      # that Ubuntu 24.04 carries 6.1, which predates the HEIF demuxer: the HEIC
+      # decode assertions announce themselves as skipped here and run against
+      # the 8.0.1 in the runtime image.
+      - name: Install 7-Zip, ripgrep, poppler and ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils ffmpeg
 
       - name: Install dependencies
         run: npm ci

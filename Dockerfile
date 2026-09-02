@@ -79,10 +79,11 @@ RUN addgroup -S appuser && \
 # Runtime packages only.
 #
 # Core (always installed):
-#   ffmpeg          – video thumbnail extraction & software transcoding
+#   ffmpeg          – video thumbnails and metadata, and HEIC stills: since 7.1
+#                     its HEIF demuxer reconstructs the tile grid a phone photo
+#                     is made of, which is why ImageMagick is no longer here.
 #   gosu            – UID/GID remapping in entrypoint
 #   ripgrep         – fast file-content search
-#   imagemagick     – HEIC → PNG thumbnail conversion
 #   poppler-utils   – pdftotext, so a search can read the words in a PDF. Only
 #                     ones with a text layer; a scan needs OCR, which is
 #                     seconds per page and does not belong in a request.
@@ -119,7 +120,6 @@ RUN apk add --no-cache \
       ffmpeg \
       gosu \
       ripgrep \
-      imagemagick \
       poppler-utils \
       openssh-client \
       bash \

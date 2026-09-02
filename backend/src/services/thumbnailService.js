@@ -3,7 +3,6 @@ const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
-const { spawn } = require('child_process');
 const sharp = require('sharp');
 const ffmpeg = require('fluent-ffmpeg');
 const PQueue = require('p-queue').default;
@@ -157,7 +156,6 @@ const thumbnailStats = {
   cacheCleanupDeleted: 0,
   backgroundQueueSkipped: 0,
   ffmpegStarted: 0,
-  convertStarted: 0,
 };
 
 // Create thumbnail generation queue with concurrency limit
@@ -364,7 +362,7 @@ const finishThumbnailJob = (id, status, error = null) => {
   );
 };
 
-// Lower the CPU scheduling priority of a spawned child (ffmpeg/convert) so the
+// Lower the CPU scheduling priority of a spawned ffmpeg so the
 // Node event loop — and therefore directory listings and navigation — keeps CPU
 // during heavy thumbnail generation. Only ever applied to child PIDs, never to
 // the main process. Best-effort: setpriority may be unavailable or denied.
@@ -394,7 +392,6 @@ const registerExternalProcess = (type, filePath, pid, extra = {}) => {
 
   activeExternalProcesses.set(id, item);
   if (type === 'ffmpeg') thumbnailStats.ffmpegStarted += 1;
-  if (type === 'convert') thumbnailStats.convertStarted += 1;
 
   if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
     logger.info(
@@ -697,39 +694,41 @@ const makeVideoThumb = async (srcPath, destPath) => {
   });
 };
 
+/**
+ * A HEIC thumbnail, decoded by ffmpeg.
+ *
+ * This used to shell out to ImageMagick's `convert`, which was the only reason
+ * the image carried ImageMagick at all — 9.8 MB of packages for one format.
+ * ffmpeg is already here for video, and since 7.1 its HEIF demuxer reconstructs
+ * tiled images, which is what an iPhone photo actually is: a grid of HEVC
+ * tiles. A decoder that reads only the first item returns one square of the
+ * picture, so "it opens the file" was never the bar.
+ *
+ * Rotation stays ffmpeg's to apply. A HEIC records it as an `irot` property
+ * that the demuxer exports as display-matrix side data, and ffmpeg's own
+ * autorotate — on by default — inserts the transpose ahead of our scale filter.
+ * Doing it a second time in sharp would undo it.
+ */
 const makeHeicThumb = async (srcPath, destPath) => {
   const { size, quality } = await getThumbOptions();
 
   await new Promise((resolve, reject) => {
-    // Use ImageMagick to convert HEIC to PNG, then pipe to sharp for WebP conversion
-    const convert = spawn('convert', [
-      srcPath,
-      '-auto-orient',
-      '-resize',
-      `${size}x`,
-      '-quality',
-      '100',
-      'png:-',
-    ]);
-    const externalProcessId = registerExternalProcess('convert', srcPath, convert.pid, { size });
-    lowerChildProcessPriority(convert.pid);
-
-    let stderr = '';
-    convert.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
+    let externalProcessId = null;
+    let command = null;
+    let stream = null;
+    let pipeline = null;
     let settled = false;
-    const pipeline = sharp().webp({ quality, effort: 3 });
-    convert.stdout.pipe(pipeline);
 
     const cleanup = ({ killProcess = false } = {}) => {
-      if (pipeline && !pipeline.destroyed) {
-        pipeline.destroy();
+      if (killProcess && command) {
+        try {
+          command.kill('SIGKILL');
+        } catch (_) {
+          // The process may already be gone; nothing left to stop.
+        }
       }
-      if (killProcess && !convert.killed) {
-        convert.kill('SIGKILL');
-      }
+      if (stream && !stream.destroyed) stream.destroy();
+      if (pipeline && !pipeline.destroyed) pipeline.destroy();
     };
 
     const fail = (error) => {
@@ -740,28 +739,41 @@ const makeHeicThumb = async (srcPath, destPath) => {
       reject(error);
     };
 
-    convert.on('error', (err) => {
-      fail(new Error(`Failed to spawn ImageMagick convert: ${err.message}`));
-    });
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      unregisterExternalProcess(externalProcessId, 'success');
+      cleanup();
+      resolve();
+    };
 
-    const convertDone = new Promise((resolveConvert, rejectConvert) => {
-      convert.on('close', (code) => {
-        if (code !== 0 && code !== null) {
-          rejectConvert(new Error(`ImageMagick convert exited with code ${code}: ${stderr}`));
-          return;
-        }
-        resolveConvert();
-      });
-    });
-
-    Promise.all([atomicWriteSharpFile(destPath, pipeline), convertDone])
-      .then(() => {
-        if (settled) return;
-        settled = true;
-        unregisterExternalProcess(externalProcessId, 'success');
-        resolve();
+    command = ffmpeg(srcPath)
+      .outputOptions([
+        '-map',
+        '0:v:0',
+        '-frames:v',
+        '1',
+        '-vf',
+        `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
+        // PNG between the two processes: the WebP below is the only lossy step,
+        // so a small thumbnail is not compressed twice.
+        '-vcodec',
+        'png',
+      ])
+      .format('image2pipe')
+      .on('start', () => {
+        const ffmpegPid = command?.ffmpegProc?.pid;
+        externalProcessId = registerExternalProcess('ffmpeg', srcPath, ffmpegPid, { size });
+        lowerChildProcessPriority(ffmpegPid);
       })
-      .catch(fail);
+      .on('error', fail);
+
+    stream = command.pipe();
+    stream.on('error', fail);
+
+    pipeline = sharp().webp({ quality, effort: 3 });
+    stream.pipe(pipeline);
+    atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
   });
 };
 
