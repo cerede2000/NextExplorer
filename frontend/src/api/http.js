@@ -24,9 +24,10 @@ const normalizePath = (relativePath = '') => {
 
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
 
+// A cancelled request never reaches here: the caller's abort is checked as soon
+// as the failure is caught, above, and rethrown there. One place decides it.
 const shouldRetryNetworkError = (method, attempt, options = {}) => {
   if (options.retryNetworkErrors === false) return false;
-  if (options.signal?.aborted) return false;
   // A small number of read-like POST endpoints (batch lookups) are explicitly
   // marked idempotent by their caller. Retrying those is safe, while writes
   // remain protected from accidental duplicate operations.
@@ -86,7 +87,10 @@ const requestRaw = async (endpoint, options = {}) => {
     } catch (error) {
       // An explicit user cancellation must preserve the browser's abort error.
       // Recasting it as a network/CORS failure would show a misleading alert and
-      // prevent callers from treating cancellation as a normal outcome.
+      // prevent callers from treating cancellation as a normal outcome. This is
+      // also what keeps a cancelled request from being retried: a torn-down
+      // connection is reported as a TypeError, indistinguishable from a server
+      // that was never reached.
       if (options.signal?.aborted) throw error;
       if (error instanceof TypeError) {
         if (shouldRetryNetworkError(method, attempt, options)) {
