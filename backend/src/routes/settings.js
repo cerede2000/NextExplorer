@@ -140,6 +140,138 @@ router.post(
  * - Users can update their own user settings (user.*)
  * - Admins can update system settings (thumbnails, access, branding)
  */
+/**
+ * Keep the fields of a section that arrived in a shape worth storing.
+ *
+ * A field nobody sent is not a field set to nothing, and a size that is not a
+ * number is a size nobody chose: both are left out, so the stored value stays
+ * what it was rather than becoming something the caller never asked for.
+ */
+const keepValid = (section, fields) => {
+  const update = {};
+  for (const [name, isAcceptable] of Object.entries(fields)) {
+    if (isAcceptable(section[name])) update[name] = section[name];
+  }
+  return update;
+};
+
+const isNumber = (value) => Number.isFinite(value);
+const isBoolean = (value) => typeof value === 'boolean';
+const isText = (value) => typeof value === 'string';
+const isPresent = (value) => value != null;
+
+/**
+ * Merge an update over what is stored, and give back the whole section.
+ *
+ * @returns {Promise<object|null>} null when there was nothing to change, so a
+ *   caller can tell "no valid field" from "field set to its current value".
+ */
+const mergeSection = async (category, key, update) => {
+  if (Object.keys(update).length === 0) return null;
+  const current = await getSettings();
+  const merged = { ...current[key], ...update };
+  await setSystemSetting(category, key, merged);
+  return merged;
+};
+
+/** A person's own preferences, which they may change whatever their role. */
+const applyUserPreferences = async (user, section) => {
+  const updates = {};
+
+  for (const [key, value] of Object.entries(section)) {
+    if (key === 'folderSort') {
+      const folderSorts = await setUserFolderSort(user.id, value?.path, value?.sort);
+      if (folderSorts) updates.folderSorts = folderSorts;
+    } else if (key === 'folderView') {
+      const folderViews = await setUserFolderView(user.id, value?.path, value?.view);
+      if (folderViews) updates.folderViews = folderViews;
+    } else if (WRITABLE_USER_SETTINGS.has(key)) {
+      updates[key] = await setUserSetting(user.id, key, value);
+    }
+  }
+
+  return Object.keys(updates).length > 0 ? updates : null;
+};
+
+const applyThumbnails = (section) =>
+  mergeSection(
+    'system',
+    'thumbnails',
+    keepValid(section, {
+      enabled: isPresent,
+      size: isNumber,
+      quality: isNumber,
+      concurrency: isNumber,
+    })
+  );
+
+const applyUploads = (section) =>
+  mergeSection(
+    'system',
+    'uploads',
+    keepValid(section, {
+      chunkedEnabled: isBoolean,
+      chunkedAutoFallback: isBoolean,
+      chunkSizeBytes: isNumber,
+    })
+  );
+
+const applyBranding = (section) =>
+  mergeSection(
+    'branding',
+    'branding',
+    keepValid(section, { appName: isText, appLogoUrl: isText, showPoweredBy: isBoolean })
+  );
+
+/** Access rules replace the list rather than merging into it. */
+const applyAccess = async (section) => {
+  if (!Array.isArray(section.rules)) return null;
+  await setSystemSetting('system', 'access', { rules: section.rules });
+  return { rules: section.rules };
+};
+
+/**
+ * A list of folders a background worker is told to leave alone.
+ *
+ * Stored and then handed to the worker, which answers with the list it is
+ * actually applying — the stored one plus whatever the environment set, which
+ * an administrator cannot remove from here.
+ */
+const applyExclusions = async (key, manager, section) => {
+  if (!Array.isArray(section.excludedPaths)) return null;
+
+  const current = await getSettings();
+  const saved = await setSystemSetting('system', key, {
+    ...current[key],
+    excludedPaths: section.excludedPaths,
+  });
+  const applied = await manager.setAdminExclusions(saved.excludedPaths);
+
+  return {
+    excludedPaths: applied.excludedPaths,
+    environmentExcludedPaths: applied.environmentExcludedPaths,
+  };
+};
+
+/** Every section only an administrator may write, and what writes it. */
+const SYSTEM_SECTIONS = {
+  thumbnails: applyThumbnails,
+  access: applyAccess,
+  uploads: applyUploads,
+  branding: applyBranding,
+  folderSize: (section) => applyExclusions('folderSize', folderSizeManager, section),
+  searchIndex: (section) => applyExclusions('searchIndex', searchIndexManager, section),
+};
+
+/**
+ * A custom logo that has been reset to the default leaves a file behind, which
+ * nothing else will ever serve or delete.
+ */
+const forgetCustomLogo = async (branding) => {
+  const requested = typeof branding?.appLogoUrl === 'string' ? branding.appLogoUrl.trim() : null;
+  if (requested === '' || requested === DEFAULT_LOGO_URL) await deleteCustomLogoFiles();
+};
+
 router.patch(
   '/settings',
   asyncHandler(async (req, res) => {
@@ -151,172 +283,26 @@ router.patch(
     // applied first and the refusal raised afterwards, so a payload carrying
     // both a preference and a system setting answered 403 with the preference
     // already saved — a request reported as refused that had changed something.
-    const SYSTEM_SECTIONS = [
-      'thumbnails',
-      'access',
-      'folderSize',
-      'searchIndex',
-      'branding',
-      'uploads',
-    ];
-    if (!isAdmin && SYSTEM_SECTIONS.some((section) => payload[section])) {
+    const wantsSystemSettings = Object.keys(SYSTEM_SECTIONS).some((name) => payload[name]);
+    if (!isAdmin && wantsSystemSettings) {
       return res.status(403).json({ error: 'Admin access required for system settings.' });
     }
 
-    const updated = {};
-
-    // User settings (all authenticated users can update)
-    if (payload.user && typeof payload.user === 'object' && user && user.id) {
-      const userUpdates = {};
-      for (const [key, value] of Object.entries(payload.user)) {
-        if (key === 'folderSort') {
-          const folderSorts = await setUserFolderSort(user.id, value?.path, value?.sort);
-          if (folderSorts) {
-            userUpdates.folderSorts = folderSorts;
-          }
-        } else if (key === 'folderView') {
-          const folderViews = await setUserFolderView(user.id, value?.path, value?.view);
-          if (folderViews) {
-            userUpdates.folderViews = folderViews;
-          }
-        } else if (WRITABLE_USER_SETTINGS.has(key)) {
-          userUpdates[key] = await setUserSetting(user.id, key, value);
-        }
-      }
-      if (Object.keys(userUpdates).length > 0) {
-        updated.user = userUpdates;
-      }
+    if (payload.user && typeof payload.user === 'object' && user?.id) {
+      await applyUserPreferences(user, payload.user);
     }
 
-    // System settings (admin only)
     if (isAdmin) {
-      const systemUpdates = {};
-
-      // Thumbnails settings
-      if (payload.thumbnails && typeof payload.thumbnails === 'object') {
-        const thumbnailsUpdate = {};
-        if (payload.thumbnails.enabled != null) {
-          thumbnailsUpdate.enabled = Boolean(payload.thumbnails.enabled);
-        }
-        if (Number.isFinite(payload.thumbnails.size)) {
-          thumbnailsUpdate.size = payload.thumbnails.size;
-        }
-        if (Number.isFinite(payload.thumbnails.quality)) {
-          thumbnailsUpdate.quality = payload.thumbnails.quality;
-        }
-        if (Number.isFinite(payload.thumbnails.concurrency)) {
-          thumbnailsUpdate.concurrency = payload.thumbnails.concurrency;
-        }
-        if (Object.keys(thumbnailsUpdate).length > 0) {
-          const current = await getSettings();
-          await setSystemSetting('system', 'thumbnails', {
-            ...current.thumbnails,
-            ...thumbnailsUpdate,
-          });
-          systemUpdates.thumbnails = { ...current.thumbnails, ...thumbnailsUpdate };
-        }
+      for (const [name, apply] of Object.entries(SYSTEM_SECTIONS)) {
+        const section = payload[name];
+        if (section && typeof section === 'object') await apply(section);
       }
-
-      // Access control rules
-      if (payload.access && typeof payload.access === 'object') {
-        if (Array.isArray(payload.access.rules)) {
-          await setSystemSetting('system', 'access', { rules: payload.access.rules });
-          systemUpdates.access = { rules: payload.access.rules };
-        }
-      }
-
-      // Upload settings
-      if (payload.uploads && typeof payload.uploads === 'object') {
-        const uploadsUpdate = {};
-        if (typeof payload.uploads.chunkedEnabled === 'boolean') {
-          uploadsUpdate.chunkedEnabled = payload.uploads.chunkedEnabled;
-        }
-        if (typeof payload.uploads.chunkedAutoFallback === 'boolean') {
-          uploadsUpdate.chunkedAutoFallback = payload.uploads.chunkedAutoFallback;
-        }
-        if (Number.isFinite(payload.uploads.chunkSizeBytes)) {
-          uploadsUpdate.chunkSizeBytes = payload.uploads.chunkSizeBytes;
-        }
-        if (Object.keys(uploadsUpdate).length > 0) {
-          const current = await getSettings();
-          await setSystemSetting('system', 'uploads', {
-            ...current.uploads,
-            ...uploadsUpdate,
-          });
-          systemUpdates.uploads = { ...current.uploads, ...uploadsUpdate };
-        }
-      }
-
-      if (payload.folderSize && typeof payload.folderSize === 'object') {
-        if (Array.isArray(payload.folderSize.excludedPaths)) {
-          const current = await getSettings();
-          const saved = await setSystemSetting('system', 'folderSize', {
-            ...current.folderSize,
-            excludedPaths: payload.folderSize.excludedPaths,
-          });
-          const applied = await folderSizeManager.setAdminExclusions(saved.excludedPaths);
-          systemUpdates.folderSize = {
-            excludedPaths: applied.excludedPaths,
-            environmentExcludedPaths: applied.environmentExcludedPaths,
-          };
-        }
-      }
-
-      if (payload.searchIndex && typeof payload.searchIndex === 'object') {
-        if (Array.isArray(payload.searchIndex.excludedPaths)) {
-          const current = await getSettings();
-          const saved = await setSystemSetting('system', 'searchIndex', {
-            ...current.searchIndex,
-            excludedPaths: payload.searchIndex.excludedPaths,
-          });
-          const applied = await searchIndexManager.setAdminExclusions(saved.excludedPaths);
-          systemUpdates.searchIndex = {
-            excludedPaths: applied.excludedPaths,
-            environmentExcludedPaths: applied.environmentExcludedPaths,
-          };
-        }
-      }
-
-      // Branding settings
-      if (payload.branding && typeof payload.branding === 'object') {
-        const brandingUpdate = {};
-        if (typeof payload.branding.appName === 'string') {
-          brandingUpdate.appName = payload.branding.appName;
-        }
-        if (typeof payload.branding.appLogoUrl === 'string') {
-          brandingUpdate.appLogoUrl = payload.branding.appLogoUrl;
-        }
-        if (typeof payload.branding.showPoweredBy === 'boolean') {
-          brandingUpdate.showPoweredBy = payload.branding.showPoweredBy;
-        }
-        if (Object.keys(brandingUpdate).length > 0) {
-          const current = await getSettings();
-          await setSystemSetting('branding', 'branding', {
-            ...current.branding,
-            ...brandingUpdate,
-          });
-          systemUpdates.branding = { ...current.branding, ...brandingUpdate };
-        }
-      }
-
-      if (Object.keys(systemUpdates).length > 0) {
-        Object.assign(updated, systemUpdates);
-      }
-
-      // Handle logo deletion if resetting to default
-      const requestedLogoUrl =
-        typeof payload.branding?.appLogoUrl === 'string'
-          ? payload.branding.appLogoUrl.trim()
-          : null;
-      const resetToDefault =
-        requestedLogoUrl != null &&
-        (requestedLogoUrl === '' || requestedLogoUrl === DEFAULT_LOGO_URL);
-      if (resetToDefault) {
-        await deleteCustomLogoFiles();
-      }
+      await forgetCustomLogo(payload.branding);
     }
 
-    // Return updated settings
+    // Read back rather than assembled from what was written: the stored value
+    // is sanitised on its way out, so what the caller applies to its own state
+    // is what a later request would read.
     const finalSettings = await getSettingsForUser(user);
     res.json(finalSettings);
   })

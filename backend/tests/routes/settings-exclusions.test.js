@@ -78,3 +78,47 @@ describe('what GET /api/settings tells an administrator', () => {
     }
   });
 });
+
+/**
+ * Written down is not the same as in effect.
+ *
+ * Saving the list and telling the worker about it are two separate steps, and
+ * a test that reads the setting back sees only the first. Skipping the second
+ * leaves the running indexer walking a folder an administrator has just
+ * excluded, with the settings page showing it excluded — which is the worst
+ * shape a setting can take.
+ */
+describe('an exclusion an administrator adds while the index is running', () => {
+  it('reaches the worker, not only the stored settings', async () => {
+    await seed({ SEARCH_INDEX: 'true' });
+    try {
+      const exclusions = envContext.requireFresh('src/services/searchIndexExclusions');
+      expect(exclusions.effectivePaths()).not.toContain('Sauvegardes/2024');
+
+      const response = await request(buildApp(['admin']))
+        .patch('/api/settings')
+        .send({ searchIndex: { excludedPaths: ['Sauvegardes/2024'] } });
+      expect(response.status).toBe(200);
+
+      // The worker decides what it walks from this list, not from the database.
+      expect(exclusions.effectivePaths()).toContain('Sauvegardes/2024');
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
+  it('does the same for folder sizes', async () => {
+    await seed({ FOLDER_SIZE_MODE: 'full' });
+    try {
+      const exclusions = envContext.requireFresh('src/services/folderSizeExclusions');
+
+      await request(buildApp(['admin']))
+        .patch('/api/settings')
+        .send({ folderSize: { excludedPaths: ['Media/raw'] } });
+
+      expect(exclusions.effectivePaths()).toContain('Media/raw');
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+});
