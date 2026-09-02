@@ -3,6 +3,37 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
+## Dropping fluent-ffmpeg
+
+`fluent-ffmpeg@2.1.3` is marked deprecated on npm — "Package no longer
+supported" — and there is no fixed version to move to; 2.1.3 is the last one.
+
+It is also 12 MB, of which `lib/` is 110 KB. The rest is the maintainer's own V8
+coverage dumps, published into the tarball by accident. The image now prunes any
+`coverage/` directory out of node_modules, so that part costs nothing any more,
+and this is no longer urgent.
+
+What is left is a deprecated dependency on the video path. The surface we use is
+seven calls across two files:
+
+- `ffmpeg.setFfmpegPath` / `setFfprobePath` — `thumbnailService.js:72,80`
+- `ffmpeg.ffprobe(path, cb)` — `metadata.js:31`, `thumbnailService.js:564`
+- the builder, `ffmpeg(src).outputOptions(...).format('image2pipe').pipe()` —
+  `thumbnailService.js:652` (video) and `:750` (HEIC)
+
+All of it is spawning a process and reading its output, which the rest of this
+codebase already does directly: `pdftotext`, `rg`, `7z` and `rsync` are all
+plain `spawn` with their own registration and priority handling. `ffprobe` is
+`-show_format -show_streams -print_format json` and a `JSON.parse`.
+
+The care needed is in the builder calls, not the probe ones: `on('start')` is
+where the pid is captured for `registerExternalProcess` and
+`lowerChildProcessPriority`, and `.pipe()` has to keep feeding sharp with the
+same backpressure. Both thumbnail paths are load-bearing and neither fails
+loudly when it degrades — a thumbnail that never arrives looks like a slow
+thumbnail. Worth doing behind the tests that now cover HEIC, and worth checking
+a long video and a cancelled request specifically.
+
 ## Letting someone comment on a document without editing it
 
 The ONLYOFFICE editor already offers comments and track changes — they are the

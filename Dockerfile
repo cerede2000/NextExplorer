@@ -192,13 +192,20 @@ ENV REPO_URL=${REPO_URL}
 # nothing else: the bytes stay in the earlier layer, get pulled on every pull,
 # and are still counted in the image size. That was 23 MB of Perl in the lean
 # image, with no interpreter present to run it.
+#
+# The same step drops any `coverage/` a dependency published by accident — 11 MB
+# of it, almost entirely fluent-ffmpeg, whose npm tarball carries its own V8
+# coverage dumps beside a lib/ of 110 KB. Nothing requires its own coverage
+# output at runtime, so the rule is safe to apply across the tree.
 RUN --mount=from=backend_deps,source=/app,target=/deps \
     set -eu; \
     cp -a /deps/node_modules ./node_modules; \
     cp /deps/package.json ./; \
     if [ "$INCLUDE_RAW" != "true" ]; then \
       rm -rf node_modules/exiftool-vendored node_modules/exiftool-vendored.pl; \
-    fi
+    fi; \
+    find node_modules -type d \( -name coverage -o -name .nyc_output \) \
+      -prune -exec rm -rf {} +
 COPY --from=seven_zip /out/7z /usr/local/bin/7z
 COPY docker/verify-7zip-password.js ./verify-7zip-password.js
 # Verify both the RAR codec and the non-interactive password flow through the
