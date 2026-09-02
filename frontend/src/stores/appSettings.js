@@ -35,6 +35,7 @@ export const useAppSettings = defineStore('appSettings', () => {
     access: { rules: [] },
     uploads: { chunkedEnabled: false, chunkSizeBytes: 8 * 1024 * 1024 },
     folderSize: { excludedPaths: [], environmentExcludedPaths: [] },
+    searchIndex: { excludedPaths: [], environmentExcludedPaths: [] },
   });
 
   // Three-tier settings structure
@@ -69,6 +70,7 @@ export const useAppSettings = defineStore('appSettings', () => {
     access: systemSettings.value.access,
     uploads: systemSettings.value.uploads,
     folderSize: systemSettings.value.folderSize,
+    searchIndex: systemSettings.value.searchIndex,
   }));
 
   // Whether thumbnails should be shown/requested for the current session.
@@ -161,6 +163,13 @@ export const useAppSettings = defineStore('appSettings', () => {
           excludedPaths: [],
           environmentExcludedPaths: [],
           ...s.folderSize,
+        };
+      }
+      if (s?.searchIndex) {
+        systemSettings.value.searchIndex = {
+          excludedPaths: [],
+          environmentExcludedPaths: [],
+          ...s.searchIndex,
         };
       }
 

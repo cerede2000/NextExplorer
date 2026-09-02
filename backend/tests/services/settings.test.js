@@ -164,3 +164,54 @@ describe('Settings Service', () => {
     });
   });
 });
+
+/**
+ * A path written into the compose file has to reach the page that shows it.
+ *
+ * It did not: the server sent it and the browser dropped it, because the
+ * settings store copies system settings field by field and nobody added the
+ * new one. Both halves are covered now — this end, and the store's own test.
+ */
+describe('exclusions that come from the environment', () => {
+  it('reports the search index exclusions the environment set', async () => {
+    const envContext = await setupTestEnv({
+      tag: 'settings-search-index-',
+      modules: [...SETTINGS_MODULES, 'src/services/searchIndexExclusions'],
+      env: { SEARCH_INDEX: 'true', SEARCH_INDEX_EXCLUDE: 'Stacks/docker, Sauvegardes/2024' },
+    });
+    try {
+      const settingsService = envContext.requireFresh('src/services/settingsService');
+      const settings = await settingsService.getSettings();
+
+      expect(settings.searchIndex.environmentExcludedPaths).toEqual([
+        'Sauvegardes/2024',
+        'Stacks/docker',
+      ]);
+      // The environment's list is not the administrator's, and neither is
+      // shown in place of the other.
+      expect(settings.searchIndex.excludedPaths).toEqual([]);
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
+  it('keeps the two lists apart when an administrator adds one', async () => {
+    const envContext = await setupTestEnv({
+      tag: 'settings-search-index-',
+      modules: [...SETTINGS_MODULES, 'src/services/searchIndexExclusions'],
+      env: { SEARCH_INDEX: 'true', SEARCH_INDEX_EXCLUDE: 'Stacks/docker' },
+    });
+    try {
+      const settingsService = envContext.requireFresh('src/services/settingsService');
+      await settingsService.setSystemSetting('system', 'searchIndex', {
+        excludedPaths: ['Photos/RAW'],
+      });
+
+      const settings = await settingsService.getSettings();
+      expect(settings.searchIndex.excludedPaths).toEqual(['Photos/RAW']);
+      expect(settings.searchIndex.environmentExcludedPaths).toEqual(['Stacks/docker']);
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+});
