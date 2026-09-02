@@ -954,10 +954,7 @@ const cleanupThumbnailCache = async () => {
       thumbnailStats.cacheCleanupDeleted += deleted;
       logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
 
-      if (
-        removableNames.size > deleted ||
-        fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES
-      ) {
+      if (removableNames.size > deleted || fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES) {
         shouldContinueCleanup = true;
       }
     } catch (error) {
@@ -1058,46 +1055,49 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
     thumbnailStats.queued += 1;
     // Queue the thumbnail generation with concurrency limit
     pending = thumbnailQueue
-      .add(async () => {
-        const jobId = startThumbnailJob(filePath, thumbPath);
-        try {
-          // Double-check if another request created it while we were queued
+      .add(
+        async () => {
+          const jobId = startThumbnailJob(filePath, thumbPath);
           try {
-            if (!(await isThumbnailFresh(thumbPath, sourceStats, filePath))) {
-              throw new Error('Stale or missing thumbnail');
+            // Double-check if another request created it while we were queued
+            try {
+              if (!(await isThumbnailFresh(thumbPath, sourceStats, filePath))) {
+                throw new Error('Stale or missing thumbnail');
+              }
+              thumbnailStats.cacheHits += 1;
+              finishThumbnailJob(jobId, 'cache-hit');
+              return `/static/thumbnails/${thumbFile}`;
+            } catch (error) {
+              // Still doesn't exist, generate it
             }
-            thumbnailStats.cacheHits += 1;
-            finishThumbnailJob(jobId, 'cache-hit');
-            return `/static/thumbnails/${thumbFile}`;
+
+            await generateThumbnail(filePath, thumbPath, { priority });
+            scheduleThumbnailCacheCleanup();
+
+            // Verify generation succeeded
+            try {
+              await fsPromises.access(thumbPath, fs.constants.F_OK);
+              thumbnailStats.generated += 1;
+              finishThumbnailJob(jobId, 'generated');
+              return `/static/thumbnails/${thumbFile}`;
+            } catch (missing) {
+              logger.warn(
+                { filePath, thumbPath },
+                'Thumbnail generation completed but file not found'
+              );
+              finishThumbnailJob(jobId, 'missing');
+              return '';
+            }
           } catch (error) {
-            // Still doesn't exist, generate it
+            thumbnailStats.failed += 1;
+            markFailedThumbnail(thumbPath);
+            logger.error({ filePath, err: error }, 'Thumbnail generation failed');
+            finishThumbnailJob(jobId, 'error', error);
+            throw error;
           }
-
-          await generateThumbnail(filePath, thumbPath, { priority });
-          scheduleThumbnailCacheCleanup();
-
-          // Verify generation succeeded
-          try {
-            await fsPromises.access(thumbPath, fs.constants.F_OK);
-            thumbnailStats.generated += 1;
-            finishThumbnailJob(jobId, 'generated');
-            return `/static/thumbnails/${thumbFile}`;
-          } catch (missing) {
-            logger.warn(
-              { filePath, thumbPath },
-              'Thumbnail generation completed but file not found'
-            );
-            finishThumbnailJob(jobId, 'missing');
-            return '';
-          }
-        } catch (error) {
-          thumbnailStats.failed += 1;
-          markFailedThumbnail(thumbPath);
-          logger.error({ filePath, err: error }, 'Thumbnail generation failed');
-          finishThumbnailJob(jobId, 'error', error);
-          throw error;
-        }
-      }, { priority })
+        },
+        { priority }
+      )
       .finally(() => {
         // Clean up inflight map when done
         inflight.delete(thumbPath);
@@ -1160,7 +1160,38 @@ const queueThumbnailGeneration = async (filePath, { priority = 0, onlyWhenIdle =
   return { thumbnail: '', pending: true, queued: true };
 };
 
+/**
+ * Stop generating, and forget what is still queued.
+ *
+ * Three queues and three timers outlive whatever asked for a thumbnail. In a
+ * running server that is exactly right; when the ground is being removed —
+ * a test's temporary cache, or a shutdown — work that goes on writing into a
+ * directory being deleted fails the removal itself (`ENOTEMPTY`) and lands on
+ * whatever comes next.
+ */
+const stopThumbnailWork = async () => {
+  thumbnailQueue.clear();
+  videoThumbnailQueue.clear();
+  thumbnailRemovalQueue.clear();
+
+  if (sharpCacheTrimTimer) clearTimeout(sharpCacheTrimTimer);
+  if (thumbnailCacheCleanupTimer) clearTimeout(thumbnailCacheCleanupTimer);
+  if (thumbnailDiagnosticsTimer) clearInterval(thumbnailDiagnosticsTimer);
+  sharpCacheTrimTimer = null;
+  thumbnailCacheCleanupTimer = null;
+  thumbnailDiagnosticsTimer = null;
+
+  // Clearing drops what is queued; what is already running still has to finish
+  // writing before its directory can go.
+  await Promise.all([
+    thumbnailQueue.onIdle(),
+    videoThumbnailQueue.onIdle(),
+    thumbnailRemovalQueue.onIdle(),
+  ]);
+};
+
 module.exports = {
+  stopThumbnailWork,
   getThumbnailPathIfExists,
   isThumbnailCachePath,
   queueThumbnailGeneration,

@@ -154,6 +154,17 @@ const quiesceLoadedServices = async () => {
     /* a manager that never started has nothing to stop */
   }
 
+  // Thumbnails are the other thing that outlives the request that asked for
+  // it: three queues and three timers, which go on writing into a cache
+  // directory that is about to be deleted — and a write landing during the
+  // removal fails it outright with ENOTEMPTY.
+  const thumbnails = loadedModule('src/services/thumbnailService');
+  try {
+    await thumbnails?.stopThumbnailWork?.();
+  } catch {
+    /* nothing queued is nothing to drain */
+  }
+
   const db = loadedModule('src/services/db');
   try {
     db?.closeDb?.();
