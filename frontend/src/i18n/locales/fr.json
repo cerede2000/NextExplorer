@@ -607,7 +607,7 @@
       "dangerZone": "Zone sensible",
       "deleteUserMessage": "Supprime définitivement ce compte et toutes ses données. Cette action est irréversible.",
       "deleteUser": "Supprimer le compte",
-      "password": "Password",
+      "password": "Mot de passe",
       "localPassword": "Mot de passe local",
       "localPasswordExistHint": "Ce compte a un mot de passe local.",
       "localPasswordNotExistHint": "Ce compte n'a pas de mot de passe local.",

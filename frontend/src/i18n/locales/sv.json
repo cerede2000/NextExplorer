@@ -79,11 +79,11 @@
     "dismissWarning": "Avfärda varningen"
   },
   "editor": {
-    "editing": "Editing",
-    "unsavedChanges": "Unsaved changes",
-    "theme": "Theme",
-    "editorSettings": "Editor settings",
-    "wrapLines": "Wrap Lines",
+    "editing": "Redigerar",
+    "unsavedChanges": "Osparade ändringar",
+    "theme": "Tema",
+    "editorSettings": "Redigerarinställningar",
+    "wrapLines": "Radbrytning",
     "confirmCloseWithoutSaving": "Du har osparade ändringar. Stäng utan att spara?",
     "selectTheme": "Välj redigerarens tema",
     "raw": "Rå"
@@ -143,7 +143,7 @@
     "label": "Mina utdelade filer",
     "path": "t.ex. Bilder/Semestrar",
     "search": "Sök efter filer och mappar…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "t.ex. Dokument, Projekt, Media"
   },
   "loading": {
     "default": "Läser in…",
@@ -179,11 +179,11 @@
     "passwordMismatch": "Lösenorden stämmer inte överens",
     "localSignInDisabled": "Lokal inlogging är inaktiverad",
     "deleteShare": "Misslyckades med att ta bort utdelning",
-    "browseDirectories": "Failed to browse directories",
-    "labelRequired": "Label is required",
-    "pathRequired": "Path is required",
-    "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "browseDirectories": "Det gick inte att bläddra bland katalogerna",
+    "labelRequired": "Etikett krävs",
+    "pathRequired": "Sökväg krävs",
+    "saveVolume": "Det gick inte att spara volymen",
+    "removeVolume": "Det gick inte att ta bort volymen"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -203,7 +203,7 @@
   },
   "titles": {
     "volumes": "Volymer",
-    "favorites": "Favorites",
+    "favorites": "Favoriter",
     "notifications": "Aviseringar",
     "terminal": "Terminal",
     "settings": "Inställningar",
@@ -217,7 +217,7 @@
     "userManagement": "Användarhantering",
     "share": "Utdelning",
     "sortOptions": "Sorteringsalternativ",
-    "locations": "Locations"
+    "locations": "Platser"
   },
   "i18n": {
     "language": "Språk"
@@ -328,7 +328,7 @@
       "error": "Fel",
       "warning": "Varningar",
       "success": "Lyckade",
-      "info": "Info"
+      "info": "Information"
     },
     "copyDetails": "Kopiera detaljerna"
   },
@@ -516,8 +516,8 @@
     },
     "access": {
       "subtitle": "Ställ in behörigheter per mapp: läs-skriv, skrivskyddad eller dold.",
-      "noRules": "No access rules configured.",
-      "noRulesHint": "Click \"Add Rule\" to create your first rule.",
+      "noRules": "Inga åtkomstregler har konfigurerats.",
+      "noRulesHint": "Klicka på ”Lägg till regel” för att skapa den första.",
       "recursive": "Rekursiv",
       "readWrite": "Läs-skriv",
       "readOnly": "Skrivskyddad",
@@ -537,12 +537,12 @@
       "validation": "Fyll i alla fält; nytt lösenord måste vara minst 6 tecken och stämma överens."
     },
     "users": {
-      "subtitle": "Manage users, roles, and access credentials.",
+      "subtitle": "Hantera användare, roller och inloggningsuppgifter.",
       "cannotDeleteSelf": "Du kan inte ta bort ditt egna konto.",
       "confirmRemove": "Ta bort användaren {user}? Detta går inte att ångra.",
       "createUser": "Skapa användare",
       "grantAdmin": "Gör till admin",
-      "grantAdminHint": "Grants full access to all settings and users.",
+      "grantAdminHint": "Ger fullständig åtkomst till alla inställningar och användare.",
       "displayName": "Visningsnamn",
       "resetPassword": "Ställ in/återställ lösenord",
       "removeUser": "Ta bort användare",
@@ -570,30 +570,30 @@
       "noUsers": "Inga användare tillgängliga"
     },
     "userDetails": {
-      "profileTab": "Profile",
-      "securityTab": "Security",
-      "generalInfo": "General Information",
-      "displayName": "Display Name",
-      "username": "Username",
-      "email": "Email Address",
-      "rolesAndPermissions": "Roles & Permissions",
-      "adminRole": "Administrator",
-      "adminRoleHint": "Can access all settings and manage users.",
-      "grantAdmin": "Grant Admin",
-      "revokeAdmin": "Revoke Admin",
-      "dangerZone": "Danger Zone",
-      "deleteUserMessage": "Permanently remove this user and all their data. This action cannot be undone.",
-      "deleteUser": "Delete User",
-      "password": "Password",
-      "localPassword": "Local Password",
-      "localPasswordExistHint": "User has a local password set.",
-      "localPasswordNotExistHint": "User does not have a local password set.",
-      "setLocalPassword": "Set Password",
-      "resetLocalPassword": "Reset Password",
-      "sso": "Single Sign-On (OIDC)",
-      "oidcProvider": "OIDC Provider",
-      "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "profileTab": "Profil",
+      "securityTab": "Säkerhet",
+      "generalInfo": "Allmän information",
+      "displayName": "Visningsnamn",
+      "username": "Användarnamn",
+      "email": "E-postadress",
+      "rolesAndPermissions": "Roller och behörigheter",
+      "adminRole": "Administratör",
+      "adminRoleHint": "Kan komma åt alla inställningar och hantera användare.",
+      "grantAdmin": "Ge administratörsbehörighet",
+      "revokeAdmin": "Ta bort administratörsbehörighet",
+      "dangerZone": "Riskzon",
+      "deleteUserMessage": "Tar bort användaren och all data permanent. Åtgärden kan inte ångras.",
+      "deleteUser": "Ta bort användare",
+      "password": "Lösenord",
+      "localPassword": "Lokalt lösenord",
+      "localPasswordExistHint": "Den här användaren har ett lokalt lösenord.",
+      "localPasswordNotExistHint": "Den här användaren har inget lokalt lösenord.",
+      "setLocalPassword": "Ange lösenord",
+      "resetLocalPassword": "Återställ lösenord",
+      "sso": "Enkel inloggning (OIDC)",
+      "oidcProvider": "OIDC-leverantör",
+      "oidcLinkedProfile": "Länkad profil",
+      "noOidcProfileMessage": "Inga OIDC-profiler är länkade till det här kontot."
     },
     "uploads": {
       "title": "Uppladdningar",
@@ -638,16 +638,16 @@
     "saveShare": "Spara ändringar",
     "shareLink": "Delningslänk",
     "shareLinkCreatedSuccess": "Delningslänk skapades!",
-    "access": "Access Mode",
-    "type": "Target",
+    "access": "Åtkomstläge",
+    "type": "Mål",
     "shareSelectedItem": "Dela ut valt objekt",
     "selectItemToShare": "Välj ett objekt att dela ut",
     "sharing": "Utdelning:",
     "sharedItem": "Utdelat objekt",
     "sharedFolder": "Utdelad mapp",
     "sharedFile": "Utdelad fil",
-    "label": "Label",
-    "labelPlaceholder": "e.g. My Project",
+    "label": "Etikett",
+    "labelPlaceholder": "t.ex. Mitt projekt",
     "accessMode": "Åtkomstläge",
     "advancedPermissions": "Avancerat",
     "allowDelete": "Tillåt att radera filer",

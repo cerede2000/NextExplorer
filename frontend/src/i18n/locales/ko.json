@@ -1,10 +1,10 @@
 {
   "common": {
-    "or": "OR",
-    "in": "in",
-    "to": "to",
+    "or": "또는",
+    "in": "위치:",
+    "to": "대상:",
     "all": "전체",
-    "and": "and",
+    "and": "및",
     "cancel": "취소",
     "close": "닫기",
     "open": "열기",
@@ -590,7 +590,7 @@
       "localPasswordNotExistHint": "유저의 로컬 비밀번호가 설정되어 있지 않습니다.",
       "setLocalPassword": "비밀번호 설정",
       "resetLocalPassword": "비밀번호 재설정",
-      "sso": "Single Sign-On (OIDC)",
+      "sso": "통합 인증 (OIDC)",
       "oidcProvider": "OIDC 제공자",
       "oidcLinkedProfile": "연결된 프로필",
       "noOidcProfileMessage": "이 계정과 연결된 OIDC 프로필이 없습니다."
