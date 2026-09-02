@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
@@ -62,6 +63,28 @@ RUN apk add --no-cache curl libarchive-tools \
   && install -m 0755 "$(find /tmp/7z -type f -name 7zzs -print -quit)" /out/7z
 
 # ---------------------------------------------------------------------------
+# Static ffmpeg, for builds that do not want Alpine's.
+#
+# Alpine's `ffmpeg` package is a full build: every encoder, 106 MB of codec
+# libraries behind a 0.6 MB binary, when all this application ever does is
+# decode — one frame for a video thumbnail, one still out of a HEIC, and
+# ffprobe for metadata. These two static binaries are a decode-only build and
+# come to 67 MB for the pair, so they are worth about 39 MB.
+#
+# Pinned by digest, which fixes the bytes exactly the way the sha256sum on the
+# 7-Zip download above does. What it does not fix is provenance: the image is
+# built from a configuration that is not in its publisher's public repository,
+# so the binary can be verified but not rebuilt. That is the trade, and it is
+# the reason this is not the default.
+#
+# It also has no VA-API — verified in the binary, which carries no `_vaapi`
+# symbols at all — so FFMPEG_VARIANT=static and INCLUDE_VAAPI=true are
+# incompatible, and the build refuses the combination below rather than
+# shipping an image whose FFMPEG_HWACCEL silently does nothing.
+# ---------------------------------------------------------------------------
+FROM gtstef/ffmpeg@sha256:22c8d8c1c836fc0dde642eeee2eec849b1b6c86d88f7b7b55e85ce73dd8041f7 AS ffmpeg_static
+
+# ---------------------------------------------------------------------------
 # Stage 4: Final runtime image — no compilers, no build tools
 # ---------------------------------------------------------------------------
 FROM base AS runtime
@@ -113,11 +136,14 @@ RUN addgroup -S appuser && \
 #                        This is by far the largest thing in the image, and it is
 #                        inert on any host that does not pass a GPU to the
 #                        container: the -lean variant exists mainly to drop it.
+#   FFMPEG_VARIANT=static  replaces Alpine's ffmpeg with the decode-only static
+#                        binaries (-39 MB). Requires INCLUDE_VAAPI=false: that
+#                        build has no VA-API. Software decoding is unaffected.
 ARG INCLUDE_RAW=true
 ARG INCLUDE_VAAPI=true
+ARG FFMPEG_VARIANT=apk
 
 RUN apk add --no-cache \
-      ffmpeg \
       gosu \
       ripgrep \
       poppler-utils \
@@ -129,6 +155,23 @@ RUN apk add --no-cache \
   && if [ "$INCLUDE_RAW" = "true" ]; then apk add --no-cache perl; fi \
   && if [ "$INCLUDE_VAAPI" = "true" ]; then apk add --no-cache libva mesa-va-gallium; fi \
   && rm -rf /tmp/* /var/cache/apk/*
+
+# ffmpeg, from one source or the other. The static stage is mounted rather than
+# copied, so an `apk` build carries none of its bytes into any layer.
+RUN --mount=from=ffmpeg_static,source=/,target=/ffmpeg-static \
+    set -eu; \
+    if [ "$FFMPEG_VARIANT" = "static" ]; then \
+      if [ "$INCLUDE_VAAPI" = "true" ]; then \
+        echo "FFMPEG_VARIANT=static has no VA-API; build with INCLUDE_VAAPI=false" >&2; \
+        exit 1; \
+      fi; \
+      install -m 0755 /ffmpeg-static/ffmpeg /ffmpeg-static/ffprobe /usr/local/bin/; \
+    else \
+      apk add --no-cache ffmpeg; \
+      rm -rf /var/cache/apk/*; \
+    fi; \
+    ffmpeg -version >/dev/null; \
+    ffprobe -version >/dev/null
 
 WORKDIR /app
 
