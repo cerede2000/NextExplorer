@@ -214,7 +214,17 @@ const setupTestEnv = async ({ tag, modules = [], env = {} } = {}) => {
       await quiesceLoadedServices();
       restoreEnv();
       clearApplicationModules();
-      await fs.rm(dirs.tmpRoot, { recursive: true, force: true });
+      // Retries because quiescing cannot be perfect: a thumbnail write can be
+      // between its temp file and its rename at the instant the queues report
+      // idle, and the directory then refuses to go with ENOTEMPTY. That is a
+      // race the cleanup can absorb — a test failing on the tidying up after it
+      // has already passed teaches nobody anything.
+      await fs.rm(dirs.tmpRoot, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 50,
+      });
     },
     /**
      * Require a module with a fresh cache.
