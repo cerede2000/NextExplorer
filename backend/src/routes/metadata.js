@@ -106,7 +106,20 @@ router.get(
 
     const absolutePath = resolved.absolutePath;
     const logicalPath = resolved.relativePath;
-    const stats = await fs.stat(absolutePath);
+
+    // Resolving a path does not require it to exist, so this is where a file
+    // that has just been deleted is discovered. Left unhandled it left the
+    // details panel answering 500 for the ordinary case of asking about
+    // something that is gone.
+    let stats;
+    try {
+      stats = await fs.stat(absolutePath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        throw new NotFoundError('Path not found.');
+      }
+      throw error;
+    }
     const name = path.basename(logicalPath);
     const ext = path.extname(logicalPath).slice(1).toLowerCase();
 
@@ -172,14 +185,7 @@ router.get(
       if (v) payload.video = v;
     }
 
-    try {
-      return res.json(payload);
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        throw new NotFoundError('Path not found.');
-      }
-      throw error;
-    }
+    return res.json(payload);
   })
 );
 

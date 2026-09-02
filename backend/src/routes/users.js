@@ -8,20 +8,13 @@ const {
   setLocalPasswordAdmin,
   deleteUser,
   getById,
-  countAdmins,
 } = require('../services/users');
 const asyncHandler = require('../utils/asyncHandler');
 const { searchLocalUsers } = require('../services/userSearchService');
-const {
-  NotFoundError,
-  ValidationError,
-  UnauthorizedError,
-} = require('../errors/AppError');
+const { NotFoundError, ValidationError, UnauthorizedError } = require('../errors/AppError');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 
 const router = express.Router();
-
-
 
 // GET /api/users/shareable - list users for sharing (authenticated)
 router.get(
@@ -138,17 +131,13 @@ router.delete(
     if (req.user?.id === id) {
       throw new ValidationError('You cannot delete your own account.');
     }
-    // Prevent removing last admin explicitly
     const existing = await getById(id);
     if (!existing) {
       throw new NotFoundError('User not found.');
     }
-    if (Array.isArray(existing.roles) && existing.roles.includes('admin')) {
-      const admins = await countAdmins();
-      if (admins <= 1) {
-        throw new ValidationError('Cannot remove the last admin.');
-      }
-    }
+    // The last administrator is protected by the service, so every caller of
+    // deleteUser gets the rule and not only this route. A second copy here
+    // read as the enforcement and was not: removing it changed nothing.
     await deleteUser({ userId: id });
     res.status(204).end();
   })
