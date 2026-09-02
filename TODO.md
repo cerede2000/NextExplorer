@@ -298,17 +298,30 @@ states of `fileStore`. Five states, five tests.
   left on this list: a mistake here does not make a page ugly, it loses
   somebody's files or sends them to the wrong folder.
 
-- **Finish the translations.** No key is missing in any of the thirteen
-  catalogues, but 41 to 65 strings per language are still the English text —
-  `editor.wrapLines`, `errors.deleteShare` and the like. Korean has five, German
-  sixty-five; the gap says which have been read by someone.
-- **`FileIcon.vue:205` is a lookup table written as branches** — 72 paths for a
-  mapping from extension to icon. It wants to be data.
-- **Two pairs of screens that copy each other**: `SharedByMeView` /
-  `SharedWithMeView` (103 lines across two clones) and the two exclusion
-  settings pages (84 lines across three). The services behind the second pair
-  were already reduced to one factory; the pages were not. They will diverge at
-  the first fix made on one side only.
+- **The last two complex functions in the frontend.** The audit's worst was 72
+  and everything it named is done; these two are what is left above thirty.
+
+  - `ExplorerContextMenu.vue` at **34**: the menu that decides which actions a
+    selection may have. It is one long condition per entry — what is selected,
+    how many, whether the destination allows it, whether an editor is
+    configured — and it is the file that tells someone what they are allowed to
+    do, so a wrong branch shows an action that then fails.
+  - `fileStore.js` at **28**, inside a setup function of nine hundred lines. The
+    complexity is not the interesting number here; the length is. Selection,
+    sorting and the clipboard do not need the store's state and would test
+    alone.
+
+  Both want the same order as everything else this audit touched: cover the
+  states first, then split. `fileStore` has the failure paths of
+  `fetchPathItems` covered and nothing else; the context menu has no test at
+  all.
+
+- **Finish the translations for the twelve languages that are not French.** The
+  French catalogue is done — 43 strings — and the parity of all thirteen is now
+  a test. What remains is 41 to 65 strings per language still carrying the
+  English text. Korean has five, German sixty-five; the gap says which have been
+  read by someone. Machine translation is not worth it here: the French
+  catalogue this fork inherited was machine-translated and had to be rewritten.
 
 ### Rules this audit set, for whoever picks the work up
 
