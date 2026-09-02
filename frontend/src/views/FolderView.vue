@@ -9,6 +9,7 @@ import { useFolderSizeStore } from '@/stores/folderSize';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFeaturesStore } from '@/stores/features';
 import { useFolderScrollStore } from '@/stores/folderScroll';
+import { revealOffset } from '@/utils/revealOffset';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { useSelection } from '@/composables/itemSelection';
 import { useExplorerContextMenu } from '@/composables/contextMenu';
@@ -133,13 +134,82 @@ const rememberActiveItem = (itemKey = keyboardActiveItemKey.value) => {
   if (key) folderScrollStore.rememberActiveItem(scrollPositionKey, key);
 };
 
+/**
+ * The item a search result, or a paste, asked us to land on.
+ *
+ * Selecting it was not enough: in a folder of any size the selection lands
+ * somewhere below the fold and the folder opens looking like nothing happened.
+ * The name is kept here and acted on after the list has laid out, because
+ * where a row sits is only known then — and in a virtualised list the row does
+ * not exist in the DOM at all until the scroll position brings it into the
+ * window, so it has to be computed rather than looked up.
+ */
+const pendingRevealName = ref('');
+
 const applySelectionFromQuery = () => {
   const selectName = typeof route.query?.select === 'string' ? route.query.select : '';
   if (!selectName) return;
   const match = fileStore.getCurrentPathItems.find((it) => it?.name === selectName);
   if (match) {
     fileStore.selectedItems = [match];
+    // So the arrow keys carry on from what was just revealed rather than from
+    // the top of the folder.
+    const key = getItemKey(match);
+    keyboardSelectionAnchorKey.value = key;
+    keyboardActiveItemKey.value = key;
+    fileStore.setKeyboardActionItem(match);
+    pendingRevealName.value = selectName;
   }
+};
+
+const revealPendingItem = async () => {
+  const name = pendingRevealName.value;
+  if (!name) return false;
+  pendingRevealName.value = '';
+
+  const index = sortedItems.value.findIndex((item) => item?.name === name);
+  if (index < 0) return false;
+
+  const target = getScrollTarget();
+  if (!target) return false;
+
+  // A progressively rendered list has to hold the row before it can be
+  // scrolled to; a virtual one computes the position instead.
+  if (!useVirtualList.value && visibleLimit.value <= index) {
+    visibleLimit.value = sortedItems.value.length;
+    await nextTick();
+    await waitForScrollLayout();
+  }
+
+  if (useVirtualList.value) {
+    const offsetFor = () =>
+      revealOffset({
+        index,
+        rowHeight: LIST_ROW_HEIGHT,
+        viewportHeight: target.clientHeight,
+        maxScrollTop: Math.max(0, target.scrollHeight - target.clientHeight),
+      });
+
+    target.scrollTop = offsetFor();
+    // The window reacts to scrollTop one frame later, exactly as a restored
+    // position does, so it is applied again once the rows exist and the
+    // scrollable height is the real one.
+    await waitForScrollLayout();
+    target.scrollTop = offsetFor();
+  } else {
+    // Every row already carries its key for keyboard navigation, and the same
+    // key already draws the ring that marks it — so the row can be found, and
+    // it is visibly the one that was asked for once it is on screen.
+    const item = sortedItems.value[index];
+    const row = target.querySelector(
+      `[data-keyboard-item-key="${CSS.escape(getItemKey(item))}"]`
+    );
+    if (!row?.scrollIntoView) return false;
+    row.scrollIntoView({ block: 'center' });
+  }
+
+  updateScrollState();
+  return true;
 };
 
 const sortedItems = computed(() => fileStore.getCurrentPathItems);
@@ -311,7 +381,11 @@ const restoreKeyboardActiveItem = (itemKey) => {
 };
 
 const restoreScrollPosition = async () => {
+  // Landing on a named item wins over coming back to where this folder was
+  // last left: one is what the reader just asked for, the other is where they
+  // happened to be some time ago.
   const restoreState = folderScrollStore.consumeRestoreState(scrollPositionKey);
+  if (await revealPendingItem()) return;
   if (!restoreState.permitted) return;
 
   restoreKeyboardActiveItem(restoreState.activeItemKey);

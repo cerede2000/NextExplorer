@@ -70,7 +70,14 @@ function openResult(it) {
   // Open the matched folder itself for directories; open parent for files
   const target = kind === 'dir' ? [it.path, it.name].filter(Boolean).join('/') : it.path || '';
   const normalized = normalizePath(target || '');
-  router.push({ name: 'FolderView', params: { path: normalized } });
+  router.push({
+    name: 'FolderView',
+    params: { path: normalized },
+    // Naming the file is what lets the folder open on it rather than at the
+    // top: landing in the right folder and leaving the reader to find the row
+    // themselves is most of the way to not having searched at all.
+    ...(kind === 'file' && it.name ? { query: { select: it.name } } : {}),
+  });
 }
 
 function toIconItem(it) {

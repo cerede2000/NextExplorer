@@ -12,9 +12,10 @@ vi.mock('@/api', () => ({
 
 // Reactive, so the view's watch on the query fires the way it does in the app.
 const route = reactive({ query: { q: 'Linting' } });
+const push = vi.fn();
 vi.mock('vue-router', () => ({
   useRoute: () => route,
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: (...args) => push(...args) }),
   // Something in the import chain builds a router at module load and hooks
   // guards onto it; it never runs here, but it has to exist.
   createRouter: () => ({
@@ -137,5 +138,43 @@ describe('when one search overtakes another', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('stale.js');
+  });
+});
+
+/**
+ * Landing in the right folder and leaving the reader to find the row
+ * themselves is most of the way to not having searched at all: the folder can
+ * hold thousands of entries, and the one that was found opens somewhere below
+ * the fold.
+ */
+describe('opening a result', () => {
+  const openFirst = async (items) => {
+    push.mockClear();
+    search.mockResolvedValue({ items });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find('button').trigger('click');
+    return wrapper;
+  };
+
+  it('names the file so the folder can open on it', async () => {
+    await openFirst([{ name: 'notes.md', path: 'Docs/Deep', kind: 'file' }]);
+
+    expect(push).toHaveBeenCalledWith({
+      name: 'FolderView',
+      params: { path: 'Docs/Deep' },
+      query: { select: 'notes.md' },
+    });
+  });
+
+  // A folder is opened, not revealed inside its parent, so there is nothing to
+  // name and nothing to scroll to.
+  it('names nothing when the result is a folder', async () => {
+    await openFirst([{ name: 'Archive', path: 'Docs', kind: 'dir' }]);
+
+    expect(push).toHaveBeenCalledWith({
+      name: 'FolderView',
+      params: { path: 'Docs/Archive' },
+    });
   });
 });
