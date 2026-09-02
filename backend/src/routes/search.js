@@ -23,6 +23,7 @@ const {
   SEARCHABLE_EXTENSIONS: DOCUMENT_EXTENSIONS,
 } = require('../services/documentText');
 const searchIndexStore = require('../services/searchIndexStore');
+const { collectResults, buildPage } = require('../services/searchCollector');
 const { getDb } = require('../services/db');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
@@ -35,7 +36,7 @@ const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 // Filenames lead — they are what someone looking for a file expects first —
 // but they cannot take the whole page from what is inside the documents.
-const NAME_SHARE = 0.75;
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const CONTENT_FALLBACK_MAX_SIZE =
   searchConfig?.maxFileSizeBytes > 0 ? searchConfig.maxFileSizeBytes : 5 * 1024 * 1024;
@@ -320,6 +321,22 @@ async function* streamContentMatches(
  * come to a deep search for, never appeared at all. The content search did not
  * even start until the entire file listing had been walked.
  */
+/**
+ * Wrap a generator so that its exhaustion is observable.
+ *
+ * The merged stream hides which source produced what and, more to the point,
+ * which one has finished — and "no content can arrive any more" is exactly the
+ * fact the collector needs to stop waiting for a reserve that will never fill.
+ */
+const announceWhenDone = (generator, onDone) =>
+  (async function* watched() {
+    try {
+      yield* generator;
+    } finally {
+      onDone();
+    }
+  })();
+
 async function* mergeResults(...generators) {
   const next = new Map();
   for (const generator of generators) {
@@ -491,7 +508,7 @@ async function* generateRipgrepResults(
   shouldInclude,
   deep = true,
   includeHiddenFiles = false,
-  { useIndex = false, limit = 100 } = {}
+  { useIndex = false, limit = 100, onContentSources, onContentSourceDone } = {}
 ) {
   const needle = term.toLowerCase();
   const seenPaths = new Set();
@@ -544,9 +561,18 @@ async function* generateRipgrepResults(
 
   // The document pass reads Office files and PDFs one by one; the index has
   // already read them.
-  yield* useIndex
-    ? mergeResults(fileListGen, contentGen)
-    : mergeResults(fileListGen, contentGen, documentGen);
+  //
+  // The content sources announce their own exhaustion, because the collector
+  // has to know when a reserve it is holding the page open for can no longer
+  // be filled. Without it, every search that finds few content matches waits
+  // out the whole time budget for content that had already run out.
+  const contentSources = useIndex ? [contentGen] : [contentGen, documentGen];
+  onContentSources?.(contentSources.length);
+  const watched = contentSources.map((source) =>
+    announceWhenDone(source, () => onContentSourceDone?.())
+  );
+
+  yield* mergeResults(fileListGen, ...watched);
 }
 
 // Optimized fallback with streaming (Optimization #1)
@@ -720,6 +746,10 @@ router.get(
 
     const useIndex = indexReady && baseAbs.startsWith(directories.volume);
 
+    // Nothing can produce a content match once every content source has
+    // finished, and that is the moment a reserve stops being worth waiting for.
+    let contentSourcesLeft = Number.POSITIVE_INFINITY;
+
     const generator = useRipgrep
       ? generateRipgrepResults(
           baseAbs,
@@ -731,6 +761,12 @@ router.get(
           {
             useIndex,
             limit,
+            onContentSources: (count) => {
+              contentSourcesLeft = count;
+            },
+            onContentSourceDone: () => {
+              contentSourcesLeft -= 1;
+            },
           }
         )
       : generateFallbackResults(
@@ -754,17 +790,17 @@ router.get(
     // Names and contents are counted apart so filenames cannot spend the whole
     // page, and the reserve is the only reason to keep looking once the page
     // could already be filled.
-    const nameCap = limit;
-    const contentReserve = Math.max(1, limit - Math.floor(limit * NAME_SHARE));
-
-    const items = [];
-    const contentItems = [];
+    let items = [];
+    let contentItems = [];
 
     const collect = (async () => {
-      for await (const item of generator) {
-        (item.matchLine ? contentItems : items).push(item);
-        if (items.length >= nameCap && contentItems.length >= contentReserve) break;
-      }
+      const { names, contents } = await collectResults({
+        results: generator,
+        limit,
+        contentExhausted: () => contentSourcesLeft === 0,
+      });
+      items = names;
+      contentItems = contents;
     })();
 
     let truncated = false;
@@ -792,12 +828,7 @@ router.get(
       await collect.catch(() => {});
     }
 
-    const nameQuota = contentItems.length > 0 ? Math.max(1, Math.floor(limit * NAME_SHARE)) : limit;
-    const combined = [...items.slice(0, nameQuota), ...contentItems].slice(0, limit);
-    // A quota that went unused is not a reason to answer short.
-    if (combined.length < limit) {
-      combined.push(...items.slice(nameQuota, nameQuota + (limit - combined.length)));
-    }
+    const combined = buildPage({ names: items, contents: contentItems, limit });
 
     // Said out loud rather than left to look like a complete answer: a search
     // the budget ended has not seen everything, and whoever is reading the
