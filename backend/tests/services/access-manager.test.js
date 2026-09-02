@@ -263,3 +263,369 @@ describe('accessManager — path resolution', () => {
     ).rejects.toThrow();
   });
 });
+
+/**
+ * The three questions `getShareAccess` answers in sequence, each covered on its
+ * own before the function is split along them: may this share be opened at all,
+ * may this caller open it, and what does the location underneath still allow.
+ *
+ * Fifty-three paths through one function, and eight tests. These are the ones
+ * that decide whether a link hands out more than its owner meant to.
+ */
+
+const accessTo = (share, context = {}, innerPath = '') =>
+  accessManager.getShareAccess(
+    { user: context.user ?? null, guestSession: context.guestSession ?? null },
+    share.shareToken,
+    innerPath
+  );
+
+describe('accessManager — who may open a share', () => {
+  it('refuses a signed-in account that the share was not shared with', async () => {
+    const owner = await createOwner('targeted-owner');
+    const stranger = await createOwner('targeted-stranger');
+    const invited = await createOwner('targeted-invited');
+    await createSharedFolder('targeted');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'targeted',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'users',
+      userIds: [invited.id],
+    });
+
+    const access = await accessTo(share, { user: stranger });
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Access denied');
+  });
+
+  it('admits the account the share was shared with', async () => {
+    const owner = await createOwner('invited-owner');
+    const invited = await createOwner('invited-guest');
+    await createSharedFolder('invited');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'invited',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'users',
+      userIds: [invited.id],
+    });
+
+    const access = await accessTo(share, { user: invited });
+
+    expect(access.canAccess).toBe(true);
+    expect(access.isShared).toBe(true);
+  });
+
+  it('turns away a visitor carrying neither an account nor a guest session', async () => {
+    const owner = await createOwner('anonymous');
+    await createSharedFolder('anonymous-share');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'anonymous-share',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+    });
+
+    const access = await accessTo(share);
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Share access required');
+  });
+
+  /**
+   * Being signed in is not the same as knowing the password. Without this, any
+   * account opening a protected link walked past the prompt its owner set up.
+   */
+  it('still asks for the password of an account that never entered it', async () => {
+    const owner = await createOwner('password-owner');
+    const visitor = await createOwner('password-visitor');
+    await createSharedFolder('password-share');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'password-share',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+      password: 'a-real-password',
+    });
+
+    const access = await accessTo(share, { user: visitor });
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Password verification required');
+  });
+
+  it('admits the same account once it holds a guest session for that share', async () => {
+    const owner = await createOwner('password-verified-owner');
+    const visitor = await createOwner('password-verified-visitor');
+    await createSharedFolder('password-verified');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'password-verified',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+      password: 'a-real-password',
+    });
+    const guestSession = await guestSessionService.createGuestSession({
+      shareId: share.id,
+      ipAddress: '127.0.0.1',
+      userAgent: 'test',
+    });
+
+    const access = await accessTo(share, { user: visitor, guestSession });
+
+    expect(access.canAccess).toBe(true);
+  });
+
+  /**
+   * A sharing type nobody wrote a branch for must not fall through to the grant
+   * at the bottom of the function.
+   *
+   * The database refuses to hold one — there is a CHECK constraint — so the
+   * branch guards against a schema this application does not have yet, and the
+   * only honest way in is the share cache the function itself accepts. That is
+   * not a contrivance: the cache is how routes hand it a share they already
+   * loaded, so a future type would arrive through exactly this door.
+   */
+  it('fails closed on a sharing type it does not know', async () => {
+    const owner = await createOwner('unknown-type');
+    await createSharedFolder('unknown-type-share');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'unknown-type-share',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+    });
+
+    const shareCache = new Map([[share.shareToken, { ...share, sharingType: 'everyone-forever' }]]);
+
+    const access = await accessManager.getShareAccess(
+      { user: owner, guestSession: null },
+      share.shareToken,
+      '',
+      { shareCache }
+    );
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Unknown sharing type');
+  });
+});
+
+describe('accessManager — what the location underneath still allows', () => {
+  it('refuses a share whose source has since been hidden', async () => {
+    const owner = await createOwner('hidden-source');
+    await createSharedFolder('hidden-source-share');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'hidden-source-share',
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+      accessMode: 'readwrite',
+    });
+    const guestSession = await guestSessionService.createGuestSession({
+      shareId: share.id,
+      ipAddress: '127.0.0.1',
+      userAgent: 'test',
+    });
+
+    const access = await accessManager.getShareAccess(
+      { user: null, guestSession },
+      share.shareToken,
+      '',
+      { permissionResolver: async () => 'hidden' }
+    );
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Path is hidden');
+  });
+
+  it('refuses a share pointing at a personal volume that no longer exists', async () => {
+    const owner = await createOwner('missing-volume');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: 'no-such-volume-id/inner',
+      sourceSpace: 'user_volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+    });
+    const guestSession = await guestSessionService.createGuestSession({
+      shareId: share.id,
+      ipAddress: '127.0.0.1',
+      userAgent: 'test',
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Share source volume not found');
+  });
+
+  it('refuses a share pointing at a personal volume with no id at all', async () => {
+    const owner = await createOwner('empty-volume-path');
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: '/',
+      sourceSpace: 'user_volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+    });
+    const guestSession = await guestSessionService.createGuestSession({
+      shareId: share.id,
+      ipAddress: '127.0.0.1',
+      userAgent: 'test',
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Share source volume is invalid');
+  });
+
+  /**
+   * A share may only hand out a volume its own owner holds. Without this, an
+   * account that once had a volume assigned could keep sharing it after it was
+   * reassigned to somebody else.
+   */
+  it('refuses a share whose source volume belongs to another account', async () => {
+    const owner = await createOwner('volume-owner');
+    const otherAccount = await createOwner('volume-other');
+    const volumeDir = await createSharedFolder('someone-elses-volume');
+
+    const userVolumes = envContext.requireFresh('src/services/userVolumesService');
+    const volume = await userVolumes.addVolumeToUser({
+      userId: otherAccount.id,
+      label: 'Theirs',
+      volumePath: volumeDir,
+      accessMode: 'readwrite',
+    });
+
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: `${volume.id}/`,
+      sourceSpace: 'user_volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+    });
+    const guestSession = await guestSessionService.createGuestSession({
+      shareId: share.id,
+      ipAddress: '127.0.0.1',
+      userAgent: 'test',
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access.canAccess).toBe(false);
+    expect(access.denialReason).toBe('Share source volume mismatch');
+  });
+});
+
+describe('accessManager — what a share grants', () => {
+  const openShare = async (name, overrides) => {
+    const owner = await createOwner(name);
+    await createSharedFolder(name);
+    const share = await sharesService.createShare({
+      ownerId: owner.id,
+      sourcePath: name,
+      sourceSpace: 'volume',
+      isDirectory: true,
+      sharingType: 'anyone',
+      ...overrides,
+    });
+    const guestSession = await guestSessionService.createGuestSession({
+      shareId: share.id,
+      ipAddress: '127.0.0.1',
+      userAgent: 'test',
+    });
+    return { owner, share, guestSession };
+  };
+
+  it('grants nothing beyond reading on a read-only share', async () => {
+    const { share, guestSession } = await openShare('grant-readonly', {
+      accessMode: 'readonly',
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access).toMatchObject({
+      canRead: true,
+      canWrite: false,
+      canDelete: false,
+      canUpload: false,
+      canCreateFolder: false,
+      canCreateFile: false,
+      effectivePermission: 'ro',
+    });
+  });
+
+  it('grants writing on a read-write share', async () => {
+    const { share, guestSession } = await openShare('grant-readwrite', {
+      accessMode: 'readwrite',
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access).toMatchObject({
+      canWrite: true,
+      canDelete: true,
+      canUpload: true,
+      canCreateFolder: true,
+      canCreateFile: true,
+      effectivePermission: 'rw',
+    });
+  });
+
+  it.each([
+    ['allowDelete', 'canDelete'],
+    ['allowUpload', 'canUpload'],
+    ['allowCreateFolder', 'canCreateFolder'],
+    ['allowCreateFile', 'canCreateFile'],
+  ])('withholds %s on its own, leaving the rest of the write grant', async (flag, granted) => {
+    const { share, guestSession } = await openShare(`grant-without-${flag}`, {
+      accessMode: 'readwrite',
+      [flag]: false,
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access[granted]).toBe(false);
+    expect(access.canWrite).toBe(true);
+  });
+
+  it('never lets a share be shared again', async () => {
+    const { share, guestSession } = await openShare('grant-no-resharing', {
+      accessMode: 'readwrite',
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access.canShare).toBe(false);
+  });
+
+  it('tells the owner that it is theirs, and a visitor that it is not', async () => {
+    const { owner, share, guestSession } = await openShare('grant-ownership', {});
+    const visitor = await createOwner('grant-ownership-visitor');
+
+    const asOwner = await accessTo(share, { user: owner, guestSession });
+    const asVisitor = await accessTo(share, { user: visitor, guestSession });
+
+    expect(asOwner.shareInfo.isOwner).toBe(true);
+    expect(asVisitor.shareInfo.isOwner).toBe(false);
+  });
+});
