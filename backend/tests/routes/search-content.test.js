@@ -355,6 +355,14 @@ describe('searching through the index', () => {
     await buildIndex();
     await fs.writeFile(path.join(dir, 'later.md'), 'a pangolin arrived after the pass\n');
 
+    // Stated before the real assertion, because the failure otherwise reads as
+    // 'the index returned too much' when the cause is 'the index was not used':
+    // an index that is not ready sends the search back to reading the tree,
+    // which finds the later file for an entirely different reason.
+    const dbService = envContext.requireFresh('src/services/db');
+    const store = envContext.requireFresh('src/services/searchIndexStore');
+    expect(store.isReady(await dbService.getDb())).toBe(true);
+
     const names = (await search('pangolin')).map((item) => item.name);
 
     expect(names).toContain('indexed.md');
