@@ -3,6 +3,51 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
+## Letting someone comment on a document without editing it
+
+The ONLYOFFICE editor already offers comments and track changes — they are the
+Document Server's, not ours, and they are on for anyone who may edit. Two things
+were fixed to stop them being on by accident: `permissions.comment` is now
+stated rather than inherited from `edit`, and `editorConfig.mode` no longer
+follows `canEdit`. That second one is the whole reason a comment-only reader was
+impossible to express: `mode: 'view'` loads a viewer, and a viewer has no
+comment UI however the permissions read.
+
+What is left is the access model, and the hard part is not the editor config.
+
+**Commenting is writing.** A `.docx` keeps its comments inside its own OOXML, so
+a reader who may only annotate still causes the file on disk to be rewritten.
+`onlyoffice.js` decides `canEdit` before signing the backend token and the
+callback trusts that flag rather than re-resolving permissions — deliberately.
+Granting comments therefore needs a third state in that token, not a looser
+boolean. With a boolean there are only two outcomes and both are wrong: refuse
+the save and the comment is lost when the editor closes, or allow it and
+"read-only" no longer means anything.
+
+**It is not a level between `ro` and `rw`.** Access rules are `rw | ro | hidden`
+and the content really does stay read-only, so a fourth level would lie about
+what it permits. It belongs as its own attribute.
+
+**Shares are where the need actually is**, and where the model already fits:
+they carry granular booleans (`allowDelete`, `allowUpload`, `allowCreateFile`),
+so `allowComment` sits beside them without touching volume rules. The use case
+is sending a document out for review to somebody who has no account.
+
+**Identity decides whether it is worth having.** `user.id`/`user.name` is
+already sent, guests included as `guest_<id>`. On a public share that makes
+every comment read as "Guest", which is unusable for a review with more than one
+reader. A commentable share needs either a name asked for at open time or a
+share issued to a named person — a product decision, not a code one.
+
+**And say out loud what is trusted.** A save authorised by `comment` is trusted
+to contain only comments, because ONLYOFFICE enforces that in the editor and the
+JWT secret is what stands behind the callback. Verifying it server-side would
+mean diffing two OOXML documents. That is the same trust already extended for
+edits; it should be a decision, not an omission.
+
+Order: `allowComment` on shares, then the third state in the token, then volume
+rules only if the need shows up there.
+
 ## Per-user API tokens, managed in settings
 
 The HTTP API authenticates by session cookie only; `POST /api/auth/token`

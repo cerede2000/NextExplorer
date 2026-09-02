@@ -442,6 +442,18 @@ router.post(
     // decision, so a viewer never receives one that allows writing.
     const canEdit = mode !== 'view' && !isReadonlyShare && accessInfo.canWrite === true;
 
+    /**
+     * Whether the reader may annotate — which nothing grants separately yet, so
+     * for now it is exactly whoever may edit.
+     *
+     * It exists as its own name because commenting is not a weaker kind of
+     * editing: a comment leaves the content alone and still rewrites the file,
+     * since a .docx keeps its comments inside its own OOXML. Granting it will
+     * mean a third state in the backend token below, not a looser boolean —
+     * see TODO.md.
+     */
+    const canComment = canEdit;
+
     const filename = path.basename(abs);
     const ext = toExtension(filename);
     const documentType = getDocumentType(ext);
@@ -510,13 +522,22 @@ router.post(
         url: fileUrl.toString(),
         permissions: {
           edit: canEdit,
+          // Stated rather than inherited: ONLYOFFICE defaults `comment` to the
+          // value of `edit`, so leaving it out reads as "we did not think about
+          // it" and moves with their default if it ever changes.
+          comment: canComment,
           download: true,
           print: true,
           review: canEdit,
         },
       },
       editorConfig: {
-        mode: canEdit ? 'edit' : 'view',
+        // 'view' is a viewer, not a read-only editor: it hides the comment UI
+        // even when `comment` is granted. So the mode follows whether there is
+        // anything at all to do in the document, and the permissions above say
+        // what that is. Tying it to `canEdit` is what makes a comment-only
+        // reader impossible to express.
+        mode: canEdit || canComment ? 'edit' : 'view',
         callbackUrl: callbackUrl.toString(),
         customization: {
           anonymous: { request: false },
