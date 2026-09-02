@@ -225,13 +225,15 @@ safely until the first one exists.**
 
 ### 1. Tests for the ten route modules that have none of their own
 
-`permissions` is done. The rest, in order of what a defect there costs:
-`users`, `metadata`, `thumbnails`, `volumes`, `userVolumes`, `upload`, `zip`,
+`permissions`, `users`, `metadata` and `thumbnails` are done. The rest, in order
+of what a defect there costs: `volumes`, `userVolumes`, `upload`, `zip`,
 `favorites`, `index`.
 
 Some are traversed indirectly by other suites, which is why coverage is not
-zero — but nobody has written down what they must answer. `metadata.js` sits at
-18.8 % of statements and 0 % of branches, `users.js` at 23.4 % and 0 %.
+zero — but nobody has written down what they must answer. The four done so far
+went from 18–28 % of statements and 0 % of branches to 66–87 % and 26–75 %, and
+each turned something up: a rule written twice, a 500 where a 404 belonged, and
+three tests of my own that passed whether the guard existed or not.
 
 This is the net the next two steps hang from. It is not optional groundwork.
 
