@@ -5,6 +5,7 @@ const { search: searchConfig, directories, extensions } = require('../config/ind
 const { extractPdfTextLines } = require('./pdfTextExtract');
 const { extractOfficeTextLines, isOfficeDocument } = require('./officeTextExtract');
 const store = require('./searchIndexStore');
+const { containerMemoryLimitBytes } = require('../utils/containerMemory');
 
 /**
  * Building the index without being noticed.
@@ -164,7 +165,7 @@ const indexTree = async ({
   batchSize = 25,
   cpuPercent = 25,
   workSliceMs = 50,
-  memoryBudgetBytes = 512 * 1024 * 1024,
+  memoryBudgetBytes = 256 * 1024 * 1024,
   exclude = searchConfig?.index?.exclude ?? [],
   readMemory = () => process.memoryUsage().rss,
   maxFileSizeBytes = searchConfig?.maxFileSizeBytes ?? 5 * 1024 * 1024,
@@ -220,19 +221,45 @@ const indexTree = async ({
   let sliceStartedAt = Date.now();
   let pauses = 0;
 
-  // A ceiling on what the pass may add to the process, checked once a slice.
+  // A ceiling on the pass, checked once a slice.
   //
-  // Not a substitute for the bounds above — it is what stands between a bound
-  // that turns out to be wrong and a container that dies. An index is worth
-  // having; it is not worth being the reason nothing else runs. Stopping is
-  // safe: what was written stays written and the next pass resumes from it.
+  // Two of them, because two different things are being protected against.
+  // What actually kills a container is the process passing the limit its
+  // cgroup enforces, so where there is one that is the ceiling — three
+  // quarters of it, leaving room for the request that arrives while the pass
+  // is between checks. Where there is none, the fallback is what the pass
+  // itself has added, which is all that can be known without a limit to
+  // compare against.
+  //
+  // The delta is a blunt instrument and worth being honest about: it is the
+  // whole process's growth since the pass began, so a thumbnail sweep or a
+  // folder-size reconcile running alongside is counted against the index. A
+  // single reading is therefore not enough to stop on — it takes two in a row,
+  // so a spike belonging to something else does not end the pass.
+  //
+  // Stopping is safe either way: what was written stays written, and the next
+  // pass skips it and carries on from there.
   const memoryAtStart = readMemory();
+  const containerLimit = containerMemoryLimitBytes();
+  const containerCeiling = containerLimit ? containerLimit * 0.75 : null;
+  let consecutiveOverBudget = 0;
   const cpuAtStart = process.cpuUsage();
   const startedAt = Date.now();
   let stoppedForMemory = false;
 
-  const overMemoryBudget = () =>
-    memoryBudgetBytes > 0 && readMemory() - memoryAtStart > memoryBudgetBytes;
+  const overMemoryBudget = () => {
+    const rss = readMemory();
+
+    if (containerCeiling) return rss > containerCeiling;
+
+    if (!(memoryBudgetBytes > 0)) return false;
+    if (rss - memoryAtStart > memoryBudgetBytes) {
+      consecutiveOverBudget += 1;
+      return consecutiveOverBudget >= 2;
+    }
+    consecutiveOverBudget = 0;
+    return false;
+  };
 
   const growthMb = () => Math.round((readMemory() - memoryAtStart) / (1024 * 1024));
 

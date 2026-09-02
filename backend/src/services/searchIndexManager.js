@@ -33,6 +33,9 @@ let stopped = false;
 let controller = null;
 let timer = null;
 
+/** How soon a pass that stopped on memory picks up where it left off. */
+const RESUME_AFTER_MEMORY_MS = 2 * 60 * 1000;
+
 /** The backlog of per-file work, and the single worker that drains it. */
 const MAX_PENDING_UPDATES = 1000;
 const pending = [];
@@ -112,6 +115,21 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
     // Only a pass that reached the end can promise the index answers for the
     // whole volume, and that promise is what lets search stop reading the tree.
     if (!result.interrupted) store.markPassComplete(db);
+
+    // A pass that stopped on memory has made real progress — what it wrote is
+    // kept and skipped next time — but waiting the full interval to continue
+    // would mean an index that takes days to become usable, or never does on a
+    // volume large enough to hit the ceiling every time. It carries on shortly.
+    if (result.stoppedForMemory && !stopped) {
+      logger.info(
+        { indexed: result.indexed, resumeInMs: RESUME_AFTER_MEMORY_MS },
+        'Search index paused on memory and will carry on from where it stopped'
+      );
+      const resume = setTimeout(() => {
+        reconcile({ reason: 'resume-after-memory' });
+      }, RESUME_AFTER_MEMORY_MS);
+      resume.unref?.();
+    }
 
     logger.info(
       {

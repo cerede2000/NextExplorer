@@ -680,14 +680,16 @@ module.exports = {
       // the next one. Every other bound is a belief about what a file costs;
       // this is what holds when one of those beliefs is wrong.
       //
-      // A hundred and twenty-eight megabytes because a pass over two hundred
-      // thousand documents was measured growing sixty, and a ceiling twice
-      // what the work needs is a guard. Five hundred was not a guard: nothing
-      // reaches it, so nothing is ever caught by it.
+      // Only consulted when the container enforces no limit of its own; where
+      // it does, that limit is the ceiling and this is ignored. A pass over
+      // two hundred thousand documents was measured growing sixty megabytes,
+      // but the figure this is compared against is the whole process, so it
+      // has to leave room for everything else that runs during the twenty-odd
+      // minutes a pass takes.
       memoryBudgetBytes:
         Number.isFinite(env.SEARCH_INDEX_MEMORY_MB) && env.SEARCH_INDEX_MEMORY_MB > 0
           ? env.SEARCH_INDEX_MEMORY_MB * 1024 * 1024
-          : 128 * 1024 * 1024,
+          : 256 * 1024 * 1024,
       reconcileMs:
         Number.isFinite(env.SEARCH_INDEX_RECONCILE_MS) && env.SEARCH_INDEX_RECONCILE_MS > 0
           ? env.SEARCH_INDEX_RECONCILE_MS

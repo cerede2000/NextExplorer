@@ -393,6 +393,31 @@ describe('what a pass costs', () => {
     expect(compiled).toBeLessThan(12);
   });
 
+  // A single reading is not enough: the figure is the whole process, so a
+  // thumbnail sweep or a folder-size pass running alongside would otherwise
+  // end the indexing that happens to be running at the same moment.
+  it('does not stop on one reading that another task caused', async () => {
+    for (let index = 0; index < 40; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
+    }
+
+    // One spike well over the budget, then back to normal.
+    let reading = 0;
+    const result = await indexAll({
+      batchSize: 1,
+      workSliceMs: 0,
+      memoryBudgetBytes: 1000,
+      readMemory: () => {
+        reading += 1;
+        return reading === 4 ? 100000 : 500;
+      },
+    });
+
+    expect(result.stoppedForMemory).toBe(false);
+    expect(result.indexed).toBe(40);
+  });
+
   // The last line of defence. Every bound above is a belief about what a file
   // costs; this one holds when a belief turns out to be wrong.
   it('stops rather than let the process grow without end', async () => {
