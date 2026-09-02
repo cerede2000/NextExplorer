@@ -93,15 +93,26 @@ describe('User Search Service', () => {
     });
 
     it('should respect limit parameter', async () => {
-      // Create multiple users with similar names
+      // Inserted rather than created: ten accounts through `createLocalUser` is
+      // ten bcrypt hashes at cost 12, which is seconds of deliberate slowness
+      // for passwords this test never uses — and enough to time it out on a
+      // CI runner while passing on a developer's machine.
+      const db = await getDb();
+      const now = new Date().toISOString();
+      const insert = db.prepare(
+        `INSERT INTO users (id, email, username, display_name, roles, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      );
       for (let i = 1; i <= 10; i++) {
-        await users.createLocalUser({
-          email: `testuser${i}@example.com`,
-          password: 'password123',
-          username: `testuser${i}`,
-          displayName: `Test User ${i}`,
-          roles: ['user'],
-        });
+        insert.run(
+          `limit-user-${i}`,
+          `testuser${i}@example.com`,
+          `testuser${i}`,
+          `Test User ${i}`,
+          '["user"]',
+          now,
+          now
+        );
       }
 
       // Search with limit
@@ -121,7 +132,15 @@ describe('User Search Service', () => {
         INSERT INTO users (id, email, username, display_name, roles, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `
-      ).run('user-no-display', 'nodisplay@example.com', 'nodisplayuser', null, '["user"]', now, now);
+      ).run(
+        'user-no-display',
+        'nodisplay@example.com',
+        'nodisplayuser',
+        null,
+        '["user"]',
+        now,
+        now
+      );
 
       const result = await searchUsersForMentions('nodisplay', 10);
       expect(result.Users.length).toBe(1);
