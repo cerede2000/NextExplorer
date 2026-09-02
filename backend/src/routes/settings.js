@@ -146,6 +146,23 @@ router.patch(
     const payload = req.body || {};
     const user = req.user;
     const isAdmin = user && Array.isArray(user.roles) && user.roles.includes('admin');
+
+    // Asked before anything is written, not after. The user section used to be
+    // applied first and the refusal raised afterwards, so a payload carrying
+    // both a preference and a system setting answered 403 with the preference
+    // already saved — a request reported as refused that had changed something.
+    const SYSTEM_SECTIONS = [
+      'thumbnails',
+      'access',
+      'folderSize',
+      'searchIndex',
+      'branding',
+      'uploads',
+    ];
+    if (!isAdmin && SYSTEM_SECTIONS.some((section) => payload[section])) {
+      return res.status(403).json({ error: 'Admin access required for system settings.' });
+    }
+
     const updated = {};
 
     // User settings (all authenticated users can update)
@@ -297,16 +314,6 @@ router.patch(
       if (resetToDefault) {
         await deleteCustomLogoFiles();
       }
-    } else if (
-      payload.thumbnails ||
-      payload.access ||
-      payload.folderSize ||
-      payload.searchIndex ||
-      payload.branding ||
-      payload.uploads
-    ) {
-      // Non-admin trying to update system settings
-      return res.status(403).json({ error: 'Admin access required for system settings.' });
     }
 
     // Return updated settings
