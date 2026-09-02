@@ -9,17 +9,17 @@ import { setupTestEnv } from '../helpers/env-test-utils.js';
  * so it answered a different question, and a container was reported unhealthy
  * for ten minutes while the application it runs served pages perfectly.
  */
-describe('the liveness probe', () => {
-  const withApp = async (env, run) => {
-    const envContext = await setupTestEnv({ tag: 'health-', env });
-    try {
-      const { createApp } = envContext.requireFresh('src/app');
-      await run(await createApp({ skipBootstrap: true, skipStaticFiles: true }));
-    } finally {
-      await envContext.cleanup();
-    }
-  };
+const withApp = async (env, run) => {
+  const envContext = await setupTestEnv({ tag: 'health-', env });
+  try {
+    const { createApp } = envContext.requireFresh('src/app');
+    await run(await createApp({ skipBootstrap: true, skipStaticFiles: true }));
+  } finally {
+    await envContext.cleanup();
+  }
+};
 
+describe('the liveness probe', () => {
   it('answers with authentication required everywhere else', async () => {
     await withApp({ AUTH_MODE: 'local' }, async (app) => {
       // The rest of the API refuses an anonymous caller...
@@ -43,18 +43,12 @@ describe('the liveness probe', () => {
    * provider, and neither has anything to do with whether this container is
    * alive.
    */
-  it('is registered before anything that talks to a database or the network', async () => {
+  it('answers without creating a session', async () => {
     await withApp({ AUTH_MODE: 'local' }, async (app) => {
-      // Express 5 renamed `app._router` to `app.router`.
-      const stack = (app.router || app._router).stack;
-      const healthAt = stack.findIndex((layer) =>
-        layer.handle?.stack?.some((inner) => inner.route?.path === '/healthz')
-      );
-      const sessionAt = stack.findIndex((layer) => layer.name === 'session');
+      const probe = await request(app).get('/healthz');
 
-      expect(healthAt).toBeGreaterThanOrEqual(0);
-      expect(sessionAt).toBeGreaterThanOrEqual(0);
-      expect(healthAt).toBeLessThan(sessionAt);
+      expect(probe.status).toBe(200);
+      expect(probe.headers['set-cookie']).toBeUndefined();
     });
   });
 
@@ -66,5 +60,35 @@ describe('the liveness probe', () => {
       // Nothing was set on the way out: no session was created to answer it.
       expect(response.headers['set-cookie']).toBeUndefined();
     });
+  });
+});
+
+/**
+ * The incident this file exists for: the container was reported unhealthy
+ * because `/healthz` sat behind the OpenID Connect middleware, which was slow
+ * to answer. An identity provider that cannot be reached must not make a
+ * running container look dead — that is the whole property, and it is asked of
+ * the answer rather than of the router's internals, which changed names in
+ * Express 5 and broke the previous version of this test while the application
+ * was fine.
+ */
+describe('a probe with an identity provider that cannot be reached', () => {
+  it('still answers', async () => {
+    await withApp(
+      {
+        AUTH_ENABLED: 'true',
+        AUTH_MODE: 'oidc',
+        OIDC_ENABLED: 'true',
+        // Reserved by RFC 6761 for exactly this: it never resolves.
+        OIDC_ISSUER: 'https://nothing.invalid',
+        OIDC_CLIENT_ID: 'probe-client',
+        OIDC_CLIENT_SECRET: 'probe-secret',
+      },
+      async (app) => {
+        const response = await request(app).get('/healthz');
+
+        expect(response.status).toBe(200);
+      }
+    );
   });
 });

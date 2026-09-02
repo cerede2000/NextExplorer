@@ -300,13 +300,6 @@ states of `fileStore`. Five states, five tests.
 
 ## Open, not scheduled
 
-- **A route suite fails intermittently in a full run.** Seen twice on 2 September
-  2026, on two different files — `office-document` once and `search-content`
-  once — each passing on its own and on the next full run. Both build an app
-  with supertest over a temporary environment, so a shared temporary directory
-  or a module registry crossing between workers is the shape to look for. A
-  test that fails one run in ten is a test people learn to re-run, and then a
-  test nobody believes.
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
   and deletes nothing. It needs a PAT with `delete:packages`. More pressing now
   that every push to `main` publishes images.

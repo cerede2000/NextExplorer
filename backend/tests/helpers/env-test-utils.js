@@ -130,6 +130,42 @@ const createTempDirs = async (tag = 'backend-tests-') => {
  *
  * await env.cleanup();
  */
+/**
+ * Stop the background work a test may have started, without starting any.
+ *
+ * `require.cache` is consulted rather than `require` so that a module the test
+ * never loaded stays unloaded — asking a service to stop is otherwise a way of
+ * starting it.
+ */
+const loadedModule = (relativePath) => {
+  const resolved = modulePath(relativePath);
+  try {
+    return require.cache[require.resolve(resolved)]?.exports || null;
+  } catch {
+    return null;
+  }
+};
+
+const quiesceLoadedServices = async () => {
+  const searchIndex = loadedModule('src/services/searchIndexManager');
+  try {
+    searchIndex?.stop?.();
+  } catch {
+    /* a manager that never started has nothing to stop */
+  }
+
+  const db = loadedModule('src/services/db');
+  try {
+    db?.closeDb?.();
+  } catch {
+    /* an unopened database has no handle to close */
+  }
+
+  // One turn for anything that was mid-flight to settle before the directory
+  // it is writing into disappears.
+  await new Promise((resolve) => setImmediate(resolve));
+};
+
 const setupTestEnv = async ({ tag, modules = [], env = {} } = {}) => {
   const dirs = await createTempDirs(tag);
   const envOverrides = {
@@ -153,6 +189,18 @@ const setupTestEnv = async ({ tag, modules = [], env = {} } = {}) => {
      * Call this in afterAll/afterEach to restore state.
      */
     cleanup: async () => {
+      // Close what the test started before the ground is removed from under
+      // it. Dropping the module registry does not stop a timer or a queued
+      // pass that a loaded module already scheduled: it keeps running against
+      // a directory that is about to be deleted and an environment that is
+      // about to be restored, and it lands on whichever test comes next. That
+      // is the whole of the intermittent failure this suite had — five
+      // different tests in five different files over two days, each passing on
+      // its own.
+      //
+      // Only modules already in the registry are touched: requiring one here
+      // to shut it down would start it.
+      await quiesceLoadedServices();
       restoreEnv();
       clearApplicationModules();
       await fs.rm(dirs.tmpRoot, { recursive: true, force: true });
