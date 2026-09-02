@@ -175,6 +175,7 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
     logger.info(
       {
         ...summary,
+        excluded: exclusions.effectivePaths(),
         reason,
         ms: Date.now() - startedAt,
         documents: store.stats(db).documents,
@@ -200,9 +201,21 @@ const start = () => {
 
   // The administrator's list lives in the database, so it has to be read
   // before the first pass rather than after it.
+  //
+  // And said out loud once it is read. An index holding nine thousand
+  // documents where the volume has six hundred thousand is either a working
+  // exclusion or a silent hole, and nothing in the log told them apart — the
+  // question had to be asked and answered by hand.
   enqueue(async () => {
     const db = await getDb();
     exclusions.loadFromDatabase(db);
+    const { environmentExcludedPaths, excludedPaths } = exclusions.snapshot();
+    if (environmentExcludedPaths.length || excludedPaths.length) {
+      logger.info(
+        { fromEnvironment: environmentExcludedPaths, fromSettings: excludedPaths },
+        'Search index will not read these folders'
+      );
+    }
   });
 
   if (searchConfig.index.rebuild) {

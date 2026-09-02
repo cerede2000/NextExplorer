@@ -693,3 +693,39 @@ describe('saying why a file was read again', () => {
     expect(sample.diskSize).toBeGreaterThan(sample.storedSize);
   });
 });
+
+/**
+ * An index holding nine thousand documents where the volume has six hundred
+ * thousand is either a working exclusion or a silent hole, and nothing in the
+ * log told the two apart — the question had to be asked and answered by hand.
+ */
+describe('saying what it does not read', () => {
+  beforeEach(async () => {
+    await build({ SEARCH_INDEX_EXCLUDE: 'Stacks/docker' });
+    await fs.mkdir(volumePath('Docs'), { recursive: true });
+  });
+
+  it('reports the environment list and the administrator list apart', async () => {
+    const exclusions = envContext.requireFresh('src/services/searchIndexExclusions');
+    exclusions.setAdminPaths(['Sauvegardes/2024']);
+
+    expect(exclusions.snapshot()).toEqual({
+      environmentExcludedPaths: ['Stacks/docker'],
+      excludedPaths: ['Sauvegardes/2024'],
+    });
+    // And the pass is given both, so what it skipped is what was asked.
+    expect(exclusions.effectivePaths()).toEqual(['Sauvegardes/2024', 'Stacks/docker']);
+  });
+
+  it('leaves out what the environment named, without being told twice', async () => {
+    await fs.mkdir(volumePath('Stacks', 'docker'), { recursive: true });
+    await fs.writeFile(volumePath('Stacks', 'docker', 'layer.txt'), 'pangolin\n');
+    await fs.writeFile(volumePath('Docs', 'kept.txt'), 'pangolin\n');
+
+    const exclusions = envContext.requireFresh('src/services/searchIndexExclusions');
+    const result = await indexAll({ exclude: exclusions.effectivePaths() });
+
+    expect(result.indexed).toBe(1);
+    expect(store.search(db, 'pangolin')).toEqual(['Docs/kept.txt']);
+  });
+});
