@@ -3,6 +3,31 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
+## A download permission that is never withheld
+
+`routes/files/download.js` refuses a request when `accessInfo.canDownload` is
+false, and `accessManager` sets that field to `true` at every site where it is
+set — the sole exception being `createDeniedAccess`, where `canAccess` is
+already false and is checked first. Deleting the check from the route breaks no
+test, which is how this surfaced while writing them.
+
+It reaches the frontend too: `fileActions.js` exposes `locationCanDownload` and
+`canDownloadCurrentFolder` reads it, so the UI gates a control on a permission
+that cannot be withheld.
+
+Two honest ways out, and they are opposite:
+
+- **Make it real.** A share that may be read but not copied is a coherent thing
+  to want, and it is the natural sibling of the `allowComment` above: an
+  `allowDownload` on shares, `false` turning off the download button, the
+  archive route and the direct file route. The plumbing is already laid.
+- **Take it out.** If nobody wants that share, the field is a promise the code
+  does not keep, and every reader has to work out for themselves that it is
+  always true.
+
+Either is better than what is there. What must not happen is a third audit
+finding the same dead branch and assuming it protects something.
+
 ## Dropping fluent-ffmpeg
 
 `fluent-ffmpeg@2.1.3` is marked deprecated on npm — "Package no longer
