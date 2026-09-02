@@ -777,6 +777,8 @@
     "next": "Nästa media"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren. Öppna det i redigeraren eller ladda ner det.",
+    "tooLargeToRenderWithEditor": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren; redigeraren öppnar upp till {editorLimit}. Öppna det i redigeraren eller ladda ner det."
   }
 }

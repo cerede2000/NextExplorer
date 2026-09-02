@@ -777,6 +777,8 @@
     "next": "下一個媒體"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "這份文件大小為 {size}。預覽在 {limit} 處停止，因為它需要在瀏覽器中排版每一個元素。請在編輯器中開啟或下載。",
+    "tooLargeToRenderWithEditor": "這份文件大小為 {size}。預覽在 {limit} 處停止，因為它需要在瀏覽器中排版每一個元素；編輯器最多可開啟 {editorLimit}。請在編輯器中開啟或下載。"
   }
 }

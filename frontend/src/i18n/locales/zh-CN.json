@@ -777,6 +777,8 @@
     "next": "下一个媒体"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素。请在编辑器中打开或下载。",
+    "tooLargeToRenderWithEditor": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素；编辑器最多可打开 {editorLimit}。请在编辑器中打开或下载。"
   }
 }

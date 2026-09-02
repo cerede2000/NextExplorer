@@ -777,6 +777,8 @@
     "next": "다음 미디어"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기에서 열거나 내려받으세요.",
+    "tooLargeToRenderWithEditor": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기는 {editorLimit}까지 엽니다. 편집기에서 열거나 내려받으세요."
   }
 }

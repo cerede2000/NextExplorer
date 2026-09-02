@@ -777,6 +777,8 @@
     "next": "Element media următor"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser. Deschideți-l în editor sau descărcați-l.",
+    "tooLargeToRenderWithEditor": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser; editorul deschide până la {editorLimit}. Deschideți-l în editor sau descărcați-l."
   }
 }

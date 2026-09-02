@@ -777,6 +777,8 @@
     "next": "Следующий медиафайл"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "Размер документа — {size}. Предпросмотр останавливается на {limit}, поскольку размещает каждый элемент в браузере. Откройте его в редакторе или скачайте.",
+    "tooLargeToRenderWithEditor": "Размер документа — {size}. Предпросмотр останавливается на {limit}, поскольку размещает каждый элемент в браузере; редактор открывает до {editorLimit}. Откройте его в редакторе или скачайте."
   }
 }

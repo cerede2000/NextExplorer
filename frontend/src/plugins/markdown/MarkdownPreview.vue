@@ -19,9 +19,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import DOMPurify from 'dompurify';
+import { useFeaturesStore } from '@/stores/features';
+import { formatBytes } from '@/utils';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -32,6 +34,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const featuresStore = useFeaturesStore();
 
 const loading = ref(false);
 const html = ref('');
@@ -49,8 +52,19 @@ const error = ref('');
  * Refusing to render it is not a limitation to hide: the file opens in the
  * editor, and it downloads, both of which are what someone with a document
  * that size actually wants.
+ *
+ * Set by the server (`PREVIEW_MAX_RENDER_SIZE`) rather than fixed here. It was
+ * fixed here, which meant someone who raised the editor's limit in good faith
+ * was refused at a number that appeared in no setting and no document, and had
+ * no way to find out where it came from.
  */
-const MAX_PREVIEW_CHARACTERS = 512 * 1024;
+const DEFAULT_MAX_PREVIEW_BYTES = 512 * 1024;
+
+const maxPreviewBytes = computed(() =>
+  Number.isFinite(featuresStore.previewMaxRenderBytes)
+    ? featuresStore.previewMaxRenderBytes
+    : DEFAULT_MAX_PREVIEW_BYTES
+);
 
 onMounted(async () => {
   loading.value = true;
@@ -64,8 +78,21 @@ onMounted(async () => {
     const response = await props.api.fetchContent();
     const content = response?.content || '';
 
-    if (content.length > MAX_PREVIEW_CHARACTERS) {
-      error.value = t('preview.tooLargeToRender');
+    if (content.length > maxPreviewBytes.value) {
+      // Naming both numbers is the difference between an explanation and a
+      // dead end: the editor's limit is a different setting over different
+      // work, and someone who set that one deserves to be told so here.
+      const editorLimit = featuresStore.editorMaxFileSizeBytes;
+      error.value = editorLimit
+        ? t('preview.tooLargeToRenderWithEditor', {
+            size: formatBytes(content.length),
+            limit: formatBytes(maxPreviewBytes.value),
+            editorLimit: formatBytes(editorLimit),
+          })
+        : t('preview.tooLargeToRenderSized', {
+            size: formatBytes(content.length),
+            limit: formatBytes(maxPreviewBytes.value),
+          });
       return;
     }
 

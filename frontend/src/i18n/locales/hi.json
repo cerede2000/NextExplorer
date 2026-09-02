@@ -777,6 +777,8 @@
     "next": "अगला मीडिया"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "यह दस्तावेज़ {size} का है। पूर्वावलोकन {limit} पर रुक जाता है, क्योंकि यह हर तत्व को ब्राउज़र में सजाता है। इसे संपादक में खोलें या डाउनलोड करें।",
+    "tooLargeToRenderWithEditor": "यह दस्तावेज़ {size} का है। पूर्वावलोकन {limit} पर रुक जाता है, क्योंकि यह हर तत्व को ब्राउज़र में सजाता है; संपादक {editorLimit} तक खोलता है। इसे संपादक में खोलें या डाउनलोड करें।"
   }
 }

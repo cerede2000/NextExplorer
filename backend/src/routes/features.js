@@ -3,6 +3,7 @@ const {
   onlyoffice,
   collabora,
   editor,
+  preview,
   terminal,
   features,
   hiddenFiles,
@@ -41,6 +42,13 @@ router.get('/features', async (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+      // What the editor will open. The preview has a limit of its own, and a
+      // refusal that names both is the difference between an explanation and
+      // a dead end.
+      maxFileSizeBytes: editor?.maxFileSizeBytes ?? null,
+    },
+    preview: {
+      maxRenderBytes: preview?.maxRenderBytes ?? null,
     },
     hiddenFiles: {
       patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],

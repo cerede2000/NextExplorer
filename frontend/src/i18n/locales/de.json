@@ -777,6 +777,8 @@
     "next": "Nächstes Medium"
   },
   "preview": {
-    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead."
+    "tooLargeToRender": "This document is too large to preview. Open it in the editor or download it instead.",
+    "tooLargeToRenderSized": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt. Öffnen Sie es im Editor oder laden Sie es herunter.",
+    "tooLargeToRenderWithEditor": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt; der Editor öffnet bis zu {editorLimit}. Öffnen Sie es im Editor oder laden Sie es herunter."
   }
 }
