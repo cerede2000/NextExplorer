@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { execFile } from 'node:child_process';
@@ -6,6 +6,17 @@ import { promisify } from 'node:util';
 import sharp from 'sharp';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+
+/**
+ * A whole-file budget, against a vitest default of five seconds.
+ *
+ * Every test here waits on a spawned ffmpeg. The suite runs one worker per
+ * core, so on a contended machine that process is not slow — it is queued, and
+ * a budget sized for an idle machine turns ordinary scheduling into a failure
+ * that names the wrong thing. Deliberately oversubscribing the pool failed
+ * these in half the runs before this.
+ */
+vi.setConfig({ testTimeout: 30_000 });
 
 const execFileAsync = promisify(execFile);
 
@@ -96,7 +107,9 @@ const makeClip = async (file, args = []) => {
 const thumbnailFor = async (env, service, source) => {
   const result = await service.queueThumbnailGeneration(source, { priority: 10 });
   const thumbDir = path.join(env.cacheDir, 'thumbnails');
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  // Long enough to survive a contended machine: this waits on a spawned
+  // ffmpeg, which under load is queued rather than slow.
+  for (let attempt = 0; attempt < 500; attempt += 1) {
     const entries = await fs.readdir(thumbDir).catch(() => []);
     const done = entries.filter((name) => name.endsWith('.webp'));
     if (done.length) return path.join(thumbDir, done[0]);

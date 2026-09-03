@@ -6,6 +6,17 @@ import { promisify } from 'node:util';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
+/**
+ * A whole-file budget, against a vitest default of five seconds.
+ *
+ * Every test here waits on a spawned ffmpeg. The suite runs one worker per
+ * core, so on a contended machine that process is not slow — it is queued, and
+ * a budget sized for an idle machine turns ordinary scheduling into a failure
+ * that names the wrong thing. Deliberately oversubscribing the pool failed
+ * these in half the runs before this.
+ */
+vi.setConfig({ testTimeout: 30_000 });
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -111,10 +122,15 @@ const writeUndecodableVideo = async (dir, name = 'broken.mp4') => {
 const failureFrom = async (service, source) => {
   await service.queueThumbnailGeneration(source, { priority: 10 });
 
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  // Twenty-five seconds of patience, against a vitest default of five. What is
+  // being waited on is a spawned ffmpeg, and the suite runs one worker per
+  // core: on a contended machine the process is not slow, it is queued. A
+  // budget that matched the happy path turned that into "the service never
+  // reported a failure", which is the opposite of what happened.
+  for (let attempt = 0; attempt < 500; attempt += 1) {
     const entry = logged.find(({ message }) => message === 'Thumbnail generation failed');
     if (entry) return entry.fields.err;
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error('the service never reported a failure');
 };

@@ -72,6 +72,22 @@ const buildApp = ({ authEnabled } = {}) => {
 
 describe('Auth Routes', () => {
   describe('Authentication Flow', () => {
+    /**
+     * A generous timeout, and the reason for it: every step here hashes a
+     * password with bcryptjs — pure JavaScript — at cost 12, and the flow walks
+     * through a setup, a login, a change and a logout.
+     *
+     * It normally takes about a second, so nothing looked marginal. But the
+     * cost is CPU, and the suite runs one worker per core: when the machine is
+     * contended the same second becomes five. Oversubscribing the pool on
+     * purpose failed this test in eight runs out of ten, against roughly one in
+     * fourteen at the default, which is what made it look like an unrelated
+     * mystery rather than a test living too close to its limit.
+     *
+     * The same treatment, and the same reason, as the local-authentication test
+     * in the users service — where it was applied when coverage instrumentation
+     * pushed it over, and not here, because only that one had failed yet.
+     */
     it('should complete setup -> login -> me -> password -> logout flow', async () => {
       const app = buildApp({ authEnabled: true });
 
@@ -114,8 +130,9 @@ describe('Auth Routes', () => {
       // logout
       const logout = await agent.post('/api/auth/logout');
       expect(logout.status).toBe(204);
-    });
+    }, 30_000);
 
+    /** Hashes a password twice over, for the same reason as above. */
     it('should return JSON 401 when current password is incorrect', async () => {
       const app = buildApp({ authEnabled: true });
 
@@ -145,7 +162,7 @@ describe('Auth Routes', () => {
       expect(passwordChange.headers['content-type']).toMatch(/application\/json/i);
       expect(passwordChange.body?.success).toBe(false);
       expect(passwordChange.body?.error?.message).toMatch(/current password is incorrect/i);
-    });
+    }, 30_000);
   });
 
   describe('Auth Status', () => {
