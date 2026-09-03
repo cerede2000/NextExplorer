@@ -13,6 +13,7 @@ const {
   UnsupportedMediaTypeError,
 } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
+const { markLongPoll } = require('../../middleware/heldRequests');
 
 const router = require('express').Router();
 
@@ -113,6 +114,14 @@ router.get(
     };
 
     if (isSeekableMedia) {
+      // Streaming a film holds the connection open for as long as the browser
+      // wants it — minutes, and longer over a slow link. That is the request
+      // doing its job, not a symptom, and the held-request instrument reports
+      // only ten before falling silent for the life of the process: a handful
+      // of videos would spend the whole budget and switch off the one tool
+      // there is for finding a genuinely stuck server.
+      markLongPoll(req);
+
       const range = parseByteRange(req.headers.range, stats.size);
       if (range?.malformed) {
         res.status(416).send('Malformed Range header');
