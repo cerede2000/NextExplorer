@@ -14,17 +14,23 @@ One is explained: `findDocumentTextMatch` checks the extension again and returns
 null, so the route's check is an optimisation (it avoids opening the file) and
 not a rule. That is fine, and worth a comment saying so.
 
-The other two are not explained. With `SEARCH_MAX_FILESIZE=1K` an oversized
-document is not searched, and with no limit it is — verified end to end — but
-removing `stats.size > maxBytes` from the generator does not change that.
-Likewise for `seenPaths.has(rel)`. Something upstream is applying both, and
-until somebody finds what, the code reads as if these lines are load-bearing
-when they are not.
+`seenPaths.has(rel)` is now explained, and the explanation was a bug rather
+than a second enforcement. Nothing upstream was applying it: the passes run
+concurrently and the check is three awaits away from the claim that follows it,
+so the name pass fits inside the window and the same document came back twice.
+Deleting the check changed nothing observable only because the race was
+normally won — a CI runner slow enough to finish the walk while a `.docx` was
+being unzipped lost it, once. The merge deduplicates now, which is where every
+pass converges and where there is no window; the check stays as what it always
+was, a way to avoid reading a file another pass has already found.
 
-Worth untangling because of what it costs later: the next person to touch this
-either keeps a line nothing needs, or removes one and cannot tell from the
-tests whether it mattered. Either the duplicate goes and one place owns the
-rule, or the second enforcement is named in a comment at both ends.
+`stats.size > maxBytes` is still unexplained. With `SEARCH_MAX_FILESIZE=1K` an
+oversized document is not searched, and with no limit it is — verified end to
+end — but removing that line from the generator does not change it. Worth
+untangling for the same reason as before: the next person either keeps a line
+nothing needs, or removes one and cannot tell from the tests whether it
+mattered. Either the duplicate goes and one place owns the rule, or the second
+enforcement is named in a comment at both ends.
 
 ## Letting someone comment on a document without editing it
 

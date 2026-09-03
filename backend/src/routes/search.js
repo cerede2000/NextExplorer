@@ -356,8 +356,32 @@ const announceWhenDone = (generator, onDone) =>
     }
   })();
 
+const resultIdentity = (item) =>
+  item?.path ? `${item.path}/${item.name}` : String(item?.name ?? '');
+
 async function* mergeResults(...generators) {
   const next = new Map();
+  // The last word on whether a file has already been listed.
+  //
+  // Each pass carries a shared `seenPaths` and consults it, which stops it
+  // doing work another pass has done — but it cannot stop a duplicate, because
+  // the check and the claim are not adjacent. The document pass tests the path,
+  // then stats the file, extracts its text and asks permission, and only then
+  // records it: three awaits wide. The file-list pass claims a path on the line
+  // after it tests one, so it fits inside that window, and a `.docx` whose name
+  // and contents both match the term came back twice.
+  //
+  // It showed up as one CI run in some number, because losing the race needs a
+  // machine slow enough to finish the walk while a document is being unzipped.
+  // Moving the claim earlier in that pass would trade the duplicate for a
+  // worse bug: a document that turns out not to match would have reserved a
+  // path the name pass then skips, and the file would vanish from the results.
+  //
+  // Here there is no window. Everything converges on this loop, so a path that
+  // has been emitted is known to have been emitted, whatever order the passes
+  // finished in.
+  const emitted = new Set();
+
   for (const generator of generators) {
     next.set(
       generator,
@@ -378,6 +402,11 @@ async function* mergeResults(...generators) {
         generator,
         generator.next().then((value) => ({ generator, result: value }))
       );
+
+      const identity = resultIdentity(result.value);
+      if (emitted.has(identity)) continue;
+      emitted.add(identity);
+
       yield result.value;
     }
   } finally {
@@ -896,3 +925,6 @@ router.get(
 module.exports = router;
 module.exports.buildContentSearchArgs = buildContentSearchArgs;
 module.exports.contentSearchArgs = contentSearchArgs;
+// Exported for the test that drives it directly: the duplicate it prevents
+// depends on which pass wins a race, which a test cannot arrange from outside.
+module.exports.mergeResults = mergeResults;
