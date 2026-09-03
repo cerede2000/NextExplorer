@@ -769,7 +769,12 @@
     "download": "Descarcă fișierul media",
     "close": "Închide previzualizarea",
     "previous": "Element media anterior",
-    "next": "Element media următor"
+    "next": "Element media următor",
+    "noPlayableAudio": "Coloana sonoră a acestui videoclip este {codecs}, pe care browserul nu o poate decoda. Imaginea rulează, sunetul nu.",
+    "audioTrack": "Pistă audio",
+    "audioTrackNumbered": "Pista {number}",
+    "subtitleForced": "forțate",
+    "subtitleExternal": "fișier extern"
   },
   "preview": {
     "tooLargeToRenderSized": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser. Deschideți-l în editor sau descărcați-l.",

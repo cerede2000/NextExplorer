@@ -769,7 +769,12 @@
     "download": "Download media",
     "close": "Close preview",
     "previous": "Previous media",
-    "next": "Next media"
+    "next": "Next media",
+    "noPlayableAudio": "This video's soundtrack is {codecs}, which your browser cannot decode. The picture plays; the sound does not.",
+    "audioTrack": "Audio track",
+    "audioTrackNumbered": "Track {number}",
+    "subtitleForced": "forced",
+    "subtitleExternal": "external file"
   },
   "preview": {
     "tooLargeToRenderSized": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser. Open it in the editor or download it.",

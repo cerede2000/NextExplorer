@@ -7,6 +7,25 @@
       <span v-if="mediaItems.length > 1" class="text-xs text-neutral-300" aria-live="polite">
         {{ currentIndex + 1 }} / {{ mediaItems.length }}
       </span>
+      <!--
+        Only Safari implements audioTracks; Chrome and Firefox keep it behind a
+        flag. So this appears where switching actually works and is absent
+        everywhere else, rather than offering a control that does nothing.
+      -->
+      <label v-if="switchableAudio.length > 1" class="flex items-center gap-1.5 text-xs">
+        <span class="sr-only">{{ t('mediaPreview.audioTrack') }}</span>
+        <SpeakerWaveIcon class="h-4 w-4 text-neutral-300" />
+        <select
+          v-model="selectedAudioTrack"
+          class="max-w-40 rounded-md border border-white/20 bg-black/60 px-1.5 py-1 text-xs text-white"
+          :aria-label="t('mediaPreview.audioTrack')"
+        >
+          <option v-for="track in switchableAudio" :key="track.id" :value="track.id">
+            {{ track.label }}
+          </option>
+        </select>
+      </label>
+
       <button
         v-if="api.download"
         type="button"
@@ -76,8 +95,24 @@
           playsinline
           :poster="currentMedia.item.thumbnail"
           style="touch-action: pan-y"
+          @loadedmetadata="handleVideoMetadata"
         >
           <source :src="currentMedia.previewUrl" :type="getVideoMimeType(currentMedia.extension)" />
+          <!--
+            Subtitles are converted to WebVTT server-side, because it is the
+            only format a video element accepts. Declaring them as tracks is
+            what makes the browser's own caption button appear — there is no
+            menu of ours to maintain.
+          -->
+          <track
+            v-for="track in subtitleTracks"
+            :key="`${track.source}-${track.index ?? track.fileName}`"
+            kind="subtitles"
+            :src="track.url"
+            :srclang="track.language || undefined"
+            :label="subtitleLabel(track)"
+            :default="track.isDefault || undefined"
+          />
           Your browser does not support the video tag.
         </video>
         <div
@@ -86,6 +121,19 @@
           style="touch-action: pan-y"
         ></div>
       </div>
+
+      <!--
+        Why a film plays in silence. Placed over the stage rather than beneath
+        the video so it changes no layout, and it cannot be clicked through to
+        — the controls underneath stay reachable.
+      -->
+      <p
+        v-if="showAudioNotice"
+        class="pointer-events-none absolute inset-x-4 top-3 z-10 mx-auto max-w-lg rounded-md bg-amber-500/90 px-3 py-2 text-center text-xs font-medium text-black shadow-lg"
+        role="status"
+      >
+        {{ t('mediaPreview.noPlayableAudio', { codecs: unplayableCodecs.join(', ').toUpperCase() }) }}
+      </p>
 
       <button
         v-if="mediaItems.length > 1"
@@ -108,12 +156,14 @@ import {
   ArrowDownTrayIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  SpeakerWaveIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { isPreviewableImage, isPreviewableVideo } from '@/config/media';
 import { useMediaZoom } from './useMediaZoom';
+import { useMediaTracks, languageName } from './useMediaTracks';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -198,6 +248,107 @@ const canZoom = computed(
   () => Boolean(currentMedia.value) && isPreviewableImage(currentMedia.value.extension)
 );
 
+/**
+ * What the file holds, and what this browser will refuse.
+ *
+ * Only worth asking for the things played through a video element; a picture
+ * has no tracks.
+ */
+const isPlayedAsVideo = computed(
+  () => Boolean(currentMedia.value) && !isPreviewableImage(currentMedia.value.extension)
+);
+
+const { subtitleTracks, audioTracks, hasUnplayableAudio, unplayableCodecs } = useMediaTracks(
+  currentMedia,
+  props.api,
+  isPlayedAsVideo
+);
+
+/**
+ * A caption's name in the reader's own language, and where it came from.
+ *
+ * A file next to the video and a track inside it can carry the same language,
+ * so the source is part of the name — otherwise the menu offers "French"
+ * twice and picking one is a guess.
+ */
+const subtitleLabel = (track) => {
+  const named = track.title || languageName(track.language, locale.value) || track.label;
+  const parts = [named];
+  if (track.forced) parts.push(t('mediaPreview.subtitleForced'));
+  if (track.source === 'sidecar') parts.push(t('mediaPreview.subtitleExternal'));
+  return parts.join(' · ');
+};
+
+/**
+ * The audio notice, which says its piece and then gets out of the way.
+ *
+ * It answers a question asked in the first seconds — why is this silent — and
+ * has no business sitting over a film for two hours afterwards.
+ */
+const AUDIO_NOTICE_MS = 10000;
+const noticeVisible = ref(false);
+let noticeTimer = null;
+
+const showAudioNotice = computed(() => hasUnplayableAudio.value && noticeVisible.value);
+
+watch(hasUnplayableAudio, (unplayable) => {
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeVisible.value = unplayable;
+  if (!unplayable) return;
+  noticeTimer = setTimeout(() => {
+    noticeVisible.value = false;
+  }, AUDIO_NOTICE_MS);
+});
+
+/**
+ * Audio tracks this browser will let anyone switch between.
+ *
+ * `audioTracks` is Safari's alone — Chrome and Firefox keep it behind a flag —
+ * so this is empty nearly everywhere, and the control that reads it is absent
+ * rather than present and inert. What the file contains is still reported by
+ * the notice above, which needs no browser support at all.
+ */
+const switchableAudio = ref([]);
+const selectedAudioTrack = ref('');
+
+const readSwitchableAudio = () => {
+  const native = videoRef.value?.audioTracks;
+  if (!native || typeof native.length !== 'number' || native.length < 2) {
+    switchableAudio.value = [];
+    return;
+  }
+
+  const list = [];
+  for (let index = 0; index < native.length; index += 1) {
+    const track = native[index];
+    // Prefer what the server read from the container: ffprobe reports titles
+    // and languages the browser's own track objects often leave empty.
+    const described = audioTracks.value[index];
+    const language = described?.language || track.language;
+    list.push({
+      id: track.id || String(index),
+      index,
+      label:
+        described?.title ||
+        languageName(language, locale.value) ||
+        track.label ||
+        t('mediaPreview.audioTrackNumbered', { number: index + 1 }),
+    });
+    if (track.enabled) selectedAudioTrack.value = track.id || String(index);
+  }
+  switchableAudio.value = list;
+};
+
+watch(selectedAudioTrack, (id) => {
+  const native = videoRef.value?.audioTracks;
+  if (!native || !id) return;
+  for (let index = 0; index < native.length; index += 1) {
+    // Exactly one enabled at a time is what the specification allows, and what
+    // Safari enforces anyway.
+    native[index].enabled = (native[index].id || String(index)) === id;
+  }
+});
+
 watch(
   mediaItems,
   (items) => {
@@ -215,6 +366,12 @@ watch(
   }
 );
 
+/**
+ * The browser only knows what tracks exist once it has read the container's
+ * header, so the list is taken then rather than on mount.
+ */
+const handleVideoMetadata = () => readSwitchableAudio();
+
 const pauseVideo = () => {
   if (!videoRef.value) return;
 
@@ -225,6 +382,10 @@ const pauseVideo = () => {
 watch(currentMedia, (nextMedia, previousMedia) => {
   if (previousMedia?.key !== nextMedia?.key) {
     pauseVideo();
+    // The previous video's tracks are not this one's; the element is rebuilt
+    // and will report its own through loadedmetadata.
+    switchableAudio.value = [];
+    selectedAudioTrack.value = '';
     // A new picture starts at natural size — carrying the previous one's zoom
     // over would land somewhere arbitrary in an unrelated image.
     zoom.reset();
@@ -431,6 +592,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (noticeTimer) clearTimeout(noticeTimer);
   pauseVideo();
   window.removeEventListener('keydown', handleKeydown);
 });

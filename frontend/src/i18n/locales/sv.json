@@ -769,7 +769,12 @@
     "download": "Ladda ner media",
     "close": "Stäng förhandsvisning",
     "previous": "Föregående media",
-    "next": "Nästa media"
+    "next": "Nästa media",
+    "noPlayableAudio": "Videons ljudspår är {codecs}, som din webbläsare inte kan avkoda. Bilden spelas upp, men inte ljudet.",
+    "audioTrack": "Ljudspår",
+    "audioTrackNumbered": "Spår {number}",
+    "subtitleForced": "tvingade",
+    "subtitleExternal": "extern fil"
   },
   "preview": {
     "tooLargeToRenderSized": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren. Öppna det i redigeraren eller ladda ner det.",

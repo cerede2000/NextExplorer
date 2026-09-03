@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { getPreviewUrl, normalizePath, downloadItems, fetchFileContent } from '@/api';
+import {
+  getPreviewUrl,
+  normalizePath,
+  downloadItems,
+  fetchFileContent,
+  fetchMediaTracks,
+  getSubtitleUrl,
+} from '@/api';
 import { useFileStore } from '@/stores/fileStore';
 import router from '@/router';
 
@@ -37,6 +44,8 @@ export const usePreviewManager = defineStore('preview-manager', () => {
 
   const createApi = (item) => ({
     getPreviewUrl: (targetItem) => getPreviewUrl(getFullPath(targetItem || item)),
+    getMediaTracks: (targetItem) => fetchMediaTracks(getFullPath(targetItem || item)),
+    getSubtitleUrl: (targetItem, track) => getSubtitleUrl(getFullPath(targetItem || item), track),
     fetchContent: () => fetchFileContent(getFullPath(item)),
     getSiblings: (target) => getSiblings(target || item),
     openEditor: () => {

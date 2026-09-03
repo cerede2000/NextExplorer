@@ -769,7 +769,12 @@
     "download": "Télécharger le média",
     "close": "Fermer l'aperçu",
     "previous": "Média précédent",
-    "next": "Média suivant"
+    "next": "Média suivant",
+    "noPlayableAudio": "La bande-son de cette vidéo est en {codecs}, que votre navigateur ne sait pas décoder. L'image passe, pas le son.",
+    "audioTrack": "Piste audio",
+    "audioTrackNumbered": "Piste {number}",
+    "subtitleForced": "forcés",
+    "subtitleExternal": "fichier externe"
   },
   "preview": {
     "tooLargeToRenderSized": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur. Ouvrez-le dans l'éditeur ou téléchargez-le.",

@@ -122,10 +122,12 @@ RUN ./configure \
       --disable-encoders \
       --enable-encoder=mjpeg \
       --enable-encoder=png \
+      --enable-encoder=webvtt \
       --disable-muxers \
       --enable-muxer=image2 \
       --enable-muxer=image2pipe \
       --enable-muxer=rawvideo \
+      --enable-muxer=webvtt \
       --enable-small \
   && make -j"$(nproc)" \
   && make install

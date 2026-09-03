@@ -769,7 +769,12 @@
     "download": "Scarica contenuto",
     "close": "Chiudi anteprima",
     "previous": "Contenuto precedente",
-    "next": "Contenuto successivo"
+    "next": "Contenuto successivo",
+    "noPlayableAudio": "La traccia audio di questo video è {codecs}, che il browser non sa decodificare. Le immagini vanno, il suono no.",
+    "audioTrack": "Traccia audio",
+    "audioTrackNumbered": "Traccia {number}",
+    "subtitleForced": "forzati",
+    "subtitleExternal": "file esterno"
   },
   "preview": {
     "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",

@@ -769,7 +769,12 @@
     "download": "Descargar medio",
     "close": "Cerrar vista previa",
     "previous": "Medio anterior",
-    "next": "Medio siguiente"
+    "next": "Medio siguiente",
+    "noPlayableAudio": "La banda sonora de este vídeo es {codecs}, que su navegador no puede decodificar. La imagen se reproduce; el sonido no.",
+    "audioTrack": "Pista de audio",
+    "audioTrackNumbered": "Pista {number}",
+    "subtitleForced": "forzados",
+    "subtitleExternal": "archivo externo"
   },
   "preview": {
     "tooLargeToRenderSized": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador. Ábralo en el editor o descárguelo.",

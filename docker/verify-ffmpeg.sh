@@ -136,6 +136,51 @@ check_audio "wma"   tone.wma  -c:a wmav2
 # A HEIC is HEVC inside an ISOBMFF container with an `heic` brand. Decoding it
 # is the same demuxer and decoder the .mp4/hevc case above exercises, so a
 # working hevc there is what makes the HEIC thumbnail path work.
+# A subtitle track has to come out as WebVTT, because that is the only subtitle
+# format a browser will display. This exercises the two halves separately: a
+# file that is nothing but subtitles proves the demuxer and the WebVTT muxer,
+# and a track pulled out of a Matroska proves the mapping the route actually
+# uses. Both are new enough to the build that a missing muxer would otherwise
+# only show up as a caption menu that is silently empty.
+check_subtitle() {
+  label="$1"
+  source="$2"
+  shift 2
+
+  checked=$((checked + 1))
+  out="$WORK/out.vtt"
+  rm -f "$out"
+  if ! "$OURS" -hide_banner -loglevel error -y -i "$source" "$@" -f webvtt "$out" \
+    2>"$WORK/vtt.log"; then
+    note "FAIL  $label"
+    sed 's/^/        /' "$WORK/vtt.log" || true
+    failures=$((failures + 1))
+    return 0
+  fi
+  # Present is not enough: an empty document is what a muxer that ran but wrote
+  # nothing leaves behind, and a caption track like that shows no words.
+  if grep -q "WEBVTT" "$out" && grep -q "a subtitle line" "$out"; then
+    note "ok    $label"
+  else
+    note "FAIL  $label — output was not usable WebVTT"
+    sed 's/^/        /' "$out" || true
+    failures=$((failures + 1))
+  fi
+}
+
+echo "subtitles, converted to the one format a browser displays:"
+printf '1\n00:00:00,500 --> 00:00:02,000\na subtitle line\n' > "$WORK/subs.srt"
+check_subtitle "srt to webvtt" "$WORK/subs.srt"
+
+if "$SYSTEM_FFMPEG" -hide_banner -loglevel error -y \
+  -f lavfi -i "testsrc=size=64x64:rate=25:duration=2" -i "$WORK/subs.srt" \
+  -map 0:v -map 1:s -c:v libx264 -pix_fmt yuv420p -c:s srt \
+  "$WORK/subbed.mkv" 2>"$WORK/encode.log"; then
+  check_subtitle "mkv subtitle track to webvtt" "$WORK/subbed.mkv" -map 0:s:0
+else
+  note "SKIP  mkv subtitle track — this Alpine ffmpeg cannot produce the fixture"
+fi
+
 echo "still images:"
 check_video "png"   still.png  -frames:v 1 -c:v png
 check_video "jpeg"  still.jpg  -frames:v 1 -c:v mjpeg -pix_fmt yuvj420p

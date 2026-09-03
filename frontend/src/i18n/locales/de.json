@@ -769,7 +769,12 @@
     "download": "Medium herunterladen",
     "close": "Vorschau schließen",
     "previous": "Vorheriges Medium",
-    "next": "Nächstes Medium"
+    "next": "Nächstes Medium",
+    "noPlayableAudio": "Die Tonspur dieses Videos ist {codecs} — das kann Ihr Browser nicht decodieren. Das Bild läuft, der Ton nicht.",
+    "audioTrack": "Tonspur",
+    "audioTrackNumbered": "Spur {number}",
+    "subtitleForced": "erzwungen",
+    "subtitleExternal": "externe Datei"
   },
   "preview": {
     "tooLargeToRenderSized": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt. Öffnen Sie es im Editor oder laden Sie es herunter.",

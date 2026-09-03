@@ -769,7 +769,12 @@
     "download": "미디어 다운로드",
     "close": "미리보기 닫기",
     "previous": "이전 미디어",
-    "next": "다음 미디어"
+    "next": "다음 미디어",
+    "noPlayableAudio": "이 동영상의 오디오는 {codecs}이며, 브라우저가 디코딩할 수 없습니다. 영상은 재생되지만 소리는 나지 않습니다.",
+    "audioTrack": "오디오 트랙",
+    "audioTrackNumbered": "트랙 {number}",
+    "subtitleForced": "강제",
+    "subtitleExternal": "외부 파일"
   },
   "preview": {
     "tooLargeToRenderSized": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기에서 열거나 내려받으세요.",

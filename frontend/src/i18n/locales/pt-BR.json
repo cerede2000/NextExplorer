@@ -769,7 +769,12 @@
     "download": "Baixar a mídia",
     "close": "Fechar a visualização",
     "previous": "Mídia anterior",
-    "next": "Próxima mídia"
+    "next": "Próxima mídia",
+    "noPlayableAudio": "A trilha sonora deste vídeo está em {codecs}, que seu navegador não consegue decodificar. A imagem toca; o som não.",
+    "audioTrack": "Faixa de áudio",
+    "audioTrackNumbered": "Faixa {number}",
+    "subtitleForced": "forçadas",
+    "subtitleExternal": "arquivo externo"
   },
   "preview": {
     "tooLargeToRenderSized": "Este documento tem {size}. A visualização para em {limit}, porque monta cada elemento no navegador. Abra-o no editor ou baixe-o.",
