@@ -28,11 +28,17 @@ note() { printf '  %s\n' "$1"; }
 
 # One second of colour bars, encoded as asked. Small on purpose: this proves a
 # decoder runs, not that it is fast.
+#
+# 25 fps rather than something arbitrary: MPEG-1 and MPEG-2 accept only the
+# handful of rates their specifications name and refuse to encode at anything
+# else. A fixture that will not encode is reported as a skip, so getting this
+# wrong drops a format out of the check instead of failing it — which is how
+# `.mpeg` went unverified on the first run.
 make_video() {
   file="$1"
   shift
   "$SYSTEM_FFMPEG" -hide_banner -loglevel error -y \
-    -f lavfi -i "testsrc=size=64x64:rate=10:duration=1" \
+    -f lavfi -i "testsrc=size=64x64:rate=25:duration=1" \
     "$@" "$file" 2>"$WORK/encode.log"
 }
 
