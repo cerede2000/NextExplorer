@@ -135,7 +135,9 @@ describe('ONLYOFFICE save as', () => {
         url: `http://127.0.0.1:${port}/converted.pdf`,
         title,
       });
-      expect(response.status).toBe(400);
+      // Named, so a failure says which title got through rather than leaving
+      // three candidates and a line number.
+      expect(`${title || '<empty>'}: ${response.status}`).toBe(`${title || '<empty>'}: 400`);
     }
 
     await expect(fs.access(path.join(env.volumeDir, '..', 'escaped.pdf'))).rejects.toThrow();

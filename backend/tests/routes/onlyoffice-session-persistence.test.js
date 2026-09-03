@@ -123,7 +123,14 @@ describe('ONLYOFFICE session persistence', () => {
   it('refuses a session that was closed', async () => {
     const sessionId = await setup();
 
-    await request(app).post('/api/onlyoffice/session-close').send({ path: filename, sessionId });
+    const closed = await request(app)
+      .post('/api/onlyoffice/session-close')
+      .send({ path: filename, sessionId });
+    // Asserted, not assumed. Everything below only means anything if the close
+    // actually happened, and a close that quietly failed would leave the
+    // session answering — reported as "the heartbeat was not refused", which
+    // sends whoever reads it looking at the wrong route.
+    expect(closed.status).toBe(204);
     app = buildApp();
 
     const heartbeat = await request(app)
