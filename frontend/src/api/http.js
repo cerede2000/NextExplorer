@@ -38,6 +38,67 @@ const normalizePath = (relativePath = '') => {
 
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
 
+/**
+ * Whether the session is over, asked of the one endpoint that can still answer.
+ *
+ * A request that gets no response at all looks identical whether the server is
+ * unreachable or something in front of it diverted the call to a sign-in page
+ * on another origin. The browser reports the same `TypeError` for both, and the
+ * message it produced blamed CORS and PUBLIC_URL for what was only a session
+ * running out.
+ *
+ * `/api/auth/status` settles it. It is reachable without a session — the
+ * authentication middleware lets `/api/auth` through before it checks anything
+ * — and it reports whether this visitor still has one. Three answers matter:
+ *
+ *  - it says nobody is signed in, so the session ended;
+ *  - it does not answer either, or answers with a redirect, so something is
+ *    intercepting every call and a sign-in is the only way back;
+ *  - it says the session is fine, so the failure was the network's, and the
+ *    original message stands.
+ *
+ * `redirect: 'manual'` is safe on this one endpoint: it never redirects, so an
+ * opaque redirect can only have come from something else. It is not applied to
+ * requests in general, where a share link legitimately redirects.
+ */
+let sessionProbe = null;
+
+const sessionHasEnded = () => {
+  // One expired session fails everything in flight, and they all arrive here
+  // together. They share the answer rather than each asking for it.
+  if (!sessionProbe) {
+    sessionProbe = askWhetherSessionEnded().finally(() => {
+      sessionProbe = null;
+    });
+  }
+  return sessionProbe;
+};
+
+const askWhetherSessionEnded = async () => {
+  try {
+    const response = await fetch(buildUrl('/api/auth/status'), {
+      method: 'GET',
+      credentials: 'include',
+      redirect: 'manual',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+
+    // Diverted before it reached us. Nothing else explains a redirect here.
+    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+      return true;
+    }
+    if (!response.ok) return response.status === 401;
+
+    const status = await response.json();
+    return status?.authEnabled === true && status?.authenticated === false;
+  } catch (_) {
+    // Even this got nowhere. Somebody signed in a moment ago cannot reach the
+    // one endpoint that needs no session, which is a gateway turning everything
+    // away rather than a server that has gone quiet.
+    return true;
+  }
+};
+
 // A cancelled request never reaches here: the caller's abort is checked as soon
 // as the failure is caught, above, and rethrown there. One place decides it.
 const shouldRetryNetworkError = (method, attempt, options = {}) => {
@@ -57,6 +118,19 @@ const requestRaw = async (endpoint, options = {}) => {
 
   if (method !== 'GET' && method !== 'HEAD' && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
+  }
+
+  // Says "this is a program asking, not a person navigating".
+  //
+  // An authenticating proxy in front of the application — Authelia, Authentik,
+  // oauth2-proxy — answers an expired session with a redirect to the identity
+  // provider, which is right for a browser following a link and useless here:
+  // fetch follows it to another origin, that origin sends no CORS headers, and
+  // the browser reports a network failure with nothing in it about a session.
+  // All of them answer 401 instead when they see this header, which is the
+  // answer this client knows what to do with.
+  if (!headers['X-Requested-With']) {
+    headers['X-Requested-With'] = 'XMLHttpRequest';
   }
 
   // Add guest session header if present
@@ -123,6 +197,17 @@ const requestRaw = async (endpoint, options = {}) => {
         }
 
         const targetUrl = buildUrl(endpoint);
+
+        // Before calling it a network failure, find out whether it was only the
+        // session. The handler answers once for every request in flight, so
+        // asking here costs one extra call and not one per failure.
+        if (sessionExpiredHandler && (await sessionHasEnded()) && sessionExpiredHandler()) {
+          const expired = new Error('Session expired');
+          expired.statusCode = 401;
+          expired.sessionExpired = true;
+          throw expired;
+        }
+
         if (options.suppressErrorHandler) {
           throw error;
         }

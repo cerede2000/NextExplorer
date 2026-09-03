@@ -212,6 +212,17 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // Ten minutes of not asking the same question again.
+  //
+  // The client sends `X-Requested-With` so that an authenticating proxy answers
+  // an expired session with a 401 instead of redirecting a fetch to a sign-in
+  // page it cannot follow. That header is not one of the few CORS treats as
+  // safe, so on a cross-origin deployment every plain GET now needs a preflight
+  // first — and without a lifetime on the answer, every single one of them.
+  //
+  // Nothing changes for the usual deployment, where the image serves the
+  // application and the API from one origin and CORS never enters into it.
+  maxAge: 600,
 };
 
 // --- HTTP server timeouts ---
