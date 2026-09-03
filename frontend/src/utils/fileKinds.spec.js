@@ -86,26 +86,53 @@ describe('a kind no table lists', () => {
   });
 });
 
+describe('a kind the server could not work out', () => {
+  /**
+   * The listing sends the literal string `unknown` for a file with no extension
+   * and for one whose extension is too long to be plausible. That is a statement
+   * about what the server managed, not something to show anybody — it used to
+   * reach the column as "UNKNOWN file", which is what a LICENSE and a Makefile
+   * read as.
+   */
+  it.each(['LICENSE', 'Makefile', 'CHANGELOG'])('says simply File for %s', (name) => {
+    expect(getKindLabel({ kind: 'unknown', name })).toBe('File');
+  });
+
+  /** Falling through to the name gets a real answer where there is one. */
+  it('falls back to the filename, through the same tables', () => {
+    expect(getKindLabel({ kind: 'unknown', name: 'notes.md' })).toBe('Markdown document');
+    expect(getKindLabel({ kind: 'unknown', name: 'photo.JPG' })).toBe('JPEG image');
+  });
+
+  /**
+   * The server calls an implausibly long extension `unknown` on purpose.
+   * Reading it off the name anyway would put its judgement straight back.
+   */
+  it('does not resurrect an extension the server rejected as too long', () => {
+    expect(getKindLabel({ kind: 'unknown', name: 'archive.superlongextension' })).toBe('File');
+  });
+});
+
 describe('a file with no kind at all', () => {
   /**
-   * Note what this branch does *not* do: it never consults the lookup tables.
-   * So `notes.md` reads as "MD file" here and "Markdown document" the moment
-   * the listing supplies a kind — the same file, two labels, depending on which
-   * path reached the column. Real, minor, and pinned rather than fixed: the
-   * fallback exists for files the server did not classify, and quietly widening
-   * it would change what several screens display. Recorded in TODO.md.
+   * The same table lookup as a kind gets. It did not used to: a file arriving
+   * without a kind read as "MD file" where the same file with one read as
+   * "Markdown document" — one file, two labels, depending on which screen asked.
    */
-  it('reads the extension off the name, generically', () => {
-    expect(getKindLabel({ name: 'notes.md' })).toBe('MD file');
+  it('reads the extension off the name and looks it up', () => {
+    expect(getKindLabel({ name: 'notes.md' })).toBe('Markdown document');
+  });
+
+  it('still names an extension no table lists', () => {
     expect(getKindLabel({ name: 'archive.parquet' })).toBe('PARQUET file');
   });
 
   it('takes the last extension of several', () => {
-    expect(getKindLabel({ name: 'backup.tar.gz' })).toBe('GZ file');
+    expect(getKindLabel({ name: 'backup.tar.gz' })).toBe('GZip archive');
   });
 
-  it('upper-cases it whatever case the name used', () => {
-    expect(getKindLabel({ name: 'PHOTO.jpg' })).toBe('JPG file');
+  it('reads it whatever case the name used', () => {
+    expect(getKindLabel({ name: 'PHOTO.jpg' })).toBe('JPEG image');
   });
 
   it('says simply File when there is no extension either', () => {

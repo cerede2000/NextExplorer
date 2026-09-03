@@ -3,22 +3,6 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
-## One file, two "Kind" labels
-
-`utils/fileKinds.js` answers the Kind column three ways, and the third does not
-match the first two. With a kind from the listing, `md` becomes "Markdown
-document" from a lookup table. With no kind at all — a search result, a share
-listing, anything the server did not classify — the filename is read instead and
-the answer is "MD file", generically, without consulting those tables.
-
-So the same file reads differently depending on which screen shows it.
-
-The fix is one line: have the filename branch go through `labelFromKind` rather
-than formatting the extension itself. It is left undone deliberately, because
-"one line" here changes what several screens display and that deserves a look
-at each of them rather than a quiet widening. Pinned in fileKinds.spec.js as the
-behaviour it is, so the change is visible when somebody makes it.
-
 ## Bounds on the document search that are enforced more than once
 
 `streamDocumentMatches` in `routes/search.js` bounds the Office/PDF pass three

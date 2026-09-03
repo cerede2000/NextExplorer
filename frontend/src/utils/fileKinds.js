@@ -147,27 +147,62 @@ const LOOKUP_TABLES = [
   dataMap,
 ];
 
+const lookup = (extension) => {
+  for (const table of LOOKUP_TABLES) {
+    if (Object.prototype.hasOwnProperty.call(table, extension)) {
+      return table[extension];
+    }
+  }
+  return null;
+};
+
+/**
+ * The longest run of characters still plausibly an extension.
+ *
+ * The same rule the listing uses when it decides between an extension and
+ * `unknown`. Without it, a name ending in `.superlongextension` — which the
+ * server refused to call an extension — comes back through this door and is
+ * shown as one anyway.
+ */
+const MAX_PLAUSIBLE_EXTENSION = 10;
+
+/** The extension a filename ends with, or '' — a leading dot is a hidden name. */
+const extensionOfName = (name) => {
+  const nm = String(name || '');
+  const idx = nm.lastIndexOf('.');
+  if (idx <= 0 || idx >= nm.length - 1) return '';
+  const extension = nm.slice(idx + 1).toLowerCase();
+  return extension.length > MAX_PLAUSIBLE_EXTENSION ? '' : extension;
+};
+
+/**
+ * What to call a thing in the Kind column.
+ *
+ * The listing sends `directory`, the file's extension, or the literal string
+ * `unknown` — which it uses for a file with no extension at all, and for one
+ * whose extension is too long to be plausible. `unknown` is a statement about
+ * what the *server* could work out, not something to show anybody: it used to
+ * reach the column as "UNKNOWN file", which is what a LICENSE or a Makefile
+ * read as.
+ *
+ * So an unhelpful kind falls through to the filename, and the filename goes
+ * through the same tables the kind does. Before, it did not: a file arriving
+ * without a kind read as "MD file" where the same file with one read as
+ * "Markdown document" — one file, two labels, depending on which screen asked.
+ */
 function labelFromKind(kind, name) {
   const k = String(kind || '').toLowerCase();
 
   if (k === 'directory') return 'Folder';
   if (k === 'volume') return 'Volume';
 
-  for (const table of LOOKUP_TABLES) {
-    if (Object.prototype.hasOwnProperty.call(table, k)) {
-      return table[k];
-    }
-  }
+  const known = k && k !== 'unknown' ? lookup(k) : null;
+  if (known) return known;
+  if (k && k !== 'unknown') return `${k.toUpperCase()} file`;
 
-  if (k) return `${k.toUpperCase()} file`;
-
-  const nm = String(name || '');
-  const idx = nm.lastIndexOf('.');
-  if (idx > 0 && idx < nm.length - 1) {
-    const ext = nm.slice(idx + 1).toLowerCase();
-    if (ext) return `${ext.toUpperCase()} file`;
-  }
-  return 'File';
+  const extension = extensionOfName(name);
+  if (!extension) return 'File';
+  return lookup(extension) ?? `${extension.toUpperCase()} file`;
 }
 
 function getKindLabel(item) {
