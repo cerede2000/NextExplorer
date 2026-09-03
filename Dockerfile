@@ -94,7 +94,13 @@ ARG FFMPEG_SHA256=464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b52
 # `ffmpeg` here is a build dependency and never ships: the verification below
 # uses it to synthesise a clip per format, which the binary we build then has
 # to decode.
-RUN apk add --no-cache       build-base coreutils curl xz pkgconf nasm yasm       zlib-dev zlib-static bzip2-dev bzip2-static dav1d-dev dav1d-static       ffmpeg
+# No `-static` variants: this links against Alpine's shared libraries, which
+# keeps the binary small and leaves security updates to apk rather than to a
+# rebuild. `dav1d-static` does not exist in Alpine 3.23 in any case.
+RUN apk add --no-cache \
+      build-base coreutils curl xz pkgconf nasm yasm \
+      zlib-dev bzip2-dev dav1d-dev \
+      ffmpeg
 
 RUN curl -fsSL -o /tmp/ffmpeg.tar.xz \
       "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
