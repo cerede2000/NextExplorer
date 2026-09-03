@@ -27,6 +27,7 @@ import {
 } from '@heroicons/vue/20/solid';
 import { useEventListener } from '@vueuse/core';
 import { useInputMode } from '@/composables/useInputMode';
+import { LIST_ROW_HEIGHT, virtualWindow } from '@/utils/virtualWindow';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useNavigation } from '@/composables/navigation';
 import { useFileActions } from '@/composables/fileActions';
@@ -86,9 +87,7 @@ const { isDeleteConfirmOpen } = useDeleteConfirm();
 
 const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
-const VIRTUAL_LIST_THRESHOLD = 1000;
-const LIST_ROW_HEIGHT = 37;
-const LIST_ROW_OVERSCAN = 20;
+
 const IDLE_THUMBNAIL_PREFETCH_DELAY_MS = 1500;
 const IDLE_THUMBNAIL_PREFETCH_INTERVAL_MS = 2000;
 const IDLE_THUMBNAIL_PREFETCH_LIMIT = 24;
@@ -213,25 +212,23 @@ const revealPendingItem = async () => {
 };
 
 const sortedItems = computed(() => fileStore.getCurrentPathItems);
-const useVirtualList = computed(
-  () => settings.view === 'list' && sortedItems.value.length > VIRTUAL_LIST_THRESHOLD
+// The window arithmetic lives in utils so it can be tested without this file's
+// fifteen stores around it.
+const listWindow = computed(() =>
+  virtualWindow({
+    itemCount: sortedItems.value.length,
+    view: settings.view,
+    scrollTop: scrollTop.value,
+    viewportHeight: scrollViewportHeight.value,
+    visibleLimit: visibleLimit.value,
+  })
 );
-const virtualStartIndex = computed(() => {
-  if (!useVirtualList.value) return 0;
-  return Math.max(0, Math.floor(scrollTop.value / LIST_ROW_HEIGHT) - LIST_ROW_OVERSCAN);
-});
-const virtualEndIndex = computed(() => {
-  if (!useVirtualList.value) return visibleLimit.value;
-  const visibleCount =
-    Math.ceil(scrollViewportHeight.value / LIST_ROW_HEIGHT) + LIST_ROW_OVERSCAN * 2;
-  return Math.min(sortedItems.value.length, virtualStartIndex.value + visibleCount);
-});
-const visibleItems = computed(() => {
-  if (useVirtualList.value) {
-    return sortedItems.value.slice(virtualStartIndex.value, virtualEndIndex.value);
-  }
-  return sortedItems.value.slice(0, visibleLimit.value);
-});
+const useVirtualList = computed(() => listWindow.value.virtualised);
+const virtualStartIndex = computed(() => listWindow.value.startIndex);
+const virtualEndIndex = computed(() => listWindow.value.endIndex);
+const visibleItems = computed(() =>
+  sortedItems.value.slice(virtualStartIndex.value, virtualEndIndex.value)
+);
 const hasActiveFileOperation = computed(() => operationTasksStore.operationCount > 0);
 
 const isIdleThumbnailCandidate = (item) => {
@@ -290,17 +287,9 @@ const resetIdleThumbnailPrefetch = () => {
   idleThumbnailPrefetchedKeys.clear();
   scheduleIdleThumbnailPrefetch();
 };
-const hasMoreItems = computed(
-  () => !useVirtualList.value && visibleItems.value.length < sortedItems.value.length
-);
-const virtualTopSpacerHeight = computed(() =>
-  useVirtualList.value ? virtualStartIndex.value * LIST_ROW_HEIGHT : 0
-);
-const virtualBottomSpacerHeight = computed(() =>
-  useVirtualList.value
-    ? Math.max(0, (sortedItems.value.length - virtualEndIndex.value) * LIST_ROW_HEIGHT)
-    : 0
-);
+const hasMoreItems = computed(() => listWindow.value.hasMore);
+const virtualTopSpacerHeight = computed(() => listWindow.value.topSpacerHeight);
+const virtualBottomSpacerHeight = computed(() => listWindow.value.bottomSpacerHeight);
 
 const getItemKey = (item) => {
   if (!item || !item.name) return '';
