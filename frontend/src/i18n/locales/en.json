@@ -389,7 +389,8 @@
       "announcementMigration": {
         "title": "We've updated how you sign in",
         "intro": "You now need to use your new email-style username."
-      }
+      },
+      "sessionExpired": "Your session has ended. Sign in again to carry on where you left off."
     },
     "setup": {
       "headline": "Let's get set up",

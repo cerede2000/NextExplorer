@@ -389,7 +389,8 @@
       "announcementMigration": {
         "title": "Nous avons mis à jour la façon de vous connecter",
         "intro": "Vous devez maintenant utiliser votre nouveau nom d'utilisateur au format e-mail."
-      }
+      },
+      "sessionExpired": "Votre session a expiré. Reconnectez-vous pour reprendre où vous en étiez."
     },
     "setup": {
       "headline": "Procédons à la configuration",

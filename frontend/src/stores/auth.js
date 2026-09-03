@@ -105,6 +105,22 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = null;
   };
 
+  /**
+   * Drop the session locally, without telling the server.
+   *
+   * For a session that has already expired: there is nothing left to end, and
+   * asking the server to end it would be one more request answered 401 — or,
+   * where an identity provider is involved, a redirect to it that a fetch
+   * cannot follow. `hasStatus` stays true so the navigation guard sends the
+   * person to the login screen rather than pausing to ask the server who they
+   * are, which is the question that just failed.
+   */
+  const forgetSession = () => {
+    currentUser.value = null;
+    hasStatus.value = true;
+    lastError.value = null;
+  };
+
   const clearError = () => {
     lastError.value = null;
   };
@@ -136,6 +152,7 @@ export const useAuthStore = defineStore('auth', () => {
     setupAccount,
     login,
     logout,
+    forgetSession,
     clearError,
     refreshCurrentUser,
   };

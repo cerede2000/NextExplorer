@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "Vi har uppdaterat hur du loggar in",
         "intro": "Du behöver nu använda ditt nya användarnamn liknande e-postadress."
-      }
+      },
+      "sessionExpired": "Din session har gått ut. Logga in igen för att fortsätta där du slutade."
     },
     "setup": {
       "headline": "Låt oss komma igång",

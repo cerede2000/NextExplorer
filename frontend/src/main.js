@@ -10,8 +10,10 @@ import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
 import { useNotificationsStore } from '@/stores/notifications';
 import i18n from './i18n';
-import { setErrorHandler } from '@/api/http';
+import { setErrorHandler, setSessionExpiredHandler } from '@/api/http';
 import { createErrorHandler } from '@/api/errorHandler';
+import { createSessionExpiryHandler } from '@/api/sessionExpiry';
+import { useAuthStore } from '@/stores/auth';
 
 const pinia = createPinia();
 const app = createApp(App);
@@ -21,6 +23,13 @@ app.use(pinia);
 // Initialize HTTP error handler
 const notificationsStore = useNotificationsStore(pinia);
 setErrorHandler(createErrorHandler(notificationsStore, i18n));
+
+// A session that ends mid-use takes the person back to the login screen. The
+// navigation guard covers a visitor who arrives without one; this covers the
+// one who was already inside when it ran out.
+setSessionExpiredHandler(
+  createSessionExpiryHandler({ router, auth: useAuthStore(pinia) })
+);
 
 const featuresStore = useFeaturesStore(pinia);
 featuresStore.initialize().catch((err) => {

@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "Zmieniliśmy sposób logowania",
         "intro": "Teraz musisz używać nowej nazwy użytkownika w formacie e-mail."
-      }
+      },
+      "sessionExpired": "Twoja sesja wygasła. Zaloguj się ponownie, aby wrócić tam, gdzie skończyłeś."
     },
     "setup": {
       "headline": "Skonfigurujmy wszystko",

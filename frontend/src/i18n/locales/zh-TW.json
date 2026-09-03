@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "我們更新了登入方式",
         "intro": "您現在需要使用新的電子郵件格式使用者名稱。"
-      }
+      },
+      "sessionExpired": "您的工作階段已結束。重新登入即可從上次的位置繼續。"
     },
     "setup": {
       "headline": "開始設定",

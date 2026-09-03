@@ -26,6 +26,14 @@ const statusError = computed(() => auth.lastError || '');
 const supportsLocal = computed(() => auth.strategies?.local !== false);
 const supportsOidc = computed(() => Boolean(auth.strategies?.oidc));
 const returnedFromLogout = ref(window.sessionStorage.getItem('oidcSignedOut') === '1');
+
+/**
+ * Whether this screen is showing because a session ran out.
+ *
+ * A session ending is not an error anybody made, and until this said so the
+ * only account of it was the row of failed requests it left behind.
+ */
+const sessionExpired = computed(() => route.query?.reason === 'expired');
 const redirectTarget = computed(() => {
   const redirect = route.query?.redirect;
   if (typeof redirect === 'string' && redirect.trim()) {
@@ -188,6 +196,20 @@ const handleOidcLogin = () => {
         {{ t('auth.login.subtitle', { appName: appSettings.state.branding.appName }) }}
       </p>
     </template>
+
+    <!--
+      Outside the form on purpose: an installation that signs in only through an
+      identity provider renders no form, and that is the installation where a
+      session expiring is most confusing.
+    -->
+    <p
+      v-if="sessionExpired"
+      class="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+      role="status"
+      data-test="session-expired"
+    >
+      {{ t('auth.login.sessionExpired') }}
+    </p>
 
     <form v-if="supportsLocal" class="space-y-5" @submit.prevent="handleLoginSubmit">
       <label class="block">

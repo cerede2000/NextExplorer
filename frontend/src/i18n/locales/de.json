@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "Wir haben die Anmeldung aktualisiert",
         "intro": "Sie müssen jetzt Ihren neuen E-Mail-ähnlichen Benutzernamen verwenden."
-      }
+      },
+      "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um dort weiterzumachen, wo Sie aufgehört haben."
     },
     "setup": {
       "headline": "Lassen Sie uns loslegen",

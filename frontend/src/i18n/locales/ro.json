@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "Am actualizat modul de conectare",
         "intro": "Acum trebuie să folosești noul nume de utilizator în format email."
-      }
+      },
+      "sessionExpired": "Sesiunea ta a expirat. Conectează-te din nou pentru a continua de unde ai rămas."
     },
     "setup": {
       "headline": "Să configurăm totul",

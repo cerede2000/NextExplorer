@@ -9,6 +9,20 @@ export const setErrorHandler = (handler) => {
   errorHandler = handler;
 };
 
+/**
+ * What to do when the server says the session is gone.
+ *
+ * Registered rather than imported so this module keeps knowing nothing about
+ * the router or the stores. It returns true when it has taken responsibility,
+ * which is what stops the generic error toast: one expired session fails every
+ * request in flight, and twenty toasts saying "authentication required" bury
+ * the only useful thing to say.
+ */
+let sessionExpiredHandler = null;
+export const setSessionExpiredHandler = (handler) => {
+  sessionExpiredHandler = handler;
+};
+
 const encodePath = (relativePath = '') => {
   if (!relativePath) return '';
   return relativePath.split('/').filter(Boolean).map(encodeURIComponent).join('/');
@@ -70,6 +84,16 @@ const requestRaw = async (endpoint, options = {}) => {
             ? error
             : { message: error || `Request failed with status ${response.status}` }),
         };
+
+        // A 401 is not this request being wrong, it is the session being over —
+        // and every other request in flight is about to say the same thing. The
+        // handler answers once, by taking the person to the login screen.
+        if (response.status === 401 && sessionExpiredHandler?.(errorInfo)) {
+          const expired = new Error(errorInfo.message);
+          expired.statusCode = 401;
+          expired.sessionExpired = true;
+          throw expired;
+        }
 
         // Best-effort / background requests (e.g. thumbnails) opt out of the
         // global error handler so a missing file does not raise a user-facing

@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "Hemos actualizado la forma de iniciar sesión",
         "intro": "Ahora debes usar tu nuevo nombre de usuario con formato de correo electrónico."
-      }
+      },
+      "sessionExpired": "Su sesión ha caducado. Vuelva a iniciar sesión para continuar donde lo dejó."
     },
     "setup": {
       "headline": "Vamos a configurarlo",

@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "我们更新了登录方式",
         "intro": "您现在需要使用新的邮箱格式用户名。"
-      }
+      },
+      "sessionExpired": "您的会话已结束。重新登录即可从上次的位置继续。"
     },
     "setup": {
       "headline": "开始设置",

@@ -386,7 +386,8 @@
       "announcementMigration": {
         "title": "Abbiamo aggiornato il modo in cui accedi",
         "intro": "Ora devi usare il tuo nuovo nome utente in formato email."
-      }
+      },
+      "sessionExpired": "La tua sessione è scaduta. Accedi di nuovo per riprendere da dove eri arrivato."
     },
     "setup": {
       "headline": "Configuriamo tutto",
