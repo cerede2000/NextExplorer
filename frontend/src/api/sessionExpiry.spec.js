@@ -175,4 +175,35 @@ describe('where it comes back to', () => {
 
     expect(router.replace).toHaveBeenCalledTimes(2);
   });
+
+  /**
+   * And it must not leave the failure lying around.
+   *
+   * `finally` passes a rejection through rather than consuming it, so the
+   * navigation ended rejected with nobody listening: an unhandled rejection in
+   * the console of anyone whose session expired while a guard was redirecting
+   * them, and a failed run for a suite that counts one as an error — which is
+   * how it was found, on CI, by a step that reported every test passing.
+   */
+  it('leaves no unhandled rejection behind', async () => {
+    const unhandled = [];
+    const collect = (reason) => unhandled.push(reason);
+    // Reached through `globalThis` because this file is linted as browser code,
+    // where `process` is not a global — it is one under the test runner.
+    const host = globalThis.process;
+    host.on('unhandledRejection', collect);
+
+    try {
+      router.replace = vi.fn().mockRejectedValue(new Error('navigation aborted'));
+
+      handler()();
+      // Two turns: one for the rejection, one for the report that follows it.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      host.off('unhandledRejection', collect);
+    }
+  });
 });

@@ -61,11 +61,22 @@ export const createSessionExpiryHandler = ({ router, auth }) => {
 
     // `replace`, not `push`: the page whose session has expired is not
     // somewhere the back button should return to.
-    Promise.resolve(
-      router.replace({ name: 'auth-login', query: { redirect, reason: 'expired' } })
-    ).finally(() => {
-      navigating = false;
-    });
+    Promise.resolve(router.replace({ name: 'auth-login', query: { redirect, reason: 'expired' } }))
+      .catch(() => {
+        // A navigation the router abandons is not this handler's failure: a
+        // guard may send the visitor somewhere else, or another navigation may
+        // already have started. What matters is that the flag below is cleared
+        // so the next expiry still works.
+        //
+        // `finally` alone does not do it. It passes a rejection straight
+        // through, so the promise ended rejected with nobody listening — an
+        // unhandled rejection in the console of anyone whose session expired
+        // mid-navigation, and a failed test run for a suite that treats one as
+        // an error.
+      })
+      .finally(() => {
+        navigating = false;
+      });
 
     return true;
   };
