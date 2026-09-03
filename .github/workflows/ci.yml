@@ -86,6 +86,15 @@ jobs:
       - name: Frontend build
         run: npm run build
 
+      # The browser tests were written, then never run by anything — and they
+      # had been broken the whole time: the fixtures mounted the component
+      # without vue-i18n, so nothing rendered and every assertion failed on a
+      # missing element. Layout is the one thing a jsdom unit test cannot check,
+      # and a video escaping its container shipped because of that gap, so this
+      # runs where layout exists.
+      - name: Browser tests
+        run: npm run test:e2e
+
       - name: Demo image builds
         # The demo is deployed from demo/Dockerfile. Building it here means a
         # change that breaks it fails now, rather than the next time someone

@@ -85,11 +85,22 @@
         }"
         @dragstart.prevent
       />
-      <div v-else class="relative max-h-full max-w-full">
+      <!--
+        A grid, so the video is actually contained.
+
+        `max-h-full` on the video used to resolve against this wrapper, whose
+        own height is content-driven — and a percentage against an indefinite
+        height computes to none. A portrait video therefore rendered at its
+        natural height and hung below the stage, which clips it: the control
+        bar was simply off-screen, and only fullscreen brought it back. A grid
+        area has a definite size, so the same percentage now means what it
+        says. Landscape videos, which fit either way, are laid out identically.
+      -->
+      <div v-else class="relative grid min-h-0 max-h-full max-w-full place-items-center">
         <video
           :key="currentMedia.key"
           ref="videoRef"
-          class="block max-h-full max-w-full bg-black"
+          class="block min-h-0 max-h-full max-w-full bg-black"
           controls
           autoplay
           playsinline

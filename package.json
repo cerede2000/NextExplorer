@@ -30,7 +30,8 @@
     "test:backend": "npm run test -w backend",
     "test:frontend": "npm run test:unit -w frontend",
     "test:coverage:backend": "npm run test:coverage -w backend",
-    "test:coverage:frontend": "npm run test:coverage -w frontend"
+    "test:coverage:frontend": "npm run test:coverage -w frontend",
+    "test:e2e": "npm run test:e2e -w frontend"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

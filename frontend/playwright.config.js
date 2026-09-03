@@ -19,5 +19,16 @@ export default defineConfig({
         hasTouch: true,
       },
     },
+    // A desktop window is short in proportion to its width, which is where a
+    // 16:9 film is the shape that overflows. The phone viewport is tall enough
+    // that the same film fits, so a layout test running only there proves
+    // nothing about the browser most people use.
+    {
+      name: 'desktop-chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 720 },
+      },
+    },
   ],
 });
