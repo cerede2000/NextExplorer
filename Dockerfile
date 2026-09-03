@@ -115,9 +115,7 @@ RUN ./configure \
       --disable-doc \
       --disable-debug \
       --disable-network \
-      --disable-programs \
-      --enable-program=ffmpeg \
-      --enable-program=ffprobe \
+      --disable-ffplay \
       --enable-zlib \
       --enable-bzlib \
       --enable-libdav1d \
