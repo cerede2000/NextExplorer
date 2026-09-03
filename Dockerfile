@@ -1,4 +1,10 @@
 # syntax=docker/dockerfile:1
+
+# Declared before the first stage so it can choose one. Repeated inside the
+# runtime stage, where a value is needed in a RUN — a global ARG is visible to
+# FROM lines and to nothing else.
+ARG FFMPEG_VARIANT=apk
+
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
@@ -140,6 +146,30 @@ RUN chmod +x /usr/local/bin/verify-ffmpeg.sh \
   && strip /out/bin/ffmpeg /out/bin/ffprobe \
   && ls -la /out/bin
 
+
+# ---------------------------------------------------------------------------
+# Which ffmpeg the runtime gets, decided before anything is built
+#
+# The runtime mounts a stage rather than copying from it, so no bytes of the
+# source build reach a layer it does not use. But a mount is a dependency:
+# naming `ffmpeg_build` directly made BuildKit compile it for every image,
+# including the ones that go on to install Alpine's package and never read it.
+#
+# On amd64 that was a quiet waste. On arm64 under emulation it was the whole
+# build: the release job spent over forty minutes compiling an ffmpeg the full
+# image discards, and was cut off at its hour limit having published nothing.
+#
+# Selecting the stage here means the compile happens only for the variant that
+# asked for it. `apk` resolves to an empty scratch image, which costs nothing
+# and gives the mount something to point at.
+# ---------------------------------------------------------------------------
+FROM scratch AS ffmpeg_apk
+
+FROM ffmpeg_build AS ffmpeg_source
+
+# An unknown value fails here, by name, rather than silently building neither.
+FROM ffmpeg_${FFMPEG_VARIANT} AS ffmpeg_selected
+
 FROM base AS runtime
 ENV NODE_ENV=production
 # Enlarge the libuv thread pool so directory-listing fs.stat calls are not
@@ -218,7 +248,7 @@ RUN apk add --no-cache \
 # The runtime libraries have to come with it: this build links against the
 # Alpine ones rather than being static, which keeps it small and keeps the
 # security updates coming from apk rather than from a rebuild.
-RUN --mount=from=ffmpeg_build,source=/out,target=/ffmpeg-built \
+RUN --mount=from=ffmpeg_selected,target=/ffmpeg-built \
     set -eu; \
     if [ "$FFMPEG_VARIANT" = "source" ]; then \
       if [ "$INCLUDE_VAAPI" = "true" ]; then \
@@ -226,7 +256,7 @@ RUN --mount=from=ffmpeg_build,source=/out,target=/ffmpeg-built \
         exit 1; \
       fi; \
       apk add --no-cache dav1d libbz2; \
-      install -m 0755 /ffmpeg-built/bin/ffmpeg /ffmpeg-built/bin/ffprobe /usr/local/bin/; \
+      install -m 0755 /ffmpeg-built/out/bin/ffmpeg /ffmpeg-built/out/bin/ffprobe /usr/local/bin/; \
     else \
       apk add --no-cache ffmpeg; \
     fi; \

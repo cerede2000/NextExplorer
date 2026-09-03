@@ -39,7 +39,18 @@ jobs:
   build:
     name: ${{ inputs.channel }} (${{ matrix.variant }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Three hours, which is far more than any of these takes, and it is the
+    # lean image on arm64 that needs the room. That variant compiles ffmpeg,
+    # and the release path builds arm64 under emulation on an amd64 runner:
+    # the same compile that takes seventeen minutes natively had not finished
+    # after forty-two, and the job was cut off at the old hour limit having
+    # published nothing.
+    #
+    # A ceiling is not a fix. The layer cache makes the second build skip the
+    # compile entirely, so this is only paid when that stage actually changes —
+    # but paying an hour for it is why building each architecture on a runner
+    # of its own is worth doing rather than emulating one of them.
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
