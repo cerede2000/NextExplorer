@@ -212,13 +212,10 @@ describe('progress accounting across batches', () => {
 
 describe('when a batch fails', () => {
   /**
-   * Note what this does not reach. `streamInBatches` takes a `concurrency`
-   * argument and carries a `stopped` flag so that a rejection cancels the
-   * batches queued behind it — and all three callers pass four arguments, so
-   * concurrency is always 1, the pool is always one worker, and the flag can
-   * never be read. Removing it breaks nothing. Recorded in TODO.md; the test
-   * below covers the behaviour that does happen, which is that a single worker
-   * stops at its first failure.
+   * The batches run one after another, deliberately — the server resolves name
+   * collisions with a check-then-use that is only safe while a transfer walks
+   * its items in order. So a failure stops the run where it stands, and the
+   * batches behind it are never sent.
    */
   it('stops at the first failure rather than working through the rest', async () => {
     const total = 5000; // ten batches

@@ -109,7 +109,7 @@ async function refreshFolderSize(relativePath, options = {}) {
  * are known upfront — byte totals are not, since each batch only learns its
  * own when the server prepares it.
  */
-async function streamInBatches(items, batchSize, runBatch, onEvent, concurrency = 1) {
+async function streamInBatches(items, batchSize, runBatch, onEvent) {
   const all = Array.isArray(items) ? items : [];
   const emit = typeof onEvent === 'function' ? onEvent : null;
 
@@ -121,9 +121,9 @@ async function streamInBatches(items, batchSize, runBatch, onEvent, concurrency 
   }
 
   const results = new Array(batches.length);
-  // Batches may be in flight together, so per-batch counters cannot simply be
-  // offset: the global count is advanced by each batch's own delta, which
-  // keeps it monotonic whatever order they progress in.
+  // Each batch counts from zero, so the global count is advanced by each
+  // batch's own delta rather than replaced by its number. Taking the raw one
+  // would make the bar fall back to the start at every boundary.
   const seenPerBatch = new Array(batches.length).fill(0);
   let completed = 0;
   let knownBytes = 0;
@@ -164,31 +164,23 @@ async function streamInBatches(items, batchSize, runBatch, onEvent, concurrency 
     });
   };
 
-  // Several requests in flight: on storage where each operation is mostly
-  // latency, waiting for one batch before starting the next leaves most of
-  // the time unused.
-  let next = 0;
-  // Promise.all rejects on the first failure but does not stop the others:
-  // without this flag a cancelled operation would keep sending the batches
-  // already queued behind it.
-  let stopped = false;
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, batches.length) }, async () => {
-      for (;;) {
-        if (stopped) return;
-        const batchIndex = next;
-        next += 1;
-        if (batchIndex >= batches.length) return;
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          await runOne(batchIndex);
-        } catch (error) {
-          stopped = true;
-          throw error;
-        }
-      }
-    })
-  );
+  // One batch at a time, and this is a constraint rather than an oversight.
+  //
+  // Sending two would be faster on storage where each operation is mostly
+  // latency, and this used to carry a worker pool for exactly that — with a
+  // `concurrency` argument no caller ever passed, so it never ran more than one
+  // and the machinery around it was unreachable.
+  //
+  // It cannot simply be switched on. The server resolves a name collision with
+  // `findAvailableName`, which checks whether a name is free and then uses it;
+  // that is only safe because a transfer walks its items strictly one at a time.
+  // Two batches in flight copying `a/report.txt` and `b/report.txt` into the
+  // same folder would both find `report.txt` free, and one would overwrite the
+  // other with nothing said. Making the destination side race-safe comes first.
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await runOne(batchIndex);
+  }
 
   return results;
 }
