@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
 const sharp = require('sharp');
-const ffmpeg = require('fluent-ffmpeg');
+const ffmpegRunner = require('./ffmpegRunner');
 const PQueue = require('p-queue').default;
 
 const { ensureDir } = require('../utils/fsUtils');
@@ -39,53 +39,15 @@ const trimSharpCache = () => {
 };
 configureSharpCache();
 
-const EXECUTABLE_CANDIDATES = {
-  ffmpeg: [env.FFMPEG_PATH, '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg'],
-  ffprobe: [
-    env.FFPROBE_PATH,
-    '/usr/local/bin/ffprobe',
-    '/usr/bin/ffprobe',
-    '/opt/homebrew/bin/ffprobe',
-  ],
-};
+// ffprobe is only needed when the seek point is a percentage of the duration;
+// a fixed seek needs ffmpeg alone.
+const ffprobeRequired = env.THUMBNAIL_VIDEO_SEEK_PERCENT != null;
+const canProcessVideoThumbnails =
+  ffmpegRunner.hasFfmpeg() && (!ffprobeRequired || ffmpegRunner.hasFfprobe());
 
-let canProcessVideoThumbnails = false;
-
-const resolveExecutable = (candidates = []) => {
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-
-    try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return candidate;
-    } catch (error) {
-      // try next candidate
-    }
-  }
-
-  return null;
-};
-
-const configureFfmpegBinaries = () => {
-  const ffmpegPath = resolveExecutable(EXECUTABLE_CANDIDATES.ffmpeg);
-  if (ffmpegPath) {
-    ffmpeg.setFfmpegPath(ffmpegPath);
-  } else {
-    logger.warn('FFmpeg binary not found. Video thumbnails will be skipped.');
-  }
-
-  const ffprobeRequired = env.THUMBNAIL_VIDEO_SEEK_PERCENT != null;
-  const ffprobePath = resolveExecutable(EXECUTABLE_CANDIDATES.ffprobe);
-  if (ffprobePath) {
-    ffmpeg.setFfprobePath(ffprobePath);
-  } else if (ffprobeRequired) {
-    logger.warn('ffprobe binary not found. Video thumbnails will be skipped.');
-  }
-
-  canProcessVideoThumbnails = Boolean(ffmpegPath && (!ffprobeRequired || ffprobePath));
-};
-
-configureFfmpegBinaries();
+if (ffprobeRequired && !ffmpegRunner.hasFfprobe()) {
+  logger.warn('ffprobe binary not found. Video thumbnails will be skipped.');
+}
 
 const isImage = (ext) => extensions.images.includes(ext);
 const isRawImage = (ext) => (extensions.rawImages || []).includes(ext);
@@ -559,17 +521,10 @@ const makeRawImageThumb = async (srcPath, destPath) => {
   await makeImageThumb(previewJpegPath, destPath);
 };
 
-const probeDuration = (filePath) =>
-  new Promise((resolve) => {
-    ffmpeg.ffprobe(filePath, (error, data) => {
-      if (error || !data?.format?.duration) {
-        resolve(null);
-        return;
-      }
-
-      resolve(Number(data.format.duration) || null);
-    });
-  });
+const probeDuration = async (filePath) => {
+  const data = await ffmpegRunner.probe(filePath);
+  return Number(data?.format?.duration) || null;
+};
 
 const resolveVideoSeekSeconds = async (filePath) => {
   if (THUMBNAIL_VIDEO_SEEK_PERCENT == null) {
@@ -649,48 +604,51 @@ const makeVideoThumb = async (srcPath, destPath) => {
       resolve();
     };
 
-    command = ffmpeg(srcPath)
-      .inputOptions(inputOptions)
-      .seekInput(seconds)
-      .outputOptions([
-        '-map',
-        '0:v:0',
-        '-an',
-        '-sn',
-        '-dn',
-        '-frames:v',
-        '1',
-        '-vf',
-        `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
-        '-threads',
-        String(THUMBNAIL_VIDEO_THREADS),
-        '-vcodec',
-        'mjpeg',
-        '-q:v',
-        '4',
-      ])
-      .format('image2pipe')
-      .on('start', () => {
-        const ffmpegPid = command?.ffmpegProc?.pid;
-        externalProcessId = registerExternalProcess('ffmpeg', srcPath, ffmpegPid, {
-          seekSeconds: seconds,
-          size,
-        });
-        lowerChildProcessPriority(ffmpegPid);
-      })
-      .on('end', () => {
-        unregisterExternalProcess(externalProcessId, 'success');
-      })
-      .on('error', fail);
+    // `-ss` before `-i` seeks by keyframe, which is what makes a thumbnail of
+    // a long video fast: the alternative decodes everything up to that point.
+    command = ffmpegRunner.run([
+      ...inputOptions,
+      '-ss',
+      String(seconds),
+      '-i',
+      srcPath,
+      '-map',
+      '0:v:0',
+      '-an',
+      '-sn',
+      '-dn',
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
+      '-threads',
+      String(THUMBNAIL_VIDEO_THREADS),
+      '-vcodec',
+      'mjpeg',
+      '-q:v',
+      '4',
+      '-f',
+      'image2pipe',
+      'pipe:1',
+    ]);
 
-    stream = command.pipe();
+    externalProcessId = registerExternalProcess('ffmpeg', srcPath, command.pid, {
+      seekSeconds: seconds,
+      size,
+    });
+    lowerChildProcessPriority(command.pid);
+
+    command.on('error', fail);
+    command.on('close', (code) => {
+      if (code === 0) unregisterExternalProcess(externalProcessId, 'success');
+    });
+
+    stream = command.stdout;
     stream.on('error', fail);
 
-    (async () => {
-      pipeline = sharp().webp({ quality, effort: 3 });
-      stream.pipe(pipeline);
-      atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
-    })().catch(fail);
+    pipeline = sharp().webp({ quality, effort: 3 });
+    stream.pipe(pipeline);
+    atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
   });
 };
 
@@ -747,28 +705,33 @@ const makeHeicThumb = async (srcPath, destPath) => {
       resolve();
     };
 
-    command = ffmpeg(srcPath)
-      .outputOptions([
-        '-map',
-        '0:v:0',
-        '-frames:v',
-        '1',
-        '-vf',
-        `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
-        // PNG between the two processes: the WebP below is the only lossy step,
-        // so a small thumbnail is not compressed twice.
-        '-vcodec',
-        'png',
-      ])
-      .format('image2pipe')
-      .on('start', () => {
-        const ffmpegPid = command?.ffmpegProc?.pid;
-        externalProcessId = registerExternalProcess('ffmpeg', srcPath, ffmpegPid, { size });
-        lowerChildProcessPriority(ffmpegPid);
-      })
-      .on('error', fail);
+    command = ffmpegRunner.run([
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      srcPath,
+      '-map',
+      '0:v:0',
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
+      // PNG between the two processes: the WebP below is the only lossy step,
+      // so a small thumbnail is not compressed twice.
+      '-vcodec',
+      'png',
+      '-f',
+      'image2pipe',
+      'pipe:1',
+    ]);
 
-    stream = command.pipe();
+    externalProcessId = registerExternalProcess('ffmpeg', srcPath, command.pid, { size });
+    lowerChildProcessPriority(command.pid);
+
+    command.on('error', fail);
+
+    stream = command.stdout;
     stream.on('error', fail);
 
     pipeline = sharp().webp({ quality, effort: 3 });

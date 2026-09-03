@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
 const sharp = require('sharp');
-const ffmpeg = require('fluent-ffmpeg');
+const ffmpegRunner = require('../services/ffmpegRunner');
 let exifr = null;
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
@@ -26,26 +26,16 @@ const loadExifr = () => {
   return exifr;
 };
 
-const probeVideo = (filePath) =>
-  new Promise((resolve) => {
-    ffmpeg.ffprobe(filePath, (error, data) => {
-      if (error || !data) {
-        resolve(null);
-        return;
-      }
-      try {
-        const stream = (data.streams || []).find((s) => s.width && s.height) || {};
-        const duration = Number(data.format?.duration) || null;
-        resolve({
-          width: Number(stream.width) || null,
-          height: Number(stream.height) || null,
-          duration,
-        });
-      } catch (_) {
-        resolve(null);
-      }
-    });
-  });
+const probeVideo = async (filePath) => {
+  const data = await ffmpegRunner.probe(filePath);
+  if (!data) return null;
+  const stream = (data.streams || []).find((s) => s.width && s.height) || {};
+  return {
+    width: Number(stream.width) || null,
+    height: Number(stream.height) || null,
+    duration: Number(data.format?.duration) || null,
+  };
+};
 
 const sumDirectory = async (dirPath, limit = 200000) => {
   const stack = [dirPath];
