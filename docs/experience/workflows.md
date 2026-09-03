@@ -43,7 +43,7 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 
 ## Sharing items
 
-- **Create a share link:** Select a single file or folder in any browse view (including **My Files** when personal folders are enabled) and click the **Share** button in the toolbar. Configure access mode (read-only vs read/write), choose whether the link is open to **anyone with the link** or restricted to **specific users**, optionally set a password and expiration date, then create the link and copy it from the success screen.
+- **Create a share link:** Select a single file or folder in any browse view (including **My Files** when personal folders are enabled) and click the **Share** button in the toolbar. Configure access mode (read-only vs read/write), choose whether the link is open to **anyone with the link** or restricted to **specific users**, optionally set a password and expiration date, optionally withhold downloads so the share can be read but not copied, then create the link and copy it from the success screen.
 - **Open a share link as a guest:** Visitors open URLs like `https://files.example.com/share/aBc123XyZ`. The Share access page shows basic information (label, type, expiration) and either auto-opens the shared item, prompts for a password, or redirects to the login page for user-specific shares. Guest sessions are limited so they can only browse within the shared item.
 - **Review items shared with you:** Use the **Shares → Shared with me** entry in the sidebar to see folders/files other users have shared with your account, filter by status (active/expired), and click into a share to open it in the normal browser view.
 

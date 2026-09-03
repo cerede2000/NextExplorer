@@ -6,6 +6,103 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.3.0 (2026-09-03)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.3.0)
+
+### Subtitles, and an answer when a film plays silently
+
+Playback hands a file to the browser and never transcodes: that is a media
+server's job, not a file explorer's. The limit is reasonable and it was
+invisible, which is not. A film whose soundtrack is AC-3 or E-AC-3 — which is
+most films in a Matroska container — plays perfectly with no sound at all in
+Chrome and Firefox, because neither will decode those. Nothing on screen said
+so, and the only conclusion available was that the file was broken, or that we
+were.
+
+The player now reads what the container holds and says which parts the browser
+will refuse, naming the codec. It says the same when the picture itself cannot
+be decoded, which for a ten-bit HEVC file is the more useful sentence: nothing
+was going to appear at all.
+
+Subtitles follow from the same reading. Text tracks inside the file, and
+subtitle files sitting beside it — `film.srt`, `film.fr.srt`,
+`film.en.forced.srt` — are converted to WebVTT on demand and offered through
+the browser's own captions button. Blu-ray and DVD subtitles are pictures of
+words; they are listed as unconvertible rather than offered as captions that
+would show nothing.
+
+Switching between audio tracks appears only where the browser supports it,
+which today means Safari, rather than as a control that does nothing everywhere
+else.
+
+### The video control bar is back
+
+Opening a video showed no time bar. Fullscreen had one, which made it read as a
+browser quirk.
+
+`max-height: 100%` on the video resolved against a wrapper whose own height
+came from its content, and a percentage against an indefinite height computes
+to `none`. So the video took its natural size and hung below the frame, which
+clips — and the control bar, drawn at the bottom of the element, was off
+screen. Measured at 212 pixels below the visible edge in a 1280x720 window.
+
+### A share that can be read without being copied
+
+Turning downloads off leaves a share readable while withholding the file. It is
+deliberately independent of read-only and read/write, because "work on this,
+but do not take a copy home" is a coherent thing to ask for.
+
+The permission was half there: `canDownload` was consulted by the download
+route and set to `true` at every place that produced it, so nothing could ever
+withhold it and removing the check broke no test. The frontend hid a button on
+a promise the backend did not keep. Every share that already exists allows
+downloads, and an update that says nothing about it leaves it alone.
+
+### A smaller image, built rather than borrowed
+
+FFmpeg is now compiled here instead of taken from a distribution or a
+third-party static build, with the encoders and muxers this application
+actually uses and nothing else. The build proves itself before it is shipped:
+25 formats are synthesised and decoded by the binary just built, and the image
+refuses to build if any of them fails. That check is the point — a stripped
+build fails silently, as thumbnails that simply never appear.
+
+ImageMagick is gone: HEIC is decoded by FFmpeg, whose HEIF demuxer reconstructs
+the tile grid an iPhone photo actually is. `fluent-ffmpeg`, deprecated
+upstream, is gone with it. A vendored ExifTool and a dependency's own coverage
+report no longer reach the image, and xterm is no longer loaded by every page.
+
+`latest-lean` went from 154.2 MB to 112.9 MB, and `latest` from 241.0 MB to
+235.8 MB.
+
+### Express 5
+
+The framework is up to date. One route survived the migration in a form Express
+5 no longer accepts and stopped the server from starting at all; it was caught
+before it reached a release, and the suites that would have caught it earlier
+now exist.
+
+### Fourteen languages
+
+Brazilian Portuguese is added. Twelve catalogues that had quietly drifted back
+to English are complete again, and the French is finished. A browser announcing
+`FR-fr` is matched like one announcing `fr-FR`.
+
+### Failures that name themselves
+
+A thumbnail that could not be made reported "Input buffer contains unsupported
+image format" from sharp — an image-format complaint, about a video file, with
+nothing to act on. FFmpeg had failed, written nothing, and been handed to sharp
+as an empty buffer; its own explanation went to a pipe nobody read. That pipe
+was the worse half: an unread pipe fills at 64 KB and the writer then blocks
+forever, so a file FFmpeg had a lot to say about would hang rather than fail.
+
+Two diagnostics that stop reporting after ten findings were being spent by
+ordinary traffic — video streaming and subtitle extraction hold a connection
+open by design — which switched them off for the life of the process. Both now
+say they mean to hold.
+
 ## v3.2.0 (2026-09-02)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.2.0)
