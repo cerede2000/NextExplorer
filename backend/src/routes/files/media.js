@@ -13,6 +13,7 @@ const {
   UnsupportedMediaTypeError,
 } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
+const { markLongPoll } = require('../../middleware/heldRequests');
 
 const router = require('express').Router();
 
@@ -100,6 +101,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const absolutePath = await resolveMediaFile(req);
     const { stream, file } = req.query || {};
+
+    // Pulling one subtitle track means demuxing the whole container, because
+    // subtitle packets are interleaved from beginning to end. Measured at
+    // seven to eighteen seconds for a 1080p episode on external storage —
+    // slow, but the request is working, not stuck. Saying so keeps it out of
+    // the held-request instrument, whose ten reports are spent for the life of
+    // the process and are there for finding a server that really is wedged.
+    markLongPoll(req);
 
     if (!ffmpegRunner.hasFfmpeg()) {
       throw new UnsupportedMediaTypeError('Subtitle conversion is not available.');
