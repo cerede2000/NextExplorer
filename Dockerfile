@@ -63,30 +63,77 @@ RUN apk add --no-cache curl libarchive-tools \
   && install -m 0755 "$(find /tmp/7z -type f -name 7zzs -print -quit)" /out/7z
 
 # ---------------------------------------------------------------------------
-# Static ffmpeg, for builds that do not want Alpine's.
+# ffmpeg, built here rather than taken from anywhere.
 #
-# Alpine's `ffmpeg` package is a full build: every encoder, 106 MB of codec
-# libraries behind a 0.6 MB binary, when all this application ever does is
-# decode — one frame for a video thumbnail, one still out of a HEIC, and
-# ffprobe for metadata. These two static binaries are a decode-only build and
-# come to 67 MB for the pair, so they are worth about 39 MB.
+# Alpine's `ffmpeg` package is a full build: 106 MB of codec libraries behind a
+# 0.6 MB binary, and almost all of that weight is *encoding* — x264, x265, aom,
+# vpx, lame, opus, theora, ass. This application only ever decodes: one frame
+# for a video thumbnail, one still out of a HEIC, and ffprobe for metadata.
 #
-# Pinned by digest, which fixes the bytes exactly the way the sha256sum on the
-# 7-Zip download above does. What it does not fix is provenance: the image is
-# built from a configuration that is not in its publisher's public repository,
-# so the binary can be verified but not rebuilt. That is the trade, and it is
-# the reason this is not the default.
+# So the shape of this build is deliberately the opposite of the obvious one.
+# `--disable-everything` would be smaller still and is the wrong tool: it is
+# opt-in, and the way it fails is a format quietly losing its previews with
+# nothing logged anywhere. Instead every native decoder, demuxer and parser is
+# kept — they are small — and only the encoders and muxers are cut back to the
+# two we write. Nothing this application can open stops being openable.
 #
-# It also has no VA-API — verified in the binary, which carries no `_vaapi`
-# symbols at all — so FFMPEG_VARIANT=static and INCLUDE_VAAPI=true are
-# incompatible, and the build refuses the combination below rather than
-# shipping an image whose FFMPEG_HWACCEL silently does nothing.
+# `--disable-autodetect` means the build cannot pick up a library by accident,
+# so what is linked is exactly what is listed. libdav1d is the one external
+# decoder worth having: ffmpeg's native AV1 decoder works but is much slower.
+# No `--enable-gpl`, because nothing here needs a GPL component once the
+# encoders are gone — the result is LGPL.
+#
+# The checksum is pinned the way the 7-Zip download above is. ffmpeg.org also
+# publishes a detached signature (ffmpeg-<version>.tar.xz.asc) for anyone who
+# wants to go further than pinning the bytes.
 # ---------------------------------------------------------------------------
-FROM gtstef/ffmpeg@sha256:22c8d8c1c836fc0dde642eeee2eec849b1b6c86d88f7b7b55e85ce73dd8041f7 AS ffmpeg_static
+FROM alpine:3.23 AS ffmpeg_build
+ARG FFMPEG_VERSION=8.1.2
+ARG FFMPEG_SHA256=464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
 
-# ---------------------------------------------------------------------------
-# Stage 4: Final runtime image — no compilers, no build tools
-# ---------------------------------------------------------------------------
+# `ffmpeg` here is a build dependency and never ships: the verification below
+# uses it to synthesise a clip per format, which the binary we build then has
+# to decode.
+RUN apk add --no-cache       build-base coreutils curl xz pkgconf nasm yasm       zlib-dev zlib-static bzip2-dev bzip2-static dav1d-dev dav1d-static       ffmpeg
+
+RUN curl -fsSL -o /tmp/ffmpeg.tar.xz \
+      "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
+  && echo "${FFMPEG_SHA256}  /tmp/ffmpeg.tar.xz" | sha256sum -c - \
+  && mkdir -p /tmp/ffmpeg-src \
+  && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg-src --strip-components=1
+
+WORKDIR /tmp/ffmpeg-src
+RUN ./configure \
+      --prefix=/out \
+      --disable-autodetect \
+      --disable-doc \
+      --disable-debug \
+      --disable-network \
+      --disable-programs \
+      --enable-program=ffmpeg \
+      --enable-program=ffprobe \
+      --enable-zlib \
+      --enable-bzlib \
+      --enable-libdav1d \
+      --disable-encoders \
+      --enable-encoder=mjpeg \
+      --enable-encoder=png \
+      --disable-muxers \
+      --enable-muxer=image2 \
+      --enable-muxer=image2pipe \
+      --enable-muxer=rawvideo \
+      --enable-small \
+  && make -j"$(nproc)" \
+  && make install
+
+# Fails the build if any format the explorer offers previews for cannot be
+# decoded. See docker/verify-ffmpeg.sh for what that means and why.
+COPY docker/verify-ffmpeg.sh /usr/local/bin/verify-ffmpeg.sh
+RUN chmod +x /usr/local/bin/verify-ffmpeg.sh \
+  && /usr/local/bin/verify-ffmpeg.sh /out/bin/ffmpeg /out/bin/ffprobe \
+  && strip /out/bin/ffmpeg /out/bin/ffprobe \
+  && ls -la /out/bin
+
 FROM base AS runtime
 ENV NODE_ENV=production
 # Enlarge the libuv thread pool so directory-listing fs.stat calls are not
@@ -136,9 +183,12 @@ RUN addgroup -S appuser && \
 #                        This is by far the largest thing in the image, and it is
 #                        inert on any host that does not pass a GPU to the
 #                        container: the -lean variant exists mainly to drop it.
-#   FFMPEG_VARIANT=static  replaces Alpine's ffmpeg with the decode-only static
-#                        binaries (-39 MB). Requires INCLUDE_VAAPI=false: that
-#                        build has no VA-API. Software decoding is unaffected.
+#   FFMPEG_VARIANT=source  builds ffmpeg from source with the encoders stripped
+#                        out (see the ffmpeg_build stage). Every decoder,
+#                        demuxer and parser is kept, so nothing stops being
+#                        previewable. Requires INCLUDE_VAAPI=false: that build
+#                        has no VA-API, and enabling it would pull back most of
+#                        what this removes.
 ARG INCLUDE_RAW=true
 ARG INCLUDE_VAAPI=true
 ARG FFMPEG_VARIANT=apk
@@ -156,20 +206,25 @@ RUN apk add --no-cache \
   && if [ "$INCLUDE_VAAPI" = "true" ]; then apk add --no-cache libva mesa-va-gallium; fi \
   && rm -rf /tmp/* /var/cache/apk/*
 
-# ffmpeg, from one source or the other. The static stage is mounted rather than
+# ffmpeg, from one source or the other. The build stage is mounted rather than
 # copied, so an `apk` build carries none of its bytes into any layer.
-RUN --mount=from=ffmpeg_static,source=/,target=/ffmpeg-static \
+#
+# The runtime libraries have to come with it: this build links against the
+# Alpine ones rather than being static, which keeps it small and keeps the
+# security updates coming from apk rather than from a rebuild.
+RUN --mount=from=ffmpeg_build,source=/out,target=/ffmpeg-built \
     set -eu; \
-    if [ "$FFMPEG_VARIANT" = "static" ]; then \
+    if [ "$FFMPEG_VARIANT" = "source" ]; then \
       if [ "$INCLUDE_VAAPI" = "true" ]; then \
-        echo "FFMPEG_VARIANT=static has no VA-API; build with INCLUDE_VAAPI=false" >&2; \
+        echo "FFMPEG_VARIANT=source has no VA-API; build with INCLUDE_VAAPI=false" >&2; \
         exit 1; \
       fi; \
-      install -m 0755 /ffmpeg-static/ffmpeg /ffmpeg-static/ffprobe /usr/local/bin/; \
+      apk add --no-cache dav1d libbz2; \
+      install -m 0755 /ffmpeg-built/bin/ffmpeg /ffmpeg-built/bin/ffprobe /usr/local/bin/; \
     else \
       apk add --no-cache ffmpeg; \
-      rm -rf /var/cache/apk/*; \
     fi; \
+    rm -rf /var/cache/apk/*; \
     ffmpeg -version >/dev/null; \
     ffprobe -version >/dev/null
 

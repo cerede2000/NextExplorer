@@ -48,10 +48,10 @@ jobs:
           # support; the lean one leaves both out, which is a great deal smaller
           # and all that is needed where neither is used.
           #
-          # The lean image also takes the decode-only static ffmpeg. That build
-          # has no VA-API, which is exactly why it belongs here and not in the
-          # full image: this variant has already given up hardware acceleration,
-          # so the smaller binaries cost it nothing it still has.
+          # The lean image also builds its own ffmpeg, with the encoders
+          # stripped out. That build has no VA-API, which is exactly why it
+          # belongs here and not in the full image: this variant has already
+          # given up hardware acceleration, so it costs nothing it still has.
           - variant: full
             suffix: ''
             extra_build_args: ''
@@ -60,7 +60,7 @@ jobs:
             extra_build_args: |
               INCLUDE_VAAPI=false
               INCLUDE_RAW=false
-              FFMPEG_VARIANT=static
+              FFMPEG_VARIANT=source
     permissions:
       contents: read
       packages: write
