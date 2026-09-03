@@ -487,6 +487,64 @@ const hashForFile = async (filePath) => {
 const buildTempThumbnailPath = (finalPath) =>
   `${finalPath}.tmp-${process.pid}-${Date.now()}-${crypto.randomUUID()}`;
 
+/** How much of ffmpeg's complaint to keep, and how long to wait to hear it. */
+const FFMPEG_STDERR_TAIL_BYTES = 2048;
+const FFMPEG_EXIT_GRACE_MS = 1000;
+
+/**
+ * Listen to ffmpeg, so a failure can be reported as ffmpeg's.
+ *
+ * Two things went wrong without this, and the second hid the first.
+ *
+ * ffmpeg is spawned with stderr on a pipe. A pipe nobody reads fills — 64 KB on
+ * Linux — and the process then blocks on its next write and never exits. A run
+ * that only ever succeeds quietly never reaches that, which is why it went
+ * unnoticed; a file ffmpeg has a lot to say about is exactly the file that
+ * hangs. Attaching a reader is what drains it.
+ *
+ * And when ffmpeg does fail it writes nothing to stdout, so sharp is handed an
+ * empty buffer and raises "Input buffer contains unsupported image format".
+ * That is the line that reached the log — sharp's name, an image-format
+ * complaint, about a video file — while the actual reason sat unread in stderr.
+ * A sharp error therefore waits briefly for the exit code before it is
+ * believed, and carries ffmpeg's own words when there are any.
+ */
+const attachFfmpegDiagnostics = (command) => {
+  let stderrTail = '';
+  let exitCode = null;
+
+  command.stderr?.on('data', (chunk) => {
+    stderrTail = (stderrTail + String(chunk)).slice(-FFMPEG_STDERR_TAIL_BYTES);
+  });
+
+  const exited = new Promise((resolve) => {
+    command.on('close', (code) => {
+      exitCode = code;
+      resolve(code);
+    });
+  });
+
+  /** Wait for the exit code, but never longer than it takes to be useful. */
+  const settledExit = () =>
+    Promise.race([
+      exited,
+      new Promise((resolve) => {
+        const timer = setTimeout(resolve, FFMPEG_EXIT_GRACE_MS);
+        timer.unref?.();
+      }),
+    ]);
+
+  const describeFailure = (error) => {
+    if (exitCode === null || exitCode === 0) return error;
+    const detail = stderrTail.trim().split('\n').slice(-3).join(' | ');
+    const described = new Error(`FFmpeg exited with ${exitCode}${detail ? `: ${detail}` : ''}`);
+    described.cause = error;
+    return described;
+  };
+
+  return { describeFailure, settledExit };
+};
+
 const atomicWriteSharpFile = async (finalPath, pipeline) => {
   await ensureDir(path.dirname(finalPath));
   const tmpPath = buildTempThumbnailPath(finalPath);
@@ -588,9 +646,12 @@ const makeVideoThumb = async (srcPath, destPath) => {
       }
     };
 
-    const fail = (error) => {
+    let diagnostics = null;
+
+    const fail = (rawError) => {
       if (settled) return;
       settled = true;
+      const error = diagnostics ? diagnostics.describeFailure(rawError) : rawError;
       unregisterExternalProcess(externalProcessId, 'error', error);
       cleanup({ killProcess: true });
       reject(error);
@@ -638,8 +699,11 @@ const makeVideoThumb = async (srcPath, destPath) => {
     });
     lowerChildProcessPriority(command.pid);
 
+    diagnostics = attachFfmpegDiagnostics(command);
     command.on('error', fail);
     command.on('close', (code) => {
+      // Stop tracking it as running the moment it exits, rather than when the
+      // thumbnail has finished being written.
       if (code === 0) unregisterExternalProcess(externalProcessId, 'success');
     });
 
@@ -648,7 +712,14 @@ const makeVideoThumb = async (srcPath, destPath) => {
 
     pipeline = sharp().webp({ quality, effort: 3 });
     stream.pipe(pipeline);
-    atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
+    atomicWriteSharpFile(destPath, pipeline)
+      .then(done)
+      .catch(async (error) => {
+        // Whose failure this really is depends on the exit code, which may not
+        // have arrived yet.
+        await diagnostics.settledExit();
+        fail(error);
+      });
   });
 };
 
@@ -689,9 +760,12 @@ const makeHeicThumb = async (srcPath, destPath) => {
       if (pipeline && !pipeline.destroyed) pipeline.destroy();
     };
 
-    const fail = (error) => {
+    let diagnostics = null;
+
+    const fail = (rawError) => {
       if (settled) return;
       settled = true;
+      const error = diagnostics ? diagnostics.describeFailure(rawError) : rawError;
       unregisterExternalProcess(externalProcessId, 'error', error);
       cleanup({ killProcess: true });
       reject(error);
@@ -729,6 +803,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
     externalProcessId = registerExternalProcess('ffmpeg', srcPath, command.pid, { size });
     lowerChildProcessPriority(command.pid);
 
+    diagnostics = attachFfmpegDiagnostics(command);
     command.on('error', fail);
 
     stream = command.stdout;
@@ -736,7 +811,12 @@ const makeHeicThumb = async (srcPath, destPath) => {
 
     pipeline = sharp().webp({ quality, effort: 3 });
     stream.pipe(pipeline);
-    atomicWriteSharpFile(destPath, pipeline).then(done).catch(fail);
+    atomicWriteSharpFile(destPath, pipeline)
+      .then(done)
+      .catch(async (error) => {
+        await diagnostics.settledExit();
+        fail(error);
+      });
   });
 };
 
