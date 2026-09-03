@@ -89,6 +89,23 @@ Brazilian Portuguese is added. Twelve catalogues that had quietly drifted back
 to English are complete again, and the French is finished. A browser announcing
 `FR-fr` is matched like one announcing `fr-FR`.
 
+### A file found twice by one search
+
+A `.docx` whose name and its contents both matched a search term came back
+twice in the results.
+
+The passes of a search run concurrently and share a set of paths already found,
+so that none repeats another's work. That set could not prevent a duplicate: in
+the pass that reads Office documents, the test and the claim are three awaits
+apart — it checks the path, then stats the file, extracts its text and asks
+permission, and only then records it. The pass that matches filenames claims a
+path on the line after testing one, so it fits inside that window.
+
+It took a machine slow enough to finish walking a directory while a document
+was being unzipped, which is why it appeared in CI rather than on a developer's
+machine. The results are deduplicated where every pass converges now, so the
+order they finish in no longer matters.
+
 ### Failures that name themselves
 
 A thumbnail that could not be made reported "Input buffer contains unsupported
