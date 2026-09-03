@@ -35,6 +35,7 @@ const toClientShare = (row) => {
     allowCreateFolder: row.allow_create_folder !== 0,
     allowCreateFile: row.allow_create_file !== 0,
     allowUpload: row.allow_upload !== 0,
+    allowDownload: row.allow_download !== 0,
     sharingType: row.sharing_type,
     hasPassword: Boolean(row.password_hash),
     expiresAt: row.expires_at || null,
@@ -63,6 +64,7 @@ const createShare = async ({
   allowCreateFolder = true,
   allowCreateFile = true,
   allowUpload = true,
+  allowDownload = true,
   sharingType = 'anyone',
   password = null,
   userIds = [],
@@ -132,8 +134,9 @@ const createShare = async ({
     INSERT INTO shares (
       id, share_token, owner_id, source_space, source_path, is_directory,
       access_mode, allow_delete, allow_create_folder, allow_create_file, allow_upload,
-      sharing_type, password_hash, expires_at, label, download_count, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      allow_download, sharing_type, password_hash, expires_at, label, download_count,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
   `
   ).run(
     shareId,
@@ -147,6 +150,7 @@ const createShare = async ({
     allowCreateFolder ? 1 : 0,
     allowCreateFile ? 1 : 0,
     allowUpload ? 1 : 0,
+    allowDownload ? 1 : 0,
     sharingType,
     passwordHash,
     expiresAt,
@@ -339,6 +343,7 @@ const updateShare = async (shareId, updates = {}) => {
     ['allowCreateFolder', 'allow_create_folder'],
     ['allowCreateFile', 'allow_create_file'],
     ['allowUpload', 'allow_upload'],
+    ['allowDownload', 'allow_download'],
   ];
   for (const [key, column] of operationPermissionFields) {
     if (!(key in updates)) continue;

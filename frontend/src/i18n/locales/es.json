@@ -718,7 +718,9 @@
     "protected": "Protegido",
     "expires": "Expira",
     "loadingUsers": "Cargando usuarios...",
-    "creating": "Creando…"
+    "creating": "Creando…",
+    "allowDownload": "Permitir la descarga",
+    "allowDownloadHelp": "Desactívelo para que se puedan leer los archivos sin llevarse una copia."
   },
   "quickActions": {
     "menu": "Acciones rápidas"

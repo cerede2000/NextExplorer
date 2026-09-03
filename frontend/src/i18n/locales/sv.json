@@ -718,7 +718,9 @@
     "protected": "Skyddad",
     "expires": "Går ut",
     "loadingUsers": "Läser in användare...",
-    "creating": "Skapar…"
+    "creating": "Skapar…",
+    "allowDownload": "Tillåt nedladdning",
+    "allowDownloadHelp": "Stäng av för att låta filerna läsas utan att en kopia tas."
   },
   "quickActions": {
     "menu": "Snabbåtgärder"

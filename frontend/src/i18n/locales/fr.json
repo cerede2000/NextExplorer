@@ -721,7 +721,9 @@
     "protected": "Protégé",
     "expires": "Expire",
     "loadingUsers": "Chargement des utilisateurs...",
-    "creating": "Création…"
+    "creating": "Création…",
+    "allowDownload": "Autoriser le téléchargement",
+    "allowDownloadHelp": "Désactivez pour laisser consulter les fichiers sans pouvoir en prendre une copie."
   },
   "onlyoffice": {
     "editingHeading": "Fichier en cours d’édition",

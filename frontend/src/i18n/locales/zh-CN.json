@@ -718,7 +718,9 @@
     "protected": "已保护",
     "expires": "到期",
     "loadingUsers": "正在加载用户...",
-    "creating": "正在创建…"
+    "creating": "正在创建…",
+    "allowDownload": "允许下载",
+    "allowDownloadHelp": "关闭后，他人可以阅读文件但无法下载副本。"
   },
   "quickActions": {
     "menu": "快捷操作"

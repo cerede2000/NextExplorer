@@ -92,6 +92,10 @@ const ensureShareOperationPermissionColumns = (db) => {
     'allow_create_file INTEGER NOT NULL DEFAULT 1'
   );
   addColumnIfMissing(db, 'shares', 'allow_upload', 'allow_upload INTEGER NOT NULL DEFAULT 1');
+  // Defaults to 1 so every share that already exists keeps working exactly as
+  // it did: withholding downloads is something an owner opts into, never
+  // something a migration decides for them.
+  addColumnIfMissing(db, 'shares', 'allow_download', 'allow_download INTEGER NOT NULL DEFAULT 1');
 };
 
 /**
@@ -442,6 +446,7 @@ const migrate = (db) => {
           allow_create_folder INTEGER NOT NULL DEFAULT 1,
           allow_create_file INTEGER NOT NULL DEFAULT 1,
           allow_upload INTEGER NOT NULL DEFAULT 1,
+          allow_download INTEGER NOT NULL DEFAULT 1,
           sharing_type TEXT NOT NULL CHECK(sharing_type IN ('anyone', 'users')),
           password_hash TEXT,
           expires_at TEXT,

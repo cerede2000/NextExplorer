@@ -718,7 +718,9 @@
     "protected": "Geschützt",
     "expires": "Läuft ab",
     "loadingUsers": "Benutzer werden geladen...",
-    "creating": "Wird erstellt…"
+    "creating": "Wird erstellt…",
+    "allowDownload": "Herunterladen erlauben",
+    "allowDownloadHelp": "Ausschalten, damit die Dateien gelesen, aber nicht kopiert werden können."
   },
   "quickActions": {
     "menu": "Schnellaktionen"

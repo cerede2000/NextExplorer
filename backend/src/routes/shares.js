@@ -334,6 +334,7 @@ router.post(
       allowCreateFolder = true,
       allowCreateFile = true,
       allowUpload = true,
+      allowDownload = true,
       sharingType = 'anyone',
       password,
       userIds,
@@ -409,6 +410,7 @@ router.post(
       allowCreateFolder,
       allowCreateFile,
       allowUpload,
+      allowDownload,
       sharingType,
       password,
       userIds: sharingType === 'users' ? userIds : [],
@@ -529,7 +531,13 @@ router.put(
       updates.accessMode = req.body.accessMode;
     }
 
-    for (const key of ['allowDelete', 'allowCreateFolder', 'allowCreateFile', 'allowUpload']) {
+    for (const key of [
+      'allowDelete',
+      'allowCreateFolder',
+      'allowCreateFile',
+      'allowUpload',
+      'allowDownload',
+    ]) {
       if (key in req.body) updates[key] = req.body[key];
     }
 
@@ -755,6 +763,7 @@ router.get(
               label: share.label,
               sourcePath: `share/${share.shareToken}`,
               accessMode: share.accessMode,
+              allowDownload: share.allowDownload !== false,
               isDirectory: share.isDirectory,
             },
             guestSessionId: req.guestSession.id,
@@ -779,6 +788,7 @@ router.get(
               label: share.label,
               sourcePath: `share/${share.shareToken}`,
               accessMode: share.accessMode,
+              allowDownload: share.allowDownload !== false,
               isDirectory: share.isDirectory,
             },
             guestSessionId: session.id,
@@ -798,6 +808,7 @@ router.get(
         label: share.label,
         sourcePath: `share/${share.shareToken}`,
         accessMode: share.accessMode,
+        allowDownload: share.allowDownload !== false,
         isDirectory: share.isDirectory,
         expiresAt: share.expiresAt,
       },
@@ -1066,7 +1077,10 @@ router.get(
             canCreateFolder: accessInfo.canCreateFolder,
             canCreateFile: accessInfo.canCreateFile,
             canShare: false,
-            canDownload: true,
+            // Follows the share rather than being hard true: otherwise every
+            // row in a share with downloads withheld still shows the button,
+            // and clicking it is the only way to find out.
+            canDownload: accessInfo.canDownload,
           },
         }),
       });

@@ -718,7 +718,9 @@
     "protected": "보호됨",
     "expires": "만료",
     "loadingUsers": "유저 정보 로딩 중...",
-    "creating": "생성 중…"
+    "creating": "생성 중…",
+    "allowDownload": "다운로드 허용",
+    "allowDownloadHelp": "끄면 파일을 읽을 수는 있지만 복사본을 가져갈 수는 없습니다."
   },
   "quickActions": {
     "menu": "빠른 작업"

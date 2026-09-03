@@ -718,7 +718,9 @@
     "protected": "Protejat",
     "expires": "Expiră",
     "loadingUsers": "Se încarcă utilizatorii...",
-    "creating": "Se creează…"
+    "creating": "Se creează…",
+    "allowDownload": "Permite descărcarea",
+    "allowDownloadHelp": "Dezactivați pentru a permite citirea fișierelor fără a lua o copie."
   },
   "quickActions": {
     "menu": "Acțiuni rapide"

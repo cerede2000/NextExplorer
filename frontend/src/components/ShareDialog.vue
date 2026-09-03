@@ -57,6 +57,9 @@ const enableExpiry = ref(false);
 const label = ref('');
 const showAdvancedPermissions = ref(false);
 const allowDelete = ref(true);
+// Not part of the advanced block below: it applies to a single-file share as
+// much as to a folder, and to a read-only share as much as a read-write one.
+const allowDownload = ref(true);
 const allowCreateFolder = ref(true);
 const allowCreateFile = ref(true);
 const allowUpload = ref(true);
@@ -156,6 +159,7 @@ function resetForm() {
   label.value = '';
   showAdvancedPermissions.value = false;
   allowDelete.value = true;
+  allowDownload.value = true;
   allowCreateFolder.value = true;
   allowCreateFile.value = true;
   allowUpload.value = true;
@@ -173,6 +177,7 @@ function populateShareForm(share) {
   selectedUserIds.value = Array.isArray(share.permittedUserIds) ? [...share.permittedUserIds] : [];
   label.value = share.label || '';
   allowDelete.value = share.allowDelete !== false;
+  allowDownload.value = share.allowDownload !== false;
   allowCreateFolder.value = share.allowCreateFolder !== false;
   allowCreateFile.value = share.allowCreateFile !== false;
   allowUpload.value = share.allowUpload !== false;
@@ -296,6 +301,7 @@ async function submitShare() {
     const shareData = {
       accessMode: accessMode.value,
       allowDelete: allowDelete.value,
+      allowDownload: allowDownload.value,
       allowCreateFolder: allowCreateFolder.value,
       allowCreateFile: allowCreateFile.value,
       allowUpload: allowUpload.value,
@@ -545,6 +551,24 @@ function closeDialog() {
           </button>
         </div>
       </div>
+
+      <!-- Downloading is its own question: a share can be readable without
+           being copyable, and that holds for a single file as much as a
+           folder. So it sits here rather than inside the advanced block, which
+           only appears for a read-write folder. -->
+      <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+        <span>
+          {{ t('share.allowDownload', 'Allow downloading') }}
+          <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+            {{ t('share.allowDownloadHelp', 'Turn this off to let people read the files without taking a copy.') }}
+          </span>
+        </span>
+        <input
+          v-model="allowDownload"
+          type="checkbox"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </label>
 
       <div
         v-if="isDirectory && accessMode === 'readwrite'"

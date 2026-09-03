@@ -718,7 +718,9 @@
     "protected": "Protetto",
     "expires": "Scade",
     "loadingUsers": "Caricamento utenti...",
-    "creating": "Creazione…"
+    "creating": "Creazione…",
+    "allowDownload": "Consenti il download",
+    "allowDownloadHelp": "Disattiva per far leggere i file senza permetterne una copia."
   },
   "quickActions": {
     "menu": "Azioni rapide"

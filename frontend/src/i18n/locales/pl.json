@@ -718,7 +718,9 @@
     "protected": "Chronione",
     "expires": "Wygasa",
     "loadingUsers": "Ładowanie użytkowników...",
-    "creating": "Tworzenie…"
+    "creating": "Tworzenie…",
+    "allowDownload": "Zezwalaj na pobieranie",
+    "allowDownloadHelp": "Wyłącz, aby pliki można było czytać bez pobierania kopii."
   },
   "quickActions": {
     "menu": "Szybkie akcje"
