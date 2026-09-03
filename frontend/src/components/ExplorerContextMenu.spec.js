@@ -20,8 +20,6 @@ import { createPinia, setActivePinia } from 'pinia';
  * switched on at all.
  */
 
-const explorerContextMenuSymbol = Symbol.for('test-will-be-replaced');
-
 let actions;
 let fileStore;
 let features;

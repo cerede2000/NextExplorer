@@ -60,9 +60,16 @@ jobs:
       - name: Frontend tests
         run: npm run test:coverage:frontend
 
+      # `always()` so a red suite still reports what it managed to cover, and
+      # tolerant of the files being absent: when an earlier step fails, no
+      # coverage was produced at all, and this must not add a second failure on
+      # top of the real one.
       - name: Coverage summary
         if: always()
+        continue-on-error: true
         run: |
+          [ -f backend/coverage/coverage-summary.json ] || exit 0
+          [ -f frontend/coverage/coverage-summary.json ] || exit 0
           {
             echo '## Coverage'
             echo
