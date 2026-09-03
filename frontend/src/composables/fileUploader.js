@@ -14,6 +14,13 @@ import { isDisallowedUpload } from '@/utils/uploads';
 // The fallback ladder lives in utils so it can be tested without Uppy, a Pinia
 // store and a browser around it.
 import { nextFallbackMiB } from '@/utils/uploadFallback';
+// So is the mode decision, for the same reason.
+import {
+  isInFallbackChunked,
+  isLargeUpload,
+  isWatchingDirectUploads,
+  resolveUploadMode,
+} from '@/utils/uploadMode';
 import DropTarget from '@uppy/drop-target';
 
 // Per-origin remembered auto-fallback chunk size (localStorage is scoped to the
@@ -179,8 +186,6 @@ export function useFileUploader() {
   let uppy = uppyStore.uppy;
   const createdHere = ref(false);
 
-  const MIB_BYTES = 1024 * 1024;
-  const LARGE_FILE_BYTES = 8 * MIB_BYTES;
   // Chunk sizes tried on fallback (largest first, near the value that works
   // manually). Each PATCH stays well under a typical reverse-proxy body limit.
   // A direct upload that makes no progress for this long is treated as stalled.
@@ -189,8 +194,6 @@ export function useFileUploader() {
   // progress-timeout so Uppy emits `upload-stalled` on the same deadline.
   const DIRECT_STALL_MS = 20000;
 
-  const autoFallbackAllowed = () => Boolean(appSettings.state?.uploads?.chunkedAutoFallback);
-  const adminChunkedForced = () => Boolean(appSettings.state?.uploads?.chunkedEnabled);
   const readFallbackMiB = getUploadFallbackMiB;
   const writeFallbackMiB = (mib) => {
     try {
@@ -201,29 +204,16 @@ export function useFileUploader() {
   };
   const clearFallbackMiB = resetUploadFallback;
 
-  const getUploadSettings = () => {
-    const adminChunkBytes = Number.isFinite(appSettings.state?.uploads?.chunkSizeBytes)
-      ? appSettings.state.uploads.chunkSizeBytes
-      : 8 * MIB_BYTES;
-    if (adminChunkedForced()) {
-      return { chunkedEnabled: true, chunkSizeBytes: adminChunkBytes };
-    }
-    // Direct (XHR) mode: if a previous direct upload on this origin was rejected
-    // or stalled by a proxy, use chunked (TUS) with the remembered size instead.
-    const fallbackMiB = autoFallbackAllowed() ? readFallbackMiB() : null;
-    if (fallbackMiB) {
-      return { chunkedEnabled: true, chunkSizeBytes: fallbackMiB * MIB_BYTES };
-    }
-    return { chunkedEnabled: false, chunkSizeBytes: adminChunkBytes };
-  };
+  const getUploadSettings = () => resolveUploadMode(appSettings.state?.uploads, readFallbackMiB());
 
   // Auto-fallback modes (auto on, admin hasn't force-enabled chunking):
   //  - "direct":  no size learned yet  → uploads go out as a single XHR
   //  - "chunked": a size is remembered → uploads go through TUS
-  const inDirectMode = () => autoFallbackAllowed() && !adminChunkedForced() && !readFallbackMiB();
+  const inDirectMode = () =>
+    isWatchingDirectUploads(appSettings.state?.uploads, readFallbackMiB());
   const inFallbackChunkedMode = () =>
-    autoFallbackAllowed() && !adminChunkedForced() && Boolean(readFallbackMiB());
-  const isLargeFile = (file) => (Number(file?.size) || 0) > LARGE_FILE_BYTES;
+    isInFallbackChunked(appSettings.state?.uploads, readFallbackMiB());
+  const isLargeFile = isLargeUpload;
 
   const removeUploadPlugin = (id) => {
     const plugin = uppy?.getPlugin?.(id);
