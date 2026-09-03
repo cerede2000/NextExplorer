@@ -774,7 +774,8 @@
     "audioTrack": "Traccia audio",
     "audioTrackNumbered": "Traccia {number}",
     "subtitleForced": "forzati",
-    "subtitleExternal": "file esterno"
+    "subtitleExternal": "file esterno",
+    "noPlayableVideo": "Questo video è in {codecs}, che il browser non sa decodificare. Aprilo in un lettore multimediale."
   },
   "preview": {
     "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",

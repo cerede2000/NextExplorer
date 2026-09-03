@@ -774,7 +774,8 @@
     "audioTrack": "Ljudspår",
     "audioTrackNumbered": "Spår {number}",
     "subtitleForced": "tvingade",
-    "subtitleExternal": "extern fil"
+    "subtitleExternal": "extern fil",
+    "noPlayableVideo": "Videon är {codecs}, som din webbläsare inte kan avkoda. Öppna den i en mediespelare i stället."
   },
   "preview": {
     "tooLargeToRenderSized": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren. Öppna det i redigeraren eller ladda ner det.",

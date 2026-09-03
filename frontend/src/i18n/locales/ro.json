@@ -774,7 +774,8 @@
     "audioTrack": "Pistă audio",
     "audioTrackNumbered": "Pista {number}",
     "subtitleForced": "forțate",
-    "subtitleExternal": "fișier extern"
+    "subtitleExternal": "fișier extern",
+    "noPlayableVideo": "Acest videoclip este în {codecs}, pe care browserul nu îl poate decoda. Deschide-l într-un player media."
   },
   "preview": {
     "tooLargeToRenderSized": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser. Deschideți-l în editor sau descărcați-l.",

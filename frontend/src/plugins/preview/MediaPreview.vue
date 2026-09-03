@@ -132,7 +132,7 @@
         class="pointer-events-none absolute inset-x-4 top-3 z-10 mx-auto max-w-lg rounded-md bg-amber-500/90 px-3 py-2 text-center text-xs font-medium text-black shadow-lg"
         role="status"
       >
-        {{ t('mediaPreview.noPlayableAudio', { codecs: unplayableCodecs.join(', ').toUpperCase() }) }}
+        {{ noticeText }}
       </p>
 
       <button
@@ -258,11 +258,14 @@ const isPlayedAsVideo = computed(
   () => Boolean(currentMedia.value) && !isPreviewableImage(currentMedia.value.extension)
 );
 
-const { subtitleTracks, audioTracks, hasUnplayableAudio, unplayableCodecs } = useMediaTracks(
-  currentMedia,
-  props.api,
-  isPlayedAsVideo
-);
+const {
+  subtitleTracks,
+  audioTracks,
+  hasUnplayableAudio,
+  unplayableCodecs,
+  hasUnplayableVideo,
+  unplayableVideoCodecs,
+} = useMediaTracks(currentMedia, props.api, isPlayedAsVideo);
 
 /**
  * A caption's name in the reader's own language, and where it came from.
@@ -289,12 +292,30 @@ const AUDIO_NOTICE_MS = 10000;
 const noticeVisible = ref(false);
 let noticeTimer = null;
 
-const showAudioNotice = computed(() => hasUnplayableAudio.value && noticeVisible.value);
+/**
+ * One sentence, and the picture comes first: a video that does not play at all
+ * makes a remark about its soundtrack beside the point.
+ */
+const noticeText = computed(() => {
+  if (hasUnplayableVideo.value) {
+    return t('mediaPreview.noPlayableVideo', {
+      codecs: unplayableVideoCodecs.value.join(', ').toUpperCase(),
+    });
+  }
+  if (hasUnplayableAudio.value) {
+    return t('mediaPreview.noPlayableAudio', {
+      codecs: unplayableCodecs.value.join(', ').toUpperCase(),
+    });
+  }
+  return '';
+});
 
-watch(hasUnplayableAudio, (unplayable) => {
+const showAudioNotice = computed(() => Boolean(noticeText.value) && noticeVisible.value);
+
+watch(noticeText, (text) => {
   if (noticeTimer) clearTimeout(noticeTimer);
-  noticeVisible.value = unplayable;
-  if (!unplayable) return;
+  noticeVisible.value = Boolean(text);
+  if (!text) return;
   noticeTimer = setTimeout(() => {
     noticeVisible.value = false;
   }, AUDIO_NOTICE_MS);

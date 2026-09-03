@@ -774,7 +774,8 @@
     "audioTrack": "Ścieżka dźwiękowa",
     "audioTrackNumbered": "Ścieżka {number}",
     "subtitleForced": "wymuszone",
-    "subtitleExternal": "plik zewnętrzny"
+    "subtitleExternal": "plik zewnętrzny",
+    "noPlayableVideo": "Ten film jest w {codecs}, czego przeglądarka nie potrafi zdekodować. Otwórz go w odtwarzaczu multimedialnym."
   },
   "preview": {
     "tooLargeToRenderSized": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce. Otwórz go w edytorze lub pobierz.",

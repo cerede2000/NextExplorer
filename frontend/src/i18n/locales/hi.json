@@ -774,7 +774,8 @@
     "audioTrack": "ऑडियो ट्रैक",
     "audioTrackNumbered": "ट्रैक {number}",
     "subtitleForced": "बाध्य",
-    "subtitleExternal": "बाहरी फ़ाइल"
+    "subtitleExternal": "बाहरी फ़ाइल",
+    "noPlayableVideo": "यह वीडियो {codecs} में है, जिसे आपका ब्राउज़र डिकोड नहीं कर सकता। इसे किसी मीडिया प्लेयर में खोलें।"
   },
   "preview": {
     "tooLargeToRenderSized": "यह दस्तावेज़ {size} का है। पूर्वावलोकन {limit} पर रुक जाता है, क्योंकि यह हर तत्व को ब्राउज़र में सजाता है। इसे संपादक में खोलें या डाउनलोड करें।",

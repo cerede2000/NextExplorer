@@ -774,7 +774,8 @@
     "audioTrack": "오디오 트랙",
     "audioTrackNumbered": "트랙 {number}",
     "subtitleForced": "강제",
-    "subtitleExternal": "외부 파일"
+    "subtitleExternal": "외부 파일",
+    "noPlayableVideo": "이 동영상은 {codecs} 형식이며, 브라우저가 디코딩할 수 없습니다. 미디어 플레이어에서 열어 보세요."
   },
   "preview": {
     "tooLargeToRenderSized": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기에서 열거나 내려받으세요.",

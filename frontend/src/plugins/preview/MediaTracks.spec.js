@@ -25,6 +25,7 @@ const i18n = createI18n({
         previous: 'Previous media',
         next: 'Next media',
         noPlayableAudio: 'Soundtrack is {codecs}, which your browser cannot decode.',
+        noPlayableVideo: 'This video is {codecs}; play it in a media player.',
         audioTrack: 'Audio track',
         audioTrackNumbered: 'Track {number}',
         subtitleForced: 'forced',
@@ -162,6 +163,42 @@ describe('explaining a silent video', () => {
     const { getMediaTracks } = await mountWith(tracksWith(), media[2]);
 
     expect(getMediaTracks).not.toHaveBeenCalled();
+  });
+});
+
+describe('explaining a video that will not play at all', () => {
+  const HEVC = { index: 0, codec: 'hevc', label: 'Track 1', playable: false };
+
+  /**
+   * The case the production log showed: an `x265.10bit.HEVC.mkv`, which a
+   * browser plays only from an MP4, only with hardware support, and never in
+   * ten bits — so it shows nothing whatever.
+   */
+  it('says the picture is one the browser cannot decode', async () => {
+    const { wrapper } = await mountWith(tracksWith({ video: [HEVC] }));
+
+    expect(wrapper.text()).toContain('play it in a media player');
+  });
+
+  it('names the video codec', async () => {
+    const { wrapper } = await mountWith(tracksWith({ video: [HEVC] }));
+
+    expect(wrapper.text()).toContain('HEVC');
+  });
+
+  /** Nothing is playing, so a remark about the soundtrack is beside the point. */
+  it('says that instead of talking about the sound', async () => {
+    const { wrapper } = await mountWith(
+      tracksWith({ video: [HEVC], audio: [AC3], hasAudio: true, hasPlayableAudio: false })
+    );
+
+    expect(wrapper.text()).not.toContain('Soundtrack is');
+  });
+
+  it('stays quiet about a video the browser can decode', async () => {
+    const { wrapper } = await mountWith(tracksWith());
+
+    expect(wrapper.text()).not.toContain('play it in a media player');
   });
 });
 

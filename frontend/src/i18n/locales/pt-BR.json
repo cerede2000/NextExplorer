@@ -774,7 +774,8 @@
     "audioTrack": "Faixa de áudio",
     "audioTrackNumbered": "Faixa {number}",
     "subtitleForced": "forçadas",
-    "subtitleExternal": "arquivo externo"
+    "subtitleExternal": "arquivo externo",
+    "noPlayableVideo": "Este vídeo está em {codecs}, que seu navegador não consegue decodificar. Abra-o em um reprodutor de mídia."
   },
   "preview": {
     "tooLargeToRenderSized": "Este documento tem {size}. A visualização para em {limit}, porque monta cada elemento no navegador. Abra-o no editor ou baixe-o.",

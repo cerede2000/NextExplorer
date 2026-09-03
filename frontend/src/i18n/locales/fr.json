@@ -774,7 +774,8 @@
     "audioTrack": "Piste audio",
     "audioTrackNumbered": "Piste {number}",
     "subtitleForced": "forcés",
-    "subtitleExternal": "fichier externe"
+    "subtitleExternal": "fichier externe",
+    "noPlayableVideo": "Cette vidéo est en {codecs}, que votre navigateur ne sait pas décoder. Ouvrez-la dans un lecteur vidéo."
   },
   "preview": {
     "tooLargeToRenderSized": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur. Ouvrez-le dans l'éditeur ou téléchargez-le.",

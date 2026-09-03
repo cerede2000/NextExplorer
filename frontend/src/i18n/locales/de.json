@@ -774,7 +774,8 @@
     "audioTrack": "Tonspur",
     "audioTrackNumbered": "Spur {number}",
     "subtitleForced": "erzwungen",
-    "subtitleExternal": "externe Datei"
+    "subtitleExternal": "externe Datei",
+    "noPlayableVideo": "Dieses Video ist {codecs} — das kann Ihr Browser nicht decodieren. Öffnen Sie es in einem Medienplayer."
   },
   "preview": {
     "tooLargeToRenderSized": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt. Öffnen Sie es im Editor oder laden Sie es herunter.",

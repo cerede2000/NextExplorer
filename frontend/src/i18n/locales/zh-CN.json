@@ -774,7 +774,8 @@
     "audioTrack": "音轨",
     "audioTrackNumbered": "音轨 {number}",
     "subtitleForced": "强制",
-    "subtitleExternal": "外部文件"
+    "subtitleExternal": "外部文件",
+    "noPlayableVideo": "此视频为 {codecs} 编码，浏览器无法解码。请用媒体播放器打开。"
   },
   "preview": {
     "tooLargeToRenderSized": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素。请在编辑器中打开或下载。",

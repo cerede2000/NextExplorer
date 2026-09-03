@@ -61,6 +61,24 @@ export function useMediaTracks(media, api, enabled) {
 
   const audioTracks = computed(() => tracks.value?.audio || []);
 
+  /**
+   * The picture itself is one this browser will not decode.
+   *
+   * HEVC is the case that matters: a browser plays it only from an MP4, only
+   * with hardware support, and never in ten-bit — so an `x265.10bit.HEVC.mkv`
+   * shows nothing at all. That is a different sentence from a silent film and
+   * it takes precedence over it, because there is no point explaining the
+   * sound of something that is not playing.
+   */
+  const hasUnplayableVideo = computed(() => {
+    const streams = tracks.value?.video || [];
+    return streams.length > 0 && !streams.some((stream) => stream.playable);
+  });
+
+  const unplayableVideoCodecs = computed(() => [
+    ...new Set((tracks.value?.video || []).map((stream) => stream.codec)),
+  ]);
+
   /** Soundtracks exist, and this browser can decode none of them. */
   const hasUnplayableAudio = computed(
     () => Boolean(tracks.value) && tracks.value.hasAudio && !tracks.value.hasPlayableAudio
@@ -71,7 +89,15 @@ export function useMediaTracks(media, api, enabled) {
     ...new Set(audioTracks.value.filter((track) => !track.playable).map((track) => track.codec)),
   ]);
 
-  return { tracks, subtitleTracks, audioTracks, hasUnplayableAudio, unplayableCodecs };
+  return {
+    tracks,
+    subtitleTracks,
+    audioTracks,
+    hasUnplayableAudio,
+    unplayableCodecs,
+    hasUnplayableVideo,
+    unplayableVideoCodecs,
+  };
 }
 
 /**
