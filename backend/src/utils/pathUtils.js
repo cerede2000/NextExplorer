@@ -239,7 +239,12 @@ const isInsidePersonalRoot = async (absolutePath) => {
 
   // Named path says no; ask what it really is. Only a link could differ, and
   // only here, where the user root is somewhere this walk can reach.
-  const real = await fsp.realpath(absolutePath).catch(() => null);
+  //
+  // Through the request's cache, not around it: the containment walk just above
+  // resolved this same path, so the answer is already there and this costs
+  // nothing. Calling realpath directly added one round trip per item, which a
+  // bulk operation multiplies by every file in it.
+  const real = await realpathOrNull(absolutePath);
   return real ? withinPersonalRoot(real) : false;
 };
 
