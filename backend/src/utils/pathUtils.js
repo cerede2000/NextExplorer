@@ -193,6 +193,56 @@ const assertRealPathWithinRoot = async (
   }
 };
 
+/**
+ * Whether this path is somebody's personal folder, reached the wrong way.
+ *
+ * Personal folders default to `<volume>/_users`, which puts every account's
+ * private files inside the tree everyone browses. The name was kept out of
+ * listings and nothing else: asking for `_users/alice` by name answered it, and
+ * `getVolumeAccess` had no reason to say no — so any signed-in account could
+ * read another's files, and delete them.
+ *
+ * The personal space is how an account reaches its own folder, and it derives
+ * the directory from who is asking rather than from what was asked for. Reached
+ * through the volume there is no such derivation and no question of ownership
+ * is ever put, so the volume does not go there at all.
+ *
+ * The comparison by name costs nothing and settles the ordinary case. The
+ * realpath below is the one that catches a symbolic link inside the volume
+ * aimed at the user root, and it is only reached where the user root is inside
+ * the volume in the first place — an installation that keeps its personal
+ * folders elsewhere pays nothing for this.
+ *
+ * A user root that *is* the volume is left alone: refusing there would lose the
+ * volume entirely, which is a worse answer than the question.
+ */
+const personalRootIsInsideVolume = () => {
+  const userRoot = directories.userRoot;
+  if (!userRoot) return false;
+  const realUserRoot = realRoot(userRoot);
+  const realVolume = realRoot(directories.volume);
+  if (realUserRoot === realVolume) return false;
+  const volumeWithSep = realVolume.endsWith(path.sep) ? realVolume : `${realVolume}${path.sep}`;
+  return realUserRoot.startsWith(volumeWithSep);
+};
+
+const withinPersonalRoot = (candidate) => {
+  const realUserRoot = realRoot(directories.userRoot);
+  const withSep = realUserRoot.endsWith(path.sep) ? realUserRoot : `${realUserRoot}${path.sep}`;
+  return candidate === realUserRoot || candidate.startsWith(withSep);
+};
+
+const isInsidePersonalRoot = async (absolutePath) => {
+  if (!directories.userRoot) return false;
+  if (withinPersonalRoot(absolutePath)) return true;
+  if (!personalRootIsInsideVolume()) return false;
+
+  // Named path says no; ask what it really is. Only a link could differ, and
+  // only here, where the user root is somewhere this walk can reach.
+  const real = await fsp.realpath(absolutePath).catch(() => null);
+  return real ? withinPersonalRoot(real) : false;
+};
+
 const resolveVolumePath = async (relativePath = '') => {
   const safeRelativePath = normalizeRelativePath(relativePath);
   const absolutePath = path.resolve(directories.volume, safeRelativePath);
@@ -202,6 +252,10 @@ const resolveVolumePath = async (relativePath = '') => {
   }
 
   await assertRealPathWithinRoot(absolutePath, directories.volume);
+
+  if (await isInsidePersonalRoot(absolutePath)) {
+    throw new Error('Personal folders are reached through the personal space, not the volume.');
+  }
 
   return absolutePath;
 };
@@ -391,7 +445,18 @@ const getUserFolderName = (user = {}) => {
   return getUserFolderNameCandidates(user)[0];
 };
 
-const getUserRootDir = (user) => {
+/**
+ * The directory this account owns, created if it is not there yet.
+ *
+ * Asynchronous, and the creation happens after the check rather than before it.
+ * Both used to be the other way round: two `mkdirSync` calls ran on every
+ * personal path — blocking the event loop on a hot path — and they ran before
+ * anything had confirmed the directory belonged under the configured root, so a
+ * name that was about to be refused was created on disk first. The comment
+ * justifying the synchronous calls said they kept the resolver synchronous; the
+ * resolver had since become asynchronous, and the justification outlived it.
+ */
+const getUserRootDir = async (user) => {
   if (!PERSONAL_ENABLED) {
     throw new Error('Personal directories are disabled.');
   }
@@ -403,30 +468,21 @@ const getUserRootDir = (user) => {
   const folderName = getUserFolderName(user);
   const userRoot = path.resolve(base, folderName);
 
-  // Ensure base and user directory exist (sync to keep resolver synchronous)
-  try {
-    fs.mkdirSync(base, { recursive: true });
-  } catch (_) {
-    // ignore mkdir errors here; later operations will surface issues
-  }
-
-  try {
-    fs.mkdirSync(userRoot, { recursive: true });
-  } catch (_) {
-    // ignore mkdir errors here; later operations will surface issues
-  }
-
-  // Safety: ensure userRoot stays under configured userRootWithSep
   if (userRoot !== base && !userRoot.startsWith(directories.userRootWithSep)) {
     throw new Error('Resolved user directory is outside the configured user root.');
   }
+
+  // Failures are left to the operation that follows: it is the one that knows
+  // whether the directory was needed, and it reports in terms of what was asked
+  // for rather than in terms of a directory nobody mentioned.
+  await fsp.mkdir(userRoot, { recursive: true }).catch(() => {});
 
   return userRoot;
 };
 
 const resolvePersonalPath = async (relativePath = '', user) => {
   const safeRelativePath = normalizeRelativePath(relativePath);
-  const userRoot = getUserRootDir(user);
+  const userRoot = await getUserRootDir(user);
   const absolutePath = path.resolve(userRoot, safeRelativePath);
 
   if (absolutePath !== userRoot && !absolutePath.startsWith(userRoot + path.sep)) {

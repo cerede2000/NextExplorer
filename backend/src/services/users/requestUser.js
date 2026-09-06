@@ -98,6 +98,21 @@ const getRequestUser = async (req) => {
         roles,
         createdAt: null,
         updatedAt: null,
+        // The subject, not the username.
+        //
+        // This account has no row yet, so there is no claimed folder name to
+        // carry and nothing to claim one against. Left null, the folder would be
+        // derived from `USER_FOLDER_NAME_ORDER` — and the order the reference
+        // recommends for reusing /home puts `username` first, which two
+        // identities from two providers can share. The claim mechanism exists to
+        // stop exactly that, and it cannot run here.
+        //
+        // The subject is unique to the provider that issued it, so it is a
+        // folder of this account's own. It is deliberately not the folder the
+        // account will get once its row exists: that one is claimed, recorded
+        // and permanent, and guessing at it here would be handing out a name
+        // nothing had reserved.
+        personalFolderName: `oidc-${claims.sub}`,
       };
     } catch (_) {
       return null;
