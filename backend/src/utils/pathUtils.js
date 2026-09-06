@@ -199,53 +199,41 @@ const assertRealPathWithinRoot = async (
  * Personal folders default to `<volume>/_users`, which puts every account's
  * private files inside the tree everyone browses. The name was kept out of
  * listings and nothing else: asking for `_users/alice` by name answered it, and
- * `getVolumeAccess` had no reason to say no — so any signed-in account could
- * read another's files, and delete them.
+ * the volume's access rules had no reason to refuse — whose folder it was never
+ * came up. An ordinary account could read another's files, and delete them.
  *
  * The personal space is how an account reaches its own folder, and it derives
  * the directory from who is asking rather than from what was asked for. Reached
  * through the volume there is no such derivation and no question of ownership
  * is ever put, so the volume does not go there at all.
  *
- * The comparison by name costs nothing and settles the ordinary case. The
- * realpath below is the one that catches a symbolic link inside the volume
- * aimed at the user root, and it is only reached where the user root is inside
- * the volume in the first place — an installation that keeps its personal
- * folders elsewhere pays nothing for this.
+ * Compared by name, against both the configured root and its real path, so a
+ * root that is itself reached through a link still matches. Both are resolved
+ * once for the life of the process, so this costs nothing per request.
+ *
+ * What it does not cover is a symbolic link planted inside the volume and
+ * aimed at the user root. Resolving every path to catch that added a round trip
+ * per item, which a bulk operation multiplies by every file in it — and the
+ * application offers no way to create such a link: extraction passes `-snl-`
+ * and then refuses an archive that produced one anyway (see archiveService).
+ * Planting one needs shell access to the host, which already grants the files
+ * this is protecting. If a way to create a link is ever added, this is the
+ * comment that has to change with it.
  *
  * A user root that *is* the volume is left alone: refusing there would lose the
  * volume entirely, which is a worse answer than the question.
  */
-const personalRootIsInsideVolume = () => {
+const isInsidePersonalRoot = (absolutePath) => {
   const userRoot = directories.userRoot;
   if (!userRoot) return false;
-  const realUserRoot = realRoot(userRoot);
-  const realVolume = realRoot(directories.volume);
-  if (realUserRoot === realVolume) return false;
-  const volumeWithSep = realVolume.endsWith(path.sep) ? realVolume : `${realVolume}${path.sep}`;
-  return realUserRoot.startsWith(volumeWithSep);
-};
 
-const withinPersonalRoot = (candidate) => {
-  const realUserRoot = realRoot(directories.userRoot);
-  const withSep = realUserRoot.endsWith(path.sep) ? realUserRoot : `${realUserRoot}${path.sep}`;
-  return candidate === realUserRoot || candidate.startsWith(withSep);
-};
+  for (const root of new Set([userRoot, realRoot(userRoot)])) {
+    if (root === directories.volume || root === realRoot(directories.volume)) continue;
+    const withSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+    if (absolutePath === root || absolutePath.startsWith(withSep)) return true;
+  }
 
-const isInsidePersonalRoot = async (absolutePath) => {
-  if (!directories.userRoot) return false;
-  if (withinPersonalRoot(absolutePath)) return true;
-  if (!personalRootIsInsideVolume()) return false;
-
-  // Named path says no; ask what it really is. Only a link could differ, and
-  // only here, where the user root is somewhere this walk can reach.
-  //
-  // Through the request's cache, not around it: the containment walk just above
-  // resolved this same path, so the answer is already there and this costs
-  // nothing. Calling realpath directly added one round trip per item, which a
-  // bulk operation multiplies by every file in it.
-  const real = await realpathOrNull(absolutePath);
-  return real ? withinPersonalRoot(real) : false;
+  return false;
 };
 
 const resolveVolumePath = async (relativePath = '') => {
@@ -258,7 +246,7 @@ const resolveVolumePath = async (relativePath = '') => {
 
   await assertRealPathWithinRoot(absolutePath, directories.volume);
 
-  if (await isInsidePersonalRoot(absolutePath)) {
+  if (isInsidePersonalRoot(absolutePath)) {
     throw new Error('Personal folders are reached through the personal space, not the volume.');
   }
 
