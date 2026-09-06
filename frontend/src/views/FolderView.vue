@@ -28,6 +28,12 @@ import {
 import { useEventListener } from '@vueuse/core';
 import { useInputMode } from '@/composables/useInputMode';
 import { LIST_ROW_HEIGHT, virtualWindow } from '@/utils/virtualWindow';
+import {
+  nextIndexInDirection,
+  rangeBetween,
+  normalizeTypeaheadText,
+  findTypeaheadMatch,
+} from '@/utils/folderKeyboard';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useNavigation } from '@/composables/navigation';
 import { useFileActions } from '@/composables/fileActions';
@@ -467,8 +473,7 @@ const getKeyboardSelectionAnchorIndex = () => {
 
 const selectItemRange = async (anchorIndex, activeIndex) => {
   const items = sortedItems.value;
-  const [start, end] =
-    anchorIndex <= activeIndex ? [anchorIndex, activeIndex] : [activeIndex, anchorIndex];
+  const [start, end] = rangeBetween(anchorIndex, activeIndex);
   const activeItem = items[activeIndex];
   if (!activeItem) return;
 
@@ -537,12 +542,7 @@ const selectRelativeItem = async (direction, extendSelection = false) => {
   if (!items.length) return;
 
   const currentIndex = getKeyboardActiveIndex();
-  const nextIndex =
-    currentIndex < 0
-      ? direction > 0
-        ? 0
-        : items.length - 1
-      : Math.min(items.length - 1, Math.max(0, currentIndex + direction));
+  const nextIndex = nextIndexInDirection(currentIndex, direction, items.length);
   const nextItem = items[nextIndex];
   if (!nextItem) return;
 
@@ -587,12 +587,6 @@ const handleKeyboardItemClick = (item) => {
   rememberActiveItem(key);
 };
 
-const normalizeTypeaheadText = (value) =>
-  String(value || '')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLocaleLowerCase();
-
 const selectTypeaheadMatch = async (key) => {
   const items = sortedItems.value;
   if (!items.length) return;
@@ -606,17 +600,13 @@ const selectTypeaheadMatch = async (key) => {
   }, 600);
 
   const activeIndex = getKeyboardActiveIndex();
-  const orderedItems = [...items.slice(activeIndex + 1), ...items.slice(0, activeIndex + 1)];
-  let match = orderedItems.find((item) =>
-    normalizeTypeaheadText(item.name).startsWith(keyboardTypeahead.value)
+  const { match, query } = findTypeaheadMatch(
+    items,
+    keyboardTypeahead.value,
+    activeIndex,
+    normalizedKey
   );
-
-  if (!match && keyboardTypeahead.value.length > 1) {
-    keyboardTypeahead.value = normalizedKey;
-    match = orderedItems.find((item) =>
-      normalizeTypeaheadText(item.name).startsWith(keyboardTypeahead.value)
-    );
-  }
+  keyboardTypeahead.value = query;
 
   if (!match) return;
   const matchIndex = getItemIndexByKey(getItemKey(match));
