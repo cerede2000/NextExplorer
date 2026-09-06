@@ -202,3 +202,200 @@ describe('what happens when someone comes back from the provider', () => {
     ]);
   });
 });
+
+/**
+ * Signing out, which is more than forgetting the session here.
+ *
+ * The identity provider holds a session of its own, so the browser has to be
+ * sent there to end it — and where it comes back to afterwards travels in the
+ * URL. That makes the return address the interesting part: somewhere else's
+ * address in `post_logout_redirect_uri` turns signing out into a redirect
+ * anybody can aim.
+ *
+ * Fifty lines of it, untested until now, in a route reached by everybody who
+ * signs out.
+ */
+describe('signing out through the identity provider', () => {
+  const buildHandler = async ({ logoutURL = 'https://idp.example/logout', returnTo = '/browse/' } = {}) => {
+    const { middleware } = await build();
+    const handler = middleware.createLogoutHandler({
+      logoutURL,
+      getReturnTo: () => returnTo,
+      getSessionCookieName: () => 'appSession',
+    });
+    return handler;
+  };
+
+  /** A request that has a session, and a response that records what it was told. */
+  const exchange = ({ idToken } = {}) => {
+    const res = { redirects: [], cleared: [] };
+    res.redirect = (url) => res.redirects.push(url);
+    res.clearCookie = (name, options) => res.cleared.push({ name, options });
+    const req = {
+      oidc: idToken ? { idToken } : {},
+      session: { destroy: (cb) => cb(null) },
+      appSession: { some: 'session' },
+    };
+    return { req, res };
+  };
+
+  it('sends the browser to the provider', async () => {
+    const handler = await buildHandler();
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    expect(res.redirects[0]).toContain('https://idp.example/logout');
+  });
+
+  it('tells it where to come back to', async () => {
+    const handler = await buildHandler({ returnTo: 'https://files.example.com/browse/' });
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    expect(res.redirects[0]).toContain(
+      `post_logout_redirect_uri=${encodeURIComponent('https://files.example.com/browse/')}`
+    );
+  });
+
+  /**
+   * The provider will not end a session it cannot identify, so the hint is what
+   * makes the sign-out actually take effect rather than only appearing to.
+   */
+  it('passes the identity token as a hint when it has one', async () => {
+    const handler = await buildHandler();
+    const { req, res } = exchange({ idToken: 'the-id-token' });
+
+    await handler(req, res);
+
+    expect(res.redirects[0]).toContain('id_token_hint=the-id-token');
+  });
+
+  it('leaves the hint out when there is none', async () => {
+    const handler = await buildHandler();
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    expect(res.redirects[0]).not.toContain('id_token_hint');
+  });
+
+  it('clears the session cookie', async () => {
+    const handler = await buildHandler();
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    expect(res.cleared.map((c) => c.name)).toContain('appSession');
+  });
+
+  /**
+   * Two names, because a session begun before cookies were scoped per origin
+   * carries the old one — and a cookie nobody clears keeps somebody signed in
+   * after they asked not to be.
+   */
+  it('clears the origin-scoped cookie and the older shared one', async () => {
+    const { middleware } = await build();
+    const handler = middleware.createLogoutHandler({
+      logoutURL: 'https://idp.example/logout',
+      getReturnTo: () => '/browse/',
+      getSessionCookieName: () => 'appSession.files',
+    });
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    expect([...new Set(res.cleared.map((c) => c.name))].sort()).toEqual([
+      'appSession',
+      'appSession.files',
+    ]);
+  });
+
+  /**
+   * Each name twice, once marked secure and once not. A cookie is only cleared
+   * by an attribute set that matches the one it was written with, and an
+   * instance reached over both http and https has written both.
+   */
+  it('clears each name for a secure and an insecure connection alike', async () => {
+    const handler = await buildHandler();
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    const forAppSession = res.cleared.filter((c) => c.name === 'appSession');
+    expect(forAppSession.map((c) => c.options.secure).sort()).toEqual([false, true]);
+  });
+
+  it('drops the server-side session too', async () => {
+    const handler = await buildHandler();
+    const { req, res } = exchange();
+
+    await handler(req, res);
+
+    expect(req.appSession).toBeUndefined();
+  });
+
+  /**
+   * A session that refuses to be destroyed must not leave somebody stuck on a
+   * page that no longer works: the sign-out carries on and the cookies still go.
+   */
+  it('carries on when the session will not be destroyed', async () => {
+    const handler = await buildHandler();
+    const res = { redirects: [], cleared: [] };
+    res.redirect = (url) => res.redirects.push(url);
+    res.clearCookie = (name) => res.cleared.push({ name });
+    const req = {
+      oidc: {},
+      session: { destroy: (cb) => cb(new Error('store is down')) },
+    };
+
+    await handler(req, res);
+
+    expect(res.redirects).toHaveLength(1);
+    expect(res.cleared.length).toBeGreaterThan(0);
+  });
+
+  /** Somewhere is better than nowhere when the provider cannot be reached. */
+  it('falls back to the return address when building the provider URL fails', async () => {
+    const handler = await buildHandler({ returnTo: '/browse/' });
+    const res = { redirects: [], cleared: [] };
+    res.redirect = (url) => res.redirects.push(url);
+    res.clearCookie = () => {
+      throw new Error('cannot clear');
+    };
+    const req = { oidc: {}, session: { destroy: (cb) => cb(null) } };
+
+    await handler(req, res);
+
+    expect(res.redirects).toEqual(['/browse/']);
+  });
+
+  /**
+   * Configured with something that is not a URL, there is no provider to send
+   * anybody to — so no handler is installed, and the ordinary sign-out stands.
+   */
+  it('is not installed at all when the configured URL is not one', async () => {
+    const { middleware } = await build();
+
+    expect(
+      middleware.createLogoutHandler({
+        logoutURL: 'not-a-url',
+        getReturnTo: () => '/browse/',
+        getSessionCookieName: () => 'appSession',
+      })
+    ).toBeNull();
+  });
+
+  it('is not installed when no URL is configured', async () => {
+    const { middleware } = await build();
+
+    expect(
+      middleware.createLogoutHandler({
+        logoutURL: '',
+        getReturnTo: () => '/browse/',
+        getSessionCookieName: () => 'appSession',
+      })
+    ).toBeNull();
+  });
+});

@@ -439,4 +439,5 @@ module.exports = {
   shouldOidcCookieBeSecure,
   resolveOidcScopes,
   createAfterCallbackHandler,
+  createLogoutHandler,
 };
