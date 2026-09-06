@@ -320,7 +320,12 @@ export function useFileUploader() {
       error instanceof TypeError ||
       message.includes('network error') ||
       message.includes('failed to fetch') ||
-      message.includes('load failed') ||
+      // Safari's fetch says "Load failed" where Chrome says "Failed to fetch",
+      // and tus-js-client quotes it inside its own message. Anchored on a word
+      // boundary because a plain "Upload failed" is not a network diagnosis:
+      // matching it would replace whatever the server said with a sentence
+      // about the connection.
+      /(?:^|[^a-z])load failed/.test(message) ||
       message.includes('networkerror') ||
       message.includes('unexpected response while uploading chunk') ||
       message.includes('unexpected response while creating upload')
