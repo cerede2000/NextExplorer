@@ -32,6 +32,27 @@ nothing needs, or removes one and cannot tell from the tests whether it
 mattered. Either the duplicate goes and one place owns the rule, or the second
 enforcement is named in a comment at both ends.
 
+## The same rule applied four times, in the folder-size index
+
+Exclusion of a folder is enforced in four places: `touch` skips a marked
+directory, `flush` filters the dirty set again, `pruneExcludedIndexEntries`
+deletes excluded rows at startup, and `aggregateDirectory` returns null for an
+excluded path. Removing any pair of them leaves an excluded folder out of the
+index all the same — verified by removing the two in `folderSizeManager`
+together, which changed nothing observable.
+
+The protection against indexing a folder mid-copy has the same shape, twice
+over rather than four times: removing either guard alone changes nothing, and
+removing both does.
+
+This is the same thing the search bounds entry above describes, in a second
+service, which suggests a habit rather than an accident. Worth deciding once:
+either one place owns each rule and the others are removed, or every
+enforcement names the others in a comment so the next person knows what they
+are looking at. What cannot stay is the present state, where a test can pin the
+property and nothing can pin the code — and where deleting a line that looks
+load-bearing costs nothing and tells you nothing.
+
 ## Letting someone comment on a document without editing it
 
 The ONLYOFFICE editor already offers comments and track changes — they are the
