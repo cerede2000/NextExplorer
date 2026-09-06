@@ -963,13 +963,20 @@ const cleanupThumbnailCache = async () => {
       const dirents = await fsPromises.readdir(directories.thumbnails, { withFileTypes: true });
       const fileNames = dirents.filter((entry) => entry.isFile()).map((entry) => entry.name);
 
+      // The pattern decides what belongs to this cache, and it decides for every
+      // question below rather than only for the first two. It used to filter the
+      // expired and the outdated, and then be dropped for the overflow trim,
+      // which took `fileNames` whole — so anything else in this directory both
+      // counted towards the limit and could be deleted to satisfy it.
+      const thumbnailNames = fileNames.filter((name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name));
+
       const currentVersionPrefix = `v${THUMBNAIL_CACHE_VERSION}-`;
-      const oldVersionNames = fileNames.filter(
-        (name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name) && !name.startsWith(currentVersionPrefix)
+      const oldVersionNames = thumbnailNames.filter(
+        (name) => !name.startsWith(currentVersionPrefix)
       );
-      const expiredNames = await findExpiredThumbnails(fileNames, Date.now());
+      const expiredNames = await findExpiredThumbnails(thumbnailNames, Date.now());
       const removableNames = new Set([...oldVersionNames, ...expiredNames]);
-      const oversizedCount = Math.max(0, fileNames.length - THUMBNAIL_CACHE_MAX_FILES);
+      const oversizedCount = Math.max(0, thumbnailNames.length - THUMBNAIL_CACHE_MAX_FILES);
       const deleteCount = Math.min(
         Math.max(removableNames.size, oversizedCount),
         THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE
@@ -981,7 +988,7 @@ const cleanupThumbnailCache = async () => {
 
       const toDelete = [
         ...removableNames,
-        ...fileNames.filter((name) => !removableNames.has(name)),
+        ...thumbnailNames.filter((name) => !removableNames.has(name)),
       ].slice(0, deleteCount);
 
       let deleted = 0;
@@ -997,7 +1004,7 @@ const cleanupThumbnailCache = async () => {
       logger.info(
         {
           deleted,
-          before: fileNames.length,
+          before: thumbnailNames.length,
           remainingEstimate: Math.max(0, fileNames.length - deleted),
           max: THUMBNAIL_CACHE_MAX_FILES,
           batchSize: THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE,
@@ -1009,7 +1016,10 @@ const cleanupThumbnailCache = async () => {
       thumbnailStats.cacheCleanupDeleted += deleted;
       logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
 
-      if (removableNames.size > deleted || fileNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES) {
+      if (
+        removableNames.size > deleted ||
+        thumbnailNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES
+      ) {
         shouldContinueCleanup = true;
       }
     } catch (error) {
@@ -1247,6 +1257,9 @@ const stopThumbnailWork = async () => {
 
 module.exports = {
   stopThumbnailWork,
+  // Exported for the tests: the cleanup is reached only through timers, and
+  // what it decides to delete is worth stating rather than waiting out.
+  cleanupThumbnailCache,
   getThumbnailPathIfExists,
   isThumbnailCachePath,
   queueThumbnailGeneration,
