@@ -51,3 +51,25 @@ edit large files _and_ keep a body ceiling, set the ceiling to a little over
 twice the file size you want to open.
 
 See the [Environment Reference](../configuration/environment#editor) for details.
+
+## The editor says my text file is binary
+
+It used to say that about any file written in UTF-16, which is most text
+produced on Windows: PowerShell's `Out-File` wrote UTF-16LE by default until
+PowerShell 6, and Notepad still offers it as "Unicode". In UTF-16 every ASCII
+character is stored with a zero byte beside it, and a zero byte is what the
+binary test looks for.
+
+Files are now read in whatever they are written in — UTF-8, UTF-16LE or
+UTF-16BE, with or without a byte-order mark — and saved back in the same
+encoding, so a file a script reads with a fixed encoding keeps working.
+
+If a file you believe is text is still refused, check what it actually starts
+with:
+
+```bash
+head -c 16 /path/to/file.txt | xxd
+```
+
+`ef bb bf` is UTF-8 with a mark, `ff fe` is UTF-16LE, `fe ff` is UTF-16BE.
+Anything else with zero bytes early in the file really is binary.

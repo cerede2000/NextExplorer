@@ -8,7 +8,12 @@ const { ACTIONS, authorizeAndResolve } = require('../services/authorizationServi
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
-const { readTextFile, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
+const {
+  readTextFile,
+  readFileEncoding,
+  encodeText,
+  MAX_EDITOR_FILE_SIZE,
+} = require('../services/textEditorService');
 
 const router = express.Router();
 
@@ -48,9 +53,8 @@ router.post(
   '/editor',
   asyncHandler(async (req, res) => {
     const { path: relative = '' } = req.body || {};
-    const { buffer } = await readTextFileBuffer(req, relative);
-    const data = buffer.toString('utf-8');
-    res.send({ content: data });
+    const { text } = await readTextFileBuffer(req, relative);
+    res.send({ content: text });
   })
 );
 
@@ -58,11 +62,11 @@ router.get(
   '/raw',
   asyncHandler(async (req, res) => {
     const relative = req.query?.path;
-    const { buffer } = await readTextFileBuffer(req, relative);
+    const { text } = await readTextFileBuffer(req, relative);
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(buffer.toString('utf-8'));
+    res.send(text);
   })
 );
 
@@ -80,10 +84,6 @@ router.put(
     // the editor wrote whatever it was given — paste two megabytes into a small
     // file, save, and the next attempt to open it answered that the file is too
     // large. The shared-editor route has always checked; this one did not.
-    if (Buffer.byteLength(content, 'utf-8') > MAX_EDITOR_FILE_SIZE) {
-      throw new ValidationError('This file is too large to save in the text editor.');
-    }
-
     const relativePath = normalizeRelativePath(relative);
 
     // Prevent creating files directly in the volume root
@@ -127,7 +127,19 @@ router.put(
     } catch {
       // A new file is the expected path.
     }
-    await fs.writeFile(absolutePath, content, { encoding: 'utf-8' });
+
+    // Written back in the encoding it already had: a UTF-16 file saved as UTF-8
+    // reads perfectly well here and breaks whatever wrote it.
+    const payload = encodeText(content, existed ? await readFileEncoding(absolutePath) : undefined);
+    // Refused for the same reason the editor refuses to open it. Without this
+    // the editor wrote whatever it was given — paste two megabytes into a small
+    // file, save, and the next attempt to open it answered that the file is too
+    // large. Measured on the bytes actually written, which is what the size
+    // limit is about.
+    if (payload.length > MAX_EDITOR_FILE_SIZE) {
+      throw new ValidationError('This file is too large to save in the text editor.');
+    }
+    await fs.writeFile(absolutePath, payload);
     const updated = await fs.stat(absolutePath);
     if (existed) {
       await folderSizeHooks.onFileReplaced(absolutePath, previousSize, updated.size);
