@@ -154,6 +154,92 @@ describe('Other spaces containment', () => {
     await expect(resolvePersonalPath('docs/report.txt', user)).resolves.not.toThrow();
   });
 
+  /**
+   * The same escape, asked for the way the application asks for it.
+   *
+   * The test above calls `resolvePersonalPath` directly, one layer below where
+   * the application actually resolves a path — and that is why it went on
+   * passing while every personal path was broken. `resolveLogicalPath` called
+   * it without awaiting, so it handed back a promise as if it were a path:
+   * `pathExists` was given a promise, and My Files answered "Path not found"
+   * for a directory that was right there.
+   *
+   * The refusal went the same way. A promise nobody awaits is a rejection
+   * nobody handles, and Node ends the process for one of those — so a path that
+   * should have been turned down took the server with it instead. These three
+   * ask at the layer the defect was in.
+   */
+  it('resolves a personal path to a path, not to a promise', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-personal-logical-',
+      env: { USER_DIR_ENABLED: 'true' },
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    const { resolveLogicalPath, resolvePersonalPath } = env.requireFresh('src/utils/pathUtils');
+    const user = { id: 'user-1', username: 'alice' };
+    const userRoot = await resolvePersonalPath('', user);
+    await fs.mkdir(path.join(userRoot, 'docs'), { recursive: true });
+
+    const { absolutePath } = await resolveLogicalPath('personal/docs', { user });
+
+    expect(typeof absolutePath).toBe('string');
+    expect(absolutePath).toBe(path.join(userRoot, 'docs'));
+  });
+
+  it('refuses an escape asked for through the logical path', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-personal-escape-',
+      env: { USER_DIR_ENABLED: 'true' },
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    const { resolveLogicalPath, resolvePersonalPath } = env.requireFresh('src/utils/pathUtils');
+    const user = { id: 'user-1', username: 'alice' };
+    const userRoot = await resolvePersonalPath('', user);
+    await fs.mkdir(userRoot, { recursive: true });
+    const outside = path.join(env.tmpRoot, 'outside-personal-logical');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
+    await fs.symlink(outside, path.join(userRoot, 'escape'));
+
+    await expect(
+      resolveLogicalPath('personal/escape/secret.txt', { user })
+    ).rejects.toThrow(/outside the configured user directory/i);
+  });
+
+  /** A refusal must reach the caller, not the process. */
+  it('leaves no unhandled rejection behind when it refuses', async () => {
+    const env = await setupTestEnv({
+      tag: 'containment-personal-unhandled-',
+      env: { USER_DIR_ENABLED: 'true' },
+      modules: ['src/config/env', 'src/config/index', 'src/utils/pathUtils'],
+    });
+    currentEnv = env;
+
+    const { resolveLogicalPath, resolvePersonalPath } = env.requireFresh('src/utils/pathUtils');
+    const user = { id: 'user-1', username: 'alice' };
+    const userRoot = await resolvePersonalPath('', user);
+    await fs.mkdir(userRoot, { recursive: true });
+    const outside = path.join(env.tmpRoot, 'outside-personal-unhandled');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.symlink(outside, path.join(userRoot, 'escape'));
+
+    const unhandled = [];
+    const collect = (reason) => unhandled.push(reason);
+    process.on('unhandledRejection', collect);
+    try {
+      await resolveLogicalPath('personal/escape', { user }).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', collect);
+    }
+  });
+
   it('refuses an escape from an assigned user volume', async () => {
     const env = await setupTestEnv({
       tag: 'containment-user-volume-',

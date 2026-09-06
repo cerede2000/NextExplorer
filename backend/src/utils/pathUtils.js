@@ -467,7 +467,13 @@ const resolveLogicalPath = async (
       throw new Error('User context is required for personal paths.');
     }
 
-    const absolutePath = resolvePersonalPath(rel, user);
+    // Awaited, which is the whole point of it: `resolvePersonalPath` checks that
+    // the path is still inside the user's directory after every symbolic link
+    // has been followed, and that check lives in the promise. Left unawaited it
+    // handed back a promise as if it were a path — every personal path became a
+    // 404, and a path that should have been refused was refused by nobody: the
+    // rejection had no listener, which is how a request ends a Node process.
+    const absolutePath = await resolvePersonalPath(rel, user);
     const logical = rel ? `personal/${rel}` : 'personal';
 
     return {
