@@ -10,6 +10,12 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { apiBase, normalizePath, reserveFolderUploadTarget } from '@/api';
+import {
+  directUploadEndpoint,
+  folderUploadParts,
+  uploadPermission,
+  uploadBlockedMessage,
+} from './uploadTarget';
 import { isDisallowedUpload } from '@/utils/uploads';
 // The fallback ladder lives in utils so it can be tested without Uppy, a Pinia
 // store and a browser around it.
@@ -72,25 +78,6 @@ export function useFileUploader() {
   // Multer starts the file storage callback as soon as it receives the binary
   // part. Multipart metadata can legally arrive afterwards, so keep routing
   // data in the request URL where Express has it before the stream is opened.
-  const directUploadEndpoint = (file) => {
-    const meta = file?.meta || {};
-    const params = new URLSearchParams();
-
-    ['uploadTo', 'relativePath', 'resolvedRelativePath', 'uploadBatchId'].forEach((key) => {
-      if (typeof meta[key] === 'string' && meta[key]) params.set(key, meta[key]);
-    });
-
-    const query = params.toString();
-    return query ? `${apiBase}/api/upload?${query}` : `${apiBase}/api/upload`;
-  };
-
-  const folderUploadParts = (file) => {
-    const relativePath =
-      file?.meta?.relativePath || file?.data?.webkitRelativePath || file?.name || '';
-    const parts = String(relativePath).split('/').filter(Boolean);
-    return parts.length > 1 ? parts : null;
-  };
-
   const reserveFolderUploadPaths = async (fileIDs) => {
     const groups = new Map();
 
@@ -152,25 +139,13 @@ export function useFileUploader() {
     }, delayMs);
   };
 
-  const canUploadToCurrentPath = () => {
-    const access = fileStore.currentPathData;
-    if (!access) {
-      // If share metadata hasn't loaded yet, fail closed to avoid accidental uploads.
-      return !String(fileStore.currentPath || '').startsWith('share/');
-    }
-    return access.canUpload !== false;
-  };
+  /** The decision and its reason together, from one rule rather than two. */
+  const currentUploadPermission = () =>
+    uploadPermission(fileStore.currentPathData, fileStore.currentPath);
 
-  const uploadBlockedMessage = () => {
-    const access = fileStore.currentPathData;
-    if (!access && String(fileStore.currentPath || '').startsWith('share/')) {
-      return 'Share is still loading. Please try again in a moment.';
-    }
-    if (access?.shareInfo?.accessMode === 'readonly') {
-      return 'This share is read-only. Uploads are disabled.';
-    }
-    return 'You do not have permission to upload to this location.';
-  };
+  const canUploadToCurrentPath = () => currentUploadPermission().allowed;
+
+  const blockedMessage = () => uploadBlockedMessage(currentUploadPermission().reason);
 
   const notifyErrorOnce = (heading, extra = {}) => {
     const now = Date.now();
@@ -566,7 +541,7 @@ export function useFileUploader() {
     uppy.on('file-added', (file) => {
       if (!canUploadToCurrentPath()) {
         uppy.removeFile?.(file.id);
-        notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
+        notifyErrorOnce(blockedMessage(), { durationMs: 5000 });
         return;
       }
 
@@ -621,7 +596,7 @@ export function useFileUploader() {
           /* noop */
         }
         files.forEach((file) => finishUploadTask(file.id));
-        notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
+        notifyErrorOnce(blockedMessage(), { durationMs: 5000 });
         return;
       }
 
@@ -747,7 +722,7 @@ export function useFileUploader() {
     };
 
     if (!canUploadToCurrentPath()) {
-      notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
+      notifyErrorOnce(blockedMessage(), { durationMs: 5000 });
       return Promise.resolve();
     }
 
