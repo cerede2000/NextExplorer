@@ -81,6 +81,37 @@ jobs:
             echo '```'
             node -e "const s=require('./frontend/coverage/coverage-summary.json').total;for(const k of ['statements','branches','functions','lines'])console.log(k.padEnd(12)+s[k].pct+'%')"
             echo '```'
+            echo
+            echo '### Where the gaps are'
+            echo
+            echo 'Ranked by uncovered statements rather than by percentage: a small file at 40% matters less than a large one at 70%.'
+            echo
+            echo '```'
+            node -e "
+              const rank = (file, label) => {
+                const s = require(file);
+                const rows = Object.entries(s)
+                  .filter(([f]) => f !== 'total')
+                  .map(([f, v]) => ({
+                    f: f.replace(/.*\/(backend|frontend)\/src\//, ''),
+                    u: v.statements.total - v.statements.covered,
+                    p: v.statements.pct,
+                    b: v.branches.pct,
+                  }))
+                  .filter((r) => r.u >= 25)
+                  .sort((a, b) => b.u - a.u)
+                  .slice(0, 12);
+                console.log(label);
+                console.log('  missed  stmt%  branch%  file');
+                for (const r of rows) {
+                  console.log(String(r.u).padStart(8), String(r.p).padStart(6), String(r.b).padStart(8), ' ' + r.f);
+                }
+                console.log('');
+              };
+              rank('./backend/coverage/coverage-summary.json', 'backend');
+              rank('./frontend/coverage/coverage-summary.json', 'frontend');
+            "
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Frontend build
