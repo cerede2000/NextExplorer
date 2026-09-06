@@ -36,8 +36,29 @@ const PROGRESS_THROTTLE_MS = 75;
 // use a bounded 4 MiB buffer to cut that overhead drastically without growing
 // memory with the size of the copy.
 const COPY_STREAM_HIGH_WATER_MARK = 4 * 1024 * 1024;
-const NATIVE_TRANSFER_ENABLED =
-  process.platform === 'linux' && process.env.FILE_TRANSFER_ENGINE !== 'stream';
+/**
+ * Which engine moves and removes files, asked at the moment it matters.
+ *
+ * There are two implementations of every transfer — `rsync` and `rm` on one
+ * side, streams and `fs.rm` on the other — and the choice used to be frozen
+ * into a constant when the module loaded, from the platform the process
+ * happened to be running on. Each half was then only ever exercised where it
+ * was chosen: the native path is unreachable on a developer's macOS machine,
+ * and the JavaScript path is unreachable on the Linux that CI runs. Nobody ran
+ * both, and no test named the setting at all — `FILE_TRANSFER_ENGINE` appeared
+ * exactly once in the repository, in the line above.
+ *
+ * So it is a question now rather than a constant, and `native` is accepted as
+ * well as `stream`. The default is unchanged — native on Linux, streams
+ * elsewhere — and naming either one explicitly makes both reachable from a
+ * test, wherever the test is running.
+ */
+const nativeTransferEnabled = () => {
+  const configured = process.env.FILE_TRANSFER_ENGINE;
+  if (configured === 'stream') return false;
+  if (configured === 'native') return true;
+  return process.platform === 'linux';
+};
 const activeNativeOperations = new Map();
 const activeWriteOperations = new Map();
 let nextNativeOperationId = 1;
@@ -118,7 +139,7 @@ const unregisterNativeOperation = (id) => {
 const getDiagnosticsSnapshot = () => {
   const now = Date.now();
   return {
-    nativeTransferEnabled: NATIVE_TRANSFER_ENABLED,
+    nativeTransferEnabled: nativeTransferEnabled(),
     activeNativeOperations: Array.from(activeNativeOperations.values())
       .map((operation) => ({ ...operation, ageMs: now - operation.startedAt }))
       .sort((a, b) => b.ageMs - a.ageMs)
@@ -323,7 +344,46 @@ const copyWithNativeRsync = async (sourcePath, destinationPath, onProgress, sign
  * that is over two seconds spent starting processes, and it only happens on
  * Linux, which is to say only in the container.
  */
-const shouldRemoveNatively = (isDirectoryEntry, nativeEnabled = NATIVE_TRANSFER_ENABLED) =>
+/**
+ * Whether the native tool could not be used at all, as opposed to having tried
+ * and failed partway.
+ *
+ * The distinction is the whole point. A copy that fails midway has already
+ * written something, and falling back would resume over a half-written tree.
+ * These two failures happen before anything is written: the binary is not
+ * there, or it is too old to understand what it was asked for.
+ *
+ * That second one is not hypothetical. `--info=progress2` arrived in rsync 3.1,
+ * and RHEL 7 ships 3.0.9 while macOS ships 2.6.9 — on either, every copy failed
+ * with a raw rsync usage error, while a working implementation in this same
+ * file went unused. The setting documented for exactly this case
+ * (`FILE_TRANSFER_ENGINE=stream`) only helped someone who already knew to reach
+ * for it, after their copies had failed.
+ */
+const nativeToolIsUnusable = (error) => {
+  if (error?.code === 'ENOENT') return true;
+  const stderr = String(error?.stderr || error?.message || '');
+  return /unrecognized option|unknown option|invalid option|illegal option/i.test(stderr);
+};
+
+/**
+ * Set once a native tool has proved unusable, so the rest of the process stops
+ * paying for an attempt whose answer is already known.
+ */
+const unusableNativeTools = new Set();
+
+const recordUnusableNativeTool = (tool, error) => {
+  if (unusableNativeTools.has(tool)) return;
+  unusableNativeTools.add(tool);
+  logger.warn(
+    { tool, reason: String(error?.stderr || error?.message || '').trim().slice(0, 200) },
+    `${tool} cannot be used here; falling back to the in-application implementation for the life of this process`
+  );
+};
+
+const nativeToolUsable = (tool) => !unusableNativeTools.has(tool);
+
+const shouldRemoveNatively = (isDirectoryEntry, nativeEnabled = nativeTransferEnabled()) =>
   Boolean(nativeEnabled) && Boolean(isDirectoryEntry);
 
 const removeWithNativeRm = (absolutePath, signal) =>
@@ -407,23 +467,30 @@ const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal
 // copied byte count, so folder-size updates never need a second filesystem walk.
 const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes, signal) => {
   throwIfCancelled(signal);
-  if (NATIVE_TRANSFER_ENABLED) {
+  if (nativeTransferEnabled() && nativeToolUsable('rsync')) {
     const stats = await fs.lstat(sourcePath);
-    if (stats.isDirectory()) {
-      // Keep the target name chosen by findAvailableName. rsync copies the
-      // directory itself when the source lacks a trailing slash; the explorer
-      // contract is to copy its contents into the target directory instead.
-      await ensureDir(destinationPath);
-      await copyWithNativeRsync(
-        `${sourcePath}${path.sep}`,
-        `${destinationPath}${path.sep}`,
-        onBytes,
-        signal
-      );
-    } else {
-      await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal);
+    try {
+      if (stats.isDirectory()) {
+        // Keep the target name chosen by findAvailableName. rsync copies the
+        // directory itself when the source lacks a trailing slash; the explorer
+        // contract is to copy its contents into the target directory instead.
+        await ensureDir(destinationPath);
+        await copyWithNativeRsync(
+          `${sourcePath}${path.sep}`,
+          `${destinationPath}${path.sep}`,
+          onBytes,
+          signal
+        );
+      } else {
+        await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal);
+      }
+      return stats.isDirectory() ? null : stats.size;
+    } catch (error) {
+      // Only when nothing was written. Anything else is a real failure and the
+      // caller is the one who should hear about it.
+      if (signal?.aborted || !nativeToolIsUnusable(error)) throw error;
+      recordUnusableNativeTool('rsync', error);
     }
-    return stats.isDirectory() ? null : stats.size;
   }
   if (!isDirectory) {
     const stats = await fs.lstat(sourcePath);
@@ -995,8 +1062,14 @@ const deleteItems = async (items = [], options = {}) => {
     // writer and wait for its cleanup before removing the destination tree.
     await cancelWritesTargeting(absolutePath);
     const isDirectoryEntry = isDirectory || deletedEntryStats.isDirectory();
-    if (shouldRemoveNatively(isDirectoryEntry)) {
-      await removeWithNativeRm(absolutePath, options.signal);
+    if (shouldRemoveNatively(isDirectoryEntry) && nativeToolUsable('rm')) {
+      try {
+        await removeWithNativeRm(absolutePath, options.signal);
+      } catch (error) {
+        if (options.signal?.aborted || !nativeToolIsUnusable(error)) throw error;
+        recordUnusableNativeTool('rm', error);
+        await fs.rm(absolutePath, { recursive: true, force: true });
+      }
     } else if (isDirectoryEntry) {
       await fs.rm(absolutePath, { recursive: true, force: true });
     } else {
@@ -1050,6 +1123,8 @@ module.exports = {
   resolveDeleteTargets,
   deleteItems,
   shouldRemoveNatively,
+  nativeTransferEnabled,
+  nativeToolIsUnusable,
   getDiagnosticsSnapshot,
   // Exported for tests: the copy path is chosen inside a spawned process, so
   // the decision to retry is what can be checked without one.
