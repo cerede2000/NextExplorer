@@ -25,6 +25,7 @@ const folderSizeManager = require('./services/folderSizeManager');
 const searchIndexManager = require('./services/searchIndexManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
+const { installProcessFailureHandlers } = require('./utils/processFailures');
 
 let server = null;
 
@@ -111,6 +112,9 @@ const startServer = async () => {
 
   process.on('SIGTERM', cleanup);
   process.on('SIGINT', cleanup);
+
+  // Installed last, so the shutdown it may need already exists.
+  installProcessFailureHandlers({ onFatal: cleanup });
 
   return server;
 };
