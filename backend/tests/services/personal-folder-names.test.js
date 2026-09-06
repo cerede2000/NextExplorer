@@ -238,3 +238,133 @@ describe('accounts that existed before the names did', () => {
     expect(nameOf(db, 'u-new')).toBe('u-new');
   });
 });
+
+/**
+ * The two paths that only open when something goes wrong between the read and
+ * the write.
+ *
+ * `claimPersonalFolderName` reads the names already taken, then writes the
+ * first free one. Two accounts signing in at the same moment both read the same
+ * answer, and the unique index is what stops them both keeping it — the loser
+ * gets an exception and has to walk on to its next candidate. Neither that
+ * recovery nor the give-up after it had ever run.
+ *
+ * The database is handed in, so a test can be the thing that goes wrong: a
+ * wrapper that refuses the writes it is told to refuse and passes everything
+ * else through untouched.
+ */
+describe('two accounts racing for the same name', () => {
+  /** A database that refuses the first `n` name writes the way the index does. */
+  const refusingWrites = (db, refusals) => ({
+    prepare: (sql) => {
+      const statement = db.prepare(sql);
+      if (!/UPDATE users SET personal_folder_name/i.test(sql)) return statement;
+      return {
+        ...statement,
+        run: (...args) => {
+          if (refusals.count > 0) {
+            refusals.count -= 1;
+            throw new Error('UNIQUE constraint failed: users.personal_folder_name');
+          }
+          return statement.run(...args);
+        },
+        all: (...args) => statement.all(...args),
+        get: (...args) => statement.get(...args),
+      };
+    },
+  });
+
+  it('walks on to the next name when the index refuses the first', async () => {
+    const { db, claimPersonalFolderName } = await build({
+      USER_FOLDER_NAME_ORDER: 'username,id',
+    });
+    const user = addUser(db, {
+      id: 'u-1',
+      email: 'bob@a.com',
+      username: 'bob',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+    user.personal_folder_name = null;
+
+    const claimed = claimPersonalFolderName(refusingWrites(db, { count: 1 }), user);
+
+    expect(claimed).toBe('u-1');
+  });
+
+  it('records the name it settled on', async () => {
+    const { db, claimPersonalFolderName } = await build({
+      USER_FOLDER_NAME_ORDER: 'username,id',
+    });
+    const user = addUser(db, {
+      id: 'u-1',
+      email: 'bob@a.com',
+      username: 'bob',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+    user.personal_folder_name = null;
+
+    claimPersonalFolderName(refusingWrites(db, { count: 1 }), user);
+
+    expect(nameOf(db, 'u-1')).toBe('u-1');
+  });
+
+  /**
+   * An error that is not the index refusing is not a race, and swallowing it
+   * would turn a broken database into a silent wrong answer.
+   */
+  it('does not mistake another failure for a lost race', async () => {
+    const { db, claimPersonalFolderName } = await build();
+    const user = addUser(db, {
+      id: 'u-1',
+      email: 'bob@a.com',
+      username: 'bob',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+    user.personal_folder_name = null;
+    const broken = {
+      prepare: (sql) => {
+        const statement = db.prepare(sql);
+        if (!/UPDATE users SET personal_folder_name/i.test(sql)) return statement;
+        return {
+          ...statement,
+          run: () => {
+            throw new Error('database is locked');
+          },
+          all: (...args) => statement.all(...args),
+          get: (...args) => statement.get(...args),
+        };
+      },
+    };
+
+    expect(() => claimPersonalFolderName(broken, user)).toThrow(/database is locked/i);
+  });
+
+  /**
+   * Unreachable while `id` is in the order, which it always is. Losing every
+   * race is still not worth an exception on a sign-in path: the account gets no
+   * name, and the caller derives one as it did before any of this existed.
+   */
+  it('gives up quietly when every candidate is refused', async () => {
+    const { db, claimPersonalFolderName } = await build();
+    const user = addUser(db, {
+      id: 'u-1',
+      email: 'bob@a.com',
+      username: 'bob',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
+    user.personal_folder_name = null;
+
+    const claimed = claimPersonalFolderName(refusingWrites(db, { count: 99 }), user);
+
+    expect(claimed).toBeNull();
+  });
+});
+
+describe('an account with nothing to identify it', () => {
+  it('is given no name at all', async () => {
+    const { db, claimPersonalFolderName } = await build();
+
+    expect(claimPersonalFolderName(db, {})).toBeNull();
+    expect(claimPersonalFolderName(db, null)).toBeNull();
+  });
+});

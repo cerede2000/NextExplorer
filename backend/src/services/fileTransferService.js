@@ -12,6 +12,7 @@ const {
   combineRelativePath,
   findAvailableName,
 } = require('../utils/pathUtils');
+const { ValidationError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const {
   getSharesForSourceTargets,
@@ -494,14 +495,17 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
   const { signal } = options;
   throwIfCancelled(signal);
   if (!Array.isArray(items) || items.length === 0) {
-    throw new Error('At least one item is required.');
+    // The shape of the request, not the state of the server: a caller that
+    // sends nothing to move is told so, rather than being answered 500 and
+    // logged as an unexpected failure that says the server broke.
+    throw new ValidationError('At least one item is required.');
   }
 
   const destinationRelative = normalizeRelativePath(destination);
 
   // Prevent copying/moving items directly to the root path
   if (!destinationRelative || destinationRelative.trim() === '') {
-    throw new Error(
+    throw new ValidationError(
       'Cannot copy or move items to the root path. Please select a specific volume or folder first.'
     );
   }
@@ -851,7 +855,8 @@ const DELETE_CONCURRENCY =
 
 const resolveDeleteTargets = async (items = [], context, options = {}) => {
   if (!Array.isArray(items) || items.length === 0) {
-    throw new Error('At least one item is required.');
+    // Same as the transfer above: nothing to delete is a malformed request.
+    throw new ValidationError('At least one item is required.');
   }
 
   const includeStats = options.includeStats !== false;
