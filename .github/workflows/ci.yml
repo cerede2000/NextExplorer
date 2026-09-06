@@ -112,7 +112,10 @@ jobs:
               rank('./frontend/coverage/coverage-summary.json', 'frontend');
             "
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+            # Through tee, so the numbers are readable from the log as well as
+            # from the rendered summary — one of them is reachable with a
+            # command, and the other needs a browser.
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Frontend build
         run: npm run build
