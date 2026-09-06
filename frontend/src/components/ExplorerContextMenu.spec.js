@@ -26,6 +26,8 @@ let features;
 let favorites;
 
 const infoOpen = vi.fn();
+const openEditorForFavorite = vi.fn();
+const getDeleteImpact = vi.fn(async () => ({ shareCount: 0, shares: [] }));
 const terminalOpen = vi.fn();
 const routerPush = vi.fn();
 
@@ -38,8 +40,33 @@ vi.mock('@floating-ui/vue', () => ({
   size: vi.fn(),
 }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
-vi.mock('@/composables/fileActions', () => ({ useFileActions: () => actions }));
+/**
+ * `t` gives back the key, and the values interpolated into it when there are
+ * any — so a message naming a file, or counting several, can be told apart from
+ * the same message about something else.
+ */
+const translate = (key, params) =>
+  params && typeof params === 'object' ? `${key} ${JSON.stringify(params)}` : key;
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: translate }) }));
+/**
+ * A stable object that always reads the current test's actions.
+ *
+ * `useDeleteConfirm` is a module-level singleton: it calls `useFileActions()`
+ * once, on the first mount, and keeps whatever it got for the rest of the file.
+ * Handing it the live object directly would freeze every later test's selection
+ * to the first one's.
+ */
+const actionsProxy = new Proxy(
+  {},
+  {
+    get: (_target, property) => actions[property],
+    has: (_target, property) => property in actions,
+    ownKeys: () => Reflect.ownKeys(actions),
+    getOwnPropertyDescriptor: (_target, property) =>
+      Object.getOwnPropertyDescriptor(actions, property),
+  }
+);
+vi.mock('@/composables/fileActions', () => ({ useFileActions: () => actionsProxy }));
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
 vi.mock('@/stores/infoPanel', () => ({ useInfoPanelStore: () => ({ open: infoOpen }) }));
 vi.mock('@/stores/favorites', () => ({ useFavoritesStore: () => favorites }));
@@ -49,7 +76,11 @@ vi.mock('@/composables/itemSelection', () => ({
   useSelection: () => ({ clearSelection: vi.fn() }),
 }));
 vi.mock('@/composables/useFavoriteEditor', () => ({
-  useFavoriteEditor: () => ({ openEditorForFavorite: vi.fn() }),
+  useFavoriteEditor: () => ({ openEditorForFavorite: openEditorForFavorite }),
+}));
+vi.mock('@/api', () => ({
+  normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+  getDeleteImpact: (...args) => getDeleteImpact(...args),
 }));
 // The menu pulls in the share dialog, which is a screen of its own with a date
 // picker in it. Stubbed: nothing here is about creating a share.
@@ -120,7 +151,7 @@ const mountMenu = async () => {
     // The template uses the global `$t` as well as the `t` from useI18n, and a
     // missing one throws during render rather than showing an untranslated
     // string — which looks exactly like the menu refusing to open.
-    global: { mocks: { $t: (key) => key } },
+    global: { mocks: { $t: translate } },
   });
   mounted = wrapper;
   await flushPromises();
@@ -161,6 +192,9 @@ const isDisabled = (label) => entries().find((entry) => entry.label === label)?.
  * answering them. That is how an Escape test that passes alone fails in a run.
  */
 afterEach(() => {
+  // The delete confirmation is a singleton too, so a pending deletion outlives
+  // the component that asked for it.
+  mounted?.vm?.closeDeleteConfirm?.();
   mounted?.unmount();
   mounted = null;
   document.body.innerHTML = '';
@@ -169,7 +203,9 @@ afterEach(() => {
 beforeEach(() => {
   document.body.innerHTML = '';
   setActivePinia(createPinia());
-  [infoOpen, terminalOpen, routerPush].forEach((m) => m.mockReset());
+  [infoOpen, terminalOpen, routerPush, openEditorForFavorite].forEach((m) => m.mockReset());
+  getDeleteImpact.mockReset();
+  getDeleteImpact.mockResolvedValue({ shareCount: 0, shares: [] });
   actions = makeActions();
   fileStore = {
     selectedItems: [FILE],
@@ -484,5 +520,541 @@ describe('running an entry', () => {
     await clickEntry('actions.copy');
 
     expect(isOpen()).toBe(false);
+  });
+});
+
+/** Opens the menu on something and hands back the component instance. */
+const openOn = async (item, kind = 'item') => {
+  const { wrapper, api } = await mountMenu();
+  if (kind === 'background') api.openBackgroundMenu(rightClick());
+  else api.openItemMenu(rightClick(), item);
+  await flushPromises();
+  return { view: wrapper.vm, api, wrapper };
+};
+
+const clickLabel = async (label) => {
+  const button = [...menuPanel().querySelectorAll('button')].find(
+    (candidate) => candidate.querySelector('p')?.textContent?.trim() === label
+  );
+  button.click();
+  await flushPromises();
+};
+
+describe('what the delete confirmation says', () => {
+  it('names the one thing being deleted', async () => {
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogTitle).toContain('report.docx');
+    expect(view.deleteDialogMessage).toContain('report.docx');
+  });
+
+  it('counts them when there are several', async () => {
+    actions.selectedItems = ref([FILE, FOLDER]);
+    fileStore.selectedItems = [FILE, FOLDER];
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogTitle).toContain('"count":2');
+    expect(view.deleteDialogMessage).toContain('"count":2');
+  });
+
+  it('falls back to saying nothing in particular when nothing is pending', async () => {
+    const { view } = await openOn(FILE);
+
+    expect(view.deleteDialogTitle).toBe('context.deleteTitle.generic');
+    expect(view.deleteDialogMessage).toBe('context.deleteMessage.generic');
+  });
+
+  /**
+   * Deleting a file that a share points at breaks the share, and the person
+   * deleting it is the only one who can weigh that.
+   */
+  it('warns that shares point at what is about to go', async () => {
+    getDeleteImpact.mockResolvedValue({ shareCount: 3, shares: [] });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteShareImpactMessage).toContain('"count":3');
+  });
+
+  it('says nothing about shares when none point at it', async () => {
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteShareImpactMessage).toBe('');
+  });
+
+  it('reports a check it could not make', async () => {
+    getDeleteImpact.mockRejectedValue(new Error('Share service unreachable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteImpactError).toBe('Share service unreachable');
+  });
+
+  /** Somebody may have unsaved work in it, open in another window right now. */
+  it('warns that a document is open in the editor', async () => {
+    const open = { ...FILE, onlyofficeActivity: { active: true } };
+    actions.selectedItems = ref([open]);
+    fileStore.selectedItems = [open];
+    const { view } = await openOn(open);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteOnlyOfficeActivityMessage).toContain('report.docx');
+    expect(view.deleteOnlyOfficeActivityMessage).toContain('est ouvert');
+  });
+
+  it('names the first two and counts the rest', async () => {
+    const open = ['a.docx', 'b.docx', 'c.docx', 'd.docx'].map((name) => ({
+      name,
+      path: 'Docs',
+      kind: 'docx',
+      onlyofficeActivity: { active: true },
+    }));
+    actions.selectedItems = ref(open);
+    fileStore.selectedItems = open;
+    const { view } = await openOn(open[0]);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteOnlyOfficeActivityMessage).toContain('a.docx, b.docx');
+    expect(view.deleteOnlyOfficeActivityMessage).not.toContain('c.docx');
+    expect(view.deleteOnlyOfficeActivityMessage).toContain('2 autre(s)');
+    expect(view.deleteOnlyOfficeActivityMessage).toContain('sont ouverts');
+  });
+
+  it('says nothing when none of them is open', async () => {
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteOnlyOfficeActivityMessage).toBe('');
+  });
+});
+
+describe('what the inline quick actions offer', () => {
+  const available = async (item, ids, overrides = {}) => {
+    actions = makeActions(overrides);
+    const { api } = await mountMenu();
+    return ids.filter((id) => api.quickActionAvailable(item, id));
+  };
+
+  const ALL = [
+    'info',
+    'copyName',
+    'copyPath',
+    'copy',
+    'download',
+    'cut',
+    'rename',
+    'share',
+    'compress',
+    'favorite',
+    'delete',
+  ];
+
+  /** A volume is not a file: it cannot be cut, renamed, shared or deleted. */
+  it('offers a volume only what makes sense on a volume', async () => {
+    const offered = await available({ name: 'media', kind: 'volume' }, ALL);
+
+    expect(offered).toEqual(['info', 'copyName']);
+  });
+
+  it('offers a folder everything but nothing extra', async () => {
+    const offered = await available(FOLDER, ALL);
+
+    expect(offered).toEqual(ALL);
+  });
+
+  it('does not offer to favourite a file', async () => {
+    const offered = await available(FILE, ALL);
+
+    expect(offered).not.toContain('favorite');
+  });
+
+  it('offers nothing at all for nothing at all', async () => {
+    const offered = await available(null, ALL);
+
+    expect(offered).toEqual([]);
+  });
+
+  it('does not invent an action nobody asked for', async () => {
+    const offered = await available(FILE, ['format-drive']);
+
+    expect(offered).toEqual([]);
+  });
+
+  it('withholds deleting where the location forbids it', async () => {
+    const offered = await available(FILE, ALL, { locationCanDelete: ref(false) });
+
+    expect(offered).not.toContain('delete');
+  });
+
+  /** Cutting is a move: it needs the right to write there and to remove from here. */
+  it('withholds cutting unless both halves of a move are allowed', async () => {
+    expect(await available(FILE, ['cut'], { locationCanDelete: ref(false) })).toEqual([]);
+    expect(await available(FILE, ['cut'], { locationCanWrite: ref(false) })).toEqual([]);
+  });
+
+  it('withholds renaming and compressing on a read-only location', async () => {
+    const offered = await available(FILE, ALL, { locationCanWrite: ref(false) });
+
+    expect(offered).not.toContain('rename');
+    expect(offered).not.toContain('compress');
+  });
+
+  it('still offers reading it, on a read-only location', async () => {
+    const offered = await available(FILE, ALL, { locationCanWrite: ref(false) });
+
+    expect(offered).toEqual(expect.arrayContaining(['info', 'copyPath', 'copy', 'download']));
+  });
+});
+
+describe('running a quick action', () => {
+  const clipboard = { writeText: vi.fn(async () => {}) };
+
+  beforeEach(() => {
+    clipboard.writeText.mockClear();
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard });
+  });
+
+  /** The run functions act on the selection, so the item has to be in it first. */
+  it('acts on the item it was given, not on whatever was selected', async () => {
+    fileStore.selectedItems = [FOLDER];
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(FILE, 'copy');
+
+    expect(fileStore.selectedItems).toEqual([FILE]);
+    expect(actions.runCopy).toHaveBeenCalled();
+  });
+
+  it('leaves a selection alone when the item is already in it', async () => {
+    fileStore.selectedItems = [FILE, FOLDER];
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(FILE, 'copy');
+
+    expect(fileStore.selectedItems).toEqual([FILE, FOLDER]);
+  });
+
+  it('copies the name on its own', async () => {
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(FILE, 'copyName');
+
+    expect(clipboard.writeText).toHaveBeenCalledWith('report.docx');
+  });
+
+  it('copies the whole path', async () => {
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(FILE, 'copyPath');
+
+    expect(clipboard.writeText).toHaveBeenCalledWith('Docs/report.docx');
+  });
+
+  /** An insecure context has no clipboard; that is not a reason to throw. */
+  it('says nothing when the browser will not give up its clipboard', async () => {
+    clipboard.writeText.mockRejectedValueOnce(new Error('denied'));
+    const { api } = await mountMenu();
+
+    await expect(api.runQuickAction(FILE, 'copyName')).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ['info', () => expect(infoOpen).toHaveBeenCalled()],
+    ['download', () => expect(actions.runDownload).toHaveBeenCalled()],
+    ['cut', () => expect(actions.runCut).toHaveBeenCalled()],
+    ['rename', () => expect(actions.runRename).toHaveBeenCalled()],
+    ['compress', () => expect(actions.runCompressToZip).toHaveBeenCalled()],
+  ])('runs %s', async (id, assert) => {
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(FILE, id);
+
+    assert();
+  });
+
+  it('asks before deleting rather than deleting', async () => {
+    const { api, wrapper } = await mountMenu();
+
+    await api.runQuickAction(FILE, 'delete');
+
+    expect(actions.deleteNow).not.toHaveBeenCalled();
+    expect(wrapper.vm.isDeleteConfirmOpen).toBe(true);
+  });
+
+  it('does nothing for an action that does not exist', async () => {
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(FILE, 'format-drive');
+
+    expect(actions.runCopy).not.toHaveBeenCalled();
+  });
+
+  it('does nothing at all without an item', async () => {
+    const { api } = await mountMenu();
+
+    await api.runQuickAction(null, 'copy');
+
+    expect(actions.runCopy).not.toHaveBeenCalled();
+  });
+});
+
+describe('marking a folder as a favourite', () => {
+  it('adds it, and opens the editor so it can be named', async () => {
+    favorites.addFavorite.mockResolvedValue({ id: 'f1', path: 'Docs/2026' });
+    await openOn(FOLDER);
+
+    await clickLabel('context.addToFavorites');
+
+    expect(favorites.addFavorite).toHaveBeenCalledWith({ path: 'Docs/2026' });
+    expect(openEditorForFavorite).toHaveBeenCalledWith({ id: 'f1', path: 'Docs/2026' });
+  });
+
+  it('removes one that is already there', async () => {
+    favorites.isFavorite.mockReturnValue(true);
+    await openOn(FOLDER);
+
+    await clickLabel('context.removeFromFavorites');
+
+    expect(favorites.removeFavorite).toHaveBeenCalledWith('Docs/2026');
+  });
+
+  it('opens no editor when the server did not create one', async () => {
+    favorites.addFavorite.mockResolvedValue(null);
+    await openOn(FOLDER);
+
+    await clickLabel('context.addToFavorites');
+
+    expect(openEditorForFavorite).not.toHaveBeenCalled();
+  });
+
+  it('marks the folder being looked at, from the background menu', async () => {
+    await openOn(null, 'background');
+
+    await clickLabel('context.addToFavorites');
+
+    expect(favorites.addFavorite).toHaveBeenCalledWith({ path: 'Docs' });
+  });
+
+  /** A second click while the first is in flight would add it twice. */
+  it('ignores a second click while the first is still going', async () => {
+    let release;
+    favorites.addFavorite.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+    const { view } = await openOn(FOLDER);
+
+    const first = view.runToggleFavoriteForDirectory();
+    await view.runToggleFavoriteForDirectory();
+    release({ id: 'f1' });
+    await first;
+
+    expect(favorites.addFavorite).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks nothing from a file', async () => {
+    const { view } = await openOn(FILE);
+
+    await view.runToggleFavoriteForDirectory();
+
+    expect(favorites.addFavorite).not.toHaveBeenCalled();
+  });
+});
+
+describe('opening a file in the terminal', () => {
+  const SCRIPT = { name: 'backup.sh', path: 'Docs/bin', kind: 'sh' };
+
+  it('opens it in the folder the file lives in', async () => {
+    actions = makeActions({ primaryItem: ref(SCRIPT), selectedItems: ref([SCRIPT]) });
+    await openOn(SCRIPT);
+
+    await clickLabel('context.openWithTerminal');
+
+    expect(terminalOpen).toHaveBeenCalledWith('Docs/bin', './backup.sh');
+  });
+
+  /** A name with a space in it must not become two arguments. */
+  it('quotes a name the shell would otherwise split', async () => {
+    const spaced = { name: 'my backup.sh', path: 'Docs', kind: 'sh' };
+    actions = makeActions({ primaryItem: ref(spaced), selectedItems: ref([spaced]) });
+    await openOn(spaced);
+
+    await clickLabel('context.openWithTerminal');
+
+    expect(terminalOpen).toHaveBeenCalledWith('Docs', './my\\ backup.sh');
+  });
+
+  it('falls back to the folder on screen for a file with no path of its own', async () => {
+    const loose = { name: 'run.sh', kind: 'sh' };
+    actions = makeActions({ primaryItem: ref(loose), selectedItems: ref([loose]) });
+    await openOn(loose);
+
+    await clickLabel('context.openWithTerminal');
+
+    expect(terminalOpen).toHaveBeenCalledWith('Docs', './run.sh');
+  });
+});
+
+describe('opening a file in the editor', () => {
+  it('goes to the editor on that file', async () => {
+    await openOn(FILE);
+
+    await clickLabel('context.openWithEditor');
+
+    expect(routerPush).toHaveBeenCalledWith({ path: '/editor/Docs/report.docx' });
+  });
+
+  /**
+   * A name is not a URL. A `#` in it would cut the path short, and a `?` would
+   * turn the rest of the name into a query — the editor would open the wrong
+   * file, or none.
+   */
+  it('encodes a name a URL would otherwise swallow', async () => {
+    const awkward = { name: 'notes #1 & co?.md', path: 'Docs', kind: 'md' };
+    actions = makeActions({ primaryItem: ref(awkward), selectedItems: ref([awkward]) });
+    await openOn(awkward);
+
+    await clickLabel('context.openWithEditor');
+
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/editor/Docs/notes%20%231%20%26%20co%3F.md',
+    });
+  });
+
+  it('keeps the folders apart while encoding them', async () => {
+    const nested = { name: 'a.md', path: 'My Docs/2026 #2', kind: 'md' };
+    actions = makeActions({ primaryItem: ref(nested), selectedItems: ref([nested]) });
+    await openOn(nested);
+
+    await clickLabel('context.openWithEditor');
+
+    expect(routerPush).toHaveBeenCalledWith({ path: '/editor/My%20Docs/2026%20%232/a.md' });
+  });
+});
+
+describe('an archive that wants a password', () => {
+  const ZIP = { name: 'photos.zip', path: 'Docs', kind: 'zip' };
+
+  const openZip = async (extractResult) => {
+    actions = makeActions({
+      primaryItem: ref(ZIP),
+      selectedItems: ref([ZIP]),
+      isArchiveSelected: ref(true),
+      canExtractArchive: ref(true),
+      runExtractArchive: vi.fn(async () => extractResult),
+    });
+    fileStore.extractZipArchive = vi.fn(async () => ({}));
+    return openOn(ZIP);
+  };
+
+  it('asks for one when the archive turns out to be locked', async () => {
+    const { view } = await openZip({
+      requiresPassword: true,
+      path: 'Docs/photos.zip',
+      destination: 'Docs',
+    });
+
+    await clickLabel('actions.extractArchive');
+
+    expect(view.archivePasswordRequest).toEqual({
+      path: 'Docs/photos.zip',
+      destination: 'Docs',
+      invalidPassword: undefined,
+    });
+  });
+
+  it('asks for nothing when the archive opens on its own', async () => {
+    const { view } = await openZip({ requiresPassword: false });
+
+    await clickLabel('actions.extractArchive');
+
+    expect(view.archivePasswordRequest).toBeNull();
+  });
+
+  it('extracts with the password it was given', async () => {
+    const { view } = await openZip({
+      requiresPassword: true,
+      path: 'Docs/photos.zip',
+      destination: 'Docs',
+    });
+    await clickLabel('actions.extractArchive');
+
+    await view.submitArchivePassword('hunter2');
+
+    expect(fileStore.extractZipArchive).toHaveBeenCalledWith('Docs/photos.zip', {
+      destination: 'Docs',
+      password: 'hunter2',
+    });
+    expect(view.archivePasswordRequest).toBeNull();
+  });
+
+  /** A wrong password is a reason to ask again, not to give up silently. */
+  it('asks again, saying so, when the password was wrong', async () => {
+    const { view } = await openZip({
+      requiresPassword: true,
+      path: 'Docs/photos.zip',
+      destination: 'Docs',
+    });
+    await clickLabel('actions.extractArchive');
+    fileStore.extractZipArchive.mockResolvedValue({
+      requiresPassword: true,
+      invalidPassword: true,
+    });
+
+    await view.submitArchivePassword('wrong');
+
+    expect(view.archivePasswordRequest).toMatchObject({ invalidPassword: true });
+  });
+
+  it('cannot be dismissed while it is still trying', async () => {
+    const { view } = await openZip({
+      requiresPassword: true,
+      path: 'Docs/photos.zip',
+      destination: 'Docs',
+    });
+    await clickLabel('actions.extractArchive');
+    let release;
+    fileStore.extractZipArchive.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
+
+    const pending = view.submitArchivePassword('hunter2');
+    view.closeArchivePasswordDialog();
+
+    expect(view.archivePasswordRequest).not.toBeNull();
+    release({});
+    await pending;
+  });
+
+  it('can be dismissed once it is not', async () => {
+    const { view } = await openZip({
+      requiresPassword: true,
+      path: 'Docs/photos.zip',
+      destination: 'Docs',
+    });
+    await clickLabel('actions.extractArchive');
+
+    view.closeArchivePasswordDialog();
+
+    expect(view.archivePasswordRequest).toBeNull();
+  });
+
+  it('does nothing when asked for a password it never wanted', async () => {
+    const { view } = await openZip({ requiresPassword: false });
+
+    await view.submitArchivePassword('hunter2');
+
+    expect(fileStore.extractZipArchive).not.toHaveBeenCalled();
   });
 });
