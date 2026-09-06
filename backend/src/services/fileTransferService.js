@@ -12,7 +12,11 @@ const {
   combineRelativePath,
   findAvailableName,
 } = require('../utils/pathUtils');
-const { ValidationError } = require('../errors/AppError');
+const {
+  ValidationError,
+  ForbiddenError,
+  NotFoundError,
+} = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const {
   getSharesForSourceTargets,
@@ -588,7 +592,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     resolved: destResolved,
   } = await authorizeAndResolve(context, destinationRelative, ACTIONS.read);
   if (!destAllowed || !destResolved) {
-    throw new Error(destAccess?.denialReason || 'Destination path is not writable.');
+    throw new ForbiddenError(destAccess?.denialReason || 'Destination path is not writable.');
   }
 
   const { absolutePath: destinationAbsolute } = destResolved;
@@ -596,7 +600,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
 
   const destinationStats = await fs.stat(destinationAbsolute).catch(() => null);
   if (!destinationStats?.isDirectory()) {
-    throw new Error('Destination path must be an existing directory.');
+    throw new ValidationError('Destination path must be an existing directory.');
   }
 
   const plans = [];
@@ -613,14 +617,16 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       // eslint-disable-next-line no-await-in-loop
     } = await authorizeAndResolve(context, sourceCombined, ACTIONS.read);
     if (!srcAllowed || !srcResolved) {
-      throw new Error(srcAccess?.denialReason || `Source path not accessible: ${sourceCombined}`);
+      throw new ForbiddenError(
+        srcAccess?.denialReason || `Source path not accessible: ${sourceCombined}`
+      );
     }
 
     const { relativePath: sourceRelative, absolutePath: sourceAbsolute } = srcResolved;
 
     // eslint-disable-next-line no-await-in-loop
     if (!(await pathExists(sourceAbsolute))) {
-      throw new Error(`Source path not found: ${sourceRelative}`);
+      throw new NotFoundError(`Source path not found: ${sourceRelative}`);
     }
 
     if (operation === 'move') {
@@ -628,7 +634,9 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
         // eslint-disable-next-line no-await-in-loop
         await authorizePath(context, sourceCombined, ACTIONS.delete);
       if (!deleteAllowed) {
-        throw new Error(deleteAccess?.denialReason || 'Cannot move items from this path.');
+        throw new ForbiddenError(
+          deleteAccess?.denialReason || 'Cannot move items from this path.'
+        );
       }
     }
 
@@ -642,7 +650,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       (destinationAbsolute === sourceAbsolute ||
         destinationAbsolute.startsWith(`${sourceAbsolute}${path.sep}`))
     ) {
-      throw new Error('Cannot copy or move a folder into itself.');
+      throw new ValidationError('Cannot copy or move a folder into itself.');
     }
 
     if (operation === 'move' && destinationRelative === sourceParent) {
@@ -658,7 +666,9 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       destinationAction
     );
     if (!createAllowed) {
-      throw new Error(createAccess?.denialReason || 'Cannot create items in the destination path.');
+      throw new ForbiddenError(
+        createAccess?.denialReason || 'Cannot create items in the destination path.'
+      );
     }
 
     // A copied directory may contain files as well as folders. Do not let the
@@ -671,7 +681,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
         ACTIONS.createFile
       );
       if (!filesAllowed) {
-        throw new Error(
+        throw new ForbiddenError(
           filesAccess?.denialReason || 'Cannot create files in the destination path.'
         );
       }
@@ -709,7 +719,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   throwIfCancelled(signal);
   const destinationStats = await fs.stat(destinationAbsolute).catch(() => null);
   if (!destinationStats?.isDirectory()) {
-    throw new Error('Destination path no longer exists.');
+    throw new NotFoundError('Destination path no longer exists.');
   }
 
   const results = [];
@@ -814,7 +824,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
             directoryTransferPrepared: plan.isDirectory,
           });
         } else {
-          throw new Error(`Unsupported operation: ${operation}`);
+          throw new ValidationError(`Unsupported operation: ${operation}`);
         }
       }
 
@@ -938,7 +948,7 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
       ACTIONS.delete
     );
     if (!allowed || !resolved) {
-      throw new Error(accessInfo?.denialReason || 'Cannot delete items from this path.');
+      throw new ForbiddenError(accessInfo?.denialReason || 'Cannot delete items from this path.');
     }
 
     const { relativePath, absolutePath } = resolved;
