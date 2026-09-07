@@ -42,6 +42,13 @@ const MAX_LIMIT = 500;
 // but they cannot take the whole page from what is inside the documents.
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * The size bound for the JavaScript scan, which runs when ripgrep does not.
+ *
+ * The ripgrep path bounds the same thing in `streamDocumentMatches`, from the
+ * same setting. One engine runs per request, so this is the single enforcement
+ * on this path rather than a second copy of that one.
+ */
 const CONTENT_FALLBACK_MAX_SIZE =
   searchConfig?.maxFileSizeBytes > 0 ? searchConfig.maxFileSizeBytes : 5 * 1024 * 1024;
 
@@ -489,6 +496,10 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
  * configured. Reading them costs an unzip or a `pdftotext` per document, so
  * this is bounded three ways: only these extensions, only files under the
  * configured size, and only so many documents per search.
+ *
+ * The extension check is an optimisation and not a rule: `findDocumentTextMatch`
+ * tests it again and returns null, so deleting it here changes only the number
+ * of files opened. The other two decide what is searched.
  */
 const OFFICE_DOCUMENT_LIMIT = 500;
 
@@ -529,6 +540,11 @@ async function* streamDocumentMatches(
     if (seenPaths.has(rel)) continue;
 
     const absolutePath = path.join(baseAbsPath, relFromBase);
+    // The same bound `generateFallbackResults` applies through
+    // CONTENT_FALLBACK_MAX_SIZE. Not a duplicate: a request runs one content
+    // engine or the other, never both, so each path enforces it once. Deleting
+    // either looks harmless on a machine that does not take that path — which
+    // is why the bound tests name their engine and run on both.
     if (maxBytes) {
       // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(absolutePath).catch(() => null);

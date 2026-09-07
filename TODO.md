@@ -3,35 +3,6 @@
 Work that is decided but not started. Not a backlog of ideas — things we intend
 to do, with enough context to pick them up cold.
 
-## Bounds on the document search that are enforced more than once
-
-`streamDocumentMatches` in `routes/search.js` bounds the Office/PDF pass three
-ways — extension, file size, and a deduplication against paths already found by
-name. Writing tests for them turned up that deleting any of the three from that
-function changes no observable behaviour.
-
-One is explained: `findDocumentTextMatch` checks the extension again and returns
-null, so the route's check is an optimisation (it avoids opening the file) and
-not a rule. That is fine, and worth a comment saying so.
-
-`seenPaths.has(rel)` is now explained, and the explanation was a bug rather
-than a second enforcement. Nothing upstream was applying it: the passes run
-concurrently and the check is three awaits away from the claim that follows it,
-so the name pass fits inside the window and the same document came back twice.
-Deleting the check changed nothing observable only because the race was
-normally won — a CI runner slow enough to finish the walk while a `.docx` was
-being unzipped lost it, once. The merge deduplicates now, which is where every
-pass converges and where there is no window; the check stays as what it always
-was, a way to avoid reading a file another pass has already found.
-
-`stats.size > maxBytes` is still unexplained. With `SEARCH_MAX_FILESIZE=1K` an
-oversized document is not searched, and with no limit it is — verified end to
-end — but removing that line from the generator does not change it. Worth
-untangling for the same reason as before: the next person either keeps a line
-nothing needs, or removes one and cannot tell from the tests whether it
-mattered. Either the duplicate goes and one place owns the rule, or the second
-enforcement is named in a comment at both ends.
-
 ## The same rule applied four times, in the folder-size index
 
 Exclusion of a folder is enforced in four places: `touch` skips a marked
@@ -45,13 +16,17 @@ The protection against indexing a folder mid-copy has the same shape, twice
 over rather than four times: removing either guard alone changes nothing, and
 removing both does.
 
-This is the same thing the search bounds entry above describes, in a second
-service, which suggests a habit rather than an accident. Worth deciding once:
-either one place owns each rule and the others are removed, or every
-enforcement names the others in a comment so the next person knows what they
-are looking at. What cannot stay is the present state, where a test can pin the
-property and nothing can pin the code — and where deleting a line that looks
-load-bearing costs nothing and tells you nothing.
+The document search had the same shape and turned out not to: its bound is
+enforced once per content engine, and only one engine runs per request, so a
+machine without ripgrep installed exercised one of the two and the other looked
+free to delete. The fix there was to name each enforcement at both ends and to
+run the bound tests on both engines, which is worth trying here before removing
+anything — four enforcements in one service that all run in the same request is
+a different case, and may genuinely be three too many.
+
+What cannot stay is the present state, where a test can pin the property and
+nothing can pin the code — and where deleting a line that looks load-bearing
+costs nothing and tells you nothing.
 
 ## Letting someone comment on a document without editing it
 

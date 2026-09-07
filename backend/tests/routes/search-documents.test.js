@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import express from 'express';
@@ -7,6 +7,7 @@ import AdmZip from 'adm-zip';
 import { randomBytes } from 'node:crypto';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { useFakeRipgrep } from '../helpers/fake-ripgrep.js';
 import { buildPdf } from '../helpers/pdf-fixture.js';
 
 /**
@@ -23,15 +24,17 @@ import { buildPdf } from '../helpers/pdf-fixture.js';
  * document already found by name being listed twice. Those bounds are what
  * stands between a search and a folder of ten thousand spreadsheets.
  *
- * A caveat worth writing down rather than hiding. These assert the behaviour
- * end to end — with a 1K limit an oversized document is not searched, without
- * one it is — but none of them fails when the corresponding check is deleted
- * from `streamDocumentMatches`. The extension check is provably redundant:
- * `findDocumentTextMatch` tests the extension again and returns null. For the
- * size bound and the deduplication I could not find the second enforcement, and
- * I am not claiming a guard is covered when removing it changes nothing. What
- * these do cover is that the bounds hold, which is what a user experiences;
- * which line holds them is in TODO.md as worth untangling.
+ * The size bound is enforced twice because the search has two content engines,
+ * and a request only ever runs one of them: ripgrep's path bounds it in
+ * `streamDocumentMatches`, the JavaScript fallback in `generateFallbackResults`.
+ * Neither is a duplicate of the other, and a machine without ripgrep installed
+ * exercises only the second — which is why deleting the first looked harmless
+ * for as long as nobody ran it. The bound tests below therefore name the engine
+ * they run on and run on both, on every machine.
+ *
+ * The extension check in `streamDocumentMatches` is a genuine optimisation
+ * rather than a rule: `findDocumentTextMatch` tests the extension again and
+ * returns null, so deleting it changes nothing but the number of files opened.
  */
 
 let envContext;
@@ -172,41 +175,6 @@ describe('inside a PDF', () => {
 });
 
 describe('the bounds on how much it will read', () => {
-  /**
-   * The size limit is the one that matters on real storage: a folder of large
-   * spreadsheets would otherwise be unzipped in full for every keystroke.
-   */
-  it('skips a document larger than the configured size', async () => {
-    const dir = await seed({ SEARCH_MAX_FILESIZE: '1K' });
-    const zip = new AdmZip();
-    zip.addFile(
-      'word/document.xml',
-      Buffer.from(
-        '<?xml version="1.0"?><w:document xmlns:w="x"><w:body><w:p><w:r><w:t>' +
-          'the word pangolin appears here</w:t></w:r></w:p></w:body></w:document>'
-      )
-    );
-    // Random bytes, because repeated padding compresses away and the file
-    // would come out under the limit this test is about.
-    zip.addFile('word/media/blob.bin', randomBytes(64 * 1024));
-    const file = path.join(dir, 'huge.docx');
-    await fs.writeFile(file, zip.toBuffer());
-    expect((await fs.stat(file)).size).toBeGreaterThan(1024);
-
-    const items = await search('pangolin');
-
-    expect(items.some((item) => item.name === 'huge.docx')).toBe(false);
-  });
-
-  it('still reads one under the limit', async () => {
-    const dir = await seed({ SEARCH_MAX_FILESIZE: '1M' });
-    await writeDocx(path.join(dir, 'small.docx'), 'the word pangolin appears here');
-
-    const items = await search('pangolin');
-
-    expect(items.some((item) => item.name === 'small.docx')).toBe(true);
-  });
-
   it('respects the result limit the caller asked for', async () => {
     const dir = await seed();
     for (let i = 0; i < 5; i += 1) {
@@ -260,5 +228,62 @@ describe('when a document cannot be read', () => {
     const items = await search('pangolin');
 
     expect(items.some((item) => item.name === 'good.pdf')).toBe(true);
+  });
+});
+
+/**
+ * The size bound, on each of the two engines that enforce it.
+ *
+ * Which engine a request uses is decided by whether `rg` can be spawned, so
+ * without saying so a suite covers whichever half the machine happens to
+ * provide. Both are named here: the fallback by switching ripgrep off, the
+ * ripgrep path by putting a stand-in on PATH that reports no matches, leaving
+ * the document pass to decide the result.
+ */
+describe.each([
+  ['the fallback scan', { SEARCH_RIPGREP: 'false' }, false],
+  ['the ripgrep path', { SEARCH_RIPGREP: 'true' }, true],
+])('the size bound, on %s', (_engine, engineEnv, standInRipgrep) => {
+  let restoreRipgrep = null;
+
+  beforeEach(() => {
+    restoreRipgrep = standInRipgrep ? useFakeRipgrep() : null;
+  });
+
+  afterEach(() => {
+    restoreRipgrep?.();
+    restoreRipgrep = null;
+  });
+
+  /** A folder of large spreadsheets would otherwise be unzipped for every keystroke. */
+  it('skips a document larger than the configured size', async () => {
+    const dir = await seed({ SEARCH_MAX_FILESIZE: '1K', ...engineEnv });
+    const zip = new AdmZip();
+    zip.addFile(
+      'word/document.xml',
+      Buffer.from(
+        '<?xml version="1.0"?><w:document xmlns:w="x"><w:body><w:p><w:r><w:t>' +
+          'the word pangolin appears here</w:t></w:r></w:p></w:body></w:document>'
+      )
+    );
+    // Random bytes, because repeated padding compresses away and the file
+    // would come out under the limit this test is about.
+    zip.addFile('word/media/blob.bin', randomBytes(64 * 1024));
+    const file = path.join(dir, 'huge.docx');
+    await fs.writeFile(file, zip.toBuffer());
+    expect((await fs.stat(file)).size).toBeGreaterThan(1024);
+
+    const items = await search('pangolin');
+
+    expect(items.some((item) => item.name === 'huge.docx')).toBe(false);
+  });
+
+  it('still reads one under the limit', async () => {
+    const dir = await seed({ SEARCH_MAX_FILESIZE: '1M', ...engineEnv });
+    await writeDocx(path.join(dir, 'small.docx'), 'the word pangolin appears here');
+
+    const items = await search('pangolin');
+
+    expect(items.some((item) => item.name === 'small.docx')).toBe(true);
   });
 });
