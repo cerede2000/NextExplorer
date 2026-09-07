@@ -47,6 +47,9 @@ const drain = async () => {
   if (draining) return;
   draining = true;
   try {
+    // `enqueue` already refuses work once the service is stopped, so this only
+    // catches a stop that lands while the loop is running: the backlog is
+    // abandoned rather than finished after shutdown was asked for.
     while (pending.length > 0 && !stopped) {
       const job = pending.shift();
       try {
@@ -62,6 +65,11 @@ const drain = async () => {
 };
 
 const enqueue = (job) => {
+  // The one place that refuses new work after a stop. The callers used to
+  // check this themselves, which meant four copies of the rule and no way to
+  // tell from a test which of them held it.
+  if (stopped) return Promise.resolve();
+
   if (pending.length >= MAX_PENDING_UPDATES) {
     dropped += 1;
     if (dropped === 1 || dropped % 1000 === 0) {
@@ -262,7 +270,7 @@ const stop = () => {
  * and a read only where something actually moved.
  */
 const onFileChanged = async (absolutePath) => {
-  if (!enabled() || stopped) return;
+  if (!enabled()) return;
 
   const relative = relativeToVolume(absolutePath);
   if (!relative) return;
@@ -275,7 +283,7 @@ const onFileChanged = async (absolutePath) => {
 
 /** A file or folder the application removed. */
 const onPathRemoved = async (absolutePath) => {
-  if (!enabled() || stopped) return;
+  if (!enabled()) return;
 
   const relative = relativeToVolume(absolutePath);
   if (!relative) return;
@@ -288,7 +296,7 @@ const onPathRemoved = async (absolutePath) => {
 
 /** A rename or a move: the words did not change, only where they live. */
 const onPathMoved = async (fromAbsolutePath, toAbsolutePath) => {
-  if (!enabled() || stopped) return;
+  if (!enabled()) return;
 
   const from = relativeToVolume(fromAbsolutePath);
   const to = relativeToVolume(toAbsolutePath);
