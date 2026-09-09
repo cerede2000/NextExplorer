@@ -135,6 +135,7 @@ Targeted subtree recoveries are always serialized so concurrent external changes
 | `OIDC_ADMIN_GROUPS`                                             | _none_                                            | Space/comma-separated names that grant admin rights when found in `groups`, `roles`, or `entitlements`.                                                                                          |
 | `OIDC_REQUIRE_EMAIL_VERIFIED`                                   | `false`                                           | When `true`, requires the IdP to verify the user's email before allowing user creation or auto-linking. Some providers like newer Authentik versions set `email_verified` to `false` by default. |
 | `OIDC_AUTO_CREATE_USERS`                                        | `true`                                            | When `false`, the user must already exist in the nextExplorer database (local or previously OIDC-linked), otherwise OIDC login is denied.                                                        |
+| `OIDC_MOBILE_REDIRECT_URIS`                                     | `nextexplorer://oidc-callback`                    | Comma-separated allowlist of custom-scheme URIs a native app may receive the mobile sign-in code at. `http(s)` URIs are refused, so the code can never be handed to a web address. Only used by the mobile bridge; see [OIDC](/integrations/oidc#signing-in-from-a-native-app). |
 
 ## Upload & archive limits
 

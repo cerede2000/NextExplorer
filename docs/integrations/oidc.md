@@ -54,6 +54,37 @@ Where neither holds, roles stay as they are and are managed from **Settings →
 Users** instead. If you do lock yourself out, setting `AUTH_ADMIN_EMAIL` to your
 address and restarting restores the admin role on that account.
 
+## Signing in from a native app
+
+A native iOS or Android client cannot complete an OIDC sign-in the way the web
+app does. On iOS, passkeys only work inside `ASWebAuthenticationSession`, and
+that system web view never hands the `HttpOnly` session cookie back to the
+application. The web view that *can* read cookies does not do passkeys
+reliably. So against a passkey-only provider, an app is stuck: the person signs
+in successfully and the application never learns of it.
+
+Three routes bridge that gap, and they exist only for native clients — nothing
+in the web interface uses them:
+
+1. `GET /api/auth/oidc/mobile/login` — the app opens this in the system web
+   session with a PKCE `code_challenge` (S256 only) and one of the allowlisted
+   redirect URIs. Standard OIDC login follows.
+2. `GET /api/auth/oidc/mobile/complete` — once the provider has authenticated
+   the person, the server mints a single-use code, valid for sixty seconds and
+   bound to that PKCE challenge, and redirects to
+   `nextexplorer://oidc-callback?code=…`.
+3. `POST /api/auth/oidc/exchange` — the app sends the code and its
+   `code_verifier` and receives an ordinary session cookie, the same one a
+   password sign-in produces.
+
+The code is destroyed by the first attempt to redeem it, right or wrong, so
+there is no second guess against a live one. `OIDC_MOBILE_REDIRECT_URIS`
+restricts where it can be delivered to custom schemes an app has registered;
+`http(s)` addresses are refused, so the code cannot be redirected to a web page.
+
+Nothing here is reachable unless OIDC is configured — the routes answer 404
+otherwise — and no configuration is needed to keep it off.
+
 ## Common troubleshooting
 
 - **Invalid redirect URI**: Ensure your IdP’s redirect URI matches `${PUBLIC_URL}/callback` or the explicitly configured `OIDC_CALLBACK_URL`.
