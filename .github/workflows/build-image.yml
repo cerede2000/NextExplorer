@@ -210,7 +210,9 @@ jobs:
           echo "Started, and the command it was given ran."
 
           echo "Starting $tag as root, which must still renumber and drop to appuser"
-          ran_as="$(docker run --rm -e PUID=1234 -e PGID=1234 "$tag" node -e 'process.stdout.write(`${process.getuid()}:${process.getgid()}`)')"
+          # Only the last line: the entrypoint narrates what it is doing on
+          # stdout, and those lines come out of the same pipe as the command's.
+          ran_as="$(docker run --rm -e PUID=1234 -e PGID=1234 "$tag" node -e 'console.log(`${process.getuid()}:${process.getgid()}`)' | tail -n 1)"
           if [ "$ran_as" != "1234:1234" ]; then
             echo "::error::Started as root the process should run as PUID:PGID, but ran as $ran_as"
             exit 1
