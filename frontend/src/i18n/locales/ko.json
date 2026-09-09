@@ -143,7 +143,8 @@
     "label": "내 공유 파일",
     "path": "예시: 사진/여행",
     "search": "파일 또는 폴더를 검색하세요…",
-    "volumeLabel": "예시: 문서, 프로젝트, 영상"
+    "volumeLabel": "예시: 문서, 프로젝트, 영상",
+    "emailOrUsername": "name{'@'}company.com 또는 name"
   },
   "loading": {
     "default": "로딩 중…",
@@ -183,11 +184,12 @@
     "labelRequired": "레이블이 필요합니다",
     "pathRequired": "경로가 필요합니다",
     "saveVolume": "볼륨 저장 실패",
-    "removeVolume": "볼륨 제거 실패"
+    "removeVolume": "볼륨 제거 실패",
+    "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "인증이 필요합니다",
-    "AUTH_INVALID_CREDENTIALS": "이메일 혹은 비밀번호가 일치하지 않습니다",
+    "AUTH_INVALID_CREDENTIALS": "잘못된 자격 증명",
     "AUTH_ACCOUNT_LOCKED": "로그인 실패로 인해 계정이 일시 잠금 처리되었습니다",
     "AUTH_PASSWORD_INCORRECT": "현재 비밀번호가 일치하지 않습니다",
     "VALIDATION_EMAIL_REQUIRED": "이메일 주소가 필요합니다",
@@ -402,7 +404,8 @@
     "confirmPassword": "비밀번호 확인",
     "sso": {
       "continue": "SSO(Single Sign-On)로 계속"
-    }
+    },
+    "emailOrUsername": "이메일 주소 또는 사용자 이름"
   },
   "breadcrumb": {
     "volumes": "볼륨",

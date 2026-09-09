@@ -143,7 +143,8 @@
     "label": "Mes fichiers partagés",
     "path": "ex. Images/Vacances",
     "search": "Rechercher des fichiers et des dossiers…",
-    "volumeLabel": "ex. Documents, Projets, Médias"
+    "volumeLabel": "ex. Documents, Projets, Médias",
+    "emailOrUsername": "nom{'@'}entreprise.com ou nom"
   },
   "loading": {
     "default": "Chargement…",
@@ -183,11 +184,12 @@
     "labelRequired": "Le libellé est obligatoire",
     "pathRequired": "Le chemin est obligatoire",
     "saveVolume": "Échec de l'enregistrement du volume",
-    "removeVolume": "Échec de la suppression du volume"
+    "removeVolume": "Échec de la suppression du volume",
+    "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
-    "AUTH_INVALID_CREDENTIALS": "E-mail ou mot de passe invalide",
+    "AUTH_INVALID_CREDENTIALS": "Identifiants invalides",
     "AUTH_ACCOUNT_LOCKED": "Le compte est temporairement verrouillé en raison de tentatives de connexion échouées",
     "AUTH_PASSWORD_INCORRECT": "Le mot de passe actuel est incorrect",
     "VALIDATION_EMAIL_REQUIRED": "L'e-mail est obligatoire",
@@ -405,7 +407,8 @@
     "confirmPassword": "Confirmer le mot de passe",
     "sso": {
       "continue": "Continuer avec l'authentification unique"
-    }
+    },
+    "emailOrUsername": "Adresse e-mail ou nom d'utilisateur"
   },
   "breadcrumb": {
     "volumes": "Volumes",

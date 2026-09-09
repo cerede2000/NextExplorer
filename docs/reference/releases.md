@@ -6,6 +6,51 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.4.0 (2026-09-09)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.4.0)
+
+### Sign in with a username
+
+Asked for in [#5](https://github.com/cerede2000/NextExplorer/issues/5), and the
+reason is a fair one: a username is what somebody chose, an email address is
+what their mail provider gave them. The sign-in box now takes either, and the
+server works out which it was handed. Case does not matter for either.
+
+The field itself was part of the problem. It was `type="email"`, so the browser
+refused a bare name before anything was ever sent — the server never saw those
+attempts at all.
+
+Two things had to be settled first, and both are worth knowing about.
+
+A username is not unique in the database. The constraint was lost in an early
+migration, and a username is derived from the local part of the address, so
+`alice@example.com` and `alice@other.org` both become `alice`. A name that
+answers for two accounts identifies neither, and choosing between them would be
+choosing whose account a stranger signs into — so it signs nobody in, and those
+accounts keep their email address, which is unambiguous by construction. New
+accounts and renames are now refused when they would take a username already in
+use, so no more are created. An installation that already holds duplicates can
+free the name by giving one of the accounts a different one.
+
+And the lockout after repeated failures used to be counted against whatever was
+typed. One account answering to two names would have had one budget of attempts
+per name, and anyone alternating between them would never have exhausted
+either. It is now counted against the account. The counters reset once on
+upgrade, which costs at most fifteen minutes of an existing lockout.
+
+### Running as root, written down
+
+[#6](https://github.com/cerede2000/NextExplorer/issues/6) asked how to run the
+server as root to reach a root-owned mount, and tried Compose's `user: root`
+without effect. That is not the knob: the entrypoint always finishes with
+`gosu appuser`, so `user:` decides who runs the entrypoint — already root — and
+not who runs the server. `PUID=0` and `PGID=0` do, and nothing said so.
+
+[Running as root](/configuration/environment#running-as-root) now explains it,
+along with what it costs: every file created on the host is owned by root, and
+a mount of `/` hands over the whole host.
+
 ## v3.3.0 (2026-09-03)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.3.0)

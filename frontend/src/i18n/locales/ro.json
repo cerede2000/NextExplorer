@@ -143,7 +143,8 @@
     "label": "Fișierele mele partajate",
     "path": "ex. Imagini/Vacanțe",
     "search": "Caută fișiere și dosare…",
-    "volumeLabel": "ex. Documente, Proiecte, Media"
+    "volumeLabel": "ex. Documente, Proiecte, Media",
+    "emailOrUsername": "nume{'@'}companie.ro sau nume"
   },
   "loading": {
     "default": "Se încarcă…",
@@ -183,11 +184,12 @@
     "labelRequired": "Eticheta este obligatorie",
     "pathRequired": "Calea este obligatorie",
     "saveVolume": "Nu s-a putut salva volumul",
-    "removeVolume": "Nu s-a putut elimina volumul"
+    "removeVolume": "Nu s-a putut elimina volumul",
+    "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentificare necesară",
-    "AUTH_INVALID_CREDENTIALS": "Email sau parolă invalidă",
+    "AUTH_INVALID_CREDENTIALS": "Date de autentificare invalide",
     "AUTH_ACCOUNT_LOCKED": "Contul este blocat temporar din cauza încercărilor eșuate de autentificare",
     "AUTH_PASSWORD_INCORRECT": "Parola curentă este incorectă",
     "VALIDATION_EMAIL_REQUIRED": "Email-ul este obligatoriu",
@@ -402,7 +404,8 @@
     "confirmPassword": "Confirmă parola",
     "sso": {
       "continue": "Continuă cu Single Sign-On"
-    }
+    },
+    "emailOrUsername": "Adresă de e-mail sau nume de utilizator"
   },
   "breadcrumb": {
     "volumes": "Volume",
