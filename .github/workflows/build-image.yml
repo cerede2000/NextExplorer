@@ -192,3 +192,28 @@ jobs:
           fi
           echo "Stamped $stamped, which is the commit that was built."
 
+      # The entrypoint used to renumber `appuser` and chown the volume
+      # directories before dropping to it, all of which need root — so a
+      # container started as a fixed user died at the first `groupmod`, before
+      # the server existed. That is what Compose's `user:` gives, and what a
+      # Kubernetes cluster enforcing the restricted Pod Security Standard
+      # imposes. Reading the script is not proof; starting it is.
+      - name: Check the image starts as a non-root user
+        if: ${{ inputs.push }}
+        run: |
+          tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
+          echo "Starting $tag as 1000:1000"
+          if ! docker run --rm --user 1000:1000 "$tag" node -e 'process.exit(0)'; then
+            echo "::error::The image does not start when the container is given a non-root user"
+            exit 1
+          fi
+          echo "Started, and the command it was given ran."
+
+          echo "Starting $tag as root, which must still renumber and drop to appuser"
+          ran_as="$(docker run --rm -e PUID=1234 -e PGID=1234 "$tag" node -e 'process.stdout.write(`${process.getuid()}:${process.getgid()}`)')"
+          if [ "$ran_as" != "1234:1234" ]; then
+            echo "::error::Started as root the process should run as PUID:PGID, but ran as $ran_as"
+            exit 1
+          fi
+          echo "Ran as $ran_as, which is the PUID:PGID that was asked for."
+

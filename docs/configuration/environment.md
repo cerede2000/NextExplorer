@@ -269,6 +269,10 @@ environment:
 The entrypoint renumbers `appuser` to those ids before dropping to it, so the
 server runs as root and can read and write anything the mounts expose.
 
+Compose's `user:` is a different thing and does not do this. It decides who runs
+the entrypoint, which was already root; the entrypoint then drops to `appuser`
+whatever it says.
+
 That is a real choice rather than a default, and worth making deliberately:
 
 - Every file NextExplorer creates on the host is owned by root.
@@ -278,3 +282,21 @@ That is a real choice rather than a default, and worth making deliberately:
 Where the aim is only to reach a folder the container cannot currently read,
 matching its owner is usually enough — `PUID` and `PGID` set to that owner's
 ids, which is what they are for.
+
+## Starting the container as a fixed user
+
+Giving the container a user of its own — `docker run --user`, Compose's
+`user: 1000:1000`, a Kubernetes `securityContext` — is supported and means
+something different from `PUID`/`PGID`.
+
+The entrypoint notices, and does none of the things only root can do: it does
+not renumber `appuser`, does not take ownership of `/config` and `/cache`, and
+does not drop to another user. The application runs as whoever the container was
+started as, which is what was asked for. `PUID` and `PGID` are ignored in that
+case, and the log says so when they were set.
+
+What that leaves to the deployment is ownership of the mounts. Under Docker,
+the directories must already be readable and writable by that user. Under
+Kubernetes, `fsGroup` does the job `PUID`/`PGID` do here — which is also what
+makes the image usable on a cluster enforcing the `restricted` Pod Security
+Standard, where running as root is refused outright.
