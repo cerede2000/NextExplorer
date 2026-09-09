@@ -78,8 +78,8 @@ const mountLogin = async () => {
   return wrapper.vm;
 };
 
-const signIn = async (view, email = 'moi@example.com', password = 'secret') => {
-  view.loginEmailValue = email;
+const signIn = async (view, identifier = 'moi@example.com', password = 'secret') => {
+  view.loginIdentifier = identifier;
   view.loginPasswordValue = password;
   await view.handleLoginSubmit();
   await flushPromises();
@@ -185,13 +185,13 @@ describe('arriving at the sign-in screen', () => {
   });
 });
 
-describe('signing in with an email and a password', () => {
+describe('signing in with an email or a username, and a password', () => {
   it('sends what was typed, without the stray spaces around it', async () => {
     const view = await mountLogin();
 
     await signIn(view, '  moi@example.com  ');
 
-    expect(login).toHaveBeenCalledWith({ email: 'moi@example.com', password: 'secret' });
+    expect(login).toHaveBeenCalledWith({ identifier: 'moi@example.com', password: 'secret' });
   });
 
   it('goes where the visitor was headed', async () => {
@@ -209,17 +209,25 @@ describe('signing in with an email and a password', () => {
 
     await signIn(view);
 
-    expect(view.loginEmailValue).toBe('');
+    expect(view.loginIdentifier).toBe('');
     expect(view.loginPasswordValue).toBe('');
   });
 
-  it('asks for an email before sending anything', async () => {
+  it('sends a username the same way it sends an address', async () => {
+    const view = await mountLogin();
+
+    await signIn(view, 'alice');
+
+    expect(login).toHaveBeenCalledWith({ identifier: 'alice', password: 'secret' });
+  });
+
+  it('asks for one of the two before sending anything', async () => {
     const view = await mountLogin();
 
     await signIn(view, '   ');
 
     expect(login).not.toHaveBeenCalled();
-    expect(view.loginError).toBe('errors.emailRequired');
+    expect(view.loginError).toBe('errors.identifierRequired');
   });
 
   it('asks for a password too', async () => {
@@ -251,13 +259,13 @@ describe('signing in with an email and a password', () => {
     expect(view.isSubmittingLogin).toBe(false);
   });
 
-  it('keeps the password typed in, so it can be corrected', async () => {
+  it('keeps what was typed in, so it can be corrected', async () => {
     login.mockRejectedValue(new Error('nope'));
     const view = await mountLogin();
 
     await signIn(view);
 
-    expect(view.loginEmailValue).toBe('moi@example.com');
+    expect(view.loginIdentifier).toBe('moi@example.com');
   });
 
   it('refuses outright where the server has switched local sign-in off', async () => {
@@ -414,7 +422,7 @@ describe('a public demo', () => {
   it('fills the form in', async () => {
     const view = await mountLogin();
 
-    expect(view.loginEmailValue).toBe('demo@example.com');
+    expect(view.loginIdentifier).toBe('demo@example.com');
     expect(view.loginPasswordValue).toBe('demo');
   });
 
@@ -424,12 +432,12 @@ describe('a public demo', () => {
     features.ensureLoaded.mockReturnValueOnce(new Promise((resolve) => { arrive = resolve; }));
     const view = await mountLogin();
 
-    view.loginEmailValue = 'moi@example.com';
+    view.loginIdentifier = 'moi@example.com';
     view.loginPasswordValue = 'le mien';
     arrive();
     await flushPromises();
 
-    expect(view.loginEmailValue).toBe('moi@example.com');
+    expect(view.loginIdentifier).toBe('moi@example.com');
     expect(view.loginPasswordValue).toBe('le mien');
   });
 
@@ -438,7 +446,7 @@ describe('a public demo', () => {
 
     const view = await mountLogin();
 
-    expect(view.loginEmailValue).toBe('');
+    expect(view.loginIdentifier).toBe('');
   });
 
   it('carries on when the server would not say', async () => {
@@ -446,7 +454,7 @@ describe('a public demo', () => {
 
     const view = await mountLogin();
 
-    expect(view.loginEmailValue).toBe('');
+    expect(view.loginIdentifier).toBe('');
     expect(view.loginError).toBe('');
   });
 });
