@@ -143,7 +143,8 @@
     "label": "我的分享檔案",
     "path": "例如：Pictures/Holidays",
     "search": "搜尋檔案和檔案夾…",
-    "volumeLabel": "例如：Documents, Projects, Media"
+    "volumeLabel": "例如：Documents, Projects, Media",
+    "emailOrUsername": "name{'@'}company.com 或 name"
   },
   "loading": {
     "default": "載入中…",
@@ -183,11 +184,12 @@
     "labelRequired": "需要標籤",
     "pathRequired": "需要路徑",
     "saveVolume": "儲存儲存卷失敗",
-    "removeVolume": "移除儲存卷失敗"
+    "removeVolume": "移除儲存卷失敗",
+    "identifierRequired": "需要電子郵件地址或使用者名稱"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份驗證",
-    "AUTH_INVALID_CREDENTIALS": "電子郵件或密碼無效",
+    "AUTH_INVALID_CREDENTIALS": "認證資訊無效",
     "AUTH_ACCOUNT_LOCKED": "由於登入嘗試失敗，帳戶已暫時鎖定",
     "AUTH_PASSWORD_INCORRECT": "目前密碼不正確",
     "VALIDATION_EMAIL_REQUIRED": "電子郵件為必填",
@@ -402,7 +404,8 @@
     "confirmPassword": "確認密碼",
     "sso": {
       "continue": "使用單一登入繼續"
-    }
+    },
+    "emailOrUsername": "電子郵件地址或使用者名稱"
   },
   "breadcrumb": {
     "volumes": "儲存卷",

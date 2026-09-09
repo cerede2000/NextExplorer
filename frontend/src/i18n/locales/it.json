@@ -143,7 +143,8 @@
     "label": "I miei file condivisi",
     "path": "es. Immagini/Vacanze",
     "search": "Cerca file e cartelle…",
-    "volumeLabel": "es. Documenti, Progetti, Media"
+    "volumeLabel": "es. Documenti, Progetti, Media",
+    "emailOrUsername": "nome{'@'}azienda.it o nome"
   },
   "loading": {
     "default": "Caricamento…",
@@ -183,11 +184,12 @@
     "labelRequired": "L'etichetta è obbligatoria",
     "pathRequired": "Il percorso è obbligatorio",
     "saveVolume": "Impossibile salvare il volume",
-    "removeVolume": "Impossibile rimuovere il volume"
+    "removeVolume": "Impossibile rimuovere il volume",
+    "identifierRequired": "È richiesto un indirizzo email o un nome utente"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
-    "AUTH_INVALID_CREDENTIALS": "Email o password non validi",
+    "AUTH_INVALID_CREDENTIALS": "Credenziali non valide",
     "AUTH_ACCOUNT_LOCKED": "L'account è temporaneamente bloccato a causa di tentativi di accesso falliti",
     "AUTH_PASSWORD_INCORRECT": "La password corrente è errata",
     "VALIDATION_EMAIL_REQUIRED": "L'email è obbligatoria",
@@ -402,7 +404,8 @@
     "confirmPassword": "Conferma password",
     "sso": {
       "continue": "Continua con Single Sign-On"
-    }
+    },
+    "emailOrUsername": "Indirizzo email o nome utente"
   },
   "breadcrumb": {
     "volumes": "Volumi",

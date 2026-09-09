@@ -148,18 +148,19 @@ router.post(
   })
 );
 
-// Local login with email + password
+// Local login with an email address or a username, and a password
 router.post(
   '/login',
   loginLimiter,
   asyncHandler(async (req, res) => {
-    const { email, password, username } = req.body || {};
-    // Support both email and username (backward compatibility)
-    const emailOrUsername = email || username;
+    const { identifier, email, password, username } = req.body || {};
+    // `email` and `username` are the older field names; both carried whatever
+    // was typed into the one box on the sign-in screen.
+    const typed = identifier || email || username;
 
     let user = null;
     try {
-      user = await attemptLocalLogin({ email: emailOrUsername, password });
+      user = await attemptLocalLogin({ identifier: typed, password });
     } catch (e) {
       if (e?.status === 423) {
         throw new RateLimitError(e.message, e.until);

@@ -1,5 +1,5 @@
 const { getDb } = require('../db');
-const { toClientUser, toShareableUser, normalizeEmail, nowIso } = require('./utils');
+const { toClientUser, toShareableUser, normalizeEmail, nowIso, usernameTaken } = require('./utils');
 const { countAdmins } = require('./queries');
 
 const listUsers = async () => {
@@ -75,6 +75,12 @@ const updateUserProfile = async ({ userId, email, username, displayName }) => {
 
   if (typeof username === 'string') {
     const trimmed = username.trim();
+    // A username is something to sign in with, so it has to name one account.
+    if (trimmed && usernameTaken(db, trimmed, userId)) {
+      const err = new Error('Username already in use.');
+      err.status = 409;
+      throw err;
+    }
     updates.push('username = ?');
     values.push(trimmed || null);
   }
