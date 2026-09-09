@@ -143,7 +143,8 @@
     "label": "Мои общие файлы",
     "path": "например, Pictures/Holidays",
     "search": "Поиск файлов и папок…",
-    "volumeLabel": "например, Документы, Проекты, Медиа"
+    "volumeLabel": "например, Документы, Проекты, Медиа",
+    "emailOrUsername": "имя{'@'}компания.ru или имя"
   },
   "loading": {
     "default": "Загрузка…",
@@ -183,11 +184,12 @@
     "labelRequired": "Требуется метка",
     "pathRequired": "Требуется путь",
     "saveVolume": "Не удалось сохранить том",
-    "removeVolume": "Не удалось удалить том"
+    "removeVolume": "Не удалось удалить том",
+    "identifierRequired": "Требуется адрес электронной почты или имя пользователя"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Требуется аутентификация",
-    "AUTH_INVALID_CREDENTIALS": "Неверная электронная почта или пароль",
+    "AUTH_INVALID_CREDENTIALS": "Неверные учётные данные",
     "AUTH_ACCOUNT_LOCKED": "Учетная запись временно заблокирована из-за неудачных попыток входа",
     "AUTH_PASSWORD_INCORRECT": "Текущий пароль неверен",
     "VALIDATION_EMAIL_REQUIRED": "Требуется электронная почта",
@@ -403,7 +405,8 @@
     "confirmPassword": "Подтвердите пароль",
     "sso": {
       "continue": "Продолжить через Single Sign-On"
-    }
+    },
+    "emailOrUsername": "Адрес электронной почты или имя пользователя"
   },
   "breadcrumb": {
     "volumes": "Тома",

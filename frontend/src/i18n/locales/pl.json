@@ -143,7 +143,8 @@
     "label": "Moje udostępnione pliki",
     "path": "np. Obrazy/Wakacje",
     "search": "Szukaj plików i folderów…",
-    "volumeLabel": "np. Dokumenty, Projekty, Multimedia"
+    "volumeLabel": "np. Dokumenty, Projekty, Multimedia",
+    "emailOrUsername": "imie{'@'}firma.pl lub nazwa"
   },
   "loading": {
     "default": "Ładowanie…",
@@ -183,11 +184,12 @@
     "labelRequired": "Etykieta jest wymagana",
     "pathRequired": "Ścieżka jest wymagana",
     "saveVolume": "Nie udało się zapisać wolumenu",
-    "removeVolume": "Nie udało się usunąć wolumenu"
+    "removeVolume": "Nie udało się usunąć wolumenu",
+    "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Wymagana autentykacja",
-    "AUTH_INVALID_CREDENTIALS": "Nieprawidłowy adres e-mail lub hasło",
+    "AUTH_INVALID_CREDENTIALS": "Nieprawidłowe dane logowania",
     "AUTH_ACCOUNT_LOCKED": "Konto jest tymczasowo zablokowane z powodu nieudanych prób logowania",
     "AUTH_PASSWORD_INCORRECT": "Obecne hasło jest nieprawidłowe",
     "VALIDATION_EMAIL_REQUIRED": "Adres e-mail jest wymagany",
@@ -403,7 +405,8 @@
     "confirmPassword": "Potwierdź hasło",
     "sso": {
       "continue": "Kontynuuj z logowaniem jednokrotnym"
-    }
+    },
+    "emailOrUsername": "Adres e-mail lub nazwa użytkownika"
   },
   "breadcrumb": {
     "volumes": "Woluminy",

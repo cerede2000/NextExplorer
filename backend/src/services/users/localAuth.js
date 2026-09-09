@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
 const logger = require('../../utils/logger');
-const { nowIso, toClientUser, generateId, normalizeEmail } = require('./utils');
+const { nowIso, toClientUser, generateId, normalizeEmail, usernameTaken } = require('./utils');
 const { isLocked, incrementFailedAttempts, clearLock, getLock } = require('./lockout');
 const {
   NotFoundError,
@@ -11,30 +11,74 @@ const {
 } = require('../../errors/AppError');
 const { ErrorCodes } = require('../../errors/errorCodes');
 
-// Attempt local login with email + password
-const attemptLocalLogin = async ({ email, password }) => {
-  const normEmail = normalizeEmail(email);
+/**
+ * The account someone means by what they typed, or null.
+ *
+ * An email is looked up first: it is unique by schema, so it can never be
+ * ambiguous. A username is not — the column carries no uniqueness constraint,
+ * and `createLocalUser` derives one from the local part of the address, so two
+ * people on different domains genuinely can end up as `alice`.
+ *
+ * Where a name matches more than one account it identifies nobody, and picking
+ * one would be choosing whose account a stranger signs into. Those accounts
+ * keep their email, which is unambiguous by construction.
+ */
+const findUserByIdentifier = (db, typed) => {
+  const trimmed = typeof typed === 'string' ? typed.trim() : '';
+  if (!trimmed) return null;
 
-  // Check lockout
-  if (await isLocked(normEmail)) {
-    const lock = await getLock(normEmail);
+  const byEmail = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizeEmail(trimmed));
+  if (byEmail) return byEmail;
+
+  // Without regard to case, because nobody remembers whether they capitalised
+  // their own name — and because the column would let `Alice` and `alice` be
+  // two accounts, which is exactly the ambiguity refused below.
+  const matches = db
+    .prepare(
+      "SELECT * FROM users WHERE username IS NOT NULL AND username <> '' AND lower(username) = lower(?)"
+    )
+    .all(trimmed);
+
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    logger.warn(
+      { username: trimmed, accounts: matches.length },
+      'Several accounts share this username; it cannot be used to sign in. They can use their email address.'
+    );
+  }
+  return null;
+};
+
+/**
+ * Sign in with an email address or a username, and a password.
+ *
+ * @param {{identifier?: string, email?: string, password: string}} credentials
+ *   `email` is accepted as the older name for `identifier`.
+ */
+const attemptLocalLogin = async ({ identifier, email, password }) => {
+  const db = await getDb();
+
+  const user = findUserByIdentifier(db, identifier ?? email);
+  if (!user) {
+    // No counter for something that names no account. The lock is per account,
+    // so counting here would let anyone lock a colleague out by guessing at
+    // their address. Brute force is bounded by the login rate limit.
+    return null;
+  }
+
+  // Keyed on the account rather than on what was typed. One account answering
+  // to two names would otherwise get one lockout budget per name, and anyone
+  // alternating between them would never exhaust either.
+  const lockKey = user.id;
+
+  if (await isLocked(lockKey)) {
+    const lock = await getLock(lockKey);
     const until = lock.locked_until || null;
     const err = new Error('Account is temporarily locked due to failed login attempts.');
     err.status = 423;
     err.code = ErrorCodes.AUTH_ACCOUNT_LOCKED;
     err.until = until;
     throw err;
-  }
-
-  const db = await getDb();
-
-  // Find user by email
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(normEmail);
-  if (!user) {
-    // No counter for an address that has no account: the lock is keyed on the
-    // email alone, so counting here would let anyone lock a colleague out by
-    // guessing their address. Brute force is bounded by the login rate limit.
-    return null;
   }
 
   // Find local password auth method
@@ -48,19 +92,19 @@ const attemptLocalLogin = async ({ email, password }) => {
     .get(user.id);
 
   if (!authMethod || !authMethod.password_hash) {
-    await incrementFailedAttempts(normEmail);
+    await incrementFailedAttempts(lockKey);
     return null;
   }
 
   // Verify password
   const valid = await bcrypt.compare(password || '', authMethod.password_hash);
   if (!valid) {
-    await incrementFailedAttempts(normEmail);
+    await incrementFailedAttempts(lockKey);
     return null;
   }
 
   // Success - clear lockout
-  await clearLock(normEmail);
+  await clearLock(lockKey);
   db.prepare('UPDATE auth_methods SET last_used_at = ? WHERE id = ?').run(nowIso(), authMethod.id);
 
   let clientUser = toClientUser(user);
@@ -85,6 +129,13 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
       null,
       ErrorCodes.VALIDATION_PASSWORD_TOO_SHORT
     );
+  }
+
+  // A username is something to sign in with, so it has to name one account.
+  // Nothing removes the duplicates an older version allowed; this stops more
+  // being made.
+  if (usernameTaken(db, username)) {
+    throw new ConflictError('Username already in use', ErrorCodes.CONFLICT_USER_EXISTS);
   }
 
   // Check if user exists

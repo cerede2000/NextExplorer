@@ -143,7 +143,8 @@
     "label": "我的共享文件",
     "path": "例如：Pictures/Holidays",
     "search": "搜索文件和文件夹…",
-    "volumeLabel": "例如：文档、项目、媒体"
+    "volumeLabel": "例如：文档、项目、媒体",
+    "emailOrUsername": "name{'@'}company.com 或 name"
   },
   "loading": {
     "default": "加载中…",
@@ -183,11 +184,12 @@
     "labelRequired": "必须填写标签",
     "pathRequired": "必须填写路径",
     "saveVolume": "无法保存卷",
-    "removeVolume": "无法移除卷"
+    "removeVolume": "无法移除卷",
+    "identifierRequired": "需要邮箱地址或用户名"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
-    "AUTH_INVALID_CREDENTIALS": "电子邮件或密码无效",
+    "AUTH_INVALID_CREDENTIALS": "凭据无效",
     "AUTH_ACCOUNT_LOCKED": "由于登录尝试失败，账户已被临时锁定",
     "AUTH_PASSWORD_INCORRECT": "当前密码不正确",
     "VALIDATION_EMAIL_REQUIRED": "电子邮件为必填项",
@@ -403,7 +405,8 @@
     "confirmPassword": "确认密码",
     "sso": {
       "continue": "使用单点登录继续"
-    }
+    },
+    "emailOrUsername": "邮箱地址或用户名"
   },
   "breadcrumb": {
     "volumes": "卷",

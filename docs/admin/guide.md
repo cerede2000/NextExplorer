@@ -13,6 +13,16 @@ Administrators control users, folders, and security policies through Settings. T
 - Navigate to **Settings → Admin → Users** to add local users, assign roles, and reset passwords.
 - When `USER_VOLUMES=true`, each user profile includes a **Volumes** tab for assigning per-user volumes. See [User volumes](/admin/user-volumes).
 - Local users store credentials in the SQLite database inside your `/config` mount.
+- People sign in with **either their email address or their username**, in the
+  same box. Case does not matter for either.
+- A username has to name one account to be usable for signing in. NextExplorer
+  refuses a new account, or a rename, that would take a username another account
+  already has — but an installation upgraded from an older version may already
+  hold duplicates, because the username is derived from the local part of the
+  address (`alice@example.com` and `alice@other.org` both become `alice`). Where
+  a username answers for more than one account it signs nobody in, and those
+  accounts use their email address instead. Give one of them a different
+  username in **Settings → Admin → Users** to free it.
 - Promote trusted accounts to admin inside the UI—note that demotions are blocked when it would remove the last admin.
 - When OIDC is enabled, users are created automatically on first login (unless `OIDC_AUTO_CREATE_USERS=false`) and elevated to admin if their `groups`, `roles`, or `entitlements` claims match any of the names inside `OIDC_ADMIN_GROUPS`.
 

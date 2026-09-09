@@ -143,7 +143,8 @@
     "label": "Mina utdelade filer",
     "path": "t.ex. Bilder/Semestrar",
     "search": "Sök efter filer och mappar…",
-    "volumeLabel": "t.ex. Dokument, Projekt, Media"
+    "volumeLabel": "t.ex. Dokument, Projekt, Media",
+    "emailOrUsername": "namn{'@'}foretag.se eller namn"
   },
   "loading": {
     "default": "Läser in…",
@@ -183,11 +184,12 @@
     "labelRequired": "Etikett krävs",
     "pathRequired": "Sökväg krävs",
     "saveVolume": "Det gick inte att spara volymen",
-    "removeVolume": "Det gick inte att ta bort volymen"
+    "removeVolume": "Det gick inte att ta bort volymen",
+    "identifierRequired": "En e-postadress eller ett användarnamn krävs"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
-    "AUTH_INVALID_CREDENTIALS": "Ogiltig e-post eller lösenord",
+    "AUTH_INVALID_CREDENTIALS": "Ogiltiga inloggningsuppgifter",
     "AUTH_ACCOUNT_LOCKED": "Kontot är tillfälligt låst på grund av misslyckade inloggningsförsök",
     "AUTH_PASSWORD_INCORRECT": "Det nuvarande lösenordet är felaktigt",
     "VALIDATION_EMAIL_REQUIRED": "E-post krävs",
@@ -403,7 +405,8 @@
     "confirmPassword": "Bekräfta lösenordet",
     "sso": {
       "continue": "Fortsätt med enkel inloggning"
-    }
+    },
+    "emailOrUsername": "E-postadress eller användarnamn"
   },
   "breadcrumb": {
     "volumes": "Volymer",

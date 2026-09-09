@@ -143,7 +143,8 @@
     "label": "Meine freigegebenen Dateien",
     "path": "z. B. Bilder/Urlaub",
     "search": "Dateien und Ordner durchsuchen…",
-    "volumeLabel": "z. B. Dokumente, Projekte, Medien"
+    "volumeLabel": "z. B. Dokumente, Projekte, Medien",
+    "emailOrUsername": "name{'@'}firma.de oder name"
   },
   "loading": {
     "default": "Wird geladen…",
@@ -183,11 +184,12 @@
     "labelRequired": "Bezeichnung ist erforderlich",
     "pathRequired": "Pfad ist erforderlich",
     "saveVolume": "Volume konnte nicht gespeichert werden",
-    "removeVolume": "Volume konnte nicht entfernt werden"
+    "removeVolume": "Volume konnte nicht entfernt werden",
+    "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
-    "AUTH_INVALID_CREDENTIALS": "Ungültige E-Mail oder Passwort",
+    "AUTH_INVALID_CREDENTIALS": "Ungültige Anmeldedaten",
     "AUTH_ACCOUNT_LOCKED": "Das Konto ist aufgrund fehlgeschlagener Anmeldeversuche vorübergehend gesperrt",
     "AUTH_PASSWORD_INCORRECT": "Das aktuelle Passwort ist falsch",
     "VALIDATION_EMAIL_REQUIRED": "E-Mail ist erforderlich",
@@ -403,7 +405,8 @@
     "confirmPassword": "Passwort bestätigen",
     "sso": {
       "continue": "Mit Single Sign-On fortfahren"
-    }
+    },
+    "emailOrUsername": "E-Mail-Adresse oder Benutzername"
   },
   "breadcrumb": {
     "volumes": "Volumes",

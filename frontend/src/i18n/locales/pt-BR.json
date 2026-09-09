@@ -143,7 +143,8 @@
     "label": "Meus Arquivos Compartilhados",
     "path": "ex.: Fotos/Férias",
     "search": "Pesquisar arquivos e pastas…",
-    "volumeLabel": "ex.: Documentos, Projetos, Mídia"
+    "volumeLabel": "ex.: Documentos, Projetos, Mídia",
+    "emailOrUsername": "nome{'@'}empresa.com ou nome"
   },
   "loading": {
     "default": "Carregando…",
@@ -183,11 +184,12 @@
     "labelRequired": "O rótulo é obrigatório",
     "pathRequired": "O caminho é obrigatório",
     "saveVolume": "Falha ao salvar volume",
-    "removeVolume": "Falha ao remover volume"
+    "removeVolume": "Falha ao remover volume",
+    "identifierRequired": "É necessário um e-mail ou nome de usuário"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticação necessária",
-    "AUTH_INVALID_CREDENTIALS": "E-mail ou senha inválidos",
+    "AUTH_INVALID_CREDENTIALS": "Credenciais inválidas",
     "AUTH_ACCOUNT_LOCKED": "A conta está temporariamente bloqueada devido a tentativas de login com falha",
     "AUTH_PASSWORD_INCORRECT": "A senha atual está incorreta",
     "VALIDATION_EMAIL_REQUIRED": "O e-mail é obrigatório",
@@ -406,7 +408,8 @@
     "confirmPassword": "Confirmar senha",
     "sso": {
       "continue": "Continuar com Single Sign-On"
-    }
+    },
+    "emailOrUsername": "E-mail ou nome de usuário"
   },
   "breadcrumb": {
     "volumes": "Volumes",

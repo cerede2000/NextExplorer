@@ -250,4 +250,30 @@ These variables are available for tuning the share system. The defaults are suit
 
 | Variable       | Description                                                                                                                                                                                     |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PUID`, `PGID` | Map container processes to host user/group IDs so created files have consistent ownership. Defaults to `1000`. The entrypoint adjusts ownership of `/app`, `/config`, and `/cache` accordingly. |
+| `PUID`, `PGID` | Map container processes to host user/group IDs so created files have consistent ownership. Defaults to `1000`. The entrypoint adjusts ownership of `/app`, `/config`, and `/cache` accordingly. Set both to `0` to run as root — see [Running as root](#running-as-root). |
+
+## Running as root
+
+The entrypoint always finishes with `gosu appuser`, so the application runs as
+`appuser` whatever Compose's `user:` says. Setting `user: root` therefore
+changes who runs the entrypoint — which was already root — and not who runs the
+server. The knob is `PUID` and `PGID`:
+
+```yaml
+environment:
+  - PUID=0
+  - PGID=0
+```
+
+The entrypoint renumbers `appuser` to those ids before dropping to it, so the
+server runs as root and can read and write anything the mounts expose.
+
+That is a real choice rather than a default, and worth making deliberately:
+
+- Every file NextExplorer creates on the host is owned by root.
+- A mount of `/` gives it the whole host, `/etc` included, with write access
+  wherever the share or the volume allows writing.
+
+Where the aim is only to reach a folder the container cannot currently read,
+matching its owner is usually enough — `PUID` and `PGID` set to that owner's
+ids, which is what they are for.

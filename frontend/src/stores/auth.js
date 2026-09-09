@@ -84,9 +84,9 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem('guestSessionId');
   };
 
-  const login = async ({ email, password }) => {
+  const login = async ({ identifier, password }) => {
     lastError.value = null;
-    const response = await loginApi({ email, password });
+    const response = await loginApi({ identifier, password });
     hasStatus.value = true;
     currentUser.value = response?.user || null;
 

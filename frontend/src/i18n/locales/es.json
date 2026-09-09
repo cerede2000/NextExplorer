@@ -143,7 +143,8 @@
     "label": "Mis archivos compartidos",
     "path": "p. ej. Imágenes/Vacaciones",
     "search": "Buscar archivos y carpetas…",
-    "volumeLabel": ""
+    "volumeLabel": "",
+    "emailOrUsername": "nombre{'@'}empresa.com o nombre"
   },
   "loading": {
     "default": "Cargando…",
@@ -183,11 +184,12 @@
     "labelRequired": "",
     "pathRequired": "",
     "saveVolume": "",
-    "removeVolume": ""
+    "removeVolume": "",
+    "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Se requiere autenticación",
-    "AUTH_INVALID_CREDENTIALS": "Correo electrónico o contraseña no válidos",
+    "AUTH_INVALID_CREDENTIALS": "Credenciales no válidas",
     "AUTH_ACCOUNT_LOCKED": "La cuenta está bloqueada temporalmente debido a intentos fallidos de inicio de sesión",
     "AUTH_PASSWORD_INCORRECT": "La contraseña actual es incorrecta",
     "VALIDATION_EMAIL_REQUIRED": "El correo electrónico es obligatorio",
@@ -403,7 +405,8 @@
     "confirmPassword": "Confirmar contraseña",
     "sso": {
       "continue": "Continuar con inicio de sesión único"
-    }
+    },
+    "emailOrUsername": "Correo electrónico o nombre de usuario"
   },
   "breadcrumb": {
     "volumes": "Volúmenes",

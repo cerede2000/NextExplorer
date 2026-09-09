@@ -17,7 +17,7 @@ const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 
-const loginEmailValue = ref('');
+const loginIdentifier = ref('');
 const loginPasswordValue = ref('');
 const loginError = ref('');
 const isSubmittingLogin = ref(false);
@@ -86,8 +86,8 @@ onMounted(async () => {
     // friction for nothing. The server only ever sends this in demo mode, and
     // an empty form is left alone if someone has already started typing.
     const demoLogin = featuresStore.demoLogin;
-    if (demoLogin && !loginEmailValue.value && !loginPasswordValue.value) {
-      loginEmailValue.value = demoLogin.email;
+    if (demoLogin && !loginIdentifier.value && !loginPasswordValue.value) {
+      loginIdentifier.value = demoLogin.email;
       loginPasswordValue.value = demoLogin.password;
     }
   } catch (_) {
@@ -136,8 +136,8 @@ const handleLoginSubmit = async () => {
     return;
   }
 
-  if (!loginEmailValue.value.trim()) {
-    loginError.value = t('errors.emailRequired');
+  if (!loginIdentifier.value.trim()) {
+    loginError.value = t('errors.identifierRequired');
     return;
   }
 
@@ -150,10 +150,10 @@ const handleLoginSubmit = async () => {
 
   try {
     await auth.login({
-      email: loginEmailValue.value.trim(),
+      identifier: loginIdentifier.value.trim(),
       password: loginPasswordValue.value,
     });
-    loginEmailValue.value = '';
+    loginIdentifier.value = '';
     loginPasswordValue.value = '';
     redirectToDestination();
   } catch (error) {
@@ -213,14 +213,16 @@ const handleOidcLogin = () => {
 
     <form v-if="supportsLocal" class="space-y-5" @submit.prevent="handleLoginSubmit">
       <label class="block">
-        <span class="block text-sm font-medium text-white/80">{{ $t('auth.emailAddress') }}</span>
+        <span class="block text-sm font-medium text-white/80">{{
+          $t('auth.emailOrUsername')
+        }}</span>
         <input
-          id="login-email"
-          v-model="loginEmailValue"
-          type="email"
-          autocomplete="email"
+          id="login-identifier"
+          v-model="loginIdentifier"
+          type="text"
+          autocomplete="username"
           :class="inputBaseClasses"
-          :placeholder="$t('placeholders.emailCompany')"
+          :placeholder="$t('placeholders.emailOrUsername')"
           :disabled="isSubmittingLogin"
         />
       </label>

@@ -143,7 +143,8 @@
     "label": "मेरी साझा की गई फ़ाइलें",
     "path": "उदाहरण: Pictures/Holidays",
     "search": "फ़ाइलें और फ़ोल्डर खोजें…",
-    "volumeLabel": "जैसे दस्तावेज़, प्रोजेक्ट, मीडिया"
+    "volumeLabel": "जैसे दस्तावेज़, प्रोजेक्ट, मीडिया",
+    "emailOrUsername": "naam{'@'}company.com या naam"
   },
   "loading": {
     "default": "लोड हो रहा है…",
@@ -183,11 +184,12 @@
     "labelRequired": "लेबल आवश्यक है",
     "pathRequired": "पथ आवश्यक है",
     "saveVolume": "वॉल्यूम सहेजा नहीं जा सका",
-    "removeVolume": "वॉल्यूम हटाया नहीं जा सका"
+    "removeVolume": "वॉल्यूम हटाया नहीं जा सका",
+    "identifierRequired": "ईमेल पता या उपयोगकर्ता नाम आवश्यक है"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "प्रमाणीकरण आवश्यक है",
-    "AUTH_INVALID_CREDENTIALS": "अमान्य ईमेल या पासवर्ड",
+    "AUTH_INVALID_CREDENTIALS": "अमान्य प्रमाण-पत्र",
     "AUTH_ACCOUNT_LOCKED": "असफल लॉगिन प्रयासों के कारण खाता अस्थायी रूप से लॉक है",
     "AUTH_PASSWORD_INCORRECT": "वर्तमान पासवर्ड गलत है",
     "VALIDATION_EMAIL_REQUIRED": "ईमेल आवश्यक है",
@@ -403,7 +405,8 @@
     "confirmPassword": "पासवर्ड की पुष्टि करें",
     "sso": {
       "continue": "सिंगल साइन-ऑन के साथ जारी रखें"
-    }
+    },
+    "emailOrUsername": "ईमेल पता या उपयोगकर्ता नाम"
   },
   "breadcrumb": {
     "volumes": "वॉल्यूम",

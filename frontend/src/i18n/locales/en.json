@@ -143,7 +143,8 @@
     "label": "My Shared Files",
     "path": "e.g. Pictures/Holidays",
     "search": "Search files and folders…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "emailOrUsername": "name{'@'}company.com or name"
   },
   "loading": {
     "default": "Loading…",
@@ -183,11 +184,12 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "identifierRequired": "An email address or username is required"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentication required",
-    "AUTH_INVALID_CREDENTIALS": "Invalid email or password",
+    "AUTH_INVALID_CREDENTIALS": "Invalid credentials",
     "AUTH_ACCOUNT_LOCKED": "Account is temporarily locked due to failed login attempts",
     "AUTH_PASSWORD_INCORRECT": "Current password is incorrect",
     "VALIDATION_EMAIL_REQUIRED": "Email is required",
@@ -406,7 +408,8 @@
     "confirmPassword": "Confirm password",
     "sso": {
       "continue": "Continue with Single Sign-On"
-    }
+    },
+    "emailOrUsername": "Email address or username"
   },
   "breadcrumb": {
     "volumes": "Volumes",
