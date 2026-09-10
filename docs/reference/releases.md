@@ -6,6 +6,130 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.5.0 (2026-09-10)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.5.0)
+
+### A personal folder is now actually personal
+
+Personal folders default to `<volume>/_users`, which puts them inside the tree
+everyone browses. The directory name was filtered out of listings, and that was
+the whole of the protection: asking for `_users/alice` by name answered, and the
+volume's access rules had no reason to refuse, because whose folder it was never
+came up. Measured with an ordinary account holding no admin role, it listed
+another account's folder, read a file inside it, and deleted that file — 200
+each time.
+
+The personal space itself was never the way in. It derives the directory from
+who is asking rather than from what was asked for, so there is nothing there to
+aim at. The volume no longer goes there. The comparison is by name, which costs
+nothing, and by real path only where the user root sits inside the volume — an
+installation keeping its personal folders elsewhere pays for none of it, and one
+that points the user root at the volume itself keeps its volume rather than
+losing it.
+
+Two smaller things went with it. The documentation said a `hidden` folder stays
+reachable by direct path; it does not, the access manager refuses it outright,
+and that is corrected. And an account signing in through an identity provider
+before it had a row in the database carried no folder name, so one was derived —
+from `username` first, which two identities from two providers can share. It
+carries the provider's subject now, which is nobody else's.
+
+### The container can be given a user of its own
+
+[#8](https://github.com/cerede2000/NextExplorer/issues/8). The entrypoint used
+to renumber `appuser`, take ownership of `/config` and `/cache`, and finish with
+`gosu appuser`. All three need root, and under `set -e` the first one that
+failed took the container with it before the server existed. That is what
+Compose's `user: 1000:1000` gave you, and what a Kubernetes `runAsNonRoot: true`
+gives you — a container that dies at startup.
+
+Started as root, nothing has changed: `PUID`/`PGID` still renumber, the
+directories are still chowned, the process still drops to `appuser`. Started as
+anything else, none of that work is needed — the process is already the user it
+was meant to become — so it is skipped, the log says `PUID`/`PGID` are being
+ignored and why, and the application runs as whoever the container was given.
+A directory that cannot be created is a warning rather than an abort, since the
+mount is expected to provide it.
+
+Both published images are started as `1000:1000` in CI on every build, and as
+root, so neither half can quietly stop working.
+
+### A session that ends now says so
+
+An expired session used to leave the screen exactly as it was, and every request
+behind it failed into a row of error toasts — including our own "Network Error",
+whose text suggests looking at `PUBLIC_URL` and CORS. Nothing was wrong with the
+deployment; the session had ended, which is a normal thing for a session to do.
+
+The client now recognises it and returns to the sign-in screen. That covers the
+plain case, where the server answers 401, and the one behind an authenticating
+proxy, where the proxy answers first with a redirect to the identity provider on
+another origin — no CORS headers, so the browser reports `TypeError: Failed to
+fetch`, indistinguishable from an unreachable server unless you ask.
+
+### A text file opens in whatever it is written in
+
+A 3.5 MB `.txt` was refused as binary. It was not: it was UTF-16, where every
+ASCII character is stored with a zero byte beside it, and a zero byte is exactly
+what the binary test looked for. PowerShell's `Out-File` wrote UTF-16LE by
+default until PowerShell 6 and Notepad still offers it as "Unicode", so a log or
+an export from a Windows machine is very often UTF-16. Files are now read in the
+encoding they declare.
+
+### A refusal arrives as a refusal
+
+Every access decision in the transfer service raised a plain error, which
+carries no status, so being told "you may not" arrived as a 500 with a stack in
+the log — an outage, by the shape of it, for a permission working as designed.
+It cost the caller too: the uploader does not retry a 403 and does retry a 500,
+so a refusal was retried until it ran out of attempts. Refusals are 403 now, a
+path that is not there is 404, and a destination that is not a directory, a
+folder inside itself, or an operation that does not exist is 400.
+
+### Thumbnail cleanup only counts thumbnails
+
+The cleanup is the only thing between the cache and a full disk, and it deletes
+files. The name pattern decided which entries were outdated or expired, then was
+dropped for the overflow trim, which took every file in the directory — so
+anything else living there counted towards the limit and could be deleted to
+satisfy it. The pattern now decides all three.
+
+### Signing in from a native app
+
+The three OIDC bridge routes from upstream are in, which let a native
+application finish a sign-in it cannot finish the way the web app does. They
+answer 404 unless OIDC is configured, and nothing in the web interface touches
+them. Two things were closed on the way in: the session is regenerated at the
+exchange, so an identifier known beforehand is not the one that ends up
+authenticated, and the redirect target is checked against
+`OIDC_MOBILE_REDIRECT_URIS` rather than trusted.
+
+### Underneath
+
+Most of this release is tests — the folder view, the row, the details panel,
+the editor, the uploader, the context menu, the sign-in screen, the shared-link
+screen, the admin screen, the terminal gate, the WOPI contract, the search index
+and the folder-size index. Two of them changed the code they were written
+against: copying and deleting have two engines, `rsync`/`rm` and streams/`fs.rm`,
+and which one ran was decided by the platform at module load, so each was only
+ever exercised where it was chosen and thirty lines of `rm -rf` had never run
+on any machine under measurement. The engine is now chosen per operation and
+both are covered wherever the tests run.
+
+And a note in `TODO.md` that had gone unexplained for months is resolved: the
+search has two content engines, one runs per request depending on whether
+`ripgrep` can be spawned, and each machine was covering the size bound the other
+one could have deleted for free.
+
+### Upgrading
+
+Nothing to do beyond pulling the image. No schema migration, no configuration
+change. `OIDC_MOBILE_REDIRECT_URIS` is new and optional: it names the
+custom-scheme URIs the bridge may deliver a code to, and defaults to
+`nextexplorer://oidc-callback`. `http` and `https` targets are rejected whatever
+it says, so the bridge cannot be turned into an open redirect.
+
 ## v3.4.0 (2026-09-09)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.4.0)
