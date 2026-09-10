@@ -40,6 +40,11 @@ CONFIG_DIR="$WORK/config" CACHE_DIR="$WORK/cache" VOLUME_ROOT="$WORK/files" \
     setTimeout(() => process.exit(0), 5000);
   "
 
+echo "==> chaque appel client doit avoir une route qui y repond"
+# Le build et le boot ne voient pas un appel vers une route absente : ca se
+# construit, ca demarre, et ca rend une 404 a l utilisateur.
+node "$REPO_ROOT/scripts/check-endpoints.mjs" "$WORK/tree"
+
 cd "$REPO_ROOT"
 git worktree remove --force "$WORK/tree"
 echo
