@@ -7,8 +7,9 @@ export default defineConfig({
   // GitHub Pages serves a project site under /<repository>/, so every asset and
   // link has to be built with that prefix or the published site loads nothing.
   base: '/NextExplorer/',
-  title: 'nextExplorer',
+  title: 'NextExplorer',
   description: 'Modern, self-hosted file explorer',
+  head: [['link', { rel: 'icon', href: '/NextExplorer/images/logo.png' }]],
   themeConfig: {
     logo: '/images/logo.png',
     search: {
