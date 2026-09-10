@@ -25,5 +25,16 @@ module.exports = {
         node: true,
       },
     },
+    {
+      // Les outils de verification sont des modules ES: sans sourceType, eslint
+      // lit leur premier import comme une erreur de syntaxe.
+      files: ['scripts/**/*.mjs'],
+      env: {
+        node: true,
+      },
+      parserOptions: {
+        sourceType: 'module',
+      },
+    },
   ],
 };
