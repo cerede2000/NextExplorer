@@ -1,0 +1,4 @@
+{
+  "backend": { "statements": 79, "branches": 68, "functions": 81, "lines": 81 },
+  "frontend": { "statements": 71, "branches": 56, "functions": 55, "lines": 73 }
+}

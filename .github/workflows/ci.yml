@@ -18,6 +18,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # The commit check below reads every commit a push brings, which a
+          # shallow clone of the tip does not have.
+          fetch-depth: 0
+
+      # A change in behaviour arrives with the test that holds it, in the same
+      # commit, or says why not with a `No-test:` trailer. First, because it
+      # needs nothing installed and a refusal here should not wait on the suites.
+      - name: Every code change carries its test
+        run: |
+          case "${{ github.event_name }}" in
+            pull_request)
+              base="${{ github.event.pull_request.base.sha }}"
+              head="${{ github.event.pull_request.head.sha }}" ;;
+            push)
+              base="${{ github.event.before }}"
+              head="${{ github.sha }}" ;;
+            *)
+              echo "Nothing to compare on ${{ github.event_name }}."
+              exit 0 ;;
+          esac
+          # A new branch has no `before`, and a force push can leave one that is
+          # no longer in the history: fall back to where the branch left main.
+          if [ "$base" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git merge-base origin/main "$head")"
+          fi
+          scripts/check-commit-tests.sh "${base}..${head}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -116,6 +144,32 @@ jobs:
             # from the rendered summary — one of them is reachable with a
             # command, and the other needs a browser.
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The floors in coverage-thresholds.json fail the test steps above when
+      # coverage drops. They only protect what they are set to, so a floor left
+      # well below the figure lets that much slip back unnoticed: this says when
+      # one is a point or more behind and should be raised.
+      - name: Coverage floors
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -f backend/coverage/coverage-summary.json ] || exit 0
+          [ -f frontend/coverage/coverage-summary.json ] || exit 0
+          node -e "
+            const floors = require('./coverage-thresholds.json');
+            for (const side of ['backend', 'frontend']) {
+              const total = require('./' + side + '/coverage/coverage-summary.json').total;
+              for (const k of ['statements', 'branches', 'functions', 'lines']) {
+                const actual = total[k].pct;
+                const floor = floors[side][k];
+                const behind = actual - floor >= 1;
+                console.log(side.padEnd(9) + k.padEnd(11) + String(actual).padStart(6) + '%  floor ' + floor + '%');
+                if (behind) {
+                  console.log('::notice title=Coverage floor::' + side + ' ' + k + ' is at ' + actual + '%, floor ' + floor + '% — raise it to ' + Math.floor(actual) + ' in coverage-thresholds.json');
+                }
+              }
+            }
+          "
 
       - name: Frontend build
         run: npm run build

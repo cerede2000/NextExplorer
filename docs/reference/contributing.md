@@ -78,6 +78,31 @@ cd frontend && npm run test:unit
 cd frontend && npm run lint
 ```
 
+### What CI holds every push to
+
+**A change in behaviour arrives with its test, in the same commit.** A commit
+that touches `backend/src` or `frontend/src` without touching a test is
+refused. Some changes rightly carry none — a refactor under tests that already
+exist, a move, a rename — and those say so with a trailer, so the exception is
+a decision written down rather than something nobody noticed:
+
+```
+Split the share decision into the three questions it asks
+
+No-test: pure extraction, held by tests/routes/shares.test.js
+```
+
+Run the same check before pushing with
+`scripts/check-commit-tests.sh origin/main..HEAD`.
+
+**Coverage does not go down.** The floors live in `coverage-thresholds.json`
+and fail the test run when a figure drops below them. The frontend floors apply
+everywhere; the backend ones apply in CI only, because several backend suites
+skip themselves without 7-Zip, ffmpeg, ripgrep or pdftotext, and a machine
+without those covers a little less for no fault of the change. When a figure
+climbs a point past its floor, CI says so — raise the floor in the same pull
+request, so the ground gained cannot be lost again.
+
 ## Build
 
 - Production container:
@@ -95,7 +120,7 @@ cd frontend && npm run build && npm run preview
 ## Pull Requests
 
 - Keep PRs small and atomic. Describe the problem and the approach.
-- Include tests for new behavior when practical (backend: Vitest + supertest; frontend: Vitest).
+- A change in behaviour comes with its test in the same commit, or a `No-test:` trailer saying why (see above).
 - Update docs in `docs/` and user-facing `README.md` when behavior or settings change.
 - Run tests and linters locally before submitting.
 
