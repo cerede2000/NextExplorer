@@ -223,19 +223,23 @@ jobs:
       # one built from source in the lean one — and nothing proved either could
       # read a HEIC. verify-ffmpeg.sh took HEVC in MP4 as standing for it, which
       # it does not: an ffmpeg before 7.1 decodes the one and cannot open the
-      # other. So each image is handed a real HEIC, and has to put red on the
-      # left and blue on the right: reading only one tile, or flipping it, moves
-      # those colours. Converted to RGB before the reduction to two pixels, since
-      # in 4:2:0 the two would share one chroma sample and both come out purple.
+      # other. So each image is handed a real HEIC, decodes it the way the
+      # thumbnail service does (docker/check-heic.cjs: ffmpeg to PNG, then
+      # sharp), and has to put red on the left and blue on the right: reading
+      # only one tile, or flipping it, moves those colours. PNG and not a raw
+      # dump because the lean ffmpeg is built without the encoders it does not
+      # need, and a raw dump is one of them — the first version of this check
+      # failed on that, not on the HEIC.
       - name: Check the image's ffmpeg decodes a HEIC
         if: ${{ inputs.push }}
         run: |
           tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
-          pixels="$(docker run --rm --entrypoint ffmpeg \
-              -v "$PWD/backend/tests/fixtures/half-red-half-blue.heic:/tmp/photo.heic:ro" "$tag" \
-              -v error -i /tmp/photo.heic -frames:v 1 \
-              -vf format=rgb24,scale=2:1:flags=area -f rawvideo -pix_fmt rgb24 - \
-            | od -An -tu1)"
+          pixels="$(docker run --rm --entrypoint node -w /app \
+              -v "$PWD/docker/check-heic.cjs:/tmp/check-heic.cjs:ro" \
+              -v "$PWD/backend/tests/fixtures/half-red-half-blue.heic:/tmp/photo.heic:ro" \
+              "$tag" /tmp/check-heic.cjs /tmp/photo.heic)" || pixels=""
+          # Under bash -e a failed run would stop the step here, before the
+          # message below says what it was checking; the empty answer fails it.
           echo "Decoded, as R G B left then right: $pixels"
           set -- $pixels
           if [ "$#" -ne 6 ] || [ "$1" -lt 200 ] || [ "$3" -gt 60 ] || [ "$4" -gt 60 ] || [ "$6" -lt 200 ]; then
