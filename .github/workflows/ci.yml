@@ -148,7 +148,7 @@ jobs:
       # The floors in coverage-thresholds.json fail the test steps above when
       # coverage drops. They only protect what they are set to, so a floor left
       # well below the figure lets that much slip back unnoticed: this says when
-      # one is a point or more behind and should be raised.
+      # one can be raised and still keep half a point of room.
       - name: Coverage floors
         if: always()
         continue-on-error: true
@@ -162,10 +162,12 @@ jobs:
               for (const k of ['statements', 'branches', 'functions', 'lines']) {
                 const actual = total[k].pct;
                 const floor = floors[side][k];
-                const behind = actual - floor >= 1;
+                // The highest whole number that still leaves half a point of
+                // room: any closer and a run that misses a few lines reds.
+                const suggested = Math.floor(actual - 0.5);
                 console.log(side.padEnd(9) + k.padEnd(11) + String(actual).padStart(6) + '%  floor ' + floor + '%');
-                if (behind) {
-                  console.log('::notice title=Coverage floor::' + side + ' ' + k + ' is at ' + actual + '%, floor ' + floor + '% — raise it to ' + Math.floor(actual) + ' in coverage-thresholds.json');
+                if (suggested > floor) {
+                  console.log('::notice title=Coverage floor::' + side + ' ' + k + ' is at ' + actual + '%, floor ' + floor + '% — raise it to ' + suggested + ' in coverage-thresholds.json');
                 }
               }
             }

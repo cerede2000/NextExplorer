@@ -99,9 +99,11 @@ Run the same check before pushing with
 and fail the test run when a figure drops below them. The frontend floors apply
 everywhere; the backend ones apply in CI only, because several backend suites
 skip themselves without 7-Zip, ffmpeg, ripgrep or pdftotext, and a machine
-without those covers a little less for no fault of the change. When a figure
-climbs a point past its floor, CI says so — raise the floor in the same pull
-request, so the ground gained cannot be lost again.
+without those covers a little less for no fault of the change. Each floor keeps
+half a point of room under the CI figure, so a run that happens to miss a few
+lines does not turn red. When a figure climbs far enough to raise its floor and
+still keep that room, CI says so — raise it in the same pull request, so the
+ground gained cannot be lost again.
 
 ## Build
 
