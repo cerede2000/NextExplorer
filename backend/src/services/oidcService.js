@@ -115,10 +115,19 @@ const fetchUserInfoClaims = async ({
 
   // Fall back to discovery when no valid override was provided
   if (!endpoint) {
-    const configuration = await discoverOpenIdConfiguration({
-      issuer,
-      timeoutMs,
-    });
+    // Guarded like the userinfo fetch below. The sign-in has already succeeded
+    // when this runs and the caller falls back to the id token's claims on
+    // null, so a provider whose discovery document is briefly unreachable is no
+    // reason to refuse someone — unguarded, a 503 here failed the whole sign-in.
+    let configuration = null;
+    try {
+      configuration = await discoverOpenIdConfiguration({
+        issuer,
+        timeoutMs,
+      });
+    } catch (error) {
+      logger.warn({ err: error, issuer }, 'Failed to fetch OIDC discovery document');
+    }
     logger.debug(
       { issuer, hasConfiguration: Boolean(configuration) },
       'Received OIDC configuration'
