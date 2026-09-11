@@ -46,9 +46,32 @@ test('the first visit sets up an administrator and signs them in', async () => {
   await expect(page.getByText(admin.email)).toBeVisible();
 });
 
+/** Press `key` until `target` has focus, as someone without a mouse would. */
+const pressUntilFocused = async (key, target, limit = 50) => {
+  await expect(target).toBeVisible();
+  for (let presses = 0; presses < limit; presses += 1) {
+    await page.keyboard.press(key);
+    if (await target.evaluate((element) => element === document.activeElement)) return;
+  }
+  throw new Error(`${key} never reached ${target}`);
+};
+
 test('signing out returns to the sign-in screen, and the username signs back in', async () => {
-  await page.locator('div[aria-expanded]').filter({ hasText: admin.email }).click();
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  // By keyboard alone. The account menu is the only way to Sign out, and its
+  // toggle was once a div: clickable, but out of reach of every key. The exact
+  // name is what a screen reader reads and what voice control answers to — the
+  // word for the control, then the name and address shown on it.
+  const account = page.getByRole('button', {
+    name: `Account ${admin.username} ${admin.email}`,
+    exact: true,
+  });
+  await pressUntilFocused('Tab', account);
+  await page.keyboard.press('Enter');
+  await expect(account).toHaveAttribute('aria-expanded', 'true');
+
+  // The menu opens above its toggle, so its entries come before it.
+  await pressUntilFocused('Shift+Tab', page.getByRole('button', { name: 'Sign out' }));
+  await page.keyboard.press('Enter');
 
   await expect(page.locator('#login-identifier')).toBeVisible();
 

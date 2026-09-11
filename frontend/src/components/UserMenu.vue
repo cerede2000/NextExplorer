@@ -155,17 +155,23 @@ const handleLogout = async () => {
         </transition>
       </div>
 
-      <div
+      <button
         type="button"
         class="group flex w-full items-center gap-3 text-left transition"
         @click="toggleMenu"
         :aria-expanded="isExpanded"
+        aria-haspopup="menu"
       >
+        <!-- Named "Account" followed by the name and address it shows, so voice
+             control answers to what is on screen. The avatar only repeats the
+             name beside it. -->
+        <span class="sr-only">{{ $t('user.account') }}</span>
         <span
+          aria-hidden="true"
           class="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-base font-semibold uppercase text-accent transition group-hover:bg-accent/25 dark:bg-white/10 dark:text-white dark:group-hover:bg-white/20"
         >
           <template v-if="avatarUrl">
-            <img :src="avatarUrl" alt="User avatar" class="h-9 w-9 rounded-full object-cover" />
+            <img :src="avatarUrl" alt="" class="h-9 w-9 rounded-full object-cover" />
           </template>
           <template v-else-if="avatarLetter">{{ avatarLetter }}</template>
           <UserCircleIcon v-else class="h-6 w-6" />
@@ -184,7 +190,7 @@ const handleLogout = async () => {
           class="h-3 w-3 text-neutral-400 transition group-hover:text-neutral-700 dark:text-white/60 dark:group-hover:text-white/80"
           :class="{ 'rotate-180': isExpanded }"
         />
-      </div>
+      </button>
     </div>
   </div>
 </template>
