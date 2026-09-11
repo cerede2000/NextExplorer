@@ -60,10 +60,10 @@ jobs:
       # nearly every deployment actually runs goes untested — which is how a
       # setting that made ripgrep refuse its own flag reached a release.
       #
-      # ffmpeg makes the video and HEIC thumbnail paths runnable at all. Note
-      # that Ubuntu 24.04 carries 6.1, which predates the HEIF demuxer: the HEIC
-      # decode assertions announce themselves as skipped here and run against
-      # the 8.0.1 in the runtime image.
+      # ffmpeg makes the video and HEIC thumbnail paths runnable at all. Ubuntu
+      # 24.04 carries 6.1, which predates the HEIF demuxer, so the HEIC suites
+      # skip here — reported as skipped — and run in the media job below, on the
+      # ffmpeg the image ships.
       - name: Install 7-Zip, ripgrep, poppler and ffmpeg
         run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils ffmpeg
 
@@ -84,6 +84,10 @@ jobs:
       # own timeout now, with the reason written beside them.
       - name: Backend tests
         run: npm run test:coverage:backend
+        env:
+          # ffmpeg was installed above on purpose: the suites that need it must
+          # run, not skip because an apt change quietly dropped it.
+          REQUIRE_MEDIA_TOOLS: ffmpeg
 
       - name: Frontend tests
         run: npm run test:coverage:frontend
@@ -190,3 +194,34 @@ jobs:
         # change that breaks it fails now, rather than the next time someone
         # redeploys the public demo.
         run: docker build -f demo/Dockerfile demo/
+
+  # The HEIC suites need an ffmpeg that reads HEIF, which the runner's 6.1
+  # cannot: there they skip. Here they run on the base the image is built from,
+  # read from the Dockerfile so the two cannot drift, with Alpine's ffmpeg —
+  # the one the full image installs — and HEIF is required, so a skip cannot
+  # hide in this job. Until this existed, the HEIC decode assertions had never
+  # run on any CI machine, while reporting green on every one.
+  media:
+    name: Media suites, with the image's ffmpeg
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run the ffmpeg and HEIC suites on the image's base
+        run: |
+          base="$(awk '$1 == "FROM" && $NF == "base" { print $2 }' Dockerfile)"
+          [ -n "$base" ] || { echo "::error::No base stage found in the Dockerfile"; exit 1; }
+          echo "Base image: $base"
+          docker run --rm -v "$PWD:/work" -w /work "$base" sh -euc '
+            apk add --no-cache ffmpeg python3 make g++ >/dev/null
+            ffmpeg -version | head -n 1
+            npm ci --workspace backend --no-audit --no-fund >/dev/null
+            cd backend
+            REQUIRE_MEDIA_TOOLS=ffmpeg,heif npx vitest run \
+              tests/services/heic-thumbnail.test.js \
+              tests/services/ffmpeg-thumbnails.test.js \
+              tests/services/ffmpeg-failure-reporting.test.js \
+              tests/services/media-tracks.test.js \
+              tests/routes/media-tracks-route.test.js
+          '

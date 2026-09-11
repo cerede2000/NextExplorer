@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { execFile, spawn } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import sharp from 'sharp';
 
-const execFileAsync = promisify(execFile);
+import { ffmpegReadsHeif, HEIC_FIXTURE as FIXTURE } from '../helpers/media-tools.js';
 
 /**
  * HEIC thumbnails, after ImageMagick was dropped from the image.
@@ -23,30 +22,15 @@ const execFileAsync = promisify(execFile);
  * that only checked the dimensions would pass on all three.
  */
 
-const FIXTURE = path.join(import.meta.dirname, '..', 'fixtures', 'half-red-half-blue.heic');
-
 /**
  * Whether the ffmpeg on this machine can read HEIF at all.
  *
- * The still-image HEIF demuxer arrived in ffmpeg 7.1. The runtime image is
- * Alpine 3.23 (ffmpeg 8.0.1) so it is always there in production, but a CI
- * runner on Ubuntu 24.04 carries 6.1 and cannot open the fixture. That is worth
- * skipping over, not worth failing over — and worth saying out loud rather than
- * passing quietly.
+ * The still-image HEIF demuxer arrived in ffmpeg 7.1. A CI runner on Ubuntu
+ * 24.04 carries 6.1 and cannot open the fixture, so there these are skipped —
+ * reported as skipped. A separate CI job runs them against the ffmpeg the
+ * image ships, and requires HEIF there, so they do run somewhere on every push.
  */
-const ffmpegReadsHeif = async () => {
-  try {
-    const { stdout } = await execFileAsync('ffprobe', [
-      '-v', 'error',
-      '-show_entries', 'stream=codec_name',
-      '-of', 'default=nw=1:nk=1',
-      FIXTURE,
-    ]);
-    return stdout.trim() === 'hevc';
-  } catch (_) {
-    return false;
-  }
-};
+const heif = await ffmpegReadsHeif();
 
 /** The decode half of makeHeicThumb, run as the service runs it. */
 const decodeToWebp = (size) =>
@@ -67,21 +51,8 @@ const decodeToWebp = (size) =>
     pipeline.toBuffer().then(resolve).catch(reject);
   });
 
-describe('HEIC thumbnails are decoded by ffmpeg', () => {
-  it('reads the fixture as HEVC, or says why it cannot', async () => {
-    const readable = await ffmpegReadsHeif();
-    if (!readable) {
-      console.warn(
-        'ffmpeg here predates the HEIF demuxer (7.1); the decode assertions below are skipped. ' +
-          'The runtime image ships ffmpeg 8.0.1, where they run.'
-      );
-    }
-    expect(typeof readable).toBe('boolean');
-  });
-
+describe.skipIf(!heif)('HEIC thumbnails are decoded by ffmpeg', () => {
   it('produces a WebP of the requested width', async () => {
-    if (!(await ffmpegReadsHeif())) return;
-
     const webp = await decodeToWebp(64);
     const meta = await sharp(webp).metadata();
 
@@ -94,8 +65,6 @@ describe('HEIC thumbnails are decoded by ffmpeg', () => {
    * or losing the orientation, moves these two colours.
    */
   it('keeps red on the left and blue on the right', async () => {
-    if (!(await ffmpegReadsHeif())) return;
-
     const webp = await decodeToWebp(64);
     const { data, info } = await sharp(webp).raw().toBuffer({ resolveWithObject: true });
     const at = (x, y) => {
@@ -113,8 +82,6 @@ describe('HEIC thumbnails are decoded by ffmpeg', () => {
   });
 
   it('writes a file the thumbnail cache can serve', async () => {
-    if (!(await ffmpegReadsHeif())) return;
-
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'heic-thumb-'));
     try {
       const destination = path.join(dir, 'thumb.webp');

@@ -133,9 +133,11 @@ check_audio "ogg"   tone.ogg  -c:a libvorbis
 check_audio "opus"  tone.opus -c:a libopus
 check_audio "wma"   tone.wma  -c:a wmav2
 
-# A HEIC is HEVC inside an ISOBMFF container with an `heic` brand. Decoding it
-# is the same demuxer and decoder the .mp4/hevc case above exercises, so a
-# working hevc there is what makes the HEIC thumbnail path work.
+# A HEIC is HEVC inside an ISOBMFF container with an `heic` brand, but a
+# working hevc/mp4 above does not stand for it: reading one takes the HEIF
+# demuxer, which ffmpeg only has from 7.1, and an older build decodes the mp4
+# and cannot open the HEIC. It is checked on the finished image instead, for
+# both variants, in .github/workflows/build-image.yml.
 # A subtitle track has to come out as WebVTT, because that is the only subtitle
 # format a browser will display. This exercises the two halves separately: a
 # file that is nothing but subtitles proves the demuxer and the WebVTT muxer,

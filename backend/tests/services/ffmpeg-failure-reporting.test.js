@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { hasFfmpeg } from '../helpers/media-tools.js';
 
 /**
  * A whole-file budget, against a vitest default of five seconds.
@@ -16,8 +15,6 @@ import { setupTestEnv } from '../helpers/env-test-utils.js';
  * these in half the runs before this.
  */
 vi.setConfig({ testTimeout: 30_000 });
-
-const execFileAsync = promisify(execFile);
 
 /**
  * Whose failure it is when a thumbnail cannot be made.
@@ -63,15 +60,6 @@ const watchLogger = () => {
     logged.push({ fields, message });
   });
   vi.spyOn(logger, 'warn').mockImplementation(() => {});
-};
-
-const hasFfmpeg = async () => {
-  try {
-    await execFileAsync('ffmpeg', ['-version']);
-    return true;
-  } catch (_) {
-    return false;
-  }
 };
 
 const setup = async () => {

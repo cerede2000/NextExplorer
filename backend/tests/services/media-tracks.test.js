@@ -5,6 +5,8 @@ import fs from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
+import { hasFfmpeg as ffmpegAvailable } from '../helpers/media-tools.js';
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -25,14 +27,6 @@ let tracksService;
 let fixtureDir;
 let hasFfmpeg = false;
 
-const ffmpegAvailable = async () => {
-  try {
-    await execFileAsync('ffmpeg', ['-version']);
-    return true;
-  } catch (_) {
-    return false;
-  }
-};
 
 /**
  * A clip with a French AAC track, an English AC-3 track, and two subtitle

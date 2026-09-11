@@ -7,6 +7,7 @@ import express from 'express';
 import request from 'supertest';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { hasFfmpeg } from '../helpers/media-tools.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,14 +23,6 @@ const execFileAsync = promisify(execFile);
 
 let ctx;
 
-const hasFfmpeg = async () => {
-  try {
-    await execFileAsync('ffmpeg', ['-version']);
-    return true;
-  } catch (_) {
-    return false;
-  }
-};
 
 const buildFilm = async (dir) => {
   const srt = path.join(dir, 'subs.srt');

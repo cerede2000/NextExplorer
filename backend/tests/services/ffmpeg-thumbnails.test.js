@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import sharp from 'sharp';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { ffmpegReadsHeif, hasFfmpeg, HEIC_FIXTURE } from '../helpers/media-tools.js';
 
 /**
  * A whole-file budget, against a vitest default of five seconds.
@@ -36,14 +37,9 @@ const execFileAsync = promisify(execFile);
 
 let ctx;
 
-const hasFfmpeg = async () => {
-  try {
-    await execFileAsync('ffmpeg', ['-version']);
-    return true;
-  } catch (_) {
-    return false;
-  }
-};
+// Asked once, at load: skipIf needs the answer before the tests are declared.
+const ffmpeg = await hasFfmpeg();
+const heif = ffmpeg && (await ffmpegReadsHeif());
 
 const setup = async (env = {}) => {
   ctx = await setupTestEnv({
@@ -125,11 +121,7 @@ const colourAt = async (file, x, y) => {
 };
 
 describe('a video thumbnail', () => {
-  it('is produced from a real clip', async () => {
-    if (!(await hasFfmpeg())) {
-      console.warn('ffmpeg is not installed here; the decode assertions are skipped.');
-      return;
-    }
+  it.skipIf(!ffmpeg)('is produced from a real clip', async () => {
     const env = await setup();
     const service = env.requireFresh('src/services/thumbnailService');
     const source = path.join(env.volumeDir, 'clip.mp4');
@@ -145,8 +137,7 @@ describe('a video thumbnail', () => {
    * and writes nothing useful still exits zero; a picture with red on the left
    * and blue on the right came from decoding the actual frame.
    */
-  it('holds the picture that was in the clip', async () => {
-    if (!(await hasFfmpeg())) return;
+  it.skipIf(!ffmpeg)('holds the picture that was in the clip', async () => {
     const env = await setup();
     const service = env.requireFresh('src/services/thumbnailService');
     const source = path.join(env.volumeDir, 'clip.mp4');
@@ -164,8 +155,7 @@ describe('a video thumbnail', () => {
     expect(right.r).toBeLessThan(90);
   });
 
-  it('works for a container ffmpeg has to seek into', async () => {
-    if (!(await hasFfmpeg())) return;
+  it.skipIf(!ffmpeg)('works for a container ffmpeg has to seek into', async () => {
     const env = await setup();
     const service = env.requireFresh('src/services/thumbnailService');
     const source = path.join(env.volumeDir, 'clip.mkv');
@@ -179,8 +169,7 @@ describe('a video thumbnail', () => {
    * to be read before the seek point can be worked out. It is a separate code
    * path from the fixed seek, and the one that silently falls back.
    */
-  it('seeks by percentage, which means ffprobe answered', async () => {
-    if (!(await hasFfmpeg())) return;
+  it.skipIf(!ffmpeg)('seeks by percentage, which means ffprobe answered', async () => {
     const env = await setup({ THUMBNAIL_VIDEO_SEEK_PERCENT: '0.5' });
     const service = env.requireFresh('src/services/thumbnailService');
     const source = path.join(env.volumeDir, 'clip.mp4');
@@ -189,8 +178,7 @@ describe('a video thumbnail', () => {
     await expect(thumbnailFor(env, service, source)).resolves.toBeTruthy();
   });
 
-  it('gives up quietly on a file that is not a video at all', async () => {
-    if (!(await hasFfmpeg())) return;
+  it.skipIf(!ffmpeg)('gives up quietly on a file that is not a video at all', async () => {
     const env = await setup();
     const service = env.requireFresh('src/services/thumbnailService');
     const source = path.join(env.volumeDir, 'broken.mp4');
@@ -203,22 +191,12 @@ describe('a video thumbnail', () => {
 });
 
 describe('a HEIC thumbnail', () => {
-  const heicFixture = path.join(import.meta.dirname, '..', 'fixtures', 'half-red-half-blue.heic');
-
-  it('is produced, and holds the picture', async () => {
-    if (!(await hasFfmpeg())) return;
-    // The same ffmpeg has to be new enough for HEIF; older ones cannot open it.
-    try {
-      await execFileAsync('ffprobe', ['-v', 'error', '-show_format', heicFixture]);
-    } catch (_) {
-      console.warn('this ffmpeg predates the HEIF demuxer; the HEIC case is skipped.');
-      return;
-    }
-
+  // The same ffmpeg has to be new enough for HEIF (7.1); older ones cannot open it.
+  it.skipIf(!heif)('is produced, and holds the picture', async () => {
     const env = await setup();
     const service = env.requireFresh('src/services/thumbnailService');
     const source = path.join(env.volumeDir, 'photo.heic');
-    await fs.copyFile(heicFixture, source);
+    await fs.copyFile(HEIC_FIXTURE, source);
 
     const thumb = await thumbnailFor(env, service, source);
 
