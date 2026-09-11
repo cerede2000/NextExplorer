@@ -77,18 +77,37 @@ describe('UserMenu toggle', () => {
       .filter((button) => !button.attributes('aria-expanded'))
       .map((button) => button.text());
 
-  it('is a button in the tab order, announced as opening a menu', () => {
+  it('is a button in the tab order, that says whether it is open', () => {
     const element = toggle().element;
 
     expect(element.tagName).toBe('BUTTON');
     // Not a submit button: the menu must never post a form it happens to sit in.
     expect(element.getAttribute('type')).toBe('button');
     expect(element.tabIndex).toBe(0);
-    expect(element.getAttribute('aria-haspopup')).toBe('menu');
     expect(element.getAttribute('aria-expanded')).toBe('false');
 
     element.focus();
     expect(document.activeElement).toBe(element);
+  });
+
+  it('announces a menu only if its entries are one', async () => {
+    // aria-haspopup="menu" (or "true") tells a screen reader the toggle opens
+    // an ARIA menu, and a menu is walked with the arrow keys. These entries are
+    // plain buttons reached with Tab: announcing a menu would send someone to
+    // the arrows for nothing. As a disclosure, the toggle says whether it is
+    // open and promises nothing more.
+    toggle().element.focus();
+    press('Enter');
+    await nextTick();
+
+    const announcesMenu = ['true', 'menu'].includes(toggle().attributes('aria-haspopup'));
+    const entries = wrapper
+      .findAll('button')
+      .filter((button) => button.element !== toggle().element);
+    const entriesAreMenuItems =
+      entries.length > 0 && entries.every((entry) => entry.attributes('role') === 'menuitem');
+
+    expect(announcesMenu).toBe(entriesAreMenuItems);
   });
 
   it('opens on Enter, and closes on it again', async () => {

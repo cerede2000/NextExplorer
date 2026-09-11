@@ -160,7 +160,6 @@ const handleLogout = async () => {
         class="group flex w-full items-center gap-3 text-left transition"
         @click="toggleMenu"
         :aria-expanded="isExpanded"
-        aria-haspopup="menu"
       >
         <!-- Named "Account" followed by the name and address it shows, so voice
              control answers to what is on screen. The avatar only repeats the
