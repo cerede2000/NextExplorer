@@ -13,6 +13,9 @@ module.exports = {
     'storybook-static/',
     '.vitepress/cache/',
     '.vitepress/dist/',
+    // The frontend build, copied where the image serves it (and where the
+    // browser tests put it): minified output, not source.
+    'backend/src/public/',
   ],
   parserOptions: {
     ecmaVersion: 'latest',

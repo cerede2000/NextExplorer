@@ -10,3 +10,4 @@ package-lock.json
 .cache
 .config
 *.tgz
+backend/src/public

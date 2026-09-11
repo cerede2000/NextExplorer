@@ -78,6 +78,14 @@ cd frontend && npm run test:unit
 cd frontend && npm run lint
 ```
 
+- Browser tests (Playwright). The `app` project starts the real server serving
+  the real build, on a throwaway install, and walks through setting it up,
+  signing in, opening a volume, uploading and sharing — so build first:
+
+```
+npm run build && npm run test:e2e
+```
+
 ### What CI holds every push to
 
 **A change in behaviour arrives with its test, in the same commit.** A commit
