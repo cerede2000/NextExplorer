@@ -25,6 +25,26 @@ A deleted folder is one item in the trash, however much it holds. Click its name
 - Whoever may restore the folder may restore what is inside it, under the same conditions.
 - A symbolic link inside a deleted folder is listed and restored as the link it is; nothing is ever opened through it. A restore is refused when the place it would go back to now leads outside the volume through a link.
 
+## Restoring somewhere else
+
+**Restore to…** puts what is selected — whole items, or entries of a deleted folder — into a folder you choose, with the same dialog as **Move to**.
+
+- It takes two rights: the right to restore the item at all, which is the same as restoring it where it was, so the trash never gives back an access that was taken away since; and the right to create files — and folders, for a folder — in the destination.
+- On the same disk it is a rename, instant whatever the size. On another disk it is a copy, shown with its progress like a transfer, and it can be cancelled. The item leaves the trash only once its copy is complete; a copy that is cancelled, fails or is interrupted by a crash leaves nothing behind in the destination, and the item stays in the trash.
+- A name that is taken in the destination gets a suffix; nothing is replaced.
+- The destination is added to your recent destinations.
+
+## What a restore keeps
+
+Deleting and restoring on the same disk are renames: a file or folder comes back with its owner, permissions, ACLs, extended attributes and modification times as they were. A copy to another disk goes through the same copy as a transfer: in the container, `rsync` keeps permissions (see `COPY_PRESERVE_PERMISSIONS`) and modification times, and the copied files belong to the user the application runs as.
+
+Some things do not come back:
+
+- a folder recreated on the way back, because it no longer existed, is new, with the permissions the application gives new folders;
+- the shares of an item are removed when it goes to the trash, and the favorites, per-folder preferences and recent destinations pointing at it are forgotten; a restore does not bring them back.
+
+Access rules and assigned volumes are set on paths, not on items, so they apply again as soon as an item is back under the path they name.
+
 ## When an item cannot go to the trash
 
 The delete dialog says, before anyone confirms, which items would be removed for good and why:
