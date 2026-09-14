@@ -214,6 +214,12 @@ const transferItems = async (items, destination, operation, options = {}) => {
         desiredName,
         stats.isDirectory()
       );
+      // The history follows the file — or everything in the folder — to its new
+      // path; moved to another volume it names the new zone, its versions left
+      // where they were kept. A copy starts with no history, so this is the move
+      // only.
+      // eslint-disable-next-line global-require
+      await require('./versions/lifecycle').onMoved(sourceAbsolute, placed.path);
     } else {
       throw new Error(`Unsupported operation: ${operation}`);
     }
@@ -393,6 +399,10 @@ const deleteItems = async (items = [], options = {}) => {
       trashItemId = outcome.item.id;
     } else {
       await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
+      // Deleted for good, the history goes with it; into the trash, it went
+      // along with the item inside trashTarget.
+      // eslint-disable-next-line global-require
+      await require('./versions/lifecycle').onDeleted(absolutePath);
     }
     // In the trash, a share is switched off but kept with the item, so a restore
     // can bring it back; deleted for good, it goes for good.
