@@ -40,6 +40,15 @@ A deleted folder is one item in the trash, however much it holds. Click its name
 - A name that is taken in the destination gets a suffix; nothing is replaced.
 - The destination is added to your recent destinations.
 
+## Share links
+
+- When shared content goes to the trash, its share links — and those of anything inside a deleted folder — stop working at once: nothing in the trash stays public. The delete dialog says so beforehand. The links are kept with the item.
+- When it is restored, you choose: **Restore the share links** brings them back as they were — same link, password, expiry, permitted people and label — or **Delete the share links** lets them go. Without a choice, they are deleted.
+- Restored somewhere else, share links point at the new location. Only the links you own follow content you restore elsewhere — an administrator's restore brings all of them; the others are deleted.
+- A share link that expired while in the trash, or whose owner no longer exists, cannot come back.
+- Deleted for good — from the trash, by emptying it, at the end of its retention, or straight away — an item takes its share links with it for good.
+- Visits opened through a link are not kept: whoever had it open opens it again.
+
 ## What a restore keeps
 
 Deleting and restoring on the same disk are renames: a file or folder comes back with its owner, permissions, ACLs, extended attributes and modification times as they were. A copy to another disk goes through the same copy as a transfer: in the container, `rsync` keeps permissions (see `COPY_PRESERVE_PERMISSIONS`) and modification times, and the copied files belong to the user the application runs as.
@@ -47,7 +56,7 @@ Deleting and restoring on the same disk are renames: a file or folder comes back
 Some things do not come back:
 
 - a folder recreated on the way back, because it no longer existed, is new, with the permissions the application gives new folders;
-- the shares of an item are removed when it goes to the trash, and the favorites, per-folder preferences and recent destinations pointing at it are forgotten; a restore does not bring them back.
+- the favorites, per-folder preferences and recent destinations pointing at an item are forgotten when it goes to the trash, and a restore does not bring them back. Share links are the exception: see [Share links](#share-links).
 
 Access rules and assigned volumes are set on paths, not on items, so they apply again as soon as an item is back under the path they name.
 
