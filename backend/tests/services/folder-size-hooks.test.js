@@ -52,6 +52,26 @@ afterEach(async () => {
   }
 });
 
+/**
+ * A folder restored from the trash or extracted from an archive arrives with
+ * nothing in the search index. The hook that announces it is the one place to
+ * tell search, and it must, whether folder sizes are switched on or not.
+ */
+describe('the search index', () => {
+  it.each(['off', 'full'])(
+    'hears about a whole tree put down, with folder sizes %s',
+    async (mode) => {
+      const { env, hooks, volume } = await setup({ mode });
+      const manager = env.requireFresh('src/services/searchIndexManager');
+      const told = vi.spyOn(manager, 'onTreeAdded').mockResolvedValue();
+
+      hooks.onDirectoryTreeCreated(path.join(volume, 'Restored'));
+
+      expect(told).toHaveBeenCalledWith(path.join(volume, 'Restored'));
+    }
+  );
+});
+
 const sizeOf = (absolutePath) => {
   const row = ctx.index.getByAbsolutePath(ctx.db, absolutePath);
   return row ? row.sizeBytes : null;
@@ -70,10 +90,7 @@ const everyHook = (root) => [
   ['onFileReplaced', (h) => h.onFileReplaced(path.join(root, 'a.txt'), 512, 1024)],
   ['onFolderCreated', (h) => h.onFolderCreated(path.join(root, 'sub'))],
   ['onEntryDeleted (file)', (h) => h.onEntryDeleted(path.join(root, 'a.txt'), { size: 1024 })],
-  [
-    'onEntryDeleted (dir)',
-    (h) => h.onEntryDeleted(path.join(root, 'sub'), { isDirectory: true }),
-  ],
+  ['onEntryDeleted (dir)', (h) => h.onEntryDeleted(path.join(root, 'sub'), { isDirectory: true })],
   ['beginDirectoryTransfer', (h) => h.beginDirectoryTransfer(path.join(root, 'sub'))],
   ['cancelDirectoryTransfer', (h) => h.cancelDirectoryTransfer(path.join(root, 'sub'))],
   [
@@ -81,11 +98,11 @@ const everyHook = (root) => [
     (h) => h.onEntryMoved(path.join(root, 'a.txt'), path.join(root, 'b.txt'), { size: 1024 }),
   ],
   ['onEntryCopied', (h) => h.onEntryCopied(path.join(root, 'b.txt'), { size: 1024 })],
-  ['refreshTransferredDirectories', (h) => h.refreshTransferredDirectories([path.join(root, 'sub')])],
   [
-    'onEntryRenamed',
-    (h) => h.onEntryRenamed(path.join(root, 'a.txt'), path.join(root, 'c.txt')),
+    'refreshTransferredDirectories',
+    (h) => h.refreshTransferredDirectories([path.join(root, 'sub')]),
   ],
+  ['onEntryRenamed', (h) => h.onEntryRenamed(path.join(root, 'a.txt'), path.join(root, 'c.txt'))],
 ];
 
 describe('the switch these tests depend on', () => {

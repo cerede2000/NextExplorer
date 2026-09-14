@@ -101,6 +101,7 @@ const onFolderCreated = (absolutePath) =>
  * manager scans this tree alone and applies one precise delta to its parent.
  */
 const onDirectoryTreeCreated = (absolutePath) => {
+  notifySearchIndex('onTreeAdded', absolutePath);
   if (!isEnabled()) return null;
   const refresh = folderSizeManager.refreshSubtree(absolutePath);
   Promise.resolve(refresh).catch((err) => {

@@ -1,3 +1,4 @@
+const fs = require('fs/promises');
 const path = require('path');
 
 const { search: searchConfig, directories } = require('../config/index');
@@ -314,6 +315,44 @@ const onPathMoved = async (fromAbsolutePath, toAbsolutePath) => {
   });
 };
 
+/**
+ * A folder the application put down whole: restored from the trash, extracted
+ * from an archive. A move carries its documents along; these arrive with none
+ * indexed, and waiting for the next pass would leave them out of every search
+ * for up to an hour. Only the new tree is walked, and nothing outside it is
+ * forgotten.
+ */
+const onTreeAdded = async (absolutePath) => {
+  if (!enabled()) return;
+
+  const relative = relativeToVolume(absolutePath);
+  if (!relative) return;
+  // What a pass would never read, this does not read either.
+  if (relative.split('/').some((segment) => segment.startsWith('.'))) return;
+  const exclude = exclusions.effectivePaths();
+  if (exclude.some((entry) => relative === entry || relative.startsWith(`${entry}/`))) return;
+
+  await enqueue(async () => {
+    const db = await getDb();
+    const stats = await fs.stat(absolutePath).catch(() => null);
+    if (!stats) return;
+    if (!stats.isDirectory()) {
+      await indexFile(db, relative, absolutePath);
+      return;
+    }
+    await indexTree({
+      db,
+      rootAbs: absolutePath,
+      rootRel: relative,
+      removeMissing: false,
+      batchSize: searchConfig.index.batch,
+      cpuPercent: searchConfig.index.cpuPercent,
+      memoryBudgetBytes: searchConfig.index.memoryBudgetBytes,
+      exclude,
+    });
+  });
+};
+
 /** What the index holds, for diagnostics. */
 const status = async () => {
   if (!enabled()) return { enabled: false };
@@ -341,5 +380,6 @@ module.exports = {
   onFileChanged,
   onPathRemoved,
   onPathMoved,
+  onTreeAdded,
   status,
 };

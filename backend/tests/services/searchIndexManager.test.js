@@ -55,6 +55,54 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
+/**
+ * A folder the application puts down whole — restored from the trash, extracted
+ * from an archive — arrives with nothing indexed. Left to the next pass, its
+ * files would be missing from every search for up to an hour.
+ */
+describe('a tree the application adds', () => {
+  it('is searchable at once, and nothing else is forgotten', async () => {
+    await build();
+    await seedDocs();
+    await manager.reconcile({ reason: 'test' });
+    await fs.mkdir(volumePath('Restored', 'inner'), { recursive: true });
+    await fs.writeFile(volumePath('Restored', 'inner', 'memo.md'), 'le tatou creuse un terrier\n');
+    await fs.writeFile(volumePath('Restored', 'top.txt'), 'un ornithorynque\n');
+
+    await manager.onTreeAdded(volumePath('Restored'));
+
+    expect(store.search(db, 'tatou')).toEqual(['Restored/inner/memo.md']);
+    expect(store.search(db, 'ornithorynque')).toEqual(['Restored/top.txt']);
+    expect(store.search(db, 'pangolin')).toEqual(['Docs/notes.md']);
+    expect(indexed()).toBe(4);
+  });
+
+  it('reads a single file put down the same way', async () => {
+    await build();
+    await fs.mkdir(volumePath('Docs'), { recursive: true });
+    await fs.writeFile(volumePath('Docs', 'single.md'), 'un axolotl\n');
+
+    await manager.onTreeAdded(volumePath('Docs', 'single.md'));
+
+    expect(store.search(db, 'axolotl')).toEqual(['Docs/single.md']);
+  });
+
+  /** A pass never reads these; a tree added through the application must not either. */
+  it('reads nothing hidden, and nothing outside the volume', async () => {
+    await build();
+    await fs.mkdir(volumePath('.hidden', 'inner'), { recursive: true });
+    await fs.writeFile(volumePath('.hidden', 'inner', 'secret.md'), 'un narval\n');
+    const outside = path.join(path.dirname(envContext.volumeDir), 'outside-tree');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, 'far.md'), 'un okapi\n');
+
+    await manager.onTreeAdded(volumePath('.hidden', 'inner'));
+    await manager.onTreeAdded(outside);
+
+    expect(indexed()).toBe(0);
+  });
+});
+
 describe('a pass over the volume', () => {
   it('reads what is there', async () => {
     await build();
