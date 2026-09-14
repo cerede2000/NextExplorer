@@ -299,12 +299,12 @@ describe('what a deletion is about to break', () => {
   it('answers zero when nothing is shared', async () => {
     requestJson.mockResolvedValue({ shares: [] });
 
-    expect(await getDeleteImpact(items(5))).toEqual({ shareCount: 0, shares: [] });
+    expect(await getDeleteImpact(items(5))).toEqual({ shareCount: 0, shares: [], trash: null });
   });
 
   it('survives a response that carries no shares field', async () => {
     requestJson.mockResolvedValue({});
 
-    expect(await getDeleteImpact(items(5))).toEqual({ shareCount: 0, shares: [] });
+    expect(await getDeleteImpact(items(5))).toEqual({ shareCount: 0, shares: [], trash: null });
   });
 });

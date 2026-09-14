@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Tem certeza de que deseja excluir \"{name}\"? Esta ação não pode ser desfeita.",
       "multiple": "Tem certeza de que deseja excluir estes {count} itens? Esta ação não pode ser desfeita.",
-      "generic": "Nenhum item selecionado."
+      "generic": "Nenhum item selecionado.",
+      "trashSingle": "\"{name}\" irá para a lixeira, que o guarda por {count} dia. | \"{name}\" irá para a lixeira, que o guarda por {count} dias.",
+      "trashMultiple": "Estes {items} itens irão para a lixeira, que os guarda por {count} dia. | Estes {items} itens irão para a lixeira, que os guarda por {count} dias."
     },
     "checkingDeleteImpact": "Verificando compartilhamentos vinculados...",
     "deleteImpactUnavailable": "Não foi possível verificar os compartilhamentos vinculados. A exclusão ainda será aplicada pelo servidor.",
-    "deleteLinkedShares": "Este conteúdo tem {count} compartilhamento vinculado que será removido com ele. | Este conteúdo tem {count} compartilhamentos vinculados que serão removidos com ele."
+    "deleteLinkedShares": "Este conteúdo tem {count} compartilhamento vinculado que será removido com ele. | Este conteúdo tem {count} compartilhamentos vinculados que serão removidos com ele.",
+    "moveToTrash": "Mover para a lixeira",
+    "deletePermanently": "Excluir permanentemente",
+    "deleteSomePermanent": "{count} deles não pode ir para a lixeira e será excluído permanentemente. | {count} deles não podem ir para a lixeira e serão excluídos permanentemente.",
+    "trashReasons": {
+      "otherDevice": "Está em um disco diferente do da lixeira do seu volume.",
+      "tooLarge": "É maior que toda a lixeira do seu volume.",
+      "zoneRoot": "Um volume inteiro não pode ir para a própria lixeira.",
+      "zoneUnwritable": "Não é possível gravar na lixeira do seu volume.",
+      "noZone": "Não está em um local com lixeira.",
+      "disabled": "A lixeira está desativada."
+    },
+    "keptTitle": "Não foi possível mover para a lixeira",
+    "keptMessage": "Este item foi deixado onde estava. Excluí-lo permanentemente? | Estes {count} itens foram deixados onde estavam. Excluí-los permanentemente?",
+    "keptReasons": {
+      "tooLarge": "{size}, mais do que os {budget} que a lixeira do seu volume comporta."
+    }
   },
   "folder": {
     "kind": "Tipo",
@@ -443,7 +461,8 @@
       "security": "Segurança",
       "accessControl": "Controle de Acesso",
       "adminUsers": "Gerenciamento de Usuários",
-      "searchIndex": "Índice de busca"
+      "searchIndex": "Índice de busca",
+      "trash": "Lixeira"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -642,6 +661,59 @@
       "title": "Este recurso não está ativado",
       "howTo": "Para ativá-lo, defina {setting} e reinicie o contêiner.",
       "kept": "O que você configurar aqui é salvo e passa a valer assim que o recurso for ativado."
+    },
+    "trash": {
+      "title": "Lixeira",
+      "subtitle": "Os itens excluídos ficam em um espaço reservado no próprio volume e são removidos permanentemente ao fim da retenção ou quando esse espaço é necessário.",
+      "enabled": "Enviar itens excluídos para a lixeira",
+      "enabledHelp": "Desativada, excluir apaga permanentemente. Itens que já estão na lixeira continuam expirando.",
+      "retentionDays": "Retenção (dias)",
+      "retentionHelp": "De 1 a 3650 dias.",
+      "maxPercent": "Parte de cada volume (%)",
+      "maxPercentHelp": "O máximo que a lixeira pode ocupar em um volume, de 1 a 90 %.",
+      "maxSize": "Limite de tamanho por volume (GiB)",
+      "maxSizeHelp": "Opcional. Vale o menor entre a parte e o limite.",
+      "maxSizeNone": "Sem limite",
+      "invalid": "Verifique os valores: retenção de 1 a 3650 dias, parte de 1 a 90 %, um tamanho positivo ou nenhum.",
+      "saveFailed": "Não foi possível salvar as configurações.",
+      "environmentNote": "Os valores padrão vêm de TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT e TRASH_MAX_SIZE.",
+      "zonesTitle": "Lixeira por volume",
+      "zonesSubtitle": "Cada volume guarda sua lixeira em uma pasta oculta .nextexplorer na raiz, então excluir nunca copia nada.",
+      "zonesEmpty": "Nada foi excluído para uma lixeira ainda.",
+      "zonesFailed": "Não foi possível carregar a lixeira dos volumes.",
+      "verifyFailed": "Não foi possível executar a verificação.",
+      "maintenanceFailed": "Não foi possível executar a manutenção.",
+      "zoneKind": {
+        "personal": "Pasta pessoal de {name}",
+        "userVolume": "Volume atribuído {name}"
+      },
+      "available": "Disponível",
+      "unavailable": {
+        "missing": "Não montado ou removido",
+        "replaced": "Outro disco no lugar",
+        "unreadable": "Ilegível"
+      },
+      "usage": "{used} de {budget}",
+      "zoneSummary": "{count} item, {used} de {budget} | {count} itens, {used} de {budget}",
+      "noBudget": "sem limite",
+      "lastPass": "Última manutenção:",
+      "lastPassPurged": "{count} removido | {count} removidos",
+      "never": "ainda não",
+      "verify": "Verificar",
+      "verifying": "Verificando…",
+      "verifyOk": "A lixeira de cada volume está consistente.",
+      "verifyIssues": "{count} problema encontrado | {count} problemas encontrados",
+      "runMaintenance": "Executar manutenção agora",
+      "running": "Em andamento…",
+      "events": {
+        "title": "Registro",
+        "evicted": "\"{name}\" removido antes do fim da retenção para liberar espaço",
+        "adopted": "\"{name}\" recuperado após uma interrupção",
+        "lost": "O conteúdo de \"{name}\" estava faltando",
+        "failed": "\"{name}\" não pôde ser removido",
+        "breaker": "Itens demais faltando de uma vez: nada foi alterado",
+        "forgotten": "\"{name}\" esquecido por um administrador"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Este documento tem {size}. A visualização para em {limit}, porque monta cada elemento no navegador. Abra-o no editor ou baixe-o.",
     "tooLargeToRenderWithEditor": "Este documento tem {size}. A visualização para em {limit}, porque monta cada elemento no navegador; o editor abre até {editorLimit}. Abra-o no editor ou baixe-o.",
     "stillRendering": "Renderizando… {percent}%"
+  },
+  "trash": {
+    "title": "Lixeira",
+    "menu": "Lixeira",
+    "subtitle": "Os itens são excluídos permanentemente {count} dia após serem apagados. | Os itens são excluídos permanentemente {count} dias após serem apagados.",
+    "empty": "A lixeira está vazia.",
+    "disabled": "A lixeira está desativada: excluir apaga permanentemente. O que ainda está aqui pode ser restaurado.",
+    "unavailable": "Volume indisponível",
+    "expiresToday": "Hoje",
+    "expiresIn": "Em {count} dia | Em {count} dias",
+    "columns": {
+      "originalLocation": "Local original",
+      "deletedBy": "Excluído por",
+      "deletedAt": "Excluído em",
+      "expires": "Remoção"
+    },
+    "location": {
+      "personal": "Pasta pessoal",
+      "unknown": "Desconhecido"
+    },
+    "deletedBy": {
+      "you": "Você",
+      "shareLink": "Link de compartilhamento",
+      "unknown": "Desconhecido"
+    },
+    "actions": {
+      "restore": "Restaurar",
+      "deletePermanently": "Excluir permanentemente",
+      "empty": "Esvaziar lixeira",
+      "openLocation": "Abrir local original",
+      "selectAll": "Selecionar tudo",
+      "select": "Selecionar {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Excluir permanentemente?",
+      "deleteMessage": "Este item será excluído permanentemente. Esta ação não pode ser desfeita. | Estes {count} itens serão excluídos permanentemente. Esta ação não pode ser desfeita.",
+      "emptyTitle": "Esvaziar a lixeira?",
+      "emptyMessage": "Tudo o que está na sua lixeira será excluído permanentemente. Esta ação não pode ser desfeita."
+    },
+    "results": {
+      "restored": "{count} item restaurado | {count} itens restaurados",
+      "restoredTo": "Restaurado em {path}",
+      "renamed": "\"{name}\" foi restaurado como \"{newName}\": o nome já estava em uso.",
+      "notRestored": "{count} item não pôde ser restaurado | {count} itens não puderam ser restaurados",
+      "deleted": "{count} item excluído permanentemente | {count} itens excluídos permanentemente",
+      "notDeleted": "{count} item não pôde ser excluído | {count} itens não puderam ser excluídos",
+      "emptied": "Lixeira esvaziada: {count} item removido | Lixeira esvaziada: {count} itens removidos",
+      "leftBehind": "{count} item não pôde ser removido e continua lá. | {count} itens não puderam ser removidos e continuam lá."
+    },
+    "reasons": {
+      "forbidden": "você não pode mais gravar onde ele estava.",
+      "blocked": "algo agora ocupa o lugar da sua pasta.",
+      "unavailable": "seu volume não está disponível.",
+      "busy": "já está sendo processado.",
+      "lost": "seu conteúdo havia desaparecido.",
+      "notFound": "não está mais na lixeira.",
+      "unknown": "não foi possível processá-lo."
+    },
+    "errors": {
+      "load": "Não foi possível carregar a lixeira.",
+      "action": "A lixeira não conseguiu fazer isso."
+    }
   }
 }

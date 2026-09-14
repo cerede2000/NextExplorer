@@ -548,6 +548,7 @@ export const useFileStore = defineStore('fileStore', () => {
     try {
       const deletion = deleteItemsStream(payload, {
         signal: controller.signal,
+        permanent: options.permanent === true,
         onEvent: (event) => {
           if (event.type === 'start') {
             operationTasksStore.updateOperation(operationId, {
@@ -566,7 +567,7 @@ export const useFileStore = defineStore('fileStore', () => {
       });
       removeItemsFromCurrentView(payload);
       if (selectionMatchesPayload) clearSelection();
-      await deletion;
+      const response = await deletion;
       // Favorites belong to an authenticated account. A guest share session
       // cannot refresh them, and doing so turns a successful delete into a
       // misleading authentication error.
@@ -577,6 +578,7 @@ export const useFileStore = defineStore('fileStore', () => {
       }
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
+      return response;
     } catch (error) {
       // Optimistic removal must always be reconciled after a rejected or
       // cancelled request. This restores the actual listing before surfacing

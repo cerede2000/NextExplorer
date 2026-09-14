@@ -281,7 +281,7 @@ describe('closing', () => {
 
     expect(confirm.isDeleteConfirmOpen.value).toBe(false);
     expect(confirm.pendingDeleteItems.value).toEqual([]);
-    expect(confirm.deleteImpact.value).toEqual({ shareCount: 0, shares: [] });
+    expect(confirm.deleteImpact.value).toEqual({ shareCount: 0, shares: [], trash: null });
     expect(confirm.deleteImpactError.value).toBe('');
   });
 });

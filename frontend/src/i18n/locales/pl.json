@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Na pewno chcesz usunąć \"{name}\"? Tej operacji nie można cofnąć.",
       "multiple": "Na pewno chcesz usunąć te {count} elementy? Tej operacji nie można cofnąć.",
-      "generic": "Nie wybrano żadnych elementów."
+      "generic": "Nie wybrano żadnych elementów.",
+      "trashSingle": "\"{name}\" trafi do kosza, który przechowa go przez {count} dzień. | \"{name}\" trafi do kosza, który przechowa go przez {count} dni. | \"{name}\" trafi do kosza, który przechowa go przez {count} dni.",
+      "trashMultiple": "Te elementy ({items}) trafią do kosza, który przechowa je przez {count} dzień. | Te elementy ({items}) trafią do kosza, który przechowa je przez {count} dni. | Te elementy ({items}) trafią do kosza, który przechowa je przez {count} dni."
     },
     "checkingDeleteImpact": "Sprawdzanie powiązanych udostępnień…",
     "deleteImpactUnavailable": "Nie można sprawdzić powiązanych udostępnień. Usunięcie i tak zostanie wymuszone przez serwer.",
-    "deleteLinkedShares": "Ta zawartość ma {count} powiązane udostępnienie, które zostanie wraz z nią usunięte. | Ta zawartość ma {count} powiązanych udostępnień, które zostaną wraz z nią usunięte."
+    "deleteLinkedShares": "Ta zawartość ma {count} powiązane udostępnienie, które zostanie wraz z nią usunięte. | Ta zawartość ma {count} powiązanych udostępnień, które zostaną wraz z nią usunięte.",
+    "moveToTrash": "Przenieś do kosza",
+    "deletePermanently": "Usuń trwale",
+    "deleteSomePermanent": "{count} z nich nie może trafić do kosza i zostanie usunięty trwale. | {count} z nich nie mogą trafić do kosza i zostaną usunięte trwale. | {count} z nich nie może trafić do kosza i zostanie usuniętych trwale.",
+    "trashReasons": {
+      "otherDevice": "Znajduje się na innym dysku niż kosz swojego woluminu.",
+      "tooLarge": "Jest większy niż cały kosz swojego woluminu.",
+      "zoneRoot": "Cały wolumin nie może trafić do własnego kosza.",
+      "zoneUnwritable": "Nie można zapisywać w koszu jego woluminu.",
+      "noZone": "Nie znajduje się w miejscu z koszem.",
+      "disabled": "Kosz jest wyłączony."
+    },
+    "keptTitle": "Nie udało się przenieść do kosza",
+    "keptMessage": "Ten element pozostał na swoim miejscu. Usunąć go trwale? | Te {count} elementy pozostały na swoim miejscu. Usunąć je trwale? | Tych {count} elementów pozostało na swoim miejscu. Usunąć je trwale?",
+    "keptReasons": {
+      "tooLarge": "{size}, więcej niż {budget}, które mieści kosz jego woluminu."
+    }
   },
   "folder": {
     "kind": "Rodzaj",
@@ -440,7 +458,8 @@
       "adminUsers": "Zarządzanie użytkownikami",
       "uploads": "Przesyłanie",
       "folderSize": "Rozmiary folderów",
-      "searchIndex": "Indeks wyszukiwania"
+      "searchIndex": "Indeks wyszukiwania",
+      "trash": "Kosz"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -639,6 +658,59 @@
       "title": "Ta funkcja nie jest włączona",
       "howTo": "Aby ją włączyć, ustaw {setting} i uruchom ponownie kontener.",
       "kept": "To, co tu skonfigurujesz, zostanie zapisane i zadziała po włączeniu."
+    },
+    "trash": {
+      "title": "Kosz",
+      "subtitle": "Usunięte elementy są przechowywane w zarezerwowanym miejscu na własnym woluminie i usuwane trwale po okresie przechowywania albo gdy to miejsce jest potrzebne.",
+      "enabled": "Przenoś usunięte elementy do kosza",
+      "enabledHelp": "Po wyłączeniu usuwanie jest trwałe. Elementy już w koszu nadal wygasają.",
+      "retentionDays": "Przechowywanie (dni)",
+      "retentionHelp": "Od 1 do 3650 dni.",
+      "maxPercent": "Udział każdego woluminu (%)",
+      "maxPercentHelp": "Najwięcej, ile kosz może zająć na woluminie, od 1 do 90 %.",
+      "maxSize": "Limit rozmiaru na wolumin (GiB)",
+      "maxSizeHelp": "Opcjonalnie. Obowiązuje mniejsza z wartości: udział lub limit.",
+      "maxSizeNone": "Bez limitu",
+      "invalid": "Sprawdź wartości: przechowywanie od 1 do 3650 dni, udział od 1 do 90 %, dodatni rozmiar lub brak.",
+      "saveFailed": "Nie udało się zapisać ustawień.",
+      "environmentNote": "Wartości domyślne pochodzą z TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT i TRASH_MAX_SIZE.",
+      "zonesTitle": "Kosz według woluminu",
+      "zonesSubtitle": "Każdy wolumin trzyma swój kosz w ukrytym folderze .nextexplorer w katalogu głównym, więc usuwanie nigdy niczego nie kopiuje.",
+      "zonesEmpty": "Nic jeszcze nie trafiło do kosza.",
+      "zonesFailed": "Nie udało się wczytać kosza woluminów.",
+      "verifyFailed": "Nie udało się uruchomić sprawdzania.",
+      "maintenanceFailed": "Nie udało się uruchomić konserwacji.",
+      "zoneKind": {
+        "personal": "Folder osobisty użytkownika {name}",
+        "userVolume": "Przydzielony wolumin {name}"
+      },
+      "available": "Dostępny",
+      "unavailable": {
+        "missing": "Niezamontowany lub usunięty",
+        "replaced": "Inny dysk w jego miejscu",
+        "unreadable": "Nieczytelny"
+      },
+      "usage": "{used} z {budget}",
+      "zoneSummary": "{count} element, {used} z {budget} | {count} elementy, {used} z {budget} | {count} elementów, {used} z {budget}",
+      "noBudget": "bez limitu",
+      "lastPass": "Ostatnia konserwacja:",
+      "lastPassPurged": "usunięto {count} | usunięto {count} | usunięto {count}",
+      "never": "jeszcze nie",
+      "verify": "Sprawdź",
+      "verifying": "Sprawdzanie…",
+      "verifyOk": "Kosz każdego woluminu jest spójny.",
+      "verifyIssues": "Znaleziono {count} problem | Znaleziono {count} problemy | Znaleziono {count} problemów",
+      "runMaintenance": "Uruchom konserwację teraz",
+      "running": "W toku…",
+      "events": {
+        "title": "Dziennik",
+        "evicted": "\"{name}\" usunięto przed końcem przechowywania, aby zwolnić miejsce",
+        "adopted": "\"{name}\" odzyskano po przerwaniu",
+        "lost": "Brakowało zawartości \"{name}\"",
+        "failed": "Nie udało się usunąć \"{name}\"",
+        "breaker": "Zbyt wiele elementów zniknęło naraz: niczego nie zmieniono",
+        "forgotten": "\"{name}\" zapomniany przez administratora"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce. Otwórz go w edytorze lub pobierz.",
     "tooLargeToRenderWithEditor": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce; edytor otwiera do {editorLimit}. Otwórz go w edytorze lub pobierz.",
     "stillRendering": "Renderowanie… {percent}%"
+  },
+  "trash": {
+    "title": "Kosz",
+    "menu": "Kosz",
+    "subtitle": "Elementy są trwale usuwane {count} dzień po usunięciu. | Elementy są trwale usuwane {count} dni po usunięciu. | Elementy są trwale usuwane {count} dni po usunięciu.",
+    "empty": "Kosz jest pusty.",
+    "disabled": "Kosz jest wyłączony: usuwanie jest trwałe. To, co nadal tu jest, można przywrócić.",
+    "unavailable": "Wolumin niedostępny",
+    "expiresToday": "Dzisiaj",
+    "expiresIn": "Za {count} dzień | Za {count} dni | Za {count} dni",
+    "columns": {
+      "originalLocation": "Pierwotna lokalizacja",
+      "deletedBy": "Usunięte przez",
+      "deletedAt": "Data usunięcia",
+      "expires": "Trwałe usunięcie"
+    },
+    "location": {
+      "personal": "Folder osobisty",
+      "unknown": "Nieznana"
+    },
+    "deletedBy": {
+      "you": "Ty",
+      "shareLink": "Link udostępniania",
+      "unknown": "Nieznany"
+    },
+    "actions": {
+      "restore": "Przywróć",
+      "deletePermanently": "Usuń trwale",
+      "empty": "Opróżnij kosz",
+      "openLocation": "Otwórz pierwotną lokalizację",
+      "selectAll": "Zaznacz wszystko",
+      "select": "Zaznacz {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Usunąć trwale?",
+      "deleteMessage": "Ten element zostanie usunięty trwale. Tej operacji nie można cofnąć. | Te {count} elementy zostaną usunięte trwale. Tej operacji nie można cofnąć. | Tych {count} elementów zostanie usuniętych trwale. Tej operacji nie można cofnąć.",
+      "emptyTitle": "Opróżnić kosz?",
+      "emptyMessage": "Wszystko w Twoim koszu zostanie usunięte trwale. Tej operacji nie można cofnąć."
+    },
+    "results": {
+      "restored": "Przywrócono {count} element | Przywrócono {count} elementy | Przywrócono {count} elementów",
+      "restoredTo": "Przywrócono do {path}",
+      "renamed": "\"{name}\" przywrócono jako \"{newName}\": nazwa była zajęta.",
+      "notRestored": "Nie udało się przywrócić {count} elementu | Nie udało się przywrócić {count} elementów | Nie udało się przywrócić {count} elementów",
+      "deleted": "Trwale usunięto {count} element | Trwale usunięto {count} elementy | Trwale usunięto {count} elementów",
+      "notDeleted": "Nie udało się usunąć {count} elementu | Nie udało się usunąć {count} elementów | Nie udało się usunąć {count} elementów",
+      "emptied": "Kosz opróżniony: usunięto {count} element | Kosz opróżniony: usunięto {count} elementy | Kosz opróżniony: usunięto {count} elementów",
+      "leftBehind": "Nie udało się usunąć {count} elementu i nadal tam jest. | Nie udało się usunąć {count} elementów i nadal tam są. | Nie udało się usunąć {count} elementów i nadal tam są."
+    },
+    "reasons": {
+      "forbidden": "nie możesz już zapisywać w miejscu, w którym się znajdował.",
+      "blocked": "w miejscu jego folderu jest teraz coś innego.",
+      "unavailable": "jego wolumin jest niedostępny.",
+      "busy": "jest już przetwarzany.",
+      "lost": "jego zawartość zniknęła.",
+      "notFound": "nie ma go już w koszu.",
+      "unknown": "nie udało się go przetworzyć."
+    },
+    "errors": {
+      "load": "Nie udało się wczytać kosza.",
+      "action": "Kosz nie mógł tego wykonać."
+    }
   }
 }

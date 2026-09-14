@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "정말 \"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
       "multiple": "정말 선택한 {count}개 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-      "generic": "선택된 항목이 없습니다."
+      "generic": "선택된 항목이 없습니다.",
+      "trashSingle": "\"{name}\"은(는) 휴지통으로 이동하며 {count}일 동안 보관됩니다.",
+      "trashMultiple": "이 항목 {items}개는 휴지통으로 이동하며 {count}일 동안 보관됩니다."
     },
     "checkingDeleteImpact": "연결된 공유 확인 중...",
     "deleteImpactUnavailable": "연결된 공유를 확인할 수 없습니다. 삭제는 서버에서 계속 적용됩니다.",
-    "deleteLinkedShares": "이 콘텐츠에는 함께 삭제될 연결된 공유 {count}개가 있습니다. | 이 콘텐츠에는 함께 삭제될 연결된 공유 {count}개가 있습니다."
+    "deleteLinkedShares": "이 콘텐츠에는 함께 삭제될 연결된 공유 {count}개가 있습니다. | 이 콘텐츠에는 함께 삭제될 연결된 공유 {count}개가 있습니다.",
+    "moveToTrash": "휴지통으로 이동",
+    "deletePermanently": "영구 삭제",
+    "deleteSomePermanent": "그중 {count}개는 휴지통으로 이동할 수 없어 영구 삭제됩니다.",
+    "trashReasons": {
+      "otherDevice": "볼륨의 휴지통과 다른 디스크에 있습니다.",
+      "tooLarge": "볼륨의 휴지통 전체보다 큽니다.",
+      "zoneRoot": "볼륨 전체는 자신의 휴지통으로 이동할 수 없습니다.",
+      "zoneUnwritable": "볼륨의 휴지통에 쓸 수 없습니다.",
+      "noZone": "휴지통이 있는 위치에 있지 않습니다.",
+      "disabled": "휴지통이 꺼져 있습니다."
+    },
+    "keptTitle": "휴지통으로 이동할 수 없음",
+    "keptMessage": "항목 {count}개를 원래 위치에 그대로 두었습니다. 영구 삭제하시겠습니까?",
+    "keptReasons": {
+      "tooLarge": "{size}로, 볼륨의 휴지통이 담을 수 있는 {budget}보다 큽니다."
+    }
   },
   "folder": {
     "kind": "종류",
@@ -440,7 +458,8 @@
       "adminUsers": "유저 관리",
       "uploads": "업로드",
       "folderSize": "폴더 크기",
-      "searchIndex": "검색 색인"
+      "searchIndex": "검색 색인",
+      "trash": "휴지통"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -639,6 +658,59 @@
       "title": "이 기능은 활성화되어 있지 않습니다",
       "howTo": "활성화하려면 {setting} 을(를) 설정하고 컨테이너를 다시 시작하세요.",
       "kept": "여기서 설정한 내용은 저장되며 활성화되는 즉시 적용됩니다."
+    },
+    "trash": {
+      "title": "휴지통",
+      "subtitle": "삭제한 항목은 해당 볼륨의 예약 공간에 보관되며, 보관 기간이 끝나거나 공간이 필요할 때 영구 삭제됩니다.",
+      "enabled": "삭제한 항목을 휴지통으로 보내기",
+      "enabledHelp": "끄면 삭제 시 영구적으로 제거됩니다. 이미 휴지통에 있는 항목은 계속 만료됩니다.",
+      "retentionDays": "보관 기간(일)",
+      "retentionHelp": "1일부터 3650일까지.",
+      "maxPercent": "각 볼륨에서의 비율(%)",
+      "maxPercentHelp": "휴지통이 한 볼륨에서 차지할 수 있는 최대치, 1~90%.",
+      "maxSize": "볼륨당 크기 제한(GiB)",
+      "maxSizeHelp": "선택 사항. 비율과 제한 중 작은 값이 적용됩니다.",
+      "maxSizeNone": "제한 없음",
+      "invalid": "값을 확인하세요: 보관 기간 1~3650일, 비율 1~90%, 양수 크기 또는 비워 두기.",
+      "saveFailed": "설정을 저장할 수 없습니다.",
+      "environmentNote": "기본값은 TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT, TRASH_MAX_SIZE에서 가져옵니다.",
+      "zonesTitle": "볼륨별 휴지통",
+      "zonesSubtitle": "각 볼륨은 루트의 숨김 폴더 .nextexplorer에 휴지통을 두므로 삭제할 때 아무것도 복사하지 않습니다.",
+      "zonesEmpty": "아직 휴지통으로 삭제된 항목이 없습니다.",
+      "zonesFailed": "볼륨의 휴지통을 불러올 수 없습니다.",
+      "verifyFailed": "검사를 실행할 수 없습니다.",
+      "maintenanceFailed": "유지 관리를 실행할 수 없습니다.",
+      "zoneKind": {
+        "personal": "{name}의 개인 폴더",
+        "userVolume": "할당된 볼륨 {name}"
+      },
+      "available": "사용 가능",
+      "unavailable": {
+        "missing": "마운트되지 않았거나 제거됨",
+        "replaced": "다른 디스크로 교체됨",
+        "unreadable": "읽을 수 없음"
+      },
+      "usage": "{budget} 중 {used}",
+      "zoneSummary": "항목 {count}개, {budget} 중 {used}",
+      "noBudget": "제한 없음",
+      "lastPass": "마지막 유지 관리:",
+      "lastPassPurged": "{count}개 삭제됨",
+      "never": "아직 없음",
+      "verify": "검사",
+      "verifying": "검사 중…",
+      "verifyOk": "모든 볼륨의 휴지통이 일관됩니다.",
+      "verifyIssues": "문제 {count}개 발견",
+      "runMaintenance": "지금 유지 관리 실행",
+      "running": "실행 중…",
+      "events": {
+        "title": "기록",
+        "evicted": "공간 확보를 위해 보관 기간 전에 \"{name}\" 삭제됨",
+        "adopted": "중단 후 \"{name}\" 복구됨",
+        "lost": "\"{name}\"의 내용이 없었음",
+        "failed": "\"{name}\"을(를) 삭제할 수 없음",
+        "breaker": "한꺼번에 너무 많은 항목이 사라짐: 아무것도 변경하지 않음",
+        "forgotten": "관리자가 \"{name}\"을(를) 잊음"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기에서 열거나 내려받으세요.",
     "tooLargeToRenderWithEditor": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기는 {editorLimit}까지 엽니다. 편집기에서 열거나 내려받으세요.",
     "stillRendering": "그리는 중… {percent}%"
+  },
+  "trash": {
+    "title": "휴지통",
+    "menu": "휴지통",
+    "subtitle": "항목은 삭제 후 {count}일이 지나면 영구 삭제됩니다.",
+    "empty": "휴지통이 비어 있습니다.",
+    "disabled": "휴지통이 꺼져 있습니다. 삭제하면 영구적으로 제거됩니다. 여기에 남은 항목은 복원할 수 있습니다.",
+    "unavailable": "볼륨을 사용할 수 없음",
+    "expiresToday": "오늘",
+    "expiresIn": "{count}일 후",
+    "columns": {
+      "originalLocation": "원래 위치",
+      "deletedBy": "삭제한 사람",
+      "deletedAt": "삭제한 날짜",
+      "expires": "영구 삭제"
+    },
+    "location": {
+      "personal": "개인 폴더",
+      "unknown": "알 수 없음"
+    },
+    "deletedBy": {
+      "you": "나",
+      "shareLink": "공유 링크",
+      "unknown": "알 수 없음"
+    },
+    "actions": {
+      "restore": "복원",
+      "deletePermanently": "영구 삭제",
+      "empty": "휴지통 비우기",
+      "openLocation": "원래 위치 열기",
+      "selectAll": "모두 선택",
+      "select": "{name} 선택"
+    },
+    "confirm": {
+      "deleteTitle": "영구 삭제하시겠습니까?",
+      "deleteMessage": "항목 {count}개가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "emptyTitle": "휴지통을 비우시겠습니까?",
+      "emptyMessage": "휴지통의 모든 항목이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
+    },
+    "results": {
+      "restored": "항목 {count}개 복원됨",
+      "restoredTo": "{path}에 복원됨",
+      "renamed": "\"{name}\"은(는) 이름이 이미 사용 중이어서 \"{newName}\"(으)로 복원되었습니다.",
+      "notRestored": "항목 {count}개를 복원할 수 없음",
+      "deleted": "항목 {count}개 영구 삭제됨",
+      "notDeleted": "항목 {count}개를 삭제할 수 없음",
+      "emptied": "휴지통을 비웠습니다: 항목 {count}개 삭제됨",
+      "leftBehind": "항목 {count}개를 삭제할 수 없어 아직 남아 있습니다."
+    },
+    "reasons": {
+      "forbidden": "원래 위치에 더 이상 쓸 수 없습니다.",
+      "blocked": "원래 폴더 자리에 이제 다른 것이 있습니다.",
+      "unavailable": "볼륨을 사용할 수 없습니다.",
+      "busy": "이미 처리 중입니다.",
+      "lost": "내용이 사라졌습니다.",
+      "notFound": "더 이상 휴지통에 없습니다.",
+      "unknown": "처리할 수 없습니다."
+    },
+    "errors": {
+      "load": "휴지통을 불러올 수 없습니다.",
+      "action": "휴지통에서 해당 작업을 수행할 수 없습니다."
+    }
   }
 }

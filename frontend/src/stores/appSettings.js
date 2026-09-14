@@ -30,12 +30,20 @@ export const useAppSettings = defineStore('appSettings', () => {
     markdownOpensInEditor: false,
   });
 
+  const createDefaultTrashSettings = () => ({
+    enabled: true,
+    retentionDays: 30,
+    maxPercent: 10,
+    maxBytes: null,
+  });
+
   const createDefaultSystemSettings = () => ({
     thumbnails: { enabled: true, size: 200, quality: 70 },
     access: { rules: [] },
     uploads: { chunkedEnabled: false, chunkSizeBytes: 8 * 1024 * 1024 },
     folderSize: { excludedPaths: [], environmentExcludedPaths: [] },
     searchIndex: { excludedPaths: [], environmentExcludedPaths: [] },
+    trash: createDefaultTrashSettings(),
   });
 
   // Three-tier settings structure
@@ -172,6 +180,9 @@ export const useAppSettings = defineStore('appSettings', () => {
           ...s.searchIndex,
         };
       }
+      if (s?.trash) {
+        systemSettings.value.trash = { ...createDefaultTrashSettings(), ...s.trash };
+      }
 
       if (userId === authStore.currentUser?.id) {
         loadedForUserId.value = userId;
@@ -265,6 +276,10 @@ export const useAppSettings = defineStore('appSettings', () => {
           chunkSizeBytes: 8 * 1024 * 1024,
           ...updated.uploads,
         };
+      }
+
+      if (updated?.trash) {
+        systemSettings.value.trash = { ...createDefaultTrashSettings(), ...updated.trash };
       }
 
       loaded.value = true;

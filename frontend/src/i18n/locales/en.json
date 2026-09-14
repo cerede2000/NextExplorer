@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
       "multiple": "Are you sure you want to delete these {count} items? This action cannot be undone.",
-      "generic": "No items selected."
+      "generic": "No items selected.",
+      "trashSingle": "\"{name}\" will go to the trash, which keeps it for {count} day. | \"{name}\" will go to the trash, which keeps it for {count} days.",
+      "trashMultiple": "These {items} items will go to the trash, which keeps them for {count} day. | These {items} items will go to the trash, which keeps them for {count} days."
     },
     "checkingDeleteImpact": "Checking linked shares...",
     "deleteImpactUnavailable": "Unable to check linked shares. Deletion will still be enforced by the server.",
-    "deleteLinkedShares": "This content has {count} linked share that will be removed with it. | This content has {count} linked shares that will be removed with it."
+    "deleteLinkedShares": "This content has {count} linked share that will be removed with it. | This content has {count} linked shares that will be removed with it.",
+    "moveToTrash": "Move to Trash",
+    "deletePermanently": "Delete permanently",
+    "deleteSomePermanent": "{count} of them cannot go to the trash and will be deleted for good. | {count} of them cannot go to the trash and will be deleted for good.",
+    "trashReasons": {
+      "otherDevice": "It is on another disk than its volume's trash.",
+      "tooLarge": "It is larger than the whole trash of its volume.",
+      "zoneRoot": "A whole volume cannot go into its own trash.",
+      "zoneUnwritable": "The trash of its volume cannot be written to.",
+      "noZone": "It is not in a place that has a trash.",
+      "disabled": "The trash is switched off."
+    },
+    "keptTitle": "Could not go to the trash",
+    "keptMessage": "This item was left where it is. Delete it permanently? | These {count} items were left where they are. Delete them permanently?",
+    "keptReasons": {
+      "tooLarge": "{size}, more than the {budget} its volume's trash can hold."
+    }
   },
   "folder": {
     "kind": "Kind",
@@ -443,7 +461,8 @@
       "security": "Security",
       "accessControl": "Access Control",
       "adminUsers": "User Management",
-      "searchIndex": "Search index"
+      "searchIndex": "Search index",
+      "trash": "Trash"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -642,6 +661,59 @@
       "title": "This feature is not enabled",
       "howTo": "To turn it on, set {setting} and restart the container.",
       "kept": "What you configure here is saved and applies as soon as it is enabled."
+    },
+    "trash": {
+      "title": "Trash",
+      "subtitle": "Deleted items are kept in a reserved space on their own volume, and removed for good after the retention period or when that space is needed.",
+      "enabled": "Send deleted items to the trash",
+      "enabledHelp": "When off, deleting removes items for good. Items already in the trash still expire.",
+      "retentionDays": "Retention (days)",
+      "retentionHelp": "From 1 to 3650 days.",
+      "maxPercent": "Share of each volume (%)",
+      "maxPercentHelp": "The most the trash may hold on a volume, from 1 to 90%.",
+      "maxSize": "Size cap per volume (GiB)",
+      "maxSizeHelp": "Optional. The smaller of the share and the cap applies.",
+      "maxSizeNone": "No cap",
+      "invalid": "Check the values: retention from 1 to 3650 days, share from 1 to 90%, a positive size or none.",
+      "saveFailed": "The settings could not be saved.",
+      "environmentNote": "Defaults come from TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT and TRASH_MAX_SIZE.",
+      "zonesTitle": "Trash by volume",
+      "zonesSubtitle": "Each volume keeps its trash in a hidden .nextexplorer folder at its root, so deleting never copies anything.",
+      "zonesEmpty": "Nothing has been deleted into a trash yet.",
+      "zonesFailed": "The volumes' trash could not be loaded.",
+      "verifyFailed": "The check could not run.",
+      "maintenanceFailed": "The maintenance could not run.",
+      "zoneKind": {
+        "personal": "Personal folder of {name}",
+        "userVolume": "Assigned volume {name}"
+      },
+      "available": "Available",
+      "unavailable": {
+        "missing": "Not mounted or removed",
+        "replaced": "Another disk in its place",
+        "unreadable": "Unreadable"
+      },
+      "usage": "{used} of {budget}",
+      "zoneSummary": "{count} item, {used} of {budget} | {count} items, {used} of {budget}",
+      "noBudget": "no limit",
+      "lastPass": "Last maintenance:",
+      "lastPassPurged": "{count} removed | {count} removed",
+      "never": "not yet",
+      "verify": "Verify",
+      "verifying": "Verifying…",
+      "verifyOk": "Every volume's trash is consistent.",
+      "verifyIssues": "{count} problem found | {count} problems found",
+      "runMaintenance": "Run maintenance now",
+      "running": "Running…",
+      "events": {
+        "title": "Journal",
+        "evicted": "\"{name}\" removed before its retention to free space",
+        "adopted": "\"{name}\" recovered after an interruption",
+        "lost": "\"{name}\" was missing its content",
+        "failed": "\"{name}\" could not be removed",
+        "breaker": "Too many items missing at once: nothing was changed",
+        "forgotten": "\"{name}\" forgotten by an administrator"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser. Open it in the editor or download it.",
     "tooLargeToRenderWithEditor": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser; the editor opens up to {editorLimit}. Open it in the editor or download it.",
     "stillRendering": "Rendering… {percent}%"
+  },
+  "trash": {
+    "title": "Trash",
+    "menu": "Trash",
+    "subtitle": "Items are removed for good {count} day after they were deleted. | Items are removed for good {count} days after they were deleted.",
+    "empty": "The trash is empty.",
+    "disabled": "The trash is switched off: deleting removes items for good. What is still here can be restored.",
+    "unavailable": "Volume unavailable",
+    "expiresToday": "Today",
+    "expiresIn": "In {count} day | In {count} days",
+    "columns": {
+      "originalLocation": "Original location",
+      "deletedBy": "Deleted by",
+      "deletedAt": "Deleted on",
+      "expires": "Removed"
+    },
+    "location": {
+      "personal": "Personal folder",
+      "unknown": "Unknown"
+    },
+    "deletedBy": {
+      "you": "You",
+      "shareLink": "Share link",
+      "unknown": "Unknown"
+    },
+    "actions": {
+      "restore": "Restore",
+      "deletePermanently": "Delete permanently",
+      "empty": "Empty trash",
+      "openLocation": "Open original location",
+      "selectAll": "Select all",
+      "select": "Select {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Delete permanently?",
+      "deleteMessage": "This item will be removed for good. This cannot be undone. | These {count} items will be removed for good. This cannot be undone.",
+      "emptyTitle": "Empty the trash?",
+      "emptyMessage": "Everything in your trash will be removed for good. This cannot be undone."
+    },
+    "results": {
+      "restored": "{count} item restored | {count} items restored",
+      "restoredTo": "Restored to {path}",
+      "renamed": "\"{name}\" was restored as \"{newName}\": its name was taken.",
+      "notRestored": "{count} item could not be restored | {count} items could not be restored",
+      "deleted": "{count} item deleted permanently | {count} items deleted permanently",
+      "notDeleted": "{count} item could not be deleted | {count} items could not be deleted",
+      "emptied": "Trash emptied: {count} item removed | Trash emptied: {count} items removed",
+      "leftBehind": "{count} item could not be removed and is still there. | {count} items could not be removed and are still there."
+    },
+    "reasons": {
+      "forbidden": "you can no longer write where it was.",
+      "blocked": "something now stands where its folder was.",
+      "unavailable": "its volume is not available.",
+      "busy": "it is already being handled.",
+      "lost": "its content had disappeared.",
+      "notFound": "it is no longer in the trash.",
+      "unknown": "it could not be handled."
+    },
+    "errors": {
+      "load": "The trash could not be loaded.",
+      "action": "The trash could not do that."
+    }
   }
 }

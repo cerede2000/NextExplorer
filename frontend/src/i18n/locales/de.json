@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Sind Sie sicher, dass Sie \"{name}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "multiple": "Sind Sie sicher, dass Sie diese {count} Elemente löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
-      "generic": "Keine Elemente ausgewählt."
+      "generic": "Keine Elemente ausgewählt.",
+      "trashSingle": "\"{name}\" wird in den Papierkorb verschoben und dort {count} Tag aufbewahrt. | \"{name}\" wird in den Papierkorb verschoben und dort {count} Tage aufbewahrt.",
+      "trashMultiple": "Diese {items} Elemente werden in den Papierkorb verschoben und dort {count} Tag aufbewahrt. | Diese {items} Elemente werden in den Papierkorb verschoben und dort {count} Tage aufbewahrt."
     },
     "checkingDeleteImpact": "Verknüpfte Freigaben werden überprüft...",
     "deleteImpactUnavailable": "Verknüpfte Freigaben konnten nicht überprüft werden. Die Löschung wird dennoch serverseitig durchgesetzt.",
-    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden."
+    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden.",
+    "moveToTrash": "In den Papierkorb",
+    "deletePermanently": "Endgültig löschen",
+    "deleteSomePermanent": "{count} davon kann nicht in den Papierkorb und wird endgültig gelöscht. | {count} davon können nicht in den Papierkorb und werden endgültig gelöscht.",
+    "trashReasons": {
+      "otherDevice": "Es liegt auf einem anderen Datenträger als der Papierkorb seines Volumes.",
+      "tooLarge": "Es ist größer als der gesamte Papierkorb seines Volumes.",
+      "zoneRoot": "Ein ganzes Volume kann nicht in seinen eigenen Papierkorb.",
+      "zoneUnwritable": "In den Papierkorb seines Volumes kann nicht geschrieben werden.",
+      "noZone": "Es liegt an keinem Ort mit Papierkorb.",
+      "disabled": "Der Papierkorb ist ausgeschaltet."
+    },
+    "keptTitle": "Konnte nicht in den Papierkorb",
+    "keptMessage": "Dieses Element wurde an seinem Ort belassen. Endgültig löschen? | Diese {count} Elemente wurden an ihrem Ort belassen. Endgültig löschen?",
+    "keptReasons": {
+      "tooLarge": "{size}, mehr als die {budget}, die der Papierkorb seines Volumes fassen kann."
+    }
   },
   "folder": {
     "kind": "Art",
@@ -440,7 +458,8 @@
       "adminUsers": "Benutzerverwaltung",
       "uploads": "Uploads",
       "folderSize": "Ordnergrößen",
-      "searchIndex": "Suchindex"
+      "searchIndex": "Suchindex",
+      "trash": "Papierkorb"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -639,6 +658,59 @@
       "title": "Diese Funktion ist nicht aktiviert",
       "howTo": "Setzen Sie {setting} und starten Sie den Container neu, um sie zu aktivieren.",
       "kept": "Was Sie hier einstellen, wird gespeichert und gilt, sobald die Funktion aktiv ist."
+    },
+    "trash": {
+      "title": "Papierkorb",
+      "subtitle": "Gelöschte Elemente bleiben in einem reservierten Bereich auf ihrem eigenen Volume und werden nach der Aufbewahrungsfrist oder bei Platzbedarf endgültig entfernt.",
+      "enabled": "Gelöschte Elemente in den Papierkorb verschieben",
+      "enabledHelp": "Ausgeschaltet entfernt Löschen Elemente endgültig. Elemente im Papierkorb laufen trotzdem ab.",
+      "retentionDays": "Aufbewahrung (Tage)",
+      "retentionHelp": "Von 1 bis 3650 Tage.",
+      "maxPercent": "Anteil je Volume (%)",
+      "maxPercentHelp": "Höchstens so viel darf der Papierkorb auf einem Volume belegen, von 1 bis 90 %.",
+      "maxSize": "Größenlimit je Volume (GiB)",
+      "maxSizeHelp": "Optional. Es gilt der kleinere Wert von Anteil und Limit.",
+      "maxSizeNone": "Kein Limit",
+      "invalid": "Prüfen Sie die Werte: Aufbewahrung 1 bis 3650 Tage, Anteil 1 bis 90 %, eine positive Größe oder keine.",
+      "saveFailed": "Die Einstellungen konnten nicht gespeichert werden.",
+      "environmentNote": "Die Standardwerte stammen aus TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT und TRASH_MAX_SIZE.",
+      "zonesTitle": "Papierkorb je Volume",
+      "zonesSubtitle": "Jedes Volume bewahrt seinen Papierkorb in einem versteckten Ordner .nextexplorer an seiner Wurzel auf, daher kopiert Löschen nie etwas.",
+      "zonesEmpty": "Noch wurde nichts in einen Papierkorb gelöscht.",
+      "zonesFailed": "Der Papierkorb der Volumes konnte nicht geladen werden.",
+      "verifyFailed": "Die Prüfung konnte nicht ausgeführt werden.",
+      "maintenanceFailed": "Die Wartung konnte nicht ausgeführt werden.",
+      "zoneKind": {
+        "personal": "Persönlicher Ordner von {name}",
+        "userVolume": "Zugewiesenes Volume {name}"
+      },
+      "available": "Verfügbar",
+      "unavailable": {
+        "missing": "Nicht eingehängt oder entfernt",
+        "replaced": "Ein anderer Datenträger an seiner Stelle",
+        "unreadable": "Nicht lesbar"
+      },
+      "usage": "{used} von {budget}",
+      "zoneSummary": "{count} Element, {used} von {budget} | {count} Elemente, {used} von {budget}",
+      "noBudget": "ohne Limit",
+      "lastPass": "Letzte Wartung:",
+      "lastPassPurged": "{count} entfernt | {count} entfernt",
+      "never": "noch nicht",
+      "verify": "Prüfen",
+      "verifying": "Wird geprüft…",
+      "verifyOk": "Der Papierkorb jedes Volumes ist konsistent.",
+      "verifyIssues": "{count} Problem gefunden | {count} Probleme gefunden",
+      "runMaintenance": "Wartung jetzt ausführen",
+      "running": "Läuft…",
+      "events": {
+        "title": "Protokoll",
+        "evicted": "\"{name}\" vor Ablauf der Aufbewahrung entfernt, um Platz zu schaffen",
+        "adopted": "\"{name}\" nach einer Unterbrechung wiederhergestellt",
+        "lost": "Der Inhalt von \"{name}\" fehlte",
+        "failed": "\"{name}\" konnte nicht entfernt werden",
+        "breaker": "Zu viele Elemente fehlten auf einmal: nichts wurde geändert",
+        "forgotten": "\"{name}\" von einem Administrator vergessen"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt. Öffnen Sie es im Editor oder laden Sie es herunter.",
     "tooLargeToRenderWithEditor": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt; der Editor öffnet bis zu {editorLimit}. Öffnen Sie es im Editor oder laden Sie es herunter.",
     "stillRendering": "Wird dargestellt… {percent} %"
+  },
+  "trash": {
+    "title": "Papierkorb",
+    "menu": "Papierkorb",
+    "subtitle": "Elemente werden {count} Tag nach dem Löschen endgültig entfernt. | Elemente werden {count} Tage nach dem Löschen endgültig entfernt.",
+    "empty": "Der Papierkorb ist leer.",
+    "disabled": "Der Papierkorb ist ausgeschaltet: Löschen entfernt Elemente endgültig. Was noch hier ist, kann wiederhergestellt werden.",
+    "unavailable": "Volume nicht verfügbar",
+    "expiresToday": "Heute",
+    "expiresIn": "In {count} Tag | In {count} Tagen",
+    "columns": {
+      "originalLocation": "Ursprünglicher Ort",
+      "deletedBy": "Gelöscht von",
+      "deletedAt": "Gelöscht am",
+      "expires": "Entfernung"
+    },
+    "location": {
+      "personal": "Persönlicher Ordner",
+      "unknown": "Unbekannt"
+    },
+    "deletedBy": {
+      "you": "Sie",
+      "shareLink": "Freigabelink",
+      "unknown": "Unbekannt"
+    },
+    "actions": {
+      "restore": "Wiederherstellen",
+      "deletePermanently": "Endgültig löschen",
+      "empty": "Papierkorb leeren",
+      "openLocation": "Ursprünglichen Ort öffnen",
+      "selectAll": "Alle auswählen",
+      "select": "{name} auswählen"
+    },
+    "confirm": {
+      "deleteTitle": "Endgültig löschen?",
+      "deleteMessage": "Dieses Element wird endgültig entfernt. Das kann nicht rückgängig gemacht werden. | Diese {count} Elemente werden endgültig entfernt. Das kann nicht rückgängig gemacht werden.",
+      "emptyTitle": "Papierkorb leeren?",
+      "emptyMessage": "Alles in Ihrem Papierkorb wird endgültig entfernt. Das kann nicht rückgängig gemacht werden."
+    },
+    "results": {
+      "restored": "{count} Element wiederhergestellt | {count} Elemente wiederhergestellt",
+      "restoredTo": "Wiederhergestellt in {path}",
+      "renamed": "\"{name}\" wurde als \"{newName}\" wiederhergestellt: Der Name war vergeben.",
+      "notRestored": "{count} Element konnte nicht wiederhergestellt werden | {count} Elemente konnten nicht wiederhergestellt werden",
+      "deleted": "{count} Element endgültig gelöscht | {count} Elemente endgültig gelöscht",
+      "notDeleted": "{count} Element konnte nicht gelöscht werden | {count} Elemente konnten nicht gelöscht werden",
+      "emptied": "Papierkorb geleert: {count} Element entfernt | Papierkorb geleert: {count} Elemente entfernt",
+      "leftBehind": "{count} Element konnte nicht entfernt werden und ist noch da. | {count} Elemente konnten nicht entfernt werden und sind noch da."
+    },
+    "reasons": {
+      "forbidden": "Sie können an seinem Ort nicht mehr schreiben.",
+      "blocked": "an der Stelle seines Ordners steht jetzt etwas anderes.",
+      "unavailable": "sein Volume ist nicht verfügbar.",
+      "busy": "es wird bereits bearbeitet.",
+      "lost": "sein Inhalt war verschwunden.",
+      "notFound": "es ist nicht mehr im Papierkorb.",
+      "unknown": "es konnte nicht bearbeitet werden."
+    },
+    "errors": {
+      "load": "Der Papierkorb konnte nicht geladen werden.",
+      "action": "Der Papierkorb konnte das nicht ausführen."
+    }
   }
 }

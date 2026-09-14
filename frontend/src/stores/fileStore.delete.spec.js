@@ -116,4 +116,34 @@ describe('fileStore deletion feedback', () => {
     await expect(deletion).rejects.toThrow('Deletion denied');
     expect(store.currentPathItems.map((item) => item.name)).toEqual([removed.name, retained.name]);
   });
+
+  /** The confirmation reads what came back to find what the trash turned away. */
+  it('hands back what the server said about each item', async () => {
+    const answer = {
+      success: true,
+      items: [{ path: 'Volume/remove-me.txt', status: 'kept', reason: 'too-large' }],
+    };
+    deleteItemsStream.mockResolvedValue(answer);
+    browse.mockResolvedValue({ path: 'Volume', items: [removed, retained] });
+
+    const store = useFileStore();
+    store.setCurrentPath('Volume');
+    store.currentPathItems = [removed, retained];
+
+    await expect(store.del([removed])).resolves.toEqual(answer);
+  });
+
+  it('asks for a permanent deletion only when told to', async () => {
+    deleteItemsStream.mockResolvedValue({ success: true, items: [] });
+    browse.mockResolvedValue({ path: 'Volume', items: [] });
+
+    const store = useFileStore();
+    store.setCurrentPath('Volume');
+
+    await store.del([removed], { permanent: true });
+    await store.del([retained]);
+
+    expect(deleteItemsStream.mock.calls[0][1]).toMatchObject({ permanent: true });
+    expect(deleteItemsStream.mock.calls[1][1]).toMatchObject({ permanent: false });
+  });
 });

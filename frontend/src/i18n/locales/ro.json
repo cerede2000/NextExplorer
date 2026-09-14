@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Sigur vrei să ștergi \"{name}\"? Această acțiune nu poate fi anulată.",
       "multiple": "Sigur vrei să ștergi aceste {count} elemente? Această acțiune nu poate fi anulată.",
-      "generic": "Niciun element selectat."
+      "generic": "Niciun element selectat.",
+      "trashSingle": "\"{name}\" va ajunge în coșul de gunoi, care îl păstrează {count} zi. | \"{name}\" va ajunge în coșul de gunoi, care îl păstrează {count} zile.",
+      "trashMultiple": "Aceste {items} elemente vor ajunge în coșul de gunoi, care le păstrează {count} zi. | Aceste {items} elemente vor ajunge în coșul de gunoi, care le păstrează {count} zile."
     },
     "checkingDeleteImpact": "Se verifică partajările asociate…",
     "deleteImpactUnavailable": "Nu s-au putut verifica partajările asociate. Ștergerea va fi totuși aplicată de server.",
-    "deleteLinkedShares": "Acest conținut are {count} partajare asociată care va fi eliminată împreună cu el. | Acest conținut are {count} partajări asociate care vor fi eliminate împreună cu el."
+    "deleteLinkedShares": "Acest conținut are {count} partajare asociată care va fi eliminată împreună cu el. | Acest conținut are {count} partajări asociate care vor fi eliminate împreună cu el.",
+    "moveToTrash": "Mută în coșul de gunoi",
+    "deletePermanently": "Șterge definitiv",
+    "deleteSomePermanent": "{count} dintre ele nu poate ajunge în coșul de gunoi și va fi șters definitiv. | {count} dintre ele nu pot ajunge în coșul de gunoi și vor fi șterse definitiv.",
+    "trashReasons": {
+      "otherDevice": "Se află pe alt disc decât coșul de gunoi al volumului său.",
+      "tooLarge": "Este mai mare decât întregul coș de gunoi al volumului său.",
+      "zoneRoot": "Un volum întreg nu poate ajunge în propriul coș de gunoi.",
+      "zoneUnwritable": "Nu se poate scrie în coșul de gunoi al volumului său.",
+      "noZone": "Nu se află într-un loc cu coș de gunoi.",
+      "disabled": "Coșul de gunoi este dezactivat."
+    },
+    "keptTitle": "Nu a putut fi mutat în coșul de gunoi",
+    "keptMessage": "Acest element a fost lăsat la locul lui. Îl ștergeți definitiv? | Aceste {count} elemente au fost lăsate la locul lor. Le ștergeți definitiv?",
+    "keptReasons": {
+      "tooLarge": "{size}, mai mult decât cei {budget} pe care îi poate păstra coșul de gunoi al volumului său."
+    }
   },
   "folder": {
     "kind": "Tip",
@@ -440,7 +458,8 @@
       "adminUsers": "Gestionare utilizatori",
       "uploads": "Încărcări",
       "folderSize": "Dimensiunea dosarelor",
-      "searchIndex": "Index de căutare"
+      "searchIndex": "Index de căutare",
+      "trash": "Coș de gunoi"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -639,6 +658,59 @@
       "title": "Această funcție nu este activată",
       "howTo": "Pentru a o activa, setați {setting} și reporniți containerul.",
       "kept": "Ce configurați aici este salvat și se aplică imediat ce este activată."
+    },
+    "trash": {
+      "title": "Coș de gunoi",
+      "subtitle": "Elementele șterse sunt păstrate într-un spațiu rezervat pe propriul volum și eliminate definitiv la sfârșitul perioadei de păstrare sau când este nevoie de acel spațiu.",
+      "enabled": "Trimite elementele șterse în coșul de gunoi",
+      "enabledHelp": "Dezactivat, ștergerea elimină definitiv. Elementele aflate deja în coș expiră în continuare.",
+      "retentionDays": "Păstrare (zile)",
+      "retentionHelp": "Între 1 și 3650 de zile.",
+      "maxPercent": "Cota din fiecare volum (%)",
+      "maxPercentHelp": "Cel mult cât poate ocupa coșul de gunoi pe un volum, între 1 și 90 %.",
+      "maxSize": "Limită de dimensiune per volum (GiB)",
+      "maxSizeHelp": "Opțional. Se aplică cea mai mică dintre cotă și limită.",
+      "maxSizeNone": "Fără limită",
+      "invalid": "Verificați valorile: păstrare între 1 și 3650 de zile, cotă între 1 și 90 %, o dimensiune pozitivă sau niciuna.",
+      "saveFailed": "Setările nu au putut fi salvate.",
+      "environmentNote": "Valorile implicite provin din TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT și TRASH_MAX_SIZE.",
+      "zonesTitle": "Coș de gunoi pe volum",
+      "zonesSubtitle": "Fiecare volum își păstrează coșul de gunoi într-un folder ascuns .nextexplorer la rădăcina sa, așa că ștergerea nu copiază niciodată nimic.",
+      "zonesEmpty": "Încă nu s-a șters nimic într-un coș de gunoi.",
+      "zonesFailed": "Coșul de gunoi al volumelor nu a putut fi încărcat.",
+      "verifyFailed": "Verificarea nu a putut rula.",
+      "maintenanceFailed": "Întreținerea nu a putut rula.",
+      "zoneKind": {
+        "personal": "Folderul personal al lui {name}",
+        "userVolume": "Volum atribuit {name}"
+      },
+      "available": "Disponibil",
+      "unavailable": {
+        "missing": "Nemontat sau eliminat",
+        "replaced": "Alt disc în locul lui",
+        "unreadable": "Ilizibil"
+      },
+      "usage": "{used} din {budget}",
+      "zoneSummary": "{count} element, {used} din {budget} | {count} elemente, {used} din {budget}",
+      "noBudget": "fără limită",
+      "lastPass": "Ultima întreținere:",
+      "lastPassPurged": "{count} eliminat | {count} eliminate",
+      "never": "încă nu",
+      "verify": "Verifică",
+      "verifying": "Se verifică…",
+      "verifyOk": "Coșul de gunoi al fiecărui volum este consecvent.",
+      "verifyIssues": "{count} problemă găsită | {count} probleme găsite",
+      "runMaintenance": "Rulează întreținerea acum",
+      "running": "În curs…",
+      "events": {
+        "title": "Jurnal",
+        "evicted": "\"{name}\" eliminat înainte de sfârșitul păstrării pentru a elibera spațiu",
+        "adopted": "\"{name}\" recuperat după o întrerupere",
+        "lost": "Conținutul lui \"{name}\" lipsea",
+        "failed": "\"{name}\" nu a putut fi eliminat",
+        "breaker": "Prea multe elemente lipseau deodată: nu s-a modificat nimic",
+        "forgotten": "\"{name}\" uitat de un administrator"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser. Deschideți-l în editor sau descărcați-l.",
     "tooLargeToRenderWithEditor": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser; editorul deschide până la {editorLimit}. Deschideți-l în editor sau descărcați-l.",
     "stillRendering": "Se randează… {percent} %"
+  },
+  "trash": {
+    "title": "Coș de gunoi",
+    "menu": "Coș de gunoi",
+    "subtitle": "Elementele sunt șterse definitiv la {count} zi după ștergere. | Elementele sunt șterse definitiv la {count} zile după ștergere.",
+    "empty": "Coșul de gunoi este gol.",
+    "disabled": "Coșul de gunoi este dezactivat: ștergerea elimină definitiv. Ce se află încă aici poate fi restaurat.",
+    "unavailable": "Volum indisponibil",
+    "expiresToday": "Astăzi",
+    "expiresIn": "Peste {count} zi | Peste {count} zile",
+    "columns": {
+      "originalLocation": "Locația originală",
+      "deletedBy": "Șters de",
+      "deletedAt": "Șters la",
+      "expires": "Eliminare"
+    },
+    "location": {
+      "personal": "Folder personal",
+      "unknown": "Necunoscut"
+    },
+    "deletedBy": {
+      "you": "Dvs.",
+      "shareLink": "Link de partajare",
+      "unknown": "Necunoscut"
+    },
+    "actions": {
+      "restore": "Restaurează",
+      "deletePermanently": "Șterge definitiv",
+      "empty": "Golește coșul de gunoi",
+      "openLocation": "Deschide locația originală",
+      "selectAll": "Selectează tot",
+      "select": "Selectează {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Ștergeți definitiv?",
+      "deleteMessage": "Acest element va fi șters definitiv. Acțiunea nu poate fi anulată. | Aceste {count} elemente vor fi șterse definitiv. Acțiunea nu poate fi anulată.",
+      "emptyTitle": "Goliți coșul de gunoi?",
+      "emptyMessage": "Tot ce se află în coșul dvs. de gunoi va fi șters definitiv. Acțiunea nu poate fi anulată."
+    },
+    "results": {
+      "restored": "{count} element restaurat | {count} elemente restaurate",
+      "restoredTo": "Restaurat în {path}",
+      "renamed": "\"{name}\" a fost restaurat ca \"{newName}\": numele era ocupat.",
+      "notRestored": "{count} element nu a putut fi restaurat | {count} elemente nu au putut fi restaurate",
+      "deleted": "{count} element șters definitiv | {count} elemente șterse definitiv",
+      "notDeleted": "{count} element nu a putut fi șters | {count} elemente nu au putut fi șterse",
+      "emptied": "Coș de gunoi golit: {count} element eliminat | Coș de gunoi golit: {count} elemente eliminate",
+      "leftBehind": "{count} element nu a putut fi eliminat și este încă acolo. | {count} elemente nu au putut fi eliminate și sunt încă acolo."
+    },
+    "reasons": {
+      "forbidden": "nu mai puteți scrie unde se afla.",
+      "blocked": "acum altceva ocupă locul folderului său.",
+      "unavailable": "volumul său nu este disponibil.",
+      "busy": "este deja în lucru.",
+      "lost": "conținutul său dispăruse.",
+      "notFound": "nu mai este în coșul de gunoi.",
+      "unknown": "nu a putut fi procesat."
+    },
+    "errors": {
+      "load": "Coșul de gunoi nu a putut fi încărcat.",
+      "action": "Coșul de gunoi nu a putut face asta."
+    }
   }
 }

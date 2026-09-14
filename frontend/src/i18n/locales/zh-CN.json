@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "确定要删除 \"{name}\" 吗？此操作无法撤销。",
       "multiple": "确定要删除这 {count} 个项目吗？此操作无法撤销。",
-      "generic": "未选择任何项目。"
+      "generic": "未选择任何项目。",
+      "trashSingle": "\"{name}\" 将移至回收站，保留 {count} 天。",
+      "trashMultiple": "这 {items} 项将移至回收站，保留 {count} 天。"
     },
     "checkingDeleteImpact": "正在检查关联共享…",
     "deleteImpactUnavailable": "无法检查关联共享。删除仍将由服务器强制执行。",
-    "deleteLinkedShares": "此内容有 {count} 个关联共享，将随之一并删除。 | 此内容有 {count} 个关联共享，将随之一并删除。"
+    "deleteLinkedShares": "此内容有 {count} 个关联共享，将随之一并删除。 | 此内容有 {count} 个关联共享，将随之一并删除。",
+    "moveToTrash": "移至回收站",
+    "deletePermanently": "永久删除",
+    "deleteSomePermanent": "其中 {count} 项无法移至回收站，将被永久删除。",
+    "trashReasons": {
+      "otherDevice": "它与所在卷的回收站不在同一磁盘上。",
+      "tooLarge": "它比所在卷的整个回收站还大。",
+      "zoneRoot": "整个卷无法移至自己的回收站。",
+      "zoneUnwritable": "无法写入所在卷的回收站。",
+      "noZone": "它不在有回收站的位置。",
+      "disabled": "回收站已关闭。"
+    },
+    "keptTitle": "无法移至回收站",
+    "keptMessage": "{count} 项已保留在原位。要永久删除吗？",
+    "keptReasons": {
+      "tooLarge": "{size}，超过所在卷回收站可容纳的 {budget}。"
+    }
   },
   "folder": {
     "kind": "类型",
@@ -440,7 +458,8 @@
       "adminUsers": "用户管理",
       "uploads": "上传",
       "folderSize": "文件夹大小",
-      "searchIndex": "搜索索引"
+      "searchIndex": "搜索索引",
+      "trash": "回收站"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -639,6 +658,59 @@
       "title": "此功能未启用",
       "howTo": "要启用它，请设置 {setting} 并重启容器。",
       "kept": "此处的配置会被保存，启用后立即生效。"
+    },
+    "trash": {
+      "title": "回收站",
+      "subtitle": "删除的项目保存在其所在卷的预留空间中，保留期结束或需要该空间时将被永久删除。",
+      "enabled": "将删除的项目移至回收站",
+      "enabledHelp": "关闭后，删除将永久移除项目。回收站中已有的项目仍会到期。",
+      "retentionDays": "保留期（天）",
+      "retentionHelp": "1 至 3650 天。",
+      "maxPercent": "每个卷的占比（%）",
+      "maxPercentHelp": "回收站在一个卷上最多可占用的比例，1 至 90%。",
+      "maxSize": "每个卷的大小上限（GiB）",
+      "maxSizeHelp": "可选。占比与上限取较小者。",
+      "maxSizeNone": "无上限",
+      "invalid": "请检查数值：保留期 1 至 3650 天，占比 1 至 90%，正数大小或留空。",
+      "saveFailed": "无法保存设置。",
+      "environmentNote": "默认值来自 TRASH_ENABLED、TRASH_RETENTION_DAYS、TRASH_MAX_PERCENT 和 TRASH_MAX_SIZE。",
+      "zonesTitle": "各卷的回收站",
+      "zonesSubtitle": "每个卷把回收站放在其根目录的隐藏文件夹 .nextexplorer 中，因此删除从不复制任何内容。",
+      "zonesEmpty": "还没有任何内容被删除到回收站。",
+      "zonesFailed": "无法加载各卷的回收站。",
+      "verifyFailed": "无法运行检查。",
+      "maintenanceFailed": "无法运行维护。",
+      "zoneKind": {
+        "personal": "{name} 的个人文件夹",
+        "userVolume": "分配的卷 {name}"
+      },
+      "available": "可用",
+      "unavailable": {
+        "missing": "未挂载或已移除",
+        "replaced": "已被另一块磁盘替代",
+        "unreadable": "无法读取"
+      },
+      "usage": "{used} / {budget}",
+      "zoneSummary": "{count} 项，{used} / {budget}",
+      "noBudget": "无上限",
+      "lastPass": "上次维护：",
+      "lastPassPurged": "删除 {count} 项",
+      "never": "尚未进行",
+      "verify": "检查",
+      "verifying": "正在检查…",
+      "verifyOk": "每个卷的回收站均一致。",
+      "verifyIssues": "发现 {count} 个问题",
+      "runMaintenance": "立即运行维护",
+      "running": "正在运行…",
+      "events": {
+        "title": "日志",
+        "evicted": "为释放空间，\"{name}\" 在保留期结束前被删除",
+        "adopted": "中断后恢复了 \"{name}\"",
+        "lost": "\"{name}\" 的内容缺失",
+        "failed": "无法删除 \"{name}\"",
+        "breaker": "同时缺失的项目过多：未做任何更改",
+        "forgotten": "管理员忘记了 \"{name}\""
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素。请在编辑器中打开或下载。",
     "tooLargeToRenderWithEditor": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素；编辑器最多可打开 {editorLimit}。请在编辑器中打开或下载。",
     "stillRendering": "正在渲染… {percent}%"
+  },
+  "trash": {
+    "title": "回收站",
+    "menu": "回收站",
+    "subtitle": "项目在删除 {count} 天后将被永久删除。",
+    "empty": "回收站为空。",
+    "disabled": "回收站已关闭：删除会永久移除项目。这里仍有的项目可以还原。",
+    "unavailable": "卷不可用",
+    "expiresToday": "今天",
+    "expiresIn": "{count} 天后",
+    "columns": {
+      "originalLocation": "原位置",
+      "deletedBy": "删除者",
+      "deletedAt": "删除时间",
+      "expires": "永久删除"
+    },
+    "location": {
+      "personal": "个人文件夹",
+      "unknown": "未知"
+    },
+    "deletedBy": {
+      "you": "你",
+      "shareLink": "共享链接",
+      "unknown": "未知"
+    },
+    "actions": {
+      "restore": "还原",
+      "deletePermanently": "永久删除",
+      "empty": "清空回收站",
+      "openLocation": "打开原位置",
+      "selectAll": "全选",
+      "select": "选择 {name}"
+    },
+    "confirm": {
+      "deleteTitle": "永久删除？",
+      "deleteMessage": "{count} 项将被永久删除。此操作无法撤销。",
+      "emptyTitle": "清空回收站？",
+      "emptyMessage": "回收站中的所有内容都将被永久删除。此操作无法撤销。"
+    },
+    "results": {
+      "restored": "已还原 {count} 项",
+      "restoredTo": "已还原到 {path}",
+      "renamed": "\"{name}\" 已还原为 \"{newName}\"：原名称已被占用。",
+      "notRestored": "{count} 项无法还原",
+      "deleted": "已永久删除 {count} 项",
+      "notDeleted": "{count} 项无法删除",
+      "emptied": "回收站已清空：删除了 {count} 项",
+      "leftBehind": "{count} 项无法删除，仍在回收站中。"
+    },
+    "reasons": {
+      "forbidden": "你已无法写入其原位置。",
+      "blocked": "其文件夹的位置现在已被其他内容占用。",
+      "unavailable": "其所在卷不可用。",
+      "busy": "它正在处理中。",
+      "lost": "其内容已消失。",
+      "notFound": "它已不在回收站中。",
+      "unknown": "无法处理。"
+    },
+    "errors": {
+      "load": "无法加载回收站。",
+      "action": "回收站无法执行此操作。"
+    }
   }
 }

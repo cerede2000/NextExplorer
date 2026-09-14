@@ -34,6 +34,9 @@ export const useFeaturesStore = defineStore('features', () => {
   const skipHome = ref(false);
   const terminalEnabled = ref(false);
   const terminalExtensions = ref([]);
+  // Whether deleting goes to the trash, and for how many days it keeps things.
+  const trashEnabled = ref(false);
+  const trashRetentionDays = ref(null);
   const version = ref('');
   const gitCommit = ref('');
   const gitBranch = ref('');
@@ -128,6 +131,12 @@ export const useFeaturesStore = defineStore('features', () => {
           ? features.terminal.extensions
           : [];
 
+        // Trash
+        trashEnabled.value = features?.trash?.enabled === true;
+        trashRetentionDays.value = Number.isFinite(features?.trash?.retentionDays)
+          ? features.trash.retentionDays
+          : null;
+
         // Version information
         version.value = features?.version?.app || '';
         gitCommit.value = features?.version?.gitCommit || '';
@@ -161,6 +170,8 @@ export const useFeaturesStore = defineStore('features', () => {
         skipHome.value = false;
         terminalEnabled.value = false;
         terminalExtensions.value = [];
+        trashEnabled.value = false;
+        trashRetentionDays.value = null;
       } finally {
         isLoading.value = false;
       }
@@ -202,6 +213,8 @@ export const useFeaturesStore = defineStore('features', () => {
     skipHome,
     terminalEnabled,
     terminalExtensions,
+    trashEnabled,
+    trashRetentionDays,
     version,
     gitCommit,
     gitBranch,

@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "¿Seguro que quieres eliminar \"{name}\"? Esta acción no se puede deshacer.",
       "multiple": "¿Seguro que quieres eliminar estos {count} elementos? Esta acción no se puede deshacer.",
-      "generic": "No hay elementos seleccionados."
+      "generic": "No hay elementos seleccionados.",
+      "trashSingle": "\"{name}\" irá a la papelera, que lo conserva {count} día. | \"{name}\" irá a la papelera, que lo conserva {count} días.",
+      "trashMultiple": "Estos {items} elementos irán a la papelera, que los conserva {count} día. | Estos {items} elementos irán a la papelera, que los conserva {count} días."
     },
     "checkingDeleteImpact": "Comprobando comparticiones vinculadas...",
     "deleteImpactUnavailable": "No se pueden comprobar las comparticiones vinculadas. La eliminación se seguirá aplicando desde el servidor.",
-    "deleteLinkedShares": "Este contenido tiene {count} compartición vinculada que se eliminará con él. | Este contenido tiene {count} comparticiones vinculadas que se eliminarán con él."
+    "deleteLinkedShares": "Este contenido tiene {count} compartición vinculada que se eliminará con él. | Este contenido tiene {count} comparticiones vinculadas que se eliminarán con él.",
+    "moveToTrash": "Mover a la papelera",
+    "deletePermanently": "Eliminar definitivamente",
+    "deleteSomePermanent": "{count} de ellos no puede ir a la papelera y se eliminará definitivamente. | {count} de ellos no pueden ir a la papelera y se eliminarán definitivamente.",
+    "trashReasons": {
+      "otherDevice": "Está en otro disco distinto al de la papelera de su volumen.",
+      "tooLarge": "Es más grande que toda la papelera de su volumen.",
+      "zoneRoot": "Un volumen entero no puede ir a su propia papelera.",
+      "zoneUnwritable": "No se puede escribir en la papelera de su volumen.",
+      "noZone": "No está en un lugar con papelera.",
+      "disabled": "La papelera está desactivada."
+    },
+    "keptTitle": "No se pudo mover a la papelera",
+    "keptMessage": "Este elemento se ha dejado donde estaba. ¿Eliminarlo definitivamente? | Estos {count} elementos se han dejado donde estaban. ¿Eliminarlos definitivamente?",
+    "keptReasons": {
+      "tooLarge": "{size}, más de los {budget} que admite la papelera de su volumen."
+    }
   },
   "folder": {
     "kind": "Tipo",
@@ -440,7 +458,8 @@
       "adminUsers": "Gestión de usuarios",
       "uploads": "Subidas",
       "folderSize": "Tamaño de carpetas",
-      "searchIndex": "Índice de búsqueda"
+      "searchIndex": "Índice de búsqueda",
+      "trash": "Papelera"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -639,6 +658,59 @@
       "title": "Esta función no está activada",
       "howTo": "Para activarla, defina {setting} y reinicie el contenedor.",
       "kept": "Lo que configure aquí se guarda y se aplicará en cuanto se active."
+    },
+    "trash": {
+      "title": "Papelera",
+      "subtitle": "Los elementos eliminados se guardan en un espacio reservado de su propio volumen y se borran definitivamente al terminar la retención o cuando se necesita ese espacio.",
+      "enabled": "Enviar los elementos eliminados a la papelera",
+      "enabledHelp": "Desactivada, eliminar borra definitivamente. Los elementos que ya están en la papelera siguen caducando.",
+      "retentionDays": "Retención (días)",
+      "retentionHelp": "De 1 a 3650 días.",
+      "maxPercent": "Parte de cada volumen (%)",
+      "maxPercentHelp": "Lo máximo que la papelera puede ocupar en un volumen, de 1 a 90 %.",
+      "maxSize": "Tamaño máximo por volumen (GiB)",
+      "maxSizeHelp": "Opcional. Se aplica el menor entre la parte y el límite.",
+      "maxSizeNone": "Sin límite",
+      "invalid": "Revisa los valores: retención de 1 a 3650 días, parte de 1 a 90 %, un tamaño positivo o ninguno.",
+      "saveFailed": "No se pudieron guardar los ajustes.",
+      "environmentNote": "Los valores por defecto vienen de TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT y TRASH_MAX_SIZE.",
+      "zonesTitle": "Papelera por volumen",
+      "zonesSubtitle": "Cada volumen guarda su papelera en una carpeta oculta .nextexplorer en su raíz, así que eliminar nunca copia nada.",
+      "zonesEmpty": "Todavía no se ha eliminado nada a una papelera.",
+      "zonesFailed": "No se pudo cargar la papelera de los volúmenes.",
+      "verifyFailed": "No se pudo ejecutar la verificación.",
+      "maintenanceFailed": "No se pudo ejecutar el mantenimiento.",
+      "zoneKind": {
+        "personal": "Carpeta personal de {name}",
+        "userVolume": "Volumen asignado {name}"
+      },
+      "available": "Disponible",
+      "unavailable": {
+        "missing": "No montado o eliminado",
+        "replaced": "Otro disco en su lugar",
+        "unreadable": "Ilegible"
+      },
+      "usage": "{used} de {budget}",
+      "zoneSummary": "{count} elemento, {used} de {budget} | {count} elementos, {used} de {budget}",
+      "noBudget": "sin límite",
+      "lastPass": "Último mantenimiento:",
+      "lastPassPurged": "{count} eliminado | {count} eliminados",
+      "never": "todavía no",
+      "verify": "Verificar",
+      "verifying": "Verificando…",
+      "verifyOk": "La papelera de cada volumen es coherente.",
+      "verifyIssues": "{count} problema encontrado | {count} problemas encontrados",
+      "runMaintenance": "Ejecutar mantenimiento ahora",
+      "running": "En curso…",
+      "events": {
+        "title": "Registro",
+        "evicted": "\"{name}\" eliminado antes de su retención para liberar espacio",
+        "adopted": "\"{name}\" recuperado tras una interrupción",
+        "lost": "Faltaba el contenido de \"{name}\"",
+        "failed": "\"{name}\" no se pudo eliminar",
+        "breaker": "Faltaban demasiados elementos a la vez: no se cambió nada",
+        "forgotten": "\"{name}\" olvidado por un administrador"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador. Ábralo en el editor o descárguelo.",
     "tooLargeToRenderWithEditor": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador; el editor abre hasta {editorLimit}. Ábralo en el editor o descárguelo.",
     "stillRendering": "Representando… {percent} %"
+  },
+  "trash": {
+    "title": "Papelera",
+    "menu": "Papelera",
+    "subtitle": "Los elementos se eliminan definitivamente {count} día después de borrarlos. | Los elementos se eliminan definitivamente {count} días después de borrarlos.",
+    "empty": "La papelera está vacía.",
+    "disabled": "La papelera está desactivada: eliminar borra definitivamente. Lo que aún está aquí se puede restaurar.",
+    "unavailable": "Volumen no disponible",
+    "expiresToday": "Hoy",
+    "expiresIn": "En {count} día | En {count} días",
+    "columns": {
+      "originalLocation": "Ubicación original",
+      "deletedBy": "Eliminado por",
+      "deletedAt": "Eliminado el",
+      "expires": "Eliminación"
+    },
+    "location": {
+      "personal": "Carpeta personal",
+      "unknown": "Desconocida"
+    },
+    "deletedBy": {
+      "you": "Tú",
+      "shareLink": "Enlace compartido",
+      "unknown": "Desconocido"
+    },
+    "actions": {
+      "restore": "Restaurar",
+      "deletePermanently": "Eliminar definitivamente",
+      "empty": "Vaciar papelera",
+      "openLocation": "Abrir ubicación original",
+      "selectAll": "Seleccionar todo",
+      "select": "Seleccionar {name}"
+    },
+    "confirm": {
+      "deleteTitle": "¿Eliminar definitivamente?",
+      "deleteMessage": "Este elemento se eliminará definitivamente. Esta acción no se puede deshacer. | Estos {count} elementos se eliminarán definitivamente. Esta acción no se puede deshacer.",
+      "emptyTitle": "¿Vaciar la papelera?",
+      "emptyMessage": "Todo lo que hay en tu papelera se eliminará definitivamente. Esta acción no se puede deshacer."
+    },
+    "results": {
+      "restored": "{count} elemento restaurado | {count} elementos restaurados",
+      "restoredTo": "Restaurado en {path}",
+      "renamed": "\"{name}\" se restauró como \"{newName}\": su nombre estaba ocupado.",
+      "notRestored": "{count} elemento no se pudo restaurar | {count} elementos no se pudieron restaurar",
+      "deleted": "{count} elemento eliminado definitivamente | {count} elementos eliminados definitivamente",
+      "notDeleted": "{count} elemento no se pudo eliminar | {count} elementos no se pudieron eliminar",
+      "emptied": "Papelera vaciada: {count} elemento eliminado | Papelera vaciada: {count} elementos eliminados",
+      "leftBehind": "{count} elemento no se pudo eliminar y sigue ahí. | {count} elementos no se pudieron eliminar y siguen ahí."
+    },
+    "reasons": {
+      "forbidden": "ya no puedes escribir donde estaba.",
+      "blocked": "ahora hay algo en el lugar de su carpeta.",
+      "unavailable": "su volumen no está disponible.",
+      "busy": "ya se está procesando.",
+      "lost": "su contenido había desaparecido.",
+      "notFound": "ya no está en la papelera.",
+      "unknown": "no se pudo procesar."
+    },
+    "errors": {
+      "load": "No se pudo cargar la papelera.",
+      "action": "La papelera no pudo hacer eso."
+    }
   }
 }

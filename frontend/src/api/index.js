@@ -14,3 +14,4 @@ export * from './onlyoffice.api';
 export * from './collabora.api';
 export * from './features.api';
 export * from './terminal.api';
+export * from './trash.api';

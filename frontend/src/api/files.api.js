@@ -37,14 +37,29 @@ const TRANSFER_BATCH_SIZE = 500;
  */
 const summarizeDeleteImpact = (responses) => {
   const sharesById = new Map();
+  let trash = null;
   for (const response of responses) {
     for (const share of Array.isArray(response?.shares) ? response.shares : []) {
       if (share?.id) sharesById.set(share.id, share);
     }
+    // Every batch answers from the same settings; the items are what add up.
+    if (response?.trash) {
+      trash = {
+        enabled: Boolean(response.trash.enabled),
+        retentionDays: response.trash.retentionDays ?? null,
+        items: [
+          ...(trash?.items || []),
+          ...(Array.isArray(response.trash.items) ? response.trash.items : []),
+        ],
+      };
+    }
   }
   const shares = Array.from(sharesById.values());
-  return { shareCount: shares.length, shares };
+  return { shareCount: shares.length, shares, trash };
 };
+
+/** Only sent when asked for, so a request without it means what it always meant. */
+const permanentFlag = (options = {}) => (options.permanent === true ? { permanent: true } : {});
 
 const mergeTransferResults = (results) => {
   if (!Array.isArray(results)) return results;
@@ -227,12 +242,12 @@ async function moveItems(items, destination, options = {}) {
   return mergeTransferResults(results);
 }
 
-async function deleteItems(items) {
+async function deleteItems(items, options = {}) {
   const normalizedItems = Array.isArray(items) ? items : [];
   if (normalizedItems.length <= DELETE_BATCH_SIZE) {
     return requestJson('/api/files', {
       method: 'DELETE',
-      body: JSON.stringify({ items: normalizedItems }),
+      body: JSON.stringify({ items: normalizedItems, ...permanentFlag(options) }),
     });
   }
 
@@ -242,7 +257,7 @@ async function deleteItems(items) {
     // eslint-disable-next-line no-await-in-loop
     const response = await requestJson('/api/files', {
       method: 'DELETE',
-      body: JSON.stringify({ items: batch }),
+      body: JSON.stringify({ items: batch, ...permanentFlag(options) }),
     });
     deletedItems.push(...(Array.isArray(response?.items) ? response.items : []));
   }
@@ -257,7 +272,7 @@ async function deleteItemsStream(items, options = {}) {
     (batch, onEvent) =>
       requestStream('/api/files/delete-stream', {
         method: 'POST',
-        body: JSON.stringify({ items: batch }),
+        body: JSON.stringify({ items: batch, ...permanentFlag(options) }),
         onEvent,
         signal: options.signal,
       }),

@@ -22,6 +22,8 @@ import AuthLoginView from '@/views/AuthLoginView.vue';
 import ShareLoginView from '@/views/ShareLoginView.vue';
 import SharedWithMeView from '@/views/SharedWithMeView.vue';
 import SharedByMeView from '@/views/SharedByMeView.vue';
+import TrashView from '@/views/TrashView.vue';
+import SettingsTrash from '@/views/settings/SettingsTrash.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
@@ -71,6 +73,11 @@ const router = createRouter({
             {
               path: 'search-index',
               component: SettingsSearchIndex,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'trash',
+              component: SettingsTrash,
               meta: { requiresAdmin: true },
             },
             { path: 'account-password', component: SettingsPassword },
@@ -148,6 +155,12 @@ const router = createRouter({
           component: SharedByMeView,
         },
       ],
+    },
+    {
+      path: '/trash',
+      component: BrowserLayout,
+      meta: { requiresAuth: true },
+      children: [{ path: '', name: 'Trash', component: TrashView }],
     },
     {
       path: '/search',

@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Sei sicuro di voler eliminare \"{name}\"? Questa azione non può essere annullata.",
       "multiple": "Sei sicuro di voler eliminare questi {count} elementi? Questa azione non può essere annullata.",
-      "generic": "Nessun elemento selezionato."
+      "generic": "Nessun elemento selezionato.",
+      "trashSingle": "\"{name}\" andrà nel cestino, che lo conserva per {count} giorno. | \"{name}\" andrà nel cestino, che lo conserva per {count} giorni.",
+      "trashMultiple": "Questi {items} elementi andranno nel cestino, che li conserva per {count} giorno. | Questi {items} elementi andranno nel cestino, che li conserva per {count} giorni."
     },
     "checkingDeleteImpact": "Verifica delle condivisioni collegate...",
     "deleteImpactUnavailable": "Impossibile verificare le condivisioni collegate. L'eliminazione sarà comunque applicata dal server.",
-    "deleteLinkedShares": "Questo contenuto ha {count} condivisione collegata che sarà rimossa con esso. | Questo contenuto ha {count} condivisioni collegate che saranno rimosse con esso."
+    "deleteLinkedShares": "Questo contenuto ha {count} condivisione collegata che sarà rimossa con esso. | Questo contenuto ha {count} condivisioni collegate che saranno rimosse con esso.",
+    "moveToTrash": "Sposta nel cestino",
+    "deletePermanently": "Elimina definitivamente",
+    "deleteSomePermanent": "{count} di essi non può andare nel cestino e sarà eliminato definitivamente. | {count} di essi non possono andare nel cestino e saranno eliminati definitivamente.",
+    "trashReasons": {
+      "otherDevice": "Si trova su un disco diverso da quello del cestino del suo volume.",
+      "tooLarge": "È più grande dell'intero cestino del suo volume.",
+      "zoneRoot": "Un intero volume non può andare nel proprio cestino.",
+      "zoneUnwritable": "Non è possibile scrivere nel cestino del suo volume.",
+      "noZone": "Non si trova in un luogo dotato di cestino.",
+      "disabled": "Il cestino è disattivato."
+    },
+    "keptTitle": "Impossibile spostare nel cestino",
+    "keptMessage": "Questo elemento è stato lasciato dov'era. Eliminarlo definitivamente? | Questi {count} elementi sono stati lasciati dov'erano. Eliminarli definitivamente?",
+    "keptReasons": {
+      "tooLarge": "{size}, più dei {budget} che il cestino del suo volume può contenere."
+    }
   },
   "folder": {
     "kind": "Tipo",
@@ -440,7 +458,8 @@
       "adminUsers": "Gestione utenti",
       "uploads": "Caricamenti",
       "folderSize": "Dimensioni cartelle",
-      "searchIndex": "Indice di ricerca"
+      "searchIndex": "Indice di ricerca",
+      "trash": "Cestino"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -639,6 +658,59 @@
       "title": "Questa funzione non è attiva",
       "howTo": "Per attivarla, imposta {setting} e riavvia il contenitore.",
       "kept": "Ciò che configuri qui viene salvato e si applica non appena è attiva."
+    },
+    "trash": {
+      "title": "Cestino",
+      "subtitle": "Gli elementi eliminati restano in uno spazio riservato sul loro volume e vengono rimossi definitivamente alla fine della conservazione o quando serve quello spazio.",
+      "enabled": "Sposta gli elementi eliminati nel cestino",
+      "enabledHelp": "Se disattivato, eliminare cancella definitivamente. Gli elementi già nel cestino scadono comunque.",
+      "retentionDays": "Conservazione (giorni)",
+      "retentionHelp": "Da 1 a 3650 giorni.",
+      "maxPercent": "Quota di ogni volume (%)",
+      "maxPercentHelp": "Il massimo che il cestino può occupare su un volume, da 1 a 90 %.",
+      "maxSize": "Limite di dimensione per volume (GiB)",
+      "maxSizeHelp": "Facoltativo. Si applica il minore tra quota e limite.",
+      "maxSizeNone": "Nessun limite",
+      "invalid": "Controlla i valori: conservazione da 1 a 3650 giorni, quota da 1 a 90 %, una dimensione positiva o nessuna.",
+      "saveFailed": "Impossibile salvare le impostazioni.",
+      "environmentNote": "I valori predefiniti provengono da TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT e TRASH_MAX_SIZE.",
+      "zonesTitle": "Cestino per volume",
+      "zonesSubtitle": "Ogni volume tiene il suo cestino in una cartella nascosta .nextexplorer nella sua radice, quindi eliminare non copia mai nulla.",
+      "zonesEmpty": "Non è ancora stato eliminato nulla in un cestino.",
+      "zonesFailed": "Impossibile caricare il cestino dei volumi.",
+      "verifyFailed": "Impossibile eseguire la verifica.",
+      "maintenanceFailed": "Impossibile eseguire la manutenzione.",
+      "zoneKind": {
+        "personal": "Cartella personale di {name}",
+        "userVolume": "Volume assegnato {name}"
+      },
+      "available": "Disponibile",
+      "unavailable": {
+        "missing": "Non montato o rimosso",
+        "replaced": "Un altro disco al suo posto",
+        "unreadable": "Illeggibile"
+      },
+      "usage": "{used} su {budget}",
+      "zoneSummary": "{count} elemento, {used} su {budget} | {count} elementi, {used} su {budget}",
+      "noBudget": "nessun limite",
+      "lastPass": "Ultima manutenzione:",
+      "lastPassPurged": "{count} eliminato | {count} eliminati",
+      "never": "non ancora",
+      "verify": "Verifica",
+      "verifying": "Verifica in corso…",
+      "verifyOk": "Il cestino di ogni volume è coerente.",
+      "verifyIssues": "{count} problema trovato | {count} problemi trovati",
+      "runMaintenance": "Esegui la manutenzione ora",
+      "running": "In corso…",
+      "events": {
+        "title": "Registro",
+        "evicted": "\"{name}\" eliminato prima della fine della conservazione per liberare spazio",
+        "adopted": "\"{name}\" recuperato dopo un'interruzione",
+        "lost": "Il contenuto di \"{name}\" mancava",
+        "failed": "\"{name}\" non è stato eliminato",
+        "breaker": "Troppi elementi mancanti in una volta: nulla è stato modificato",
+        "forgotten": "\"{name}\" dimenticato da un amministratore"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",
     "tooLargeToRenderWithEditor": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser; l'editor apre fino a {editorLimit}. Aprilo nell'editor o scaricalo.",
     "stillRendering": "Rendering in corso… {percent} %"
+  },
+  "trash": {
+    "title": "Cestino",
+    "menu": "Cestino",
+    "subtitle": "Gli elementi vengono eliminati definitivamente {count} giorno dopo la cancellazione. | Gli elementi vengono eliminati definitivamente {count} giorni dopo la cancellazione.",
+    "empty": "Il cestino è vuoto.",
+    "disabled": "Il cestino è disattivato: eliminare cancella definitivamente. Ciò che è ancora qui può essere ripristinato.",
+    "unavailable": "Volume non disponibile",
+    "expiresToday": "Oggi",
+    "expiresIn": "Tra {count} giorno | Tra {count} giorni",
+    "columns": {
+      "originalLocation": "Posizione originale",
+      "deletedBy": "Eliminato da",
+      "deletedAt": "Eliminato il",
+      "expires": "Rimozione"
+    },
+    "location": {
+      "personal": "Cartella personale",
+      "unknown": "Sconosciuta"
+    },
+    "deletedBy": {
+      "you": "Tu",
+      "shareLink": "Link di condivisione",
+      "unknown": "Sconosciuto"
+    },
+    "actions": {
+      "restore": "Ripristina",
+      "deletePermanently": "Elimina definitivamente",
+      "empty": "Svuota cestino",
+      "openLocation": "Apri posizione originale",
+      "selectAll": "Seleziona tutto",
+      "select": "Seleziona {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Eliminare definitivamente?",
+      "deleteMessage": "Questo elemento sarà eliminato definitivamente. L'azione non può essere annullata. | Questi {count} elementi saranno eliminati definitivamente. L'azione non può essere annullata.",
+      "emptyTitle": "Svuotare il cestino?",
+      "emptyMessage": "Tutto ciò che è nel tuo cestino sarà eliminato definitivamente. L'azione non può essere annullata."
+    },
+    "results": {
+      "restored": "{count} elemento ripristinato | {count} elementi ripristinati",
+      "restoredTo": "Ripristinato in {path}",
+      "renamed": "\"{name}\" è stato ripristinato come \"{newName}\": il nome era già in uso.",
+      "notRestored": "{count} elemento non è stato ripristinato | {count} elementi non sono stati ripristinati",
+      "deleted": "{count} elemento eliminato definitivamente | {count} elementi eliminati definitivamente",
+      "notDeleted": "{count} elemento non è stato eliminato | {count} elementi non sono stati eliminati",
+      "emptied": "Cestino svuotato: {count} elemento eliminato | Cestino svuotato: {count} elementi eliminati",
+      "leftBehind": "{count} elemento non è stato eliminato ed è ancora lì. | {count} elementi non sono stati eliminati e sono ancora lì."
+    },
+    "reasons": {
+      "forbidden": "non puoi più scrivere dove si trovava.",
+      "blocked": "ora c'è qualcos'altro al posto della sua cartella.",
+      "unavailable": "il suo volume non è disponibile.",
+      "busy": "è già in lavorazione.",
+      "lost": "il suo contenuto era scomparso.",
+      "notFound": "non è più nel cestino.",
+      "unknown": "non è stato possibile gestirlo."
+    },
+    "errors": {
+      "load": "Impossibile caricare il cestino.",
+      "action": "Il cestino non ha potuto eseguire l'azione."
+    }
   }
 }

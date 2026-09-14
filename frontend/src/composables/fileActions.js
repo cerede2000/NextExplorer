@@ -166,7 +166,9 @@ export function useFileActions() {
 
   const deleteNow = async (items, options) => {
     if (items === undefined && !canDelete.value) return;
-    await fileStore.del(items, options);
+    // What the server said about each item: the confirmation reads it to find
+    // what the trash turned away.
+    return fileStore.del(items, options);
   };
 
   const submitDownloadRequest = (paths, basePath = '') => {

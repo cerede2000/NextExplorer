@@ -16,6 +16,7 @@ import {
   KeyIcon,
   UsersIcon,
   UserCircleIcon,
+  TrashIcon,
 } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
@@ -95,6 +96,12 @@ const adminCategories = [
     i18nKey: 'searchIndex',
     name: 'Search index',
     icon: MagnifyingGlassIcon,
+  },
+  {
+    key: 'trash',
+    i18nKey: 'trash',
+    name: 'Trash',
+    icon: TrashIcon,
   },
   {
     key: 'access-control',

@@ -153,3 +153,67 @@ test('a shared link opens for someone with no account, and opens nothing else', 
     await stranger.close();
   }
 });
+
+const trashDirectory = path.join(volume, '.nextexplorer', 'trash');
+/** What the trash holds on disk: the items, not their descriptions. */
+const trashPayloads = () =>
+  fs.existsSync(trashDirectory)
+    ? fs.readdirSync(trashDirectory).filter((name) => !name.endsWith('.json'))
+    : [];
+
+/**
+ * Deleting is a rename into the volume's own reserved space: the file leaves
+ * the folder, its bytes wait on the same disk, and restoring puts back exactly
+ * what was there. Checked on the disk, not only in the listing.
+ */
+test('a deleted file goes to the trash and comes back as it was', async () => {
+  const content = 'uploaded through the browser\n';
+  const file = path.join(volume, 'report.txt');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select report.txt' }).click();
+  await page.keyboard.press('Delete');
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('will go to the trash');
+  await dialog.getByRole('button', { name: 'Move to Trash' }).click();
+
+  await expect.poll(() => fs.existsSync(file)).toBe(false);
+  await expect.poll(() => trashPayloads().length).toBe(1);
+  expect(fs.readFileSync(path.join(trashDirectory, trashPayloads()[0]), 'utf8')).toBe(content);
+
+  await page.getByRole('button', { name: 'Trash', exact: true }).click();
+  await expect(page).toHaveURL(/\/trash$/);
+  await page.getByRole('checkbox', { name: 'Select report.txt' }).check();
+  await page.getByRole('button', { name: 'Restore' }).click();
+
+  await expect
+    .poll(() => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null))
+    .toBe(content);
+  expect(trashPayloads()).toEqual([]);
+  await expect(page.getByText('The trash is empty.')).toBeVisible();
+});
+
+test('deleting for good from the trash takes the bytes off the disk', async () => {
+  const file = path.join(volume, 'notes.txt');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select notes.txt' }).click();
+  await page.keyboard.press('Delete');
+  await page.getByRole('dialog').getByRole('button', { name: 'Move to Trash' }).click();
+  await expect.poll(() => fs.existsSync(file)).toBe(false);
+  await expect.poll(() => trashPayloads().length).toBe(1);
+
+  await page.goto('/trash');
+  await page.getByRole('checkbox', { name: 'Select notes.txt' }).check();
+  await page.getByRole('button', { name: 'Delete permanently' }).click();
+
+  // Asked first: nothing leaves the trash on one click.
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('removed for good');
+  expect(trashPayloads()).toHaveLength(1);
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click();
+
+  await expect.poll(() => fs.readdirSync(trashDirectory)).toEqual([]);
+  expect(fs.existsSync(file)).toBe(false);
+});

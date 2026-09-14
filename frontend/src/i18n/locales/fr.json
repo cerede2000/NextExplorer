@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Voulez-vous vraiment supprimer \"{name}\" ? Cette action est irréversible.",
       "multiple": "Voulez-vous vraiment supprimer ces {count} éléments ? Cette action est irréversible.",
-      "generic": "Aucun élément sélectionné."
+      "generic": "Aucun élément sélectionné.",
+      "trashSingle": "\"{name}\" ira dans la corbeille, qui le conserve {count} jour. | \"{name}\" ira dans la corbeille, qui le conserve {count} jours.",
+      "trashMultiple": "Ces {items} éléments iront dans la corbeille, qui les conserve {count} jour. | Ces {items} éléments iront dans la corbeille, qui les conserve {count} jours."
     },
     "checkingDeleteImpact": "Vérification des partages associés...",
     "deleteImpactUnavailable": "Impossible de vérifier les partages associés. La suppression restera contrôlée côté serveur.",
-    "deleteLinkedShares": "Ce contenu possède {count} lien de partage associé qui sera supprimé avec lui. | Ce contenu possède {count} liens de partage associés qui seront supprimés avec lui."
+    "deleteLinkedShares": "Ce contenu possède {count} lien de partage associé qui sera supprimé avec lui. | Ce contenu possède {count} liens de partage associés qui seront supprimés avec lui.",
+    "moveToTrash": "Mettre à la corbeille",
+    "deletePermanently": "Supprimer définitivement",
+    "deleteSomePermanent": "{count} d'entre eux ne peut pas aller dans la corbeille et sera supprimé définitivement. | {count} d'entre eux ne peuvent pas aller dans la corbeille et seront supprimés définitivement.",
+    "trashReasons": {
+      "otherDevice": "Il se trouve sur un autre disque que la corbeille de son volume.",
+      "tooLarge": "Il est plus volumineux que toute la corbeille de son volume.",
+      "zoneRoot": "Un volume entier ne peut pas aller dans sa propre corbeille.",
+      "zoneUnwritable": "La corbeille de son volume n'est pas accessible en écriture.",
+      "noZone": "Il n'est pas dans un emplacement doté d'une corbeille.",
+      "disabled": "La corbeille est désactivée."
+    },
+    "keptTitle": "Impossible de mettre à la corbeille",
+    "keptMessage": "Cet élément a été laissé à sa place. Le supprimer définitivement ? | Ces {count} éléments ont été laissés à leur place. Les supprimer définitivement ?",
+    "keptReasons": {
+      "tooLarge": "{size}, plus que les {budget} que peut contenir la corbeille de son volume."
+    }
   },
   "folder": {
     "kind": "Type",
@@ -443,7 +461,8 @@
       "security": "Sécurité",
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs",
-      "searchIndex": "Index de recherche"
+      "searchIndex": "Index de recherche",
+      "trash": "Corbeille"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -642,6 +661,59 @@
       "title": "Cette fonction n'est pas active",
       "howTo": "Pour l'activer, positionnez {setting} puis redémarrez le conteneur.",
       "kept": "Ce que vous configurez ici est enregistré et s'appliquera dès l'activation."
+    },
+    "trash": {
+      "title": "Corbeille",
+      "subtitle": "Les éléments supprimés sont conservés dans un espace réservé sur leur propre volume, puis supprimés définitivement à la fin de la rétention ou lorsque cet espace est nécessaire.",
+      "enabled": "Envoyer les éléments supprimés à la corbeille",
+      "enabledHelp": "Désactivée, la suppression efface définitivement. Les éléments déjà dans la corbeille expirent toujours.",
+      "retentionDays": "Rétention (jours)",
+      "retentionHelp": "De 1 à 3650 jours.",
+      "maxPercent": "Part de chaque volume (%)",
+      "maxPercentHelp": "Le maximum que la corbeille peut occuper sur un volume, de 1 à 90 %.",
+      "maxSize": "Taille maximale par volume (Gio)",
+      "maxSizeHelp": "Facultatif. La plus petite des deux limites s'applique.",
+      "maxSizeNone": "Aucune limite",
+      "invalid": "Vérifiez les valeurs : rétention de 1 à 3650 jours, part de 1 à 90 %, une taille positive ou aucune.",
+      "saveFailed": "Les réglages n'ont pas pu être enregistrés.",
+      "environmentNote": "Les valeurs par défaut viennent de TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT et TRASH_MAX_SIZE.",
+      "zonesTitle": "Corbeille par volume",
+      "zonesSubtitle": "Chaque volume garde sa corbeille dans un dossier caché .nextexplorer à sa racine : supprimer ne copie jamais rien.",
+      "zonesEmpty": "Rien n'a encore été supprimé vers une corbeille.",
+      "zonesFailed": "La corbeille des volumes n'a pas pu être chargée.",
+      "verifyFailed": "La vérification n'a pas pu s'exécuter.",
+      "maintenanceFailed": "L'entretien n'a pas pu s'exécuter.",
+      "zoneKind": {
+        "personal": "Dossier personnel de {name}",
+        "userVolume": "Volume attribué {name}"
+      },
+      "available": "Disponible",
+      "unavailable": {
+        "missing": "Non monté ou supprimé",
+        "replaced": "Un autre disque à sa place",
+        "unreadable": "Illisible"
+      },
+      "usage": "{used} sur {budget}",
+      "zoneSummary": "{count} élément, {used} sur {budget} | {count} éléments, {used} sur {budget}",
+      "noBudget": "sans limite",
+      "lastPass": "Dernier entretien :",
+      "lastPassPurged": "{count} supprimé | {count} supprimés",
+      "never": "pas encore",
+      "verify": "Vérifier",
+      "verifying": "Vérification…",
+      "verifyOk": "La corbeille de chaque volume est cohérente.",
+      "verifyIssues": "{count} problème trouvé | {count} problèmes trouvés",
+      "runMaintenance": "Lancer l'entretien maintenant",
+      "running": "En cours…",
+      "events": {
+        "title": "Journal",
+        "evicted": "\"{name}\" supprimé avant la fin de sa rétention pour libérer de l'espace",
+        "adopted": "\"{name}\" récupéré après une interruption",
+        "lost": "Le contenu de \"{name}\" avait disparu",
+        "failed": "\"{name}\" n'a pas pu être supprimé",
+        "breaker": "Trop d'éléments manquants d'un coup : rien n'a été modifié",
+        "forgotten": "\"{name}\" oublié par un administrateur"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur. Ouvrez-le dans l'éditeur ou téléchargez-le.",
     "tooLargeToRenderWithEditor": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur ; l'éditeur, lui, ouvre jusqu'à {editorLimit}. Ouvrez-le dans l'éditeur ou téléchargez-le.",
     "stillRendering": "Rendu en cours… {percent} %"
+  },
+  "trash": {
+    "title": "Corbeille",
+    "menu": "Corbeille",
+    "subtitle": "Les éléments sont supprimés définitivement {count} jour après leur suppression. | Les éléments sont supprimés définitivement {count} jours après leur suppression.",
+    "empty": "La corbeille est vide.",
+    "disabled": "La corbeille est désactivée : supprimer efface définitivement. Ce qui s'y trouve encore peut être restauré.",
+    "unavailable": "Volume indisponible",
+    "expiresToday": "Aujourd'hui",
+    "expiresIn": "Dans {count} jour | Dans {count} jours",
+    "columns": {
+      "originalLocation": "Emplacement d'origine",
+      "deletedBy": "Supprimé par",
+      "deletedAt": "Supprimé le",
+      "expires": "Suppression"
+    },
+    "location": {
+      "personal": "Dossier personnel",
+      "unknown": "Inconnu"
+    },
+    "deletedBy": {
+      "you": "Vous",
+      "shareLink": "Lien de partage",
+      "unknown": "Inconnu"
+    },
+    "actions": {
+      "restore": "Restaurer",
+      "deletePermanently": "Supprimer définitivement",
+      "empty": "Vider la corbeille",
+      "openLocation": "Ouvrir l'emplacement d'origine",
+      "selectAll": "Tout sélectionner",
+      "select": "Sélectionner {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Supprimer définitivement ?",
+      "deleteMessage": "Cet élément sera supprimé définitivement. Cette action est irréversible. | Ces {count} éléments seront supprimés définitivement. Cette action est irréversible.",
+      "emptyTitle": "Vider la corbeille ?",
+      "emptyMessage": "Tout ce que contient votre corbeille sera supprimé définitivement. Cette action est irréversible."
+    },
+    "results": {
+      "restored": "{count} élément restauré | {count} éléments restaurés",
+      "restoredTo": "Restauré dans {path}",
+      "renamed": "\"{name}\" a été restauré sous le nom \"{newName}\" : son nom était pris.",
+      "notRestored": "{count} élément n'a pas pu être restauré | {count} éléments n'ont pas pu être restaurés",
+      "deleted": "{count} élément supprimé définitivement | {count} éléments supprimés définitivement",
+      "notDeleted": "{count} élément n'a pas pu être supprimé | {count} éléments n'ont pas pu être supprimés",
+      "emptied": "Corbeille vidée : {count} élément supprimé | Corbeille vidée : {count} éléments supprimés",
+      "leftBehind": "{count} élément n'a pas pu être supprimé et y est toujours. | {count} éléments n'ont pas pu être supprimés et y sont toujours."
+    },
+    "reasons": {
+      "forbidden": "vous ne pouvez plus écrire à son emplacement d'origine.",
+      "blocked": "quelque chose occupe désormais la place de son dossier.",
+      "unavailable": "son volume n'est pas disponible.",
+      "busy": "il est déjà en cours de traitement.",
+      "lost": "son contenu avait disparu.",
+      "notFound": "il n'est plus dans la corbeille.",
+      "unknown": "il n'a pas pu être traité."
+    },
+    "errors": {
+      "load": "La corbeille n'a pas pu être chargée.",
+      "action": "La corbeille n'a pas pu effectuer cette action."
+    }
   }
 }

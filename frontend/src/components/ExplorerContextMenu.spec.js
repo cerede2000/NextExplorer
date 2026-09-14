@@ -599,6 +599,134 @@ describe('what the delete confirmation says', () => {
     expect(view.deleteImpactError).toBe('Share service unreachable');
   });
 
+  /** With the trash on, the dialog says the item goes there, and for how long. */
+  it('says one item goes to the trash, and for how long', async () => {
+    getDeleteImpact.mockResolvedValue({
+      shareCount: 0,
+      shares: [],
+      trash: {
+        enabled: true,
+        retentionDays: 30,
+        items: [{ path: 'Docs/report.docx', disposition: 'trash', reason: null }],
+      },
+    });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogMessage).toBe(
+      'context.deleteMessage.trashSingle {"name":"report.docx","count":30}'
+    );
+    expect(view.goesToTrash).toBe(true);
+    expect(view.deletePermanentNotice).toBe('');
+  });
+
+  it('says several items go to the trash', async () => {
+    actions.selectedItems = ref([FILE, FOLDER]);
+    fileStore.selectedItems = [FILE, FOLDER];
+    getDeleteImpact.mockResolvedValue({
+      shareCount: 0,
+      shares: [],
+      trash: {
+        enabled: true,
+        retentionDays: 7,
+        items: [
+          { path: 'Docs/report.docx', disposition: 'trash', reason: null },
+          { path: 'Docs/2026', disposition: 'trash', reason: null },
+        ],
+      },
+    });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogMessage).toBe(
+      'context.deleteMessage.trashMultiple {"items":2,"count":7}'
+    );
+  });
+
+  /** Never gone for good without being told: which ones, and why. */
+  it('warns which items will be gone for good although the trash is on', async () => {
+    actions.selectedItems = ref([FILE, FOLDER]);
+    fileStore.selectedItems = [FILE, FOLDER];
+    getDeleteImpact.mockResolvedValue({
+      shareCount: 0,
+      shares: [],
+      trash: {
+        enabled: true,
+        retentionDays: 30,
+        items: [
+          { path: 'Docs/report.docx', disposition: 'trash', reason: null },
+          { path: 'Docs/2026', disposition: 'permanent', reason: 'other-device' },
+        ],
+      },
+    });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deletePermanentNotice).toBe(
+      'context.deleteSomePermanent {"count":1} context.trashReasons.otherDevice'
+    );
+    // Not the trash wording: something here is permanent.
+    expect(view.deleteDialogMessage).toContain('context.deleteMessage.multiple');
+    expect(view.goesToTrash).toBe(true);
+  });
+
+  /** Before the server answers, "irreversible" would be wrong for nearly every item. */
+  it('does not call a deletion irreversible while the trash is on and the answer is pending', async () => {
+    features.trashEnabled = true;
+    features.trashRetentionDays = 30;
+    getDeleteImpact.mockReturnValue(new Promise(() => {}));
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogMessage).toBe(
+      'context.deleteMessage.trashSingle {"name":"report.docx","count":30}'
+    );
+    expect(view.goesToTrash).toBe(true);
+  });
+
+  it('keeps the permanent wording while pending when the trash is off', async () => {
+    features.trashEnabled = false;
+    getDeleteImpact.mockReturnValue(new Promise(() => {}));
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogMessage).toContain('context.deleteMessage.single');
+    expect(view.goesToTrash).toBe(false);
+  });
+
+  it('keeps the permanent wording when the trash is off', async () => {
+    getDeleteImpact.mockResolvedValue({
+      shareCount: 0,
+      shares: [],
+      trash: {
+        enabled: false,
+        retentionDays: 30,
+        items: [{ path: 'Docs/report.docx', disposition: 'permanent', reason: 'disabled' }],
+      },
+    });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteDialogMessage).toContain('context.deleteMessage.single');
+    expect(view.goesToTrash).toBe(false);
+    expect(view.deletePermanentNotice).toBe('');
+  });
+
+  it('explains how much too large an item turned away by the trash was', async () => {
+    const { view } = await openOn(FILE);
+
+    expect(view.keptItemReason({ reason: 'too-large', size: 50 * 1024 ** 2, budgetBytes: 20 * 1024 ** 2 })).toBe(
+      'context.keptReasons.tooLarge {"size":"50 MB","budget":"20 MB"}'
+    );
+    expect(view.keptItemReason({ reason: 'zone-root' })).toBe('context.trashReasons.zoneRoot');
+  });
+
   /** Somebody may have unsaved work in it, open in another window right now. */
   it('warns that a document is open in the editor', async () => {
     const open = { ...FILE, onlyofficeActivity: { active: true } };

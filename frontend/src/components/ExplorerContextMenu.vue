@@ -11,6 +11,7 @@ import { useInfoPanelStore } from '@/stores/infoPanel';
 import { normalizePath } from '@/api';
 import { modKeyLabel, deleteKeyLabel } from '@/utils/keyboard';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
+import { formatBytes } from '@/utils';
 import ModalDialog from '@/components/ModalDialog.vue';
 import ArchivePasswordDialog from '@/components/ArchivePasswordDialog.vue';
 import ShareDialog from '@/components/ShareDialog.vue';
@@ -137,8 +138,45 @@ const deleteDialogTitle = computed(() => {
   return t('context.deleteTitle.generic');
 });
 
+const TRASH_REASON_KEYS = {
+  'other-device': 'otherDevice',
+  'too-large': 'tooLarge',
+  'zone-root': 'zoneRoot',
+  'zone-unwritable': 'zoneUnwritable',
+  'no-zone': 'noZone',
+  'inside-zone': 'noZone',
+  disabled: 'disabled',
+};
+const trashReasonKey = (reason) => TRASH_REASON_KEYS[reason] || 'noZone';
+
+/**
+ * While the server has not said yet what the trash will do, the dialog must not
+ * call a deletion irreversible when the trash is on: it would be wrong for
+ * nearly every item. The trash wording stands until the answer arrives, and
+ * the notice and buttons follow the answer as soon as it does. A click before
+ * then sends a plain request, which the server sends to the trash or keeps.
+ */
+const provisionalTrash = computed(
+  () => !trashPlan.value && isLoadingDeleteImpact.value && featuresStore.trashEnabled === true
+);
+
 const deleteDialogMessage = computed(() => {
   const count = pendingDeleteItems.value.length;
+  const plan = provisionalTrash.value
+    ? { enabled: true, permanent: [], retentionDays: featuresStore.trashRetentionDays }
+    : trashPlan.value;
+  // Everything goes to the trash: say so, and for how long it is kept.
+  if (plan?.enabled && count > 0 && plan.permanent.length === 0) {
+    const days = plan.retentionDays ?? 0;
+    if (count === 1 && pendingDeleteItems.value[0]) {
+      return t(
+        'context.deleteMessage.trashSingle',
+        { name: pendingDeleteItems.value[0].name, count: days },
+        days
+      );
+    }
+    return t('context.deleteMessage.trashMultiple', { items: count, count: days }, days);
+  }
   if (count === 1 && pendingDeleteItems.value[0]) {
     return t('context.deleteMessage.single', { name: pendingDeleteItems.value[0].name });
   }
@@ -155,10 +193,45 @@ const {
   deleteImpact,
   deleteImpactError,
   pendingDeleteItems,
+  trashPlan,
+  keptItems,
+  isKeptConfirmOpen,
   requestDelete,
   confirmDelete,
+  confirmKept,
+  closeKeptConfirm,
   closeDeleteConfirm,
 } = useDeleteConfirm();
+
+/** Which items will be gone for good although the trash is on, and why. */
+const deletePermanentNotice = computed(() => {
+  const plan = trashPlan.value;
+  if (!plan?.enabled || plan.permanent.length === 0) return '';
+  const count = plan.permanent.length;
+  const reasons = plan.reasons.map((reason) => t(`context.trashReasons.${trashReasonKey(reason)}`));
+  return [t('context.deleteSomePermanent', { count }, count), ...reasons].join(' ');
+});
+
+const goesToTrash = computed(() =>
+  Boolean(
+    provisionalTrash.value || (trashPlan.value?.enabled && trashPlan.value.toTrash.length > 0)
+  )
+);
+
+const keptDialogMessage = computed(() =>
+  t('context.keptMessage', { count: keptItems.value.length }, keptItems.value.length)
+);
+
+const keptItemReason = (item) => {
+  const key = trashReasonKey(item.reason);
+  if (key === 'tooLarge' && Number.isFinite(item.size) && Number.isFinite(item.budgetBytes)) {
+    return t('context.keptReasons.tooLarge', {
+      size: formatBytes(item.size),
+      budget: formatBytes(item.budgetBytes),
+    });
+  }
+  return t(`context.trashReasons.${key}`);
+};
 
 const deleteShareImpactMessage = computed(() => {
   const count = Number(deleteImpact.value?.shareCount || 0);
@@ -879,6 +952,13 @@ provide(explorerContextMenuSymbol, {
     <p v-else-if="deleteImpactError" class="-mt-3 mb-6 text-sm text-amber-700 dark:text-amber-300">
       {{ $t('context.deleteImpactUnavailable') }}
     </p>
+    <p
+      v-if="!isLoadingDeleteImpact && deletePermanentNotice"
+      data-test="delete-permanent-notice"
+      class="-mt-3 mb-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700/60 dark:bg-red-900/20 dark:text-red-100"
+    >
+      {{ deletePermanentNotice }}
+    </p>
     <div class="flex justify-end gap-3">
       <button
         type="button"
@@ -889,13 +969,57 @@ provide(explorerContextMenuSymbol, {
         {{ $t('common.cancel') }}
       </button>
       <button
+        v-if="goesToTrash"
         type="button"
+        data-test="delete-permanently"
+        class="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/50 dark:text-red-300 dark:hover:bg-red-500/10"
+        @click="confirmDelete({ permanent: true })"
+        :disabled="isDeleting"
+      >
+        {{ $t('context.deletePermanently') }}
+      </button>
+      <button
+        type="button"
+        data-test="delete-confirm"
         class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 active:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
-        @click="confirmDelete"
+        @click="confirmDelete()"
         :disabled="isDeleting"
       >
         <span v-if="isDeleting">{{ $t('common.deleting') }}</span>
+        <span v-else-if="goesToTrash">{{ $t('context.moveToTrash') }}</span>
         <span v-else>{{ $t('common.delete') }}</span>
+      </button>
+    </div>
+  </ModalDialog>
+
+  <ModalDialog :model-value="isKeptConfirmOpen" @update:model-value="closeKeptConfirm">
+    <template #title>{{ $t('context.keptTitle') }}</template>
+    <p class="mb-3 text-base text-zinc-700 dark:text-zinc-200">{{ keptDialogMessage }}</p>
+    <ul
+      data-test="kept-items"
+      class="mb-6 max-h-48 space-y-1 overflow-y-auto text-sm text-zinc-600 dark:text-zinc-300"
+    >
+      <li v-for="item in keptItems" :key="`${item.path}/${item.name}`">
+        <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ item.name }}</span>
+        — {{ keptItemReason(item) }}
+      </li>
+    </ul>
+    <div class="flex justify-end gap-3">
+      <button
+        type="button"
+        class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700"
+        @click="closeKeptConfirm"
+      >
+        {{ $t('common.cancel') }}
+      </button>
+      <button
+        type="button"
+        data-test="kept-delete-permanently"
+        class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
+        @click="confirmKept"
+        :disabled="isDeleting"
+      >
+        {{ $t('context.deletePermanently') }}
       </button>
     </div>
   </ModalDialog>

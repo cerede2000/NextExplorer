@@ -268,11 +268,29 @@
     "deleteMessage": {
       "single": "Är du säker på att du vill radera \"{name}\"? Denna åtgärd går inte att ångra.",
       "multiple": "Är du säker på att du vill radera dessa {count} objekt? Denna åtgärd går inte att ångra.",
-      "generic": "Inga objekt valda."
+      "generic": "Inga objekt valda.",
+      "trashSingle": "\"{name}\" flyttas till papperskorgen, som sparar det i {count} dag. | \"{name}\" flyttas till papperskorgen, som sparar det i {count} dagar.",
+      "trashMultiple": "Dessa {items} objekt flyttas till papperskorgen, som sparar dem i {count} dag. | Dessa {items} objekt flyttas till papperskorgen, som sparar dem i {count} dagar."
     },
     "checkingDeleteImpact": "Kontrollerar länkade utdelningar...",
     "deleteImpactUnavailable": "Det gick inte att kontrollera länkade utdelningar. Raderingen verkställs ändå av servern.",
-    "deleteLinkedShares": "Detta innehåll har {count} länkad utdelning som tas bort tillsammans med det. | Detta innehåll har {count} länkade utdelningar som tas bort tillsammans med det."
+    "deleteLinkedShares": "Detta innehåll har {count} länkad utdelning som tas bort tillsammans med det. | Detta innehåll har {count} länkade utdelningar som tas bort tillsammans med det.",
+    "moveToTrash": "Flytta till papperskorgen",
+    "deletePermanently": "Radera permanent",
+    "deleteSomePermanent": "{count} av dem kan inte flyttas till papperskorgen och raderas permanent. | {count} av dem kan inte flyttas till papperskorgen och raderas permanent.",
+    "trashReasons": {
+      "otherDevice": "Det ligger på en annan disk än volymens papperskorg.",
+      "tooLarge": "Det är större än hela volymens papperskorg.",
+      "zoneRoot": "En hel volym kan inte flyttas till sin egen papperskorg.",
+      "zoneUnwritable": "Det går inte att skriva till volymens papperskorg.",
+      "noZone": "Det ligger inte på en plats med papperskorg.",
+      "disabled": "Papperskorgen är avstängd."
+    },
+    "keptTitle": "Kunde inte flyttas till papperskorgen",
+    "keptMessage": "Det här objektet lämnades kvar där det var. Radera det permanent? | Dessa {count} objekt lämnades kvar där de var. Radera dem permanent?",
+    "keptReasons": {
+      "tooLarge": "{size}, mer än de {budget} som volymens papperskorg rymmer."
+    }
   },
   "folder": {
     "kind": "Typ",
@@ -440,7 +458,8 @@
       "adminUsers": "Användarhantering",
       "uploads": "Uppladdningar",
       "folderSize": "Mappstorlekar",
-      "searchIndex": "Sökindex"
+      "searchIndex": "Sökindex",
+      "trash": "Papperskorg"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -639,6 +658,59 @@
       "title": "Funktionen är inte aktiverad",
       "howTo": "Aktivera den genom att sätta {setting} och starta om containern.",
       "kept": "Det du ställer in här sparas och gäller så snart funktionen aktiveras."
+    },
+    "trash": {
+      "title": "Papperskorg",
+      "subtitle": "Raderade objekt sparas i ett reserverat utrymme på den egna volymen och tas bort permanent när lagringstiden är slut eller när utrymmet behövs.",
+      "enabled": "Flytta raderade objekt till papperskorgen",
+      "enabledHelp": "Avstängd tar radering bort permanent. Objekt som redan ligger i papperskorgen löper fortfarande ut.",
+      "retentionDays": "Lagringstid (dagar)",
+      "retentionHelp": "Från 1 till 3650 dagar.",
+      "maxPercent": "Andel av varje volym (%)",
+      "maxPercentHelp": "Det mesta papperskorgen får ta på en volym, från 1 till 90 %.",
+      "maxSize": "Storleksgräns per volym (GiB)",
+      "maxSizeHelp": "Valfritt. Det minsta av andelen och gränsen gäller.",
+      "maxSizeNone": "Ingen gräns",
+      "invalid": "Kontrollera värdena: lagringstid 1 till 3650 dagar, andel 1 till 90 %, en positiv storlek eller ingen.",
+      "saveFailed": "Inställningarna kunde inte sparas.",
+      "environmentNote": "Standardvärdena kommer från TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT och TRASH_MAX_SIZE.",
+      "zonesTitle": "Papperskorg per volym",
+      "zonesSubtitle": "Varje volym har sin papperskorg i en dold mapp .nextexplorer i roten, så radering kopierar aldrig något.",
+      "zonesEmpty": "Inget har raderats till en papperskorg ännu.",
+      "zonesFailed": "Volymernas papperskorg kunde inte läsas in.",
+      "verifyFailed": "Kontrollen kunde inte köras.",
+      "maintenanceFailed": "Underhållet kunde inte köras.",
+      "zoneKind": {
+        "personal": "Personlig mapp för {name}",
+        "userVolume": "Tilldelad volym {name}"
+      },
+      "available": "Tillgänglig",
+      "unavailable": {
+        "missing": "Inte monterad eller borttagen",
+        "replaced": "En annan disk på dess plats",
+        "unreadable": "Oläsbar"
+      },
+      "usage": "{used} av {budget}",
+      "zoneSummary": "{count} objekt, {used} av {budget} | {count} objekt, {used} av {budget}",
+      "noBudget": "ingen gräns",
+      "lastPass": "Senaste underhåll:",
+      "lastPassPurged": "{count} borttaget | {count} borttagna",
+      "never": "inte ännu",
+      "verify": "Kontrollera",
+      "verifying": "Kontrollerar…",
+      "verifyOk": "Varje volyms papperskorg är konsekvent.",
+      "verifyIssues": "{count} problem hittat | {count} problem hittade",
+      "runMaintenance": "Kör underhåll nu",
+      "running": "Pågår…",
+      "events": {
+        "title": "Logg",
+        "evicted": "\"{name}\" togs bort före lagringstidens slut för att frigöra utrymme",
+        "adopted": "\"{name}\" återhämtades efter ett avbrott",
+        "lost": "Innehållet i \"{name}\" saknades",
+        "failed": "\"{name}\" kunde inte tas bort",
+        "breaker": "För många objekt saknades på en gång: inget ändrades",
+        "forgotten": "\"{name}\" glömdes av en administratör"
+      }
     }
   },
   "share": {
@@ -793,5 +865,67 @@
     "tooLargeToRenderSized": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren. Öppna det i redigeraren eller ladda ner det.",
     "tooLargeToRenderWithEditor": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren; redigeraren öppnar upp till {editorLimit}. Öppna det i redigeraren eller ladda ner det.",
     "stillRendering": "Renderar… {percent} %"
+  },
+  "trash": {
+    "title": "Papperskorg",
+    "menu": "Papperskorg",
+    "subtitle": "Objekt tas bort permanent {count} dag efter att de raderats. | Objekt tas bort permanent {count} dagar efter att de raderats.",
+    "empty": "Papperskorgen är tom.",
+    "disabled": "Papperskorgen är avstängd: radering tar bort permanent. Det som fortfarande finns här kan återställas.",
+    "unavailable": "Volymen är inte tillgänglig",
+    "expiresToday": "I dag",
+    "expiresIn": "Om {count} dag | Om {count} dagar",
+    "columns": {
+      "originalLocation": "Ursprunglig plats",
+      "deletedBy": "Raderad av",
+      "deletedAt": "Raderad",
+      "expires": "Tas bort"
+    },
+    "location": {
+      "personal": "Personlig mapp",
+      "unknown": "Okänd"
+    },
+    "deletedBy": {
+      "you": "Du",
+      "shareLink": "Delningslänk",
+      "unknown": "Okänd"
+    },
+    "actions": {
+      "restore": "Återställ",
+      "deletePermanently": "Radera permanent",
+      "empty": "Töm papperskorgen",
+      "openLocation": "Öppna ursprunglig plats",
+      "selectAll": "Markera alla",
+      "select": "Markera {name}"
+    },
+    "confirm": {
+      "deleteTitle": "Radera permanent?",
+      "deleteMessage": "Det här objektet tas bort permanent. Åtgärden går inte att ångra. | Dessa {count} objekt tas bort permanent. Åtgärden går inte att ångra.",
+      "emptyTitle": "Töm papperskorgen?",
+      "emptyMessage": "Allt i din papperskorg tas bort permanent. Åtgärden går inte att ångra."
+    },
+    "results": {
+      "restored": "{count} objekt återställt | {count} objekt återställda",
+      "restoredTo": "Återställt till {path}",
+      "renamed": "\"{name}\" återställdes som \"{newName}\": namnet var upptaget.",
+      "notRestored": "{count} objekt kunde inte återställas | {count} objekt kunde inte återställas",
+      "deleted": "{count} objekt raderat permanent | {count} objekt raderade permanent",
+      "notDeleted": "{count} objekt kunde inte raderas | {count} objekt kunde inte raderas",
+      "emptied": "Papperskorgen tömd: {count} objekt borttaget | Papperskorgen tömd: {count} objekt borttagna",
+      "leftBehind": "{count} objekt kunde inte tas bort och finns kvar. | {count} objekt kunde inte tas bort och finns kvar."
+    },
+    "reasons": {
+      "forbidden": "du kan inte längre skriva där det låg.",
+      "blocked": "något står nu där dess mapp låg.",
+      "unavailable": "dess volym är inte tillgänglig.",
+      "busy": "det hanteras redan.",
+      "lost": "dess innehåll hade försvunnit.",
+      "notFound": "det finns inte längre i papperskorgen.",
+      "unknown": "det kunde inte hanteras."
+    },
+    "errors": {
+      "load": "Papperskorgen kunde inte läsas in.",
+      "action": "Papperskorgen kunde inte göra det."
+    }
   }
 }
