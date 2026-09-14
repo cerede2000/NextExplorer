@@ -5,6 +5,7 @@ const Database = require('better-sqlite3');
 const { directories, files, favorites } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
+const { TRASH_DDL } = require('./trash/schema');
 
 let dbInstance = null;
 
@@ -689,6 +690,16 @@ const migrate = (db) => {
       );
       version = 17;
     }
+
+    if (version < 18) {
+      logger.info('[DB Migration] Migrating to v18: trash...');
+      db.exec(TRASH_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(18)
+      );
+      version = 18;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -698,6 +709,7 @@ const migrate = (db) => {
   db.exec(RECENT_DESTINATIONS_DDL);
   db.exec(FOLDER_PREFERENCES_DDL);
   db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
+  db.exec(TRASH_DDL);
   ensureShareOperationPermissionColumns(db);
 };
 

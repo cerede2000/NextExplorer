@@ -16,7 +16,12 @@ const RAW_IMAGE_EXTENSIONS = ['nef', 'dng', 'arw', 'cr2', 'raf'];
 const VIDEO_EXTENSIONS = ['mp4', 'mov', 'mkv', 'webm', 'm4v', 'avi', 'wmv', 'flv', 'mpg', 'mpeg'];
 const AUDIO_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus', 'wma'];
 const DOCUMENT_EXTENSIONS = ['pdf'];
-const EXCLUDED_FILES = ['thumbs.db', '.DS_Store', '_users'];
+// The reserved space the trash keeps at the root of each volume. Listed with
+// the excluded names so no listing, volume list or search ever shows it,
+// whatever the hidden-file settings say: showing hidden files is a preference,
+// and the zone is not the user's to browse.
+const ZONE_DIRECTORY_NAME = '.nextexplorer';
+const EXCLUDED_FILES = ['thumbs.db', '.DS_Store', '_users', ZONE_DIRECTORY_NAME];
 
 const MIME_TYPES = {
   jpg: 'image/jpeg',
@@ -59,6 +64,7 @@ module.exports = {
   AUDIO_EXTENSIONS,
   DOCUMENT_EXTENSIONS,
   EXCLUDED_FILES,
+  ZONE_DIRECTORY_NAME,
   MIME_TYPES,
   PREVIEWABLE_EXTENSIONS: new Set([
     ...IMAGE_EXTENSIONS,
