@@ -31,6 +31,7 @@ const { generateId } = require('../../utils/ids');
 const { findAvailableName } = require('../../utils/pathUtils');
 const logger = require('../../utils/logger');
 const { getDb } = require('../db');
+const versionLifecycle = require('../versions/lifecycle');
 const clock = require('./clock');
 const failpoints = require('./failpoints');
 const { admission } = require('./policy');
@@ -333,12 +334,32 @@ const finishCopy = async ({ db, item, payload, sidecar, entryPath, restorePath }
   }
   await failpoints.hit('copy:after-remove', { id: item.id });
 
+  const versionTarget = await versionLifecycle.targetForRestore(db, {
+    itemId: item.id,
+    entryPath: entryPath || null,
+    zone: store.getZone(db, item.zoneId),
+    restorePath: finalPath,
+  });
+  const relink = () =>
+    versionLifecycle.relinkRestored(db, {
+      itemId: item.id,
+      entryPath: entryPath || null,
+      target: versionTarget,
+      restorePath: finalPath,
+    });
   if (entryPath) {
     const stillThere = await exists(payload);
-    store.setItemSize(db, item.id, stillThere ? (await measure(payload)).bytes : 0);
-    store.setItemState(db, item.id, 'trashed');
+    const remaining = stillThere ? (await measure(payload)).bytes : 0;
+    db.transaction(() => {
+      relink();
+      store.setItemSize(db, item.id, remaining);
+      store.setItemState(db, item.id, 'trashed');
+    })();
   } else {
-    store.deleteItem(db, item.id);
+    db.transaction(() => {
+      relink();
+      store.deleteItem(db, item.id);
+    })();
     await fsp.rm(sidecar, { force: true });
   }
   return { status: 'restored', restorePath: finalPath };
@@ -500,7 +521,11 @@ const moveToTrash = async (input, { budgetFor } = {}) => {
     }
     await failpoints.hit('trash:after-rename', { id });
 
-    store.setItemState(db, id, 'trashed');
+    // The item and the histories of what it holds reach the trash together.
+    db.transaction(() => {
+      store.setItemState(db, id, 'trashed');
+      versionLifecycle.relinkTrashed(db, record);
+    })();
     return { status: 'trashed', item: store.getItem(db, id) };
   } finally {
     inflight.delete(id);
@@ -562,6 +587,11 @@ const restoreItem = async (itemId, { destinationDirectory = null, onBytes, signa
     };
     if (destinationDirectory && !(await zones.sameDevice(payload, parent))) return copyAcross();
 
+    const versionTarget = await versionLifecycle.targetForRestore(db, {
+      itemId: item.id,
+      zone,
+      restorePath,
+    });
     store.setItemState(db, item.id, 'restoring', { restorePath });
     await failpoints.hit('restore:after-intent', { id: item.id });
 
@@ -581,7 +611,16 @@ const restoreItem = async (itemId, { destinationDirectory = null, onBytes, signa
     }
     await failpoints.hit('restore:after-rename', { id: item.id });
 
-    store.deleteItem(db, item.id);
+    // Back to life first: the item's row takes whatever histories are still
+    // linked to it when it goes.
+    db.transaction(() => {
+      versionLifecycle.relinkRestored(db, {
+        itemId: item.id,
+        target: versionTarget,
+        restorePath,
+      });
+      store.deleteItem(db, item.id);
+    })();
     await fsp.rm(sidecar, { force: true });
     return { status: 'restored', item, restorePath, renamed: name !== item.name };
   } finally {
@@ -728,7 +767,15 @@ const restoreEntry = async (
       return copyAcross();
     }
 
-    store.setItemState(db, item.id, 'extracting', { restorePath });
+    const entry = segments.join('/');
+    const versionTarget = await versionLifecycle.targetForRestore(db, {
+      itemId: item.id,
+      entryPath: entry,
+      zone,
+      restorePath,
+    });
+    // Which entry, too: the recovery needs it to bring that entry's histories back.
+    store.setItemState(db, item.id, 'extracting', { restorePath, restoreEntry: entry });
     await failpoints.hit('extract:after-intent', { id: item.id });
 
     try {
@@ -745,8 +792,17 @@ const restoreEntry = async (
     }
     await failpoints.hit('extract:after-rename', { id: item.id });
 
-    store.setItemSize(db, item.id, (await measure(payload)).bytes);
-    store.setItemState(db, item.id, 'trashed');
+    const remaining = (await measure(payload)).bytes;
+    db.transaction(() => {
+      versionLifecycle.relinkRestored(db, {
+        itemId: item.id,
+        entryPath: entry,
+        target: versionTarget,
+        restorePath,
+      });
+      store.setItemSize(db, item.id, remaining);
+      store.setItemState(db, item.id, 'trashed');
+    })();
     return {
       status: 'restored',
       item: store.getItem(db, item.id),
@@ -835,8 +891,12 @@ const purgeItem = async (itemId) => {
     await fsp.rm(payload, { recursive: true, force: true });
     await failpoints.hit('purge:after-remove', { id: item.id });
 
+    // The row takes the histories with it; their versions go now, so the space
+    // comes back with the item's.
+    const released = versionLifecycle.filesInTrashItem(db, item.id);
     store.deleteItem(db, item.id);
     await fsp.rm(sidecar, { force: true });
+    await versionLifecycle.purgeFiles(released);
     return { status: 'purged', item };
   } finally {
     inflight.delete(itemId);
@@ -936,7 +996,10 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
     if (row.state === 'entering') {
       if (hasPayload) {
         if (!onDisk.has(`${row.id}.json`)) await writeSidecar(paths.sidecar, row, 'w');
-        store.setItemState(db, row.id, 'trashed');
+        db.transaction(() => {
+          store.setItemState(db, row.id, 'trashed');
+          versionLifecycle.relinkTrashed(db, row);
+        })();
         report.finished += 1;
       } else if (await exists(row.originalPath)) {
         await drop(row, paths.sidecar);
@@ -950,6 +1013,16 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
         store.setItemState(db, row.id, 'trashed');
         report.undone += 1;
       } else if (row.restorePath && (await exists(row.restorePath))) {
+        const versionTarget = await versionLifecycle.targetForRestore(db, {
+          itemId: row.id,
+          zone,
+          restorePath: row.restorePath,
+        });
+        versionLifecycle.relinkRestored(db, {
+          itemId: row.id,
+          target: versionTarget,
+          restorePath: row.restorePath,
+        });
         await drop(row, paths.sidecar);
         report.finished += 1;
       } else {
@@ -960,6 +1033,28 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
       // Whether the entry left or not, what is still in the folder is what the
       // record must say: measured, and back in the trash.
       if (hasPayload) {
+        // The entry left if it is at its destination and no longer in the folder:
+        // its histories follow it out.
+        const entrySegmentsLeft = row.restoreEntry ? entrySegments(row.restoreEntry) : null;
+        if (
+          entrySegmentsLeft?.length &&
+          row.restorePath &&
+          (await exists(row.restorePath)) &&
+          !(await walkInside(paths.payload, entrySegmentsLeft))
+        ) {
+          const versionTarget = await versionLifecycle.targetForRestore(db, {
+            itemId: row.id,
+            entryPath: row.restoreEntry,
+            zone,
+            restorePath: row.restorePath,
+          });
+          versionLifecycle.relinkRestored(db, {
+            itemId: row.id,
+            entryPath: row.restoreEntry,
+            target: versionTarget,
+            restorePath: row.restorePath,
+          });
+        }
         store.setItemSize(db, row.id, (await measure(paths.payload)).bytes);
         store.setItemState(db, row.id, 'trashed');
         report.finished += 1;

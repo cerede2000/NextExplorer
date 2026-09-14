@@ -25,6 +25,10 @@ const policy = require('./policy');
 const store = require('./store');
 const { getTrashSettings } = require('./settings');
 const zones = require('./zones');
+const versionLifecycle = require('../versions/lifecycle');
+const versionOperations = require('../versions/operations');
+const { getVersionSettings } = require('../versions/settings');
+const versionStore = require('../versions/store');
 
 const PASS_INTERVAL_MS = 60 * 60 * 1000;
 const REQUEST_DELAY_MS = 1000;
@@ -110,6 +114,51 @@ const applyPlan = async (db, zone, plan, itemsById) => {
   return outcome;
 };
 
+/** Let go of the versions a plan names, one at a time, each failure isolated and recorded. */
+const applyVersionPlan = async (db, zone, plan) => {
+  const outcome = { versionsPurged: 0, versionBytesPurged: 0, versionsEvictedEarly: 0 };
+  for (const entry of plan) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await versionOperations.purgeVersion(entry.id);
+      if (result.status === 'unavailable') break;
+      if (result.status !== 'purged') continue;
+      outcome.versionsPurged += 1;
+      outcome.versionBytesPurged += result.version.size;
+      if (entry.early) {
+        outcome.versionsEvictedEarly += 1;
+        const file = versionStore.getFile(db, result.version.fileId);
+        store.insertEvent(db, {
+          zoneId: zone.id,
+          itemId: entry.id,
+          itemName: file ? file.relativePath.split('/').at(-1) : null,
+          kind: 'version-evicted',
+          detail: JSON.stringify({ reason: entry.reason, modifiedAt: result.version.modifiedAt }),
+        });
+      }
+    } catch (error) {
+      store.insertEvent(db, {
+        zoneId: zone.id,
+        itemId: entry.id,
+        kind: 'version-failed',
+        detail: error?.message || String(error),
+      });
+      logger.warn(
+        { err: error, zoneId: zone.id, versionId: entry.id },
+        'A version could not be purged'
+      );
+    }
+  }
+  return outcome;
+};
+
+/** The bytes of earlier file versions a zone holds. */
+const versionBytesIn = (db, zone) =>
+  versionStore
+    .listVersionsInZone(db, zone.id)
+    .filter((version) => version.state === 'kept')
+    .reduce((total, version) => total + version.size, 0);
+
 /** One zone's pass. `floorBytes` raises the free space the volume must keep, for an upload waiting on it. */
 const maintainZone = async (zone, settings, { floorBytes = null } = {}) => {
   const summary = {
@@ -128,13 +177,25 @@ const maintainZone = async (zone, settings, { floorBytes = null } = {}) => {
     return { ...summary, available: false, reason: recovery.reason };
   }
   summary.recovery = recovery;
+  // The versions share the zone: what a crash left of them is settled, and what
+  // the disk says about their files is learnt, before anything is planned.
+  summary.versionRecovery = await versionOperations.recoverZone(zone);
+  summary.versionReview = await versionLifecycle.reviewZone(zone, {
+    retentionDays: settings.retentionDays,
+  });
 
   const db = await getDb();
   const items = trashedItemsOf(db, zone);
   const limits = await limitsFor(zone.root, settings);
-  const plan = policy.planMaintenance({
+  const now = clock.now();
+  const versions = versionLifecycle.zoneVersions(db, zone, {
+    now,
+    settings: await getVersionSettings(),
+  });
+  const plan = policy.planZone({
     items: items.map((item) => ({ id: item.id, size: item.size, deletedAt: item.deletedAtMs })),
-    now: clock.now(),
+    versions,
+    now,
     retentionDays: settings.retentionDays,
     budgetBytes: limits.budgetBytes,
     freeBytes: limits.freeBytes,
@@ -147,7 +208,14 @@ const maintainZone = async (zone, settings, { floorBytes = null } = {}) => {
     plan.purge,
     new Map(items.map((item) => [item.id, item]))
   );
-  return { ...summary, ...outcome, budgetBytes: limits.budgetBytes };
+  const versionOutcome = await applyVersionPlan(db, zone, plan.purgeVersions);
+  return {
+    ...summary,
+    ...outcome,
+    ...versionOutcome,
+    purgedBytes: outcome.purgedBytes + versionOutcome.versionBytesPurged,
+    budgetBytes: limits.budgetBytes,
+  };
 };
 
 const runOnce = async ({ reason }) => {
@@ -252,7 +320,9 @@ const makeRoom = async (directory, requiredBytes) => {
     // shortfall is anything purged.
     // eslint-disable-next-line no-await-in-loop
     const { freeBytes } = await module.exports.measureVolume(root);
-    const held = trashedItemsOf(db, zone).reduce((total, item) => total + item.size, 0);
+    const held =
+      trashedItemsOf(db, zone).reduce((total, item) => total + item.size, 0) +
+      versionBytesIn(db, zone);
     if (Number.isFinite(freeBytes) && freeBytes + held < requiredBytes) continue;
     // eslint-disable-next-line no-await-in-loop
     const summary = await maintainZone(zone, settings, { floorBytes: requiredBytes });
@@ -279,6 +349,10 @@ const zonesOverview = async () => {
       reason: inspection.reason || null,
       itemCount: items.length,
       usedBytes: items.reduce((total, item) => total + item.size, 0),
+      versionCount: versionStore
+        .listVersionsInZone(db, zone.id)
+        .filter((version) => version.state === 'kept').length,
+      versionBytes: versionBytesIn(db, zone),
       budgetBytes: limits && Number.isFinite(limits.budgetBytes) ? limits.budgetBytes : null,
       freeBytes: limits?.freeBytes ?? null,
       lastPass: lastPasses.get(zone.id) || null,

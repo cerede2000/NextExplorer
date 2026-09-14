@@ -12,6 +12,7 @@ const {
 } = require('../errors/AppError');
 const folderSizeHooks = require('./folderSizeHooks');
 const pathBindings = require('./pathBindingsService');
+const versionLifecycle = require('./versions/lifecycle');
 
 /**
  * Rename an entry within its own folder.
@@ -103,6 +104,8 @@ const renameEntry = async ({ context, parentRelative, currentName, newName }) =>
   // would point at a path that no longer exists — a share silently broken, a
   // favorite leading nowhere.
   await pathBindings.movePath(currentRelative, targetRelative);
+  // And the file's history, or the histories of everything inside the folder.
+  await versionLifecycle.onMoved(currentAbsolute, targetAbsolute);
 
   return {
     absolutePath: targetAbsolute,

@@ -12,11 +12,7 @@ const {
   combineRelativePath,
   findAvailableName,
 } = require('../utils/pathUtils');
-const {
-  ValidationError,
-  ForbiddenError,
-  NotFoundError,
-} = require('../errors/AppError');
+const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const {
   getSharesForSourceTargets,
@@ -382,7 +378,12 @@ const recordUnusableNativeTool = (tool, error) => {
   if (unusableNativeTools.has(tool)) return;
   unusableNativeTools.add(tool);
   logger.warn(
-    { tool, reason: String(error?.stderr || error?.message || '').trim().slice(0, 200) },
+    {
+      tool,
+      reason: String(error?.stderr || error?.message || '')
+        .trim()
+        .slice(0, 200),
+    },
     `${tool} cannot be used here; falling back to the in-application implementation for the life of this process`
   );
 };
@@ -636,9 +637,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
         // eslint-disable-next-line no-await-in-loop
         await authorizePath(context, sourceCombined, ACTIONS.delete);
       if (!deleteAllowed) {
-        throw new ForbiddenError(
-          deleteAccess?.denialReason || 'Cannot move items from this path.'
-        );
+        throw new ForbiddenError(deleteAccess?.denialReason || 'Cannot move items from this path.');
       }
     }
 
@@ -837,6 +836,10 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       // it is, so its bindings stay put and the copy starts with none.
       if (operation === 'move') {
         await pathBindings.movePath(plan.sourceRelative, targetRelative);
+        // And the histories, whose versions stay where they were kept: even to
+        // another volume, nothing is copied for them. A copy starts with none.
+        // eslint-disable-next-line global-require
+        await require('./versions/lifecycle').onMoved(plan.sourceAbsolute, targetAbsolute);
       }
 
       results.push({ from: plan.sourceRelative, to: targetRelative });
@@ -1146,6 +1149,11 @@ const deleteItems = async (items = [], options = {}) => {
       isDirectory: isDirectoryEntry,
       size: deletedEntryStats.size,
     });
+    // Deleted for good, the history goes with it; into the trash, it went along.
+    if (!trashItemId) {
+      // eslint-disable-next-line global-require
+      await require('./versions/lifecycle').onDeleted(absolutePath);
+    }
     // In the trash, a share is switched off but kept with the item, so a restore
     // can bring it back; deleted for good, it goes for good.
     if (trashItemId) {
