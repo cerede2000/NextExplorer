@@ -16,6 +16,15 @@ Deleting a file or folder moves it to the trash instead of removing it. It stays
 - Share visitors have no trash: what they delete through a share link goes to the share owner's trash.
 - Restoring puts an item back where it was. A parent folder that no longer exists is recreated; a name that is now taken gets a suffix, like a copy. Someone who has lost write access to the original location since the deletion cannot restore into it — an administrator can.
 
+## Restoring part of a deleted folder
+
+A deleted folder is one item in the trash, however much it holds. Click its name on the **Trash** page to open it, go further in if needed, select what you want back, and **Restore**: each selected file or folder goes back to its own place inside the original folder, and the rest stays in the trash. **Restore whole folder** puts back everything that is left.
+
+- Nothing extra is recorded for what is inside a folder. The folder's own record gives its original path, and an entry at `drafts/v2.txt` inside it goes back to `<original path>/drafts/v2.txt`.
+- The original folder and the folders on the way are recreated if they are gone. What exists there now is never replaced: a name that is taken gets a suffix, as for a whole item.
+- Whoever may restore the folder may restore what is inside it, under the same conditions.
+- A symbolic link inside a deleted folder is listed and restored as the link it is; nothing is ever opened through it. A restore is refused when the place it would go back to now leads outside the volume through a link.
+
 ## When an item cannot go to the trash
 
 The delete dialog says, before anyone confirms, which items would be removed for good and why:
