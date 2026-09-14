@@ -6,6 +6,8 @@
  *
  *   trash    row `entering`, description beside it, rename into the zone, `trashed`
  *   restore  row `restoring` with its destination, rename out, row removed
+ *   extract  row `extracting` with its destination, one entry from inside a
+ *            deleted folder renamed out, what is left measured, `trashed`
  *   purge    row `purging`, content removed, row removed
  *
  * A crash between two steps leaves a row in a passing state, and
@@ -131,6 +133,108 @@ const confinedPaths = (zone, itemId) => {
     throw error;
   }
   return paths;
+};
+
+const lstatOrNull = async (absolutePath) => {
+  try {
+    return await fsp.lstat(absolutePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return null;
+    throw error;
+  }
+};
+
+/** The longest path inside a deleted folder accepted, in characters. */
+const MAX_ENTRY_PATH = 4096;
+
+/**
+ * The segments of a path inside an item, or null when it is not one: relative,
+ * separated by `/`, with no empty, `.` or `..` segment. A path that could climb
+ * out of the item is refused before anything looks at the disk.
+ */
+const entrySegments = (entryPath) => {
+  if (typeof entryPath !== 'string' || entryPath.length > MAX_ENTRY_PATH) return null;
+  if (entryPath.includes('\0')) return null;
+  if (entryPath === '') return [];
+  const segments = entryPath.split('/');
+  return segments.every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+    ? segments
+    : null;
+};
+
+/**
+ * Walk from an item's content to an entry inside it, one segment at a time and
+ * through real directories only. A symbolic link inside a deleted folder is an
+ * entry like any other — listed, and restored as the link it is — but nothing
+ * is ever reached through it, so no listing or restore can be led out of the
+ * item.
+ */
+const walkInside = async (payload, segments) => {
+  let current = payload;
+  for (const segment of segments) {
+    // eslint-disable-next-line no-await-in-loop
+    const stats = await lstatOrNull(current);
+    if (!stats?.isDirectory()) return null;
+    current = path.join(current, segment);
+  }
+  const stats = await lstatOrNull(current);
+  return stats ? { absolutePath: current, stats } : null;
+};
+
+/**
+ * Make the folder something is restored into, and make sure it is inside the
+ * zone's own tree — on the resolved path as well as the written one, before
+ * and after creating it. A folder replaced by a symbolic link since the
+ * deletion must not send a restore, or the folders recreated on its way,
+ * somewhere else.
+ *
+ * @returns {Promise<null | {status: 'blocked', reason: string}>} null once ready
+ */
+const prepareDestination = async (zone, parent) => {
+  const invalid = { status: 'blocked', reason: 'invalid-destination' };
+  const inTree = (root, candidate) =>
+    zones.isWithin(root, candidate) && !zones.isWithin(zones.zoneDirectory(root), candidate);
+  const resolvesInTree = async (candidate) => {
+    try {
+      const [root, resolved] = await Promise.all([
+        fsp.realpath(zone.root),
+        fsp.realpath(candidate),
+      ]);
+      return inTree(root, resolved);
+    } catch {
+      return false;
+    }
+  };
+
+  if (!inTree(zone.root, parent)) return invalid;
+
+  // The deepest folder that already exists is where a link could stand.
+  let existing = parent;
+  // eslint-disable-next-line no-await-in-loop
+  while (existing !== zone.root && !(await lstatOrNull(existing))) {
+    existing = path.dirname(existing);
+  }
+  if (!(await resolvesInTree(existing))) return invalid;
+
+  try {
+    await fsp.mkdir(parent, { recursive: true });
+    if (!(await fsp.stat(parent)).isDirectory())
+      throw Object.assign(new Error(), { code: 'ENOTDIR' });
+  } catch (error) {
+    if (['EEXIST', 'ENOTDIR'].includes(error?.code)) {
+      return { status: 'blocked', reason: 'destination-blocked' };
+    }
+    throw error;
+  }
+  return (await resolvesInTree(parent)) ? null : invalid;
+};
+
+/** An item whose content has gone: its row and description removed, the loss recorded. */
+const recordLost = async (db, zone, item, sidecar) => {
+  store.deleteItem(db, item.id);
+  store.insertEvent(db, { zoneId: zone.id, itemId: item.id, itemName: item.name, kind: 'lost' });
+  await fsp.rm(sidecar, { force: true });
+  return { status: 'lost' };
 };
 
 /**
@@ -265,35 +369,11 @@ const restoreItem = async (itemId) => {
     if (!inspection.available) return { status: 'unavailable', reason: inspection.reason };
 
     const { payload, sidecar } = confinedPaths(zone, item.id);
-    if (!(await exists(payload))) {
-      store.deleteItem(db, item.id);
-      store.insertEvent(db, {
-        zoneId: zone.id,
-        itemId: item.id,
-        itemName: item.name,
-        kind: 'lost',
-      });
-      await fsp.rm(sidecar, { force: true });
-      return { status: 'lost' };
-    }
+    if (!(await exists(payload))) return recordLost(db, zone, item, sidecar);
 
     const parent = path.dirname(item.originalPath);
-    if (
-      !zones.isWithin(zone.root, parent) ||
-      zones.isWithin(zones.zoneDirectory(zone.root), parent)
-    ) {
-      return { status: 'blocked', reason: 'invalid-destination' };
-    }
-    try {
-      await fsp.mkdir(parent, { recursive: true });
-      if (!(await fsp.stat(parent)).isDirectory())
-        throw Object.assign(new Error(), { code: 'ENOTDIR' });
-    } catch (error) {
-      if (['EEXIST', 'ENOTDIR'].includes(error?.code)) {
-        return { status: 'blocked', reason: 'destination-blocked' };
-      }
-      throw error;
-    }
+    const refused = await prepareDestination(zone, parent);
+    if (refused) return refused;
 
     const name = await findAvailableName(parent, item.name);
     const restorePath = path.join(parent, name);
@@ -316,6 +396,141 @@ const restoreItem = async (itemId) => {
     store.deleteItem(db, item.id);
     await fsp.rm(sidecar, { force: true });
     return { status: 'restored', item, restorePath, renamed: name !== item.name };
+  } finally {
+    inflight.delete(itemId);
+  }
+};
+
+const LIST_BATCH = 64;
+
+const directoriesFirst = (left, right) => {
+  const leftIsDirectory = left.kind === 'directory';
+  if (leftIsDirectory !== (right.kind === 'directory')) return leftIsDirectory ? -1 : 1;
+  return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' });
+};
+
+/**
+ * What a deleted folder holds at a path inside it: each entry's name, kind,
+ * size for a file, and when it last changed. A symbolic link is listed as the
+ * link it is, never followed.
+ *
+ * @returns {Promise<{status: 'listed', item: object, entries: object[]} |
+ *   {status: 'missing'|'invalid-path'|'not-directory'} |
+ *   {status: 'unavailable', reason: string}>}
+ */
+const listEntries = async (itemId, entryPath = '') => {
+  const segments = entrySegments(entryPath);
+  if (!segments) return { status: 'invalid-path' };
+  const db = await getDb();
+  const item = store.getItem(db, itemId);
+  // An entry on its way out is still a folder worth looking into.
+  if (!item || !['trashed', 'extracting'].includes(item.state)) return { status: 'missing' };
+
+  const zone = store.getZone(db, item.zoneId);
+  const inspection = zone ? await zones.inspectZone(zone) : { reason: 'missing' };
+  if (!inspection.available) return { status: 'unavailable', reason: inspection.reason };
+
+  const { payload } = confinedPaths(zone, item.id);
+  const found = await walkInside(payload, segments);
+  if (!found) return { status: 'missing' };
+  if (!found.stats.isDirectory()) return { status: 'not-directory' };
+
+  const names = await fsp.readdir(found.absolutePath);
+  const entries = [];
+  for (let index = 0; index < names.length; index += LIST_BATCH) {
+    // eslint-disable-next-line no-await-in-loop
+    const batch = await Promise.all(
+      names.slice(index, index + LIST_BATCH).map(async (name) => {
+        const stats = await lstatOrNull(path.join(found.absolutePath, name));
+        if (!stats) return null;
+        let kind = 'file';
+        if (stats.isDirectory()) kind = 'directory';
+        else if (stats.isSymbolicLink()) kind = 'symlink';
+        return {
+          name,
+          kind,
+          size: stats.isFile() ? stats.size : null,
+          modifiedAt: stats.mtime.toISOString(),
+        };
+      })
+    );
+    entries.push(...batch.filter(Boolean));
+  }
+  entries.sort(directoriesFirst);
+  return { status: 'listed', item, entries };
+};
+
+/**
+ * Put one entry from inside a deleted folder back where it was: under the
+ * folder's original path, at the same place inside it. Folders on the way that
+ * have gone since are recreated; a name taken since gets a suffix; nothing is
+ * ever replaced. The rest of the folder stays in the trash, and is measured
+ * again so its recorded size stays the size on disk.
+ *
+ * Nothing is recorded per entry. The folder's own record is enough: the entry
+ * at `<id>/drafts/v2.txt` in the trash was at `<original path>/drafts/v2.txt`.
+ *
+ * @returns {Promise<{status: 'restored', item: object, kind: string, size: number,
+ *   restorePath: string, renamed: boolean} |
+ *   {status: 'missing'|'busy'|'lost'|'invalid-path'} |
+ *   {status: 'unavailable'|'blocked', reason: string}>}
+ */
+const restoreEntry = async (itemId, entryPath) => {
+  const segments = entrySegments(entryPath);
+  if (!segments?.length) return { status: 'invalid-path' };
+  if (inflight.has(itemId)) return { status: 'busy' };
+  inflight.add(itemId);
+  try {
+    const db = await getDb();
+    const item = store.getItem(db, itemId);
+    if (!item) return { status: 'missing' };
+    if (item.state !== 'trashed') return { status: 'busy' };
+
+    const zone = store.getZone(db, item.zoneId);
+    const inspection = zone ? await zones.inspectZone(zone) : { reason: 'missing' };
+    if (!inspection.available) return { status: 'unavailable', reason: inspection.reason };
+
+    const { payload, sidecar } = confinedPaths(zone, item.id);
+    if (!(await exists(payload))) return recordLost(db, zone, item, sidecar);
+    const found = await walkInside(payload, segments);
+    if (!found) return { status: 'missing' };
+
+    const destination = path.join(item.originalPath, ...segments);
+    const parent = path.dirname(destination);
+    const refused = await prepareDestination(zone, parent);
+    if (refused) return refused;
+
+    const kind = found.stats.isDirectory() ? 'directory' : 'file';
+    const { bytes: size } = await measure(found.absolutePath);
+    const wanted = path.basename(destination);
+    const name = await findAvailableName(parent, wanted);
+    const restorePath = path.join(parent, name);
+    store.setItemState(db, item.id, 'extracting', { restorePath });
+    await failpoints.hit('extract:after-intent', { id: item.id });
+
+    try {
+      // Checked again at the last moment: rename(2) replaces a file silently.
+      if (await exists(restorePath)) {
+        throw Object.assign(new Error('The destination was taken meanwhile.'), { code: 'EEXIST' });
+      }
+      await fsp.rename(found.absolutePath, restorePath);
+    } catch (error) {
+      store.setItemState(db, item.id, 'trashed');
+      if (error?.code === 'EEXIST') return { status: 'busy' };
+      throw error;
+    }
+    await failpoints.hit('extract:after-rename', { id: item.id });
+
+    store.setItemSize(db, item.id, (await measure(payload)).bytes);
+    store.setItemState(db, item.id, 'trashed');
+    return {
+      status: 'restored',
+      item: store.getItem(db, item.id),
+      kind,
+      size,
+      restorePath,
+      renamed: name !== wanted,
+    };
   } finally {
     inflight.delete(itemId);
   }
@@ -469,6 +684,17 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
         await drop(row, paths.sidecar, 'lost');
         report.lost += 1;
       }
+    } else if (row.state === 'extracting') {
+      // Whether the entry left or not, what is still in the folder is what the
+      // record must say: measured, and back in the trash.
+      if (hasPayload) {
+        store.setItemSize(db, row.id, (await measure(paths.payload)).bytes);
+        store.setItemState(db, row.id, 'trashed');
+        report.finished += 1;
+      } else {
+        await drop(row, paths.sidecar, 'lost');
+        report.lost += 1;
+      }
     } else if (row.state === 'purging') {
       await fsp.rm(paths.payload, { recursive: true, force: true });
       await drop(row, paths.sidecar);
@@ -574,8 +800,11 @@ module.exports = {
   ITEM_ID_PATTERN,
   inflight,
   measure,
+  entrySegments,
   moveToTrash,
   restoreItem,
+  listEntries,
+  restoreEntry,
   purgeItem,
   forgetItem,
   recoverZone,

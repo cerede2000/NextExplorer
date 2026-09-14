@@ -372,6 +372,155 @@ describe('restoring', () => {
   });
 });
 
+describe('inside a deleted folder', () => {
+  const deleteClient = async (who = 'alice') => {
+    await write('Projects/client/brief.txt', 'the brief');
+    await write('Projects/client/drafts/v1.txt', 'first draft');
+    await write('Projects/client/drafts/v2.txt', 'second, longer draft');
+    const deleted = await deleteAs(who, 'Projects', 'client');
+    return deleted.body.items[0].trashItemId;
+  };
+  const entries = (who, id, query = '') => as(who).get(`/api/trash/items/${id}/entries${query}`);
+  const restore = (who, id, body) => as(who).post(`/api/trash/items/${id}/restore`, body);
+
+  it('shows what it holds, at its top and further in', async () => {
+    const id = await deleteClient();
+
+    const top = await entries('alice', id);
+    const inner = await entries('alice', id, '?path=drafts');
+
+    expect(top.status).toBe(200);
+    expect(top.body).toMatchObject({ path: '', item: { id, name: 'client', kind: 'directory' } });
+    expect(top.body.entries.map((entry) => [entry.name, entry.kind, entry.size])).toEqual([
+      ['drafts', 'directory', null],
+      ['brief.txt', 'file', 'the brief'.length],
+    ]);
+    expect(inner.body.path).toBe('drafts');
+    expect(inner.body.entries.map((entry) => entry.name)).toEqual(['v1.txt', 'v2.txt']);
+  });
+
+  it('is shown to whoever sees the folder in their trash, and to nobody else', async () => {
+    const id = await deleteClient();
+
+    expect((await entries('admin', id)).status).toBe(200);
+    expect((await entries('bob', id)).status).toBe(404);
+    expect((await entries('guest:some-share', id)).status).toBe(403);
+  });
+
+  it('refuses a path that climbs out, and says when nothing, or no folder, is there', async () => {
+    const id = await deleteClient();
+
+    expect((await entries('alice', id, '?path=..')).status).toBe(400);
+    expect((await entries('alice', id, '?path=drafts%2F..%2F..')).status).toBe(400);
+    expect((await entries('alice', id, '?path=a&path=b')).status).toBe(400);
+    expect((await entries('alice', id, '?path=nowhere')).status).toBe(404);
+    expect((await entries('alice', id, '?path=brief.txt')).status).toBe(400);
+  });
+
+  it('says so when the volume it was deleted from is not there', async () => {
+    const id = await deleteClient();
+    await fs.rm(volume('Projects', '.nextexplorer', 'zone.json'));
+
+    expect((await entries('alice', id)).status).toBe(409);
+  });
+
+  it('gives back one file where it was, says where to find it, and keeps the rest', async () => {
+    const id = await deleteClient();
+
+    const response = await restore('alice', id, { paths: ['drafts/v2.txt'] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toEqual([
+      {
+        entry: 'drafts/v2.txt',
+        status: 'restored',
+        name: 'v2.txt',
+        restoredName: 'v2.txt',
+        renamed: false,
+        path: 'Projects/client/drafts',
+      },
+    ]);
+    expect(await fs.readFile(volume('Projects/client/drafts/v2.txt'), 'utf8')).toBe(
+      'second, longer draft'
+    );
+    expect((await as('alice').get('/api/trash')).body.items).toEqual([
+      expect.objectContaining({
+        id,
+        name: 'client',
+        size: 'the brief'.length + 'first draft'.length,
+      }),
+    ]);
+  });
+
+  it('gives back several entries at once, each where it was', async () => {
+    const id = await deleteClient();
+
+    const response = await restore('alice', id, { paths: ['brief.txt', 'drafts/v1.txt'] });
+
+    expect(response.body.items.map((result) => [result.entry, result.status, result.path])).toEqual(
+      [
+        ['brief.txt', 'restored', 'Projects/client'],
+        ['drafts/v1.txt', 'restored', 'Projects/client/drafts'],
+      ]
+    );
+    const left = await entries('alice', id, '?path=drafts');
+    expect(left.body.entries.map((entry) => entry.name)).toEqual(['v2.txt']);
+  });
+
+  /** The right to restore the folder is the right to restore what is in it. */
+  it('is refused to someone who can no longer write where the folder was', async () => {
+    const id = await deleteClient();
+    await load('src/services/settingsService').setSystemSetting('system', 'access', {
+      rules: [{ path: 'Projects', recursive: true, permissions: 'ro' }],
+    });
+
+    const response = await restore('alice', id, { paths: ['brief.txt'] });
+
+    expect(response.body.items).toEqual([
+      { entry: 'brief.txt', status: 'forbidden', name: 'brief.txt' },
+    ]);
+    expect(await exists(volume('Projects/client'))).toBe(false);
+  });
+
+  it('is possible for an administrator, and not for someone who cannot see the folder', async () => {
+    const id = await deleteClient();
+
+    expect((await restore('bob', id, { paths: ['brief.txt'] })).status).toBe(404);
+    expect(await exists(volume('Projects/client'))).toBe(false);
+
+    const byAdmin = await restore('admin', id, { paths: ['brief.txt'] });
+    expect(byAdmin.body.items[0]).toMatchObject({ status: 'restored', path: 'Projects/client' });
+  });
+
+  it('refuses no entries, a path that climbs out, and an entry inside another one asked for', async () => {
+    const id = await deleteClient();
+
+    expect((await restore('alice', id, { paths: [] })).status).toBe(400);
+    expect((await restore('alice', id, {})).status).toBe(400);
+    expect((await restore('alice', id, { paths: ['../escape.txt'] })).status).toBe(400);
+    expect((await restore('alice', id, { paths: [''] })).status).toBe(400);
+    expect((await restore('alice', id, { paths: ['drafts', 'drafts/v1.txt'] })).status).toBe(400);
+    expect(await exists(volume('Projects/client'))).toBe(false);
+  });
+
+  it('works in a personal folder, and names the folder to open there', async () => {
+    const { resolvePersonalPath } = load('src/utils/pathUtils');
+    const personalFile = await resolvePersonalPath('notes/day/today.txt', users.alice);
+    await fs.mkdir(path.dirname(personalFile), { recursive: true });
+    await fs.writeFile(personalFile, 'dear diary');
+    const deleted = await deleteAs('alice', 'personal/notes', 'day');
+    const id = deleted.body.items[0].trashItemId;
+
+    const response = await restore('alice', id, { paths: ['today.txt'] });
+
+    expect(response.body.items[0]).toMatchObject({
+      status: 'restored',
+      path: 'personal/notes/day',
+    });
+    expect(await fs.readFile(personalFile, 'utf8')).toBe('dear diary');
+  });
+});
+
 describe('a personal folder', () => {
   it('has its own trash, which its owner sees and restores from', async () => {
     const { resolvePersonalPath } = load('src/utils/pathUtils');

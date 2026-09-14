@@ -15,7 +15,12 @@
 const fsp = require('fs/promises');
 const path = require('path');
 
-const { ForbiddenError, ValidationError } = require('../../errors/AppError');
+const {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} = require('../../errors/AppError');
 const logger = require('../../utils/logger');
 const { ACTIONS, authorizePath } = require('../authorizationService');
 const { getDb } = require('../db');
@@ -150,14 +155,20 @@ const trashTarget = async (target, context, { budgetFor } = {}) => {
 const visibleTo = (item, user) =>
   isAdmin(user) || item.deletedBy === user.id || item.ownerUserId === user.id;
 
-/** A folder this person can open to see a restored item, when there is one. */
-const openPathFor = (item, zone, user) => {
+/**
+ * A folder this person can open to see a restored item, when there is one: the
+ * folder the item was in or, for an entry restored from inside a deleted
+ * folder, the folder that entry is back in.
+ */
+const openPathFor = (item, zone, user, entry = null) => {
+  const folderOf = (relative) =>
+    entry === null ? parentOf(relative) : path.posix.join(relative, parentOf(entry));
   if (item.deletedBy === user.id && item.space !== 'share' && item.logicalPath) {
-    return parentOf(item.logicalPath);
+    return folderOf(item.logicalPath);
   }
   if (!zone) return null;
   const { kind, name } = zones.describeZoneRoot(zone.root);
-  const parent = parentOf(item.relativePath);
+  const parent = folderOf(item.relativePath);
   if (kind === 'personal' && item.ownerUserId === user.id) {
     return parent ? `personal/${parent}` : 'personal';
   }
@@ -276,6 +287,123 @@ const restoreItems = async (ids, context) => {
   return { items: results };
 };
 
+/** A path inside a deleted folder, normalised, or a refusal saying what is wrong with it. */
+const validateEntryPath = (entryPath, { allowTop = false } = {}) => {
+  const segments = operations.entrySegments(entryPath);
+  if (!segments || (!allowTop && segments.length === 0)) {
+    throw new ValidationError(
+      'A path inside a deleted folder is relative, separated by "/", with no empty, "." or ".." part.'
+    );
+  }
+  return segments.join('/');
+};
+
+const validateEntryPaths = (paths) => {
+  if (!Array.isArray(paths) || paths.length === 0) {
+    throw new ValidationError('At least one entry of the deleted folder is required.');
+  }
+  if (paths.length > MAX_IDS) {
+    throw new ValidationError(`At most ${MAX_IDS} entries can be restored at once.`);
+  }
+  const unique = [...new Set(paths.map((entryPath) => validateEntryPath(entryPath)))];
+  // A folder brings back what it holds: asking for both would restore one twice over.
+  const nested = unique.find((entryPath) =>
+    unique.some((other) => entryPath.startsWith(`${other}/`))
+  );
+  if (nested) {
+    throw new ValidationError(`"${nested}" is inside another entry of the same request.`);
+  }
+  return unique;
+};
+
+/** A deleted folder this person can see, including while an entry is on its way out of it. */
+const findVisibleFolder = (db, id, user) => {
+  const item = typeof id === 'string' && id ? store.getItem(db, id) : null;
+  return item && ['trashed', 'extracting'].includes(item.state) && visibleTo(item, user)
+    ? item
+    : null;
+};
+
+/** What a deleted folder holds at a path inside it, for someone who can see it in their trash. */
+const listEntries = async (id, entryPath, context) => {
+  const user = requireUser(context);
+  const normalized = validateEntryPath(entryPath, { allowTop: true });
+  const db = await getDb();
+  if (!findVisibleFolder(db, id, user)) throw new NotFoundError('This item is not in your trash.');
+
+  const outcome = await operations.listEntries(id, normalized);
+  if (outcome.status === 'unavailable') {
+    throw new ConflictError('The volume this item was deleted from is not available.');
+  }
+  if (outcome.status === 'not-directory') throw new ValidationError('This is not a folder.');
+  if (outcome.status !== 'listed') {
+    throw new NotFoundError('This deleted folder holds nothing at that path.');
+  }
+
+  const settings = await getTrashSettings();
+  const zone = store.getZone(db, outcome.item.zoneId);
+  return {
+    item: present(outcome.item, zone, user, settings, true),
+    path: normalized,
+    entries: outcome.entries,
+  };
+};
+
+/**
+ * Put back entries from inside a deleted folder. Allowed to whoever may restore
+ * the folder itself: an entry goes back inside the folder's own original place,
+ * so that is the place the right is checked against.
+ */
+const restoreEntries = async (id, paths, context) => {
+  const user = requireUser(context);
+  const entries = validateEntryPaths(paths);
+  const db = await getDb();
+  const item = typeof id === 'string' && id ? findVisible(db, id, user) : null;
+  if (!item) throw new NotFoundError('This item is not in your trash.');
+
+  if (!(await mayRestore(item, context, user))) {
+    return {
+      items: entries.map((entry) => ({
+        entry,
+        status: 'forbidden',
+        name: path.posix.basename(entry),
+      })),
+    };
+  }
+
+  const zone = store.getZone(db, item.zoneId);
+  const results = [];
+  for (const entry of entries) {
+    const name = path.posix.basename(entry);
+    let outcome;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      outcome = await operations.restoreEntry(item.id, entry);
+    } catch (error) {
+      logger.warn(
+        { err: error, itemId: item.id, entry },
+        'An entry could not be restored from a deleted folder'
+      );
+      outcome = { status: 'failed' };
+    }
+    if (outcome.status === 'restored') {
+      announceRestored(outcome, outcome.restorePath);
+      results.push({
+        entry,
+        status: 'restored',
+        name,
+        restoredName: path.basename(outcome.restorePath),
+        renamed: outcome.renamed,
+        path: openPathFor(item, zone, user, entry),
+      });
+    } else {
+      results.push({ entry, status: outcome.status, reason: outcome.reason || null, name });
+    }
+  }
+
+  return { items: results };
+};
+
 /**
  * Remove items for good. An administrator may also forget items whose zone is
  * not there — only their records, never a disk — once they know it is not
@@ -350,6 +478,8 @@ module.exports = {
   trashTarget,
   listItems,
   restoreItems,
+  listEntries,
+  restoreEntries,
   purgeItems,
   emptyTrash,
   verifyAll,

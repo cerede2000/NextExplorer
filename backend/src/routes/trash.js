@@ -25,6 +25,23 @@ router.post(
   })
 );
 
+// GET /api/trash/items/:id/entries?path= - what a deleted folder holds, at a path inside it
+router.get(
+  '/trash/items/:id/entries',
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    res.json(await trash.listEntries(req.params.id, req.query.path ?? '', contextOf(req)));
+  })
+);
+
+// POST /api/trash/items/:id/restore - put back entries from inside a deleted folder
+router.post(
+  '/trash/items/:id/restore',
+  asyncHandler(async (req, res) => {
+    res.json(await trash.restoreEntries(req.params.id, req.body?.paths, contextOf(req)));
+  })
+);
+
 // POST /api/trash/delete - remove items for good
 router.post(
   '/trash/delete',
