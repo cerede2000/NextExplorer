@@ -39,11 +39,8 @@ const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
 const logger = require('../utils/logger');
-const {
-  readTextFile,
-  encodeText,
-  MAX_EDITOR_FILE_SIZE,
-} = require('../services/textEditorService');
+const { readTextFile, encodeText, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
+const versions = require('../services/versions/operations');
 
 const router = express.Router();
 
@@ -1003,7 +1000,16 @@ const handleSharedEditorSaveRequest = async (req, res) => {
     throw new ValidationError('This file is too large to save in the text editor.');
   }
 
-  await fs.writeFile(resolved.absolutePath, payload);
+  // Written beside the file and renamed over it, like every other save, so what
+  // a visitor replaces is kept as a version for the owner.
+  await versions.saveFile(
+    resolved.absolutePath,
+    (temporaryPath) => fs.writeFile(temporaryPath, payload, { flag: 'wx' }),
+    {
+      author: versions.authorOf({ user: req.user, guestSession: req.guestSession || {} }),
+      source: 'share-editor',
+    }
+  );
 
   await trackShareAccess(share.id);
   res.set({

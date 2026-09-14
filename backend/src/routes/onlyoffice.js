@@ -25,6 +25,7 @@ const { ValidationError, UnauthorizedError, ForbiddenError } = require('../error
 const folderSizeHooks = require('../services/folderSizeHooks');
 const onlyofficeActivity = require('../services/onlyofficeActivityService');
 const documentKeys = require('../services/onlyofficeDocumentKeyService');
+const versions = require('../services/versions/operations');
 
 const editorSessions = require('../services/onlyofficeEditorSessionService');
 const { markLongPoll } = require('../middleware/heldRequests');
@@ -121,13 +122,21 @@ const assertShareStillValid = async (backendCtx) => {
   }
 };
 
+/** Pull a document the Document Server prepared into a new file. */
+const fetchDocumentInto = async (downloadUrl, temporaryPath, mode) => {
+  const response = await axios.get(downloadUrl, { responseType: 'stream', timeout: 30000 });
+  await pipeline(response.data, fs.createWriteStream(temporaryPath, { flags: 'wx', mode }));
+  // The write stream's mode is subject to the umask; this is not.
+  await fsp.chmod(temporaryPath, mode);
+};
+
 /**
  * Pull a document the Document Server prepared into a file, atomically.
  *
  * Written to a temporary name in the destination directory and renamed over
  * the target, so a slow or failed response never leaves a valid document
- * truncated to nothing. Used both when saving an edited document back over
- * itself and when saving one under a new name.
+ * truncated to nothing. Used when saving one under a new name; a save over the
+ * document itself goes through the versions, which do the same rename.
  */
 const downloadDocumentTo = async (downloadUrl, targetPath, mode = 0o600) => {
   const temporaryPath = path.join(
@@ -136,14 +145,26 @@ const downloadDocumentTo = async (downloadUrl, targetPath, mode = 0o600) => {
   );
 
   try {
-    const response = await axios.get(downloadUrl, { responseType: 'stream', timeout: 30000 });
-    await pipeline(response.data, fs.createWriteStream(temporaryPath, { flags: 'wx', mode }));
-    // The write stream's mode is subject to the umask; this is not.
-    await fsp.chmod(temporaryPath, mode);
+    await fetchDocumentInto(downloadUrl, temporaryPath, mode);
     await fsp.rename(temporaryPath, targetPath);
   } finally {
     await fsp.unlink(temporaryPath).catch(() => {});
   }
+};
+
+/**
+ * Who wrote the state a save callback carries. The Document Server lists the
+ * changes and who made them, the last one first to know; a visitor through a
+ * share link is not an account.
+ */
+const authorFromCallback = (body, backendCtx) => {
+  const changes = Array.isArray(body?.history?.changes) ? body.history.changes : [];
+  const user = changes.length ? changes[changes.length - 1]?.user : null;
+  const id = user?.id ? String(user.id) : backendCtx?.userId || null;
+  if ((id && id.startsWith('guest_')) || (!id && backendCtx?.guestSessionId)) {
+    return { id: null, label: 'share-link' };
+  }
+  return { id, label: user?.name ? String(user.name) : null };
 };
 
 /**
@@ -1149,9 +1170,31 @@ router.post(
         } catch {
           // A newly-created document is valid.
         }
+        // A save on purpose — the editor's own Save, closing the document, or
+        // the last save once everyone has left — is a state worth keeping; the
+        // automatic ones in between are not, unless the session runs long.
+        const explicit =
+          status === 2 ||
+          Number(body.forcesavetype) === 1 ||
+          pendingForceSaves.get(forceSaveRequestId)?.reason === 'close';
         // Keep the permissions the document already had; a new one starts
         // private.
-        await downloadDocumentTo(downloadUrl, abs, existed ? previousMode : 0o600);
+        await versions.saveFile(
+          abs,
+          (temporaryPath) =>
+            fetchDocumentInto(downloadUrl, temporaryPath, existed ? previousMode : 0o600),
+          {
+            purpose: 'onlyoffice',
+            author: authorFromCallback(body, backendCtx),
+            source: 'onlyoffice',
+            session: {
+              // Everyone editing together shares the document key: it is the session.
+              key: typeof body.key === 'string' && body.key ? body.key : null,
+              startedAt: Number.isFinite(backendCtx?.iat) ? backendCtx.iat * 1000 : null,
+            },
+            explicit,
+          }
+        );
         const updated = await fsp.stat(abs);
         if (existed) {
           await folderSizeHooks.onFileReplaced(abs, previousSize, updated.size);

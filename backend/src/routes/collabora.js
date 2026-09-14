@@ -16,6 +16,13 @@ const { getDiscoveryActionsByExt } = require('../services/collaboraDiscoveryServ
 const lockService = require('../services/wopiLockService');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
+const versions = require('../services/versions/operations');
+
+/** A Collabora save header, under its current name or the one older servers still send. */
+const wopiSaveHeader = (req, name) =>
+  String(req.headers[`x-cool-wopi-${name}`] ?? req.headers[`x-lool-wopi-${name}`] ?? '')
+    .trim()
+    .toLowerCase();
 
 const router = express.Router();
 
@@ -314,18 +321,31 @@ router.post(
       return res.status(409).end();
     }
 
-    const dir = path.dirname(abs);
-    const tmp = path.join(dir, `.${path.basename(abs)}.wopi-tmp-${process.pid}-${Date.now()}`);
-
-    const writeStream = fs.createWriteStream(tmp);
-    await new Promise((resolve, reject) => {
-      req.pipe(writeStream);
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
-      req.on('error', reject);
-    });
-
-    await fsp.rename(tmp, abs);
+    await versions.saveFile(
+      abs,
+      (temporaryPath) =>
+        new Promise((resolve, reject) => {
+          const writeStream = fs.createWriteStream(temporaryPath, { flags: 'wx' });
+          req.pipe(writeStream);
+          writeStream.on('finish', resolve);
+          writeStream.on('error', reject);
+          req.on('error', reject);
+        }),
+      {
+        purpose: 'wopi',
+        author: { id: tokenPayload.userId || null, label: tokenPayload.userName || null },
+        source: 'collabora',
+        session: {
+          // One lock per open document, shared by everyone editing it: the
+          // session its saves belong to. Without one, every save counts.
+          key: requestLock ? `wopi:${requestLock}` : null,
+          startedAt: Number.isFinite(tokenPayload.iat) ? tokenPayload.iat * 1000 : null,
+        },
+        // Collabora saves on its own every few minutes; a save someone asked
+        // for, or the one made on closing, is a state worth keeping.
+        explicit: wopiSaveHeader(req, 'isautosave') !== 'true',
+      }
+    );
     const stat = await fsp.stat(abs);
     if (existed) {
       await folderSizeHooks.onFileReplaced(abs, previousSize, stat.size);

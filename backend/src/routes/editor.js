@@ -8,6 +8,7 @@ const { ACTIONS, authorizeAndResolve } = require('../services/authorizationServi
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
+const versions = require('../services/versions/operations');
 const {
   readTextFile,
   readFileEncoding,
@@ -139,7 +140,14 @@ router.put(
     if (payload.length > MAX_EDITOR_FILE_SIZE) {
       throw new ValidationError('This file is too large to save in the text editor.');
     }
-    await fs.writeFile(absolutePath, payload);
+    // Written beside the file and renamed over it: writing in place left a
+    // truncated file behind a crash in the middle of a save. What it replaces
+    // is kept as a version.
+    await versions.saveFile(
+      absolutePath,
+      (temporaryPath) => fs.writeFile(temporaryPath, payload, { flag: 'wx' }),
+      { author: versions.authorOf(context), source: 'editor' }
+    );
     const updated = await fs.stat(absolutePath);
     if (existed) {
       await folderSizeHooks.onFileReplaced(absolutePath, previousSize, updated.size);
