@@ -1183,4 +1183,7 @@ module.exports = {
   // the decision to retry is what can be checked without one.
   isPermissionPreservationFailure,
   copyWithNativeRsync,
+  // The trash restores across disks with the same copy a transfer uses:
+  // permissions kept, links copied as links, progress reported, cancellable.
+  copyEntryWithProgress,
 };

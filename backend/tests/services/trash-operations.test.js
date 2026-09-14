@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OTHER_DEVICE } from '../helpers/cross-device.js';
 import { modulePath, setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
@@ -675,6 +676,232 @@ describe('inside a deleted folder', () => {
   });
 });
 
+/**
+ * Restoring into a folder someone chose. On the same disk it is the same
+ * rename as putting something back; across disks a rename is impossible, so the
+ * content is copied beside where it is going and the trash's copy only lets go
+ * once that copy is whole.
+ */
+describe('restoring somewhere else', () => {
+  const archive = (...segments) => volume('Archive', ...segments);
+  const trashClient = async () => {
+    await writeTree();
+    return (await trash('Projects/client')).item;
+  };
+  const payloadOf = (item) => zones.itemPaths(volume('Projects'), item.id).payload;
+  /** Every restore from here on sees a second disk. */
+  const acrossDisks = () => vi.spyOn(zones, 'sameDevice').mockResolvedValue(false);
+  const clientTree = {
+    'brief.txt': 'the brief',
+    'drafts/v1.txt': 'first draft',
+    'drafts/v2.txt': 'second, longer draft',
+  };
+  const clientBytes = 'the brief'.length + 'first draft'.length + 'second, longer draft'.length;
+
+  beforeEach(async () => {
+    await fs.mkdir(archive(), { recursive: true });
+  });
+
+  it('puts a file in the chosen folder by renaming it, on the same disk', async () => {
+    await write('Projects/a/report.txt', 'quarterly figures');
+    const { item } = await trash('Projects/a/report.txt');
+    const inode = (await fs.stat(payloadOf(item))).ino;
+
+    const result = await operations.restoreItem(item.id, { destinationDirectory: archive() });
+
+    expect(result).toMatchObject({
+      status: 'restored',
+      restorePath: archive('report.txt'),
+      renamed: false,
+    });
+    expect((await fs.stat(archive('report.txt'))).ino).toBe(inode);
+    expect(await exists(volume('Projects/a/report.txt'))).toBe(false);
+    expect(store.getItem(db, item.id)).toBeNull();
+    await expectConsistent(zoneOf());
+  });
+
+  it('puts an entry of a deleted folder in the chosen folder, and keeps the rest', async () => {
+    const item = await trashClient();
+
+    const result = await operations.restoreEntry(item.id, 'drafts', {
+      destinationDirectory: archive(),
+    });
+
+    expect(result).toMatchObject({ status: 'restored', restorePath: archive('drafts') });
+    expect(await readTree(archive())).toEqual({
+      'drafts/v1.txt': 'first draft',
+      'drafts/v2.txt': 'second, longer draft',
+    });
+    expect(await exists(volume('Projects/client'))).toBe(false);
+    expect(await readTree(payloadOf(item))).toEqual({ 'brief.txt': 'the brief' });
+    await expectConsistent(zoneOf());
+  });
+
+  it('copies across disks, and lets the trash’s copy go only once the copy is whole', async () => {
+    const item = await trashClient();
+    acrossDisks();
+    let reported = 0;
+
+    const result = await operations.restoreItem(item.id, {
+      destinationDirectory: archive(),
+      onBytes: (bytes) => {
+        reported += bytes;
+      },
+    });
+
+    expect(result).toMatchObject({ status: 'restored', restorePath: archive('client') });
+    expect(await readTree(archive('client'))).toEqual(clientTree);
+    expect(reported).toBe(clientBytes);
+    // Nothing left in the trash, and no partial copy beside the destination.
+    expect(await fs.readdir(archive())).toEqual(['client']);
+    expect(await fs.readdir(zones.trashDirectory(volume('Projects')))).toEqual([]);
+    expect(store.getItem(db, item.id)).toBeNull();
+    await expectConsistent(zoneOf());
+  });
+
+  it('copies an entry of a deleted folder across disks, and measures what is left', async () => {
+    const item = await trashClient();
+    acrossDisks();
+
+    const result = await operations.restoreEntry(item.id, 'drafts/v2.txt', {
+      destinationDirectory: archive(),
+    });
+
+    expect(result).toMatchObject({
+      status: 'restored',
+      kind: 'file',
+      restorePath: archive('v2.txt'),
+    });
+    expect(await fs.readdir(archive())).toEqual(['v2.txt']);
+    expect(await readTree(payloadOf(item))).toEqual({
+      'brief.txt': 'the brief',
+      'drafts/v1.txt': 'first draft',
+    });
+    expect(store.getItem(db, item.id)).toMatchObject({
+      state: 'trashed',
+      size: 'the brief'.length + 'first draft'.length,
+    });
+    await expectConsistent(zoneOf());
+  });
+
+  it.each([
+    ['on the same disk', false],
+    ['across disks', true],
+  ])(
+    'never replaces what already has the name in the chosen folder, %s',
+    async (_label, across) => {
+      await write('Projects/report.txt', 'the deleted one');
+      const { item } = await trash('Projects/report.txt');
+      await write('Archive/report.txt', 'already there');
+      if (across) acrossDisks();
+
+      const result = await operations.restoreItem(item.id, { destinationDirectory: archive() });
+
+      expect(result).toMatchObject({ renamed: true, restorePath: archive('report (1).txt') });
+      expect(await fs.readFile(archive('report.txt'), 'utf8')).toBe('already there');
+      expect(await fs.readFile(archive('report (1).txt'), 'utf8')).toBe('the deleted one');
+    }
+  );
+
+  it('refuses a folder that is not there, a file, and anything inside a trash zone', async () => {
+    const item = await trashClient();
+    await write('Archive/file.txt', 'not a folder');
+    await fs.symlink(zones.zoneDirectory(volume('Projects')), archive('into-zone'));
+    const refused = { status: 'blocked', reason: 'invalid-destination' };
+
+    for (const destinationDirectory of [
+      archive('nowhere'),
+      archive('file.txt'),
+      zones.trashDirectory(volume('Projects')),
+      archive('into-zone'),
+    ]) {
+      expect(await operations.restoreItem(item.id, { destinationDirectory })).toEqual(refused);
+      expect(await operations.restoreEntry(item.id, 'brief.txt', { destinationDirectory })).toEqual(
+        refused
+      );
+    }
+    expect(await readTree(payloadOf(item))).toEqual(clientTree);
+    await expectConsistent(zoneOf());
+  });
+
+  it('stays in the trash when a copy across disks is cancelled, and leaves nothing behind', async () => {
+    const item = await trashClient();
+    acrossDisks();
+    const controller = new AbortController();
+
+    const result = await operations.restoreItem(item.id, {
+      destinationDirectory: archive(),
+      signal: controller.signal,
+      onBytes: () => controller.abort(),
+    });
+
+    expect(result).toEqual({ status: 'cancelled' });
+    expect(await fs.readdir(archive())).toEqual([]);
+    expect(await readTree(payloadOf(item))).toEqual(clientTree);
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    await expectConsistent(zoneOf());
+  });
+
+  it('stays in the trash when a copy across disks fails, and leaves nothing behind', async () => {
+    const item = await trashClient();
+    acrossDisks();
+    const transfers = load('src/services/fileTransferService');
+    vi.spyOn(transfers, 'copyEntryWithProgress').mockImplementation(async (_source, staging) => {
+      await fs.mkdir(staging, { recursive: true });
+      await fs.writeFile(path.join(staging, 'half.txt'), 'half');
+      throw Object.assign(new Error('No space left on device'), { code: 'ENOSPC' });
+    });
+
+    await expect(
+      operations.restoreItem(item.id, { destinationDirectory: archive() })
+    ).rejects.toMatchObject({ code: 'ENOSPC' });
+
+    expect(await fs.readdir(archive())).toEqual([]);
+    expect(await readTree(payloadOf(item))).toEqual(clientTree);
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    await expectConsistent(zoneOf());
+  });
+
+  /** Two mount points of one filesystem share a device number, and still refuse a rename. */
+  it('copies when a rename it expected to work is refused across mount points', async () => {
+    await write('Projects/report.txt', 'still here');
+    const { item } = await trash('Projects/report.txt');
+    const rename = fsp.rename.bind(fsp);
+    let refusedOnce = false;
+    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
+      if (!refusedOnce && from === payloadOf(item)) {
+        refusedOnce = true;
+        throw Object.assign(new Error('EXDEV'), { code: 'EXDEV' });
+      }
+      return rename(from, to);
+    });
+
+    const result = await operations.restoreItem(item.id, { destinationDirectory: archive() });
+
+    expect(refusedOnce).toBe(true);
+    expect(result.status).toBe('restored');
+    expect(await fs.readFile(archive('report.txt'), 'utf8')).toBe('still here');
+    await expectConsistent(zoneOf());
+  });
+
+  describe.skipIf(!OTHER_DEVICE)('with a real second disk', () => {
+    it('copies a deleted folder onto it, whole, and empties the trash of it', async () => {
+      const item = await trashClient();
+      const destination = await fs.mkdtemp(path.join(OTHER_DEVICE, 'nextexplorer-restore-'));
+      try {
+        const result = await operations.restoreItem(item.id, { destinationDirectory: destination });
+
+        expect(result.status).toBe('restored');
+        expect(await readTree(path.join(destination, 'client'))).toEqual(clientTree);
+        expect(await fs.readdir(zones.trashDirectory(volume('Projects')))).toEqual([]);
+        await expectConsistent(zoneOf());
+      } finally {
+        await fs.rm(destination, { recursive: true, force: true });
+      }
+    });
+  });
+});
+
 describe('a crash at any step', () => {
   const restart = () => {
     failpoints.clear();
@@ -787,9 +1014,116 @@ describe('a crash at any step', () => {
       ).toBe('second, longer draft');
     }
   );
+
+  describe.each([
+    ['a deleted folder', null],
+    ['an entry of a deleted folder', 'drafts'],
+  ])('while copying %s across disks', (_label, entryPath) => {
+    const expectedTree = entryPath
+      ? { 'v1.txt': 'first draft', 'v2.txt': 'second, longer draft' }
+      : {
+          'brief.txt': 'the brief',
+          'drafts/v1.txt': 'first draft',
+          'drafts/v2.txt': 'second, longer draft',
+        };
+    const landedName = entryPath || 'client';
+
+    it.each([
+      ['copy:after-intent', false],
+      ['copy:after-copy', false],
+      ['copy:after-mark', true],
+      ['copy:after-rename', true],
+      ['copy:after-remove', true],
+    ])('at %s leaves the content exactly once, and no partial copy', async (point, lands) => {
+      await writeTree();
+      const { item } = await trash('Projects/client');
+      await fs.mkdir(volume('Archive'), { recursive: true });
+      vi.spyOn(zones, 'sameDevice').mockResolvedValue(false);
+      crashAt(point);
+      const options = { destinationDirectory: volume('Archive') };
+
+      await expect(
+        entryPath
+          ? operations.restoreEntry(item.id, entryPath, options)
+          : operations.restoreItem(item.id, options)
+      ).rejects.toMatchObject({ simulatedCrash: true });
+      restart();
+      const zone = zoneOf();
+      await operations.recoverZone(zone);
+
+      await expectConsistent(zone);
+      const payload = zones.itemPaths(zone.root, item.id).payload;
+      expect(await fs.readdir(volume('Archive'))).toEqual(lands ? [landedName] : []);
+      if (!lands) {
+        expect(await readTree(entryPath ? path.join(payload, entryPath) : payload)).toEqual(
+          expectedTree
+        );
+        expect(store.getItem(db, item.id).state).toBe('trashed');
+      } else if (entryPath) {
+        expect(await readTree(volume('Archive', landedName))).toEqual(expectedTree);
+        expect(await readTree(payload)).toEqual({ 'brief.txt': 'the brief' });
+        expect(store.getItem(db, item.id).state).toBe('trashed');
+      } else {
+        expect(await readTree(volume('Archive', landedName))).toEqual(expectedTree);
+        expect(await exists(payload)).toBe(false);
+        expect(rowsOf(zone)).toEqual([]);
+      }
+    });
+  });
 });
 
 describe('recovering a zone', () => {
+  const stopCopyOnceWhole = async () => {
+    await writeTree();
+    const { item } = await trash('Projects/client');
+    await fs.mkdir(volume('Archive'), { recursive: true });
+    vi.spyOn(zones, 'sameDevice').mockResolvedValue(false);
+    failpoints.set('copy:after-mark', () => failpoints.crash('copy:after-mark'));
+    await expect(
+      operations.restoreItem(item.id, { destinationDirectory: volume('Archive') })
+    ).rejects.toMatchObject({ simulatedCrash: true });
+    failpoints.clear();
+    operations.inflight.clear();
+    return item;
+  };
+
+  it('finishes a restore across disks whose name was taken while it was stopped, with a suffix', async () => {
+    const item = await stopCopyOnceWhole();
+    await write('Archive/client', 'something else took the name');
+
+    await operations.recoverZone(zoneOf());
+
+    expect(await fs.readFile(volume('Archive/client'), 'utf8')).toBe(
+      'something else took the name'
+    );
+    expect(await readTree(volume('Archive/client (1)'))).toEqual({
+      'brief.txt': 'the brief',
+      'drafts/v1.txt': 'first draft',
+      'drafts/v2.txt': 'second, longer draft',
+    });
+    expect(store.getItem(db, item.id)).toBeNull();
+    await expectConsistent(zoneOf());
+  });
+
+  it('keeps the trash’s copy when a whole copy vanished before it could be named', async () => {
+    const item = await stopCopyOnceWhole();
+    const staging = (await fs.readdir(volume('Archive'))).find((name) =>
+      name.startsWith(operations.STAGING_PREFIX)
+    );
+    expect(staging).toBeDefined();
+    await fs.rm(volume('Archive', staging), { recursive: true });
+
+    await operations.recoverZone(zoneOf());
+
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    expect(await readTree(zones.itemPaths(volume('Projects'), item.id).payload)).toEqual({
+      'brief.txt': 'the brief',
+      'drafts/v1.txt': 'first draft',
+      'drafts/v2.txt': 'second, longer draft',
+    });
+    await expectConsistent(zoneOf());
+  });
+
   it('records the loss of a folder whose content vanished while an entry was coming out', async () => {
     await writeTree();
     const { item } = await trash('Projects/client');

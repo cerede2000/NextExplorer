@@ -710,6 +710,9 @@ const migrate = (db) => {
   db.exec(FOLDER_PREFERENCES_DDL);
   db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
   db.exec(TRASH_DDL);
+  // Which entry of a deleted folder a restore is taking out, for the recovery
+  // to finish a copy it interrupted. Added after the trash first shipped.
+  addColumnIfMissing(db, 'trash_items', 'restore_entry', 'restore_entry TEXT');
   ensureShareOperationPermissionColumns(db);
 };
 

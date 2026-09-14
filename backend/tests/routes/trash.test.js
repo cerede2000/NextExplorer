@@ -521,6 +521,179 @@ describe('inside a deleted folder', () => {
   });
 });
 
+/**
+ * Restoring into a folder someone chose. It streams, as a transfer does, since
+ * across disks it is a copy; everything it can refuse is refused before the
+ * stream starts.
+ */
+describe('restoring into a chosen folder', () => {
+  const events = (response) =>
+    response.text
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  const doneOf = (response) => events(response).find((event) => event.type === 'done');
+  const restoreTo = (who, body) => as(who).post('/api/trash/restore-to', body);
+  const restoreEntriesTo = (who, id, body) =>
+    as(who).post(`/api/trash/items/${id}/restore-to`, body);
+  const refusedOutright = (response) => response.status >= 400 && response.status < 500;
+  const trashOne = async (who, relative, content = 'content') => {
+    await write(relative, content);
+    const deleted = await deleteAs(
+      who,
+      path.posix.dirname(relative),
+      path.posix.basename(relative)
+    );
+    return deleted.body.items[0].trashItemId;
+  };
+
+  beforeEach(async () => {
+    await fs.mkdir(volume('Archive'), { recursive: true });
+  });
+
+  it('puts items in the chosen folder, says how far it got, and remembers the folder', async () => {
+    const id = await trashOne('alice', 'Projects/a/report.txt', 'quarterly figures');
+
+    const response = await restoreTo('alice', { ids: [id], destination: 'Archive' });
+
+    expect(response.status).toBe(200);
+    const stream = events(response);
+    expect(stream[0]).toEqual({
+      type: 'start',
+      totalBytes: 'quarterly figures'.length,
+      totalItems: 1,
+      destination: 'Archive',
+    });
+    expect(
+      stream.some(
+        (event) =>
+          event.type === 'progress' &&
+          event.completedItems === 1 &&
+          event.copiedBytes === 'quarterly figures'.length
+      )
+    ).toBe(true);
+    expect(doneOf(response)).toEqual({
+      type: 'done',
+      destination: 'Archive',
+      items: [
+        {
+          id,
+          status: 'restored',
+          name: 'report.txt',
+          restoredName: 'report.txt',
+          renamed: false,
+          path: 'Archive',
+        },
+      ],
+    });
+    expect(await fs.readFile(volume('Archive/report.txt'), 'utf8')).toBe('quarterly figures');
+    expect(await exists(volume('Projects/a/report.txt'))).toBe(false);
+    const recents = await as('alice').get('/api/files/recent-destinations');
+    expect(recents.body.items).toContain('Archive');
+  });
+
+  it('puts entries of a deleted folder in the chosen folder, across disks too', async () => {
+    await write('Projects/client/brief.txt', 'the brief');
+    await write('Projects/client/drafts/v1.txt', 'first draft');
+    const id = (await deleteAs('alice', 'Projects', 'client')).body.items[0].trashItemId;
+    vi.spyOn(load('src/services/trash/zones'), 'sameDevice').mockResolvedValue(false);
+
+    const response = await restoreEntriesTo('alice', id, {
+      paths: ['drafts'],
+      destination: 'Archive',
+    });
+
+    expect(doneOf(response).items).toEqual([
+      {
+        entry: 'drafts',
+        status: 'restored',
+        name: 'drafts',
+        restoredName: 'drafts',
+        renamed: false,
+        path: 'Archive',
+      },
+    ]);
+    expect(await fs.readFile(volume('Archive/drafts/v1.txt'), 'utf8')).toBe('first draft');
+    const left = await as('alice').get(`/api/trash/items/${id}/entries`);
+    expect(left.body.entries.map((entry) => entry.name)).toEqual(['brief.txt']);
+  });
+
+  it('refuses before anything moves: no folder, not a folder, nowhere, inside a trash', async () => {
+    const id = await trashOne('alice', 'Projects/report.txt');
+    await write('Archive/file.txt');
+
+    expect((await restoreTo('alice', { ids: [id] })).status).toBe(400);
+    expect((await restoreTo('alice', { ids: [], destination: 'Archive' })).status).toBe(400);
+    for (const destination of ['Archive/file.txt', 'Archive/nowhere', 'Projects/.nextexplorer']) {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await restoreTo('alice', { ids: [id], destination });
+      expect(refusedOutright(response), destination).toBe(true);
+    }
+    expect(
+      (await restoreTo('guest:some-share', { ids: [id], destination: 'Archive' })).status
+    ).toBe(403);
+    expect(store.getItem(db, id).state).toBe('trashed');
+  });
+
+  it('refuses the entries of a folder someone cannot see, before anything moves', async () => {
+    await write('Projects/client/brief.txt');
+    const id = (await deleteAs('alice', 'Projects', 'client')).body.items[0].trashItemId;
+
+    const response = await restoreEntriesTo('bob', id, {
+      paths: ['brief.txt'],
+      destination: 'Archive',
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('says so for an item that is not in their trash', async () => {
+    const id = await trashOne('alice', 'Projects/report.txt');
+
+    const response = await restoreTo('bob', { ids: [id], destination: 'Archive' });
+
+    expect(doneOf(response).items).toEqual([{ id, status: 'not-found' }]);
+    expect(await exists(volume('Archive/report.txt'))).toBe(false);
+  });
+
+  it('is refused when the chosen folder does not let them create there', async () => {
+    const id = await trashOne('alice', 'Projects/report.txt');
+    await load('src/services/settingsService').setSystemSetting('system', 'access', {
+      rules: [{ path: 'Archive', recursive: true, permissions: 'ro' }],
+    });
+
+    const response = await restoreTo('alice', { ids: [id], destination: 'Archive' });
+
+    expect(doneOf(response).items).toEqual([
+      { id, status: 'forbidden', reason: 'destination', name: 'report.txt' },
+    ]);
+    expect(await exists(volume('Archive/report.txt'))).toBe(false);
+  });
+
+  /** Somewhere else is not a way around an access taken away since the deletion. */
+  it('is refused to someone who can no longer write where the item came from', async () => {
+    const id = await trashOne('alice', 'Projects/report.txt');
+    await load('src/services/settingsService').setSystemSetting('system', 'access', {
+      rules: [{ path: 'Projects', recursive: true, permissions: 'ro' }],
+    });
+
+    const response = await restoreTo('alice', { ids: [id], destination: 'Archive' });
+
+    expect(doneOf(response).items).toEqual([{ id, status: 'forbidden', name: 'report.txt' }]);
+    expect(await exists(volume('Archive/report.txt'))).toBe(false);
+  });
+
+  it('is possible for an administrator, whoever deleted the item', async () => {
+    const id = await trashOne('alice', 'Projects/report.txt', 'from alice');
+
+    const response = await restoreTo('admin', { ids: [id], destination: 'Archive' });
+
+    expect(doneOf(response).items[0]).toMatchObject({ status: 'restored', path: 'Archive' });
+    expect(await fs.readFile(volume('Archive/report.txt'), 'utf8')).toBe('from alice');
+  });
+});
+
 describe('a personal folder', () => {
   it('has its own trash, which its owner sees and restores from', async () => {
     const { resolvePersonalPath } = load('src/utils/pathUtils');

@@ -8,6 +8,9 @@
  *   restore  row `restoring` with its destination, rename out, row removed
  *   extract  row `extracting` with its destination, one entry from inside a
  *            deleted folder renamed out, what is left measured, `trashed`
+ *   restore or extract into a folder someone chose: the same rename on one
+ *            disk; across two, row `copying`, a copy beside the destination,
+ *            `copied` once it is whole, then named and the trash's copy removed
  *   purge    row `purging`, content removed, row removed
  *
  * A crash between two steps leaves a row in a passing state, and
@@ -23,6 +26,7 @@
 const fsp = require('fs/promises');
 const path = require('path');
 
+const { ZONE_DIRECTORY_NAME } = require('../../config/constants');
 const { generateId } = require('../../utils/ids');
 const { findAvailableName } = require('../../utils/pathUtils');
 const logger = require('../../utils/logger');
@@ -229,6 +233,143 @@ const prepareDestination = async (zone, parent) => {
   return (await resolvesInTree(parent)) ? null : invalid;
 };
 
+/**
+ * A folder someone chose to restore into, rather than the one an item came
+ * from. It must exist already — nothing is created for a destination someone
+ * picked — and must not lead into a trash zone, however it resolves.
+ *
+ * @returns {Promise<{directory: string} | {status: 'blocked', reason: string}>}
+ */
+const checkChosenDestination = async (directory) => {
+  const invalid = { status: 'blocked', reason: 'invalid-destination' };
+  let resolved;
+  try {
+    resolved = await fsp.realpath(directory);
+    if (!(await fsp.stat(resolved)).isDirectory()) return invalid;
+  } catch {
+    return invalid;
+  }
+  const insideZone = (candidate) => candidate.split(path.sep).includes(ZONE_DIRECTORY_NAME);
+  if (insideZone(path.resolve(directory)) || insideZone(resolved)) return invalid;
+  // The path as it was given: the resolved one only served to check it. A
+  // device compared through a link can be wrong, which the rename then says
+  // with EXDEV, and the restore copies instead.
+  return { directory: path.resolve(directory) };
+};
+
+/** The hidden name a copy is written under, beside where it is going, until it is whole. */
+const STAGING_PREFIX = '.nextexplorer-restoring-';
+const stagingPathFor = (restorePath, itemId) =>
+  path.join(path.dirname(restorePath), `${STAGING_PREFIX}${itemId}`);
+
+/** Required when used: the transfer service itself requires the trash. */
+const copyTree = (source, destination, isDirectory, onBytes, signal) =>
+  // eslint-disable-next-line global-require
+  require('../fileTransferService').copyEntryWithProgress(
+    source,
+    destination,
+    isDirectory,
+    onBytes,
+    signal
+  );
+
+/**
+ * The end of a restore across disks, once its copy is whole: named where it
+ * goes, the trash's copy removed, the record finished. Called by the restore
+ * itself and by the recovery after a crash, so it can only move forward.
+ *
+ * A name taken since the copy started gets the next free one; nothing is ever
+ * replaced. And when neither the copy nor anything at its destination is there
+ * any more, the trash's copy is kept.
+ */
+const finishCopy = async ({ db, item, payload, sidecar, entryPath, restorePath }) => {
+  const staging = stagingPathFor(restorePath, item.id);
+  let finalPath = restorePath;
+
+  if (await exists(staging)) {
+    if (await exists(finalPath)) {
+      const directory = path.dirname(restorePath);
+      finalPath = path.join(
+        directory,
+        await findAvailableName(directory, path.basename(restorePath))
+      );
+      store.setItemState(db, item.id, 'copied', {
+        restorePath: finalPath,
+        restoreEntry: entryPath,
+      });
+    }
+    await fsp.rename(staging, finalPath);
+  } else if (!(await exists(finalPath))) {
+    store.setItemState(db, item.id, 'trashed');
+    return { status: 'lost-copy' };
+  }
+  await failpoints.hit('copy:after-rename', { id: item.id });
+
+  if (entryPath) {
+    const found = await walkInside(payload, entrySegments(entryPath) || []);
+    if (found) await fsp.rm(found.absolutePath, { recursive: true, force: true });
+  } else {
+    await fsp.rm(payload, { recursive: true, force: true });
+  }
+  await failpoints.hit('copy:after-remove', { id: item.id });
+
+  if (entryPath) {
+    const stillThere = await exists(payload);
+    store.setItemSize(db, item.id, stillThere ? (await measure(payload)).bytes : 0);
+    store.setItemState(db, item.id, 'trashed');
+  } else {
+    store.deleteItem(db, item.id);
+    await fsp.rm(sidecar, { force: true });
+  }
+  return { status: 'restored', restorePath: finalPath };
+};
+
+/**
+ * Restore across disks. A rename cannot cross them, so the content is copied
+ * under a hidden name beside where it is going, and only once that copy is
+ * whole does the restore commit to it:
+ *
+ *   copying  the intent, then the copy written beside the destination
+ *   copied   the copy is whole: from here the restore only moves forward
+ *
+ * A crash while `copying` throws the partial copy away and leaves the item in
+ * the trash; a crash once `copied` finishes the restore. The content is never
+ * left in neither place.
+ */
+const copyOut = async ({
+  db,
+  item,
+  payload,
+  sidecar,
+  source,
+  isDirectory,
+  entryPath,
+  restorePath,
+  onBytes,
+  signal,
+}) => {
+  const intent = { restorePath, restoreEntry: entryPath };
+  const staging = stagingPathFor(restorePath, item.id);
+  store.setItemState(db, item.id, 'copying', intent);
+  await failpoints.hit('copy:after-intent', { id: item.id });
+
+  try {
+    await fsp.rm(staging, { recursive: true, force: true });
+    await copyTree(source, staging, isDirectory, onBytes, signal);
+    await failpoints.hit('copy:after-copy', { id: item.id });
+  } catch (error) {
+    if (error?.simulatedCrash) throw error;
+    await fsp.rm(staging, { recursive: true, force: true }).catch(() => {});
+    store.setItemState(db, item.id, 'trashed');
+    if (error?.code === 'OPERATION_CANCELLED') return { status: 'cancelled' };
+    throw error;
+  }
+
+  store.setItemState(db, item.id, 'copied', intent);
+  await failpoints.hit('copy:after-mark', { id: item.id });
+  return finishCopy({ db, item, payload, sidecar, entryPath, restorePath });
+};
+
 /** An item whose content has gone: its row and description removed, the loss recorded. */
 const recordLost = async (db, zone, item, sidecar) => {
   store.deleteItem(db, item.id);
@@ -355,7 +496,7 @@ const moveToTrash = async (input, { budgetFor } = {}) => {
  *   {status: 'missing'|'busy'|'lost'} | {status: 'unavailable', reason: string} |
  *   {status: 'blocked', reason: string}>}
  */
-const restoreItem = async (itemId) => {
+const restoreItem = async (itemId, { destinationDirectory = null, onBytes, signal } = {}) => {
   if (inflight.has(itemId)) return { status: 'busy' };
   inflight.add(itemId);
   try {
@@ -371,12 +512,36 @@ const restoreItem = async (itemId) => {
     const { payload, sidecar } = confinedPaths(zone, item.id);
     if (!(await exists(payload))) return recordLost(db, zone, item, sidecar);
 
-    const parent = path.dirname(item.originalPath);
-    const refused = await prepareDestination(zone, parent);
-    if (refused) return refused;
+    let parent = path.dirname(item.originalPath);
+    if (destinationDirectory) {
+      const chosen = await checkChosenDestination(destinationDirectory);
+      if (chosen.status) return chosen;
+      parent = chosen.directory;
+    } else {
+      const refused = await prepareDestination(zone, parent);
+      if (refused) return refused;
+    }
 
     const name = await findAvailableName(parent, item.name);
     const restorePath = path.join(parent, name);
+    const copyAcross = async () => {
+      const outcome = await copyOut({
+        db,
+        item,
+        payload,
+        sidecar,
+        source: payload,
+        isDirectory: item.kind === 'directory',
+        entryPath: null,
+        restorePath,
+        onBytes,
+        signal,
+      });
+      if (outcome.status !== 'restored') return outcome;
+      return { ...outcome, item, renamed: path.basename(outcome.restorePath) !== item.name };
+    };
+    if (destinationDirectory && !(await zones.sameDevice(payload, parent))) return copyAcross();
+
     store.setItemState(db, item.id, 'restoring', { restorePath });
     await failpoints.hit('restore:after-intent', { id: item.id });
 
@@ -389,6 +554,9 @@ const restoreItem = async (itemId) => {
     } catch (error) {
       store.setItemState(db, item.id, 'trashed');
       if (error?.code === 'EEXIST') return { status: 'busy' };
+      // Two mount points of one filesystem share a device and refuse a rename
+      // all the same: a destination someone chose is still reached, by copy.
+      if (error?.code === 'EXDEV' && destinationDirectory) return copyAcross();
       throw error;
     }
     await failpoints.hit('restore:after-rename', { id: item.id });
@@ -475,7 +643,11 @@ const listEntries = async (itemId, entryPath = '') => {
  *   {status: 'missing'|'busy'|'lost'|'invalid-path'} |
  *   {status: 'unavailable'|'blocked', reason: string}>}
  */
-const restoreEntry = async (itemId, entryPath) => {
+const restoreEntry = async (
+  itemId,
+  entryPath,
+  { destinationDirectory = null, onBytes, signal } = {}
+) => {
   const segments = entrySegments(entryPath);
   if (!segments?.length) return { status: 'invalid-path' };
   if (inflight.has(itemId)) return { status: 'busy' };
@@ -495,16 +667,47 @@ const restoreEntry = async (itemId, entryPath) => {
     const found = await walkInside(payload, segments);
     if (!found) return { status: 'missing' };
 
-    const destination = path.join(item.originalPath, ...segments);
-    const parent = path.dirname(destination);
-    const refused = await prepareDestination(zone, parent);
-    if (refused) return refused;
+    const wanted = segments.at(-1);
+    let parent = path.dirname(path.join(item.originalPath, ...segments));
+    if (destinationDirectory) {
+      const chosen = await checkChosenDestination(destinationDirectory);
+      if (chosen.status) return chosen;
+      parent = chosen.directory;
+    } else {
+      const refused = await prepareDestination(zone, parent);
+      if (refused) return refused;
+    }
 
     const kind = found.stats.isDirectory() ? 'directory' : 'file';
     const { bytes: size } = await measure(found.absolutePath);
-    const wanted = path.basename(destination);
     const name = await findAvailableName(parent, wanted);
     const restorePath = path.join(parent, name);
+    const copyAcross = async () => {
+      const outcome = await copyOut({
+        db,
+        item,
+        payload,
+        sidecar,
+        source: found.absolutePath,
+        isDirectory: kind === 'directory',
+        entryPath: segments.join('/'),
+        restorePath,
+        onBytes,
+        signal,
+      });
+      if (outcome.status !== 'restored') return outcome;
+      return {
+        ...outcome,
+        item: store.getItem(db, item.id),
+        kind,
+        size,
+        renamed: path.basename(outcome.restorePath) !== wanted,
+      };
+    };
+    if (destinationDirectory && !(await zones.sameDevice(found.absolutePath, parent))) {
+      return copyAcross();
+    }
+
     store.setItemState(db, item.id, 'extracting', { restorePath });
     await failpoints.hit('extract:after-intent', { id: item.id });
 
@@ -517,6 +720,7 @@ const restoreEntry = async (itemId, entryPath) => {
     } catch (error) {
       store.setItemState(db, item.id, 'trashed');
       if (error?.code === 'EEXIST') return { status: 'busy' };
+      if (error?.code === 'EXDEV' && destinationDirectory) return copyAcross();
       throw error;
     }
     await failpoints.hit('extract:after-rename', { id: item.id });
@@ -534,6 +738,22 @@ const restoreEntry = async (itemId, entryPath) => {
   } finally {
     inflight.delete(itemId);
   }
+};
+
+/** What an entry inside a deleted folder is — its kind and size — or null when it is not there. */
+const describeEntry = async (itemId, entryPath) => {
+  const segments = entrySegments(entryPath);
+  if (!segments?.length) return null;
+  const db = await getDb();
+  const item = store.getItem(db, itemId);
+  const zone = item ? store.getZone(db, item.zoneId) : null;
+  if (!zone || !(await zones.inspectZone(zone)).available) return null;
+  const found = await walkInside(confinedPaths(zone, item.id).payload, segments);
+  if (!found) return null;
+  return {
+    kind: found.stats.isDirectory() ? 'directory' : 'file',
+    size: (await measure(found.absolutePath)).bytes,
+  };
 };
 
 /**
@@ -695,6 +915,36 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
         await drop(row, paths.sidecar, 'lost');
         report.lost += 1;
       }
+    } else if (row.state === 'copying') {
+      // The copy never became whole: it goes, and the item stays in the trash.
+      if (row.restorePath) {
+        await fsp.rm(stagingPathFor(row.restorePath, row.id), { recursive: true, force: true });
+      }
+      if (hasPayload) {
+        store.setItemState(db, row.id, 'trashed');
+        report.undone += 1;
+      } else {
+        await drop(row, paths.sidecar, 'lost');
+        report.lost += 1;
+      }
+    } else if (row.state === 'copied') {
+      // The copy was whole: the restore goes on to its end.
+      const outcome = row.restorePath
+        ? await finishCopy({
+            db,
+            item: row,
+            payload: paths.payload,
+            sidecar: paths.sidecar,
+            entryPath: row.restoreEntry,
+            restorePath: row.restorePath,
+          })
+        : null;
+      if (outcome?.status === 'restored') {
+        report.finished += 1;
+      } else {
+        if (!outcome) store.setItemState(db, row.id, 'trashed');
+        report.undone += 1;
+      }
     } else if (row.state === 'purging') {
       await fsp.rm(paths.payload, { recursive: true, force: true });
       await drop(row, paths.sidecar);
@@ -801,9 +1051,11 @@ module.exports = {
   inflight,
   measure,
   entrySegments,
+  STAGING_PREFIX,
   moveToTrash,
   restoreItem,
   listEntries,
+  describeEntry,
   restoreEntry,
   purgeItem,
   forgetItem,

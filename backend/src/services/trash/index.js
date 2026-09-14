@@ -22,9 +22,11 @@ const {
   ValidationError,
 } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
-const { ACTIONS, authorizePath } = require('../authorizationService');
+const { normalizeRelativePath } = require('../../utils/pathUtils');
+const { ACTIONS, authorizeAndResolve, authorizePath } = require('../authorizationService');
 const { getDb } = require('../db');
 const folderSizeHooks = require('../folderSizeHooks');
+const recentDestinations = require('../recentDestinationsService');
 const maintenance = require('./maintenance');
 const operations = require('./operations');
 const { DAY_MS, admission } = require('./policy');
@@ -405,6 +407,197 @@ const restoreEntries = async (id, paths, context) => {
 };
 
 /**
+ * A folder someone chose to restore into: one they can reach, and a folder.
+ * Whether they may create in it is asked per item, since a folder needs the
+ * right to create folders and files, a file only the right to create files.
+ */
+const resolveDestination = async (destination, context) => {
+  const relative = typeof destination === 'string' ? normalizeRelativePath(destination) : '';
+  if (!relative) throw new ValidationError('A destination folder is required.');
+  const { allowed, accessInfo, resolved } = await authorizeAndResolve(
+    context,
+    relative,
+    ACTIONS.read
+  );
+  if (!allowed || !resolved) {
+    throw new ForbiddenError(accessInfo?.denialReason || 'This destination cannot be reached.');
+  }
+  const stats = await fsp.stat(resolved.absolutePath).catch(() => null);
+  if (!stats?.isDirectory()) {
+    throw new ValidationError('The destination must be an existing folder.');
+  }
+  return { relativePath: resolved.relativePath || relative, absolutePath: resolved.absolutePath };
+};
+
+const mayCreateIn = async (context, relativePath, kind) => {
+  const actions =
+    kind === 'directory' ? [ACTIONS.createFolder, ACTIONS.createFile] : [ACTIONS.createFile];
+  for (const action of actions) {
+    // eslint-disable-next-line no-await-in-loop
+    const { allowed } = await authorizePath(context, relativePath, action);
+    if (!allowed) return false;
+  }
+  return true;
+};
+
+/**
+ * Everything a restore into a chosen folder can refuse before anything moves:
+ * who is asking, what, and where to. As for a transfer, this part answers with
+ * an HTTP error; the restore itself then streams its progress.
+ */
+const prepareRestoreTo = async ({ ids, id, paths, destination }, context) => {
+  const user = requireUser(context);
+  const db = await getDb();
+  if (id !== undefined) {
+    const entries = validateEntryPaths(paths);
+    const item = typeof id === 'string' && id ? findVisible(db, id, user) : null;
+    if (!item) throw new NotFoundError('This item is not in your trash.');
+    return { context, user, item, entries, target: await resolveDestination(destination, context) };
+  }
+  const validIds = validateIds(ids);
+  return { context, user, ids: validIds, target: await resolveDestination(destination, context) };
+};
+
+const PROGRESS_INTERVAL_MS = 100;
+
+/**
+ * Restore into the chosen folder, one item or entry after another. Each needs
+ * the right to restore it at all — the same as putting it back where it was,
+ * so the trash never becomes a way around an access that was taken away — and
+ * the right to create it in the destination.
+ *
+ * Progress counts the bytes copied across disks; a rename on one disk counts
+ * the whole size at once. Once the request is cancelled, what has not started
+ * stays in the trash and says so.
+ */
+const executeRestoreTo = async (plan, { onEvent = () => {}, signal } = {}) => {
+  const { context, user, target } = plan;
+  const db = await getDb();
+
+  const tasks = plan.item
+    ? await Promise.all(
+        plan.entries.map(async (entry) => ({
+          key: { entry },
+          item: plan.item,
+          entry,
+          name: path.posix.basename(entry),
+          described: await operations.describeEntry(plan.item.id, entry),
+        }))
+      )
+    : plan.ids.map((id) => {
+        const item = findVisible(db, id, user);
+        return {
+          key: { id },
+          item,
+          name: item?.name || null,
+          described: item ? { kind: item.kind, size: item.size } : null,
+        };
+      });
+
+  const totalBytes = tasks.reduce((total, task) => total + (task.described?.size || 0), 0);
+  onEvent({
+    type: 'start',
+    totalBytes,
+    totalItems: tasks.length,
+    destination: target.relativePath,
+  });
+
+  let copiedBytes = 0;
+  let completedItems = 0;
+  let currentName = '';
+  let lastEmit = 0;
+  const emit = (force) => {
+    const now = Date.now();
+    if (!force && now - lastEmit < PROGRESS_INTERVAL_MS) return;
+    lastEmit = now;
+    onEvent({ type: 'progress', copiedBytes, totalBytes, currentName, completedItems });
+  };
+
+  const rightToRestore = new Map();
+  const results = [];
+  for (const task of tasks) {
+    const { key, item, name, described } = task;
+    if (!item) {
+      results.push({ ...key, status: 'not-found' });
+      continue;
+    }
+    if (signal?.aborted) {
+      results.push({ ...key, status: 'cancelled', name });
+      continue;
+    }
+    if (!described) {
+      results.push({ ...key, status: 'missing', name });
+      continue;
+    }
+    if (!rightToRestore.has(item.id)) {
+      // eslint-disable-next-line no-await-in-loop
+      rightToRestore.set(item.id, await mayRestore(item, context, user));
+    }
+    if (!rightToRestore.get(item.id)) {
+      results.push({ ...key, status: 'forbidden', name });
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await mayCreateIn(context, target.relativePath, described.kind))) {
+      results.push({ ...key, status: 'forbidden', reason: 'destination', name });
+      continue;
+    }
+
+    currentName = name;
+    emit(true);
+    const before = copiedBytes;
+    const options = {
+      destinationDirectory: target.absolutePath,
+      signal,
+      onBytes: (delta) => {
+        copiedBytes += delta;
+        emit(false);
+      },
+    };
+    let outcome;
+    try {
+      outcome = task.entry
+        ? // eslint-disable-next-line no-await-in-loop
+          await operations.restoreEntry(item.id, task.entry, options)
+        : // eslint-disable-next-line no-await-in-loop
+          await operations.restoreItem(item.id, options);
+    } catch (error) {
+      logger.warn(
+        { err: error, itemId: item.id, entry: task.entry || null },
+        'The trash could not restore into a chosen folder'
+      );
+      outcome = { status: 'failed' };
+    }
+    completedItems += 1;
+    copiedBytes = before + (outcome.status === 'restored' ? described.size : 0);
+    emit(true);
+
+    if (outcome.status === 'restored') {
+      announceRestored(described, outcome.restorePath);
+      results.push({
+        ...key,
+        status: 'restored',
+        name,
+        restoredName: path.basename(outcome.restorePath),
+        renamed: outcome.renamed,
+        path: target.relativePath,
+      });
+    } else {
+      results.push({ ...key, status: outcome.status, reason: outcome.reason || null, name });
+    }
+  }
+
+  if (results.some((result) => result.status === 'restored')) {
+    try {
+      await recentDestinations.record(user.id, target.relativePath);
+    } catch (error) {
+      logger.debug({ err: error }, 'The destination was not remembered');
+    }
+  }
+  return { destination: target.relativePath, items: results };
+};
+
+/**
  * Remove items for good. An administrator may also forget items whose zone is
  * not there — only their records, never a disk — once they know it is not
  * coming back.
@@ -480,6 +673,8 @@ module.exports = {
   restoreItems,
   listEntries,
   restoreEntries,
+  prepareRestoreTo,
+  executeRestoreTo,
   purgeItems,
   emptyTrash,
   verifyAll,
