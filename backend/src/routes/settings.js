@@ -235,6 +235,32 @@ router.patch(
         }
       }
 
+      // File-version settings: only the fields that arrived usable are merged;
+      // setSystemSetting sanitizes and keeps them consistent.
+      if (payload.versions && typeof payload.versions === 'object') {
+        const versionsUpdate = {};
+        if (typeof payload.versions.enabled === 'boolean') {
+          versionsUpdate.enabled = payload.versions.enabled;
+        }
+        for (const key of [
+          'keepAllHours',
+          'hourlyDays',
+          'dailyDays',
+          'maxPerFile',
+          'sessionCheckpointMinutes',
+        ]) {
+          if (Number.isFinite(payload.versions[key])) versionsUpdate[key] = payload.versions[key];
+        }
+        if (Object.keys(versionsUpdate).length > 0) {
+          const current = await getSettings();
+          const merged = await setSystemSetting('system', 'versions', {
+            ...current.versions,
+            ...versionsUpdate,
+          });
+          systemUpdates.versions = merged;
+        }
+      }
+
       // Branding settings
       if (payload.branding && typeof payload.branding === 'object') {
         const brandingUpdate = {};

@@ -108,6 +108,35 @@ const sanitizeTrash = (trash = {}) => {
 };
 
 /**
+ * The file-version settings in force: whether a save keeps what it replaces,
+ * and the retention thinning (everything for a while, then hourly, then daily),
+ * a per-file cap and a session-checkpoint gap. Out-of-range values are clamped,
+ * and the windows are kept consistent (hourly covers keep-all, daily covers
+ * hourly), so the policy never contradicts itself.
+ */
+const sanitizeVersions = (versions = {}) => {
+  // eslint-disable-next-line global-require
+  const { versions: defaults, VERSION_BOUNDS } = require('../config/index');
+  const source = versions && typeof versions === 'object' ? versions : {};
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const integer = (key) => {
+    const [min, max] = VERSION_BOUNDS[key];
+    return Number.isFinite(source[key]) ? clamp(Math.round(source[key]), min, max) : defaults[key];
+  };
+  const keepAllHours = integer('keepAllHours');
+  const hourlyDays = Math.max(integer('hourlyDays'), Math.ceil(keepAllHours / 24));
+  const dailyDays = Math.max(integer('dailyDays'), hourlyDays);
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    keepAllHours,
+    hourlyDays,
+    dailyDays,
+    maxPerFile: integer('maxPerFile'),
+    sessionCheckpointMinutes: integer('sessionCheckpointMinutes'),
+  };
+};
+
+/**
  * Get public settings (branding only, no auth required)
  */
 const getPublicSettings = async () => {
@@ -180,6 +209,7 @@ const getSystemSettings = async () => {
     const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
     const access = { rules: [] };
     let trash = {};
+    let versions = {};
 
     for (const row of rows) {
       try {
@@ -192,6 +222,8 @@ const getSystemSettings = async () => {
           }
         } else if (row.key === 'trash') {
           trash = JSON.parse(row.value);
+        } else if (row.key === 'versions') {
+          versions = JSON.parse(row.value);
         }
       } catch (err) {
         // Skip invalid JSON
@@ -204,6 +236,7 @@ const getSystemSettings = async () => {
         rules: sanitizeAccessRules(access.rules),
       },
       trash: sanitizeTrash(trash),
+      versions: sanitizeVersions(versions),
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -216,6 +249,7 @@ const getSystemSettings = async () => {
           rules: sanitizeAccessRules(settings.access?.rules || []),
         },
         trash: sanitizeTrash(settings.trash),
+        versions: sanitizeVersions(settings.versions),
       };
     } catch (err2) {
       // Return defaults
@@ -223,6 +257,7 @@ const getSystemSettings = async () => {
         thumbnails: sanitizeThumbnails({}),
         access: { rules: [] },
         trash: sanitizeTrash({}),
+        versions: sanitizeVersions({}),
       };
     }
   }
@@ -250,6 +285,7 @@ const getSettingsForUser = async (user) => {
       result.thumbnails = systemSettings.thumbnails;
       result.access = systemSettings.access;
       result.trash = systemSettings.trash;
+      result.versions = systemSettings.versions;
     }
   }
 
@@ -342,6 +378,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeBranding(value);
   } else if (key === 'trash') {
     sanitizedValue = sanitizeTrash(value);
+  } else if (key === 'versions') {
+    sanitizedValue = sanitizeVersions(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -434,6 +472,7 @@ const updateSettings = async (updater) => {
 module.exports = {
   getPublicSettings,
   sanitizeTrash,
+  sanitizeVersions,
   getUserSettings,
   getSystemSettings,
   getSettingsForUser,

@@ -35,6 +35,7 @@ module.exports = {
       files: ['backend/src/**/*.js'],
       excludedFiles: [
         'backend/src/services/trash/**',
+        'backend/src/services/versions/**',
         'backend/src/services/fileTransferService.js',
         // Its own in-flight journal, and the placement/undo utilities that
         // remove only empty placeholders and what an operation itself wrote.

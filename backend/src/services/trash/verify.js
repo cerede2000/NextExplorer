@@ -16,6 +16,7 @@
 const fsp = require('fs/promises');
 
 const { getDb } = require('../db');
+const { verifyVersions } = require('../versions/verify');
 const operations = require('./operations');
 const store = require('./store');
 const zones = require('./zones');
@@ -82,11 +83,16 @@ const verifyZone = async (
     });
   }
 
-  if (trashedCount > 0) {
-    if (Number.isFinite(budgetBytes) && used > budgetBytes) {
+  // The versions share the zone, its budget and this oracle.
+  const versions = await verifyVersions(zone, { measureSizes });
+  violations.push(...versions.violations);
+  const held = used + versions.versionBytes;
+
+  if (trashedCount > 0 || versions.versionCount > 0) {
+    if (Number.isFinite(budgetBytes) && held > budgetBytes) {
       violations.push({
         invariant: 'I5',
-        detail: `holds ${used} bytes over a ${budgetBytes} budget`,
+        detail: `holds ${held} bytes over a ${budgetBytes} budget`,
       });
     }
     if (Number.isFinite(freeBytes) && Number.isFinite(floorBytes) && freeBytes < floorBytes) {
@@ -97,7 +103,15 @@ const verifyZone = async (
     }
   }
 
-  return { zoneId: zone.id, available: true, usedBytes: used, itemCount: trashedCount, violations };
+  return {
+    zoneId: zone.id,
+    available: true,
+    usedBytes: used,
+    itemCount: trashedCount,
+    versionBytes: versions.versionBytes,
+    versionCount: versions.versionCount,
+    violations,
+  };
 };
 
 module.exports = { verifyZone };
