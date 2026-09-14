@@ -27,7 +27,8 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { useEventListener } from '@vueuse/core';
-import { fetchCollaboraConfig, searchUsersForMention } from '@/api';
+import { fetchCollaboraConfig, normalizePath, searchUsersForMention } from '@/api';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import logger from '@/utils/logger';
 
 const props = defineProps({
@@ -42,8 +43,14 @@ const urlSrc = ref(null);
 const error = ref(null);
 const iframeRef = ref(null);
 const collaboraOrigin = ref(null);
+const versionsPanel = useVersionsPanelStore();
 
 const title = computed(() => props?.item?.name || 'Collabora');
+
+// An earlier version, opened from the Versions panel: read, never edited.
+const versionId = computed(() =>
+  typeof props.item?.versionId === 'string' && props.item.versionId ? props.item.versionId : null
+);
 
 /**
  * Send a PostMessage to Collabora iframe
@@ -97,6 +104,17 @@ const handlePostMessage = async (event) => {
     sendToCollabora('Host_PostmessageReady');
   }
 
+  // File > Revision history. NextExplorer keeps the history, so the entry opens
+  // the Versions panel on this document — only when the editor itself asks, not
+  // any other window of the page.
+  if (
+    data.MessageId === 'UI_FileVersions' &&
+    !versionId.value &&
+    event.source === iframeRef.value?.contentWindow
+  ) {
+    versionsPanel.openPath(props.filePath);
+  }
+
   // Handle UI_Mention for @ mentions autocomplete
   if (data.MessageId === 'UI_Mention' && data.Values?.type === 'autocomplete') {
     const searchText = data.Values?.text || '';
@@ -135,7 +153,9 @@ const load = async () => {
   try {
     const filePath = props.filePath;
     if (!filePath) throw new Error('Missing file path.');
-    const config = await fetchCollaboraConfig(filePath, 'edit');
+    const config = versionId.value
+      ? await fetchCollaboraConfig(filePath, 'view', { versionId: versionId.value })
+      : await fetchCollaboraConfig(filePath, 'edit');
     urlSrc.value = config?.urlSrc || null;
     if (!urlSrc.value) throw new Error('Missing Collabora iframe URL.');
 
@@ -159,5 +179,16 @@ useEventListener(window, 'message', handlePostMessage);
 watch(
   () => props.filePath,
   () => load()
+);
+
+// A version of this document was restored from the panel: the frame still shows
+// what the restore replaced, so the document is opened again.
+watch(
+  () => versionsPanel.restored,
+  () => {
+    if (versionId.value) return;
+    if (normalizePath(versionsPanel.relativePath) !== normalizePath(props.filePath)) return;
+    void load();
+  }
 );
 </script>

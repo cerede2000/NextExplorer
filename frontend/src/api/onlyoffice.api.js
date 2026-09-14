@@ -7,13 +7,47 @@ import { requestJson, normalizePath } from './http';
  * be applied to the returned config: the Document Server reads its settings
  * from the signed token, so anything set on the object afterwards is dropped.
  */
-export async function fetchOnlyOfficeConfig(path, mode = 'edit', { theme } = {}) {
+export async function fetchOnlyOfficeConfig(path, mode = 'edit', { theme, versionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
   return requestJson('/api/onlyoffice/config', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, mode, theme }),
+    body: JSON.stringify({
+      path: normalizedPath,
+      mode,
+      theme,
+      ...(versionId ? { versionId } : {}),
+    }),
+  });
+}
+
+/** The document's history as the editor shows it: oldest first, the current state last. */
+export async function fetchOnlyOfficeHistory(path) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/history', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath }),
+  });
+}
+
+/**
+ * What the editor needs to show one entry of the history, signed for the
+ * Document Server: an earlier version by its id, or the current state without one.
+ */
+export async function fetchOnlyOfficeHistoryData(path, { version, versionId } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/history-data', {
+    method: 'POST',
+    body: JSON.stringify({
+      path: normalizedPath,
+      version,
+      ...(versionId ? { versionId } : {}),
+    }),
   });
 }
 

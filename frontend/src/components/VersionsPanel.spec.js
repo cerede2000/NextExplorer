@@ -36,6 +36,17 @@ vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
 const picker = vi.hoisted(() => ({ pick: vi.fn(), isOpen: { value: false } }));
 vi.mock('@/composables/useDestinationPicker', () => ({ useDestinationPicker: () => picker }));
 
+// Which preview opens a file is the preview manager's to say. Here a spreadsheet
+// goes to an office editor that can show versions, and a .docx to none — the
+// deployment with no office editor configured.
+const previewManager = vi.hoisted(() => ({
+  open: vi.fn(),
+  findPlugin: vi.fn((item) =>
+    item.kind === 'xlsx' ? { plugin: { id: 'onlyoffice-editor', supportsVersions: true } } : null
+  ),
+}));
+vi.mock('@/plugins/preview/manager', () => ({ usePreviewManager: () => previewManager }));
+
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('vue-router', () => ({ useRouter: () => router }));
 
@@ -363,6 +374,43 @@ describe('restoring', () => {
     await confirm();
 
     expect(api.replaceWithVersion).toHaveBeenCalledWith('Docs/notes.md', 'v1', 'Other/draft.md');
+  });
+});
+
+describe('looking at a version of a document', () => {
+  const SHEET = { name: 'budget.xlsx', path: 'Docs', kind: 'xlsx' };
+
+  it('opens it read-only in the office editor, rather than in the text editor', async () => {
+    await openOn(SHEET);
+
+    await act(0, 'preview');
+
+    expect(previewManager.open).toHaveBeenCalledWith({
+      name: 'budget.xlsx',
+      path: 'Docs',
+      kind: 'xlsx',
+      versionId: 'v2',
+    });
+    expect(router.push).not.toHaveBeenCalled();
+    expect(store.isOpen).toBe(false);
+  });
+
+  it('offers no reading through a preview that cannot show an earlier version', async () => {
+    const usual = previewManager.findPlugin.getMockImplementation();
+    previewManager.findPlugin.mockImplementation(() => ({ plugin: { id: 'image-viewer' } }));
+    try {
+      await openOn({ name: 'photo.png', path: 'Docs', kind: 'png' });
+
+      expect(await menuOf(0)).not.toContain('preview');
+    } finally {
+      previewManager.findPlugin.mockImplementation(usual);
+    }
+  });
+
+  it('offers no reading where no editor can show one', async () => {
+    await openOn({ name: 'archive.zip', path: 'Docs', kind: 'zip' });
+
+    expect(await menuOf(0)).not.toContain('preview');
   });
 });
 

@@ -421,7 +421,216 @@ const resolveUiTheme = (requested) => {
   return null;
 };
 
-// POST /api/onlyoffice/config  { path, mode?, theme? }
+/**
+ * Earlier versions of a document, in the editor.
+ *
+ * The Document Server shows a history when the integration hands it one: the
+ * list, then — version by version — a URL to fetch that version from. Both go
+ * through the same rights as the Versions panel, and the URL is signed for the
+ * version's own content through `/onlyoffice/file`, which serves exactly the
+ * path its token names and nothing else.
+ *
+ * Every version keeps its own key, never the document's: a key is what the
+ * Document Server caches a document under, and the one the document is open
+ * under must keep meaning the document as it is now.
+ */
+const versionHistory = () => require('../services/versions');
+
+const versionKeyFor = (versionId) => `version-${versionId}`;
+
+const editorUserOf = (req) =>
+  req.user && req.user.id
+    ? { id: String(req.user.id), name: req.user.displayName || req.user.username || 'User' }
+    : req.guestSession
+      ? { id: `guest_${req.guestSession.id}`, name: 'Guest User' }
+      : undefined;
+
+/** A token for `/onlyoffice/file` that serves one content, and never writes. */
+const readOnlyFileUrl = (req, relativePath, absolutePath, ttlSeconds) => {
+  const backendToken = jwt.sign(
+    {
+      typ: BACKEND_TOKEN_TYPE,
+      absolutePath,
+      logicalPath: relativePath,
+      canWrite: false,
+      sessionId: null,
+      userId: req.user?.id ? String(req.user.id) : null,
+      guestSessionId: req.guestSession?.id || null,
+      shareToken: null,
+    },
+    onlyoffice.secret,
+    { algorithm: 'HS256', expiresIn: ttlSeconds }
+  );
+  const fileUrl = new URL('/api/onlyoffice/file', publicConfig.url);
+  fileUrl.searchParams.set('path', relativePath);
+  fileUrl.searchParams.set('backend', backendToken);
+  return fileUrl.toString();
+};
+
+// The token naming a version's content is always signed: without ONLYOFFICE_SECRET
+// the configuration derives a secret of its own.
+const requireVersionSetup = () => {
+  if (!publicConfig?.url) {
+    throw new ValidationError(
+      'PUBLIC_URL is required on the server to build absolute URLs for ONLYOFFICE.'
+    );
+  }
+};
+
+/** The key the document is open under now, as the configuration hands it out. */
+const currentKeyOf = async (req, relativePath) => {
+  const context = { user: req.user, guestSession: req.guestSession };
+  const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+  if (!accessInfo?.canAccess || !accessInfo.canRead || !resolved) {
+    throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+  }
+  const stat = await fsp.stat(resolved.absolutePath);
+  const documentType = getDocumentType(toExtension(resolved.absolutePath));
+  const key = await resolveKeyForOpen({
+    absolutePath: resolved.absolutePath,
+    relativePath,
+    stat,
+    documentType,
+  });
+  return { key, absolutePath: resolved.absolutePath };
+};
+
+/** A version opened on its own, to be read: a viewer, with nothing to save. */
+const versionViewConfig = async (req, relativePath, versionId, uiTheme) => {
+  requireVersionSetup();
+  const context = { user: req.user, guestSession: req.guestSession };
+  const located = await versionHistory().locateVersion(context, relativePath, versionId, {
+    download: false,
+  });
+  const ext = toExtension(located.name);
+  const documentType = getDocumentType(ext);
+  if (!documentType) {
+    throw new ValidationError(`ONLYOFFICE has no editor for .${ext} files.`);
+  }
+  const mayCopy = located.target.rights.download;
+  const config = {
+    documentType,
+    type: 'desktop',
+    document: {
+      fileType: ext,
+      key: versionKeyFor(located.version.id),
+      title: located.name,
+      url: readOnlyFileUrl(req, relativePath, located.absolutePath, BACKEND_TOKEN_TTL_SECONDS),
+      permissions: {
+        edit: false,
+        comment: false,
+        review: false,
+        // Printing or downloading a version is taking a copy of it.
+        download: mayCopy,
+        print: mayCopy,
+      },
+    },
+    // No callback: nothing is saved from a version, and the one the document
+    // has would release the key everyone editing it now shares.
+    editorConfig: {
+      mode: 'view',
+      customization: {
+        anonymous: { request: false },
+        close: { visible: true },
+        ...(uiTheme ? { uiTheme } : {}),
+      },
+      lang: onlyoffice.lang || 'en',
+      user: editorUserOf(req),
+    },
+  };
+  config.token = jwt.sign(config, onlyoffice.secret, { algorithm: 'HS256' });
+  return {
+    documentServerUrl: onlyoffice.serverUrl,
+    config,
+    forceSaveSessionId: null,
+    autoSaveIntervalMs: 0,
+    version: { id: located.version.id, modifiedAt: located.version.modifiedAt },
+  };
+};
+
+// POST /api/onlyoffice/history  { path }
+router.post(
+  '/onlyoffice/history',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) throw new ValidationError('A valid file path is required.');
+    const context = { user: req.user, guestSession: req.guestSession };
+    const listed = await versionHistory().listVersions(context, relativePath);
+    const { key } = await currentKeyOf(req, relativePath);
+
+    // The editor numbers versions from the oldest; the list comes newest first.
+    const history = [...listed.versions].reverse().map((version, index) => ({
+      version: index + 1,
+      versionId: version.id,
+      key: versionKeyFor(version.id),
+      created: version.modifiedAt,
+      user: { id: version.author?.id || '', name: version.author?.label || '' },
+      label: version.label,
+      available: version.available !== false,
+    }));
+    history.push({
+      version: history.length + 1,
+      versionId: null,
+      key,
+      created: listed.file.modifiedAt,
+      user: { id: listed.file.author?.id || '', name: listed.file.author?.label || '' },
+      label: null,
+      available: true,
+    });
+
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      currentVersion: history.length,
+      history,
+      canRestore: listed.rights.restore,
+    });
+  })
+);
+
+// POST /api/onlyoffice/history-data  { path, version, versionId? }
+router.post(
+  '/onlyoffice/history-data',
+  asyncHandler(async (req, res) => {
+    requireVersionSetup();
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) throw new ValidationError('A valid file path is required.');
+    const version = Number(req.body?.version);
+    if (!Number.isInteger(version) || version < 1) {
+      throw new ValidationError('A version number is required.');
+    }
+    const context = { user: req.user, guestSession: req.guestSession };
+    const versionId = typeof req.body?.versionId === 'string' ? req.body.versionId : '';
+
+    let key;
+    let absolutePath;
+    let name;
+    if (versionId) {
+      const located = await versionHistory().locateVersion(context, relativePath, versionId, {
+        download: false,
+      });
+      key = versionKeyFor(located.version.id);
+      absolutePath = located.absolutePath;
+      name = located.name;
+    } else {
+      // The current state, from inside the history: the same rights decide.
+      await versionHistory().listVersions(context, relativePath);
+      ({ key, absolutePath } = await currentKeyOf(req, relativePath));
+      name = path.basename(absolutePath);
+    }
+
+    const payload = {
+      fileType: toExtension(name),
+      key,
+      url: readOnlyFileUrl(req, relativePath, absolutePath, STORAGE_FILE_TOKEN_TTL_SECONDS),
+      version,
+    };
+    payload.token = jwt.sign(payload, onlyoffice.secret, { algorithm: 'HS256' });
+    res.set('Cache-Control', 'no-store');
+    res.json(payload);
+  })
+);
+
+// POST /api/onlyoffice/config  { path, mode?, theme?, versionId? }
 router.post(
   '/onlyoffice/config',
   asyncHandler(async (req, res) => {
@@ -443,6 +652,12 @@ router.post(
     }
 
     const relativePath = normalizeRelativePath(relativeRaw);
+
+    const requestedVersion = typeof req.body?.versionId === 'string' ? req.body.versionId : '';
+    if (requestedVersion) {
+      res.json(await versionViewConfig(req, relativePath, requestedVersion, uiTheme));
+      return;
+    }
     const context = { user: req.user, guestSession: req.guestSession };
     const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
 

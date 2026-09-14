@@ -431,6 +431,7 @@ const deleteVersions = async (context, relativePath, { ids, all = false } = {}) 
 module.exports = {
   rightsFrom,
   listVersions,
+  locateVersion,
   downloadVersion,
   readVersionText,
   restoreVersion,

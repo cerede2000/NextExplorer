@@ -53,14 +53,21 @@ import { DocumentEditor } from '@onlyoffice/document-editor-vue';
 import { useI18n } from 'vue-i18n';
 import {
   fetchOnlyOfficeConfig,
+  fetchOnlyOfficeHistory,
+  fetchOnlyOfficeHistoryData,
   fetchOnlyOfficeMentionUsers,
   fetchOnlyOfficeStorageFile,
   heartbeatOnlyOfficeSession,
+  normalizePath,
   notifyOnlyOfficeMention,
   requestOnlyOfficeForceSave,
   renameOnlyOfficeDocument,
+  restoreVersion,
   saveOnlyOfficeDocumentAs,
 } from '@/api';
+import { useFeaturesStore } from '@/stores/features';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
+import { formatLocalDateTime } from '@/utils';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useSettingsStore } from '@/stores/settings';
@@ -388,6 +395,128 @@ const scheduleAutoSave = () => {
   }, nextDelay);
 };
 
+/**
+ * The document's history, inside the editor.
+ *
+ * ONLYOFFICE shows a History entry once something answers for it, and leaves
+ * the history itself to the integration: the list, then each version as it is
+ * clicked. NextExplorer's versions are that history, reached with the same
+ * rights as the Versions panel. Restoring goes through the panel's own restore,
+ * so the content replaced becomes a version like any other.
+ */
+const featuresStore = useFeaturesStore();
+const versionsPanel = useVersionsPanelStore();
+
+// An earlier version opened from the Versions panel: read, never edited, and
+// with no history of its own to show.
+const viewedVersionId = computed(() =>
+  typeof props.item?.versionId === 'string' && props.item.versionId ? props.item.versionId : null
+);
+
+// Which of NextExplorer's versions each number in the editor's history is; the
+// current state has none.
+let historyVersionIds = new Map();
+
+const editorInstance = () => window.DocEditor?.instances?.[editorId.value];
+
+const showHistory = async () => {
+  const editor = editorInstance();
+  if (!editor?.refreshHistory) return;
+  try {
+    const result = await fetchOnlyOfficeHistory(documentPath.value);
+    historyVersionIds = new Map(result.history.map((entry) => [entry.version, entry.versionId]));
+    editor.refreshHistory({
+      currentVersion: result.currentVersion,
+      history: result.history.map((entry) => ({
+        version: entry.version,
+        key: entry.key,
+        created: formatLocalDateTime(entry.created),
+        user: entry.user,
+      })),
+    });
+  } catch (historyError) {
+    editor.refreshHistory({ error: historyError?.message || t('versions.loadFailed') });
+  }
+};
+
+const showHistoryEntry = async (version) => {
+  const editor = editorInstance();
+  if (!editor?.setHistoryData) return;
+  try {
+    editor.setHistoryData(
+      await fetchOnlyOfficeHistoryData(documentPath.value, {
+        version,
+        versionId: historyVersionIds.get(version) || undefined,
+      })
+    );
+  } catch (dataError) {
+    editor.setHistoryData({ version, error: dataError?.message || t('versions.loadFailed') });
+  }
+};
+
+const restoreFromHistory = async (version) => {
+  const versionId = historyVersionIds.get(version);
+  // The current state is already the document.
+  if (!versionId) return;
+  try {
+    const result = await restoreVersion(documentPath.value, versionId);
+    const unchanged = result?.status === 'unchanged';
+    notifications.addNotification({
+      type: unchanged ? 'info' : 'success',
+      heading: unchanged ? t('versions.results.unchanged') : t('versions.results.restored'),
+      durationMs: 4000,
+    });
+    versionsPanel.markRestored();
+    // The editor still shows the history, over what the restore replaced.
+    await load();
+  } catch (restoreError) {
+    notifications.addNotification({
+      type: 'error',
+      heading: t('versions.errors.action'),
+      body: restoreError?.message || '',
+    });
+  }
+};
+
+const historyEvents = (cfg) => {
+  if (viewedVersionId.value || !featuresStore.versionsEnabled) return {};
+  const events = {
+    onRequestHistory() {
+      void showHistory();
+    },
+    onRequestHistoryData(event) {
+      void showHistoryEntry(Number(event?.data));
+    },
+    // Leaving the history: the editor expects to be opened again on the document.
+    onRequestHistoryClose() {
+      void load();
+    },
+  };
+  // The Restore button is only offered to someone who may change the document.
+  if (cfg?.document?.permissions?.edit) {
+    events.onRequestRestore = (event) => {
+      void restoreFromHistory(Number(event?.data?.version));
+    };
+  }
+  return events;
+};
+
+// A version of this document restored from the Versions panel while it is open
+// here: the editor is pointed at the document as it now is.
+watch(
+  () => versionsPanel.restored,
+  () => {
+    if (viewedVersionId.value || disposed || !documentPath.value) return;
+    if (normalizePath(versionsPanel.relativePath) !== normalizePath(documentPath.value)) return;
+    void refreshDocument().catch((refreshError) => {
+      logger.error('ONLYOFFICE refresh after a restore failed', {
+        path: documentPath.value,
+        err: refreshError,
+      });
+    });
+  }
+);
+
 const load = async () => {
   clearAutoSaveTimer();
   clearSessionHeartbeat();
@@ -409,14 +538,16 @@ const load = async () => {
       config: cfg,
       forceSaveSessionId,
       autoSaveIntervalMs: configuredAutoSaveIntervalMs,
-    } = await fetchOnlyOfficeConfig(path, 'edit', {
+    } = await fetchOnlyOfficeConfig(path, viewedVersionId.value ? 'view' : 'edit', {
       theme: settings.isDark ? 'dark' : 'light',
+      ...(viewedVersionId.value ? { versionId: viewedVersionId.value } : {}),
     });
     previewState.forceSaveSessionId = forceSaveSessionId || null;
     autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     previewState.requestForceSave = requestForceSave;
     cfg.events = {
       ...cfg.events,
+      ...historyEvents(cfg),
 
       // Presence starts here, not when the configuration was fetched. Asking
       // for a configuration says nothing about whether the document opens, so

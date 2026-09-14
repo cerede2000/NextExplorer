@@ -131,22 +131,45 @@ router.post(
       throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
     }
 
-    const abs = resolved.absolutePath;
-    const stat = await fsp.stat(abs);
+    const stat = await fsp.stat(resolved.absolutePath);
     if (stat.isDirectory()) {
       throw new ValidationError('Cannot open a directory in Collabora.');
     }
 
-    const isReadonlyShare = resolved.shareInfo && resolved.shareInfo.accessMode === 'readonly';
-    const userCanWrite = Boolean(accessInfo.canWrite) && !isReadonlyShare && mode !== 'view';
+    // An earlier version, opened to be read: its own content under the file's
+    // name, never writable, and a file id of its own so that it takes no part in
+    // the locks of the document open beside it.
+    const versionHistory = require('../services/versions');
+    const requestedVersion = typeof req.body?.versionId === 'string' ? req.body.versionId : '';
+    const version = requestedVersion
+      ? await versionHistory.locateVersion(context, relativePath, requestedVersion, {
+          download: false,
+        })
+      : null;
+    const abs = version ? version.absolutePath : resolved.absolutePath;
 
-    const filename = path.basename(abs);
+    const isReadonlyShare = resolved.shareInfo && resolved.shareInfo.accessMode === 'readonly';
+    const userCanWrite =
+      !version && Boolean(accessInfo.canWrite) && !isReadonlyShare && mode !== 'view';
+
+    const filename = version ? version.name : path.basename(abs);
     const ext = toExtension(filename);
     if (!ext) {
       throw new ValidationError('Unknown file extension.');
     }
 
-    const fileId = buildFileId({ space: resolved.space, relativePath: resolved.relativePath });
+    const fileId = buildFileId({
+      space: resolved.space,
+      relativePath: version
+        ? `${resolved.relativePath}@version:${version.version.id}`
+        : resolved.relativePath,
+    });
+
+    // The editor's Revision history entry opens NextExplorer's own history, so
+    // it is only shown where there is one to show.
+    const { getVersionSettings } = require('../services/versions/settings');
+    const offerHistory =
+      !version && (await getVersionSettings()).enabled && versionHistory.rightsFrom(accessInfo).see;
 
     const tokenTtlSeconds = 6 * 60 * 60; // 6 hours
     const tokenExpiresAtMs = Date.now() + tokenTtlSeconds * 1000;
@@ -163,6 +186,10 @@ router.post(
           req.user?.displayName || req.user?.username || (req.guestSession ? 'Guest User' : null),
         guestSessionId: req.guestSession?.id || null,
         shareToken: resolved.shareInfo?.shareToken || null,
+        // A version's content is stored under its id: the name it is shown
+        // under is the file's.
+        baseName: filename,
+        versionId: version ? version.version.id : null,
       },
       collabora.secret,
       {
@@ -196,6 +223,10 @@ router.post(
     if (collabora.lang) {
       iframeUrl.searchParams.set('lang', collabora.lang);
     }
+    // Shows File > Revision history, which posts UI_FileVersions to the page.
+    if (offerHistory) {
+      iframeUrl.searchParams.set('revisionhistory', '1');
+    }
 
     res.json({
       urlSrc: iframeUrl.toString(),
@@ -219,7 +250,9 @@ router.get(
     const stat = await fsp.stat(abs);
     if (stat.isDirectory()) throw new ValidationError('Cannot open a directory.');
 
-    const baseName = path.basename(abs);
+    // A version's content is stored under its id; the token carries the name
+    // it is shown under.
+    const baseName = tokenPayload.baseName || path.basename(abs);
     const version = versionFromStat(stat);
 
     res.json({
@@ -235,6 +268,8 @@ router.get(
       SupportsGetLock: true,
       // Required for PostMessage API (enables features like @ mentions)
       PostMessageOrigin: publicConfig?.url || '*',
+      // An earlier version is read, not saved elsewhere under a new name either.
+      ...(tokenPayload.versionId ? { UserCanNotWriteRelative: true } : {}),
     });
   })
 );

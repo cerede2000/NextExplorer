@@ -21,6 +21,8 @@ export const collaboraPreviewPlugin = (extensions) => ({
   label: 'Collabora',
   priority: 50,
   minimalHeader: true,
+  // Can open an earlier version of a document, to be read (`item.versionId`).
+  supportsVersions: true,
 
   match: (context) => {
     const ext = String(context.extension || '').toLowerCase();
