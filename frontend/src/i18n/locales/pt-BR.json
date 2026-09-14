@@ -86,7 +86,8 @@
     "wrapLines": "Quebrar linhas",
     "confirmCloseWithoutSaving": "Você tem alterações não salvas. Fechar sem salvar?",
     "selectTheme": "Escolher o tema do editor",
-    "raw": "Bruto"
+    "raw": "Bruto",
+    "trashReadOnly": "Na lixeira · somente leitura"
   },
   "status": {
     "updated": "Atualizado com sucesso",
@@ -944,6 +945,12 @@
       "hint": "Restaurar devolve cada item selecionado ao seu lugar dentro desta pasta. O restante permanece na lixeira.",
       "empty": "Esta pasta está vazia.",
       "back": "Voltar para a lixeira"
+    },
+    "contextMenu": {
+      "label": "Ações para {name}",
+      "labelMany": "Ações para {count} itens",
+      "open": "Abrir",
+      "preview": "Pré-visualizar"
     }
   }
 }

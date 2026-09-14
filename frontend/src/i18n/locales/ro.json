@@ -86,7 +86,8 @@
     "wrapLines": "Încadrarea rândurilor",
     "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?",
     "selectTheme": "Alegeți tema editorului",
-    "raw": "Brut"
+    "raw": "Brut",
+    "trashReadOnly": "În coșul de gunoi · doar citire"
   },
   "status": {
     "updated": "Actualizat cu succes",
@@ -944,6 +945,12 @@
       "hint": "Restaurează pune fiecare element selectat înapoi la locul lui din acest dosar. Restul rămâne în coșul de gunoi.",
       "empty": "Acest dosar este gol.",
       "back": "Înapoi la coșul de gunoi"
+    },
+    "contextMenu": {
+      "label": "Acțiuni pentru {name}",
+      "labelMany": "Acțiuni pentru {count} elemente",
+      "open": "Deschide",
+      "preview": "Previzualizare"
     }
   }
 }

@@ -86,7 +86,8 @@
     "wrapLines": "A capo automatico",
     "confirmCloseWithoutSaving": "Hai modifiche non salvate. Chiudere senza salvare?",
     "selectTheme": "Scegli il tema dell'editor",
-    "raw": "Grezzo"
+    "raw": "Grezzo",
+    "trashReadOnly": "Nel cestino · sola lettura"
   },
   "status": {
     "updated": "Aggiornato con successo",
@@ -944,6 +945,12 @@
       "hint": "Ripristina rimette ogni elemento selezionato al suo posto in questa cartella. Il resto rimane nel cestino.",
       "empty": "Questa cartella è vuota.",
       "back": "Torna al cestino"
+    },
+    "contextMenu": {
+      "label": "Azioni per {name}",
+      "labelMany": "Azioni per {count} elementi",
+      "open": "Apri",
+      "preview": "Anteprima"
     }
   }
 }

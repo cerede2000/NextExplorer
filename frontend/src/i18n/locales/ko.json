@@ -86,7 +86,8 @@
     "wrapLines": "자동 줄 바꿈",
     "confirmCloseWithoutSaving": "저장되지 않은 변경 사항이 있습니다. 저장하지 않고 종료 하시겠습니까?",
     "selectTheme": "편집기 테마 선택",
-    "raw": "원본"
+    "raw": "원본",
+    "trashReadOnly": "휴지통 · 읽기 전용"
   },
   "status": {
     "updated": "업데이트 성공",
@@ -944,6 +945,12 @@
       "hint": "복원하면 선택한 항목이 이 폴더 안의 원래 자리로 돌아갑니다. 나머지는 휴지통에 남습니다.",
       "empty": "이 폴더는 비어 있습니다.",
       "back": "휴지통으로 돌아가기"
+    },
+    "contextMenu": {
+      "label": "{name} 작업",
+      "labelMany": "항목 {count}개 작업",
+      "open": "열기",
+      "preview": "미리 보기"
     }
   }
 }

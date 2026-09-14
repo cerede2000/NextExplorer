@@ -50,6 +50,16 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: translate }) }));
 vi.mock('@/icons/FileIcon.vue', () => ({
   default: { name: 'FileIcon', props: ['item'], template: '<i />' },
 }));
+vi.mock('@/config/editor', () => ({
+  isEditableExtension: (extension) => ['txt', 'sh', 'md'].includes(extension),
+}));
+vi.mock('@floating-ui/vue', () => ({
+  useFloating: () => ({ floatingStyles: {}, update: () => {} }),
+  autoUpdate: () => {},
+  flip: () => {},
+  offset: () => {},
+  shift: () => {},
+}));
 
 import TrashView from './TrashView.vue';
 
@@ -751,5 +761,172 @@ describe('inside a deleted folder', () => {
     await flushPromises();
 
     expect(entryNames()).toEqual(['v1.txt']);
+  });
+});
+
+/**
+ * The right-click menu, a long press, the menu key and a double click: the ways
+ * to act on one row without reaching for the toolbar. A right click on a row
+ * that is not selected acts on that row alone; on a selection, on all of it.
+ */
+describe('the right-click menu', () => {
+  const menu = () => document.body.querySelector('[role="menu"]');
+  const menuEntries = () =>
+    [...document.body.querySelectorAll('[role="menuitem"]')].map((entry) =>
+      entry.textContent.trim()
+    );
+  const choose = async (label) => {
+    [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((entry) => entry.textContent.trim() === label)
+      .click();
+    await flushPromises();
+  };
+  const rightClick = async (row) => {
+    await row.trigger('contextmenu', { clientX: 100, clientY: 120 });
+    await flushPromises();
+  };
+  const openList = (items) => open({ enabled: true, retentionDays: 30, items });
+
+  it('offers what a deleted file allows, and acts on that file alone', async () => {
+    await openList([item({ name: 'notes.txt' }), item({ id: 'b', name: 'b.txt' })]);
+    await rows()[1].trigger('click');
+
+    await rightClick(rows()[0]);
+
+    expect(menu().getAttribute('aria-label')).toBe('trash.contextMenu.label {"name":"notes.txt"}');
+    expect(menuEntries()).toEqual([
+      'trash.contextMenu.preview',
+      'trash.actions.restore',
+      'trash.actions.restoreTo',
+      'trash.actions.openLocation',
+      'trash.actions.deletePermanently',
+    ]);
+
+    restoreTrashItems.mockResolvedValue({ items: [] });
+    await choose('trash.actions.restore');
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report']);
+    expect(menu()).toBeNull();
+  });
+
+  it('keeps the selection it was opened on, and offers only what applies to all of it', async () => {
+    await openList([item(), item({ id: 'b', name: 'b.txt' })]);
+    await wrapper.get('[data-test="trash-select-all"]').trigger('change');
+
+    await rightClick(rows()[0]);
+
+    expect(menu().getAttribute('aria-label')).toBe('trash.contextMenu.labelMany {"count":2}');
+    expect(menuEntries()).toEqual([
+      'trash.actions.restore',
+      'trash.actions.restoreTo',
+      'trash.actions.deletePermanently',
+    ]);
+    // Deleting for good still asks first.
+    await choose('trash.actions.deletePermanently');
+    expect(dialogText()).toContain('trash.confirm.deleteMessage {"count":2}');
+    expect(deleteTrashItems).not.toHaveBeenCalled();
+  });
+
+  it('opens a deleted folder from the menu', async () => {
+    getTrashEntries.mockResolvedValue({ item: item(), path: '', entries: [] });
+    await openList([item({ id: 'id-client', name: 'client', kind: 'directory' })]);
+
+    await rightClick(rows()[0]);
+    expect(menuEntries()[0]).toBe('trash.contextMenu.open');
+    await choose('trash.contextMenu.open');
+
+    expect(push).toHaveBeenCalledWith({ name: 'Trash', query: { item: 'id-client' } });
+  });
+
+  it('reads a file in the editor, read only, from the menu or by a double click', async () => {
+    await openList([item({ id: 'id-sh', name: 'run.sh' })]);
+    const viewer = { name: 'TrashFileViewer', params: { itemId: 'id-sh', entryPath: [] } };
+
+    await rightClick(rows()[0]);
+    await choose('trash.contextMenu.preview');
+    expect(push).toHaveBeenCalledWith(viewer);
+
+    push.mockClear();
+    await rows()[0].trigger('dblclick');
+    expect(push).toHaveBeenCalledWith(viewer);
+  });
+
+  it('offers no preview of what the editor cannot show, and nothing to open on a missing volume', async () => {
+    await openList([
+      item({ name: 'photo.jpg' }),
+      item({ id: 'gone', name: 'gone', kind: 'directory', available: false }),
+    ]);
+
+    await rightClick(rows()[0]);
+    expect(menuEntries()).not.toContain('trash.contextMenu.preview');
+    await rightClick(rows()[1]);
+    expect(menuEntries()).not.toContain('trash.contextMenu.open');
+
+    await rows()[1].trigger('dblclick');
+    await rows()[0].trigger('dblclick');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('opens from the keyboard, with the menu key on a row', async () => {
+    await openList([item()]);
+
+    await rows()[0].get('input[type="checkbox"]').trigger('keydown', { key: 'ContextMenu' });
+    await flushPromises();
+
+    expect(menuEntries()).toContain('trash.actions.restore');
+  });
+
+  it('opens on a long press on a touch screen, without the lifted finger unselecting the row', async () => {
+    await openList([item()]);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await rows()[0].trigger('pointerdown', { pointerType: 'touch', clientX: 20, clientY: 30 });
+      vi.advanceTimersByTime(500);
+      await flushPromises();
+      expect(menuEntries()).toContain('trash.actions.restore');
+
+      await rows()[0].trigger('click');
+      expect(wrapper.get('[data-test="trash-restore"]').attributes('disabled')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not open on a press that moves, as a scroll does', async () => {
+    await openList([item()]);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await rows()[0].trigger('pointerdown', { pointerType: 'touch', clientX: 20, clientY: 30 });
+      await rows()[0].trigger('pointermove', { pointerType: 'touch', clientX: 20, clientY: 80 });
+      vi.advanceTimersByTime(600);
+      await flushPromises();
+
+      expect(menu()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('offers reading and restoring for what is inside a deleted folder', async () => {
+    route.query = { item: 'id-client', path: 'drafts' };
+    getTrashEntries.mockResolvedValue({
+      item: item({ id: 'id-client', name: 'client', kind: 'directory' }),
+      path: 'drafts',
+      entries: [{ name: 'v1.txt', kind: 'file', size: 5, modifiedAt: '2026-09-01T10:00:00.000Z' }],
+    });
+    await openList([]);
+
+    await wrapper.get('[data-trash-entry]').trigger('contextmenu', { clientX: 5, clientY: 5 });
+    await flushPromises();
+
+    expect(menuEntries()).toEqual([
+      'trash.contextMenu.preview',
+      'trash.actions.restore',
+      'trash.actions.restoreTo',
+    ]);
+    await choose('trash.contextMenu.preview');
+    expect(push).toHaveBeenCalledWith({
+      name: 'TrashFileViewer',
+      params: { itemId: 'id-client', entryPath: ['drafts', 'v1.txt'] },
+    });
   });
 });

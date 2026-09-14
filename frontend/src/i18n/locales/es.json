@@ -86,7 +86,8 @@
     "wrapLines": "Ajustar líneas",
     "confirmCloseWithoutSaving": "Tienes cambios sin guardar. ¿Cerrar sin guardar?",
     "selectTheme": "Elegir el tema del editor",
-    "raw": "Sin formato"
+    "raw": "Sin formato",
+    "trashReadOnly": "En la papelera · solo lectura"
   },
   "status": {
     "updated": "Actualizado correctamente",
@@ -944,6 +945,12 @@
       "hint": "Restaurar devuelve cada elemento seleccionado a su lugar dentro de esta carpeta. El resto permanece en la papelera.",
       "empty": "Esta carpeta está vacía.",
       "back": "Volver a la papelera"
+    },
+    "contextMenu": {
+      "label": "Acciones para {name}",
+      "labelMany": "Acciones para {count} elementos",
+      "open": "Abrir",
+      "preview": "Vista previa"
     }
   }
 }

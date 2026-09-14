@@ -86,7 +86,8 @@
     "wrapLines": "自动换行",
     "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？",
     "selectTheme": "选择编辑器主题",
-    "raw": "原始"
+    "raw": "原始",
+    "trashReadOnly": "回收站中 · 只读"
   },
   "status": {
     "updated": "更新成功",
@@ -944,6 +945,12 @@
       "hint": "还原会将每个选中的项目放回此文件夹中的原位置，其余内容仍留在回收站。",
       "empty": "此文件夹为空。",
       "back": "返回回收站"
+    },
+    "contextMenu": {
+      "label": "{name} 的操作",
+      "labelMany": "{count} 个项目的操作",
+      "open": "打开",
+      "preview": "预览"
     }
   }
 }

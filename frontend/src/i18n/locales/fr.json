@@ -86,7 +86,8 @@
     "wrapLines": "Retour à la ligne",
     "confirmCloseWithoutSaving": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
     "selectTheme": "Choisir le thème de l'éditeur",
-    "raw": "Brut"
+    "raw": "Brut",
+    "trashReadOnly": "Dans la corbeille · lecture seule"
   },
   "status": {
     "updated": "Mis à jour avec succès",
@@ -944,6 +945,12 @@
       "hint": "Restaurer remet chaque élément sélectionné à sa place dans ce dossier. Le reste demeure dans la corbeille.",
       "empty": "Ce dossier est vide.",
       "back": "Retour à la corbeille"
+    },
+    "contextMenu": {
+      "label": "Actions pour {name}",
+      "labelMany": "Actions pour {count} éléments",
+      "open": "Ouvrir",
+      "preview": "Aperçu"
     }
   }
 }

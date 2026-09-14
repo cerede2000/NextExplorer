@@ -163,6 +163,16 @@ const router = createRouter({
       children: [{ path: '', name: 'Trash', component: TrashView }],
     },
     {
+      // A file in the trash, shown in the editor to be read: nothing there can
+      // be saved. Its own path, so no volume name can ever collide with it.
+      path: '/trash/view',
+      component: EditorLayout,
+      meta: { requiresAuth: true },
+      children: [
+        { path: ':itemId/:entryPath(.*)*', name: 'TrashFileViewer', component: EditorView },
+      ],
+    },
+    {
       path: '/search',
       component: BrowserLayout,
       meta: { requiresAuth: true },

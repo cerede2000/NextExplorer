@@ -7,12 +7,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * worst possible typo.
  */
 
-const { requestJson, requestStream } = vi.hoisted(() => ({
+const { requestJson, requestStream, requestRaw } = vi.hoisted(() => ({
   requestJson: vi.fn(async () => ({})),
   requestStream: vi.fn(async () => ({})),
+  requestRaw: vi.fn(async () => ({ text: async () => '#!/bin/sh\n' })),
 }));
 
-vi.mock('./http', () => ({ requestJson, requestStream }));
+vi.mock('./http', () => ({
+  requestJson,
+  requestStream,
+  requestRaw,
+  buildUrl: (endpoint) => `/base${endpoint}`,
+}));
 
 const api = await import('./trash.api');
 
@@ -66,6 +72,14 @@ describe('the trash API', () => {
       method: 'POST',
       body: { paths: ['drafts/v2.txt'] },
     });
+  });
+
+  it('reads the text of a file in the trash, the item itself or one inside a folder', async () => {
+    await api.getTrashFileText('id 1');
+    expect(call()).toEqual({ endpoint: '/api/trash/items/id%201/text', method: 'GET', body: null });
+
+    await api.getTrashFileText('a', 'drafts/v 2.txt');
+    expect(call().endpoint).toBe('/api/trash/items/a/text?path=drafts%2Fv%202.txt');
   });
 
   it('restores items into a chosen folder, as a stream it can follow and cancel', async () => {

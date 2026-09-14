@@ -29,6 +29,7 @@ const api = vi.hoisted(() => ({
   saveSharedFileContent: vi.fn(async () => ({})),
   getRawFileUrl: vi.fn((path) => `/api/raw/${path}`),
   getDirectShareFileUrl: vi.fn((token, path, mode) => `/d/${token}/${path}?mode=${mode}`),
+  getTrashFileText: vi.fn(async () => ({ name: 'run.sh', content: '#!/bin/sh\necho hi\n' })),
 }));
 
 vi.mock('@/api', () => ({
@@ -164,7 +165,10 @@ describe('opening a file', () => {
   it('ignores an answer for a file no longer being edited', async () => {
     let answerFirst;
     api.fetchFileContent.mockImplementationOnce(
-      () => new Promise((resolve) => { answerFirst = resolve; })
+      () =>
+        new Promise((resolve) => {
+          answerFirst = resolve;
+        })
     );
     const view = await mountEditor();
 
@@ -180,7 +184,10 @@ describe('opening a file', () => {
   it('ignores a failure for a file no longer being edited', async () => {
     let failFirst;
     api.fetchFileContent.mockImplementationOnce(
-      () => new Promise((_resolve, reject) => { failFirst = reject; })
+      () =>
+        new Promise((_resolve, reject) => {
+          failFirst = reject;
+        })
     );
     const view = await mountEditor();
 
@@ -432,9 +439,7 @@ describe('leaving the editor', () => {
   it('tells the folder it is coming back to that it may restore its place', async () => {
     await mountEditor();
 
-    shared.guards.forEach((guard) =>
-      guard({ name: 'FolderView', params: { path: 'Docs' } })
-    );
+    shared.guards.forEach((guard) => guard({ name: 'FolderView', params: { path: 'Docs' } }));
 
     expect(folderScroll.permitExplicitRestore).toHaveBeenCalledWith('Docs');
   });
@@ -442,9 +447,7 @@ describe('leaving the editor', () => {
   it('says nothing to a folder it was not editing inside', async () => {
     await mountEditor();
 
-    shared.guards.forEach((guard) =>
-      guard({ name: 'FolderView', params: { path: 'Elsewhere' } })
-    );
+    shared.guards.forEach((guard) => guard({ name: 'FolderView', params: { path: 'Elsewhere' } }));
 
     expect(folderScroll.permitExplicitRestore).not.toHaveBeenCalled();
   });
@@ -455,6 +458,101 @@ describe('leaving the editor', () => {
     shared.guards.forEach((guard) => guard({ name: 'Settings', params: {} }));
 
     expect(folderScroll.permitExplicitRestore).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A file in the trash, opened to be read before deciding what to do with it.
+ * The editor shows it, and nothing more: no save, no raw link, no question on
+ * leaving, since nothing typed there could ever be written back.
+ */
+describe('reading a file from the trash', () => {
+  const asTrash = (entryPath = ['drafts', 'run.sh']) => {
+    Object.assign(route(), {
+      name: 'TrashFileViewer',
+      fullPath: `/trash/view/id-1/${entryPath.join('/')}`,
+      params: { itemId: 'id-1', entryPath },
+    });
+  };
+
+  it('reads it from the trash, by the item and the path inside it', async () => {
+    asTrash();
+
+    const view = await mountEditor();
+
+    expect(api.getTrashFileText).toHaveBeenCalledWith('id-1', 'drafts/run.sh');
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(view.fileContent).toBe('#!/bin/sh\necho hi\n');
+    expect(view.displayPath).toBe('run.sh');
+  });
+
+  it('says it is in the trash and read only, and offers neither save nor raw file', async () => {
+    asTrash();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('editor.trashReadOnly');
+    expect(wrapper.find('[aria-label="common.save"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('editor.raw');
+  });
+
+  it('never writes anything, whatever is typed or pressed', async () => {
+    asTrash();
+    const view = await mountEditor();
+
+    await type(view, 'changed anyway');
+    expect(view.canSave).toBe(false);
+    await view.saveFile();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+    await flushPromises();
+
+    expect(api.saveFileContent).not.toHaveBeenCalled();
+    expect(api.saveSharedFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain('editor.unsavedChanges');
+  });
+
+  it('goes back to the deleted folder it was read from, without asking', async () => {
+    asTrash(['drafts', 'run.sh']);
+    const view = await mountEditor();
+    await type(view, 'changed anyway');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    view.requestClose();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith({
+      name: 'Trash',
+      query: { item: 'id-1', path: 'drafts' },
+    });
+    confirm.mockRestore();
+  });
+
+  it('goes back to the top of the deleted folder for a file at its top', async () => {
+    asTrash(['run.sh']);
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(router.replace).toHaveBeenCalledWith({ name: 'Trash', query: { item: 'id-1' } });
+  });
+
+  it('goes back to the trash itself for a deleted file', async () => {
+    asTrash([]);
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(api.getTrashFileText).toHaveBeenCalledWith('id-1', '');
+    expect(router.replace).toHaveBeenCalledWith({ name: 'Trash', query: {} });
+  });
+
+  it('says why when the file cannot be shown', async () => {
+    api.getTrashFileText.mockRejectedValueOnce(new Error('This file appears to be binary.'));
+    asTrash();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('This file appears to be binary.');
   });
 });
 

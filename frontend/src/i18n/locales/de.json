@@ -86,7 +86,8 @@
     "wrapLines": "Zeilenumbruch",
     "confirmCloseWithoutSaving": "Sie haben ungespeicherte Änderungen. Ohne Speichern schließen?",
     "selectTheme": "Editor-Thema wählen",
-    "raw": "Roh"
+    "raw": "Roh",
+    "trashReadOnly": "Im Papierkorb · schreibgeschützt"
   },
   "status": {
     "updated": "Erfolgreich aktualisiert",
@@ -944,6 +945,12 @@
       "hint": "Wiederherstellen legt jedes ausgewählte Element an seinen Platz in diesem Ordner zurück. Der Rest bleibt im Papierkorb.",
       "empty": "Dieser Ordner ist leer.",
       "back": "Zurück zum Papierkorb"
+    },
+    "contextMenu": {
+      "label": "Aktionen für {name}",
+      "labelMany": "Aktionen für {count} Elemente",
+      "open": "Öffnen",
+      "preview": "Vorschau"
     }
   }
 }

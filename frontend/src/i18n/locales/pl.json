@@ -86,7 +86,8 @@
     "wrapLines": "Zawijanie wierszy",
     "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?",
     "selectTheme": "Wybierz motyw edytora",
-    "raw": "Surowy"
+    "raw": "Surowy",
+    "trashReadOnly": "W koszu · tylko do odczytu"
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",
@@ -944,6 +945,12 @@
       "hint": "Przywracanie odkłada każdy zaznaczony element na jego miejsce w tym folderze. Reszta pozostaje w koszu.",
       "empty": "Ten folder jest pusty.",
       "back": "Wróć do kosza"
+    },
+    "contextMenu": {
+      "label": "Działania dla {name}",
+      "labelMany": "Działania dla elementów: {count}",
+      "open": "Otwórz",
+      "preview": "Podgląd"
     }
   }
 }

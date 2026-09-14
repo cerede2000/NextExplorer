@@ -86,7 +86,8 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "You have unsaved changes. Close without saving?",
     "selectTheme": "Select editor theme",
-    "raw": "Raw"
+    "raw": "Raw",
+    "trashReadOnly": "In the trash · read only"
   },
   "status": {
     "updated": "Updated successfully",
@@ -944,6 +945,12 @@
       "hint": "Restore puts each selected item back in its place inside this folder. The rest stays in the trash.",
       "empty": "This folder is empty.",
       "back": "Back to the trash"
+    },
+    "contextMenu": {
+      "label": "Actions for {name}",
+      "labelMany": "Actions for {count} items",
+      "open": "Open",
+      "preview": "Preview"
     }
   }
 }

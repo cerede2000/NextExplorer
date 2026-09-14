@@ -25,6 +25,17 @@ async function getTrashEntries(id, entryPath = '') {
   });
 }
 
+/**
+ * The text of a file in the trash — the item itself, or a file at `entryPath`
+ * inside a deleted folder — to read, never to change: `{ name, content, … }`.
+ */
+async function getTrashFileText(id, entryPath = '') {
+  const query = entryPath ? `?path=${encodeURIComponent(entryPath)}` : '';
+  return requestJson(`/api/trash/items/${encodeURIComponent(id)}/text${query}`, {
+    method: 'GET',
+  });
+}
+
 /** Put back entries from inside a deleted folder; the rest of it stays in the trash. */
 async function restoreTrashEntries(id, paths) {
   return post(`/api/trash/items/${encodeURIComponent(id)}/restore`, { paths });
@@ -77,6 +88,7 @@ async function runTrashMaintenance() {
 export {
   getTrash,
   getTrashEntries,
+  getTrashFileText,
   restoreTrashItems,
   restoreTrashEntries,
   restoreTrashItemsTo,

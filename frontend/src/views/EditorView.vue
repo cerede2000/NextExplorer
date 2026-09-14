@@ -5,7 +5,13 @@
     >
       <div class="min-w-0">
         <p class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          {{ isSharedReadOnly ? t('common.readonly') : t('editor.editing') }}
+          {{
+            isTrashViewer
+              ? t('editor.trashReadOnly')
+              : isSharedReadOnly
+                ? t('common.readonly')
+                : t('editor.editing')
+          }}
         </p>
         <h1 class="truncate text-md text-neutral-900 dark:text-white">
           {{ displayPath || '—' }}
@@ -15,11 +21,14 @@
         <span v-if="saveError" class="text-sm text-red-600 dark:text-red-400">
           {{ saveError }}
         </span>
-        <p v-if="hasUnsavedChanges" class="mr-4 text-xs text-amber-600 dark:text-amber-400">
+        <p
+          v-if="hasUnsavedChanges && !isTrashViewer"
+          class="mr-4 text-xs text-amber-600 dark:text-amber-400"
+        >
           {{ t('editor.unsavedChanges') }}
         </p>
         <button
-          v-if="!isSharedEditor || sharedCanDownload"
+          v-if="!isTrashViewer && (!isSharedEditor || sharedCanDownload)"
           type="button"
           @click="openRaw"
           :disabled="isLoading || !displayPath"
@@ -80,7 +89,7 @@
         </div>
 
         <button
-          v-if="!isSharedEditor || sharedCanWrite"
+          v-if="!isTrashViewer && (!isSharedEditor || sharedCanWrite)"
           type="button"
           @click="saveFile"
           :disabled="!canSave"
@@ -173,6 +182,7 @@ import {
   saveSharedFileContent,
   getRawFileUrl,
   getDirectShareFileUrl,
+  getTrashFileText,
   normalizePath,
 } from '@/api';
 import { EditorView, keymap } from '@codemirror/view';
@@ -273,6 +283,24 @@ const normalizedPath = computed(() =>
 );
 const isSharedEditor = computed(() => route.name === 'SharedEditor');
 const isSharedReadOnly = computed(() => isSharedEditor.value && !sharedCanWrite.value);
+/**
+ * A file in the trash, opened to be read before deciding what to do with it.
+ * Never to be changed: no save, no shortcut that saves, an editor that does not
+ * take typing, and leaving goes back to the trash it came from.
+ */
+const isTrashViewer = computed(() => route.name === 'TrashFileViewer');
+const isReadOnly = computed(() => isSharedReadOnly.value || isTrashViewer.value);
+const trashFileName = ref('');
+const trashItemId = computed(() =>
+  typeof route.params?.itemId === 'string' ? route.params.itemId : ''
+);
+const trashEntryPath = computed(() =>
+  normalizePath(
+    Array.isArray(route.params?.entryPath)
+      ? route.params.entryPath.join('/')
+      : route.params?.entryPath || ''
+  )
+);
 const sharedToken = computed(() =>
   typeof route.params?.token === 'string' ? route.params.token : ''
 );
@@ -283,12 +311,14 @@ const sharedPath = computed(() =>
       : route.params?.sharedPath || ''
   )
 );
-const displayPath = computed(() =>
-  isSharedEditor.value ? sharedFileName.value || sharedPath.value : normalizedPath.value
-);
+const displayPath = computed(() => {
+  if (isTrashViewer.value) return trashFileName.value || trashEntryPath.value;
+  return isSharedEditor.value ? sharedFileName.value || sharedPath.value : normalizedPath.value;
+});
 const hasUnsavedChanges = computed(() => fileContent.value !== originalContent.value);
 const canSave = computed(
   () =>
+    !isTrashViewer.value &&
     (!isSharedEditor.value || sharedCanWrite.value) &&
     hasUnsavedChanges.value &&
     !isSaving.value &&
@@ -325,7 +355,7 @@ const loadFile = async () => {
   const requestPath = route.fullPath;
   const path = normalizedPath.value;
 
-  if (!isSharedEditor.value && !path) {
+  if (!isSharedEditor.value && !isTrashViewer.value && !path) {
     fileContent.value = originalContent.value = '';
     return;
   }
@@ -333,23 +363,30 @@ const loadFile = async () => {
   isLoading.value = true;
   loadError.value = '';
   saveError.value = '';
+  trashFileName.value = '';
   sharedFileName.value = '';
   sharedCanDownload.value = false;
   sharedCanWrite.value = false;
   sharedDirectPath.value = '';
 
   try {
-    const response = isSharedEditor.value
-      ? await fetchSharedFileContent(sharedToken.value, sharedPath.value)
-      : await fetchFileContent(path);
+    let response;
+    if (isTrashViewer.value) {
+      response = await getTrashFileText(trashItemId.value, trashEntryPath.value);
+    } else if (isSharedEditor.value) {
+      response = await fetchSharedFileContent(sharedToken.value, sharedPath.value);
+    } else {
+      response = await fetchFileContent(path);
+    }
     if (requestPath !== route.fullPath) return;
 
+    trashFileName.value = isTrashViewer.value ? response.name || '' : '';
     sharedFileName.value = isSharedEditor.value ? response.name || '' : '';
     sharedCanDownload.value = Boolean(isSharedEditor.value && response.canDownload);
     sharedCanWrite.value = Boolean(isSharedEditor.value && response.canWrite);
     sharedDirectPath.value = isSharedEditor.value ? response.path || '' : '';
     fileContent.value = originalContent.value = response.content || '';
-    applyLanguage(sharedFileName.value || path);
+    applyLanguage(displayPath.value);
   } catch (err) {
     if (requestPath !== route.fullPath) return;
     loadError.value = err.message;
@@ -359,6 +396,8 @@ const loadFile = async () => {
 };
 
 const saveFile = async () => {
+  // Nothing opened from the trash is ever written back.
+  if (isTrashViewer.value) return;
   if (!canSave.value || (!isSharedEditor.value && !normalizedPath.value)) return;
   isSaving.value = true;
   saveError.value = '';
@@ -395,10 +434,27 @@ const openDownload = () => {
 
 const requestClose = () => {
   if (isSaving.value) return;
-  if (hasUnsavedChanges.value && !confirm(t('editor.confirmCloseWithoutSaving'))) return;
+  // Nothing read from the trash can be lost by leaving: it was never editable.
+  if (
+    !isTrashViewer.value &&
+    hasUnsavedChanges.value &&
+    !confirm(t('editor.confirmCloseWithoutSaving'))
+  )
+    return;
 
   if (isSharedEditor.value) {
     router.replace(`/share/${encodeURIComponent(sharedToken.value)}`);
+    return;
+  }
+
+  if (isTrashViewer.value) {
+    // Back to the trash, in the deleted folder the file was read from.
+    const segments = trashEntryPath.value.split('/').filter(Boolean);
+    segments.pop();
+    const query = {};
+    if (trashEntryPath.value) query.item = trashItemId.value;
+    if (segments.length) query.path = segments.join('/');
+    router.replace({ name: 'Trash', query });
     return;
   }
 
@@ -436,7 +492,7 @@ const toggleLineWrapping = () => {
 const updateReadOnlyMode = () => {
   view.value?.dispatch({
     effects: readOnlyComp.reconfigure(
-      isSharedReadOnly.value ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
+      isReadOnly.value ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
     ),
   });
 };
@@ -451,12 +507,18 @@ onKeyStroke(['s', 'S'], (e) => {
   }
 });
 
-watch([normalizedPath, isSharedEditor, sharedToken, sharedPath], loadFile, { immediate: true });
+watch(
+  [normalizedPath, isSharedEditor, sharedToken, sharedPath, trashItemId, trashEntryPath],
+  loadFile,
+  {
+    immediate: true,
+  }
+);
 watch(view, () => {
   updateReadOnlyMode();
   applyLanguage(displayPath.value);
 });
-watch([isSharedEditor, sharedCanWrite], updateReadOnlyMode);
+watch([isSharedEditor, sharedCanWrite, isTrashViewer], updateReadOnlyMode);
 watch(fileContent, () => {
   if (saveError.value) saveError.value = '';
 });

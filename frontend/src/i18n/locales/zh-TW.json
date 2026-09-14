@@ -86,7 +86,8 @@
     "wrapLines": "自動換行",
     "confirmCloseWithoutSaving": "您有未儲存的變更。要在不儲存的情況下關閉嗎？",
     "selectTheme": "選擇編輯器佈景",
-    "raw": "原始"
+    "raw": "原始",
+    "trashReadOnly": "資源回收筒中 · 唯讀"
   },
   "status": {
     "updated": "更新成功",
@@ -944,6 +945,12 @@
       "hint": "還原會將每個選取的項目放回此資料夾中的原位置，其餘內容仍留在資源回收筒。",
       "empty": "此資料夾是空的。",
       "back": "返回資源回收筒"
+    },
+    "contextMenu": {
+      "label": "{name} 的動作",
+      "labelMany": "{count} 個項目的動作",
+      "open": "開啟",
+      "preview": "預覽"
     }
   }
 }

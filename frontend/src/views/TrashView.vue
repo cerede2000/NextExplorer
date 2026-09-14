@@ -1,16 +1,21 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
   ArrowPathIcon,
   ArrowUturnLeftIcon,
   ChevronRightIcon,
+  EyeIcon,
+  FolderArrowDownIcon,
   FolderOpenIcon,
+  MapPinIcon,
   TrashIcon,
 } from '@heroicons/vue/24/outline';
 import FileIcon from '@/icons/FileIcon.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
+import TrashContextMenu from '@/components/TrashContextMenu.vue';
+import { isEditableExtension } from '@/config/editor';
 import {
   deleteTrashItems,
   emptyTrash,
@@ -460,6 +465,190 @@ const openLocation = (item) => {
 
 const refresh = () => (folderId.value ? loadFolder() : load());
 
+// A right click, a long press, the menu key: the same menu. A double click opens.
+
+const menuState = ref({ open: false, x: 0, y: 0, type: null, target: null });
+
+const extensionOf = (name = '') => {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1) : '';
+};
+
+/** A file whose text the editor can show — read only, from the trash. */
+const canPreview = (entry) =>
+  entry?.kind === 'file' && isEditableExtension(extensionOf(entry.name));
+
+const previewItem = (item) =>
+  router.push({ name: 'TrashFileViewer', params: { itemId: item.id, entryPath: [] } });
+
+const previewEntry = (entry) =>
+  router.push({
+    name: 'TrashFileViewer',
+    params: {
+      itemId: folderId.value,
+      entryPath: joinPath(folderPath.value, entry.name).split('/'),
+    },
+  });
+
+/** A right click on a row that is not selected acts on that row alone, as in the explorer. */
+const openMenu = (event, type, target) => {
+  if (type === 'item') {
+    if (!selectedIds.value.has(target.id)) selectedIds.value = new Set([target.id]);
+  } else if (!selectedEntries.value.has(target.name)) {
+    selectedEntries.value = new Set([target.name]);
+  }
+  menuState.value = { open: true, x: event.clientX, y: event.clientY, type, target };
+};
+
+const closeMenu = () => {
+  menuState.value = { ...menuState.value, open: false };
+};
+
+const menuCount = computed(() =>
+  menuState.value.type === 'item' ? selectedCount.value : selectedEntryCount.value
+);
+
+const menuLabel = computed(() => {
+  const { target } = menuState.value;
+  if (!target) return '';
+  return menuCount.value > 1
+    ? t('trash.contextMenu.labelMany', { count: menuCount.value }, menuCount.value)
+    : t('trash.contextMenu.label', { name: target.name });
+});
+
+const menuSections = computed(() => {
+  const { type, target } = menuState.value;
+  if (!target) return [];
+  const single = menuCount.value === 1;
+  const reachable = type === 'entry' || target.available;
+
+  const opening = [];
+  if (single && reachable && target.kind === 'directory') {
+    opening.push({ id: 'open', label: t('trash.contextMenu.open'), icon: FolderOpenIcon });
+  }
+  if (single && reachable && canPreview(target)) {
+    opening.push({ id: 'preview', label: t('trash.contextMenu.preview'), icon: EyeIcon });
+  }
+
+  const restoring = [
+    {
+      id: 'restore',
+      label: t('trash.actions.restore'),
+      icon: ArrowUturnLeftIcon,
+      disabled: busy.value,
+    },
+    {
+      id: 'restoreTo',
+      label: t('trash.actions.restoreTo'),
+      icon: FolderArrowDownIcon,
+      disabled: busy.value,
+    },
+  ];
+  if (type === 'item' && single && target.openPath) {
+    restoring.push({
+      id: 'openLocation',
+      label: t('trash.actions.openLocation'),
+      icon: MapPinIcon,
+    });
+  }
+
+  const sections = [opening, restoring];
+  if (type === 'item') {
+    sections.push([
+      {
+        id: 'delete',
+        label: t('trash.actions.deletePermanently'),
+        icon: TrashIcon,
+        danger: true,
+        disabled: busy.value,
+      },
+    ]);
+  }
+  return sections;
+});
+
+const runMenuAction = (id) => {
+  const { type, target } = menuState.value;
+  const onItems = type === 'item';
+  const actions = {
+    open: () => (onItems ? openFolder(target) : openEntry(target)),
+    preview: () => (onItems ? previewItem(target) : previewEntry(target)),
+    restore: () => (onItems ? restoreSelected() : restoreSelectedEntries()),
+    restoreTo: () => restoreElsewhere({ entries: !onItems }),
+    openLocation: () => openLocation(target),
+    delete: () => askToDelete(),
+  };
+  actions[id]?.();
+};
+
+/** A double click opens what can be opened: a folder, or the text of a file. */
+const openRow = (type, target) => {
+  if (type === 'item' && !target.available) return;
+  if (target.kind === 'directory') {
+    if (type === 'item') openFolder(target);
+    else openEntry(target);
+  } else if (canPreview(target)) {
+    if (type === 'item') previewItem(target);
+    else previewEntry(target);
+  }
+};
+
+/** The menu key, or Shift+F10, on a row's checkbox opens the menu beside it. */
+const onMenuKey = (event, type, target) => {
+  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+  event.preventDefault();
+  const rect = event.currentTarget.getBoundingClientRect();
+  openMenu({ clientX: rect.left, clientY: rect.bottom }, type, target);
+};
+
+// On a touch screen, holding a row opens the menu a right click does.
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_TOLERANCE_PX = 10;
+let pressTimer = null;
+let pressStart = null;
+let suppressNextClick = false;
+
+const cancelPress = () => {
+  if (pressTimer) clearTimeout(pressTimer);
+  pressTimer = null;
+  pressStart = null;
+};
+
+const startPress = (event, type, target) => {
+  suppressNextClick = false;
+  if (event.pointerType !== 'touch') return;
+  cancelPress();
+  pressStart = { clientX: event.clientX, clientY: event.clientY };
+  pressTimer = setTimeout(() => {
+    const at = pressStart;
+    pressTimer = null;
+    pressStart = null;
+    // The finger lifting afterwards is not a tap on the row.
+    suppressNextClick = true;
+    openMenu(at, type, target);
+  }, LONG_PRESS_MS);
+};
+
+const movePress = (event) => {
+  if (!pressStart) return;
+  const distance = Math.hypot(
+    event.clientX - pressStart.clientX,
+    event.clientY - pressStart.clientY
+  );
+  if (distance > LONG_PRESS_TOLERANCE_PX) cancelPress();
+};
+
+const onRowClick = (type, target) => {
+  if (suppressNextClick) {
+    suppressNextClick = false;
+    return;
+  }
+  if (type === 'item') toggle(target);
+  else toggleEntry(target);
+};
+
+onBeforeUnmount(cancelPress);
+
 onMounted(load);
 
 defineExpose({ load });
@@ -690,7 +879,13 @@ defineExpose({ load });
                   ? 'bg-blue-50 dark:bg-blue-500/10'
                   : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/50',
               ]"
-              @click="toggleEntry(entry)"
+              @click="onRowClick('entry', entry)"
+              @dblclick="openRow('entry', entry)"
+              @contextmenu.prevent="openMenu($event, 'entry', entry)"
+              @pointerdown="startPress($event, 'entry', entry)"
+              @pointermove="movePress"
+              @pointerup="cancelPress"
+              @pointercancel="cancelPress"
             >
               <input
                 type="checkbox"
@@ -698,6 +893,7 @@ defineExpose({ load });
                 :aria-label="t('trash.actions.select', { name: entry.name })"
                 @click.stop
                 @change="toggleEntry(entry)"
+                @keydown="onMenuKey($event, 'entry', entry)"
               />
               <div class="flex min-w-0 items-center gap-2">
                 <FileIcon :item="iconItem(entry)" class="h-5 w-5 shrink-0" />
@@ -797,7 +993,13 @@ defineExpose({ load });
                   : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/50',
                 item.available ? '' : 'opacity-60',
               ]"
-              @click="toggle(item)"
+              @click="onRowClick('item', item)"
+              @dblclick="openRow('item', item)"
+              @contextmenu.prevent="openMenu($event, 'item', item)"
+              @pointerdown="startPress($event, 'item', item)"
+              @pointermove="movePress"
+              @pointerup="cancelPress"
+              @pointercancel="cancelPress"
             >
               <input
                 type="checkbox"
@@ -805,6 +1007,7 @@ defineExpose({ load });
                 :aria-label="t('trash.actions.select', { name: item.name })"
                 @click.stop
                 @change="toggle(item)"
+                @keydown="onMenuKey($event, 'item', item)"
               />
               <div class="flex min-w-0 items-center gap-2">
                 <FileIcon :item="iconItem(item)" class="h-5 w-5 shrink-0" />
@@ -867,6 +1070,16 @@ defineExpose({ load });
         </div>
       </template>
     </div>
+
+    <TrashContextMenu
+      :open="menuState.open"
+      :x="menuState.x"
+      :y="menuState.y"
+      :sections="menuSections"
+      :label="menuLabel"
+      @select="runMenuAction"
+      @close="closeMenu"
+    />
 
     <ModalDialog :model-value="Boolean(pendingConfirm)" @update:model-value="closeConfirm">
       <template #title>{{ confirmTitle }}</template>

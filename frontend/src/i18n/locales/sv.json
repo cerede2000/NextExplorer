@@ -86,7 +86,8 @@
     "wrapLines": "Radbrytning",
     "confirmCloseWithoutSaving": "Du har osparade ändringar. Stäng utan att spara?",
     "selectTheme": "Välj redigerarens tema",
-    "raw": "Rå"
+    "raw": "Rå",
+    "trashReadOnly": "I papperskorgen · skrivskyddad"
   },
   "status": {
     "updated": "Uppdaterades",
@@ -944,6 +945,12 @@
       "hint": "Återställ lägger tillbaka varje markerat objekt på sin plats i den här mappen. Resten ligger kvar i papperskorgen.",
       "empty": "Den här mappen är tom.",
       "back": "Tillbaka till papperskorgen"
+    },
+    "contextMenu": {
+      "label": "Åtgärder för {name}",
+      "labelMany": "Åtgärder för {count} objekt",
+      "open": "Öppna",
+      "preview": "Förhandsgranska"
     }
   }
 }

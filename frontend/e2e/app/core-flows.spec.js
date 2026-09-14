@@ -304,3 +304,38 @@ test('a deleted file can be restored into another folder', async () => {
   expect(trashPayloads()).toEqual([]);
   await expect(page.getByText('The trash is empty.')).toBeVisible();
 });
+
+/**
+ * A deleted script can be read before deciding: a right click, Preview, and the
+ * editor shows it — read only, nothing to save — then Close is back in the trash.
+ */
+test('a deleted script is read in the editor from the right-click menu, and cannot be changed', async () => {
+  const script = path.join(volume, 'deploy.sh');
+  fs.writeFileSync(script, '#!/bin/sh\necho deployed\n');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select deploy.sh' }).click();
+  await page.keyboard.press('Delete');
+  await page.getByRole('dialog').getByRole('button', { name: 'Move to Trash' }).click();
+  await expect.poll(() => fs.existsSync(script)).toBe(false);
+  await expect.poll(() => trashPayloads().length).toBe(1);
+
+  await page.goto('/trash');
+  await page.locator('[data-trash-row]', { hasText: 'deploy.sh' }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Preview' }).click();
+
+  await expect(page).toHaveURL(/\/trash\/view\//);
+  await expect(page.getByText('In the trash · read only')).toBeVisible();
+  const content = page.locator('.cm-content');
+  await expect(content).toContainText('echo deployed');
+  await expect(content).toHaveAttribute('contenteditable', 'false');
+  await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page).toHaveURL(/\/trash$/);
+  // Read, not restored: it is still in the trash, as it was.
+  expect(trashPayloads()).toHaveLength(1);
+  expect(fs.readFileSync(path.join(trashDirectory, trashPayloads()[0]), 'utf8')).toBe(
+    '#!/bin/sh\necho deployed\n'
+  );
+});
