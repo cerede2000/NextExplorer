@@ -164,10 +164,14 @@ hard each is.
   per-path authorization layer already exists; the work is serving WebDAV
   through it without going around it. High effort, and the security is where
   the care goes.
-- **A trash.** A file manager with no net is one people distrust. Deletion here
-  is final, which is coherent for something operating on a real filesystem, but
-  it is a choice we ended up with rather than one we made. Done properly: a
-  folder per volume, a retention period, and the space accounting that implies.
+- **A trash, and file versions.** Nobody has shipped a trash among the three:
+  Quantum's README marks it as in progress, with the request open since April
+  2025 (gtsteffaniak/filebrowser#543); Filestash lists none; caby has neither.
+  Versions are the other way round — Filestash lists versioning among its
+  features, Quantum and caby do not have it. The rest of the expectation comes
+  from NAS software (a `#recycle` folder per shared folder, on by default,
+  emptied on a schedule) and from OneDrive and Nextcloud for versions. A design
+  covering both, in one reserved space per volume, is being costed.
 - **An activity log.** Who downloaded what, when, from which share. The share
   counters are already in the database; what is missing is the table, the
   retention and the page. This is the feature that decides whether a deployment
@@ -175,7 +179,9 @@ hard each is.
 - **Two-factor on local accounts.** With OIDC the provider handles it. Without
   — the simplest mode, and therefore the most common — a password is all that
   stands in front of an entire filesystem. TOTP is a small amount of code for a
-  disproportionate gain.
+  disproportionate gain. Nobody has asked for it, upstream or here, but Quantum
+  already offers it — password and 2FA are in its README — so this is catching
+  up, not getting ahead.
 - **Space quotas.** Needed the moment personal folders are opened to people who
   are not administrators. The recursive folder-size index already does the
   counting; a quota is that count, a limit, and a refusal in the right place.
@@ -225,38 +231,6 @@ Two things decide whether this is any good:
 
 No security dimension: what opens a file does not change who may read it.
 
-## Releasing an account that has locked itself out
-
-Five failed attempts on an address lock it for fifteen minutes
-(`AUTH_MAX_FAILED`, `AUTH_LOCK_MINUTES`). It clears itself when the time is up,
-and a successful sign-in clears the counter too — so nothing is ever stuck
-permanently, and the answer to "how do I unlock this" is currently "wait".
-
-What is missing is everything between: **Settings → Users** shows no sign that
-an account is locked, and there is no way to release one. An administrator
-whose colleague locked themselves out five minutes before a meeting has two
-options today, waiting and editing `auth_locks` in the SQLite database.
-
-What it should become:
-
-- A locked account is **visibly locked** in the user list, with the time it
-  frees itself at. Someone looking at the list to work out why a person cannot
-  sign in should find the answer there.
-- An administrator can **release one**, which is a delete of that row and
-  nothing more.
-- The sign-in screen says how long, rather than only that the account is
-  locked. Most of the questions this generates are that message not being
-  written.
-
-Worth knowing before building it: **the lock is keyed on the email address
-alone**, not on a session or an address. Anyone who knows a colleague's address
-can lock it for fifteen minutes by guessing wrong five times — the login rate
-limit bounds how fast, but does not prevent it. An administrator who can see
-and clear the lock is the answer to that, rather than a longer lockout, which
-would make it worse.
-
-Asked for upstream in [nxzai/NextExplorer#370](https://github.com/nxzai/NextExplorer/issues/370).
-
 ## Cleaning up what points at a volume that is gone
 
 Startup reports favourites, shares, recent destinations and folder preferences
@@ -293,77 +267,32 @@ guessed:
 
 That second figure decides the shape of it: OCR cannot happen while someone
 waits for search results. It only makes sense against an index built
-beforehand — so this waits on [full-text indexing](#full-text-index-for-search)
-and would be off by default when it arrives.
-
-## Full-text index for search
-
-Searching contents means walking the tree and reading files on every query.
-It works, and it does not rank: results come in the order they are found.
-
-SQLite's FTS5 is already available in `better-sqlite3` — no service to run, no
-dependency to add — and `snippet()` produces exactly the matched line the
-results already show. The hooks to keep an index current exist too:
-`folderSizeHooks` is called on every write, replace and rename, `pathBindings`
-follows moves, and the folder-size index is a working model of periodic
-reconciliation for whatever changes outside the application.
-
-Two things to decide before starting:
-
-- **What is stored.** An FTS5 table that keeps the text is roughly a fifth to a
-  half of it; a contentless one stores only the terms and is far smaller, at
-  the cost of re-reading the file to show the matched line — which is no cost
-  at all, since the path is right there.
-- **Permissions.** The index does not know who may read what, so results are
-  filtered after the query rather than in it, exactly as the live search does
-  now.
+beforehand, and that index exists now — `search_terms`, a contentless FTS5
+table the search indexer keeps current — so OCR would feed it, off by default.
 
 ## What the code audit of 2 September 2026 decided
 
 The [full report](https://claude.ai/code/artifact/da8cc67c-dc48-48fa-bca2-f878ed783280)
-has the measurements. What follows is the order the work goes in, and it is not
-the order of severity: **two of the three most valuable pieces cannot be done
-safely until the first one exists.**
+has the measurements. The order it set — a route suite first, then the two
+changes that needed one underneath — has been followed to the end:
 
-### 1. Tests for the ten route modules that have none of their own — done
-
-All ten are done. What they turned up is in the commits: a rule written twice,
-two places answering 500 where 404 belonged, an unreachable branch, and six
-tests of my own that passed whether the guard existed or not.
-
-Some are traversed indirectly by other suites, which is why coverage is not
-zero — but nobody has written down what they must answer. The four done so far
-went from 18–28 % of statements and 0 % of branches to 66–87 % and 26–75 %, and
-each turned something up: a rule written twice, a 500 where a 404 belonged, and
-three tests of my own that passed whether the guard existed or not.
-
-This was the net the next two steps hang from. Backend coverage went from 65.3 %
-of statements and 54.4 % of branches to 69.1 % and 57.9 %.
-
-One thing learned worth carrying: `authorizeAndResolve` never returns a resolved
-path when it refuses, so every `if (!allowed || !resolved)` in the codebase has a
-second half no test can reach. It is a guard against the service changing that
-contract, not a branch with a case behind it — do not spend an hour trying to
-cover it, as I did twice.
-
-### 2. Express 4 → 5, on its own branch
-
-Closes three of the four remaining advisories at once — `express`, `body-parser`
-and `qs` are one chain, and no other fix exists for them. A framework migration
-without a route suite underneath is how something breaks in a way nobody finds
-for three weeks. After step 1, not before.
-
-### 3. Split `accessManager.js:176`
-
-Fifty-three possible paths through the function that decides who may do what.
-Into named predicates, each testable on its own. Same rule: after step 1.
-
-### 4. The frontend, continuously
-
-16.1 % of branches. This is a habit, not a project — a branch nobody executes in
-a test is a state nobody has seen, and in an interface those are the empty
-folder, the refused permission, the interrupted upload. First slice: the error
-states of `fileStore`. Five states, five tests.
+- **Tests for the ten route modules that had none — done.** What they turned
+  up is in the commits: a rule written twice, answers of 500 where 404
+  belonged, an unreachable branch, and tests of my own that passed whether the
+  guard existed or not. One thing worth carrying: `authorizeAndResolve` never
+  returns a resolved path when it refuses, so every `if (!allowed || !resolved)`
+  has a second half no test can reach. It guards the contract; do not spend an
+  hour trying to cover it.
+- **Express 4 → 5 — done.** The backend runs on 5.2.1, which closed the
+  `express`, `body-parser` and `qs` advisories in one move.
+- **Splitting `accessManager.js` — done.** The share decision and the
+  authentication decision are each named questions of their own now; the
+  longest function left in the file is `getVolumeAccess`, at 80 lines.
+- **The frontend, continuously — a habit, not a project.** Branch coverage went
+  from 16.1 % to about 58 %, and CI now holds every figure to a floor
+  (`coverage-thresholds.json`) and every change in behaviour to a test in the
+  same commit. The next states worth seeing are in the files the CI summary
+  ranks weakest: the Settings screens and the wrappers still at zero.
 
 ### Worth doing, not blocking
 
@@ -389,12 +318,10 @@ states of `fileStore`. Five states, five tests.
     no acceptable moment to fetch a library. It wants preloading on
     `dragenter`, or the first drop is slow.
 
-  What it needs first: the composable has **no tests at all** — nine hundred
-  lines, one function of six hundred and thirty. The backend has three suites
-  (`direct-upload`, `tus-upload`, `upload-authorization`); the browser half has
-  none. Cover the failure paths, the XHR/tus fallback and the folder
-  reservation, then defer the construction, then try it in a browser with real
-  files — a drop, and a whole folder.
+  The tests it needed first exist now: `composables/fileUploader.spec.js`
+  covers the failure paths, the XHR/tus fallback and the folder reservation.
+  What is left is the change itself — defer the construction, then try it in a
+  browser with real files: a drop, and a whole folder.
 
   The prize is 150–200 kB gzipped on first load, once. It is the highest risk
   left on this list: a mistake here does not make a page ugly, it loses
@@ -413,17 +340,11 @@ states of `fileStore`. Five states, five tests.
     sorting and the clipboard do not need the store's state and would test
     alone.
 
-  Both want the same order as everything else this audit touched: cover the
-  states first, then split. `fileStore` has the failure paths of
-  `fetchPathItems` covered and nothing else; the context menu has no test at
-  all.
-
-- **Finish the translations for the twelve languages that are not French.** The
-  French catalogue is done — 43 strings — and the parity of all thirteen is now
-  a test. What remains is 41 to 65 strings per language still carrying the
-  English text. Korean has five, German sixty-five; the gap says which have been
-  read by someone. Machine translation is not worth it here: the French
-  catalogue this fork inherited was machine-translated and had to be rewritten.
+  The covering came first, as everything else this audit touched, and it is
+  done: the context menu has its spec, and `fileStore` has seven — listing,
+  navigation, deletion, editing, archives, failures, the thumbnail queue. What
+  is left is the split, and it has grown: `fileStore.js` is 1,181 lines now and
+  the context menu 912.
 
 ### Rules this audit set, for whoever picks the work up
 
