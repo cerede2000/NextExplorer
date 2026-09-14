@@ -52,6 +52,16 @@ const TRASH_DDL = `
   CREATE INDEX IF NOT EXISTS idx_trash_items_deleted_by ON trash_items(deleted_by);
   CREATE INDEX IF NOT EXISTS idx_trash_items_owner ON trash_items(owner_user_id);
 
+  CREATE TABLE IF NOT EXISTS trash_shares (
+    share_id TEXT PRIMARY KEY,
+    item_id TEXT NOT NULL REFERENCES trash_items(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    share_row TEXT NOT NULL,
+    permitted_user_ids TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_trash_shares_item ON trash_shares(item_id);
+
   CREATE TABLE IF NOT EXISTS trash_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     zone_id TEXT NOT NULL,

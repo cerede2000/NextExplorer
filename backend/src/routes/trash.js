@@ -23,7 +23,7 @@ router.get(
 router.post(
   '/trash/restore',
   asyncHandler(async (req, res) => {
-    res.json(await trash.restoreItems(req.body?.ids, contextOf(req)));
+    res.json(await trash.restoreItems(req.body?.ids, contextOf(req), { shares: req.body?.shares }));
   })
 );
 
@@ -40,7 +40,11 @@ router.get(
 router.post(
   '/trash/items/:id/restore',
   asyncHandler(async (req, res) => {
-    res.json(await trash.restoreEntries(req.params.id, req.body?.paths, contextOf(req)));
+    res.json(
+      await trash.restoreEntries(req.params.id, req.body?.paths, contextOf(req), {
+        shares: req.body?.shares,
+      })
+    );
   })
 );
 
@@ -88,7 +92,11 @@ const restoreTo = (planFrom) =>
 // POST /api/trash/restore-to - put items back in a chosen folder, streamed
 router.post(
   '/trash/restore-to',
-  restoreTo((req) => ({ ids: req.body?.ids, destination: req.body?.destination }))
+  restoreTo((req) => ({
+    ids: req.body?.ids,
+    destination: req.body?.destination,
+    shares: req.body?.shares,
+  }))
 );
 
 // POST /api/trash/items/:id/restore-to - put entries of a deleted folder in a chosen folder, streamed
@@ -98,6 +106,7 @@ router.post(
     id: req.params.id,
     paths: req.body?.paths,
     destination: req.body?.destination,
+    shares: req.body?.shares,
   }))
 );
 

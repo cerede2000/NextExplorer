@@ -299,13 +299,22 @@ const getDeleteImpact = async (items = [], options = {}) => {
   const shares = await getSharesForSourceTargets(
     targets.map((target) => target.shareSourceTarget).filter(Boolean)
   );
+  // Into the trash or gone for good, per item, so the confirmation can say
+  // which before anyone presses the button — and, for each, how many share
+  // links it carries: switched off and kept in the trash, or deleted with it.
+  const trashPlan = await trash.describeTargets(targets);
+  trashPlan.items = await Promise.all(
+    trashPlan.items.map(async (entry, index) => {
+      const { shareSourceTarget } = targets[index] || {};
+      const linked = shareSourceTarget ? await getSharesForSourceTargets([shareSourceTarget]) : [];
+      return { ...entry, shareCount: linked.length };
+    })
+  );
 
   return {
     shareCount: shares.length,
     shares,
-    // Into the trash or gone for good, per item, so the confirmation can say
-    // which before anyone presses the button.
-    trash: await trash.describeTargets(targets),
+    trash: trashPlan,
   };
 };
 
@@ -385,7 +394,15 @@ const deleteItems = async (items = [], options = {}) => {
     } else {
       await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
     }
-
+    // In the trash, a share is switched off but kept with the item, so a restore
+    // can bring it back; deleted for good, it goes for good.
+    if (trashItemId) {
+      await trash.suspendShares(
+        trashItemId,
+        shareSourceTarget,
+        affectedShares.map((share) => share.id)
+      );
+    }
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
     // Favorites the deleter had on what just went away: a favorite pointing at
     // nothing is a dead end. Best-effort, and only for a signed-in account.
@@ -419,7 +436,10 @@ module.exports = {
   getDeleteImpact,
   resolveDeleteTargets,
   deleteItems,
-  // The trash restores across disks with a copy that reports progress, copies
-  // a link as a link and is cancellable.
+  // Where a path is, as share links name it: the trash points a restored share
+  // at the place its content went back to.
+  getShareSourceTarget,
+  // The trash restores across disks with a copy that reports progress, copies a
+  // link as a link and is cancellable.
   copyEntryWithProgress,
 };

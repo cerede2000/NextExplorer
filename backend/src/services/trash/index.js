@@ -31,6 +31,7 @@ const operations = require('./operations');
 const { DAY_MS, admission } = require('./policy');
 const { getTrashSettings } = require('./settings');
 const store = require('./store');
+const trashShares = require('./shares');
 const { verifyZone } = require('./verify');
 const zones = require('./zones');
 
@@ -177,7 +178,7 @@ const openPathFor = (item, zone, user, entry = null) => {
   return null;
 };
 
-const present = (item, zone, user, settings, available) => ({
+const present = (item, zone, user, settings, available, shareCount = 0) => ({
   id: item.id,
   name: item.name,
   kind: item.kind,
@@ -194,6 +195,8 @@ const present = (item, zone, user, settings, available) => ({
     : null,
   openPath: openPathFor(item, zone, user),
   available,
+  // Share links switched off with the item, which a restore can bring back.
+  shareCount,
 });
 
 /** What this person's trash holds, newest first. */
@@ -203,6 +206,7 @@ const listItems = async (context) => {
   const db = await getDb();
   const zoneRows = new Map(store.listZones(db).map((zone) => [zone.id, zone]));
   const availability = new Map();
+  const shareCounts = await trashShares.countByItem();
   const items = [];
 
   for (const item of store.listItems(db)) {
@@ -212,7 +216,16 @@ const listItems = async (context) => {
       // eslint-disable-next-line no-await-in-loop
       availability.set(item.zoneId, zone ? (await zones.inspectZone(zone)).available : false);
     }
-    items.push(present(item, zone, user, settings, availability.get(item.zoneId)));
+    items.push(
+      present(
+        item,
+        zone,
+        user,
+        settings,
+        availability.get(item.zoneId),
+        shareCounts.get(item.id) || 0
+      )
+    );
   }
 
   return { enabled: settings.enabled, retentionDays: settings.retentionDays, items };
@@ -251,8 +264,56 @@ const findVisible = (db, id, user) => {
   return item && item.state === 'trashed' && visibleTo(item, user) ? item : null;
 };
 
-const restoreItems = async (ids, context) => {
+/** What the person restoring chose for the share links: bring them back, or let them go. */
+const validateSharesChoice = (choice) => {
+  if (choice === undefined || choice === null) return trashShares.CHOICES.drop;
+  if (Object.values(trashShares.CHOICES).includes(choice)) return choice;
+  throw new ValidationError('Share links are either restored ("restore") or deleted ("drop").');
+};
+
+/**
+ * The share links an item or entry kept in the trash, once it is restored:
+ * brought back pointed at `root` — where its content now is, as shares name a
+ * place — or let go for good. Letting go is also what happens without a root.
+ */
+const settleShares = async (kept, choice, root, options) => {
+  if (!kept.length) return {};
+  if (choice !== trashShares.CHOICES.restore || !root) {
+    return { sharesRestored: 0, sharesDropped: await trashShares.discard(kept) };
+  }
+  const { restored, dropped } = await trashShares.reinstate(kept, root, options);
+  return { sharesRestored: restored, sharesDropped: dropped };
+};
+
+/**
+ * Share links following content restored somewhere else. Pointing a link at a
+ * place someone else chose is its owner's call: an administrator's restore
+ * brings back any share, anyone else's only the shares they own. The others go.
+ */
+const settleSharesElsewhere = async (kept, choice, { context, user, relativePath, entryPath }) => {
+  if (!kept.length) return {};
+  if (choice !== trashShares.CHOICES.restore) return settleShares(kept, choice, null);
+  const theirs = kept.filter((snapshot) => isAdmin(user) || snapshot.share.owner_id === user.id);
+  const others = kept.filter((snapshot) => !theirs.includes(snapshot));
+  let root = null;
+  try {
+    const { resolved } = await authorizeAndResolve(context, relativePath, ACTIONS.read);
+    // eslint-disable-next-line global-require
+    if (resolved) root = require('../fileTransferService').getShareSourceTarget(resolved, false);
+  } catch (error) {
+    logger.debug({ err: error, relativePath }, 'A restored item could not be named for its shares');
+  }
+  const followed = await settleShares(theirs, choice, root, { entryPath });
+  const dropped = await trashShares.discard(others);
+  return {
+    sharesRestored: followed.sharesRestored || 0,
+    sharesDropped: (followed.sharesDropped || 0) + dropped,
+  };
+};
+
+const restoreItems = async (ids, context, { shares } = {}) => {
   const user = requireUser(context);
+  const sharesChoice = validateSharesChoice(shares);
   const db = await getDb();
   const results = [];
 
@@ -267,17 +328,30 @@ const restoreItems = async (ids, context) => {
       results.push({ id, status: 'forbidden', name: item.name });
       continue;
     }
+    // Read first: the item takes the shares it kept with it when it leaves.
+    // eslint-disable-next-line no-await-in-loop
+    const kept = await trashShares.listForItem(id);
     // eslint-disable-next-line no-await-in-loop
     const outcome = await operations.restoreItem(id);
     if (outcome.status === 'restored') {
       announceRestored(item, outcome.restorePath);
+      const restoredName = path.basename(outcome.restorePath);
+      // eslint-disable-next-line no-await-in-loop
+      const sharesOutcome = await settleShares(
+        kept,
+        sharesChoice,
+        kept.length
+          ? trashShares.renamedRoot(trashShares.originalRoot(kept[0]), restoredName)
+          : null
+      );
       results.push({
         id,
         status: 'restored',
         name: item.name,
-        restoredName: path.basename(outcome.restorePath),
+        restoredName,
         renamed: outcome.renamed,
         path: openPathFor(item, store.getZone(db, item.zoneId), user),
+        ...sharesOutcome,
       });
     } else {
       results.push({ id, status: outcome.status, reason: outcome.reason || null, name: item.name });
@@ -342,10 +416,17 @@ const listEntries = async (id, entryPath, context) => {
 
   const settings = await getTrashSettings();
   const zone = store.getZone(db, outcome.item.zoneId);
+  const kept = await trashShares.listForItem(outcome.item.id);
   return {
-    item: present(outcome.item, zone, user, settings, true),
+    item: present(outcome.item, zone, user, settings, true, kept.length),
     path: normalized,
-    entries: outcome.entries,
+    entries: outcome.entries.map((entry) => ({
+      ...entry,
+      shareCount: trashShares.underEntry(
+        kept,
+        normalized ? `${normalized}/${entry.name}` : entry.name
+      ).length,
+    })),
   };
 };
 
@@ -354,9 +435,10 @@ const listEntries = async (id, entryPath, context) => {
  * the folder itself: an entry goes back inside the folder's own original place,
  * so that is the place the right is checked against.
  */
-const restoreEntries = async (id, paths, context) => {
+const restoreEntries = async (id, paths, context, { shares } = {}) => {
   const user = requireUser(context);
   const entries = validateEntryPaths(paths);
+  const sharesChoice = validateSharesChoice(shares);
   const db = await getDb();
   const item = typeof id === 'string' && id ? findVisible(db, id, user) : null;
   if (!item) throw new NotFoundError('This item is not in your trash.');
@@ -372,6 +454,7 @@ const restoreEntries = async (id, paths, context) => {
   }
 
   const zone = store.getZone(db, item.zoneId);
+  const keptInFolder = await trashShares.listForItem(item.id);
   const results = [];
   for (const entry of entries) {
     const name = path.posix.basename(entry);
@@ -388,13 +471,25 @@ const restoreEntries = async (id, paths, context) => {
     }
     if (outcome.status === 'restored') {
       announceRestored(outcome, outcome.restorePath);
+      const restoredName = path.basename(outcome.restorePath);
+      const kept = trashShares.underEntry(keptInFolder, entry);
+      // eslint-disable-next-line no-await-in-loop
+      const sharesOutcome = await settleShares(
+        kept,
+        sharesChoice,
+        kept.length
+          ? trashShares.renamedRoot(trashShares.originalRoot(kept[0], entry), restoredName)
+          : null,
+        { entryPath: entry }
+      );
       results.push({
         entry,
         status: 'restored',
         name,
-        restoredName: path.basename(outcome.restorePath),
+        restoredName,
         renamed: outcome.renamed,
         path: openPathFor(item, zone, user, entry),
+        ...sharesOutcome,
       });
     } else {
       results.push({ entry, status: outcome.status, reason: outcome.reason || null, name });
@@ -443,17 +538,31 @@ const mayCreateIn = async (context, relativePath, kind) => {
  * who is asking, what, and where to. As for a transfer, this part answers with
  * an HTTP error; the restore itself then streams its progress.
  */
-const prepareRestoreTo = async ({ ids, id, paths, destination }, context) => {
+const prepareRestoreTo = async ({ ids, id, paths, destination, shares }, context) => {
   const user = requireUser(context);
+  const sharesChoice = validateSharesChoice(shares);
   const db = await getDb();
   if (id !== undefined) {
     const entries = validateEntryPaths(paths);
     const item = typeof id === 'string' && id ? findVisible(db, id, user) : null;
     if (!item) throw new NotFoundError('This item is not in your trash.');
-    return { context, user, item, entries, target: await resolveDestination(destination, context) };
+    return {
+      context,
+      user,
+      item,
+      entries,
+      sharesChoice,
+      target: await resolveDestination(destination, context),
+    };
   }
   const validIds = validateIds(ids);
-  return { context, user, ids: validIds, target: await resolveDestination(destination, context) };
+  return {
+    context,
+    user,
+    ids: validIds,
+    sharesChoice,
+    target: await resolveDestination(destination, context),
+  };
 };
 
 const PROGRESS_INTERVAL_MS = 100;
@@ -541,6 +650,11 @@ const executeRestoreTo = async (plan, { onEvent = () => {}, signal } = {}) => {
       continue;
     }
 
+    // Read first: a whole item takes the shares it kept with it when it leaves.
+    // eslint-disable-next-line no-await-in-loop
+    const keptForItem = await trashShares.listForItem(item.id);
+    const kept = task.entry ? trashShares.underEntry(keptForItem, task.entry) : keptForItem;
+
     currentName = name;
     emit(true);
     const before = copiedBytes;
@@ -572,13 +686,22 @@ const executeRestoreTo = async (plan, { onEvent = () => {}, signal } = {}) => {
 
     if (outcome.status === 'restored') {
       announceRestored(described, outcome.restorePath);
+      const restoredName = path.basename(outcome.restorePath);
+      // eslint-disable-next-line no-await-in-loop
+      const sharesOutcome = await settleSharesElsewhere(kept, plan.sharesChoice, {
+        context,
+        user,
+        relativePath: `${target.relativePath}/${restoredName}`,
+        entryPath: task.entry || '',
+      });
       results.push({
         ...key,
         status: 'restored',
         name,
-        restoredName: path.basename(outcome.restorePath),
+        restoredName,
         renamed: outcome.renamed,
         path: target.relativePath,
+        ...sharesOutcome,
       });
     } else {
       results.push({ ...key, status: outcome.status, reason: outcome.reason || null, name });
@@ -655,8 +778,12 @@ const verifyAll = async () => {
   return { zones: results };
 };
 
+/** Keep the share links of content going to the trash, so a restore can bring them back. */
+const suspendShares = (itemId, source, shareIds) => trashShares.suspend(itemId, source, shareIds);
+
 module.exports = {
   attributionFor,
+  suspendShares,
   budgetResolver,
   describeTargets,
   trashTarget,

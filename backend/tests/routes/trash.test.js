@@ -211,8 +211,13 @@ describe('what deleting will do, asked before confirming', () => {
       enabled: true,
       retentionDays: 30,
       items: [
-        { path: 'Projects/report.txt', disposition: 'trash', reason: null },
-        { path: 'Projects/mount/other.txt', disposition: 'permanent', reason: 'other-device' },
+        { path: 'Projects/report.txt', disposition: 'trash', reason: null, shareCount: 0 },
+        {
+          path: 'Projects/mount/other.txt',
+          disposition: 'permanent',
+          reason: 'other-device',
+          shareCount: 0,
+        },
       ],
     });
   });
@@ -228,7 +233,7 @@ describe('what deleting will do, asked before confirming', () => {
     });
 
     expect(response.body.trash.items).toEqual([
-      { path: 'Projects/report.txt', disposition: 'permanent', reason: 'disabled' },
+      { path: 'Projects/report.txt', disposition: 'permanent', reason: 'disabled', shareCount: 0 },
     ]);
   });
 
@@ -689,6 +694,286 @@ describe('restoring into a chosen folder', () => {
 
     expect(doneOf(response).items[0]).toMatchObject({ status: 'restored', path: 'Archive' });
     expect(await fs.readFile(volume('Archive/report.txt'), 'utf8')).toBe('from alice');
+  });
+});
+
+/**
+ * The share links of what goes to the trash: switched off at once, kept with
+ * the item, brought back or let go as the person restoring chooses, pointed at
+ * wherever the content comes back to, and gone for good with the item.
+ */
+describe('share links in the trash', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  let shares;
+
+  beforeEach(() => {
+    shares = load('src/services/sharesService');
+  });
+
+  const shareOn = (sourcePath, overrides = {}) =>
+    shares.createShare({
+      ownerId: users.alice.id,
+      sourceSpace: 'volume',
+      sourcePath,
+      isDirectory: false,
+      accessMode: 'readonly',
+      label: 'For the client',
+      password: 'open sesame',
+      expiresAt: new Date(Date.now() + 7 * DAY).toISOString(),
+      ...overrides,
+    });
+  const kept = () =>
+    db
+      .prepare('SELECT share_id, item_id, relative_path FROM trash_shares ORDER BY relative_path')
+      .all();
+  const trashFile = async (relative, content = 'content') => {
+    await write(relative, content);
+    const deleted = await deleteAs(
+      'alice',
+      path.posix.dirname(relative),
+      path.posix.basename(relative)
+    );
+    return deleted.body.items[0];
+  };
+  const restore = (who, body) => as(who).post('/api/trash/restore', body);
+  const doneOf = (response) =>
+    response.text
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .find((event) => event.type === 'done');
+
+  it('switches a share off as its file goes to the trash, and keeps it with the item', async () => {
+    await write('Projects/report.txt');
+    const share = await shareOn('Projects/report.txt');
+
+    const impact = await as('alice').post('/api/files/delete-impact', {
+      items: [{ path: 'Projects', name: 'report.txt' }],
+    });
+    expect(impact.body.trash.items[0]).toMatchObject({ disposition: 'trash', shareCount: 1 });
+
+    const deleted = await deleteAs('alice', 'Projects', 'report.txt');
+
+    expect(deleted.body.items[0]).toMatchObject({ status: 'trashed', deletedShareCount: 1 });
+    expect(await shares.getShareById(share.id)).toBeNull();
+    expect(kept()).toEqual([
+      { share_id: share.id, item_id: deleted.body.items[0].trashItemId, relative_path: '' },
+    ]);
+    expect((await as('alice').get('/api/trash')).body.items[0].shareCount).toBe(1);
+  });
+
+  it('brings the share back as it was when asked to: same link, password, label and expiry', async () => {
+    await write('Projects/report.txt');
+    const share = await shareOn('Projects/report.txt');
+    const { trashItemId: id } = (await deleteAs('alice', 'Projects', 'report.txt')).body.items[0];
+
+    const response = await restore('alice', { ids: [id], shares: 'restore' });
+
+    expect(response.body.items[0]).toMatchObject({
+      status: 'restored',
+      sharesRestored: 1,
+      sharesDropped: 0,
+    });
+    expect(await shares.getShareById(share.id)).toMatchObject({
+      shareToken: share.shareToken,
+      sourcePath: 'Projects/report.txt',
+      label: 'For the client',
+      hasPassword: true,
+      expiresAt: share.expiresAt,
+    });
+    expect(await shares.verifySharePassword(share.id, 'open sesame')).toBe(true);
+    expect(kept()).toEqual([]);
+  });
+
+  it('lets the share go when asked to, and when nothing is said', async () => {
+    await write('Projects/a.txt');
+    await write('Projects/b.txt');
+    const first = await shareOn('Projects/a.txt');
+    const second = await shareOn('Projects/b.txt');
+    const a = (await deleteAs('alice', 'Projects', 'a.txt')).body.items[0].trashItemId;
+    const b = (await deleteAs('alice', 'Projects', 'b.txt')).body.items[0].trashItemId;
+
+    const dropped = await restore('alice', { ids: [a], shares: 'drop' });
+    const unsaid = await restore('alice', { ids: [b] });
+
+    expect(dropped.body.items[0]).toMatchObject({ sharesRestored: 0, sharesDropped: 1 });
+    expect(unsaid.body.items[0]).toMatchObject({ sharesRestored: 0, sharesDropped: 1 });
+    expect(await shares.getShareById(first.id)).toBeNull();
+    expect(await shares.getShareById(second.id)).toBeNull();
+    expect(kept()).toEqual([]);
+  });
+
+  it('deletes it for good with the item deleted for good from the trash', async () => {
+    await write('Projects/report.txt');
+    const share = await shareOn('Projects/report.txt');
+    const { trashItemId: id } = (await deleteAs('alice', 'Projects', 'report.txt')).body.items[0];
+
+    await as('alice').post('/api/trash/delete', { ids: [id] });
+
+    expect(kept()).toEqual([]);
+    expect(await shares.getShareById(share.id)).toBeNull();
+  });
+
+  it('keeps nothing of a share when its file is deleted for good straight away', async () => {
+    await write('Projects/report.txt');
+    const share = await shareOn('Projects/report.txt');
+
+    const deleted = await deleteAs('alice', 'Projects', 'report.txt', { permanent: true });
+
+    expect(deleted.body.items[0]).toMatchObject({ status: 'deleted', deletedShareCount: 1 });
+    expect(kept()).toEqual([]);
+    expect(await shares.getShareById(share.id)).toBeNull();
+  });
+
+  it('points the share at the name the file came back under', async () => {
+    await write('Projects/report.txt', 'deleted');
+    const share = await shareOn('Projects/report.txt');
+    const { trashItemId: id } = (await deleteAs('alice', 'Projects', 'report.txt')).body.items[0];
+    await write('Projects/report.txt', 'written since');
+
+    await restore('alice', { ids: [id], shares: 'restore' });
+
+    expect((await shares.getShareById(share.id)).sourcePath).toBe('Projects/report (1).txt');
+  });
+
+  it('keeps the shares inside a deleted folder, and brings back those of the entries restored', async () => {
+    await write('Projects/client/brief.txt');
+    await write('Projects/client/drafts/v1.txt');
+    const folderShare = await shareOn('Projects/client', { isDirectory: true });
+    const fileShare = await shareOn('Projects/client/drafts/v1.txt');
+    const id = (await deleteAs('alice', 'Projects', 'client')).body.items[0].trashItemId;
+
+    expect(kept().map((row) => row.relative_path)).toEqual(['', 'drafts/v1.txt']);
+    const inside = await as('alice').get(`/api/trash/items/${id}/entries?path=drafts`);
+    expect(inside.body.item.shareCount).toBe(2);
+    expect(inside.body.entries).toEqual([
+      expect.objectContaining({ name: 'v1.txt', shareCount: 1 }),
+    ]);
+
+    const response = await as('alice').post(`/api/trash/items/${id}/restore`, {
+      paths: ['drafts'],
+      shares: 'restore',
+    });
+
+    expect(response.body.items[0]).toMatchObject({ status: 'restored', sharesRestored: 1 });
+    expect((await shares.getShareById(fileShare.id)).sourcePath).toBe(
+      'Projects/client/drafts/v1.txt'
+    );
+    expect(kept().map((row) => row.share_id)).toEqual([folderShare.id]);
+
+    await as('alice').post('/api/trash/delete', { ids: [id] });
+    expect(kept()).toEqual([]);
+    expect(await shares.getShareById(folderShare.id)).toBeNull();
+  });
+
+  it('follows content restored somewhere else', async () => {
+    await fs.mkdir(volume('Archive'), { recursive: true });
+    await write('Projects/report.txt');
+    const share = await shareOn('Projects/report.txt');
+    const { trashItemId: id } = (await deleteAs('alice', 'Projects', 'report.txt')).body.items[0];
+
+    const response = await as('alice').post('/api/trash/restore-to', {
+      ids: [id],
+      destination: 'Archive',
+      shares: 'restore',
+    });
+
+    expect(doneOf(response).items[0]).toMatchObject({ status: 'restored', sharesRestored: 1 });
+    expect(await shares.getShareById(share.id)).toMatchObject({
+      sourceSpace: 'volume',
+      sourcePath: 'Archive/report.txt',
+      shareToken: share.shareToken,
+    });
+  });
+
+  /** Pointing someone else's link at a place of one's choosing is not one's call. */
+  it('brings elsewhere only the shares of the person restoring, unless they administer', async () => {
+    await fs.mkdir(volume('Archive'), { recursive: true });
+    await write('Projects/a.txt');
+    await write('Projects/b.txt');
+    const alicesOnA = await shareOn('Projects/a.txt');
+    const adminsOnA = await shareOn('Projects/a.txt', { ownerId: users.admin.id });
+    const adminsOnB = await shareOn('Projects/b.txt', { ownerId: users.admin.id });
+    const a = (await deleteAs('alice', 'Projects', 'a.txt')).body.items[0].trashItemId;
+    const b = (await deleteAs('alice', 'Projects', 'b.txt')).body.items[0].trashItemId;
+
+    const byAlice = await as('alice').post('/api/trash/restore-to', {
+      ids: [a],
+      destination: 'Archive',
+      shares: 'restore',
+    });
+    const byAdmin = await as('admin').post('/api/trash/restore-to', {
+      ids: [b],
+      destination: 'Archive',
+      shares: 'restore',
+    });
+
+    expect(doneOf(byAlice).items[0]).toMatchObject({ sharesRestored: 1, sharesDropped: 1 });
+    expect((await shares.getShareById(alicesOnA.id)).sourcePath).toBe('Archive/a.txt');
+    expect(await shares.getShareById(adminsOnA.id)).toBeNull();
+    expect(doneOf(byAdmin).items[0]).toMatchObject({ sharesRestored: 1, sharesDropped: 0 });
+    expect((await shares.getShareById(adminsOnB.id)).sourcePath).toBe('Archive/b.txt');
+  });
+
+  it('brings back the people a share was for', async () => {
+    await write('Projects/report.txt');
+    const share = await shareOn('Projects/report.txt', {
+      sharingType: 'users',
+      userIds: [users.bob.id],
+    });
+    const { trashItemId: id } = (await deleteAs('alice', 'Projects', 'report.txt')).body.items[0];
+
+    await restore('alice', { ids: [id], shares: 'restore' });
+
+    expect((await shares.getShareById(share.id)).permittedUserIds).toEqual([users.bob.id]);
+  });
+
+  it('lets go of a share that expired in the trash, or whose owner is gone', async () => {
+    await write('Projects/a.txt');
+    await write('Projects/b.txt');
+    const expiring = await shareOn('Projects/a.txt', {
+      expiresAt: new Date(Date.now() + DAY).toISOString(),
+    });
+    const orphaned = await shareOn('Projects/b.txt', { ownerId: users.bob.id });
+    const a = (await deleteAs('alice', 'Projects', 'a.txt')).body.items[0].trashItemId;
+    const b = (await deleteAs('alice', 'Projects', 'b.txt')).body.items[0].trashItemId;
+    vi.spyOn(load('src/services/trash/clock'), 'now').mockReturnValue(Date.now() + 2 * DAY);
+    db.prepare('DELETE FROM users WHERE id = ?').run(users.bob.id);
+
+    const response = await restore('alice', { ids: [a, b], shares: 'restore' });
+
+    expect(
+      response.body.items.map((result) => [result.sharesRestored, result.sharesDropped])
+    ).toEqual([
+      [0, 1],
+      [0, 1],
+    ]);
+    expect(await shares.getShareById(expiring.id)).toBeNull();
+    expect(await shares.getShareById(orphaned.id)).toBeNull();
+  });
+
+  it('brings back the share of a personal file in its own space', async () => {
+    const { resolvePersonalPath } = load('src/utils/pathUtils');
+    const personalFile = await resolvePersonalPath('notes/today.txt', users.alice);
+    await fs.mkdir(path.dirname(personalFile), { recursive: true });
+    await fs.writeFile(personalFile, 'dear diary');
+    const share = await shareOn('notes/today.txt', { sourceSpace: 'personal' });
+    const { trashItemId: id } = (await deleteAs('alice', 'personal/notes', 'today.txt')).body
+      .items[0];
+
+    expect(kept()).toEqual([{ share_id: share.id, item_id: id, relative_path: '' }]);
+    await restore('alice', { ids: [id], shares: 'restore' });
+
+    expect(await shares.getShareById(share.id)).toMatchObject({
+      sourceSpace: 'personal',
+      sourcePath: 'notes/today.txt',
+    });
+  });
+
+  it('refuses a choice for the share links it does not know', async () => {
+    const { trashItemId: id } = await trashFile('Projects/report.txt');
+
+    expect((await restore('alice', { ids: [id], shares: 'maybe' })).status).toBe(400);
   });
 });
 
