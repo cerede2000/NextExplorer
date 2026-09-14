@@ -12,6 +12,9 @@ const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
 const { track: trackInFlight } = require('./inFlightFiles');
+const trash = require('./trash');
+const { getTrashSettings } = require('./trash/settings');
+const favoritesService = require('./favoritesService');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -240,6 +243,10 @@ const resolveDeleteTargets = async (items = [], context) => {
       item,
       relativePath,
       absolutePath,
+      // Where it was reached through, and the share when it was one: the trash
+      // records whose folder or share a deletion came from.
+      space: resolved.space,
+      shareInfo: resolved.shareInfo || null,
       exists,
       stats,
       isDirectory,
@@ -263,7 +270,16 @@ const getDeleteImpact = async (items = [], options = {}) => {
   return {
     shareCount: shares.length,
     shares,
+    // Into the trash or gone for good, per item, so the confirmation can say
+    // which before anyone presses the button.
+    trash: await trash.describeTargets(targets),
   };
+};
+
+const createCancellationError = () => {
+  const error = new Error('Operation cancelled.');
+  error.code = 'OPERATION_CANCELLED';
+  return error;
 };
 
 const deleteItems = async (items = [], options = {}) => {
@@ -272,9 +288,29 @@ const deleteItems = async (items = [], options = {}) => {
     user: options.user || null,
     guestSession: options.guestSession || null,
   };
-  const targets = await resolveDeleteTargets(items, context);
+  // The route may have resolved (and authorized) the targets already, so the
+  // work is not repeated just to stream the result.
+  const targets = options.targets || (await resolveDeleteTargets(items, context));
+
+  // Into the trash unless the caller asked for a permanent deletion, or the
+  // trash is switched off. Asked once for the whole selection.
+  const trashSettings = options.permanent === true ? null : await getTrashSettings();
+  const useTrash = Boolean(trashSettings?.enabled);
+  const budgetFor = useTrash ? trash.budgetResolver(trashSettings) : null;
+
+  let completedItems = 0;
+  const reportProgress = (target, relativePath) => {
+    completedItems += 1;
+    options.onProgress?.({
+      completedItems,
+      totalItems: targets.length,
+      currentName: target.item?.name || relativePath,
+      percent: Math.round((completedItems / targets.length) * 100),
+    });
+  };
 
   for (const target of targets) {
+    if (options.signal?.aborted) throw createCancellationError();
     const { relativePath, absolutePath, exists, stats, isDirectory, shareSourceTarget } = target;
     const affectedShares = shareSourceTarget
       ? await getSharesForSourceTargets([shareSourceTarget])
@@ -286,16 +322,60 @@ const deleteItems = async (items = [], options = {}) => {
       if (deletedShareCount > 0) {
         results[results.length - 1].deletedShareCount = deletedShareCount;
       }
+      reportProgress(target, relativePath);
       continue;
     }
 
-    await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
+    let trashItemId = null;
+    if (useTrash) {
+      const outcome = await trash.trashTarget(target, context, { budgetFor });
+      if (outcome.status === 'missing') {
+        results.push({ path: relativePath, status: 'missing' });
+        reportProgress(target, relativePath);
+        continue;
+      }
+      if (outcome.status !== 'trashed') {
+        // Never turned into a permanent deletion here: the entry stays where it
+        // is, and the person is asked whether to delete it for good.
+        results.push({
+          path: relativePath,
+          status: 'kept',
+          reason: outcome.reason,
+          ...(outcome.reason === 'too-large'
+            ? { size: outcome.size, budgetBytes: outcome.budgetBytes }
+            : {}),
+        });
+        reportProgress(target, relativePath);
+        continue;
+      }
+      trashItemId = outcome.item.id;
+    } else {
+      await fs.rm(absolutePath, { recursive: isDirectory || stats.isDirectory(), force: true });
+    }
+
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
+    // Favorites the deleter had on what just went away: a favorite pointing at
+    // nothing is a dead end. Best-effort, and only for a signed-in account.
+    let removedFavoriteCount = 0;
+    if (context.user?.id) {
+      try {
+        removedFavoriteCount = await favoritesService.removeFavoritesForDeletedPath(
+          context.user.id,
+          relativePath,
+          { includeChildren: isDirectory || stats.isDirectory() }
+        );
+      } catch {
+        // A favorites cleanup must never fail a deletion.
+      }
+    }
     results.push({
       path: relativePath,
-      status: 'deleted',
+      status: trashItemId ? 'trashed' : 'deleted',
+      ...(trashItemId ? { trashItemId } : {}),
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
+      ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
     });
+    reportProgress(target, relativePath);
   }
 
   return results;
@@ -304,5 +384,6 @@ const deleteItems = async (items = [], options = {}) => {
 module.exports = {
   transferItems,
   getDeleteImpact,
+  resolveDeleteTargets,
   deleteItems,
 };
