@@ -227,7 +227,7 @@ describe('restoring', () => {
     await rows()[0].trigger('click');
     await click('[data-test="trash-restore"]');
 
-    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report']);
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report'], {});
     expect(addNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'success',
@@ -290,7 +290,7 @@ describe('restoring', () => {
 
     await wrapper.get('[data-test="trash-select-all"]').trigger('change');
     await click('[data-test="trash-restore"]');
-    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report', 'b']);
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report', 'b'], {});
   });
 });
 
@@ -614,7 +614,7 @@ describe('inside a deleted folder', () => {
     await entryRows()[1].trigger('click');
     await click('[data-test="trash-restore-entries"]');
 
-    expect(restoreTrashEntries).toHaveBeenCalledWith('id-client', ['drafts/v2.txt']);
+    expect(restoreTrashEntries).toHaveBeenCalledWith('id-client', ['drafts/v2.txt'], {});
     expect(addNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'success',
@@ -676,7 +676,7 @@ describe('inside a deleted folder', () => {
     await wrapper.get('[data-test="trash-select-all-entries"]').trigger('change');
     await click('[data-test="trash-restore-entries"]');
 
-    expect(restoreTrashEntries).toHaveBeenCalledWith('id-client', ['drafts', 'brief.txt']);
+    expect(restoreTrashEntries).toHaveBeenCalledWith('id-client', ['drafts', 'brief.txt'], {});
     expect(addNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'warning',
@@ -703,7 +703,7 @@ describe('inside a deleted folder', () => {
 
     await click('[data-test="trash-restore-folder"]');
 
-    expect(restoreTrashItems).toHaveBeenCalledWith(['id-client']);
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-client'], {});
     expect(push).toHaveBeenCalledWith({ name: 'Trash', query: {} });
   });
 
@@ -804,7 +804,7 @@ describe('the right-click menu', () => {
 
     restoreTrashItems.mockResolvedValue({ items: [] });
     await choose('trash.actions.restore');
-    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report']);
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report'], {});
     expect(menu()).toBeNull();
   });
 
@@ -928,5 +928,155 @@ describe('the right-click menu', () => {
       name: 'TrashFileViewer',
       params: { itemId: 'id-client', entryPath: ['drafts', 'v1.txt'] },
     });
+  });
+});
+
+/**
+ * Share links kept with what went to the trash. Restoring asks what becomes of
+ * them — only when there are some — and nothing is restored when the question
+ * is closed; deleting for good says they go too.
+ */
+describe('share links kept in the trash', () => {
+  const openList = (list) => open({ enabled: true, retentionDays: 30, items: list });
+  const shared = (overrides = {}) => item({ shareCount: 2, ...overrides });
+  const question = () => document.body.querySelector('[data-test="trash-shares-message"]');
+  const answer = async (testId) => {
+    document.body.querySelector(`[data-test="${testId}"]`).click();
+    await flushPromises();
+  };
+  const restored = (overrides = {}) => ({
+    id: 'id-report',
+    status: 'restored',
+    name: 'report.txt',
+    restoredName: 'report.txt',
+    renamed: false,
+    path: 'Projects/a/b',
+    ...overrides,
+  });
+
+  it('marks an item that had share links', async () => {
+    await openList([shared(), item({ id: 'b', name: 'b.txt' })]);
+
+    expect(rows()[0].get('[data-test="trash-shared"]').attributes('title')).toBe(
+      'trash.shares.badgeTitle {"count":2}'
+    );
+    expect(rows()[1].find('[data-test="trash-shared"]').exists()).toBe(false);
+  });
+
+  it('asks what becomes of the links before restoring, and brings them back when told to', async () => {
+    await openList([shared()]);
+    restoreTrashItems.mockResolvedValue({
+      items: [restored({ sharesRestored: 2, sharesDropped: 0 })],
+    });
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore"]');
+
+    expect(restoreTrashItems).not.toHaveBeenCalled();
+    expect(question().textContent).toContain('trash.shares.chooseMessage {"count":2}');
+    expect(document.body.querySelector('[data-test="trash-shares-elsewhere"]')).toBeNull();
+
+    await answer('trash-shares-keep');
+
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report'], { shares: 'restore' });
+    expect(addNotification.mock.calls[0][0].body).toContain('trash.shares.restored {"count":2}');
+    expect(question()).toBeNull();
+  });
+
+  it('lets the links go when told to', async () => {
+    await openList([shared()]);
+    restoreTrashItems.mockResolvedValue({
+      items: [restored({ sharesRestored: 0, sharesDropped: 2 })],
+    });
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore"]');
+    await answer('trash-shares-drop');
+
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report'], { shares: 'drop' });
+    expect(addNotification.mock.calls[0][0].body).toContain('trash.shares.dropped {"count":2}');
+  });
+
+  it('restores nothing when the question is closed', async () => {
+    await openList([shared()]);
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore"]');
+    await answer('trash-shares-cancel');
+
+    expect(restoreTrashItems).not.toHaveBeenCalled();
+    expect(question()).toBeNull();
+  });
+
+  it('asks nothing when nothing had share links', async () => {
+    await openList([item()]);
+    restoreTrashItems.mockResolvedValue({ items: [] });
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore"]');
+
+    expect(question()).toBeNull();
+    expect(restoreTrashItems).toHaveBeenCalledWith(['id-report'], {});
+  });
+
+  it('says the links will follow when restoring somewhere else', async () => {
+    await openList([shared()]);
+    pick.mockResolvedValue('Archive');
+    restoreTrashItemsTo.mockResolvedValue({ destination: 'Archive', items: [] });
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore-to"]');
+
+    expect(document.body.querySelector('[data-test="trash-shares-elsewhere"]')).not.toBeNull();
+    await answer('trash-shares-keep');
+
+    expect(restoreTrashItemsTo).toHaveBeenCalledWith(
+      ['id-report'],
+      'Archive',
+      expect.objectContaining({ shares: 'restore' })
+    );
+  });
+
+  it('asks about the links of the entries restored out of a deleted folder, and only those', async () => {
+    route.query = { item: 'id-client' };
+    const entry = (name, shareCount) => ({
+      name,
+      kind: 'file',
+      size: 2,
+      modifiedAt: '2026-09-01T10:00:00.000Z',
+      shareCount,
+    });
+    getTrashEntries.mockResolvedValue({
+      item: item({ id: 'id-client', name: 'client', kind: 'directory', shareCount: 1 }),
+      path: '',
+      entries: [entry('v1.txt', 1), entry('b.txt', 0)],
+    });
+    restoreTrashEntries.mockResolvedValue({ items: [] });
+    await openList([]);
+    const entryRows = () => wrapper.findAll('[data-trash-entry]');
+
+    expect(entryRows()[0].find('[data-test="trash-shared"]').exists()).toBe(true);
+    await entryRows()[1].trigger('click');
+    await click('[data-test="trash-restore-entries"]');
+    expect(question()).toBeNull();
+    expect(restoreTrashEntries).toHaveBeenLastCalledWith('id-client', ['b.txt'], {});
+
+    await entryRows()[1].trigger('click');
+    await entryRows()[0].trigger('click');
+    await click('[data-test="trash-restore-entries"]');
+    expect(question().textContent).toContain('"count":1');
+    await answer('trash-shares-drop');
+    expect(restoreTrashEntries).toHaveBeenLastCalledWith('id-client', ['v1.txt'], {
+      shares: 'drop',
+    });
+  });
+
+  it('says the links go for good with what is deleted for good', async () => {
+    await openList([shared()]);
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-delete"]');
+
+    expect(dialogText()).toContain('trash.shares.deleteNotice');
   });
 });

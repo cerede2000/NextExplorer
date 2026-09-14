@@ -102,6 +102,28 @@ describe('the trash API', () => {
     expect(JSON.parse(options.body)).toEqual({ paths: ['drafts/v2.txt'], destination: 'Archive' });
   });
 
+  it('says what becomes of the share links when it is asked', async () => {
+    await api.restoreTrashItems(['a'], { shares: 'restore' });
+    expect(call().body).toEqual({ ids: ['a'], shares: 'restore' });
+
+    await api.restoreTrashEntries('a', ['drafts'], { shares: 'drop' });
+    expect(call().body).toEqual({ paths: ['drafts'], shares: 'drop' });
+
+    await api.restoreTrashItemsTo(['a'], 'Archive', { shares: 'restore' });
+    expect(JSON.parse(requestStream.mock.calls.at(-1)[1].body)).toEqual({
+      ids: ['a'],
+      destination: 'Archive',
+      shares: 'restore',
+    });
+
+    await api.restoreTrashEntriesTo('a', ['drafts'], 'Archive', { shares: 'drop' });
+    expect(JSON.parse(requestStream.mock.calls.at(-1)[1].body)).toEqual({
+      paths: ['drafts'],
+      destination: 'Archive',
+      shares: 'drop',
+    });
+  });
+
   it('deletes the chosen items for good', async () => {
     await api.deleteTrashItems(['a']);
 

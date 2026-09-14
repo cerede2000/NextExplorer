@@ -13,8 +13,9 @@ async function getTrash() {
   return requestJson('/api/trash', { method: 'GET' });
 }
 
-async function restoreTrashItems(ids) {
-  return post('/api/trash/restore', { ids });
+/** `shares`: what becomes of the share links the items kept — 'restore' or 'drop'. */
+async function restoreTrashItems(ids, { shares } = {}) {
+  return post('/api/trash/restore', shares ? { ids, shares } : { ids });
 }
 
 /** What a deleted folder holds, at `entryPath` inside it ('' for its top). */
@@ -37,8 +38,11 @@ async function getTrashFileText(id, entryPath = '') {
 }
 
 /** Put back entries from inside a deleted folder; the rest of it stays in the trash. */
-async function restoreTrashEntries(id, paths) {
-  return post(`/api/trash/items/${encodeURIComponent(id)}/restore`, { paths });
+async function restoreTrashEntries(id, paths, { shares } = {}) {
+  return post(
+    `/api/trash/items/${encodeURIComponent(id)}/restore`,
+    shares ? { paths, shares } : { paths }
+  );
 }
 
 /**
@@ -46,20 +50,20 @@ async function restoreTrashEntries(id, paths) {
  * is a copy: `onEvent` receives start and progress, and the result is the final
  * `{ destination, items }`.
  */
-async function restoreTrashItemsTo(ids, destination, { onEvent, signal } = {}) {
+async function restoreTrashItemsTo(ids, destination, { onEvent, signal, shares } = {}) {
   return requestStream('/api/trash/restore-to', {
     method: 'POST',
-    body: JSON.stringify({ ids, destination }),
+    body: JSON.stringify(shares ? { ids, destination, shares } : { ids, destination }),
     onEvent,
     signal,
   });
 }
 
 /** Put entries of a deleted folder in a chosen folder, streamed the same way. */
-async function restoreTrashEntriesTo(id, paths, destination, { onEvent, signal } = {}) {
+async function restoreTrashEntriesTo(id, paths, destination, { onEvent, signal, shares } = {}) {
   return requestStream(`/api/trash/items/${encodeURIComponent(id)}/restore-to`, {
     method: 'POST',
-    body: JSON.stringify({ paths, destination }),
+    body: JSON.stringify(shares ? { paths, destination, shares } : { paths, destination }),
     onEvent,
     signal,
   });

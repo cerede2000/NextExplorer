@@ -581,6 +581,44 @@ describe('what the delete confirmation says', () => {
     expect(view.deleteShareImpactMessage).toContain('"count":3');
   });
 
+  /** Into the trash, a share link stops working but is kept for a restore. */
+  it('says the share links can come back when it goes to the trash', async () => {
+    getDeleteImpact.mockResolvedValue({
+      shareCount: 2,
+      shares: [],
+      trash: {
+        enabled: true,
+        retentionDays: 30,
+        items: [{ path: 'x', disposition: 'trash', reason: null, shareCount: 2 }],
+      },
+    });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteShareImpactMessage).toContain('context.deleteLinkedSharesTrash');
+    expect(view.deleteShareImpactMessage).toContain('"count":2');
+    expect(view.deleteShareImpactMessage).not.toContain('Permanent');
+  });
+
+  it('says the share links go for good with what cannot go to the trash', async () => {
+    getDeleteImpact.mockResolvedValue({
+      shareCount: 1,
+      shares: [],
+      trash: {
+        enabled: true,
+        retentionDays: 30,
+        items: [{ path: 'x', disposition: 'permanent', reason: null, shareCount: 1 }],
+      },
+    });
+    const { view } = await openOn(FILE);
+
+    await clickLabel('common.delete');
+
+    expect(view.deleteShareImpactMessage).toContain('context.deleteLinkedSharesPermanent');
+    expect(view.deleteShareImpactMessage).not.toContain('LinkedSharesTrash');
+  });
+
   it('says nothing about shares when none point at it', async () => {
     const { view } = await openOn(FILE);
 
@@ -721,9 +759,13 @@ describe('what the delete confirmation says', () => {
   it('explains how much too large an item turned away by the trash was', async () => {
     const { view } = await openOn(FILE);
 
-    expect(view.keptItemReason({ reason: 'too-large', size: 50 * 1024 ** 2, budgetBytes: 20 * 1024 ** 2 })).toBe(
-      'context.keptReasons.tooLarge {"size":"50 MB","budget":"20 MB"}'
-    );
+    expect(
+      view.keptItemReason({
+        reason: 'too-large',
+        size: 50 * 1024 ** 2,
+        budgetBytes: 20 * 1024 ** 2,
+      })
+    ).toBe('context.keptReasons.tooLarge {"size":"50 MB","budget":"20 MB"}');
     expect(view.keptItemReason({ reason: 'zone-root' })).toBe('context.trashReasons.zoneRoot');
   });
 
@@ -978,7 +1020,11 @@ describe('marking a folder as a favourite', () => {
   /** A second click while the first is in flight would add it twice. */
   it('ignores a second click while the first is still going', async () => {
     let release;
-    favorites.addFavorite.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+    favorites.addFavorite.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
     const { view } = await openOn(FOLDER);
 
     const first = view.runToggleFavoriteForDirectory();

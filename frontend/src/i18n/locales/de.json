@@ -291,7 +291,9 @@
     "keptMessage": "Dieses Element wurde an seinem Ort belassen. Endgültig löschen? | Diese {count} Elemente wurden an ihrem Ort belassen. Endgültig löschen?",
     "keptReasons": {
       "tooLarge": "{size}, mehr als die {budget}, die der Papierkorb seines Volumes fassen kann."
-    }
+    },
+    "deleteLinkedSharesTrash": "Für diesen Inhalt gibt es {count} Freigabelink. Er funktioniert nicht, solange der Inhalt im Papierkorb liegt, und kann beim Wiederherstellen zurückgeholt werden. | Für diesen Inhalt gibt es {count} Freigabelinks. Sie funktionieren nicht, solange der Inhalt im Papierkorb liegt, und können beim Wiederherstellen zurückgeholt werden.",
+    "deleteLinkedSharesPermanent": "Für diesen Inhalt gibt es {count} Freigabelink, der mit ihm endgültig gelöscht wird. | Für diesen Inhalt gibt es {count} Freigabelinks, die mit ihm endgültig gelöscht werden."
   },
   "folder": {
     "kind": "Art",
@@ -951,6 +953,18 @@
       "labelMany": "Aktionen für {count} Elemente",
       "open": "Öffnen",
       "preview": "Vorschau"
+    },
+    "shares": {
+      "badge": "Freigegeben",
+      "badgeTitle": "{count} Freigabelink, im Papierkorb deaktiviert | {count} Freigabelinks, im Papierkorb deaktiviert",
+      "chooseTitle": "Was geschieht mit den Freigabelinks?",
+      "chooseMessage": "Zu dem, was Sie wiederherstellen, gehörte {count} Freigabelink. Er funktioniert seit dem Löschen nicht mehr. | Zu dem, was Sie wiederherstellen, gehörten {count} Freigabelinks. Sie funktionieren seit dem Löschen nicht mehr.",
+      "chooseElsewhere": "Zurückgeholt zeigen sie auf den neuen Ort.",
+      "keep": "Freigabelinks wiederherstellen",
+      "drop": "Freigabelinks löschen",
+      "deleteNotice": "Ihre Freigabelinks werden ebenfalls endgültig gelöscht.",
+      "restored": "{count} Freigabelink wiederhergestellt | {count} Freigabelinks wiederhergestellt",
+      "dropped": "{count} Freigabelink gelöscht | {count} Freigabelinks gelöscht"
     }
   }
 }

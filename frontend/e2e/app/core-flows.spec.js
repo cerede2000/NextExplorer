@@ -339,3 +339,50 @@ test('a deleted script is read in the editor from the right-click menu, and cann
     '#!/bin/sh\necho deployed\n'
   );
 });
+
+/**
+ * A shared file sent to the trash: its link stops working at once, the delete
+ * dialog having said so; restored with "Restore the share links", the very same
+ * link works again for someone with no account.
+ */
+test('a shared file sent to the trash comes back with its link', async ({ browser }) => {
+  const file = path.join(volume, 'plan.txt');
+  fs.writeFileSync(file, 'the plan\n');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select plan.txt' }).click();
+  await page.getByRole('button', { name: 'Share selected item' }).click();
+  const shareDialog = page.getByRole('dialog');
+  await shareDialog.getByRole('button', { name: 'Create Share Link' }).click();
+  const linkField = shareDialog.locator('input[readonly]').first();
+  await expect(linkField).toHaveValue(/\/share\/[A-Za-z0-9_-]+$/);
+  const shareUrl = (await linkField.inputValue()).replace('/share/', '/api/share/');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select plan.txt' }).click();
+  await page.keyboard.press('Delete');
+  const deleteDialog = page.getByRole('dialog');
+  await expect(deleteDialog).toContainText('stops working while the content is in the trash');
+  await deleteDialog.getByRole('button', { name: 'Move to Trash' }).click();
+  await expect.poll(() => fs.existsSync(file)).toBe(false);
+
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    expect((await stranger.request.get(shareUrl)).status()).toBe(404);
+
+    await page.goto('/trash');
+    await expect(page.locator('[data-trash-row]', { hasText: 'plan.txt' })).toContainText('Shared');
+    await page.getByRole('checkbox', { name: 'Select plan.txt' }).check();
+    await page.getByRole('button', { name: 'Restore', exact: true }).click();
+    const question = page.getByRole('dialog');
+    await expect(question).toContainText('What about the share links?');
+    await question.getByRole('button', { name: 'Restore the share links' }).click();
+    await expect.poll(() => fs.existsSync(file)).toBe(true);
+
+    const back = await stranger.request.get(shareUrl);
+    expect(back.status()).toBe(200);
+    expect(await back.text()).toBe('the plan\n');
+  } finally {
+    await stranger.close();
+  }
+});

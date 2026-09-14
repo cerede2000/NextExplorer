@@ -291,7 +291,9 @@
     "keptMessage": "This item was left where it is. Delete it permanently? | These {count} items were left where they are. Delete them permanently?",
     "keptReasons": {
       "tooLarge": "{size}, more than the {budget} its volume's trash can hold."
-    }
+    },
+    "deleteLinkedSharesTrash": "This content has {count} share link. It stops working while the content is in the trash, and can be brought back when it is restored. | This content has {count} share links. They stop working while the content is in the trash, and can be brought back when it is restored.",
+    "deleteLinkedSharesPermanent": "This content has {count} share link, which will be deleted for good with it. | This content has {count} share links, which will be deleted for good with it."
   },
   "folder": {
     "kind": "Kind",
@@ -951,6 +953,18 @@
       "labelMany": "Actions for {count} items",
       "open": "Open",
       "preview": "Preview"
+    },
+    "shares": {
+      "badge": "Shared",
+      "badgeTitle": "{count} share link, switched off while in the trash | {count} share links, switched off while in the trash",
+      "chooseTitle": "What about the share links?",
+      "chooseMessage": "{count} share link belonged to what you are restoring. It has stopped working since the deletion. | {count} share links belonged to what you are restoring. They have stopped working since the deletion.",
+      "chooseElsewhere": "Brought back, they will point to the new location.",
+      "keep": "Restore the share links",
+      "drop": "Delete the share links",
+      "deleteNotice": "Their share links will be deleted for good too.",
+      "restored": "{count} share link brought back | {count} share links brought back",
+      "dropped": "{count} share link deleted | {count} share links deleted"
     }
   }
 }

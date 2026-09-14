@@ -291,7 +291,9 @@
     "keptMessage": "Este item foi deixado onde estava. Excluí-lo permanentemente? | Estes {count} itens foram deixados onde estavam. Excluí-los permanentemente?",
     "keptReasons": {
       "tooLarge": "{size}, mais do que os {budget} que a lixeira do seu volume comporta."
-    }
+    },
+    "deleteLinkedSharesTrash": "Este conteúdo tem {count} link de compartilhamento. Ele deixa de funcionar enquanto o conteúdo estiver na lixeira e pode ser recuperado na restauração. | Este conteúdo tem {count} links de compartilhamento. Eles deixam de funcionar enquanto o conteúdo estiver na lixeira e podem ser recuperados na restauração.",
+    "deleteLinkedSharesPermanent": "Este conteúdo tem {count} link de compartilhamento, que será excluído definitivamente com ele. | Este conteúdo tem {count} links de compartilhamento, que serão excluídos definitivamente com ele."
   },
   "folder": {
     "kind": "Tipo",
@@ -951,6 +953,18 @@
       "labelMany": "Ações para {count} itens",
       "open": "Abrir",
       "preview": "Pré-visualizar"
+    },
+    "shares": {
+      "badge": "Compartilhado",
+      "badgeTitle": "{count} link de compartilhamento, desativado enquanto está na lixeira | {count} links de compartilhamento, desativados enquanto estão na lixeira",
+      "chooseTitle": "O que fazer com os links de compartilhamento?",
+      "chooseMessage": "{count} link de compartilhamento pertencia ao que você está restaurando. Ele não funciona desde a exclusão. | {count} links de compartilhamento pertenciam ao que você está restaurando. Eles não funcionam desde a exclusão.",
+      "chooseElsewhere": "Recuperados, eles apontarão para o novo local.",
+      "keep": "Restaurar os links de compartilhamento",
+      "drop": "Excluir os links de compartilhamento",
+      "deleteNotice": "Os links de compartilhamento também serão excluídos definitivamente.",
+      "restored": "{count} link de compartilhamento recuperado | {count} links de compartilhamento recuperados",
+      "dropped": "{count} link de compartilhamento excluído | {count} links de compartilhamento excluídos"
     }
   }
 }

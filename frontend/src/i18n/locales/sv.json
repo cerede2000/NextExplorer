@@ -291,7 +291,9 @@
     "keptMessage": "Det här objektet lämnades kvar där det var. Radera det permanent? | Dessa {count} objekt lämnades kvar där de var. Radera dem permanent?",
     "keptReasons": {
       "tooLarge": "{size}, mer än de {budget} som volymens papperskorg rymmer."
-    }
+    },
+    "deleteLinkedSharesTrash": "Innehållet har {count} delningslänk. Den fungerar inte medan innehållet ligger i papperskorgen och kan återställas tillsammans med det. | Innehållet har {count} delningslänkar. De fungerar inte medan innehållet ligger i papperskorgen och kan återställas tillsammans med det.",
+    "deleteLinkedSharesPermanent": "Innehållet har {count} delningslänk, som tas bort permanent tillsammans med det. | Innehållet har {count} delningslänkar, som tas bort permanent tillsammans med det."
   },
   "folder": {
     "kind": "Typ",
@@ -951,6 +953,18 @@
       "labelMany": "Åtgärder för {count} objekt",
       "open": "Öppna",
       "preview": "Förhandsgranska"
+    },
+    "shares": {
+      "badge": "Delad",
+      "badgeTitle": "{count} delningslänk, avstängd medan den ligger i papperskorgen | {count} delningslänkar, avstängda medan de ligger i papperskorgen",
+      "chooseTitle": "Vad ska hända med delningslänkarna?",
+      "chooseMessage": "{count} delningslänk hörde till det du återställer. Den har inte fungerat sedan borttagningen. | {count} delningslänkar hörde till det du återställer. De har inte fungerat sedan borttagningen.",
+      "chooseElsewhere": "Återställda pekar de på den nya platsen.",
+      "keep": "Återställ delningslänkarna",
+      "drop": "Ta bort delningslänkarna",
+      "deleteNotice": "Deras delningslänkar tas också bort permanent.",
+      "restored": "{count} delningslänk återställd | {count} delningslänkar återställda",
+      "dropped": "{count} delningslänk borttagen | {count} delningslänkar borttagna"
     }
   }
 }

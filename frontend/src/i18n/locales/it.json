@@ -291,7 +291,9 @@
     "keptMessage": "Questo elemento è stato lasciato dov'era. Eliminarlo definitivamente? | Questi {count} elementi sono stati lasciati dov'erano. Eliminarli definitivamente?",
     "keptReasons": {
       "tooLarge": "{size}, più dei {budget} che il cestino del suo volume può contenere."
-    }
+    },
+    "deleteLinkedSharesTrash": "Questo contenuto ha {count} link di condivisione. Non funziona finché il contenuto è nel cestino e può essere ripristinato insieme a esso. | Questo contenuto ha {count} link di condivisione. Non funzionano finché il contenuto è nel cestino e possono essere ripristinati insieme a esso.",
+    "deleteLinkedSharesPermanent": "Questo contenuto ha {count} link di condivisione, che verrà eliminato definitivamente con esso. | Questo contenuto ha {count} link di condivisione, che verranno eliminati definitivamente con esso."
   },
   "folder": {
     "kind": "Tipo",
@@ -951,6 +953,18 @@
       "labelMany": "Azioni per {count} elementi",
       "open": "Apri",
       "preview": "Anteprima"
+    },
+    "shares": {
+      "badge": "Condiviso",
+      "badgeTitle": "{count} link di condivisione, disattivato finché è nel cestino | {count} link di condivisione, disattivati finché sono nel cestino",
+      "chooseTitle": "Che cosa fare dei link di condivisione?",
+      "chooseMessage": "{count} link di condivisione apparteneva a ciò che stai ripristinando. Non funziona dall'eliminazione. | {count} link di condivisione appartenevano a ciò che stai ripristinando. Non funzionano dall'eliminazione.",
+      "chooseElsewhere": "Se ripristinati, punteranno alla nuova posizione.",
+      "keep": "Ripristina i link di condivisione",
+      "drop": "Elimina i link di condivisione",
+      "deleteNotice": "Anche i loro link di condivisione verranno eliminati definitivamente.",
+      "restored": "{count} link di condivisione ripristinato | {count} link di condivisione ripristinati",
+      "dropped": "{count} link di condivisione eliminato | {count} link di condivisione eliminati"
     }
   }
 }

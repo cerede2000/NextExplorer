@@ -233,10 +233,28 @@ const keptItemReason = (item) => {
   return t(`context.trashReasons.${key}`);
 };
 
+/**
+ * What becomes of the share links of what is about to go. Into the trash they
+ * stop working but can come back with a restore; deleted for good, they go for
+ * good. The server says, per item, which it will be and how many links it has.
+ */
 const deleteShareImpactMessage = computed(() => {
   const count = Number(deleteImpact.value?.shareCount || 0);
   if (count <= 0) return '';
-  return t('context.deleteLinkedShares', { count });
+  const planned = deleteImpact.value?.trash?.items;
+  const linksGoing = (toTrash) =>
+    (Array.isArray(planned) ? planned : [])
+      .filter((entry) => (entry?.disposition === 'trash') === toTrash)
+      .reduce((total, entry) => total + (Number(entry?.shareCount) || 0), 0);
+  const suspended = linksGoing(true);
+  const removed = linksGoing(false);
+  if (suspended + removed === 0) return t('context.deleteLinkedShares', { count });
+  return [
+    suspended > 0 ? t('context.deleteLinkedSharesTrash', { count: suspended }, suspended) : '',
+    removed > 0 ? t('context.deleteLinkedSharesPermanent', { count: removed }, removed) : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 });
 
 const deleteOnlyOfficeActivityMessage = computed(() => {

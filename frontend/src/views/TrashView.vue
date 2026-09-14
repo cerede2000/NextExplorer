@@ -301,6 +301,12 @@ const reportRestored = (results) => {
     if (restored.length === 1 && restored[0].path) {
       lines.unshift(t('trash.results.restoredTo', { path: restored[0].path }));
     }
+    const links = (field) =>
+      restored.reduce((total, result) => total + (Number(result[field]) || 0), 0);
+    const linksBack = links('sharesRestored');
+    const linksGone = links('sharesDropped');
+    if (linksBack) lines.push(t('trash.shares.restored', { count: linksBack }, linksBack));
+    if (linksGone) lines.push(t('trash.shares.dropped', { count: linksGone }, linksGone));
     notifications.addNotification({
       type: 'success',
       heading: t('trash.results.restored', { count: restored.length }, restored.length),
@@ -317,25 +323,77 @@ const reportRestored = (results) => {
   }
 };
 
-const restoreSelected = () =>
-  runBusy(async () => {
-    const { items: results = [] } = await restoreTrashItems([...selectedIds.value]);
+// Share links kept with what is restored: asked once, before anything moves.
+
+const sharesPrompt = ref(null);
+
+/** How many share links the selection — or the whole open folder — kept in the trash. */
+const keptSharesOf = ({ entries = false, wholeFolder = false } = {}) => {
+  const count = (rows) => rows.reduce((total, row) => total + (Number(row.shareCount) || 0), 0);
+  if (wholeFolder) return Number(folder.value?.item?.shareCount) || 0;
+  if (entries) {
+    return count(
+      (folder.value?.entries || []).filter((entry) => selectedEntries.value.has(entry.name))
+    );
+  }
+  return count(items.value.filter((item) => selectedIds.value.has(item.id)));
+};
+
+/**
+ * What becomes of those share links, asked only when there are some: 'restore'
+ * or 'drop', undefined when there is nothing to ask, and null when the question
+ * is closed — which restores nothing at all.
+ */
+const askAboutShares = (count, { elsewhere = false } = {}) => {
+  if (!count) return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    sharesPrompt.value = { count, elsewhere, resolve };
+  });
+};
+
+const answerShares = (choice) => {
+  const prompt = sharesPrompt.value;
+  sharesPrompt.value = null;
+  prompt?.resolve(choice);
+};
+
+const sharesOption = (shares) => (shares ? { shares } : {});
+
+const restoreSelected = async () => {
+  const shares = await askAboutShares(keptSharesOf());
+  if (shares === null) return;
+  await runBusy(async () => {
+    const { items: results = [] } = await restoreTrashItems(
+      [...selectedIds.value],
+      sharesOption(shares)
+    );
     reportRestored(results);
   });
+};
 
-const restoreSelectedEntries = () =>
-  runBusy(async () => {
+const restoreSelectedEntries = async () => {
+  const shares = await askAboutShares(keptSharesOf({ entries: true }));
+  if (shares === null) return;
+  await runBusy(async () => {
     const paths = [...selectedEntries.value].map((name) => joinPath(folderPath.value, name));
-    const { items: results = [] } = await restoreTrashEntries(folderId.value, paths);
+    const { items: results = [] } = await restoreTrashEntries(
+      folderId.value,
+      paths,
+      sharesOption(shares)
+    );
     reportRestored(results);
   });
+};
 
-const restoreWholeFolder = () =>
-  runBusy(async () => {
-    const { items: results = [] } = await restoreTrashItems([folderId.value]);
+const restoreWholeFolder = async () => {
+  const shares = await askAboutShares(keptSharesOf({ wholeFolder: true }));
+  if (shares === null) return;
+  await runBusy(async () => {
+    const { items: results = [] } = await restoreTrashItems([folderId.value], sharesOption(shares));
     reportRestored(results);
     if (results.some((result) => result.status === 'restored')) await leaveFolder();
   });
+};
 
 const picker = useDestinationPicker();
 const operationTasks = useOperationTasksStore();
@@ -351,6 +409,8 @@ const restoreElsewhere = async ({ entries = false } = {}) => {
   if (count === 0 || busy.value) return;
   const destination = await picker.pick({ mode: 'restore' });
   if (!destination) return;
+  const shares = await askAboutShares(keptSharesOf({ entries }), { elsewhere: true });
+  if (shares === null) return;
 
   const controller = new AbortController();
   const operationId = operationTasks.startOperation({
@@ -367,7 +427,7 @@ const restoreElsewhere = async ({ entries = false } = {}) => {
       copiedBytes: Number(event.copiedBytes) || 0,
     });
   };
-  const options = { onEvent, signal: controller.signal };
+  const options = { onEvent, signal: controller.signal, ...sharesOption(shares) };
 
   await runBusy(async () => {
     try {
@@ -452,11 +512,17 @@ const confirmTitle = computed(() =>
   pendingConfirm.value === 'empty' ? t('trash.confirm.emptyTitle') : t('trash.confirm.deleteTitle')
 );
 
-const confirmMessage = computed(() =>
-  pendingConfirm.value === 'empty'
+const confirmMessage = computed(() => {
+  const emptying = pendingConfirm.value === 'empty';
+  const message = emptying
     ? t('trash.confirm.emptyMessage')
-    : t('trash.confirm.deleteMessage', { count: selectedCount.value }, selectedCount.value)
-);
+    : t('trash.confirm.deleteMessage', { count: selectedCount.value }, selectedCount.value);
+  // Deleted for good, share links kept in the trash go for good too.
+  const links = emptying
+    ? items.value.reduce((total, item) => total + (Number(item.shareCount) || 0), 0)
+    : keptSharesOf();
+  return links > 0 ? `${message} ${t('trash.shares.deleteNotice')}` : message;
+});
 
 const openLocation = (item) => {
   if (!item.openPath) return;
@@ -915,6 +981,16 @@ defineExpose({ load });
                 >
                   {{ entry.name }}
                 </span>
+                <span
+                  v-if="entry.shareCount > 0"
+                  data-test="trash-shared"
+                  class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800 dark:bg-blue-500/15 dark:text-blue-200"
+                  :title="
+                    t('trash.shares.badgeTitle', { count: entry.shareCount }, entry.shareCount)
+                  "
+                >
+                  {{ t('trash.shares.badge') }}
+                </span>
               </div>
               <div class="text-neutral-600 dark:text-neutral-300">
                 {{ entry.modifiedAt ? formatLocalDateTime(entry.modifiedAt) : '' }}
@@ -1030,6 +1106,14 @@ defineExpose({ load });
                   {{ item.name }}
                 </span>
                 <span
+                  v-if="item.shareCount > 0"
+                  data-test="trash-shared"
+                  class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800 dark:bg-blue-500/15 dark:text-blue-200"
+                  :title="t('trash.shares.badgeTitle', { count: item.shareCount }, item.shareCount)"
+                >
+                  {{ t('trash.shares.badge') }}
+                </span>
+                <span
                   v-if="!item.available"
                   data-test="trash-unavailable"
                   class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
@@ -1101,6 +1185,52 @@ defineExpose({ load });
           @click="confirmPending"
         >
           {{ t('trash.actions.deletePermanently') }}
+        </button>
+      </div>
+    </ModalDialog>
+
+    <ModalDialog :model-value="Boolean(sharesPrompt)" @update:model-value="answerShares(null)">
+      <template #title>{{ t('trash.shares.chooseTitle') }}</template>
+      <p class="mb-3 text-base text-zinc-700 dark:text-zinc-200" data-test="trash-shares-message">
+        {{
+          t(
+            'trash.shares.chooseMessage',
+            { count: sharesPrompt?.count || 0 },
+            sharesPrompt?.count || 0
+          )
+        }}
+      </p>
+      <p
+        v-if="sharesPrompt?.elsewhere"
+        data-test="trash-shares-elsewhere"
+        class="mb-3 text-sm text-zinc-600 dark:text-zinc-300"
+      >
+        {{ t('trash.shares.chooseElsewhere') }}
+      </p>
+      <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <button
+          type="button"
+          data-test="trash-shares-cancel"
+          class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          @click="answerShares(null)"
+        >
+          {{ t('common.cancel') }}
+        </button>
+        <button
+          type="button"
+          data-test="trash-shares-drop"
+          class="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-500/50 dark:text-red-300 dark:hover:bg-red-500/10"
+          @click="answerShares('drop')"
+        >
+          {{ t('trash.shares.drop') }}
+        </button>
+        <button
+          type="button"
+          data-test="trash-shares-keep"
+          class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+          @click="answerShares('restore')"
+        >
+          {{ t('trash.shares.keep') }}
         </button>
       </div>
     </ModalDialog>

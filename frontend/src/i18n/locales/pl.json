@@ -291,7 +291,9 @@
     "keptMessage": "Ten element pozostał na swoim miejscu. Usunąć go trwale? | Te {count} elementy pozostały na swoim miejscu. Usunąć je trwale? | Tych {count} elementów pozostało na swoim miejscu. Usunąć je trwale?",
     "keptReasons": {
       "tooLarge": "{size}, więcej niż {budget}, które mieści kosz jego woluminu."
-    }
+    },
+    "deleteLinkedSharesTrash": "Ta zawartość ma linki udostępniania ({count}). Nie działają, dopóki zawartość jest w koszu, i można je przywrócić razem z nią.",
+    "deleteLinkedSharesPermanent": "Ta zawartość ma linki udostępniania ({count}), które zostaną trwale usunięte razem z nią."
   },
   "folder": {
     "kind": "Rodzaj",
@@ -951,6 +953,18 @@
       "labelMany": "Działania dla elementów: {count}",
       "open": "Otwórz",
       "preview": "Podgląd"
+    },
+    "shares": {
+      "badge": "Udostępnione",
+      "badgeTitle": "Linki udostępniania ({count}), wyłączone na czas pobytu w koszu",
+      "chooseTitle": "Co zrobić z linkami udostępniania?",
+      "chooseMessage": "Do tego, co przywracasz, należały linki udostępniania ({count}). Od usunięcia nie działają.",
+      "chooseElsewhere": "Po przywróceniu będą wskazywać nowe położenie.",
+      "keep": "Przywróć linki udostępniania",
+      "drop": "Usuń linki udostępniania",
+      "deleteNotice": "Ich linki udostępniania również zostaną trwale usunięte.",
+      "restored": "Przywrócone linki udostępniania: {count}",
+      "dropped": "Usunięte linki udostępniania: {count}"
     }
   }
 }

@@ -291,7 +291,9 @@
     "keptMessage": "{count} 個項目已保留在原處。要永久刪除嗎？",
     "keptReasons": {
       "tooLarge": "{size}，超過所在磁碟區資源回收筒可容納的 {budget}。"
-    }
+    },
+    "deleteLinkedSharesTrash": "此內容有 {count} 個分享連結。內容在資源回收筒中時連結失效，還原時可以恢復。",
+    "deleteLinkedSharesPermanent": "此內容有 {count} 個分享連結，將隨之永久刪除。"
   },
   "folder": {
     "kind": "類型",
@@ -951,6 +953,18 @@
       "labelMany": "{count} 個項目的動作",
       "open": "開啟",
       "preview": "預覽"
+    },
+    "shares": {
+      "badge": "已分享",
+      "badgeTitle": "{count} 個分享連結，在資源回收筒中時已停用",
+      "chooseTitle": "如何處理分享連結？",
+      "chooseMessage": "你要還原的內容有 {count} 個分享連結，自刪除起已失效。",
+      "chooseElsewhere": "恢復後，連結將指向新位置。",
+      "keep": "恢復分享連結",
+      "drop": "刪除分享連結",
+      "deleteNotice": "它們的分享連結也將永久刪除。",
+      "restored": "已恢復 {count} 個分享連結",
+      "dropped": "已刪除 {count} 個分享連結"
     }
   }
 }

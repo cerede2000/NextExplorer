@@ -291,7 +291,9 @@
     "keptMessage": "Acest element a fost lăsat la locul lui. Îl ștergeți definitiv? | Aceste {count} elemente au fost lăsate la locul lor. Le ștergeți definitiv?",
     "keptReasons": {
       "tooLarge": "{size}, mai mult decât cei {budget} pe care îi poate păstra coșul de gunoi al volumului său."
-    }
+    },
+    "deleteLinkedSharesTrash": "Acest conținut are {count} link de partajare. Nu funcționează cât timp conținutul este în coșul de gunoi și poate fi readus la restaurare. | Acest conținut are {count} linkuri de partajare. Nu funcționează cât timp conținutul este în coșul de gunoi și pot fi readuse la restaurare.",
+    "deleteLinkedSharesPermanent": "Acest conținut are {count} link de partajare, care va fi șters definitiv împreună cu el. | Acest conținut are {count} linkuri de partajare, care vor fi șterse definitiv împreună cu el."
   },
   "folder": {
     "kind": "Tip",
@@ -951,6 +953,18 @@
       "labelMany": "Acțiuni pentru {count} elemente",
       "open": "Deschide",
       "preview": "Previzualizare"
+    },
+    "shares": {
+      "badge": "Partajat",
+      "badgeTitle": "{count} link de partajare, dezactivat cât timp este în coșul de gunoi | {count} linkuri de partajare, dezactivate cât timp sunt în coșul de gunoi",
+      "chooseTitle": "Ce se întâmplă cu linkurile de partajare?",
+      "chooseMessage": "{count} link de partajare aparținea celor pe care le restaurați. Nu mai funcționează de la ștergere. | {count} linkuri de partajare aparțineau celor pe care le restaurați. Nu mai funcționează de la ștergere.",
+      "chooseElsewhere": "Readuse, vor indica noua locație.",
+      "keep": "Restaurează linkurile de partajare",
+      "drop": "Șterge linkurile de partajare",
+      "deleteNotice": "Linkurile lor de partajare vor fi și ele șterse definitiv.",
+      "restored": "{count} link de partajare readus | {count} linkuri de partajare readuse",
+      "dropped": "{count} link de partajare șters | {count} linkuri de partajare șterse"
     }
   }
 }

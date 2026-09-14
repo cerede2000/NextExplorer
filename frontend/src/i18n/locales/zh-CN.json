@@ -291,7 +291,9 @@
     "keptMessage": "{count} 项已保留在原位。要永久删除吗？",
     "keptReasons": {
       "tooLarge": "{size}，超过所在卷回收站可容纳的 {budget}。"
-    }
+    },
+    "deleteLinkedSharesTrash": "此内容有 {count} 个共享链接。内容在回收站中时链接失效，还原时可以恢复。",
+    "deleteLinkedSharesPermanent": "此内容有 {count} 个共享链接，将随之被永久删除。"
   },
   "folder": {
     "kind": "类型",
@@ -951,6 +953,18 @@
       "labelMany": "{count} 个项目的操作",
       "open": "打开",
       "preview": "预览"
+    },
+    "shares": {
+      "badge": "已共享",
+      "badgeTitle": "{count} 个共享链接，在回收站中时已停用",
+      "chooseTitle": "如何处理共享链接？",
+      "chooseMessage": "你要还原的内容有 {count} 个共享链接，自删除起已失效。",
+      "chooseElsewhere": "恢复后，链接将指向新位置。",
+      "keep": "恢复共享链接",
+      "drop": "删除共享链接",
+      "deleteNotice": "它们的共享链接也将被永久删除。",
+      "restored": "已恢复 {count} 个共享链接",
+      "dropped": "已删除 {count} 个共享链接"
     }
   }
 }

@@ -291,7 +291,9 @@
     "keptMessage": "Este elemento se ha dejado donde estaba. ¿Eliminarlo definitivamente? | Estos {count} elementos se han dejado donde estaban. ¿Eliminarlos definitivamente?",
     "keptReasons": {
       "tooLarge": "{size}, más de los {budget} que admite la papelera de su volumen."
-    }
+    },
+    "deleteLinkedSharesTrash": "Este contenido tiene {count} enlace compartido. Deja de funcionar mientras el contenido está en la papelera y se puede recuperar al restaurarlo. | Este contenido tiene {count} enlaces compartidos. Dejan de funcionar mientras el contenido está en la papelera y se pueden recuperar al restaurarlo.",
+    "deleteLinkedSharesPermanent": "Este contenido tiene {count} enlace compartido, que se eliminará definitivamente con él. | Este contenido tiene {count} enlaces compartidos, que se eliminarán definitivamente con él."
   },
   "folder": {
     "kind": "Tipo",
@@ -951,6 +953,18 @@
       "labelMany": "Acciones para {count} elementos",
       "open": "Abrir",
       "preview": "Vista previa"
+    },
+    "shares": {
+      "badge": "Compartido",
+      "badgeTitle": "{count} enlace compartido, desactivado mientras está en la papelera | {count} enlaces compartidos, desactivados mientras están en la papelera",
+      "chooseTitle": "¿Qué hacer con los enlaces compartidos?",
+      "chooseMessage": "{count} enlace compartido pertenecía a lo que restaura. No funciona desde la eliminación. | {count} enlaces compartidos pertenecían a lo que restaura. No funcionan desde la eliminación.",
+      "chooseElsewhere": "Si se recuperan, apuntarán a la nueva ubicación.",
+      "keep": "Restaurar los enlaces compartidos",
+      "drop": "Eliminar los enlaces compartidos",
+      "deleteNotice": "Sus enlaces compartidos también se eliminarán definitivamente.",
+      "restored": "{count} enlace compartido recuperado | {count} enlaces compartidos recuperados",
+      "dropped": "{count} enlace compartido eliminado | {count} enlaces compartidos eliminados"
     }
   }
 }
