@@ -13,6 +13,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const { searchLocalUsers } = require('../services/userSearchService');
 const { NotFoundError, ValidationError, UnauthorizedError } = require('../errors/AppError');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
+const { clearLock, listActiveLocks } = require('../services/users/lockout');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -46,8 +48,13 @@ router.get(
   '/users',
   ensureAdmin,
   asyncHandler(async (req, res) => {
-    const users = await listUsers();
-    res.json({ users });
+    const [users, locks] = await Promise.all([listUsers(), listActiveLocks()]);
+    // Locks are keyed on the account (see localAuth), so the list can say which
+    // account is locked and until when — the first question an administrator
+    // has when somebody cannot sign in.
+    res.json({
+      users: users.map((user) => ({ ...user, lockedUntil: locks.get(user.id) || null })),
+    });
   })
 );
 
@@ -117,6 +124,24 @@ router.post(
     const { id } = req.params || {};
     const { newPassword } = req.body || {};
     await setLocalPasswordAdmin({ userId: id, newPassword });
+    res.status(204).end();
+  })
+);
+
+// DELETE /api/users/:id/lock - release an account locked by failed sign-ins (admin only)
+router.delete(
+  '/users/:id/lock',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params || {};
+    const existing = await getById(id);
+    if (!existing) {
+      throw new NotFoundError('User not found.');
+    }
+    // The count as well as the deadline. Left on the books, the failures would
+    // let the next typo lock the account straight back.
+    await clearLock(id);
+    logger.info({ adminId: req.user?.id, userId: id }, 'Sign-in lock released by an administrator');
     res.status(204).end();
   })
 );

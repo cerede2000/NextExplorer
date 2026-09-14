@@ -185,7 +185,8 @@
     "pathRequired": "Sökväg krävs",
     "saveVolume": "Det gick inte att spara volymen",
     "removeVolume": "Det gick inte att ta bort volymen",
-    "identifierRequired": "En e-postadress eller ett användarnamn krävs"
+    "identifierRequired": "En e-postadress eller ett användarnamn krävs",
+    "unlockUser": "Kontot kunde inte låsas upp"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Användare hittades inte",
     "CONFLICT_USER_EXISTS": "Användaren finns redan",
     "CONFLICT_PASSWORD_EXISTS": "Du har redan lösenordsautentisering",
-    "CONFLICT_SETUP_COMPLETE": "Applikationen är redan konfigurerad"
+    "CONFLICT_SETUP_COMPLETE": "Applikationen är redan konfigurerad",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Kontot är låst efter för många misslyckade inloggningsförsök. Försök igen om {minutes} minut | Kontot är låst efter för många misslyckade inloggningsförsök. Försök igen om {minutes} minuter"
   },
   "titles": {
     "volumes": "Volymer",
@@ -571,7 +573,9 @@
       "volumePath": "Volymsökväg",
       "pathCannotChange": "Sökvägen kan inte ändras i efterhand. Ta bort och skapa ny vid behov.",
       "accessMode": "Åtkomstläge",
-      "noUsers": "Inga användare tillgängliga"
+      "noUsers": "Inga användare tillgängliga",
+      "lockedBadge": "Låst",
+      "lockedUntil": "Låst till {time}"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -597,7 +601,11 @@
       "sso": "Enkel inloggning (OIDC)",
       "oidcProvider": "OIDC-leverantör",
       "oidcLinkedProfile": "Länkad profil",
-      "noOidcProfileMessage": "Inga OIDC-profiler är länkade till det här kontot."
+      "noOidcProfileMessage": "Inga OIDC-profiler är länkade till det här kontot.",
+      "signInLock": "Inloggningsspärr",
+      "lockedHint": "Låst efter för många misslyckade inloggningsförsök. Spärren släpper av sig själv kl. {time}.",
+      "notLockedHint": "Inte låst. För många misslyckade inloggningsförsök låser ett konto en stund.",
+      "unlock": "Lås upp nu"
     },
     "uploads": {
       "title": "Uppladdningar",

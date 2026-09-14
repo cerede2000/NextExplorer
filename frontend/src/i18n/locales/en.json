@@ -185,7 +185,8 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "identifierRequired": "An email address or username is required"
+    "identifierRequired": "An email address or username is required",
+    "unlockUser": "Could not unlock the account"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentication required",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "User not found",
     "CONFLICT_USER_EXISTS": "User already exists",
     "CONFLICT_PASSWORD_EXISTS": "You already have password authentication",
-    "CONFLICT_SETUP_COMPLETE": "Application already configured"
+    "CONFLICT_SETUP_COMPLETE": "Application already configured",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account locked after too many failed sign-in attempts. Try again in {minutes} minute | Account locked after too many failed sign-in attempts. Try again in {minutes} minutes"
   },
   "titles": {
     "volumes": "Volumes",
@@ -594,7 +596,9 @@
       "volumePath": "Volume Path",
       "pathCannotChange": "The path cannot be changed after creation. Remove this volume and create a new one if needed.",
       "accessMode": "Access Mode",
-      "noUsers": "No users available"
+      "noUsers": "No users available",
+      "lockedBadge": "Locked",
+      "lockedUntil": "Locked until {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -620,7 +624,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Sign-in lock",
+      "lockedHint": "Locked after too many failed sign-in attempts. It frees itself at {time}.",
+      "notLockedHint": "Not locked. Too many failed sign-in attempts lock an account for a while.",
+      "unlock": "Unlock now"
     },
     "searchIndex": {
       "title": "Search index",

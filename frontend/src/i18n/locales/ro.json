@@ -185,7 +185,8 @@
     "pathRequired": "Calea este obligatorie",
     "saveVolume": "Nu s-a putut salva volumul",
     "removeVolume": "Nu s-a putut elimina volumul",
-    "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator"
+    "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator",
+    "unlockUser": "Contul nu a putut fi deblocat"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentificare necesară",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Utilizator negăsit",
     "CONFLICT_USER_EXISTS": "Utilizatorul există deja",
     "CONFLICT_PASSWORD_EXISTS": "Aveți deja autentificare prin parolă",
-    "CONFLICT_SETUP_COMPLETE": "Aplicația este deja configurată"
+    "CONFLICT_SETUP_COMPLETE": "Aplicația este deja configurată",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Cont blocat după prea multe încercări eșuate de autentificare. Încercați din nou peste {minutes} minut | Cont blocat după prea multe încercări eșuate de autentificare. Încercați din nou peste {minutes} minute"
   },
   "titles": {
     "volumes": "Volume",
@@ -571,7 +573,9 @@
       "volumePath": "Cale volum",
       "pathCannotChange": "Calea nu poate fi schimbată după creare. Șterge și creează unul nou dacă e necesar.",
       "accessMode": "Mod acces",
-      "noUsers": "Nu există utilizatori disponibili"
+      "noUsers": "Nu există utilizatori disponibili",
+      "lockedBadge": "Blocat",
+      "lockedUntil": "Blocat până la {time}"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -597,7 +601,11 @@
       "sso": "Autentificare unică (OIDC)",
       "oidcProvider": "Furnizor OIDC",
       "oidcLinkedProfile": "Profil asociat",
-      "noOidcProfileMessage": "Niciun profil OIDC asociat acestui cont."
+      "noOidcProfileMessage": "Niciun profil OIDC asociat acestui cont.",
+      "signInLock": "Blocarea autentificării",
+      "lockedHint": "Blocat după prea multe încercări eșuate de autentificare. Se deblochează singur la {time}.",
+      "notLockedHint": "Neblocat. Prea multe încercări eșuate de autentificare blochează un cont pentru o vreme.",
+      "unlock": "Deblochează acum"
     },
     "uploads": {
       "title": "Încărcări",

@@ -185,7 +185,8 @@
     "pathRequired": "Pfad ist erforderlich",
     "saveVolume": "Volume konnte nicht gespeichert werden",
     "removeVolume": "Volume konnte nicht entfernt werden",
-    "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich"
+    "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich",
+    "unlockUser": "Das Konto konnte nicht entsperrt werden"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Benutzer nicht gefunden",
     "CONFLICT_USER_EXISTS": "Benutzer existiert bereits",
     "CONFLICT_PASSWORD_EXISTS": "Sie haben bereits eine Passwort-Authentifizierung",
-    "CONFLICT_SETUP_COMPLETE": "Anwendung bereits konfiguriert"
+    "CONFLICT_SETUP_COMPLETE": "Anwendung bereits konfiguriert",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Versuchen Sie es in {minutes} Minute erneut | Konto nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Versuchen Sie es in {minutes} Minuten erneut"
   },
   "titles": {
     "volumes": "Volumes",
@@ -571,7 +573,9 @@
       "volumePath": "Volumenpfad",
       "pathCannotChange": "Der Pfad kann nach der Erstellung nicht mehr geändert werden. Entfernen Sie dieses Volume und erstellen Sie bei Bedarf ein neues.",
       "accessMode": "Zugriffsmodus",
-      "noUsers": "Keine Benutzer verfügbar"
+      "noUsers": "Keine Benutzer verfügbar",
+      "lockedBadge": "Gesperrt",
+      "lockedUntil": "Gesperrt bis {time}"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -597,7 +601,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC-Anbieter",
       "oidcLinkedProfile": "Verknüpftes Profil",
-      "noOidcProfileMessage": "Mit diesem Konto ist kein OIDC-Profil verknüpft."
+      "noOidcProfileMessage": "Mit diesem Konto ist kein OIDC-Profil verknüpft.",
+      "signInLock": "Anmeldesperre",
+      "lockedHint": "Nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Die Sperre endet von selbst um {time}.",
+      "notLockedHint": "Nicht gesperrt. Zu viele fehlgeschlagene Anmeldeversuche sperren ein Konto für eine Weile.",
+      "unlock": "Jetzt entsperren"
     },
     "uploads": {
       "title": "Uploads",

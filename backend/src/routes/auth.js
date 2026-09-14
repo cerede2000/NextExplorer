@@ -164,7 +164,17 @@ router.post(
       user = await attemptLocalLogin({ identifier: typed, password });
     } catch (e) {
       if (e?.status === 423) {
-        throw new RateLimitError(e.message, e.until);
+        // Seconds in `retryAfter`, which is what the interface reads, with the
+        // deadline itself beside it, under a code of its own so the message
+        // translates. The ISO date used to sit in `retryAfter` under a generic
+        // code, and the sign-in screen could say neither how long nor in what
+        // language.
+        const lockedUntil = e.until || null;
+        const msLeft = lockedUntil ? Date.parse(lockedUntil) - Date.now() : NaN;
+        const retryAfter = Number.isFinite(msLeft) ? Math.max(1, Math.ceil(msLeft / 1000)) : null;
+        const locked = new RateLimitError(e.message, retryAfter, ErrorCodes.AUTH_ACCOUNT_LOCKED);
+        if (lockedUntil) locked.details = { ...locked.details, lockedUntil };
+        throw locked;
       }
       throw e;
     }

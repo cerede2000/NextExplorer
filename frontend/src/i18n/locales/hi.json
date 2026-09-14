@@ -185,7 +185,8 @@
     "pathRequired": "पथ आवश्यक है",
     "saveVolume": "वॉल्यूम सहेजा नहीं जा सका",
     "removeVolume": "वॉल्यूम हटाया नहीं जा सका",
-    "identifierRequired": "ईमेल पता या उपयोगकर्ता नाम आवश्यक है"
+    "identifierRequired": "ईमेल पता या उपयोगकर्ता नाम आवश्यक है",
+    "unlockUser": "खाता अनलॉक नहीं हो सका"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "प्रमाणीकरण आवश्यक है",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "उपयोगकर्ता नहीं मिला",
     "CONFLICT_USER_EXISTS": "उपयोगकर्ता पहले से मौजूद है",
     "CONFLICT_PASSWORD_EXISTS": "आपके पास पहले से ही पासवर्ड प्रमाणीकरण है",
-    "CONFLICT_SETUP_COMPLETE": "एप्लिकेशन पहले से कॉन्फ़िगर है"
+    "CONFLICT_SETUP_COMPLETE": "एप्लिकेशन पहले से कॉन्फ़िगर है",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "बहुत अधिक असफल साइन-इन प्रयासों के बाद खाता लॉक है। {minutes} मिनट बाद फिर से प्रयास करें"
   },
   "titles": {
     "volumes": "वॉल्यूम",
@@ -571,7 +573,9 @@
       "volumePath": "वॉल्यूम पथ",
       "pathCannotChange": "निर्माण के बाद पथ बदला नहीं जा सकता। यदि आवश्यक हो तो इसे हटा दें और नया बनाएँ।",
       "accessMode": "पहुँच मोड",
-      "noUsers": "कोई उपयोगकर्ता उपलब्ध नहीं"
+      "noUsers": "कोई उपयोगकर्ता उपलब्ध नहीं",
+      "lockedBadge": "लॉक",
+      "lockedUntil": "{time} तक लॉक"
     },
     "userDetails": {
       "profileTab": "प्रोफ़ाइल",
@@ -597,7 +601,11 @@
       "sso": "एकल साइन-ऑन (OIDC)",
       "oidcProvider": "OIDC प्रदाता",
       "oidcLinkedProfile": "जुड़ी हुई प्रोफ़ाइल",
-      "noOidcProfileMessage": "इस खाते से कोई OIDC प्रोफ़ाइल जुड़ी नहीं है।"
+      "noOidcProfileMessage": "इस खाते से कोई OIDC प्रोफ़ाइल जुड़ी नहीं है।",
+      "signInLock": "साइन-इन लॉक",
+      "lockedHint": "बहुत अधिक असफल साइन-इन प्रयासों के बाद लॉक किया गया। यह {time} पर अपने आप खुल जाएगा।",
+      "notLockedHint": "लॉक नहीं है। बहुत अधिक असफल साइन-इन प्रयास किसी खाते को कुछ समय के लिए लॉक कर देते हैं।",
+      "unlock": "अभी अनलॉक करें"
     },
     "uploads": {
       "title": "अपलोड",

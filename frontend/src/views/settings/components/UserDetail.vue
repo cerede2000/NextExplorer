@@ -11,6 +11,8 @@ import {
   PlusIcon,
   PencilIcon,
   FolderIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/vue/24/outline';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
@@ -32,8 +34,9 @@ const emit = defineEmits([
   'delete',
   'make-admin',
   'revoke-admin',
+  'unlock',
 ]);
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const authStore = useAuthStore();
 const featuresStore = useFeaturesStore();
 
@@ -144,6 +147,15 @@ const handleSaveProfile = () => {
     ...formData.value,
   });
 };
+
+// A lock that has run out refuses nothing, so it is not offered for release.
+const lockedUntil = computed(() => {
+  const until = Date.parse(props.user?.lockedUntil || '');
+  return Number.isFinite(until) && until > Date.now() ? props.user.lockedUntil : null;
+});
+
+const lockTime = (iso) =>
+  new Date(iso).toLocaleTimeString(locale?.value, { hour: '2-digit', minute: '2-digit' });
 
 const getInitials = (name) => {
   return (name || 'U').substring(0, 2).toUpperCase();
@@ -344,6 +356,42 @@ const getInitials = (name) => {
 
       <!-- Security Tab -->
       <div v-if="activeTab === 'security'" class="space-y-6 max-w-3xl">
+        <!-- Sign-in lock -->
+        <div
+          data-test="sign-in-lock"
+          class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"
+        >
+          <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+            {{ t('settings.userDetails.signInLock') }}
+          </h3>
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-start gap-2">
+              <LockClosedIcon
+                v-if="lockedUntil"
+                class="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400"
+                aria-hidden="true"
+              />
+              <LockOpenIcon v-else class="w-5 h-5 shrink-0 text-zinc-500" aria-hidden="true" />
+              <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                {{
+                  lockedUntil
+                    ? t('settings.userDetails.lockedHint', { time: lockTime(lockedUntil) })
+                    : t('settings.userDetails.notLockedHint')
+                }}
+              </p>
+            </div>
+            <button
+              v-if="lockedUntil"
+              data-test="unlock"
+              type="button"
+              @click="$emit('unlock', user)"
+              class="shrink-0 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              {{ t('settings.userDetails.unlock') }}
+            </button>
+          </div>
+        </div>
+
         <!-- Password -->
         <div
           class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4"

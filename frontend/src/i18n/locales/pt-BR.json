@@ -185,7 +185,8 @@
     "pathRequired": "O caminho é obrigatório",
     "saveVolume": "Falha ao salvar volume",
     "removeVolume": "Falha ao remover volume",
-    "identifierRequired": "É necessário um e-mail ou nome de usuário"
+    "identifierRequired": "É necessário um e-mail ou nome de usuário",
+    "unlockUser": "Não foi possível desbloquear a conta"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticação necessária",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Usuário não encontrado",
     "CONFLICT_USER_EXISTS": "O usuário já existe",
     "CONFLICT_PASSWORD_EXISTS": "Você já tem autenticação por senha",
-    "CONFLICT_SETUP_COMPLETE": "O aplicativo já está configurado"
+    "CONFLICT_SETUP_COMPLETE": "O aplicativo já está configurado",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minuto | Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minutos"
   },
   "titles": {
     "volumes": "Volumes",
@@ -594,7 +596,9 @@
       "volumePath": "Caminho do Volume",
       "pathCannotChange": "O caminho não pode ser alterado após a criação. Remova este volume e crie um novo se necessário.",
       "accessMode": "Modo de Acesso",
-      "noUsers": "Nenhum usuário disponível"
+      "noUsers": "Nenhum usuário disponível",
+      "lockedBadge": "Bloqueado",
+      "lockedUntil": "Bloqueado até {time}"
     },
     "userDetails": {
       "profileTab": "Perfil",
@@ -620,7 +624,11 @@
       "sso": "Login único (OIDC)",
       "oidcProvider": "Provedor OIDC",
       "oidcLinkedProfile": "Perfil Vinculado",
-      "noOidcProfileMessage": "Nenhum perfil OIDC vinculado a esta conta."
+      "noOidcProfileMessage": "Nenhum perfil OIDC vinculado a esta conta.",
+      "signInLock": "Bloqueio de login",
+      "lockedHint": "Bloqueado após muitas tentativas de login com falha. Será liberado automaticamente às {time}.",
+      "notLockedHint": "Não bloqueado. Muitas tentativas de login com falha bloqueiam uma conta por um tempo.",
+      "unlock": "Desbloquear agora"
     },
     "searchIndex": {
       "title": "Índice de busca",

@@ -20,6 +20,7 @@ const api = vi.hoisted(() => ({
   createUser: vi.fn(async () => ({})),
   adminSetUserPassword: vi.fn(async () => ({})),
   deleteUser: vi.fn(async () => ({})),
+  unlockUser: vi.fn(async () => ({})),
 }));
 
 vi.mock('@/api', () => ({
@@ -29,6 +30,7 @@ vi.mock('@/api', () => ({
   createUser: (...args) => api.createUser(...args),
   adminSetUserPassword: (...args) => api.adminSetUserPassword(...args),
   deleteUser: (...args) => api.deleteUser(...args),
+  unlockUser: (...args) => api.unlockUser(...args),
 }));
 
 const auth = vi.hoisted(() => ({ store: null }));
@@ -82,6 +84,7 @@ beforeEach(() => {
   api.createUser.mockResolvedValue({});
   api.adminSetUserPassword.mockResolvedValue({});
   api.deleteUser.mockResolvedValue({});
+  api.unlockUser.mockResolvedValue({});
   if (auth.store) auth.store.currentUser = { id: 'me', username: 'moi' };
 });
 
@@ -474,5 +477,55 @@ describe('moving between the list and one account', () => {
     view.handleBack();
 
     expect(view.selectedUser).toBeNull();
+  });
+});
+
+/**
+ * Releasing an account locked by failed sign-ins, before its lock runs out.
+ * The screen must show the account as free the moment the server agrees — and
+ * only then: a refused release that cleared the badge anyway would tell an
+ * administrator a person can sign in when they still cannot.
+ */
+describe('releasing a sign-in lock', () => {
+  const LOCKED = { ...ALICE, lockedUntil: new Date(Date.now() + 10 * 60_000).toISOString() };
+
+  it('asks the server to release that account', async () => {
+    const view = await mountAdmin([LOCKED, BOB]);
+
+    await view.handleUnlock(LOCKED);
+
+    expect(api.unlockUser).toHaveBeenCalledWith('u1');
+  });
+
+  it('shows the account as free, in the list and in the open panel', async () => {
+    const view = await mountAdmin([LOCKED, BOB]);
+    view.selectedUser = LOCKED;
+
+    await view.handleUnlock(LOCKED);
+
+    expect(view.users.find((user) => user.id === 'u1').lockedUntil).toBeNull();
+    expect(view.selectedUser.lockedUntil).toBeNull();
+  });
+
+  it('keeps the lock shown, and says why, when the server refuses', async () => {
+    const view = await mountAdmin([LOCKED, BOB]);
+    api.unlockUser.mockRejectedValue(new Error('Admin access required.'));
+
+    await view.handleUnlock(LOCKED);
+
+    expect(alerts).toContain('Admin access required.');
+    expect(view.users.find((user) => user.id === 'u1').lockedUntil).toBe(LOCKED.lockedUntil);
+  });
+
+  /** The handler is only half of it: the account panel has to reach it. */
+  it('is what the account panel calls when asked to release', async () => {
+    const view = await mountAdmin([LOCKED, BOB]);
+    view.selectedUser = LOCKED;
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'UserDetailStub' }).vm.$emit('unlock', LOCKED);
+    await flushPromises();
+
+    expect(api.unlockUser).toHaveBeenCalledWith('u1');
   });
 });

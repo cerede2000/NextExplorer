@@ -40,9 +40,32 @@ const incrementFailedAttempts = async (key) => {
   await setLock(key, failed, lockedUntil);
 };
 
+/**
+ * The accounts locked right now, as a map of key to the moment each frees
+ * itself.
+ *
+ * For the administration screen, which had no way to tell a locked account from
+ * one whose owner forgot the password. A lock whose time has passed is left
+ * out: it refuses nothing any more, and the next sign-in clears it.
+ */
+const listActiveLocks = async () => {
+  const db = await getDb();
+  const now = Date.now();
+  const locks = new Map();
+  const rows = db
+    .prepare('SELECT key, locked_until FROM auth_locks WHERE locked_until IS NOT NULL')
+    .all();
+  for (const row of rows) {
+    const until = Date.parse(row.locked_until);
+    if (Number.isFinite(until) && until > now) locks.set(row.key, row.locked_until);
+  }
+  return locks;
+};
+
 module.exports = {
   getLock,
   clearLock,
   isLocked,
   incrementFailedAttempts,
+  listActiveLocks,
 };

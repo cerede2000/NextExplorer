@@ -185,7 +185,8 @@
     "pathRequired": "需要路徑",
     "saveVolume": "儲存儲存卷失敗",
     "removeVolume": "移除儲存卷失敗",
-    "identifierRequired": "需要電子郵件地址或使用者名稱"
+    "identifierRequired": "需要電子郵件地址或使用者名稱",
+    "unlockUser": "無法解鎖帳戶"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份驗證",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "找不到使用者",
     "CONFLICT_USER_EXISTS": "使用者已存在",
     "CONFLICT_PASSWORD_EXISTS": "您已有密碼驗證",
-    "CONFLICT_SETUP_COMPLETE": "應用程式已設定"
+    "CONFLICT_SETUP_COMPLETE": "應用程式已設定",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "登入失敗次數過多，帳戶已被鎖定。請在{minutes}分鐘後重試"
   },
   "titles": {
     "volumes": "儲存卷",
@@ -571,7 +573,9 @@
       "volumePath": "儲存卷路徑",
       "pathCannotChange": "建立後無法更改路徑。如需更改，請刪除此卷並重新建立。",
       "accessMode": "存取模式",
-      "noUsers": "沒有可用使用者"
+      "noUsers": "沒有可用使用者",
+      "lockedBadge": "已鎖定",
+      "lockedUntil": "鎖定至 {time}"
     },
     "userDetails": {
       "profileTab": "個人資料",
@@ -597,7 +601,11 @@
       "sso": "單一登入 (OIDC)",
       "oidcProvider": "OIDC 提供者",
       "oidcLinkedProfile": "已連結的資料",
-      "noOidcProfileMessage": "此帳戶未連結任何 OIDC 資料。"
+      "noOidcProfileMessage": "此帳戶未連結任何 OIDC 資料。",
+      "signInLock": "登入鎖定",
+      "lockedHint": "登入失敗次數過多，已被鎖定。將於 {time} 自動解鎖。",
+      "notLockedHint": "未鎖定。登入失敗次數過多會使帳戶暫時鎖定。",
+      "unlock": "立即解鎖"
     },
     "uploads": {
       "title": "上傳",

@@ -185,7 +185,8 @@
     "pathRequired": "",
     "saveVolume": "",
     "removeVolume": "",
-    "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario"
+    "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario",
+    "unlockUser": "No se pudo desbloquear la cuenta"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Se requiere autenticación",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Usuario no encontrado",
     "CONFLICT_USER_EXISTS": "El usuario ya existe",
     "CONFLICT_PASSWORD_EXISTS": "Ya tienes autenticación por contraseña",
-    "CONFLICT_SETUP_COMPLETE": "La aplicación ya está configurada"
+    "CONFLICT_SETUP_COMPLETE": "La aplicación ya está configurada",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Cuenta bloqueada tras demasiados intentos fallidos de inicio de sesión. Inténtalo de nuevo en {minutes} minuto | Cuenta bloqueada tras demasiados intentos fallidos de inicio de sesión. Inténtalo de nuevo en {minutes} minutos"
   },
   "titles": {
     "volumes": "Volúmenes",
@@ -571,7 +573,9 @@
       "volumePath": "Ruta del volumen",
       "pathCannotChange": "La ruta no se puede cambiar después de la creación. Elimine este volumen y cree uno nuevo si es necesario.",
       "accessMode": "Modo de acceso",
-      "noUsers": "No hay usuarios disponibles"
+      "noUsers": "No hay usuarios disponibles",
+      "lockedBadge": "Bloqueado",
+      "lockedUntil": "Bloqueado hasta las {time}"
     },
     "userDetails": {
       "profileTab": "Perfil",
@@ -597,7 +601,11 @@
       "sso": "Inicio de sesión único (OIDC)",
       "oidcProvider": "Proveedor OIDC",
       "oidcLinkedProfile": "Perfil vinculado",
-      "noOidcProfileMessage": "No hay perfiles OIDC vinculados a esta cuenta."
+      "noOidcProfileMessage": "No hay perfiles OIDC vinculados a esta cuenta.",
+      "signInLock": "Bloqueo de inicio de sesión",
+      "lockedHint": "Bloqueado tras demasiados intentos fallidos de inicio de sesión. Se desbloquea solo a las {time}.",
+      "notLockedHint": "No bloqueado. Demasiados intentos fallidos de inicio de sesión bloquean una cuenta durante un tiempo.",
+      "unlock": "Desbloquear ahora"
     },
     "uploads": {
       "title": "Subidas",

@@ -185,7 +185,8 @@
     "pathRequired": "경로가 필요합니다",
     "saveVolume": "볼륨 저장 실패",
     "removeVolume": "볼륨 제거 실패",
-    "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다"
+    "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다",
+    "unlockUser": "계정 잠금을 해제할 수 없습니다"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "인증이 필요합니다",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "유저를 찾을 수 없습니다",
     "CONFLICT_USER_EXISTS": "유저가 이미 존재합니다",
     "CONFLICT_PASSWORD_EXISTS": "이미 비밀번호 인증이 존재합니다",
-    "CONFLICT_SETUP_COMPLETE": "애플리케이션이 이미 설정되었습니다"
+    "CONFLICT_SETUP_COMPLETE": "애플리케이션이 이미 설정되었습니다",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "로그인 실패가 너무 많아 계정이 잠겼습니다. {minutes}분 후 다시 시도해주세요 | 로그인 실패가 너무 많아 계정이 잠겼습니다. {minutes}분 후 다시 시도해주세요"
   },
   "titles": {
     "volumes": "볼륨",
@@ -571,7 +573,9 @@
       "volumePath": "볼륨 경로",
       "pathCannotChange": "생성된 이후에는 경로를 변경할 수 없습니다. 필요 시에는 이 볼륨을 제거하고 새로운 볼륨을 생성해야 합니다.",
       "accessMode": "접근 모드",
-      "noUsers": "유저가 없습니다"
+      "noUsers": "유저가 없습니다",
+      "lockedBadge": "잠김",
+      "lockedUntil": "{time}까지 잠김"
     },
     "userDetails": {
       "profileTab": "프로필",
@@ -597,7 +601,11 @@
       "sso": "통합 인증 (OIDC)",
       "oidcProvider": "OIDC 제공자",
       "oidcLinkedProfile": "연결된 프로필",
-      "noOidcProfileMessage": "이 계정과 연결된 OIDC 프로필이 없습니다."
+      "noOidcProfileMessage": "이 계정과 연결된 OIDC 프로필이 없습니다.",
+      "signInLock": "로그인 잠금",
+      "lockedHint": "로그인 실패가 너무 많아 잠겼습니다. {time}에 자동으로 해제됩니다.",
+      "notLockedHint": "잠겨 있지 않습니다. 로그인 실패가 너무 많으면 계정이 잠시 잠깁니다.",
+      "unlock": "지금 잠금 해제"
     },
     "uploads": {
       "title": "업로드",

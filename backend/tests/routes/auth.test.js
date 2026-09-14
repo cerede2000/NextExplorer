@@ -176,3 +176,38 @@ describe('Auth Routes', () => {
     });
   });
 });
+
+/**
+ * The answer to a sign-in on a locked account.
+ *
+ * The lock carried its end as an ISO date in `retryAfter`, where the interface
+ * reads seconds, and under a generic rate-limit code no catalogue translates —
+ * so the screen showed the English message as the server wrote it and could
+ * not say how long to wait. A code of its own and a duration in seconds let it
+ * say "try again in 12 minutes", in the reader's language.
+ */
+describe('a sign-in refused because the account is locked', () => {
+  it('says how long is left, in seconds, under a code the interface translates', async () => {
+    const app = buildApp({ authEnabled: true });
+    await request(app)
+      .post('/api/auth/setup')
+      .send({ email: 'admin@example.com', username: 'admin', password: 'secret123' });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await request(app).post('/api/auth/login').send({ identifier: 'admin', password: 'wrong' });
+    }
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: 'admin', password: 'secret123' });
+
+    expect(response.status).toBe(429);
+    expect(response.body.error?.code).toBe('AUTH_ACCOUNT_LOCKED');
+    const { retryAfter, lockedUntil } = response.body.error?.details || {};
+    expect(Number.isInteger(retryAfter)).toBe(true);
+    expect(retryAfter).toBeGreaterThan(0);
+    expect(retryAfter).toBeLessThanOrEqual(15 * 60);
+    // The two say the same thing: the deadline is that many seconds away.
+    expect(Math.abs(Date.parse(lockedUntil) - Date.now() - retryAfter * 1000)).toBeLessThan(3000);
+  }, 60_000);
+});

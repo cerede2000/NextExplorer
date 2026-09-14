@@ -185,7 +185,8 @@
     "pathRequired": "Ścieżka jest wymagana",
     "saveVolume": "Nie udało się zapisać wolumenu",
     "removeVolume": "Nie udało się usunąć wolumenu",
-    "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika"
+    "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika",
+    "unlockUser": "Nie udało się odblokować konta"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Wymagana autentykacja",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Nie znaleziono użytkownika",
     "CONFLICT_USER_EXISTS": "Użytkownik już istnieje",
     "CONFLICT_PASSWORD_EXISTS": "Masz już uwierzytelnianie hasłem",
-    "CONFLICT_SETUP_COMPLETE": "Aplikacja jest już skonfigurowana"
+    "CONFLICT_SETUP_COMPLETE": "Aplikacja jest już skonfigurowana",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minutę | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minuty | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minut"
   },
   "titles": {
     "volumes": "Woluminy",
@@ -571,7 +573,9 @@
       "volumePath": "Ścieżka woluminu",
       "pathCannotChange": "Ścieżki nie można zmienić po utworzeniu. Usuń ten wolumin i utwórz nowy w razie potrzeby.",
       "accessMode": "Tryb dostępu",
-      "noUsers": "Brak dostępnych użytkowników"
+      "noUsers": "Brak dostępnych użytkowników",
+      "lockedBadge": "Zablokowane",
+      "lockedUntil": "Zablokowane do {time}"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -597,7 +601,11 @@
       "sso": "Logowanie jednokrotne (OIDC)",
       "oidcProvider": "Dostawca OIDC",
       "oidcLinkedProfile": "Powiązany profil",
-      "noOidcProfileMessage": "Do tego konta nie powiązano żadnego profilu OIDC."
+      "noOidcProfileMessage": "Do tego konta nie powiązano żadnego profilu OIDC.",
+      "signInLock": "Blokada logowania",
+      "lockedHint": "Zablokowane po zbyt wielu nieudanych próbach logowania. Blokada zniknie sama o {time}.",
+      "notLockedHint": "Niezablokowane. Zbyt wiele nieudanych prób logowania blokuje konto na pewien czas.",
+      "unlock": "Odblokuj teraz"
     },
     "uploads": {
       "title": "Przesyłanie",

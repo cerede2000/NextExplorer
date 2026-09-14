@@ -7,6 +7,7 @@ import {
   createUser,
   adminSetUserPassword,
   deleteUser,
+  unlockUser,
 } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { useI18n } from 'vue-i18n';
@@ -133,6 +134,20 @@ const handleResetPassword = async (u) => {
   }
 };
 
+const handleUnlock = async (u) => {
+  try {
+    await unlockUser(u.id);
+    // Cleared only once the server has agreed: showing a refused release as
+    // done would tell an administrator a person can sign in when they cannot.
+    users.value = users.value.map((it) => (it.id === u.id ? { ...it, lockedUntil: null } : it));
+    if (selectedUser.value?.id === u.id) {
+      selectedUser.value = { ...selectedUser.value, lockedUntil: null };
+    }
+  } catch (e) {
+    alert(e?.message || t('errors.unlockUser'));
+  }
+};
+
 const handleDeleteUser = async (u) => {
   if (u.id === auth.currentUser?.id) {
     alert(t('settings.users.cannotDeleteSelf'));
@@ -216,6 +231,7 @@ onMounted(() => {
       @make-admin="handleMakeAdmin"
       @revoke-admin="handleRevokeAdmin"
       @reset-password="handleResetPassword"
+      @unlock="handleUnlock"
       @delete="handleDeleteUser"
     />
 

@@ -205,3 +205,117 @@ describe('reading and changing accounts', () => {
     expect(serialised).not.toMatch(/passwordHash|password_hash|\$2[aby]\$/);
   });
 });
+
+/**
+ * An account locked by failed sign-ins, seen from the administration screen.
+ *
+ * The lock frees itself after AUTH_LOCK_MINUTES and nothing else could free it:
+ * no list showed which accounts were locked, and releasing one meant deleting a
+ * row from auth_locks by hand. Asked for upstream in nxzai/NextExplorer#370.
+ * Locked here the way a person locks it — five wrong passwords — and checked
+ * released the way it matters: the right password signs in again.
+ */
+describe('an account locked by failed sign-ins', () => {
+  const PASSWORD = 'correct horse battery staple';
+
+  const lockOut = async (users, identifier) => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await users.attemptLocalLogin({ identifier, password: 'wrong password' });
+    }
+  };
+
+  const signInStatus = async (users, identifier, password = PASSWORD) => {
+    try {
+      return (await users.attemptLocalLogin({ identifier, password })) ? 'signed-in' : 'refused';
+    } catch (error) {
+      return error.status === 423 ? 'locked' : `error ${error.message}`;
+    }
+  };
+
+  const listed = async (app, id) => {
+    const response = await request(app).get('/api/users');
+    return response.body.users.find((user) => user.id === id);
+  };
+
+  it('shows in the list, with the moment it frees itself', async () => {
+    const { users, admin, regular } = await seed();
+    await lockOut(users, 'regular');
+
+    const app = asAdmin(admin);
+    const locked = await listed(app, regular.id);
+    const other = await listed(app, admin.id);
+
+    expect(Date.parse(locked.lockedUntil)).toBeGreaterThan(Date.now());
+    expect(other.lockedUntil).toBeNull();
+  }, 30_000);
+
+  it('is no longer shown once the lock has run out', async () => {
+    const { users, admin, regular } = await seed();
+    await lockOut(users, 'regular');
+    const db = await currentEnv.requireFresh('src/services/db').getDb();
+    db.prepare('UPDATE auth_locks SET locked_until = ? WHERE key = ?').run(
+      new Date(Date.now() - 60_000).toISOString(),
+      regular.id
+    );
+
+    expect((await listed(asAdmin(admin), regular.id)).lockedUntil).toBeNull();
+  }, 30_000);
+
+  it('can be released by an administrator, after which the password signs in', async () => {
+    const { users, admin, regular } = await seed();
+    await lockOut(users, 'regular');
+    // The lock is real before it is released, or the release proves nothing.
+    expect(await signInStatus(users, 'regular')).toBe('locked');
+
+    const response = await request(asAdmin(admin)).delete(`/api/users/${regular.id}/lock`);
+
+    expect(response.status).toBe(204);
+    expect(await signInStatus(users, 'regular')).toBe('signed-in');
+    expect((await listed(asAdmin(admin), regular.id)).lockedUntil).toBeNull();
+  }, 30_000);
+
+  /**
+   * Releasing clears the count as well as the deadline. Clearing only the
+   * deadline would leave five failures on the books, and the very next typo
+   * would lock the account again.
+   */
+  it('starts the count again, so one more typo does not lock it straight back', async () => {
+    const { users, admin, regular } = await seed();
+    await lockOut(users, 'regular');
+
+    await request(asAdmin(admin)).delete(`/api/users/${regular.id}/lock`);
+    await users.attemptLocalLogin({ identifier: 'regular', password: 'one more typo' });
+
+    expect(await signInStatus(users, 'regular')).toBe('signed-in');
+  }, 30_000);
+
+  it('cannot be released by someone who is not an administrator', async () => {
+    const { users, admin, regular } = await seed();
+    await lockOut(users, 'admin');
+
+    const response = await request(asRegular(regular)).delete(`/api/users/${admin.id}/lock`);
+
+    expect(response.status).toBe(403);
+    expect(await signInStatus(users, 'admin')).toBe('locked');
+  }, 30_000);
+
+  it('answers not found for an account that does not exist', async () => {
+    const { admin } = await seed();
+
+    const response = await request(asAdmin(admin)).delete('/api/users/no-such-account/lock');
+
+    expect(response.status).toBe(404);
+    // The reason, not only the status: a route that did not exist answered 404
+    // too, and this test passed before there was anything to test.
+    expect(response.body.error?.message).toMatch(/User not found/);
+  });
+
+  it('treats releasing an account that is not locked as done, not as an error', async () => {
+    const { admin, regular } = await seed();
+
+    const response = await request(asAdmin(admin)).delete(`/api/users/${regular.id}/lock`);
+
+    expect(response.status).toBe(204);
+  });
+});

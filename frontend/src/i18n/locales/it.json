@@ -185,7 +185,8 @@
     "pathRequired": "Il percorso è obbligatorio",
     "saveVolume": "Impossibile salvare il volume",
     "removeVolume": "Impossibile rimuovere il volume",
-    "identifierRequired": "È richiesto un indirizzo email o un nome utente"
+    "identifierRequired": "È richiesto un indirizzo email o un nome utente",
+    "unlockUser": "Impossibile sbloccare l'account"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Utente non trovato",
     "CONFLICT_USER_EXISTS": "L'utente esiste già",
     "CONFLICT_PASSWORD_EXISTS": "Hai già l'autenticazione tramite password",
-    "CONFLICT_SETUP_COMPLETE": "Applicazione già configurata"
+    "CONFLICT_SETUP_COMPLETE": "Applicazione già configurata",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account bloccato dopo troppi tentativi di accesso falliti. Riprova tra {minutes} minuto | Account bloccato dopo troppi tentativi di accesso falliti. Riprova tra {minutes} minuti"
   },
   "titles": {
     "volumes": "Volumi",
@@ -571,7 +573,9 @@
       "volumePath": "Percorso volume",
       "pathCannotChange": "Il percorso non può essere cambiato dopo la creazione. Rimuovi questo volume e creane uno nuovo se necessario.",
       "accessMode": "Modalità di accesso",
-      "noUsers": "Nessun utente disponibile"
+      "noUsers": "Nessun utente disponibile",
+      "lockedBadge": "Bloccato",
+      "lockedUntil": "Bloccato fino alle {time}"
     },
     "userDetails": {
       "profileTab": "Profilo",
@@ -597,7 +601,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "Provider OIDC",
       "oidcLinkedProfile": "Profilo collegato",
-      "noOidcProfileMessage": "Nessun profilo OIDC collegato a questo account."
+      "noOidcProfileMessage": "Nessun profilo OIDC collegato a questo account.",
+      "signInLock": "Blocco dell'accesso",
+      "lockedHint": "Bloccato dopo troppi tentativi di accesso falliti. Si sblocca da solo alle {time}.",
+      "notLockedHint": "Non bloccato. Troppi tentativi di accesso falliti bloccano un account per un po'.",
+      "unlock": "Sblocca ora"
     },
     "uploads": {
       "title": "Caricamenti",

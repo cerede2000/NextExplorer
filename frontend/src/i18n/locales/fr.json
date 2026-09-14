@@ -185,7 +185,8 @@
     "pathRequired": "Le chemin est obligatoire",
     "saveVolume": "Échec de l'enregistrement du volume",
     "removeVolume": "Échec de la suppression du volume",
-    "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis"
+    "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis",
+    "unlockUser": "Impossible de déverrouiller le compte"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "Utilisateur non trouvé",
     "CONFLICT_USER_EXISTS": "L'utilisateur existe déjà",
     "CONFLICT_PASSWORD_EXISTS": "Vous disposez déjà d'une authentification par mot de passe",
-    "CONFLICT_SETUP_COMPLETE": "L'application est déjà configurée"
+    "CONFLICT_SETUP_COMPLETE": "L'application est déjà configurée",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minute | Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minutes"
   },
   "titles": {
     "volumes": "Volumes",
@@ -594,7 +596,9 @@
       "volumePath": "Chemin du volume",
       "pathCannotChange": "Le chemin ne peut pas être modifié après la création. Supprimez ce volume et créez-en un nouveau si nécessaire.",
       "accessMode": "Mode d'accès",
-      "noUsers": "Aucun utilisateur disponible"
+      "noUsers": "Aucun utilisateur disponible",
+      "lockedBadge": "Verrouillé",
+      "lockedUntil": "Verrouillé jusqu'à {time}"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -620,7 +624,11 @@
       "sso": "Authentification unique (OIDC)",
       "oidcProvider": "Fournisseur OIDC",
       "oidcLinkedProfile": "Profil lié",
-      "noOidcProfileMessage": "Aucun profil OIDC lié à ce compte."
+      "noOidcProfileMessage": "Aucun profil OIDC lié à ce compte.",
+      "signInLock": "Verrouillage de connexion",
+      "lockedHint": "Verrouillé après trop de tentatives de connexion échouées. Il se libère de lui-même à {time}.",
+      "notLockedHint": "Non verrouillé. Trop de tentatives de connexion échouées verrouillent un compte pour un temps.",
+      "unlock": "Déverrouiller maintenant"
     },
     "searchIndex": {
       "title": "Index de recherche",

@@ -185,7 +185,8 @@
     "pathRequired": "必须填写路径",
     "saveVolume": "无法保存卷",
     "removeVolume": "无法移除卷",
-    "identifierRequired": "需要邮箱地址或用户名"
+    "identifierRequired": "需要邮箱地址或用户名",
+    "unlockUser": "无法解锁账户"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
@@ -201,7 +202,8 @@
     "NOT_FOUND_USER": "未找到用户",
     "CONFLICT_USER_EXISTS": "用户已存在",
     "CONFLICT_PASSWORD_EXISTS": "您已有密码身份验证",
-    "CONFLICT_SETUP_COMPLETE": "应用程序已配置"
+    "CONFLICT_SETUP_COMPLETE": "应用程序已配置",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "登录失败次数过多，账户已被锁定。请在{minutes}分钟后重试"
   },
   "titles": {
     "volumes": "卷",
@@ -571,7 +573,9 @@
       "volumePath": "卷路径",
       "pathCannotChange": "创建后无法更改路径。如需更改，请删除此卷并重新创建。",
       "accessMode": "访问模式",
-      "noUsers": "没有可用用户"
+      "noUsers": "没有可用用户",
+      "lockedBadge": "已锁定",
+      "lockedUntil": "锁定至 {time}"
     },
     "userDetails": {
       "profileTab": "个人资料",
@@ -597,7 +601,11 @@
       "sso": "单点登录 (OIDC)",
       "oidcProvider": "OIDC 提供方",
       "oidcLinkedProfile": "已关联的资料",
-      "noOidcProfileMessage": "此账户未关联任何 OIDC 资料。"
+      "noOidcProfileMessage": "此账户未关联任何 OIDC 资料。",
+      "signInLock": "登录锁定",
+      "lockedHint": "登录失败次数过多，已被锁定。将于 {time} 自动解锁。",
+      "notLockedHint": "未锁定。登录失败次数过多会使账户暂时锁定。",
+      "unlock": "立即解锁"
     },
     "uploads": {
       "title": "上传",

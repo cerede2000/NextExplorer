@@ -14,6 +14,11 @@ export function createErrorHandler(notificationsStore, i18n) {
         if (code.startsWith('RATE_LIMIT_') && details?.retryAfter) {
           const minutes = Math.ceil(details.retryAfter / 60);
           heading = i18n.global.t(key, { minutes }, minutes);
+        } else if (code === 'AUTH_ACCOUNT_LOCKED' && details?.retryAfter) {
+          // A sentence of its own rather than a placeholder in the plain one:
+          // a lock that arrives without a duration must never read "{minutes}".
+          const minutes = Math.ceil(details.retryAfter / 60);
+          heading = i18n.global.t('serverErrors.AUTH_ACCOUNT_LOCKED_RETRY', { minutes }, minutes);
         } else {
           heading = translated;
         }
