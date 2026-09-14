@@ -287,6 +287,13 @@ const uploads = {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;
   })(),
   maxFilesPerRequest: env.MAX_FILES_PER_UPLOAD,
+  // Free space kept in reserve when accepting writes, so a full volume never
+  // takes the database down with it. The trash gives space back before this
+  // floor is crossed.
+  storageReserveBytes: (() => {
+    const parsed = parseByteSize(env.UPLOAD_STORAGE_RESERVE);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024;
+  })(),
 };
 
 // --- OnlyOffice ---
@@ -435,6 +442,24 @@ const archives = (() => {
   };
 })();
 
+// --- Trash ---
+// Defaults only: the values in force are the system settings, which start from
+// these. Out-of-range values fall back rather than failing the start.
+const trash = (() => {
+  const retentionDays = Number(env.TRASH_RETENTION_DAYS);
+  const maxPercent = Number(env.TRASH_MAX_PERCENT);
+  const maxBytes = env.TRASH_MAX_SIZE ? parseByteSize(env.TRASH_MAX_SIZE) : null;
+  return {
+    enabled: env.TRASH_ENABLED !== false,
+    retentionDays:
+      Number.isFinite(retentionDays) && retentionDays >= 1
+        ? Math.min(3650, Math.round(retentionDays))
+        : 30,
+    maxPercent:
+      Number.isFinite(maxPercent) && maxPercent >= 1 ? Math.min(90, Math.round(maxPercent)) : 10,
+    maxBytes: Number.isFinite(maxBytes) && maxBytes > 0 ? Math.floor(maxBytes) : null,
+  };
+})();
 // --- Folder size index ---
 const VALID_FOLDER_SIZE_MODES = new Set(['off', 'shallow', 'full']);
 const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
@@ -588,6 +613,7 @@ module.exports = {
   favorites,
   shares,
   hiddenFiles,
+  trash,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,

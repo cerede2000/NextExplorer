@@ -9,12 +9,13 @@ const {
   public: publicConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
+const { getTrashSettings } = require('../services/trash/settings');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
 
 // GET /api/features -> returns enabled/disabled feature flags derived from env
-router.get('/features', (_req, res) => {
+router.get('/features', async (_req, res) => {
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -39,6 +40,13 @@ router.get('/features', (_req, res) => {
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),
     },
+    // Whether deleting goes to the trash, and for how long it keeps things:
+    // what the delete dialog tells people before they confirm. Nothing here
+    // says what is in anyone's trash.
+    trash: await getTrashSettings().then(
+      (settings) => ({ enabled: settings.enabled, retentionDays: settings.retentionDays }),
+      () => ({ enabled: false, retentionDays: null })
+    ),
     personal: {
       enabled: Boolean(features?.personalFolders),
     },
