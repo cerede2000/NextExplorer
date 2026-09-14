@@ -164,14 +164,14 @@ hard each is.
   per-path authorization layer already exists; the work is serving WebDAV
   through it without going around it. High effort, and the security is where
   the care goes.
-- **A trash, and file versions.** Nobody has shipped a trash among the three:
-  Quantum's README marks it as in progress, with the request open since April
-  2025 (gtsteffaniak/filebrowser#543); Filestash lists none; caby has neither.
-  Versions are the other way round — Filestash lists versioning among its
-  features, Quantum and caby do not have it. The rest of the expectation comes
-  from NAS software (a `#recycle` folder per shared folder, on by default,
-  emptied on a schedule) and from OneDrive and Nextcloud for versions. A design
-  covering both, in one reserved space per volume, is being costed.
+- **File versions.** The trash is done: one reserved `.nextexplorer` zone per
+  volume, deletion as a rename, crash recovery, a maintenance pass holding the
+  retention and a budget, and a view to restore from. Versions are the second
+  half of that design and reuse its zone, journal and policy: capture on the
+  four places the application overwrites a file (the text editor, in the
+  application and through a share link, ONLYOFFICE, Collabora), thinning over
+  time, and a history panel. The text editor still writes in place and must
+  move to a temporary file and a rename first.
 - **An activity log.** Who downloaded what, when, from which share. The share
   counters are already in the database; what is missing is the table, the
   retention and the page. This is the feature that decides whether a deployment

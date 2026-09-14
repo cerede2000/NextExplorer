@@ -175,6 +175,17 @@ These are safety ceilings, not tuning knobs: they exist so a single request cann
 
 The sharing system (toolbar **Share** button, guest links such as `/share/:token`, and the **Shared with me** page) works out of the box with the feature flags above. Advanced share tuning knobs are documented under **Sharing (advanced)** below.
 
+## Trash
+
+Deleting moves an item into a hidden `.nextexplorer` folder at the root of its volume — a rename on the same disk, never a copy. These variables set the defaults; administrators change what is in force under **Settings → Trash**. See [Trash](/admin/trash).
+
+| Variable               | Default  | Description                                                                                                                                                      |
+| ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRASH_ENABLED`        | `true`   | Send deleted items to the trash. When `false`, deleting removes items for good; items already in the trash still expire.                                         |
+| `TRASH_RETENTION_DAYS` | `30`     | How long an item stays in the trash before it is removed for good, from 1 to 3650 days.                                                                          |
+| `TRASH_MAX_PERCENT`    | `10`     | The most the trash may hold on each volume, as a share of that volume's size (1 to 90). The oldest items go first when it is exceeded.                          |
+| `TRASH_MAX_SIZE`       | _(none)_ | An optional size cap per volume, such as `50G`. The smaller of this and `TRASH_MAX_PERCENT` applies. An item larger than the whole trash is never silently removed: the person deleting it is asked. |
+
 ## Editor
 
 | Variable              | Default | Description                                                                                                                                                                                                                                                                                                        |
