@@ -227,6 +227,32 @@ const sanitizeUploads = (uploads = {}) => {
 };
 
 /**
+ * The trash settings in force: on or off, how many days an item is kept, and
+ * how much of a volume the trash may hold — a share of it, capped by a size
+ * when one is set. An explicit `maxBytes: null` removes the cap; a field left
+ * out keeps the default the environment gave.
+ */
+const sanitizeTrash = (trash = {}) => {
+  const { trash: defaults } = require('../config/index');
+  const source = trash && typeof trash === 'object' ? trash : {};
+  const integerIn = (value, min, max, fallback) =>
+    Number.isFinite(value) ? clampNumber(Math.round(value), min, max) : fallback;
+  const rawMaxBytes =
+    typeof source.maxBytes === 'string' ? parseByteSize(source.maxBytes) : source.maxBytes;
+
+  let maxBytes = defaults.maxBytes;
+  if (source.maxBytes === null) maxBytes = null;
+  else if (Number.isFinite(rawMaxBytes) && rawMaxBytes > 0) maxBytes = Math.floor(rawMaxBytes);
+
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    retentionDays: integerIn(source.retentionDays, 1, 3650, defaults.retentionDays),
+    maxPercent: integerIn(source.maxPercent, 1, 90, defaults.maxPercent),
+    maxBytes,
+  };
+};
+
+/**
  * Get public settings (branding only, no auth required)
  */
 const getPublicSettings = async () => {
@@ -329,6 +355,7 @@ const getSystemSettings = async () => {
     let uploads = defaultUploadSettings();
     const folderSize = { excludedPaths: [] };
     const searchIndex = { excludedPaths: [] };
+    const trash = {};
 
     for (const row of rows) {
       try {
@@ -345,6 +372,8 @@ const getSystemSettings = async () => {
           Object.assign(folderSize, JSON.parse(row.value));
         } else if (row.key === 'searchIndex') {
           Object.assign(searchIndex, JSON.parse(row.value));
+        } else if (row.key === 'trash') {
+          Object.assign(trash, JSON.parse(row.value));
         }
       } catch (err) {
         // Skip invalid JSON
@@ -357,6 +386,7 @@ const getSystemSettings = async () => {
         rules: sanitizeAccessRules(access.rules),
       },
       uploads: sanitizeUploads(uploads),
+      trash: sanitizeTrash(trash),
       folderSize: {
         ...sanitizeFolderSize(folderSize),
         environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -377,6 +407,7 @@ const getSystemSettings = async () => {
           rules: sanitizeAccessRules(settings.access?.rules || []),
         },
         uploads: sanitizeUploads(settings.uploads),
+        trash: sanitizeTrash(settings.trash),
         folderSize: {
           ...sanitizeFolderSize(settings.folderSize),
           environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -392,6 +423,7 @@ const getSystemSettings = async () => {
         thumbnails: sanitizeThumbnails({}),
         access: { rules: [] },
         uploads: sanitizeUploads({}),
+        trash: sanitizeTrash({}),
         folderSize: {
           excludedPaths: [],
           environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -425,6 +457,7 @@ const getSettingsForUser = async (user) => {
       result.access = systemSettings.access;
       result.folderSize = systemSettings.folderSize;
       result.searchIndex = systemSettings.searchIndex;
+      result.trash = systemSettings.trash;
     }
   }
 
@@ -623,6 +656,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeBranding(value);
   } else if (key === 'folderSize') {
     sanitizedValue = sanitizeFolderSize(value);
+  } else if (key === 'trash') {
+    sanitizedValue = sanitizeTrash(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -684,6 +719,7 @@ const setSettings = async (partial) => {
       rules: partial.access?.rules !== undefined ? partial.access.rules : current.access.rules,
     },
     uploads: { ...current.uploads, ...(partial.uploads || {}) },
+    trash: { ...current.trash, ...(partial.trash || {}) },
     folderSize: {
       excludedPaths:
         partial.folderSize?.excludedPaths !== undefined
@@ -709,6 +745,9 @@ const setSettings = async (partial) => {
   if (partial.uploads) {
     merged.uploads = await setSystemSetting('system', 'uploads', merged.uploads);
   }
+  if (partial.trash) {
+    merged.trash = await setSystemSetting('system', 'trash', merged.trash);
+  }
 
   // Also update JSON for backward compatibility during transition
   try {
@@ -733,6 +772,7 @@ module.exports = {
   getPublicSettings,
   getUserSettings,
   getSystemSettings,
+  sanitizeTrash,
   getSettingsForUser,
   setUserSetting,
   WRITABLE_USER_SETTINGS,

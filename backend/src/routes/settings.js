@@ -216,6 +216,20 @@ const applyUploads = (section) =>
     })
   );
 
+const isNumberOrNull = (value) => value === null || Number.isFinite(value);
+
+const applyTrash = (section) =>
+  mergeSection(
+    'system',
+    'trash',
+    keepValid(section, {
+      enabled: isBoolean,
+      retentionDays: isNumber,
+      maxPercent: isNumber,
+      maxBytes: isNumberOrNull,
+    })
+  );
+
 const applyBranding = (section) =>
   mergeSection(
     'branding',
@@ -258,6 +272,7 @@ const SYSTEM_SECTIONS = {
   thumbnails: applyThumbnails,
   access: applyAccess,
   uploads: applyUploads,
+  trash: applyTrash,
   branding: applyBranding,
   folderSize: (section) => applyExclusions('folderSize', folderSizeManager, section),
   searchIndex: (section) => applyExclusions('searchIndex', searchIndexManager, section),

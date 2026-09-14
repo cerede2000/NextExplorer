@@ -549,6 +549,25 @@ const personal = {
 
 // --- Hidden file patterns ---
 const hiddenFiles = parseHiddenFilePatterns(env.HIDDEN_FILE_PATTERNS);
+
+// --- Trash ---
+// Defaults only: the values in force are the system settings, which start from
+// these. Out-of-range values fall back rather than failing the start.
+const trash = (() => {
+  const retentionDays = Number(env.TRASH_RETENTION_DAYS);
+  const maxPercent = Number(env.TRASH_MAX_PERCENT);
+  const maxBytes = env.TRASH_MAX_SIZE ? parseByteSize(env.TRASH_MAX_SIZE) : null;
+  return {
+    enabled: env.TRASH_ENABLED !== false,
+    retentionDays:
+      Number.isFinite(retentionDays) && retentionDays >= 1
+        ? Math.min(3650, Math.round(retentionDays))
+        : 30,
+    maxPercent:
+      Number.isFinite(maxPercent) && maxPercent >= 1 ? Math.min(90, Math.round(maxPercent)) : 10,
+    maxBytes: Number.isFinite(maxBytes) && maxBytes > 0 ? Math.floor(maxBytes) : null,
+  };
+})();
 // --- Folder size index ---
 const VALID_FOLDER_SIZE_MODES = new Set(['off', 'shallow', 'full']);
 const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
@@ -762,6 +781,7 @@ module.exports = {
   folderSize,
   performanceDiagnostics,
   archives,
+  trash,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,

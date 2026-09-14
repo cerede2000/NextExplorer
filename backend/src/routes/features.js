@@ -14,6 +14,7 @@ const {
 const terminalService = require('../services/terminalService');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
 const { getSupportedArchiveExtensions } = require('../services/archiveService');
+const { getTrashSettings } = require('../services/trash/settings');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
@@ -70,6 +71,13 @@ router.get('/features', async (_req, res) => {
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),
     },
+    // Whether deleting goes to the trash, and for how long it keeps things:
+    // what the delete dialog tells people before they confirm. Nothing here
+    // says what is in anyone's trash.
+    trash: await getTrashSettings().then(
+      (settings) => ({ enabled: settings.enabled, retentionDays: settings.retentionDays }),
+      () => ({ enabled: false, retentionDays: null })
+    ),
     folderSize: {
       mode: features?.folderSizeMode || 'off',
       enabled: (features?.folderSizeMode || 'off') !== 'off',

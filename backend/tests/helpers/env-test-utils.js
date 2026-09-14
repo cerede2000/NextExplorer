@@ -165,6 +165,16 @@ const quiesceLoadedServices = async () => {
     /* nothing queued is nothing to drain */
   }
 
+  // The trash maintenance schedules a pass shortly after a deletion; one landing
+  // after the database is closed would fail on the next test's time.
+  const trashMaintenance = loadedModule('src/services/trash/maintenance');
+  try {
+    trashMaintenance?.stop?.();
+    await trashMaintenance?.idle?.();
+  } catch {
+    /* nothing scheduled is nothing to stop */
+  }
+
   const db = loadedModule('src/services/db');
   try {
     db?.closeDb?.();

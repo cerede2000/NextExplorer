@@ -25,6 +25,7 @@ const folderSizeManager = require('./services/folderSizeManager');
 const searchIndexManager = require('./services/searchIndexManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
+const trashMaintenance = require('./services/trash/maintenance');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
 
 let server = null;
@@ -68,6 +69,9 @@ const startServer = async () => {
   folderSizeManager.start();
   searchIndexManager.start();
   performanceDiagnostics.start();
+  // Finishes what a crash interrupted before anything else touches a zone,
+  // then keeps each zone within its retention and budget.
+  trashMaintenance.start();
 
   // Expired shares and guest sessions were never purged: the services had a
   // cleanup function each, and nothing ever called them, so both tables grew
@@ -102,6 +106,7 @@ const startServer = async () => {
     clearInterval(expirySweep);
     terminalService.cleanup();
     performanceDiagnostics.stop();
+    trashMaintenance.stop();
     await folderSizeManager.stop();
     searchIndexManager.stop();
     server.close(() => {

@@ -170,6 +170,13 @@ module.exports = {
   // Features
   SHOW_VOLUME_USAGE: normalizeBoolean(process.env.SHOW_VOLUME_USAGE) || false,
 
+  // Trash: a deletion is a rename into a reserved space at the root of each
+  // volume. These are the defaults; an administrator changes them in Settings.
+  TRASH_ENABLED: normalizeBoolean(process.env.TRASH_ENABLED) ?? true,
+  TRASH_RETENTION_DAYS: process.env.TRASH_RETENTION_DAYS?.trim() || '30',
+  TRASH_MAX_PERCENT: process.env.TRASH_MAX_PERCENT?.trim() || '10',
+  TRASH_MAX_SIZE: process.env.TRASH_MAX_SIZE?.trim() || null,
+
   // Folder size index
   // Mode: 'off' (default, feature disabled), 'shallow' (size of a folder's
   // direct entries only) or 'full' (recursive size of the whole subtree).
