@@ -74,20 +74,20 @@ The dialog also offers **Delete permanently** to skip the trash on purpose.
 
 ## Space and retention
 
-The trash of each volume may hold at most a share of the volume (10% by default), optionally capped by a size. A maintenance pass runs at startup, every hour, and shortly after deletions:
+The trash of each volume may hold at most a share of the volume (10% by default), optionally capped by a size. [File versions](/admin/versions) are kept in the same space, and counted with the trash. A maintenance pass runs at startup, every hour, and shortly after deletions:
 
 1. items past their retention are removed for good, whatever the space;
-2. while the trash is over its budget, or the volume is below the upload reserve (`UPLOAD_STORAGE_RESERVE`), the oldest items are removed first.
+2. while the space is over its budget, or the volume is below the upload reserve (`UPLOAD_STORAGE_RESERVE`), what matters least goes first: versions that are not the latest of their file, then the oldest items in the trash, then the latest version of each file, and pinned versions last.
 
-Before an upload is refused for lack of space, the trash of the destination volume gives back its oldest items — but only when that is enough for the upload to fit.
+Before an upload is refused for lack of space, the destination volume gives back that space in the same order — but only when that is enough for the upload to fit.
 
-Every early removal (before the retention), recovery or failure is recorded in the zone's journal, shown in **Settings → Trash**.
+Every early removal (before the retention), recovery or failure is recorded in the zone's journal, shown in **Settings → Trash and versions**.
 
-## Settings → Trash
+## Settings → Trash and versions
 
 Administrators can:
 
-- switch the trash on or off, and set the retention and the size limits (the defaults come from [environment variables](/configuration/environment#trash));
+- switch the trash on or off, and set the retention and the size limits (the defaults come from [environment variables](/configuration/environment#trash)); versions are switched on and off, and thinned, in their own section — see [File versions](/admin/versions#settings-trash-and-versions);
 - see, for each volume, what its trash holds, its budget, and what the last maintenance did;
 - **Verify** that every zone's records and files agree;
 - **Run maintenance now**.

@@ -386,3 +386,50 @@ test('a shared file sent to the trash comes back with its link', async ({ browse
     await stranger.close();
   }
 });
+
+/**
+ * Every save in the editor keeps what it replaced. From a right click, the
+ * Versions panel lists those versions and puts an earlier one back — and what
+ * the restore replaced is kept in turn, so restoring the wrong one loses
+ * nothing. The content is checked on the disk, not only on screen.
+ */
+test('an earlier version of a file edited in the browser comes back from the Versions panel', async () => {
+  const file = path.join(volume, 'minutes.txt');
+  fs.writeFileSync(file, 'draft one');
+
+  const saveInEditor = async (text) => {
+    await page.goto('/editor/Projects/minutes.txt');
+    const content = page.locator('.cm-content');
+    await expect(content).toContainText('draft');
+    await content.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type(text);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect.poll(() => fs.readFileSync(file, 'utf8')).toBe(text);
+  };
+
+  await saveInEditor('draft two');
+  await saveInEditor('draft three');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select minutes.txt' }).click({ button: 'right' });
+  await page.getByRole('button', { name: 'Versions', exact: true }).click();
+
+  const panel = page.getByRole('dialog', { name: 'File versions' });
+  await expect(panel).toContainText('minutes.txt');
+  const rows = panel.locator('[data-test="version-row"]');
+  await expect(rows).toHaveCount(2);
+
+  // Newest first: the last one is the file as it was before the first save.
+  await rows.last().getByRole('button', { name: 'Version actions' }).click();
+  // Exactly: "Restore as a copy…" is in the same menu.
+  await panel.getByRole('menuitem', { name: 'Restore', exact: true }).click();
+  // Asked first.
+  expect(fs.readFileSync(file, 'utf8')).toBe('draft three');
+  await page.locator('[data-test="versions-confirm"]').click();
+
+  await expect.poll(() => fs.readFileSync(file, 'utf8')).toBe('draft one');
+  await expect(page.getByText('Version restored')).toBeVisible();
+  // What the restore replaced is a version now, beside the two there were.
+  await expect(rows).toHaveCount(3);
+});

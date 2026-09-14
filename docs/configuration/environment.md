@@ -186,6 +186,19 @@ Deleting moves an item into a hidden `.nextexplorer` folder at the root of its v
 | `TRASH_MAX_PERCENT`    | `10`     | The most the trash may hold on each volume, as a share of that volume's size (1 to 90). The oldest items go first when it is exceeded.                          |
 | `TRASH_MAX_SIZE`       | _(none)_ | An optional size cap per volume, such as `50G`. The smaller of this and `TRASH_MAX_PERCENT` applies. An item larger than the whole trash is never silently removed: the person deleting it is asked. |
 
+## File versions
+
+Saving over a file keeps what the save replaces as a version, in the same `.nextexplorer` zone and the same reserved space as the trash. These variables set the defaults; administrators change what is in force under **Settings → Trash and versions**. See [File versions](/admin/versions).
+
+| Variable                              | Default | Description                                                                                          |
+| ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
+| `VERSIONS_ENABLED`                    | `true`  | Keep earlier versions of files. Independent of `TRASH_ENABLED`.                                       |
+| `VERSIONS_KEEP_ALL_HOURS`             | `24`    | Every version is kept for this many hours (1 to 720).                                               |
+| `VERSIONS_HOURLY_DAYS`                | `7`     | Then the newest of each hour, up to this many days (1 to 365).                                      |
+| `VERSIONS_DAILY_DAYS`                 | `30`    | Then the newest of each day, up to this many days (1 to 3650); after that, the newest of each week. |
+| `VERSIONS_MAX_PER_FILE`               | `50`    | The most versions a file keeps (1 to 1000). Pinned versions do not count.                           |
+| `VERSIONS_SESSION_CHECKPOINT_MINUTES` | `10`    | In a long ONLYOFFICE or Collabora session, a version is kept at most this often (1 to 1440 minutes). |
+
 ## Editor
 
 | Variable              | Default | Description                                                                                                                                                                                                                                                                                                        |
