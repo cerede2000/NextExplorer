@@ -879,7 +879,8 @@
       "originalLocation": "Ubicación original",
       "deletedBy": "Eliminado por",
       "deletedAt": "Eliminado el",
-      "expires": "Eliminación"
+      "expires": "Eliminación",
+      "modified": "Modificado"
     },
     "location": {
       "personal": "Carpeta personal",
@@ -896,7 +897,9 @@
       "empty": "Vaciar papelera",
       "openLocation": "Abrir ubicación original",
       "selectAll": "Seleccionar todo",
-      "select": "Seleccionar {name}"
+      "select": "Seleccionar {name}",
+      "open": "Abrir {name}",
+      "restoreFolder": "Restaurar la carpeta entera"
     },
     "confirm": {
       "deleteTitle": "¿Eliminar definitivamente?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "No se pudo cargar la papelera.",
-      "action": "La papelera no pudo hacer eso."
+      "action": "La papelera no pudo hacer eso.",
+      "loadFolder": "No se pudo abrir esta carpeta."
+    },
+    "browse": {
+      "breadcrumb": "Ubicación en la papelera",
+      "deletedFrom": "Eliminado de {location} el {date}",
+      "hint": "Restaurar devuelve cada elemento seleccionado a su lugar dentro de esta carpeta. El resto permanece en la papelera.",
+      "empty": "Esta carpeta está vacía.",
+      "back": "Volver a la papelera"
     }
   }
 }

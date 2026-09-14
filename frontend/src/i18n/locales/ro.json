@@ -879,7 +879,8 @@
       "originalLocation": "Locația originală",
       "deletedBy": "Șters de",
       "deletedAt": "Șters la",
-      "expires": "Eliminare"
+      "expires": "Eliminare",
+      "modified": "Modificat"
     },
     "location": {
       "personal": "Folder personal",
@@ -896,7 +897,9 @@
       "empty": "Golește coșul de gunoi",
       "openLocation": "Deschide locația originală",
       "selectAll": "Selectează tot",
-      "select": "Selectează {name}"
+      "select": "Selectează {name}",
+      "open": "Deschide {name}",
+      "restoreFolder": "Restaurează tot dosarul"
     },
     "confirm": {
       "deleteTitle": "Ștergeți definitiv?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "Coșul de gunoi nu a putut fi încărcat.",
-      "action": "Coșul de gunoi nu a putut face asta."
+      "action": "Coșul de gunoi nu a putut face asta.",
+      "loadFolder": "Acest dosar nu a putut fi deschis."
+    },
+    "browse": {
+      "breadcrumb": "Locația în coșul de gunoi",
+      "deletedFrom": "Șters din {location} la {date}",
+      "hint": "Restaurează pune fiecare element selectat înapoi la locul lui din acest dosar. Restul rămâne în coșul de gunoi.",
+      "empty": "Acest dosar este gol.",
+      "back": "Înapoi la coșul de gunoi"
     }
   }
 }

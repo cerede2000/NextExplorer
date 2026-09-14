@@ -879,7 +879,8 @@
       "originalLocation": "Original location",
       "deletedBy": "Deleted by",
       "deletedAt": "Deleted on",
-      "expires": "Removed"
+      "expires": "Removed",
+      "modified": "Modified"
     },
     "location": {
       "personal": "Personal folder",
@@ -896,7 +897,9 @@
       "empty": "Empty trash",
       "openLocation": "Open original location",
       "selectAll": "Select all",
-      "select": "Select {name}"
+      "select": "Select {name}",
+      "open": "Open {name}",
+      "restoreFolder": "Restore whole folder"
     },
     "confirm": {
       "deleteTitle": "Delete permanently?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "The trash could not be loaded.",
-      "action": "The trash could not do that."
+      "action": "The trash could not do that.",
+      "loadFolder": "This folder could not be opened."
+    },
+    "browse": {
+      "breadcrumb": "Location in the trash",
+      "deletedFrom": "Deleted from {location} on {date}",
+      "hint": "Restore puts each selected item back in its place inside this folder. The rest stays in the trash.",
+      "empty": "This folder is empty.",
+      "back": "Back to the trash"
     }
   }
 }

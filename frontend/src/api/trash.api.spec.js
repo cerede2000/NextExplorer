@@ -43,6 +43,28 @@ describe('the trash API', () => {
     });
   });
 
+  it('opens a deleted folder, at its top or further in', async () => {
+    await api.getTrashEntries('id 1');
+    expect(call()).toEqual({
+      endpoint: '/api/trash/items/id%201/entries',
+      method: 'GET',
+      body: null,
+    });
+
+    await api.getTrashEntries('a', 'drafts/v 2');
+    expect(call().endpoint).toBe('/api/trash/items/a/entries?path=drafts%2Fv%202');
+  });
+
+  it('restores entries from inside a deleted folder', async () => {
+    await api.restoreTrashEntries('a', ['drafts/v2.txt']);
+
+    expect(call()).toEqual({
+      endpoint: '/api/trash/items/a/restore',
+      method: 'POST',
+      body: { paths: ['drafts/v2.txt'] },
+    });
+  });
+
   it('deletes the chosen items for good', async () => {
     await api.deleteTrashItems(['a']);
 

@@ -879,7 +879,8 @@
       "originalLocation": "Posizione originale",
       "deletedBy": "Eliminato da",
       "deletedAt": "Eliminato il",
-      "expires": "Rimozione"
+      "expires": "Rimozione",
+      "modified": "Modificato"
     },
     "location": {
       "personal": "Cartella personale",
@@ -896,7 +897,9 @@
       "empty": "Svuota cestino",
       "openLocation": "Apri posizione originale",
       "selectAll": "Seleziona tutto",
-      "select": "Seleziona {name}"
+      "select": "Seleziona {name}",
+      "open": "Apri {name}",
+      "restoreFolder": "Ripristina l'intera cartella"
     },
     "confirm": {
       "deleteTitle": "Eliminare definitivamente?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "Impossibile caricare il cestino.",
-      "action": "Il cestino non ha potuto eseguire l'azione."
+      "action": "Il cestino non ha potuto eseguire l'azione.",
+      "loadFolder": "Impossibile aprire questa cartella."
+    },
+    "browse": {
+      "breadcrumb": "Posizione nel cestino",
+      "deletedFrom": "Eliminato da {location} il {date}",
+      "hint": "Ripristina rimette ogni elemento selezionato al suo posto in questa cartella. Il resto rimane nel cestino.",
+      "empty": "Questa cartella è vuota.",
+      "back": "Torna al cestino"
     }
   }
 }

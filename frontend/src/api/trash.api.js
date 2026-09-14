@@ -17,6 +17,19 @@ async function restoreTrashItems(ids) {
   return post('/api/trash/restore', { ids });
 }
 
+/** What a deleted folder holds, at `entryPath` inside it ('' for its top). */
+async function getTrashEntries(id, entryPath = '') {
+  const query = entryPath ? `?path=${encodeURIComponent(entryPath)}` : '';
+  return requestJson(`/api/trash/items/${encodeURIComponent(id)}/entries${query}`, {
+    method: 'GET',
+  });
+}
+
+/** Put back entries from inside a deleted folder; the rest of it stays in the trash. */
+async function restoreTrashEntries(id, paths) {
+  return post(`/api/trash/items/${encodeURIComponent(id)}/restore`, { paths });
+}
+
 async function deleteTrashItems(ids, { forgetUnavailable = false } = {}) {
   return post('/api/trash/delete', forgetUnavailable ? { ids, forgetUnavailable: true } : { ids });
 }
@@ -39,7 +52,9 @@ async function runTrashMaintenance() {
 
 export {
   getTrash,
+  getTrashEntries,
   restoreTrashItems,
+  restoreTrashEntries,
   deleteTrashItems,
   emptyTrash,
   getTrashZones,

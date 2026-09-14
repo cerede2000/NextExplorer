@@ -879,7 +879,8 @@
       "originalLocation": "Ursprünglicher Ort",
       "deletedBy": "Gelöscht von",
       "deletedAt": "Gelöscht am",
-      "expires": "Entfernung"
+      "expires": "Entfernung",
+      "modified": "Geändert"
     },
     "location": {
       "personal": "Persönlicher Ordner",
@@ -896,7 +897,9 @@
       "empty": "Papierkorb leeren",
       "openLocation": "Ursprünglichen Ort öffnen",
       "selectAll": "Alle auswählen",
-      "select": "{name} auswählen"
+      "select": "{name} auswählen",
+      "open": "{name} öffnen",
+      "restoreFolder": "Ganzen Ordner wiederherstellen"
     },
     "confirm": {
       "deleteTitle": "Endgültig löschen?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "Der Papierkorb konnte nicht geladen werden.",
-      "action": "Der Papierkorb konnte das nicht ausführen."
+      "action": "Der Papierkorb konnte das nicht ausführen.",
+      "loadFolder": "Dieser Ordner konnte nicht geöffnet werden."
+    },
+    "browse": {
+      "breadcrumb": "Position im Papierkorb",
+      "deletedFrom": "Gelöscht aus {location} am {date}",
+      "hint": "Wiederherstellen legt jedes ausgewählte Element an seinen Platz in diesem Ordner zurück. Der Rest bleibt im Papierkorb.",
+      "empty": "Dieser Ordner ist leer.",
+      "back": "Zurück zum Papierkorb"
     }
   }
 }

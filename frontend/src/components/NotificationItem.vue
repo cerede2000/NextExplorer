@@ -95,7 +95,10 @@ const formattedTime = computed(() => {
         >
           {{ heading }}
         </p>
-        <p v-if="body" class="text-xs text-gray-500 dark:text-gray-400 mt-1 wrap-break-word">
+        <p
+          v-if="body"
+          class="text-xs text-gray-500 dark:text-gray-400 mt-1 wrap-break-word whitespace-pre-line"
+        >
           {{ body }}
         </p>
 

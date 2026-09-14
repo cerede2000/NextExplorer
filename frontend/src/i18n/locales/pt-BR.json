@@ -879,7 +879,8 @@
       "originalLocation": "Local original",
       "deletedBy": "Excluído por",
       "deletedAt": "Excluído em",
-      "expires": "Remoção"
+      "expires": "Remoção",
+      "modified": "Modificado"
     },
     "location": {
       "personal": "Pasta pessoal",
@@ -896,7 +897,9 @@
       "empty": "Esvaziar lixeira",
       "openLocation": "Abrir local original",
       "selectAll": "Selecionar tudo",
-      "select": "Selecionar {name}"
+      "select": "Selecionar {name}",
+      "open": "Abrir {name}",
+      "restoreFolder": "Restaurar a pasta inteira"
     },
     "confirm": {
       "deleteTitle": "Excluir permanentemente?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "Não foi possível carregar a lixeira.",
-      "action": "A lixeira não conseguiu fazer isso."
+      "action": "A lixeira não conseguiu fazer isso.",
+      "loadFolder": "Não foi possível abrir esta pasta."
+    },
+    "browse": {
+      "breadcrumb": "Local na lixeira",
+      "deletedFrom": "Excluído de {location} em {date}",
+      "hint": "Restaurar devolve cada item selecionado ao seu lugar dentro desta pasta. O restante permanece na lixeira.",
+      "empty": "Esta pasta está vazia.",
+      "back": "Voltar para a lixeira"
     }
   }
 }

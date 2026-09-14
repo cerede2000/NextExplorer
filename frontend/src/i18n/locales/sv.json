@@ -879,7 +879,8 @@
       "originalLocation": "Ursprunglig plats",
       "deletedBy": "Raderad av",
       "deletedAt": "Raderad",
-      "expires": "Tas bort"
+      "expires": "Tas bort",
+      "modified": "Ändrad"
     },
     "location": {
       "personal": "Personlig mapp",
@@ -896,7 +897,9 @@
       "empty": "Töm papperskorgen",
       "openLocation": "Öppna ursprunglig plats",
       "selectAll": "Markera alla",
-      "select": "Markera {name}"
+      "select": "Markera {name}",
+      "open": "Öppna {name}",
+      "restoreFolder": "Återställ hela mappen"
     },
     "confirm": {
       "deleteTitle": "Radera permanent?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "Papperskorgen kunde inte läsas in.",
-      "action": "Papperskorgen kunde inte göra det."
+      "action": "Papperskorgen kunde inte göra det.",
+      "loadFolder": "Mappen kunde inte öppnas."
+    },
+    "browse": {
+      "breadcrumb": "Plats i papperskorgen",
+      "deletedFrom": "Raderad från {location} {date}",
+      "hint": "Återställ lägger tillbaka varje markerat objekt på sin plats i den här mappen. Resten ligger kvar i papperskorgen.",
+      "empty": "Den här mappen är tom.",
+      "back": "Tillbaka till papperskorgen"
     }
   }
 }

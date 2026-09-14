@@ -879,7 +879,8 @@
       "originalLocation": "原始位置",
       "deletedBy": "刪除者",
       "deletedAt": "刪除時間",
-      "expires": "永久刪除"
+      "expires": "永久刪除",
+      "modified": "修改時間"
     },
     "location": {
       "personal": "個人資料夾",
@@ -896,7 +897,9 @@
       "empty": "清空資源回收筒",
       "openLocation": "開啟原始位置",
       "selectAll": "全選",
-      "select": "選取 {name}"
+      "select": "選取 {name}",
+      "open": "開啟 {name}",
+      "restoreFolder": "還原整個資料夾"
     },
     "confirm": {
       "deleteTitle": "永久刪除？",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "無法載入資源回收筒。",
-      "action": "資源回收筒無法執行此動作。"
+      "action": "資源回收筒無法執行此動作。",
+      "loadFolder": "無法開啟此資料夾。"
+    },
+    "browse": {
+      "breadcrumb": "資源回收筒中的位置",
+      "deletedFrom": "於 {date} 從 {location} 刪除",
+      "hint": "還原會將每個選取的項目放回此資料夾中的原位置，其餘內容仍留在資源回收筒。",
+      "empty": "此資料夾是空的。",
+      "back": "返回資源回收筒"
     }
   }
 }

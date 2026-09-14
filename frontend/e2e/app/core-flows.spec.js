@@ -217,3 +217,54 @@ test('deleting for good from the trash takes the bytes off the disk', async () =
   await expect.poll(() => fs.readdirSync(trashDirectory)).toEqual([]);
   expect(fs.existsSync(file)).toBe(false);
 });
+
+/**
+ * A deleted folder is one item in the trash, and what is inside it can still
+ * come back on its own — to its place inside the folder, while the rest stays.
+ */
+test('one file comes back out of a deleted folder, and the rest stays in the trash', async () => {
+  const folder = path.join(volume, 'client');
+  fs.mkdirSync(path.join(folder, 'drafts'), { recursive: true });
+  fs.writeFileSync(path.join(folder, 'brief.txt'), 'the brief\n');
+  fs.writeFileSync(path.join(folder, 'drafts', 'v1.txt'), 'first draft\n');
+  fs.writeFileSync(path.join(folder, 'drafts', 'v2.txt'), 'second draft\n');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select client' }).click();
+  await page.keyboard.press('Delete');
+  await page.getByRole('dialog').getByRole('button', { name: 'Move to Trash' }).click();
+  await expect.poll(() => fs.existsSync(folder)).toBe(false);
+  await expect.poll(() => trashPayloads().length).toBe(1);
+  const [payload] = trashPayloads();
+
+  await page.goto('/trash');
+  await page.getByRole('button', { name: 'Open client' }).click();
+  await expect(page).toHaveURL(/\/trash\?item=/);
+  await page.getByRole('button', { name: 'Open drafts' }).click();
+  await page.getByRole('checkbox', { name: 'Select v2.txt' }).check();
+  await page.getByRole('button', { name: 'Restore', exact: true }).click();
+
+  const restored = path.join(folder, 'drafts', 'v2.txt');
+  await expect
+    .poll(() => (fs.existsSync(restored) ? fs.readFileSync(restored, 'utf8') : null))
+    .toBe('second draft\n');
+  // Only that file left the trash: the rest of the folder is still in it, and
+  // still listed there.
+  expect(fs.readdirSync(folder)).toEqual(['drafts']);
+  expect(fs.existsSync(path.join(trashDirectory, payload, 'drafts', 'v2.txt'))).toBe(false);
+  expect(fs.readFileSync(path.join(trashDirectory, payload, 'drafts', 'v1.txt'), 'utf8')).toBe(
+    'first draft\n'
+  );
+  await expect(page.getByRole('checkbox', { name: 'Select v1.txt' })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Select v2.txt' })).toHaveCount(0);
+
+  // The rest still comes back whole. Its name is taken now, by the folder the
+  // file went back into, so it takes a suffix rather than replacing it.
+  await page.getByRole('button', { name: 'Restore whole folder' }).click();
+  await expect(page).toHaveURL(/\/trash$/);
+  const rest = path.join(volume, 'client (1)');
+  await expect.poll(() => fs.existsSync(path.join(rest, 'drafts', 'v1.txt'))).toBe(true);
+  expect(fs.readFileSync(path.join(rest, 'brief.txt'), 'utf8')).toBe('the brief\n');
+  expect(fs.readFileSync(restored, 'utf8')).toBe('second draft\n');
+  expect(trashPayloads()).toEqual([]);
+});

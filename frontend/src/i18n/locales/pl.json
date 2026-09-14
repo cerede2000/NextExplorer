@@ -879,7 +879,8 @@
       "originalLocation": "Pierwotna lokalizacja",
       "deletedBy": "Usunięte przez",
       "deletedAt": "Data usunięcia",
-      "expires": "Trwałe usunięcie"
+      "expires": "Trwałe usunięcie",
+      "modified": "Data modyfikacji"
     },
     "location": {
       "personal": "Folder osobisty",
@@ -896,7 +897,9 @@
       "empty": "Opróżnij kosz",
       "openLocation": "Otwórz pierwotną lokalizację",
       "selectAll": "Zaznacz wszystko",
-      "select": "Zaznacz {name}"
+      "select": "Zaznacz {name}",
+      "open": "Otwórz {name}",
+      "restoreFolder": "Przywróć cały folder"
     },
     "confirm": {
       "deleteTitle": "Usunąć trwale?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "Nie udało się wczytać kosza.",
-      "action": "Kosz nie mógł tego wykonać."
+      "action": "Kosz nie mógł tego wykonać.",
+      "loadFolder": "Nie udało się otworzyć tego folderu."
+    },
+    "browse": {
+      "breadcrumb": "Położenie w koszu",
+      "deletedFrom": "Usunięto z {location} dnia {date}",
+      "hint": "Przywracanie odkłada każdy zaznaczony element na jego miejsce w tym folderze. Reszta pozostaje w koszu.",
+      "empty": "Ten folder jest pusty.",
+      "back": "Wróć do kosza"
     }
   }
 }

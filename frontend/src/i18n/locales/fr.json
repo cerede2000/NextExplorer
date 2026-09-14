@@ -879,7 +879,8 @@
       "originalLocation": "Emplacement d'origine",
       "deletedBy": "Supprimé par",
       "deletedAt": "Supprimé le",
-      "expires": "Suppression"
+      "expires": "Suppression",
+      "modified": "Modifié le"
     },
     "location": {
       "personal": "Dossier personnel",
@@ -896,7 +897,9 @@
       "empty": "Vider la corbeille",
       "openLocation": "Ouvrir l'emplacement d'origine",
       "selectAll": "Tout sélectionner",
-      "select": "Sélectionner {name}"
+      "select": "Sélectionner {name}",
+      "open": "Ouvrir {name}",
+      "restoreFolder": "Restaurer tout le dossier"
     },
     "confirm": {
       "deleteTitle": "Supprimer définitivement ?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "La corbeille n'a pas pu être chargée.",
-      "action": "La corbeille n'a pas pu effectuer cette action."
+      "action": "La corbeille n'a pas pu effectuer cette action.",
+      "loadFolder": "Ce dossier n'a pas pu être ouvert."
+    },
+    "browse": {
+      "breadcrumb": "Emplacement dans la corbeille",
+      "deletedFrom": "Supprimé de {location} le {date}",
+      "hint": "Restaurer remet chaque élément sélectionné à sa place dans ce dossier. Le reste demeure dans la corbeille.",
+      "empty": "Ce dossier est vide.",
+      "back": "Retour à la corbeille"
     }
   }
 }

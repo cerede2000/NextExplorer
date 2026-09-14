@@ -879,7 +879,8 @@
       "originalLocation": "원래 위치",
       "deletedBy": "삭제한 사람",
       "deletedAt": "삭제한 날짜",
-      "expires": "영구 삭제"
+      "expires": "영구 삭제",
+      "modified": "수정한 날짜"
     },
     "location": {
       "personal": "개인 폴더",
@@ -896,7 +897,9 @@
       "empty": "휴지통 비우기",
       "openLocation": "원래 위치 열기",
       "selectAll": "모두 선택",
-      "select": "{name} 선택"
+      "select": "{name} 선택",
+      "open": "{name} 열기",
+      "restoreFolder": "폴더 전체 복원"
     },
     "confirm": {
       "deleteTitle": "영구 삭제하시겠습니까?",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "휴지통을 불러올 수 없습니다.",
-      "action": "휴지통에서 해당 작업을 수행할 수 없습니다."
+      "action": "휴지통에서 해당 작업을 수행할 수 없습니다.",
+      "loadFolder": "이 폴더를 열 수 없습니다."
+    },
+    "browse": {
+      "breadcrumb": "휴지통 내 위치",
+      "deletedFrom": "{date}에 {location}에서 삭제됨",
+      "hint": "복원하면 선택한 항목이 이 폴더 안의 원래 자리로 돌아갑니다. 나머지는 휴지통에 남습니다.",
+      "empty": "이 폴더는 비어 있습니다.",
+      "back": "휴지통으로 돌아가기"
     }
   }
 }

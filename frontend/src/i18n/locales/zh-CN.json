@@ -879,7 +879,8 @@
       "originalLocation": "原位置",
       "deletedBy": "删除者",
       "deletedAt": "删除时间",
-      "expires": "永久删除"
+      "expires": "永久删除",
+      "modified": "修改时间"
     },
     "location": {
       "personal": "个人文件夹",
@@ -896,7 +897,9 @@
       "empty": "清空回收站",
       "openLocation": "打开原位置",
       "selectAll": "全选",
-      "select": "选择 {name}"
+      "select": "选择 {name}",
+      "open": "打开 {name}",
+      "restoreFolder": "还原整个文件夹"
     },
     "confirm": {
       "deleteTitle": "永久删除？",
@@ -925,7 +928,15 @@
     },
     "errors": {
       "load": "无法加载回收站。",
-      "action": "回收站无法执行此操作。"
+      "action": "回收站无法执行此操作。",
+      "loadFolder": "无法打开此文件夹。"
+    },
+    "browse": {
+      "breadcrumb": "回收站中的位置",
+      "deletedFrom": "于 {date} 从 {location} 删除",
+      "hint": "还原会将每个选中的项目放回此文件夹中的原位置，其余内容仍留在回收站。",
+      "empty": "此文件夹为空。",
+      "back": "返回回收站"
     }
   }
 }
