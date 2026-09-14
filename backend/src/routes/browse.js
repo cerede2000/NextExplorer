@@ -11,6 +11,7 @@ const { NotFoundError } = require('../errors/AppError');
 const router = express.Router();
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { listDirectoryItems } = require('../services/directoryListingService');
+const { rightsFrom: versionRights } = require('../services/versions');
 
 router.get(
   '/browse/{*splat}',
@@ -67,6 +68,9 @@ router.get(
         canCreateFile: accessInfo.canCreateFile,
         canShare: accessInfo.canShare,
         canDownload: accessInfo.canDownload,
+        // Whether the files here show their history, which a share hands out
+        // only when its owner said so.
+        canSeeVersions: versionRights(accessInfo).see,
       },
       current: {
         isDirectory: true,

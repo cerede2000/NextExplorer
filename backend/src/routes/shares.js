@@ -41,6 +41,7 @@ const { encodeContentDisposition } = require('./files/utils');
 const logger = require('../utils/logger');
 const { readTextFile, encodeText, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
 const versions = require('../services/versions/operations');
+const { rightsFrom: versionRights } = require('../services/versions');
 
 const router = express.Router();
 
@@ -1114,6 +1115,7 @@ router.get(
           canCreateFile: accessInfo.canCreateFile,
           canShare: false,
           canDownload: accessInfo.canDownload,
+          canSeeVersions: versionRights(accessInfo).see,
         },
         current: {
           isDirectory: true,
@@ -1174,6 +1176,7 @@ router.get(
         canCreateFile: false,
         canShare: false,
         canDownload: accessInfo.canDownload,
+        canSeeVersions: versionRights(accessInfo).see,
       },
       current: {
         isDirectory: false,
