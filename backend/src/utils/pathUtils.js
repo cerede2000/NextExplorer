@@ -5,9 +5,29 @@ const { directories, features, personal } = require('../config/index');
 const { pathExists } = require('./fsUtils');
 const { cachedForRequest, hasRequestContext } = require('./requestContext');
 const logger = require('./logger');
+const { ForbiddenError } = require('../errors/AppError');
+const { ZONE_DIRECTORY_NAME } = require('../config/constants');
 
 const NAME_INVALID_PATTERN = /[\\/]/;
-const RESERVED_NAMES = new Set(['.', '..']);
+// The trash zone's name is reserved everywhere, not only where a zone sits: a
+// folder renamed to it at a volume root would take the zone's place.
+const RESERVED_NAMES = new Set(['.', '..', ZONE_DIRECTORY_NAME]);
+
+/**
+ * Refuse a logical path that reaches into a trash zone. The zone holds what
+ * people deleted, identified by opaque ids; browsing, previewing, downloading
+ * or sharing it by typing its path would bypass the trash's own visibility
+ * rules, so no path through it resolves at all.
+ */
+const assertOutsideZone = (relativePath) => {
+  if (
+    String(relativePath || '')
+      .split(/[\\/]+/)
+      .includes(ZONE_DIRECTORY_NAME)
+  ) {
+    throw new ForbiddenError('This location is reserved by the application.');
+  }
+};
 const PERSONAL_ENABLED = Boolean(features && features.personalFolders);
 
 const normalizeRelativePath = (relativePath = '') => {
@@ -250,6 +270,7 @@ const reachesIntoPersonalRoot = (rootAbs, targetAbs) =>
 
 const resolveVolumePath = async (relativePath = '') => {
   const safeRelativePath = normalizeRelativePath(relativePath);
+  assertOutsideZone(safeRelativePath);
   const absolutePath = path.resolve(directories.volume, safeRelativePath);
 
   if (absolutePath !== directories.volume && !absolutePath.startsWith(directories.volumeWithSep)) {
@@ -487,6 +508,7 @@ const getUserRootDir = async (user) => {
 
 const resolvePersonalPath = async (relativePath = '', user) => {
   const safeRelativePath = normalizeRelativePath(relativePath);
+  assertOutsideZone(safeRelativePath);
   const userRoot = await getUserRootDir(user);
   const absolutePath = path.resolve(userRoot, safeRelativePath);
 
@@ -504,6 +526,9 @@ const resolveLogicalPath = async (
   { user, guestSession, share, userVolume } = {}
 ) => {
   const { space, rel, shareToken, innerPath } = parsePathSpace(relativePath);
+  // Here as well as in the two resolvers below it, because a user volume and a
+  // share reach the disk without going through either of them.
+  assertOutsideZone(rel);
 
   logger.debug(
     {
