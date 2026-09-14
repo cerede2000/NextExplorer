@@ -202,7 +202,15 @@ describe('a username that answers for two accounts', () => {
   });
 });
 
-describe('the lockout after failed attempts', () => {
+/**
+ * A timeout of its own, for the reason `tests/routes/auth.test.js` gives: every
+ * attempt here is a bcrypt comparison in pure JavaScript, four to six a test,
+ * and that costs CPU. About a second alone; past the five-second default the
+ * moment the machine is busy — which is how "forgets the attempts once one of
+ * them works" failed a full run with the frontend suite beside it, and passed
+ * three runs out of three on its own.
+ */
+describe('the lockout after failed attempts', { timeout: 30_000 }, () => {
   beforeEach(async () => {
     await build();
     await makeUser();
