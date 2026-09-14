@@ -86,11 +86,16 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     expect(service.getDiagnosticsSnapshot().nativeTransferEnabled).toBe(engine === 'native');
   });
 
+  /**
+   * These are about the engines that remove things from disk, so they ask for
+   * a permanent deletion: without it the entry would go to the trash, and no
+   * engine would run at all.
+   */
   it('deletes a folder and everything under it', async () => {
     const { service, volume, user } = await setup(engine);
     const root = await seedTree(volume, 'Doomed');
 
-    await service.deleteItems([{ path: '', name: 'Doomed' }], { user });
+    await service.deleteItems([{ path: '', name: 'Doomed' }], { user, permanent: true });
 
     expect(await exists(root)).toBe(false);
   });
@@ -99,7 +104,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     await fs.writeFile(path.join(volume, 'note.txt'), 'gone soon');
 
-    await service.deleteItems([{ path: '', name: 'note.txt' }], { user });
+    await service.deleteItems([{ path: '', name: 'note.txt' }], { user, permanent: true });
 
     expect(await exists(path.join(volume, 'note.txt'))).toBe(false);
   });
@@ -109,7 +114,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Doomed');
     await seedTree(volume, 'Spared');
 
-    await service.deleteItems([{ path: '', name: 'Doomed' }], { user });
+    await service.deleteItems([{ path: '', name: 'Doomed' }], { user, permanent: true });
 
     expect(await exists(path.join(volume, 'Spared', 'nested', 'deep.txt'))).toBe(true);
   });
@@ -118,7 +123,10 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     await seedTree(volume, 'Doomed');
 
-    const results = await service.deleteItems([{ path: '', name: 'Doomed' }], { user });
+    const results = await service.deleteItems([{ path: '', name: 'Doomed' }], {
+      user,
+      permanent: true,
+    });
 
     expect(results).toEqual([expect.objectContaining({ status: 'deleted' })]);
   });
@@ -132,7 +140,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     const root = await seedTree(volume, '-rf-trap');
 
-    await service.deleteItems([{ path: '', name: '-rf-trap' }], { user });
+    await service.deleteItems([{ path: '', name: '-rf-trap' }], { user, permanent: true });
 
     expect(await exists(root)).toBe(false);
   });

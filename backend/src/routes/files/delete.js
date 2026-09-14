@@ -25,10 +25,11 @@ router.post(
 router.delete(
   '/files',
   asyncHandler(async (req, res) => {
-    const { items = [] } = req.body || {};
+    const { items = [], permanent = false } = req.body || {};
     const results = await deleteItems(items, {
       user: req.user,
       guestSession: req.guestSession,
+      permanent: permanent === true,
     });
     res.json({ success: true, items: results });
   })
@@ -37,7 +38,7 @@ router.delete(
 router.post(
   '/files/delete-stream',
   asyncHandler(async (req, res) => {
-    const { items = [] } = req.body || {};
+    const { items = [], permanent = false } = req.body || {};
     const controller = new AbortController();
     const abort = () => controller.abort();
     const onClose = () => {
@@ -69,6 +70,7 @@ router.post(
         targets,
         user: req.user,
         guestSession: req.guestSession,
+        permanent: permanent === true,
         signal: controller.signal,
         onProgress: (progress) => reportProgress({ type: 'progress', ...progress }),
       });

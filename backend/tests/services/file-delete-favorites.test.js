@@ -64,7 +64,8 @@ describe('File deletion favorite cleanup', () => {
     expect(result).toEqual([
       {
         path: 'FavVol/folder',
-        status: 'deleted',
+        status: 'trashed',
+        trashItemId: expect.any(String),
         removedFavoriteCount: 2,
       },
     ]);

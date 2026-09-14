@@ -31,6 +31,8 @@ const { getDb } = require('./db');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
 const { scheduleThumbnailRemoval } = require('./thumbnailService');
+const trash = require('./trash');
+const { getTrashSettings } = require('./trash/settings');
 
 // How often (ms) progress is reported to the caller while bytes stream, so a
 // large file emits a steady trickle of updates rather than one per chunk.
@@ -969,6 +971,10 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
       item,
       relativePath,
       absolutePath,
+      // Where it was reached through, and the share when it was one: the
+      // trash records whose folder or share a deletion came from.
+      space: resolved.space,
+      shareInfo: resolved.shareInfo || null,
       exists,
       stats,
       isDirectory,
@@ -1017,6 +1023,9 @@ const getDeleteImpact = async (items = [], options = {}) => {
   return {
     shareCount: shares.length,
     shares,
+    // Into the trash or gone for good, per item, so the confirmation can say
+    // which before anyone presses the button.
+    trash: await trash.describeTargets(targets),
   };
 };
 
@@ -1028,6 +1037,12 @@ const deleteItems = async (items = [], options = {}) => {
   // The route may have resolved (and authorized) the targets already, so the
   // work is not repeated just to stream the result.
   const targets = options.targets || (await resolveDeleteTargets(items, context));
+
+  // Into the trash unless the caller asked for a permanent deletion, or the
+  // trash is switched off. Asked once for the whole selection.
+  const trashSettings = options.permanent === true ? null : await getTrashSettings();
+  const useTrash = Boolean(trashSettings?.enabled);
+  const budgetFor = useTrash ? trash.budgetResolver(trashSettings) : null;
 
   // One database pass for the whole selection instead of one per file.
   const sharesByTarget = await getSharesBySourceTarget(
@@ -1072,7 +1087,34 @@ const deleteItems = async (items = [], options = {}) => {
     // writer and wait for its cleanup before removing the destination tree.
     await cancelWritesTargeting(absolutePath);
     const isDirectoryEntry = isDirectory || deletedEntryStats.isDirectory();
-    if (shouldRemoveNatively(isDirectoryEntry) && nativeToolUsable('rm')) {
+    let trashItemId = null;
+    // Cancelling a copy into this folder has its cleanup remove the partial
+    // destination. Then there is nothing left to put in the trash, and the
+    // deletion finishes as it always did.
+    if (useTrash && (await pathExists(absolutePath))) {
+      const outcome = await trash.trashTarget(target, context, { budgetFor });
+      if (outcome.status === 'missing') {
+        results[index] = { path: relativePath, status: 'missing' };
+        reportProgress(target, relativePath);
+        return;
+      }
+      if (outcome.status !== 'trashed') {
+        // Never turned into a permanent deletion here: the entry stays where
+        // it is, and the person is asked whether to delete it for good.
+        results[index] = {
+          path: relativePath,
+          status: 'kept',
+          reason: outcome.reason,
+          ...(outcome.reason === 'too-large'
+            ? { size: outcome.size, budgetBytes: outcome.budgetBytes }
+            : {}),
+        };
+        reportProgress(target, relativePath);
+        return;
+      }
+      trashItemId = outcome.item.id;
+      if (!isDirectoryEntry) scheduleThumbnailRemoval(absolutePath);
+    } else if (shouldRemoveNatively(isDirectoryEntry) && nativeToolUsable('rm')) {
       try {
         await removeWithNativeRm(absolutePath, options.signal);
       } catch (error) {
@@ -1102,7 +1144,8 @@ const deleteItems = async (items = [], options = {}) => {
     });
     results[index] = {
       path: relativePath,
-      status: 'deleted',
+      status: trashItemId ? 'trashed' : 'deleted',
+      ...(trashItemId ? { trashItemId } : {}),
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
       ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
     };

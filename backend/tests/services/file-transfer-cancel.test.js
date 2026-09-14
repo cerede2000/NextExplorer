@@ -208,13 +208,15 @@ describe('Bulk deletion', () => {
     // Out-of-order completion must not leak into the answer.
     results.forEach((result, index) => {
       expect(result.path).toContain(`f${index}.bin`);
-      expect(result.status).toBe('deleted');
+      expect(result.status).toBe('trashed');
     });
     expect(counts).toEqual([...counts].sort((a, b) => a - b));
     expect(counts.at(-1)).toBe(60);
 
+    // Only the trash's own reserved folder is left: `bulk` is a volume, and
+    // what was deleted from it is kept there.
     const remaining = await fs.readdir(path.join(bulkEnv.volumeDir, 'bulk'));
-    expect(remaining).toEqual([]);
+    expect(remaining).toEqual(['.nextexplorer']);
   });
 
   it('stops when cancelled', async () => {
@@ -231,8 +233,11 @@ describe('Bulk deletion', () => {
     });
 
     await expect(deletion).rejects.toThrow();
-    // Cancelling means "stop", not "undo": some files are already gone.
-    const remaining = await fs.readdir(path.join(bulkEnv.volumeDir, 'bulk'));
+    // Cancelling means "stop", not "undo": some files are already gone. The
+    // trash's reserved folder is not one of the files.
+    const remaining = (await fs.readdir(path.join(bulkEnv.volumeDir, 'bulk'))).filter(
+      (name) => name !== '.nextexplorer'
+    );
     expect(remaining.length).toBeGreaterThan(0);
     expect(remaining.length).toBeLessThan(60);
   });

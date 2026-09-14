@@ -46,13 +46,28 @@ const ensureStorageAvailable = async (directory, uploadSize, label) => {
     return;
   }
 
-  const availableBytes = await getAvailableBytes(directory);
+  let availableBytes = await getAvailableBytes(directory);
   if (!Number.isFinite(availableBytes)) {
     return;
   }
 
   const reserveBytes = uploadConfig?.storageReserveBytes ?? 64 * 1024 * 1024;
   const requiredBytes = uploadSize + reserveBytes;
+  if (availableBytes < requiredBytes) {
+    // The trash holds space an upload may have. It gives that space back —
+    // oldest first, and only when doing so is enough — before anything is
+    // refused on account of it.
+    try {
+      // eslint-disable-next-line global-require
+      const freed = await require('./trash/maintenance').makeRoom(directory, requiredBytes);
+      if (freed > 0) {
+        const after = await getAvailableBytes(directory);
+        if (Number.isFinite(after)) availableBytes = after;
+      }
+    } catch (err) {
+      logger.warn({ directory, err }, 'The trash could not make room for an upload');
+    }
+  }
   if (availableBytes < requiredBytes) {
     throw new InsufficientStorageError(
       `Not enough storage available in ${label}. Required ${requiredBytes} bytes including reserve, available ${availableBytes} bytes.`

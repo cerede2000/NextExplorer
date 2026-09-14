@@ -478,7 +478,9 @@ describe('Shares Routes', () => {
 
       const deleted = await request(app).delete('/api/files').send({ items });
       expect(deleted.status).toBe(200);
-      expect(deleted.body.items[0].status).toBe('deleted');
+      // To the trash, and the shares still go at once: nothing in the trash
+      // stays public.
+      expect(deleted.body.items[0].status).toBe('trashed');
       expect(deleted.body.items[0].deletedShareCount).toBe(1);
 
       const shareAfterDelete = await request(app).get(`/api/shares/${create.body.id}`);
@@ -524,7 +526,9 @@ describe('Shares Routes', () => {
 
       const deleted = await request(app).delete('/api/files').send({ items });
       expect(deleted.status).toBe(200);
-      expect(deleted.body.items[0].status).toBe('deleted');
+      // To the trash, and the shares still go at once: nothing in the trash
+      // stays public.
+      expect(deleted.body.items[0].status).toBe('trashed');
       expect(deleted.body.items[0].deletedShareCount).toBe(1);
 
       const shareAfterDelete = await request(app).get(`/api/shares/${create.body.id}`);

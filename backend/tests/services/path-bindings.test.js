@@ -115,9 +115,10 @@ describe('path bindings', () => {
     await setup();
     await givenBothUsersCareAbout('Projects/reports/q1');
 
+    // A whole volume cannot go into its own trash: removing one is permanent.
     await request(appFor({ id: 'alice', roles: ['admin'] }))
       .delete('/api/files')
-      .send({ items: [{ name: 'Projects', path: '' }] });
+      .send({ items: [{ name: 'Projects', path: '' }], permanent: true });
 
     expect(await countFor('favorites', 'path', 'Projects/reports/q1')).toBe(0);
     expect(await countFor('folder_preferences', 'path', 'Projects/reports/q1')).toBe(0);
