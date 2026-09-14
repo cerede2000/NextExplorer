@@ -11,7 +11,8 @@ import { createRandom, seedsFor } from '../helpers/seeded-random.js';
  *
  * Each step is one thing: a file or folder created, deleted, restored, purged,
  * recreated under a name something in the trash still claims; one file taken
- * back out of a deleted folder; days passing; the volume shrinking under the
+ * back out of a deleted folder; an item restored into another folder, on the
+ * same disk or across two; days passing; the volume shrinking under the
  * trash's budget; an operation dying half-way and the zone being recovered. A
  * model of a hundred lines says what the disk and the records must hold
  * afterwards, and after every single step both are compared with it and the
@@ -29,6 +30,8 @@ const SEQUENCES = Number(process.env.TRASH_CYCLE_SEQUENCES) || 200;
 const STEPS = Number(process.env.TRASH_CYCLE_STEPS) || 25;
 const DAY = 24 * 60 * 60 * 1000;
 const VOLUMES = ['Projects', 'Photos'];
+/** Where items are restored when someone chooses another folder. */
+const ELSEWHERE = 'Elsewhere';
 const HUGE = 1_000_000_000;
 
 const load = (relative) => require(modulePath(relative));
@@ -37,14 +40,31 @@ const CRASH_POINTS = {
   trash: ['trash:after-row', 'trash:after-sidecar', 'trash:after-rename'],
   restore: ['restore:after-intent', 'restore:after-rename'],
   extract: ['extract:after-intent', 'extract:after-rename'],
+  relocate: ['restore:after-intent', 'restore:after-rename'],
+  relocateAcross: [
+    'copy:after-intent',
+    'copy:after-copy',
+    'copy:after-mark',
+    'copy:after-rename',
+    'copy:after-remove',
+  ],
   purge: ['purge:after-intent', 'purge:after-remove'],
 };
+
+/** The crash points after which a restore has committed and must end restored. */
+const COMMITTED = new Set([
+  'restore:after-rename',
+  'copy:after-mark',
+  'copy:after-rename',
+  'copy:after-remove',
+]);
 
 const WEIGHTS = {
   create: 4,
   trash: 4,
   restore: 2,
   extract: 2,
+  relocate: 2,
   purge: 1,
   recreate: 1,
   time: 1,
@@ -73,13 +93,14 @@ const runSequence = async (envContext, seed) => {
 
   const random = createRandom(seed);
   const abs = (relative) => path.join(envContext.volumeDir, relative);
-  for (const volume of VOLUMES) await fs.mkdir(abs(volume), { recursive: true });
+  for (const volume of [...VOLUMES, ELSEWHERE]) await fs.mkdir(abs(volume), { recursive: true });
 
   // The model: what is on the disk, and what is in the trash. An entry is a
   // file, a folder holding one file `inner.txt`, or a folder left empty once
   // that file was taken back out of it in the trash.
   const live = new Map(); // 'Projects/f3.txt' -> { kind, content }
   const trashed = new Map(); // item id -> { original, kind, content, deletedAt, size }
+  const elsewhere = new Map(); // 'f3.txt' -> { kind, content }, in the chosen folder
   let counter = 0;
   const log = [];
 
@@ -105,18 +126,26 @@ const runSequence = async (envContext, seed) => {
     );
   };
 
-  /** The name a restore must choose: the original, or the first free "name (n)". */
-  const availableName = (relative) => {
-    const directory = path.posix.dirname(relative);
-    const name = path.posix.basename(relative);
+  /** The first free "name (n)" among names already taken. */
+  const freeName = (name, taken) => {
     const extension = path.posix.extname(name);
     const base = extension ? name.slice(0, -extension.length) : name;
     let candidate = name;
-    for (let n = 1; live.has(`${directory}/${candidate}`); n += 1) {
-      candidate = `${base} (${n})${extension}`;
-    }
-    return `${directory}/${candidate}`;
+    for (let n = 1; taken(candidate); n += 1) candidate = `${base} (${n})${extension}`;
+    return candidate;
   };
+
+  /** The name a restore must choose: the original, or the first free "name (n)". */
+  const availableName = (relative) => {
+    const directory = path.posix.dirname(relative);
+    const name = freeName(path.posix.basename(relative), (candidate) =>
+      live.has(`${directory}/${candidate}`)
+    );
+    return `${directory}/${name}`;
+  };
+
+  const availableElsewhere = (original) =>
+    freeName(path.posix.basename(original), (candidate) => elsewhere.has(candidate));
 
   /** What a maintenance pass must purge, zone by zone, from the model alone. */
   const expectedPurges = () => {
@@ -167,6 +196,18 @@ const runSequence = async (envContext, seed) => {
     trashed.set(id, { ...item, kind: 'empty', content: '', size: 0 });
   };
 
+  /** The next restore sees the chosen folder on another disk, or on the same one. */
+  const chooseDisk = () => {
+    const across = random.chance(0.5);
+    if (across) vi.spyOn(zones, 'sameDevice').mockResolvedValueOnce(false);
+    return across;
+  };
+
+  const recordRelocated = (id, item, name) => {
+    trashed.delete(id);
+    elsewhere.set(name, { kind: item.kind, content: item.content });
+  };
+
   const actions = {
     create: async () => {
       counter += 1;
@@ -213,6 +254,19 @@ const runSequence = async (envContext, seed) => {
       return `extract inner.txt of ${item.original}`;
     },
 
+    relocate: async () => {
+      if (trashed.size === 0) return null;
+      const id = random.pick([...trashed.keys()]);
+      const item = trashed.get(id);
+      const name = availableElsewhere(item.original);
+      const across = chooseDisk();
+      const result = await operations.restoreItem(id, { destinationDirectory: abs(ELSEWHERE) });
+      expect(result.status).toBe('restored');
+      expect(result.restorePath).toBe(abs(`${ELSEWHERE}/${name}`));
+      recordRelocated(id, item, name);
+      return `relocate ${item.original} as ${name}${across ? ' across disks' : ''}`;
+    },
+
     purge: async () => {
       if (trashed.size === 0) return null;
       const id = random.pick([...trashed.keys()]);
@@ -253,14 +307,14 @@ const runSequence = async (envContext, seed) => {
     crash: async () => {
       const possible = [];
       if (live.size) possible.push('trash');
-      if (trashed.size) possible.push('restore', 'purge');
+      if (trashed.size) possible.push('restore', 'purge', 'relocate');
       if (extractable().length) possible.push('extract');
       if (possible.length === 0) return null;
       const operation = random.pick(possible);
-      const point = random.pick(CRASH_POINTS[operation]);
-      failpoints.set(point, () => failpoints.crash(point));
 
       if (operation === 'trash') {
+        const point = random.pick(CRASH_POINTS.trash);
+        failpoints.set(point, () => failpoints.crash(point));
         const relative = random.pick([...live.keys()]);
         const entry = live.get(relative);
         const known = new Set(store.listItems(db).map((row) => row.id));
@@ -274,7 +328,12 @@ const runSequence = async (envContext, seed) => {
           live.delete(relative);
           recordTrashed(row.id, relative, entry);
         }
-      } else if (operation === 'restore') {
+        return `crash trash at ${point}`;
+      }
+
+      if (operation === 'restore') {
+        const point = random.pick(CRASH_POINTS.restore);
+        failpoints.set(point, () => failpoints.crash(point));
         const id = random.pick([...trashed.keys()]);
         const item = trashed.get(id);
         const expected = availableName(item.original);
@@ -284,7 +343,12 @@ const runSequence = async (envContext, seed) => {
           trashed.delete(id);
           live.set(expected, { kind: item.kind, content: item.content });
         }
-      } else if (operation === 'extract') {
+        return `crash restore at ${point}`;
+      }
+
+      if (operation === 'extract') {
+        const point = random.pick(CRASH_POINTS.extract);
+        failpoints.set(point, () => failpoints.crash(point));
         const [id, item] = random.pick(extractable());
         await expect(operations.restoreEntry(id, 'inner.txt')).rejects.toMatchObject({
           simulatedCrash: true,
@@ -297,13 +361,31 @@ const runSequence = async (envContext, seed) => {
           // written, so a crash just after leaves it there, empty.
           live.set(item.original, { kind: 'empty', content: '' });
         }
-      } else {
-        const id = random.pick([...trashed.keys()]);
-        await expect(operations.purgeItem(id)).rejects.toMatchObject({ simulatedCrash: true });
-        await recoverAll();
-        trashed.delete(id);
+        return `crash extract at ${point}`;
       }
-      return `crash ${operation} at ${point}`;
+
+      if (operation === 'relocate') {
+        const id = random.pick([...trashed.keys()]);
+        const item = trashed.get(id);
+        const name = availableElsewhere(item.original);
+        const across = chooseDisk();
+        const point = random.pick(across ? CRASH_POINTS.relocateAcross : CRASH_POINTS.relocate);
+        failpoints.set(point, () => failpoints.crash(point));
+        await expect(
+          operations.restoreItem(id, { destinationDirectory: abs(ELSEWHERE) })
+        ).rejects.toMatchObject({ simulatedCrash: true });
+        await recoverAll();
+        if (COMMITTED.has(point)) recordRelocated(id, item, name);
+        return `crash relocate${across ? ' across disks' : ''} at ${point}`;
+      }
+
+      const point = random.pick(CRASH_POINTS.purge);
+      failpoints.set(point, () => failpoints.crash(point));
+      const id = random.pick([...trashed.keys()]);
+      await expect(operations.purgeItem(id)).rejects.toMatchObject({ simulatedCrash: true });
+      await recoverAll();
+      trashed.delete(id);
+      return `crash purge at ${point}`;
     },
   };
 
@@ -323,6 +405,15 @@ const runSequence = async (envContext, seed) => {
     for (const [relative, entry] of live) {
       // eslint-disable-next-line no-await-in-loop
       expect(await readEntry(abs(relative), entry.kind), context).toBe(entry.content);
+    }
+
+    // Nothing half-copied is ever left beside the chosen folder's contents.
+    expect((await fs.readdir(abs(ELSEWHERE))).sort(), context).toEqual(
+      [...elsewhere.keys()].sort()
+    );
+    for (const [name, entry] of elsewhere) {
+      // eslint-disable-next-line no-await-in-loop
+      expect(await readEntry(abs(`${ELSEWHERE}/${name}`), entry.kind), context).toBe(entry.content);
     }
 
     const rows = store.listItems(db);

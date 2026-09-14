@@ -37,7 +37,6 @@ const FOLDER_SIZE_INDEX_DDL = `
   CREATE INDEX IF NOT EXISTS idx_folder_size_volume ON folder_size_index(volume);
 `;
 
-
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -61,7 +60,7 @@ const migrate = (db) => {
     );
   `);
 
-const getVersion = db.prepare('SELECT value FROM meta WHERE key = ?').pluck();
+  const getVersion = db.prepare('SELECT value FROM meta WHERE key = ?').pluck();
   let version = Number(getVersion.get('schema_version') || 0);
 
   db.transaction(() => {
@@ -579,10 +578,7 @@ const migrateFavoritesFromJson = (db) => {
       }
     }
 
-    logger.info(
-      { migratedCount, targetUserId },
-      '[DB Migration] Migrated favorites to user'
-    );
+    logger.info({ migratedCount, targetUserId }, '[DB Migration] Migrated favorites to user');
 
     // Clear favorites from app-config.json
     configData.favorites = [];

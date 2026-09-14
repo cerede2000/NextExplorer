@@ -39,6 +39,39 @@ const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   }
 };
 
+/**
+ * Copy an entry recursively, reporting the bytes copied so far and stopping when
+ * the signal aborts. A symbolic link is copied as a link, keeping its text; a
+ * file is copied and its size reported; a folder is created and its entries
+ * copied in turn. Answers the total bytes copied. Used by the trash to restore
+ * across disks with real progress.
+ */
+const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes, signal) => {
+  if (signal?.aborted) throw createCancellationError();
+  const stats = await fs.lstat(sourcePath);
+  if (stats.isSymbolicLink()) {
+    await fs.symlink(await fs.readlink(sourcePath), destinationPath);
+    return 0;
+  }
+  if (!stats.isDirectory() && !isDirectory) {
+    await fs.copyFile(sourcePath, destinationPath);
+    onBytes?.(stats.size);
+    return stats.size;
+  }
+
+  await ensureDir(destinationPath);
+  const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+  let copiedBytes = 0;
+  for (const entry of entries) {
+    if (signal?.aborted) throw createCancellationError();
+    const src = path.join(sourcePath, entry.name);
+    const dest = path.join(destinationPath, entry.name);
+    // eslint-disable-next-line no-await-in-loop
+    copiedBytes += await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
+  }
+  return copiedBytes;
+};
+
 /*
  * A copy or a move looked for a free name, "note (1).txt", and wrote under it
  * afterwards. Whatever arrived under that name in between — another copy, a
@@ -386,4 +419,7 @@ module.exports = {
   getDeleteImpact,
   resolveDeleteTargets,
   deleteItems,
+  // The trash restores across disks with a copy that reports progress, copies
+  // a link as a link and is cancellable.
+  copyEntryWithProgress,
 };

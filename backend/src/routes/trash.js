@@ -1,6 +1,8 @@
 const express = require('express');
 
+const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const asyncHandler = require('../utils/asyncHandler');
+const { startNdjsonStream } = require('../utils/ndjsonStream');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const trash = require('../services/trash');
 
@@ -40,6 +42,63 @@ router.post(
   asyncHandler(async (req, res) => {
     res.json(await trash.restoreEntries(req.params.id, req.body?.paths, contextOf(req)));
   })
+);
+
+/**
+ * Restore into a folder someone chose. Across disks that is a copy, which can
+ * take a while, so it streams its progress the way a transfer does:
+ *   {type:'start',    totalBytes, totalItems, destination}
+ *   {type:'progress', copiedBytes, totalBytes, currentName, completedItems}
+ *   {type:'done',     destination, items}
+ *   {type:'error',    message, code}
+ * Everything that can be refused is checked before the stream starts, so a
+ * refusal is an ordinary HTTP error. Closing the request cancels the restore
+ * in progress: its item stays in the trash.
+ */
+const restoreTo = (planFrom) =>
+  asyncHandler(async (req, res) => {
+    const plan = await trash.prepareRestoreTo(planFrom(req), contextOf(req));
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    const onClose = () => {
+      if (!res.writableEnded) abort();
+    };
+    req.once('aborted', abort);
+    const writeEvent = startNdjsonStream(res, { onClose });
+
+    try {
+      const result = await trash.executeRestoreTo(plan, {
+        onEvent: writeEvent,
+        signal: controller.signal,
+      });
+      writeEvent({ type: 'done', ...result });
+    } catch (error) {
+      writeEvent({
+        type: 'error',
+        message: sanitizeClientMessage(error.message || 'The restore failed.'),
+        code: error.code || 'TRASH_RESTORE_FAILED',
+      });
+    } finally {
+      req.off('aborted', abort);
+      res.off('close', onClose);
+      if (!res.writableEnded) res.end();
+    }
+  });
+
+// POST /api/trash/restore-to - put items back in a chosen folder, streamed
+router.post(
+  '/trash/restore-to',
+  restoreTo((req) => ({ ids: req.body?.ids, destination: req.body?.destination }))
+);
+
+// POST /api/trash/items/:id/restore-to - put entries of a deleted folder in a chosen folder, streamed
+router.post(
+  '/trash/items/:id/restore-to',
+  restoreTo((req) => ({
+    id: req.params.id,
+    paths: req.body?.paths,
+    destination: req.body?.destination,
+  }))
 );
 
 // POST /api/trash/delete - remove items for good

@@ -13,8 +13,11 @@
  *   holds: what is inside it is found from the folder's own original path.
  *   `state` is where the entry is in its cycle — `entering`, `trashed`,
  *   `restoring`, `extracting` (one entry coming out of a deleted folder),
- *   `purging` — and every state but `trashed` is written before the disk is
- *   touched, so a crash leaves something the recovery can finish or undo.
+ *   `copying` and `copied` (a restore across disks, before and after its copy
+ *   is whole), `purging` — and every state but `trashed` is written before the
+ *   disk is touched, so a crash leaves something the recovery can finish or
+ *   undo. `restore_path` and `restore_entry` say where a restore is going and,
+ *   for an entry of a deleted folder, which one.
  * - `trash_events`: what the maintenance did that someone may need to see — an
  *   item evicted before its retention, one adopted after a crash, one lost.
  */
@@ -41,6 +44,7 @@ const TRASH_DDL = `
     deleted_by_label TEXT,
     owner_user_id TEXT,
     restore_path TEXT,
+    restore_entry TEXT,
     deleted_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );

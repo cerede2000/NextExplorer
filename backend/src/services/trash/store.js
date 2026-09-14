@@ -26,6 +26,7 @@ const mapItem = (row) =>
         deletedByLabel: row.deleted_by_label,
         ownerUserId: row.owner_user_id,
         restorePath: row.restore_path,
+        restoreEntry: row.restore_entry || null,
         deletedAt: row.deleted_at,
         updatedAt: row.updated_at,
       }
@@ -75,10 +76,12 @@ const insertItem = (db, item) => {
 
 const getItem = (db, id) => mapItem(db.prepare('SELECT * FROM trash_items WHERE id = ?').get(id));
 
-const setItemState = (db, id, state, { restorePath = null } = {}) =>
+const setItemState = (db, id, state, { restorePath = null, restoreEntry = null } = {}) =>
   db
-    .prepare('UPDATE trash_items SET state = ?, restore_path = ?, updated_at = ? WHERE id = ?')
-    .run(state, restorePath, clock.nowIso(), id).changes;
+    .prepare(
+      'UPDATE trash_items SET state = ?, restore_path = ?, restore_entry = ?, updated_at = ? WHERE id = ?'
+    )
+    .run(state, restorePath, restoreEntry, clock.nowIso(), id).changes;
 
 const setItemSize = (db, id, size) =>
   db
