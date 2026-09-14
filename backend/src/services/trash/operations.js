@@ -262,6 +262,26 @@ const STAGING_PREFIX = '.nextexplorer-restoring-';
 const stagingPathFor = (restorePath, itemId) =>
   path.join(path.dirname(restorePath), `${STAGING_PREFIX}${itemId}`);
 
+/**
+ * Bytes copied, as deltas, whichever copy is running. The stream copy reports
+ * each chunk as a number; rsync reports a running total for its whole run, as
+ * `{ copiedBytes, percent }`, which is what the container uses.
+ */
+const bytesReporter = (onBytes) => {
+  if (typeof onBytes !== 'function') return undefined;
+  let reported = 0;
+  return (progress) => {
+    if (typeof progress === 'number') {
+      onBytes(progress);
+      return;
+    }
+    const total = Number(progress?.copiedBytes);
+    if (!Number.isFinite(total) || total <= reported) return;
+    onBytes(total - reported);
+    reported = total;
+  };
+};
+
 /** Required when used: the transfer service itself requires the trash. */
 const copyTree = (source, destination, isDirectory, onBytes, signal) =>
   // eslint-disable-next-line global-require
@@ -269,7 +289,7 @@ const copyTree = (source, destination, isDirectory, onBytes, signal) =>
     source,
     destination,
     isDirectory,
-    onBytes,
+    bytesReporter(onBytes),
     signal
   );
 

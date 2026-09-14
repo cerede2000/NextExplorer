@@ -862,6 +862,35 @@ describe('restoring somewhere else', () => {
     await expectConsistent(zoneOf());
   });
 
+  /**
+   * In the container the copy is rsync, which reports a running total rather
+   * than chunks. Counting those as chunks broke the progress there while every
+   * test on a machine without a recent rsync passed.
+   */
+  it('counts the bytes of a copy that reports a running total, as rsync does', async () => {
+    const item = await trashClient();
+    acrossDisks();
+    const transfers = load('src/services/fileTransferService');
+    const copy = transfers.copyEntryWithProgress;
+    vi.spyOn(transfers, 'copyEntryWithProgress').mockImplementation(
+      async (source, staging, isDirectory, onProgress, signal) => {
+        onProgress({ copiedBytes: 9, percent: 22 });
+        onProgress({ copiedBytes: 9, percent: 22 });
+        onProgress({ copiedBytes: clientBytes, percent: 100 });
+        return copy(source, staging, isDirectory, undefined, signal);
+      }
+    );
+    const reports = [];
+
+    const result = await operations.restoreItem(item.id, {
+      destinationDirectory: archive(),
+      onBytes: (bytes) => reports.push(bytes),
+    });
+
+    expect(result.status).toBe('restored');
+    expect(reports).toEqual([9, clientBytes - 9]);
+  });
+
   /** Two mount points of one filesystem share a device number, and still refuse a rename. */
   it('copies when a rename it expected to work is refused across mount points', async () => {
     await write('Projects/report.txt', 'still here');
