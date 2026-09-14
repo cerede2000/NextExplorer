@@ -10,6 +10,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const {
   ValidationError,
   ForbiddenError,
+  NotFoundError,
   UnsupportedMediaTypeError,
 } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
@@ -51,7 +52,17 @@ router.get(
     }
 
     const { absolutePath } = resolved;
-    const stats = await fs.stat(absolutePath);
+    let stats;
+    try {
+      stats = await fs.stat(absolutePath);
+    } catch (error) {
+      // A file deleted or renamed since the listing was drawn: a stale view,
+      // not a fault in the server.
+      if (error.code === 'ENOENT') {
+        throw new NotFoundError('File not found.');
+      }
+      throw error;
+    }
 
     if (stats.isDirectory()) {
       throw new ValidationError('Cannot preview a directory.');
