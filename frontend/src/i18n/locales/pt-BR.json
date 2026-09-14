@@ -371,7 +371,9 @@
     "reposition": "Voltar ao item ao terminar",
     "extracting": "Extraindo {name}…",
     "compressing": "Compactando {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Restaurando {count} {items}…",
+    "restoringUnknown": "Restaurando…"
   },
   "quickActions": {
     "menu": "Ações rápidas"
@@ -847,7 +849,9 @@
     "rootRejected": "Escolha primeiro um volume ou uma pasta",
     "itselfRejected": "Uma pasta não pode ser movida para dentro de si mesma",
     "descendantRejected": "Uma pasta não pode ser movida para dentro de uma de suas próprias pastas",
-    "alreadyThereRejected": "Já está aqui"
+    "alreadyThereRejected": "Já está aqui",
+    "restoreTitle": "Restaurar em",
+    "restoreHere": "Restaurar aqui"
   },
   "mediaPreview": {
     "download": "Baixar a mídia",
@@ -899,7 +903,8 @@
       "selectAll": "Selecionar tudo",
       "select": "Selecionar {name}",
       "open": "Abrir {name}",
-      "restoreFolder": "Restaurar a pasta inteira"
+      "restoreFolder": "Restaurar a pasta inteira",
+      "restoreTo": "Restaurar em…"
     },
     "confirm": {
       "deleteTitle": "Excluir permanentemente?",
@@ -924,7 +929,9 @@
       "busy": "já está sendo processado.",
       "lost": "seu conteúdo havia desaparecido.",
       "notFound": "não está mais na lixeira.",
-      "unknown": "não foi possível processá-lo."
+      "unknown": "não foi possível processá-lo.",
+      "destinationForbidden": "você não pode criar itens nessa pasta.",
+      "invalidDestination": "essa pasta não pode recebê-lo."
     },
     "errors": {
       "load": "Não foi possível carregar a lixeira.",

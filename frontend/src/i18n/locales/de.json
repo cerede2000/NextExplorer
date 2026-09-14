@@ -371,7 +371,9 @@
     "reposition": "Nach Abschluss zum Element zurückkehren",
     "extracting": "{name} wird entpackt…",
     "compressing": "{name} wird komprimiert…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "{count} {items} werden wiederhergestellt…",
+    "restoringUnknown": "Wird wiederhergestellt…"
   },
   "upload": {
     "uploads": "{count} {items} werden hochgeladen",
@@ -847,7 +849,9 @@
     "rootRejected": "Wählen Sie zuerst ein Volume oder einen Ordner",
     "itselfRejected": "Ein Ordner kann nicht in sich selbst verschoben werden",
     "descendantRejected": "Ein Ordner kann nicht in einen seiner eigenen Ordner verschoben werden",
-    "alreadyThereRejected": "Bereits hier"
+    "alreadyThereRejected": "Bereits hier",
+    "restoreTitle": "Wiederherstellen nach",
+    "restoreHere": "Hier wiederherstellen"
   },
   "mediaPreview": {
     "download": "Medium herunterladen",
@@ -899,7 +903,8 @@
       "selectAll": "Alle auswählen",
       "select": "{name} auswählen",
       "open": "{name} öffnen",
-      "restoreFolder": "Ganzen Ordner wiederherstellen"
+      "restoreFolder": "Ganzen Ordner wiederherstellen",
+      "restoreTo": "Wiederherstellen nach…"
     },
     "confirm": {
       "deleteTitle": "Endgültig löschen?",
@@ -924,7 +929,9 @@
       "busy": "es wird bereits bearbeitet.",
       "lost": "sein Inhalt war verschwunden.",
       "notFound": "es ist nicht mehr im Papierkorb.",
-      "unknown": "es konnte nicht bearbeitet werden."
+      "unknown": "es konnte nicht bearbeitet werden.",
+      "destinationForbidden": "Sie dürfen in diesem Ordner nichts anlegen.",
+      "invalidDestination": "dieser Ordner kann es nicht aufnehmen."
     },
     "errors": {
       "load": "Der Papierkorb konnte nicht geladen werden.",

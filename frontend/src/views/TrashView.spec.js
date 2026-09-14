@@ -12,10 +12,16 @@ const getTrash = vi.fn();
 const getTrashEntries = vi.fn();
 const restoreTrashItems = vi.fn();
 const restoreTrashEntries = vi.fn();
+const restoreTrashItemsTo = vi.fn();
+const restoreTrashEntriesTo = vi.fn();
 const deleteTrashItems = vi.fn();
 const emptyTrash = vi.fn();
 const addNotification = vi.fn();
 const push = vi.fn();
+const pick = vi.fn();
+const startOperation = vi.fn();
+const updateOperation = vi.fn();
+const finishOperation = vi.fn();
 const route = reactive({ query: {} });
 
 vi.mock('@/api', () => ({
@@ -23,11 +29,19 @@ vi.mock('@/api', () => ({
   getTrashEntries: (...args) => getTrashEntries(...args),
   restoreTrashItems: (...args) => restoreTrashItems(...args),
   restoreTrashEntries: (...args) => restoreTrashEntries(...args),
+  restoreTrashItemsTo: (...args) => restoreTrashItemsTo(...args),
+  restoreTrashEntriesTo: (...args) => restoreTrashEntriesTo(...args),
   deleteTrashItems: (...args) => deleteTrashItems(...args),
   emptyTrash: (...args) => emptyTrash(...args),
 }));
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({ addNotification }),
+}));
+vi.mock('@/stores/operationTasks', () => ({
+  useOperationTasksStore: () => ({ startOperation, updateOperation, finishOperation }),
+}));
+vi.mock('@/composables/useDestinationPicker', () => ({
+  useDestinationPicker: () => ({ pick }),
 }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }), useRoute: () => route }));
 const translate = (key, params) =>
@@ -82,16 +96,23 @@ beforeEach(() => {
     getTrashEntries,
     restoreTrashItems,
     restoreTrashEntries,
+    restoreTrashItemsTo,
+    restoreTrashEntriesTo,
     deleteTrashItems,
     emptyTrash,
     addNotification,
     push,
+    pick,
+    startOperation,
+    updateOperation,
+    finishOperation,
   ].forEach((mock) => mock.mockReset());
   route.query = {};
   // As the router does: the address changes, and the screen follows it.
   push.mockImplementation(async (to) => {
     route.query = to.query || {};
   });
+  startOperation.mockReturnValue('op-1');
 });
 
 afterEach(() => {
@@ -250,6 +271,7 @@ describe('restoring', () => {
     await open({ enabled: true, retentionDays: 30, items: [item()] });
 
     expect(wrapper.get('[data-test="trash-restore"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[data-test="trash-restore-to"]').attributes('disabled')).toBeDefined();
   });
 
   it('selects everything at once, and nothing on a second go', async () => {
@@ -259,6 +281,132 @@ describe('restoring', () => {
     await wrapper.get('[data-test="trash-select-all"]').trigger('change');
     await click('[data-test="trash-restore"]');
     expect(restoreTrashItems).toHaveBeenCalledWith(['id-report', 'b']);
+  });
+});
+
+describe('restoring somewhere else', () => {
+  const restored = (overrides = {}) => ({
+    id: 'id-report',
+    status: 'restored',
+    name: 'report.txt',
+    restoredName: 'report.txt',
+    renamed: false,
+    path: 'Archive',
+    ...overrides,
+  });
+
+  it('asks where, restores the selection there as a task, and says where it went', async () => {
+    await open({ enabled: true, retentionDays: 30, items: [item()] });
+    pick.mockResolvedValue('Archive');
+    restoreTrashItemsTo.mockImplementation(async (_ids, _destination, { onEvent }) => {
+      onEvent({ type: 'start', totalBytes: 2048, totalItems: 1, destination: 'Archive' });
+      onEvent({
+        type: 'progress',
+        copiedBytes: 1024,
+        totalBytes: 2048,
+        currentName: 'report.txt',
+        completedItems: 0,
+      });
+      return { type: 'done', destination: 'Archive', items: [restored()] };
+    });
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore-to"]');
+
+    expect(pick).toHaveBeenCalledWith({ mode: 'restore' });
+    expect(restoreTrashItemsTo).toHaveBeenCalledWith(
+      ['id-report'],
+      'Archive',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(startOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'restore',
+        itemCount: 1,
+        destination: 'Archive',
+        cancellable: true,
+      })
+    );
+    expect(updateOperation).toHaveBeenCalledWith('op-1', { totalBytes: 2048, copiedBytes: 1024 });
+    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(addNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'success',
+        body: 'trash.results.restoredTo {"path":"Archive"}',
+      })
+    );
+    expect(getTrash).toHaveBeenCalledTimes(2);
+  });
+
+  it('does nothing when no folder is chosen', async () => {
+    await open({ enabled: true, retentionDays: 30, items: [item()] });
+    pick.mockResolvedValue(null);
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore-to"]');
+
+    expect(restoreTrashItemsTo).not.toHaveBeenCalled();
+    expect(startOperation).not.toHaveBeenCalled();
+  });
+
+  it('says why the chosen folder turned an item away', async () => {
+    await open({
+      enabled: true,
+      retentionDays: 30,
+      items: [item(), item({ id: 'b', name: 'b.txt' })],
+    });
+    pick.mockResolvedValue('Archive');
+    restoreTrashItemsTo.mockResolvedValue({
+      destination: 'Archive',
+      items: [
+        { id: 'id-report', status: 'forbidden', reason: 'destination', name: 'report.txt' },
+        { id: 'b', status: 'blocked', reason: 'invalid-destination', name: 'b.txt' },
+      ],
+    });
+
+    await wrapper.get('[data-test="trash-select-all"]').trigger('change');
+    await click('[data-test="trash-restore-to"]');
+
+    expect(addNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'warning',
+        body: 'report.txt: trash.reasons.destinationForbidden\nb.txt: trash.reasons.invalidDestination',
+      })
+    );
+  });
+
+  it('stops quietly when the task is cancelled, and shows what is really left', async () => {
+    await open({ enabled: true, retentionDays: 30, items: [item()] });
+    pick.mockResolvedValue('Archive');
+    restoreTrashItemsTo.mockImplementation(async (_ids, _destination, { signal }) => {
+      startOperation.mock.calls[0][0].cancel();
+      expect(signal.aborted).toBe(true);
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    });
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore-to"]');
+
+    expect(addNotification).not.toHaveBeenCalled();
+    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(getTrash).toHaveBeenCalledTimes(2);
+  });
+
+  it('says so when the server fails the restore outright', async () => {
+    await open({ enabled: true, retentionDays: 30, items: [item()] });
+    pick.mockResolvedValue('Archive');
+    restoreTrashItemsTo.mockRejectedValue(new Error('The destination must be an existing folder.'));
+
+    await rows()[0].trigger('click');
+    await click('[data-test="trash-restore-to"]');
+
+    expect(addNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'error',
+        body: 'The destination must be an existing folder.',
+      })
+    );
+    expect(finishOperation).toHaveBeenCalledWith('op-1');
   });
 });
 
@@ -466,6 +614,44 @@ describe('inside a deleted folder', () => {
     );
     expect(getTrashEntries).toHaveBeenCalledTimes(2);
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it('restores what is selected inside it into a folder chosen elsewhere', async () => {
+    await openInside(
+      { item: 'id-client', path: 'drafts' },
+      listing('drafts', [entry('v1.txt'), entry('v2.txt')])
+    );
+    pick.mockResolvedValue('Archive');
+    restoreTrashEntriesTo.mockResolvedValue({
+      destination: 'Archive',
+      items: [
+        {
+          entry: 'drafts/v2.txt',
+          status: 'restored',
+          name: 'v2.txt',
+          restoredName: 'v2.txt',
+          renamed: false,
+          path: 'Archive',
+        },
+      ],
+    });
+
+    expect(
+      wrapper.get('[data-test="trash-restore-entries-to"]').attributes('disabled')
+    ).toBeDefined();
+    await entryRows()[1].trigger('click');
+    await click('[data-test="trash-restore-entries-to"]');
+
+    expect(restoreTrashEntriesTo).toHaveBeenCalledWith(
+      'id-client',
+      ['drafts/v2.txt'],
+      'Archive',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(addNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'trash.results.restoredTo {"path":"Archive"}' })
+    );
+    expect(getTrashEntries).toHaveBeenCalledTimes(2);
   });
 
   it('restores everything shown at once, and says what could not come back and why', async () => {

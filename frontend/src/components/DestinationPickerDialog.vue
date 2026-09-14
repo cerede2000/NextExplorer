@@ -88,9 +88,16 @@ const rejection = (path) => {
 const currentRejection = computed(() => rejection(currentPath.value));
 const canConfirm = computed(() => !isLoading.value && currentRejection.value === '');
 
-const confirmLabel = computed(() =>
-  props.value.mode === 'copy' ? t('destinationPicker.copyHere') : t('destinationPicker.moveHere')
-);
+const LABELS = {
+  copy: { title: 'destinationPicker.copyTitle', confirm: 'destinationPicker.copyHere' },
+  move: { title: 'destinationPicker.moveTitle', confirm: 'destinationPicker.moveHere' },
+  // Out of the trash: nothing is being taken from a folder, so nothing is
+  // "already there" either.
+  restore: { title: 'destinationPicker.restoreTitle', confirm: 'destinationPicker.restoreHere' },
+};
+const labels = computed(() => LABELS[props.value.mode] || LABELS.move);
+const title = computed(() => t(labels.value.title));
+const confirmLabel = computed(() => t(labels.value.confirm));
 
 const shortcuts = computed(() => {
   const seen = new Set();
@@ -137,11 +144,7 @@ watch(
 
 <template>
   <ModalDialog v-model="isOpen">
-    <template #title>
-      {{
-        props.mode === 'copy' ? t('destinationPicker.copyTitle') : t('destinationPicker.moveTitle')
-      }}
-    </template>
+    <template #title>{{ title }}</template>
 
     <div class="flex flex-col gap-3">
       <div v-if="shortcuts.length" class="flex flex-col gap-1">

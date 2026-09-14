@@ -32,7 +32,7 @@ export function useDestinationPicker() {
     // earlier caller is told nothing was chosen.
     resolveChoice?.(null);
 
-    mode.value = requestedMode === 'copy' ? 'copy' : 'move';
+    mode.value = ['copy', 'restore'].includes(requestedMode) ? requestedMode : 'move';
     items.value = Array.isArray(requestedItems) ? requestedItems : [];
     initialPath.value = from || '';
     isOpen.value = true;

@@ -7,9 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * worst possible typo.
  */
 
-const { requestJson } = vi.hoisted(() => ({ requestJson: vi.fn(async () => ({})) }));
+const { requestJson, requestStream } = vi.hoisted(() => ({
+  requestJson: vi.fn(async () => ({})),
+  requestStream: vi.fn(async () => ({})),
+}));
 
-vi.mock('./http', () => ({ requestJson }));
+vi.mock('./http', () => ({ requestJson, requestStream }));
 
 const api = await import('./trash.api');
 
@@ -63,6 +66,26 @@ describe('the trash API', () => {
       method: 'POST',
       body: { paths: ['drafts/v2.txt'] },
     });
+  });
+
+  it('restores items into a chosen folder, as a stream it can follow and cancel', async () => {
+    const onEvent = vi.fn();
+    const { signal } = new AbortController();
+
+    await api.restoreTrashItemsTo(['a'], 'Archive', { onEvent, signal });
+
+    const [endpoint, options] = requestStream.mock.calls.at(-1);
+    expect(endpoint).toBe('/api/trash/restore-to');
+    expect(options).toMatchObject({ method: 'POST', onEvent, signal });
+    expect(JSON.parse(options.body)).toEqual({ ids: ['a'], destination: 'Archive' });
+  });
+
+  it('restores entries of a deleted folder into a chosen folder, the same way', async () => {
+    await api.restoreTrashEntriesTo('id 1', ['drafts/v2.txt'], 'Archive');
+
+    const [endpoint, options] = requestStream.mock.calls.at(-1);
+    expect(endpoint).toBe('/api/trash/items/id%201/restore-to');
+    expect(JSON.parse(options.body)).toEqual({ paths: ['drafts/v2.txt'], destination: 'Archive' });
   });
 
   it('deletes the chosen items for good', async () => {

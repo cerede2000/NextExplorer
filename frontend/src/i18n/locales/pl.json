@@ -371,7 +371,9 @@
     "reposition": "Wróć do elementu po zakończeniu",
     "extracting": "Wypakowywanie {name}…",
     "compressing": "Kompresowanie {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Przywracanie: {count} {items}…",
+    "restoringUnknown": "Przywracanie…"
   },
   "upload": {
     "uploads": "Przesyłanie {count} {items}",
@@ -847,7 +849,9 @@
     "rootRejected": "Najpierw wybierz wolumin lub folder",
     "itselfRejected": "Folderu nie można przenieść do niego samego",
     "descendantRejected": "Folderu nie można przenieść do jednego z jego własnych folderów",
-    "alreadyThereRejected": "Już tutaj"
+    "alreadyThereRejected": "Już tutaj",
+    "restoreTitle": "Przywróć do",
+    "restoreHere": "Przywróć tutaj"
   },
   "mediaPreview": {
     "download": "Pobierz multimedia",
@@ -899,7 +903,8 @@
       "selectAll": "Zaznacz wszystko",
       "select": "Zaznacz {name}",
       "open": "Otwórz {name}",
-      "restoreFolder": "Przywróć cały folder"
+      "restoreFolder": "Przywróć cały folder",
+      "restoreTo": "Przywróć do…"
     },
     "confirm": {
       "deleteTitle": "Usunąć trwale?",
@@ -924,7 +929,9 @@
       "busy": "jest już przetwarzany.",
       "lost": "jego zawartość zniknęła.",
       "notFound": "nie ma go już w koszu.",
-      "unknown": "nie udało się go przetworzyć."
+      "unknown": "nie udało się go przetworzyć.",
+      "destinationForbidden": "nie możesz tworzyć elementów w tym folderze.",
+      "invalidDestination": "ten folder nie może go przyjąć."
     },
     "errors": {
       "load": "Nie udało się wczytać kosza.",

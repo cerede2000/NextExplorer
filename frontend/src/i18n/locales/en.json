@@ -371,7 +371,9 @@
     "reposition": "Return to the item when done",
     "extracting": "Extracting {name}…",
     "compressing": "Compressing {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Restoring {count} {items}…",
+    "restoringUnknown": "Restoring…"
   },
   "quickActions": {
     "menu": "Quick actions"
@@ -847,7 +849,9 @@
     "rootRejected": "Pick a volume or folder first",
     "itselfRejected": "A folder cannot be moved into itself",
     "descendantRejected": "A folder cannot be moved into one of its own folders",
-    "alreadyThereRejected": "Already here"
+    "alreadyThereRejected": "Already here",
+    "restoreTitle": "Restore to",
+    "restoreHere": "Restore here"
   },
   "mediaPreview": {
     "download": "Download media",
@@ -899,7 +903,8 @@
       "selectAll": "Select all",
       "select": "Select {name}",
       "open": "Open {name}",
-      "restoreFolder": "Restore whole folder"
+      "restoreFolder": "Restore whole folder",
+      "restoreTo": "Restore to…"
     },
     "confirm": {
       "deleteTitle": "Delete permanently?",
@@ -924,7 +929,9 @@
       "busy": "it is already being handled.",
       "lost": "its content had disappeared.",
       "notFound": "it is no longer in the trash.",
-      "unknown": "it could not be handled."
+      "unknown": "it could not be handled.",
+      "destinationForbidden": "you cannot create items in that folder.",
+      "invalidDestination": "that folder cannot receive it."
     },
     "errors": {
       "load": "The trash could not be loaded.",

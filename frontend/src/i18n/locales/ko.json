@@ -371,7 +371,9 @@
     "reposition": "완료 후 항목으로 돌아가기",
     "extracting": "{name} 압축 푸는 중…",
     "compressing": "{name} 압축 중…",
-    "perSecond": "{value}/초"
+    "perSecond": "{value}/초",
+    "restoring": "{count}개 {items} 복원 중…",
+    "restoringUnknown": "복원 중…"
   },
   "upload": {
     "uploads": "{count}개 {items} 업로드 중",
@@ -847,7 +849,9 @@
     "rootRejected": "먼저 볼륨이나 폴더를 선택하세요",
     "itselfRejected": "폴더를 자기 자신으로 이동할 수 없습니다",
     "descendantRejected": "폴더를 자신의 하위 폴더로 이동할 수 없습니다",
-    "alreadyThereRejected": "이미 여기에 있습니다"
+    "alreadyThereRejected": "이미 여기에 있습니다",
+    "restoreTitle": "복원할 위치",
+    "restoreHere": "여기에 복원"
   },
   "mediaPreview": {
     "download": "미디어 다운로드",
@@ -899,7 +903,8 @@
       "selectAll": "모두 선택",
       "select": "{name} 선택",
       "open": "{name} 열기",
-      "restoreFolder": "폴더 전체 복원"
+      "restoreFolder": "폴더 전체 복원",
+      "restoreTo": "다른 위치에 복원…"
     },
     "confirm": {
       "deleteTitle": "영구 삭제하시겠습니까?",
@@ -924,7 +929,9 @@
       "busy": "이미 처리 중입니다.",
       "lost": "내용이 사라졌습니다.",
       "notFound": "더 이상 휴지통에 없습니다.",
-      "unknown": "처리할 수 없습니다."
+      "unknown": "처리할 수 없습니다.",
+      "destinationForbidden": "그 폴더에 항목을 만들 수 없습니다.",
+      "invalidDestination": "그 폴더로는 옮길 수 없습니다."
     },
     "errors": {
       "load": "휴지통을 불러올 수 없습니다.",

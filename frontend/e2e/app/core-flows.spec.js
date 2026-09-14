@@ -185,7 +185,7 @@ test('a deleted file goes to the trash and comes back as it was', async () => {
   await page.getByRole('button', { name: 'Trash', exact: true }).click();
   await expect(page).toHaveURL(/\/trash$/);
   await page.getByRole('checkbox', { name: 'Select report.txt' }).check();
-  await page.getByRole('button', { name: 'Restore' }).click();
+  await page.getByRole('button', { name: 'Restore', exact: true }).click();
 
   await expect
     .poll(() => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null))
@@ -267,4 +267,40 @@ test('one file comes back out of a deleted folder, and the rest stays in the tra
   expect(fs.readFileSync(path.join(rest, 'brief.txt'), 'utf8')).toBe('the brief\n');
   expect(fs.readFileSync(restored, 'utf8')).toBe('second draft\n');
   expect(trashPayloads()).toEqual([]);
+});
+
+/**
+ * Restoring into a folder chosen with the dialog a move uses: the file lands
+ * in that folder, not where it was deleted from.
+ */
+test('a deleted file can be restored into another folder', async () => {
+  const archive = path.join(volume, 'archive');
+  fs.mkdirSync(archive, { recursive: true });
+  const file = path.join(volume, 'invoice.txt');
+  fs.writeFileSync(file, 'invoice 42\n');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select invoice.txt' }).click();
+  await page.keyboard.press('Delete');
+  await page.getByRole('dialog').getByRole('button', { name: 'Move to Trash' }).click();
+  await expect.poll(() => fs.existsSync(file)).toBe(false);
+  await expect.poll(() => trashPayloads().length).toBe(1);
+
+  await page.goto('/trash');
+  await page.getByRole('checkbox', { name: 'Select invoice.txt' }).check();
+  await page.getByRole('button', { name: 'Restore to…' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Restore to');
+  await dialog.getByRole('option', { name: 'Projects' }).click();
+  await dialog.getByRole('option', { name: 'archive' }).click();
+  await dialog.getByRole('button', { name: 'Restore here' }).click();
+
+  const landed = path.join(archive, 'invoice.txt');
+  await expect
+    .poll(() => (fs.existsSync(landed) ? fs.readFileSync(landed, 'utf8') : null))
+    .toBe('invoice 42\n');
+  expect(fs.existsSync(file)).toBe(false);
+  expect(trashPayloads()).toEqual([]);
+  await expect(page.getByText('The trash is empty.')).toBeVisible();
 });

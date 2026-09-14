@@ -25,6 +25,8 @@ const i18n = createI18n({
         working: 'Working…',
         perSecond: '{value}/s',
         activeTasks: '{count} tasks',
+        restoring: 'Restoring {count} {items}…',
+        restoringUnknown: 'Restoring…',
       },
       upload: { uploads: 'Uploading {count} {items}', finalizing: 'Finishing up' },
     },
@@ -50,6 +52,12 @@ describe('ClipboardProgress', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     store = useOperationTasksStore();
+  });
+
+  it('names a restore from the trash for what it is', () => {
+    store.startOperation({ type: 'restore', itemCount: 2, destination: 'Archive' });
+
+    expect(mountPanel().text()).toContain('Restoring 2 items…');
   });
 
   it('counts the transfer while bytes are still going out', () => {

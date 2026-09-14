@@ -371,7 +371,9 @@
     "reposition": "पूरा होने पर आइटम पर लौटें",
     "extracting": "{name} निकाला जा रहा है…",
     "compressing": "{name} संपीड़ित किया जा रहा है…",
-    "perSecond": "{value}/से"
+    "perSecond": "{value}/से",
+    "restoring": "{count} {items} पुनर्स्थापित हो रहे हैं…",
+    "restoringUnknown": "पुनर्स्थापित हो रहा है…"
   },
   "upload": {
     "uploads": "{count} {items} अपलोड हो रहे हैं",
@@ -847,7 +849,9 @@
     "rootRejected": "पहले कोई वॉल्यूम या फ़ोल्डर चुनें",
     "itselfRejected": "फ़ोल्डर को उसी में नहीं ले जाया जा सकता",
     "descendantRejected": "फ़ोल्डर को उसके अपने फ़ोल्डर में नहीं ले जाया जा सकता",
-    "alreadyThereRejected": "पहले से यहाँ है"
+    "alreadyThereRejected": "पहले से यहाँ है",
+    "restoreTitle": "यहाँ पुनर्स्थापित करें",
+    "restoreHere": "यहाँ पुनर्स्थापित करें"
   },
   "mediaPreview": {
     "download": "मीडिया डाउनलोड करें",
@@ -899,7 +903,8 @@
       "selectAll": "सभी चुनें",
       "select": "{name} चुनें",
       "open": "{name} खोलें",
-      "restoreFolder": "पूरा फ़ोल्डर पुनर्स्थापित करें"
+      "restoreFolder": "पूरा फ़ोल्डर पुनर्स्थापित करें",
+      "restoreTo": "कहीं और पुनर्स्थापित करें…"
     },
     "confirm": {
       "deleteTitle": "स्थायी रूप से हटाएँ?",
@@ -924,7 +929,9 @@
       "busy": "उस पर पहले से काम चल रहा है।",
       "lost": "उसकी सामग्री गायब हो गई थी।",
       "notFound": "वह अब रीसायकल बिन में नहीं है।",
-      "unknown": "उसे संसाधित नहीं किया जा सका।"
+      "unknown": "उसे संसाधित नहीं किया जा सका।",
+      "destinationForbidden": "आप उस फ़ोल्डर में आइटम नहीं बना सकते।",
+      "invalidDestination": "वह फ़ोल्डर इसे नहीं ले सकता।"
     },
     "errors": {
       "load": "रीसायकल बिन लोड नहीं हो सका।",

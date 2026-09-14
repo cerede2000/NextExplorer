@@ -371,7 +371,9 @@
     "reposition": "Revino la element la final",
     "extracting": "Se extrage {name}…",
     "compressing": "Se comprimă {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Se restaurează {count} {items}…",
+    "restoringUnknown": "Se restaurează…"
   },
   "upload": {
     "uploads": "Se încarcă {count} {items}",
@@ -847,7 +849,9 @@
     "rootRejected": "Alegeți mai întâi un volum sau un folder",
     "itselfRejected": "Un folder nu poate fi mutat în el însuși",
     "descendantRejected": "Un folder nu poate fi mutat într-unul dintre folderele sale",
-    "alreadyThereRejected": "Deja aici"
+    "alreadyThereRejected": "Deja aici",
+    "restoreTitle": "Restaurează în",
+    "restoreHere": "Restaurează aici"
   },
   "mediaPreview": {
     "download": "Descarcă fișierul media",
@@ -899,7 +903,8 @@
       "selectAll": "Selectează tot",
       "select": "Selectează {name}",
       "open": "Deschide {name}",
-      "restoreFolder": "Restaurează tot dosarul"
+      "restoreFolder": "Restaurează tot dosarul",
+      "restoreTo": "Restaurează în…"
     },
     "confirm": {
       "deleteTitle": "Ștergeți definitiv?",
@@ -924,7 +929,9 @@
       "busy": "este deja în lucru.",
       "lost": "conținutul său dispăruse.",
       "notFound": "nu mai este în coșul de gunoi.",
-      "unknown": "nu a putut fi procesat."
+      "unknown": "nu a putut fi procesat.",
+      "destinationForbidden": "nu puteți crea elemente în acel dosar.",
+      "invalidDestination": "acel dosar nu îl poate primi."
     },
     "errors": {
       "load": "Coșul de gunoi nu a putut fi încărcat.",

@@ -1,4 +1,4 @@
-import { requestJson } from './http';
+import { requestJson, requestStream } from './http';
 
 /**
  * The trash: what the signed-in person can see in it, and what they can do
@@ -30,6 +30,30 @@ async function restoreTrashEntries(id, paths) {
   return post(`/api/trash/items/${encodeURIComponent(id)}/restore`, { paths });
 }
 
+/**
+ * Put items in a chosen folder. Streamed like a transfer, since across disks it
+ * is a copy: `onEvent` receives start and progress, and the result is the final
+ * `{ destination, items }`.
+ */
+async function restoreTrashItemsTo(ids, destination, { onEvent, signal } = {}) {
+  return requestStream('/api/trash/restore-to', {
+    method: 'POST',
+    body: JSON.stringify({ ids, destination }),
+    onEvent,
+    signal,
+  });
+}
+
+/** Put entries of a deleted folder in a chosen folder, streamed the same way. */
+async function restoreTrashEntriesTo(id, paths, destination, { onEvent, signal } = {}) {
+  return requestStream(`/api/trash/items/${encodeURIComponent(id)}/restore-to`, {
+    method: 'POST',
+    body: JSON.stringify({ paths, destination }),
+    onEvent,
+    signal,
+  });
+}
+
 async function deleteTrashItems(ids, { forgetUnavailable = false } = {}) {
   return post('/api/trash/delete', forgetUnavailable ? { ids, forgetUnavailable: true } : { ids });
 }
@@ -55,6 +79,8 @@ export {
   getTrashEntries,
   restoreTrashItems,
   restoreTrashEntries,
+  restoreTrashItemsTo,
+  restoreTrashEntriesTo,
   deleteTrashItems,
   emptyTrash,
   getTrashZones,

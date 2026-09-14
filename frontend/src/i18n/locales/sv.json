@@ -371,7 +371,9 @@
     "reposition": "Återgå till objektet när det är klart",
     "extracting": "Extraherar {name}…",
     "compressing": "Komprimerar {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Återställer {count} {items}…",
+    "restoringUnknown": "Återställer…"
   },
   "upload": {
     "uploads": "Laddar upp {count} {items}",
@@ -847,7 +849,9 @@
     "rootRejected": "Välj en volym eller mapp först",
     "itselfRejected": "En mapp kan inte flyttas in i sig själv",
     "descendantRejected": "En mapp kan inte flyttas till en av sina egna mappar",
-    "alreadyThereRejected": "Redan här"
+    "alreadyThereRejected": "Redan här",
+    "restoreTitle": "Återställ till",
+    "restoreHere": "Återställ hit"
   },
   "mediaPreview": {
     "download": "Ladda ner media",
@@ -899,7 +903,8 @@
       "selectAll": "Markera alla",
       "select": "Markera {name}",
       "open": "Öppna {name}",
-      "restoreFolder": "Återställ hela mappen"
+      "restoreFolder": "Återställ hela mappen",
+      "restoreTo": "Återställ till…"
     },
     "confirm": {
       "deleteTitle": "Radera permanent?",
@@ -924,7 +929,9 @@
       "busy": "det hanteras redan.",
       "lost": "dess innehåll hade försvunnit.",
       "notFound": "det finns inte längre i papperskorgen.",
-      "unknown": "det kunde inte hanteras."
+      "unknown": "det kunde inte hanteras.",
+      "destinationForbidden": "du kan inte skapa objekt i den mappen.",
+      "invalidDestination": "den mappen kan inte ta emot det."
     },
     "errors": {
       "load": "Papperskorgen kunde inte läsas in.",

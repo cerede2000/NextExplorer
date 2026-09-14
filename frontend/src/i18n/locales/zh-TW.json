@@ -371,7 +371,9 @@
     "reposition": "完成後返回該項目",
     "extracting": "正在解壓 {name}…",
     "compressing": "正在壓縮 {name}…",
-    "perSecond": "{value}/秒"
+    "perSecond": "{value}/秒",
+    "restoring": "正在還原 {count} 個{items}…",
+    "restoringUnknown": "正在還原…"
   },
   "upload": {
     "uploads": "正在上傳 {count} 個{items}",
@@ -847,7 +849,9 @@
     "rootRejected": "請先選擇磁碟區或資料夾",
     "itselfRejected": "資料夾不能移動到自身",
     "descendantRejected": "資料夾不能移動到其自身的子資料夾",
-    "alreadyThereRejected": "已在此處"
+    "alreadyThereRejected": "已在此處",
+    "restoreTitle": "還原到",
+    "restoreHere": "還原到此處"
   },
   "mediaPreview": {
     "download": "下載媒體",
@@ -899,7 +903,8 @@
       "selectAll": "全選",
       "select": "選取 {name}",
       "open": "開啟 {name}",
-      "restoreFolder": "還原整個資料夾"
+      "restoreFolder": "還原整個資料夾",
+      "restoreTo": "還原到…"
     },
     "confirm": {
       "deleteTitle": "永久刪除？",
@@ -924,7 +929,9 @@
       "busy": "它正在處理中。",
       "lost": "其內容已消失。",
       "notFound": "它已不在資源回收筒中。",
-      "unknown": "無法處理。"
+      "unknown": "無法處理。",
+      "destinationForbidden": "你無法在該資料夾中建立項目。",
+      "invalidDestination": "該資料夾無法接收它。"
     },
     "errors": {
       "load": "無法載入資源回收筒。",

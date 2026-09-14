@@ -371,7 +371,9 @@
     "reposition": "Volver al elemento al terminar",
     "extracting": "Extrayendo {name}…",
     "compressing": "Comprimiendo {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Restaurando {count} {items}…",
+    "restoringUnknown": "Restaurando…"
   },
   "upload": {
     "uploads": "Subiendo {count} {items}",
@@ -847,7 +849,9 @@
     "rootRejected": "Elija primero un volumen o una carpeta",
     "itselfRejected": "Una carpeta no puede moverse dentro de sí misma",
     "descendantRejected": "Una carpeta no puede moverse a una de sus propias carpetas",
-    "alreadyThereRejected": "Ya está aquí"
+    "alreadyThereRejected": "Ya está aquí",
+    "restoreTitle": "Restaurar en",
+    "restoreHere": "Restaurar aquí"
   },
   "mediaPreview": {
     "download": "Descargar medio",
@@ -899,7 +903,8 @@
       "selectAll": "Seleccionar todo",
       "select": "Seleccionar {name}",
       "open": "Abrir {name}",
-      "restoreFolder": "Restaurar la carpeta entera"
+      "restoreFolder": "Restaurar la carpeta entera",
+      "restoreTo": "Restaurar en…"
     },
     "confirm": {
       "deleteTitle": "¿Eliminar definitivamente?",
@@ -924,7 +929,9 @@
       "busy": "ya se está procesando.",
       "lost": "su contenido había desaparecido.",
       "notFound": "ya no está en la papelera.",
-      "unknown": "no se pudo procesar."
+      "unknown": "no se pudo procesar.",
+      "destinationForbidden": "no puede crear elementos en esa carpeta.",
+      "invalidDestination": "esa carpeta no puede recibirlo."
     },
     "errors": {
       "load": "No se pudo cargar la papelera.",

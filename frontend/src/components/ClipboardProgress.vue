@@ -163,11 +163,13 @@ const titleFor = (value) => {
 
   const count = Number(value.itemCount);
   if (!Number.isInteger(count) || count < 1) {
+    if (value.type === 'restore') return t('clipboard.restoringUnknown');
     return value.type === 'move' ? t('clipboard.movingUnknown') : t('clipboard.copyingUnknown');
   }
 
   const itemsLabel = count === 1 ? t('common.item') : t('common.items');
   if (value.type === 'delete') return `${t('common.deleting')} ${count} ${itemsLabel}`;
+  if (value.type === 'restore') return t('clipboard.restoring', { count, items: itemsLabel });
 
   return value.type === 'move'
     ? t('clipboard.moving', { count, items: itemsLabel })

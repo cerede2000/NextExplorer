@@ -371,7 +371,9 @@
     "reposition": "Вернуться к объекту по завершении",
     "extracting": "Извлечение {name}…",
     "compressing": "Сжатие {name}…",
-    "perSecond": "{value}/с"
+    "perSecond": "{value}/с",
+    "restoring": "Восстановление: {count} {items}…",
+    "restoringUnknown": "Восстановление…"
   },
   "upload": {
     "uploads": "Загрузка {count} {items}",
@@ -847,7 +849,9 @@
     "rootRejected": "Сначала выберите том или папку",
     "itselfRejected": "Папку нельзя переместить в саму себя",
     "descendantRejected": "Папку нельзя переместить в одну из её собственных папок",
-    "alreadyThereRejected": "Уже здесь"
+    "alreadyThereRejected": "Уже здесь",
+    "restoreTitle": "Восстановить в",
+    "restoreHere": "Восстановить сюда"
   },
   "mediaPreview": {
     "download": "Скачать медиафайл",
@@ -899,7 +903,8 @@
       "selectAll": "Выбрать все",
       "select": "Выбрать {name}",
       "open": "Открыть {name}",
-      "restoreFolder": "Восстановить всю папку"
+      "restoreFolder": "Восстановить всю папку",
+      "restoreTo": "Восстановить в…"
     },
     "confirm": {
       "deleteTitle": "Удалить навсегда?",
@@ -924,7 +929,9 @@
       "busy": "он уже обрабатывается.",
       "lost": "его содержимое исчезло.",
       "notFound": "его больше нет в корзине.",
-      "unknown": "его не удалось обработать."
+      "unknown": "его не удалось обработать.",
+      "destinationForbidden": "вы не можете создавать элементы в этой папке.",
+      "invalidDestination": "эта папка не может его принять."
     },
     "errors": {
       "load": "Не удалось загрузить корзину.",

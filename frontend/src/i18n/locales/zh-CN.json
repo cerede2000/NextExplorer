@@ -371,7 +371,9 @@
     "reposition": "完成后返回该项目",
     "extracting": "正在解压 {name}…",
     "compressing": "正在压缩 {name}…",
-    "perSecond": "{value}/秒"
+    "perSecond": "{value}/秒",
+    "restoring": "正在还原 {count} 个{items}…",
+    "restoringUnknown": "正在还原…"
   },
   "upload": {
     "uploads": "正在上传 {count} 个{items}",
@@ -847,7 +849,9 @@
     "rootRejected": "请先选择卷或文件夹",
     "itselfRejected": "文件夹不能移动到自身",
     "descendantRejected": "文件夹不能移动到其自身的子文件夹",
-    "alreadyThereRejected": "已在此处"
+    "alreadyThereRejected": "已在此处",
+    "restoreTitle": "还原到",
+    "restoreHere": "还原到此处"
   },
   "mediaPreview": {
     "download": "下载媒体",
@@ -899,7 +903,8 @@
       "selectAll": "全选",
       "select": "选择 {name}",
       "open": "打开 {name}",
-      "restoreFolder": "还原整个文件夹"
+      "restoreFolder": "还原整个文件夹",
+      "restoreTo": "还原到…"
     },
     "confirm": {
       "deleteTitle": "永久删除？",
@@ -924,7 +929,9 @@
       "busy": "它正在处理中。",
       "lost": "其内容已消失。",
       "notFound": "它已不在回收站中。",
-      "unknown": "无法处理。"
+      "unknown": "无法处理。",
+      "destinationForbidden": "你无法在该文件夹中创建项目。",
+      "invalidDestination": "该文件夹无法接收它。"
     },
     "errors": {
       "load": "无法加载回收站。",

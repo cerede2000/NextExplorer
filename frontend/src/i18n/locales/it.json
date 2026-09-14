@@ -371,7 +371,9 @@
     "reposition": "Torna all'elemento al termine",
     "extracting": "Estrazione di {name}…",
     "compressing": "Compressione di {name}…",
-    "perSecond": "{value}/s"
+    "perSecond": "{value}/s",
+    "restoring": "Ripristino di {count} {items}…",
+    "restoringUnknown": "Ripristino in corso…"
   },
   "upload": {
     "uploads": "Caricamento di {count} {items}",
@@ -847,7 +849,9 @@
     "rootRejected": "Scegli prima un volume o una cartella",
     "itselfRejected": "Una cartella non può essere spostata in se stessa",
     "descendantRejected": "Una cartella non può essere spostata in una delle proprie cartelle",
-    "alreadyThereRejected": "Già qui"
+    "alreadyThereRejected": "Già qui",
+    "restoreTitle": "Ripristina in",
+    "restoreHere": "Ripristina qui"
   },
   "mediaPreview": {
     "download": "Scarica contenuto",
@@ -899,7 +903,8 @@
       "selectAll": "Seleziona tutto",
       "select": "Seleziona {name}",
       "open": "Apri {name}",
-      "restoreFolder": "Ripristina l'intera cartella"
+      "restoreFolder": "Ripristina l'intera cartella",
+      "restoreTo": "Ripristina in…"
     },
     "confirm": {
       "deleteTitle": "Eliminare definitivamente?",
@@ -924,7 +929,9 @@
       "busy": "è già in lavorazione.",
       "lost": "il suo contenuto era scomparso.",
       "notFound": "non è più nel cestino.",
-      "unknown": "non è stato possibile gestirlo."
+      "unknown": "non è stato possibile gestirlo.",
+      "destinationForbidden": "non puoi creare elementi in quella cartella.",
+      "invalidDestination": "quella cartella non può riceverlo."
     },
     "errors": {
       "load": "Impossibile caricare il cestino.",

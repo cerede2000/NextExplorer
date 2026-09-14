@@ -42,8 +42,10 @@ const i18n = createI18n({
       destinationPicker: {
         moveTitle: 'Move to',
         copyTitle: 'Copy to',
+        restoreTitle: 'Restore to',
         moveHere: 'Move here',
         copyHere: 'Copy here',
+        restoreHere: 'Restore here',
         noFolders: 'No folders here',
         rootRejected: 'Pick a volume or folder first',
         itselfRejected: 'A folder cannot be moved into itself',
@@ -74,7 +76,7 @@ const bodyText = () => document.body.textContent || '';
 
 /** The button that commits the choice. */
 const confirmButton = () =>
-  buttons().find((button) => /^(Move|Copy) here$/.test(button.textContent.trim()));
+  buttons().find((button) => /^(Move|Copy|Restore) here$/.test(button.textContent.trim()));
 
 describe('DestinationPickerDialog', () => {
   let picker;
@@ -224,5 +226,24 @@ describe('DestinationPickerDialog', () => {
 
     expect(bodyText()).toContain('Archive');
     expect(confirmButton().disabled).toBe(false);
+  });
+
+  /**
+   * Out of the trash, nothing is taken from a folder: the only destination to
+   * refuse is the root, and the dialog says what will happen in its own words.
+   */
+  it('asks where to restore, in those words, and hands back the folder chosen', async () => {
+    browse.mockResolvedValue(listing([folder('Archive', 'Docs')], 'Docs'));
+
+    mountDialog();
+    const chosen = picker.pick({ mode: 'restore' });
+    await flushPromises();
+
+    expect(bodyText()).toContain('Restore to');
+    expect(confirmButton().textContent.trim()).toBe('Restore here');
+    confirmButton().click();
+    await flushPromises();
+
+    await expect(chosen).resolves.toBe('Docs');
   });
 });

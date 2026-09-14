@@ -17,9 +17,13 @@ import {
   getTrash,
   getTrashEntries,
   restoreTrashEntries,
+  restoreTrashEntriesTo,
   restoreTrashItems,
+  restoreTrashItemsTo,
 } from '@/api';
+import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 import { formatBytes, formatLocalDateTime } from '@/utils';
 
 /**
@@ -249,7 +253,14 @@ const REASONS = {
   missing: 'notFound',
 };
 
-const reasonText = (result) => t(`trash.reasons.${REASONS[result.status] || 'unknown'}`);
+/** A reason the server named, where it says more than the status does. */
+const REASON_TEXTS = {
+  destination: 'destinationForbidden',
+  'invalid-destination': 'invalidDestination',
+};
+
+const reasonText = (result) =>
+  t(`trash.reasons.${REASON_TEXTS[result.reason] || REASONS[result.status] || 'unknown'}`);
 
 const describeFailures = (failed) =>
   failed.map((result) => `${result.name || result.id}: ${reasonText(result)}`).join('\n');
@@ -320,6 +331,57 @@ const restoreWholeFolder = () =>
     reportRestored(results);
     if (results.some((result) => result.status === 'restored')) await leaveFolder();
   });
+
+const picker = useDestinationPicker();
+const operationTasks = useOperationTasksStore();
+
+/**
+ * Put what is selected in a folder chosen with the dialog a move uses. Across
+ * disks that is a copy, so it runs as a task with its progress and a cancel,
+ * like a transfer; whatever the cancel stops stays in the trash, and the list
+ * reloaded afterwards shows exactly what came out.
+ */
+const restoreElsewhere = async ({ entries = false } = {}) => {
+  const count = entries ? selectedEntryCount.value : selectedCount.value;
+  if (count === 0 || busy.value) return;
+  const destination = await picker.pick({ mode: 'restore' });
+  if (!destination) return;
+
+  const controller = new AbortController();
+  const operationId = operationTasks.startOperation({
+    type: 'restore',
+    itemCount: count,
+    destination,
+    cancellable: true,
+    cancel: () => controller.abort(),
+  });
+  const onEvent = (event) => {
+    if (event?.type !== 'start' && event?.type !== 'progress') return;
+    operationTasks.updateOperation(operationId, {
+      totalBytes: Number(event.totalBytes) || 0,
+      copiedBytes: Number(event.copiedBytes) || 0,
+    });
+  };
+  const options = { onEvent, signal: controller.signal };
+
+  await runBusy(async () => {
+    try {
+      const response = entries
+        ? await restoreTrashEntriesTo(
+            folderId.value,
+            [...selectedEntries.value].map((name) => joinPath(folderPath.value, name)),
+            destination,
+            options
+          )
+        : await restoreTrashItemsTo([...selectedIds.value], destination, options);
+      reportRestored(response?.items || []);
+    } catch (err) {
+      if (!controller.signal.aborted && err?.name !== 'AbortError') throw err;
+    } finally {
+      operationTasks.finishOperation(operationId);
+    }
+  });
+};
 
 const deleteSelected = () =>
   runBusy(async () => {
@@ -474,6 +536,15 @@ defineExpose({ load });
           </button>
           <button
             type="button"
+            data-test="trash-restore-entries-to"
+            class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            :disabled="selectedEntryCount === 0 || busy || !folder"
+            @click="restoreElsewhere({ entries: true })"
+          >
+            {{ t('trash.actions.restoreTo') }}
+          </button>
+          <button
+            type="button"
             data-test="trash-restore-folder"
             class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
             :disabled="busy || !folder"
@@ -492,6 +563,15 @@ defineExpose({ load });
           >
             <ArrowUturnLeftIcon class="h-4 w-4" />
             {{ t('trash.actions.restore') }}
+          </button>
+          <button
+            type="button"
+            data-test="trash-restore-to"
+            class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            :disabled="selectedCount === 0 || busy"
+            @click="restoreElsewhere()"
+          >
+            {{ t('trash.actions.restoreTo') }}
           </button>
           <button
             type="button"
