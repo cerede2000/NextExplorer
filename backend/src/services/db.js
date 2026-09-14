@@ -98,6 +98,22 @@ const ensureShareOperationPermissionColumns = (db) => {
   // it did: withholding downloads is something an owner opts into, never
   // something a migration decides for them.
   addColumnIfMissing(db, 'shares', 'allow_download', 'allow_download INTEGER NOT NULL DEFAULT 1');
+
+  // What a share hands out of a file's history: the list of its versions, and
+  // the versions themselves. A link for anyone shows none until its owner says
+  // so; a share with named accounts shows what those accounts would see anyway,
+  // which is why the ones that exist already are switched on as they gain it.
+  const columns = new Set(
+    db
+      .prepare('PRAGMA table_info(shares)')
+      .all()
+      .map((column) => column.name)
+  );
+  for (const column of ['versions_visible', 'versions_download']) {
+    if (columns.has(column)) continue;
+    db.exec(`ALTER TABLE shares ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
+    db.exec(`UPDATE shares SET ${column} = 1 WHERE sharing_type = 'users'`);
+  }
 };
 
 /**

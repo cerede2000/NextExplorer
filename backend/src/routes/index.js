@@ -21,6 +21,7 @@ const sharesRoutes = require('./shares');
 const zipRoutes = require('./zip');
 const userVolumesRoutes = require('./userVolumes');
 const trashRoutes = require('./trash');
+const versionsRoutes = require('./versions');
 const { onlyoffice, collabora } = require('../config/index');
 
 const registerRoutes = (app) => {
@@ -43,6 +44,7 @@ const registerRoutes = (app) => {
   app.use('/api', permissionsRoutes);
   app.use('/api', zipRoutes);
   app.use('/api', trashRoutes);
+  app.use('/api', versionsRoutes);
   // User volumes management (admin only, requires USER_VOLUMES feature)
   app.use('/api', userVolumesRoutes);
   // Share routes (supports guest sessions)

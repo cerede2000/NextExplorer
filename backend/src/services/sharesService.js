@@ -36,6 +36,8 @@ const toClientShare = (row) => {
     allowCreateFile: row.allow_create_file !== 0,
     allowUpload: row.allow_upload !== 0,
     allowDownload: row.allow_download !== 0,
+    versionsVisible: row.versions_visible === 1,
+    versionsDownload: row.versions_download === 1,
     sharingType: row.sharing_type,
     hasPassword: Boolean(row.password_hash),
     expiresAt: row.expires_at || null,
@@ -65,6 +67,8 @@ const createShare = async ({
   allowCreateFile = true,
   allowUpload = true,
   allowDownload = true,
+  versionsVisible,
+  versionsDownload,
   sharingType = 'anyone',
   password = null,
   userIds = [],
@@ -121,6 +125,21 @@ const createShare = async ({
     throw e;
   }
 
+  // A share with named accounts shows the history they would see anyway; a link
+  // for anyone shows none until its owner decides otherwise.
+  const historyByDefault = sharingType === 'users';
+  const history = {
+    versionsVisible: versionsVisible === undefined ? historyByDefault : versionsVisible,
+    versionsDownload: versionsDownload === undefined ? historyByDefault : versionsDownload,
+  };
+  for (const [key, value] of Object.entries(history)) {
+    if (typeof value !== 'boolean') {
+      const e = new Error(`${key} must be a boolean`);
+      e.status = 400;
+      throw e;
+    }
+  }
+
   const db = await getDb();
   const shareId = generateId();
   const shareToken = generateShareToken(10);
@@ -135,8 +154,8 @@ const createShare = async ({
       id, share_token, owner_id, source_space, source_path, is_directory,
       access_mode, allow_delete, allow_create_folder, allow_create_file, allow_upload,
       allow_download, sharing_type, password_hash, expires_at, label, download_count,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      created_at, updated_at, versions_visible, versions_download
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
   `
   ).run(
     shareId,
@@ -156,7 +175,9 @@ const createShare = async ({
     expiresAt,
     label,
     now,
-    now
+    now,
+    history.versionsVisible ? 1 : 0,
+    history.versionsDownload ? 1 : 0
   );
 
   // Add user permissions if user-specific share
@@ -344,6 +365,8 @@ const updateShare = async (shareId, updates = {}) => {
     ['allowCreateFile', 'allow_create_file'],
     ['allowUpload', 'allow_upload'],
     ['allowDownload', 'allow_download'],
+    ['versionsVisible', 'versions_visible'],
+    ['versionsDownload', 'versions_download'],
   ];
   for (const [key, column] of operationPermissionFields) {
     if (!(key in updates)) continue;

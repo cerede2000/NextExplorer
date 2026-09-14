@@ -336,6 +336,8 @@ router.post(
       allowCreateFile = true,
       allowUpload = true,
       allowDownload = true,
+      versionsVisible,
+      versionsDownload,
       sharingType = 'anyone',
       password,
       userIds,
@@ -412,6 +414,8 @@ router.post(
       allowCreateFile,
       allowUpload,
       allowDownload,
+      versionsVisible,
+      versionsDownload,
       sharingType,
       password,
       userIds: sharingType === 'users' ? userIds : [],
@@ -538,6 +542,8 @@ router.put(
       'allowCreateFile',
       'allowUpload',
       'allowDownload',
+      'versionsVisible',
+      'versionsDownload',
     ]) {
       if (key in req.body) updates[key] = req.body[key];
     }
