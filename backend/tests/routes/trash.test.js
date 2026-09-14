@@ -521,6 +521,74 @@ describe('inside a deleted folder', () => {
   });
 });
 
+/** Reading a file before deciding what to do with it — and only reading it. */
+describe('reading a file in the trash', () => {
+  const text = (who, id, query = '') => as(who).get(`/api/trash/items/${id}/text${query}`);
+  const script = '#!/bin/sh\necho hello\n';
+
+  it('gives the text of a deleted script, never cached', async () => {
+    await write('Projects/script.sh', script);
+    const id = (await deleteAs('alice', 'Projects', 'script.sh')).body.items[0].trashItemId;
+
+    const response = await text('alice', id);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body).toMatchObject({
+      name: 'script.sh',
+      size: script.length,
+      content: script,
+      modifiedAt: expect.any(String),
+    });
+  });
+
+  it('gives the text of a file inside a deleted folder', async () => {
+    await write('Projects/client/drafts/v1.txt', 'first draft');
+    const id = (await deleteAs('alice', 'Projects', 'client')).body.items[0].trashItemId;
+
+    const response = await text('alice', id, '?path=drafts%2Fv1.txt');
+
+    expect(response.body).toMatchObject({ name: 'v1.txt', content: 'first draft' });
+  });
+
+  it('refuses what is not text, as the editor does', async () => {
+    await fs.mkdir(volume('Projects'), { recursive: true });
+    await fs.writeFile(volume('Projects/photo.bin'), Buffer.from([0, 159, 146, 150, 0, 0, 1, 2]));
+    const id = (await deleteAs('alice', 'Projects', 'photo.bin')).body.items[0].trashItemId;
+
+    expect((await text('alice', id)).status).toBe(415);
+  });
+
+  it('is for whoever sees the item in their trash, and only for a file in it', async () => {
+    await write('Projects/client/drafts/v1.txt', 'first draft');
+    const id = (await deleteAs('alice', 'Projects', 'client')).body.items[0].trashItemId;
+
+    expect((await text('admin', id, '?path=drafts%2Fv1.txt')).status).toBe(200);
+    expect((await text('bob', id, '?path=drafts%2Fv1.txt')).status).toBe(404);
+    expect((await text('guest:some-share', id, '?path=drafts%2Fv1.txt')).status).toBe(403);
+    expect((await text('alice', id)).status).toBe(400);
+    expect((await text('alice', id, '?path=drafts')).status).toBe(400);
+    expect((await text('alice', id, '?path=..%2F..%2Fsecret')).status).toBe(400);
+    expect((await text('alice', id, '?path=drafts%2Fnowhere.txt')).status).toBe(404);
+  });
+
+  /** A look, never an edit: nothing answers a write to the trash's files. */
+  it('offers no way to write the file', async () => {
+    await write('Projects/script.sh', script);
+    const id = (await deleteAs('alice', 'Projects', 'script.sh')).body.items[0].trashItemId;
+
+    const put = await as('alice').post(`/api/trash/items/${id}/text`, { content: 'changed' });
+    const replaced = await request(app)
+      .put(`/api/trash/items/${id}/text`)
+      .set('x-test-user', 'alice')
+      .send({ content: 'changed' });
+
+    expect(put.status).toBe(404);
+    expect(replaced.status).toBe(404);
+    expect((await text('alice', id)).body.content).toBe(script);
+  });
+});
+
 /**
  * Restoring into a folder someone chose. It streams, as a transfer does, since
  * across disks it is a copy; everything it can refuse is refused before the

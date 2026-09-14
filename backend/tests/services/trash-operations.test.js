@@ -676,6 +676,54 @@ describe('inside a deleted folder', () => {
   });
 });
 
+/** What a preview may read from the trash: files only, and never through a link. */
+describe('reading a file in the trash', () => {
+  it('finds a deleted file, and a file inside a deleted folder', async () => {
+    await write('Projects/notes.txt', 'some notes');
+    const { item: file } = await trash('Projects/notes.txt');
+    await writeTree();
+    const { item: folder } = await trash('Projects/client');
+
+    expect(await operations.locateFile(file.id)).toMatchObject({
+      status: 'found',
+      size: 'some notes'.length,
+      absolutePath: zones.itemPaths(volume('Projects'), file.id).payload,
+    });
+    const inner = await operations.locateFile(folder.id, 'drafts/v2.txt');
+    expect(inner).toMatchObject({ status: 'found', size: 'second, longer draft'.length });
+    expect(await fs.readFile(inner.absolutePath, 'utf8')).toBe('second, longer draft');
+  });
+
+  it('refuses a folder, a link, a path that climbs out, and what is not there', async () => {
+    await write('Elsewhere/secret.txt', 'not in the trash');
+    await writeTree();
+    await fs.symlink(volume('Elsewhere/secret.txt'), volume('Projects/client/link.txt'));
+    const { item } = await trash('Projects/client');
+
+    expect(await operations.locateFile(item.id)).toEqual({ status: 'not-file' });
+    expect(await operations.locateFile(item.id, 'drafts')).toEqual({ status: 'not-file' });
+    expect(await operations.locateFile(item.id, 'link.txt')).toEqual({ status: 'not-file' });
+    expect(await operations.locateFile(item.id, '../secret.txt')).toEqual({
+      status: 'invalid-path',
+    });
+    expect(await operations.locateFile(item.id, 'nowhere.txt')).toEqual({ status: 'missing' });
+    expect(await operations.locateFile('00000000-0000-0000-0000-000000000000')).toEqual({
+      status: 'missing',
+    });
+  });
+
+  it('reads nothing from a zone that is not there', async () => {
+    await write('Projects/notes.txt', 'x');
+    const { item } = await trash('Projects/notes.txt');
+    await fs.rm(zones.markerPath(volume('Projects')));
+
+    expect(await operations.locateFile(item.id)).toEqual({
+      status: 'unavailable',
+      reason: 'missing',
+    });
+  });
+});
+
 /**
  * Restoring into a folder someone chose. On the same disk it is the same
  * rename as putting something back; across disks a rename is impossible, so the

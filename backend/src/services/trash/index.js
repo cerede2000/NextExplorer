@@ -27,6 +27,7 @@ const { ACTIONS, authorizeAndResolve, authorizePath } = require('../authorizatio
 const { getDb } = require('../db');
 const folderSizeHooks = require('../folderSizeHooks');
 const recentDestinations = require('../recentDestinationsService');
+const { readTextFile } = require('../textEditorService');
 const maintenance = require('./maintenance');
 const operations = require('./operations');
 const { DAY_MS, admission } = require('./policy');
@@ -352,6 +353,43 @@ const listEntries = async (id, entryPath, context) => {
 };
 
 /**
+ * A file in the trash to preview — the item itself, or a file inside a deleted
+ * folder — for someone who can see the item in their trash. Read only: nothing
+ * here writes, and nothing outside the item can be reached.
+ */
+const locateTrashFile = async (id, entryPath, context) => {
+  const user = requireUser(context);
+  const normalized = validateEntryPath(entryPath, { allowTop: true });
+  const db = await getDb();
+  if (!findVisibleFolder(db, id, user)) throw new NotFoundError('This item is not in your trash.');
+
+  const outcome = await operations.locateFile(id, normalized);
+  if (outcome.status === 'unavailable') {
+    throw new ConflictError('The volume this item was deleted from is not available.');
+  }
+  if (outcome.status === 'not-file') throw new ValidationError('This is not a file.');
+  if (outcome.status !== 'found') throw new NotFoundError('This file is not in the trash.');
+
+  return {
+    absolutePath: outcome.absolutePath,
+    name: normalized ? path.posix.basename(normalized) : outcome.item.name,
+    size: outcome.size,
+    modifiedAt: outcome.modifiedAt,
+  };
+};
+
+/**
+ * The text of a file in the trash, to read before deciding what to do with it.
+ * The editor's own limits apply — not too large, not binary — and nothing is
+ * ever written: this is a look, not an edit.
+ */
+const readTrashText = async (id, entryPath, context) => {
+  const file = await locateTrashFile(id, entryPath, context);
+  const { text } = await readTextFile(file.absolutePath);
+  return { name: file.name, size: file.size, modifiedAt: file.modifiedAt, content: text };
+};
+
+/**
  * Put back entries from inside a deleted folder. Allowed to whoever may restore
  * the folder itself: an entry goes back inside the folder's own original place,
  * so that is the place the right is checked against.
@@ -672,6 +710,8 @@ module.exports = {
   listItems,
   restoreItems,
   listEntries,
+  locateTrashFile,
+  readTrashText,
   restoreEntries,
   prepareRestoreTo,
   executeRestoreTo,

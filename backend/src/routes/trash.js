@@ -45,6 +45,20 @@ router.post(
 );
 
 /**
+ * GET /api/trash/items/:id/text?path= - the text of a file in the trash, to read
+ * before deciding what to do with it: the item itself, or a file inside a
+ * deleted folder. Read only — there is no route that writes into the trash —
+ * with the editor's limits on size and binary content, and never cached.
+ */
+router.get(
+  '/trash/items/:id/text',
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    res.json(await trash.readTrashText(req.params.id, req.query.path ?? '', contextOf(req)));
+  })
+);
+
+/**
  * Restore into a folder someone chose. Across disks that is a copy, which can
  * take a while, so it streams its progress the way a transfer does:
  *   {type:'start',    totalBytes, totalItems, destination}

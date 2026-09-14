@@ -760,6 +760,38 @@ const restoreEntry = async (
   }
 };
 
+/**
+ * A file in the trash to read, for a preview: the item itself when it is a
+ * file, or a file inside a deleted folder. Only a regular file, reached
+ * through real directories; a symbolic link is never opened.
+ *
+ * @returns {Promise<{status: 'found', item: object, absolutePath: string, size: number,
+ *   modifiedAt: string} | {status: 'missing'|'invalid-path'|'not-file'} |
+ *   {status: 'unavailable', reason: string}>}
+ */
+const locateFile = async (itemId, entryPath = '') => {
+  const segments = entrySegments(entryPath);
+  if (!segments) return { status: 'invalid-path' };
+  const db = await getDb();
+  const item = store.getItem(db, itemId);
+  if (!item || !['trashed', 'extracting'].includes(item.state)) return { status: 'missing' };
+
+  const zone = store.getZone(db, item.zoneId);
+  const inspection = zone ? await zones.inspectZone(zone) : { reason: 'missing' };
+  if (!inspection.available) return { status: 'unavailable', reason: inspection.reason };
+
+  const found = await walkInside(confinedPaths(zone, item.id).payload, segments);
+  if (!found) return { status: 'missing' };
+  if (!found.stats.isFile()) return { status: 'not-file' };
+  return {
+    status: 'found',
+    item,
+    absolutePath: found.absolutePath,
+    size: found.stats.size,
+    modifiedAt: found.stats.mtime.toISOString(),
+  };
+};
+
 /** What an entry inside a deleted folder is — its kind and size — or null when it is not there. */
 const describeEntry = async (itemId, entryPath) => {
   const segments = entrySegments(entryPath);
@@ -1075,6 +1107,7 @@ module.exports = {
   moveToTrash,
   restoreItem,
   listEntries,
+  locateFile,
   describeEntry,
   restoreEntry,
   purgeItem,
