@@ -405,6 +405,276 @@ describe('letting an item go', () => {
   });
 });
 
+/**
+ * A deleted folder is one item, whatever it holds. What is inside is found from
+ * the folder's own record — its original path, then the path inside it — so
+ * looking into it and taking one entry out need no record of their own.
+ */
+describe('inside a deleted folder', () => {
+  const trashClient = async () => {
+    await writeTree();
+    return (await trash('Projects/client')).item;
+  };
+  const payloadOf = (item) => zones.itemPaths(volume('Projects'), item.id).payload;
+
+  it('lists what it holds, folders first, with the size of each file', async () => {
+    const item = await trashClient();
+
+    const result = await operations.listEntries(item.id, '');
+
+    expect(result.status).toBe('listed');
+    expect(result.entries).toEqual([
+      { name: 'drafts', kind: 'directory', size: null, modifiedAt: expect.any(String) },
+      { name: 'brief.txt', kind: 'file', size: 'the brief'.length, modifiedAt: expect.any(String) },
+    ]);
+  });
+
+  it('lists a folder inside it', async () => {
+    const item = await trashClient();
+
+    const result = await operations.listEntries(item.id, 'drafts');
+
+    expect(result.entries.map((entry) => entry.name)).toEqual(['v1.txt', 'v2.txt']);
+  });
+
+  it('says a file is not a folder, and a path it does not hold is missing', async () => {
+    const item = await trashClient();
+    await write('Projects/single.txt', 'x');
+    const { item: file } = await trash('Projects/single.txt');
+
+    expect(await operations.listEntries(item.id, 'brief.txt')).toEqual({ status: 'not-directory' });
+    expect(await operations.listEntries(item.id, 'nowhere')).toEqual({ status: 'missing' });
+    expect(await operations.listEntries(file.id, '')).toEqual({ status: 'not-directory' });
+  });
+
+  it.each(['..', '../..', 'drafts/../..', '/etc', 'drafts//v1.txt', '.', 'drafts/.', 'a\0b', 42])(
+    'refuses %j as a path, before looking at the disk',
+    async (entryPath) => {
+      const item = await trashClient();
+
+      expect(await operations.listEntries(item.id, entryPath)).toEqual({ status: 'invalid-path' });
+      expect(await operations.restoreEntry(item.id, entryPath)).toEqual({
+        status: 'invalid-path',
+      });
+    }
+  );
+
+  /** A link inside a deleted folder is an entry, never a way out of it. */
+  it('reaches nothing through a symbolic link inside it', async () => {
+    await write('Elsewhere/secret.txt', 'not in the trash');
+    await writeTree();
+    await fs.symlink(volume('Elsewhere'), volume('Projects/client/link'));
+    const { item } = await trash('Projects/client');
+
+    const listed = await operations.listEntries(item.id, '');
+
+    expect(listed.entries.find((entry) => entry.name === 'link')).toMatchObject({
+      kind: 'symlink',
+      size: null,
+    });
+    expect(await operations.listEntries(item.id, 'link')).toEqual({ status: 'not-directory' });
+    expect(await operations.restoreEntry(item.id, 'link/secret.txt')).toEqual({
+      status: 'missing',
+    });
+    expect(await fs.readFile(volume('Elsewhere/secret.txt'), 'utf8')).toBe('not in the trash');
+    expect(await exists(volume('Projects/client'))).toBe(false);
+  });
+
+  it('puts one file back where it was inside the folder, and keeps the rest in the trash', async () => {
+    const item = await trashClient();
+    const inode = (await fs.stat(path.join(payloadOf(item), 'drafts/v2.txt'))).ino;
+
+    const result = await operations.restoreEntry(item.id, 'drafts/v2.txt');
+
+    expect(result).toMatchObject({
+      status: 'restored',
+      kind: 'file',
+      size: 'second, longer draft'.length,
+      restorePath: volume('Projects/client/drafts/v2.txt'),
+      renamed: false,
+    });
+    // Renamed out, not copied.
+    expect((await fs.stat(volume('Projects/client/drafts/v2.txt'))).ino).toBe(inode);
+    expect(await readTree(volume('Projects/client'))).toEqual({
+      'drafts/v2.txt': 'second, longer draft',
+    });
+    expect(await readTree(payloadOf(item))).toEqual({
+      'brief.txt': 'the brief',
+      'drafts/v1.txt': 'first draft',
+    });
+    expect(store.getItem(db, item.id)).toMatchObject({
+      state: 'trashed',
+      size: 'the brief'.length + 'first draft'.length,
+    });
+    await expectConsistent(zoneOf());
+  });
+
+  it('puts a folder from inside it back whole', async () => {
+    const item = await trashClient();
+
+    const result = await operations.restoreEntry(item.id, 'drafts');
+
+    expect(result).toMatchObject({
+      status: 'restored',
+      kind: 'directory',
+      size: 'first draft'.length + 'second, longer draft'.length,
+    });
+    expect(await readTree(volume('Projects/client'))).toEqual({
+      'drafts/v1.txt': 'first draft',
+      'drafts/v2.txt': 'second, longer draft',
+    });
+    expect(await readTree(payloadOf(item))).toEqual({ 'brief.txt': 'the brief' });
+    await expectConsistent(zoneOf());
+  });
+
+  it('goes back into the folder when it exists again, beside what is there now', async () => {
+    const item = await trashClient();
+    await write('Projects/client/drafts/v3.txt', 'written since');
+
+    await operations.restoreEntry(item.id, 'drafts/v1.txt');
+
+    expect(await readTree(volume('Projects/client'))).toEqual({
+      'drafts/v1.txt': 'first draft',
+      'drafts/v3.txt': 'written since',
+    });
+  });
+
+  it('never replaces what has taken its name since: it takes a suffix', async () => {
+    const item = await trashClient();
+    await write('Projects/client/brief.txt', 'the new brief');
+
+    const result = await operations.restoreEntry(item.id, 'brief.txt');
+
+    expect(result).toMatchObject({
+      status: 'restored',
+      renamed: true,
+      restorePath: volume('Projects/client/brief (1).txt'),
+    });
+    expect(await fs.readFile(volume('Projects/client/brief.txt'), 'utf8')).toBe('the new brief');
+    expect(await fs.readFile(volume('Projects/client/brief (1).txt'), 'utf8')).toBe('the brief');
+  });
+
+  it('stays in the trash when a file now stands where its folder was', async () => {
+    const item = await trashClient();
+    const before = await readTree(payloadOf(item));
+    await write('Projects/client', 'a file named like the folder');
+
+    expect(await operations.restoreEntry(item.id, 'drafts/v1.txt')).toEqual({
+      status: 'blocked',
+      reason: 'destination-blocked',
+    });
+    expect(await readTree(payloadOf(item))).toEqual(before);
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    await expectConsistent(zoneOf());
+  });
+
+  /** A folder replaced by a link since the deletion must not send anything elsewhere. */
+  it('refuses a destination a symbolic link would lead out of the volume, and creates nothing there', async () => {
+    const item = await trashClient();
+    await fs.mkdir(volume('Elsewhere'), { recursive: true });
+    await fs.symlink(volume('Elsewhere'), volume('Projects/client'));
+
+    expect(await operations.restoreEntry(item.id, 'drafts/v1.txt')).toEqual({
+      status: 'blocked',
+      reason: 'invalid-destination',
+    });
+    expect(await fs.readdir(volume('Elsewhere'))).toEqual([]);
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    await expectConsistent(zoneOf());
+  });
+
+  it('refuses the same for a whole item', async () => {
+    await write('Projects/a/report.txt', 'kept safe');
+    const { item } = await trash('Projects/a/report.txt');
+    await fs.rm(volume('Projects/a'), { recursive: true });
+    await fs.mkdir(volume('Elsewhere'), { recursive: true });
+    await fs.symlink(volume('Elsewhere'), volume('Projects/a'));
+
+    expect(await operations.restoreItem(item.id)).toEqual({
+      status: 'blocked',
+      reason: 'invalid-destination',
+    });
+    expect(await fs.readdir(volume('Elsewhere'))).toEqual([]);
+  });
+
+  it('follows a link that stays inside the volume, as the folder it stands for', async () => {
+    const item = await trashClient();
+    await fs.mkdir(volume('Projects/archive'), { recursive: true });
+    await fs.symlink(volume('Projects/archive'), volume('Projects/client'));
+
+    const result = await operations.restoreEntry(item.id, 'brief.txt');
+
+    expect(result.status).toBe('restored');
+    expect(await fs.readFile(volume('Projects/archive/brief.txt'), 'utf8')).toBe('the brief');
+  });
+
+  it('says so for an entry the folder does not hold', async () => {
+    const item = await trashClient();
+
+    expect(await operations.restoreEntry(item.id, 'nowhere.txt')).toEqual({ status: 'missing' });
+    expect(await operations.restoreEntry(item.id, 'brief.txt/inside')).toEqual({
+      status: 'missing',
+    });
+    expect(await operations.restoreEntry(item.id, '')).toEqual({ status: 'invalid-path' });
+    expect(await exists(volume('Projects/client'))).toBe(false);
+  });
+
+  it('leaves a folder of a zone that is not there untouched', async () => {
+    const item = await trashClient();
+    await fs.rm(zones.markerPath(volume('Projects')));
+
+    expect(await operations.listEntries(item.id, '')).toEqual({
+      status: 'unavailable',
+      reason: 'missing',
+    });
+    expect(await operations.restoreEntry(item.id, 'brief.txt')).toEqual({
+      status: 'unavailable',
+      reason: 'missing',
+    });
+    expect(await exists(path.join(payloadOf(item), 'brief.txt'))).toBe(true);
+  });
+
+  it('takes one entry out of a folder at a time, however many ask at once', async () => {
+    const item = await trashClient();
+
+    const results = await Promise.all([
+      operations.restoreEntry(item.id, 'brief.txt'),
+      operations.restoreEntry(item.id, 'drafts/v1.txt'),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual(['busy', 'restored']);
+    await expectConsistent(zoneOf());
+  });
+
+  it('is not purged, nor restored whole, while an entry is on its way out', async () => {
+    const item = await trashClient();
+    const during = {};
+    failpoints.set('extract:after-intent', async () => {
+      during.purge = (await operations.purgeItem(item.id)).status;
+      during.restore = (await operations.restoreItem(item.id)).status;
+    });
+
+    expect((await operations.restoreEntry(item.id, 'brief.txt')).status).toBe('restored');
+
+    expect(during).toEqual({ purge: 'busy', restore: 'busy' });
+    await expectConsistent(zoneOf());
+  });
+
+  it('can still be restored whole afterwards, with what is left', async () => {
+    const item = await trashClient();
+    await operations.restoreEntry(item.id, 'drafts/v2.txt');
+    await fs.rm(volume('Projects/client'), { recursive: true });
+
+    expect((await operations.restoreItem(item.id)).status).toBe('restored');
+
+    expect(await readTree(volume('Projects/client'))).toEqual({
+      'brief.txt': 'the brief',
+      'drafts/v1.txt': 'first draft',
+    });
+    await expectConsistent(zoneOf());
+  });
+});
+
 describe('a crash at any step', () => {
   const restart = () => {
     failpoints.clear();
@@ -489,9 +759,52 @@ describe('a crash at any step', () => {
       expect(await exists(volume('Projects/client'))).toBe(false);
     }
   );
+
+  it.each(['extract:after-intent', 'extract:after-rename'])(
+    'while restoring from inside a folder, at %s leaves the entry exactly once and the size true',
+    async (point) => {
+      await writeTree();
+      const { item } = await trash('Projects/client');
+      crashAt(point);
+
+      await expect(operations.restoreEntry(item.id, 'drafts/v2.txt')).rejects.toMatchObject({
+        simulatedCrash: true,
+      });
+      restart();
+      const zone = zoneOf();
+      const report = await operations.recoverZone(zone);
+
+      // The oracle measures: a size left from before the entry went would fail I8.
+      await expectConsistent(zone);
+      expect(report.finished).toBe(1);
+      expect(store.getItem(db, item.id).state).toBe('trashed');
+      const inside = path.join(zones.itemPaths(zone.root, item.id).payload, 'drafts/v2.txt');
+      const back = await exists(volume('Projects/client/drafts/v2.txt'));
+      expect(back).toBe(point === 'extract:after-rename');
+      expect(await exists(inside)).toBe(!back);
+      expect(
+        await fs.readFile(back ? volume('Projects/client/drafts/v2.txt') : inside, 'utf8')
+      ).toBe('second, longer draft');
+    }
+  );
 });
 
 describe('recovering a zone', () => {
+  it('records the loss of a folder whose content vanished while an entry was coming out', async () => {
+    await writeTree();
+    const { item } = await trash('Projects/client');
+    store.setItemState(db, item.id, 'extracting', {
+      restorePath: volume('Projects/client/brief.txt'),
+    });
+    await fs.rm(zones.itemPaths(volume('Projects'), item.id).payload, { recursive: true });
+
+    const report = await operations.recoverZone(zoneOf());
+
+    expect(report.lost).toBe(1);
+    expect(store.getItem(db, item.id)).toBeNull();
+    await expectConsistent(zoneOf());
+  });
+
   /** A database restored from an older backup knows nothing of recent deletions. */
   it('adopts content it has no record of, from its description', async () => {
     await write('Projects/a/report.txt', 'deleted after the backup');

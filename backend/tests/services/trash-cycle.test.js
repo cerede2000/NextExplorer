@@ -10,11 +10,12 @@ import { createRandom, seedsFor } from '../helpers/seeded-random.js';
  * random.
  *
  * Each step is one thing: a file or folder created, deleted, restored, purged,
- * recreated under a name something in the trash still claims; days passing;
- * the volume shrinking under the trash's budget; an operation dying half-way
- * and the zone being recovered. A model of a hundred lines says what the disk
- * and the records must hold afterwards, and after every single step both are
- * compared with it and the oracle is asked for its verdict.
+ * recreated under a name something in the trash still claims; one file taken
+ * back out of a deleted folder; days passing; the volume shrinking under the
+ * trash's budget; an operation dying half-way and the zone being recovered. A
+ * model of a hundred lines says what the disk and the records must hold
+ * afterwards, and after every single step both are compared with it and the
+ * oracle is asked for its verdict.
  *
  * The suites beside this one check each rule. This checks that the rules, in
  * any order anyone could reach, never leave a file lost, duplicated, or
@@ -35,6 +36,7 @@ const load = (relative) => require(modulePath(relative));
 const CRASH_POINTS = {
   trash: ['trash:after-row', 'trash:after-sidecar', 'trash:after-rename'],
   restore: ['restore:after-intent', 'restore:after-rename'],
+  extract: ['extract:after-intent', 'extract:after-rename'],
   purge: ['purge:after-intent', 'purge:after-remove'],
 };
 
@@ -42,6 +44,7 @@ const WEIGHTS = {
   create: 4,
   trash: 4,
   restore: 2,
+  extract: 2,
   purge: 1,
   recreate: 1,
   time: 1,
@@ -72,7 +75,9 @@ const runSequence = async (envContext, seed) => {
   const abs = (relative) => path.join(envContext.volumeDir, relative);
   for (const volume of VOLUMES) await fs.mkdir(abs(volume), { recursive: true });
 
-  // The model: what is on the disk, and what is in the trash.
+  // The model: what is on the disk, and what is in the trash. An entry is a
+  // file, a folder holding one file `inner.txt`, or a folder left empty once
+  // that file was taken back out of it in the trash.
   const live = new Map(); // 'Projects/f3.txt' -> { kind, content }
   const trashed = new Map(); // item id -> { original, kind, content, deletedAt, size }
   let counter = 0;
@@ -85,12 +90,20 @@ const runSequence = async (envContext, seed) => {
       await fs.writeFile(abs(relative), content);
     } else {
       await fs.mkdir(abs(relative));
-      await fs.writeFile(path.join(abs(relative), 'inner.txt'), content);
+      if (kind === 'directory') await fs.writeFile(path.join(abs(relative), 'inner.txt'), content);
     }
   };
 
-  const readEntry = async (absolutePath, kind) =>
-    fs.readFile(kind === 'file' ? absolutePath : path.join(absolutePath, 'inner.txt'), 'utf8');
+  const readEntry = async (absolutePath, kind) => {
+    if (kind === 'empty') {
+      const names = await fs.readdir(absolutePath);
+      return names.length === 0 ? '' : `not empty: ${names.join(', ')}`;
+    }
+    return fs.readFile(
+      kind === 'file' ? absolutePath : path.join(absolutePath, 'inner.txt'),
+      'utf8'
+    );
+  };
 
   /** The name a restore must choose: the original, or the first free "name (n)". */
   const availableName = (relative) => {
@@ -144,6 +157,16 @@ const runSequence = async (envContext, seed) => {
     });
   };
 
+  /** Deleted folders whose file can come out: the folder's original place is free. */
+  const extractable = () =>
+    [...trashed].filter(([, item]) => item.kind === 'directory' && !live.has(item.original));
+
+  /** The file is back in a recreated folder; what is left in the trash is an empty folder. */
+  const recordExtracted = (id, item) => {
+    live.set(item.original, { kind: 'directory', content: item.content });
+    trashed.set(id, { ...item, kind: 'empty', content: '', size: 0 });
+  };
+
   const actions = {
     create: async () => {
       counter += 1;
@@ -179,6 +202,17 @@ const runSequence = async (envContext, seed) => {
       return `restore ${item.original} as ${expected}`;
     },
 
+    extract: async () => {
+      const candidates = extractable();
+      if (candidates.length === 0) return null;
+      const [id, item] = random.pick(candidates);
+      const result = await operations.restoreEntry(id, 'inner.txt');
+      expect(result.status).toBe('restored');
+      expect(result.restorePath).toBe(path.join(abs(item.original), 'inner.txt'));
+      recordExtracted(id, item);
+      return `extract inner.txt of ${item.original}`;
+    },
+
     purge: async () => {
       if (trashed.size === 0) return null;
       const id = random.pick([...trashed.keys()]);
@@ -193,7 +227,7 @@ const runSequence = async (envContext, seed) => {
       if (candidates.length === 0) return null;
       const item = random.pick(candidates);
       counter += 1;
-      const content = `recreated ${counter}`;
+      const content = item.kind === 'empty' ? '' : `recreated ${counter}`;
       await writeEntry(item.original, item.kind, content);
       live.set(item.original, { kind: item.kind, content });
       return `recreate ${item.original}`;
@@ -220,6 +254,7 @@ const runSequence = async (envContext, seed) => {
       const possible = [];
       if (live.size) possible.push('trash');
       if (trashed.size) possible.push('restore', 'purge');
+      if (extractable().length) possible.push('extract');
       if (possible.length === 0) return null;
       const operation = random.pick(possible);
       const point = random.pick(CRASH_POINTS[operation]);
@@ -248,6 +283,19 @@ const runSequence = async (envContext, seed) => {
         if (point === 'restore:after-rename') {
           trashed.delete(id);
           live.set(expected, { kind: item.kind, content: item.content });
+        }
+      } else if (operation === 'extract') {
+        const [id, item] = random.pick(extractable());
+        await expect(operations.restoreEntry(id, 'inner.txt')).rejects.toMatchObject({
+          simulatedCrash: true,
+        });
+        await recoverAll();
+        if (point === 'extract:after-rename') {
+          recordExtracted(id, item);
+        } else {
+          // The folder the file goes back into is made before the intent is
+          // written, so a crash just after leaves it there, empty.
+          live.set(item.original, { kind: 'empty', content: '' });
         }
       } else {
         const id = random.pick([...trashed.keys()]);
@@ -284,6 +332,7 @@ const runSequence = async (envContext, seed) => {
       const zone = store.getZone(db, row.zoneId);
       expect(row.state, context).toBe('trashed');
       expect(row.originalPath, context).toBe(abs(item.original));
+      expect(row.size, context).toBe(item.size);
       // eslint-disable-next-line no-await-in-loop
       expect(await readEntry(zones.itemPaths(zone.root, row.id).payload, item.kind), context).toBe(
         item.content

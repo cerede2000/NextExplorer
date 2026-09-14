@@ -9,10 +9,12 @@
  *   identified by the id written in the zone's own marker file. The root is
  *   not unique on purpose: a disk replaced under the same mount point is a new
  *   zone, and the old one's rows must not be mistaken for it.
- * - `trash_items`: one row per deleted entry. `state` is where the entry is in
- *   its cycle — `entering`, `trashed`, `restoring`, `purging` — and every
- *   state but `trashed` is written before the disk is touched, so a crash
- *   leaves something the recovery can finish or undo.
+ * - `trash_items`: one row per deleted entry, however much a deleted folder
+ *   holds: what is inside it is found from the folder's own original path.
+ *   `state` is where the entry is in its cycle — `entering`, `trashed`,
+ *   `restoring`, `extracting` (one entry coming out of a deleted folder),
+ *   `purging` — and every state but `trashed` is written before the disk is
+ *   touched, so a crash leaves something the recovery can finish or undo.
  * - `trash_events`: what the maintenance did that someone may need to see — an
  *   item evicted before its retention, one adopted after a crash, one lost.
  */

@@ -80,6 +80,11 @@ const setItemState = (db, id, state, { restorePath = null } = {}) =>
     .prepare('UPDATE trash_items SET state = ?, restore_path = ?, updated_at = ? WHERE id = ?')
     .run(state, restorePath, clock.nowIso(), id).changes;
 
+const setItemSize = (db, id, size) =>
+  db
+    .prepare('UPDATE trash_items SET size_bytes = ?, updated_at = ? WHERE id = ?')
+    .run(Math.max(0, Math.floor(Number(size) || 0)), clock.nowIso(), id).changes;
+
 const deleteItem = (db, id) => db.prepare('DELETE FROM trash_items WHERE id = ?').run(id).changes;
 
 const listItemsByZone = (db, zoneId) =>
@@ -123,6 +128,7 @@ module.exports = {
   insertItem,
   getItem,
   setItemState,
+  setItemSize,
   deleteItem,
   listItemsByZone,
   listItems,
