@@ -16,6 +16,12 @@ Deleting a file or folder moves it to the trash instead of removing it. It stays
 - Share visitors have no trash: what they delete through a share link goes to the share owner's trash.
 - Restoring puts an item back where it was. A parent folder that no longer exists is recreated; a name that is now taken gets a suffix, like a copy. Someone who has lost write access to the original location since the deletion cannot restore into it — an administrator can.
 
+## Acting on an item
+
+Right-click an item on the **Trash** page — or hold it on a touch screen, or press the menu key on its checkbox — for what can be done with it: open a deleted folder, preview a file, restore it where it was or somewhere else, open its original location, or delete it for good. With several items selected, the menu acts on all of them. A double click opens a deleted folder, or previews a file.
+
+**Preview** shows a text file — plain text, Markdown, scripts, code: the extensions the editor opens — in the editor, **read only**: nothing can be typed, there is no Save, and Close goes back to the trash. The file is read with the editor's limits, so a file that is too large, or not text, is not shown. Nothing in the trash can be changed this way.
+
 ## Restoring part of a deleted folder
 
 A deleted folder is one item in the trash, however much it holds. Click its name on the **Trash** page to open it, go further in if needed, select what you want back, and **Restore**: each selected file or folder goes back to its own place inside the original folder, and the rest stays in the trash. **Restore whole folder** puts back everything that is left.
