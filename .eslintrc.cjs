@@ -38,6 +38,7 @@ module.exports = {
       files: ['backend/src/**/*.js'],
       excludedFiles: [
         'backend/src/services/trash/**',
+        'backend/src/services/versions/**',
         'backend/src/services/fileTransferService.js',
         'backend/src/services/archiveService.js',
         'backend/src/services/rawPreviewService.js',

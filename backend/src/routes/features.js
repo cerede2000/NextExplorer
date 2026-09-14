@@ -15,6 +15,7 @@ const terminalService = require('../services/terminalService');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
 const { getSupportedArchiveExtensions } = require('../services/archiveService');
 const { getTrashSettings } = require('../services/trash/settings');
+const { getVersionSettings } = require('../services/versions/settings');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
@@ -77,6 +78,12 @@ router.get('/features', async (_req, res) => {
     trash: await getTrashSettings().then(
       (settings) => ({ enabled: settings.enabled, retentionDays: settings.retentionDays }),
       () => ({ enabled: false, retentionDays: null })
+    ),
+    // Whether a save keeps what it replaces. Nothing here says what any file's
+    // history holds.
+    versions: await getVersionSettings().then(
+      (settings) => ({ enabled: settings.enabled }),
+      () => ({ enabled: false })
     ),
     folderSize: {
       mode: features?.folderSizeMode || 'off',

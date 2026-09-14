@@ -253,6 +253,37 @@ const sanitizeTrash = (trash = {}) => {
 };
 
 /**
+ * The file version settings in force: on or off, how long everything is kept
+ * before thinning starts, how long one an hour and one a day are kept, how many
+ * versions a file keeps at most, and how often an editing session leaves a
+ * checkpoint. The space they may take is the trash's: one budget per volume.
+ *
+ * The tiers are kept in order — a week of hourly versions cannot end before the
+ * day of keeping everything does.
+ */
+const sanitizeVersions = (versions = {}) => {
+  const { versions: defaults, VERSION_BOUNDS } = require('../config/index');
+  const source = versions && typeof versions === 'object' ? versions : {};
+  const integer = (key) => {
+    const [min, max] = VERSION_BOUNDS[key];
+    return Number.isFinite(source[key])
+      ? clampNumber(Math.round(source[key]), min, max)
+      : defaults[key];
+  };
+  const keepAllHours = integer('keepAllHours');
+  const hourlyDays = Math.max(integer('hourlyDays'), Math.ceil(keepAllHours / 24));
+  const dailyDays = Math.max(integer('dailyDays'), hourlyDays);
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    keepAllHours,
+    hourlyDays,
+    dailyDays,
+    maxPerFile: integer('maxPerFile'),
+    sessionCheckpointMinutes: integer('sessionCheckpointMinutes'),
+  };
+};
+
+/**
  * Get public settings (branding only, no auth required)
  */
 const getPublicSettings = async () => {
@@ -356,6 +387,7 @@ const getSystemSettings = async () => {
     const folderSize = { excludedPaths: [] };
     const searchIndex = { excludedPaths: [] };
     const trash = {};
+    const versions = {};
 
     for (const row of rows) {
       try {
@@ -374,6 +406,8 @@ const getSystemSettings = async () => {
           Object.assign(searchIndex, JSON.parse(row.value));
         } else if (row.key === 'trash') {
           Object.assign(trash, JSON.parse(row.value));
+        } else if (row.key === 'versions') {
+          Object.assign(versions, JSON.parse(row.value));
         }
       } catch (err) {
         // Skip invalid JSON
@@ -387,6 +421,7 @@ const getSystemSettings = async () => {
       },
       uploads: sanitizeUploads(uploads),
       trash: sanitizeTrash(trash),
+      versions: sanitizeVersions(versions),
       folderSize: {
         ...sanitizeFolderSize(folderSize),
         environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -408,6 +443,7 @@ const getSystemSettings = async () => {
         },
         uploads: sanitizeUploads(settings.uploads),
         trash: sanitizeTrash(settings.trash),
+        versions: sanitizeVersions(settings.versions),
         folderSize: {
           ...sanitizeFolderSize(settings.folderSize),
           environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -424,6 +460,7 @@ const getSystemSettings = async () => {
         access: { rules: [] },
         uploads: sanitizeUploads({}),
         trash: sanitizeTrash({}),
+        versions: sanitizeVersions({}),
         folderSize: {
           excludedPaths: [],
           environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -458,6 +495,7 @@ const getSettingsForUser = async (user) => {
       result.folderSize = systemSettings.folderSize;
       result.searchIndex = systemSettings.searchIndex;
       result.trash = systemSettings.trash;
+      result.versions = systemSettings.versions;
     }
   }
 
@@ -658,6 +696,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeFolderSize(value);
   } else if (key === 'trash') {
     sanitizedValue = sanitizeTrash(value);
+  } else if (key === 'versions') {
+    sanitizedValue = sanitizeVersions(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -720,6 +760,7 @@ const setSettings = async (partial) => {
     },
     uploads: { ...current.uploads, ...(partial.uploads || {}) },
     trash: { ...current.trash, ...(partial.trash || {}) },
+    versions: { ...current.versions, ...(partial.versions || {}) },
     folderSize: {
       excludedPaths:
         partial.folderSize?.excludedPaths !== undefined
@@ -748,6 +789,9 @@ const setSettings = async (partial) => {
   if (partial.trash) {
     merged.trash = await setSystemSetting('system', 'trash', merged.trash);
   }
+  if (partial.versions) {
+    merged.versions = await setSystemSetting('system', 'versions', merged.versions);
+  }
 
   // Also update JSON for backward compatibility during transition
   try {
@@ -773,6 +817,7 @@ module.exports = {
   getUserSettings,
   getSystemSettings,
   sanitizeTrash,
+  sanitizeVersions,
   getSettingsForUser,
   setUserSetting,
   WRITABLE_USER_SETTINGS,

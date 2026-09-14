@@ -177,6 +177,17 @@ module.exports = {
   TRASH_MAX_PERCENT: process.env.TRASH_MAX_PERCENT?.trim() || '10',
   TRASH_MAX_SIZE: process.env.TRASH_MAX_SIZE?.trim() || null,
 
+  // File versions: the content a save replaces is kept in the same reserved
+  // space as the trash, within the same budget. Defaults again; an
+  // administrator changes them in Settings.
+  VERSIONS_ENABLED: normalizeBoolean(process.env.VERSIONS_ENABLED) ?? true,
+  VERSIONS_KEEP_ALL_HOURS: process.env.VERSIONS_KEEP_ALL_HOURS?.trim() || '24',
+  VERSIONS_HOURLY_DAYS: process.env.VERSIONS_HOURLY_DAYS?.trim() || '7',
+  VERSIONS_DAILY_DAYS: process.env.VERSIONS_DAILY_DAYS?.trim() || '30',
+  VERSIONS_MAX_PER_FILE: process.env.VERSIONS_MAX_PER_FILE?.trim() || '50',
+  VERSIONS_SESSION_CHECKPOINT_MINUTES:
+    process.env.VERSIONS_SESSION_CHECKPOINT_MINUTES?.trim() || '10',
+
   // Folder size index
   // Mode: 'off' (default, feature disabled), 'shallow' (size of a folder's
   // direct entries only) or 'full' (recursive size of the whole subtree).

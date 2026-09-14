@@ -230,6 +230,20 @@ const applyTrash = (section) =>
     })
   );
 
+const applyVersions = (section) =>
+  mergeSection(
+    'system',
+    'versions',
+    keepValid(section, {
+      enabled: isBoolean,
+      keepAllHours: isNumber,
+      hourlyDays: isNumber,
+      dailyDays: isNumber,
+      maxPerFile: isNumber,
+      sessionCheckpointMinutes: isNumber,
+    })
+  );
+
 const applyBranding = (section) =>
   mergeSection(
     'branding',
@@ -273,6 +287,7 @@ const SYSTEM_SECTIONS = {
   access: applyAccess,
   uploads: applyUploads,
   trash: applyTrash,
+  versions: applyVersions,
   branding: applyBranding,
   folderSize: (section) => applyExclusions('folderSize', folderSizeManager, section),
   searchIndex: (section) => applyExclusions('searchIndex', searchIndexManager, section),

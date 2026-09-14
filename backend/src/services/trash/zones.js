@@ -32,10 +32,13 @@ const clock = require('./clock');
 const store = require('./store');
 
 const TRASH_DIRECTORY = 'trash';
+const VERSIONS_DIRECTORY = 'versions';
 const MARKER_FILE = 'zone.json';
 
 const zoneDirectory = (root) => path.join(root, ZONE_DIRECTORY_NAME);
 const trashDirectory = (root) => path.join(root, ZONE_DIRECTORY_NAME, TRASH_DIRECTORY);
+/** Earlier contents of files, one file per version, named by the version's id. */
+const versionsDirectory = (root) => path.join(root, ZONE_DIRECTORY_NAME, VERSIONS_DIRECTORY);
 const markerPath = (root) => path.join(root, ZONE_DIRECTORY_NAME, MARKER_FILE);
 
 const isWithin = (parent, candidate) =>
@@ -187,9 +190,11 @@ const describeZoneRoot = (root) => {
 
 module.exports = {
   TRASH_DIRECTORY,
+  VERSIONS_DIRECTORY,
   MARKER_FILE,
   zoneDirectory,
   trashDirectory,
+  versionsDirectory,
   markerPath,
   isWithin,
   locateZoneRoot,

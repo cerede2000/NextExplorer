@@ -6,6 +6,7 @@ const { directories, files, favorites } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
 const { TRASH_DDL } = require('./trash/schema');
+const { VERSIONS_DDL } = require('./versions/schema');
 
 let dbInstance = null;
 
@@ -700,6 +701,16 @@ const migrate = (db) => {
       );
       version = 18;
     }
+
+    if (version < 19) {
+      logger.info('[DB Migration] Migrating to v19: file versions...');
+      db.exec(VERSIONS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(19)
+      );
+      version = 19;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -713,6 +724,8 @@ const migrate = (db) => {
   // Which entry of a deleted folder a restore is taking out, for the recovery
   // to finish a copy it interrupted. Added after the trash first shipped.
   addColumnIfMissing(db, 'trash_items', 'restore_entry', 'restore_entry TEXT');
+  // After the trash: its trigger names trash_items.
+  db.exec(VERSIONS_DDL);
   ensureShareOperationPermissionColumns(db);
 };
 
