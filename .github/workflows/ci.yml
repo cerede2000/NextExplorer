@@ -88,6 +88,11 @@ jobs:
           # ffmpeg was installed above on purpose: the suites that need it must
           # run, not skip because an apt change quietly dropped it.
           REQUIRE_MEDIA_TOOLS: ffmpeg
+          # The trash refuses a zone on another disk. That refusal is proven
+          # against a real second device — /dev/shm beside the runner's disk —
+          # which a Mac does not have, so locally the test skips; here a missing
+          # device is a failure rather than a quiet skip.
+          REQUIRE_CROSS_DEVICE: '1'
 
       - name: Frontend tests
         run: npm run test:coverage:frontend
