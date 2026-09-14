@@ -244,6 +244,89 @@ describe('a share that expires', () => {
   });
 });
 
+describe("what a share shows of a file's history", () => {
+  // Dialogs from earlier tests stay in the page: the one just opened is the last.
+  const checkbox = (name) =>
+    Array.from(document.body.querySelectorAll(`[data-test="share-versions-${name}"]`)).at(-1);
+
+  it('shows nothing through a link for anyone, until its owner says so', async () => {
+    const wrapper = await open();
+
+    await submit(wrapper);
+
+    expect(sentToCreate()).toMatchObject({ versionsVisible: false, versionsDownload: false });
+  });
+
+  it('shows the history to named people, who would see it anyway', async () => {
+    const wrapper = await open();
+    form(wrapper).sharingType = 'users';
+    await flushPromises();
+    form(wrapper).selectedUserIds = ['user-2'];
+
+    await submit(wrapper);
+
+    expect(sentToCreate()).toMatchObject({ versionsVisible: true, versionsDownload: true });
+  });
+
+  it('sends what the owner ticked', async () => {
+    const wrapper = await open();
+    form(wrapper).versionsVisible = true;
+    await flushPromises();
+
+    expect(checkbox('download').disabled).toBe(false);
+    await submit(wrapper);
+
+    expect(sentToCreate()).toMatchObject({ versionsVisible: true, versionsDownload: false });
+  });
+
+  it('never lets versions be downloaded from a history that is not shown', async () => {
+    const wrapper = await open();
+    form(wrapper).versionsVisible = false;
+    form(wrapper).versionsDownload = true;
+    await flushPromises();
+
+    expect(checkbox('download').disabled).toBe(true);
+    await submit(wrapper);
+
+    expect(sentToCreate()).toMatchObject({ versionsVisible: false, versionsDownload: false });
+  });
+
+  it('keeps what an existing share chose, whoever it is for', async () => {
+    const wrapper = await open({
+      share: {
+        id: 'share-4',
+        accessMode: 'readonly',
+        sharingType: 'users',
+        permittedUserIds: ['user-2'],
+        isDirectory: false,
+        versionsVisible: false,
+        versionsDownload: false,
+      },
+    });
+
+    expect(form(wrapper).versionsVisible).toBe(false);
+    await submit(wrapper);
+
+    expect(sentToUpdate()).toMatchObject({ versionsVisible: false, versionsDownload: false });
+  });
+
+  it('reads the options of an existing share back into the form', async () => {
+    await open({
+      share: {
+        id: 'share-5',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+        isDirectory: false,
+        versionsVisible: true,
+        versionsDownload: true,
+      },
+    });
+
+    expect(checkbox('visible').checked).toBe(true);
+    expect(checkbox('download').checked).toBe(true);
+  });
+});
+
 describe('opening an existing share to edit it', () => {
   const existing = {
     id: 'share-9',
@@ -322,7 +405,11 @@ describe('opening an existing share to edit it', () => {
 
   it('sends a new one when somebody typed it', async () => {
     const wrapper = await open({ share: existing, item: FOLDER });
-    Object.assign(form(wrapper), { passwordDirty: true, enablePassword: true, password: 'hunter2' });
+    Object.assign(form(wrapper), {
+      passwordDirty: true,
+      enablePassword: true,
+      password: 'hunter2',
+    });
 
     await submit(wrapper);
 

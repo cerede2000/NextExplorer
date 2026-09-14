@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?",
     "selectTheme": "Alegeți tema editorului",
     "raw": "Brut",
-    "trashReadOnly": "În coșul de gunoi · doar citire"
+    "trashReadOnly": "În coșul de gunoi · doar citire",
+    "versionReadOnly": "Versiune anterioară, doar citire"
   },
   "status": {
     "updated": "Actualizat cu succes",
@@ -393,7 +394,8 @@
     "lens": "Obiectiv: {lens}",
     "duration": "Durată: {seconds}s",
     "folderSizeExcluded": "Exclus",
-    "folderSizeExcludedHelp": "Această cale este exclusă din indexarea dimensiunii dosarelor."
+    "folderSizeExcludedHelp": "Această cale este exclusă din indexarea dimensiunii dosarelor.",
+    "versions": "Versiuni"
   },
   "auth": {
     "preparing": "Se pregătește explorerul…",
@@ -464,7 +466,7 @@
       "uploads": "Încărcări",
       "folderSize": "Dimensiunea dosarelor",
       "searchIndex": "Index de căutare",
-      "trash": "Coș de gunoi"
+      "trash": "Coș de gunoi și versiuni"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -665,8 +667,8 @@
       "kept": "Ce configurați aici este salvat și se aplică imediat ce este activată."
     },
     "trash": {
-      "title": "Coș de gunoi",
-      "subtitle": "Elementele șterse sunt păstrate într-un spațiu rezervat pe propriul volum și eliminate definitiv la sfârșitul perioadei de păstrare sau când este nevoie de acel spațiu.",
+      "title": "Coș de gunoi și versiuni",
+      "subtitle": "Elementele șterse și versiunile anterioare ale fișierelor sunt păstrate într-un spațiu rezervat pe propriul volum și eliminate la finalul retenției sau când este nevoie de acel spațiu.",
       "enabled": "Trimite elementele șterse în coșul de gunoi",
       "enabledHelp": "Dezactivat, ștergerea elimină definitiv. Elementele aflate deja în coș expiră în continuare.",
       "retentionDays": "Păstrare (zile)",
@@ -714,7 +716,28 @@
         "lost": "Conținutul lui \"{name}\" lipsea",
         "failed": "\"{name}\" nu a putut fi eliminat",
         "breaker": "Prea multe elemente lipseau deodată: nu s-a modificat nimic",
-        "forgotten": "\"{name}\" uitat de un administrator"
+        "forgotten": "\"{name}\" uitat de un administrator",
+        "versionEvicted": "O versiune a „{name}” eliminată pentru a elibera spațiu",
+        "versionFailed": "O versiune nu a putut fi eliminată",
+        "versionLost": "Conținutul unei versiuni lipsea",
+        "versionTooLarge": "„{name}” depășește tot spațiul: ce înlocuia nu a fost păstrat",
+        "versionsBreaker": "Prea multe versiuni lipsesc deodată: nu s-a modificat nimic"
+      },
+      "zoneVersions": "{count} versiune, {size} | {count} versiuni, {size}",
+      "versions": {
+        "title": "Versiunile fișierelor",
+        "subtitle": "Fiecare salvare păstrează ce înlocuiește, fără a copia, în același spațiu rezervat ca și coșul de gunoi. Versiunile vechi sunt rărite în timp.",
+        "enabled": "Păstrați versiunile anterioare ale fișierelor",
+        "enabledHelp": "Independent de coșul de gunoi. Dezactivat, salvările nu mai păstrează nimic nou; versiunile existente rămân până expiră sau sunt șterse.",
+        "keepAllHours": "Păstrați toate versiunile (ore)",
+        "hourlyDays": "Apoi una pe oră (zile)",
+        "dailyDays": "Apoi una pe zi (zile)",
+        "maxPerFile": "Cel mult versiuni per fișier",
+        "sessionCheckpointMinutes": "Punct de control office (minute)",
+        "tiersHelp": "După aceste trepte se păstrează o versiune pe săptămână. O sesiune de editare office lasă o versiune, plus un punct de control cel mult la acest interval. Versiunile fixate scapă de rărire și de limita per fișier.",
+        "invalid": "Verificați valorile: 1–720 ore, 1–365 zile orare, 1–3650 zile zilnice, 1–1000 versiuni per fișier, un punct de control de 1–1440 minute.",
+        "sharedSpace": "Versiunile și coșul de gunoi împart spațiul rezervat al fiecărui volum. Când nu ajunge, pleacă întâi versiunile vechi, apoi elementele din coș, apoi ultima versiune a fiecărui fișier și, la final, versiunile fixate.",
+        "environmentNote": "Valorile implicite provin din VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE și VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "Se încarcă utilizatorii...",
     "creating": "Se creează…",
     "allowDownload": "Permite descărcarea",
-    "allowDownloadHelp": "Dezactivați pentru a permite citirea fișierelor fără a lua o copie."
+    "allowDownloadHelp": "Dezactivați pentru a permite citirea fișierelor fără a lua o copie.",
+    "versionsVisible": "Afișați versiunile fișierelor",
+    "versionsVisibleHelp": "Cei care folosesc această partajare văd versiunile anterioare ale fișierelor și le pot restaura dacă au dreptul de editare.",
+    "versionsDownload": "Permiteți descărcarea versiunilor"
   },
   "quickActions": {
     "menu": "Acțiuni rapide"
@@ -854,7 +880,14 @@
     "descendantRejected": "Un folder nu poate fi mutat într-unul dintre folderele sale",
     "alreadyThereRejected": "Deja aici",
     "restoreTitle": "Restaurează în",
-    "restoreHere": "Restaurează aici"
+    "restoreHere": "Restaurează aici",
+    "versionCopyTitle": "Restaurați o copie în",
+    "versionCopyHere": "Restaurați o copie aici",
+    "replaceTitle": "Alegeți fișierul de înlocuit",
+    "replaceHere": "Înlocuiți acest fișier",
+    "fileRequired": "Alegeți un fișier",
+    "sameFileRejected": "Alegeți alt fișier decât acesta",
+    "nothingHere": "Nimic aici"
   },
   "mediaPreview": {
     "download": "Descarcă fișierul media",
@@ -965,6 +998,76 @@
       "deleteNotice": "Linkurile lor de partajare vor fi și ele șterse definitiv.",
       "restored": "{count} link de partajare readus | {count} linkuri de partajare readuse",
       "dropped": "{count} link de partajare șters | {count} linkuri de partajare șterse"
+    }
+  },
+  "versions": {
+    "title": "Versiuni",
+    "menu": "Versiuni",
+    "aria": "Versiunile fișierului",
+    "current": "Versiunea actuală",
+    "empty": "Nicio versiune anterioară deocamdată. Fiecare salvare păstrează ce înlocuiește.",
+    "disabled": "Versiunile fișierelor sunt dezactivate: salvările nu mai păstrează altele noi. Cele de mai jos rămân până expiră.",
+    "loadFailed": "Versiunile nu au putut fi încărcate.",
+    "notShared": "Istoricul acestui fișier nu este partajat cu dvs.",
+    "unavailable": "Conținutul ei lipsește de pe disc.",
+    "unknownAuthor": "Autor necunoscut",
+    "shareLink": "Cineva cu linkul",
+    "pinned": "Fixată",
+    "aside": "Pusă deoparte",
+    "asideHelp": "Salvată de un editor deschis înainte de o restaurare: păstrată aici în loc să anuleze restaurarea.",
+    "total": "{count} versiune, {size} | {count} versiuni, {size}",
+    "source": {
+      "editor": "Editor de text",
+      "shareEditor": "Editor printr-o partajare",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versiune restaurată",
+      "external": "Modificat în afara aplicației"
+    },
+    "actions": {
+      "menu": "Acțiuni pentru versiune",
+      "select": "Selectați această versiune",
+      "selectAll": "Selectați tot",
+      "deleteSelected": "Ștergeți selecția ({count})",
+      "deleteAll": "Ștergeți tot",
+      "preview": "Deschideți doar în citire",
+      "download": "Descărcați",
+      "restore": "Restaurați",
+      "restoreCopy": "Restaurați ca o copie…",
+      "replaceOther": "Înlocuiți alt fișier…",
+      "rename": "Denumiți…",
+      "pin": "Fixați",
+      "unpin": "Anulați fixarea",
+      "delete": "Ștergeți"
+    },
+    "confirm": {
+      "restoreTitle": "Restaurați această versiune?",
+      "restoreMessage": "„{name}” revine la conținutul din {date}. Conținutul actual este păstrat ca versiune.",
+      "replaceTitle": "Înlocuiți „{target}”?",
+      "replaceMessage": "„{target}” primește ca conținut această versiune a „{name}”. Conținutul lui actual este păstrat în propriile versiuni.",
+      "replace": "Înlocuiți",
+      "deleteTitle": "Ștergeți această versiune? | Ștergeți {count} versiuni?",
+      "deleteMessage": "Această versiune este ștearsă definitiv. | Aceste {count} versiuni sunt șterse definitiv.",
+      "deleteAllTitle": "Ștergeți toate versiunile?",
+      "deleteAllMessage": "Toate versiunile anterioare ale „{name}” sunt șterse definitiv, inclusiv cele fixate. Fișierul în sine rămâne."
+    },
+    "rename": {
+      "title": "Denumiți această versiune",
+      "placeholder": "De exemplu: trimisă clientului",
+      "help": "Un nume face o versiune ușor de găsit. Fixați-o pentru a o feri de curățarea automată."
+    },
+    "results": {
+      "restored": "Versiune restaurată",
+      "unchanged": "Fișierul are deja acest conținut",
+      "copied": "Copie creată: {path}",
+      "replaced": "„{path}” înlocuit",
+      "deleted": "{count} versiune ștearsă | {count} versiuni șterse",
+      "renamed": "Versiune denumită",
+      "pinned": "Versiune fixată: curățarea automată o păstrează",
+      "unpinned": "Fixarea versiunii a fost anulată"
+    },
+    "errors": {
+      "action": "Acțiunea asupra acestei versiuni a eșuat"
     }
   }
 }

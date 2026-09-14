@@ -26,6 +26,8 @@ let features;
 let favorites;
 
 const infoOpen = vi.fn();
+const infoClose = vi.fn();
+const versionsOpen = vi.fn();
 const openEditorForFavorite = vi.fn();
 const getDeleteImpact = vi.fn(async () => ({ shareCount: 0, shares: [] }));
 const terminalOpen = vi.fn();
@@ -68,7 +70,12 @@ const actionsProxy = new Proxy(
 );
 vi.mock('@/composables/fileActions', () => ({ useFileActions: () => actionsProxy }));
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
-vi.mock('@/stores/infoPanel', () => ({ useInfoPanelStore: () => ({ open: infoOpen }) }));
+vi.mock('@/stores/infoPanel', () => ({
+  useInfoPanelStore: () => ({ open: infoOpen, close: infoClose }),
+}));
+vi.mock('@/stores/versionsPanel', () => ({
+  useVersionsPanelStore: () => ({ open: versionsOpen }),
+}));
 vi.mock('@/stores/favorites', () => ({ useFavoritesStore: () => favorites }));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => ({ open: terminalOpen }) }));
@@ -422,6 +429,80 @@ describe('what each of the three menus offers', () => {
     actions = makeActions({ canExtractArchive: ref(true), isArchiveSelected: ref(true) });
     await openOn('file');
     expect(labels()).toContain('actions.extractArchive');
+  });
+});
+
+describe("a file's versions", () => {
+  const openOnFile = async () => {
+    const { api } = await mountMenu();
+    api.openItemMenu(rightClick(), FILE);
+    await flushPromises();
+  };
+
+  const click = async (label) => {
+    const button = [...(menuPanel()?.querySelectorAll('button') ?? [])].find(
+      (candidate) => candidate.querySelector('p')?.textContent?.trim() === label
+    );
+    button.click();
+    await flushPromises();
+  };
+
+  beforeEach(() => {
+    features.versionsEnabled = true;
+    infoClose.mockReset();
+    versionsOpen.mockReset();
+  });
+
+  it('are offered on a single file', async () => {
+    await openOnFile();
+
+    expect(labels()).toContain('versions.menu');
+  });
+
+  it('open the history of that file, in place of the details', async () => {
+    await openOnFile();
+
+    await click('versions.menu');
+
+    expect(infoClose).toHaveBeenCalled();
+    expect(versionsOpen).toHaveBeenCalledWith(FILE);
+  });
+
+  it('are not offered where versions are switched off', async () => {
+    features.versionsEnabled = false;
+
+    await openOnFile();
+
+    expect(labels()).not.toContain('versions.menu');
+  });
+
+  it('are not offered on a folder, which has no history of its own', async () => {
+    actions = makeActions({ primaryItem: ref(FOLDER), selectedItems: ref([FOLDER]) });
+    const { api } = await mountMenu();
+    api.openItemMenu(rightClick(), FOLDER);
+    await flushPromises();
+
+    expect(labels()).not.toContain('versions.menu');
+  });
+
+  it('are not offered for several files at once', async () => {
+    const other = { name: 'budget.xlsx', path: 'Docs', kind: 'xlsx' };
+    actions = makeActions({ isSingleItemSelected: ref(false), selectedItems: ref([FILE, other]) });
+    fileStore.selectedItems = [FILE, other];
+
+    await openOnFile();
+
+    // The menu did open, on the file clicked, with the rest of what it offers.
+    expect(labels()).toContain('context.getInfo');
+    expect(labels()).not.toContain('versions.menu');
+  });
+
+  it('are not offered through a share whose owner keeps them hidden', async () => {
+    fileStore.currentPathData = { canWrite: true, canDelete: true, canSeeVersions: false };
+
+    await openOnFile();
+
+    expect(labels()).not.toContain('versions.menu');
   });
 });
 

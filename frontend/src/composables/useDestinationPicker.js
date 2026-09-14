@@ -32,7 +32,11 @@ export function useDestinationPicker() {
     // earlier caller is told nothing was chosen.
     resolveChoice?.(null);
 
-    mode.value = ['copy', 'restore'].includes(requestedMode) ? requestedMode : 'move';
+    // `version-copy` puts an earlier version of a file into a folder; `file`
+    // asks for an existing file rather than a folder, to put a version over it.
+    mode.value = ['copy', 'restore', 'version-copy', 'file'].includes(requestedMode)
+      ? requestedMode
+      : 'move';
     items.value = Array.isArray(requestedItems) ? requestedItems : [];
     initialPath.value = from || '';
     isOpen.value = true;

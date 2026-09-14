@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Você tem alterações não salvas. Fechar sem salvar?",
     "selectTheme": "Escolher o tema do editor",
     "raw": "Bruto",
-    "trashReadOnly": "Na lixeira · somente leitura"
+    "trashReadOnly": "Na lixeira · somente leitura",
+    "versionReadOnly": "Versão anterior, somente leitura"
   },
   "status": {
     "updated": "Atualizado com sucesso",
@@ -396,7 +397,8 @@
     "lens": "Lente: {lens}",
     "duration": "Duração: {seconds}s",
     "folderSizeExcluded": "Excluído",
-    "folderSizeExcludedHelp": "Este caminho está fora da indexação de tamanho de pastas."
+    "folderSizeExcludedHelp": "Este caminho está fora da indexação de tamanho de pastas.",
+    "versions": "Versões"
   },
   "auth": {
     "preparing": "Preparando seu explorador…",
@@ -467,7 +469,7 @@
       "accessControl": "Controle de Acesso",
       "adminUsers": "Gerenciamento de Usuários",
       "searchIndex": "Índice de busca",
-      "trash": "Lixeira"
+      "trash": "Lixeira e versões"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -668,8 +670,8 @@
       "kept": "O que você configurar aqui é salvo e passa a valer assim que o recurso for ativado."
     },
     "trash": {
-      "title": "Lixeira",
-      "subtitle": "Os itens excluídos ficam em um espaço reservado no próprio volume e são removidos permanentemente ao fim da retenção ou quando esse espaço é necessário.",
+      "title": "Lixeira e versões",
+      "subtitle": "Itens excluídos e versões anteriores dos arquivos ficam em um espaço reservado no próprio volume e são removidos ao fim da retenção ou quando esse espaço é necessário.",
       "enabled": "Enviar itens excluídos para a lixeira",
       "enabledHelp": "Desativada, excluir apaga permanentemente. Itens que já estão na lixeira continuam expirando.",
       "retentionDays": "Retenção (dias)",
@@ -717,7 +719,28 @@
         "lost": "O conteúdo de \"{name}\" estava faltando",
         "failed": "\"{name}\" não pôde ser removido",
         "breaker": "Itens demais faltando de uma vez: nada foi alterado",
-        "forgotten": "\"{name}\" esquecido por um administrador"
+        "forgotten": "\"{name}\" esquecido por um administrador",
+        "versionEvicted": "Uma versão de \"{name}\" removida para liberar espaço",
+        "versionFailed": "Não foi possível remover uma versão",
+        "versionLost": "O conteúdo de uma versão estava faltando",
+        "versionTooLarge": "\"{name}\" é maior que todo o espaço: o que ele substituiu não foi guardado",
+        "versionsBreaker": "Versões demais faltando de uma vez: nada foi alterado"
+      },
+      "zoneVersions": "{count} versão, {size} | {count} versões, {size}",
+      "versions": {
+        "title": "Versões de arquivos",
+        "subtitle": "Cada salvamento guarda o que substitui, sem copiar, no mesmo espaço reservado da lixeira. Versões antigas são espaçadas com o tempo.",
+        "enabled": "Guardar versões anteriores dos arquivos",
+        "enabledHelp": "Independente da lixeira. Desativado, os salvamentos não guardam nada novo; as versões existentes permanecem até expirarem ou serem excluídas.",
+        "keepAllHours": "Guardar todas as versões (horas)",
+        "hourlyDays": "Depois uma por hora (dias)",
+        "dailyDays": "Depois uma por dia (dias)",
+        "maxPerFile": "Máximo de versões por arquivo",
+        "sessionCheckpointMinutes": "Ponto de controle do Office (minutos)",
+        "tiersHelp": "Depois dessas faixas, uma versão por semana é guardada. Uma sessão de edição do Office deixa uma versão, mais um ponto de controle no máximo nesse intervalo. Versões fixadas escapam do espaçamento e do limite por arquivo.",
+        "invalid": "Verifique os valores: 1 a 720 horas, 1 a 365 dias por hora, 1 a 3650 dias por dia, 1 a 1000 versões por arquivo, um ponto de controle de 1 a 1440 minutos.",
+        "sharedSpace": "Versões e lixeira dividem o espaço reservado de cada volume. Quando falta espaço, saem primeiro as versões antigas, depois os itens da lixeira, depois a última versão de cada arquivo e, por fim, as versões fixadas.",
+        "environmentNote": "Os padrões vêm de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -812,7 +835,10 @@
     "loadingUsers": "Carregando usuários...",
     "creating": "Criando…",
     "allowDownload": "Permitir download",
-    "allowDownloadHelp": "Desative para que os arquivos possam ser lidos sem que se leve uma cópia."
+    "allowDownloadHelp": "Desative para que os arquivos possam ser lidos sem que se leve uma cópia.",
+    "versionsVisible": "Mostrar versões dos arquivos",
+    "versionsVisibleHelp": "Quem usa este compartilhamento vê as versões anteriores dos arquivos e pode restaurá-las se tiver permissão para editar.",
+    "versionsDownload": "Permitir baixar versões"
   },
   "onlyoffice": {
     "editingHeading": "O arquivo está sendo editado",
@@ -854,7 +880,14 @@
     "descendantRejected": "Uma pasta não pode ser movida para dentro de uma de suas próprias pastas",
     "alreadyThereRejected": "Já está aqui",
     "restoreTitle": "Restaurar em",
-    "restoreHere": "Restaurar aqui"
+    "restoreHere": "Restaurar aqui",
+    "versionCopyTitle": "Restaurar uma cópia em",
+    "versionCopyHere": "Restaurar uma cópia aqui",
+    "replaceTitle": "Escolher o arquivo a substituir",
+    "replaceHere": "Substituir este arquivo",
+    "fileRequired": "Escolha um arquivo",
+    "sameFileRejected": "Escolha um arquivo diferente deste",
+    "nothingHere": "Nada aqui"
   },
   "mediaPreview": {
     "download": "Baixar a mídia",
@@ -965,6 +998,76 @@
       "deleteNotice": "Os links de compartilhamento também serão excluídos definitivamente.",
       "restored": "{count} link de compartilhamento recuperado | {count} links de compartilhamento recuperados",
       "dropped": "{count} link de compartilhamento excluído | {count} links de compartilhamento excluídos"
+    }
+  },
+  "versions": {
+    "title": "Versões",
+    "menu": "Versões",
+    "aria": "Versões do arquivo",
+    "current": "Versão atual",
+    "empty": "Ainda não há versões anteriores. Cada salvamento guarda o que substitui.",
+    "disabled": "As versões de arquivos estão desativadas: os salvamentos não guardam mais novas. As abaixo permanecem até expirarem.",
+    "loadFailed": "Não foi possível carregar as versões.",
+    "notShared": "O histórico deste arquivo não está compartilhado com você.",
+    "unavailable": "O conteúdo dela está faltando no disco.",
+    "unknownAuthor": "Autor desconhecido",
+    "shareLink": "Alguém com o link",
+    "pinned": "Fixada",
+    "aside": "Posta de lado",
+    "asideHelp": "Salva por um editor aberto antes de uma restauração: guardada aqui em vez de desfazer a restauração.",
+    "total": "{count} versão, {size} | {count} versões, {size}",
+    "source": {
+      "editor": "Editor de texto",
+      "shareEditor": "Editor por um compartilhamento",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versão restaurada",
+      "external": "Alterado fora do aplicativo"
+    },
+    "actions": {
+      "menu": "Ações da versão",
+      "select": "Selecionar esta versão",
+      "selectAll": "Selecionar tudo",
+      "deleteSelected": "Excluir seleção ({count})",
+      "deleteAll": "Excluir tudo",
+      "preview": "Abrir somente leitura",
+      "download": "Baixar",
+      "restore": "Restaurar",
+      "restoreCopy": "Restaurar como cópia…",
+      "replaceOther": "Substituir outro arquivo…",
+      "rename": "Nomear…",
+      "pin": "Fixar",
+      "unpin": "Desafixar",
+      "delete": "Excluir"
+    },
+    "confirm": {
+      "restoreTitle": "Restaurar esta versão?",
+      "restoreMessage": "\"{name}\" volta ao conteúdo de {date}. O conteúdo atual é guardado como versão.",
+      "replaceTitle": "Substituir \"{target}\"?",
+      "replaceMessage": "\"{target}\" recebe esta versão de \"{name}\" como conteúdo. O conteúdo atual dele é guardado nas próprias versões.",
+      "replace": "Substituir",
+      "deleteTitle": "Excluir esta versão? | Excluir {count} versões?",
+      "deleteMessage": "Esta versão é excluída definitivamente. | Estas {count} versões são excluídas definitivamente.",
+      "deleteAllTitle": "Excluir todas as versões?",
+      "deleteAllMessage": "Todas as versões anteriores de \"{name}\" são excluídas definitivamente, inclusive as fixadas. O arquivo em si permanece."
+    },
+    "rename": {
+      "title": "Nomear esta versão",
+      "placeholder": "Por exemplo: enviada ao cliente",
+      "help": "Um nome facilita encontrar uma versão. Fixe-a para mantê-la fora da limpeza automática."
+    },
+    "results": {
+      "restored": "Versão restaurada",
+      "unchanged": "O arquivo já tem este conteúdo",
+      "copied": "Cópia criada: {path}",
+      "replaced": "\"{path}\" substituído",
+      "deleted": "{count} versão excluída | {count} versões excluídas",
+      "renamed": "Versão nomeada",
+      "pinned": "Versão fixada: a limpeza automática a mantém",
+      "unpinned": "Versão desafixada"
+    },
+    "errors": {
+      "action": "A ação nesta versão falhou"
     }
   }
 }

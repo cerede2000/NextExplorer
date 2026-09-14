@@ -8,9 +8,11 @@
           {{
             isTrashViewer
               ? t('editor.trashReadOnly')
-              : isSharedReadOnly
-                ? t('common.readonly')
-                : t('editor.editing')
+              : isVersionViewer
+                ? t('editor.versionReadOnly')
+                : isSharedReadOnly
+                  ? t('common.readonly')
+                  : t('editor.editing')
           }}
         </p>
         <h1 class="truncate text-md text-neutral-900 dark:text-white">
@@ -22,13 +24,13 @@
           {{ saveError }}
         </span>
         <p
-          v-if="hasUnsavedChanges && !isTrashViewer"
+          v-if="hasUnsavedChanges && !isViewerOnly"
           class="mr-4 text-xs text-amber-600 dark:text-amber-400"
         >
           {{ t('editor.unsavedChanges') }}
         </p>
         <button
-          v-if="!isTrashViewer && (!isSharedEditor || sharedCanDownload)"
+          v-if="!isViewerOnly && (!isSharedEditor || sharedCanDownload)"
           type="button"
           @click="openRaw"
           :disabled="isLoading || !displayPath"
@@ -89,7 +91,7 @@
         </div>
 
         <button
-          v-if="!isTrashViewer && (!isSharedEditor || sharedCanWrite)"
+          v-if="!isViewerOnly && (!isSharedEditor || sharedCanWrite)"
           type="button"
           @click="saveFile"
           :disabled="!canSave"
@@ -183,6 +185,7 @@ import {
   getRawFileUrl,
   getDirectShareFileUrl,
   getTrashFileText,
+  getVersionText,
   normalizePath,
 } from '@/api';
 import { EditorView, keymap } from '@codemirror/view';
@@ -196,11 +199,13 @@ import {
 import { Save20Regular, Color20Regular } from '@vicons/fluent';
 import { onClickOutside, onKeyStroke, useLocalStorage } from '@vueuse/core';
 import { useFolderScrollStore } from '@/stores/folderScroll';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const folderScrollStore = useFolderScrollStore();
+const versionsPanel = useVersionsPanelStore();
 
 // State
 const fileContent = ref('');
@@ -289,7 +294,17 @@ const isSharedReadOnly = computed(() => isSharedEditor.value && !sharedCanWrite.
  * take typing, and leaving goes back to the trash it came from.
  */
 const isTrashViewer = computed(() => route.name === 'TrashFileViewer');
-const isReadOnly = computed(() => isSharedReadOnly.value || isTrashViewer.value);
+/**
+ * An earlier version of a file, opened from its history: read only for the same
+ * reasons, and leaving goes back to the folder with the history open again.
+ */
+const isVersionViewer = computed(() => route.name === 'VersionFileViewer');
+const isViewerOnly = computed(() => isTrashViewer.value || isVersionViewer.value);
+const isReadOnly = computed(() => isSharedReadOnly.value || isViewerOnly.value);
+const versionFileName = ref('');
+const versionId = computed(() =>
+  typeof route.params?.versionId === 'string' ? route.params.versionId : ''
+);
 const trashFileName = ref('');
 const trashItemId = computed(() =>
   typeof route.params?.itemId === 'string' ? route.params.itemId : ''
@@ -313,12 +328,13 @@ const sharedPath = computed(() =>
 );
 const displayPath = computed(() => {
   if (isTrashViewer.value) return trashFileName.value || trashEntryPath.value;
+  if (isVersionViewer.value) return versionFileName.value || normalizedPath.value;
   return isSharedEditor.value ? sharedFileName.value || sharedPath.value : normalizedPath.value;
 });
 const hasUnsavedChanges = computed(() => fileContent.value !== originalContent.value);
 const canSave = computed(
   () =>
-    !isTrashViewer.value &&
+    !isViewerOnly.value &&
     (!isSharedEditor.value || sharedCanWrite.value) &&
     hasUnsavedChanges.value &&
     !isSaving.value &&
@@ -364,6 +380,7 @@ const loadFile = async () => {
   loadError.value = '';
   saveError.value = '';
   trashFileName.value = '';
+  versionFileName.value = '';
   sharedFileName.value = '';
   sharedCanDownload.value = false;
   sharedCanWrite.value = false;
@@ -373,6 +390,8 @@ const loadFile = async () => {
     let response;
     if (isTrashViewer.value) {
       response = await getTrashFileText(trashItemId.value, trashEntryPath.value);
+    } else if (isVersionViewer.value) {
+      response = await getVersionText(path, versionId.value);
     } else if (isSharedEditor.value) {
       response = await fetchSharedFileContent(sharedToken.value, sharedPath.value);
     } else {
@@ -381,6 +400,7 @@ const loadFile = async () => {
     if (requestPath !== route.fullPath) return;
 
     trashFileName.value = isTrashViewer.value ? response.name || '' : '';
+    versionFileName.value = isVersionViewer.value ? response.name || '' : '';
     sharedFileName.value = isSharedEditor.value ? response.name || '' : '';
     sharedCanDownload.value = Boolean(isSharedEditor.value && response.canDownload);
     sharedCanWrite.value = Boolean(isSharedEditor.value && response.canWrite);
@@ -396,8 +416,8 @@ const loadFile = async () => {
 };
 
 const saveFile = async () => {
-  // Nothing opened from the trash is ever written back.
-  if (isTrashViewer.value) return;
+  // Nothing opened from the trash or from a file's history is ever written back.
+  if (isViewerOnly.value) return;
   if (!canSave.value || (!isSharedEditor.value && !normalizedPath.value)) return;
   isSaving.value = true;
   saveError.value = '';
@@ -436,7 +456,7 @@ const requestClose = () => {
   if (isSaving.value) return;
   // Nothing read from the trash can be lost by leaving: it was never editable.
   if (
-    !isTrashViewer.value &&
+    !isViewerOnly.value &&
     hasUnsavedChanges.value &&
     !confirm(t('editor.confirmCloseWithoutSaving'))
   )
@@ -444,6 +464,14 @@ const requestClose = () => {
 
   if (isSharedEditor.value) {
     router.replace(`/share/${encodeURIComponent(sharedToken.value)}`);
+    return;
+  }
+
+  if (isVersionViewer.value) {
+    // Back to the folder, with the file's history open where it was read from.
+    versionsPanel.openPath(normalizedPath.value);
+    const parent = parentFolderPath();
+    router.replace(`/browse${parent ? '/' + parent : ''}`);
     return;
   }
 
@@ -508,7 +536,7 @@ onKeyStroke(['s', 'S'], (e) => {
 });
 
 watch(
-  [normalizedPath, isSharedEditor, sharedToken, sharedPath, trashItemId, trashEntryPath],
+  [normalizedPath, isSharedEditor, sharedToken, sharedPath, trashItemId, trashEntryPath, versionId],
   loadFile,
   {
     immediate: true,
@@ -518,7 +546,7 @@ watch(view, () => {
   updateReadOnlyMode();
   applyLanguage(displayPath.value);
 });
-watch([isSharedEditor, sharedCanWrite, isTrashViewer], updateReadOnlyMode);
+watch([isSharedEditor, sharedCanWrite, isTrashViewer, isVersionViewer], updateReadOnlyMode);
 watch(fileContent, () => {
   if (saveError.value) saveError.value = '';
 });

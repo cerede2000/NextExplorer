@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
     "selectTheme": "Choisir le thème de l'éditeur",
     "raw": "Brut",
-    "trashReadOnly": "Dans la corbeille · lecture seule"
+    "trashReadOnly": "Dans la corbeille · lecture seule",
+    "versionReadOnly": "Version antérieure, lecture seule"
   },
   "status": {
     "updated": "Mis à jour avec succès",
@@ -396,7 +397,8 @@
     "lens": "Objectif : {lens}",
     "duration": "Durée : {seconds}s",
     "folderSizeExcluded": "Exclu",
-    "folderSizeExcludedHelp": "Ce chemin est exclu de l’indexation des tailles."
+    "folderSizeExcludedHelp": "Ce chemin est exclu de l’indexation des tailles.",
+    "versions": "Versions"
   },
   "auth": {
     "preparing": "Préparation de votre explorateur…",
@@ -467,7 +469,7 @@
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs",
       "searchIndex": "Index de recherche",
-      "trash": "Corbeille"
+      "trash": "Corbeille et versions"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -668,8 +670,8 @@
       "kept": "Ce que vous configurez ici est enregistré et s'appliquera dès l'activation."
     },
     "trash": {
-      "title": "Corbeille",
-      "subtitle": "Les éléments supprimés sont conservés dans un espace réservé sur leur propre volume, puis supprimés définitivement à la fin de la rétention ou lorsque cet espace est nécessaire.",
+      "title": "Corbeille et versions",
+      "subtitle": "Les éléments supprimés et les versions antérieures des fichiers sont conservés dans un espace réservé sur leur propre volume, puis supprimés à la fin de leur rétention ou lorsque cet espace est nécessaire.",
       "enabled": "Envoyer les éléments supprimés à la corbeille",
       "enabledHelp": "Désactivée, la suppression efface définitivement. Les éléments déjà dans la corbeille expirent toujours.",
       "retentionDays": "Rétention (jours)",
@@ -717,7 +719,28 @@
         "lost": "Le contenu de \"{name}\" avait disparu",
         "failed": "\"{name}\" n'a pas pu être supprimé",
         "breaker": "Trop d'éléments manquants d'un coup : rien n'a été modifié",
-        "forgotten": "\"{name}\" oublié par un administrateur"
+        "forgotten": "\"{name}\" oublié par un administrateur",
+        "versionEvicted": "Une version de « {name} » supprimée pour libérer de l'espace",
+        "versionFailed": "Une version n'a pas pu être supprimée",
+        "versionLost": "Le contenu d'une version était introuvable",
+        "versionTooLarge": "« {name} » dépasse tout l'espace : ce qu'il remplaçait n'a pas été gardé",
+        "versionsBreaker": "Trop de versions introuvables d'un coup : rien n'a été modifié"
+      },
+      "zoneVersions": "{count} version, {size} | {count} versions, {size}",
+      "versions": {
+        "title": "Versions de fichiers",
+        "subtitle": "Chaque enregistrement garde ce qu'il remplace, sans le copier, dans le même espace réservé que la corbeille. Les versions anciennes sont espacées avec le temps.",
+        "enabled": "Garder les versions antérieures des fichiers",
+        "enabledHelp": "Indépendant de la corbeille. Désactivé, les enregistrements ne gardent plus rien ; les versions existantes restent jusqu'à leur expiration ou leur suppression.",
+        "keepAllHours": "Garder toutes les versions (heures)",
+        "hourlyDays": "Puis une par heure (jours)",
+        "dailyDays": "Puis une par jour (jours)",
+        "maxPerFile": "Versions par fichier au plus",
+        "sessionCheckpointMinutes": "Point d'étape bureautique (minutes)",
+        "tiersHelp": "Au-delà de ces paliers, une version par semaine est gardée. Une session d'édition bureautique laisse une version, plus un point d'étape au plus à cette fréquence. Les versions épinglées échappent à l'espacement et à la limite par fichier.",
+        "invalid": "Vérifiez les valeurs : 1 à 720 heures, 1 à 365 jours par heure, 1 à 3650 jours par jour, 1 à 1000 versions par fichier, un point d'étape de 1 à 1440 minutes.",
+        "sharedSpace": "Les versions et la corbeille partagent l'espace réservé de chaque volume. Quand il manque, les versions anciennes partent d'abord, puis les éléments de la corbeille, puis la dernière version de chaque fichier, et les versions épinglées en dernier.",
+        "environmentNote": "Les valeurs par défaut viennent de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE et VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -812,7 +835,10 @@
     "loadingUsers": "Chargement des utilisateurs...",
     "creating": "Création…",
     "allowDownload": "Autoriser le téléchargement",
-    "allowDownloadHelp": "Désactivez pour laisser consulter les fichiers sans pouvoir en prendre une copie."
+    "allowDownloadHelp": "Désactivez pour laisser consulter les fichiers sans pouvoir en prendre une copie.",
+    "versionsVisible": "Afficher les versions des fichiers",
+    "versionsVisibleHelp": "Les personnes qui utilisent ce partage voient les versions antérieures de ses fichiers, et peuvent les restaurer si elles ont le droit de modifier.",
+    "versionsDownload": "Autoriser le téléchargement des versions"
   },
   "onlyoffice": {
     "editingHeading": "Fichier en cours d’édition",
@@ -854,7 +880,14 @@
     "descendantRejected": "Un dossier ne peut pas être déplacé dans un de ses propres dossiers",
     "alreadyThereRejected": "Déjà ici",
     "restoreTitle": "Restaurer vers",
-    "restoreHere": "Restaurer ici"
+    "restoreHere": "Restaurer ici",
+    "versionCopyTitle": "Restaurer une copie dans",
+    "versionCopyHere": "Restaurer une copie ici",
+    "replaceTitle": "Choisir le fichier à remplacer",
+    "replaceHere": "Remplacer ce fichier",
+    "fileRequired": "Choisissez un fichier",
+    "sameFileRejected": "Choisissez un autre fichier que celui-ci",
+    "nothingHere": "Rien ici"
   },
   "mediaPreview": {
     "download": "Télécharger le média",
@@ -965,6 +998,76 @@
       "deleteNotice": "Leurs liens de partage seront eux aussi supprimés définitivement.",
       "restored": "{count} lien de partage rétabli | {count} liens de partage rétablis",
       "dropped": "{count} lien de partage supprimé | {count} liens de partage supprimés"
+    }
+  },
+  "versions": {
+    "title": "Versions",
+    "menu": "Versions",
+    "aria": "Versions du fichier",
+    "current": "Version actuelle",
+    "empty": "Aucune version antérieure pour l'instant. Chaque enregistrement garde ce qu'il remplace.",
+    "disabled": "Les versions de fichiers sont désactivées : les enregistrements n'en gardent plus de nouvelles. Celles ci-dessous restent jusqu'à leur expiration.",
+    "loadFailed": "Impossible de charger les versions.",
+    "notShared": "L'historique de ce fichier ne vous est pas partagé.",
+    "unavailable": "Son contenu est introuvable sur le disque.",
+    "unknownAuthor": "Auteur inconnu",
+    "shareLink": "Une personne disposant du lien",
+    "pinned": "Épinglée",
+    "aside": "Mise de côté",
+    "asideHelp": "Enregistrée par un éditeur ouvert avant une restauration : gardée ici plutôt que d'annuler la restauration.",
+    "total": "{count} version, {size} | {count} versions, {size}",
+    "source": {
+      "editor": "Éditeur de texte",
+      "shareEditor": "Éditeur via un partage",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Version restaurée",
+      "external": "Modifié hors de l'application"
+    },
+    "actions": {
+      "menu": "Actions sur la version",
+      "select": "Sélectionner cette version",
+      "selectAll": "Tout sélectionner",
+      "deleteSelected": "Supprimer la sélection ({count})",
+      "deleteAll": "Tout supprimer",
+      "preview": "Ouvrir en lecture seule",
+      "download": "Télécharger",
+      "restore": "Restaurer",
+      "restoreCopy": "Restaurer en copie…",
+      "replaceOther": "Remplacer un autre fichier…",
+      "rename": "Nommer…",
+      "pin": "Épingler",
+      "unpin": "Désépingler",
+      "delete": "Supprimer"
+    },
+    "confirm": {
+      "restoreTitle": "Restaurer cette version ?",
+      "restoreMessage": "« {name} » retrouve son contenu du {date}. Son contenu actuel est gardé comme version.",
+      "replaceTitle": "Remplacer « {target} » ?",
+      "replaceMessage": "« {target} » prend pour contenu cette version de « {name} ». Son contenu actuel est gardé dans ses propres versions.",
+      "replace": "Remplacer",
+      "deleteTitle": "Supprimer cette version ? | Supprimer {count} versions ?",
+      "deleteMessage": "Cette version est supprimée définitivement. | Ces {count} versions sont supprimées définitivement.",
+      "deleteAllTitle": "Supprimer toutes les versions ?",
+      "deleteAllMessage": "Toutes les versions antérieures de « {name} » sont supprimées définitivement, épinglées comprises. Le fichier lui-même reste."
+    },
+    "rename": {
+      "title": "Nommer cette version",
+      "placeholder": "Par exemple : envoyée au client",
+      "help": "Un nom permet de retrouver une version. Épinglez-la pour la protéger du nettoyage automatique."
+    },
+    "results": {
+      "restored": "Version restaurée",
+      "unchanged": "Le fichier a déjà ce contenu",
+      "copied": "Copie créée : {path}",
+      "replaced": "« {path} » remplacé",
+      "deleted": "{count} version supprimée | {count} versions supprimées",
+      "renamed": "Version nommée",
+      "pinned": "Version épinglée : le nettoyage automatique la garde",
+      "unpinned": "Version désépinglée"
+    },
+    "errors": {
+      "action": "L'action sur cette version a échoué"
     }
   }
 }

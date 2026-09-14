@@ -30,6 +30,7 @@ const api = vi.hoisted(() => ({
   getRawFileUrl: vi.fn((path) => `/api/raw/${path}`),
   getDirectShareFileUrl: vi.fn((token, path, mode) => `/d/${token}/${path}?mode=${mode}`),
   getTrashFileText: vi.fn(async () => ({ name: 'run.sh', content: '#!/bin/sh\necho hi\n' })),
+  getVersionText: vi.fn(async () => ({ name: 'notes.md', content: '# as it was\n' })),
 }));
 
 vi.mock('@/api', () => ({
@@ -63,6 +64,9 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 
 const folderScroll = vi.hoisted(() => ({ permitExplicitRestore: vi.fn() }));
 vi.mock('@/stores/folderScroll', () => ({ useFolderScrollStore: () => folderScroll }));
+
+const versionsPanel = vi.hoisted(() => ({ openPath: vi.fn() }));
+vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versionsPanel }));
 
 // CodeMirror is a text area with a parser in it; nothing here is about that.
 vi.mock('vue-codemirror', () => ({
@@ -549,6 +553,89 @@ describe('reading a file from the trash', () => {
   it('says why when the file cannot be shown', async () => {
     api.getTrashFileText.mockRejectedValueOnce(new Error('This file appears to be binary.'));
     asTrash();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('This file appears to be binary.');
+  });
+});
+
+describe('reading an earlier version of a file', () => {
+  const asVersion = (path = 'Docs/notes.md', versionId = 'v-1') => {
+    Object.assign(route(), {
+      name: 'VersionFileViewer',
+      fullPath: `/versions/view/${versionId}/${path}`,
+      params: { versionId, path },
+    });
+  };
+
+  beforeEach(() => {
+    versionsPanel.openPath.mockClear();
+  });
+
+  it('reads that version, by the file and the version', async () => {
+    asVersion();
+
+    const view = await mountEditor();
+
+    expect(api.getVersionText).toHaveBeenCalledWith('Docs/notes.md', 'v-1');
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(view.fileContent).toBe('# as it was\n');
+    expect(view.displayPath).toBe('notes.md');
+  });
+
+  it('reads the other version when the address changes to it', async () => {
+    asVersion('Docs/notes.md', 'v-1');
+    await mountEditor();
+
+    asVersion('Docs/notes.md', 'v-2');
+    await flushPromises();
+
+    expect(api.getVersionText).toHaveBeenLastCalledWith('Docs/notes.md', 'v-2');
+  });
+
+  it('says it is an earlier version and read only, and offers neither save nor raw file', async () => {
+    asVersion();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('editor.versionReadOnly');
+    expect(wrapper.find('[aria-label="common.save"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('editor.raw');
+  });
+
+  it('never writes the file, whatever is typed or pressed', async () => {
+    asVersion();
+    const view = await mountEditor();
+
+    await type(view, 'changed anyway');
+    expect(view.canSave).toBe(false);
+    await view.saveFile();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+    await flushPromises();
+
+    expect(api.saveFileContent).not.toHaveBeenCalled();
+    expect(api.saveSharedFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain('editor.unsavedChanges');
+  });
+
+  it('goes back to the folder with the history open again, without asking', async () => {
+    asVersion('Docs/notes.md');
+    const view = await mountEditor();
+    await type(view, 'changed anyway');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    view.requestClose();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(versionsPanel.openPath).toHaveBeenCalledWith('Docs/notes.md');
+    expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
+    confirm.mockRestore();
+  });
+
+  it('says why when the version cannot be shown', async () => {
+    api.getVersionText.mockRejectedValueOnce(new Error('This file appears to be binary.'));
+    asVersion();
 
     await mountEditor();
 

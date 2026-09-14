@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "您有未儲存的變更。要在不儲存的情況下關閉嗎？",
     "selectTheme": "選擇編輯器佈景",
     "raw": "原始",
-    "trashReadOnly": "資源回收筒中 · 唯讀"
+    "trashReadOnly": "資源回收筒中 · 唯讀",
+    "versionReadOnly": "先前版本，唯讀"
   },
   "status": {
     "updated": "更新成功",
@@ -393,7 +394,8 @@
     "lens": "鏡頭：{lens}",
     "duration": "長度：{seconds}s",
     "folderSizeExcluded": "已排除",
-    "folderSizeExcludedHelp": "此路徑已從檔案夾大小索引中排除。"
+    "folderSizeExcludedHelp": "此路徑已從檔案夾大小索引中排除。",
+    "versions": "版本"
   },
   "auth": {
     "preparing": "正在為您準備 Explorer…",
@@ -464,7 +466,7 @@
       "uploads": "上傳",
       "folderSize": "檔案夾大小",
       "searchIndex": "搜尋索引",
-      "trash": "資源回收筒"
+      "trash": "資源回收筒和版本"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -665,8 +667,8 @@
       "kept": "此處的設定會被儲存，啟用後立即生效。"
     },
     "trash": {
-      "title": "資源回收筒",
-      "subtitle": "刪除的項目會保存在其所在磁碟區的保留空間中，保留期結束或需要該空間時將被永久刪除。",
+      "title": "資源回收筒和版本",
+      "subtitle": "已刪除的項目和檔案的先前版本保存在其所在磁碟區的保留空間中，在保留期結束或需要該空間時移除。",
       "enabled": "將刪除的項目移至資源回收筒",
       "enabledHelp": "關閉後，刪除會永久移除項目。資源回收筒中已有的項目仍會到期。",
       "retentionDays": "保留期（天）",
@@ -714,7 +716,28 @@
         "lost": "\"{name}\" 的內容遺失",
         "failed": "無法刪除 \"{name}\"",
         "breaker": "同時遺失的項目過多：未做任何變更",
-        "forgotten": "管理員已忘記 \"{name}\""
+        "forgotten": "管理員已忘記 \"{name}\"",
+        "versionEvicted": "為釋放空間移除了「{name}」的一個版本",
+        "versionFailed": "無法移除一個版本",
+        "versionLost": "一個版本的內容遺失",
+        "versionTooLarge": "「{name}」大於整個空間：被取代的內容未保留",
+        "versionsBreaker": "同時遺失的版本過多：未做任何變更"
+      },
+      "zoneVersions": "{count} 個版本，{size}",
+      "versions": {
+        "title": "檔案版本",
+        "subtitle": "每次儲存都會保留被取代的內容，不複製，存放在與資源回收筒相同的保留空間中。舊版本會隨時間逐步稀疏。",
+        "enabled": "保留檔案的先前版本",
+        "enabledHelp": "獨立於資源回收筒。關閉後儲存不再保留新內容；現有版本保留到過期或被刪除。",
+        "keepAllHours": "保留所有版本（小時）",
+        "hourlyDays": "之後每小時一個（天）",
+        "dailyDays": "之後每天一個（天）",
+        "maxPerFile": "每個檔案最多版本數",
+        "sessionCheckpointMinutes": "Office 檢查點（分鐘）",
+        "tiersHelp": "超過這些階段後，每週保留一個版本。一次 Office 編輯工作階段保留一個版本，檢查點不會比此間隔更頻繁。已釘選的版本不受稀疏與每檔案上限影響。",
+        "invalid": "請檢查數值：1–720 小時、每小時 1–365 天、每天 1–3650 天、每個檔案 1–1000 個版本、檢查點 1–1440 分鐘。",
+        "sharedSpace": "版本與資源回收筒共用每個磁碟區的保留空間。空間不足時，依序移除舊版本、資源回收筒項目、每個檔案的最新版本，最後才是已釘選的版本。",
+        "environmentNote": "預設值來自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "正在載入使用者...",
     "creating": "正在建立…",
     "allowDownload": "允許下載",
-    "allowDownloadHelp": "關閉後，他人可以閱讀檔案但無法下載副本。"
+    "allowDownloadHelp": "關閉後，他人可以閱讀檔案但無法下載副本。",
+    "versionsVisible": "顯示檔案版本",
+    "versionsVisibleHelp": "使用此共用的人可以看到其檔案的先前版本，若有編輯權限還可以還原。",
+    "versionsDownload": "允許下載版本"
   },
   "quickActions": {
     "menu": "快速動作"
@@ -854,7 +880,14 @@
     "descendantRejected": "資料夾不能移動到其自身的子資料夾",
     "alreadyThereRejected": "已在此處",
     "restoreTitle": "還原到",
-    "restoreHere": "還原到此處"
+    "restoreHere": "還原到此處",
+    "versionCopyTitle": "將副本還原到",
+    "versionCopyHere": "將副本還原到此處",
+    "replaceTitle": "選擇要取代的檔案",
+    "replaceHere": "取代此檔案",
+    "fileRequired": "請選擇一個檔案",
+    "sameFileRejected": "請選擇此檔案以外的檔案",
+    "nothingHere": "這裡什麼都沒有"
   },
   "mediaPreview": {
     "download": "下載媒體",
@@ -965,6 +998,76 @@
       "deleteNotice": "它們的分享連結也將永久刪除。",
       "restored": "已恢復 {count} 個分享連結",
       "dropped": "已刪除 {count} 個分享連結"
+    }
+  },
+  "versions": {
+    "title": "版本",
+    "menu": "版本",
+    "aria": "檔案版本",
+    "current": "目前版本",
+    "empty": "尚無先前版本。每次儲存都會保留被取代的內容。",
+    "disabled": "檔案版本已關閉：儲存時不再保留新版本。下方的版本會保留到過期。",
+    "loadFailed": "無法載入版本。",
+    "notShared": "此檔案的歷程未與你共用。",
+    "unavailable": "磁碟上找不到其內容。",
+    "unknownAuthor": "未知作者",
+    "shareLink": "持有連結的人",
+    "pinned": "已釘選",
+    "aside": "已擱置",
+    "asideHelp": "由還原之前開啟的編輯器儲存：保留在這裡，以免復原還原。",
+    "total": "{count} 個版本，{size}",
+    "source": {
+      "editor": "文字編輯器",
+      "shareEditor": "透過共用的編輯器",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "還原的版本",
+      "external": "在應用程式外修改"
+    },
+    "actions": {
+      "menu": "版本動作",
+      "select": "選取此版本",
+      "selectAll": "全選",
+      "deleteSelected": "刪除所選（{count}）",
+      "deleteAll": "全部刪除",
+      "preview": "以唯讀方式開啟",
+      "download": "下載",
+      "restore": "還原",
+      "restoreCopy": "還原為副本…",
+      "replaceOther": "取代其他檔案…",
+      "rename": "命名…",
+      "pin": "釘選",
+      "unpin": "取消釘選",
+      "delete": "刪除"
+    },
+    "confirm": {
+      "restoreTitle": "還原此版本？",
+      "restoreMessage": "「{name}」將回到 {date} 的內容。目前的內容會保留為一個版本。",
+      "replaceTitle": "取代「{target}」？",
+      "replaceMessage": "「{target}」的內容將改為「{name}」的此版本。它目前的內容會保留在它自己的版本中。",
+      "replace": "取代",
+      "deleteTitle": "刪除 {count} 個版本？",
+      "deleteMessage": "{count} 個版本將被永久刪除。",
+      "deleteAllTitle": "刪除所有版本？",
+      "deleteAllMessage": "「{name}」的所有先前版本都將被永久刪除，包括已釘選的版本。檔案本身保留。"
+    },
+    "rename": {
+      "title": "為此版本命名",
+      "placeholder": "例如：已寄給客戶",
+      "help": "命名後更容易找到版本。釘選它可避免被自動清理。"
+    },
+    "results": {
+      "restored": "版本已還原",
+      "unchanged": "檔案已是此內容",
+      "copied": "已建立副本：{path}",
+      "replaced": "已取代「{path}」",
+      "deleted": "已刪除 {count} 個版本",
+      "renamed": "版本已命名",
+      "pinned": "版本已釘選：自動清理會保留它",
+      "unpinned": "已取消釘選版本"
+    },
+    "errors": {
+      "action": "對此版本的動作失敗"
     }
   }
 }

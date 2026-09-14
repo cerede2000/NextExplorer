@@ -63,6 +63,10 @@ const allowDownload = ref(true);
 const allowCreateFolder = ref(true);
 const allowCreateFile = ref(true);
 const allowUpload = ref(true);
+// What the share shows of a file's history: the list of its versions, and the
+// versions themselves.
+const versionsVisible = ref(false);
+const versionsDownload = ref(false);
 
 // UI state
 const isCreating = ref(false);
@@ -147,6 +151,15 @@ watch(sharingType, async (newType) => {
   }
 });
 
+// A share with named accounts shows the history they would see anyway; a link
+// for anyone shows none until its owner turns it on. Only for a new share: an
+// existing one keeps what its owner chose.
+watch(sharingType, (type) => {
+  if (isEditing.value) return;
+  versionsVisible.value = type === 'users';
+  versionsDownload.value = type === 'users';
+});
+
 function resetForm() {
   accessMode.value = 'readonly';
   sharingType.value = 'anyone';
@@ -163,6 +176,8 @@ function resetForm() {
   allowCreateFolder.value = true;
   allowCreateFile.value = true;
   allowUpload.value = true;
+  versionsVisible.value = false;
+  versionsDownload.value = false;
   error.value = '';
   shareResult.value = null;
   linkCopied.value = false;
@@ -181,6 +196,8 @@ function populateShareForm(share) {
   allowCreateFolder.value = share.allowCreateFolder !== false;
   allowCreateFile.value = share.allowCreateFile !== false;
   allowUpload.value = share.allowUpload !== false;
+  versionsVisible.value = share.versionsVisible === true;
+  versionsDownload.value = share.versionsDownload === true;
   showAdvancedPermissions.value =
     isDirectory.value &&
     (allowDelete.value === false ||
@@ -305,6 +322,8 @@ async function submitShare() {
       allowCreateFolder: allowCreateFolder.value,
       allowCreateFile: allowCreateFile.value,
       allowUpload: allowUpload.value,
+      versionsVisible: versionsVisible.value,
+      versionsDownload: versionsVisible.value && versionsDownload.value,
       sharingType: sharingType.value,
       userIds: sharingType.value === 'users' ? selectedUserIds.value : [],
       expiresAt:
@@ -560,12 +579,45 @@ function closeDialog() {
         <span>
           {{ t('share.allowDownload', 'Allow downloading') }}
           <span class="block text-xs text-zinc-500 dark:text-zinc-400">
-            {{ t('share.allowDownloadHelp', 'Turn this off to let people read the files without taking a copy.') }}
+            {{
+              t(
+                'share.allowDownloadHelp',
+                'Turn this off to let people read the files without taking a copy.'
+              )
+            }}
           </span>
         </span>
         <input
           v-model="allowDownload"
           type="checkbox"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </label>
+
+      <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+        <span>
+          {{ t('share.versionsVisible') }}
+          <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+            {{ t('share.versionsVisibleHelp') }}
+          </span>
+        </span>
+        <input
+          v-model="versionsVisible"
+          type="checkbox"
+          data-test="share-versions-visible"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </label>
+      <label
+        class="flex items-center justify-between gap-3 text-sm"
+        :class="versionsVisible ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
+      >
+        <span>{{ t('share.versionsDownload') }}</span>
+        <input
+          v-model="versionsDownload"
+          type="checkbox"
+          :disabled="!versionsVisible"
+          data-test="share-versions-download"
           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
       </label>

@@ -51,6 +51,13 @@ const i18n = createI18n({
         itselfRejected: 'A folder cannot be moved into itself',
         descendantRejected: 'A folder cannot be moved into one of its own folders',
         alreadyThereRejected: 'Already here',
+        versionCopyTitle: 'Restore a copy to',
+        versionCopyHere: 'Restore a copy here',
+        replaceTitle: 'Choose the file to replace',
+        replaceHere: 'Replace this file',
+        fileRequired: 'Pick a file',
+        sameFileRejected: 'Pick a file other than this one',
+        nothingHere: 'Nothing here',
       },
     },
   },
@@ -245,5 +252,104 @@ describe('DestinationPickerDialog', () => {
     await flushPromises();
 
     await expect(chosen).resolves.toBe('Docs');
+  });
+
+  /**
+   * An earlier version taken out as a copy goes into a folder, and may go beside
+   * the file it came from: that is the usual place for a copy.
+   */
+  it('asks where to put a copy of a version, beside its file included', async () => {
+    browse.mockResolvedValue(listing([], 'Docs'));
+
+    mountDialog();
+    const chosen = picker.pick({
+      mode: 'version-copy',
+      items: [{ name: 'notes.md', path: 'Docs', kind: 'file' }],
+      from: 'Docs',
+    });
+    await flushPromises();
+
+    const confirmCopy = buttons().find((b) => b.textContent.trim() === 'Restore a copy here');
+    expect(bodyText()).toContain('Restore a copy to');
+    expect(bodyText()).not.toContain('Already here');
+    confirmCopy.click();
+    await flushPromises();
+
+    await expect(chosen).resolves.toBe('Docs');
+  });
+
+  describe('choosing a file rather than a folder', () => {
+    const files = () =>
+      Array.from(document.querySelectorAll('[data-test="destination-picker-file"]'));
+    const replaceButton = () => buttons().find((b) => b.textContent.trim() === 'Replace this file');
+    const source = [{ name: 'notes.md', path: 'Docs', kind: 'file' }];
+
+    it('lists the files beside the folders, and asks for one before anything is confirmed', async () => {
+      browse.mockResolvedValue(
+        listing([folder('Old', 'Docs'), { name: 'draft.md', path: 'Docs', kind: 'md' }], 'Docs')
+      );
+
+      mountDialog();
+      picker.pick({ mode: 'file', items: source, from: 'Docs' });
+      await flushPromises();
+
+      expect(bodyText()).toContain('Choose the file to replace');
+      expect(bodyText()).toContain('Old');
+      expect(files().map((button) => button.textContent.trim())).toEqual(['draft.md']);
+      expect(bodyText()).toContain('Pick a file');
+      expect(replaceButton().disabled).toBe(true);
+    });
+
+    it('hands back the path of the file chosen', async () => {
+      browse.mockResolvedValue(listing([{ name: 'draft.md', path: 'Docs', kind: 'md' }], 'Docs'));
+
+      mountDialog();
+      const chosen = picker.pick({ mode: 'file', items: source, from: 'Docs' });
+      await flushPromises();
+
+      files()[0].click();
+      await flushPromises();
+      expect(replaceButton().disabled).toBe(false);
+      replaceButton().click();
+      await flushPromises();
+
+      await expect(chosen).resolves.toBe('Docs/draft.md');
+    });
+
+    it('refuses the file the version belongs to, which a restore already covers', async () => {
+      browse.mockResolvedValue(listing([{ name: 'notes.md', path: 'Docs', kind: 'md' }], 'Docs'));
+
+      mountDialog();
+      picker.pick({ mode: 'file', items: source, from: 'Docs' });
+      await flushPromises();
+
+      files()[0].click();
+      await flushPromises();
+
+      expect(bodyText()).toContain('Pick a file other than this one');
+      expect(replaceButton().disabled).toBe(true);
+    });
+
+    it('forgets the file chosen once another folder is opened', async () => {
+      browse
+        .mockResolvedValueOnce(
+          listing([folder('Old', 'Docs'), { name: 'draft.md', path: 'Docs', kind: 'md' }], 'Docs')
+        )
+        .mockResolvedValueOnce(listing([], 'Docs/Old'));
+
+      mountDialog();
+      picker.pick({ mode: 'file', items: source, from: 'Docs' });
+      await flushPromises();
+      files()[0].click();
+      await flushPromises();
+
+      buttons()
+        .find((b) => b.textContent.trim() === 'Old')
+        .click();
+      await flushPromises();
+
+      expect(bodyText()).toContain('Nothing here');
+      expect(replaceButton().disabled).toBe(true);
+    });
   });
 });

@@ -68,16 +68,77 @@ const parsed = computed(() => {
   };
 });
 
-const invalid = computed(
+const trashInvalid = computed(
   () =>
     parsed.value.retentionDays === null ||
     parsed.value.maxPercent === null ||
     Number.isNaN(parsed.value.maxBytes)
 );
 
-const dirty = computed(
+const trashDirty = computed(
   () => JSON.stringify(local.value) !== JSON.stringify(fromSettings(current.value))
 );
+
+// File versions: switched on and off on their own, kept within the same space.
+const VERSION_DEFAULTS = {
+  enabled: true,
+  keepAllHours: 24,
+  hourlyDays: 7,
+  dailyDays: 30,
+  maxPerFile: 50,
+  sessionCheckpointMinutes: 10,
+};
+const VERSION_BOUNDS = {
+  keepAllHours: [1, 720],
+  hourlyDays: [1, 365],
+  dailyDays: [1, 3650],
+  maxPerFile: [1, 1000],
+  sessionCheckpointMinutes: [1, 1440],
+};
+
+const currentVersions = computed(() => appSettings.systemSettings?.versions || VERSION_DEFAULTS);
+
+const versionsFromSettings = (settings) => ({
+  enabled: settings.enabled !== false,
+  ...Object.fromEntries(
+    Object.keys(VERSION_BOUNDS).map((key) => [key, String(settings[key] ?? VERSION_DEFAULTS[key])])
+  ),
+});
+
+const localVersions = ref(versionsFromSettings(currentVersions.value));
+
+watch(
+  currentVersions,
+  (value) => {
+    localVersions.value = versionsFromSettings(value);
+  },
+  { deep: true }
+);
+
+const parsedVersions = computed(() => ({
+  enabled: localVersions.value.enabled,
+  ...Object.fromEntries(
+    Object.entries(VERSION_BOUNDS).map(([key, [min, max]]) => [
+      key,
+      integerIn(localVersions.value[key], min, max),
+    ])
+  ),
+}));
+
+const versionsInvalid = computed(() =>
+  Object.keys(VERSION_BOUNDS).some((key) => parsedVersions.value[key] === null)
+);
+
+const versionsDirty = computed(
+  () =>
+    JSON.stringify(localVersions.value) !==
+    JSON.stringify(versionsFromSettings(currentVersions.value))
+);
+
+const invalid = computed(
+  () => (trashDirty.value && trashInvalid.value) || (versionsDirty.value && versionsInvalid.value)
+);
+const dirty = computed(() => trashDirty.value || versionsDirty.value);
 
 const saving = ref(false);
 const saveError = ref('');
@@ -87,10 +148,16 @@ const save = async () => {
   saving.value = true;
   saveError.value = '';
   try {
-    await appSettings.save({ trash: { ...parsed.value } });
-    // The delete dialog and the sidebar read these; they follow at once.
-    featuresStore.trashEnabled = parsed.value.enabled;
-    featuresStore.trashRetentionDays = parsed.value.retentionDays;
+    const changes = {};
+    if (trashDirty.value) changes.trash = { ...parsed.value };
+    if (versionsDirty.value) changes.versions = { ...parsedVersions.value };
+    await appSettings.save(changes);
+    // The delete dialog, the sidebar and the menus read these; they follow at once.
+    if (changes.trash) {
+      featuresStore.trashEnabled = parsed.value.enabled;
+      featuresStore.trashRetentionDays = parsed.value.retentionDays;
+    }
+    if (changes.versions) featuresStore.versionsEnabled = parsedVersions.value.enabled;
   } catch (err) {
     saveError.value = err?.message || t('settings.trash.saveFailed');
   } finally {
@@ -100,6 +167,7 @@ const save = async () => {
 
 const reset = () => {
   local.value = fromSettings(current.value);
+  localVersions.value = versionsFromSettings(currentVersions.value);
 };
 
 const zones = ref([]);
@@ -159,9 +227,12 @@ const zoneState = (zone) =>
     ? t('settings.trash.available')
     : t(`settings.trash.unavailable.${zone.reason || 'missing'}`);
 
+/** What a zone holds, the trash and the versions together, since they share its budget. */
+const heldBytes = (zone) => (zone.usedBytes || 0) + (zone.versionBytes || 0);
+
 const usedShare = (zone) =>
   Number.isFinite(zone.budgetBytes) && zone.budgetBytes > 0
-    ? Math.min(100, Math.round((zone.usedBytes / zone.budgetBytes) * 100))
+    ? Math.min(100, Math.round((heldBytes(zone) / zone.budgetBytes) * 100))
     : 0;
 
 const lastPassLabel = (zone) => {
@@ -172,8 +243,13 @@ const lastPassLabel = (zone) => {
   return `${when} · ${t('settings.trash.lastPassPurged', { count: removed }, removed)}`;
 };
 
+// The server names events in kebab case (`version-evicted`); the catalogue keys
+// are camel case.
 const eventLabel = (event) =>
-  t(`settings.trash.events.${event.kind}`, { name: event.itemName || '' });
+  t(
+    `settings.trash.events.${String(event.kind).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())}`,
+    { name: event.itemName || '' }
+  );
 
 const violationsFor = (zone) =>
   verification.value?.find((result) => result.zoneId === zone.id)?.violations || null;
@@ -287,12 +363,67 @@ onMounted(loadZones);
         </label>
       </div>
 
-      <p v-if="invalid" data-test="trash-settings-invalid" class="text-sm text-red-600">
+      <p v-if="trashInvalid" data-test="trash-settings-invalid" class="text-sm text-red-600">
         {{ t('settings.trash.invalid') }}
       </p>
       <p v-if="saveError" class="text-sm text-red-600">{{ saveError }}</p>
       <p class="text-xs text-zinc-500 dark:text-zinc-400">
         {{ t('settings.trash.environmentNote') }}
+      </p>
+    </section>
+
+    <section
+      class="space-y-5 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+      data-test="versions-settings"
+    >
+      <div>
+        <h3 class="font-medium text-zinc-900 dark:text-zinc-100">
+          {{ t('settings.trash.versions.title') }}
+        </h3>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          {{ t('settings.trash.versions.subtitle') }}
+        </p>
+      </div>
+
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="font-medium text-zinc-900 dark:text-zinc-100">
+            {{ t('settings.trash.versions.enabled') }}
+          </p>
+          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {{ t('settings.trash.versions.enabledHelp') }}
+          </p>
+        </div>
+        <ToggleSwitch v-model="localVersions.enabled" data-test="versions-settings-enabled" />
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-3">
+        <label v-for="(bounds, key) in VERSION_BOUNDS" :key="key" class="block text-sm">
+          <span class="font-medium text-zinc-900 dark:text-zinc-100">
+            {{ t(`settings.trash.versions.${key}`) }}
+          </span>
+          <input
+            v-model="localVersions[key]"
+            :data-test="`versions-settings-${key}`"
+            type="number"
+            :min="bounds[0]"
+            :max="bounds[1]"
+            class="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800"
+          />
+        </label>
+      </div>
+
+      <p class="text-xs text-zinc-500 dark:text-zinc-400">
+        {{ t('settings.trash.versions.tiersHelp') }}
+      </p>
+      <p v-if="versionsInvalid" data-test="versions-settings-invalid" class="text-sm text-red-600">
+        {{ t('settings.trash.versions.invalid') }}
+      </p>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400">
+        {{ t('settings.trash.versions.sharedSpace') }}
+      </p>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400">
+        {{ t('settings.trash.versions.environmentNote') }}
       </p>
     </section>
 
@@ -372,7 +503,7 @@ onMounted(loadZones);
             role="img"
             :aria-label="
               t('settings.trash.usage', {
-                used: formatBytes(zone.usedBytes),
+                used: formatBytes(heldBytes(zone)),
                 budget: formatBytes(zone.budgetBytes),
               })
             "
@@ -391,6 +522,19 @@ onMounted(loadZones);
                     : t('settings.trash.noBudget'),
                 },
                 zone.itemCount
+              )
+            }}
+          </p>
+          <p
+            v-if="zone.versionCount"
+            class="text-sm text-zinc-600 dark:text-zinc-400"
+            data-trash-zone-versions
+          >
+            {{
+              t(
+                'settings.trash.zoneVersions',
+                { count: zone.versionCount, size: formatBytes(zone.versionBytes || 0) },
+                zone.versionCount
               )
             }}
           </p>

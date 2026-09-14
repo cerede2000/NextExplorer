@@ -25,6 +25,7 @@ import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
 import { pageTitleFor } from '@/utils/pageTitle';
 import InfoPanel from '@/components/InfoPanel.vue';
+import VersionsPanel from '@/components/VersionsPanel.vue';
 import { useFileUploader } from '@/composables/fileUploader';
 import { useKeyboardShortcuts } from '@/composables/keyboardShortcuts';
 import SpotlightSearch from '@/components/SpotlightSearch.vue';
@@ -227,6 +228,7 @@ const handleGuestLogin = () => {
     <ClipboardProgress class="z-560" />
     <PreviewHost />
     <InfoPanel />
+    <VersionsPanel />
     <SpotlightSearch />
     <FavoriteEditDialog />
     <DestinationPickerDialog />

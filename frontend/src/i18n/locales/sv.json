@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Du har osparade ändringar. Stäng utan att spara?",
     "selectTheme": "Välj redigerarens tema",
     "raw": "Rå",
-    "trashReadOnly": "I papperskorgen · skrivskyddad"
+    "trashReadOnly": "I papperskorgen · skrivskyddad",
+    "versionReadOnly": "Tidigare version, skrivskyddad"
   },
   "status": {
     "updated": "Uppdaterades",
@@ -393,7 +394,8 @@
     "lens": "Lins: {lens}",
     "duration": "Speltid: {seconds}s",
     "folderSizeExcluded": "Undantagen",
-    "folderSizeExcludedHelp": "Denna sökväg är undantagen från indexering av mappstorlekar."
+    "folderSizeExcludedHelp": "Denna sökväg är undantagen från indexering av mappstorlekar.",
+    "versions": "Versioner"
   },
   "auth": {
     "preparing": "Förbereder din utforskare…",
@@ -464,7 +466,7 @@
       "uploads": "Uppladdningar",
       "folderSize": "Mappstorlekar",
       "searchIndex": "Sökindex",
-      "trash": "Papperskorg"
+      "trash": "Papperskorg och versioner"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -665,8 +667,8 @@
       "kept": "Det du ställer in här sparas och gäller så snart funktionen aktiveras."
     },
     "trash": {
-      "title": "Papperskorg",
-      "subtitle": "Raderade objekt sparas i ett reserverat utrymme på den egna volymen och tas bort permanent när lagringstiden är slut eller när utrymmet behövs.",
+      "title": "Papperskorg och versioner",
+      "subtitle": "Borttagna objekt och tidigare versioner av filer sparas i ett reserverat utrymme på sin egen volym och tas bort efter lagringstiden eller när utrymmet behövs.",
       "enabled": "Flytta raderade objekt till papperskorgen",
       "enabledHelp": "Avstängd tar radering bort permanent. Objekt som redan ligger i papperskorgen löper fortfarande ut.",
       "retentionDays": "Lagringstid (dagar)",
@@ -714,7 +716,28 @@
         "lost": "Innehållet i \"{name}\" saknades",
         "failed": "\"{name}\" kunde inte tas bort",
         "breaker": "För många objekt saknades på en gång: inget ändrades",
-        "forgotten": "\"{name}\" glömdes av en administratör"
+        "forgotten": "\"{name}\" glömdes av en administratör",
+        "versionEvicted": "En version av ”{name}” togs bort för att frigöra utrymme",
+        "versionFailed": "En version kunde inte tas bort",
+        "versionLost": "En version saknade sitt innehåll",
+        "versionTooLarge": "”{name}” är större än hela utrymmet: det den ersatte behölls inte",
+        "versionsBreaker": "För många versioner saknas samtidigt: inget ändrades"
+      },
+      "zoneVersions": "{count} version, {size} | {count} versioner, {size}",
+      "versions": {
+        "title": "Filversioner",
+        "subtitle": "Varje sparning behåller det den ersätter, utan att kopiera, i samma reserverade utrymme som papperskorgen. Äldre versioner glesas ut med tiden.",
+        "enabled": "Behåll tidigare versioner av filer",
+        "enabledHelp": "Oberoende av papperskorgen. Avstängt behåller sparningar inget nytt; befintliga versioner finns kvar tills de löper ut eller tas bort.",
+        "keepAllHours": "Behåll alla versioner (timmar)",
+        "hourlyDays": "Sedan en per timme (dagar)",
+        "dailyDays": "Sedan en per dag (dagar)",
+        "maxPerFile": "Högst antal versioner per fil",
+        "sessionCheckpointMinutes": "Kontrollpunkt för Office (minuter)",
+        "tiersHelp": "Efter dessa nivåer behålls en version per vecka. En redigeringssession i Office lämnar en version, plus högst en kontrollpunkt med detta intervall. Fästa versioner undantas från utglesningen och gränsen per fil.",
+        "invalid": "Kontrollera värdena: 1–720 timmar, 1–365 dagar per timme, 1–3650 dagar per dag, 1–1000 versioner per fil, en kontrollpunkt på 1–1440 minuter.",
+        "sharedSpace": "Versioner och papperskorgen delar varje volyms reserverade utrymme. När det inte räcker försvinner först äldre versioner, sedan objekt i papperskorgen, sedan varje fils senaste version och sist fästa versioner.",
+        "environmentNote": "Standardvärden kommer från VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE och VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "Läser in användare...",
     "creating": "Skapar…",
     "allowDownload": "Tillåt nedladdning",
-    "allowDownloadHelp": "Stäng av för att låta filerna läsas utan att en kopia tas."
+    "allowDownloadHelp": "Stäng av för att låta filerna läsas utan att en kopia tas.",
+    "versionsVisible": "Visa filversioner",
+    "versionsVisibleHelp": "De som använder den här delningen ser tidigare versioner av dess filer och kan återställa dem om de får redigera.",
+    "versionsDownload": "Tillåt nedladdning av versioner"
   },
   "quickActions": {
     "menu": "Snabbåtgärder"
@@ -854,7 +880,14 @@
     "descendantRejected": "En mapp kan inte flyttas till en av sina egna mappar",
     "alreadyThereRejected": "Redan här",
     "restoreTitle": "Återställ till",
-    "restoreHere": "Återställ hit"
+    "restoreHere": "Återställ hit",
+    "versionCopyTitle": "Återställ en kopia till",
+    "versionCopyHere": "Återställ en kopia här",
+    "replaceTitle": "Välj filen som ska ersättas",
+    "replaceHere": "Ersätt den här filen",
+    "fileRequired": "Välj en fil",
+    "sameFileRejected": "Välj en annan fil än den här",
+    "nothingHere": "Inget här"
   },
   "mediaPreview": {
     "download": "Ladda ner media",
@@ -965,6 +998,76 @@
       "deleteNotice": "Deras delningslänkar tas också bort permanent.",
       "restored": "{count} delningslänk återställd | {count} delningslänkar återställda",
       "dropped": "{count} delningslänk borttagen | {count} delningslänkar borttagna"
+    }
+  },
+  "versions": {
+    "title": "Versioner",
+    "menu": "Versioner",
+    "aria": "Filversioner",
+    "current": "Aktuell version",
+    "empty": "Inga tidigare versioner än. Varje sparning behåller det den ersätter.",
+    "disabled": "Filversioner är avstängda: sparningar behåller inga nya. De nedan finns kvar tills de löper ut.",
+    "loadFailed": "Versionerna kunde inte läsas in.",
+    "notShared": "Den här filens historik är inte delad med dig.",
+    "unavailable": "Dess innehåll saknas på disken.",
+    "unknownAuthor": "Okänd författare",
+    "shareLink": "Någon med länken",
+    "pinned": "Fäst",
+    "aside": "Undanlagd",
+    "asideHelp": "Sparad av en redigerare som öppnades före en återställning: behålls här i stället för att ångra återställningen.",
+    "total": "{count} version, {size} | {count} versioner, {size}",
+    "source": {
+      "editor": "Textredigerare",
+      "shareEditor": "Redigerare via en delning",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Återställd version",
+      "external": "Ändrad utanför appen"
+    },
+    "actions": {
+      "menu": "Åtgärder för versionen",
+      "select": "Markera den här versionen",
+      "selectAll": "Markera alla",
+      "deleteSelected": "Ta bort markerade ({count})",
+      "deleteAll": "Ta bort alla",
+      "preview": "Öppna skrivskyddad",
+      "download": "Ladda ner",
+      "restore": "Återställ",
+      "restoreCopy": "Återställ som kopia…",
+      "replaceOther": "Ersätt en annan fil…",
+      "rename": "Namnge…",
+      "pin": "Fäst",
+      "unpin": "Lossa",
+      "delete": "Ta bort"
+    },
+    "confirm": {
+      "restoreTitle": "Återställa den här versionen?",
+      "restoreMessage": "”{name}” får tillbaka sitt innehåll från {date}. Det nuvarande innehållet behålls som en version.",
+      "replaceTitle": "Ersätta ”{target}”?",
+      "replaceMessage": "”{target}” får den här versionen av ”{name}” som innehåll. Dess nuvarande innehåll behålls i dess egna versioner.",
+      "replace": "Ersätt",
+      "deleteTitle": "Ta bort den här versionen? | Ta bort {count} versioner?",
+      "deleteMessage": "Den här versionen tas bort permanent. | Dessa {count} versioner tas bort permanent.",
+      "deleteAllTitle": "Ta bort alla versioner?",
+      "deleteAllMessage": "Alla tidigare versioner av ”{name}” tas bort permanent, även fästa. Själva filen finns kvar."
+    },
+    "rename": {
+      "title": "Namnge den här versionen",
+      "placeholder": "Till exempel: skickad till kunden",
+      "help": "Ett namn gör en version lätt att hitta. Fäst den för att undanta den från den automatiska rensningen."
+    },
+    "results": {
+      "restored": "Versionen återställd",
+      "unchanged": "Filen har redan det här innehållet",
+      "copied": "Kopia skapad: {path}",
+      "replaced": "”{path}” ersatt",
+      "deleted": "{count} version borttagen | {count} versioner borttagna",
+      "renamed": "Versionen namngiven",
+      "pinned": "Versionen fäst: den automatiska rensningen behåller den",
+      "unpinned": "Versionen lossad"
+    },
+    "errors": {
+      "action": "Åtgärden på den här versionen misslyckades"
     }
   }
 }

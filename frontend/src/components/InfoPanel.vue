@@ -4,6 +4,7 @@ import { ArrowPathIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { useInfoPanelStore } from '@/stores/infoPanel';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useFeaturesStore } from '@/stores/features';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { formatBytes, formatDate } from '@/utils';
 import { getKindLabel } from '@/utils/fileKinds';
 import FileIcon from '@/icons/FileIcon.vue';
@@ -53,6 +54,20 @@ const modifiedLabel = computed(() => {
 });
 
 const locationLabel = computed(() => item.value?.path || '');
+
+const versionsPanel = useVersionsPanelStore();
+const canShowVersions = computed(
+  () =>
+    featuresStore.versionsEnabled &&
+    Boolean(item.value) &&
+    !['directory', 'volume'].includes(item.value.kind)
+);
+const openVersions = () => {
+  const target = item.value;
+  if (!target) return;
+  store.close();
+  versionsPanel.open(target);
+};
 
 const loading = ref(false);
 const details = ref(null);
@@ -315,6 +330,16 @@ onBeforeUnmount(() => {
                 {{ locationLabel }}
               </p>
             </div>
+
+            <button
+              v-if="canShowVersions"
+              type="button"
+              class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-zinc-800"
+              data-test="info-versions"
+              @click="openVersions"
+            >
+              {{ t('info.versions') }}
+            </button>
 
             <!-- Folder specific metadata -->
             <div

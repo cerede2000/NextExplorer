@@ -173,6 +173,16 @@ const router = createRouter({
       ],
     },
     {
+      // An earlier version of a file, shown in the editor to be read. The file
+      // is named by its path, a share path for a share's visitor.
+      path: '/versions/view',
+      component: EditorLayout,
+      meta: { requiresAuth: true, allowGuest: true },
+      children: [
+        { path: ':versionId/:path(.*)', name: 'VersionFileViewer', component: EditorView },
+      ],
+    },
+    {
       path: '/search',
       component: BrowserLayout,
       meta: { requiresAuth: true },

@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？",
     "selectTheme": "选择编辑器主题",
     "raw": "原始",
-    "trashReadOnly": "回收站中 · 只读"
+    "trashReadOnly": "回收站中 · 只读",
+    "versionReadOnly": "历史版本，只读"
   },
   "status": {
     "updated": "更新成功",
@@ -393,7 +394,8 @@
     "lens": "镜头：{lens}",
     "duration": "时长：{seconds}s",
     "folderSizeExcluded": "已排除",
-    "folderSizeExcludedHelp": "此路径已从文件夹大小索引中排除。"
+    "folderSizeExcludedHelp": "此路径已从文件夹大小索引中排除。",
+    "versions": "版本"
   },
   "auth": {
     "preparing": "正在为您准备 Explorer…",
@@ -464,7 +466,7 @@
       "uploads": "上传",
       "folderSize": "文件夹大小",
       "searchIndex": "搜索索引",
-      "trash": "回收站"
+      "trash": "回收站和版本"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -665,8 +667,8 @@
       "kept": "此处的配置会被保存，启用后立即生效。"
     },
     "trash": {
-      "title": "回收站",
-      "subtitle": "删除的项目保存在其所在卷的预留空间中，保留期结束或需要该空间时将被永久删除。",
+      "title": "回收站和版本",
+      "subtitle": "已删除的项目和文件的历史版本保存在其所在卷的预留空间中，在保留期结束或需要该空间时移除。",
       "enabled": "将删除的项目移至回收站",
       "enabledHelp": "关闭后，删除将永久移除项目。回收站中已有的项目仍会到期。",
       "retentionDays": "保留期（天）",
@@ -714,7 +716,28 @@
         "lost": "\"{name}\" 的内容缺失",
         "failed": "无法删除 \"{name}\"",
         "breaker": "同时缺失的项目过多：未做任何更改",
-        "forgotten": "管理员忘记了 \"{name}\""
+        "forgotten": "管理员忘记了 \"{name}\"",
+        "versionEvicted": "为释放空间移除了“{name}”的一个版本",
+        "versionFailed": "无法移除一个版本",
+        "versionLost": "一个版本的内容缺失",
+        "versionTooLarge": "“{name}”大于整个空间：被替换的内容未保留",
+        "versionsBreaker": "同时缺失的版本过多：未做任何更改"
+      },
+      "zoneVersions": "{count} 个版本，{size}",
+      "versions": {
+        "title": "文件版本",
+        "subtitle": "每次保存都会保留被替换的内容，不复制，存放在与回收站相同的预留空间中。旧版本会随时间逐步稀疏。",
+        "enabled": "保留文件的历史版本",
+        "enabledHelp": "独立于回收站。关闭后保存不再保留新内容；已有版本保留到过期或被删除。",
+        "keepAllHours": "保留所有版本（小时）",
+        "hourlyDays": "然后每小时一个（天）",
+        "dailyDays": "然后每天一个（天）",
+        "maxPerFile": "每个文件最多版本数",
+        "sessionCheckpointMinutes": "办公文档检查点（分钟）",
+        "tiersHelp": "超过这些阶段后，每周保留一个版本。一次办公文档编辑会话保留一个版本，检查点不会比此间隔更频繁。已固定的版本不受稀疏和每文件上限影响。",
+        "invalid": "请检查数值：1–720 小时，每小时 1–365 天，每天 1–3650 天，每个文件 1–1000 个版本，检查点 1–1440 分钟。",
+        "sharedSpace": "版本与回收站共用每个卷的预留空间。空间不足时，依次移除旧版本、回收站项目、每个文件的最新版本，最后才是已固定的版本。",
+        "environmentNote": "默认值来自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "正在加载用户...",
     "creating": "正在创建…",
     "allowDownload": "允许下载",
-    "allowDownloadHelp": "关闭后，他人可以阅读文件但无法下载副本。"
+    "allowDownloadHelp": "关闭后，他人可以阅读文件但无法下载副本。",
+    "versionsVisible": "显示文件版本",
+    "versionsVisibleHelp": "使用此共享的人可以看到其文件的历史版本，若有编辑权限还可以恢复。",
+    "versionsDownload": "允许下载版本"
   },
   "quickActions": {
     "menu": "快捷操作"
@@ -854,7 +880,14 @@
     "descendantRejected": "文件夹不能移动到其自身的子文件夹",
     "alreadyThereRejected": "已在此处",
     "restoreTitle": "还原到",
-    "restoreHere": "还原到此处"
+    "restoreHere": "还原到此处",
+    "versionCopyTitle": "将副本恢复到",
+    "versionCopyHere": "将副本恢复到此处",
+    "replaceTitle": "选择要替换的文件",
+    "replaceHere": "替换此文件",
+    "fileRequired": "请选择一个文件",
+    "sameFileRejected": "请选择此文件以外的文件",
+    "nothingHere": "这里什么都没有"
   },
   "mediaPreview": {
     "download": "下载媒体",
@@ -965,6 +998,76 @@
       "deleteNotice": "它们的共享链接也将被永久删除。",
       "restored": "已恢复 {count} 个共享链接",
       "dropped": "已删除 {count} 个共享链接"
+    }
+  },
+  "versions": {
+    "title": "版本",
+    "menu": "版本",
+    "aria": "文件版本",
+    "current": "当前版本",
+    "empty": "暂无历史版本。每次保存都会保留被替换的内容。",
+    "disabled": "文件版本已关闭：保存时不再保留新版本。下面的版本会保留到过期。",
+    "loadFailed": "无法加载版本。",
+    "notShared": "此文件的历史未与你共享。",
+    "unavailable": "磁盘上找不到其内容。",
+    "unknownAuthor": "未知作者",
+    "shareLink": "持有链接的人",
+    "pinned": "已固定",
+    "aside": "已搁置",
+    "asideHelp": "由恢复之前打开的编辑器保存：保留在这里，以免撤销恢复。",
+    "total": "{count} 个版本，{size}",
+    "source": {
+      "editor": "文本编辑器",
+      "shareEditor": "通过共享的编辑器",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "恢复的版本",
+      "external": "在应用外修改"
+    },
+    "actions": {
+      "menu": "版本操作",
+      "select": "选择此版本",
+      "selectAll": "全选",
+      "deleteSelected": "删除所选（{count}）",
+      "deleteAll": "全部删除",
+      "preview": "以只读方式打开",
+      "download": "下载",
+      "restore": "恢复",
+      "restoreCopy": "恢复为副本…",
+      "replaceOther": "替换其他文件…",
+      "rename": "命名…",
+      "pin": "固定",
+      "unpin": "取消固定",
+      "delete": "删除"
+    },
+    "confirm": {
+      "restoreTitle": "恢复此版本？",
+      "restoreMessage": "“{name}”将恢复为 {date} 的内容。当前内容会保留为一个版本。",
+      "replaceTitle": "替换“{target}”？",
+      "replaceMessage": "“{target}”的内容将变为“{name}”的此版本。它当前的内容会保留在它自己的版本中。",
+      "replace": "替换",
+      "deleteTitle": "删除 {count} 个版本？",
+      "deleteMessage": "{count} 个版本将被永久删除。",
+      "deleteAllTitle": "删除所有版本？",
+      "deleteAllMessage": "“{name}”的所有历史版本都将被永久删除，包括已固定的版本。文件本身保留。"
+    },
+    "rename": {
+      "title": "为此版本命名",
+      "placeholder": "例如：已发送给客户",
+      "help": "命名后更容易找到版本。固定它可使其不被自动清理。"
+    },
+    "results": {
+      "restored": "版本已恢复",
+      "unchanged": "文件已是此内容",
+      "copied": "已创建副本：{path}",
+      "replaced": "已替换“{path}”",
+      "deleted": "已删除 {count} 个版本",
+      "renamed": "版本已命名",
+      "pinned": "版本已固定：自动清理会保留它",
+      "unpinned": "已取消固定版本"
+    },
+    "errors": {
+      "action": "对此版本的操作失败"
     }
   }
 }

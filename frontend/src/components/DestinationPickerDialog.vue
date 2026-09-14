@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { FolderIcon, ClockIcon, StarIcon } from '@heroicons/vue/24/outline';
+import { FolderIcon, ClockIcon, DocumentIcon, StarIcon } from '@heroicons/vue/24/outline';
 import ModalDialog from '@/components/ModalDialog.vue';
 import { useStorageBrowser } from '@/composables/useStorageBrowser';
 import { useFavoritesStore } from '@/stores/favorites';
@@ -49,6 +49,22 @@ const recents = ref([]);
 
 const folders = computed(() => entries.value.filter((entry) => entry.kind === 'directory'));
 
+/**
+ * In file mode the answer is a file — the one an earlier version is put over —
+ * so files are listed beside the folders, and choosing one selects it.
+ */
+const isFileMode = computed(() => props.value.mode === 'file');
+const selectedFile = ref('');
+const entryPath = (entry) =>
+  normalizePath(entry?.path ? `${entry.path}/${entry.name}` : entry?.name || '');
+const listed = computed(() =>
+  isFileMode.value ? entries.value.filter((entry) => entry.kind !== 'volume') : folders.value
+);
+const sourceFile = computed(() => (props.value.items[0] ? entryPath(props.value.items[0]) : ''));
+watch(currentPath, () => {
+  selectedFile.value = '';
+});
+
 /** Paths of the folders being transferred, for the checks below. */
 const movingPaths = computed(() =>
   props.value.items
@@ -85,7 +101,15 @@ const rejection = (path) => {
   return '';
 };
 
-const currentRejection = computed(() => rejection(currentPath.value));
+const fileRejection = () => {
+  if (!selectedFile.value) return t('destinationPicker.fileRequired');
+  if (selectedFile.value === sourceFile.value) return t('destinationPicker.sameFileRejected');
+  return '';
+};
+
+const currentRejection = computed(() =>
+  isFileMode.value ? fileRejection() : rejection(currentPath.value)
+);
 const canConfirm = computed(() => !isLoading.value && currentRejection.value === '');
 
 const LABELS = {
@@ -94,6 +118,12 @@ const LABELS = {
   // Out of the trash: nothing is being taken from a folder, so nothing is
   // "already there" either.
   restore: { title: 'destinationPicker.restoreTitle', confirm: 'destinationPicker.restoreHere' },
+  // An earlier version of a file taken out as a copy, or put over another file.
+  'version-copy': {
+    title: 'destinationPicker.versionCopyTitle',
+    confirm: 'destinationPicker.versionCopyHere',
+  },
+  file: { title: 'destinationPicker.replaceTitle', confirm: 'destinationPicker.replaceHere' },
 };
 const labels = computed(() => LABELS[props.value.mode] || LABELS.move);
 const title = computed(() => t(labels.value.title));
@@ -117,7 +147,7 @@ const shortcuts = computed(() => {
 
 const confirm = () => {
   if (!canConfirm.value) return;
-  picker.choose(normalizePath(currentPath.value));
+  picker.choose(isFileMode.value ? selectedFile.value : normalizePath(currentPath.value));
 };
 
 const loadRecents = async () => {
@@ -143,7 +173,8 @@ watch(
 </script>
 
 <template>
-  <ModalDialog v-model="isOpen">
+  <!-- Above the Versions panel, which asks for these two over an open editor too. -->
+  <ModalDialog v-model="isOpen" :elevated="['version-copy', 'file'].includes(props.mode)">
     <template #title>{{ title }}</template>
 
     <div class="flex flex-col gap-3">
@@ -201,20 +232,34 @@ watch(
           {{ t('common.loadingEllipsis') }}
         </p>
         <p v-else-if="error" class="p-4 text-red-600 dark:text-red-400">{{ error }}</p>
-        <p v-else-if="folders.length === 0" class="p-4 text-neutral-500 dark:text-neutral-400">
-          {{ t('destinationPicker.noFolders') }}
+        <p v-else-if="listed.length === 0" class="p-4 text-neutral-500 dark:text-neutral-400">
+          {{ isFileMode ? t('destinationPicker.nothingHere') : t('destinationPicker.noFolders') }}
         </p>
         <ul v-else class="divide-y divide-neutral-100 dark:divide-zinc-800">
-          <li v-for="folder in folders" :key="`${folder.path}/${folder.name}`">
+          <li v-for="entry in listed" :key="`${entry.path}/${entry.name}`">
             <button
+              v-if="entry.kind === 'directory'"
               type="button"
               role="option"
               :aria-selected="false"
               class="flex w-full items-center gap-2 px-3 py-3 text-left hover:bg-neutral-100 dark:hover:bg-zinc-800"
-              @click="navigate(folder.path ? `${folder.path}/${folder.name}` : folder.name)"
+              @click="navigate(entry.path ? `${entry.path}/${entry.name}` : entry.name)"
             >
               <FolderIcon class="h-4 w-4 shrink-0 text-blue-500" aria-hidden="true" />
-              <span class="truncate">{{ folder.name }}</span>
+              <span class="truncate">{{ entry.name }}</span>
+            </button>
+            <button
+              v-else
+              type="button"
+              role="option"
+              :aria-selected="selectedFile === entryPath(entry)"
+              data-test="destination-picker-file"
+              class="flex w-full items-center gap-2 px-3 py-3 text-left hover:bg-neutral-100 dark:hover:bg-zinc-800"
+              :class="selectedFile === entryPath(entry) ? 'bg-blue-50 dark:bg-blue-500/15' : ''"
+              @click="selectedFile = entryPath(entry)"
+            >
+              <DocumentIcon class="h-4 w-4 shrink-0 text-neutral-400" aria-hidden="true" />
+              <span class="truncate">{{ entry.name }}</span>
             </button>
           </li>
         </ul>

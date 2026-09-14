@@ -37,6 +37,15 @@ export const useAppSettings = defineStore('appSettings', () => {
     maxBytes: null,
   });
 
+  const createDefaultVersionSettings = () => ({
+    enabled: true,
+    keepAllHours: 24,
+    hourlyDays: 7,
+    dailyDays: 30,
+    maxPerFile: 50,
+    sessionCheckpointMinutes: 10,
+  });
+
   const createDefaultSystemSettings = () => ({
     thumbnails: { enabled: true, size: 200, quality: 70 },
     access: { rules: [] },
@@ -44,6 +53,7 @@ export const useAppSettings = defineStore('appSettings', () => {
     folderSize: { excludedPaths: [], environmentExcludedPaths: [] },
     searchIndex: { excludedPaths: [], environmentExcludedPaths: [] },
     trash: createDefaultTrashSettings(),
+    versions: createDefaultVersionSettings(),
   });
 
   // Three-tier settings structure
@@ -183,6 +193,9 @@ export const useAppSettings = defineStore('appSettings', () => {
       if (s?.trash) {
         systemSettings.value.trash = { ...createDefaultTrashSettings(), ...s.trash };
       }
+      if (s?.versions) {
+        systemSettings.value.versions = { ...createDefaultVersionSettings(), ...s.versions };
+      }
 
       if (userId === authStore.currentUser?.id) {
         loadedForUserId.value = userId;
@@ -280,6 +293,12 @@ export const useAppSettings = defineStore('appSettings', () => {
 
       if (updated?.trash) {
         systemSettings.value.trash = { ...createDefaultTrashSettings(), ...updated.trash };
+      }
+      if (updated?.versions) {
+        systemSettings.value.versions = {
+          ...createDefaultVersionSettings(),
+          ...updated.versions,
+        };
       }
 
       loaded.value = true;

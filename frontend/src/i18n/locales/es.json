@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Tienes cambios sin guardar. ¿Cerrar sin guardar?",
     "selectTheme": "Elegir el tema del editor",
     "raw": "Sin formato",
-    "trashReadOnly": "En la papelera · solo lectura"
+    "trashReadOnly": "En la papelera · solo lectura",
+    "versionReadOnly": "Versión anterior, solo lectura"
   },
   "status": {
     "updated": "Actualizado correctamente",
@@ -393,7 +394,8 @@
     "lens": "Lente: {lens}",
     "duration": "Duración: {seconds}s",
     "folderSizeExcluded": "Excluido",
-    "folderSizeExcludedHelp": "Esta ruta está excluida de la indexación de tamaños de carpeta."
+    "folderSizeExcludedHelp": "Esta ruta está excluida de la indexación de tamaños de carpeta.",
+    "versions": "Versiones"
   },
   "auth": {
     "preparing": "Preparando tu explorador…",
@@ -464,7 +466,7 @@
       "uploads": "Subidas",
       "folderSize": "Tamaño de carpetas",
       "searchIndex": "Índice de búsqueda",
-      "trash": "Papelera"
+      "trash": "Papelera y versiones"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -665,8 +667,8 @@
       "kept": "Lo que configure aquí se guarda y se aplicará en cuanto se active."
     },
     "trash": {
-      "title": "Papelera",
-      "subtitle": "Los elementos eliminados se guardan en un espacio reservado de su propio volumen y se borran definitivamente al terminar la retención o cuando se necesita ese espacio.",
+      "title": "Papelera y versiones",
+      "subtitle": "Los elementos eliminados y las versiones anteriores de los archivos se guardan en un espacio reservado de su propio volumen y se eliminan al terminar su retención o cuando se necesita ese espacio.",
       "enabled": "Enviar los elementos eliminados a la papelera",
       "enabledHelp": "Desactivada, eliminar borra definitivamente. Los elementos que ya están en la papelera siguen caducando.",
       "retentionDays": "Retención (días)",
@@ -714,7 +716,28 @@
         "lost": "Faltaba el contenido de \"{name}\"",
         "failed": "\"{name}\" no se pudo eliminar",
         "breaker": "Faltaban demasiados elementos a la vez: no se cambió nada",
-        "forgotten": "\"{name}\" olvidado por un administrador"
+        "forgotten": "\"{name}\" olvidado por un administrador",
+        "versionEvicted": "Una versión de «{name}» eliminada para liberar espacio",
+        "versionFailed": "No se pudo eliminar una versión",
+        "versionLost": "Faltaba el contenido de una versión",
+        "versionTooLarge": "«{name}» supera todo el espacio: lo que reemplazaba no se conservó",
+        "versionsBreaker": "Demasiadas versiones faltan a la vez: no se cambió nada"
+      },
+      "zoneVersions": "{count} versión, {size} | {count} versiones, {size}",
+      "versions": {
+        "title": "Versiones de archivos",
+        "subtitle": "Cada guardado conserva lo que reemplaza, sin copiarlo, en el mismo espacio reservado que la papelera. Las versiones antiguas se espacian con el tiempo.",
+        "enabled": "Conservar las versiones anteriores de los archivos",
+        "enabledHelp": "Independiente de la papelera. Desactivado, los guardados no conservan nada nuevo; las versiones existentes permanecen hasta que caducan o se eliminan.",
+        "keepAllHours": "Conservar todas las versiones (horas)",
+        "hourlyDays": "Después una por hora (días)",
+        "dailyDays": "Después una por día (días)",
+        "maxPerFile": "Máximo de versiones por archivo",
+        "sessionCheckpointMinutes": "Punto de control de ofimática (minutos)",
+        "tiersHelp": "Tras estos niveles se conserva una versión por semana. Una sesión de edición de ofimática deja una versión, más un punto de control como mucho con esta frecuencia. Las versiones fijadas escapan al espaciado y al límite por archivo.",
+        "invalid": "Revisa los valores: de 1 a 720 horas, de 1 a 365 días por hora, de 1 a 3650 días por día, de 1 a 1000 versiones por archivo, un punto de control de 1 a 1440 minutos.",
+        "sharedSpace": "Las versiones y la papelera comparten el espacio reservado de cada volumen. Cuando falta, primero se van las versiones antiguas, luego los elementos de la papelera, luego la última versión de cada archivo y, por último, las versiones fijadas.",
+        "environmentNote": "Los valores predeterminados vienen de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE y VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "Cargando usuarios...",
     "creating": "Creando…",
     "allowDownload": "Permitir la descarga",
-    "allowDownloadHelp": "Desactívelo para que se puedan leer los archivos sin llevarse una copia."
+    "allowDownloadHelp": "Desactívelo para que se puedan leer los archivos sin llevarse una copia.",
+    "versionsVisible": "Mostrar las versiones de los archivos",
+    "versionsVisibleHelp": "Quienes usan este enlace compartido ven las versiones anteriores de sus archivos y pueden restaurarlas si tienen permiso para editar.",
+    "versionsDownload": "Permitir descargar versiones"
   },
   "quickActions": {
     "menu": "Acciones rápidas"
@@ -854,7 +880,14 @@
     "descendantRejected": "Una carpeta no puede moverse a una de sus propias carpetas",
     "alreadyThereRejected": "Ya está aquí",
     "restoreTitle": "Restaurar en",
-    "restoreHere": "Restaurar aquí"
+    "restoreHere": "Restaurar aquí",
+    "versionCopyTitle": "Restaurar una copia en",
+    "versionCopyHere": "Restaurar una copia aquí",
+    "replaceTitle": "Elegir el archivo que se reemplazará",
+    "replaceHere": "Reemplazar este archivo",
+    "fileRequired": "Elige un archivo",
+    "sameFileRejected": "Elige un archivo distinto de este",
+    "nothingHere": "No hay nada aquí"
   },
   "mediaPreview": {
     "download": "Descargar medio",
@@ -965,6 +998,76 @@
       "deleteNotice": "Sus enlaces compartidos también se eliminarán definitivamente.",
       "restored": "{count} enlace compartido recuperado | {count} enlaces compartidos recuperados",
       "dropped": "{count} enlace compartido eliminado | {count} enlaces compartidos eliminados"
+    }
+  },
+  "versions": {
+    "title": "Versiones",
+    "menu": "Versiones",
+    "aria": "Versiones del archivo",
+    "current": "Versión actual",
+    "empty": "Aún no hay versiones anteriores. Cada guardado conserva lo que reemplaza.",
+    "disabled": "Las versiones de archivos están desactivadas: los guardados ya no conservan nuevas. Las de abajo permanecen hasta que caduquen.",
+    "loadFailed": "No se pudieron cargar las versiones.",
+    "notShared": "El historial de este archivo no está compartido contigo.",
+    "unavailable": "Su contenido falta en el disco.",
+    "unknownAuthor": "Autor desconocido",
+    "shareLink": "Alguien con el enlace",
+    "pinned": "Fijada",
+    "aside": "Apartada",
+    "asideHelp": "Guardada por un editor abierto antes de una restauración: se conserva aquí en lugar de deshacer la restauración.",
+    "total": "{count} versión, {size} | {count} versiones, {size}",
+    "source": {
+      "editor": "Editor de texto",
+      "shareEditor": "Editor a través de un enlace compartido",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versión restaurada",
+      "external": "Modificado fuera de la aplicación"
+    },
+    "actions": {
+      "menu": "Acciones de la versión",
+      "select": "Seleccionar esta versión",
+      "selectAll": "Seleccionar todo",
+      "deleteSelected": "Eliminar la selección ({count})",
+      "deleteAll": "Eliminar todo",
+      "preview": "Abrir en solo lectura",
+      "download": "Descargar",
+      "restore": "Restaurar",
+      "restoreCopy": "Restaurar como copia…",
+      "replaceOther": "Reemplazar otro archivo…",
+      "rename": "Nombrar…",
+      "pin": "Fijar",
+      "unpin": "Dejar de fijar",
+      "delete": "Eliminar"
+    },
+    "confirm": {
+      "restoreTitle": "¿Restaurar esta versión?",
+      "restoreMessage": "«{name}» recupera su contenido del {date}. Lo que contiene ahora se conserva como versión.",
+      "replaceTitle": "¿Reemplazar «{target}»?",
+      "replaceMessage": "«{target}» toma como contenido esta versión de «{name}». Lo que contiene ahora se conserva en sus propias versiones.",
+      "replace": "Reemplazar",
+      "deleteTitle": "¿Eliminar esta versión? | ¿Eliminar {count} versiones?",
+      "deleteMessage": "Esta versión se elimina definitivamente. | Estas {count} versiones se eliminan definitivamente.",
+      "deleteAllTitle": "¿Eliminar todas las versiones?",
+      "deleteAllMessage": "Todas las versiones anteriores de «{name}» se eliminan definitivamente, incluidas las fijadas. El archivo en sí se mantiene."
+    },
+    "rename": {
+      "title": "Nombrar esta versión",
+      "placeholder": "Por ejemplo: enviada al cliente",
+      "help": "Un nombre facilita encontrar una versión. Fíjala para excluirla de la limpieza automática."
+    },
+    "results": {
+      "restored": "Versión restaurada",
+      "unchanged": "El archivo ya tiene este contenido",
+      "copied": "Copia creada: {path}",
+      "replaced": "«{path}» reemplazado",
+      "deleted": "{count} versión eliminada | {count} versiones eliminadas",
+      "renamed": "Versión nombrada",
+      "pinned": "Versión fijada: la limpieza automática la conserva",
+      "unpinned": "Versión desfijada"
+    },
+    "errors": {
+      "action": "La acción sobre esta versión falló"
     }
   }
 }

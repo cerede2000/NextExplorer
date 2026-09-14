@@ -37,6 +37,8 @@ export const useFeaturesStore = defineStore('features', () => {
   // Whether deleting goes to the trash, and for how many days it keeps things.
   const trashEnabled = ref(false);
   const trashRetentionDays = ref(null);
+  // Whether a save keeps what it replaces as a version.
+  const versionsEnabled = ref(false);
   const version = ref('');
   const gitCommit = ref('');
   const gitBranch = ref('');
@@ -136,6 +138,7 @@ export const useFeaturesStore = defineStore('features', () => {
         trashRetentionDays.value = Number.isFinite(features?.trash?.retentionDays)
           ? features.trash.retentionDays
           : null;
+        versionsEnabled.value = features?.versions?.enabled === true;
 
         // Version information
         version.value = features?.version?.app || '';
@@ -172,6 +175,7 @@ export const useFeaturesStore = defineStore('features', () => {
         terminalExtensions.value = [];
         trashEnabled.value = false;
         trashRetentionDays.value = null;
+        versionsEnabled.value = false;
       } finally {
         isLoading.value = false;
       }
@@ -215,6 +219,7 @@ export const useFeaturesStore = defineStore('features', () => {
     terminalExtensions,
     trashEnabled,
     trashRetentionDays,
+    versionsEnabled,
     version,
     gitCommit,
     gitBranch,

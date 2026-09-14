@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?",
     "selectTheme": "Wybierz motyw edytora",
     "raw": "Surowy",
-    "trashReadOnly": "W koszu · tylko do odczytu"
+    "trashReadOnly": "W koszu · tylko do odczytu",
+    "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu"
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",
@@ -393,7 +394,8 @@
     "lens": "Obiektyw: {lens}",
     "duration": "Czas trwania: {seconds}s",
     "folderSizeExcluded": "Wykluczone",
-    "folderSizeExcludedHelp": "Ta ścieżka jest wykluczona z indeksowania rozmiaru folderów."
+    "folderSizeExcludedHelp": "Ta ścieżka jest wykluczona z indeksowania rozmiaru folderów.",
+    "versions": "Wersje"
   },
   "auth": {
     "preparing": "Trwa przygotowywanie eksploratora…",
@@ -464,7 +466,7 @@
       "uploads": "Przesyłanie",
       "folderSize": "Rozmiary folderów",
       "searchIndex": "Indeks wyszukiwania",
-      "trash": "Kosz"
+      "trash": "Kosz i wersje"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -665,8 +667,8 @@
       "kept": "To, co tu skonfigurujesz, zostanie zapisane i zadziała po włączeniu."
     },
     "trash": {
-      "title": "Kosz",
-      "subtitle": "Usunięte elementy są przechowywane w zarezerwowanym miejscu na własnym woluminie i usuwane trwale po okresie przechowywania albo gdy to miejsce jest potrzebne.",
+      "title": "Kosz i wersje",
+      "subtitle": "Usunięte elementy i wcześniejsze wersje plików są przechowywane w zarezerwowanej przestrzeni na ich własnym woluminie i usuwane po okresie przechowywania lub gdy ta przestrzeń jest potrzebna.",
       "enabled": "Przenoś usunięte elementy do kosza",
       "enabledHelp": "Po wyłączeniu usuwanie jest trwałe. Elementy już w koszu nadal wygasają.",
       "retentionDays": "Przechowywanie (dni)",
@@ -714,7 +716,28 @@
         "lost": "Brakowało zawartości \"{name}\"",
         "failed": "Nie udało się usunąć \"{name}\"",
         "breaker": "Zbyt wiele elementów zniknęło naraz: niczego nie zmieniono",
-        "forgotten": "\"{name}\" zapomniany przez administratora"
+        "forgotten": "\"{name}\" zapomniany przez administratora",
+        "versionEvicted": "Usunięto wersję „{name}”, aby zwolnić miejsce",
+        "versionFailed": "Nie udało się usunąć wersji",
+        "versionLost": "Brakowało zawartości wersji",
+        "versionTooLarge": "„{name}” jest większy niż cała przestrzeń: to, co zastąpił, nie zostało zachowane",
+        "versionsBreaker": "Brakuje naraz zbyt wielu wersji: nic nie zmieniono"
+      },
+      "zoneVersions": "{count} wersja, {size} | {count} wersje, {size} | {count} wersji, {size}",
+      "versions": {
+        "title": "Wersje plików",
+        "subtitle": "Każdy zapis zachowuje to, co zastępuje, bez kopiowania, w tej samej zarezerwowanej przestrzeni co kosz. Starsze wersje są z czasem przerzedzane.",
+        "enabled": "Zachowuj wcześniejsze wersje plików",
+        "enabledHelp": "Niezależne od kosza. Po wyłączeniu zapisy nie zachowują nic nowego; istniejące wersje pozostają do wygaśnięcia lub usunięcia.",
+        "keepAllHours": "Zachowuj wszystkie wersje (godziny)",
+        "hourlyDays": "Potem jedna na godzinę (dni)",
+        "dailyDays": "Potem jedna na dzień (dni)",
+        "maxPerFile": "Maksimum wersji na plik",
+        "sessionCheckpointMinutes": "Punkt kontrolny biurowy (minuty)",
+        "tiersHelp": "Po tych progach zachowywana jest jedna wersja na tydzień. Sesja edycji biurowej zostawia jedną wersję i najwyżej jeden punkt kontrolny w tym odstępie. Przypięte wersje nie podlegają przerzedzaniu ani limitowi na plik.",
+        "invalid": "Sprawdź wartości: 1–720 godzin, 1–365 dni godzinowych, 1–3650 dni dziennych, 1–1000 wersji na plik, punkt kontrolny 1–1440 minut.",
+        "sharedSpace": "Wersje i kosz dzielą zarezerwowaną przestrzeń każdego woluminu. Gdy jej brakuje, najpierw znikają starsze wersje, potem elementy kosza, potem ostatnia wersja każdego pliku, a na końcu przypięte wersje.",
+        "environmentNote": "Wartości domyślne pochodzą z VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE i VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "Ładowanie użytkowników...",
     "creating": "Tworzenie…",
     "allowDownload": "Zezwalaj na pobieranie",
-    "allowDownloadHelp": "Wyłącz, aby pliki można było czytać bez pobierania kopii."
+    "allowDownloadHelp": "Wyłącz, aby pliki można było czytać bez pobierania kopii.",
+    "versionsVisible": "Pokaż wersje plików",
+    "versionsVisibleHelp": "Osoby korzystające z tego udostępnienia widzą wcześniejsze wersje jego plików i mogą je przywrócić, jeśli mają prawo edycji.",
+    "versionsDownload": "Zezwól na pobieranie wersji"
   },
   "quickActions": {
     "menu": "Szybkie akcje"
@@ -854,7 +880,14 @@
     "descendantRejected": "Folderu nie można przenieść do jednego z jego własnych folderów",
     "alreadyThereRejected": "Już tutaj",
     "restoreTitle": "Przywróć do",
-    "restoreHere": "Przywróć tutaj"
+    "restoreHere": "Przywróć tutaj",
+    "versionCopyTitle": "Przywróć kopię do",
+    "versionCopyHere": "Przywróć kopię tutaj",
+    "replaceTitle": "Wybierz plik do zastąpienia",
+    "replaceHere": "Zastąp ten plik",
+    "fileRequired": "Wybierz plik",
+    "sameFileRejected": "Wybierz inny plik niż ten",
+    "nothingHere": "Nic tu nie ma"
   },
   "mediaPreview": {
     "download": "Pobierz multimedia",
@@ -965,6 +998,76 @@
       "deleteNotice": "Ich linki udostępniania również zostaną trwale usunięte.",
       "restored": "Przywrócone linki udostępniania: {count}",
       "dropped": "Usunięte linki udostępniania: {count}"
+    }
+  },
+  "versions": {
+    "title": "Wersje",
+    "menu": "Wersje",
+    "aria": "Wersje pliku",
+    "current": "Bieżąca wersja",
+    "empty": "Brak wcześniejszych wersji. Każdy zapis zachowuje to, co zastępuje.",
+    "disabled": "Wersje plików są wyłączone: zapisy nie zachowują już nowych. Poniższe pozostają do wygaśnięcia.",
+    "loadFailed": "Nie udało się wczytać wersji.",
+    "notShared": "Historia tego pliku nie jest Ci udostępniona.",
+    "unavailable": "Brak jej zawartości na dysku.",
+    "unknownAuthor": "Nieznany autor",
+    "shareLink": "Ktoś z linkiem",
+    "pinned": "Przypięta",
+    "aside": "Odłożona",
+    "asideHelp": "Zapisana przez edytor otwarty przed przywróceniem: zachowana tutaj zamiast cofać przywrócenie.",
+    "total": "{count} wersja, {size} | {count} wersje, {size} | {count} wersji, {size}",
+    "source": {
+      "editor": "Edytor tekstu",
+      "shareEditor": "Edytor przez udostępnienie",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Przywrócona wersja",
+      "external": "Zmieniono poza aplikacją"
+    },
+    "actions": {
+      "menu": "Działania na wersji",
+      "select": "Zaznacz tę wersję",
+      "selectAll": "Zaznacz wszystko",
+      "deleteSelected": "Usuń zaznaczone ({count})",
+      "deleteAll": "Usuń wszystkie",
+      "preview": "Otwórz tylko do odczytu",
+      "download": "Pobierz",
+      "restore": "Przywróć",
+      "restoreCopy": "Przywróć jako kopię…",
+      "replaceOther": "Zastąp inny plik…",
+      "rename": "Nazwij…",
+      "pin": "Przypnij",
+      "unpin": "Odepnij",
+      "delete": "Usuń"
+    },
+    "confirm": {
+      "restoreTitle": "Przywrócić tę wersję?",
+      "restoreMessage": "„{name}” wraca do zawartości z {date}. Obecna zawartość zostaje zachowana jako wersja.",
+      "replaceTitle": "Zastąpić „{target}”?",
+      "replaceMessage": "„{target}” otrzymuje jako zawartość tę wersję „{name}”. Jego obecna zawartość zostaje zachowana w jego własnych wersjach.",
+      "replace": "Zastąp",
+      "deleteTitle": "Usunąć tę wersję? | Usunąć {count} wersje? | Usunąć {count} wersji?",
+      "deleteMessage": "Ta wersja zostanie trwale usunięta. | Te {count} wersje zostaną trwale usunięte. | Tych {count} wersji zostanie trwale usuniętych.",
+      "deleteAllTitle": "Usunąć wszystkie wersje?",
+      "deleteAllMessage": "Wszystkie wcześniejsze wersje „{name}” zostaną trwale usunięte, łącznie z przypiętymi. Sam plik pozostaje."
+    },
+    "rename": {
+      "title": "Nazwij tę wersję",
+      "placeholder": "Na przykład: wysłana do klienta",
+      "help": "Nazwa ułatwia odnalezienie wersji. Przypnij ją, aby wyłączyć ją z automatycznego czyszczenia."
+    },
+    "results": {
+      "restored": "Wersja przywrócona",
+      "unchanged": "Plik ma już tę zawartość",
+      "copied": "Utworzono kopię: {path}",
+      "replaced": "Zastąpiono „{path}”",
+      "deleted": "Usunięto {count} wersję | Usunięto {count} wersje | Usunięto {count} wersji",
+      "renamed": "Wersja nazwana",
+      "pinned": "Wersja przypięta: automatyczne czyszczenie ją zachowa",
+      "unpinned": "Wersja odpięta"
+    },
+    "errors": {
+      "action": "Działanie na tej wersji nie powiodło się"
     }
   }
 }

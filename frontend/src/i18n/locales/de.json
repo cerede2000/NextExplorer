@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Sie haben ungespeicherte Änderungen. Ohne Speichern schließen?",
     "selectTheme": "Editor-Thema wählen",
     "raw": "Roh",
-    "trashReadOnly": "Im Papierkorb · schreibgeschützt"
+    "trashReadOnly": "Im Papierkorb · schreibgeschützt",
+    "versionReadOnly": "Frühere Version, schreibgeschützt"
   },
   "status": {
     "updated": "Erfolgreich aktualisiert",
@@ -393,7 +394,8 @@
     "lens": "Objektiv: {lens}",
     "duration": "Dauer: {seconds}s",
     "folderSizeExcluded": "Ausgeschlossen",
-    "folderSizeExcludedHelp": "Dieser Pfad ist von der Indizierung der Ordnergrößen ausgeschlossen."
+    "folderSizeExcludedHelp": "Dieser Pfad ist von der Indizierung der Ordnergrößen ausgeschlossen.",
+    "versions": "Versionen"
   },
   "auth": {
     "preparing": "Ihr Explorer wird vorbereitet…",
@@ -464,7 +466,7 @@
       "uploads": "Uploads",
       "folderSize": "Ordnergrößen",
       "searchIndex": "Suchindex",
-      "trash": "Papierkorb"
+      "trash": "Papierkorb und Versionen"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -665,8 +667,8 @@
       "kept": "Was Sie hier einstellen, wird gespeichert und gilt, sobald die Funktion aktiv ist."
     },
     "trash": {
-      "title": "Papierkorb",
-      "subtitle": "Gelöschte Elemente bleiben in einem reservierten Bereich auf ihrem eigenen Volume und werden nach der Aufbewahrungsfrist oder bei Platzbedarf endgültig entfernt.",
+      "title": "Papierkorb und Versionen",
+      "subtitle": "Gelöschte Elemente und frühere Dateiversionen werden in einem reservierten Bereich auf ihrem eigenen Volume aufbewahrt und nach ihrer Aufbewahrungsfrist oder bei Platzbedarf entfernt.",
       "enabled": "Gelöschte Elemente in den Papierkorb verschieben",
       "enabledHelp": "Ausgeschaltet entfernt Löschen Elemente endgültig. Elemente im Papierkorb laufen trotzdem ab.",
       "retentionDays": "Aufbewahrung (Tage)",
@@ -714,7 +716,28 @@
         "lost": "Der Inhalt von \"{name}\" fehlte",
         "failed": "\"{name}\" konnte nicht entfernt werden",
         "breaker": "Zu viele Elemente fehlten auf einmal: nichts wurde geändert",
-        "forgotten": "\"{name}\" von einem Administrator vergessen"
+        "forgotten": "\"{name}\" von einem Administrator vergessen",
+        "versionEvicted": "Eine Version von „{name}“ entfernt, um Platz zu schaffen",
+        "versionFailed": "Eine Version konnte nicht entfernt werden",
+        "versionLost": "Einer Version fehlte ihr Inhalt",
+        "versionTooLarge": "„{name}“ ist größer als der ganze Bereich: Was es ersetzte, wurde nicht behalten",
+        "versionsBreaker": "Zu viele Versionen fehlen auf einmal: Nichts wurde geändert"
+      },
+      "zoneVersions": "{count} Version, {size} | {count} Versionen, {size}",
+      "versions": {
+        "title": "Dateiversionen",
+        "subtitle": "Jedes Speichern behält, was es ersetzt, ohne es zu kopieren, im selben reservierten Bereich wie der Papierkorb. Ältere Versionen werden mit der Zeit ausgedünnt.",
+        "enabled": "Frühere Versionen von Dateien behalten",
+        "enabledHelp": "Unabhängig vom Papierkorb. Ausgeschaltet wird beim Speichern nichts Neues behalten; vorhandene Versionen bleiben bis zu ihrem Ablauf oder ihrer Löschung.",
+        "keepAllHours": "Alle Versionen behalten (Stunden)",
+        "hourlyDays": "Dann eine pro Stunde (Tage)",
+        "dailyDays": "Dann eine pro Tag (Tage)",
+        "maxPerFile": "Höchstens Versionen pro Datei",
+        "sessionCheckpointMinutes": "Office-Zwischenstand (Minuten)",
+        "tiersHelp": "Nach diesen Stufen wird eine Version pro Woche behalten. Eine Office-Bearbeitungssitzung hinterlässt eine Version, dazu höchstens in diesem Abstand einen Zwischenstand. Angeheftete Versionen sind von der Ausdünnung und der Grenze pro Datei ausgenommen.",
+        "invalid": "Prüfen Sie die Werte: 1 bis 720 Stunden, 1 bis 365 Tage stündlich, 1 bis 3650 Tage täglich, 1 bis 1000 Versionen pro Datei, ein Zwischenstand von 1 bis 1440 Minuten.",
+        "sharedSpace": "Versionen und Papierkorb teilen sich den reservierten Bereich jedes Volumes. Wird er knapp, gehen zuerst ältere Versionen, dann Papierkorbelemente, dann die letzte Version jeder Datei und zuletzt angeheftete Versionen.",
+        "environmentNote": "Standardwerte stammen aus VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE und VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "Benutzer werden geladen...",
     "creating": "Wird erstellt…",
     "allowDownload": "Herunterladen erlauben",
-    "allowDownloadHelp": "Ausschalten, damit die Dateien gelesen, aber nicht kopiert werden können."
+    "allowDownloadHelp": "Ausschalten, damit die Dateien gelesen, aber nicht kopiert werden können.",
+    "versionsVisible": "Dateiversionen anzeigen",
+    "versionsVisibleHelp": "Wer diese Freigabe nutzt, sieht die früheren Versionen ihrer Dateien und kann sie wiederherstellen, wenn Bearbeiten erlaubt ist.",
+    "versionsDownload": "Herunterladen von Versionen erlauben"
   },
   "quickActions": {
     "menu": "Schnellaktionen"
@@ -854,7 +880,14 @@
     "descendantRejected": "Ein Ordner kann nicht in einen seiner eigenen Ordner verschoben werden",
     "alreadyThereRejected": "Bereits hier",
     "restoreTitle": "Wiederherstellen nach",
-    "restoreHere": "Hier wiederherstellen"
+    "restoreHere": "Hier wiederherstellen",
+    "versionCopyTitle": "Kopie wiederherstellen nach",
+    "versionCopyHere": "Kopie hier wiederherstellen",
+    "replaceTitle": "Zu ersetzende Datei wählen",
+    "replaceHere": "Diese Datei ersetzen",
+    "fileRequired": "Wählen Sie eine Datei",
+    "sameFileRejected": "Wählen Sie eine andere Datei als diese",
+    "nothingHere": "Hier ist nichts"
   },
   "mediaPreview": {
     "download": "Medium herunterladen",
@@ -965,6 +998,76 @@
       "deleteNotice": "Ihre Freigabelinks werden ebenfalls endgültig gelöscht.",
       "restored": "{count} Freigabelink wiederhergestellt | {count} Freigabelinks wiederhergestellt",
       "dropped": "{count} Freigabelink gelöscht | {count} Freigabelinks gelöscht"
+    }
+  },
+  "versions": {
+    "title": "Versionen",
+    "menu": "Versionen",
+    "aria": "Dateiversionen",
+    "current": "Aktuelle Version",
+    "empty": "Noch keine frühere Version. Jedes Speichern behält, was es ersetzt.",
+    "disabled": "Dateiversionen sind ausgeschaltet: Beim Speichern werden keine neuen mehr behalten. Die folgenden bleiben bis zu ihrem Ablauf.",
+    "loadFailed": "Die Versionen konnten nicht geladen werden.",
+    "notShared": "Der Verlauf dieser Datei ist nicht für Sie freigegeben.",
+    "unavailable": "Ihr Inhalt fehlt auf der Festplatte.",
+    "unknownAuthor": "Unbekannter Autor",
+    "shareLink": "Jemand mit dem Link",
+    "pinned": "Angeheftet",
+    "aside": "Beiseitegelegt",
+    "asideHelp": "Von einem Editor gespeichert, der vor einer Wiederherstellung geöffnet wurde: hier behalten, statt die Wiederherstellung rückgängig zu machen.",
+    "total": "{count} Version, {size} | {count} Versionen, {size}",
+    "source": {
+      "editor": "Texteditor",
+      "shareEditor": "Editor über eine Freigabe",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Wiederhergestellte Version",
+      "external": "Außerhalb der App geändert"
+    },
+    "actions": {
+      "menu": "Aktionen für die Version",
+      "select": "Diese Version auswählen",
+      "selectAll": "Alle auswählen",
+      "deleteSelected": "Auswahl löschen ({count})",
+      "deleteAll": "Alle löschen",
+      "preview": "Schreibgeschützt öffnen",
+      "download": "Herunterladen",
+      "restore": "Wiederherstellen",
+      "restoreCopy": "Als Kopie wiederherstellen…",
+      "replaceOther": "Andere Datei ersetzen…",
+      "rename": "Benennen…",
+      "pin": "Anheften",
+      "unpin": "Lösen",
+      "delete": "Löschen"
+    },
+    "confirm": {
+      "restoreTitle": "Diese Version wiederherstellen?",
+      "restoreMessage": "„{name}“ erhält seinen Inhalt vom {date} zurück. Der aktuelle Inhalt wird als Version behalten.",
+      "replaceTitle": "„{target}“ ersetzen?",
+      "replaceMessage": "„{target}“ erhält diese Version von „{name}“ als Inhalt. Sein aktueller Inhalt wird in seinen eigenen Versionen behalten.",
+      "replace": "Ersetzen",
+      "deleteTitle": "Diese Version löschen? | {count} Versionen löschen?",
+      "deleteMessage": "Diese Version wird endgültig gelöscht. | Diese {count} Versionen werden endgültig gelöscht.",
+      "deleteAllTitle": "Alle Versionen löschen?",
+      "deleteAllMessage": "Alle früheren Versionen von „{name}“ werden endgültig gelöscht, angeheftete eingeschlossen. Die Datei selbst bleibt."
+    },
+    "rename": {
+      "title": "Diese Version benennen",
+      "placeholder": "Zum Beispiel: an den Kunden gesendet",
+      "help": "Mit einem Namen ist eine Version leicht zu finden. Heften Sie sie an, um sie von der automatischen Bereinigung auszunehmen."
+    },
+    "results": {
+      "restored": "Version wiederhergestellt",
+      "unchanged": "Die Datei hat bereits diesen Inhalt",
+      "copied": "Kopie erstellt: {path}",
+      "replaced": "„{path}“ ersetzt",
+      "deleted": "{count} Version gelöscht | {count} Versionen gelöscht",
+      "renamed": "Version benannt",
+      "pinned": "Version angeheftet: Die automatische Bereinigung behält sie",
+      "unpinned": "Version gelöst"
+    },
+    "errors": {
+      "action": "Die Aktion für diese Version ist fehlgeschlagen"
     }
   }
 }

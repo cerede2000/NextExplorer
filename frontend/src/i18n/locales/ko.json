@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "저장되지 않은 변경 사항이 있습니다. 저장하지 않고 종료 하시겠습니까?",
     "selectTheme": "편집기 테마 선택",
     "raw": "원본",
-    "trashReadOnly": "휴지통 · 읽기 전용"
+    "trashReadOnly": "휴지통 · 읽기 전용",
+    "versionReadOnly": "이전 버전, 읽기 전용"
   },
   "status": {
     "updated": "업데이트 성공",
@@ -393,7 +394,8 @@
     "lens": "렌즈: {lens}",
     "duration": "길이: {seconds}초",
     "folderSizeExcluded": "제외됨",
-    "folderSizeExcludedHelp": "이 경로는 폴더 크기 인덱싱에서 제외됩니다."
+    "folderSizeExcludedHelp": "이 경로는 폴더 크기 인덱싱에서 제외됩니다.",
+    "versions": "버전"
   },
   "auth": {
     "preparing": "탐색기를 준비하는 중입니다…",
@@ -464,7 +466,7 @@
       "uploads": "업로드",
       "folderSize": "폴더 크기",
       "searchIndex": "검색 색인",
-      "trash": "휴지통"
+      "trash": "휴지통 및 버전"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -665,8 +667,8 @@
       "kept": "여기서 설정한 내용은 저장되며 활성화되는 즉시 적용됩니다."
     },
     "trash": {
-      "title": "휴지통",
-      "subtitle": "삭제한 항목은 해당 볼륨의 예약 공간에 보관되며, 보관 기간이 끝나거나 공간이 필요할 때 영구 삭제됩니다.",
+      "title": "휴지통 및 버전",
+      "subtitle": "삭제된 항목과 파일의 이전 버전은 해당 볼륨의 예약 공간에 보관되며, 보존 기간이 끝나거나 공간이 필요할 때 제거됩니다.",
       "enabled": "삭제한 항목을 휴지통으로 보내기",
       "enabledHelp": "끄면 삭제 시 영구적으로 제거됩니다. 이미 휴지통에 있는 항목은 계속 만료됩니다.",
       "retentionDays": "보관 기간(일)",
@@ -714,7 +716,28 @@
         "lost": "\"{name}\"의 내용이 없었음",
         "failed": "\"{name}\"을(를) 삭제할 수 없음",
         "breaker": "한꺼번에 너무 많은 항목이 사라짐: 아무것도 변경하지 않음",
-        "forgotten": "관리자가 \"{name}\"을(를) 잊음"
+        "forgotten": "관리자가 \"{name}\"을(를) 잊음",
+        "versionEvicted": "공간 확보를 위해 \"{name}\"의 버전을 제거했습니다",
+        "versionFailed": "버전을 제거하지 못했습니다",
+        "versionLost": "버전의 내용이 없었습니다",
+        "versionTooLarge": "\"{name}\"이(가) 전체 공간보다 커서 대체된 내용을 보관하지 않았습니다",
+        "versionsBreaker": "한꺼번에 너무 많은 버전이 사라져 아무것도 변경하지 않았습니다"
+      },
+      "zoneVersions": "버전 {count}개, {size}",
+      "versions": {
+        "title": "파일 버전",
+        "subtitle": "저장할 때마다 대체되는 내용을 복사 없이 휴지통과 같은 예약 공간에 보관합니다. 오래된 버전은 시간이 지나며 간격을 두고 정리됩니다.",
+        "enabled": "파일의 이전 버전 보관",
+        "enabledHelp": "휴지통과 별개로 동작합니다. 끄면 저장해도 새로 보관되지 않으며, 기존 버전은 만료되거나 삭제될 때까지 남습니다.",
+        "keepAllHours": "모든 버전 보관 (시간)",
+        "hourlyDays": "이후 시간당 하나 (일)",
+        "dailyDays": "이후 하루에 하나 (일)",
+        "maxPerFile": "파일당 최대 버전 수",
+        "sessionCheckpointMinutes": "오피스 체크포인트 (분)",
+        "tiersHelp": "이 단계 이후에는 주당 하나의 버전이 보관됩니다. 오피스 편집 세션은 하나의 버전을 남기며, 이 간격보다 자주 체크포인트를 만들지 않습니다. 고정된 버전은 간격 정리와 파일당 한도에서 제외됩니다.",
+        "invalid": "값을 확인하세요: 1~720시간, 시간 단위 1~365일, 일 단위 1~3650일, 파일당 1~1000개 버전, 체크포인트 1~1440분.",
+        "sharedSpace": "버전과 휴지통은 각 볼륨의 예약 공간을 함께 사용합니다. 공간이 부족하면 오래된 버전, 휴지통 항목, 각 파일의 최신 버전 순으로 제거되며 고정된 버전은 마지막에 제거됩니다.",
+        "environmentNote": "기본값은 VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE, VERSIONS_SESSION_CHECKPOINT_MINUTES에서 가져옵니다."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "유저 정보 로딩 중...",
     "creating": "생성 중…",
     "allowDownload": "다운로드 허용",
-    "allowDownloadHelp": "끄면 파일을 읽을 수는 있지만 복사본을 가져갈 수는 없습니다."
+    "allowDownloadHelp": "끄면 파일을 읽을 수는 있지만 복사본을 가져갈 수는 없습니다.",
+    "versionsVisible": "파일 버전 표시",
+    "versionsVisibleHelp": "이 공유를 사용하는 사람은 파일의 이전 버전을 볼 수 있고, 편집 권한이 있으면 복원할 수 있습니다.",
+    "versionsDownload": "버전 다운로드 허용"
   },
   "quickActions": {
     "menu": "빠른 작업"
@@ -854,7 +880,14 @@
     "descendantRejected": "폴더를 자신의 하위 폴더로 이동할 수 없습니다",
     "alreadyThereRejected": "이미 여기에 있습니다",
     "restoreTitle": "복원할 위치",
-    "restoreHere": "여기에 복원"
+    "restoreHere": "여기에 복원",
+    "versionCopyTitle": "사본 복원 위치",
+    "versionCopyHere": "여기에 사본 복원",
+    "replaceTitle": "바꿀 파일 선택",
+    "replaceHere": "이 파일 바꾸기",
+    "fileRequired": "파일을 선택하세요",
+    "sameFileRejected": "이 파일이 아닌 다른 파일을 선택하세요",
+    "nothingHere": "여기에는 아무것도 없습니다"
   },
   "mediaPreview": {
     "download": "미디어 다운로드",
@@ -965,6 +998,76 @@
       "deleteNotice": "공유 링크도 함께 영구적으로 삭제됩니다.",
       "restored": "공유 링크 {count}개를 되살렸습니다",
       "dropped": "공유 링크 {count}개를 삭제했습니다"
+    }
+  },
+  "versions": {
+    "title": "버전",
+    "menu": "버전",
+    "aria": "파일 버전",
+    "current": "현재 버전",
+    "empty": "아직 이전 버전이 없습니다. 저장할 때마다 대체되는 내용이 보관됩니다.",
+    "disabled": "파일 버전이 꺼져 있습니다. 저장해도 새 버전이 보관되지 않습니다. 아래 버전은 만료될 때까지 남습니다.",
+    "loadFailed": "버전을 불러오지 못했습니다.",
+    "notShared": "이 파일의 기록은 공유되지 않았습니다.",
+    "unavailable": "디스크에서 내용을 찾을 수 없습니다.",
+    "unknownAuthor": "알 수 없는 작성자",
+    "shareLink": "링크를 가진 사용자",
+    "pinned": "고정됨",
+    "aside": "따로 보관됨",
+    "asideHelp": "복원 전에 열린 편집기가 저장한 내용입니다. 복원을 되돌리지 않도록 여기에 보관했습니다.",
+    "total": "버전 {count}개, {size}",
+    "source": {
+      "editor": "텍스트 편집기",
+      "shareEditor": "공유를 통한 편집기",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "복원된 버전",
+      "external": "앱 외부에서 변경됨"
+    },
+    "actions": {
+      "menu": "버전 작업",
+      "select": "이 버전 선택",
+      "selectAll": "모두 선택",
+      "deleteSelected": "선택 항목 삭제 ({count})",
+      "deleteAll": "모두 삭제",
+      "preview": "읽기 전용으로 열기",
+      "download": "다운로드",
+      "restore": "복원",
+      "restoreCopy": "사본으로 복원…",
+      "replaceOther": "다른 파일 바꾸기…",
+      "rename": "이름 지정…",
+      "pin": "고정",
+      "unpin": "고정 해제",
+      "delete": "삭제"
+    },
+    "confirm": {
+      "restoreTitle": "이 버전을 복원할까요?",
+      "restoreMessage": "\"{name}\"이(가) {date}의 내용으로 돌아갑니다. 현재 내용은 버전으로 보관됩니다.",
+      "replaceTitle": "\"{target}\"을(를) 바꿀까요?",
+      "replaceMessage": "\"{target}\"의 내용이 \"{name}\"의 이 버전으로 바뀝니다. 현재 내용은 해당 파일의 버전으로 보관됩니다.",
+      "replace": "바꾸기",
+      "deleteTitle": "버전 {count}개를 삭제할까요?",
+      "deleteMessage": "버전 {count}개가 영구적으로 삭제됩니다.",
+      "deleteAllTitle": "모든 버전을 삭제할까요?",
+      "deleteAllMessage": "\"{name}\"의 모든 이전 버전이 고정된 버전까지 영구적으로 삭제됩니다. 파일 자체는 그대로 남습니다."
+    },
+    "rename": {
+      "title": "이 버전의 이름 지정",
+      "placeholder": "예: 고객에게 보낸 버전",
+      "help": "이름을 지정하면 버전을 쉽게 찾을 수 있습니다. 자동 정리에서 제외하려면 고정하세요."
+    },
+    "results": {
+      "restored": "버전을 복원했습니다",
+      "unchanged": "파일에 이미 이 내용이 있습니다",
+      "copied": "사본을 만들었습니다: {path}",
+      "replaced": "\"{path}\"을(를) 바꿨습니다",
+      "deleted": "버전 {count}개를 삭제했습니다",
+      "renamed": "버전 이름을 지정했습니다",
+      "pinned": "버전을 고정했습니다. 자동 정리에서 보존됩니다",
+      "unpinned": "버전 고정을 해제했습니다"
+    },
+    "errors": {
+      "action": "이 버전에 대한 작업이 실패했습니다"
     }
   }
 }

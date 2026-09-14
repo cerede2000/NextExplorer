@@ -87,7 +87,8 @@
     "confirmCloseWithoutSaving": "Hai modifiche non salvate. Chiudere senza salvare?",
     "selectTheme": "Scegli il tema dell'editor",
     "raw": "Grezzo",
-    "trashReadOnly": "Nel cestino · sola lettura"
+    "trashReadOnly": "Nel cestino · sola lettura",
+    "versionReadOnly": "Versione precedente, sola lettura"
   },
   "status": {
     "updated": "Aggiornato con successo",
@@ -393,7 +394,8 @@
     "lens": "Obiettivo: {lens}",
     "duration": "Durata: {seconds}s",
     "folderSizeExcluded": "Escluso",
-    "folderSizeExcludedHelp": "Questo percorso è escluso dall'indicizzazione delle dimensioni delle cartelle."
+    "folderSizeExcludedHelp": "Questo percorso è escluso dall'indicizzazione delle dimensioni delle cartelle.",
+    "versions": "Versioni"
   },
   "auth": {
     "preparing": "Preparazione del tuo explorer…",
@@ -464,7 +466,7 @@
       "uploads": "Caricamenti",
       "folderSize": "Dimensioni cartelle",
       "searchIndex": "Indice di ricerca",
-      "trash": "Cestino"
+      "trash": "Cestino e versioni"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -665,8 +667,8 @@
       "kept": "Ciò che configuri qui viene salvato e si applica non appena è attiva."
     },
     "trash": {
-      "title": "Cestino",
-      "subtitle": "Gli elementi eliminati restano in uno spazio riservato sul loro volume e vengono rimossi definitivamente alla fine della conservazione o quando serve quello spazio.",
+      "title": "Cestino e versioni",
+      "subtitle": "Gli elementi eliminati e le versioni precedenti dei file sono conservati in uno spazio riservato sul loro volume e rimossi alla fine della conservazione o quando serve spazio.",
       "enabled": "Sposta gli elementi eliminati nel cestino",
       "enabledHelp": "Se disattivato, eliminare cancella definitivamente. Gli elementi già nel cestino scadono comunque.",
       "retentionDays": "Conservazione (giorni)",
@@ -714,7 +716,28 @@
         "lost": "Il contenuto di \"{name}\" mancava",
         "failed": "\"{name}\" non è stato eliminato",
         "breaker": "Troppi elementi mancanti in una volta: nulla è stato modificato",
-        "forgotten": "\"{name}\" dimenticato da un amministratore"
+        "forgotten": "\"{name}\" dimenticato da un amministratore",
+        "versionEvicted": "Una versione di «{name}» rimossa per liberare spazio",
+        "versionFailed": "Impossibile rimuovere una versione",
+        "versionLost": "Mancava il contenuto di una versione",
+        "versionTooLarge": "«{name}» supera l'intero spazio: ciò che sostituiva non è stato conservato",
+        "versionsBreaker": "Troppe versioni mancanti insieme: non è stato modificato nulla"
+      },
+      "zoneVersions": "{count} versione, {size} | {count} versioni, {size}",
+      "versions": {
+        "title": "Versioni dei file",
+        "subtitle": "Ogni salvataggio conserva ciò che sostituisce, senza copiarlo, nello stesso spazio riservato del cestino. Le versioni più vecchie vengono diradate nel tempo.",
+        "enabled": "Conserva le versioni precedenti dei file",
+        "enabledHelp": "Indipendente dal cestino. Se disattivato, i salvataggi non conservano nulla di nuovo; le versioni esistenti restano fino alla scadenza o all'eliminazione.",
+        "keepAllHours": "Conserva tutte le versioni (ore)",
+        "hourlyDays": "Poi una all'ora (giorni)",
+        "dailyDays": "Poi una al giorno (giorni)",
+        "maxPerFile": "Versioni per file al massimo",
+        "sessionCheckpointMinutes": "Punto di controllo office (minuti)",
+        "tiersHelp": "Dopo queste fasce si conserva una versione a settimana. Una sessione di modifica office lascia una versione, più un punto di controllo al massimo con questa frequenza. Le versioni fissate sfuggono al diradamento e al limite per file.",
+        "invalid": "Controlla i valori: da 1 a 720 ore, da 1 a 365 giorni orari, da 1 a 3650 giorni giornalieri, da 1 a 1000 versioni per file, un punto di controllo da 1 a 1440 minuti.",
+        "sharedSpace": "Le versioni e il cestino condividono lo spazio riservato di ogni volume. Quando scarseggia, se ne vanno prima le versioni vecchie, poi gli elementi del cestino, poi l'ultima versione di ogni file e infine le versioni fissate.",
+        "environmentNote": "I valori predefiniti provengono da VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
     }
   },
@@ -809,7 +832,10 @@
     "loadingUsers": "Caricamento utenti...",
     "creating": "Creazione…",
     "allowDownload": "Consenti il download",
-    "allowDownloadHelp": "Disattiva per far leggere i file senza permetterne una copia."
+    "allowDownloadHelp": "Disattiva per far leggere i file senza permetterne una copia.",
+    "versionsVisible": "Mostra le versioni dei file",
+    "versionsVisibleHelp": "Chi usa questa condivisione vede le versioni precedenti dei suoi file e può ripristinarle se ha il permesso di modifica.",
+    "versionsDownload": "Consenti il download delle versioni"
   },
   "quickActions": {
     "menu": "Azioni rapide"
@@ -854,7 +880,14 @@
     "descendantRejected": "Una cartella non può essere spostata in una delle proprie cartelle",
     "alreadyThereRejected": "Già qui",
     "restoreTitle": "Ripristina in",
-    "restoreHere": "Ripristina qui"
+    "restoreHere": "Ripristina qui",
+    "versionCopyTitle": "Ripristina una copia in",
+    "versionCopyHere": "Ripristina una copia qui",
+    "replaceTitle": "Scegli il file da sostituire",
+    "replaceHere": "Sostituisci questo file",
+    "fileRequired": "Scegli un file",
+    "sameFileRejected": "Scegli un file diverso da questo",
+    "nothingHere": "Qui non c'è niente"
   },
   "mediaPreview": {
     "download": "Scarica contenuto",
@@ -965,6 +998,76 @@
       "deleteNotice": "Anche i loro link di condivisione verranno eliminati definitivamente.",
       "restored": "{count} link di condivisione ripristinato | {count} link di condivisione ripristinati",
       "dropped": "{count} link di condivisione eliminato | {count} link di condivisione eliminati"
+    }
+  },
+  "versions": {
+    "title": "Versioni",
+    "menu": "Versioni",
+    "aria": "Versioni del file",
+    "current": "Versione attuale",
+    "empty": "Nessuna versione precedente per ora. Ogni salvataggio conserva ciò che sostituisce.",
+    "disabled": "Le versioni dei file sono disattivate: i salvataggi non ne conservano più di nuove. Quelle qui sotto restano fino alla scadenza.",
+    "loadFailed": "Impossibile caricare le versioni.",
+    "notShared": "La cronologia di questo file non è condivisa con te.",
+    "unavailable": "Il suo contenuto manca dal disco.",
+    "unknownAuthor": "Autore sconosciuto",
+    "shareLink": "Qualcuno con il link",
+    "pinned": "Fissata",
+    "aside": "Messa da parte",
+    "asideHelp": "Salvata da un editor aperto prima di un ripristino: conservata qui invece di annullare il ripristino.",
+    "total": "{count} versione, {size} | {count} versioni, {size}",
+    "source": {
+      "editor": "Editor di testo",
+      "shareEditor": "Editor tramite una condivisione",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versione ripristinata",
+      "external": "Modificato fuori dall'app"
+    },
+    "actions": {
+      "menu": "Azioni sulla versione",
+      "select": "Seleziona questa versione",
+      "selectAll": "Seleziona tutto",
+      "deleteSelected": "Elimina selezionate ({count})",
+      "deleteAll": "Elimina tutto",
+      "preview": "Apri in sola lettura",
+      "download": "Scarica",
+      "restore": "Ripristina",
+      "restoreCopy": "Ripristina come copia…",
+      "replaceOther": "Sostituisci un altro file…",
+      "rename": "Assegna un nome…",
+      "pin": "Fissa",
+      "unpin": "Sblocca",
+      "delete": "Elimina"
+    },
+    "confirm": {
+      "restoreTitle": "Ripristinare questa versione?",
+      "restoreMessage": "«{name}» torna al contenuto del {date}. Quello attuale viene conservato come versione.",
+      "replaceTitle": "Sostituire «{target}»?",
+      "replaceMessage": "«{target}» prende come contenuto questa versione di «{name}». Il suo contenuto attuale viene conservato nelle sue versioni.",
+      "replace": "Sostituisci",
+      "deleteTitle": "Eliminare questa versione? | Eliminare {count} versioni?",
+      "deleteMessage": "Questa versione viene eliminata definitivamente. | Queste {count} versioni vengono eliminate definitivamente.",
+      "deleteAllTitle": "Eliminare tutte le versioni?",
+      "deleteAllMessage": "Tutte le versioni precedenti di «{name}» vengono eliminate definitivamente, comprese quelle fissate. Il file resta."
+    },
+    "rename": {
+      "title": "Assegna un nome a questa versione",
+      "placeholder": "Per esempio: inviata al cliente",
+      "help": "Un nome rende facile ritrovare una versione. Fissala per escluderla dalla pulizia automatica."
+    },
+    "results": {
+      "restored": "Versione ripristinata",
+      "unchanged": "Il file ha già questo contenuto",
+      "copied": "Copia creata: {path}",
+      "replaced": "«{path}» sostituito",
+      "deleted": "{count} versione eliminata | {count} versioni eliminate",
+      "renamed": "Nome assegnato alla versione",
+      "pinned": "Versione fissata: la pulizia automatica la conserva",
+      "unpinned": "Versione sbloccata"
+    },
+    "errors": {
+      "action": "L'azione su questa versione non è riuscita"
     }
   }
 }

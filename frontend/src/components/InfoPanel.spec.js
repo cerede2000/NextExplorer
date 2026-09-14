@@ -40,8 +40,11 @@ const folderSize = vi.hoisted(() => ({
 }));
 vi.mock('@/stores/folderSize', () => ({ useFolderSizeStore: () => folderSize }));
 
-const features = vi.hoisted(() => ({ folderSizeEnabled: true }));
+const features = vi.hoisted(() => ({ folderSizeEnabled: true, versionsEnabled: true }));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
+
+const versionsPanel = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versionsPanel }));
 
 // Something in the import chain builds an i18n instance at load time, so the
 // real module has to stay: only `useI18n` is replaced, to name each string by
@@ -89,7 +92,9 @@ beforeEach(() => {
   folderSize.refreshFolder.mockReset();
   folderSize.refreshFolder.mockResolvedValue();
   close.mockClear();
+  versionsPanel.open.mockClear();
   features.folderSizeEnabled = true;
+  features.versionsEnabled = true;
   if (panel.store) Object.assign(panel.store, { isOpen: false, item: null, relativePath: '' });
   document.body.className = '';
 });
@@ -223,7 +228,11 @@ describe('measuring a folder again', () => {
   /** Walking a large tree twice at once helps nobody. */
   it('does not start a second walk while one is running', async () => {
     let release;
-    folderSize.refreshFolder.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+    folderSize.refreshFolder.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
     const view = await openOn(FOLDER);
 
     const first = view.refreshDirectorySize();
@@ -412,5 +421,33 @@ describe('closing it', () => {
     await flushPromises();
 
     expect(close).not.toHaveBeenCalled();
+  });
+});
+
+describe("a file's versions", () => {
+  const button = () => document.body.querySelector('[data-test="info-versions"]');
+
+  it('are one click away for a file', async () => {
+    await openOn(FILE);
+
+    button().click();
+    await flushPromises();
+
+    expect(close).toHaveBeenCalled();
+    expect(versionsPanel.open).toHaveBeenCalledWith(FILE);
+  });
+
+  it('are not offered for a folder', async () => {
+    await openOn(FOLDER);
+
+    expect(button()).toBeNull();
+  });
+
+  it('are not offered where versions are switched off', async () => {
+    features.versionsEnabled = false;
+
+    await openOn(FILE);
+
+    expect(button()).toBeNull();
   });
 });
