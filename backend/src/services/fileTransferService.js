@@ -1019,13 +1019,23 @@ const getDeleteImpact = async (items = [], options = {}) => {
   const shares = await getSharesForSourceTargets(
     targets.map((target) => target.shareSourceTarget).filter(Boolean)
   );
+  // Into the trash or gone for good, per item, so the confirmation can say
+  // which before anyone presses the button — and, for each, how many share
+  // links it carries: switched off and kept in the trash, or deleted with it.
+  const trashPlan = await trash.describeTargets(targets);
+  const sharesByTarget = await getSharesBySourceTarget(
+    targets.map((target) => target.shareSourceTarget).filter(Boolean)
+  );
+  trashPlan.items = trashPlan.items.map((entry, index) => {
+    const { shareSourceTarget } = targets[index] || {};
+    const linked = shareSourceTarget ? sharesByTarget.get(shareTargetKey(shareSourceTarget)) : null;
+    return { ...entry, shareCount: linked ? linked.length : 0 };
+  });
 
   return {
     shareCount: shares.length,
     shares,
-    // Into the trash or gone for good, per item, so the confirmation can say
-    // which before anyone presses the button.
-    trash: await trash.describeTargets(targets),
+    trash: trashPlan,
   };
 };
 
@@ -1136,6 +1146,15 @@ const deleteItems = async (items = [], options = {}) => {
       isDirectory: isDirectoryEntry,
       size: deletedEntryStats.size,
     });
+    // In the trash, a share is switched off but kept with the item, so a restore
+    // can bring it back; deleted for good, it goes for good.
+    if (trashItemId) {
+      await trash.suspendShares(
+        trashItemId,
+        shareSourceTarget,
+        affectedShares.map((share) => share.id)
+      );
+    }
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
     // Favorites, recent destinations and per-folder preferences, for every user
     // who had them — not just whoever pressed delete.
@@ -1183,6 +1202,9 @@ module.exports = {
   // the decision to retry is what can be checked without one.
   isPermissionPreservationFailure,
   copyWithNativeRsync,
+  // Where a path is, as share links name it: the trash points a restored
+  // share at the place its content went back to.
+  getShareSourceTarget,
   // The trash restores across disks with the same copy a transfer uses:
   // permissions kept, links copied as links, progress reported, cancellable.
   copyEntryWithProgress,
