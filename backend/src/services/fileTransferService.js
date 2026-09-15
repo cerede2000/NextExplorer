@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const {
   normalizeRelativePath,
   combineRelativePath,
+  ensureValidName,
   findAvailableName,
 } = require('../utils/pathUtils');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
@@ -688,6 +689,17 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       }
     }
 
+    // The name the item lands under is joined onto the destination, which is
+    // the only directory authorized above. Taken from the request as it came,
+    // `../x` or `../../x` wrote beside or above it — out of a read-only parent,
+    // out of a share into the volume — and `.nextexplorer` planted a zone name.
+    // A new name has to be a name; without one, the item keeps the name it has
+    // on disk, not the one the request spelled.
+    const desiredName =
+      item.newName === undefined || item.newName === null || item.newName === ''
+        ? path.basename(sourceAbsolute)
+        : ensureValidName(item.newName);
+
     const size = isDirectory ? indexedDirectorySize(folderSizeLookup, sourceAbsolute) : stats.size;
     if (Number.isFinite(size)) totalBytes += size;
     else hasUnknownSize = true;
@@ -697,7 +709,7 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       sourceRelative,
       isDirectory,
       size,
-      desiredName: item.newName || item.name,
+      desiredName,
     });
   }
 
