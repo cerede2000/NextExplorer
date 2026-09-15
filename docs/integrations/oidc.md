@@ -88,6 +88,6 @@ otherwise — and no configuration is needed to keep it off.
 ## Common troubleshooting
 
 - **Invalid redirect URI**: Ensure your IdP’s redirect URI matches `${PUBLIC_URL}/callback` or the explicitly configured `OIDC_CALLBACK_URL`.
-- **Sessions drop after restart**: Supply a stable `SESSION_SECRET` instead of letting the app generate one dynamically.
+- **Sessions drop after restart**: Keep `/config` persistent, since the session secret generated when `SESSION_SECRET` is unset is kept there, or supply a stable `SESSION_SECRET`.
 - **Not an admin after login**: Verify the IdP includes the expected group claim (e.g., `groups` scope) and that `OIDC_ADMIN_GROUPS` contains the group name exactly. Both are required before the IdP may set roles at all — without them the role stored on the account is kept, whatever the claims say.
 - **Cookies flagged Insecure**: Run the app over HTTPS (`PUBLIC_URL` must use `https`) and confirm your proxy forwards `X-Forwarded-Proto`/`Host` headers (see the Reverse Proxy guide).

@@ -16,11 +16,11 @@ Check the [Troubleshooting](./troubleshooting) page for proxy/CORS tips, session
 
 ## How can I keep my deployment updated?
 
-The app stores persistent state in the `/config` bind mount. Back up `/config` — `app.db`, with its `app.db-wal` or with the container stopped, and `logos/` — before updating. Run `docker compose pull` and `docker compose up -d` to refresh the image, then verify volumes and settings in the UI.
+The app stores persistent state in the `/config` bind mount. Back up `/config` — `app.db`, with its `app.db-wal` or with the container stopped, `logos/` and `session-secret` — before updating. Run `docker compose pull` and `docker compose up -d` to refresh the image, then verify volumes and settings in the UI.
 
 ## Who handles metadata and search indexing?
 
-Thumbnails, sessions and `index.db` — the search index and folder sizes — live in `/cache`. You can clear or recreate this mount without losing settings; everyone is signed out and the indexes are rebuilt. If thumbnails aren't appearing, ensure FFmpeg/ffprobe are available (provided in the official image) and `FFMPEG_PATH`/`FFPROBE_PATH` point to valid binaries.
+Thumbnails, RAW previews, sessions and `index.db` — the search index and folder sizes — live in `/cache`. You can clear or recreate this mount without losing settings; everyone is signed out and the indexes are rebuilt. If thumbnails aren't appearing, ensure FFmpeg/ffprobe are available (provided in the official image) and `FFMPEG_PATH`/`FFPROBE_PATH` point to valid binaries.
 
 ## How do I add support for custom file types in the editor?
 

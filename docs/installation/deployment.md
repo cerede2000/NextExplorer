@@ -40,7 +40,7 @@ expecting an old tag to still be there.
 
 | Purpose                            | Container path                                | Notes                                                                                                 |
 | ---------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Accounts, shares, settings         | `/config`                                     | Holds `app.db` and `logos/`. The folder to back up — see [Backups](/admin/guide#backups-persistence). |
+| Accounts, shares, settings         | `/config`                                     | Holds `app.db`, `logos/` and `session-secret`. The folder to back up — see [Backups](/admin/guide#backups-persistence). |
 | Thumbnails, sessions, indexes      | `/cache`                                      | Regenerable and needs no backup, but mount it persistently: it holds `index.db`, the search index and folder sizes, and deleting it signs everyone out and reads every volume again. |
 | Browsable data                     | `/mnt/Label`                                  | Each mount appears as a top-level volume with the given label.                                        |
 | Personal user data (optional)      | `/srv/users` (or any path set as `USER_ROOT`) | When `USER_DIR_ENABLED=true`, each authenticated user gets their own private folder inside this root. |
@@ -74,7 +74,7 @@ services:
 ```
 
 - `PUBLIC_URL` informs the backend's cookie settings, CORS, and default OIDC callback (see `backend/src/config/env.js`).
-- `SESSION_SECRET` ensures sessions persist across restarts; without it, the app generates a random secret each time.
+- `SESSION_SECRET` sets the session secret yourself. Without it, one is generated at the first start and kept in `/config/session-secret`, so sessions survive restarts all the same; set it when several replicas share the sessions.
 - Optional first-run bootstrap: set `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD` to auto-create the first local admin on startup (skips the setup wizard).
 
 ## Launching and validating
@@ -91,8 +91,8 @@ docker compose pull
 docker compose up -d
 ```
 
-- Persistent state (`app.db`, `logos/`) stays inside `/config`. Back it up before upgrading, with the container stopped or together with `app.db-wal`.
-- Installations that started on 1.1.7 or earlier kept `app.db` in `/cache`. Nothing moves it any more: copy it to `/config` by hand before upgrading such an installation. Links named `app.db`, `app-config.json` or `extensions` left in `/cache` by 1.1.8 to 2.0.2 are unused and can be deleted.
+- Persistent state (`app.db`, `logos/`, `session-secret`) stays inside `/config`. Back it up before upgrading, with the container stopped or together with `app.db-wal`.
+- Installations that started on 1.1.7 or earlier kept `app.db` in `/cache`. Nothing moves it any more: copy it to `/config` by hand before upgrading such an installation; the server warns at start when it finds such a file there. Links named `app.db`, `app-config.json` or `extensions` left in `/cache` by 1.1.8 to 2.0.2 are unused and can be deleted.
 
 ## Monitoring & logs
 

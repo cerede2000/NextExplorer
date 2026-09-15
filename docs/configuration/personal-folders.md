@@ -55,6 +55,11 @@ USER_FOLDER_NAME_ORDER=id,username,email_local
     `email_local` is unique on its own (`bob@a.com` and `bob@b.com` both yield
     `bob`), and without this two accounts would share a folder and see each
     other's files.
+  - Deleting an account does not free its name while its folder is still on
+    disk: the folder stays, with whatever was in it, and the next account whose
+    preferred name it is takes the next free one instead of opening the
+    deleted account's files. Once the folder is removed or renamed, the name
+    can be given again.
 
 > Note: the name an account is given is kept. Changing `USER_FOLDER_NAME_ORDER`
 > afterwards applies to accounts created from then on, and leaves the existing

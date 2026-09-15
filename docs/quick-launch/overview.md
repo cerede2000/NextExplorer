@@ -6,8 +6,8 @@ nextExplorer is packaged as a single Docker image that hosts both the API/backen
 
 - **Docker Engine 24+ & Docker Compose v2.** The official image targets modern platforms; use the Compose workflow shown below for reproducibility.
 - **Host folders to expose as volumes.** Every `/host/path:/mnt/Label` mount becomes a top-level volume in the UI. Keep the folder readable by the container user (use `PUID`/`PGID` to match the host if needed).
-- **Persistent config storage.** Mount a directory to `/config` so `app.db` — accounts, shares, settings — and your logo survive upgrades. Back this directory up before major changes. Set `SESSION_SECRET` as well: without it a new secret is generated at every start, and everyone is signed out.
-- **Cache storage.** Thumbnails, sessions and `index.db` — the search index and folder sizes — go into `/cache`. Nothing in it needs a backup, but mount it persistently: clearing it signs everyone out and rebuilds the indexes with a pass over the volumes.
+- **Persistent config storage.** Mount a directory to `/config` so `app.db` — accounts, shares, settings — your logo and the session secret survive upgrades. Back this directory up before major changes. Without `SESSION_SECRET`, a secret is generated at the first start and kept in `/config/session-secret`, so sessions survive restarts as long as `/config` does.
+- **Cache storage.** Thumbnails, RAW previews, sessions and `index.db` — the search index and folder sizes — go into `/cache`. Nothing in it needs a backup, but mount it persistently: clearing it signs everyone out and rebuilds the indexes with a pass over the volumes.
 
 ## Sample Docker Compose (production focused)
 
@@ -39,8 +39,8 @@ services:
 ## Volume strategy
 
 - **Each `/mnt/Label` mount becomes a sidebar volume.** Give folders human-friendly labels to avoid confusion, e.g., `/mnt/Projects`, `/mnt/Media`.
-- **`/config`:** Stores `app.db` and `logos/` (see `backend/src/config/env.js` for how `CONFIG_DIR` can be overridden). Back this folder up before upgrades.
-- **`/cache`:** Holds thumbnails, `sessions.db`, `index.db` and uploads in progress. Deleting it loses no data, but signs everyone out and rebuilds the indexes.
+- **`/config`:** Stores `app.db`, `logos/` and `session-secret` (see `backend/src/config/env.js` for how `CONFIG_DIR` can be overridden). Back this folder up before upgrades.
+- **`/cache`:** Holds thumbnails, RAW previews, `sessions.db`, `index.db` and uploads in progress. Deleting it loses no data, but signs everyone out and rebuilds the indexes.
 - **Permission tip:** The entrypoint chown’s `/config` and `/cache` to the container user (default `1000:1000`). Override with `PUID`/`PGID` for custom ownership.
 
 ## First run checklist
@@ -63,7 +63,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Persistent state lives under your `/config` mount (`app.db`, `logos/`) while `/cache` can be rebuilt. An installation that started on 1.1.7 or earlier kept `app.db` in `/cache`: nothing moves it any more, so copy it to `/config` by hand before upgrading it.
+Persistent state lives under your `/config` mount (`app.db`, `logos/`, `session-secret`) while `/cache` can be rebuilt. An installation that started on 1.1.7 or earlier kept `app.db` in `/cache`: nothing moves it any more, so copy it to `/config` by hand before upgrading it. The server warns at start when it finds such a file there.
 
 ## What’s next
 

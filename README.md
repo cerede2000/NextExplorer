@@ -131,14 +131,14 @@ services:
 
       # Paths & volumes (optional)
       # VOLUME_ROOT: "/mnt" # Root directory that houses all mounted volumes. App will display all directores inside this directory as volumes.
-      # CONFIG_DIR: "/config" # app.db (accounts, shares, settings) and logos/ — the folder to back up.
-      # CACHE_DIR: "/cache" # Thumbnails, sessions, index.db (search index and folder sizes), uploads in progress.
+      # CONFIG_DIR: "/config" # app.db (accounts, shares, settings), logos/ and session-secret — the folder to back up.
+      # CACHE_DIR: "/cache" # Thumbnails, RAW previews, sessions, index.db (search index and folder sizes), uploads in progress.
       # USER_ROOT: "/mnt/_users" # Root directory for per-user personal folders (defaults to `<VOLUME_ROOT>/_users` when unset). Make sure you persist this path if you use USER_DIR_ENABLED.
 
       # Authentication (optional)
       # AUTH_MODE: "both" # `local|oidc|both|disabled` what authentication methods you want to enable.
       # AUTH_ENABLED: "true" # Deprecated: use `AUTH_MODE=disabled` to skip login.
-      # SESSION_SECRET: "please-change-me" # Session cookie secret (alias: `AUTH_SESSION_SECRET`); set a long, random, stable value (>= 32 chars) to keep sessions valid across restarts/replicas.
+      # SESSION_SECRET: "please-change-me" # Session cookie secret (alias: `AUTH_SESSION_SECRET`); when unset, one is generated once and kept in /config/session-secret. Set a long random value (>= 32 chars) to choose it, or for replicas.
       # AUTH_MAX_FAILED: "5" # Failed login attempts before temporary lockout.
       # AUTH_LOCK_MINUTES: "15" # Lockout duration (minutes) when max failures reached.
       # AUTH_ADMIN_EMAIL: "" # First-run bootstrap (local auth): when set with `AUTH_ADMIN_PASSWORD`, creates an admin user on startup and skips setup.
@@ -185,6 +185,7 @@ services:
       # FFPROBE_PATH: "" # Point to a custom ffprobe binary (defaults to bundled binary).
       # THUMBNAILS_ENABLED: "true" # Set to "false" to disable thumbnail generation globally.
       # THUMBNAIL_CACHE_MAX_FILES: "3000" # Max files kept in /cache/thumbnails; set 0 to disable cleanup.
+      # RAW_PREVIEW_CACHE_MAX_FILES: "500" # Max RAW previews kept in /cache/raw-previews, oldest removed first; set 0 to disable cleanup.
       # THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE: "500" # Max thumbnail cache files deleted per cleanup pass.
       # THUMBNAIL_SHARP_CACHE_MEMORY_MB: "0" # Sharp/libvips thumbnail cache memory budget.
       # THUMBNAIL_VIDEO_CONCURRENCY: "1" # Max concurrent ffmpeg thumbnail jobs.
