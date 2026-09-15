@@ -47,7 +47,7 @@ export const useAppSettings = defineStore('appSettings', () => {
   });
 
   const createDefaultSystemSettings = () => ({
-    thumbnails: { enabled: true, size: 200, quality: 70 },
+    thumbnails: { enabled: true, size: 200, quality: 70, concurrency: 10 },
     access: { rules: [] },
     uploads: { chunkedEnabled: false, chunkSizeBytes: 8 * 1024 * 1024 },
     folderSize: { excludedPaths: [], environmentExcludedPaths: [] },

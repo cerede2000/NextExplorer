@@ -102,6 +102,9 @@ const selectCurrentDirectory = () => {
 };
 
 const handleSubmit = async () => {
+  // Enter in the label field submits the form whatever the button says, so a
+  // second submission while the first is on its way would add the volume twice.
+  if (saving.value) return;
   error.value = '';
 
   if (!label.value.trim()) {

@@ -1,9 +1,11 @@
 <script setup>
 import HeaderLogo from '@/components/HeaderLogo.vue';
 import LanguageSelector from '@/components/LanguageSelector.vue';
+import { useI18n } from 'vue-i18n';
 import { useAppSettings } from '@/stores/appSettings';
 
 const appSettings = useAppSettings();
+const { t } = useI18n();
 
 const props = defineProps({
   version: { type: String, required: true },

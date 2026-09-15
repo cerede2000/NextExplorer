@@ -146,6 +146,16 @@ const cancelEditGroup = () => {
   editingGroup.value = false;
   newGroup.value = '';
 };
+
+// The details panel stays mounted from one item to the next. A name typed for
+// the owner of one file, left open, would otherwise be saved onto the next.
+watch(
+  () => props.permissions,
+  () => {
+    cancelEditOwner();
+    cancelEditGroup();
+  }
+);
 </script>
 
 <template>

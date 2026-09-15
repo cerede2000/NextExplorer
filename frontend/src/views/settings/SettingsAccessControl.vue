@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed, watch } from 'vue';
+import { reactive, computed, ref, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useI18n } from 'vue-i18n';
 
@@ -33,6 +33,10 @@ const removeRule = (idx) => {
 const reset = () => {
   local.rules = original.value.map((r) => ({ ...r }));
 };
+// Why the last save was refused. Without it, a refusal left nothing but the
+// unsaved-changes bar, and an administrator could believe a folder was hidden.
+const saveError = ref('');
+
 const save = async () => {
   // basic sanitization client-side
   const cleaned = local.rules
@@ -41,7 +45,13 @@ const save = async () => {
       path: String(r.path || '').replace(/^\/+|\/+$/g, ''),
     }))
     .filter((r) => r.path);
-  await appSettings.save({ access: { rules: cleaned } });
+  saveError.value = '';
+  try {
+    await appSettings.save({ access: { rules: cleaned } });
+  } catch (error) {
+    saveError.value = error?.message || t('settings.trash.saveFailed');
+    return;
+  }
   local.rules = appSettings.state.access.rules.map((r) => ({ ...r }));
 };
 </script>
@@ -68,6 +78,10 @@ const save = async () => {
         </button>
       </div>
     </div>
+
+    <p v-if="saveError" class="text-sm text-red-600" role="alert" data-test="access-save-error">
+      {{ saveError }}
+    </p>
 
     <!-- Header -->
     <div class="flex items-center justify-between">

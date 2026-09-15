@@ -22,7 +22,10 @@ const dirty = computed(
     local.enabled !== original.value.enabled ||
     local.quality !== original.value.quality ||
     local.size !== original.value.size ||
-    local.concurrency !== original.value.concurrency
+    // A stored section without a concurrency means the default the field shows,
+    // not a change: read as one, the page offered to save before settings had
+    // even loaded, and saving then wrote its defaults over what was stored.
+    local.concurrency !== (original.value.concurrency ?? 10)
 );
 
 watch(

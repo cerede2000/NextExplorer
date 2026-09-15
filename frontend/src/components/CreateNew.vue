@@ -11,13 +11,21 @@ import {
 } from '@vicons/material';
 
 const popuplRef = ref(null);
+const toggleRef = ref(null);
 const drawerOpen = ref(false);
 
 const [menuOpen, toggle] = useToggle();
 
-onClickOutside(popuplRef, () => {
-  menuOpen.value = false;
-});
+// The button that opens the menu is outside it. Left to count as outside, its
+// click shut the menu in the capture phase and its own toggle opened it again,
+// so the button could open the menu and never close it.
+onClickOutside(
+  popuplRef,
+  () => {
+    menuOpen.value = false;
+  },
+  { ignore: [toggleRef] }
+);
 
 // The drawer lives inside the menu, so it disappears with it — but its state
 // does not. Without this it would be open again the next time the menu is.
@@ -206,6 +214,7 @@ const createFile = async () => {
 <template>
   <div class="relative">
     <button
+      ref="toggleRef"
       @click="toggle()"
       class="inline-flex items-center justify-center rounded-lg bg-neutral-900 dark:bg-zinc-600/60 hover:bg-zinc-600 active:bg-zinc-700 px-2 py-1.5 text-xs font-medium text-white shadow-sm transition md:px-3 md:pl-2 md:py-2 md:text-sm"
       :title="$t('create.createNew')"
