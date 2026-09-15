@@ -107,13 +107,11 @@ const tryExtract = async (exiftool, method, inputPath, outputPath) => {
  * temporary file. The thumbnail cleanup's rules apply here too, with the same
  * interval, batch size and lifetime: another version's previews and those past
  * the lifetime go, abandoned temporary files go, and past the file limit the
- * oldest go first. A limit of zero leaves the directory unmanaged.
+ * oldest go first. A limit of zero lifts the limit on the count and nothing
+ * else: it used to leave the directory unmanaged, previews of another version,
+ * past their lifetime and abandoned temporary files included.
  */
 const cleanupRawPreviewCache = async () => {
-  if (RAW_PREVIEW_CACHE_MAX_FILES <= 0) {
-    return;
-  }
-
   if (cleanupPromise) {
     return cleanupPromise;
   }
@@ -156,10 +154,10 @@ const cleanupRawPreviewCache = async () => {
         live: liveTempFiles,
         now,
       });
-      const overflowCount = Math.max(
-        0,
-        previews.length - removableNames.size - RAW_PREVIEW_CACHE_MAX_FILES
-      );
+      const overflowCount =
+        RAW_PREVIEW_CACHE_MAX_FILES > 0
+          ? Math.max(0, previews.length - removableNames.size - RAW_PREVIEW_CACHE_MAX_FILES)
+          : 0;
       const wantedCount = abandonedTempNames.length + removableNames.size + overflowCount;
 
       if (wantedCount <= 0) {
@@ -218,7 +216,7 @@ const cleanupRawPreviewCache = async () => {
  * that only ever serves RAW previews would otherwise clean up once, at start.
  */
 function scheduleRawPreviewCacheCleanup(delayMs) {
-  if (cleanupStopped || RAW_PREVIEW_CACHE_MAX_FILES <= 0 || cleanupTimer) {
+  if (cleanupStopped || cleanupTimer) {
     return;
   }
 

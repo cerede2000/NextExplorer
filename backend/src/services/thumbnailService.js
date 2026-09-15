@@ -960,11 +960,12 @@ const markFailedThumbnail = (thumbPath) => {
   failedThumbnails.set(thumbPath, Date.now());
 };
 
+/**
+ * A limit of zero lifts the limit on the count, and only that. It used to leave
+ * the directory unmanaged altogether, so another version's thumbnails, those
+ * past their lifetime and abandoned temporary files stayed there for good.
+ */
 const cleanupThumbnailCache = async () => {
-  if (THUMBNAIL_CACHE_MAX_FILES <= 0) {
-    return;
-  }
-
   if (thumbnailCacheCleanupPromise) {
     return thumbnailCacheCleanupPromise;
   }
@@ -1015,10 +1016,10 @@ const cleanupThumbnailCache = async () => {
       // Those are among the counted names and the temporary files are not, so
       // the three add up; taking the larger of two, as this once did, stops
       // short of the limit as soon as anything uncounted is removed as well.
-      const overflowCount = Math.max(
-        0,
-        thumbnailNames.length - removableNames.size - THUMBNAIL_CACHE_MAX_FILES
-      );
+      const overflowCount =
+        THUMBNAIL_CACHE_MAX_FILES > 0
+          ? Math.max(0, thumbnailNames.length - removableNames.size - THUMBNAIL_CACHE_MAX_FILES)
+          : 0;
       const wantedCount = abandonedTempNames.length + removableNames.size + overflowCount;
 
       if (wantedCount <= 0) {
@@ -1083,7 +1084,7 @@ const cleanupThumbnailCache = async () => {
 };
 
 const scheduleThumbnailCacheCleanup = ({ force = false, delayMs = 5000 } = {}) => {
-  if (THUMBNAIL_CACHE_MAX_FILES <= 0 || thumbnailCacheCleanupStopped) {
+  if (thumbnailCacheCleanupStopped) {
     return;
   }
 
@@ -1162,7 +1163,6 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
   let pending = inflight.get(thumbPath);
   if (!pending) {
     thumbnailStats.queued += 1;
-    // Queue the thumbnail generation with concurrency limit
     // The file stays in flight until its generation has ended, not until the
     // queue stops waiting for it. The queue gives up after its timeout and frees
     // the slot while the job goes on; forgetting the file then let the next
@@ -1172,11 +1172,12 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
       inflight.delete(thumbPath);
       scheduleSharpCacheTrim();
     };
+    // Queue the thumbnail generation with concurrency limit
     pending = thumbnailQueue
       .add(
         async () => {
-          const jobId = startThumbnailJob(filePath, thumbPath);
           started = true;
+          const jobId = startThumbnailJob(filePath, thumbPath);
           try {
             // Double-check if another request created it while we were queued
             try {
@@ -1213,9 +1214,9 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
             logger.error({ filePath, err: error }, 'Thumbnail generation failed');
             finishThumbnailJob(jobId, 'error', error);
             throw error;
-          }
           } finally {
             release();
+          }
         },
         { priority }
       )

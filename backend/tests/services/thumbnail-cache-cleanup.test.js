@@ -351,15 +351,35 @@ describe('a cache within its limits', () => {
 });
 
 describe('a cache with the limit switched off', () => {
-  /** Zero means "do not manage this", and must not mean "delete everything". */
-  it('is not touched at all', async () => {
+  /** Zero lifts the limit on the count, and must not mean "delete everything". */
+  it('keeps every current thumbnail, however many', async () => {
     const { service, dir } = await setup({ THUMBNAIL_CACHE_MAX_FILES: '0' });
-    await write(dir, `${OLD}${sha1(1)}.webp`);
-    for (let i = 0; i < 4; i += 1) await write(dir, `${CURRENT}${sha1(i)}.webp`);
+    const names = [];
+    for (let i = 0; i < 4; i += 1) names.push(await write(dir, `${CURRENT}${sha1(i)}.webp`));
 
     await service.cleanupThumbnailCache();
 
-    expect(await remaining(dir)).toHaveLength(5);
+    expect(await remaining(dir)).toEqual(names.sort());
+  });
+
+  /**
+   * It used to leave the directory unmanaged: another version's thumbnails,
+   * those past their lifetime and abandoned temporary files stayed for good.
+   */
+  it('still removes what is outdated, expired or abandoned', async () => {
+    const { service, dir } = await setup({
+      THUMBNAIL_CACHE_MAX_FILES: '0',
+      THUMBNAIL_CACHE_TTL_DAYS: '1',
+    });
+    const kept = await write(dir, `${CURRENT}${sha1(1)}.webp`);
+    await write(dir, `${OLD}${sha1(2)}.webp`);
+    await write(dir, legacy(3));
+    await write(dir, `${CURRENT}${sha1(4)}.webp`, { ageMs: 3 * 24 * HOUR });
+    await write(dir, tempOf(`${CURRENT}${sha1(5)}.webp`), { ageMs: 2 * HOUR });
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual([kept]);
   });
 });
 

@@ -262,18 +262,31 @@ describe('a file in that directory that is not a RAW preview', () => {
 });
 
 describe('a RAW preview cache with the limit switched off', () => {
-  /** Zero means "do not manage this", and must not mean "delete everything". */
-  it('is not touched at all', async () => {
+  /** Zero lifts the limit on the count, and must not mean "delete everything". */
+  it('keeps every current preview, however many', async () => {
     const { service, dir } = await setup({ RAW_PREVIEW_CACHE_MAX_FILES: '0' });
-    const names = [
-      await write(dir, preview(1, 2)),
-      await write(dir, tempOf(preview(2)), { ageMs: 2 * HOUR }),
-    ];
-    for (let i = 3; i < 6; i += 1) names.push(await write(dir, preview(i), { ageMs: 40 * DAY }));
+    const names = [];
+    for (let i = 1; i < 6; i += 1) names.push(await write(dir, preview(i)));
 
     await service.cleanupRawPreviewCache();
 
     expect(await remaining(dir)).toEqual(names.sort());
+  });
+
+  /**
+   * It used to leave the directory unmanaged: previews of another version,
+   * those past their lifetime and abandoned temporary files stayed for good.
+   */
+  it('still removes what is outdated, expired or abandoned', async () => {
+    const { service, dir } = await setup({ RAW_PREVIEW_CACHE_MAX_FILES: '0' });
+    const kept = await write(dir, preview(1));
+    await write(dir, preview(2, 2));
+    await write(dir, tempOf(preview(3)), { ageMs: 2 * HOUR });
+    await write(dir, preview(4), { ageMs: 40 * DAY });
+
+    await service.cleanupRawPreviewCache();
+
+    expect(await remaining(dir)).toEqual([kept]);
   });
 });
 
