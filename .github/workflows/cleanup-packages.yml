@@ -44,4 +44,7 @@ jobs:
             echo "::warning title=No image deleted::PACKAGE_CLEANUP_TOKEN is not set. Store a personal access token (classic) with read:packages and delete:packages under that name in the repository secrets."
             exit 0
           fi
-          node scripts/prune-images.js ${{ inputs.apply && '--apply' || '' }}
+          # The weekly run deletes; a manual run only lists unless asked to.
+          # `inputs` is empty on a schedule, so reading it alone made every
+          # weekly run a dry run, with or without the token.
+          node scripts/prune-images.js ${{ (github.event_name == 'schedule' || inputs.apply) && '--apply' || '' }}
