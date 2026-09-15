@@ -49,4 +49,20 @@ describe('the settings API', () => {
     await api.patchSettings(undefined);
     expect(requestJson.mock.calls.at(-1)[1].body).toBe('{}');
   });
+
+  it('sends a logo as a form, with the rest of the branding beside it', async () => {
+    const file = new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' });
+
+    await api.uploadLogo(file, { appName: 'Files', showPoweredBy: false });
+
+    const [endpoint, options] = requestJson.mock.calls.at(-1);
+    expect(endpoint).toBe('/api/settings/upload-logo');
+    expect(options.method).toBe('POST');
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(options.body.get('logo').name).toBe('logo.svg');
+    expect(JSON.parse(options.body.get('branding'))).toEqual({
+      appName: 'Files',
+      showPoweredBy: false,
+    });
+  });
 });

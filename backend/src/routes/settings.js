@@ -6,14 +6,13 @@ const {
   setUserFolderSort,
   setUserFolderView,
   setSystemSetting,
+  replaceBranding,
   getSettings,
   WRITABLE_USER_SETTINGS,
 } = require('../services/settingsService');
-const logger = require('../utils/logger');
+const { forgetReplacedLogo, replaceLogo } = require('../services/brandingLogo');
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
-const path = require('path');
-const fs = require('fs').promises;
 const multer = require('multer');
 const { ValidationError } = require('../errors/AppError');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
@@ -21,27 +20,6 @@ const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
 
 const router = express.Router();
-
-const DEFAULT_LOGO_URL = '/logo.svg';
-
-const deleteCustomLogoFiles = async () => {
-  const configDir = process.env.CONFIG_DIR || '/config';
-  const logoDir = path.join(configDir, 'logos');
-  const candidates = ['custom-logo.svg', 'custom-logo.png', 'custom-logo.jpg'];
-
-  await Promise.all(
-    candidates.map(async (filename) => {
-      const filePath = path.join(logoDir, filename);
-      try {
-        await fs.unlink(filePath);
-        logger.info('Deleted custom logo file', { filename });
-      } catch (error) {
-        if (error && error.code === 'ENOENT') return;
-        logger.warn('Failed to delete custom logo file', { filename, error: error?.message });
-      }
-    })
-  );
-};
 
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -94,53 +72,43 @@ router.get(
 );
 
 /**
+ * The rest of the branding, sent in the same form as a logo so that both are
+ * saved together. Held to the rules a PATCH holds it to; the logo address is
+ * the uploaded file's, whatever was sent.
+ */
+const brandingSentWithLogo = (field) => {
+  if (field === undefined) return {};
+  let section;
+  try {
+    section = JSON.parse(field);
+  } catch {
+    section = null;
+  }
+  if (!section || typeof section !== 'object' || Array.isArray(section)) {
+    throw new ValidationError('The branding sent with the logo is not JSON.');
+  }
+  return keepValid(section, { appName: isName, showPoweredBy: isBoolean });
+};
+
+/**
  * POST /api/settings/upload-logo
- * Upload a custom logo file (admin only)
+ *
+ * Make an image the logo (admin only), with any other branding sent in the
+ * `branding` field. The upload is the save: the logo in use is replaced only
+ * once the new one is written and stored, and a failure leaves it as it was.
+ * Answers the settings, as a PATCH does, and the new logo's address.
  */
 router.post(
   '/settings/upload-logo',
   ensureAdmin,
   acceptLogo,
   asyncHandler(async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    if (!req.file) throw new ValidationError('No file uploaded');
 
-    try {
-      const configDir = process.env.CONFIG_DIR || '/config';
-      const logoDir = path.join(configDir, 'logos');
+    const { logoUrl } = await replaceLogo(req.file, brandingSentWithLogo(req.body?.branding));
 
-      // Create logos directory if it doesn't exist
-      await fs.mkdir(logoDir, { recursive: true });
-
-      // Generate filename based on MIME type
-      let filename = 'custom-logo';
-      if (req.file.mimetype === 'image/svg+xml') {
-        filename += '.svg';
-      } else if (req.file.mimetype === 'image/png') {
-        filename += '.png';
-      } else if (req.file.mimetype === 'image/jpeg') {
-        filename += '.jpg';
-      }
-
-      const logoPath = path.join(logoDir, filename);
-
-      // Write file to disk
-      await fs.writeFile(logoPath, req.file.buffer);
-
-      logger.info('Logo uploaded successfully', {
-        filename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-      });
-
-      // Return the URL path for the uploaded logo
-      const logoUrl = `/static/logos/${filename}`;
-      res.json({ logoUrl });
-    } catch (error) {
-      logger.error('Logo upload error', { error: error.message });
-      res.status(500).json({ error: 'Failed to save logo' });
-    }
+    const settings = await getSettingsForUser(req.user);
+    res.json({ ...settings, logoUrl });
   })
 );
 
@@ -266,12 +234,24 @@ const applyVersions = (section) =>
     })
   );
 
-const applyBranding = (section) =>
-  mergeSection(
-    'branding',
-    'branding',
-    keepValid(section, { appName: isName, appLogoUrl: isText, showPoweredBy: isBoolean })
-  );
+/**
+ * Branding is read and written in one step rather than merged over the
+ * settings read at the start of the request, because a logo it replaces is
+ * then removed: reset to the default, or pointed elsewhere, the old file would
+ * otherwise stay behind with nothing to serve or remove it.
+ */
+const applyBranding = async (section) => {
+  const update = keepValid(section, {
+    appName: isName,
+    appLogoUrl: isText,
+    showPoweredBy: isBoolean,
+  });
+  if (Object.keys(update).length === 0) return null;
+
+  const { previous, current } = await replaceBranding(update);
+  await forgetReplacedLogo(previous.appLogoUrl, current.appLogoUrl);
+  return current;
+};
 
 /** Access rules replace the list rather than merging into it. */
 const applyAccess = async (section) => {
@@ -315,15 +295,6 @@ const SYSTEM_SECTIONS = {
   searchIndex: (section) => applyExclusions('searchIndex', searchIndexManager, section),
 };
 
-/**
- * A custom logo that has been reset to the default leaves a file behind, which
- * nothing else will ever serve or delete.
- */
-const forgetCustomLogo = async (branding) => {
-  const requested = typeof branding?.appLogoUrl === 'string' ? branding.appLogoUrl.trim() : null;
-  if (requested === '' || requested === DEFAULT_LOGO_URL) await deleteCustomLogoFiles();
-};
-
 router.patch(
   '/settings',
   asyncHandler(async (req, res) => {
@@ -349,7 +320,6 @@ router.patch(
         const section = payload[name];
         if (section && typeof section === 'object') await apply(section);
       }
-      await forgetCustomLogo(payload.branding);
     }
 
     // Read back rather than assembled from what was written: the stored value

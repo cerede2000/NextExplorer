@@ -45,6 +45,51 @@ const buildShippedApp = async () => {
   return app;
 };
 
+/**
+ * A logo is served under the name it was written under, which is its own for
+ * every logo now, and a fixed name per type for one an earlier version wrote.
+ * An installation whose settings still point at the fixed name has nothing to
+ * migrate: that address keeps answering.
+ */
+describe('the custom logo', () => {
+  const OWN = 'logo-0b7f7c1e-3d44-4c55-9a8e-1f2a3b4c5d6e (1).png';
+
+  it.each([
+    [
+      'under a name of its own',
+      OWN,
+      '/static/logos/logo-0b7f7c1e-3d44-4c55-9a8e-1f2a3b4c5d6e%20(1).png',
+    ],
+    [
+      'under the fixed name an earlier version used',
+      'custom-logo.png',
+      '/static/logos/custom-logo.png',
+    ],
+  ])('is served %s, sandboxed', async (_label, name, url) => {
+    const app = await buildShippedApp();
+    const logoDir = path.join(currentEnv.configDir, 'logos');
+    await fs.mkdir(logoDir, { recursive: true });
+    await fs.writeFile(path.join(logoDir, name), 'png bytes');
+
+    const response = await request(app).get(url);
+
+    expect(response.status).toBe(200);
+    expect(response.body.toString()).toBe('png bytes');
+    expect(response.headers['content-security-policy']).toBe('sandbox');
+  });
+
+  it('is not served while it is still being written under its hidden name', async () => {
+    const app = await buildShippedApp();
+    const logoDir = path.join(currentEnv.configDir, 'logos');
+    await fs.mkdir(logoDir, { recursive: true });
+    await fs.writeFile(path.join(logoDir, '.logo-0b7f7c1e.part'), 'half');
+
+    const response = await request(app).get('/static/logos/.logo-0b7f7c1e.part');
+
+    expect(response.text).not.toBe('half');
+  });
+});
+
 describe('the application as it ships', () => {
   /**
    * The failure this suite exists for does not produce a bad answer — it

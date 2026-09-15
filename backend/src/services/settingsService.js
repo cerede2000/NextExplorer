@@ -682,7 +682,14 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeVersions(value);
   }
 
-  const valueJson = JSON.stringify(sanitizedValue);
+  writeSystemSetting(db, category, key, sanitizedValue, now);
+
+  return sanitizedValue;
+};
+
+/** Store one system setting as it is, in a single synchronous step. */
+const writeSystemSetting = (db, category, key, value, now = new Date().toISOString()) => {
+  const valueJson = JSON.stringify(value);
 
   // Check if setting exists
   const existing = db
@@ -700,8 +707,37 @@ const setSystemSetting = async (category, key, value) => {
       'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).run(generateId(), category, key, valueJson, now);
   }
+};
 
-  return sanitizedValue;
+/**
+ * Change the branding, and answer what it was and what it is now.
+ *
+ * Read and written without yielding in between — the database answers
+ * synchronously — so two saves at once cannot both start from the same
+ * branding: the logo a save replaced is the one it was the last to see, and
+ * removing it cannot take away the logo another save has just put in place.
+ *
+ * @returns {Promise<{previous: object, current: object}>}
+ */
+const replaceBranding = async (update) => {
+  const db = await getDb();
+  const row = db
+    .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
+    .get('branding', 'branding');
+
+  let stored = {};
+  if (row) {
+    try {
+      stored = JSON.parse(row.value);
+    } catch {
+      // An unreadable value is the default branding.
+    }
+  }
+
+  const previous = sanitizeBranding(stored);
+  const current = sanitizeBranding({ ...previous, ...update });
+  writeSystemSetting(db, 'branding', 'branding', current);
+  return { previous, current };
 };
 
 /**
@@ -790,6 +826,7 @@ module.exports = {
   setUserFolderSort,
   setUserFolderView,
   setSystemSetting,
+  replaceBranding,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,
   // Legacy methods for backward compatibility
   getSettings,

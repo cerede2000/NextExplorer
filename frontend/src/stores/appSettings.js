@@ -4,6 +4,7 @@ import {
   getBranding as getBrandingApi,
   getSettings as getSettingsApi,
   patchSettings as patchSettingsApi,
+  uploadLogo as uploadLogoApi,
 } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 
@@ -234,11 +235,15 @@ export const useAppSettings = defineStore('appSettings', () => {
     return state.value;
   };
 
-  const save = async (partial) => {
+  /**
+   * Send a change and keep what the server answered, for as long as the
+   * person who sent it is still the one signed in.
+   */
+  const saveWith = async (send) => {
     const userId = authStore.currentUser?.id ?? null;
     lastError.value = null;
     try {
-      const updated = await patchSettingsApi(partial);
+      const updated = await send();
 
       // Update local state based on what was returned
       if (userId !== authStore.currentUser?.id) {
@@ -310,6 +315,12 @@ export const useAppSettings = defineStore('appSettings', () => {
     }
   };
 
+  const save = (partial) => saveWith(() => patchSettingsApi(partial));
+
+  // The logo and the rest of the branding go in one request, so that a logo is
+  // never stored without the name saved alongside it, or the other way round.
+  const saveLogo = (file, branding) => saveWith(() => uploadLogoApi(file, branding));
+
   return {
     state,
     publicSettings,
@@ -323,5 +334,6 @@ export const useAppSettings = defineStore('appSettings', () => {
     ensureLoaded,
     loadBranding,
     save,
+    saveLogo,
   };
 });

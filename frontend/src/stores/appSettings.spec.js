@@ -19,12 +19,14 @@ import { createPinia, setActivePinia } from 'pinia';
 const getSettingsApi = vi.fn();
 const patchSettingsApi = vi.fn();
 const getBrandingApi = vi.fn();
+const uploadLogoApi = vi.fn();
 let authStore;
 
 vi.mock('@/api', () => ({
   getSettings: (...a) => getSettingsApi(...a),
   patchSettings: (...a) => patchSettingsApi(...a),
   getBranding: (...a) => getBrandingApi(...a),
+  uploadLogo: (...a) => uploadLogoApi(...a),
 }));
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => authStore }));
 
@@ -190,6 +192,54 @@ describe('saving', () => {
     await settings.save({ branding: { appName: 'Renamed' } });
 
     expect(settings.publicSettings.branding.appName).toBe('Renamed');
+  });
+});
+
+describe('saving a logo', () => {
+  const file = new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' });
+
+  it('sends the file with the rest of the branding, and keeps the branding that came back', async () => {
+    uploadLogoApi.mockResolvedValue({
+      logoUrl: '/static/logos/logo-new.svg',
+      branding: { appName: 'Files', appLogoUrl: '/static/logos/logo-new.svg' },
+    });
+    const settings = useAppSettings();
+    await settings.load();
+
+    await settings.saveLogo(file, { appName: 'Files', showPoweredBy: false });
+
+    expect(uploadLogoApi).toHaveBeenCalledWith(file, { appName: 'Files', showPoweredBy: false });
+    expect(patchSettingsApi).not.toHaveBeenCalled();
+    expect(settings.publicSettings.branding).toMatchObject({
+      appName: 'Files',
+      appLogoUrl: '/static/logos/logo-new.svg',
+      showPoweredBy: false,
+    });
+  });
+
+  it('keeps the branding as it was and says why when the server refuses', async () => {
+    uploadLogoApi.mockRejectedValue(new Error('A logo can be at most 2 MB.'));
+    const settings = useAppSettings();
+    await settings.load();
+
+    await expect(settings.saveLogo(file, {})).rejects.toThrow('A logo can be at most 2 MB.');
+
+    expect(settings.publicSettings.branding.appName).toBe('NextExplorer');
+    expect(settings.lastError).toBe('A logo can be at most 2 MB.');
+  });
+
+  it('discards an answer that arrives after somebody else has signed in', async () => {
+    let settle;
+    uploadLogoApi.mockReturnValue(new Promise((resolve) => (settle = resolve)));
+    const settings = useAppSettings();
+    await settings.load();
+
+    const saving = settings.saveLogo(file, {});
+    authStore.currentUser = BOB;
+    settle({ branding: { appName: 'Alice’s' } });
+    await saving;
+
+    expect(settings.publicSettings.branding.appName).not.toBe('Alice’s');
   });
 });
 

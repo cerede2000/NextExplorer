@@ -116,7 +116,11 @@ const requestRaw = async (endpoint, options = {}) => {
     ...(options.headers || {}),
   };
 
-  if (method !== 'GET' && method !== 'HEAD' && !headers['Content-Type']) {
+  // A form is left to the browser, which names its type along with the boundary
+  // between its parts; a type set here would have no boundary, and the server
+  // could not read the form.
+  const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (method !== 'GET' && method !== 'HEAD' && !headers['Content-Type'] && !isForm) {
     headers['Content-Type'] = 'application/json';
   }
 

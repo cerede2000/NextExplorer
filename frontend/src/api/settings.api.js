@@ -16,3 +16,14 @@ export async function patchSettings(partial) {
     body: JSON.stringify(partial || {}),
   });
 }
+
+/**
+ * Make an image the logo, with the rest of the branding in the same request:
+ * the server stores both, or neither. Answers the settings, as a patch does.
+ */
+export async function uploadLogo(file, branding) {
+  const form = new FormData();
+  if (branding) form.append('branding', JSON.stringify(branding));
+  form.append('logo', file);
+  return requestJson('/api/settings/upload-logo', { method: 'POST', body: form });
+}

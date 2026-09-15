@@ -7,7 +7,7 @@ In-app settings expose many server-side toggles you'll also find in the environm
 Customize the appearance and branding of your nextExplorer instance:
 
 - **Application name:** Display a custom name in the header, login page, and browser title (e.g., "SPRINTR" instead of "Explorer"). It cannot be empty: the page refuses to save a name of nothing or of spaces, and the server keeps the stored name when sent one.
-- **Logo upload:** Upload a custom logo (SVG, PNG, or JPG; max 2MB). Perfect size is 200×200px. Displays in the header and login page.
+- **Logo upload:** Upload a custom logo (SVG, PNG, or JPG; max 2MB). Perfect size is 200×200px. Displays in the header and login page. A chosen logo is only previewed on the page: nothing is sent until **Save**, which stores it together with the name and the attribution link, or nothing at all, and **Discard** brings back the logo in use. Each logo is written to `/config/logos` under a name of its own, so its address changes and no browser keeps showing the previous one; the logo it replaced is removed once the new one is in place.
 - **Attribution link:** Toggle the optional "Powered by nextExplorer" footer link. When enabled, users see a link crediting the original project.
 
 ## Files & Thumbnails

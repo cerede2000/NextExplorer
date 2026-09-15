@@ -56,7 +56,9 @@ module.exports = {
         'backend/src/services/uploadRemnants.js',
         'backend/src/services/uploadService.js',
         'backend/src/routes/onlyoffice.js',
-        'backend/src/routes/settings.js',
+        // A logo it wrote into /config/logos, once another has replaced it, or
+        // when the settings could not be switched to it.
+        'backend/src/services/brandingLogo.js',
         'backend/src/routes/zip.js',
         'backend/src/scripts/**',
       ],

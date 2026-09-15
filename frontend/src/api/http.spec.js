@@ -260,6 +260,18 @@ describe('what comes back on success', () => {
     expect(fetchMock.mock.calls[0][1].headers['Content-Type']).toBe('application/json');
   });
 
+  it('leaves the content type of a form to the browser, which adds its boundary', async () => {
+    fetchMock.mockResolvedValue(ok({}));
+    const form = new FormData();
+    form.append('logo', new Blob(['<svg/>'], { type: 'image/svg+xml' }), 'logo.svg');
+
+    await settle(requestJson('/api/settings/upload-logo', { method: 'POST', body: form }));
+
+    const sent = fetchMock.mock.calls[0][1];
+    expect(sent.headers).not.toHaveProperty('Content-Type');
+    expect(sent.body).toBe(form);
+  });
+
   it('leaves a content type the caller chose alone', async () => {
     fetchMock.mockResolvedValue(ok({}));
 
