@@ -263,29 +263,42 @@ describe.each(ENGINES)('with the %s engine', (engine) => {
 
     if (engine === 'native') {
       it.each([
-        ['a file', 'note.txt', (source, staging) => [source, staging]],
-        ['a folder', 'Album', (source, staging) => [`${source}/`, `${staging}/`]],
-      ])('hands rsync the hidden entry for %s, never its name', async (_label, name, expected) => {
-        await setup(engine);
-        seedAlbum();
-        fs.writeFileSync(at('From', 'note.txt'), 'mine');
-        const calls = [];
-        const spawn = childProcess.spawn.bind(childProcess);
-        vi.spyOn(childProcess, 'spawn').mockImplementation((command, args, options) => {
-          if (command === 'rsync') calls.push({ args: args.slice(-2), recorded: recordedPaths() });
-          return spawn(command, args, options);
-        });
+        // A single file is written in place at the hidden path, which the journal
+        // records; rsync's own temporary beside it would be recorded nowhere. A
+        // folder's temporaries are inside the hidden folder already.
+        ['a file', 'note.txt', (source, staging) => [source, staging], true],
+        ['a folder', 'Album', (source, staging) => [`${source}/`, `${staging}/`], false],
+      ])(
+        'hands rsync the hidden entry for %s, never its name',
+        async (_label, name, expected, expectedInPlace) => {
+          await setup(engine);
+          seedAlbum();
+          fs.writeFileSync(at('From', 'note.txt'), 'mine');
+          const calls = [];
+          const spawn = childProcess.spawn.bind(childProcess);
+          vi.spyOn(childProcess, 'spawn').mockImplementation((command, args, options) => {
+            if (command === 'rsync') {
+              calls.push({
+                args: args.slice(-2),
+                inPlace: args.includes('--inplace'),
+                recorded: recordedPaths(),
+              });
+            }
+            return spawn(command, args, options);
+          });
 
-        const result = await transfer([{ path: 'From', name }], 'To', 'copy');
+          const result = await transfer([{ path: 'From', name }], 'To', 'copy');
 
-        expect(calls.length).toBeGreaterThan(0);
-        const [{ args, recorded }] = calls;
-        expect(recorded).toHaveLength(1);
-        expect(path.basename(recorded[0])).toMatch(STAGING);
-        expect(args).toEqual(expected(at('From', name), recorded[0]));
-        expect(result.items[0].to).toBe(`To/${name}`);
-        expect(names(at('To'))).toEqual([name]);
-      });
+          expect(calls.length).toBeGreaterThan(0);
+          const [{ args, inPlace, recorded }] = calls;
+          expect(inPlace).toBe(expectedInPlace);
+          expect(recorded).toHaveLength(1);
+          expect(path.basename(recorded[0])).toMatch(STAGING);
+          expect(args).toEqual(expected(at('From', name), recorded[0]));
+          expect(result.items[0].to).toBe(`To/${name}`);
+          expect(names(at('To'))).toEqual([name]);
+        }
+      );
     }
   });
 
@@ -539,8 +552,10 @@ describe.each(ENGINES)('with the %s engine', (engine) => {
     });
 
     /**
-     * A rename refused with nothing put there leaves no empty folder behind
-     * beside the moved one; the move takes the next name.
+     * A rename refused with nothing put there leaves no empty folder behind.
+     * Refused while its own empty folder is still empty, the filesystem is one
+     * that will not rename over an entry at all: that folder goes, and the move
+     * keeps its own name by a plain rename, which cannot replace anything there.
      */
     it('leaves no empty folder when the rename is refused with nothing put there', async () => {
       await setup(engine);
@@ -559,9 +574,9 @@ describe.each(ENGINES)('with the %s engine', (engine) => {
       const result = await transfer([{ path: 'From', name: 'Album' }], 'To', 'move');
 
       expect(refused).toBe(true);
-      expect(result.items[0].to).toBe('To/Album (1)');
-      expect(names(at('To'))).toEqual(['Album (1)']);
-      expect(names(at('To', 'Album (1)'))).toEqual(['mine.txt', 'nested']);
+      expect(result.items[0].to).toBe('To/Album');
+      expect(names(at('To'))).toEqual(['Album']);
+      expect(names(at('To', 'Album'))).toEqual(['mine.txt', 'nested']);
     });
   });
 

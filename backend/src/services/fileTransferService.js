@@ -229,7 +229,13 @@ const stopChildProcessGroup = (child, signal) => {
 const isPermissionPreservationFailure = (exitCode, stderr) =>
   exitCode === 23 && /failed to set permissions/i.test(stderr || '');
 
-const runRsyncCopy = (sourcePath, destinationPath, onProgress, signal, { preservePermissions }) =>
+const runRsyncCopy = (
+  sourcePath,
+  destinationPath,
+  onProgress,
+  signal,
+  { preservePermissions, inPlace = false }
+) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(createCancellationError());
@@ -243,6 +249,9 @@ const runRsyncCopy = (sourcePath, destinationPath, onProgress, signal, { preserv
         '--no-owner',
         '--no-group',
         ...(preservePermissions ? [] : ['--no-perms']),
+        // Written at the path it is given rather than under a temporary name of
+        // rsync's own: that path is hidden and recorded, the temporary is not.
+        ...(inPlace ? ['--inplace'] : []),
         '--info=progress2',
         '--outbuf=L',
         '--out-format=%n',
@@ -323,18 +332,26 @@ const runRsyncCopy = (sourcePath, destinationPath, onProgress, signal, { preserv
  * invocation, and the caller turns them into an absolute byte count, so passing
  * them on would send the bar backwards for the moment the second pass takes.
  */
-const copyWithNativeRsync = async (sourcePath, destinationPath, onProgress, signal) => {
+const copyWithNativeRsync = async (
+  sourcePath,
+  destinationPath,
+  onProgress,
+  signal,
+  { inPlace = false } = {}
+) => {
   // Where the answer is known in advance, skip the attempt that cannot succeed:
   // on a dataset that always refuses, every copy would otherwise pay for a
   // failed pass and a retry.
   if (!env.COPY_PRESERVE_PERMISSIONS) {
     return runRsyncCopy(sourcePath, destinationPath, onProgress, signal, {
+      inPlace,
       preservePermissions: false,
     });
   }
 
   try {
     return await runRsyncCopy(sourcePath, destinationPath, onProgress, signal, {
+      inPlace,
       preservePermissions: true,
     });
   } catch (error) {
@@ -346,6 +363,7 @@ const copyWithNativeRsync = async (sourcePath, destinationPath, onProgress, sign
       'Destination refuses to have its permissions set; copying again without preserving them'
     );
     return runRsyncCopy(sourcePath, destinationPath, undefined, signal, {
+      inPlace,
       preservePermissions: false,
     });
   }
@@ -543,7 +561,9 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
           signal
         );
       } else {
-        await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal);
+        // A single file goes to a fresh hidden path: written there directly, so a
+        // stop leaves nothing but what the in-flight journal names.
+        await copyWithNativeRsync(sourcePath, destinationPath, onBytes, signal, { inPlace: true });
       }
       return stats.isDirectory() ? null : stats.size;
     } catch (error) {
