@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 const os = require('os');
@@ -11,8 +12,13 @@ const {
   normalizeRelativePath,
   combineRelativePath,
   ensureValidName,
-  findAvailableName,
 } = require('../utils/pathUtils');
+const {
+  placeWithoutOverwrite,
+  removeOwnPlaceholder,
+  reserveAvailableName,
+} = require('../utils/placeWithoutOverwrite');
+const { track: trackInFlight } = require('./inFlightFiles');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const {
@@ -427,37 +433,46 @@ const removeWithNativeRm = (absolutePath, signal) =>
     signal?.addEventListener('abort', abort, { once: true });
   });
 
-// Copy a single regular file through streams so bytes can be reported as they
-// are written. The source mode is applied at creation to mirror fs.copyFile.
-const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal) =>
+/**
+ * Where a file or a link is made when its name is already held: beside it,
+ * hidden, under a name of its own, created exclusively.
+ *
+ * The name a transfer lands under is held from the start by an empty
+ * placeholder of its own (see executeTransfer). Writing into that file would
+ * keep its mode rather than the source's, and a link cannot be made over it.
+ * So the entry is made here and renamed over the placeholder once whole, which
+ * is how rsync writes a file too. The name has a fixed length: a long file name
+ * with a suffix appended could pass the filesystem's limit.
+ */
+const partialPathFor = (destinationPath) =>
+  path.join(path.dirname(destinationPath), `.nextexplorer-copying-${crypto.randomUUID()}`);
+
+/** Stream `sourcePath` into an open `handle`, settled once the handle is closed. */
+const streamInto = (sourcePath, handle, onBytes, signal) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      reject(createCancellationError());
+      handle.close().then(
+        () => reject(createCancellationError()),
+        () => reject(createCancellationError())
+      );
       return;
     }
 
     const readStream = fsSync.createReadStream(sourcePath, {
       highWaterMark: COPY_STREAM_HIGH_WATER_MARK,
     });
-    const writeStream = fsSync.createWriteStream(
-      destinationPath,
-      mode != null
-        ? { mode, highWaterMark: COPY_STREAM_HIGH_WATER_MARK }
-        : { highWaterMark: COPY_STREAM_HIGH_WATER_MARK }
-    );
+    const writeStream = fsSync.createWriteStream(null, {
+      fd: handle,
+      highWaterMark: COPY_STREAM_HIGH_WATER_MARK,
+    });
 
-    let settled = false;
+    let failure = null;
     const cleanup = () => signal?.removeEventListener('abort', abort);
-    const finish = (callback, value) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      callback(value);
-    };
     const fail = (error) => {
+      if (failure || writeStream.writableFinished) return;
+      failure = error;
       readStream.destroy();
       writeStream.destroy();
-      finish(reject, error);
     };
     const abort = () => fail(createCancellationError());
 
@@ -466,10 +481,69 @@ const copyFileWithProgress = (sourcePath, destinationPath, mode, onBytes, signal
     if (typeof onBytes === 'function') {
       readStream.on('data', (chunk) => onBytes(chunk.length));
     }
-    writeStream.on('finish', () => finish(resolve));
+    writeStream.once('close', () => {
+      cleanup();
+      if (failure) reject(failure);
+      else if (writeStream.writableFinished) resolve();
+      else reject(createCancellationError());
+    });
     signal?.addEventListener('abort', abort, { once: true });
     readStream.pipe(writeStream);
   });
+
+/**
+ * Copy a single regular file through streams so bytes can be reported as they
+ * are written. The source mode is applied at creation to mirror fs.copyFile.
+ *
+ * The file is created exclusively, so a copy never truncates a file it did not
+ * create. Where the name is already held — by the placeholder reserving it, or
+ * a staging copy being redone — the file is written beside it and renamed over
+ * it once whole. That partial file is recorded while it is written, so a stop
+ * half-way leaves nothing hidden in the folder after the next start.
+ */
+const copyFileWithProgress = async (sourcePath, destinationPath, mode, onBytes, signal) => {
+  throwIfCancelled(signal);
+  let partialPath = null;
+  let inFlight = null;
+  let handle;
+  try {
+    handle = await fs.open(destinationPath, 'wx', mode);
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error;
+    partialPath = partialPathFor(destinationPath);
+    inFlight = trackInFlight(partialPath, 'partial-copy');
+    try {
+      handle = await fs.open(partialPath, 'wx', mode);
+    } catch (openError) {
+      inFlight.release();
+      throw openError;
+    }
+  }
+
+  try {
+    await streamInto(sourcePath, handle, onBytes, signal);
+    if (partialPath) await fs.rename(partialPath, destinationPath);
+  } catch (error) {
+    // The file this copy created exclusively, and nothing else.
+    await fs.unlink(partialPath || destinationPath).catch(() => {});
+    throw error;
+  } finally {
+    inFlight?.release();
+  }
+};
+
+/** Make a symbolic link at `destinationPath`, over the placeholder holding the name. */
+const copySymbolicLink = async (sourcePath, destinationPath) => {
+  const linkTarget = await fs.readlink(sourcePath);
+  const partialPath = partialPathFor(destinationPath);
+  await fs.symlink(linkTarget, partialPath);
+  try {
+    await fs.rename(partialPath, destinationPath);
+  } catch (error) {
+    await fs.unlink(partialPath).catch(() => {});
+    throw error;
+  }
+};
 
 // Recursively copy a file/dir, reporting copied bytes. It returns the actual
 // copied byte count, so folder-size updates never need a second filesystem walk.
@@ -479,9 +553,11 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
     const stats = await fs.lstat(sourcePath);
     try {
       if (stats.isDirectory()) {
-        // Keep the target name chosen by findAvailableName. rsync copies the
-        // directory itself when the source lacks a trailing slash; the explorer
-        // contract is to copy its contents into the target directory instead.
+        // Keep the target name reserved for it. rsync copies the directory
+        // itself when the source lacks a trailing slash; the explorer contract
+        // is to copy its contents into the target directory instead. A file is
+        // written by rsync beside its name and renamed over it, replacing the
+        // empty placeholder that holds the name.
         await ensureDir(destinationPath);
         await copyWithNativeRsync(
           `${sourcePath}${path.sep}`,
@@ -503,8 +579,7 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
   if (!isDirectory) {
     const stats = await fs.lstat(sourcePath);
     if (stats.isSymbolicLink()) {
-      const linkTarget = await fs.readlink(sourcePath);
-      await fs.symlink(linkTarget, destinationPath);
+      await copySymbolicLink(sourcePath, destinationPath);
       return 0;
     }
     await copyFileWithProgress(sourcePath, destinationPath, stats.mode, onBytes, signal);
@@ -524,26 +599,41 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
   return copiedBytes;
 };
 
-// Move an entry, reporting progress. A same-filesystem rename is atomic and
-// instant, so the entry's whole size is reported at once; a cross-device move
-// (EXDEV) falls back to a byte-tracked copy followed by removal of the source.
+/**
+ * What a rename over a reservation fails with once the name no longer holds the
+ * empty placeholder this transfer made: something was put inside the reserved
+ * folder, or the name now holds an entry of another kind.
+ */
+const RESERVATION_LOST = new Set(['EEXIST', 'ENOTEMPTY', 'EISDIR', 'ENOTDIR']);
+
+/**
+ * Move an entry onto the name reserved for it, reporting progress, and answer
+ * the size moved and the path it landed at.
+ *
+ * On one filesystem the rename is atomic and instant, so the entry's whole size
+ * is reported at once, and it replaces nothing but the placeholder: a file over
+ * the empty file, a folder over the empty folder. When something was put inside
+ * that folder meanwhile, the rename refuses; what was put there stays, and the
+ * entry takes the next free name, taken the same way. Across devices (EXDEV)
+ * the move becomes a byte-tracked copy into the reservation, followed by the
+ * removal of the source.
+ */
 const moveEntryWithProgress = async (
   sourcePath,
   destinationPath,
   isDirectory,
   size,
   onBytes,
-  signal
+  signal,
+  { desiredName = path.basename(destinationPath), onWriting, onLanded } = {}
 ) => {
   throwIfCancelled(signal);
+  let landedAt = destinationPath;
   try {
     await fs.rename(sourcePath, destinationPath);
-    if (typeof onBytes === 'function' && size > 0) {
-      onBytes(size);
-    }
-    return size;
   } catch (error) {
     if (error.code === 'EXDEV') {
+      onWriting?.();
       const copiedBytes = await copyEntryWithProgress(
         sourcePath,
         destinationPath,
@@ -552,13 +642,28 @@ const moveEntryWithProgress = async (
         signal
       );
       throwIfCancelled(signal);
+      // The copy is whole from here on. A removal of the source stopped half-way
+      // must not have its cleanup take the only whole copy with it.
+      onLanded?.(destinationPath);
       if (shouldRemoveNatively(isDirectory)) await removeWithNativeRm(sourcePath, signal);
       else await fs.rm(sourcePath, { recursive: isDirectory, force: true });
-      return copiedBytes;
+      return { size: copiedBytes, path: destinationPath };
     }
+    if (!RESERVATION_LOST.has(error.code)) throw error;
 
-    throw error;
+    await removeOwnPlaceholder(destinationPath, isDirectory);
+    const placed = await placeWithoutOverwrite(
+      sourcePath,
+      path.dirname(destinationPath),
+      desiredName
+    );
+    landedAt = placed.path;
   }
+  onLanded?.(landedAt);
+  if (typeof onBytes === 'function' && size > 0) {
+    onBytes(size);
+  }
+  return { size, path: landedAt };
 };
 
 // Phase 1: authorize + resolve every item. Recursive directory-size walks are
@@ -774,14 +879,37 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         continue;
       }
 
+      // What lands at the destination is the entry itself: a rename moves a
+      // link as a link, and both engines copy one as a link.
       // eslint-disable-next-line no-await-in-loop
-      const availableName = await findAvailableName(destinationAbsolute, plan.desiredName);
-      const targetAbsolute = path.join(destinationAbsolute, availableName);
-      const targetRelative = combineRelativePath(destinationRelative, availableName);
-      activeTarget = { absolutePath: targetAbsolute, isDirectory: plan.isDirectory };
+      const entryIsDirectory = (await fs.lstat(plan.sourceAbsolute)).isDirectory();
+      // The name is taken before anything is written: an empty file, or an
+      // empty folder, is created where the name is free, and a taken name
+      // moves on to "name (1)". Looking for a free name and writing under it
+      // later let whatever arrived there in between — another copy, a file
+      // saved over SMB — be replaced by the copy's file, merged into by its
+      // folder, or replaced by the move's rename, and a copy lasting minutes
+      // held that gap open for minutes. From here on a copy writes over its own
+      // placeholder, and a move renames onto it.
+      // eslint-disable-next-line no-await-in-loop
+      const reserved = await reserveAvailableName(destinationAbsolute, plan.desiredName, {
+        isDirectory: entryIsDirectory,
+      });
+      let targetAbsolute = reserved.path;
+      let targetName = reserved.name;
+      // `landed` once the entry is whole under its name: from then on nothing
+      // removes it. `writing` once this transfer has put content there.
+      const target = {
+        absolutePath: targetAbsolute,
+        isDirectory: plan.isDirectory,
+        entryIsDirectory,
+        writing: false,
+        landed: false,
+      };
+      activeTarget = target;
       const writeOperation = registerWriteOperation(plan.sourceAbsolute, targetAbsolute, signal);
       activeWriteOperation = writeOperation;
-      currentName = availableName;
+      currentName = targetName;
       nativePercent = null;
       emit(true);
 
@@ -807,14 +935,19 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         };
 
         if (operation === 'copy') {
+          // Cancelled before a byte is written, the reservation is not a partial
+          // copy to remove, whatever was put inside it.
+          throwIfCancelled(writeOperation.signal);
+          target.writing = true;
           // eslint-disable-next-line no-await-in-loop
           const copiedSize = await copyEntryWithProgress(
             plan.sourceAbsolute,
             targetAbsolute,
-            plan.isDirectory,
+            entryIsDirectory,
             onCopyProgress,
             writeOperation.signal
           );
+          target.landed = true;
           await folderSizeHooks.onEntryCopied(targetAbsolute, {
             isDirectory: plan.isDirectory,
             size: copiedSize ?? plan.size,
@@ -823,17 +956,40 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           });
         } else if (operation === 'move') {
           // eslint-disable-next-line no-await-in-loop
-          const movedSize = await moveEntryWithProgress(
+          const moved = await moveEntryWithProgress(
             plan.sourceAbsolute,
             targetAbsolute,
-            plan.isDirectory,
+            entryIsDirectory,
             plan.size,
             onCopyProgress,
-            writeOperation.signal
+            writeOperation.signal,
+            {
+              desiredName: plan.desiredName,
+              onWriting: () => {
+                target.writing = true;
+              },
+              onLanded: () => {
+                target.landed = true;
+              },
+            }
           );
+          if (moved.path !== targetAbsolute) {
+            // Something was put inside the reserved folder before the rename:
+            // it stays, indexed as what it is, and the entry took the next name.
+            if (plan.isDirectory) {
+              transferredDirectories.push(targetAbsolute);
+              // eslint-disable-next-line no-await-in-loop
+              await folderSizeHooks.beginDirectoryTransfer(moved.path);
+            }
+            targetAbsolute = moved.path;
+            targetName = path.basename(moved.path);
+            target.absolutePath = targetAbsolute;
+            currentName = targetName;
+            emit(true);
+          }
           await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, targetAbsolute, {
             isDirectory: plan.isDirectory,
-            size: movedSize ?? plan.size,
+            size: moved.size ?? plan.size,
             directoryTransferPrepared: plan.isDirectory,
           });
         } else {
@@ -841,6 +997,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         }
       }
 
+      const targetRelative = combineRelativePath(destinationRelative, targetName);
       if (plan.isDirectory) transferredDirectories.push(targetAbsolute);
 
       // A move takes the folder's bindings with it — favorites, shares, recent
@@ -873,19 +1030,28 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
     return { destination: destinationRelative, items: results };
   } catch (error) {
     try {
+      const cancelled = error?.code === 'OPERATION_CANCELLED';
+      const unfinished = activeTarget && !activeTarget.landed;
       // A cancellation can interrupt a recursive copy part-way through an entry.
       // Remove only that incomplete destination; already completed entries remain
       // intact, which is the least surprising and safest cancellation semantics.
-      if (error?.code === 'OPERATION_CANCELLED' && activeTarget) {
+      if (cancelled && unfinished && activeTarget.writing) {
         await fs.rm(activeTarget.absolutePath, {
-          recursive: activeTarget.isDirectory,
+          recursive: activeTarget.entryIsDirectory,
           force: true,
         });
-        if (activeTarget.isDirectory) {
-          await folderSizeHooks.cancelDirectoryTransfer(activeTarget.absolutePath);
-        }
       }
-      if (error?.code !== 'OPERATION_CANCELLED' && activeTarget?.isDirectory) {
+      // Nothing written yet, or a failure rather than a cancellation: the name
+      // is given back when it still holds the empty placeholder this transfer
+      // made, and whatever has content — a partial folder left to inspect, or
+      // what someone else put there — stays.
+      if (unfinished && !(cancelled && activeTarget.writing)) {
+        await removeOwnPlaceholder(activeTarget.absolutePath, activeTarget.entryIsDirectory);
+      }
+      if (cancelled && unfinished && activeTarget.isDirectory) {
+        await folderSizeHooks.cancelDirectoryTransfer(activeTarget.absolutePath);
+      }
+      if ((!cancelled || !unfinished) && activeTarget?.isDirectory) {
         // An unexpected I/O failure can leave an inspectable partial directory.
         // Release its transfer lock and index what remains instead of permanently
         // suppressing size refreshes until the process restarts.

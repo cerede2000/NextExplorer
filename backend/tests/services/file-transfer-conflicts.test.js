@@ -168,11 +168,14 @@ describe('a move across devices', () => {
   // A same-filesystem move is an atomic rename. When the destination is on
   // another device the rename fails with EXDEV and the move becomes a copy
   // followed by a deletion of the source. That fallback is the one that can
-  // lose data, so it is forced here by making the rename report EXDEV.
-  const forceCrossDevice = () => {
+  // lose data, so it is forced here by making the move's rename report EXDEV.
+  // Only that one: the copy it falls back to writes each file beside its name
+  // and renames it into place, on one device.
+  const forceCrossDevice = (movedFrom) => {
     const fsp = require('fs/promises');
     const realRename = fsp.rename.bind(fsp);
-    vi.spyOn(fsp, 'rename').mockImplementation(async () => {
+    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
+      if (from !== movedFrom) return realRename(from, to);
       const error = new Error('cross-device link not permitted');
       error.code = 'EXDEV';
       throw error;
@@ -182,7 +185,7 @@ describe('a move across devices', () => {
 
   it('copies the entry across and only then removes the source', async () => {
     const { service, volume, user } = await setup();
-    forceCrossDevice();
+    forceCrossDevice(path.join(volume, 'From', 'payload.bin'));
     await fs.mkdir(path.join(volume, 'From'), { recursive: true });
     await fs.mkdir(path.join(volume, 'To'), { recursive: true });
     await fs.writeFile(path.join(volume, 'From', 'payload.bin'), 'the only copy');
@@ -203,7 +206,7 @@ describe('a move across devices', () => {
 
   it('leaves the source whole and removes the half-written destination when cancelled mid-copy', async () => {
     const { service, volume, user } = await setup();
-    forceCrossDevice();
+    forceCrossDevice(path.join(volume, 'From', 'big'));
     await fs.mkdir(path.join(volume, 'From', 'big'), { recursive: true });
     await fs.mkdir(path.join(volume, 'To'), { recursive: true });
     await Promise.all(
