@@ -968,9 +968,7 @@ const prepared = (db, sql) => {
   return statement;
 };
 
-const getDb = async () => {
-  if (dbInstance) return dbInstance;
-
+const openDb = async () => {
   const dbDir = directories.config;
   await ensureDir(dbDir);
   const dbPath = getDbPath();
@@ -1017,8 +1015,31 @@ const getDb = async () => {
   // while nothing else holds the connection: the rewrite keeps the write lock
   // for as long as it runs, longer than a request would wait for it.
   databaseMaintenance.convertToIncremental(db);
-  dbInstance = db;
-  return dbInstance;
+  return db;
+};
+
+/**
+ * The application database, opened on first use.
+ *
+ * Everything that starts with the server asks for it at once. Each caller used
+ * to pass the check for an open database before the first one had finished
+ * opening it, and went on to open app.db again and run the migrations over it
+ * in parallel: four connections at every start. One opening is shared instead.
+ */
+let dbOpening = null;
+const getDb = async () => {
+  if (dbInstance) return dbInstance;
+  if (!dbOpening) {
+    dbOpening = openDb()
+      .then((db) => {
+        dbInstance = db;
+        return db;
+      })
+      .finally(() => {
+        dbOpening = null;
+      });
+  }
+  return dbOpening;
 };
 
 const closeDb = () => {

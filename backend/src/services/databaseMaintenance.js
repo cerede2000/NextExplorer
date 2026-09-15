@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 const logger = require('../utils/logger');
 
 /**
@@ -147,8 +149,15 @@ let running = null;
 const DATABASES = [
   // eslint-disable-next-line global-require
   { name: 'app.db', open: () => require('./db').getDb() },
-  // eslint-disable-next-line global-require
-  { name: 'index.db', open: () => require('./indexDb').getIndexDb() },
+  {
+    name: 'index.db',
+    // Not created for the pass: a server with neither index on has none.
+    open: () => {
+      // eslint-disable-next-line global-require
+      const indexDb = require('./indexDb');
+      return fs.existsSync(indexDb.getIndexDbPath()) ? indexDb.getIndexDb() : null;
+    },
+  },
 ];
 
 const runPass = ({ reason = 'scheduled' } = {}) => {
@@ -156,10 +165,19 @@ const runPass = ({ reason = 'scheduled' } = {}) => {
   running = (async () => {
     const results = {};
     for (const { name, open } of DATABASES) {
-      // eslint-disable-next-line no-await-in-loop
-      const db = await open();
-      // eslint-disable-next-line no-await-in-loop
-      const result = await reclaimFreePages(db);
+      let result;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const db = await open();
+        if (!db) continue;
+        // eslint-disable-next-line no-await-in-loop
+        result = await reclaimFreePages(db);
+      } catch (error) {
+        // One file failing is no reason to leave the other as it is.
+        logger.warn({ err: error, database: name, reason }, '[DB] Handing free space back failed');
+        results[name] = { reclaimedBytes: 0, error };
+        continue;
+      }
       results[name] = result;
       if (result.reclaimedBytes > 0) {
         logger.info(

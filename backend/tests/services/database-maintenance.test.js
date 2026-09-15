@@ -211,4 +211,32 @@ describe('the pass', () => {
 
     expect(fs.statSync(`${dbFile()}-wal`).size).toBeLessThanOrEqual(64 * MB);
   });
+
+  it('hands pages back a chunk at a time, and lets waiting work in between', async () => {
+    await prepareEnv();
+    const { db } = await openApplicationDatabase();
+    leaveFreePages(db, 40);
+
+    const events = [];
+    const pragma = Database.prototype.pragma;
+    vi.spyOn(Database.prototype, 'pragma').mockImplementation(function (source, options) {
+      if (/incremental_vacuum/i.test(source)) {
+        // A request arriving once the pass has begun: it gets its turn only if
+        // the pass hands the thread back between chunks.
+        if (!events.includes('chunk')) setImmediate(() => events.push('request'));
+        events.push('chunk');
+      }
+      return pragma.call(this, source, options);
+    });
+
+    const maintenance = envContext.requireFresh('src/services/databaseMaintenance');
+    await maintenance.runPass();
+
+    const chunks = events.filter((event) => event === 'chunk').length;
+    expect(chunks).toBeGreaterThan(1);
+    // Before the last chunk, not merely before the pass resolved: without a
+    // pause the whole pass runs ahead of it, and it has not run at all yet.
+    expect(events.slice(0, events.lastIndexOf('chunk'))).toContain('request');
+    expect(freeBytes(db)).toBe(0);
+  });
 });
