@@ -15,6 +15,7 @@ const {
   ensureValidName,
 } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
+const { takeInventory, removeInventoried } = require('../utils/ownedTree');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
@@ -94,6 +95,9 @@ const extractIntoCurrentFolder = async ({
   for (const entry of stagedEntries) {
     const entryName = ensureValidName(entry.name);
     const sourcePath = path.join(stagingDirectory, entryName);
+    // Taken stock of before it moves: undoing the extraction removes exactly
+    // this, and not what someone puts in a placed folder afterwards.
+    const inventory = await takeInventory(sourcePath);
     // The name is taken by the move itself, never looked at first and renamed
     // into later: a file, or an empty folder, that appears under it meanwhile
     // stays as it is, and the entry goes to "name (1)".
@@ -102,7 +106,7 @@ const extractIntoCurrentFolder = async ({
       destinationDirectory,
       entryName
     );
-    movedPaths.push(destinationPath);
+    movedPaths.push({ path: destinationPath, inventory });
 
     if (entry.isDirectory()) {
       folderSizeHooks.onDirectoryTreeCreated(destinationPath);
@@ -303,8 +307,10 @@ router.post(
       // The hidden folder only: a new folder is put under its name once whole,
       // so a failure never has one of its own to remove.
       await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
-      await mapWithConcurrency(movedPaths, (movedPath) =>
-        fs.rm(movedPath, { recursive: true, force: true })
+      // What the extraction placed, and only that: a file someone saved into a
+      // placed folder meanwhile stays, with the folders holding it.
+      await mapWithConcurrency(movedPaths, (moved) =>
+        removeInventoried(moved.path, moved.inventory)
       );
       writeEvent({
         type: 'error',

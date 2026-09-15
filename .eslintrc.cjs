@@ -47,6 +47,8 @@ module.exports = {
         // A rename that refuses to overwrite: the old name of a file it has just
         // linked, or an empty placeholder of its own.
         'backend/src/utils/placeWithoutOverwrite.js',
+        // What an undone operation wrote, told apart by inode from what others added.
+        'backend/src/utils/ownedTree.js',
         'backend/src/services/archiveService.js',
         'backend/src/services/rawPreviewService.js',
         'backend/src/services/thumbnailService.js',

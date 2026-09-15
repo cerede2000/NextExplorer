@@ -323,6 +323,60 @@ describe('Archive extraction', () => {
     expect((await fs.readdir(workDir)).sort()).toEqual(['sample', 'sample 2', 'sample.zip']);
   });
 
+  /**
+   * An extraction into the current folder that fails after placing an entry
+   * undoes what it placed. It used to remove the placed entries recursively,
+   * taking a file someone had saved into a placed folder with them. It now
+   * removes what it wrote, recognised by inode, and a folder only once empty.
+   */
+  const failAfterPlacingFolder = (intrude) => {
+    const hooks = require(modulePath('src/services/folderSizeHooks'));
+    vi.spyOn(hooks, 'onDirectoryTreeCreated').mockImplementation((placedFolder) => {
+      intrude?.(placedFolder);
+      throw Object.assign(new Error('The volume went read-only.'), { code: 'EROFS' });
+    });
+  };
+
+  const archiveWithFolder = async (directory) => {
+    const workDir = path.join(envContext.volumeDir, directory);
+    await fs.mkdir(workDir, { recursive: true });
+    const zip = new AdmZip();
+    zip.addFile('photos/a.jpg', Buffer.from('a'));
+    zip.addFile('photos/nested/b.jpg', Buffer.from('b'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+    return workDir;
+  };
+
+  it('undoes a failed extraction into the current folder without removing what someone saved in it', async () => {
+    const workDir = await archiveWithFolder('extract-undo-kept');
+    const theirs = Buffer.from('saved into the placed folder meanwhile\n');
+    failAfterPlacingFolder((placedFolder) =>
+      fss.writeFileSync(path.join(placedFolder, 'nested', 'theirs.jpg'), theirs)
+    );
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'extract-undo-kept/sample.zip', destination: 'current' });
+
+    expect(parseNdjson(response.text).at(-1)).toMatchObject({ type: 'error' });
+    expect((await fs.readdir(workDir)).sort()).toEqual(['photos', 'sample.zip']);
+    expect(await fs.readdir(path.join(workDir, 'photos'))).toEqual(['nested']);
+    expect(await fs.readdir(path.join(workDir, 'photos', 'nested'))).toEqual(['theirs.jpg']);
+    expect(await fs.readFile(path.join(workDir, 'photos', 'nested', 'theirs.jpg'))).toEqual(theirs);
+  });
+
+  it('undoes a failed extraction into the current folder entirely when nobody added anything', async () => {
+    const workDir = await archiveWithFolder('extract-undo-whole');
+    failAfterPlacingFolder();
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'extract-undo-whole/sample.zip', destination: 'current' });
+
+    expect(parseNdjson(response.text).at(-1)).toMatchObject({ type: 'error' });
+    expect(await fs.readdir(workDir)).toEqual(['sample.zip']);
+  });
+
   it('rejects formats the local build does not support', async () => {
     const workDir = path.join(envContext.volumeDir, 'archives-bad');
     await fs.mkdir(workDir, { recursive: true });
