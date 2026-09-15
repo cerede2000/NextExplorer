@@ -175,6 +175,30 @@ const linkedUnderBoth = async (first, second) => {
 };
 
 /**
+ * Whether two names are one symbolic link, made again under the second.
+ *
+ * `moveNoReplace` moves a link by making it again under its new name, which
+ * fails when the name is held, and then removing the old one. A crash in
+ * between leaves both, holding the same text. The recovery passes the moment
+ * the operation recorded its intent: a link with that text made before it is
+ * someone else's. A restore still running made the second one a moment ago.
+ */
+const sameLinkUnderBoth = async (first, second, sinceIso = null) => {
+  const [a, b] = await Promise.all([lstatOrNull(first), lstatOrNull(second)]);
+  if (!a?.isSymbolicLink() || !b?.isSymbolicLink()) return false;
+  if (sinceIso !== null) {
+    const since = Date.parse(sinceIso);
+    if (!Number.isFinite(since) || b.ctimeMs < since - PLACEHOLDER_CLOCK_MARGIN_MS) return false;
+  }
+  try {
+    const [textA, textB] = await Promise.all([fsp.readlink(first), fsp.readlink(second)]);
+    return textA === textB;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * The old name of a file just placed, when it stayed: `moveNoReplace` lets the
  * removal after the link fail quietly. Here that name is the trash's own
  * content, or its copy, which would otherwise be adopted as a second item or
@@ -182,7 +206,9 @@ const linkedUnderBoth = async (first, second) => {
  * still in its passing state for the recovery to finish.
  */
 const dropOldName = async (source, target) => {
-  if (await linkedUnderBoth(source, target)) await fsp.unlink(source);
+  if ((await linkedUnderBoth(source, target)) || (await sameLinkUnderBoth(source, target))) {
+    await fsp.unlink(source);
+  }
 };
 
 // Filesystems keep times to the second at worst, and the record's clock and the
@@ -360,7 +386,7 @@ const MAX_NAMING_ATTEMPTS = 100;
  *
  * Answers the path the copy took.
  */
-const nameCopy = async ({ db, item, staging, entryPath, restorePath }) => {
+const nameCopy = async ({ db, item, staging, entryPath, restorePath, stoppedSince = null }) => {
   const directory = path.dirname(restorePath);
   const desired = path.basename(restorePath);
   let target = restorePath;
@@ -368,7 +394,10 @@ const nameCopy = async ({ db, item, staging, entryPath, restorePath }) => {
     // A crash between the link and the removal of the hidden name left the
     // copy under both: it is already named.
     // eslint-disable-next-line no-await-in-loop
-    if (!(await linkedUnderBoth(staging, target))) {
+    const alreadyNamed =
+      (await linkedUnderBoth(staging, target)) ||
+      (stoppedSince !== null && (await sameLinkUnderBoth(staging, target, stoppedSince)));
+    if (!alreadyNamed) {
       try {
         // eslint-disable-next-line no-await-in-loop
         await moveNoReplace(staging, target);
@@ -414,7 +443,7 @@ const finishCopy = async ({
     // Resumed after a crash: the name may still be held by the empty entry the
     // interrupted move took it with.
     if (stoppedSince) await removePlaceholderLeftByCrash(restorePath, stoppedSince);
-    finalPath = await nameCopy({ db, item, staging, entryPath, restorePath });
+    finalPath = await nameCopy({ db, item, staging, entryPath, restorePath, stoppedSince });
   } else if (!(await exists(finalPath))) {
     store.setItemState(db, item.id, 'trashed');
     return { status: 'lost-copy' };
@@ -1080,7 +1109,10 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
       // the empty file or folder the move held the name with goes, and what
       // someone else put there stays.
       const linked =
-        hasPayload && row.restorePath && (await linkedUnderBoth(paths.payload, row.restorePath));
+        hasPayload &&
+        row.restorePath &&
+        ((await linkedUnderBoth(paths.payload, row.restorePath)) ||
+          (await sameLinkUnderBoth(paths.payload, row.restorePath, row.updatedAt)));
       if (linked) await fsp.unlink(paths.payload);
       if (hasPayload && !linked) {
         await removePlaceholderLeftByCrash(row.restorePath, row.updatedAt);
@@ -1114,7 +1146,11 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
         // reached its place, and only its name in the folder goes.
         if (entrySegmentsLeft?.length && row.restorePath) {
           const inside = await walkInside(paths.payload, entrySegmentsLeft);
-          if (inside && (await linkedUnderBoth(inside.absolutePath, row.restorePath))) {
+          if (
+            inside &&
+            ((await linkedUnderBoth(inside.absolutePath, row.restorePath)) ||
+              (await sameLinkUnderBoth(inside.absolutePath, row.restorePath, row.updatedAt)))
+          ) {
             await fsp.unlink(inside.absolutePath);
           } else if (inside) {
             // Still in the folder: its destination holds at most the empty

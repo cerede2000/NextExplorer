@@ -437,3 +437,82 @@ describe('what the recovery leaves at a destination', () => {
     await expectConsistent(zoneOf());
   });
 });
+
+describe('a symbolic link moved out of the trash', () => {
+  /**
+   * A link leaves the trash by being made again under its destination's name,
+   * which fails when the name is held, and the old one then removed. A crash in
+   * between leaves the same link twice. The recovery finishes that restore, as
+   * it does for a file linked under two names, and never takes someone else's
+   * link with the same text, made before the restore began, for it.
+   */
+  const trashLinkInFolder = async () => {
+    await fs.mkdir(volume('Elsewhere'), { recursive: true });
+    await writeTree();
+    await fs.symlink(volume('Elsewhere'), volume('Projects/client/shortcut'));
+    const { item } = await trash('Projects/client');
+    return item;
+  };
+
+  it('is out once, after a crash between making it again and removing the old one', async () => {
+    const item = await trashLinkInFolder();
+    const inside = path.join(payloadOf(item), 'shortcut');
+    crashBefore('unlink', inside, 'after-link-made-again');
+
+    await expect(operations.restoreEntry(item.id, 'shortcut')).rejects.toMatchObject({
+      simulatedCrash: true,
+    });
+    restart();
+    await operations.recoverZone(zoneOf());
+
+    expect(await fs.readlink(volume('Projects/client/shortcut'))).toBe(volume('Elsewhere'));
+    expect(await exists(inside)).toBe(false);
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    await expectConsistent(zoneOf());
+  });
+
+  it('never takes a link with the same text, made before the restore began, for it', async () => {
+    const item = await trashLinkInFolder();
+    const inside = path.join(payloadOf(item), 'shortcut');
+    await fs.mkdir(volume('Projects/client'), { recursive: true });
+    await fs.symlink(volume('Elsewhere'), volume('Projects/client/shortcut'));
+    store.setItemState(db, item.id, 'extracting', {
+      restorePath: volume('Projects/client/shortcut'),
+      restoreEntry: 'shortcut',
+    });
+    // The restore is recorded as beginning an hour after that link appeared.
+    db.prepare('UPDATE trash_items SET updated_at = ? WHERE id = ?').run(
+      new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      item.id
+    );
+
+    await operations.recoverZone(zoneOf());
+
+    expect(await fs.readlink(volume('Projects/client/shortcut'))).toBe(volume('Elsewhere'));
+    expect(await fs.readlink(inside)).toBe(volume('Elsewhere'));
+    expect(store.getItem(db, item.id).state).toBe('trashed');
+    await expectConsistent(zoneOf());
+  });
+
+  it('leaves no old link in the trash when its removal failed once', async () => {
+    const item = await trashLinkInFolder();
+    const inside = path.join(payloadOf(item), 'shortcut');
+    const unlink = fsp.unlink.bind(fsp);
+    let refused = false;
+    vi.spyOn(fsp, 'unlink').mockImplementation(async (target) => {
+      if (target === inside && !refused) {
+        refused = true;
+        throw Object.assign(new Error('resource busy'), { code: 'EBUSY' });
+      }
+      return unlink(target);
+    });
+
+    const result = await operations.restoreEntry(item.id, 'shortcut');
+
+    expect(result.status).toBe('restored');
+    expect(refused).toBe(true);
+    expect(await fs.readlink(volume('Projects/client/shortcut'))).toBe(volume('Elsewhere'));
+    expect(await exists(inside)).toBe(false);
+    await expectConsistent(zoneOf());
+  });
+});
