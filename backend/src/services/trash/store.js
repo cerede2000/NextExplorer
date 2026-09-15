@@ -124,6 +124,23 @@ const listEvents = (db, { zoneId, limit = 50 } = {}) =>
       createdAt: row.created_at,
     }));
 
+/**
+ * Drop a zone's oldest events past its newest `keep`.
+ *
+ * Every purge, loss, breaker trip and version removal writes one, and nothing
+ * ever removed any: a zone whose retention empties something every day grew
+ * the table for good. What anyone reads is the newest few.
+ */
+const pruneEvents = (db, { zoneId, keep }) => {
+  const boundary = db
+    .prepare('SELECT id FROM trash_events WHERE zone_id = ? ORDER BY id DESC LIMIT 1 OFFSET ?')
+    .get(zoneId, keep);
+  if (!boundary) return 0;
+  return db
+    .prepare('DELETE FROM trash_events WHERE zone_id = ? AND id <= ?')
+    .run(zoneId, boundary.id).changes;
+};
+
 module.exports = {
   insertZone,
   getZone,
@@ -137,4 +154,5 @@ module.exports = {
   listItems,
   insertEvent,
   listEvents,
+  pruneEvents,
 };
