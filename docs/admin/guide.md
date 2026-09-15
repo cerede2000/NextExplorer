@@ -51,5 +51,6 @@ Administrators control users, folders, and security policies through Settings. T
 ## Backups & persistence
 
 - `/config` houses `app.db`, `app-config.json`, and extension packages. Back these files up before upgrades or migrations.
+- `app.db` gives back the space its deletions free. SQLite keeps freed pages inside the file, so a large deletion used to leave `app.db` — and every backup of it — at its largest size. An hourly pass now hands free space back once more than 16 MB of it has built up, and the write-ahead log is cut back to 64 MB after a checkpoint. A database created by an earlier release is rewritten once, at the first start, to make this possible; the log says how large it was before and after.
 - `/cache` contains generated thumbnails and search indexes that can be deleted if needed; the app recreates them as you browse.
 - When upgrading, run `docker compose pull` followed by `docker compose up -d`; the entrypoint preserves `CONFIG_DIR` while migrating legacy `/cache` configs.

@@ -5,6 +5,7 @@ const Database = require('better-sqlite3');
 const { directories, files, favorites } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
+const databaseMaintenance = require('./databaseMaintenance');
 const { TRASH_DDL } = require('./trash/schema');
 const { VERSIONS_DDL } = require('./versions/schema');
 
@@ -984,6 +985,13 @@ const getDb = async () => {
   }
 
   const db = new Database(dbPath);
+  // Before anything creates a table, so that a new file starts in the mode
+  // that lets its free space be handed back.
+  try {
+    databaseMaintenance.configureStorage(db);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to configure how free space is handed back');
+  }
   // WAL lets the folder-size indexer worker thread write to the same database
   // file concurrently with the Express request threads reading from it.
   // busy_timeout makes the odd concurrent writer wait instead of throwing
@@ -1005,6 +1013,10 @@ const getDb = async () => {
     logger.warn({ err }, '[DB] Failed to ensure folder_size_index table');
   }
   ensureAnonymousUser(db);
+  // A database created before incremental auto-vacuum is rewritten once, here,
+  // while nothing else holds the connection: the rewrite keeps the write lock
+  // for as long as it runs, longer than a request would wait for it.
+  databaseMaintenance.convertToIncremental(db);
   dbInstance = db;
   return dbInstance;
 };
