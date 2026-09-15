@@ -27,11 +27,7 @@ const {
   ValidationError,
 } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
-const {
-  ensureValidName,
-  findAvailableName,
-  normalizeRelativePath,
-} = require('../../utils/pathUtils');
+const { ensureValidName, normalizeRelativePath } = require('../../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('../authorizationService');
 const { getDb } = require('../db');
 const folderSizeHooks = require('../folderSizeHooks');
@@ -330,8 +326,27 @@ const copyVersionTo = async (context, relativePath, versionId, { destination, na
       throw new ValidationError(error.message);
     }
   }
-  const finalName = await findAvailableName(folder.absolutePath, wanted);
-  await writeVersionInto(located, path.join(folder.absolutePath, finalName), context);
+  // A new file, never one already there: the copy lands under a name nothing
+  // holds, "(1)" when taken, even by a file that arrives while it is written.
+  // Putting it through the save of an existing file would have replaced such a
+  // file, and kept it as an earlier version of the copy.
+  const placed = await operations.saveNewFile(
+    folder.absolutePath,
+    wanted,
+    (temporaryPath) =>
+      fsp.copyFile(located.absolutePath, temporaryPath, fs.constants.COPYFILE_FICLONE),
+    { purpose: 'restore' }
+  );
+  const finalName = placed.name;
+  try {
+    const after = await fsp.stat(placed.path);
+    await folderSizeHooks.onFileWritten(placed.path, after.size);
+  } catch (error) {
+    logger.debug(
+      { err: error, destination: placed.path },
+      'Folder sizes were not told about a copy'
+    );
+  }
 
   if (context?.user?.id) {
     try {

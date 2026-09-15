@@ -281,6 +281,48 @@ describe('putting a version back', () => {
     expect(await read('Projects/notes.md')).toBe('# Alice again\n');
   });
 
+  /**
+   * A copy is a new file. One that arrives under its name while the version's
+   * content is being written — a file saved over SMB, another copy — is someone
+   * else's: it stays as it is, it does not become an earlier version of the
+   * copy, and the copy takes the next name.
+   */
+  it('never replaces, nor keeps as its version, a file that arrives under the name meanwhile', async () => {
+    const [, oldest] = await twoVersions();
+    const target = volume('Photos', 'notes before.md');
+    const theirs = Buffer.from('dropped over SMB while the copy was written\n');
+    const copyFile = fs.copyFile.bind(fs);
+    let arrived = false;
+    vi.spyOn(fs, 'copyFile').mockImplementation(async (from, to, mode) => {
+      if (!arrived && path.dirname(to) === volume('Photos')) {
+        arrived = true;
+        await fs.writeFile(target, theirs);
+      }
+      return copyFile(from, to, mode);
+    });
+
+    const response = await as('alice').post(`/api/versions/${oldest.id}/copy`, {
+      path: 'Projects/notes.md',
+      destination: 'Photos',
+      name: 'notes before.md',
+    });
+
+    expect(arrived).toBe(true);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      path: 'Photos/notes before (1).md',
+      name: 'notes before (1).md',
+    });
+    expect(await fs.readFile(target)).toEqual(theirs);
+    expect(await read('Photos/notes before (1).md')).toBe('# From outside\n');
+    expect((await fs.readdir(volume('Photos'))).sort()).toEqual([
+      'notes before (1).md',
+      'notes before.md',
+    ]);
+    expect((await history('alice', 'Photos/notes before.md')).body.versions).toEqual([]);
+    expect((await history('alice', 'Photos/notes before (1).md')).body.versions).toEqual([]);
+  });
+
   it('refuses a copy into a folder that is not one, or a name that is not one', async () => {
     const [, oldest] = await twoVersions();
 

@@ -30,6 +30,7 @@ const path = require('path');
 
 const { generateId } = require('../../utils/ids');
 const logger = require('../../utils/logger');
+const { placeWithoutOverwrite } = require('../../utils/placeWithoutOverwrite');
 const { getDb } = require('../db');
 const { track: trackInFlight } = require('../inFlightFiles');
 const clock = require('../trash/clock');
@@ -508,6 +509,36 @@ const saveFile = async (absolutePath, writeContent, meta = {}) => {
   }
 };
 
+/**
+ * Save content as a new file in `directory`, under `desiredName` or the first
+ * free name after it, "notes (1).md". Answers the name and path it took.
+ *
+ * The content is written beside the name by `writeContent`, then put under it
+ * by a move that never replaces anything. Going through `saveFile` with a name
+ * chosen beforehand meant a file that arrived under that name while the content
+ * was being written was replaced, its content kept as an earlier version of a
+ * file it had nothing to do with. A file that did not exist has no history, so
+ * nothing is recorded, as `saveFile` records nothing when it creates a file.
+ * Whatever happens, no temporary file is left behind.
+ *
+ * @param {string} directory
+ * @param {string} desiredName
+ * @param {(temporaryPath: string) => Promise<void>} writeContent
+ * @param {{ purpose?: string }} [meta]  `purpose` for the temporary name
+ * @returns {Promise<{ name: string, path: string }>}
+ */
+const saveNewFile = async (directory, desiredName, writeContent, meta = {}) => {
+  const temporaryPath = temporaryPathFor(path.join(directory, desiredName), meta.purpose || 'save');
+  const inFlight = trackInFlight(temporaryPath, 'temporary-file');
+  try {
+    await writeContent(temporaryPath);
+    return await placeWithoutOverwrite(temporaryPath, directory, desiredName);
+  } finally {
+    await fsp.rm(temporaryPath, { force: true }).catch(() => {});
+    inFlight.release();
+  }
+};
+
 /** Who is saving, as a version records it: an account, or a share link's visitor. */
 const authorOf = ({ user = null, guestSession = null } = {}) => ({
   id: user?.id ? String(user.id) : null,
@@ -681,6 +712,7 @@ module.exports = {
   temporaryPathFor,
   replaceWithTemporary,
   saveFile,
+  saveNewFile,
   authorOf,
   locateVersion,
   purgeVersion,

@@ -84,6 +84,63 @@ describe('saving a file', () => {
   });
 });
 
+describe('saving a new file', () => {
+  it('records its temporary while writing it, releases it, and never takes a name already held', async () => {
+    env = await setupTestEnv({ tag: 'in-flight-save-new-', env: { UPLOAD_STORAGE_RESERVE: '0' } });
+    await require(modulePath('src/services/db')).getDb();
+    fs.writeFileSync(path.join(env.volumeDir, 'notes.md'), 'theirs');
+
+    let whileWriting = null;
+    const placed = await require(modulePath('src/services/versions/operations')).saveNewFile(
+      env.volumeDir,
+      'notes.md',
+      async (temporary) => {
+        whileWriting = { temporary, records: onDisk() };
+        fs.writeFileSync(temporary, 'mine');
+      },
+      { purpose: 'restore' }
+    );
+
+    expect(whileWriting.records).toMatchObject([
+      { path: whileWriting.temporary, kind: 'temporary-file' },
+    ]);
+    expect(path.dirname(whileWriting.temporary)).toBe(env.volumeDir);
+    expect(placed).toEqual({
+      name: 'notes (1).md',
+      path: path.join(env.volumeDir, 'notes (1).md'),
+    });
+    expect(fs.readFileSync(path.join(env.volumeDir, 'notes.md'), 'utf8')).toBe('theirs');
+    expect(fs.readFileSync(placed.path, 'utf8')).toBe('mine');
+    expect(fs.existsSync(whileWriting.temporary)).toBe(false);
+    expect(onDisk()).toEqual([]);
+  });
+
+  it('releases its record and leaves no temporary when the write fails', async () => {
+    env = await setupTestEnv({
+      tag: 'in-flight-save-new-fail-',
+      env: { UPLOAD_STORAGE_RESERVE: '0' },
+    });
+    await require(modulePath('src/services/db')).getDb();
+
+    let temporaryPath = null;
+    await expect(
+      require(modulePath('src/services/versions/operations')).saveNewFile(
+        env.volumeDir,
+        'notes.md',
+        async (temporary) => {
+          temporaryPath = temporary;
+          fs.writeFileSync(temporary, 'half');
+          throw new Error('the version could not be read');
+        }
+      )
+    ).rejects.toThrow('the version could not be read');
+
+    expect(fs.existsSync(temporaryPath)).toBe(false);
+    expect(fs.existsSync(path.join(env.volumeDir, 'notes.md'))).toBe(false);
+    expect(onDisk()).toEqual([]);
+  });
+});
+
 describe('a document pulled from ONLYOFFICE', () => {
   it('records its temporary while it downloads, and releases it once the copy is in place', async () => {
     let whileDownloading = null;
