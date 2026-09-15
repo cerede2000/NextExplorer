@@ -943,15 +943,20 @@ describe('restoring somewhere else', () => {
   it('copies when a rename it expected to work is refused across mount points', async () => {
     await write('Projects/report.txt', 'still here');
     const { item } = await trash('Projects/report.txt');
-    const rename = fsp.rename.bind(fsp);
+    // Whichever call moves the content refuses it, as the kernel does for a
+    // link as much as for a rename: a file is linked out of the trash, so that
+    // it never replaces what holds its destination.
     let refusedOnce = false;
-    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
-      if (!refusedOnce && from === payloadOf(item)) {
-        refusedOnce = true;
-        throw Object.assign(new Error('EXDEV'), { code: 'EXDEV' });
-      }
-      return rename(from, to);
-    });
+    for (const method of ['rename', 'link']) {
+      const original = fsp[method].bind(fsp);
+      vi.spyOn(fsp, method).mockImplementation(async (from, to) => {
+        if (!refusedOnce && from === payloadOf(item)) {
+          refusedOnce = true;
+          throw Object.assign(new Error('EXDEV'), { code: 'EXDEV' });
+        }
+        return original(from, to);
+      });
+    }
 
     const result = await operations.restoreItem(item.id, { destinationDirectory: archive() });
 
