@@ -82,11 +82,17 @@ describe('an archive operation', () => {
       .post('/api/files/zip/compress')
       .send({ items: [{ name: 'one.txt', path: 'Work' }], destination: 'Work', name: 'bundle' });
 
-    expect(lastEvent(response)).toMatchObject({ type: 'done' });
+    expect(lastEvent(response)).toMatchObject({ type: 'done', item: { name: 'bundle.zip' } });
     expect(fs.existsSync(path.join(work, 'bundle.zip'))).toBe(true);
-    expect(recorded).toMatchObject([
-      { path: path.join(work, 'bundle.zip'), kind: 'partial-archive' },
-    ]);
+    // What is recorded is the hidden archive being written, never the name it
+    // is meant to take: a record naming that one would have the next start
+    // remove whatever holds it.
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].kind).toBe('partial-archive');
+    expect(path.dirname(recorded[0].path)).toBe(work);
+    expect(path.basename(recorded[0].path)).toMatch(/^\.nextexplorer-zip-.+\.zip$/);
+    expect(fs.existsSync(recorded[0].path)).toBe(false);
+    expect(fs.readdirSync(work).sort()).toEqual(['bundle.zip', 'one.txt']);
     expect(records(journal)).toEqual([]);
   });
 
@@ -131,8 +137,10 @@ describe('an archive operation', () => {
 
   it('left by a run a stop interrupted, has the next start remove the half-written zip only', async () => {
     const { work, journal } = await setup();
-    const partial = path.join(work, 'Archive.zip');
+    const partial = path.join(work, '.nextexplorer-zip-0f4c7e8a-interrupted.zip');
     fs.writeFileSync(partial, 'PK half an archive');
+    // The name that archive was meant to take, held by someone else meanwhile.
+    fs.writeFileSync(path.join(work, 'Archive.zip'), 'PK a finished archive');
     fs.mkdirSync(journal, { recursive: true });
     fs.writeFileSync(
       path.join(journal, 'interrupted.json'),
@@ -142,6 +150,7 @@ describe('an archive operation', () => {
     ctx.requireFresh('src/services/inFlightFiles').sweepInterrupted();
 
     expect(fs.existsSync(partial)).toBe(false);
+    expect(fs.readFileSync(path.join(work, 'Archive.zip'), 'utf8')).toBe('PK a finished archive');
     expect(fs.readFileSync(path.join(work, 'one.txt'), 'utf8')).toBe('one\n');
   });
 });

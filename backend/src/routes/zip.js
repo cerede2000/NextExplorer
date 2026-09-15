@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const fs = require('fs/promises');
@@ -12,9 +13,8 @@ const {
   normalizeRelativePath,
   combineRelativePath,
   ensureValidName,
-  findAvailableFolderName,
-  findAvailableName,
 } = require('../utils/pathUtils');
+const { placeWithoutOverwrite, reserveAvailableName } = require('../utils/placeWithoutOverwrite');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
@@ -93,11 +93,15 @@ const extractIntoCurrentFolder = async ({
 
   for (const entry of stagedEntries) {
     const entryName = ensureValidName(entry.name);
-    const destinationName = await findAvailableName(destinationDirectory, entryName);
     const sourcePath = path.join(stagingDirectory, entryName);
-    const destinationPath = path.join(destinationDirectory, destinationName);
-
-    await fs.rename(sourcePath, destinationPath);
+    // The name is taken by the move itself, never looked at first and renamed
+    // into later: a file, or an empty folder, that appears under it meanwhile
+    // stays as it is, and the entry goes to "name (1)".
+    const { name: destinationName, path: destinationPath } = await placeWithoutOverwrite(
+      sourcePath,
+      destinationDirectory,
+      entryName
+    );
     movedPaths.push(destinationPath);
 
     if (entry.isDirectory()) {
@@ -198,26 +202,30 @@ router.post(
       }
     })();
 
-    const folderName =
+    // A new folder is created under the first name nothing holds, by the step
+    // that takes the name: a folder that appears under "sample" after it was
+    // seen free is never merged into, the extraction goes to "sample 2".
+    const destinationFolder =
       destination === 'folder'
-        ? await findAvailableFolderName(parentAbsolutePath, baseFolderName)
-        : baseFolderName;
-    const destinationFolderAbsolutePath =
-      destination === 'folder'
-        ? path.join(parentAbsolutePath, folderName)
-        : await fs.mkdtemp(path.join(parentAbsolutePath, '.nextexplorer-extract-'));
+        ? await reserveAvailableName(parentAbsolutePath, baseFolderName, {
+            isDirectory: true,
+            style: 'folder',
+          })
+        : {
+            name: baseFolderName,
+            path: await fs.mkdtemp(path.join(parentAbsolutePath, '.nextexplorer-extract-')),
+          };
+    const folderName = destinationFolder.name;
+    const destinationFolderAbsolutePath = destinationFolder.path;
     const movedPaths = [];
-    // Recorded before anything more is written, released however the extraction
-    // ends: a stop half-way leaves the record, and the next start removes what
-    // it names.
+    // Recorded once the folder is this extraction's own, and not before: a
+    // record naming a folder someone else created would have the next start
+    // remove it. Released however the extraction ends: a stop half-way leaves
+    // the record, and the next start removes what it names.
     const inFlight = trackInFlight(
       destinationFolderAbsolutePath,
       destination === 'folder' ? 'partial-folder' : 'staging-directory'
     );
-
-    if (destination === 'folder') {
-      await fs.mkdir(destinationFolderAbsolutePath);
-    }
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
@@ -392,20 +400,28 @@ router.post(
       return defaultZipNameForItems(items);
     })();
 
-    const zipFileName = await findAvailableName(destinationAbsolutePath, requestedName);
-    const zipAbsolutePath = path.join(destinationAbsolutePath, zipFileName);
-    const inFlight = trackInFlight(zipAbsolutePath, 'partial-archive');
+    // The archive is written under a hidden name of its own, and only put under
+    // the name it is meant to have once it is whole, by a move that never
+    // replaces anything. Writing under that name from the start meant a file
+    // arriving there during a long compression was overwritten — or, 7-Zip
+    // adding to a zip it finds, changed —, and removed if the compression then
+    // failed. The name ends in ".zip" so 7-Zip takes it as given.
+    const temporaryPath = path.join(
+      destinationAbsolutePath,
+      `.nextexplorer-zip-${crypto.randomUUID()}.zip`
+    );
+    const inFlight = trackInFlight(temporaryPath, 'partial-archive');
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
     // NDJSON progress events, mirroring the extract endpoint:
-    //   {type:'start',    name}
-    //   {type:'progress', percent}    (throttled)
-    //   {type:'done',     success, item}
+    //   {type:'start',    name}          the name asked for
+    //   {type:'progress', percent}       (throttled)
+    //   {type:'done',     success, item} the name taken, "Archive (1).zip" when held
     //   {type:'error',    message, code}
     const writeEvent = startNdjsonStream(res);
 
-    writeEvent({ type: 'start', name: zipFileName });
+    writeEvent({ type: 'start', name: requestedName });
 
     const onPercent = throttlePercent(writeEvent);
 
@@ -433,26 +449,33 @@ router.post(
           hasCommonParent
             ? sourceTargets.map(({ name }) => name)
             : sourceTargets.map(({ absolutePath }) => absolutePath),
-          zipAbsolutePath,
+          temporaryPath,
           onPercent,
           { signal: controller.signal, cwd: hasCommonParent ? sourceParent : undefined }
         );
       } else {
-        await writeZipFile(entries, zipAbsolutePath, {
+        await writeZipFile(entries, temporaryPath, {
           totalBytes,
           onPercent,
           signal: controller.signal,
         });
       }
 
-      const zipStats = await fs.stat(zipAbsolutePath);
-      await folderSizeHooks.onFileWritten(zipAbsolutePath, zipStats.size);
+      const placed = await placeWithoutOverwrite(
+        temporaryPath,
+        destinationAbsolutePath,
+        requestedName
+      );
+      const zipStats = await fs.stat(placed.path);
+      await folderSizeHooks.onFileWritten(placed.path, zipStats.size);
 
-      const item = await buildItemMetadata(zipAbsolutePath, normalizedDestination, zipFileName);
+      const item = await buildItemMetadata(placed.path, normalizedDestination, placed.name);
       writeEvent({ type: 'done', success: true, item });
     } catch (error) {
-      logger.warn({ zipAbsolutePath, err: error }, 'Archive creation failed; cleaning up file');
-      await fs.rm(zipAbsolutePath, { force: true });
+      logger.warn({ temporaryPath, err: error }, 'Archive creation failed; cleaning up file');
+      // Only the hidden archive this compression wrote: whatever holds the name
+      // it was meant to take belongs to someone else.
+      await fs.rm(temporaryPath, { force: true });
       writeEvent({
         type: 'error',
         message: sanitizeClientMessage(error.message || 'Archive creation failed.'),
