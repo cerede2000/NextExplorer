@@ -140,11 +140,14 @@ router.post(
     }
 
     try {
-      // Check if path exists
-      await fs.stat(resolved.absolutePath);
+      const before = await fs.stat(resolved.absolutePath);
 
-      // Use chmod via Node.js built-in
-      const modeInt = parseInt(mode, 8);
+      // The three digits set read, write and execute. The setuid, setgid and
+      // sticky bits are not among them, and `chmod` writes the whole mode it is
+      // given: unticking one box on a shared setgid folder, or on /tmp-like
+      // sticky one, would silently take those bits away. They are kept as the
+      // item already had them.
+      const modeInt = parseInt(mode, 8) | (before.mode & 0o7000);
       await fs.chmod(resolved.absolutePath, modeInt);
 
       // If recursive and directory, apply to all children

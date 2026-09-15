@@ -114,6 +114,26 @@ describe('what may reach chmod', () => {
     expect(stats.mode & 0o777).toBe(0o640);
   });
 
+  // Three digits say nothing about the setuid, setgid and sticky bits, and
+  // chmod writes the whole mode: unticking one box on a sticky or setgid folder
+  // used to take those bits away with it.
+  it('keeps the special bits the folder already had', async () => {
+    const dir = await seed();
+    const shared = path.join(dir, 'drop-box');
+    await fs.mkdir(shared);
+    await fs.chmod(shared, 0o1777);
+
+    const response = await request(buildApp(ADMIN_USER))
+      .post('/api/permissions/chmod')
+      .send({ path: 'Docs/drop-box', mode: '775' });
+
+    expect(response.status).toBe(200);
+    const stats = await fs.stat(shared);
+    expect(stats.mode & 0o777).toBe(0o775);
+    expect(stats.mode & 0o7000).toBe(0o1000);
+    expect(response.body.mode & 0o7777).toBe(0o1775);
+  });
+
   // The mode is interpolated into a `chmod -R` argument list on the recursive
   // path. Only three octal digits can get that far.
   it.each([['755 --reference=/etc/shadow'], ['7555'], ['75\n5'], ['a+x'], ['']])(
