@@ -14,9 +14,9 @@ const {
   normalizeRelativePath,
   combineRelativePath,
   ensureValidName,
-  findAvailableName,
 } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { renameEntry } = require('../services/renameService');
 const logger = require('../utils/logger');
@@ -132,23 +132,27 @@ const fetchDocumentInto = async (downloadUrl, temporaryPath, mode) => {
 };
 
 /**
- * Pull a document the Document Server prepared into a file, atomically.
+ * Pull a document the Document Server prepared into a new file in `directory`,
+ * under `desiredName` or the first free name after it, "report (1).pdf".
+ * Answers the name and path it took.
  *
- * Written to a temporary name in the destination directory and renamed over
- * the target, so a slow or failed response never leaves a valid document
- * truncated to nothing. Used when saving one under a new name; a save over the
- * document itself goes through the versions, which do the same rename.
+ * Written to a temporary name in the directory first, so a slow or failed
+ * response never leaves a document truncated to nothing, then put under its
+ * name by a move that never replaces anything. Choosing the name before the
+ * download and renaming over it afterwards replaced whatever arrived under that
+ * name while the Document Server was answering. A save over the document itself
+ * goes through the versions instead.
  */
-const downloadDocumentTo = async (downloadUrl, targetPath, mode = 0o600) => {
+const downloadDocumentInto = async (downloadUrl, directory, desiredName, mode = 0o600) => {
   const temporaryPath = path.join(
-    path.dirname(targetPath),
-    `.${path.basename(targetPath)}.onlyoffice-${crypto.randomUUID()}.tmp`
+    directory,
+    `.${desiredName}.onlyoffice-${crypto.randomUUID()}.tmp`
   );
 
   const inFlight = trackInFlight(temporaryPath, 'temporary-file');
   try {
     await fetchDocumentInto(downloadUrl, temporaryPath, mode);
-    await fsp.rename(temporaryPath, targetPath);
+    return await placeWithoutOverwrite(temporaryPath, directory, desiredName);
   } finally {
     await fsp.unlink(temporaryPath).catch(() => {});
     inFlight.release();
@@ -961,13 +965,15 @@ router.post(
       throw new ForbiddenError(folderAccess?.denialReason || 'Access denied.');
     }
 
-    // A copy never overwrites: an existing name gets the same "(1)" treatment
-    // as everywhere else in the app.
-    const name = await findAvailableName(folder.absolutePath, desiredName);
-    const absolute = path.join(folder.absolutePath, name);
-
+    // A copy never overwrites: a name held, before the download or during it,
+    // gets the same "(1)" treatment as everywhere else in the app, and the
+    // answer gives the name actually taken.
     await ensureDir(folder.absolutePath);
-    await downloadDocumentTo(downloadUrl, absolute);
+    const { name, path: absolute } = await downloadDocumentInto(
+      downloadUrl,
+      folder.absolutePath,
+      desiredName
+    );
 
     const written = await fsp.stat(absolute);
     await folderSizeHooks.onFileWritten(absolute, written.size);

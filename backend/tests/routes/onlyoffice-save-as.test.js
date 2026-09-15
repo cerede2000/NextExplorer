@@ -22,12 +22,16 @@ describe('ONLYOFFICE save as', () => {
   let app;
   let filename;
   let port;
+  // Runs while the Document Server is half way through its answer.
+  let whileConverting = null;
 
   const setup = async () => {
-    documentServer = http.createServer((req, res) => {
+    documentServer = http.createServer(async (req, res) => {
       if (req.method === 'GET' && req.url.startsWith('/converted')) {
         res.setHeader('Content-Type', 'application/octet-stream');
-        res.end('converted document');
+        res.write('converted ');
+        if (whileConverting) await whileConverting();
+        res.end('document');
         return;
       }
       res.statusCode = 404;
@@ -70,6 +74,7 @@ describe('ONLYOFFICE save as', () => {
   const saveAs = (body) => request(app).post('/api/onlyoffice/save-as').send(body);
 
   afterEach(async () => {
+    whileConverting = null;
     if (documentServer) {
       await new Promise((resolve) => documentServer.close(resolve));
       documentServer = null;
@@ -123,7 +128,38 @@ describe('ONLYOFFICE save as', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.name).toBe('report (1).pdf');
-    expect(await fs.readFile(path.join(env.volumeDir, 'report.pdf'), 'utf8')).toBe('do not lose me');
+    expect(await fs.readFile(path.join(env.volumeDir, 'report.pdf'), 'utf8')).toBe(
+      'do not lose me'
+    );
+  });
+
+  it('never replaces a file that arrives under the name while the document downloads', async () => {
+    await setup();
+    const target = path.join(env.volumeDir, 'report.pdf');
+    const theirs = Buffer.from('saved over SMB while the Document Server answered\n');
+    let arrived = false;
+    whileConverting = async () => {
+      arrived = true;
+      await fs.writeFile(target, theirs);
+    };
+
+    const response = await saveAs({
+      path: filename,
+      url: `http://127.0.0.1:${port}/converted.pdf`,
+      title: 'report.pdf',
+    });
+
+    expect(arrived).toBe(true);
+    expect(response.status).toBe(200);
+    // The answer names the file actually written, not the one asked for.
+    expect(response.body).toMatchObject({ name: 'report (1).pdf', path: 'report (1).pdf' });
+    expect(await fs.readFile(target)).toEqual(theirs);
+    expect(await fs.readFile(path.join(env.volumeDir, 'report (1).pdf'), 'utf8')).toBe(
+      'converted document'
+    );
+    expect(
+      (await fs.readdir(env.volumeDir)).filter((name) => name.includes('.onlyoffice-'))
+    ).toEqual([]);
   });
 
   it('refuses a title that tries to leave the folder', async () => {
