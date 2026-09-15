@@ -4,6 +4,7 @@ const env = require('./env');
 const constants = require('./constants');
 const loggingConfig = require('./logging');
 const { parseByteSize } = require('../utils/env');
+const { resolveSessionSecret } = require('./sessionSecret');
 // logger reads config/logging, never this file — requiring it here makes no cycle.
 const logger = require('../utils/logger');
 
@@ -286,7 +287,8 @@ const authMode = determineAuthMode();
 
 const auth = {
   enabled: authMode === 'disabled' ? false : env.AUTH_ENABLED !== false,
-  sessionSecret: env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+  // Configured, or generated once and kept in CONFIG_DIR — see sessionSecret.js.
+  sessionSecret: resolveSessionSecret({ configured: env.SESSION_SECRET, configDir }),
   sessionMaxAgeMs: env.SESSION_MAX_AGE_DAYS * 24 * 60 * 60 * 1000, // Convert days to milliseconds
   mode: authMode,
   oidc: {
@@ -428,8 +430,9 @@ if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
 
 // --- Thumbnails served outside /api ---
 // Its own secret, so a leaked thumbnail URL cannot be turned into anything
-// else. Regenerated on restart when no session secret is configured, which
-// only means already-loaded pages refetch their thumbnails.
+// else. Derived from the session secret, so it lasts as long as that does; when
+// even that could not be stored, a restart only means already-loaded pages
+// refetch their thumbnails.
 const thumbnailAccess = {
   secret: deriveSecret('thumbnails'),
 };
