@@ -1123,6 +1123,10 @@ export const useFileStore = defineStore('fileStore', () => {
         canCreateFile: access?.canCreateFile ?? true,
         canShare: access?.canShare ?? true,
         canDownload: access?.canDownload ?? true,
+        // Whether the files here show their history: through a share, only once
+        // its owner turned it on. The server refuses anyway; this decides
+        // whether the menu offers what would be refused.
+        canSeeVersions: access?.canSeeVersions ?? true,
         isDirectory: response.current?.isDirectory ?? null,
         // Include share metadata if present
         shareInfo: response.shareInfo || null,

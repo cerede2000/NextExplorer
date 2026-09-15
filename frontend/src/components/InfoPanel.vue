@@ -5,6 +5,7 @@ import { useInfoPanelStore } from '@/stores/infoPanel';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useFeaturesStore } from '@/stores/features';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
+import { useFileStore } from '@/stores/fileStore';
 import { formatBytes, formatDate } from '@/utils';
 import { getKindLabel } from '@/utils/fileKinds';
 import FileIcon from '@/icons/FileIcon.vue';
@@ -56,11 +57,14 @@ const modifiedLabel = computed(() => {
 const locationLabel = computed(() => item.value?.path || '');
 
 const versionsPanel = useVersionsPanelStore();
+const fileStore = useFileStore();
+// Through a share whose owner keeps the history hidden, the listing says so.
 const canShowVersions = computed(
   () =>
     featuresStore.versionsEnabled &&
     Boolean(item.value) &&
-    !['directory', 'volume'].includes(item.value.kind)
+    !['directory', 'volume'].includes(item.value.kind) &&
+    fileStore.currentPathData?.canSeeVersions !== false
 );
 const openVersions = () => {
   const target = item.value;

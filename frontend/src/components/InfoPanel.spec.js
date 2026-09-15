@@ -46,6 +46,9 @@ vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 const versionsPanel = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versionsPanel }));
 
+const fileStore = vi.hoisted(() => ({ currentPathData: null }));
+vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
+
 // Something in the import chain builds an i18n instance at load time, so the
 // real module has to stay: only `useI18n` is replaced, to name each string by
 // its key.
@@ -93,6 +96,7 @@ beforeEach(() => {
   folderSize.refreshFolder.mockResolvedValue();
   close.mockClear();
   versionsPanel.open.mockClear();
+  fileStore.currentPathData = null;
   features.folderSizeEnabled = true;
   features.versionsEnabled = true;
   if (panel.store) Object.assign(panel.store, { isOpen: false, item: null, relativePath: '' });
@@ -445,6 +449,14 @@ describe("a file's versions", () => {
 
   it('are not offered where versions are switched off', async () => {
     features.versionsEnabled = false;
+
+    await openOn(FILE);
+
+    expect(button()).toBeNull();
+  });
+
+  it('are not offered through a share whose owner keeps them hidden', async () => {
+    fileStore.currentPathData = { canRead: true, canSeeVersions: false };
 
     await openOn(FILE);
 

@@ -107,6 +107,33 @@ beforeEach(() => {
   appSettings.thumbnailsEnabledForSession = true;
 });
 
+/**
+ * What the listing says the folder allows is copied field by field: a field the
+ * server sends and this store does not copy is, for every screen, a field the
+ * server never sent. That is how the Versions entry stayed on offer through a
+ * share whose owner kept the history hidden.
+ */
+describe('what a listing says its files show', () => {
+  const listed = async (access) => {
+    const store = useFileStore();
+    browse.mockResolvedValue({ items: [file('notes.md')], path: 'Docs', access });
+    await store.fetchPathItems('Docs');
+    return store.currentPathData;
+  };
+
+  it('keeps a history the server says is hidden, hidden', async () => {
+    expect((await listed({ canRead: true, canSeeVersions: false })).canSeeVersions).toBe(false);
+  });
+
+  it('keeps one it says is shown', async () => {
+    expect((await listed({ canRead: true, canSeeVersions: true })).canSeeVersions).toBe(true);
+  });
+
+  it('leaves the decision to the server when an older one says nothing', async () => {
+    expect((await listed({ canRead: true })).canSeeVersions).toBe(true);
+  });
+});
+
 describe('the order a folder is shown in', () => {
   it('puts folders before files, whatever is being sorted on', async () => {
     const store = await storeInDocs([file('a.txt'), dir('zzz'), file('b.txt'), dir('aaa')]);
@@ -127,11 +154,7 @@ describe('the order a folder is shown in', () => {
    * name in a place its reader will not look for it.
    */
   it('sorts names the way they are read, not the way they are encoded', async () => {
-    const store = await storeInDocs([
-      file('cerise.txt'),
-      file('Banane.txt'),
-      file('ananas.txt'),
-    ]);
+    const store = await storeInDocs([file('cerise.txt'), file('Banane.txt'), file('ananas.txt')]);
 
     expect(namesInOrder(store)).toEqual(['ananas.txt', 'Banane.txt', 'cerise.txt']);
   });
@@ -157,7 +180,10 @@ describe('the order a folder is shown in', () => {
     sizeFor.mockImplementation((path) =>
       path === 'Docs/Photos' ? { sizeBytes: 9_000_000 } : { sizeBytes: 1000 }
     );
-    const store = await storeInDocs([dir('Musique', { size: 4096 }), dir('Photos', { size: 4096 })]);
+    const store = await storeInDocs([
+      dir('Musique', { size: 4096 }),
+      dir('Photos', { size: 4096 }),
+    ]);
 
     expect(namesInOrder(store)).toEqual(['Photos', 'Musique']);
   });
@@ -410,10 +436,7 @@ describe('warning about a document somebody is editing', () => {
   it('names the first two and counts the rest', async () => {
     const store = await storeInDocs();
 
-    store.warnAboutOnlyOfficeActivity(
-      ['a.docx', 'b.docx', 'c.docx', 'd.docx'].map(open),
-      'Move'
-    );
+    store.warnAboutOnlyOfficeActivity(['a.docx', 'b.docx', 'c.docx', 'd.docx'].map(open), 'Move');
 
     const { body } = addNotification.mock.calls[0][0];
     expect(body).toContain('a.docx, b.docx');
@@ -467,27 +490,27 @@ describe('fetching a thumbnail nobody asked for', () => {
     fetchThumbnailApi.mockResolvedValue({ queued: true });
     const store = await storeInDocs([file('photo.jpg', { supportsThumbnail: true })]);
 
-    expect(
-      await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))
-    ).toBe(true);
+    expect(await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))).toBe(
+      true
+    );
   });
 
   it('counts a refusal as not done, so it can be tried again', async () => {
     fetchThumbnailApi.mockResolvedValue({});
     const store = await storeInDocs([file('photo.jpg', { supportsThumbnail: true })]);
 
-    expect(
-      await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))
-    ).toBe(false);
+    expect(await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))).toBe(
+      false
+    );
   });
 
   it('says nothing when the request fails', async () => {
     fetchThumbnailApi.mockRejectedValue(new Error('offline'));
     const store = await storeInDocs([file('photo.jpg', { supportsThumbnail: true })]);
 
-    expect(
-      await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))
-    ).toBe(false);
+    expect(await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))).toBe(
+      false
+    );
   });
 
   it.each([
@@ -506,9 +529,9 @@ describe('fetching a thumbnail nobody asked for', () => {
     appSettings.thumbnailsEnabledForSession = false;
     const store = await storeInDocs([file('photo.jpg', { supportsThumbnail: true })]);
 
-    expect(
-      await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))
-    ).toBe(false);
+    expect(await store.prefetchItemThumbnail(file('photo.jpg', { supportsThumbnail: true }))).toBe(
+      false
+    );
     expect(fetchThumbnailApi).not.toHaveBeenCalled();
   });
 });
