@@ -485,6 +485,7 @@
       "subtitle": "인터페이스에 표시되는 애플리케이션 이름과 로고를 커스터마이징하세요.",
       "appName": "애플리케이션 이름",
       "appNameHelp": "설정된 이름은 헤더, 로그인 페이지, 페이지 하단에 표시됩니다 (최대 100 글자).",
+      "appNameRequired": "애플리케이션 이름은 비워 둘 수 없습니다.",
       "appLogoUrl": "로고 이미지",
       "logo": "로고 이미지",
       "logoHelp": "커스텀 로고로 사용할 SVG, PNG, JPG 파일을 업로드하세요 (최대 2MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "왼쪽 사이드바에 도구를 표시합니다.",
       "defaultShareExpiration": "기본 공유 기한",
       "defaultShareExpirationHelp": "새 공유를 만들 때 사용할 기본 공유 기한을 지정하세요. 공유를 생성할 때 이 설정 값을 바탕으로 기본값이 채워집니다.",
+      "defaultShareExpirationInvalid": "1 이상의 정수를 입력하거나, 기본 기한을 두지 않으려면 입력란을 비우세요.",
       "expirationValue": "기간",
       "days": "일",
       "weeks": "주",
@@ -543,7 +545,8 @@
       "maxDim": "최대 해상도",
       "maxDimHelp": "가로와 세로 중 긴 면의 최대 픽셀 수를 지정하세요. 기본값은 200입니다.",
       "concurrency": "병렬 생성",
-      "concurrencyHelp": "동시에 생성 가능한 썸네일 개수를 지정하세요 (1–50). 기본값은 10입니다."
+      "concurrencyHelp": "동시에 생성 가능한 썸네일 개수를 지정하세요 (1–50). 기본값은 10입니다.",
+      "invalid": "값을 확인하세요: 품질 1~100, 최대 해상도 64~1024px, 병렬 생성 1~50."
     },
     "security": {
       "subtitle": "애플리케이션에 대한 접근 방식을 설정합니다.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "이 주소에 대해 기억된 청크 크기: {size} MiB.",
       "autoFallbackReset": "초기화 (직접 전송으로 복귀)",
       "chunkSize": "청크 크기",
-      "chunkSizeHelp": "각 업로드 요청의 최대 크기입니다. 리버스 프록시 제한보다 낮게 유지하세요. 청크가 작을수록(8–32 MiB) 진행률이 더 부드럽게 표시되고, 청크가 매우 크면 눈에 띄는 단계가 나타납니다(서버가 다음 청크를 처리하기 전에 각 청크를 기록합니다)."
+      "chunkSizeHelp": "각 업로드 요청의 최대 크기입니다. 리버스 프록시 제한보다 낮게 유지하세요. 청크가 작을수록(8–32 MiB) 진행률이 더 부드럽게 표시되고, 청크가 매우 크면 눈에 띄는 단계가 나타납니다(서버가 다음 청크를 처리하기 전에 각 청크를 기록합니다).",
+      "chunkSizeInvalid": "청크 크기를 1~{max} MiB 사이로 입력하세요."
     },
     "folderSize": {
       "title": "폴더 크기",

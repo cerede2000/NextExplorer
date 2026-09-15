@@ -485,6 +485,7 @@
       "subtitle": "Anpassa appens namn och logotyp som visas i hela gränssnittet.",
       "appName": "Applikationsnamn",
       "appNameHelp": "Namnet som visas i sidhuvuden, inloggningssidan och sidfoten (max 100 tecken).",
+      "appNameRequired": "Applikationsnamnet får inte vara tomt.",
       "appLogoUrl": "Logotypbild",
       "logo": "Logotypbild",
       "logoHelp": "Ladda upp en SVG-, PNG- eller JPG-fil för din egna logotyp (max 2 MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "Visar Verktyg i vänster sidofält.",
       "defaultShareExpiration": "Standardutgång för delningar",
       "defaultShareExpirationHelp": "Ställ in en standardperiod för nya delningar. Utlösningsdatumet fylls i automatiskt baserat på detta val.",
+      "defaultShareExpirationInvalid": "Ange ett heltal på minst 1, eller töm fältet för att inte ha någon standardutgång.",
       "expirationValue": "Värde",
       "days": "Dagar",
       "weeks": "Veckor",
@@ -543,7 +545,8 @@
       "maxDim": "Max mått",
       "maxDimHelp": "Längsta sidan i bildpunkter. Standard är 200.",
       "concurrency": "Samtidig generering",
-      "concurrencyHelp": "Antal miniatyrbilder som ska genereras samtidigt (1–50). Standard är 10."
+      "concurrencyHelp": "Antal miniatyrbilder som ska genereras samtidigt (1–50). Standard är 10.",
+      "invalid": "Kontrollera värdena: kvalitet 1 till 100, max mått 64 till 1024 px, samtidig generering 1 till 50."
     },
     "security": {
       "subtitle": "Kontrollera åtkomst till appen.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "Delstorlek sparad för denna adress: {size} MiB.",
       "autoFallbackReset": "Återställ (tillbaka till direkt)",
       "chunkSize": "Delstorlek",
-      "chunkSizeHelp": "Maximal storlek för varje uppladdningsförfrågan. Håll den under gränsen för din omvända proxy. Mindre delar (8–32 MiB) ger jämnare förlopp; mycket stora delar ger synliga hopp (servern skriver varje del innan nästa)."
+      "chunkSizeHelp": "Maximal storlek för varje uppladdningsförfrågan. Håll den under gränsen för din omvända proxy. Mindre delar (8–32 MiB) ger jämnare förlopp; mycket stora delar ger synliga hopp (servern skriver varje del innan nästa).",
+      "chunkSizeInvalid": "Ange en delstorlek från 1 till {max} MiB."
     },
     "folderSize": {
       "title": "Mappstorlekar",

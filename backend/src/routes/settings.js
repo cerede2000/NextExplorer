@@ -168,7 +168,17 @@ const keepValid = (section, fields) => {
 const isNumber = (value) => Number.isFinite(value);
 const isBoolean = (value) => typeof value === 'boolean';
 const isText = (value) => typeof value === 'string';
-const isPresent = (value) => value != null;
+
+// A size or a count of nothing, or of less than nothing, is what an emptied or
+// mistyped field sends, not a value anyone chose. The service would bring it up
+// to its lowest bound — a chunk size of 0 became 1 MiB — which replaced what
+// was stored with something nobody asked for. A positive value outside the
+// bounds is still brought within them there.
+const isPositiveNumber = (value) => Number.isFinite(value) && value > 0;
+
+// An application name of spaces is no name: the header and the sign-in page
+// showed nothing where it belonged.
+const isName = (value) => typeof value === 'string' && value.trim() !== '';
 
 /**
  * Merge an update over what is stored, and give back the whole section.
@@ -208,10 +218,12 @@ const applyThumbnails = (section) =>
     'system',
     'thumbnails',
     keepValid(section, {
-      enabled: isPresent,
-      size: isNumber,
-      quality: isNumber,
-      concurrency: isNumber,
+      // Anything but a boolean used to be read as "on": "false" switched
+      // thumbnails on for everybody.
+      enabled: isBoolean,
+      size: isPositiveNumber,
+      quality: isPositiveNumber,
+      concurrency: isPositiveNumber,
     })
   );
 
@@ -222,7 +234,7 @@ const applyUploads = (section) =>
     keepValid(section, {
       chunkedEnabled: isBoolean,
       chunkedAutoFallback: isBoolean,
-      chunkSizeBytes: isNumber,
+      chunkSizeBytes: isPositiveNumber,
     })
   );
 
@@ -258,7 +270,7 @@ const applyBranding = (section) =>
   mergeSection(
     'branding',
     'branding',
-    keepValid(section, { appName: isText, appLogoUrl: isText, showPoweredBy: isBoolean })
+    keepValid(section, { appName: isName, appLogoUrl: isText, showPoweredBy: isBoolean })
   );
 
 /** Access rules replace the list rather than merging into it. */

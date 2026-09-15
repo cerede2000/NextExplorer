@@ -133,6 +133,31 @@ describe('the upload settings', () => {
     expect(sentSize()).toBe(3 * MIB);
   });
 
+  /**
+   * An emptied field holds no number, so there was nothing to bring within
+   * bounds, and the page sent it as a size of 0.
+   */
+  it('show an emptied size as invalid, naming the bounds, and do not send it', async () => {
+    await open();
+
+    await sizeField().setValue('');
+
+    expect(wrapper.get('[data-test="uploads-settings-invalid"]').text()).toBe(
+      'settings.uploads.chunkSizeInvalid {"max":64}'
+    );
+    const saveButton = wrapper.get('[data-test="uploads-settings-save"]');
+    expect(saveButton.attributes('disabled')).toBeDefined();
+    await saveButton.trigger('click');
+    await flushPromises();
+    expect(appSettings.save).not.toHaveBeenCalled();
+
+    await sizeField().setValue('24');
+    expect(wrapper.find('[data-test="uploads-settings-invalid"]').exists()).toBe(false);
+    expect(
+      wrapper.get('[data-test="uploads-settings-save"]').attributes('disabled')
+    ).toBeUndefined();
+  });
+
   it('hold sizes to 512 MiB when the server has not given a ceiling', async () => {
     await open({ ceilingBytes: 0 });
 

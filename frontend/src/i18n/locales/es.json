@@ -485,6 +485,7 @@
       "subtitle": "Personaliza el nombre de la aplicación y el logotipo que se muestran en toda la interfaz.",
       "appName": "Nombre de la aplicación",
       "appNameHelp": "El nombre que se muestra en encabezados, página de inicio de sesión y pie de página (máx. 100 caracteres).",
+      "appNameRequired": "El nombre de la aplicación no puede estar vacío.",
       "appLogoUrl": "Imagen del logotipo",
       "logo": "Imagen del logotipo",
       "logoHelp": "Sube un archivo SVG, PNG o JPG para tu logotipo personalizado (máx. 2 MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "Muestra Herramientas en la barra lateral izquierda.",
       "defaultShareExpiration": "Caducidad predeterminada para compartir",
       "defaultShareExpirationHelp": "Establece un período por defecto para nuevas comparticiones. La fecha de caducidad se rellena automáticamente basándose en este valor.",
+      "defaultShareExpirationInvalid": "Introduce un número entero de al menos 1, o vacía el campo para no tener caducidad predeterminada.",
       "expirationValue": "Valor",
       "days": "Días",
       "weeks": "Semanas",
@@ -543,7 +545,8 @@
       "maxDim": "Dimensión máxima",
       "maxDimHelp": "Lado más largo en píxeles. El valor predeterminado es 200.",
       "concurrency": "Generación en paralelo",
-      "concurrencyHelp": "Número de miniaturas que se generan simultáneamente (1–50). El valor predeterminado es 10."
+      "concurrencyHelp": "Número de miniaturas que se generan simultáneamente (1–50). El valor predeterminado es 10.",
+      "invalid": "Revisa los valores: calidad de 1 a 100, dimensión máxima de 64 a 1024 px, generación en paralelo de 1 a 50."
     },
     "security": {
       "subtitle": "Controla el acceso a la aplicación.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "Tamaño de fragmento recordado para esta dirección: {size} MiB.",
       "autoFallbackReset": "Restablecer (volver a directo)",
       "chunkSize": "Tamaño de fragmento",
-      "chunkSizeHelp": "Tamaño máximo de cada solicitud de subida. Mantenlo por debajo del límite de tu proxy inverso. Los fragmentos más pequeños (8–32 MiB) ofrecen un progreso más fluido; los fragmentos muy grandes muestran saltos visibles (el servidor escribe cada fragmento antes del siguiente)."
+      "chunkSizeHelp": "Tamaño máximo de cada solicitud de subida. Mantenlo por debajo del límite de tu proxy inverso. Los fragmentos más pequeños (8–32 MiB) ofrecen un progreso más fluido; los fragmentos muy grandes muestran saltos visibles (el servidor escribe cada fragmento antes del siguiente).",
+      "chunkSizeInvalid": "Introduce un tamaño de fragmento de 1 a {max} MiB."
     },
     "folderSize": {
       "title": "Tamaño de carpetas",

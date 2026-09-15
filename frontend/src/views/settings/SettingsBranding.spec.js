@@ -118,6 +118,24 @@ describe('the branding settings', () => {
     expect(button('common.save')).toBeUndefined();
   });
 
+  it.each([[''], ['   ']])(
+    'refuse an application name of %j before anything is sent',
+    async (typed) => {
+      await open();
+
+      await nameField().setValue(typed);
+
+      expect(wrapper.get('[data-test="branding-name-invalid"]').text()).toBe(
+        'settings.branding.appNameRequired'
+      );
+      const saveButton = wrapper.get('[data-test="branding-save"]');
+      expect(saveButton.attributes('disabled')).toBeDefined();
+      await saveButton.trigger('click');
+      await flushPromises();
+      expect(appSettings.save).not.toHaveBeenCalled();
+    }
+  );
+
   it('report a save the server refused, and keep the edits on screen', async () => {
     await open();
     appSettings.save.mockRejectedValueOnce(new Error('Admin access required'));

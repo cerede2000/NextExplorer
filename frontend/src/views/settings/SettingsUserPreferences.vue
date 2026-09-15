@@ -54,6 +54,14 @@ const dirty = computed(() => {
   );
 });
 
+// Empty means no default. Anything else has to be a whole number of at least
+// one, as the server takes it: minus three weeks used to be sent as it was.
+const expirationInvalid = computed(() => {
+  const value = local.defaultShareExpirationValue;
+  if (value === null || value === '') return false;
+  return !(Number.isInteger(value) && value >= 1);
+});
+
 const hiddenFilePatternsLabel = computed(() => {
   const patterns = Array.isArray(features.hiddenFilePatterns) ? features.hiddenFilePatterns : [];
   return patterns.length ? patterns.join(', ') : t('common.disabled');
@@ -129,6 +137,7 @@ const reset = () => {
 };
 
 const save = async () => {
+  if (expirationInvalid.value) return;
   const defaultShareExpiration = local.defaultShareExpirationValue
     ? { value: local.defaultShareExpirationValue, unit: local.defaultShareExpirationUnit }
     : null;
@@ -158,7 +167,10 @@ const save = async () => {
       <div class="text-sm">{{ t('common.unsavedChanges') }}</div>
       <div class="flex gap-2">
         <button
-          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400"
+          type="button"
+          data-test="preferences-save"
+          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400 disabled:opacity-50"
+          :disabled="expirationInvalid"
           @click="save"
         >
           {{ t('common.save') }}
@@ -259,6 +271,13 @@ const save = async () => {
             <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
               {{ t('settings.userPreferences.defaultShareExpirationHelp') }}
             </div>
+            <p
+              v-if="expirationInvalid"
+              data-test="expiration-invalid"
+              class="mt-1 text-sm text-red-600"
+            >
+              {{ t('settings.userPreferences.defaultShareExpirationInvalid') }}
+            </p>
           </div>
           <div class="flex items-center gap-2">
             <input

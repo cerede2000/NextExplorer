@@ -110,6 +110,58 @@ describe('PATCH /api/settings — user preferences', () => {
     }
   });
 
+  /**
+   * A default expiry that is not one used to be stored as no default: minus
+   * three weeks sent from the page removed the default the person had, and the
+   * page then showed an empty field.
+   */
+  it.each([
+    [{ value: -3, unit: 'weeks' }],
+    [{ value: 0, unit: 'days' }],
+    [{ value: 3, unit: 'years' }],
+    [5],
+    ['soon'],
+  ])('leaves the default share expiry as it was when sent %j', async (sent) => {
+    const { envContext, app } = await buildContext();
+    try {
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultShareExpiration: { value: 3, unit: 'days' } } })
+        .expect(200);
+
+      const saved = await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultShareExpiration: sent } })
+        .expect(200);
+
+      expect(saved.body.user.defaultShareExpiration).toEqual({ value: 3, unit: 'days' });
+      const reread = await request(app).get('/api/settings').expect(200);
+      expect(reread.body.user.defaultShareExpiration).toEqual({ value: 3, unit: 'days' });
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
+  it('removes the default share expiry when sent null', async () => {
+    const { envContext, app } = await buildContext();
+    try {
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultShareExpiration: { value: 3, unit: 'days' } } })
+        .expect(200);
+
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultShareExpiration: null } })
+        .expect(200);
+
+      const reread = await request(app).get('/api/settings').expect(200);
+      expect(reread.body.user.defaultShareExpiration).toBeNull();
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
   it('ignores a key that is not a user preference', async () => {
     const { envContext, app } = await buildContext();
     try {

@@ -488,6 +488,7 @@
       "subtitle": "Pas de naam en het logo van de applicatie aan die door de hele interface worden weergegeven.",
       "appName": "Naam van de toepassing",
       "appNameHelp": "De naam die wordt weergegeven in kopregels, loginpagina, en voetregel (max 100 tekens).",
+      "appNameRequired": "De naam van de toepassing mag niet leeg zijn.",
       "appLogoUrl": "Logo-afbeelding",
       "logo": "Logo-afbeelding",
       "logoHelp": "Upload een SVG-, PNG- of JPG-bestand als aangepast logo (max 2MB).",
@@ -517,6 +518,7 @@
       "showSidebarToolsHelp": "Toon Hulpmiddelen in de linker zijbalk.",
       "defaultShareExpiration": "Standaard verlooptijd bij Delen",
       "defaultShareExpirationHelp": "Stel een standaard vervaldatum in voor nieuwe shares. Bij het aanmaken van een share wordt de vervaldatum automatisch ingevuld op basis van deze instelling.",
+      "defaultShareExpirationInvalid": "Vul een geheel getal van minstens 1 in, of maak het veld leeg voor geen standaard verlooptijd.",
       "expirationValue": "Waarde",
       "days": "Dagen",
       "weeks": "Weken",
@@ -546,7 +548,8 @@
       "maxDim": "Max. afmetingen",
       "maxDimHelp": "Langste zijde in pixels. Standaard is 200.",
       "concurrency": "Parallel aanmaken",
-      "concurrencyHelp": "Het aantal miniaturen dat tegelijk wordt aangemaakt (1–50). Standaard is 10."
+      "concurrencyHelp": "Het aantal miniaturen dat tegelijk wordt aangemaakt (1–50). Standaard is 10.",
+      "invalid": "Controleer de waarden: kwaliteit van 1 tot 100, max. afmetingen van 64 tot 1024 px, parallel aanmaken van 1 tot 50."
     },
     "uploads": {
       "title": "Uploads",
@@ -558,7 +561,8 @@
       "autoFallbackActive": "Onthouden deelgrootte voor dit adres: {size} MiB.",
       "autoFallbackReset": "Herstellen (terug naar direct)",
       "chunkSize": "Deelgrootte",
-      "chunkSizeHelp": "Maximale grootte van elk uploadverzoek. Houd dit onder de limiet van uw reverse proxy. Kleinere delen (8–32 MiB) geven een vloeiendere voortgang; zeer grote delen tonen zichtbare stappen (de server schrijft elk deel weg voor het volgende)."
+      "chunkSizeHelp": "Maximale grootte van elk uploadverzoek. Houd dit onder de limiet van uw reverse proxy. Kleinere delen (8–32 MiB) geven een vloeiendere voortgang; zeer grote delen tonen zichtbare stappen (de server schrijft elk deel weg voor het volgende).",
+      "chunkSizeInvalid": "Vul een deelgrootte van 1 tot {max} MiB in."
     },
     "folderSize": {
       "title": "Mapgroottes",

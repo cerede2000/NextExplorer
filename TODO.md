@@ -386,9 +386,6 @@ holding the release for. Each was reproduced; none is guessed.
   measure the free space once, before the first file has finished writing.
 - **An access rule on `../Secret`** is dropped by the server without a word, and
   its row disappears from the page.
-- **Settings screens that trust the server to correct them:** an emptied chunk
-  size sends 0, thumbnails have no bounds client-side, a negative default share
-  expiry is accepted, and an empty application name is stored as empty.
 - **A logo is replaced the moment it is chosen,** under a fixed name per type, so
   Discard cannot undo it and replacing a PNG with a PNG offers no Save at all.
 - **Branding speaks English only**: its confirmation and upload messages are not

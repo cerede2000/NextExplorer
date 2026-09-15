@@ -488,6 +488,7 @@
       "subtitle": "Customize the application name and logo displayed throughout the interface.",
       "appName": "Application Name",
       "appNameHelp": "The name displayed in headers, login page, and footer (max 100 characters).",
+      "appNameRequired": "The application name cannot be empty.",
       "appLogoUrl": "Logo Image",
       "logo": "Logo Image",
       "logoHelp": "Upload an SVG, PNG, or JPG file for your custom logo (max 2MB).",
@@ -517,6 +518,7 @@
       "showSidebarToolsHelp": "Display Tools in the left sidebar.",
       "defaultShareExpiration": "Default share expiration",
       "defaultShareExpirationHelp": "Set a default expiration period for new shares. When creating a share, the expiration date will be pre-filled based on this setting.",
+      "defaultShareExpirationInvalid": "Enter a whole number of at least 1, or clear the field for no default.",
       "expirationValue": "Value",
       "days": "Days",
       "weeks": "Weeks",
@@ -546,7 +548,8 @@
       "maxDim": "Max dimension",
       "maxDimHelp": "Longest side in pixels. Default is 200.",
       "concurrency": "Parallel generation",
-      "concurrencyHelp": "Number of thumbnails to generate simultaneously (1–50). Default is 10."
+      "concurrencyHelp": "Number of thumbnails to generate simultaneously (1–50). Default is 10.",
+      "invalid": "Check the values: quality from 1 to 100, max dimension from 64 to 1024 px, parallel generation from 1 to 50."
     },
     "uploads": {
       "title": "Uploads",
@@ -558,7 +561,8 @@
       "autoFallbackActive": "Chunked size remembered for this address: {size} MiB.",
       "autoFallbackReset": "Reset (back to direct)",
       "chunkSize": "Chunk size",
-      "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit. Smaller chunks (8–32 MiB) give smoother progress; very large chunks show visible steps (the server writes each chunk before the next)."
+      "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit. Smaller chunks (8–32 MiB) give smoother progress; very large chunks show visible steps (the server writes each chunk before the next).",
+      "chunkSizeInvalid": "Enter a chunk size from 1 to {max} MiB."
     },
     "folderSize": {
       "title": "Folder sizes",

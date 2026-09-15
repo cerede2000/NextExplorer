@@ -110,6 +110,52 @@ describe('the thumbnail settings', () => {
     expect(button('common.save')).toBeUndefined();
   });
 
+  /**
+   * The server holds each value to bounds of its own, and used to be the only
+   * thing that did: a size of 20 was sent and stored as 64, an emptied field
+   * was dropped and the old value kept, while the page showed what was typed.
+   */
+  it.each([
+    ['quality', '0', qualityField],
+    ['quality', '101', qualityField],
+    ['size', '63', sizeField],
+    ['size', '1025', sizeField],
+    ['size', '', sizeField],
+    ['concurrency', '51', concurrencyField],
+    ['concurrency', '2.5', concurrencyField],
+  ])('refuse a %s of %j before anything is sent', async (_name, typed, field) => {
+    await open();
+
+    await field().setValue(typed);
+
+    expect(wrapper.find('[data-test="thumbnail-settings-invalid"]').text()).toBe(
+      'settings.thumbs.invalid'
+    );
+    const saveButton = wrapper.get('[data-test="thumbnail-settings-save"]');
+    expect(saveButton.attributes('disabled')).toBeDefined();
+    await saveButton.trigger('click');
+    await flushPromises();
+    expect(appSettings.save).not.toHaveBeenCalled();
+  });
+
+  it('take every bound itself', async () => {
+    await open();
+
+    await qualityField().setValue('1');
+    await sizeField().setValue('1024');
+    await concurrencyField().setValue('50');
+    expect(wrapper.find('[data-test="thumbnail-settings-invalid"]').exists()).toBe(false);
+
+    await sizeField().setValue('64');
+    await qualityField().setValue('100');
+    await concurrencyField().setValue('1');
+    await save();
+
+    expect(appSettings.save).toHaveBeenCalledWith({
+      thumbnails: { enabled: true, quality: 100, size: 64, concurrency: 1 },
+    });
+  });
+
   it('switch thumbnails off for everybody, sending the other values unchanged', async () => {
     await open();
 

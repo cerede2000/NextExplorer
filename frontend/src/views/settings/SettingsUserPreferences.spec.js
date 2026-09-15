@@ -187,6 +187,39 @@ describe('the preferences', () => {
     expect(sentUser().defaultShareExpiration).toBeNull();
   });
 
+  /**
+   * Minus three weeks was sent as it was, and the server stored it as no
+   * default: the default the person had was gone, and the field came back
+   * empty.
+   */
+  it.each([['-3'], ['0'], ['1.5']])(
+    'refuse a default share expiry of %s before anything is sent',
+    async (typed) => {
+      await open();
+
+      await expiryField().setValue(typed);
+
+      expect(wrapper.get('[data-test="expiration-invalid"]').text()).toBe(
+        'settings.userPreferences.defaultShareExpirationInvalid'
+      );
+      const saveButton = wrapper.get('[data-test="preferences-save"]');
+      expect(saveButton.attributes('disabled')).toBeDefined();
+      await saveButton.trigger('click');
+      await flushPromises();
+      expect(appSettings.save).not.toHaveBeenCalled();
+    }
+  );
+
+  it('take an emptied expiry field as no default, which is not an error', async () => {
+    await open();
+
+    await expiryField().setValue('');
+
+    expect(wrapper.find('[data-test="expiration-invalid"]').exists()).toBe(false);
+    await save();
+    expect(sentUser().defaultShareExpiration).toBeNull();
+  });
+
   it('send the chosen view and start page as the values they stand for, not as text', async () => {
     await open(DEFAULTS);
 

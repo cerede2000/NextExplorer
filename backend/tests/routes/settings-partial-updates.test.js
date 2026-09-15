@@ -42,6 +42,7 @@ const seed = async () => {
     `INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
      VALUES ('u1','u@example.com',1,'u','U','["user"]', ?, ?)`
   ).run(now, now);
+  return db;
 };
 
 const buildApp = (roles) => {
@@ -126,6 +127,18 @@ describe('a field sent in a shape it does not take', () => {
     }
   );
 
+  it('leaves thumbnails as they were when "enabled" is not a boolean', async () => {
+    await seed();
+    await patch(['admin'], { thumbnails: { enabled: false } });
+
+    // Anything present used to count, and the service reads what is not a
+    // boolean as on: "false" switched thumbnails on for everybody.
+    const response = await patch(['admin'], { thumbnails: { enabled: 'false' } });
+
+    expect(response.status).toBe(200);
+    expect((await readAsAdmin()).thumbnails.enabled).toBe(false);
+  });
+
   /** The one field where "nothing" is a value: no cap on the trash. */
   it('takes null for the trash size cap, which removes the cap', async () => {
     await seed();
@@ -134,6 +147,67 @@ describe('a field sent in a shape it does not take', () => {
     await patch(['admin'], { trash: { maxBytes: null } });
 
     expect((await readAsAdmin()).trash.maxBytes).toBeNull();
+  });
+});
+
+/**
+ * A number, but not one anybody chose: what an emptied or mistyped field sends.
+ *
+ * The shape is right, so the check above let these through, and the service
+ * brought each up to its lowest bound — a chunk size of 0 stored as 1 MiB, a
+ * thumbnail size of 0 as 64 pixels — in place of what the administrator had.
+ * A positive value beyond a bound is still brought within it.
+ */
+describe('a size or a count of nothing', () => {
+  it.each([
+    ['uploads.chunkSizeBytes', 0, 'uploads', 'chunkSizeBytes', 16 * MiB],
+    ['uploads.chunkSizeBytes', -MiB, 'uploads', 'chunkSizeBytes', 16 * MiB],
+    ['thumbnails.size', 0, 'thumbnails', 'size', 320],
+    ['thumbnails.quality', -5, 'thumbnails', 'quality', 55],
+    ['thumbnails.concurrency', 0, 'thumbnails', 'concurrency', 4],
+  ])('leaves %s as it was when sent %j', async (_label, sent, section, field, kept) => {
+    await seed();
+    await patch(['admin'], { [section]: { [field]: kept } });
+
+    const response = await patch(['admin'], { [section]: { [field]: sent } });
+
+    expect(response.status).toBe(200);
+    expect((await readAsAdmin())[section][field]).toBe(kept);
+  });
+
+  it('still brings a positive value beyond its bounds within them', async () => {
+    await seed();
+
+    await patch(['admin'], { thumbnails: { size: 5000 }, uploads: { chunkSizeBytes: 1024 } });
+
+    const settings = await readAsAdmin();
+    expect(settings.thumbnails.size).toBe(1024);
+    expect(settings.uploads.chunkSizeBytes).toBe(MiB);
+  });
+});
+
+describe('the application name', () => {
+  it.each([[''], ['   ']])('is left as it was when sent as %j', async (appName) => {
+    await seed();
+    await patch(['admin'], { branding: { appName: 'Files' } });
+
+    const response = await patch(['admin'], { branding: { appName } });
+
+    expect(response.status).toBe(200);
+    expect(response.body.branding.appName).toBe('Files');
+    expect((await readAsAdmin()).branding.appName).toBe('Files');
+  });
+
+  it('reads as the default where an empty one was stored before', async () => {
+    const db = await seed();
+    db.prepare(
+      `INSERT INTO system_settings (id, category, key, value, updated_at)
+       VALUES ('b1', 'branding', 'branding', ?, ?)`
+    ).run(JSON.stringify({ appName: '  ', appLogoUrl: '/logo.svg' }), new Date().toISOString());
+
+    const response = await request(buildApp([])).get('/api/branding');
+
+    expect(response.body.appName).toBe('Explorer');
   });
 });
 

@@ -38,6 +38,9 @@ watch(
   { immediate: true }
 );
 
+// A name of spaces is no name: the header and the sign-in page showed nothing.
+const nameMissing = computed(() => String(local.appName ?? '').trim() === '');
+
 const reset = () => {
   const b = appSettings.state.branding;
   local.appName = b.appName;
@@ -46,6 +49,7 @@ const reset = () => {
 };
 
 const save = async () => {
+  if (nameMissing.value) return;
   try {
     await appSettings.save({
       branding: {
@@ -185,7 +189,10 @@ const useDefaultLogo = () => {
       <div class="text-sm">{{ t('common.unsavedChanges') }}</div>
       <div class="flex gap-2">
         <button
-          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400"
+          type="button"
+          data-test="branding-save"
+          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400 disabled:opacity-50"
+          :disabled="nameMissing"
           @click="save"
         >
           {{ t('common.save') }}
@@ -305,6 +312,13 @@ const useDefaultLogo = () => {
             />
             <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
               {{ local.appName.length }}/100
+            </p>
+            <p
+              v-if="nameMissing"
+              data-test="branding-name-invalid"
+              class="mt-1 text-sm text-red-600"
+            >
+              {{ t('settings.branding.appNameRequired') }}
             </p>
           </div>
         </div>

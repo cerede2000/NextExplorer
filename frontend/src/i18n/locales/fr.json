@@ -488,6 +488,7 @@
       "subtitle": "Personnalisez le nom de l’application et le logo affichés dans toute l’interface.",
       "appName": "Nom de l’application",
       "appNameHelp": "Le nom affiché dans les en-têtes, la page de connexion et le pied de page (max. 100 caractères).",
+      "appNameRequired": "Le nom de l’application ne peut pas être vide.",
       "appLogoUrl": "Image du logo",
       "logo": "Image du logo",
       "logoHelp": "Téléversez un fichier SVG, PNG ou JPG pour votre logo personnalisé (max. 2 Mo).",
@@ -517,6 +518,7 @@
       "showSidebarToolsHelp": "Affiche les Outils dans la barre latérale gauche.",
       "defaultShareExpiration": "Expiration par défaut des partages",
       "defaultShareExpirationHelp": "Définissez un délai par défaut pour les nouveaux partages. La date d’expiration est pré-remplie selon ce délai.",
+      "defaultShareExpirationInvalid": "Indiquez un nombre entier d’au moins 1, ou videz le champ pour ne pas fixer d’expiration par défaut.",
       "expirationValue": "Valeur",
       "days": "Jours",
       "weeks": "Semaines",
@@ -546,7 +548,8 @@
       "maxDim": "Dimension maximale",
       "maxDimHelp": "Côté le plus long en pixels. La valeur par défaut est 200.",
       "concurrency": "Génération parallèle",
-      "concurrencyHelp": "Nombre de vignettes générées simultanément (1–50). La valeur par défaut est 10."
+      "concurrencyHelp": "Nombre de vignettes générées simultanément (1–50). La valeur par défaut est 10.",
+      "invalid": "Vérifiez les valeurs : qualité de 1 à 100, dimension maximale de 64 à 1024 px, génération parallèle de 1 à 50."
     },
     "uploads": {
       "title": "Téléversements",
@@ -558,7 +561,8 @@
       "autoFallbackActive": "Mode chunk mémorisé pour cette adresse : {size} Mio.",
       "autoFallbackReset": "Réinitialiser (revenir en direct)",
       "chunkSize": "Taille des chunks",
-      "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy. Des chunks plus petits (8–32 Mio) donnent une progression plus fluide ; de très gros chunks font apparaître des paliers (le serveur écrit chaque chunk avant le suivant)."
+      "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy. Des chunks plus petits (8–32 Mio) donnent une progression plus fluide ; de très gros chunks font apparaître des paliers (le serveur écrit chaque chunk avant le suivant).",
+      "chunkSizeInvalid": "Indiquez une taille de chunk comprise entre 1 et {max} Mio."
     },
     "folderSize": {
       "title": "Taille des dossiers",

@@ -485,6 +485,7 @@
       "subtitle": "Personalizza il nome dell’applicazione e il logo visualizzati in tutta l’interfaccia.",
       "appName": "Nome dell’applicazione",
       "appNameHelp": "Il nome visualizzato in intestazioni, pagina di accesso e piè di pagina (max 100 caratteri).",
+      "appNameRequired": "Il nome dell’applicazione non può essere vuoto.",
       "appLogoUrl": "Immagine del logo",
       "logo": "Immagine del logo",
       "logoHelp": "Carica un file SVG, PNG o JPG per il tuo logo personalizzato (max 2 MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "Mostra gli Strumenti nella barra laterale sinistra.",
       "defaultShareExpiration": "Scadenza predefinita per la condivisione",
       "defaultShareExpirationHelp": "Imposta un intervallo predefinito per le nuove condivisioni. La data di scadenza viene precompilata secondo questo valore.",
+      "defaultShareExpirationInvalid": "Inserisci un numero intero di almeno 1, oppure svuota il campo per non avere una scadenza predefinita.",
       "expirationValue": "Valore",
       "days": "Giorni",
       "weeks": "Settimane",
@@ -543,7 +545,8 @@
       "maxDim": "Dimensione massima",
       "maxDimHelp": "Lato più lungo in pixel. Il valore predefinito è 200.",
       "concurrency": "Generazione parallela",
-      "concurrencyHelp": "Numero di miniature da generare contemporaneamente (1–50). Il valore predefinito è 10."
+      "concurrencyHelp": "Numero di miniature da generare contemporaneamente (1–50). Il valore predefinito è 10.",
+      "invalid": "Controlla i valori: qualità da 1 a 100, dimensione massima da 64 a 1024 px, generazione parallela da 1 a 50."
     },
     "security": {
       "subtitle": "Controlla l'accesso all'app.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "Dimensione dei blocchi memorizzata per questo indirizzo: {size} MiB.",
       "autoFallbackReset": "Reimposta (torna a diretto)",
       "chunkSize": "Dimensione dei blocchi",
-      "chunkSizeHelp": "Dimensione massima di ogni richiesta di caricamento. Mantienila sotto il limite del tuo reverse proxy. Blocchi più piccoli (8–32 MiB) offrono un avanzamento più fluido; blocchi molto grandi mostrano scatti visibili (il server scrive ogni blocco prima del successivo)."
+      "chunkSizeHelp": "Dimensione massima di ogni richiesta di caricamento. Mantienila sotto il limite del tuo reverse proxy. Blocchi più piccoli (8–32 MiB) offrono un avanzamento più fluido; blocchi molto grandi mostrano scatti visibili (il server scrive ogni blocco prima del successivo).",
+      "chunkSizeInvalid": "Inserisci una dimensione dei blocchi da 1 a {max} MiB."
     },
     "folderSize": {
       "title": "Dimensioni cartelle",

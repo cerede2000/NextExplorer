@@ -117,20 +117,31 @@ const sanitizeFolderViews = (folderViews) =>
   sanitizeFolderPreferences(folderViews, sanitizeFolderView);
 
 /**
+ * The bounds thumbnail settings are held to, and their defaults. The settings
+ * page refuses a value outside them before sending it, with the same numbers
+ * (`SettingsFilesThumbnails.vue`).
+ */
+const THUMBNAIL_BOUNDS = {
+  size: { min: 64, max: 1024, fallback: 200 },
+  quality: { min: 1, max: 100, fallback: 70 },
+  concurrency: { min: 1, max: 50, fallback: 10 },
+};
+
+/**
  * Sanitize thumbnail settings
  */
 const sanitizeThumbnails = (thumbnails = {}) => {
+  const integer = (key) => {
+    const { min, max, fallback } = THUMBNAIL_BOUNDS[key];
+    return Number.isFinite(thumbnails[key])
+      ? clampNumber(Math.floor(thumbnails[key]), min, max)
+      : fallback;
+  };
   return {
     enabled: typeof thumbnails.enabled === 'boolean' ? thumbnails.enabled : true,
-    size: Number.isFinite(thumbnails.size)
-      ? Math.max(64, Math.min(1024, Math.floor(thumbnails.size)))
-      : 200,
-    quality: Number.isFinite(thumbnails.quality)
-      ? Math.max(1, Math.min(100, Math.floor(thumbnails.quality)))
-      : 70,
-    concurrency: Number.isFinite(thumbnails.concurrency)
-      ? Math.max(1, Math.min(50, Math.floor(thumbnails.concurrency)))
-      : 10,
+    size: integer('size'),
+    quality: integer('quality'),
+    concurrency: integer('concurrency'),
   };
 };
 
@@ -181,9 +192,12 @@ const sanitizeAccessRules = (rules = []) => {
  * Sanitize branding settings
  */
 const sanitizeBranding = (branding = {}) => {
+  // A name of nothing but spaces was stored as it came, and the header and the
+  // sign-in page showed no name at all. One stored that way reads as the
+  // default, so an installation that saved one needs nothing done.
+  const appName = typeof branding.appName === 'string' ? branding.appName.trim().slice(0, 100) : '';
   return {
-    appName:
-      typeof branding.appName === 'string' ? branding.appName.trim().slice(0, 100) : 'Explorer',
+    appName: appName || 'Explorer',
     appLogoUrl:
       typeof branding.appLogoUrl === 'string'
         ? branding.appLogoUrl.trim().slice(0, 500)
@@ -463,12 +477,21 @@ const asBoolean = (value) => Boolean(value);
 const asNullableBoolean = (value) =>
   value === null || value === undefined ? null : Boolean(value);
 
+/**
+ * A default share expiry: null for none, or a whole number of at least one
+ * with its unit.
+ *
+ * Anything else is not an expiry, and answers undefined, so the stored one
+ * stays. It used to answer null, which is a value here: a default of minus
+ * three weeks, or of three years, silently removed the default the person had.
+ */
 const asShareExpiration = (value) => {
-  if (value === null || value === undefined || typeof value !== 'object') return null;
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return undefined;
   const validUnits = ['days', 'weeks', 'months'];
-  const unit = validUnits.includes(value.unit) ? value.unit : 'weeks';
-  const amount = Number.isFinite(value.value) && value.value > 0 ? Math.floor(value.value) : null;
-  return amount ? { value: amount, unit } : null;
+  const amount = Number.isFinite(value.value) ? Math.floor(value.value) : 0;
+  if (amount < 1 || !validUnits.includes(value.unit)) return undefined;
+  return { value: amount, unit: value.unit };
 };
 
 // The view a folder gets when it has none of its own (#360). Anything we do not
@@ -526,6 +549,10 @@ const setUserSetting = async (userId, key, value) => {
   // and the route only ever passes what WRITABLE_USER_SETTINGS allows.
   const sanitize = USER_SETTINGS[key] || INTERNAL_USER_SETTINGS[key];
   const sanitizedValue = sanitize ? sanitize(value) : value;
+
+  // What a preference cannot take is left out rather than stored as its
+  // default, as a section field of the wrong shape is: the stored value stays.
+  if (sanitizedValue === undefined) return undefined;
 
   upsertUserSetting(db, userId, key, sanitizedValue);
 

@@ -485,6 +485,7 @@
       "subtitle": "Passen Sie den in der Oberfläche angezeigten Anwendungsnamen und das Logo an.",
       "appName": "Anwendungsname",
       "appNameHelp": "Der Name, der in Kopfzeilen, auf der Anmeldeseite und in der Fußzeile angezeigt wird (max. 100 Zeichen).",
+      "appNameRequired": "Der Anwendungsname darf nicht leer sein.",
       "appLogoUrl": "Logo-Bild",
       "logo": "Logo-Bild",
       "logoHelp": "Laden Sie eine SVG-, PNG- oder JPG-Datei für Ihr benutzerdefiniertes Logo hoch (max. 2 MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "Zeigt Werkzeuge in der linken Seitenleiste an.",
       "defaultShareExpiration": "Standard-Ablaufdatum für Freigaben",
       "defaultShareExpirationHelp": "Legen Sie einen Standardzeitraum für neue Freigaben fest. Das Ablaufdatum wird beim Erstellen automatisch entsprechend vorbelegt.",
+      "defaultShareExpirationInvalid": "Geben Sie eine ganze Zahl ab 1 ein, oder leeren Sie das Feld, um keinen Standard festzulegen.",
       "expirationValue": "Wert",
       "days": "Tage",
       "weeks": "Wochen",
@@ -543,7 +545,8 @@
       "maxDim": "Maximale Abmessung",
       "maxDimHelp": "Längste Seite in Pixeln. Standard ist 200.",
       "concurrency": "Parallele Generierung",
-      "concurrencyHelp": "Anzahl der gleichzeitig zu generierenden Miniaturen (1–50). Standard ist 10."
+      "concurrencyHelp": "Anzahl der gleichzeitig zu generierenden Miniaturen (1–50). Standard ist 10.",
+      "invalid": "Prüfen Sie die Werte: Qualität 1 bis 100, maximale Abmessung 64 bis 1024 px, parallele Generierung 1 bis 50."
     },
     "security": {
       "subtitle": "Steuern Sie den Zugriff auf die App.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "Segmentgröße für diese Adresse gemerkt: {size} MiB.",
       "autoFallbackReset": "Zurücksetzen (zurück zu direkt)",
       "chunkSize": "Segmentgröße",
-      "chunkSizeHelp": "Maximale Größe jeder Upload-Anfrage. Halten Sie diese unter dem Limit Ihres Reverse-Proxys. Kleinere Segmente (8–32 MiB) sorgen für einen flüssigeren Fortschritt; sehr große Segmente zeigen sichtbare Sprünge (der Server schreibt jedes Segment vor dem nächsten)."
+      "chunkSizeHelp": "Maximale Größe jeder Upload-Anfrage. Halten Sie diese unter dem Limit Ihres Reverse-Proxys. Kleinere Segmente (8–32 MiB) sorgen für einen flüssigeren Fortschritt; sehr große Segmente zeigen sichtbare Sprünge (der Server schreibt jedes Segment vor dem nächsten).",
+      "chunkSizeInvalid": "Geben Sie eine Segmentgröße von 1 bis {max} MiB ein."
     },
     "folderSize": {
       "title": "Ordnergrößen",

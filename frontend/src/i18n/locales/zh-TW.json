@@ -485,6 +485,7 @@
       "subtitle": "自訂在使用者界面中顯示的應用名稱和圖示。",
       "appName": "應用名稱",
       "appNameHelp": "在頁首、登入頁和頁尾中顯示的名稱（最多 100 個字符）。",
+      "appNameRequired": "應用名稱不能為空。",
       "appLogoUrl": "標誌圖片",
       "logo": "標誌圖片",
       "logoHelp": "上傳 SVG、PNG 或 JPG 文件作為自定義圖示（最大 2MB）。",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "在左側邊欄顯示工具。",
       "defaultShareExpiration": "分享預設過期時間",
       "defaultShareExpirationHelp": "為新的分享設置預設期限。建立分享時將自動填入到期日期。",
+      "defaultShareExpirationInvalid": "請輸入不小於 1 的整數，或清空此欄位以不設預設過期時間。",
       "expirationValue": "值",
       "days": "天",
       "weeks": "週",
@@ -543,7 +545,8 @@
       "maxDim": "最大尺寸",
       "maxDimHelp": "最長邊的畫素。預設值為 200。",
       "concurrency": "平行產生",
-      "concurrencyHelp": "同時產生的縮圖數量 (1–50)。預設值為 10。"
+      "concurrencyHelp": "同時產生的縮圖數量 (1–50)。預設值為 10。",
+      "invalid": "請檢查數值：品質 1 至 100，最大尺寸 64 至 1024 px，平行產生 1 至 50。"
     },
     "security": {
       "subtitle": "控制對應用產生的存取。",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "已為此位址記住分塊大小：{size} MiB。",
       "autoFallbackReset": "重設（返回直接上傳）",
       "chunkSize": "分塊大小",
-      "chunkSizeHelp": "每個上傳請求的最大大小。請保持在反向代理的限制以下。較小的分塊（8–32 MiB）能提供更流暢的進度；非常大的分塊會顯示明顯的階段變化（伺服器會在寫入下一個分塊之前先寫入每個分塊）。"
+      "chunkSizeHelp": "每個上傳請求的最大大小。請保持在反向代理的限制以下。較小的分塊（8–32 MiB）能提供更流暢的進度；非常大的分塊會顯示明顯的階段變化（伺服器會在寫入下一個分塊之前先寫入每個分塊）。",
+      "chunkSizeInvalid": "請輸入 1 至 {max} MiB 之間的分塊大小。"
     },
     "folderSize": {
       "title": "檔案夾大小",

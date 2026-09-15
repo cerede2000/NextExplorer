@@ -488,6 +488,7 @@
       "subtitle": "Personalize o nome e o logotipo do aplicativo exibidos em toda a interface.",
       "appName": "Nome do Aplicativo",
       "appNameHelp": "O nome exibido nos cabeçalhos, na página de login e no rodapé (máx. 100 caracteres).",
+      "appNameRequired": "O nome do aplicativo não pode ficar vazio.",
       "appLogoUrl": "Imagem do Logotipo",
       "logo": "Imagem do Logotipo",
       "logoHelp": "Envie um arquivo SVG, PNG ou JPG para seu logotipo personalizado (máx. 2MB).",
@@ -517,6 +518,7 @@
       "showSidebarToolsHelp": "Exibir Ferramentas na barra lateral esquerda.",
       "defaultShareExpiration": "Expiração padrão de compartilhamentos",
       "defaultShareExpirationHelp": "Defina um período de expiração padrão para novos compartilhamentos. Ao criar um compartilhamento, a data de expiração será pré-preenchida com base nesta configuração.",
+      "defaultShareExpirationInvalid": "Informe um número inteiro de pelo menos 1, ou limpe o campo para não ter expiração padrão.",
       "expirationValue": "Valor",
       "days": "Dias",
       "weeks": "Semanas",
@@ -546,7 +548,8 @@
       "maxDim": "Dimensão máxima",
       "maxDimHelp": "Maior lado em pixels. Padrão: 200.",
       "concurrency": "Geração paralela",
-      "concurrencyHelp": "Número de miniaturas geradas simultaneamente (1–50). Padrão: 10."
+      "concurrencyHelp": "Número de miniaturas geradas simultaneamente (1–50). Padrão: 10.",
+      "invalid": "Verifique os valores: qualidade de 1 a 100, dimensão máxima de 64 a 1024 px, geração paralela de 1 a 50."
     },
     "uploads": {
       "title": "Envios",
@@ -558,7 +561,8 @@
       "autoFallbackActive": "Tamanho das partes memorizado para este endereço: {size} MiB.",
       "autoFallbackReset": "Redefinir (voltar ao envio direto)",
       "chunkSize": "Tamanho das partes",
-      "chunkSizeHelp": "Tamanho máximo de cada requisição de envio. Mantenha-o abaixo do limite do seu proxy reverso. Partes menores (8–32 MiB) dão um progresso mais fluido; partes muito grandes avançam aos saltos (o servidor grava cada parte antes da seguinte)."
+      "chunkSizeHelp": "Tamanho máximo de cada requisição de envio. Mantenha-o abaixo do limite do seu proxy reverso. Partes menores (8–32 MiB) dão um progresso mais fluido; partes muito grandes avançam aos saltos (o servidor grava cada parte antes da seguinte).",
+      "chunkSizeInvalid": "Informe um tamanho de parte de 1 a {max} MiB."
     },
     "folderSize": {
       "title": "Tamanho das pastas",

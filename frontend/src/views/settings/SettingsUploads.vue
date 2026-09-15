@@ -89,6 +89,10 @@ watch([() => local.chunkSizeMiB, maxChunkSizeMiB], () => {
   if (clamped !== v) local.chunkSizeMiB = clamped;
 });
 
+// An emptied field holds no number, which the watch above has nothing to bring
+// within bounds. Saved as it was, it went to the server as a size of 0.
+const chunkSizeInvalid = computed(() => !Number.isFinite(local.chunkSizeMiB));
+
 const reset = () => {
   const uploads = original.value;
   local.chunkedEnabled = Boolean(uploads?.chunkedEnabled);
@@ -97,6 +101,7 @@ const reset = () => {
 };
 
 const save = async () => {
+  if (chunkSizeInvalid.value) return;
   await appSettings.save({
     uploads: {
       chunkedEnabled: local.chunkedEnabled,
@@ -116,7 +121,10 @@ const save = async () => {
       <div class="text-sm">{{ t('common.unsavedChanges') }}</div>
       <div class="flex gap-2">
         <button
-          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400"
+          type="button"
+          data-test="uploads-settings-save"
+          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400 disabled:opacity-50"
+          :disabled="chunkSizeInvalid"
           @click="save"
         >
           {{ t('common.save') }}
@@ -189,6 +197,13 @@ const save = async () => {
             <span class="text-sm text-zinc-500 dark:text-zinc-400">MiB</span>
           </div>
         </div>
+        <p
+          v-if="chunkSizeInvalid"
+          data-test="uploads-settings-invalid"
+          class="text-sm text-red-600"
+        >
+          {{ t('settings.uploads.chunkSizeInvalid', { max: maxChunkSizeMiB }) }}
+        </p>
 
         <div
           class="flex items-center justify-between border-t border-zinc-100 py-3 dark:border-zinc-800"

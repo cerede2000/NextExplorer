@@ -485,6 +485,7 @@
       "subtitle": "Dostosuj nazwę aplikacji i logo wyświetlane w całym interfejsie.",
       "appName": "Nazwa aplikacji",
       "appNameHelp": "Nazwa wyświetlana w nagłówkach, na stronie logowania i w stopce (maks. 100 znaków).",
+      "appNameRequired": "Nazwa aplikacji nie może być pusta.",
       "appLogoUrl": "Obraz logo",
       "logo": "Obraz logo",
       "logoHelp": "Prześlij plik SVG, PNG lub JPG dla niestandardowego logo (maks. 2 MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "Wyświetla Narzędzia na lewym pasku bocznym.",
       "defaultShareExpiration": "Domyślny czas wygaśnięcia udostępnień",
       "defaultShareExpirationHelp": "Ustaw domyślny okres dla nowych udostępnień. Data wygaśnięcia zostanie wstępnie ustawiona zgodnie z tym okresem.",
+      "defaultShareExpirationInvalid": "Podaj liczbę całkowitą nie mniejszą niż 1 albo wyczyść pole, aby nie ustawiać domyślnego czasu.",
       "expirationValue": "Wartość",
       "days": "Dni",
       "weeks": "Tygodnie",
@@ -543,7 +545,8 @@
       "maxDim": "Maksymalny wymiar",
       "maxDimHelp": "Najdłuższy bok w pikselach. Domyślnie 200.",
       "concurrency": "Generowanie równoległe",
-      "concurrencyHelp": "Liczba miniatur generowanych jednocześnie (1–50). Domyślnie 10."
+      "concurrencyHelp": "Liczba miniatur generowanych jednocześnie (1–50). Domyślnie 10.",
+      "invalid": "Sprawdź wartości: jakość od 1 do 100, maksymalny wymiar od 64 do 1024 px, generowanie równoległe od 1 do 50."
     },
     "security": {
       "subtitle": "Kontroluj dostęp do aplikacji.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "Zapamiętany rozmiar fragmentu dla tego adresu: {size} MiB.",
       "autoFallbackReset": "Resetuj (powrót do trybu bezpośredniego)",
       "chunkSize": "Rozmiar fragmentu",
-      "chunkSizeHelp": "Maksymalny rozmiar każdego żądania przesyłania. Utrzymuj go poniżej limitu Twojego reverse proxy. Mniejsze fragmenty (8–32 MiB) zapewniają płynniejszy postęp; bardzo duże fragmenty powodują widoczne skoki (serwer zapisuje każdy fragment przed kolejnym)."
+      "chunkSizeHelp": "Maksymalny rozmiar każdego żądania przesyłania. Utrzymuj go poniżej limitu Twojego reverse proxy. Mniejsze fragmenty (8–32 MiB) zapewniają płynniejszy postęp; bardzo duże fragmenty powodują widoczne skoki (serwer zapisuje każdy fragment przed kolejnym).",
+      "chunkSizeInvalid": "Podaj rozmiar fragmentu od 1 do {max} MiB."
     },
     "folderSize": {
       "title": "Rozmiary folderów",

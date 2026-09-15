@@ -485,6 +485,7 @@
       "subtitle": "Personalizează numele aplicației și sigla afișate în întreaga interfață.",
       "appName": "Numele aplicației",
       "appNameHelp": "Numele afișat în antete, pe pagina de autentificare și în subsol (max. 100 de caractere).",
+      "appNameRequired": "Numele aplicației nu poate fi gol.",
       "appLogoUrl": "Imagine siglă",
       "logo": "Imagine siglă",
       "logoHelp": "Încarcă un fișier SVG, PNG sau JPG pentru sigla ta personalizată (max. 2 MB).",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "Afișează Instrumente în bara laterală stângă.",
       "defaultShareExpiration": "Expirare implicită pentru partajare",
       "defaultShareExpirationHelp": "Setează o perioadă implicită pentru noile partajări. Data de expirare este completată în prealabil pe baza acestei valori.",
+      "defaultShareExpirationInvalid": "Introduceți un număr întreg de cel puțin 1 sau goliți câmpul pentru a nu avea o expirare implicită.",
       "expirationValue": "Valoare",
       "days": "Zile",
       "weeks": "Săptămâni",
@@ -543,7 +545,8 @@
       "maxDim": "Dimensiune maximă",
       "maxDimHelp": "Latura cea mai lungă în pixeli. Implicit este 200.",
       "concurrency": "Generare paralelă",
-      "concurrencyHelp": "Numărul de miniaturi generate simultan (1–50). Implicit este 10."
+      "concurrencyHelp": "Numărul de miniaturi generate simultan (1–50). Implicit este 10.",
+      "invalid": "Verificați valorile: calitate între 1 și 100, dimensiune maximă între 64 și 1024 px, generare paralelă între 1 și 50."
     },
     "security": {
       "subtitle": "Controlează accesul la aplicație.",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "Dimensiunea fragmentelor memorată pentru această adresă: {size} MiB.",
       "autoFallbackReset": "Resetează (revino la direct)",
       "chunkSize": "Dimensiunea fragmentelor",
-      "chunkSizeHelp": "Dimensiunea maximă a fiecărei cereri de încărcare. Menține-o sub limita reverse proxy-ului. Fragmentele mai mici (8–32 MiB) oferă o progresie mai fluidă; fragmentele foarte mari afișează paliere vizibile (serverul scrie fiecare fragment înainte de următorul)."
+      "chunkSizeHelp": "Dimensiunea maximă a fiecărei cereri de încărcare. Menține-o sub limita reverse proxy-ului. Fragmentele mai mici (8–32 MiB) oferă o progresie mai fluidă; fragmentele foarte mari afișează paliere vizibile (serverul scrie fiecare fragment înainte de următorul).",
+      "chunkSizeInvalid": "Introduceți o dimensiune a fragmentelor între 1 și {max} MiB."
     },
     "folderSize": {
       "title": "Dimensiunea dosarelor",

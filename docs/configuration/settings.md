@@ -6,7 +6,7 @@ In-app settings expose many server-side toggles you'll also find in the environm
 
 Customize the appearance and branding of your nextExplorer instance:
 
-- **Application name:** Display a custom name in the header, login page, and browser title (e.g., "SPRINTR" instead of "Explorer").
+- **Application name:** Display a custom name in the header, login page, and browser title (e.g., "SPRINTR" instead of "Explorer"). It cannot be empty: the page refuses to save a name of nothing or of spaces, and the server keeps the stored name when sent one.
 - **Logo upload:** Upload a custom logo (SVG, PNG, or JPG; max 2MB). Perfect size is 200×200px. Displays in the header and login page.
 - **Attribution link:** Toggle the optional "Powered by nextExplorer" footer link. When enabled, users see a link crediting the original project.
 
@@ -14,7 +14,9 @@ Customize the appearance and branding of your nextExplorer instance:
 
 - **Enable thumbnails:** Toggle thumbnail generation (uses Sharp/FFmpeg). Disable to reduce CPU usage when browsing large volumes.
 - **Thumbnail quality:** 1–100 (default 70) to control JPEG compression level.
-- **Max dimension:** Longest side in pixels (default 200) for generated thumbnails.
+- **Max dimension:** Longest side in pixels, 64–1024 (default 200), for generated thumbnails.
+- **Parallel generation:** How many thumbnails are made at once, 1–50 (default 10).
+- A value outside these bounds, or an emptied field, is shown as invalid and cannot be saved.
 - **Video previews:** Require FFmpeg/ffprobe; binaries are included but you can override paths via environment variables.
 
 ## Security & Authentication

@@ -485,6 +485,7 @@
       "subtitle": "自定义在界面中显示的应用名称和标志。",
       "appName": "应用名称",
       "appNameHelp": "在页眉、登录页和页脚中显示的名称（最多 100 个字符）。",
+      "appNameRequired": "应用名称不能为空。",
       "appLogoUrl": "标志图片",
       "logo": "标志图片",
       "logoHelp": "上传 SVG、PNG 或 JPG 文件作为自定义标志（最大 2MB）。",
@@ -514,6 +515,7 @@
       "showSidebarToolsHelp": "在左侧边栏显示工具。",
       "defaultShareExpiration": "分享默认过期时间",
       "defaultShareExpirationHelp": "为新的分享设置默认期限。创建分享时将自动填充到期日期。",
+      "defaultShareExpirationInvalid": "请输入不小于 1 的整数，或清空此字段以不设默认过期时间。",
       "expirationValue": "值",
       "days": "天",
       "weeks": "周",
@@ -543,7 +545,8 @@
       "maxDim": "最大尺寸",
       "maxDimHelp": "最长边的像素数。默认值为 200。",
       "concurrency": "并行生成",
-      "concurrencyHelp": "同时生成的缩略图数量 (1–50)。默认值为 10。"
+      "concurrencyHelp": "同时生成的缩略图数量 (1–50)。默认值为 10。",
+      "invalid": "请检查数值：质量 1 至 100，最大尺寸 64 至 1024 px，并行生成 1 至 50。"
     },
     "security": {
       "subtitle": "控制对应用的访问。",
@@ -647,7 +650,8 @@
       "autoFallbackActive": "已为此地址记住分块大小：{size} MiB。",
       "autoFallbackReset": "重置（恢复直接上传）",
       "chunkSize": "分块大小",
-      "chunkSizeHelp": "每个上传请求的最大大小。请将其保持在反向代理限制以下。较小的分块（8–32 MiB）进度更平滑；非常大的分块会出现明显的阶段（服务器会先写入每个分块，再处理下一个）。"
+      "chunkSizeHelp": "每个上传请求的最大大小。请将其保持在反向代理限制以下。较小的分块（8–32 MiB）进度更平滑；非常大的分块会出现明显的阶段（服务器会先写入每个分块，再处理下一个）。",
+      "chunkSizeInvalid": "请输入 1 至 {max} MiB 之间的分块大小。"
     },
     "folderSize": {
       "title": "文件夹大小",
