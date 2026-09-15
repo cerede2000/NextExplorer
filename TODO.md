@@ -365,6 +365,44 @@ changes that needed one underneath — has been followed to the end:
   described behaviour that had changed the same morning. A doc that is wrong is
   worse than a doc that is missing.
 
+## What the coverage work of 15 September 2026 left open
+
+Writing tests for the least covered code found three security defects (archives
+carrying the trash zone and hidden paths, copy target names that climbed out of
+their destination, and two ways into sign-in) and a dozen smaller ones, all fixed
+with their tests. What follows was found at the same time and judged not worth
+holding the release for. Each was reproduced; none is guessed.
+
+- **Sessions survive a password change.** A session opened before the change
+  stays signed in. Changing a password is what someone does when they think it
+  leaked, so the other sessions of that account should end.
+- **Multer's refusals answer 500.** A logo of the wrong type or too large, and an
+  upload over the size limit, arrive as server errors in the log. They are 400
+  and 413, and should say so.
+- **An unreachable identity provider reads as "OIDC is not configured".** The
+  404 from `/api/auth/oidc/login` sends an administrator to the configuration
+  when the provider is down.
+- **What a refused upload leaves.** `ensureDir` runs before the landing folder is
+  authorized, so a refused upload can create empty folders — a `.nextexplorer`
+  one included, through a folder session's `sourceRoot`. Nothing is written in
+  them, and the zone accepts a folder without its marker; still, a refusal should
+  leave nothing.
+- **Two things only API clients see.** An upload that took a suffix answers with
+  the name it asked for, not the one it got; and several files in one request
+  measure the free space once, before the first file has finished writing.
+- **An access rule on `../Secret`** is dropped by the server without a word, and
+  its row disappears from the page.
+- **Settings screens that trust the server to correct them:** an emptied chunk
+  size sends 0, thumbnails have no bounds client-side, a negative default share
+  expiry is accepted, and an empty application name is stored as empty.
+- **A logo is replaced the moment it is chosen,** under a fixed name per type, so
+  Discard cannot undo it and replacing a PNG with a PNG offers no Save at all.
+- **Branding speaks English only**: its confirmation and upload messages are not
+  in the catalogues.
+- **The ONLYOFFICE transfer question** leaves the first promise unresolved if a
+  second transfer asks while it is open. The dialog is modal, so this is
+  theoretical.
+
 ## Open, not scheduled
 
 - `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
