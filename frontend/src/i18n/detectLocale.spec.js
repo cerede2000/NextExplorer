@@ -36,6 +36,17 @@ describe('the language a visitor lands in', () => {
     expect(detectLocale(CODES)).toBe('pt-BR');
   });
 
+  /** Dutch, from nxzai/NextExplorer#387 and #388: offered, and found from any region. */
+  it('opens in Dutch for a browser set to Dutch, whatever the region', () => {
+    expect(CODES).toContain('nl');
+
+    browser(['nl-BE']);
+    expect(detectLocale(CODES)).toBe('nl');
+
+    browser(['nl-NL', 'en']);
+    expect(detectLocale(CODES)).toBe('nl');
+  });
+
   it('takes the language when the region is one nobody has translated', () => {
     browser(['fr-CA']);
 
