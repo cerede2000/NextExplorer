@@ -25,6 +25,7 @@ const folderSizeManager = require('./services/folderSizeManager');
 const searchIndexManager = require('./services/searchIndexManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
+const { reportLegacyCache } = require('./services/legacyCacheCheck');
 const trashMaintenance = require('./services/trash/maintenance');
 const databaseMaintenance = require('./services/databaseMaintenance');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
@@ -103,6 +104,9 @@ const startServer = async () => {
   // whole point: an unmounted volume and a deleted one look identical from
   // here, and only a person can tell them apart.
   reportOrphanedBindings();
+  // And what releases before 2.0.3 left in the cache directory: an old app.db
+  // nothing reads, or the links 1.1.8 left beside it.
+  reportLegacyCache();
 
   // Cleanup on process termination
   const cleanup = async () => {
