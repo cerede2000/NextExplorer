@@ -6,6 +6,78 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.6.1 (2026-09-15)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.6.1)
+
+### app.db gives back the space it frees
+
+SQLite keeps what a deletion frees inside the file. An installation reported an
+app.db of 2,159 MB holding 160 MB of data — 2,000 MB of free pages, copied into
+every backup of `/config`. After upgrading to this release, the same app.db is
+434 KB.
+
+- **Once, at the first start**, a database created by an earlier release is
+  rewritten so that its free space can be handed back from then on. The log says
+  how large it was before and after. On an SSD it took seconds for a 2 GB file.
+- **Every hour** after that, free space is handed back once more than 16 MB of
+  it has built up, a little at a time, so the server keeps answering while it
+  runs.
+- **The write-ahead log** (`app.db-wal`) is cut back to 64 MB after a
+  checkpoint, instead of staying at its largest size.
+
+### The search index and folder sizes live in /cache
+
+They were most of app.db, and nothing like the rest of it: every row can be read
+again from the files, and they are rewritten all day long. They now live in
+`/cache/index.db`, next to the sessions, apart from the accounts, shares and
+settings that cannot be made again.
+
+- **Carried over, not rebuilt.** At the first start the existing index is copied
+  into `/cache/index.db` as it is, then removed from app.db. The volumes are not
+  read again for it.
+- **Nothing is lost if the copy fails** — no room in `/cache`, say. app.db keeps
+  the index, the log says why, and the next start tries again; after three
+  starts that all failed, the index is rebuilt from the files instead.
+- **Only the indexes are written under `/cache`.** Nothing from the accounts or
+  settings passes through it, even during the move.
+- **Each file has its own writer**, so an indexing pass and a sign-in no longer
+  wait on the same lock.
+
+### A link out of a volume is shown as a link
+
+A symbolic link inside a volume that points outside it — releases 1.1.8 to 2.0.2
+left `app.db`, `app-config.json` and `extensions` links in the old cache
+directory — was listed with the size and type of what it points at, on a row
+where renaming, deleting and opening all failed with "Resolved path is outside
+the configured volume root" or "Path not found". Nothing could be read through
+such a link, and nothing can now either; the row now says what it is, offers no
+action, and opening it explains where to remove it.
+
+### Smaller fixes
+
+- Everything that starts with the server used to open app.db at once, and each
+  caller went on to open it again and run the migrations over it: four
+  connections at every start. The database is opened once.
+- Refusals from the server with a generic code — access denied, not found,
+  conflict, too many requests — are headed in your language, with the server's
+  own sentence underneath. The browser console no longer fills with vue-i18n
+  warnings for codes that have no translation.
+
+### Upgrading
+
+- **Mount `/cache` persistently.** It now holds the search index and folder
+  sizes as well as thumbnails and sessions. Without a persistent mount, every
+  new container reads the volumes again to rebuild them. It still needs no
+  backup.
+- **The first start takes a little longer** on an installation with a large
+  app.db: the one-time rewrite, and the copy of the index. The rewrite needs
+  free temporary space about the size of the data app.db really holds; if there
+  is not enough, the server starts anyway and tries again next time.
+- **Going back to 3.6.0** after this start works, but 3.6.0 finds no index in
+  app.db: search reads the folders as it goes, and folder sizes are measured
+  again.
+
 ## v3.6.0 (2026-09-15)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.6.0)
