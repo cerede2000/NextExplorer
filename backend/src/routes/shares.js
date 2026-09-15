@@ -38,6 +38,7 @@ const env = require('../config/env');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
+const { collectArchiveEntries, appendEntries } = require('../services/archiveTree');
 const logger = require('../utils/logger');
 const { readTextFile, encodeText, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
 const versions = require('../services/versions/operations');
@@ -293,7 +294,13 @@ const streamResolvedFile = async ({ absolutePath, stats, mode, req, res }) => {
   streamFile();
 };
 
-const streamResolvedDirectoryZip = async ({ absolutePath, archiveName, res }) => {
+const streamResolvedDirectoryZip = async ({
+  absolutePath,
+  logicalPath,
+  context,
+  archiveName,
+  res,
+}) => {
   const safeArchiveName = archiveName && archiveName.trim() ? archiveName.trim() : 'download';
   const filename = safeArchiveName.toLowerCase().endsWith('.zip')
     ? safeArchiveName
@@ -315,7 +322,18 @@ const streamResolvedDirectoryZip = async ({ absolutePath, archiveName, res }) =>
   });
 
   archive.pipe(res);
-  archive.directory(absolutePath, path.basename(absolutePath) || safeArchiveName);
+  // What the share lets its visitor see, not everything below its folder: the
+  // trash zone, a personal root and the paths an access rule hides stay out.
+  const stats = await fs.stat(absolutePath);
+  const { entries } = await collectArchiveEntries(context, [
+    {
+      absolutePath,
+      logicalPath,
+      entryName: path.basename(absolutePath) || safeArchiveName,
+      stats,
+    },
+  ]);
+  appendEntries(archive, entries);
   await archive.finalize();
 };
 
@@ -905,19 +923,21 @@ const resolveSharedFileTarget = async (
   }
 
   const stats = await fs.stat(resolved.absolutePath);
-  return { share, innerPath, accessInfo, resolved, stats };
+  return { share, innerPath, accessInfo, resolved, stats, context };
 };
 
 const handleDirectFileRequest = async (req, res) => {
   const target = await resolveSharedFileTarget(req, res, { requireDownload: true });
   if (!target) return;
 
-  const { share, resolved, stats } = target;
+  const { share, resolved, stats, context } = target;
   if (stats.isDirectory()) {
     // Directories are always delivered as a ZIP attachment.
     await trackShareDownload(share.id, { ipAddress: req.ip });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
+      logicalPath: resolved.relativePath,
+      context,
       archiveName:
         path.basename(resolved.absolutePath) ||
         share.label ||

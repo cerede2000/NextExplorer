@@ -755,4 +755,5 @@ module.exports = {
   getUserFolderName,
   getUserFolderNameCandidates,
   resolveItemPaths,
+  isInsidePersonalRoot,
 };

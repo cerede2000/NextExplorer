@@ -28,6 +28,7 @@ const {
   normalizeArchivePassword,
 } = require('../services/archiveService');
 const folderSizeHooks = require('../services/folderSizeHooks');
+const { collectArchiveEntries, writeZipFile } = require('../services/archiveTree');
 const { archives } = require('../config/index');
 
 const router = express.Router();
@@ -359,9 +360,19 @@ router.post(
       if (!allowed || !resolved) {
         throw new ForbiddenError(accessInfo?.denialReason || 'Source item is not accessible.');
       }
+      // An archive written into a folder the caller can reach is a copy they
+      // can take away: a share that withholds downloads withholds this too.
+      if (!accessInfo.canDownload) {
+        throw new ForbiddenError('Downloading is not allowed for this item.');
+      }
 
       const stats = await fs.stat(resolved.absolutePath);
-      return { name: item.name, absolutePath: resolved.absolutePath, stats };
+      return {
+        name: item.name,
+        absolutePath: resolved.absolutePath,
+        logicalPath: resolved.relativePath,
+        stats,
+      };
     });
 
     const requestedName = (() => {
@@ -389,7 +400,20 @@ router.post(
     const onPercent = throttlePercent(writeEvent);
 
     try {
-      if (await isSevenZipAvailable()) {
+      // What the archive may hold: only what a listing of those folders shows.
+      const { entries, excluded, totalBytes } = await collectArchiveEntries(
+        context,
+        sourceTargets.map(({ name: entryName, absolutePath, logicalPath, stats }) => ({
+          absolutePath,
+          logicalPath,
+          entryName,
+          stats,
+        }))
+      );
+
+      // 7-Zip takes folders whole, so it only writes archives with nothing to
+      // leave out; anything else is written from the list, still streamed.
+      if (excluded === 0 && (await isSevenZipAvailable())) {
         // 7-Zip streams the archive to disk instead of assembling it in RAM.
         const sourceParent = path.dirname(sourceTargets[0].absolutePath);
         const hasCommonParent = sourceTargets.every(
@@ -404,18 +428,11 @@ router.post(
           { signal: controller.signal, cwd: hasCommonParent ? sourceParent : undefined }
         );
       } else {
-        const zip = new AdmZip();
-        sourceTargets.forEach(({ name: entryName, absolutePath, stats }) => {
-          stats.isDirectory()
-            ? zip.addLocalFolder(absolutePath, entryName)
-            : zip.addLocalFile(absolutePath, '', entryName);
+        await writeZipFile(entries, zipAbsolutePath, {
+          totalBytes,
+          onPercent,
+          signal: controller.signal,
         });
-        zip.writeZip(zipAbsolutePath);
-        if (controller.signal.aborted) {
-          const error = new Error('Operation cancelled.');
-          error.code = 'OPERATION_CANCELLED';
-          throw error;
-        }
       }
 
       const zipStats = await fs.stat(zipAbsolutePath);
