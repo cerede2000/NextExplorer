@@ -168,19 +168,23 @@ describe('a move across devices', () => {
   // A same-filesystem move is an atomic rename. When the destination is on
   // another device the rename fails with EXDEV and the move becomes a copy
   // followed by a deletion of the source. That fallback is the one that can
-  // lose data, so it is forced here by making the move's rename report EXDEV.
-  // Only that one: the copy it falls back to writes each file beside its name
-  // and renames it into place, on one device.
+  // lose data, so it is forced here by making the move's own rename, or link
+  // for a file, report EXDEV. Only those: the copy it falls back to is written
+  // under a hidden name and put in place the same way, on one device.
   const forceCrossDevice = (movedFrom) => {
     const fsp = require('fs/promises');
-    const realRename = fsp.rename.bind(fsp);
-    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
-      if (from !== movedFrom) return realRename(from, to);
+    const crossDevice = () => {
       const error = new Error('cross-device link not permitted');
       error.code = 'EXDEV';
-      throw error;
-    });
-    return realRename;
+      return error;
+    };
+    for (const method of ['rename', 'link']) {
+      const real = fsp[method].bind(fsp);
+      vi.spyOn(fsp, method).mockImplementation(async (from, to) => {
+        if (from !== movedFrom) return real(from, to);
+        throw crossDevice();
+      });
+    }
   };
 
   it('copies the entry across and only then removes the source', async () => {

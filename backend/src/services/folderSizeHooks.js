@@ -178,6 +178,32 @@ const beginDirectoryTransfer = async (targetAbsolutePath) => {
   });
 };
 
+/**
+ * Keep scans away from a folder being filled under a hidden name, until it is
+ * put in place.
+ *
+ * A copy fills a hidden `.nextexplorer-copying-` folder beside where it goes,
+ * and moves it under its name once whole. The size walker counts hidden entries
+ * like any other, so a scan of the destination meanwhile would publish a size
+ * with half a copy in it, and give the hidden folder a row of its own that
+ * outlives the move. Only the lock is taken: no index row is made for a name
+ * nobody sees. The row is made under the name the folder lands at
+ * (beginDirectoryTransfer), and `release()` lets scans back in, however the
+ * copy ended.
+ */
+const holdHiddenDirectory = (absolutePath) => {
+  if (!isEnabled()) return { release: () => {} };
+  transferState.begin(absolutePath);
+  let released = false;
+  return {
+    release: () => {
+      if (released) return;
+      released = true;
+      transferState.finish(absolutePath);
+    },
+  };
+};
+
 const cancelDirectoryTransfer = async (targetAbsolutePath) => {
   if (!isEnabled()) return;
   transferState.finish(targetAbsolutePath);
@@ -366,6 +392,7 @@ module.exports = {
   onDirectoryTreeCreated,
   onEntryDeleted,
   beginDirectoryTransfer,
+  holdHiddenDirectory,
   cancelDirectoryTransfer,
   onEntryMoved,
   onEntryCopied,

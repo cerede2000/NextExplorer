@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 let envContext;
@@ -67,7 +68,12 @@ describe('Transfer cancellation', () => {
     await expect(fs.stat(destinationPath)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
-  it('cancels a copy before deleting its active destination directory', async () => {
+  /**
+   * A copy writes under a hidden name inside the folder it goes to, so nothing
+   * is under its own name to delete while it runs. Deleting the folder it is
+   * writing into stops it first, and waits for it to remove its hidden entry.
+   */
+  it('cancels a copy before deleting the folder it is writing into', async () => {
     const { executeTransfer, deleteItems } = envContext.requireFresh(
       'src/services/fileTransferService'
     );
@@ -110,20 +116,25 @@ describe('Transfer cancellation', () => {
       ],
     };
     let deletion;
+    let seenWhileWriting = null;
     const transfer = executeTransfer(prep, 'copy', ({ copiedBytes }) => {
       if (copiedBytes > 0 && !deletion) {
-        deletion = deleteItems([{ path: 'destination', name: 'active', kind: 'directory' }], {
+        seenWhileWriting = fsSync.readdirSync(destinationDir);
+        // For good: what is under test is the wait for the writer, not the trash.
+        deletion = deleteItems([{ path: '', name: 'destination', kind: 'directory' }], {
           user,
+          permanent: true,
         });
       }
     });
 
     await expect(transfer).rejects.toMatchObject({ code: 'OPERATION_CANCELLED' });
-    await expect(deletion).resolves.toMatchObject([
-      { path: 'destination/active', status: 'deleted' },
-    ]);
+    await expect(deletion).resolves.toMatchObject([{ path: 'destination', status: 'deleted' }]);
+    expect(seenWhileWriting).toHaveLength(1);
+    expect(seenWhileWriting[0]).toMatch(/^\.nextexplorer-copying-/);
     await expect(fs.stat(sourcePath)).resolves.toMatchObject({ isDirectory: expect.any(Function) });
     await expect(fs.stat(destinationPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(fs.stat(destinationDir)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });
 
