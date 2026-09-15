@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "L'utente esiste già",
     "CONFLICT_PASSWORD_EXISTS": "Hai già l'autenticazione tramite password",
     "CONFLICT_SETUP_COMPLETE": "Applicazione già configurata",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Account bloccato dopo troppi tentativi di accesso falliti. Riprova tra {minutes} minuto | Account bloccato dopo troppi tentativi di accesso falliti. Riprova tra {minutes} minuti"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account bloccato dopo troppi tentativi di accesso falliti. Riprova tra {minutes} minuto | Account bloccato dopo troppi tentativi di accesso falliti. Riprova tra {minutes} minuti",
+    "FORBIDDEN": "Accesso negato",
+    "NOT_FOUND": "Non trovato",
+    "CONFLICT": "Conflitto",
+    "RATE_LIMIT_EXCEEDED": "Troppe richieste"
   },
   "titles": {
     "volumes": "Volumi",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "L'azione su questa versione non è riuscita"
     }
+  },
+  "links": {
+    "outside": "Collegamento esterno a questo volume",
+    "outsideExplained": "{name} è un collegamento a una posizione esterna a questo volume. Non può essere aperto, rinominato o eliminato da qui; rimuovilo sul server se non serve più."
   }
 }

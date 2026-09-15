@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "使用者已存在",
     "CONFLICT_PASSWORD_EXISTS": "您已有密碼驗證",
     "CONFLICT_SETUP_COMPLETE": "應用程式已設定",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "登入失敗次數過多，帳戶已被鎖定。請在{minutes}分鐘後重試"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "登入失敗次數過多，帳戶已被鎖定。請在{minutes}分鐘後重試",
+    "FORBIDDEN": "存取遭拒",
+    "NOT_FOUND": "找不到",
+    "CONFLICT": "衝突",
+    "RATE_LIMIT_EXCEEDED": "要求過多"
   },
   "titles": {
     "volumes": "儲存卷",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "對此版本的動作失敗"
     }
+  },
+  "links": {
+    "outside": "指向此磁碟區外部的連結",
+    "outsideExplained": "{name} 是指向此磁碟區外部位置的連結。無法在此開啟、重新命名或刪除；如果不再需要，請在伺服器上將其移除。"
   }
 }

@@ -22,6 +22,8 @@ import { CheckIcon } from '@heroicons/vue/20/solid';
 import { PencilSquareIcon } from '@heroicons/vue/24/outline';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
+import { useI18n } from 'vue-i18n';
+import { useNotificationsStore } from '@/stores/notifications';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -29,7 +31,24 @@ const props = defineProps({
 });
 const settings = useSettingsStore();
 
-const { openItem } = useNavigation();
+const { openItem: navigateTo } = useNavigation();
+const { t } = useI18n();
+const notificationsStore = useNotificationsStore();
+
+// A link out of the volume is listed so it can be seen, but the server refuses
+// to follow it, so opening it says why instead of failing.
+const isOutsideLink = computed(() => props.item?.link === 'outside');
+const openItem = (item) => {
+  if (item?.link === 'outside') {
+    notificationsStore.addNotification({
+      type: 'info',
+      heading: t('links.outside'),
+      body: t('links.outsideExplained', { name: item.name }),
+    });
+    return;
+  }
+  navigateTo(item);
+};
 const { handleSelection, isSelected, toggleSelection } = useSelection();
 const fileStore = useFileStore();
 const { renameState, selectionMode } = storeToRefs(fileStore);
@@ -419,7 +438,9 @@ if (isTouchDevice.value) {
         </div>
         <p class="text-xs text-stone-400">
           <FolderSizeLabel v-if="showFolderSize" :entry="folderSizeEntry" />
-          <template v-else>{{ formatBytes(item.size) }}</template>
+          <template v-else>{{
+            isOutsideLink ? t('links.outside') : formatBytes(item.size)
+          }}</template>
         </p>
       </div>
     </div>
@@ -510,11 +531,11 @@ if (isTouchDevice.value) {
       <div class="text-sm">
         <FolderSizeLabel v-if="showFolderSize" :entry="folderSizeEntry" />
         <template v-else>{{
-          item.kind === 'directory' ? '&mdash;' : formatBytes(item.size)
+          item.kind === 'directory' || isOutsideLink ? '&mdash;' : formatBytes(item.size)
         }}</template>
       </div>
       <div class="text-sm">
-        {{ getKindLabel(item) }}
+        {{ isOutsideLink ? t('links.outside') : getKindLabel(item) }}
       </div>
       <div class="text-sm">
         {{ formatDate(item.dateModified) }}

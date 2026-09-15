@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "O usuário já existe",
     "CONFLICT_PASSWORD_EXISTS": "Você já tem autenticação por senha",
     "CONFLICT_SETUP_COMPLETE": "O aplicativo já está configurado",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minuto | Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minutos"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minuto | Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minutos",
+    "FORBIDDEN": "Acesso negado",
+    "NOT_FOUND": "Não encontrado",
+    "CONFLICT": "Conflito",
+    "RATE_LIMIT_EXCEEDED": "Solicitações demais"
   },
   "titles": {
     "volumes": "Volumes",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "A ação nesta versão falhou"
     }
+  },
+  "links": {
+    "outside": "Link para fora deste volume",
+    "outsideExplained": "{name} é um link para um local fora deste volume. Não pode ser aberto, renomeado nem excluído daqui; remova-o no servidor se não for mais necessário."
   }
 }

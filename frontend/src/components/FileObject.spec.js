@@ -35,12 +35,25 @@ vi.mock('@/composables/itemSelection', () => ({ useSelection: () => selection })
 vi.mock('@/composables/contextMenu', () => ({ useExplorerContextMenu: () => contextMenu }));
 vi.mock('@/composables/useFileDragDrop', () => ({ useFileDragDrop: () => dragDrop }));
 vi.mock('@/composables/useInputMode', () => ({
-  useInputMode: () => ({ isTouchDevice: { get value() { return inputMode.touch; } } }),
+  useInputMode: () => ({
+    isTouchDevice: {
+      get value() {
+        return inputMode.touch;
+      },
+    },
+  }),
 }));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 vi.mock('@/stores/folderSize', () => ({ useFolderSizeStore: () => ({ sizeFor }) }));
 vi.mock('@/stores/settings', () => ({
   useSettingsStore: () => ({ view: 'list', listViewColumnWidths: [0, 200, 100, 100, 160] }),
+}));
+const notifications = vi.hoisted(() => ({ addNotification: vi.fn() }));
+vi.mock('@/stores/notifications', () => ({ useNotificationsStore: () => notifications }));
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key, params) => (params?.name ? `${key}:${params.name}` : key),
+  }),
 }));
 
 /**
@@ -456,5 +469,67 @@ describe('a document somebody else has open', () => {
     mountRow(FILE);
 
     expect(wrapper.html()).not.toContain('OnlyOffice');
+  });
+});
+
+/**
+ * A link out of the volume, as the listing marks it. The server refuses to
+ * follow it, so opening it used to end in "Resolved path is outside the
+ * configured volume root" or "Path not found", on a row that showed the size
+ * of a file nobody could reach.
+ */
+describe('a link out of the volume', () => {
+  const LINK = {
+    name: 'app-config.json',
+    path: 'cache',
+    kind: 'json',
+    size: null,
+    link: 'outside',
+  };
+
+  beforeEach(() => {
+    notifications.addNotification.mockClear();
+  });
+
+  it('says what it is instead of opening, on a double click', async () => {
+    mountRow(LINK);
+
+    await wrapper.find('.group\\/item > div').trigger('dblclick');
+
+    expect(navigation.openItem).not.toHaveBeenCalled();
+    expect(notifications.addNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        heading: 'links.outside',
+        body: 'links.outsideExplained:app-config.json',
+      })
+    );
+  });
+
+  it('says what it is instead of opening, on a tap', async () => {
+    inputMode.touch = true;
+    mountRow(LINK);
+
+    await wrapper.find('.group\\/item > div').trigger('click');
+
+    expect(navigation.openItem).not.toHaveBeenCalled();
+    expect(notifications.addNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no size, and names itself where the kind goes', () => {
+    mountRow(LINK, 'list');
+
+    const text = wrapper.text();
+    expect(text).toContain('links.outside');
+    expect(text).not.toContain('NaN');
+    expect(text).not.toContain('JSON');
+  });
+
+  it('leaves an ordinary file opening as before', async () => {
+    mountRow(FILE);
+
+    await wrapper.find('.group\\/item > div').trigger('dblclick');
+
+    expect(navigation.openItem).toHaveBeenCalledWith(FILE);
+    expect(notifications.addNotification).not.toHaveBeenCalled();
   });
 });

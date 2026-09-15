@@ -85,9 +85,9 @@ describe('each guard reads the permission it is named after', () => {
   });
 
   it('canCopy needs a selection and nothing else', () => {
-    expect(setup({ permissions: { canWrite: false, canDelete: false } }).actions.canCopy.value).toBe(
-      true
-    );
+    expect(
+      setup({ permissions: { canWrite: false, canDelete: false } }).actions.canCopy.value
+    ).toBe(true);
     expect(setup({ selection: [] }).actions.canCopy.value).toBe(false);
   });
 
@@ -374,5 +374,44 @@ describe('the two helpers it exposes', () => {
     expect(actions.isEditableElement(rich)).toBe(true);
     expect(actions.isEditableElement(div)).toBe(false);
     expect(actions.isEditableElement(null)).toBe(false);
+  });
+});
+
+/**
+ * A link out of the volume: listed so it can be seen, refused by the server for
+ * every operation. Offering one only led to "Resolved path is outside the
+ * configured volume root".
+ */
+describe('a link out of the volume', () => {
+  const LINK = { name: 'app-config.json', path: 'Docs', kind: 'json', link: 'outside' };
+
+  it.each(['canRename', 'canDelete', 'canCut', 'canCopy', 'canCompressToZip'])(
+    '%s is off when it is selected',
+    (guard) => {
+      expect(setup().actions[guard].value).toBe(true);
+      expect(setup({ selection: [LINK] }).actions[guard].value).toBe(false);
+    }
+  );
+
+  it.each(['canDelete', 'canCut', 'canCopy', 'canCompressToZip'])(
+    '%s is off when it is selected along with an ordinary file',
+    (guard) => {
+      expect(setup({ selection: [FILE, LINK] }).actions[guard].value).toBe(false);
+    }
+  );
+
+  it('is left out of a download of the selection', () => {
+    const { actions } = setup({ selection: [FILE, LINK] });
+    let submitted = null;
+    const submit = vi
+      .spyOn(HTMLFormElement.prototype, 'submit')
+      .mockImplementation(function capture() {
+        submitted = [...this.querySelectorAll('input[name=paths]')].map((input) => input.value);
+      });
+
+    actions.runDownload();
+
+    expect(submitted).toEqual(['Docs/report.docx']);
+    submit.mockRestore();
   });
 });

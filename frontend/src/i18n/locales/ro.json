@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "Utilizatorul există deja",
     "CONFLICT_PASSWORD_EXISTS": "Aveți deja autentificare prin parolă",
     "CONFLICT_SETUP_COMPLETE": "Aplicația este deja configurată",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Cont blocat după prea multe încercări eșuate de autentificare. Încercați din nou peste {minutes} minut | Cont blocat după prea multe încercări eșuate de autentificare. Încercați din nou peste {minutes} minute"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Cont blocat după prea multe încercări eșuate de autentificare. Încercați din nou peste {minutes} minut | Cont blocat după prea multe încercări eșuate de autentificare. Încercați din nou peste {minutes} minute",
+    "FORBIDDEN": "Acces refuzat",
+    "NOT_FOUND": "Negăsit",
+    "CONFLICT": "Conflict",
+    "RATE_LIMIT_EXCEEDED": "Prea multe cereri"
   },
   "titles": {
     "volumes": "Volume",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "Acțiunea asupra acestei versiuni a eșuat"
     }
+  },
+  "links": {
+    "outside": "Legătură în afara acestui volum",
+    "outsideExplained": "{name} este o legătură către o locație din afara acestui volum. Nu poate fi deschisă, redenumită sau ștearsă de aici; eliminați-o pe server dacă nu mai este necesară."
   }
 }

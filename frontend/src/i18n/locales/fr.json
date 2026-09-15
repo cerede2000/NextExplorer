@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "L'utilisateur existe déjà",
     "CONFLICT_PASSWORD_EXISTS": "Vous disposez déjà d'une authentification par mot de passe",
     "CONFLICT_SETUP_COMPLETE": "L'application est déjà configurée",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minute | Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minutes"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minute | Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minutes",
+    "FORBIDDEN": "Accès refusé",
+    "NOT_FOUND": "Introuvable",
+    "CONFLICT": "Conflit",
+    "RATE_LIMIT_EXCEEDED": "Trop de requêtes"
   },
   "titles": {
     "volumes": "Volumes",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "L'action sur cette version a échoué"
     }
+  },
+  "links": {
+    "outside": "Lien hors de ce volume",
+    "outsideExplained": "{name} est un lien vers un emplacement hors de ce volume. Il ne peut être ni ouvert, ni renommé, ni supprimé d’ici ; supprimez-le sur le serveur s’il ne sert plus."
   }
 }

@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "Användaren finns redan",
     "CONFLICT_PASSWORD_EXISTS": "Du har redan lösenordsautentisering",
     "CONFLICT_SETUP_COMPLETE": "Applikationen är redan konfigurerad",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Kontot är låst efter för många misslyckade inloggningsförsök. Försök igen om {minutes} minut | Kontot är låst efter för många misslyckade inloggningsförsök. Försök igen om {minutes} minuter"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Kontot är låst efter för många misslyckade inloggningsförsök. Försök igen om {minutes} minut | Kontot är låst efter för många misslyckade inloggningsförsök. Försök igen om {minutes} minuter",
+    "FORBIDDEN": "Åtkomst nekad",
+    "NOT_FOUND": "Hittades inte",
+    "CONFLICT": "Konflikt",
+    "RATE_LIMIT_EXCEEDED": "För många förfrågningar"
   },
   "titles": {
     "volumes": "Volymer",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "Åtgärden på den här versionen misslyckades"
     }
+  },
+  "links": {
+    "outside": "Länk utanför den här volymen",
+    "outsideExplained": "{name} är en länk till en plats utanför den här volymen. Den kan inte öppnas, byta namn eller tas bort härifrån; ta bort den på servern om den inte längre behövs."
   }
 }

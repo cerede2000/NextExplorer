@@ -12,6 +12,9 @@ function isEditableElement(el) {
   return false;
 }
 
+// A link out of the volume, as the listing marks it.
+const isOutsideLink = (item) => item?.link === 'outside';
+
 function resolveItemPath(item) {
   if (!item || !item.name) return '';
   const parent = normalizePath(item.path || '');
@@ -66,18 +69,33 @@ export function useFileActions() {
     return rawParents.size === 1;
   });
 
-  const canCut = computed(
-    () => hasSelection.value && locationCanWrite.value && locationCanDelete.value
+  // A link out of the volume: listed so it can be seen, but the server refuses
+  // every operation on it, so none is offered.
+  const selectionHasOutsideLink = computed(() =>
+    selectedItems.value.some((item) => isOutsideLink(item))
   );
-  const canCopy = computed(() => hasSelection.value);
+
+  const canCut = computed(
+    () =>
+      hasSelection.value &&
+      !selectionHasOutsideLink.value &&
+      locationCanWrite.value &&
+      locationCanDelete.value
+  );
+  const canCopy = computed(() => hasSelection.value && !selectionHasOutsideLink.value);
   const canPaste = computed(
     () =>
       fileStore.hasClipboardItems && (locationCanCreateFolder.value || locationCanCreateFile.value)
   );
-  const canDelete = computed(() => hasSelection.value && locationCanDelete.value);
+  const canDelete = computed(
+    () => hasSelection.value && !selectionHasOutsideLink.value && locationCanDelete.value
+  );
   const canRename = computed(
     () =>
-      Boolean(renameTarget.value) && renameTarget.value?.kind !== 'volume' && locationCanWrite.value
+      Boolean(renameTarget.value) &&
+      renameTarget.value?.kind !== 'volume' &&
+      !isOutsideLink(renameTarget.value) &&
+      locationCanWrite.value
   );
   const canExtractArchive = computed(
     () =>
@@ -91,7 +109,7 @@ export function useFileActions() {
       hasSelection.value &&
       locationCanCreateFile.value &&
       selectionHasUniformParent.value &&
-      selectedItems.value.every((item) => item?.kind !== 'volume')
+      selectedItems.value.every((item) => item?.kind !== 'volume' && !isOutsideLink(item))
   );
   const canDownloadCurrentFolder = computed(
     () =>
@@ -207,7 +225,10 @@ export function useFileActions() {
   const runDownload = () => {
     if (!hasSelection.value) return;
 
-    const paths = selectedItems.value.map(resolveItemPath).filter(Boolean);
+    const paths = selectedItems.value
+      .filter((item) => !isOutsideLink(item))
+      .map(resolveItemPath)
+      .filter(Boolean);
     submitDownloadRequest(paths, currentDirectoryPath.value);
   };
 

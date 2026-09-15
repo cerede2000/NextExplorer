@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 import { createErrorHandler } from './errorHandler';
@@ -102,5 +102,62 @@ describe('a refusal that ends on its own', () => {
 
     expect(text).toBe('Account is temporarily locked due to failed login attempts');
     expect(text).not.toContain('{minutes}');
+  });
+});
+
+/**
+ * Most codes the server sends have no entry of their own. Asking vue-i18n for
+ * one it does not have printed two warnings per refusal in the console — one
+ * for the reader's language, one for the fallback — and a refusal as common as
+ * "outside the volume" filled it.
+ */
+describe('a refusal the catalogue has only a kind for', () => {
+  const generic = createI18n({
+    legacy: false,
+    locale: 'fr',
+    fallbackLocale: 'en',
+    messages: {
+      en: { serverErrors: { FORBIDDEN: 'Access denied' } },
+      fr: { serverErrors: { FORBIDDEN: 'Accès refusé' } },
+    },
+  });
+
+  const buildGeneric = () => {
+    const notifications = [];
+    const handle = createErrorHandler({ addNotification: (n) => notifications.push(n) }, generic);
+    return { handle, notifications };
+  };
+
+  it('is headed in the reader language and keeps the server sentence underneath', () => {
+    const { handle, notifications } = buildGeneric();
+
+    const text = handle({
+      code: 'FORBIDDEN',
+      message: 'Resolved path is outside the configured volume root.',
+      statusCode: 403,
+    });
+
+    expect(text).toBe('Accès refusé');
+    expect(notifications[0].body).toContain('Resolved path is outside the configured volume root.');
+  });
+
+  it('does not make vue-i18n warn about a code it has no entry for', () => {
+    const { handle } = buildGeneric();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const text = handle({ code: 'SOMETHING_ELSE', message: 'Something else went wrong.' });
+
+    expect(text).toBe('Something else went wrong.');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('keeps a specific entry as the whole message, with nothing added underneath', () => {
+    const { handle, notifications } = build();
+
+    handle({ code: 'AUTH_INVALID_CREDENTIALS', message: 'Invalid credentials.' });
+
+    expect(notifications[0].heading).toBe('Invalid email or password');
+    expect(notifications[0].body).toBe('');
   });
 });

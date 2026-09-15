@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { excludedFiles, extensions, hiddenFiles } = require('../config/index');
-const { combineRelativePath } = require('../utils/pathUtils');
+const { combineRelativePath, resolveLogicalPath } = require('../utils/pathUtils');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const logger = require('../utils/logger');
@@ -42,10 +42,37 @@ const mapWithConcurrency = async (items, concurrency, mapper) => {
 };
 
 /**
+ * Whether a symbolic link leads out of the space it sits in.
+ *
+ * Asked of the same resolver every operation goes through, so the listing and
+ * the operations cannot disagree: a link the resolver refuses is one nothing
+ * can be done through. A link it cannot follow at all — to nothing — is left to
+ * the stat that comes next, which skips it as before.
+ */
+const linkLeavesTheSpace = async (context, logicalPath, access) => {
+  try {
+    await resolveLogicalPath(logicalPath, {
+      user: context?.user || null,
+      guestSession: context?.guestSession || null,
+      share: access?.share || null,
+      userVolume: access?.userVolume || null,
+    });
+    return false;
+  } catch (error) {
+    return error?.statusCode === 403;
+  }
+};
+
+/**
  * List a directory and filter out entries that the caller cannot access.
  *
  * - Uses accessManager for per-child visibility (covers shares + user volumes + hidden rules).
  * - Does not throw for child-level failures; unreadable / inaccessible children are skipped.
+ * - A symbolic link that leads out of the space is listed as what it is — a link,
+ *   marked `link: 'outside'` — and never followed. It used to be described by
+ *   what it points at: the size and type of a file outside the volume, on a row
+ *   every action then refused with "Resolved path is outside the configured
+ *   volume root", with nothing on screen to say why.
  */
 const listDirectoryItems = async ({
   absoluteDir,
@@ -77,10 +104,13 @@ const listDirectoryItems = async ({
 
   const items = await mapWithConcurrency(filtered, LIST_DIRECTORY_CONCURRENCY, async (name) => {
     const filePath = path.join(absoluteDir, name);
+    const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
 
     let stats;
+    let entry;
     try {
-      stats = await fs.stat(filePath);
+      entry = await fs.lstat(filePath);
+      stats = entry.isSymbolicLink() ? null : entry;
     } catch (err) {
       if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
         logger.warn({ filePath, err }, 'Skipping unreadable entry');
@@ -89,10 +119,31 @@ const listDirectoryItems = async ({
       throw err;
     }
 
-    const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
     const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
     if (!childAccess?.canAccess) {
       return null;
+    }
+
+    if (!stats) {
+      if (await linkLeavesTheSpace(context, logicalChildPath, childAccess)) {
+        return {
+          name,
+          path: parentLogicalPath,
+          dateModified: entry.mtime,
+          size: null,
+          kind: toKind(entry, name),
+          link: 'outside',
+        };
+      }
+      try {
+        stats = await fs.stat(filePath);
+      } catch (err) {
+        if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
+          logger.warn({ filePath, err }, 'Skipping unreadable entry');
+          return null;
+        }
+        throw err;
+      }
     }
 
     const kind = toKind(stats, name);

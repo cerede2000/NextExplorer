@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "User already exists",
     "CONFLICT_PASSWORD_EXISTS": "You already have password authentication",
     "CONFLICT_SETUP_COMPLETE": "Application already configured",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Account locked after too many failed sign-in attempts. Try again in {minutes} minute | Account locked after too many failed sign-in attempts. Try again in {minutes} minutes"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account locked after too many failed sign-in attempts. Try again in {minutes} minute | Account locked after too many failed sign-in attempts. Try again in {minutes} minutes",
+    "FORBIDDEN": "Access denied",
+    "NOT_FOUND": "Not found",
+    "CONFLICT": "Conflict",
+    "RATE_LIMIT_EXCEEDED": "Too many requests"
   },
   "titles": {
     "volumes": "Volumes",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "The action on this version failed"
     }
+  },
+  "links": {
+    "outside": "Link out of this volume",
+    "outsideExplained": "{name} is a link to a place outside this volume. It cannot be opened, renamed or deleted from here; remove it on the server if it is no longer needed."
   }
 }

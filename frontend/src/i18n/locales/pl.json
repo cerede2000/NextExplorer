@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "Użytkownik już istnieje",
     "CONFLICT_PASSWORD_EXISTS": "Masz już uwierzytelnianie hasłem",
     "CONFLICT_SETUP_COMPLETE": "Aplikacja jest już skonfigurowana",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minutę | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minuty | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minut"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minutę | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minuty | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minut",
+    "FORBIDDEN": "Odmowa dostępu",
+    "NOT_FOUND": "Nie znaleziono",
+    "CONFLICT": "Konflikt",
+    "RATE_LIMIT_EXCEEDED": "Zbyt wiele żądań"
   },
   "titles": {
     "volumes": "Woluminy",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "Działanie na tej wersji nie powiodło się"
     }
+  },
+  "links": {
+    "outside": "Łącze poza ten wolumin",
+    "outsideExplained": "{name} to łącze do miejsca poza tym woluminem. Nie można go stąd otworzyć, zmienić jego nazwy ani usunąć; usuń je na serwerze, jeśli nie jest już potrzebne."
   }
 }

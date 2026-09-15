@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "유저가 이미 존재합니다",
     "CONFLICT_PASSWORD_EXISTS": "이미 비밀번호 인증이 존재합니다",
     "CONFLICT_SETUP_COMPLETE": "애플리케이션이 이미 설정되었습니다",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "로그인 실패가 너무 많아 계정이 잠겼습니다. {minutes}분 후 다시 시도해주세요 | 로그인 실패가 너무 많아 계정이 잠겼습니다. {minutes}분 후 다시 시도해주세요"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "로그인 실패가 너무 많아 계정이 잠겼습니다. {minutes}분 후 다시 시도해주세요 | 로그인 실패가 너무 많아 계정이 잠겼습니다. {minutes}분 후 다시 시도해주세요",
+    "FORBIDDEN": "접근이 거부되었습니다",
+    "NOT_FOUND": "찾을 수 없음",
+    "CONFLICT": "충돌",
+    "RATE_LIMIT_EXCEEDED": "요청이 너무 많습니다"
   },
   "titles": {
     "volumes": "볼륨",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "이 버전에 대한 작업이 실패했습니다"
     }
+  },
+  "links": {
+    "outside": "이 볼륨 밖을 가리키는 링크",
+    "outsideExplained": "{name}은(는) 이 볼륨 밖의 위치를 가리키는 링크입니다. 여기서는 열거나 이름을 바꾸거나 삭제할 수 없습니다. 더 이상 필요하지 않으면 서버에서 제거하세요."
   }
 }

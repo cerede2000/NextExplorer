@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "Benutzer existiert bereits",
     "CONFLICT_PASSWORD_EXISTS": "Sie haben bereits eine Passwort-Authentifizierung",
     "CONFLICT_SETUP_COMPLETE": "Anwendung bereits konfiguriert",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Versuchen Sie es in {minutes} Minute erneut | Konto nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Versuchen Sie es in {minutes} Minuten erneut"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Versuchen Sie es in {minutes} Minute erneut | Konto nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Versuchen Sie es in {minutes} Minuten erneut",
+    "FORBIDDEN": "Zugriff verweigert",
+    "NOT_FOUND": "Nicht gefunden",
+    "CONFLICT": "Konflikt",
+    "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen"
   },
   "titles": {
     "volumes": "Volumes",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "Die Aktion für diese Version ist fehlgeschlagen"
     }
+  },
+  "links": {
+    "outside": "Verknüpfung außerhalb dieses Volumes",
+    "outsideExplained": "{name} ist eine Verknüpfung zu einem Ort außerhalb dieses Volumes. Sie kann hier weder geöffnet, umbenannt noch gelöscht werden; entfernen Sie sie auf dem Server, wenn sie nicht mehr gebraucht wird."
   }
 }

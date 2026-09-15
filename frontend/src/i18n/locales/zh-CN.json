@@ -205,7 +205,11 @@
     "CONFLICT_USER_EXISTS": "用户已存在",
     "CONFLICT_PASSWORD_EXISTS": "您已有密码身份验证",
     "CONFLICT_SETUP_COMPLETE": "应用程序已配置",
-    "AUTH_ACCOUNT_LOCKED_RETRY": "登录失败次数过多，账户已被锁定。请在{minutes}分钟后重试"
+    "AUTH_ACCOUNT_LOCKED_RETRY": "登录失败次数过多，账户已被锁定。请在{minutes}分钟后重试",
+    "FORBIDDEN": "访问被拒绝",
+    "NOT_FOUND": "未找到",
+    "CONFLICT": "冲突",
+    "RATE_LIMIT_EXCEEDED": "请求过多"
   },
   "titles": {
     "volumes": "卷",
@@ -1069,5 +1073,9 @@
     "errors": {
       "action": "对此版本的操作失败"
     }
+  },
+  "links": {
+    "outside": "指向此卷外部的链接",
+    "outsideExplained": "{name} 是指向此卷外部位置的链接。无法在此打开、重命名或删除它；如果不再需要，请在服务器上将其移除。"
   }
 }
