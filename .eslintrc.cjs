@@ -44,6 +44,9 @@ module.exports = {
         'backend/src/services/indexDb.js',
         // What an operation recorded itself as writing, after a stop interrupted it.
         'backend/src/services/inFlightFiles.js',
+        // A rename that refuses to overwrite: the old name of a file it has just
+        // linked, or an empty placeholder of its own.
+        'backend/src/utils/placeWithoutOverwrite.js',
         'backend/src/services/archiveService.js',
         'backend/src/services/rawPreviewService.js',
         'backend/src/services/thumbnailService.js',
