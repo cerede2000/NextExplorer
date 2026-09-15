@@ -9,8 +9,8 @@ const floors = JSON.parse(
 
 export default defineConfig({
   test: {
-    // Why this exists: tests/setup/loopback-listen.js
-    setupFiles: ['./tests/setup/loopback-listen.js'],
+    // Why these exist: tests/setup/loopback-listen.js, tests/setup/default-directories.js
+    setupFiles: ['./tests/setup/loopback-listen.js', './tests/setup/default-directories.js'],
     coverage: {
       // Held in CI only. Several suites skip themselves when 7-Zip, ffmpeg,
       // ripgrep or pdftotext are missing, and CI installs all four; a machine

@@ -29,6 +29,7 @@ const { reportLegacyCache } = require('./services/legacyCacheCheck');
 const { sweepInterrupted } = require('./services/inFlightFiles');
 const trashMaintenance = require('./services/trash/maintenance');
 const databaseMaintenance = require('./services/databaseMaintenance');
+const tusUploads = require('./services/tusUploadService');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
 
 let server = null;
@@ -78,6 +79,9 @@ const startServer = async () => {
   // Finishes what a crash interrupted before anything else touches a zone,
   // then keeps each zone within its retention and budget.
   trashMaintenance.start();
+  // Chunked uploads abandoned, or finished and never moved into place, leave
+  // the upload cache once past TUS_INCOMPLETE_UPLOAD_TTL_MS.
+  tusUploads.startCacheSweep();
   // Hands the database's free space back to the filesystem once there is
   // enough of it to matter, so that /config and its backups do not keep it.
   databaseMaintenance.start();
@@ -119,6 +123,7 @@ const startServer = async () => {
     terminalService.cleanup();
     performanceDiagnostics.stop();
     trashMaintenance.stop();
+    await tusUploads.stopCacheSweep();
     databaseMaintenance.stop();
     await folderSizeManager.stop();
     searchIndexManager.stop();
