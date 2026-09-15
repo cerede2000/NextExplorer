@@ -92,7 +92,11 @@ answered complete, to the person who sent it, for as long as an unfinished
 upload would be kept (`TUS_INCOMPLETE_UPLOAD_TTL_MS`).
 
 Chunked uploads must be enabled on the server (`UPLOAD_CHUNKED_ENABLED=true`).
-Where they are not, `POST /api/upload` takes an ordinary multipart body.
+Where they are not, `POST /api/upload` takes an ordinary multipart body, with
+the files in `filedata` fields. A file larger than `MAX_DIRECT_UPLOAD_SIZE`, or
+more files than `MAX_FILES_PER_UPLOAD` in one request, is refused with `413`
+and a message naming the limit; a file in any other field is refused with
+`400`. Nothing sent in a refused request is kept.
 
 ## Sharing
 

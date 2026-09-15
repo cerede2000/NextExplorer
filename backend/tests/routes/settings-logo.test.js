@@ -92,8 +92,11 @@ describe('uploading a logo', () => {
         contentType: 'text/html',
       });
 
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(response.body.error.message).toMatch(/Invalid file type/);
+    // 400, not the 500 a plain Error from the file filter used to become.
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe(
+      'Invalid file type. Only SVG, PNG, and JPG are allowed.'
+    );
     expect(await logoFiles()).toEqual([]);
   });
 
@@ -107,8 +110,23 @@ describe('uploading a logo', () => {
         contentType: 'image/png',
       });
 
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(response.body.error.message).toMatch(/too large/i);
+    // 413 with the limit named, not multer's "File too large" as a 500.
+    expect(response.status).toBe(413);
+    expect(response.body.error.message).toBe('A logo can be at most 2 MB.');
+    expect(await logoFiles()).toEqual([]);
+  });
+
+  it('refuses a logo sent in a field the route does not read, as a malformed request', async () => {
+    const app = await seed();
+
+    const response = await request(app)
+      .post('/api/settings/upload-logo')
+      .attach('image', PNG, { filename: 'logo.png', contentType: 'image/png' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe(
+      'A file was sent in a field this request does not take.'
+    );
     expect(await logoFiles()).toEqual([]);
   });
 });

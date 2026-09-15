@@ -373,9 +373,6 @@ their destination, and two ways into sign-in) and a dozen smaller ones, all fixe
 with their tests. What follows was found at the same time and judged not worth
 holding the release for. Each was reproduced; none is guessed.
 
-- **Multer's refusals answer 500.** A logo of the wrong type or too large, and an
-  upload over the size limit, arrive as server errors in the log. They are 400
-  and 413, and should say so.
 - **An unreachable identity provider reads as "OIDC is not configured".** The
   404 from `/api/auth/oidc/login` sends an administrator to the configuration
   when the provider is down.

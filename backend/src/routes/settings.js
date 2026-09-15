@@ -15,6 +15,8 @@ const { ensureAdmin } = require('../middleware/ensureAdmin');
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
+const { ValidationError } = require('../errors/AppError');
+const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
 
@@ -41,18 +43,26 @@ const deleteCustomLogoFiles = async () => {
   );
 };
 
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+
 // Configure multer for logo uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: LOGO_MAX_BYTES },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/svg+xml', 'image/png', 'image/jpeg'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only SVG, PNG, and JPG are allowed.'));
+      // A ValidationError and not a plain Error: the wrong kind of file is the
+      // request's fault, and a plain Error reached the client as a 500.
+      cb(new ValidationError('Invalid file type. Only SVG, PNG, and JPG are allowed.'));
     }
   },
+});
+
+const acceptLogo = explainMultipartRefusals(upload.single('logo'), {
+  LIMIT_FILE_SIZE: `A logo can be at most ${describeBytes(LOGO_MAX_BYTES)}.`,
 });
 
 /**
@@ -90,7 +100,7 @@ router.get(
 router.post(
   '/settings/upload-logo',
   ensureAdmin,
-  upload.single('logo'),
+  acceptLogo,
   asyncHandler(async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

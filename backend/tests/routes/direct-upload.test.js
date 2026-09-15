@@ -124,3 +124,71 @@ describe('a direct upload', () => {
     }
   });
 });
+
+/**
+ * What multer refuses is the request's doing, not the server's. Its errors carry
+ * no status, and every one of them used to answer 500 and log a server error.
+ * The limit is named along with the setting that raises it, because "File too
+ * large" leaves whoever reads it nowhere to go.
+ */
+describe('a direct upload over the limits', () => {
+  it('is refused with 413 when the file is larger than MAX_DIRECT_UPLOAD_SIZE, and leaves nothing', async () => {
+    const { destination, server } = await build({ MAX_DIRECT_UPLOAD_SIZE: '1K' });
+    const baseUrl = await startServer(server);
+
+    try {
+      const response = await upload(baseUrl, { name: 'big.bin', content: 'x'.repeat(4096) });
+
+      expect(response.status).toBe(413);
+      expect(response.body.error.message).toBe(
+        'This file is larger than the 1 KB a direct upload accepts. Use chunked uploads, or raise MAX_DIRECT_UPLOAD_SIZE.'
+      );
+      expect(await fs.readdir(destination)).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it('is refused with 413 when one request carries more than MAX_FILES_PER_UPLOAD files', async () => {
+    const { destination, server } = await build({ MAX_FILES_PER_UPLOAD: '2' });
+    const baseUrl = await startServer(server);
+
+    try {
+      const response = await request(baseUrl)
+        .post('/api/upload')
+        .query({ uploadTo: 'Nvm' })
+        .attach('filedata', Buffer.from('one'), 'one.txt')
+        .attach('filedata', Buffer.from('two'), 'two.txt')
+        .attach('filedata', Buffer.from('three'), 'three.txt');
+
+      expect(response.status).toBe(413);
+      expect(response.body.error.message).toBe(
+        'One upload request takes at most 2 files. Send the others in another, or raise MAX_FILES_PER_UPLOAD.'
+      );
+      // The files that arrived before the refusal are taken back with it.
+      expect(await fs.readdir(destination)).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it('is refused with 400 when the file comes in a field the route does not read', async () => {
+    const { destination, server } = await build();
+    const baseUrl = await startServer(server);
+
+    try {
+      const response = await request(baseUrl)
+        .post('/api/upload')
+        .query({ uploadTo: 'Nvm', relativePath: 'stray.txt' })
+        .attach('attachment', Buffer.from('stray'), 'stray.txt');
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.message).toBe(
+        'A file was sent in a field this request does not take.'
+      );
+      expect(await fs.readdir(destination)).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+});

@@ -6,6 +6,7 @@ const { createUploadMiddleware } = require('../services/uploadService');
 const { handleTusUpload, listFinalizations } = require('../services/tusUploadService');
 const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
 const { responseEndCompat } = require('../middleware/responseEndCompat');
+const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const { uploads } = require('../config/index');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
@@ -16,6 +17,14 @@ const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 const upload = createUploadMiddleware();
+
+const acceptFiles = explainMultipartRefusals(
+  upload.fields([{ name: 'filedata', maxCount: uploads.maxFilesPerRequest }]),
+  {
+    LIMIT_FILE_SIZE: `This file is larger than the ${describeBytes(uploads.maxDirectUploadBytes)} a direct upload accepts. Use chunked uploads, or raise MAX_DIRECT_UPLOAD_SIZE.`,
+    LIMIT_FILE_COUNT: `One upload request takes at most ${uploads.maxFilesPerRequest} files. Send the others in another, or raise MAX_FILES_PER_UPLOAD.`,
+  }
+);
 
 // responseEndCompat first: @tus/server finishes its responses with
 // `res.end(callback)`, which express-session's own res.end mistakes for a body
@@ -66,7 +75,7 @@ router.post(
 
 router.post(
   '/upload',
-  upload.fields([{ name: 'filedata', maxCount: uploads.maxFilesPerRequest }]),
+  acceptFiles,
   asyncHandler(async (req, res) => {
     if (!req.files || !Array.isArray(req.files.filedata) || req.files.filedata.length === 0) {
       throw new ValidationError('No files were provided.');

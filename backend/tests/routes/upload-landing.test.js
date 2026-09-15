@@ -404,8 +404,9 @@ describe('an upload that does not finish', () => {
       { name: 'large.bin', content: 'x'.repeat(64 * 1024) }
     );
 
-    expect(response.status).not.toBe(200);
-    expect(reason(response)).toMatch(/file too large/i);
+    // 413 naming the limit and the setting, not multer's "File too large" as a 500.
+    expect(response.status).toBe(413);
+    expect(reason(response)).toMatch(/larger than the 1 KB a direct upload accepts/);
     expect(await tree(destination)).toEqual([]);
   });
 

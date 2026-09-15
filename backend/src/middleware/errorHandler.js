@@ -1,3 +1,4 @@
+const multer = require('multer');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { sanitizeLogUrl } = require('../utils/logSanitizer');
@@ -69,12 +70,45 @@ const clearOidcSessionCookies = (req, res) => {
  * Handles both operational errors (AppError instances) and unexpected errors
  */
 /**
- * What body-parser says when a request is too big is "request entity too
- * large" — true, and useless to whoever reads it: it names neither the limit
- * nor the setting that governs it. Someone editing a large document sees it
- * and has nowhere to go.
+ * What multer refuses, and what kind of refusal it is.
+ *
+ * Its errors carry a code and no status, so every one of them reached the
+ * client as a 500 and the log as a server error: a logo of two megabytes and a
+ * byte, an upload over MAX_DIRECT_UPLOAD_SIZE. They are the request's doing.
+ *
+ * 413 where the request carries more than the server takes — a file too large,
+ * more files or parts than one request may hold. That is something the sender
+ * can act on by sending less, and it is what a proxy refusing a body answers
+ * too. 400 where the form is not the one the route reads: a file in a field it
+ * does not take, a field without a name, more or longer fields than the
+ * application ever sends. Nothing the interface sends comes near those limits,
+ * so meeting one is a malformed request rather than a large one.
+ *
+ * The sentence here is the general one; a route that knows its limits gives a
+ * better one through `explainMultipartRefusals`.
  */
+const MULTIPART_REFUSALS = {
+  LIMIT_FILE_SIZE: [413, 'The file is larger than this server accepts.'],
+  LIMIT_FILE_COUNT: [413, 'The request carries more files than this server accepts at once.'],
+  LIMIT_PART_COUNT: [413, 'The request carries more parts than this server accepts at once.'],
+  LIMIT_FIELD_COUNT: [400, 'The request carries more form fields than this server reads.'],
+  LIMIT_FIELD_KEY: [400, 'A form field name is longer than this server reads.'],
+  LIMIT_FIELD_VALUE: [400, 'A form field is longer than this server reads.'],
+  LIMIT_FIELD_NESTING: [400, 'A form field name is nested deeper than this server reads.'],
+  LIMIT_UNEXPECTED_FILE: [400, 'A file was sent in a field this request does not take.'],
+  MISSING_FIELD_NAME: [400, 'A form field was sent without a name.'],
+};
+
+const multipartRefusal = (err) => {
+  if (!(err instanceof multer.MulterError)) return null;
+  const [statusCode, sentence] = MULTIPART_REFUSALS[err.code] || [400, err.message];
+  return { statusCode, message: err.clientMessage || sentence };
+};
+
 const describeError = (err) => {
+  const refusal = multipartRefusal(err);
+  if (refusal) return refusal.message;
+
   if (err?.type === 'entity.too.large') {
     const megabytes = (uploads?.maxJsonBodyBytes ?? 0) / (1024 * 1024);
     const limit =
@@ -95,7 +129,7 @@ const errorHandler = (err, req, res, next) => {
 
   // Determine if this is an operational error (expected) or programmer error (unexpected)
   const isOperational = err.isOperational || false;
-  const statusCode = err.statusCode || err.status || 500;
+  const statusCode = multipartRefusal(err)?.statusCode || err.statusCode || err.status || 500;
   const message = describeError(err);
 
   // For OIDC callback navigations, redirect back into the SPA so the login screen can show the error.
