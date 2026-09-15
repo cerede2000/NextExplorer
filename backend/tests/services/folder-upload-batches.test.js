@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
@@ -77,6 +78,79 @@ describe('two uploads of the same folder, started at the same time', () => {
     ]);
 
     expect([first, second].sort()).toEqual(['photos (1)/a.jpg', 'photos/a.jpg']);
+  });
+});
+
+describe('a folder arriving under the name an upload chose', () => {
+  /**
+   * The name was looked for first and created afterwards, with a recursive
+   * mkdir that succeeds on a folder already there: whatever arrived under it in
+   * between — another upload, a copy, a folder made over SMB — received this
+   * upload's files. These make it arrive just before that mkdir.
+   */
+  const arriveJustBefore = (target, arrive) => {
+    const mkdir = fs.mkdir.bind(fs);
+    let arrived = false;
+    vi.spyOn(fs, 'mkdir').mockImplementation(async (candidate, options) => {
+      if (!arrived && candidate === target) {
+        arrived = true;
+        arrive();
+      }
+      return mkdir(candidate, options);
+    });
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('is never poured into, and the upload takes the next name', async () => {
+    const destinationRoot = await build();
+    const theirs = path.join(destinationRoot, 'photos');
+    arriveJustBefore(theirs, () => {
+      fsSync.mkdirSync(theirs);
+      fsSync.writeFileSync(path.join(theirs, 'theirs.jpg'), 'theirs');
+    });
+
+    const landed = await service.resolveFolderUploadRelativePath({
+      relativePath: 'photos/a.jpg',
+      destinationRoot,
+      context: OWNER,
+      uploadBatchId: 'batch-arriving-01',
+    });
+
+    expect(landed).toBe('photos (1)/a.jpg');
+    expect(await fs.readdir(theirs)).toEqual(['theirs.jpg']);
+    expect((await fs.readdir(destinationRoot)).sort()).toEqual(['photos', 'photos (1)']);
+  });
+
+  it('takes the next name even when what arrived is empty', async () => {
+    const destinationRoot = await build();
+    const theirs = path.join(destinationRoot, 'photos');
+    arriveJustBefore(theirs, () => fsSync.mkdirSync(theirs));
+
+    const landed = await service.resolveFolderUploadRelativePath({
+      relativePath: 'photos/a.jpg',
+      destinationRoot,
+      context: OWNER,
+      uploadBatchId: 'batch-arriving-02',
+    });
+
+    expect(landed).toBe('photos (1)/a.jpg');
+  });
+
+  it('still creates the destination itself when it is not there yet', async () => {
+    const destinationRoot = path.join(await build(), 'not yet made');
+
+    const landed = await service.resolveFolderUploadRelativePath({
+      relativePath: 'photos/a.jpg',
+      destinationRoot,
+      context: OWNER,
+      uploadBatchId: 'batch-new-root-01',
+    });
+
+    expect(landed).toBe('photos/a.jpg');
+    expect(await fs.readdir(destinationRoot)).toEqual(['photos']);
   });
 });
 

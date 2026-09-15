@@ -1,8 +1,9 @@
 const path = require('path');
 const fs = require('fs/promises');
 
-const { ensureDir, pathExists } = require('../utils/fsUtils');
-const { findAvailableName, normalizeRelativePath } = require('../utils/pathUtils');
+const { ensureDir } = require('../utils/fsUtils');
+const { normalizeRelativePath } = require('../utils/pathUtils');
+const { reserveAvailableName } = require('../utils/placeWithoutOverwrite');
 const { ValidationError } = require('../errors/AppError');
 
 const FOLDER_BATCH_TTL_MS = 6 * 60 * 60 * 1000;
@@ -120,13 +121,16 @@ const resolveFolderUploadRelativePath = async ({
       return path.posix.join(reserved.targetRoot, ...parts.slice(1));
     }
 
-    let targetRoot = sourceRoot;
-    if (await pathExists(path.join(destinationRoot, targetRoot))) {
-      targetRoot = await findAvailableName(destinationRoot, sourceRoot);
-    }
-
-    // Reserve before another simultaneous folder batch can select the same name.
-    await ensureDir(path.join(destinationRoot, targetRoot));
+    // The upload's own destination may be created as it always was; the folder
+    // it receives is not. A recursive mkdir succeeds on a folder already there,
+    // so looking for a free name and creating it afterwards poured this batch
+    // into whatever arrived under that name in between — another upload, a copy,
+    // a folder made over SMB. A plain mkdir fails on a taken name instead, and
+    // moves on to the next one.
+    await ensureDir(destinationRoot);
+    const { name: targetRoot } = await reserveAvailableName(destinationRoot, sourceRoot, {
+      isDirectory: true,
+    });
     folderTargets.set(targetKey, { targetRoot, updatedAt: Date.now() });
     return path.posix.join(targetRoot, ...parts.slice(1));
   });
