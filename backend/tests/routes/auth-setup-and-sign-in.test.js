@@ -36,8 +36,11 @@ afterEach(async () => {
   }
 });
 
-const build = async () => {
-  currentEnv = await setupTestEnv({ tag: 'auth-setup-sign-in-', env: { AUTH_ENABLED: 'true' } });
+const build = async (env = {}) => {
+  currentEnv = await setupTestEnv({
+    tag: 'auth-setup-sign-in-',
+    env: { AUTH_ENABLED: 'true', ...env },
+  });
   const authRoutes = currentEnv.requireFresh('src/routes/auth');
   const { notFoundHandler, errorHandler } = currentEnv.requireFresh('src/middleware/errorHandler');
   // The instance the routes already loaded, not a fresh copy of it.
@@ -74,6 +77,69 @@ const setUp = (app, body = {}) =>
   request(app)
     .post('/api/auth/setup')
     .send({ email: 'owner@example.com', username: 'owner', password: PASSWORD, ...body });
+
+/**
+ * Counting the accounts and creating the first one are a password hash apart.
+ * Two setups sent together both found no account, and both made an
+ * administrator.
+ */
+describe('two setups sent at the same moment', { timeout: 30_000 }, () => {
+  it('make one administrator, and refuse the other', async () => {
+    const { app, users } = await build();
+
+    const responses = await Promise.all([
+      setUp(app),
+      setUp(app, { email: 'intruder@example.com', username: 'intruder' }),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 400]);
+    const refused = responses.find((response) => response.status === 400);
+    expect(JSON.stringify(refused.body)).toMatch(/already configured/i);
+    expect(await users.countUsers()).toBe(1);
+  });
+});
+
+/**
+ * An installation that signs people in through its identity provider only.
+ * `/status` said so, but setup and the password sign-in answered anyway: on an
+ * instance nobody had signed in to yet, anyone reaching the API could make
+ * themselves its administrator with a password.
+ */
+describe('an installation that signs in through OIDC only', { timeout: 30_000 }, () => {
+  it('refuses a password setup, and creates nobody', async () => {
+    const { app, users } = await build({ AUTH_MODE: 'oidc' });
+
+    const response = await setUp(app);
+
+    expect(response.status).toBe(403);
+    expect(JSON.stringify(response.body)).toMatch(/password sign-in is not enabled/i);
+    expect(await users.countUsers()).toBe(0);
+  });
+
+  it('refuses a password sign-in, even for an account that has one', async () => {
+    const { app, users } = await build({ AUTH_MODE: 'oidc' });
+    await users.createLocalUser({
+      email: 'owner@example.com',
+      username: 'owner',
+      password: PASSWORD,
+      roles: ['admin'],
+    });
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: 'owner', password: PASSWORD });
+
+    expect(response.status).toBe(403);
+    expect(JSON.stringify(response.body)).toMatch(/password sign-in is not enabled/i);
+    expect(sessionId(response)).toBeNull();
+  });
+
+  it('still offers both where both are enabled', async () => {
+    const { app } = await build({ AUTH_MODE: 'both' });
+
+    expect((await setUp(app)).status).toBe(201);
+  });
+});
 
 describe('the first-run setup', { timeout: 30_000 }, () => {
   it('refuses a second setup once an account exists, and neither creates nor signs in anyone', async () => {

@@ -151,6 +151,23 @@ const resolveOidcScopes = (oidc) => {
 };
 
 /**
+ * The claims inside an id token, read without checking its signature — the
+ * library has already verified it, nonce included, before the after-callback
+ * handler is handed the session. Anything that is not a JWT reads as none.
+ */
+const claimsFromIdToken = (idToken) => {
+  if (typeof idToken !== 'string') return null;
+  const payload = idToken.split('.')[1];
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Creates the afterCallback handler for user synchronization
  */
 const createAfterCallbackHandler = (oidc, envAuthConfig) => {
@@ -171,16 +188,14 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         'OIDC user login state'
       );
 
-      let claims = {};
-
-      // Prefer already-decoded user claims if available on req.oidc.user
-      const hasReqUser = Boolean(req?.oidc?.user && req.oidc.user.sub);
-      logger.debug({ hasReqUser }, 'afterCallback: req.oidc.user presence');
-
-      if (hasReqUser) {
-        claims = req.oidc.user;
-        logger.debug('afterCallback: using req.oidc.user');
-      }
+      // Who this sign-in is, as the provider's id token says — verified by the
+      // library by the time this runs. `req.oidc.user` is not it: during the
+      // callback it is still the user of the session the browser arrived with,
+      // if it had one, which made a second person in the same browser a
+      // "mismatch" and let a brand-new sign-in skip the subject check entirely.
+      const idTokenClaims =
+        claimsFromIdToken(session?.id_token) || session?.id_token_claims || session?.claims || null;
+      let claims = idTokenClaims || {};
 
       // Fetch from userinfo endpoint if access token is available
       if (accessToken && persistIssuer) {
@@ -192,23 +207,20 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         });
 
         if (directClaims && directClaims.sub) {
-          if (hasReqUser && directClaims.sub !== req.oidc.user.sub) {
+          // OpenID Connect Core 5.3.2: the userinfo response describes the
+          // subject of the id token, or it must not be used at all.
+          if (idTokenClaims?.sub && directClaims.sub !== idTokenClaims.sub) {
             throw new UnauthorizedError(
               'OIDC userinfo subject does not match the authenticated user.'
             );
           }
           claims = directClaims;
           logger.debug('afterCallback: direct userinfo fetch succeeded');
+        } else if (idTokenClaims?.sub) {
+          // A provider whose userinfo is briefly unavailable: the id token
+          // already names the person, so the sign-in goes ahead on it.
+          logger.debug('afterCallback: userinfo unavailable, using the id token claims');
         }
-      }
-
-      // Fallback to id_token_claims or session.claims
-      if ((!claims || !claims.sub) && session?.id_token_claims) {
-        logger.debug('afterCallback: falling back to id_token_claims');
-        claims = session.id_token_claims;
-      } else if ((!claims || !claims.sub) && session?.claims) {
-        logger.debug('afterCallback: falling back to session.claims');
-        claims = session.claims;
       }
 
       const sub = typeof claims?.sub === 'string' && claims.sub.trim() ? claims.sub : null;

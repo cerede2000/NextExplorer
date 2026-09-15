@@ -107,7 +107,10 @@ const handleProviderRequest = (req, res) => {
   } else if (pathname === '/userinfo') {
     const token = (req.headers.authorization || '').replace(/^Bearer /, '');
     const claims = provider.tokens.get(token);
-    if (claims) answer(res, 200, claims);
+    if (provider.userinfo === 'down') answer(res, 503, { error: 'temporarily_unavailable' });
+    else if (provider.userinfo === 'someone-else' && claims) {
+      answer(res, 200, { sub: 'someone-else', email: 'else@example.com', email_verified: true });
+    } else if (claims) answer(res, 200, claims);
     else answer(res, 401, { error: 'invalid_token' });
   } else {
     res.writeHead(404).end();
@@ -139,6 +142,7 @@ afterEach(async () => {
   provider.grants.clear();
   provider.tokens.clear();
   provider.tokenRequests = 0;
+  provider.userinfo = 'answers';
   if (currentEnv) {
     await currentEnv.cleanup();
     currentEnv = null;
@@ -317,6 +321,70 @@ describe('a callback that does not belong to a sign-in this browser started', ()
     expect(errorShownAtLogin(response)).toMatch(/id_token not present|code/);
     expect(provider.tokenRequests).toBe(0);
     expect((await browser.get('/whoami')).body.signedIn).toBe(false);
+  });
+});
+
+/**
+ * What the handler after the callback bases the account on, in the real flow.
+ *
+ * It used to read the signed-in person from `req.oidc.user`, which during the
+ * callback is still the user of the session the browser arrived with — or
+ * nobody. So a fresh sign-in had no id token claims to fall back on when
+ * userinfo failed, compared userinfo's subject with nothing, and a second
+ * person in a browser that already held a session was refused as a mismatch.
+ */
+describe('the identity a sign-in is based on', () => {
+  it('comes from the id token when userinfo is unavailable', async () => {
+    const { app, db } = await build();
+    provider.userinfo = 'down';
+    const browser = request.agent(app);
+
+    const response = await signIn(browser, {
+      sub: 'sub-1',
+      email: 'someone@example.com',
+      email_verified: true,
+    });
+
+    expect(response.headers.location).toBe('/browse/');
+    expect((await browser.get('/whoami')).body).toEqual({ signedIn: true, sub: 'sub-1' });
+    expect(
+      db.prepare('SELECT COUNT(*) AS n FROM users WHERE email = ?').get('someone@example.com').n
+    ).toBe(1);
+  });
+
+  it('is refused when userinfo describes somebody else than the id token', async () => {
+    const { app, db } = await build();
+    provider.userinfo = 'someone-else';
+    const browser = request.agent(app);
+
+    const response = await signIn(browser, {
+      sub: 'sub-1',
+      email: 'someone@example.com',
+      email_verified: true,
+    });
+
+    expect(errorShownAtLogin(response)).toMatch(/does not match/);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get().n).toBe(0);
+    expect((await browser.get('/whoami')).body.signedIn).toBe(false);
+  });
+
+  it('is the person signing in now, in a browser that held somebody else', async () => {
+    const { app, db } = await build();
+    const browser = request.agent(app);
+    await signIn(browser, { sub: 'sub-1', email: 'first@example.com', email_verified: true });
+    expect((await browser.get('/whoami')).body.sub).toBe('sub-1');
+
+    const response = await signIn(browser, {
+      sub: 'sub-2',
+      email: 'second@example.com',
+      email_verified: true,
+    });
+
+    expect(response.headers.location).toBe('/browse/');
+    expect((await browser.get('/whoami')).body).toEqual({ signedIn: true, sub: 'sub-2' });
+    expect(
+      db.prepare('SELECT COUNT(*) AS n FROM users WHERE email = ?').get('second@example.com').n
+    ).toBe(1);
   });
 });
 

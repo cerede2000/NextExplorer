@@ -25,6 +25,7 @@ const {
   UnauthorizedError,
   RateLimitError,
   NotFoundError,
+  ForbiddenError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
 
@@ -84,6 +85,34 @@ const passwordLimiter = rateLimit({
 
 const router = express.Router();
 
+/**
+ * Whether accounts may be created and signed in with a password here.
+ *
+ * `/status` already told the interface a password sign-in was not on offer when
+ * AUTH_MODE is `oidc`, but the routes behind it answered anyway: on an
+ * installation nobody had signed in to yet, anyone who could reach the API
+ * could run the setup and become its administrator with a password.
+ */
+const passwordSignInEnabled = () => ['local', 'both'].includes(auth.mode || 'both');
+
+const refuseWithoutPasswordSignIn = () => {
+  if (!passwordSignInEnabled()) {
+    throw new ForbiddenError('Password sign-in is not enabled on this server.');
+  }
+};
+
+/**
+ * Run setups one at a time. Between counting the accounts and creating the
+ * first one there is a password hash, long enough for two setups sent together
+ * to both find none and both make an administrator.
+ */
+let setupQueue = Promise.resolve();
+const oneSetupAtATime = (task) => {
+  const run = setupQueue.then(task, task);
+  setupQueue = run.catch(() => {});
+  return run;
+};
+
 const respondWithUser = async (req, res) => {
   const user = await getRequestUser(req);
   res.json({ user });
@@ -126,16 +155,19 @@ router.post(
   '/setup',
   setupLimiter,
   asyncHandler(async (req, res) => {
-    if ((await countUsers()) > 0) {
-      throw new ValidationError('Aoolication Already configured. Skkipping Setup.');
-    }
+    refuseWithoutPasswordSignIn();
     const { email, password, username } = req.body || {};
-    const user = await createLocalUser({
-      email,
-      password,
-      username: username || email?.split('@')[0],
-      displayName: username || email?.split('@')[0],
-      roles: ['admin'],
+    const user = await oneSetupAtATime(async () => {
+      if ((await countUsers()) > 0) {
+        throw new ValidationError('Application already configured. Skipping setup.');
+      }
+      return createLocalUser({
+        email,
+        password,
+        username: username || email?.split('@')[0],
+        displayName: username || email?.split('@')[0],
+        roles: ['admin'],
+      });
     });
     await startAuthenticatedSession(req, user.id);
 
@@ -154,6 +186,7 @@ router.post(
   '/login',
   loginLimiter,
   asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
     const { identifier, email, password, username } = req.body || {};
     // `email` and `username` are the older field names; both carried whatever
     // was typed into the one box on the sign-in screen.
