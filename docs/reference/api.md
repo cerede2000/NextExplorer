@@ -79,7 +79,9 @@ complete only once that is done. When the file cannot be put there, the
 `PATCH` that finished it answers `500` (`507` when the volume is full), and a
 later `HEAD` answers `423`, both with an `Upload-Finalize-Error` header holding
 the reason as a URI-encoded sentence; a `HEAD` also tries the move again, and
-answers complete once it succeeds.
+answers complete once it succeeds. An upload placed before a restart is still
+answered complete, to the person who sent it, for as long as an unfinished
+upload would be kept (`TUS_INCOMPLETE_UPLOAD_TTL_MS`).
 
 Chunked uploads must be enabled on the server (`UPLOAD_CHUNKED_ENABLED=true`).
 Where they are not, `POST /api/upload` takes an ordinary multipart body.
