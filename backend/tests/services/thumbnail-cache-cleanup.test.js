@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -374,5 +374,69 @@ describe('two cleanups asked for at once', () => {
     ]);
 
     expect(first).toBe(second);
+  });
+});
+
+describe('a cache past its limit, trimmed', () => {
+  it('gives up its oldest thumbnails first, whatever order the directory lists them in', async () => {
+    const { service, dir } = await setup({ THUMBNAIL_CACHE_MAX_FILES: '2' });
+    // Listed alphabetically, the newest come first.
+    const newest = await write(dir, `${CURRENT}${sha1(0)}.webp`, { ageMs: 1 * HOUR });
+    const newer = await write(dir, `${CURRENT}${sha1(1)}.webp`, { ageMs: 2 * HOUR });
+    await write(dir, `${CURRENT}${sha1(2)}.webp`, { ageMs: 3 * HOUR });
+    await write(dir, `${CURRENT}${sha1(3)}.webp`, { ageMs: 4 * HOUR });
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual([newest, newer].sort());
+  });
+});
+
+describe('the thumbnail cleanup schedule', () => {
+  const MINUTE = 60 * 1000;
+  // Captured before any test fakes the timers, so real time can still be waited on.
+  const realSetTimeout = setTimeout;
+  const pause = (ms) => new Promise((resolve) => realSetTimeout(resolve, ms));
+  const env = { THUMBNAIL_CACHE_MAX_FILES: '1', THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS: '60000' };
+
+  /** Move the clock on a minute at a time until `probe` holds, and say whether it did. */
+  const advanceUntil = async (probe, minutes = 30) => {
+    for (let i = 0; i < minutes; i += 1) {
+      if (await probe()) return true;
+      await vi.advanceTimersByTimeAsync(MINUTE);
+      await pause(5);
+    }
+    return probe();
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('trims the cache by itself, and goes on doing so with no thumbnail generated', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { dir } = await setup(env);
+    for (let i = 0; i < 3; i += 1) await write(dir, `${CURRENT}${sha1(i)}.webp`);
+
+    expect(await advanceUntil(async () => (await remaining(dir)).length === 1)).toBe(true);
+
+    // Nothing is generated from here on: only the clock can bring the next pass.
+    for (let i = 3; i < 6; i += 1) await write(dir, `${OLD}${sha1(i)}.webp`);
+    expect(await advanceUntil(async () => (await remaining(dir)).length === 1)).toBe(true);
+  });
+
+  it('stays stopped once asked, even with a pass under way', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { service, dir } = await setup(env);
+    for (let i = 0; i < 3; i += 1) await write(dir, `${CURRENT}${sha1(i)}.webp`);
+
+    const pass = service.cleanupThumbnailCache();
+    await service.stopThumbnailWork();
+    // The pass under way has finished by the time the stop returns.
+    expect(await remaining(dir)).toHaveLength(1);
+    await pass;
+
+    for (let i = 3; i < 6; i += 1) await write(dir, `${OLD}${sha1(i)}.webp`);
+    expect(await advanceUntil(async () => (await remaining(dir)).length < 4)).toBe(false);
   });
 });

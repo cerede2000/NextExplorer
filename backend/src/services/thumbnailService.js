@@ -158,6 +158,8 @@ let lastQueueConcurrency = thumbnailQueue.concurrency;
 let sharpCacheTrimTimer = null;
 let thumbnailCacheCleanupPromise = null;
 let thumbnailCacheCleanupTimer = null;
+// Set by stopThumbnailWork: a pass finishing afterwards schedules no other.
+let thumbnailCacheCleanupStopped = false;
 let lastThumbnailCacheCleanupAt = 0;
 let thumbnailDiagnosticsTimer = null;
 
@@ -893,10 +895,9 @@ const scheduleThumbnailRemoval = (filePath) => {
   thumbnailRemovalQueue.add(() => removeThumbnailForSource(filePath).catch(() => false));
 };
 
-const findExpiredThumbnails = async (fileNames, now) => {
+const findExpiredThumbnails = (entries, now) => {
   if (THUMBNAIL_CACHE_TTL_MS <= 0) return [];
 
-  const entries = await statCacheEntries(directories.thumbnails, fileNames);
   return entries
     .filter((entry) => now - entry.mtimeMs >= THUMBNAIL_CACHE_TTL_MS)
     .map((entry) => entry.name);
@@ -981,7 +982,13 @@ const cleanupThumbnailCache = async () => {
       const oldVersionNames = thumbnailNames.filter(
         (name) => !name.startsWith(currentVersionPrefix)
       );
-      const expiredNames = await findExpiredThumbnails(thumbnailNames, now);
+      // Stated once, oldest first: the lifetime reads the age, and a cache past
+      // its limit gives up its least recently written thumbnails first rather
+      // than whatever the directory listing happened to put first.
+      const entries = (await statCacheEntries(directories.thumbnails, thumbnailNames)).sort(
+        (a, b) => a.mtimeMs - b.mtimeMs
+      );
+      const expiredNames = findExpiredThumbnails(entries, now);
       const removableNames = new Set([...oldVersionNames, ...expiredNames]);
 
       // A temporary file is not a thumbnail: it neither counts towards the limit
@@ -1009,7 +1016,10 @@ const cleanupThumbnailCache = async () => {
       const toDelete = [
         ...abandonedTempNames,
         ...removableNames,
-        ...thumbnailNames.filter((name) => !removableNames.has(name)).slice(0, overflowCount),
+        ...entries
+          .filter((entry) => !removableNames.has(entry.name))
+          .slice(0, overflowCount)
+          .map((entry) => entry.name),
       ].slice(0, THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE);
 
       let deleted = 0;
@@ -1045,12 +1055,15 @@ const cleanupThumbnailCache = async () => {
       logger.warn({ err: error }, 'Thumbnail cache cleanup failed');
     } finally {
       thumbnailCacheCleanupPromise = null;
-      if (shouldContinueCleanup) {
-        scheduleThumbnailCacheCleanup({
-          force: true,
-          delayMs: THUMBNAIL_CACHE_CONTINUE_DELAY_MS,
-        });
-      }
+      // The next pass is always on the clock. It used to be asked for only when
+      // a thumbnail was generated, so a server that generated none any more
+      // never applied the lifetime, the version rules or the limit again.
+      scheduleThumbnailCacheCleanup({
+        force: true,
+        delayMs: shouldContinueCleanup
+          ? THUMBNAIL_CACHE_CONTINUE_DELAY_MS
+          : THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS,
+      });
     }
   })();
 
@@ -1058,7 +1071,7 @@ const cleanupThumbnailCache = async () => {
 };
 
 const scheduleThumbnailCacheCleanup = ({ force = false, delayMs = 5000 } = {}) => {
-  if (THUMBNAIL_CACHE_MAX_FILES <= 0) {
+  if (THUMBNAIL_CACHE_MAX_FILES <= 0 || thumbnailCacheCleanupStopped) {
     return;
   }
 
@@ -1258,6 +1271,7 @@ const stopThumbnailWork = async () => {
   videoThumbnailQueue.clear();
   thumbnailRemovalQueue.clear();
 
+  thumbnailCacheCleanupStopped = true;
   if (sharpCacheTrimTimer) clearTimeout(sharpCacheTrimTimer);
   if (thumbnailCacheCleanupTimer) clearTimeout(thumbnailCacheCleanupTimer);
   if (thumbnailDiagnosticsTimer) clearInterval(thumbnailDiagnosticsTimer);
@@ -1271,6 +1285,7 @@ const stopThumbnailWork = async () => {
     thumbnailQueue.onIdle(),
     videoThumbnailQueue.onIdle(),
     thumbnailRemovalQueue.onIdle(),
+    thumbnailCacheCleanupPromise?.catch(() => {}),
   ]);
 };
 
