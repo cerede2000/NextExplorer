@@ -414,12 +414,18 @@ Found while fixing the rest of that list, the same evening, and left for later:
 - **A thumbnail whose ffmpeg never exits stays in flight until a restart.** It
   no longer starts a second ffmpeg each time the folder opens; nothing kills the
   first one either.
-- **A large Markdown file, around 19 MB with the limits raised to 24M:** the
-  preview and the editor each fetch it whole as uncompressed JSON (22 MB), the
-  editor fetches it again after the preview, and `vue-codemirror` serialises the
-  whole document on every keystroke (about 150 ms here). A report of 30 seconds
-  to open and an editor that did not open is not reproduced locally — both open
-  in under 0.3 s — and waits on how that installation is reached.
+- **What is left of the large-file work.** A 19 MB file now travels compressed
+  and is revalidated rather than downloaded again, the editor no longer copies
+  it on every keystroke, a file whose parser would hold the page opens without
+  colours, and the preview cuts a document with no blank line. Still open:
+  - the first-hand check on the report that started it — Edge on a Mac, by the
+    server's local address. Chromium keeps a compressed answer only up to about
+    6 MB; the second opening there should show a 304 in the network panel;
+  - the editor now reads with a GET, so the file's path is in the access log,
+    as `/api/raw` and `/api/versions` already put it;
+  - `vue-codemirror` is no longer imported and still in `frontend/package.json`;
+  - saving through a share reads the whole file to learn its encoding, where
+    the editor's own save reads its first bytes (`readFileEncoding`).
 - **One browser test failed once:** the share link read right after trashing its
   file answered `ECONNRESET` (run 35020703315). It passed on the rerun and in
   three separate local runs of the file.
