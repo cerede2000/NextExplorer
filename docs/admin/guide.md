@@ -11,6 +11,11 @@ Administrators control users, folders, and security policies through Settings. T
 ## User management
 
 - Navigate to **Settings → Admin → Users** to add local users, assign roles, and reset passwords.
+- Resetting a password signs that account out of every session it has open, on
+  every device. Someone changing their own password from **Settings → Password**
+  is signed out everywhere except where they made the change. A changed
+  `AUTH_ADMIN_PASSWORD` does the same to the administrator at the next start;
+  the same value set again at each restart signs nobody out.
 - When `USER_VOLUMES=true`, each user profile includes a **Volumes** tab for assigning per-user volumes. See [User volumes](/admin/user-volumes).
 - Local users store credentials in the SQLite database inside your `/config` mount.
 - People sign in with **either their email address or their username**, in the

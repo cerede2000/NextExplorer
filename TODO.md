@@ -373,9 +373,6 @@ their destination, and two ways into sign-in) and a dozen smaller ones, all fixe
 with their tests. What follows was found at the same time and judged not worth
 holding the release for. Each was reproduced; none is guessed.
 
-- **Sessions survive a password change.** A session opened before the change
-  stays signed in. Changing a password is what someone does when they think it
-  leaked, so the other sessions of that account should end.
 - **Multer's refusals answer 500.** A logo of the wrong type or too large, and an
   upload over the size limit, arrive as server errors in the log. They are 400
   and 413, and should say so.

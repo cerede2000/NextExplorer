@@ -24,6 +24,14 @@ Pass `-b cookies.txt` on everything afterwards. The session lasts as long as
 `SESSION_MAX_AGE_DAYS` (30 by default), so a long-running job does not have to
 sign in repeatedly.
 
+It ends sooner if the account's password changes. `POST /api/auth/password`
+signs out every other session of the account, and moves the one that made the
+change to a new cookie, which its response sets — keep writing to the cookie
+file (`-c cookies.txt -b cookies.txt`) on that call, or the next one answers
+`401`. An administrator's reset, `POST /api/users/:id/password`, signs out
+every session of that account. A job holding a session of an account whose
+password changes has to sign in again.
+
 The practical consequence is worth stating plainly: there is no way to issue a
 credential scoped to a script. An automation holds a full user session, so give
 it an account whose permissions match what it is meant to do, rather than an
