@@ -203,8 +203,42 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
   return toClientUser(user);
 };
 
-// Change password for user with local password auth
-const changeLocalPassword = async ({ userId, currentPassword, newPassword }) => {
+/**
+ * End the sessions signed in to an account, except the one named.
+ *
+ * Changing a password is what someone does when they think it leaked. Left
+ * alone, a session opened with the old one stays signed in for as long as it
+ * lasts — thirty days by default — and whoever had the password keeps what it
+ * opened.
+ *
+ * Called before the new hash is written, in the same turn: nothing can sign in
+ * with the old password between the two, and a store that cannot end the
+ * sessions throws before the password is changed rather than after.
+ */
+const endSessionsOpenedWithOldPassword = (userId, keepSessionId) => {
+  // Required here and not at the top: loading the store opens sessions.db, which
+  // nothing that only reads accounts should do.
+  const { localStore } = require('../../utils/sessionStore');
+  return localStore.destroyByUser(userId, keepSessionId || null);
+};
+
+const logEndedSessions = (userId, ended) => {
+  if (ended > 0) {
+    logger.info(
+      { userId, sessions: ended },
+      'Password changed; other sessions of the account ended'
+    );
+  }
+};
+
+/**
+ * Change password for user with local password auth.
+ *
+ * @param {object} change
+ * @param {string|null} [change.keepSessionId] the session making the change,
+ *   which stays signed in; every other session of the account ends.
+ */
+const changeLocalPassword = async ({ userId, currentPassword, newPassword, keepSessionId }) => {
   const db = await getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   if (!user) {
@@ -247,12 +281,20 @@ const changeLocalPassword = async ({ userId, currentPassword, newPassword }) => 
   }
 
   const hash = await bcrypt.hash(newPassword, 12);
+  const ended = endSessionsOpenedWithOldPassword(userId, keepSessionId);
   db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
+  logEndedSessions(userId, ended);
   return true;
 };
 
-// Admin path: set a local user's password without current password
-const setLocalPasswordAdmin = async ({ userId, newPassword }) => {
+/**
+ * Admin path: set a local user's password without current password.
+ *
+ * Replacing a password ends every session of the account but `keepSessionId`,
+ * for the reason `changeLocalPassword` does. Giving a password to an account
+ * that had none ends nothing: no session was opened with it.
+ */
+const setLocalPasswordAdmin = async ({ userId, newPassword, keepSessionId }) => {
   const db = await getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   if (!user) {
@@ -267,21 +309,30 @@ const setLocalPasswordAdmin = async ({ userId, newPassword }) => {
     throw e;
   }
 
-  const hash = await bcrypt.hash(newPassword, 12);
-
   // Check if user has local password auth
   const authMethod = db
     .prepare(
       `
-    SELECT id FROM auth_methods
+    SELECT id, password_hash FROM auth_methods
     WHERE user_id = ? AND method_type = 'local_password'
   `
     )
     .get(userId);
 
+  // The password it already has is not a change. The environment bootstrap sets
+  // AUTH_ADMIN_PASSWORD again on every start, and ending the administrator's
+  // sessions at each restart would sign them out for nothing.
+  if (authMethod?.password_hash && (await bcrypt.compare(newPassword, authMethod.password_hash))) {
+    return true;
+  }
+
+  const hash = await bcrypt.hash(newPassword, 12);
+
   if (authMethod) {
     // Update existing password
+    const ended = endSessionsOpenedWithOldPassword(userId, keepSessionId);
     db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
+    logEndedSessions(userId, ended);
   } else {
     // Create new password auth method
     const authId = generateId();

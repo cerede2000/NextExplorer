@@ -42,6 +42,16 @@ class BetterSqliteSessionStore extends session.Store {
     );
     this.allStatement = this.db.prepare('SELECT sess FROM sessions WHERE expired >= ?');
     this.cleanupStatement = this.db.prepare('DELETE FROM sessions WHERE expired < ?');
+    // `localUserId` is what signing in writes onto the session (routes/auth.js).
+    // The CASE comes first so a row that is not JSON is skipped rather than
+    // failing the whole statement: json_extract raises on malformed input, and
+    // SQLite promises no order for the terms of an AND. `IS NOT` so that no
+    // exception given still matches every row, where `<> NULL` would match none.
+    this.destroyByUserStatement = this.db.prepare(
+      `DELETE FROM sessions
+       WHERE CASE WHEN json_valid(sess) THEN json_extract(sess, '$.localUserId') END = ?
+         AND sid IS NOT ?`
+    );
 
     this.cleanupExpiredSessions();
     this.cleanupTimer = setInterval(() => this.cleanupExpiredSessions(), ONE_DAY_MS);
@@ -94,6 +104,25 @@ class BetterSqliteSessionStore extends session.Store {
     } catch (error) {
       this.callback(callback, error);
     }
+  }
+
+  /**
+   * End every session signed in to one account, except the one named.
+   *
+   * Synchronous, unlike the methods express-session calls, and on purpose: the
+   * caller changing a password ends the sessions and writes the new hash in the
+   * same turn, so no sign-in with the old password can land between the two.
+   * Only sessions opened by signing in here carry the account; one opened by the
+   * identity provider holds its tokens instead and is not matched.
+   *
+   * @param {string} userId
+   * @param {string|null} [exceptSid] the session to keep, usually the caller's
+   * @returns {number} how many sessions were ended
+   */
+  destroyByUser(userId, exceptSid = null) {
+    // No guard needed for a missing id: NULL equals nothing in SQL, and no
+    // session carries an empty one.
+    return this.destroyByUserStatement.run(userId, exceptSid || null).changes;
   }
 
   touch(sid, sessionData, callback = () => {}) {

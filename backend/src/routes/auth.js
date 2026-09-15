@@ -28,29 +28,7 @@ const {
   ForbiddenError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
-
-/**
- * Start a fresh session for a newly authenticated user.
- *
- * Reusing the pre-login session id would let an attacker who managed to plant
- * a known id in the victim's browser keep using it once they sign in
- * (session fixation). Regenerating gives the authenticated user a new id.
- */
-const startAuthenticatedSession = (req, userId) =>
-  new Promise((resolve, reject) => {
-    if (!req.session) {
-      resolve();
-      return;
-    }
-    req.session.regenerate((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      req.session.localUserId = userId;
-      req.session.save((saveError) => (saveError ? reject(saveError) : resolve()));
-    });
-  });
+const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
@@ -237,7 +215,17 @@ router.post(
     }
 
     const { currentPassword, newPassword } = req.body || {};
-    await changeLocalPassword({ userId: me.id, currentPassword, newPassword });
+    // Every other session of the account ends; this one stays signed in, but
+    // only if it is signed in here as this account. A session the identity
+    // provider opened is not one a password could have opened.
+    const signedInHere = Boolean(req.session) && req.session.localUserId === me.id;
+    await changeLocalPassword({
+      userId: me.id,
+      currentPassword,
+      newPassword,
+      keepSessionId: signedInHere ? req.sessionID : null,
+    });
+    if (signedInHere) await startAuthenticatedSession(req, me.id);
     res.status(204).end();
   })
 );

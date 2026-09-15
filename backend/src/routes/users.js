@@ -15,6 +15,7 @@ const { NotFoundError, ValidationError, UnauthorizedError } = require('../errors
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const { clearLock, listActiveLocks } = require('../services/users/lockout');
 const logger = require('../utils/logger');
+const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 
 const router = express.Router();
 
@@ -123,7 +124,16 @@ router.post(
   asyncHandler(async (req, res) => {
     const { id } = req.params || {};
     const { newPassword } = req.body || {};
-    await setLocalPasswordAdmin({ userId: id, newPassword });
+    // Every session of the account ends. An administrator resetting their own
+    // password here is changing it, and keeps the session they did it from — on
+    // a new id, as a change from their own settings does.
+    const ownSession = Boolean(req.session) && req.session.localUserId === id;
+    await setLocalPasswordAdmin({
+      userId: id,
+      newPassword,
+      keepSessionId: ownSession ? req.sessionID : null,
+    });
+    if (ownSession) await startAuthenticatedSession(req, id);
     res.status(204).end();
   })
 );

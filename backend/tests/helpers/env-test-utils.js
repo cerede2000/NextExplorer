@@ -200,6 +200,15 @@ const quiesceLoadedServices = async () => {
     /* a sweep that never started has nothing to stop */
   }
 
+  // Changing a password opens sessions.db to end the account's sessions, and
+  // the store keeps its handle and a daily cleanup timer until closed.
+  const sessionStore = loadedModule('src/utils/sessionStore');
+  try {
+    sessionStore?.localStore?.close?.();
+  } catch {
+    /* already closed by the test */
+  }
+
   const db = loadedModule('src/services/db');
   try {
     db?.closeDb?.();
