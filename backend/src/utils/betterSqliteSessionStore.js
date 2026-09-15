@@ -3,6 +3,7 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const session = require('express-session');
 const logger = require('./logger');
+const { configureStorage, convertToIncremental } = require('../services/databaseMaintenance');
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -13,6 +14,10 @@ class BetterSqliteSessionStore extends session.Store {
     fs.mkdirSync(path.dirname(filename), { recursive: true });
     this.db = new Database(filename);
     this.db.pragma('busy_timeout = 5000');
+    // Every expired session the daily cleanup deletes leaves its pages behind,
+    // and SQLite keeps them: a burst of logins — a script, a scan — grew the
+    // file for good. Kept like app.db, so the maintenance pass hands them back.
+    configureStorage(this.db);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
         sid TEXT PRIMARY KEY,
@@ -21,6 +26,7 @@ class BetterSqliteSessionStore extends session.Store {
       );
       CREATE INDEX IF NOT EXISTS idx_sessions_expired ON sessions(expired);
     `);
+    convertToIncremental(this.db);
 
     this.getStatement = this.db.prepare('SELECT sess FROM sessions WHERE sid = ? AND expired >= ?');
     this.setStatement = this.db.prepare(

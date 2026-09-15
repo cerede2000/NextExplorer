@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 const logger = require('../utils/logger');
 
@@ -156,6 +157,17 @@ const DATABASES = [
       // eslint-disable-next-line global-require
       const indexDb = require('./indexDb');
       return fs.existsSync(indexDb.getIndexDbPath()) ? indexDb.getIndexDb() : null;
+    },
+  },
+  {
+    name: 'sessions.db',
+    // The session middleware's own connection; nothing is created for the pass.
+    open: () => {
+      // eslint-disable-next-line global-require
+      const { directories } = require('../config/index');
+      if (!fs.existsSync(path.join(directories.cache, 'sessions.db'))) return null;
+      // eslint-disable-next-line global-require
+      return require('../utils/sessionStore').localStore.db;
     },
   },
 ];
