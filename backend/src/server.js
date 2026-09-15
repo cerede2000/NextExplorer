@@ -26,6 +26,7 @@ const searchIndexManager = require('./services/searchIndexManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
 const { reportLegacyCache } = require('./services/legacyCacheCheck');
+const { sweepInterrupted } = require('./services/inFlightFiles');
 const trashMaintenance = require('./services/trash/maintenance');
 const databaseMaintenance = require('./services/databaseMaintenance');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
@@ -34,6 +35,9 @@ let server = null;
 
 const startServer = async () => {
   logger.debug('Server initialization started');
+
+  // Before anything writes: what operations a stop interrupted left behind.
+  sweepInterrupted();
 
   const app = await createApp();
 

@@ -31,6 +31,7 @@ const path = require('path');
 const { generateId } = require('../../utils/ids');
 const logger = require('../../utils/logger');
 const { getDb } = require('../db');
+const { track: trackInFlight } = require('../inFlightFiles');
 const clock = require('../trash/clock');
 const failpoints = require('../trash/failpoints');
 const { admission } = require('../trash/policy');
@@ -497,11 +498,13 @@ const temporaryPathFor = (absolutePath, purpose = 'save') =>
  */
 const saveFile = async (absolutePath, writeContent, meta = {}) => {
   const temporaryPath = temporaryPathFor(absolutePath, meta.purpose || 'save');
+  const inFlight = trackInFlight(temporaryPath, 'temporary-file');
   try {
     await writeContent(temporaryPath);
     return await replaceWithTemporary(absolutePath, temporaryPath, meta);
   } finally {
     await fsp.rm(temporaryPath, { force: true }).catch(() => {});
+    inFlight.release();
   }
 };
 

@@ -26,6 +26,7 @@ const folderSizeHooks = require('../services/folderSizeHooks');
 const onlyofficeActivity = require('../services/onlyofficeActivityService');
 const documentKeys = require('../services/onlyofficeDocumentKeyService');
 const versions = require('../services/versions/operations');
+const { track: trackInFlight } = require('../services/inFlightFiles');
 
 const editorSessions = require('../services/onlyofficeEditorSessionService');
 const { markLongPoll } = require('../middleware/heldRequests');
@@ -144,11 +145,13 @@ const downloadDocumentTo = async (downloadUrl, targetPath, mode = 0o600) => {
     `.${path.basename(targetPath)}.onlyoffice-${crypto.randomUUID()}.tmp`
   );
 
+  const inFlight = trackInFlight(temporaryPath, 'temporary-file');
   try {
     await fetchDocumentInto(downloadUrl, temporaryPath, mode);
     await fsp.rename(temporaryPath, targetPath);
   } finally {
     await fsp.unlink(temporaryPath).catch(() => {});
+    inFlight.release();
   }
 };
 

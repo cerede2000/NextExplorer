@@ -42,6 +42,8 @@ module.exports = {
         'backend/src/services/fileTransferService.js',
         // Its own staging copy of the index database, under the cache directory.
         'backend/src/services/indexDb.js',
+        // What an operation recorded itself as writing, after a stop interrupted it.
+        'backend/src/services/inFlightFiles.js',
         'backend/src/services/archiveService.js',
         'backend/src/services/rawPreviewService.js',
         'backend/src/services/thumbnailService.js',
