@@ -27,6 +27,9 @@ const { getTrashSettings } = require('./settings');
 const zones = require('./zones');
 
 const PASS_INTERVAL_MS = 60 * 60 * 1000;
+// Events a zone keeps, newest first: what the settings page shows is the last
+// twenty, and a thousand is weeks of a busy zone's purges.
+const EVENTS_KEPT_PER_ZONE = 1000;
 const REQUEST_DELAY_MS = 1000;
 
 let interval = null;
@@ -158,6 +161,7 @@ const runOnce = async ({ reason }) => {
     try {
       // eslint-disable-next-line no-await-in-loop
       const summary = await maintainZone(zone, settings);
+      store.pruneEvents(db, { zoneId: zone.id, keep: EVENTS_KEPT_PER_ZONE });
       lastPasses.set(zone.id, summary);
       results.push(summary);
       if (!summary.available) {
@@ -312,6 +316,7 @@ const stop = () => {
 };
 
 module.exports = {
+  EVENTS_KEPT_PER_ZONE,
   PASS_INTERVAL_MS,
   measureVolume,
   limitsFor,

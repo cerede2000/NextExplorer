@@ -292,7 +292,8 @@ const uploads = {
   // floor is crossed.
   storageReserveBytes: (() => {
     const parsed = parseByteSize(env.UPLOAD_STORAGE_RESERVE);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024;
+    // 0 is a real value — no reserve — not "unset".
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 64 * 1024 * 1024;
   })(),
 };
 
