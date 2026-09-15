@@ -33,13 +33,15 @@ jobs:
 
       - name: Prune
         env:
-          # GITHUB_TOKEN cannot delete a personal package; this needs a PAT with
-          # delete:packages. Without it the run lists and changes nothing.
+          # GITHUB_TOKEN cannot delete a personal package: GitHub's API takes
+          # only an OAuth app token or a personal access token (classic) with
+          # read:packages and delete:packages for it. Without that secret the
+          # run deletes nothing, and says so on the run's summary.
           GITHUB_TOKEN: ${{ secrets.PACKAGE_CLEANUP_TOKEN }}
           OWNER: ${{ github.repository_owner }}
         run: |
           if [ -z "$GITHUB_TOKEN" ]; then
-            echo "PACKAGE_CLEANUP_TOKEN is not set; nothing to do."
+            echo "::warning title=No image deleted::PACKAGE_CLEANUP_TOKEN is not set. Store a personal access token (classic) with read:packages and delete:packages under that name in the repository secrets."
             exit 0
           fi
           node scripts/prune-images.js ${{ inputs.apply && '--apply' || '' }}
