@@ -64,8 +64,12 @@ jobs:
       # 24.04 carries 6.1, which predates the HEIF demuxer, so the HEIC suites
       # skip here — reported as skipped — and run in the media job below, on the
       # ffmpeg the image ships.
-      - name: Install 7-Zip, ripgrep, poppler and ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils ffmpeg
+      #
+      # rsync is what copies files and folders on Linux: FILE_TRANSFER_ENGINE is
+      # native there, and the image ships it. A Mac has only openrsync, which the
+      # service cannot use, so the native copy suites run here or nowhere.
+      - name: Install 7-Zip, ripgrep, poppler, ffmpeg and rsync
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils ffmpeg rsync
 
       - name: Install dependencies
         run: npm ci
@@ -93,6 +97,9 @@ jobs:
           # which a Mac does not have, so locally the test skips; here a missing
           # device is a failure rather than a quiet skip.
           REQUIRE_CROSS_DEVICE: '1'
+          # Likewise the copies through rsync, installed above: a runner without
+          # a usable one fails instead of skipping the engine deployments run.
+          REQUIRE_NATIVE_RSYNC: '1'
 
       - name: Frontend tests
         run: npm run test:coverage:frontend
