@@ -9,7 +9,9 @@ import { reactive } from 'vue';
  * person out by accident: no current password, a new one too short, or a
  * confirmation that does not match what was typed. What it sends is the
  * current and the new password, never the confirmation. A refusal from the
- * server has to reach the person; so does a success, which empties the form.
+ * server has to reach the person; so does a success, which empties the form
+ * and says the other sessions of the account were signed out — the server ends
+ * them, and someone finding another device signed out should know why.
  */
 
 const changePassword = vi.hoisted(() => vi.fn());
@@ -80,13 +82,13 @@ describe('a password change that is valid', () => {
     });
   });
 
-  it('says it worked and empties every field', async () => {
+  it('says it worked, that the other sessions were signed out, and empties every field', async () => {
     await open();
 
     await fill({ current: 'old-secret', next: 'new-secret', confirm: 'new-secret' });
     await submit();
 
-    expect(success().text()).toBe('settings.password.success');
+    expect(success().text()).toBe('settings.password.successOtherSessionsEnded');
     expect(error().exists()).toBe(false);
     expect(wrapper.get('#current-password').element.value).toBe('');
     expect(wrapper.get('#new-password').element.value).toBe('');

@@ -569,7 +569,7 @@
       "new": "Nytt lösenord",
       "confirm": "Bekräfta nytt lösenord",
       "update": "Uppdatera lösenordet",
-      "success": "Lösenordet har uppdaterats.",
+      "successOtherSessionsEnded": "Lösenordet har uppdaterats. Alla andra sessioner för det här kontot har loggats ut.",
       "validation": "Fyll i alla fält; nytt lösenord måste vara minst 6 tecken och stämma överens."
     },
     "users": {

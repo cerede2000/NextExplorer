@@ -569,7 +569,7 @@
       "new": "新密码",
       "confirm": "确认新密码",
       "update": "更新密码",
-      "success": "密码更新成功。",
+      "successOtherSessionsEnded": "密码已更新。此账户的其他所有会话均已退出登录。",
       "validation": "请填写所有字段；新密码至少 6 个字符，并且需要与确认密码一致。"
     },
     "users": {

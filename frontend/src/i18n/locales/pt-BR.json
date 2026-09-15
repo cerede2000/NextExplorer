@@ -592,7 +592,7 @@
       "new": "Nova senha",
       "confirm": "Confirmar nova senha",
       "update": "Atualizar Senha",
-      "success": "Senha atualizada com sucesso.",
+      "successOtherSessionsEnded": "Senha atualizada. Todas as outras sessões desta conta foram encerradas.",
       "validation": "Preencha todos os campos; a nova senha deve ter pelo menos 6 caracteres e coincidir com a confirmação."
     },
     "users": {

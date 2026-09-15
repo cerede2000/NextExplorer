@@ -592,7 +592,7 @@
       "new": "Nieuw wachtwoord",
       "confirm": "Nieuw wachtwoord bevestigen",
       "update": "Wachtwoord bijwerken",
-      "success": "Wachtwoord met succes bijgewerkt.",
+      "successOtherSessionsEnded": "Wachtwoord bijgewerkt. Alle andere sessies van dit account zijn afgemeld.",
       "validation": "Vul alle velden in; het nieuwe wachtwoord moet tenminste 6 tekens lang zijn en overeenkomen."
     },
     "users": {

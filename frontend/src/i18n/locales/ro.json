@@ -569,7 +569,7 @@
       "new": "Parolă nouă",
       "confirm": "Confirmă parola nouă",
       "update": "Actualizează parola",
-      "success": "Parola a fost actualizată cu succes.",
+      "successOtherSessionsEnded": "Parola a fost actualizată. Toate celelalte sesiuni ale acestui cont au fost deconectate.",
       "validation": "Completează toate câmpurile; parola nouă trebuie să aibă cel puțin 6 caractere și să se potrivească cu confirmarea."
     },
     "users": {

@@ -569,7 +569,7 @@
       "new": "Nuova password",
       "confirm": "Conferma nuova password",
       "update": "Aggiorna password",
-      "success": "Password aggiornata con successo.",
+      "successOtherSessionsEnded": "Password aggiornata. Tutte le altre sessioni di questo account sono state disconnesse.",
       "validation": "Compila tutti i campi; la nuova password deve avere almeno 6 caratteri e corrispondere alla conferma."
     },
     "users": {

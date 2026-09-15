@@ -592,7 +592,7 @@
       "new": "New password",
       "confirm": "Confirm new password",
       "update": "Update Password",
-      "success": "Password updated successfully.",
+      "successOtherSessionsEnded": "Password updated. Every other session of this account has been signed out.",
       "validation": "Please fill all fields; new password must be at least 6 characters and match confirmation."
     },
     "users": {

@@ -569,7 +569,7 @@
       "new": "新密碼",
       "confirm": "確認新密碼",
       "update": "更新密碼",
-      "success": "密碼更新成功。",
+      "successOtherSessionsEnded": "密碼已更新。此帳號的其他所有工作階段均已登出。",
       "validation": "請填寫所有字段；新密碼至少 6 個字符，並且需要與確認密碼一致。"
     },
     "users": {

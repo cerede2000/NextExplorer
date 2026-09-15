@@ -569,7 +569,7 @@
       "new": "Neues Passwort",
       "confirm": "Neues Passwort bestätigen",
       "update": "Passwort aktualisieren",
-      "success": "Passwort erfolgreich aktualisiert.",
+      "successOtherSessionsEnded": "Passwort aktualisiert. Alle anderen Sitzungen dieses Kontos wurden abgemeldet.",
       "validation": "Bitte füllen Sie alle Felder aus; das neue Passwort muss mindestens 6 Zeichen lang sein und mit der Bestätigung übereinstimmen."
     },
     "users": {

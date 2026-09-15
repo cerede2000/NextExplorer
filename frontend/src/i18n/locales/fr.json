@@ -592,7 +592,7 @@
       "new": "Nouveau mot de passe",
       "confirm": "Confirmer le nouveau mot de passe",
       "update": "Mettre à jour le mot de passe",
-      "success": "Mot de passe mis à jour avec succès.",
+      "successOtherSessionsEnded": "Mot de passe mis à jour. Toutes les autres sessions de ce compte ont été déconnectées.",
       "validation": "Veuillez remplir tous les champs ; le nouveau mot de passe doit comporter au moins 6 caractères et correspondre à la confirmation."
     },
     "users": {

@@ -569,7 +569,7 @@
       "new": "Nowe hasło",
       "confirm": "Potwierdź nowe hasło",
       "update": "Zaktualizuj hasło",
-      "success": "Hasło zostało pomyślnie zaktualizowane.",
+      "successOtherSessionsEnded": "Hasło zostało zaktualizowane. Wszystkie pozostałe sesje tego konta zostały wylogowane.",
       "validation": "Wypełnij wszystkie pola; nowe hasło musi mieć co najmniej 6 znaków i zgadzać się z potwierdzeniem."
     },
     "users": {
