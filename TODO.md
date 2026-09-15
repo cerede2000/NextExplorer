@@ -381,20 +381,59 @@ holding the release for. Each was reproduced; none is guessed.
   one included, through a folder session's `sourceRoot`. Nothing is written in
   them, and the zone accepts a folder without its marker; still, a refusal should
   leave nothing.
-- **Two things only API clients see.** An upload that took a suffix answers with
-  the name it asked for, not the one it got; and several files in one request
-  measure the free space once, before the first file has finished writing.
+- **Several files in one upload request measure the free space once**, before
+  the first file has finished writing. Only API clients send several.
 - **An access rule on `../Secret`** is dropped by the server without a word, and
   its row disappears from the page.
 - **The ONLYOFFICE transfer question** leaves the first promise unresolved if a
   second transfer asks while it is open. The dialog is modal, so this is
   theoretical.
 
+Found while fixing the rest of that list, the same evening, and left for later:
+
+- **A password change leaves three credentials alive.** Sessions the identity
+  provider opened are not ended — they carry its tokens, not our account id, so
+  ending them means reading each one's `sub` back through `auth_methods`. The
+  ONLYOFFICE backend tokens (12 h) and Collabora's WOPI tokens (6 h) are signed
+  and cannot be revoked without state on the server.
+- **Two saves of one settings section at once can lose one.** `mergeSection`
+  merges into the settings read at the start of the request. Branding no longer
+  goes through it.
+- **User preferences still coerce what they should refuse.** `asBoolean('false')`
+  is true, and an unknown view mode resets the folder to the default view.
+- **The trash and versions routes accept 0 or a negative retention**, which the
+  service raises to its bound. The settings page already refuses them.
+- **A logo can be left behind, unreferenced,** by a crash between its placement
+  and the settings switch, or when removing the one it replaced fails. At most
+  2 MB in `/config/logos`; not swept by pattern, which could take a file someone
+  else put there.
+- **The header logo's alternative text** is still English.
+- **A direct upload over MAX_DIRECT_UPLOAD_SIZE** is briefly placed, truncated,
+  under its real name before multer removes it. Checking `file.stream.truncated`
+  before placing it would close that.
+- **A thumbnail whose ffmpeg never exits stays in flight until a restart.** It
+  no longer starts a second ffmpeg each time the folder opens; nothing kills the
+  first one either.
+- **A large Markdown file, around 19 MB with the limits raised to 24M:** the
+  preview and the editor each fetch it whole as uncompressed JSON (22 MB), the
+  editor fetches it again after the preview, and `vue-codemirror` serialises the
+  whole document on every keystroke (about 150 ms here). A report of 30 seconds
+  to open and an editor that did not open is not reproduced locally — both open
+  in under 0.3 s — and waits on how that installation is reached.
+- **One browser test failed once:** the share link read right after trashing its
+  file answered `ECONNRESET` (run 35020703315). It passed on the rerun and in
+  three separate local runs of the file.
+
 ## Open, not scheduled
 
-- `PACKAGE_CLEANUP_TOKEN` is not configured, so the weekly image cleanup runs
-  and deletes nothing. It needs a PAT with `delete:packages`. More pressing now
-  that every push to `main` publishes images.
+- **The weekly image cleanup deletes nothing until `d42ff55` is on `main`.**
+  `PACKAGE_CLEANUP_TOKEN` is set since 15 September 2026, and a dry run lists
+  1,355 of 1,387 versions to remove, keeping the two latest releases. But a
+  schedule runs the workflow from `main`, where the step still passes `--apply`
+  only for a manual run with the box ticked.
+- **Four workflows use `actions/setup-node@v4`**, which GitHub now forces onto
+  Node 24 with a deprecation warning on every run: `ci.yml`, `docs.yml`,
+  `docker-publish.yml`, `cleanup-packages.yml`.
 - The repository is still marked as a fork of `nxzai/NextExplorer`; detaching it
   is a request to GitHub support.
 - `demo/content/` holds 28 KB across seven files, so the gallery and thumbnails —
