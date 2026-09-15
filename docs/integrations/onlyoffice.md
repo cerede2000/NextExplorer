@@ -47,7 +47,7 @@ The document key is what decides this, and it stays stable for as long as anyone
 Beyond editing, the toolbar reaches back into NextExplorer:
 
 - **Close**, drawn by the Document Server itself, which force-saves on the way out rather than leaving the last changes to a delayed callback.
-- **Rename** the open document, and **Save as** under a new name — both keep the running session, so co-editors are not dropped.
+- **Rename** the open document, and **Save as** under a new name — both keep the running session, so co-editors are not dropped. A name already taken, even by a file that arrives while the copy downloads, gets “(1)”.
 - **Share** the document without leaving it, through the usual share dialog.
 - **Mentions**: typing `@` in a comment offers the users who can already reach the document.
 - **Compare** against another document, and **insert** an image, spreadsheet or presentation picked from your own storage. Each is handed to the Document Server as a short-lived read-only URL for that one file.

@@ -73,6 +73,14 @@ Because it is TUS, an interrupted transfer resumes rather than restarts — ask
 the upload URL for its `Upload-Offset` with a `HEAD` and continue from there.
 That matters for large files over a connection you do not control.
 
+Once every byte has arrived, the file is put in its folder, under `name (1)`
+when the name is taken, never over a file already there. A `HEAD` answers
+complete only once that is done. When the file cannot be put there, the
+`PATCH` that finished it answers `500` (`507` when the volume is full), and a
+later `HEAD` answers `423`, both with an `Upload-Finalize-Error` header holding
+the reason as a URI-encoded sentence; a `HEAD` also tries the move again, and
+answers complete once it succeeds.
+
 Chunked uploads must be enabled on the server (`UPLOAD_CHUNKED_ENABLED=true`).
 Where they are not, `POST /api/upload` takes an ordinary multipart body.
 
