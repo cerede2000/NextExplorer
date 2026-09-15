@@ -486,8 +486,8 @@
       "appName": "애플리케이션 이름",
       "appNameHelp": "설정된 이름은 헤더, 로그인 페이지, 페이지 하단에 표시됩니다 (최대 100 글자).",
       "appNameRequired": "애플리케이션 이름은 비워 둘 수 없습니다.",
-      "appLogoUrl": "로고 이미지",
       "logo": "로고 이미지",
+      "logoAlt": "{name} 로고",
       "logoHelp": "커스텀 로고로 사용할 SVG, PNG, JPG 파일을 업로드하세요 (최대 2MB).",
       "chooseLogo": "로고 선택",
       "chooseAnotherLogo": "다른 파일 선택",
@@ -497,7 +497,9 @@
       "preview": "미리보기",
       "showPoweredBy": "기여 링크 표시",
       "showPoweredByHelp": "페이지 하단에 'Powered by nextExplorer' 링크를 표시하여 프로젝트를 지원해주세요.",
-      "defaultLogoSelected": "기본 로고가 선택되었습니다. 적용하려면 저장을 클릭하세요."
+      "defaultLogoSelected": "기본 로고가 선택되었습니다. 적용하려면 저장을 클릭하세요.",
+      "saved": "브랜딩이 저장되었습니다.",
+      "saveFailed": "브랜딩을 저장하지 못했습니다: {reason}"
     },
     "userPreferences": {
       "title": "유저 설정",

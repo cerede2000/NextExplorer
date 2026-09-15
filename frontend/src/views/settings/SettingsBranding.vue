@@ -90,11 +90,11 @@ const save = async () => {
         },
       });
     }
-    uploadMessage.value = 'Branding saved successfully!';
+    uploadMessage.value = t('settings.branding.saved');
     uploadMessageType.value = 'success';
     clearMessageLater();
   } catch (error) {
-    uploadMessage.value = `Failed to save: ${error.message}`;
+    uploadMessage.value = t('settings.branding.saveFailed', { reason: error.message });
     uploadMessageType.value = 'error';
   } finally {
     saving.value = false;
@@ -108,14 +108,13 @@ const handleLogoSelect = (event) => {
   if (!file) return;
 
   if (file.size > MAX_LOGO_BYTES) {
-    uploadMessage.value = t('settings.branding.logoError') || 'File must be smaller than 2MB';
+    uploadMessage.value = t('settings.branding.logoError');
     uploadMessageType.value = 'error';
     return;
   }
 
   if (!LOGO_TYPES.includes(file.type)) {
-    uploadMessage.value =
-      t('settings.branding.invalidFileType') || 'Please upload SVG, PNG, or JPG';
+    uploadMessage.value = t('settings.branding.invalidFileType');
     uploadMessageType.value = 'error';
     return;
   }
@@ -134,8 +133,7 @@ const triggerFileInput = () => {
 const useDefaultLogo = () => {
   forgetPendingLogo();
   local.logoUrl = DEFAULT_LOGO_URL;
-  uploadMessage.value =
-    t('settings.branding.defaultLogoSelected') || 'Default logo selected. Click Save to apply.';
+  uploadMessage.value = t('settings.branding.defaultLogoSelected');
   uploadMessageType.value = 'success';
   clearMessageLater();
 };
@@ -185,10 +183,10 @@ const useDefaultLogo = () => {
     <!-- Header -->
     <div>
       <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {{ t('titles.branding') || 'Branding' }}
+        {{ t('titles.branding') }}
       </h2>
       <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-        {{ t('settings.branding.subtitle') || 'Customize the application name and logo' }}
+        {{ t('settings.branding.subtitle') }}
       </p>
     </div>
 
@@ -202,13 +200,10 @@ const useDefaultLogo = () => {
           <div>
             <div class="mb-3">
               <label class="block font-medium text-zinc-900 dark:text-zinc-100 mb-1">
-                {{ t('settings.branding.logo') || 'Logo Image' }}
+                {{ t('settings.branding.logo') }}
               </label>
               <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                {{
-                  t('settings.branding.logoHelp') ||
-                  'Upload SVG, PNG, or JPG file for your custom logo'
-                }}
+                {{ t('settings.branding.logoHelp') }}
               </p>
             </div>
 
@@ -226,13 +221,13 @@ const useDefaultLogo = () => {
               >
                 <img
                   :src="logoPreviewUrl"
-                  :alt="local.appName + ' logo'"
+                  :alt="t('settings.branding.logoAlt', { name: local.appName })"
                   class="h-24 w-auto max-w-full"
                 />
                 <button
                   v-if="!showsDefaultLogo"
                   type="button"
-                  :title="t('common.remove') || 'Remove'"
+                  :title="t('common.remove')"
                   class="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-sm opacity-0 transition hover:bg-white hover:text-zinc-900 focus:opacity-100 dark:bg-zinc-800/90 dark:text-zinc-200 group-hover:opacity-100"
                   @click="useDefaultLogo"
                 >
@@ -261,7 +256,7 @@ const useDefaultLogo = () => {
                   class="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-xs hover:bg-zinc-50 focus:outline-hidden focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 md:hidden"
                   @click="useDefaultLogo"
                 >
-                  {{ t('common.remove') || 'Remove' }}
+                  {{ t('common.remove') }}
                 </button>
               </div>
             </div>
@@ -271,13 +266,10 @@ const useDefaultLogo = () => {
           <div>
             <div class="mb-3">
               <label class="block font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                {{ t('settings.branding.appName') || 'Application Name' }}
+                {{ t('settings.branding.appName') }}
               </label>
               <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                {{
-                  t('settings.branding.appNameHelp') ||
-                  'The name displayed in the header and login page'
-                }}
+                {{ t('settings.branding.appNameHelp') }}
               </p>
             </div>
             <input
@@ -305,12 +297,12 @@ const useDefaultLogo = () => {
           class="rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/50"
         >
           <p class="mb-3 font-medium text-zinc-600 dark:text-zinc-300">
-            {{ t('settings.branding.preview') || 'Preview' }}
+            {{ t('settings.branding.preview') }}
           </p>
           <div class="flex items-center gap-3">
             <img
               :src="logoPreviewUrl"
-              :alt="local.appName + ' logo'"
+              :alt="t('settings.branding.logoAlt', { name: local.appName })"
               class="h-10 w-auto"
               @error="$event.target.style.display = 'none'"
             />
@@ -330,13 +322,10 @@ const useDefaultLogo = () => {
             </div>
             <div>
               <span class="font-medium text-zinc-700 dark:text-zinc-300">
-                {{ t('settings.branding.showPoweredBy') || 'Show Powered by NextExplorer' }}
+                {{ t('settings.branding.showPoweredBy') }}
               </span>
               <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {{
-                  t('settings.branding.showPoweredByHelp') ||
-                  'Display a link to NextExplorer in the footer'
-                }}
+                {{ t('settings.branding.showPoweredByHelp') }}
               </p>
             </div>
           </label>

@@ -486,8 +486,8 @@
       "appName": "Nazwa aplikacji",
       "appNameHelp": "Nazwa wyświetlana w nagłówkach, na stronie logowania i w stopce (maks. 100 znaków).",
       "appNameRequired": "Nazwa aplikacji nie może być pusta.",
-      "appLogoUrl": "Obraz logo",
       "logo": "Obraz logo",
+      "logoAlt": "Logo {name}",
       "logoHelp": "Prześlij plik SVG, PNG lub JPG dla niestandardowego logo (maks. 2 MB).",
       "chooseLogo": "Wybierz logo",
       "chooseAnotherLogo": "Wybierz inny plik",
@@ -497,7 +497,9 @@
       "preview": "Podgląd",
       "showPoweredBy": "Wyświetl link z atrybucją",
       "showPoweredByHelp": "Pokaż w stopce link „Powered by nextExplorer”, aby wesprzeć projekt",
-      "defaultLogoSelected": "Wybrano domyślne logo. Kliknij Zapisz, aby zastosować."
+      "defaultLogoSelected": "Wybrano domyślne logo. Kliknij Zapisz, aby zastosować.",
+      "saved": "Zapisano wygląd marki.",
+      "saveFailed": "Nie udało się zapisać wyglądu marki: {reason}"
     },
     "userPreferences": {
       "title": "Preferencje użytkownika",

@@ -489,8 +489,8 @@
       "appName": "Application Name",
       "appNameHelp": "The name displayed in headers, login page, and footer (max 100 characters).",
       "appNameRequired": "The application name cannot be empty.",
-      "appLogoUrl": "Logo Image",
       "logo": "Logo Image",
+      "logoAlt": "{name} logo",
       "logoHelp": "Upload an SVG, PNG, or JPG file for your custom logo (max 2MB).",
       "chooseLogo": "Choose a logo",
       "chooseAnotherLogo": "Choose another file",
@@ -500,7 +500,9 @@
       "preview": "Preview",
       "showPoweredBy": "Display attribution link",
       "showPoweredByHelp": "Show a 'Powered by nextExplorer' link in the footer to help support the project",
-      "defaultLogoSelected": "Default logo selected. Click Save to apply."
+      "defaultLogoSelected": "Default logo selected. Click Save to apply.",
+      "saved": "Branding saved.",
+      "saveFailed": "Could not save the branding: {reason}"
     },
     "userPreferences": {
       "title": "User Preferences",

@@ -486,8 +486,8 @@
       "appName": "Applikationsnamn",
       "appNameHelp": "Namnet som visas i sidhuvuden, inloggningssidan och sidfoten (max 100 tecken).",
       "appNameRequired": "Applikationsnamnet får inte vara tomt.",
-      "appLogoUrl": "Logotypbild",
       "logo": "Logotypbild",
+      "logoAlt": "Logotyp för {name}",
       "logoHelp": "Ladda upp en SVG-, PNG- eller JPG-fil för din egna logotyp (max 2 MB).",
       "chooseLogo": "Välj en logotyp",
       "chooseAnotherLogo": "Välj en annan fil",
@@ -497,7 +497,9 @@
       "preview": "Förhandsgranskning",
       "showPoweredBy": "Visa attribueringslänk",
       "showPoweredByHelp": "Visa en \"Powered by nextExplorer\"-länk i sidfoten för att stödja projektet",
-      "defaultLogoSelected": "Standardlogotyp vald. Klicka på Spara för att tillämpa."
+      "defaultLogoSelected": "Standardlogotyp vald. Klicka på Spara för att tillämpa.",
+      "saved": "Profileringen har sparats.",
+      "saveFailed": "Profileringen kunde inte sparas: {reason}"
     },
     "userPreferences": {
       "title": "Användarpreferenser",

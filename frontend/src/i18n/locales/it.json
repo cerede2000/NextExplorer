@@ -486,8 +486,8 @@
       "appName": "Nome dell’applicazione",
       "appNameHelp": "Il nome visualizzato in intestazioni, pagina di accesso e piè di pagina (max 100 caratteri).",
       "appNameRequired": "Il nome dell’applicazione non può essere vuoto.",
-      "appLogoUrl": "Immagine del logo",
       "logo": "Immagine del logo",
+      "logoAlt": "Logo di {name}",
       "logoHelp": "Carica un file SVG, PNG o JPG per il tuo logo personalizzato (max 2 MB).",
       "chooseLogo": "Scegli un logo",
       "chooseAnotherLogo": "Scegli un altro file",
@@ -497,7 +497,9 @@
       "preview": "Anteprima",
       "showPoweredBy": "Mostra link di attribuzione",
       "showPoweredByHelp": "Mostra nel piè di pagina un link 'Powered by nextExplorer' per supportare il progetto",
-      "defaultLogoSelected": "Logo predefinito selezionato. Fai clic su Salva per applicare."
+      "defaultLogoSelected": "Logo predefinito selezionato. Fai clic su Salva per applicare.",
+      "saved": "Identità visiva salvata.",
+      "saveFailed": "Impossibile salvare l’identità visiva: {reason}"
     },
     "userPreferences": {
       "title": "Preferenze utente",

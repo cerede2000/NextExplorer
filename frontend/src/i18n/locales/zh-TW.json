@@ -486,8 +486,8 @@
       "appName": "應用名稱",
       "appNameHelp": "在頁首、登入頁和頁尾中顯示的名稱（最多 100 個字符）。",
       "appNameRequired": "應用名稱不能為空。",
-      "appLogoUrl": "標誌圖片",
       "logo": "標誌圖片",
+      "logoAlt": "{name} 的標誌",
       "logoHelp": "上傳 SVG、PNG 或 JPG 文件作為自定義圖示（最大 2MB）。",
       "chooseLogo": "選擇標誌",
       "chooseAnotherLogo": "選擇其他檔案",
@@ -497,7 +497,9 @@
       "preview": "預覽",
       "showPoweredBy": "顯示簽名連結",
       "showPoweredByHelp": "在頁尾顯示 “Powered by nextExplorer” 連結來支持專案",
-      "defaultLogoSelected": "已選擇預設標誌。點選「儲存」以套用。"
+      "defaultLogoSelected": "已選擇預設標誌。點選「儲存」以套用。",
+      "saved": "品牌設定已儲存。",
+      "saveFailed": "無法儲存品牌設定：{reason}"
     },
     "userPreferences": {
       "title": "使用者偏好設定",

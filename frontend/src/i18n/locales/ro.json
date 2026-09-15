@@ -486,8 +486,8 @@
       "appName": "Numele aplicației",
       "appNameHelp": "Numele afișat în antete, pe pagina de autentificare și în subsol (max. 100 de caractere).",
       "appNameRequired": "Numele aplicației nu poate fi gol.",
-      "appLogoUrl": "Imagine siglă",
       "logo": "Imagine siglă",
+      "logoAlt": "Sigla {name}",
       "logoHelp": "Încarcă un fișier SVG, PNG sau JPG pentru sigla ta personalizată (max. 2 MB).",
       "chooseLogo": "Alegeți o siglă",
       "chooseAnotherLogo": "Alegeți alt fișier",
@@ -497,7 +497,9 @@
       "preview": "Previzualizare",
       "showPoweredBy": "Afișează linkul de atribuire",
       "showPoweredByHelp": "Afișează în subsol un link „Powered by nextExplorer” pentru a ajuta la susținerea proiectului",
-      "defaultLogoSelected": "Siglă implicită selectată. Faceți clic pe Salvare pentru a aplica."
+      "defaultLogoSelected": "Siglă implicită selectată. Faceți clic pe Salvare pentru a aplica.",
+      "saved": "Identitatea vizuală a fost salvată.",
+      "saveFailed": "Identitatea vizuală nu a putut fi salvată: {reason}"
     },
     "userPreferences": {
       "title": "Preferințe utilizator",

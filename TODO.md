@@ -386,8 +386,6 @@ holding the release for. Each was reproduced; none is guessed.
   measure the free space once, before the first file has finished writing.
 - **An access rule on `../Secret`** is dropped by the server without a word, and
   its row disappears from the page.
-- **Branding speaks English only**: its confirmation and upload messages are not
-  in the catalogues.
 - **The ONLYOFFICE transfer question** leaves the first promise unresolved if a
   second transfer asks while it is open. The dialog is modal, so this is
   theoretical.

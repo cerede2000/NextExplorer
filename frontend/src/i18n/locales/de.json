@@ -486,8 +486,8 @@
       "appName": "Anwendungsname",
       "appNameHelp": "Der Name, der in Kopfzeilen, auf der Anmeldeseite und in der Fußzeile angezeigt wird (max. 100 Zeichen).",
       "appNameRequired": "Der Anwendungsname darf nicht leer sein.",
-      "appLogoUrl": "Logo-Bild",
       "logo": "Logo-Bild",
+      "logoAlt": "Logo von {name}",
       "logoHelp": "Laden Sie eine SVG-, PNG- oder JPG-Datei für Ihr benutzerdefiniertes Logo hoch (max. 2 MB).",
       "chooseLogo": "Logo auswählen",
       "chooseAnotherLogo": "Andere Datei auswählen",
@@ -497,7 +497,9 @@
       "preview": "Vorschau",
       "showPoweredBy": "Attributionslink anzeigen",
       "showPoweredByHelp": "Zeigt in der Fußzeile einen Link 'Powered by nextExplorer', um das Projekt zu unterstützen",
-      "defaultLogoSelected": "Standardlogo ausgewählt. Zum Anwenden auf Speichern klicken."
+      "defaultLogoSelected": "Standardlogo ausgewählt. Zum Anwenden auf Speichern klicken.",
+      "saved": "Erscheinungsbild gespeichert.",
+      "saveFailed": "Das Erscheinungsbild konnte nicht gespeichert werden: {reason}"
     },
     "userPreferences": {
       "title": "Benutzereinstellungen",

@@ -489,8 +489,8 @@
       "appName": "Naam van de toepassing",
       "appNameHelp": "De naam die wordt weergegeven in kopregels, loginpagina, en voetregel (max 100 tekens).",
       "appNameRequired": "De naam van de toepassing mag niet leeg zijn.",
-      "appLogoUrl": "Logo-afbeelding",
       "logo": "Logo-afbeelding",
+      "logoAlt": "Logo van {name}",
       "logoHelp": "Upload een SVG-, PNG- of JPG-bestand als aangepast logo (max 2MB).",
       "chooseLogo": "Logo kiezen",
       "chooseAnotherLogo": "Ander bestand kiezen",
@@ -500,7 +500,9 @@
       "preview": "Voorbeeld",
       "showPoweredBy": "Bronvermelding weergeven",
       "showPoweredByHelp": "Toon een 'Aangedreven door nextExplorer'-link in de voettekst om het project te ondersteunen",
-      "defaultLogoSelected": "Standaardlogo geselecteerd. Klik op Opslaan om het toe te passen."
+      "defaultLogoSelected": "Standaardlogo geselecteerd. Klik op Opslaan om het toe te passen.",
+      "saved": "Merkvoering opgeslagen.",
+      "saveFailed": "De merkvoering kon niet worden opgeslagen: {reason}"
     },
     "userPreferences": {
       "title": "Gebruikersvoorkeuren",

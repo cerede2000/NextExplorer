@@ -112,7 +112,7 @@ describe('the branding settings', () => {
       branding: { appName: 'Files', appLogoUrl: STORED.appLogoUrl, showPoweredBy: false },
     });
     expect(appSettings.saveLogo).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('Branding saved successfully!');
+    expect(wrapper.text()).toContain('settings.branding.saved');
     expect(saveButton().exists()).toBe(false);
   });
 
@@ -140,7 +140,9 @@ describe('the branding settings', () => {
     await nameField().setValue('Files');
     await save();
 
-    expect(wrapper.text()).toContain('Failed to save: Admin access required');
+    expect(wrapper.text()).toContain(
+      'settings.branding.saveFailed {"reason":"Admin access required"}'
+    );
     expect(nameField().element.value).toBe('Files');
     expect(saveButton().exists()).toBe(true);
   });
@@ -199,7 +201,7 @@ describe('a new logo', () => {
     expect(logoShown()).toBe(UPLOADED);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
     expect(saveButton().exists()).toBe(false);
-    expect(wrapper.text()).toContain('Branding saved successfully!');
+    expect(wrapper.text()).toContain('settings.branding.saved');
   });
 
   it('cannot be saved twice at once', async () => {
@@ -228,7 +230,9 @@ describe('a new logo', () => {
     await chooseLogo(logoFile('logo.png', 'image/png'));
     await save();
 
-    expect(wrapper.text()).toContain('Failed to save: A logo can be at most 2 MB.');
+    expect(wrapper.text()).toContain(
+      'settings.branding.saveFailed {"reason":"A logo can be at most 2 MB."}'
+    );
     expect(logoShown()).toBe('blob:preview-1');
     expect(nameField().element.value).toBe('Files');
     expect(saveButton().attributes('disabled')).toBeUndefined();
