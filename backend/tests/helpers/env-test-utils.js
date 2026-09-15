@@ -165,6 +165,15 @@ const quiesceLoadedServices = async () => {
     /* nothing queued is nothing to drain */
   }
 
+  // The RAW previews keep a cleanup timer of their own, and an extraction in
+  // progress writes into the same cache directory.
+  const rawPreviews = loadedModule('src/services/rawPreviewService');
+  try {
+    await rawPreviews?.stopRawPreviewWork?.();
+  } catch {
+    /* nothing extracting and nothing scheduled */
+  }
+
   // The trash maintenance schedules a pass shortly after a deletion; one landing
   // after the database is closed would fail on the next test's time.
   const trashMaintenance = loadedModule('src/services/trash/maintenance');

@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { substituteModule } from '../helpers/substitute-module.js';
 
 /**
  * What the thumbnail cache throws away.
@@ -15,10 +18,21 @@ import { setupTestEnv } from '../helpers/env-test-utils.js';
  */
 
 let currentEnv;
+let releaseHeldWrite = null;
+let restoreModule = null;
 
+const SERVICE_FILE = fileURLToPath(
+  new URL('../../src/services/thumbnailService.js', import.meta.url)
+);
+const HOUR = 60 * 60 * 1000;
 const CURRENT = 'v3-';
 const OLD = 'v2-';
 const sha1 = (n) => String(n).padStart(40, 'a');
+/** How releases up to 2.0.3 named a thumbnail: the key, and no version. */
+const legacy = (n) => `${sha1(n)}.webp`;
+/** A thumbnail's temporary name as it is written now, and as 2.0.x wrote it. */
+const tempOf = (name) => `${name}.tmp-4242-${Date.now()}-${randomUUID()}`;
+const legacyTempOf = (name) => `${name}.tmp-4242-${Date.now()}`;
 
 const setup = async (env = {}) => {
   currentEnv = await setupTestEnv({
@@ -52,6 +66,9 @@ const write = async (dir, name, { ageMs = 0 } = {}) => {
 const remaining = async (dir) => (await fs.readdir(dir)).sort();
 
 afterEach(async () => {
+  // A write held open would keep the queue from ever going idle.
+  releaseHeldWrite?.();
+  releaseHeldWrite = null;
   if (currentEnv) {
     const service = currentEnv.loaded?.('src/services/thumbnailService');
     try {
@@ -62,7 +79,53 @@ afterEach(async () => {
     await currentEnv.cleanup();
     currentEnv = null;
   }
+  restoreModule?.();
+  restoreModule = null;
 });
+
+/**
+ * A sharp whose file writes begin, and then wait to be told to finish.
+ *
+ * `started` resolves with the temporary path once the partial file is on disk.
+ */
+const holdThumbnailWrite = () => {
+  let release;
+  const released = new Promise((resolve) => {
+    release = resolve;
+  });
+  let reportStarted;
+  const started = new Promise((resolve) => {
+    reportStarted = resolve;
+  });
+
+  const pipeline = {
+    rotate: () => pipeline,
+    resize: () => pipeline,
+    webp: () => pipeline,
+    toFile: async (file) => {
+      await fs.writeFile(file, 'half a thumbnail');
+      reportStarted(file);
+      await released;
+      await fs.writeFile(file, 'a thumbnail');
+    },
+  };
+  const sharp = Object.assign(() => pipeline, {
+    concurrency: () => 1,
+    cache: () => ({}),
+    counters: () => ({}),
+  });
+
+  return { sharp, started, release };
+};
+
+const eventually = async (probe) => {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const value = await probe();
+    if (value) return value;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('the condition never held');
+};
 
 describe('entries from an older cache version', () => {
   it('are removed', async () => {
@@ -73,6 +136,120 @@ describe('entries from an older cache version', () => {
     await service.cleanupThumbnailCache();
 
     expect(await remaining(dir)).toEqual([`${CURRENT}${sha1(2)}.webp`]);
+  });
+});
+
+describe('thumbnails named before the version prefix existed', () => {
+  /**
+   * Releases up to 2.0.3 wrote `<sha1>.webp`. The cleanup only knew the
+   * versioned name, so these were neither counted nor ever removed.
+   */
+  it('are removed', async () => {
+    const { service, dir } = await setup();
+    await write(dir, legacy(1));
+    await write(dir, legacy(2));
+    await write(dir, `${CURRENT}${sha1(3)}.webp`);
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual([`${CURRENT}${sha1(3)}.webp`]);
+  });
+});
+
+describe('temporary files a write left behind', () => {
+  /** The aged thumbnail kept alongside says the age rule is the temporaries' alone. */
+  it('are removed once clearly abandoned, under either naming', async () => {
+    const { service, dir } = await setup();
+    const kept = await write(dir, `${CURRENT}${sha1(1)}.webp`, { ageMs: 2 * HOUR });
+    await write(dir, tempOf(`${CURRENT}${sha1(1)}.webp`), { ageMs: 2 * HOUR });
+    await write(dir, legacyTempOf(legacy(2)), { ageMs: 2 * HOUR });
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual([kept]);
+  });
+
+  it('are kept while recent', async () => {
+    const { service, dir } = await setup();
+    const names = [
+      await write(dir, tempOf(`${CURRENT}${sha1(1)}.webp`), { ageMs: 10 * 60 * 1000 }),
+      await write(dir, legacyTempOf(`${CURRENT}${sha1(2)}.webp`)),
+    ];
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual(names.sort());
+  });
+
+  it('neither count towards the limit nor are trimmed to meet it', async () => {
+    const { service, dir } = await setup({ THUMBNAIL_CACHE_MAX_FILES: '2' });
+    const names = [];
+    for (let i = 0; i < 2; i += 1) names.push(await write(dir, `${CURRENT}${sha1(i)}.webp`));
+    for (let i = 10; i < 13; i += 1) {
+      names.push(await write(dir, tempOf(`${CURRENT}${sha1(i)}.webp`)));
+    }
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual(names.sort());
+  });
+
+  /**
+   * Removing them must not use up the trim the limit calls for. Taking the
+   * larger of "removable" and "over the limit" stopped two thumbnails short.
+   */
+  it('are removed on top of the trim a cache past its limit needs', async () => {
+    const { service, dir } = await setup({ THUMBNAIL_CACHE_MAX_FILES: '2' });
+    for (let i = 0; i < 4; i += 1) await write(dir, `${CURRENT}${sha1(i)}.webp`);
+    for (let i = 10; i < 12; i += 1) {
+      await write(dir, tempOf(`${CURRENT}${sha1(i)}.webp`), { ageMs: 2 * HOUR });
+    }
+
+    await service.cleanupThumbnailCache();
+
+    const left = await remaining(dir);
+    expect(left.filter((name) => name.includes('.tmp-'))).toEqual([]);
+    expect(left).toHaveLength(2);
+  });
+
+  it('are left alone when the name is not one of ours', async () => {
+    const { service, dir } = await setup();
+    const names = [
+      await write(dir, 'notes.txt.tmp-4242-1700000000000', { ageMs: 2 * HOUR }),
+      await write(dir, 'v3-nothexadecimal.webp.tmp-4242-1700000000000', { ageMs: 2 * HOUR }),
+    ];
+
+    await service.cleanupThumbnailCache();
+
+    expect(await remaining(dir)).toEqual(names.sort());
+  });
+
+  /**
+   * The queues stop waiting for a job after thirty seconds and the job goes on,
+   * so a write that slow is exactly the one whose temporary file looks
+   * abandoned. Taking it would fail the rename it is still heading for.
+   */
+  it('are kept however old while their write is still going on', async () => {
+    const held = holdThumbnailWrite();
+    releaseHeldWrite = held.release;
+    restoreModule = substituteModule(SERVICE_FILE, 'sharp', held.sharp);
+    const { service, dir } = await setup();
+    const source = path.join(currentEnv.volumeDir, 'photo.jpg');
+    await fs.writeFile(source, 'a photo');
+
+    await service.queueThumbnailGeneration(source);
+    const tempFile = await held.started;
+    const longAgo = new Date(Date.now() - 2 * HOUR);
+    await fs.utimes(tempFile, longAgo, longAgo);
+
+    await service.cleanupThumbnailCache();
+    expect(await remaining(dir)).toContain(path.basename(tempFile));
+
+    held.release();
+    const thumbnail = await eventually(async () =>
+      (await remaining(dir)).find((name) => /^v3-[a-f0-9]{40}\.webp$/.test(name))
+    );
+    expect(await remaining(dir)).toEqual([thumbnail]);
   });
 });
 

@@ -301,6 +301,12 @@ module.exports = {
     process.env.THUMBNAIL_CACHE_TTL_DAYS != null
       ? Number(process.env.THUMBNAIL_CACHE_TTL_DAYS)
       : 30,
+  // Embedded RAW previews are full-size JPEGs, far larger than a thumbnail, and
+  // a new one is extracted whenever a RAW file changes.
+  RAW_PREVIEW_CACHE_MAX_FILES:
+    process.env.RAW_PREVIEW_CACHE_MAX_FILES != null
+      ? Number(process.env.RAW_PREVIEW_CACHE_MAX_FILES)
+      : 500,
   THUMBNAIL_SHARP_CACHE_MEMORY_MB:
     process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB != null
       ? Number(process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)

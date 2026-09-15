@@ -13,6 +13,13 @@ const env = require('../config/env');
 const { getSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const { getRawPreviewJpegPath } = require('./rawPreviewService');
+const {
+  CACHE_CLEANUP_BATCH_SIZE,
+  CACHE_CLEANUP_INTERVAL_MS,
+  CACHE_TTL_MS,
+  findAbandonedTempFiles,
+  statCacheEntries,
+} = require('../utils/cacheCleanup');
 
 const getThumbOptions = async () => {
   const settings = await getSettings();
@@ -65,15 +72,10 @@ const FAILED_THUMBNAIL_MAX_ENTRIES = 1000;
 const THUMBNAIL_CACHE_MAX_FILES = Number.isFinite(env.THUMBNAIL_CACHE_MAX_FILES)
   ? Math.max(0, Math.floor(env.THUMBNAIL_CACHE_MAX_FILES))
   : 3000;
-const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS)
-  ? Math.max(60 * 1000, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS))
-  : 60 * 60 * 1000;
-const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = Number.isFinite(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
-  ? Math.max(1, Math.floor(env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE))
-  : 500;
-const THUMBNAIL_CACHE_TTL_MS = Number.isFinite(env.THUMBNAIL_CACHE_TTL_DAYS)
-  ? Math.max(0, Math.floor(env.THUMBNAIL_CACHE_TTL_DAYS)) * 24 * 60 * 60 * 1000
-  : 30 * 24 * 60 * 60 * 1000;
+// Read once in utils/cacheCleanup, which bounds the RAW previews with them too.
+const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = CACHE_CLEANUP_INTERVAL_MS;
+const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = CACHE_CLEANUP_BATCH_SIZE;
+const THUMBNAIL_CACHE_TTL_MS = CACHE_TTL_MS;
 const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
   ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
   : 3;
@@ -105,6 +107,17 @@ const THUMBNAIL_PROCESS_NICE = Number.isFinite(env.THUMBNAIL_PROCESS_NICE)
 const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
 const THUMBNAIL_CACHE_DIR = path.resolve(directories.thumbnails);
 const THUMBNAIL_CACHE_FILE_PATTERN = /^v\d+-(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
+// Releases up to 2.0.3 named a thumbnail after its key alone; the version prefix
+// arrived with 734508f. Such a file is a thumbnail all the same — counted, and
+// outdated by definition — but only the cleanup needs to know the name: a source
+// file that merely looks like one must still get a thumbnail of its own.
+const LEGACY_THUMBNAIL_FILE_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
+// A thumbnail on its way into place (buildTempThumbnailPath), under either naming.
+// 2.0.x wrote `.tmp-<pid>-<ms>`; the UUID came later.
+const THUMBNAIL_TEMP_FILE_PATTERN =
+  /^(?:v\d+-)?(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp\.tmp-\d+-\d+(?:-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})?$/i;
+// Temporary files this process is still writing, by name. See atomicWriteSharpFile.
+const liveThumbnailTempFiles = new Set();
 const THUMBNAILS_ENABLED = env.THUMBNAILS_ENABLED !== false;
 const activeThumbnailJobs = new Map();
 const activeExternalProcesses = new Map();
@@ -548,6 +561,11 @@ const attachFfmpegDiagnostics = (command) => {
 const atomicWriteSharpFile = async (finalPath, pipeline) => {
   await ensureDir(path.dirname(finalPath));
   const tmpPath = buildTempThumbnailPath(finalPath);
+  // Until the rename or the removal below has happened, the cleanup must leave
+  // this file alone however long the write takes. The queues cannot say so: a
+  // job they stop waiting for after their timeout goes on running.
+  const tmpName = path.basename(tmpPath);
+  liveThumbnailTempFiles.add(tmpName);
 
   try {
     await pipeline.toFile(tmpPath);
@@ -555,6 +573,8 @@ const atomicWriteSharpFile = async (finalPath, pipeline) => {
   } catch (error) {
     await fsPromises.rm(tmpPath, { force: true }).catch(() => {});
     throw error;
+  } finally {
+    liveThumbnailTempFiles.delete(tmpName);
   }
 };
 
@@ -876,28 +896,10 @@ const scheduleThumbnailRemoval = (filePath) => {
 const findExpiredThumbnails = async (fileNames, now) => {
   if (THUMBNAIL_CACHE_TTL_MS <= 0) return [];
 
-  const expired = [];
-  const candidates = fileNames.filter((name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name));
-  const statConcurrency = 16;
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(statConcurrency, candidates.length) }, async () => {
-      for (;;) {
-        const index = next;
-        next += 1;
-        if (index >= candidates.length) return;
-        const name = candidates[index];
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const stats = await fsPromises.stat(path.join(directories.thumbnails, name));
-          if (now - stats.mtimeMs >= THUMBNAIL_CACHE_TTL_MS) expired.push(name);
-        } catch (_) {
-          // A concurrent cleanup may already have removed this entry.
-        }
-      }
-    })
-  );
-  return expired;
+  const entries = await statCacheEntries(directories.thumbnails, fileNames);
+  return entries
+    .filter((entry) => now - entry.mtimeMs >= THUMBNAIL_CACHE_TTL_MS)
+    .map((entry) => entry.name);
 };
 
 const getThumbnailQueueLoad = () =>
@@ -963,33 +965,52 @@ const cleanupThumbnailCache = async () => {
       const dirents = await fsPromises.readdir(directories.thumbnails, { withFileTypes: true });
       const fileNames = dirents.filter((entry) => entry.isFile()).map((entry) => entry.name);
 
-      // The pattern decides what belongs to this cache, and it decides for every
-      // question below rather than only for the first two. It used to filter the
-      // expired and the outdated, and then be dropped for the overflow trim,
-      // which took `fileNames` whole — so anything else in this directory both
-      // counted towards the limit and could be deleted to satisfy it.
-      const thumbnailNames = fileNames.filter((name) => THUMBNAIL_CACHE_FILE_PATTERN.test(name));
+      // The patterns decide what belongs to this cache, and they decide for every
+      // question below rather than only for the first two. The pattern used to
+      // filter the expired and the outdated, and then be dropped for the overflow
+      // trim, which took `fileNames` whole — so anything else in this directory
+      // both counted towards the limit and could be deleted to satisfy it.
+      const thumbnailNames = fileNames.filter(
+        (name) =>
+          THUMBNAIL_CACHE_FILE_PATTERN.test(name) || LEGACY_THUMBNAIL_FILE_PATTERN.test(name)
+      );
+      const now = Date.now();
 
+      // An unprefixed legacy name is not the current version either.
       const currentVersionPrefix = `v${THUMBNAIL_CACHE_VERSION}-`;
       const oldVersionNames = thumbnailNames.filter(
         (name) => !name.startsWith(currentVersionPrefix)
       );
-      const expiredNames = await findExpiredThumbnails(thumbnailNames, Date.now());
+      const expiredNames = await findExpiredThumbnails(thumbnailNames, now);
       const removableNames = new Set([...oldVersionNames, ...expiredNames]);
-      const oversizedCount = Math.max(0, thumbnailNames.length - THUMBNAIL_CACHE_MAX_FILES);
-      const deleteCount = Math.min(
-        Math.max(removableNames.size, oversizedCount),
-        THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE
-      );
 
-      if (deleteCount <= 0) {
+      // A temporary file is not a thumbnail: it neither counts towards the limit
+      // nor is trimmed to meet it. One that is clearly abandoned is removed.
+      const abandonedTempNames = await findAbandonedTempFiles(directories.thumbnails, fileNames, {
+        pattern: THUMBNAIL_TEMP_FILE_PATTERN,
+        live: liveThumbnailTempFiles,
+        now,
+      });
+
+      // What is still over the limit once the removable thumbnails are gone.
+      // Those are among the counted names and the temporary files are not, so
+      // the three add up; taking the larger of two, as this once did, stops
+      // short of the limit as soon as anything uncounted is removed as well.
+      const overflowCount = Math.max(
+        0,
+        thumbnailNames.length - removableNames.size - THUMBNAIL_CACHE_MAX_FILES
+      );
+      const wantedCount = abandonedTempNames.length + removableNames.size + overflowCount;
+
+      if (wantedCount <= 0) {
         return;
       }
 
       const toDelete = [
+        ...abandonedTempNames,
         ...removableNames,
-        ...thumbnailNames.filter((name) => !removableNames.has(name)),
-      ].slice(0, deleteCount);
+        ...thumbnailNames.filter((name) => !removableNames.has(name)).slice(0, overflowCount),
+      ].slice(0, THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE);
 
       let deleted = 0;
       for (const name of toDelete) {
@@ -1010,16 +1031,14 @@ const cleanupThumbnailCache = async () => {
           batchSize: THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE,
           oldVersionCandidates: oldVersionNames.length,
           expiredCandidates: expiredNames.length,
+          abandonedTempCandidates: abandonedTempNames.length,
         },
         'Thumbnail cache cleanup batch completed'
       );
       thumbnailStats.cacheCleanupDeleted += deleted;
       logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
 
-      if (
-        removableNames.size > deleted ||
-        thumbnailNames.length - deleted > THUMBNAIL_CACHE_MAX_FILES
-      ) {
+      if (wantedCount > deleted) {
         shouldContinueCleanup = true;
       }
     } catch (error) {
