@@ -140,6 +140,39 @@ favourites behind it.
 commit to it, and `POST /api/files/delete-stream` reports progress as it goes,
 which is what the interface uses for large selections.
 
+## Reading and saving a text file
+
+`GET /api/editor?path=Documents%2Fnotes.md` answers `{ "content": "…" }`, the
+path encoded in the query string. `POST /api/editor` with `{ "path": … }` in the
+body answers exactly the same and remains for clients written against it;
+`GET /api/raw?path=` answers the text alone, as `text/plain`. `PUT /api/editor`
+with `{ "path", "content" }` saves, in the encoding the file already had. A file
+larger than `EDITOR_MAX_FILESIZE` is refused with `400`, a binary one with `415`.
+
+The reads by `GET` can be kept and asked again. They carry an `ETag` and
+`Cache-Control: private, no-cache`; send the ETag back in `If-None-Match`, and
+while the file is unchanged the answer is `304 Not Modified` with no body —
+the server does not even read the file to give it. The ETag changes whenever
+the file does: a save, another file moved over it, a write in place, including
+one that puts the modification time back. Permission is checked first, so
+someone who may no longer read the file is refused as before, whatever they
+send. A browser does all of this on its own. `PUT /api/editor` answers with
+the ETag the next read will carry, when the file it wrote is still the one in
+place.
+
+The shared editor, `GET /api/share/:token/editor`, answers the same way, and
+its ETag also changes when what the share allows does — `canWrite`,
+`canDownload` — so a visitor's copy never outlives a permission change.
+
+Responses that carry a whole text file are compressed when they are over
+32 KB and the request's `Accept-Encoding` allows it: brotli when it is offered,
+which browsers do only over HTTPS, otherwise gzip. That covers the reads
+above, the shared editor, and the text of a file in the trash or of an earlier
+version (`GET /api/trash/items/:id/text`, `GET /api/versions/:id/text`), and
+every one of them varies on `Accept-Encoding`. `curl --compressed` asks for it.
+Nothing else is compressed by the application — downloads, previews, media and
+progress streams go as they are, most of them already compressed.
+
 ## Endpoint reference
 
 | Area                | Endpoints                                                                                                   |
@@ -154,7 +187,7 @@ which is what the interface uses for large selections.
 | Archives            | `POST /api/files/zip/compress`, `/api/files/zip/extract`                                                    |
 | Folder sizes        | `GET /api/folder-size/*` · `POST /api/folder-size/refresh/*`, `/batch`                                      |
 | Favourites          | `GET`/`POST`/`DELETE /api/favorites` · `PATCH /api/favorites/:id`, `/reorder`                               |
-| Editing             | `POST`/`PUT /api/editor` · `GET /api/raw`                                                                   |
+| Editing             | `GET`/`POST`/`PUT /api/editor` · `GET /api/raw`                                                             |
 | Admin               | `GET`/`POST`/`PATCH`/`DELETE /api/users` · `/api/users/:userId/volumes` · `GET`/`PATCH /api/settings`       |
 | Permissions         | `GET /api/permissions/*` · `POST /api/permissions/chmod`, `/chown`                                          |
 | Health              | `GET /api/healthz`, `/api/readyz`                                                                           |
