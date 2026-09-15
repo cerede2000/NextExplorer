@@ -117,3 +117,60 @@ describe('removing what an operation wrote', () => {
     );
   });
 });
+
+describe('telling an entry apart from a new one given its inode number', () => {
+  /**
+   * ext4 gives the inode number of a file just removed to the next file
+   * created. A file someone wrote under the name of one of the operation's own,
+   * after removing it, can then carry the same device and inode, and was taken
+   * for the operation's and removed. A Mac does not reuse the number at once,
+   * so the cases below build that situation on purpose, on any filesystem.
+   */
+  const statsLike = (overrides = {}) => ({
+    dev: 1,
+    ino: 42,
+    birthtimeMs: 0,
+    size: 4,
+    mtimeMs: 1000,
+    isDirectory: () => false,
+    ...overrides,
+  });
+
+  it('tells a file from a new one with the same inode by its size, its modification or its birth', () => {
+    const mine = owned.identityOf(statsLike());
+
+    expect(owned.identityOf(statsLike({ size: 6 }))).not.toBe(mine);
+    expect(owned.identityOf(statsLike({ mtimeMs: 2000 }))).not.toBe(mine);
+    expect(owned.identityOf(statsLike({ birthtimeMs: 5 }))).not.toBe(mine);
+    expect(owned.identityOf(statsLike())).toBe(mine);
+  });
+
+  it('knows a folder by device, inode and birth, whatever comes and goes inside it', () => {
+    const folder = (overrides) => statsLike({ isDirectory: () => true, ...overrides });
+
+    expect(owned.identityOf(folder({ size: 96, mtimeMs: 2000 }))).toBe(owned.identityOf(folder()));
+    expect(owned.identityOf(folder({ birthtimeMs: 5 }))).not.toBe(owned.identityOf(folder()));
+  });
+
+  it('keeps a file written under a removed one’s name that was given its inode number', async () => {
+    write('report.txt', 'theirs');
+    const theirs = fs.lstatSync(path.join(root, 'report.txt'));
+    // What the inventory held for the operation's own file: the same device and
+    // inode as theirs, as ext4 would have handed out, but its own size and time.
+    const inventory = new Set([
+      owned.identityOf({
+        dev: theirs.dev,
+        ino: theirs.ino,
+        birthtimeMs: theirs.birthtimeMs,
+        size: 4,
+        mtimeMs: theirs.mtimeMs - 60 * 1000,
+        isDirectory: () => false,
+      }),
+    ]);
+
+    const kept = await owned.removeInventoried(path.join(root, 'report.txt'), inventory);
+
+    expect(fs.readFileSync(path.join(root, 'report.txt'), 'utf8')).toBe('theirs');
+    expect(kept).toEqual([path.join(root, 'report.txt')]);
+  });
+});
