@@ -865,7 +865,19 @@ const generateThumbnail = async (filePath, thumbPath, { priority = 0 } = {}) => 
   }
 
   if (isVideo(extension)) {
-    await videoThumbnailQueue.add(() => makeVideoThumb(filePath, thumbPath), { priority });
+    // Waits for the thumbnail, not for the queue. The queue stops waiting after
+    // its timeout and frees the slot while ffmpeg goes on; a generation that
+    // ended there found no thumbnail yet, called it missing, and let the next
+    // request start a second ffmpeg on the same file beside the first.
+    let making = null;
+    await videoThumbnailQueue.add(
+      () => {
+        making = makeVideoThumb(filePath, thumbPath);
+        return making;
+      },
+      { priority }
+    );
+    await making;
     return;
   }
 
@@ -1151,10 +1163,20 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
   if (!pending) {
     thumbnailStats.queued += 1;
     // Queue the thumbnail generation with concurrency limit
+    // The file stays in flight until its generation has ended, not until the
+    // queue stops waiting for it. The queue gives up after its timeout and frees
+    // the slot while the job goes on; forgetting the file then let the next
+    // request start the same thumbnail a second time beside the first.
+    let started = false;
+    const release = () => {
+      inflight.delete(thumbPath);
+      scheduleSharpCacheTrim();
+    };
     pending = thumbnailQueue
       .add(
         async () => {
           const jobId = startThumbnailJob(filePath, thumbPath);
+          started = true;
           try {
             // Double-check if another request created it while we were queued
             try {
@@ -1192,13 +1214,14 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
             finishThumbnailJob(jobId, 'error', error);
             throw error;
           }
+          } finally {
+            release();
         },
         { priority }
       )
       .finally(() => {
-        // Clean up inflight map when done
-        inflight.delete(thumbPath);
-        scheduleSharpCacheTrim();
+        // A job that never ran has nothing of its own to release it.
+        if (!started) release();
       });
 
     inflight.set(thumbPath, pending);
