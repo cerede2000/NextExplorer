@@ -363,7 +363,13 @@ const requestForceSave = async ({ reason = 'auto' } = {}) => {
   if (reason === 'close') clearAutoSaveTimer();
   const sessionId = previewState.forceSaveSessionId;
   if (!documentPath.value || !sessionId) return { queued: false };
-  if (autoSaveInFlight) return autoSaveInFlight;
+  if (autoSaveInFlight) {
+    // An automatic save on its way does not stand in for the one closing asks
+    // for: the server queues a last save on close and keeps it as a version, so
+    // it is still sent, once the one in flight has settled.
+    if (reason !== 'close') return autoSaveInFlight;
+    return autoSaveInFlight.catch(() => {}).then(() => requestForceSave({ reason: 'close' }));
+  }
 
   autoSaveInFlight = requestOnlyOfficeForceSave(documentPath.value, { sessionId, reason })
     .then((result) => {
@@ -529,7 +535,9 @@ const load = async () => {
   previewState.forceSaveSessionId = null;
   previewState.hasNativeClose = false;
   try {
-    const path = props.filePath;
+    // The document may have been renamed from the title bar since it was opened;
+    // the prop still names the file the preview was opened on.
+    const path = documentPath.value || props.filePath;
     if (!path) throw new Error('Missing file path.');
     documentPath.value = path;
     previewState.documentPath = path;
@@ -706,9 +714,11 @@ onBeforeUnmount(() => {
 });
 watch(
   () => props.filePath,
-  () => {
+  (filePath) => {
     disposed = false;
     clearSessionHeartbeat();
+    // Another document entirely: whatever this one was renamed to is behind us.
+    documentPath.value = filePath;
     void load();
   }
 );

@@ -13,11 +13,12 @@ import { flushPromises, mount } from '@vue/test-utils';
  */
 
 const fetchCollaboraConfig = vi.fn();
+const searchUsersForMention = vi.fn();
 const panel = vi.hoisted(() => ({ store: null }));
 
 vi.mock('@/api', () => ({
   fetchCollaboraConfig: (...args) => fetchCollaboraConfig(...args),
-  searchUsersForMention: vi.fn(async () => []),
+  searchUsersForMention: (...args) => searchUsersForMention(...args),
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
 }));
 vi.mock('@/stores/versionsPanel', async () => {
@@ -30,8 +31,10 @@ vi.mock('@/utils/logger', () => ({
 }));
 
 const CollaboraPreview = (await import('./CollaboraPreview.vue')).default;
+const logger = (await import('@/utils/logger')).default;
 
-const URL_SRC = 'https://collabora.example.com/browser/dist/cool.html?WOPISrc=x';
+const EDITOR_ORIGIN = 'https://collabora.example.com';
+const URL_SRC = `${EDITOR_ORIGIN}/browser/dist/cool.html?WOPISrc=x`;
 const REPORT = { name: 'report.docx', path: 'Docs' };
 
 let wrapper = null;
@@ -51,16 +54,25 @@ const post = async (data, source) => {
   window.dispatchEvent(
     new MessageEvent('message', {
       data: JSON.stringify(data),
-      origin: 'https://collabora.example.com',
+      origin: EDITOR_ORIGIN,
       source,
     })
   );
   await flushPromises();
 };
 
+// What the preview posts to the frame, read back from the frame itself, with
+// the origin each message was addressed to.
+const watchFrame = () => vi.spyOn(frameWindow(), 'postMessage').mockImplementation(() => {});
+const sentTo = (spy) =>
+  spy.mock.calls.map(([message, targetOrigin]) => ({ ...JSON.parse(message), targetOrigin }));
+
 beforeEach(() => {
   fetchCollaboraConfig.mockReset();
   fetchCollaboraConfig.mockResolvedValue({ urlSrc: URL_SRC });
+  searchUsersForMention.mockReset();
+  searchUsersForMention.mockResolvedValue([]);
+  for (const log of Object.values(logger)) log.mockClear();
   if (panel.store) {
     Object.assign(panel.store, { restored: 0, relativePath: '' });
     panel.store.openPath.mockClear();
@@ -134,5 +146,134 @@ describe('a restore made in the Versions panel', () => {
     await flushPromises();
 
     expect(fetchCollaboraConfig).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Collabora sends nothing of what the page asks until the page has answered its
+ * ready signal: without `Host_PostmessageReady` the history entry and the
+ * mentions never reach NextExplorer. What the page sends is addressed to the
+ * editor's origin, taken from the frame's address — never to any window that
+ * happens to be listening.
+ */
+describe('talking to the editor frame', () => {
+  it('answers the ready signal, and only that one, addressed to the editor origin', async () => {
+    await mountOn();
+    const spy = watchFrame();
+
+    await post(
+      { MessageId: 'App_LoadingStatus', Values: { Status: 'Document_Loaded' } },
+      frameWindow()
+    );
+    expect(spy).not.toHaveBeenCalled();
+
+    await post(
+      { MessageId: 'App_LoadingStatus', Values: { Status: 'Frame_Ready' } },
+      frameWindow()
+    );
+
+    expect(sentTo(spy)).toEqual([
+      expect.objectContaining({
+        MessageId: 'Host_PostmessageReady',
+        Values: {},
+        targetOrigin: EDITOR_ORIGIN,
+      }),
+    ]);
+  });
+});
+
+/**
+ * An @ typed in a comment: Collabora sends what follows it and waits for the
+ * list to offer. The search takes the text without the @, which no name
+ * contains, and the list has to be in Collabora's own shape or the popup shows
+ * nobody.
+ */
+describe('mentions in comments', () => {
+  it('answers an @ with the people found, in the shape Collabora lists them', async () => {
+    // As /api/users/search answers.
+    searchUsersForMention.mockResolvedValue([
+      { UserId: 'u1', UserFriendlyName: 'Alice Martin', UserEmail: 'alice@example.com' },
+      { UserId: 'u2', UserFriendlyName: 'alfred', UserEmail: 'alfred@example.com' },
+    ]);
+    await mountOn();
+    const spy = watchFrame();
+
+    await post(
+      { MessageId: 'UI_Mention', Values: { type: 'autocomplete', text: '@al' } },
+      frameWindow()
+    );
+
+    expect(searchUsersForMention).toHaveBeenCalledWith('al');
+    expect(sentTo(spy)).toEqual([
+      expect.objectContaining({
+        MessageId: 'Action_Mention',
+        targetOrigin: EDITOR_ORIGIN,
+        Values: {
+          list: [
+            { username: 'u1', profile: '', label: 'Alice Martin' },
+            { username: 'u2', profile: '', label: 'alfred' },
+          ],
+        },
+      }),
+    ]);
+  });
+
+  it('sends no list when the search failed, and records why', async () => {
+    const failure = new Error('Authentication required');
+    searchUsersForMention.mockRejectedValue(failure);
+    await mountOn();
+    const spy = watchFrame();
+
+    await post(
+      { MessageId: 'UI_Mention', Values: { type: 'autocomplete', text: '@al' } },
+      frameWindow()
+    );
+
+    expect(searchUsersForMention).toHaveBeenCalledTimes(1);
+    expect(spy).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: failure },
+      '[Collabora] Failed to search users'
+    );
+  });
+});
+
+/**
+ * A document that will not open has to say why. Without it the preview shows
+ * a loading line forever, or a frame pointed at nothing.
+ */
+describe('a document that will not open', () => {
+  it('shows why, instead of the frame', async () => {
+    fetchCollaboraConfig.mockRejectedValue(new Error('Collabora is not configured on the server.'));
+    await mountOn();
+
+    expect(fetchCollaboraConfig).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toBe('Collabora is not configured on the server.');
+    expect(wrapper.find('iframe').exists()).toBe(false);
+  });
+
+  it('shows an error when the server gives no address for the frame', async () => {
+    fetchCollaboraConfig.mockResolvedValue({});
+    await mountOn();
+
+    expect(wrapper.text()).toBe('Missing Collabora iframe URL.');
+    expect(wrapper.find('iframe').exists()).toBe(false);
+  });
+});
+
+describe('another document in the same preview', () => {
+  it('opens the new path in the frame', async () => {
+    const budget = `${EDITOR_ORIGIN}/browser/dist/cool.html?WOPISrc=budget`;
+    fetchCollaboraConfig
+      .mockResolvedValueOnce({ urlSrc: URL_SRC })
+      .mockResolvedValueOnce({ urlSrc: budget });
+    await mountOn();
+    expect(wrapper.find('iframe').attributes('src')).toBe(URL_SRC);
+
+    await wrapper.setProps({ filePath: 'Docs/budget.xlsx' });
+    await flushPromises();
+
+    expect(fetchCollaboraConfig).toHaveBeenLastCalledWith('Docs/budget.xlsx', 'edit');
+    expect(wrapper.find('iframe').attributes('src')).toBe(budget);
   });
 });
