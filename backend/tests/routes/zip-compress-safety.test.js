@@ -204,6 +204,22 @@ describe('an archive written next to existing files', () => {
     expect(await exists(path.join(ctx.volumeDir, 'escaped.zip'))).toBe(false);
     expect(await exists(path.join(ctx.tmpRoot, 'escaped.zip'))).toBe(false);
   });
+
+  /**
+   * The progress shows the start event's name for as long as the compression
+   * lasts. It was the name asked for, so an archive landing at "bundle
+   * (1).zip" was announced as "bundle.zip" — the file it steps aside for.
+   */
+  it('announces the name the archive will take when the one asked for is held', async () => {
+    const work = await seed(WITHOUT_SEVEN_ZIP);
+    await fs.writeFile(path.join(work, 'bundle.zip'), 'the archive someone already made');
+
+    const response = await compress({ items: BOTH, destination: 'Work', name: 'bundle' });
+
+    const stream = events(response);
+    expect(stream[0]).toMatchObject({ type: 'start', name: 'bundle (1).zip' });
+    expect(stream.at(-1)).toMatchObject({ type: 'done', item: { name: 'bundle (1).zip' } });
+  });
 });
 
 describe('an archive that fails while it is being written', () => {

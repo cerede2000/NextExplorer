@@ -341,3 +341,44 @@ describe('moving a symbolic link', () => {
     expect(fs.readFileSync(target, 'utf8')).toBe('pointed at');
   });
 });
+
+/**
+ * What a progress bar can say before the move: the name the placement would
+ * take now. A guess by design — the move still takes its own name at the end.
+ */
+describe('predicting the name a placement would take', () => {
+  it('answers the name asked for when it is free', async () => {
+    await expect(place.predictAvailableName(root, 'report.pdf')).resolves.toBe('report.pdf');
+  });
+
+  it('answers the first free candidate, a folder named as a new folder is', async () => {
+    file('report.pdf', 'held');
+    file('report (1).pdf', 'held');
+    fs.mkdirSync(path.join(root, 'Photos'));
+
+    await expect(place.predictAvailableName(root, 'report.pdf')).resolves.toBe('report (2).pdf');
+    await expect(place.predictAvailableName(root, 'Photos', { style: 'folder' })).resolves.toBe(
+      'Photos 2'
+    );
+  });
+
+  it('counts a link to nothing as holding its name', async () => {
+    fs.symlinkSync(path.join(root, 'gone'), path.join(root, 'report.pdf'));
+
+    await expect(place.predictAvailableName(root, 'report.pdf')).resolves.toBe('report (1).pdf');
+  });
+
+  it('takes nothing', async () => {
+    file('a.txt', 'kept');
+
+    await place.predictAvailableName(root, 'b.txt');
+
+    expect(names()).toEqual(['a.txt']);
+  });
+
+  it('answers the name asked for when the folder cannot be looked into', async () => {
+    const notAFolder = file('notes.txt', 'a file');
+
+    await expect(place.predictAvailableName(notAFolder, 'report.pdf')).resolves.toBe('report.pdf');
+  });
+});

@@ -14,7 +14,7 @@ const {
   combineRelativePath,
   ensureValidName,
 } = require('../utils/pathUtils');
-const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
+const { placeWithoutOverwrite, predictAvailableName } = require('../utils/placeWithoutOverwrite');
 const { takeInventory, removeInventoried } = require('../utils/ownedTree');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
@@ -417,13 +417,19 @@ router.post(
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
     // NDJSON progress events, mirroring the extract endpoint:
-    //   {type:'start',    name}          the name asked for
+    //   {type:'start',    name}          the name expected, "Archive (1).zip" when held
     //   {type:'progress', percent}       (throttled)
-    //   {type:'done',     success, item} the name taken, "Archive (1).zip" when held
+    //   {type:'done',     success, item} the name taken
     //   {type:'error',    message, code}
     const writeEvent = startNdjsonStream(res);
 
-    writeEvent({ type: 'start', name: requestedName });
+    // The progress shows this name for as long as the compression lasts, so it
+    // is the one the archive should land at rather than the one asked for. Only
+    // a guess: the name is taken at the end, by the move, and `done` says which.
+    writeEvent({
+      type: 'start',
+      name: await predictAvailableName(destinationAbsolutePath, requestedName),
+    });
 
     const onPercent = throttlePercent(writeEvent);
 
