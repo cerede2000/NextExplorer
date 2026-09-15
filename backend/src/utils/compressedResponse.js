@@ -31,29 +31,37 @@ const brotliCompress = promisify(zlib.brotliCompress);
 const COMPRESSION_THRESHOLD_BYTES = 32 * 1024;
 
 /**
- * gzip at level 1. Measured on 20 MB of JSON made of this repository's own code
- * and documentation, asynchronously:
+ * gzip at level 4. gzip is what a browser asks for over plain http — `br` is
+ * only advertised over HTTPS — so this is the level a server reached by its
+ * local address uses, and it decides two things: how long the first transfer
+ * takes, and whether the browser keeps the answer at all.
  *
- *   level 1  5.74 MB   96 ms
- *   level 3  5.37 MB  123 ms
- *   level 4  4.98 MB  143 ms
- *   level 6  4.74 MB  251 ms
+ * Measured asynchronously on 20 MB of JSON, made once of this repository's own
+ * code and documentation (repeated to reach the size, which gzip's 32 KB window
+ * cannot see) and once of 5,000 distinct files that never repeat:
  *
- * gzip is what a browser asks for over plain http — `br` is only advertised
- * over HTTPS — so this is the level a server reached by its local address
- * uses. On a gigabit link level 1 arrives first (96 ms + 46 ms of transfer,
- * against 143 + 40 for level 4 and 251 + 38 for level 6); at 100 Mbit/s level 4
- * wins by 14 ms in half a second. The server may also be a NAS several times
- * slower than the machine measured, where the compression time is the whole
- * cost, and each of those milliseconds holds one of the four threads file
- * reads share.
+ *            repository        distinct files
+ *   level 1  5.74 MB   96 ms   4.15 MB   70 ms
+ *   level 3  5.37 MB  123 ms   3.88 MB   88 ms
+ *   level 4  4.98 MB  143 ms   3.58 MB  111 ms
+ *   level 6  4.74 MB  251 ms   3.39 MB  183 ms
+ *
+ * On a local network level 1 arrives first, by a few tens of milliseconds. It
+ * loses on the second count: a browser caps each entry of its cache by the
+ * bytes it stores, which are the compressed ones. A Chromium measured here kept
+ * a 5.9 MB answer and not a 6.4 MB one — what a 20 MB Markdown file came to at
+ * level 1; it came to 5.6 MB at level 4. Past that cap every opening of the file
+ * is the whole download again, which costs far more than the 40 to 60 ms level
+ * 4 adds. Level 6 saves little more for nearly twice the time, and each of
+ * those milliseconds holds one of the four threads file reads share.
  */
-const GZIP_LEVEL = 1;
+const GZIP_LEVEL = 4;
 
 /**
- * Brotli at quality 4: 4.24 MB in 109 ms on the same body — smaller than gzip at
- * any level, in the time of gzip level 1. Quality 5 took 203 ms for 3.99 MB.
- * Offered over HTTPS, where the link is more often the slow part.
+ * Brotli at quality 4: on the same bodies, 4.24 MB in 109 ms and 2.61 MB in
+ * 77 ms — smaller than gzip at any level, in the time of gzip level 1 to 4.
+ * Quality 5 took 203 ms for 3.99 MB and 135 ms for 2.41 MB. Offered over HTTPS,
+ * where the link is more often the slow part.
  */
 const BROTLI_QUALITY = 4;
 

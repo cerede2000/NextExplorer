@@ -125,6 +125,28 @@ describe('a large text file over the wire', () => {
     }
   });
 
+  /**
+   * A browser caps each cache entry by the compressed bytes it stores, and a
+   * 20 MB Markdown file gzipped at level 1 came out just past the cap of a
+   * Chromium measured for this — so every opening downloaded it again.
+   */
+  it('is gzipped at least as hard as level 4, so a large file still fits a browser cache', async () => {
+    const { destination, server, baseUrl } = await build();
+    await fs.writeFile(path.join(destination, 'big.md'), LARGE);
+
+    try {
+      const response = await openInEditor(baseUrl, 'Notes/big.md', {
+        'Accept-Encoding': 'gzip, deflate',
+      });
+
+      const json = Buffer.from(JSON.stringify({ content: LARGE }));
+      expect(response.headers['content-encoding']).toBe('gzip');
+      expect(response.body.length).toBeLessThanOrEqual(zlib.gzipSync(json, { level: 4 }).length);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it('goes as brotli when that is offered', async () => {
     const { destination, server, baseUrl } = await build();
     await fs.writeFile(path.join(destination, 'big.md'), LARGE);
