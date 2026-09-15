@@ -204,12 +204,6 @@ const holdHiddenDirectory = (absolutePath) => {
   };
 };
 
-const cancelDirectoryTransfer = async (targetAbsolutePath) => {
-  if (!isEnabled()) return;
-  transferState.finish(targetAbsolutePath);
-  await onEntryDeleted(targetAbsolutePath, { isDirectory: true });
-};
-
 /** An entry has been moved from `sourceAbsolutePath` to `targetAbsolutePath`. */
 const onEntryMoved = (sourceAbsolutePath, targetAbsolutePath, meta = {}) => {
   notifySearchIndex('onPathMoved', sourceAbsolutePath, targetAbsolutePath);
@@ -393,7 +387,6 @@ module.exports = {
   onEntryDeleted,
   beginDirectoryTransfer,
   holdHiddenDirectory,
-  cancelDirectoryTransfer,
   onEntryMoved,
   onEntryCopied,
   refreshTransferredDirectories,

@@ -829,7 +829,6 @@ describe.each(ENGINES)('with the %s engine', (engine) => {
   describe('the folder-size hooks', () => {
     const INDEX_HOOKS = [
       'beginDirectoryTransfer',
-      'cancelDirectoryTransfer',
       'onEntryCopied',
       'onEntryMoved',
       'onEntryDeleted',

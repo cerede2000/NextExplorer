@@ -92,7 +92,6 @@ const everyHook = (root) => [
   ['onEntryDeleted (file)', (h) => h.onEntryDeleted(path.join(root, 'a.txt'), { size: 1024 })],
   ['onEntryDeleted (dir)', (h) => h.onEntryDeleted(path.join(root, 'sub'), { isDirectory: true })],
   ['beginDirectoryTransfer', (h) => h.beginDirectoryTransfer(path.join(root, 'sub'))],
-  ['cancelDirectoryTransfer', (h) => h.cancelDirectoryTransfer(path.join(root, 'sub'))],
   [
     'onEntryMoved',
     (h) => h.onEntryMoved(path.join(root, 'a.txt'), path.join(root, 'b.txt'), { size: 1024 }),
