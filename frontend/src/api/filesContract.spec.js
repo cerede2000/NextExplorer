@@ -24,12 +24,7 @@ vi.mock('./http', () => ({
   requestStream: (...a) => requestStream(...a),
   requestRaw: (...a) => requestRaw(...a),
   normalizePath: (p = '') => String(p).replace(/^\/+|\/+$/g, ''),
-  encodePath: (p = '') =>
-    String(p)
-      .split('/')
-      .filter(Boolean)
-      .map(encodeURIComponent)
-      .join('/'),
+  encodePath: (p = '') => String(p).split('/').filter(Boolean).map(encodeURIComponent).join('/'),
   buildUrl: (p) => `https://files.example.com${p}`,
 }));
 
@@ -164,13 +159,18 @@ describe('renaming', () => {
 });
 
 describe('the editor', () => {
-  it('asks for a file by posting its path, not by putting it in the url', async () => {
-    await fetchFileContent('Docs/notes #1.md');
+  /**
+   * A GET, which the browser can keep and revalidate: a POST is downloaded again
+   * every time, and opening the editor from the preview fetched a large file
+   * twice. The `#` would end the url and the `&` start another parameter.
+   */
+  it('asks for a file with a GET, its path encoded in the query string', async () => {
+    await fetchFileContent('Docs/notes #1 & co.md');
 
     expect(sent()).toMatchObject({
-      endpoint: '/api/editor',
-      method: 'POST',
-      body: { path: 'Docs/notes #1.md' },
+      endpoint: '/api/editor?path=Docs%2Fnotes%20%231%20%26%20co.md',
+      method: 'GET',
+      body: undefined,
     });
   });
 
@@ -187,9 +187,7 @@ describe('the editor inside a share', () => {
   it('encodes the token and every segment of the inner path', async () => {
     await fetchSharedFileContent('tok/en+1', '/My Folder/notes #1.md/');
 
-    expect(sent().endpoint).toBe(
-      '/api/share/tok%2Fen%2B1/editor/My%20Folder/notes%20%231.md'
-    );
+    expect(sent().endpoint).toBe('/api/share/tok%2Fen%2B1/editor/My%20Folder/notes%20%231.md');
   });
 
   it('drops the inner path entirely when the share is one file', async () => {

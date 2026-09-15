@@ -302,3 +302,27 @@ describe('what comes back on success', () => {
     expect(fetchMock.mock.calls[0][1].credentials).toBe('include');
   });
 });
+
+/**
+ * The text of a file is answered with an ETag and `no-cache`: the browser keeps
+ * it, asks again with If-None-Match, and turns a 304 back into the copy it kept,
+ * so the caller sees the 200 it had. Each of these would undo that — a cache
+ * mode that bypasses the cache, a parameter that makes every url a new one, or a
+ * conditional header of this module's own, with which the browser stops
+ * answering from its copy and hands the bare 304 to the caller.
+ */
+describe('what the browser may keep', () => {
+  it('leaves caching to the browser', async () => {
+    fetchMock.mockResolvedValue(ok({ content: 'text' }));
+
+    await settle(requestJson('/api/editor?path=Docs%2Fnotes.md', { method: 'GET' }));
+
+    const [url, sent] = fetchMock.mock.calls[0];
+    expect(url).toBe(buildUrl('/api/editor?path=Docs%2Fnotes.md'));
+    expect(sent).not.toHaveProperty('cache');
+    const cacheHeaders = Object.keys(sent.headers).filter((name) =>
+      /^(if-|cache-control$|pragma$)/i.test(name)
+    );
+    expect(cacheHeaders).toEqual([]);
+  });
+});

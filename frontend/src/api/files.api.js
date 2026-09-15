@@ -391,11 +391,16 @@ async function renameItem(path, name, newName) {
   });
 }
 
+/**
+ * The text of a file, for the editor and the Markdown preview.
+ *
+ * A GET, so the browser keeps the answer: the server marks it to be checked
+ * every time and answers 304 when the file has not changed, which the browser
+ * turns back into the copy it kept. Opening the editor from the preview used
+ * to download the whole file a second time — a POST is never kept.
+ */
 async function fetchFileContent(path) {
-  return requestJson('/api/editor', {
-    method: 'POST',
-    body: JSON.stringify({ path }),
-  });
+  return requestJson(`/api/editor?path=${encodeURIComponent(path)}`, { method: 'GET' });
 }
 
 async function fetchSharedFileContent(shareToken, innerPath = '') {
