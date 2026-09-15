@@ -245,6 +245,21 @@ describe('reading the document in slabs', () => {
     expect(codeBlocks[0].textContent).toContain('const x3999 = 3999;');
   });
 
+  /**
+   * A document that never leaves a blank line — a log pasted into a `.md` — was
+   * one slab: a single paragraph the size of the file, lexed, sanitised and
+   * laid out in one stretch, which froze the tab for as long as that took.
+   */
+  it('cuts a document that never leaves a blank line into pieces, and loses none of it', async () => {
+    const lines = Array.from({ length: 6000 }, (unused, i) => `Log line ${i} of the export.`);
+    const wrapper = mountWith(lines.join('\n'));
+    await settleFully();
+
+    expect(wrapper.element.querySelectorAll('section').length).toBeGreaterThan(1);
+    expect(wrapper.text()).toContain('Log line 0 of the export.');
+    expect(wrapper.text()).toContain('Log line 5999 of the export.');
+  });
+
   // The lexer collects link definitions onto the tokens it produced, so a slab
   // only knows the ones inside it. A definition at the bottom of a long
   // document has to reach a reference at the top.

@@ -40,6 +40,7 @@ import { useI18n } from 'vue-i18n';
 import DOMPurify from 'dompurify';
 import { useFeaturesStore } from '@/stores/features';
 import { formatBytes } from '@/utils';
+import { nextSlabEnd, slabSource } from './slabs';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -114,41 +115,6 @@ const MIN_SLAB_BYTES = 8 * 1024;
 const MAX_SLAB_BYTES = 512 * 1024;
 
 /**
- * Where the next slab may end: a blank line, at or past the target, and never
- * inside a fenced code block — splitting one would leave the fence unclosed
- * and the rest of the document rendered as code.
- *
- * Written over the source string rather than over `split('\n')`, which would
- * hold the whole document a second time in several hundred thousand pieces.
- */
-const nextSlabEnd = (text, from, target) => {
-  let index = from;
-  let fence = null;
-
-  while (index < text.length) {
-    let lineEnd = text.indexOf('\n', index);
-    if (lineEnd === -1) lineEnd = text.length;
-
-    let firstNonSpace = index;
-    while (firstNonSpace < lineEnd && (text[firstNonSpace] === ' ' || text[firstNonSpace] === '\t')) {
-      firstNonSpace += 1;
-    }
-    const blank = firstNonSpace === lineEnd;
-    const opener = text[firstNonSpace];
-
-    if (!blank && (opener === '`' || opener === '~')) {
-      const marker = /^(`{3,}|~{3,})/.exec(text.slice(firstNonSpace, lineEnd));
-      if (marker) fence = fence && marker[1].startsWith(fence[0]) ? null : fence || marker[1];
-    }
-
-    index = lineEnd + 1;
-    if (!fence && blank && index - from >= target) return Math.min(index, text.length);
-  }
-
-  return text.length;
-};
-
-/**
  * Reference-style link definitions, gathered before anything is rendered.
  *
  * The lexer collects them onto the token array it produces, so a document read
@@ -192,7 +158,10 @@ const PIXELS_PER_LINE = 24;
 
 const appendChunk = (fragment, sourceLength) => {
   const section = document.createElement('section');
-  const estimate = Math.max(200, Math.round((sourceLength / CHARACTERS_PER_LINE) * PIXELS_PER_LINE));
+  const estimate = Math.max(
+    200,
+    Math.round((sourceLength / CHARACTERS_PER_LINE) * PIXELS_PER_LINE)
+  );
   section.style.contentVisibility = 'auto';
   // `auto` first: once a chunk has been on screen the browser remembers what
   // it really measured and stops using the estimate at all.
@@ -234,12 +203,17 @@ onMounted(async () => {
     let slabBytes = INITIAL_SLAB_BYTES;
 
     let sliceStartedAt = Date.now();
+    // The code block the last slab was cut inside, which this one reopens.
+    let openFence = null;
 
     while (index < total) {
       if (cancelled) return;
 
-      const end = nextSlabEnd(content, index, slabBytes);
-      const slab = content.slice(index, end);
+      const cut = nextSlabEnd(content, index, slabBytes, openFence);
+      // Always forward, whatever the cut answered, so no document can hold the loop.
+      const end = cut.end > index ? cut.end : Math.min(total, index + slabBytes);
+      const slab = slabSource(content, index, end, openFence, cut.fence);
+      openFence = cut.fence;
 
       const startedAt = Date.now();
       // Prepended rather than assigned afterwards: the lexer resolves inline
@@ -259,7 +233,8 @@ onMounted(async () => {
 
       // What the last slab cost decides the next one's size.
       if (took < FRAME_BUDGET_MS / 2) slabBytes = Math.min(slabBytes * 2, MAX_SLAB_BYTES);
-      else if (took > FRAME_BUDGET_MS) slabBytes = Math.max(Math.floor(slabBytes / 2), MIN_SLAB_BYTES);
+      else if (took > FRAME_BUDGET_MS)
+        slabBytes = Math.max(Math.floor(slabBytes / 2), MIN_SLAB_BYTES);
 
       if (index < total && Date.now() - sliceStartedAt >= FRAME_BUDGET_MS) {
         // The percentage is written here rather than after every slab: it is a
