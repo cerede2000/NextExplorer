@@ -88,7 +88,8 @@
     "selectTheme": "Alegeți tema editorului",
     "raw": "Brut",
     "trashReadOnly": "În coșul de gunoi · doar citire",
-    "versionReadOnly": "Versiune anterioară, doar citire"
+    "versionReadOnly": "Versiune anterioară, doar citire",
+    "highlightingOffTooLarge": "Evidențierea sintaxei este dezactivată pentru acest fișier: o parte din el este prea mare pentru a fi evidențiată fără a bloca pagina."
   },
   "status": {
     "updated": "Actualizat cu succes",

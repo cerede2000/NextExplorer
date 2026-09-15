@@ -88,7 +88,8 @@
     "selectTheme": "Escolher o tema do editor",
     "raw": "Bruto",
     "trashReadOnly": "Na lixeira · somente leitura",
-    "versionReadOnly": "Versão anterior, somente leitura"
+    "versionReadOnly": "Versão anterior, somente leitura",
+    "highlightingOffTooLarge": "O realce de sintaxe está desativado para este arquivo: uma parte é grande demais para ser realçada sem travar a página."
   },
   "status": {
     "updated": "Atualizado com sucesso",

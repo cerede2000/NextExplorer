@@ -88,7 +88,8 @@
     "selectTheme": "Select editor theme",
     "raw": "Raw",
     "trashReadOnly": "In the trash · read only",
-    "versionReadOnly": "Earlier version, read-only"
+    "versionReadOnly": "Earlier version, read-only",
+    "highlightingOffTooLarge": "Syntax highlighting is off for this file: part of it is too large to highlight without freezing the page."
   },
   "status": {
     "updated": "Updated successfully",

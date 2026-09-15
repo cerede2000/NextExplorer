@@ -88,7 +88,8 @@
     "selectTheme": "Wybierz motyw edytora",
     "raw": "Surowy",
     "trashReadOnly": "W koszu · tylko do odczytu",
-    "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu"
+    "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu",
+    "highlightingOffTooLarge": "Podświetlanie składni jest wyłączone dla tego pliku: jego część jest zbyt duża, by ją podświetlić bez zamrożenia strony."
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",

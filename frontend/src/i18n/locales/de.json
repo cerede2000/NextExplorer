@@ -88,7 +88,8 @@
     "selectTheme": "Editor-Thema wählen",
     "raw": "Roh",
     "trashReadOnly": "Im Papierkorb · schreibgeschützt",
-    "versionReadOnly": "Frühere Version, schreibgeschützt"
+    "versionReadOnly": "Frühere Version, schreibgeschützt",
+    "highlightingOffTooLarge": "Syntaxhervorhebung für diese Datei ausgeschaltet: Ein Teil davon ist zu groß, um ihn hervorzuheben, ohne die Seite einzufrieren."
   },
   "status": {
     "updated": "Erfolgreich aktualisiert",

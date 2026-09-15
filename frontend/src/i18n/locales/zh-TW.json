@@ -88,7 +88,8 @@
     "selectTheme": "選擇編輯器佈景",
     "raw": "原始",
     "trashReadOnly": "資源回收筒中 · 唯讀",
-    "versionReadOnly": "先前版本，唯讀"
+    "versionReadOnly": "先前版本，唯讀",
+    "highlightingOffTooLarge": "此檔案已關閉語法醒目提示：其中一部分太大，無法在不讓頁面凍結的情況下醒目提示。"
   },
   "status": {
     "updated": "更新成功",

@@ -88,7 +88,8 @@
     "selectTheme": "Choisir le thème de l'éditeur",
     "raw": "Brut",
     "trashReadOnly": "Dans la corbeille · lecture seule",
-    "versionReadOnly": "Version antérieure, lecture seule"
+    "versionReadOnly": "Version antérieure, lecture seule",
+    "highlightingOffTooLarge": "Coloration syntaxique désactivée pour ce fichier : une partie est trop grande pour être colorée sans figer la page."
   },
   "status": {
     "updated": "Mis à jour avec succès",

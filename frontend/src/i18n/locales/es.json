@@ -88,7 +88,8 @@
     "selectTheme": "Elegir el tema del editor",
     "raw": "Sin formato",
     "trashReadOnly": "En la papelera · solo lectura",
-    "versionReadOnly": "Versión anterior, solo lectura"
+    "versionReadOnly": "Versión anterior, solo lectura",
+    "highlightingOffTooLarge": "El resaltado de sintaxis está desactivado para este archivo: una parte es demasiado grande para resaltarla sin bloquear la página."
   },
   "status": {
     "updated": "Actualizado correctamente",

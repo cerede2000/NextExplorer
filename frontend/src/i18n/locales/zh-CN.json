@@ -88,7 +88,8 @@
     "selectTheme": "选择编辑器主题",
     "raw": "原始",
     "trashReadOnly": "回收站中 · 只读",
-    "versionReadOnly": "历史版本，只读"
+    "versionReadOnly": "历史版本，只读",
+    "highlightingOffTooLarge": "此文件已关闭语法高亮：其中一部分太大，无法在不卡住页面的情况下高亮显示。"
   },
   "status": {
     "updated": "更新成功",

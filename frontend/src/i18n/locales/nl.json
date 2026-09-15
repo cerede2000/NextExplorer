@@ -88,7 +88,8 @@
     "selectTheme": "Editorthema kiezen",
     "raw": "Onbewerkt",
     "trashReadOnly": "In de prullenbak · alleen-lezen",
-    "versionReadOnly": "Eerdere versie, alleen-lezen"
+    "versionReadOnly": "Eerdere versie, alleen-lezen",
+    "highlightingOffTooLarge": "Syntaxiskleuring staat uit voor dit bestand: een deel ervan is te groot om te kleuren zonder de pagina te laten vastlopen."
   },
   "status": {
     "updated": "Met succes bijgewerkt",

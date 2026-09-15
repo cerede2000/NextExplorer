@@ -88,7 +88,8 @@
     "selectTheme": "Välj redigerarens tema",
     "raw": "Rå",
     "trashReadOnly": "I papperskorgen · skrivskyddad",
-    "versionReadOnly": "Tidigare version, skrivskyddad"
+    "versionReadOnly": "Tidigare version, skrivskyddad",
+    "highlightingOffTooLarge": "Syntaxmarkering är avstängd för den här filen: en del av den är för stor för att markeras utan att sidan fryser."
   },
   "status": {
     "updated": "Uppdaterades",

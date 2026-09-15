@@ -157,14 +157,23 @@
       <div v-else-if="loadError" class="p-6 text-sm text-red-600 dark:text-red-400">
         {{ loadError }}
       </div>
-      <div v-else class="h-full">
-        <Codemirror
-          v-model="fileContent"
+      <div v-else class="flex h-full flex-col">
+        <p
+          v-if="highlightingOff"
+          class="border-b border-neutral-200 px-4 py-1 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"
+          data-testid="editor-highlighting-off"
+        >
+          {{ t('editor.highlightingOffTooLarge') }}
+        </p>
+        <CodeSurface
+          ref="surface"
+          :content="loadedContent"
           :autofocus="true"
           :extensions="extensions"
-          class="h-full"
-          :style="{ height: '100%' }"
+          class="min-h-0 flex-1"
           @ready="handleReady"
+          @edit="handleEdit"
+          @dirty-change="(value) => (hasUnsavedChanges = value)"
         />
       </div>
     </section>
@@ -175,8 +184,9 @@
 import { ref, shallowRef, watch, computed } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { Codemirror } from 'vue-codemirror';
 import { Compartment, EditorState } from '@codemirror/state';
+import CodeSurface from '@/components/editor/CodeSurface.vue';
+import { longestBlockLength, longestLineLength } from '@/utils/textBlocks';
 import {
   fetchFileContent,
   fetchSharedFileContent,
@@ -208,8 +218,12 @@ const folderScrollStore = useFolderScrollStore();
 const versionsPanel = useVersionsPanelStore();
 
 // State
-const fileContent = ref('');
-const originalContent = ref('');
+// The document as read. The text being edited lives in CodeMirror, and is
+// taken from it once, when it is saved.
+const loadedContent = shallowRef('');
+const surface = ref(null);
+const hasUnsavedChanges = ref(false);
+const highlightingOff = ref(false);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const loadError = ref('');
@@ -219,7 +233,9 @@ const isThemeMenuOpen = ref(false);
 const themeMenuRef = ref(null);
 const isSettingsMenuOpen = ref(false);
 const settingsMenuRef = ref(null);
-const isLineWrapping = ref(true); // Default to true
+// Off, as the editor starts: this said true while no line was wrapped, so the
+// menu showed the option ticked and the first press appeared to do nothing.
+const isLineWrapping = ref(false);
 const sharedFileName = ref('');
 const sharedCanDownload = ref(false);
 const sharedCanWrite = ref(false);
@@ -331,7 +347,6 @@ const displayPath = computed(() => {
   if (isVersionViewer.value) return versionFileName.value || normalizedPath.value;
   return isSharedEditor.value ? sharedFileName.value || sharedPath.value : normalizedPath.value;
 });
-const hasUnsavedChanges = computed(() => fileContent.value !== originalContent.value);
 const canSave = computed(
   () =>
     !isViewerOnly.value &&
@@ -372,7 +387,8 @@ const loadFile = async () => {
   const path = normalizedPath.value;
 
   if (!isSharedEditor.value && !isTrashViewer.value && !path) {
-    fileContent.value = originalContent.value = '';
+    loadedContent.value = '';
+    hasUnsavedChanges.value = false;
     return;
   }
 
@@ -405,7 +421,8 @@ const loadFile = async () => {
     sharedCanDownload.value = Boolean(isSharedEditor.value && response.canDownload);
     sharedCanWrite.value = Boolean(isSharedEditor.value && response.canWrite);
     sharedDirectPath.value = isSharedEditor.value ? response.path || '' : '';
-    fileContent.value = originalContent.value = response.content || '';
+    loadedContent.value = response.content || '';
+    hasUnsavedChanges.value = false;
     applyLanguage(displayPath.value);
   } catch (err) {
     if (requestPath !== route.fullPath) return;
@@ -419,15 +436,21 @@ const saveFile = async () => {
   // Nothing opened from the trash or from a file's history is ever written back.
   if (isViewerOnly.value) return;
   if (!canSave.value || (!isSharedEditor.value && !normalizedPath.value)) return;
+  const doc = surface.value?.snapshot();
+  if (!doc) return;
+  // The only time the whole document becomes one string.
+  const text = doc.toString();
   isSaving.value = true;
   saveError.value = '';
   try {
     if (isSharedEditor.value) {
-      await saveSharedFileContent(sharedToken.value, sharedDirectPath.value, fileContent.value);
+      await saveSharedFileContent(sharedToken.value, sharedDirectPath.value, text);
     } else {
-      await saveFileContent(normalizedPath.value, fileContent.value);
+      await saveFileContent(normalizedPath.value, text);
     }
-    originalContent.value = fileContent.value;
+    // What was written, not what is on screen now: typing during the save is
+    // still unsaved.
+    surface.value?.markSaved(doc);
   } catch (err) {
     saveError.value = err.message;
   } finally {
@@ -490,6 +513,35 @@ const requestClose = () => {
   router.replace(`/browse${parent ? '/' + parent : ''}`);
 };
 
+/**
+ * How long one Markdown block may be before the file is opened without
+ * colouring.
+ *
+ * The Markdown parser reads a paragraph whole, in one go, once it ends. A
+ * nineteen-megabyte file with no blank line in it is a single paragraph, and
+ * reading it froze the page for five and a half seconds here, right after the
+ * editor had opened; the same text as `.txt` opened in 36 ms. At that rate a
+ * quarter of a megabyte is about 75 ms, which a page absorbs.
+ */
+const MARKDOWN_BLOCK_LIMIT = 256 * 1024;
+
+/**
+ * How long one line may be before a file in any other language is opened
+ * without colouring. Those parsers divide a document by lines: a
+ * nineteen-megabyte JSON file on one line held the page in jolts of up to
+ * 220 ms for six seconds, about 170 ms frozen per megabyte of line. A line of
+ * this length costs about ten, and nobody writes one by hand.
+ */
+const LONG_LINE_LIMIT = 64 * 1024;
+
+/** Whether parsing this document for colours would hold the page. */
+const tooLargeToColour = (desc, text) => {
+  if (!desc) return false;
+  return desc.name === 'Markdown'
+    ? longestBlockLength(text) > MARKDOWN_BLOCK_LIMIT
+    : longestLineLength(text) > LONG_LINE_LIMIT;
+};
+
 const applyLanguage = async (path) => {
   if (!view.value) return;
   const ext = path.split('.').pop().toLowerCase();
@@ -497,9 +549,12 @@ const applyLanguage = async (path) => {
   try {
     const { languages } = await import('@codemirror/language-data');
     // Simplified matching: extension -> name -> fallback for frameworks
-    const desc =
+    let desc =
       languages.find((l) => l.extensions?.includes(ext) || l.name?.toLowerCase() === ext) ??
       (['vue', 'svelte', 'astro'].includes(ext) ? languages.find((l) => l.name === 'HTML') : null);
+
+    highlightingOff.value = tooLargeToColour(desc, loadedContent.value);
+    if (highlightingOff.value) desc = null;
 
     view.value.dispatch({
       effects: languageComp.reconfigure(desc ? await desc.load() : []),
@@ -547,7 +602,7 @@ watch(view, () => {
   applyLanguage(displayPath.value);
 });
 watch([isSharedEditor, sharedCanWrite, isTrashViewer, isVersionViewer], updateReadOnlyMode);
-watch(fileContent, () => {
+function handleEdit() {
   if (saveError.value) saveError.value = '';
-});
+}
 </script>

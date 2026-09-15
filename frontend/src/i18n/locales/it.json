@@ -88,7 +88,8 @@
     "selectTheme": "Scegli il tema dell'editor",
     "raw": "Grezzo",
     "trashReadOnly": "Nel cestino · sola lettura",
-    "versionReadOnly": "Versione precedente, sola lettura"
+    "versionReadOnly": "Versione precedente, sola lettura",
+    "highlightingOffTooLarge": "Evidenziazione della sintassi disattivata per questo file: una parte è troppo grande per essere evidenziata senza bloccare la pagina."
   },
   "status": {
     "updated": "Aggiornato con successo",

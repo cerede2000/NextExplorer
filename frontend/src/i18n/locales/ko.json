@@ -88,7 +88,8 @@
     "selectTheme": "편집기 테마 선택",
     "raw": "원본",
     "trashReadOnly": "휴지통 · 읽기 전용",
-    "versionReadOnly": "이전 버전, 읽기 전용"
+    "versionReadOnly": "이전 버전, 읽기 전용",
+    "highlightingOffTooLarge": "이 파일은 구문 강조가 꺼져 있습니다. 일부가 너무 커서 페이지를 멈추지 않고는 강조할 수 없습니다."
   },
   "status": {
     "updated": "업데이트 성공",

@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { defineComponent } from 'vue';
 
 /**
  * The text editor.
@@ -68,14 +67,57 @@ vi.mock('@/stores/folderScroll', () => ({ useFolderScrollStore: () => folderScro
 const versionsPanel = vi.hoisted(() => ({ openPath: vi.fn() }));
 vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versionsPanel }));
 
-// CodeMirror is a text area with a parser in it; nothing here is about that.
-vi.mock('vue-codemirror', () => ({
-  Codemirror: defineComponent({
-    name: 'CodemirrorStub',
-    props: ['modelValue'],
-    emits: ['update:modelValue', 'ready'],
-    render: () => null,
-  }),
+/**
+ * CodeMirror is a text area with a parser in it; nothing here is about that.
+ * `CodeSurface.spec.js` holds it to what it owes this screen. The stand-in keeps
+ * the same promise: a document, a way to type into it, and whether it differs
+ * from what was last read or saved.
+ */
+const surface = vi.hoisted(() => ({ view: null, current: null }));
+
+vi.mock('@/components/editor/CodeSurface.vue', async () => {
+  const { defineComponent: define, onMounted, onBeforeUnmount } = await import('vue');
+  return {
+    default: define({
+      name: 'CodeSurfaceStub',
+      props: ['content', 'extensions', 'autofocus'],
+      emits: ['ready', 'edit', 'dirty-change'],
+      setup(props, { emit, expose }) {
+        let text = props.content;
+        let saved = props.content;
+        const handle = {
+          typeText: (value) => {
+            text = value;
+            emit('edit');
+            emit('dirty-change', value !== saved);
+          },
+          snapshot: () => text,
+          markSaved: (doc) => {
+            saved = doc;
+            emit('dirty-change', text !== saved);
+          },
+        };
+        // What the screen reaches through its template ref, and what the tests
+        // type through.
+        expose(handle);
+        surface.current = handle;
+        onMounted(() => emit('ready', { view: surface.view }));
+        onBeforeUnmount(() => {
+          if (surface.current === handle) surface.current = null;
+        });
+        return () => null;
+      },
+    }),
+  };
+});
+
+const languageData = vi.hoisted(() => ({
+  markdown: { name: 'Markdown', extensions: ['md', 'markdown'], load: vi.fn(async () => []) },
+  json: { name: 'JSON', extensions: ['json'], load: vi.fn(async () => []) },
+}));
+
+vi.mock('@codemirror/language-data', () => ({
+  languages: [languageData.markdown, languageData.json],
 }));
 
 const EditorViewComponent = (await import('./EditorView.vue')).default;
@@ -86,7 +128,7 @@ let wrapper = null;
 
 const mountEditor = async () => {
   wrapper = mount(EditorViewComponent, {
-    global: { mocks: { $t: (key) => key }, stubs: { Codemirror: true } },
+    global: { mocks: { $t: (key) => key } },
   });
   await flushPromises();
   return wrapper.vm;
@@ -100,13 +142,18 @@ const asShare = () => {
   });
 };
 
+/** Typed into the editor, when there is an editor on screen to type into. */
 const type = async (view, text) => {
-  view.fileContent = text;
+  surface.current?.typeText(text);
   await flushPromises();
 };
 
 beforeEach(() => {
   localStorage.clear();
+  surface.view = { dispatch: vi.fn() };
+  surface.current = null;
+  languageData.markdown.load.mockClear();
+  languageData.json.load.mockClear();
   shared.guards.length = 0;
   Object.values(api).forEach((fn) => fn.mockClear());
   api.fetchFileContent.mockResolvedValue({ content: 'hello' });
@@ -141,7 +188,7 @@ describe('opening a file', () => {
   it('shows what came back', async () => {
     const view = await mountEditor();
 
-    expect(view.fileContent).toBe('hello');
+    expect(view.loadedContent).toBe('hello');
     expect(view.hasUnsavedChanges).toBe(false);
   });
 
@@ -182,7 +229,7 @@ describe('opening a file', () => {
     answerFirst({ content: 'the old file' });
     await flushPromises();
 
-    expect(view.fileContent).toBe('hello');
+    expect(view.loadedContent).toBe('hello');
   });
 
   it('ignores a failure for a file no longer being edited', async () => {
@@ -266,7 +313,7 @@ describe('whether saving is offered', () => {
   it('is not while the file is still being read', async () => {
     api.fetchFileContent.mockImplementation(() => new Promise(() => {}));
     wrapper = mount(EditorViewComponent, {
-      global: { mocks: { $t: (key) => key }, stubs: { Codemirror: true } },
+      global: { mocks: { $t: (key) => key } },
     });
     await flushPromises();
 
@@ -486,7 +533,7 @@ describe('reading a file from the trash', () => {
 
     expect(api.getTrashFileText).toHaveBeenCalledWith('id-1', 'drafts/run.sh');
     expect(api.fetchFileContent).not.toHaveBeenCalled();
-    expect(view.fileContent).toBe('#!/bin/sh\necho hi\n');
+    expect(view.loadedContent).toBe('#!/bin/sh\necho hi\n');
     expect(view.displayPath).toBe('run.sh');
   });
 
@@ -580,7 +627,7 @@ describe('reading an earlier version of a file', () => {
 
     expect(api.getVersionText).toHaveBeenCalledWith('Docs/notes.md', 'v-1');
     expect(api.fetchFileContent).not.toHaveBeenCalled();
-    expect(view.fileContent).toBe('# as it was\n');
+    expect(view.loadedContent).toBe('# as it was\n');
     expect(view.displayPath).toBe('notes.md');
   });
 
@@ -745,5 +792,120 @@ describe('choosing a theme', () => {
     view.updateTheme('githubLight');
 
     expect(view.currentThemeLabel).toBe('Github Light');
+  });
+});
+
+/**
+ * Colouring a Markdown file means parsing it, and the parser reads a paragraph
+ * whole once it ends. A large file that never leaves a blank line is one
+ * paragraph, and reading it held the page for seconds right after the editor
+ * opened. Such a file opens as plain text, and says why it has no colours.
+ */
+describe('colouring a Markdown file', () => {
+  const settleLanguage = async () => {
+    await vi.dynamicImportSettled();
+    await flushPromises();
+  };
+
+  it('colours an ordinary one', async () => {
+    api.fetchFileContent.mockResolvedValue({ content: '# Title\n\nSome text.\n' });
+
+    await mountEditor();
+    await settleLanguage();
+
+    expect(languageData.markdown.load).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(false);
+  });
+
+  it('opens one with a block too long to parse as plain text, and says so', async () => {
+    const oneBlock = 'a line of an export\n'.repeat(16000);
+    api.fetchFileContent.mockResolvedValue({ content: oneBlock });
+
+    await mountEditor();
+    await settleLanguage();
+
+    expect(languageData.markdown.load).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').text()).toBe(
+      'editor.highlightingOffTooLarge'
+    );
+  });
+
+  it('colours a long one made of ordinary paragraphs', async () => {
+    const paragraphs = 'a paragraph of prose\n\n'.repeat(16000);
+    api.fetchFileContent.mockResolvedValue({ content: paragraphs });
+
+    await mountEditor();
+    await settleLanguage();
+
+    expect(languageData.markdown.load).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * The other parsers divide a document by lines, and cannot divide one line. A
+ * large JSON file written on a single line held the page in jolts for seconds.
+ */
+describe('colouring a file in another language', () => {
+  const openJson = async (content) => {
+    Object.assign(route(), {
+      fullPath: '/editor/Docs/data.json',
+      params: { path: 'Docs/data.json' },
+    });
+    api.fetchFileContent.mockResolvedValue({ content });
+    await mountEditor();
+    await vi.dynamicImportSettled();
+    await flushPromises();
+  };
+
+  it('colours one written over ordinary lines, however long the file', async () => {
+    await openJson(`[\n${'  {"id": 1, "name": "an item"},\n'.repeat(20000)}]`);
+
+    expect(languageData.json.load).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(false);
+  });
+
+  it('opens one with a line too long to parse as plain text, and says so', async () => {
+    await openJson(`[${'{"id":1,"name":"an item"},'.repeat(4000)}{}]`);
+
+    expect(languageData.json.load).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(true);
+  });
+});
+
+describe('typing while a save is being written', () => {
+  /** What was written is saved; what was typed after it was taken is not. */
+  it('saves the text as it was when the save began, and keeps the rest unsaved', async () => {
+    let finish;
+    api.saveFileContent.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const view = await mountEditor();
+    await type(view, 'hello, world');
+
+    const saving = view.saveFile();
+    await type(view, 'hello, world, and more');
+    finish({});
+    await saving;
+    await flushPromises();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith('Docs/notes.md', 'hello, world');
+    expect(view.hasUnsavedChanges).toBe(true);
+  });
+});
+
+describe('wrapping lines', () => {
+  /** The menu said the option was on while no line was wrapped. */
+  it('starts off, as the editor does, and turns on at the first press', async () => {
+    const view = await mountEditor();
+    expect(view.isLineWrapping).toBe(false);
+
+    view.toggleLineWrapping();
+
+    expect(view.isLineWrapping).toBe(true);
+    expect(surface.view.dispatch).toHaveBeenCalled();
   });
 });
