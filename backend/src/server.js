@@ -20,6 +20,7 @@ const logger = require('./utils/logger');
 const { printStartupBanner } = require('./utils/startupBanner');
 const { cleanupExpiredShares } = require('./services/sharesService');
 const { cleanupExpiredSessions } = require('./services/guestSessionService');
+const { purgeExpiredDocumentKeys } = require('./services/onlyofficeDocumentKeyService');
 const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
 const searchIndexManager = require('./services/searchIndexManager');
@@ -92,12 +93,16 @@ const startServer = async () => {
   const EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
   const sweepExpiredRecords = async () => {
     try {
-      const [shares, sessions] = await Promise.all([
+      const [shares, sessions, documentKeys] = await Promise.all([
         cleanupExpiredShares(),
         cleanupExpiredSessions(),
+        purgeExpiredDocumentKeys(),
       ]);
-      if (shares || sessions) {
-        logger.info({ shares, sessions }, 'Purged expired shares and guest sessions');
+      if (shares || sessions || documentKeys) {
+        logger.info(
+          { shares, sessions, documentKeys },
+          'Purged expired shares, guest sessions and ONLYOFFICE document keys'
+        );
       }
     } catch (error) {
       logger.warn({ err: error }, 'Expiry sweep failed');

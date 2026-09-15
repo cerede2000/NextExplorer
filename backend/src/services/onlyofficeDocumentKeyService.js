@@ -142,8 +142,23 @@ const renameDocumentKey = async ({ from, to }) => {
   }
 };
 
+/**
+ * Remove the keys nobody can be handed any more.
+ *
+ * A key past its expiry is never reused: the next open mints a new one. Its row
+ * stayed all the same. Only a terminal callback released a key, and a Document
+ * Server that never sent one — a browser closed on the editor, a server
+ * restarted — left the row for good, one for every document ever opened.
+ */
+const purgeExpiredDocumentKeys = async () => {
+  const db = await getDb();
+  return db.prepare('DELETE FROM onlyoffice_document_keys WHERE expires_at <= ?').run(nowIso())
+    .changes;
+};
+
 module.exports = {
   buildSignature,
+  purgeExpiredDocumentKeys,
   resolveDocumentKey,
   releaseDocumentKey,
   renameDocumentKey,
