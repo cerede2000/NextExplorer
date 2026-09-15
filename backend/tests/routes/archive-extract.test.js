@@ -5,7 +5,7 @@ import fss from 'node:fs';
 import express from 'express';
 import request from 'supertest';
 import AdmZip from 'adm-zip';
-import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
+import { setupTestEnv, clearModuleCache, modulePath } from '../helpers/env-test-utils.js';
 
 let envContext;
 
@@ -253,6 +253,74 @@ describe('Archive extraction', () => {
     expect(journalRecords()).toEqual([]);
     envContext.requireFresh('src/services/inFlightFiles').sweepInterrupted();
     expect(await fs.readFile(path.join(target, 'theirs.txt'))).toEqual(theirs);
+  });
+
+  /**
+   * A new folder appears under its name only once the archive is whole in it.
+   * Created first and extracted into, a failure removed it — and whatever
+   * someone had put in it meanwhile — and a success merged into a folder that
+   * appeared under the name during the extraction.
+   */
+  const extractingWith = (during) => {
+    const archiveService = require(modulePath('src/services/archiveService'));
+    vi.spyOn(archiveService, 'getSupportedArchiveExtensions').mockReturnValue(['zip']);
+    vi.spyOn(archiveService, 'isSevenZipAvailable').mockResolvedValue(true);
+    vi.spyOn(archiveService, 'readArchiveFootprint').mockResolvedValue(null);
+    vi.spyOn(archiveService, 'extractArchive').mockImplementation(async (_archive, destination) => {
+      await fs.writeFile(path.join(destination, 'inside.txt'), 'inside');
+      await during();
+    });
+  };
+
+  const archiveIn = async (directory) => {
+    const workDir = path.join(envContext.volumeDir, directory);
+    await fs.mkdir(workDir, { recursive: true });
+    const zip = new AdmZip();
+    zip.addFile('inside.txt', Buffer.from('inside'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+    return workDir;
+  };
+
+  it('keeps what someone puts under the new folder’s name during an extraction that then fails', async () => {
+    const workDir = await archiveIn('extract-fails');
+    const target = path.join(workDir, 'sample');
+    const theirs = Buffer.from('saved into the new folder meanwhile\n');
+    extractingWith(async () => {
+      await fs.mkdir(target, { recursive: true });
+      await fs.writeFile(path.join(target, 'theirs.txt'), theirs);
+      throw Object.assign(new Error('The disk went away.'), { code: 'EIO' });
+    });
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'extract-fails/sample.zip' });
+
+    expect(parseNdjson(response.text).at(-1)).toMatchObject({ type: 'error' });
+    expect(await fs.readdir(target)).toEqual(['theirs.txt']);
+    expect(await fs.readFile(path.join(target, 'theirs.txt'))).toEqual(theirs);
+    expect((await fs.readdir(workDir)).sort()).toEqual(['sample', 'sample.zip']);
+    expect(journalRecords()).toEqual([]);
+  });
+
+  it('puts the new folder beside one that appeared under its name during the extraction', async () => {
+    const workDir = await archiveIn('extract-beside');
+    const target = path.join(workDir, 'sample');
+    const theirs = Buffer.from('put here by someone else\n');
+    extractingWith(async () => {
+      await fs.mkdir(target, { recursive: true });
+      await fs.writeFile(path.join(target, 'theirs.txt'), theirs);
+    });
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'extract-beside/sample.zip' });
+
+    const events = parseNdjson(response.text);
+    expect(events[0]).toMatchObject({ type: 'start', name: 'sample' });
+    expect(events.at(-1)).toMatchObject({ type: 'done', item: { name: 'sample 2' } });
+    expect(await fs.readdir(target)).toEqual(['theirs.txt']);
+    expect(await fs.readFile(path.join(workDir, 'sample 2', 'inside.txt'), 'utf8')).toBe('inside');
+    expect((await fs.readdir(workDir)).sort()).toEqual(['sample', 'sample 2', 'sample.zip']);
   });
 
   it('rejects formats the local build does not support', async () => {

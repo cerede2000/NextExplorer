@@ -14,7 +14,7 @@ const {
   combineRelativePath,
   ensureValidName,
 } = require('../utils/pathUtils');
-const { placeWithoutOverwrite, reserveAvailableName } = require('../utils/placeWithoutOverwrite');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
@@ -202,30 +202,19 @@ router.post(
       }
     })();
 
-    // A new folder is created under the first name nothing holds, by the step
-    // that takes the name: a folder that appears under "sample" after it was
-    // seen free is never merged into, the extraction goes to "sample 2".
-    const destinationFolder =
-      destination === 'folder'
-        ? await reserveAvailableName(parentAbsolutePath, baseFolderName, {
-            isDirectory: true,
-            style: 'folder',
-          })
-        : {
-            name: baseFolderName,
-            path: await fs.mkdtemp(path.join(parentAbsolutePath, '.nextexplorer-extract-')),
-          };
-    const folderName = destinationFolder.name;
-    const destinationFolderAbsolutePath = destinationFolder.path;
-    const movedPaths = [];
-    // Recorded once the folder is this extraction's own, and not before: a
-    // record naming a folder someone else created would have the next start
-    // remove it. Released however the extraction ends: a stop half-way leaves
-    // the record, and the next start removes what it names.
-    const inFlight = trackInFlight(
-      destinationFolderAbsolutePath,
-      destination === 'folder' ? 'partial-folder' : 'staging-directory'
+    // Always extracted into a hidden folder of its own first. Into a new folder,
+    // the whole folder is then put under the first name nothing holds, "sample
+    // 2" when "sample" is taken, by a move that never replaces or merges into
+    // anything. It used to be created under its name before the extraction:
+    // what someone put in it meanwhile was then removed with it when the
+    // extraction failed, or at the next start after a crash.
+    const stagingAbsolutePath = await fs.mkdtemp(
+      path.join(parentAbsolutePath, '.nextexplorer-extract-')
     );
+    const movedPaths = [];
+    // Released however the extraction ends: a stop half-way leaves the record,
+    // and the next start removes the hidden folder it names, and only that.
+    const inFlight = trackInFlight(stagingAbsolutePath, 'staging-directory');
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
@@ -236,7 +225,8 @@ router.post(
     //   {type:'error',    message, code}
     const writeEvent = startNdjsonStream(res);
 
-    writeEvent({ type: 'start', name: folderName });
+    // The name asked for: the one taken, "sample 2" when held, is in `done`.
+    writeEvent({ type: 'start', name: baseFolderName });
 
     const onPercent = throttlePercent(writeEvent);
 
@@ -250,7 +240,7 @@ router.post(
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
         // ...and a running guard for everything else: encrypted archives,
         // listings too large to parse, and the second pass of tarballs.
-        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent, {
+        await extractArchive(zipAbsolutePath, stagingAbsolutePath, onPercent, {
           signal: controller.signal,
           password: archivePassword,
           maxBytes: archives.maxExtractedBytes,
@@ -258,7 +248,7 @@ router.post(
       } else {
         const fallbackZip = new AdmZip(zipAbsolutePath);
         ensureArchiveWithinLimits(admZipFootprint(fallbackZip.getEntries()));
-        fallbackZip.extractAllTo(destinationFolderAbsolutePath, true);
+        fallbackZip.extractAllTo(stagingAbsolutePath, true);
         if (controller.signal.aborted) {
           const error = new Error('Operation cancelled.');
           error.code = 'OPERATION_CANCELLED';
@@ -267,27 +257,31 @@ router.post(
       }
 
       if (destination === 'folder') {
+        // Whole: the hidden folder becomes the new one, under a name nothing
+        // holds, named as a new folder is.
+        const placed = await placeWithoutOverwrite(
+          stagingAbsolutePath,
+          parentAbsolutePath,
+          baseFolderName,
+          { style: 'folder' }
+        );
         // The archive has produced an entire new tree. Queue its index refresh,
         // but never hold the archive operation open on background filesystem I/O.
-        folderSizeHooks.onDirectoryTreeCreated(destinationFolderAbsolutePath);
+        folderSizeHooks.onDirectoryTreeCreated(placed.path);
 
-        const item = await buildItemMetadata(
-          destinationFolderAbsolutePath,
-          parentRelativePath,
-          folderName
-        );
+        const item = await buildItemMetadata(placed.path, parentRelativePath, placed.name);
         writeEvent({ type: 'done', success: true, item, items: [item] });
       } else {
         // Extract to a private sibling first, then move each root entry into the
         // current folder. This avoids partial writes and lets us apply the same
         // collision rule used everywhere else: name, name (1), name (2), ...
         const items = await extractIntoCurrentFolder({
-          stagingDirectory: destinationFolderAbsolutePath,
+          stagingDirectory: stagingAbsolutePath,
           destinationDirectory: parentAbsolutePath,
           relativeParentPath: parentRelativePath,
           movedPaths,
         });
-        await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
+        await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
         writeEvent({
           type: 'done',
           success: true,
@@ -306,7 +300,9 @@ router.post(
           'Archive extract failed; cleaning up destination'
         );
       }
-      await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
+      // The hidden folder only: a new folder is put under its name once whole,
+      // so a failure never has one of its own to remove.
+      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
       await mapWithConcurrency(movedPaths, (movedPath) =>
         fs.rm(movedPath, { recursive: true, force: true })
       );
