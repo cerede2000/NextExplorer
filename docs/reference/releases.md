@@ -6,6 +6,189 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.6.0 (2026-09-15)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.6.0)
+
+### Security fixes
+
+**Upgrade if you share folders, use access rules, or sign in through an identity
+provider.** Each of these was found by the tests written for this release and
+reproduced before being fixed, and each fix is held by a test that fails without
+it.
+
+- **A copy or a move could write outside the folder it was allowed into.** The
+  destination was authorized, then the item's new name was joined onto it as the
+  request spelled it: `../name` wrote into a parent the caller could only read,
+  and from a share into the volume outside it. A new name now has to be a name,
+  and without one the item keeps the name it has on disk.
+- **A zip of a folder carried what nobody browsing it could see.** A folder
+  downloaded as a zip, downloaded through a share link, or compressed in place
+  included the paths an access rule hides and a personal folder kept inside the
+  volume — and, with this release, would have carried the trash and file
+  versions kept in `.nextexplorer`. An archive now holds what a listing of the
+  folder shows.
+- **Compressing ignored a share that withholds downloads.** A visitor could
+  compress a file into a volume of their own and download the archive from
+  there. Compressing now needs the right to download.
+- **With `AUTH_MODE=oidc`, password setup and password sign-in still answered.**
+  On an instance nobody had signed in to yet, anyone who could reach the API
+  could make themselves its administrator with a password. Both are refused
+  unless password sign-in is enabled.
+- **Two first-run setups sent together both created an administrator.** Setups
+  now run one at a time.
+- **An OIDC sign-in did not check that userinfo described the person signing
+  in.** The claims were read from the session the browser arrived with — on a
+  fresh sign-in, nobody — so userinfo's subject was compared with nothing. The
+  claims now come from the ID token the library verified, and userinfo must name
+  the same subject. The same change lets a sign-in go ahead on the ID token when
+  userinfo is briefly down, and no longer refuses a second person signing in
+  from a browser that held someone else's session.
+
+### Deleting goes to the trash first
+
+Deleting a file or a folder moves it to a trash instead of removing it.
+**Trash** in the sidebar lists what was deleted, restores it where it was or
+into a folder you choose, restores part of a deleted folder, previews a text
+file read-only, and deletes for good. Items leave for good after a retention
+period, 30 days by default.
+
+- **No copy.** Each volume keeps its trash in a hidden `.nextexplorer` folder at
+  its own root, and deleting is a rename on the same disk: a 40 GB folder goes
+  to the trash as fast as a small file.
+- **Said before, not after.** An item that cannot go to the trash — on another
+  disk mounted inside a volume, larger than the trash's limit, or a volume
+  itself — is named in the delete dialog before anyone confirms, with the
+  reason.
+- **Share links.** What goes to the trash stops being reachable through its
+  links at once, and the dialog says so. Restoring asks whether the links come
+  back as they were.
+- **Crash-safe.** Every step writes what it is about to do before it touches the
+  disk; an interrupted delete, restore or purge is finished or undone at the
+  next start.
+- **Who sees what.** Each person sees what they deleted, administrators see
+  everything, and what a share-link visitor deletes goes to the share owner's
+  trash.
+
+Documentation: [Trash](https://cerede2000.github.io/NextExplorer/admin/trash)
+
+### Earlier versions of a file come back
+
+Saving over a file keeps what the save replaces — from the text editor, the
+editor opened through a share link, ONLYOFFICE and Collabora. Right-click a file
+→ **Versions**, or **Versions** in its details: open an earlier version
+read-only, download it, restore it, restore it as a copy, put it over another
+file, name it, pin it, delete one, several or all.
+
+- **No copy here either.** The replaced content is moved into the same
+  `.nextexplorer` folder, and counts against the same space as the trash.
+- **One version per office editing session**, not one per autosave: the document
+  before the session, a save someone asked for, and at most one checkpoint every
+  10 minutes in a long session.
+- **Thinned as they age**: every version for 24 hours, then one per hour to 7
+  days, one per day to 30 days, one per week after, at most 50 per file. Pinned
+  versions are exempt.
+- **Inside the editors.** ONLYOFFICE's History lists the versions and restores
+  one; Collabora's File → Revision history opens the panel.
+- **Shares** have two new options, _Show file versions_ and _Allow downloading
+  versions_.
+
+The office side is tested against the ONLYOFFICE callback, WOPI and the signed
+history payloads, not yet against a running Document Server or Collabora
+instance. Reports are welcome.
+
+Documentation:
+[File versions](https://cerede2000.github.io/NextExplorer/admin/versions)
+
+### An administrator can release a locked account
+
+[nxzai/NextExplorer#370](https://github.com/nxzai/NextExplorer/issues/370). Five
+failed sign-ins lock an account for fifteen minutes, and until now only waiting,
+or editing the database, released it. **Settings → User Management** marks a
+locked account with the time it frees itself, its **Security** tab offers
+**Unlock now**, and the sign-in screen says how long is left.
+
+### A sign-in survives a provider whose discovery document is down
+
+A 503, a maintenance page, a refused connection or a timeout on the provider's
+`/.well-known/openid-configuration` threw out of the callback and refused a
+sign-in that had already succeeded. It falls back to the ID token's claims now,
+as it already did when the userinfo endpoint failed.
+
+### A refused or missing path answers as one
+
+A file deleted since the listing was drawn, a path climbing out of the volume,
+another account's personal folder reached through the volume: each was refused,
+nothing leaked, but as a 500 with a stack in the log. They answer 404, 400 and
+403 now, across every route that takes a path.
+
+### Smaller fixes
+
+- The account menu, the only way to Settings and to Sign out, opens from the
+  keyboard. Its toggle is a real button, announced as a disclosure rather than
+  as a menu it is not.
+- A folder restored from the trash or extracted from an archive is searchable at
+  once, instead of after the next indexing pass.
+- Changing a mode keeps the setuid, setgid and sticky bits the item had.
+- An owner or a group typed in the details panel and left unsaved is no longer
+  applied to the next item the panel shows.
+- Assigning a volume to a user can no longer add it twice.
+- The thumbnail settings no longer offer to save before they have loaded, which
+  could write the defaults over what was stored.
+- A refused save of the access rules says why.
+- The **Create new** button closes the menu it opened.
+- A share created with its history options keeps them; they were dropped at
+  creation and only an edit applied them.
+- ONLYOFFICE reopens a document renamed from its title bar under its new name,
+  and closing while an automatic save is on its way still sends the save on
+  close.
+
+### Underneath
+
+- **Coverage, where the data and the access are.** The tests written before this
+  release went to what loses data or opens access when it is wrong — uploads,
+  copy and move, compressing, permissions, sign-in, OIDC, account changes,
+  settings and the screens that edit them — and found the security fixes above
+  on the way. The backend went from 84.4% to 86.4% of statements and from 73.2%
+  to 75.5% of branches; the frontend from 75.0% to 84.1% of statements and from
+  61.3% to 71.9% of branches. The floors that fail a push rose with them.
+- **The upgrade itself is tested from the databases earlier releases leave.**
+  Schemas from 1.1.7, 1.2.0, 2.1.1, 2.2.7, 3.0.0, 3.1.0 and 3.5.0 are rebuilt as
+  those releases create them and upgraded: accounts, sign-in methods, favorites,
+  shares, volumes and settings come through, a restart changes nothing, and a
+  migration that fails half-way leaves the database as it was.
+- A browser journey now runs against the server the image runs: first setup,
+  sign-out and sign-in by keyboard, upload, share, the trash and a version
+  restore, all checked on disk.
+- Every client call is checked against a server route, every code change must
+  carry a test in the same commit, and coverage floors fail a push that lowers
+  them.
+- The HEIC thumbnail tests had never run in CI while reporting green; they run
+  on the image's own base now, and each published image must decode the fixture.
+- What the tests found and this release does not fix is written down in
+  `TODO.md`, with what it costs.
+
+### Upgrading
+
+- **Two schema migrations**, for the trash and for file versions. They run at
+  start; going back to 3.5.0 afterwards is not supported — keep a copy of
+  `/config` if you may.
+- **The trash and file versions are on by default.** The container user needs
+  write access at the root of each volume, where `.nextexplorer` is created;
+  without it nothing is lost — the delete dialog says the item cannot go to the
+  trash and asks before deleting for good. Switch either off with
+  `TRASH_ENABLED=false` or `VERSIONS_ENABLED=false`, or in **Settings → Trash
+  and versions**.
+- **Backups** of your volumes include `.nextexplorer/` unless you exclude it.
+- **Shares with named people** that already exist get _Show file versions_ and
+  _Allow downloading versions_ switched on; links for anyone get neither.
+- **With `AUTH_MODE=oidc`**, the password setup and sign-in endpoints now
+  answer 403. Nothing in the interface used them in that mode.
+- New optional variables: `TRASH_ENABLED`, `TRASH_RETENTION_DAYS`,
+  `TRASH_MAX_PERCENT`, `TRASH_MAX_SIZE`, `VERSIONS_ENABLED`,
+  `VERSIONS_KEEP_ALL_HOURS`, `VERSIONS_HOURLY_DAYS`, `VERSIONS_DAILY_DAYS`,
+  `VERSIONS_MAX_PER_FILE`, `VERSIONS_SESSION_CHECKPOINT_MINUTES`.
+
 ## v3.5.0 (2026-09-10)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.5.0)
