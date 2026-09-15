@@ -20,7 +20,7 @@ import {
  * rows back.
  */
 
-const LATEST_SCHEMA_VERSION = '19';
+const LATEST_SCHEMA_VERSION = '20';
 
 let envContext;
 let dbModule;
@@ -122,6 +122,7 @@ const APPLICATION_TABLES = [
   'trash_events',
   'version_files',
   'file_versions',
+  'personal_folder_reservations',
 ];
 
 /** The indexes, in their own database under the cache directory. */
@@ -901,12 +902,12 @@ describe('a database whose recorded version is ahead of its tables', () => {
     const { configDir } = await prepareEnv();
     const legacy = createLegacyDatabase(configDir, 17);
     seedRelease350(legacy);
-    legacy.prepare("UPDATE meta SET value = '19' WHERE key = 'schema_version'").run();
+    legacy.prepare("UPDATE meta SET value = '20' WHERE key = 'schema_version'").run();
     legacy.close();
 
     const db = await startApplication();
 
-    expect(schemaVersion(db)).toBe('19');
+    expect(schemaVersion(db)).toBe('20');
     for (const table of ['trash_items', 'trash_shares', 'version_files', 'file_versions']) {
       expect(tableNames(db).has(table), table).toBe(true);
     }

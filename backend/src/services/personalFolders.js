@@ -1,3 +1,7 @@
+const fs = require('fs');
+const path = require('path');
+
+const { directories } = require('../config/index');
 const { getUserFolderNameCandidates } = require('../utils/pathUtils');
 const logger = require('../utils/logger');
 
@@ -40,6 +44,32 @@ const takenNames = (db, userId) => {
 };
 
 /**
+ * Whether a name is held for an account that was deleted.
+ *
+ * Deleting an account leaves its folder on disk, with what it kept there, its
+ * trash and its versions. Handing the name to the next account that derives it
+ * handed over that folder too. The name stays reserved for as long as the
+ * folder is there; an administrator frees it by removing or renaming the folder
+ * on the server, and the reservation goes the first time the name is asked for
+ * after that.
+ */
+const isReserved = (db, name) => {
+  // Names are claimed by the v15 migration, long before v20 creates this table;
+  // until it exists, nothing can have been reserved.
+  const hasTable = db
+    .prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'personal_folder_reservations'"
+    )
+    .get();
+  if (!hasTable) return false;
+  const row = db.prepare('SELECT name FROM personal_folder_reservations WHERE name = ?').get(name);
+  if (!row) return false;
+  if (fs.existsSync(path.join(directories.userRoot, name))) return true;
+  db.prepare('DELETE FROM personal_folder_reservations WHERE name = ?').run(name);
+  return false;
+};
+
+/**
  * Give this account a folder name of its own, and answer it. Idempotent: an
  * account that already holds one keeps it.
  */
@@ -53,7 +83,7 @@ const claimPersonalFolderName = (db, user) => {
   const candidates = getUserFolderNameCandidates(user);
 
   for (const candidate of candidates) {
-    if (taken.has(candidate)) continue;
+    if (taken.has(candidate) || isReserved(db, candidate)) continue;
 
     try {
       db.prepare('UPDATE users SET personal_folder_name = ? WHERE id = ?').run(candidate, user.id);
@@ -61,7 +91,7 @@ const claimPersonalFolderName = (db, user) => {
       if (candidate !== candidates[0]) {
         logger.warn(
           { userId: user.id, preferred: candidates[0], assigned: candidate },
-          'Personal folder name was already taken by another account; assigned the next one'
+          'Personal folder name was taken, or kept for a deleted account; assigned the next one'
         );
       }
       return candidate;

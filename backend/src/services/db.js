@@ -12,6 +12,20 @@ const { VERSIONS_DDL } = require('./versions/schema');
 
 let dbInstance = null;
 
+// The folder name a deleted account held, kept while its folder is on disk so
+// that the next account deriving the same name is not handed that folder. See
+// personalFolders.js.
+const PERSONAL_FOLDER_RESERVATIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS personal_folder_reservations (
+    name TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    reserved_at TEXT NOT NULL
+  );
+`;
+
+const tableExists = (db, name) =>
+  Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
+
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -729,6 +743,26 @@ const migrate = (db) => {
       );
       version = 19;
     }
+
+    if (version < 20) {
+      logger.info(
+        '[DB Migration] Migrating to v20: personal folder names outlive deleted accounts...'
+      );
+      db.exec(PERSONAL_FOLDER_RESERVATIONS_DDL);
+      // Rows an account's deletion used to leave behind. None of these tables
+      // points at users through a foreign key, so nothing ever removed them.
+      if (tableExists(db, 'folder_preferences')) {
+        db.exec('DELETE FROM folder_preferences WHERE user_id NOT IN (SELECT id FROM users)');
+      }
+      if (tableExists(db, 'recent_destinations')) {
+        db.exec('DELETE FROM recent_destinations WHERE user_id NOT IN (SELECT id FROM users)');
+      }
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(20)
+      );
+      version = 20;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -744,6 +778,7 @@ const migrate = (db) => {
   // After the trash: its trigger names trash_items.
   db.exec(VERSIONS_DDL);
   ensureShareOperationPermissionColumns(db);
+  db.exec(PERSONAL_FOLDER_RESERVATIONS_DDL);
 };
 
 /**
