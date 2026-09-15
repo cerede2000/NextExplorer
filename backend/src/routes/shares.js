@@ -5,6 +5,7 @@ const path = require('path');
 const archiver = require('archiver');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendCompressible } = require('../utils/compressedResponse');
 const {
   ValidationError,
   UnauthorizedError,
@@ -991,7 +992,7 @@ const handleSharedEditorRequest = async (req, res) => {
     'X-Content-Type-Options': 'nosniff',
     'X-Robots-Tag': 'noindex',
   });
-  res.json({
+  await sendCompressible(req, res, {
     name: path.basename(resolved.absolutePath),
     path: innerPath,
     content: text,

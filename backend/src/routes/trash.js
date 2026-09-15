@@ -2,6 +2,7 @@ const express = require('express');
 
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendCompressible } = require('../utils/compressedResponse');
 const { startNdjsonStream } = require('../utils/ndjsonStream');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const trash = require('../services/trash');
@@ -57,8 +58,9 @@ router.post(
 router.get(
   '/trash/items/:id/text',
   asyncHandler(async (req, res) => {
+    const text = await trash.readTrashText(req.params.id, req.query.path ?? '', contextOf(req));
     res.set('Cache-Control', 'private, no-store');
-    res.json(await trash.readTrashText(req.params.id, req.query.path ?? '', contextOf(req)));
+    await sendCompressible(req, res, text);
   })
 );
 

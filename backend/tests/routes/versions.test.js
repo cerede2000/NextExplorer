@@ -200,6 +200,22 @@ describe('reading a version', () => {
     expect(await read('Projects/notes.md')).toBe('# Alice\n');
   });
 
+  it('sends the text of a large version compressed', async () => {
+    const earlier = '# Notes\n\nUne ligne de plus, et encore une.\n'.repeat(2000);
+    await write('Projects/notes.md', earlier);
+    await edit('alice', 'Projects/notes.md', '# Rewritten\n');
+    const [version] = (await history('alice', 'Projects/notes.md')).body.versions;
+
+    const response = await as('bob')
+      .get(`/api/versions/${version.id}/text?path=Projects/notes.md`)
+      .set('Accept-Encoding', 'gzip, deflate');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-encoding']).toBe('gzip');
+    expect(response.headers['cache-control']).toContain('no-store');
+    expect(response.body).toMatchObject({ name: 'notes.md', content: earlier });
+  });
+
   it('never reaches a version through a file it does not belong to', async () => {
     const version = await firstVersion();
     // A file with a history of its own: the version must be refused for not

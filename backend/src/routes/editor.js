@@ -6,6 +6,7 @@ const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendCompressible } = require('../utils/compressedResponse');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
 const versions = require('../services/versions/operations');
@@ -55,7 +56,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { path: relative = '' } = req.body || {};
     const { text } = await readTextFileBuffer(req, relative);
-    res.send({ content: text });
+    await sendCompressible(req, res, { content: text });
   })
 );
 
@@ -67,7 +68,7 @@ router.get(
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(text);
+    await sendCompressible(req, res, text);
   })
 );
 

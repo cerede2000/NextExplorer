@@ -547,6 +547,19 @@ describe('reading a file in the trash', () => {
     });
   });
 
+  it('sends a large file compressed, and still never cached', async () => {
+    const log = 'Statut : à jour, rien à signaler\n'.repeat(3000);
+    await write('Projects/big.log', log);
+    const id = (await deleteAs('alice', 'Projects', 'big.log')).body.items[0].trashItemId;
+
+    const response = await text('alice', id).set('Accept-Encoding', 'gzip, deflate');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-encoding']).toBe('gzip');
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body).toMatchObject({ name: 'big.log', content: log });
+  });
+
   it('gives the text of a file inside a deleted folder', async () => {
     await write('Projects/client/drafts/v1.txt', 'first draft');
     const id = (await deleteAs('alice', 'Projects', 'client')).body.items[0].trashItemId;

@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 
 const asyncHandler = require('../utils/asyncHandler');
+const { sendCompressible } = require('../utils/compressedResponse');
 const logger = require('../utils/logger');
 const { resolveMimeType, toExtension } = require('../utils/fileTypes');
 const versions = require('../services/versions');
@@ -49,8 +50,9 @@ router.get(
 router.get(
   '/versions/:id/text',
   asyncHandler(async (req, res) => {
+    const text = await versions.readVersionText(contextOf(req), req.query?.path, req.params.id);
     res.set('Cache-Control', 'no-store');
-    res.json(await versions.readVersionText(contextOf(req), req.query?.path, req.params.id));
+    await sendCompressible(req, res, text);
   })
 );
 

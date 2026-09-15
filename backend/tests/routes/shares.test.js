@@ -988,6 +988,45 @@ describe('Shares Routes', () => {
       ).toBe('Write-Output hello');
     });
 
+    it('should send a large shared text file compressed', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-large');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      const content = '# Journal\n\nUne ligne de texte, encore une.\n'.repeat(2000);
+      await fs.writeFile(path.join(assignedRoot, 'journal.md'), content);
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-large@example.com',
+        username: 'shared-editor-large',
+        displayName: 'Shared Editor Large',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorLargeVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const create = await request(buildApp({ user })).post('/api/shares').send({
+        sourcePath: 'SharedEditorLargeVol/journal.md',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const editor = await request(buildApp())
+        .get(`/api/share/${create.body.shareToken}/editor`)
+        .set('Accept-Encoding', 'gzip, deflate');
+      expect(editor.status).toBe(200);
+      expect(editor.headers['content-encoding']).toBe('gzip');
+      expect(editor.headers.vary).toMatch(/accept-encoding/i);
+      expect(editor.body).toMatchObject({ name: 'journal.md', content, canWrite: false });
+    });
+
     it('should save a text file only through a read-write share', async () => {
       const usersService = envContext.requireFresh('src/services/users');
       const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
