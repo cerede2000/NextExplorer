@@ -16,6 +16,10 @@ async function createShare({
   userIds = [],
   expiresAt = null,
   label = null,
+  // Left out of the body when not given, so the server's default for the kind
+  // of share applies: shown for named people, hidden for a link for anyone.
+  versionsVisible,
+  versionsDownload,
 }) {
   const normalizedPath = normalizePath(sourcePath);
 
@@ -34,6 +38,8 @@ async function createShare({
       userIds,
       expiresAt,
       label,
+      versionsVisible,
+      versionsDownload,
     }),
   });
 }
