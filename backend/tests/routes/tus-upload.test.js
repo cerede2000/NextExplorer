@@ -1210,6 +1210,123 @@ describe('TUS upload route', () => {
    * sent is answered as before, with its real offset, and nothing is moved
    * into the folder before its last byte.
    */
+  /**
+   * A chunked upload told the folder sizes nothing: only the periodic
+   * reconciliation ever counted its file. It is announced as a direct upload is.
+   */
+  it('tells the folder sizes about the file it placed', async () => {
+    await enableChunkedUploads();
+    const hooks = require(modulePath('src/services/folderSizeHooks'));
+    const written = vi.spyOn(hooks, 'onFileWritten');
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const content = Buffer.from('counted in its folder');
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(204);
+
+      expect(written).toHaveBeenCalledTimes(1);
+      const [writtenPath, writtenSize] = written.mock.calls[0];
+      expect(await fs.realpath(writtenPath)).toBe(
+        await fs.realpath(path.join(envContext.volumeDir, 'Nvm', 'notes.txt'))
+      );
+      expect(writtenSize).toBe(content.length);
+    } finally {
+      written.mockRestore();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * The memory of uploads placed a moment ago goes with the process. After a
+   * restart, a client asking for the offset of one got 404 and sent the whole
+   * file again, into "name (1)". A record on disk answers it instead, to the
+   * person who sent it, until the cache sweep removes it.
+   */
+  it('says an upload placed just before a restart is complete, from its record on disk', async () => {
+    await enableChunkedUploads();
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const content = Buffer.from('placed, then the server restarted');
+    let uploadPath;
+
+    const before = buildApp();
+    const beforeUrl = await startServer(before);
+    try {
+      const cookie = await establishSession(beforeUrl);
+      uploadPath = await createUpload(beforeUrl, cookie, 'notes.txt', content.length);
+      expect((await sendUpload(beforeUrl, uploadPath, content)).status).toBe(204);
+    } finally {
+      await closeServer(before);
+    }
+
+    // A new process: nothing of the old one's memory.
+    const tus = envContext.requireFresh('src/services/tusUploadService');
+    const after = buildApp();
+    const afterUrl = await startServer(after);
+    try {
+      const response = await head(afterUrl, uploadPath);
+      expect(response.status).toBe(200);
+      expect(response.headers['upload-offset']).toBe(String(content.length));
+      expect(response.headers['upload-length']).toBe(String(content.length));
+      expect((await head(afterUrl, uploadPath, 'someone-else')).status).toBe(404);
+      expect(await fs.readdir(nvmDir)).toEqual(['notes.txt']);
+
+      // Past the time an unfinished upload is kept, the sweep removes the record.
+      const record = path.join(tusDir, '.finished', `${path.basename(uploadPath)}.json`);
+      const aged = TWO_HOURS_AGO();
+      const data = JSON.parse(await fs.readFile(record, 'utf8'));
+      await fs.writeFile(record, JSON.stringify({ ...data, at: aged.getTime() }));
+      await fs.utimes(record, aged, aged);
+      // An aged record answers nothing any more, even before the sweep removes it.
+      expect((await head(afterUrl, uploadPath)).status).toBe(404);
+      await tus.cleanupInactiveUploads();
+      await expect(fs.access(record)).rejects.toBeTruthy();
+      expect((await head(afterUrl, uploadPath)).status).toBe(404);
+    } finally {
+      await closeServer(after);
+    }
+  });
+
+  /**
+   * Every HEAD retrying a move that keeps failing wrote the same error line.
+   * The error is logged once for each reason, and the repeats at debug.
+   */
+  it('logs a move that keeps failing once for each reason', async () => {
+    await enableChunkedUploads();
+    const logger = require(modulePath('src/utils/logger'));
+    const errors = vi.spyOn(logger, 'error');
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const content = Buffer.from('never placed');
+    const failures = () =>
+      errors.mock.calls.filter(
+        ([, message]) => message === 'A finished TUS upload could not be moved into its folder'
+      ).length;
+    let restoreMoves = interceptCacheMoves(tusDir, { code: 'EACCES' });
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(500);
+      expect((await head(baseUrl, uploadPath)).status).toBe(423);
+      expect((await head(baseUrl, uploadPath)).status).toBe(423);
+      expect(failures()).toBe(1);
+
+      restoreMoves();
+      restoreMoves = interceptCacheMoves(tusDir, { code: 'EROFS' });
+      expect((await head(baseUrl, uploadPath)).status).toBe(423);
+      expect(failures()).toBe(2);
+    } finally {
+      restoreMoves();
+      errors.mockRestore();
+      await closeServer(server);
+    }
+  });
+
   it('answers an unfinished upload with its offset and moves nothing', async () => {
     await enableChunkedUploads();
     const server = buildApp();

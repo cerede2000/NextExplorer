@@ -16,6 +16,7 @@ const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
 const { getSystemSettings } = require('./settingsService');
+const folderSizeHooks = require('./folderSizeHooks');
 const { InsufficientStorageError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 
@@ -223,6 +224,8 @@ const cleanupInactiveUploads = async (now = Date.now()) => {
     const removed = await Promise.all([rmIfExists(dataPath), rmIfExists(metadataPath)]);
     removedCount += removed.filter(Boolean).length;
   }
+
+  removedCount += await sweepFinishedRecords(now);
 
   if (removedCount > 0) {
     logger.info({ removedCount }, 'Cleaned stale TUS upload cache files');
@@ -571,6 +574,59 @@ const recallFinished = (uploadId) => {
   return entry;
 };
 
+/**
+ * The same, kept on disk beside the cache, for as long as the memory above.
+ *
+ * The memory goes with the process: a client asking for the offset of an
+ * upload placed just before a restart got 404, and tus-js-client sent the
+ * whole file again, into "name (1)". One small record per placed upload, read
+ * only when the memory has nothing, and removed by the cache sweep.
+ */
+const FINISHED_RECORDS_DIR = TUS_CACHE_DIR ? path.join(TUS_CACHE_DIR, '.finished') : null;
+const finishedRecordPath = (uploadId) => path.join(FINISHED_RECORDS_DIR, `${uploadId}.json`);
+
+const recordFinished = async (uploadId, entry) => {
+  if (!FINISHED_RECORDS_DIR) return;
+  try {
+    await ensureDir(FINISHED_RECORDS_DIR);
+    await fs.writeFile(finishedRecordPath(uploadId), JSON.stringify({ ...entry, at: Date.now() }));
+  } catch (err) {
+    logger.debug({ err, uploadId }, 'A placed TUS upload could not be recorded on disk');
+  }
+};
+
+const readFinishedRecord = async (uploadId) => {
+  if (!FINISHED_RECORDS_DIR) return null;
+  try {
+    const entry = JSON.parse(await fs.readFile(finishedRecordPath(uploadId), 'utf8'));
+    if (!Number.isFinite(entry?.at) || Date.now() - entry.at > FINISHED_MEMORY_MS) return null;
+    return entry;
+  } catch {
+    return null;
+  }
+};
+
+const sweepFinishedRecords = async (now = Date.now()) => {
+  if (!FINISHED_RECORDS_DIR) return 0;
+  let names;
+  try {
+    names = await fs.readdir(FINISHED_RECORDS_DIR);
+  } catch {
+    return 0;
+  }
+  let removed = 0;
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    const file = path.join(FINISHED_RECORDS_DIR, name);
+    // eslint-disable-next-line no-await-in-loop
+    const stats = await safeStat(file);
+    if (!stats || now - stats.mtimeMs < FINISHED_MEMORY_MS) continue;
+    // eslint-disable-next-line no-await-in-loop
+    if (await rmIfExists(file)) removed += 1;
+  }
+  return removed;
+};
+
 const finalizeUpload = async (nodeReq, upload) => {
   const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
   const sourcePath = upload.storage?.path || path.join(TUS_CACHE_DIR, upload.id);
@@ -601,9 +657,44 @@ const finalizeUpload = async (nodeReq, upload) => {
     logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
   }
 
+  // Folder sizes hear of the file as they do for a direct upload. A refresh
+  // that fails leaves them to the periodic reconciliation, never the upload.
+  try {
+    const stats = await fs.stat(placed.path);
+    await folderSizeHooks.onFileWritten(placed.path, stats.size);
+  } catch (err) {
+    logger.debug({ err, path: placed.path }, 'Folder sizes were not told about a chunked upload');
+  }
+
   const result = { name: placed.name, path: placed.path, size: totalBytes, owner };
   rememberFinished(upload.id, result);
+  await recordFinished(upload.id, result);
   return result;
+};
+
+/**
+ * A move that keeps failing is logged as an error once for each reason, and
+ * again for the same reason only at debug: every HEAD a client retries with
+ * would otherwise write the same error line.
+ */
+const REPORTED_FAILURES_LIMIT = 1000;
+const reportedFailures = new Map();
+
+const reportFinalizeFailure = (uploadId, err) => {
+  const reason = err?.code || err?.name || 'unknown';
+  if (reportedFailures.get(uploadId) === reason) {
+    logger.debug(
+      { uploadId, err },
+      'A finished TUS upload still could not be moved into its folder'
+    );
+    return;
+  }
+  reportedFailures.delete(uploadId);
+  reportedFailures.set(uploadId, reason);
+  while (reportedFailures.size > REPORTED_FAILURES_LIMIT) {
+    reportedFailures.delete(reportedFailures.keys().next().value);
+  }
+  logger.error({ uploadId, err }, 'A finished TUS upload could not be moved into its folder');
 };
 
 /**
@@ -620,11 +711,12 @@ const finalizeOnce = (nodeReq, upload) => {
   // Registered before anything is awaited, and until the metadata is gone too:
   // the cache sweep leaves an upload alone for as long as it is in `finishing`.
   const promise = finalizeUpload(nodeReq, upload)
+    .then((result) => {
+      reportedFailures.delete(upload.id);
+      return result;
+    })
     .catch((err) => {
-      logger.error(
-        { uploadId: upload.id, err },
-        'A finished TUS upload could not be moved into its folder'
-      );
+      reportFinalizeFailure(upload.id, err);
       throw err;
     })
     .finally(() => {
@@ -780,7 +872,7 @@ const answerFinishedUploadHead = async (req, res) => {
   const owner = ownerOf(req);
   if (!owner) return false;
 
-  const done = recallFinished(uploadId);
+  const done = recallFinished(uploadId) || (await readFinishedRecord(uploadId));
   if (done) {
     if (done.owner !== owner) return false;
     answerComplete(req, res, done.size);
