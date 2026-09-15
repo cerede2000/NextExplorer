@@ -146,7 +146,6 @@ const directories = {
   config: configDir,
   cache: cacheDir,
   thumbnails: path.join(cacheDir, 'thumbnails'),
-  extensions: path.join(configDir, 'extensions'),
   userRoot: userRootDir,
   userRootWithSep: userRootDir.endsWith(path.sep) ? userRootDir : `${userRootDir}${path.sep}`,
 };

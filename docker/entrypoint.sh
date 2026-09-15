@@ -62,10 +62,7 @@ for path in \
   "/app" \
   "$CONFIG_DIR" \
   "$CACHE_DIR" \
-  "${CACHE_DIR}/thumbnails" \
-  "${CONFIG_DIR}/extensions" \
-  "${CONFIG_DIR}/extensions/icons" \
-  "${CONFIG_DIR}/extensions/brand"; do
+  "${CACHE_DIR}/thumbnails"; do
   if [ "$RUNNING_AS_ROOT" = "true" ]; then
     ensure_dir "$path"
   elif ! ensure_dir "$path" 2>/dev/null; then
