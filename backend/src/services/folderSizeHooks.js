@@ -19,7 +19,7 @@ const path = require('path');
 
 const config = require('../config/index');
 const logger = require('../utils/logger');
-const { getDb } = require('./db');
+const { getIndexDb } = require('./indexDb');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
 const folderSizeManager = require('./folderSizeManager');
@@ -31,7 +31,7 @@ const isEnabled = () => config.folderSize.enabled;
 const withIndex = async (fn) => {
   if (!isEnabled()) return;
   try {
-    const db = await getDb();
+    const db = await getIndexDb();
     const scope = getVolumeScope();
     return await fn(db, scope);
   } catch (err) {

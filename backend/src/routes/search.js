@@ -28,7 +28,7 @@ const { parseSearchTerm } = require('../services/searchTerm');
 const { ripgrepIgnoreGlobs, isIgnoredDirectory } = require('../services/searchIgnore');
 const { whenClientDisconnects } = require('../utils/clientDisconnect');
 const searchIndexExclusions = require('../services/searchIndexExclusions');
-const { getDb } = require('../services/db');
+const { getIndexDb } = require('../services/indexDb');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 
@@ -440,7 +440,7 @@ async function* mergeResults(...generators) {
 async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit) {
   let paths;
   try {
-    const db = await getDb();
+    const db = await getIndexDb();
     // Over-fetch: permissions are applied after the query, since the index
     // does not know who may read what.
     paths = searchIndexStore.search(db, term, Math.max(limit * 3, 50));
@@ -818,7 +818,7 @@ router.get(
     const indexReady = await (async () => {
       if (!(deepEnabled && searchConfig?.index?.enabled === true)) return false;
       try {
-        return searchIndexStore.isReady(await getDb());
+        return searchIndexStore.isReady(await getIndexDb());
       } catch {
         return false;
       }

@@ -40,6 +40,8 @@ module.exports = {
         'backend/src/services/trash/**',
         'backend/src/services/versions/**',
         'backend/src/services/fileTransferService.js',
+        // Its own staging copy of the index database, under the cache directory.
+        'backend/src/services/indexDb.js',
         'backend/src/services/archiveService.js',
         'backend/src/services/rawPreviewService.js',
         'backend/src/services/thumbnailService.js',

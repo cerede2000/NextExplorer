@@ -175,6 +175,13 @@ const quiesceLoadedServices = async () => {
     /* nothing scheduled is nothing to stop */
   }
 
+  const indexDb = loadedModule('src/services/indexDb');
+  try {
+    indexDb?.closeIndexDb?.();
+  } catch {
+    /* an unopened index has no handle to close */
+  }
+
   const db = loadedModule('src/services/db');
   try {
     db?.closeDb?.();

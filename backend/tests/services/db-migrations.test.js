@@ -112,13 +112,10 @@ const APPLICATION_TABLES = [
   'user_volumes',
   'system_settings',
   'user_settings',
-  'folder_size_index',
   'onlyoffice_document_keys',
   'onlyoffice_editor_sessions',
   'recent_destinations',
   'folder_preferences',
-  'search_documents',
-  'search_terms',
   'trash_zones',
   'trash_items',
   'trash_shares',
@@ -126,6 +123,11 @@ const APPLICATION_TABLES = [
   'version_files',
   'file_versions',
 ];
+
+/** The indexes, in their own database under the cache directory. */
+const INDEX_TABLES = ['folder_size_index', 'search_documents', 'search_terms'];
+
+const openIndex = () => envContext.requireFresh('src/services/indexDb').getIndexDb();
 
 describe('a new installation', () => {
   it('comes up at the latest version with every table the application uses', async () => {
@@ -136,6 +138,11 @@ describe('a new installation', () => {
     const tables = tableNames(db);
     for (const table of APPLICATION_TABLES) {
       expect(tables.has(table), `table ${table}`).toBe(true);
+    }
+    const index = await openIndex();
+    for (const table of INDEX_TABLES) {
+      expect(tables.has(table), `${table} left in app.db`).toBe(false);
+      expect(tableNames(index).has(table), `${table} in index.db`).toBe(true);
     }
     expect(columnNames(db, 'users')).toContain('personal_folder_name');
     expect(columnNames(db, 'trash_items')).toContain('restore_entry');
@@ -403,12 +410,10 @@ describe('an installation left by upstream 2.2.7 (schema 8)', () => {
     const { db } = await upgrade();
 
     for (const table of [
-      'folder_size_index',
       'onlyoffice_document_keys',
       'onlyoffice_editor_sessions',
       'recent_destinations',
       'folder_preferences',
-      'search_documents',
       'trash_zones',
       'trash_items',
       'trash_shares',
@@ -483,11 +488,7 @@ describe('an installation left by 3.0.0 (schema 13)', () => {
     const { configDir } = await prepareEnv({ USER_FOLDER_NAME_ORDER: 'username,id' });
     const legacy = createLegacyDatabase(configDir, 13);
     seedRelease300(legacy);
-    const before = snapshot(legacy, [
-      'folder_size_index',
-      'onlyoffice_document_keys',
-      'recent_destinations',
-    ]);
+    const before = snapshot(legacy, ['onlyoffice_document_keys', 'recent_destinations']);
     legacy.close();
     const db = await startApplication();
     return { db, before };
@@ -534,13 +535,33 @@ describe('an installation left by 3.0.0 (schema 13)', () => {
     ]);
   });
 
-  it('builds an empty search index by folder, not yet marked complete', async () => {
+  it('carries its folder sizes into the index database, as they were', async () => {
     const { db } = await upgrade();
+    const index = await openIndex();
 
-    expect(columnNames(db, 'search_documents')).toContain('dir');
-    expect(db.prepare('SELECT COUNT(*) FROM search_documents').pluck().get()).toBe(0);
+    expect(tableNames(db).has('folder_size_index')).toBe(false);
     expect(
-      db.prepare("SELECT value FROM meta WHERE key = 'search_index_complete_at'").get()
+      index
+        .prepare('SELECT path_hash, relative_path, size_bytes, entry_count FROM folder_size_index')
+        .all()
+    ).toEqual([
+      {
+        path_hash: 'hash-projects',
+        relative_path: 'Projects',
+        size_bytes: 1048576,
+        entry_count: 12,
+      },
+    ]);
+  });
+
+  it('builds an empty search index by folder, not yet marked complete', async () => {
+    await upgrade();
+    const index = await openIndex();
+
+    expect(columnNames(index, 'search_documents')).toContain('dir');
+    expect(index.prepare('SELECT COUNT(*) FROM search_documents').pluck().get()).toBe(0);
+    expect(
+      index.prepare("SELECT value FROM meta WHERE key = 'search_index_complete_at'").get()
     ).toBeUndefined();
   });
 });
@@ -635,7 +656,6 @@ const TABLES_OF_RELEASE_350 = [
   'shares',
   'share_permissions',
   'folder_preferences',
-  'search_documents',
 ];
 
 describe('an installation left by 3.5.0 (schema 17), the last release', () => {
@@ -657,16 +677,28 @@ describe('an installation left by 3.5.0 (schema 17), the last release', () => {
   });
 
   // The index is derived data, but rebuilding it is a pass over every volume:
-  // the step that throws it away must not run on a database already past it.
-  it('keeps its search index and the record that it is complete', async () => {
+  // the step that throws it away must not run on a database already past it,
+  // and moving it out of app.db must carry it as it was.
+  it('carries its search index and the record that it is complete into the index database', async () => {
     const { db } = await upgrade();
+    const index = await openIndex();
 
+    expect(tableNames(db).has('search_documents')).toBe(false);
     expect(
-      db.prepare("SELECT rowid FROM search_terms WHERE search_terms MATCH 'brochure'").pluck().all()
+      index
+        .prepare("SELECT rowid FROM search_terms WHERE search_terms MATCH 'brochure'")
+        .pluck()
+        .all()
     ).toEqual([1]);
+    expect(index.prepare('SELECT path FROM search_documents').pluck().all()).toEqual([
+      'Projects/brochure.pdf',
+    ]);
+    expect(
+      index.prepare("SELECT value FROM meta WHERE key = 'search_index_complete_at'").pluck().get()
+    ).toBe(T);
     expect(
       db.prepare("SELECT value FROM meta WHERE key = 'search_index_complete_at'").pluck().get()
-    ).toBe(T);
+    ).toBeUndefined();
   });
 
   it('shows file history to the people a share names, and not to anyone holding a link', async () => {

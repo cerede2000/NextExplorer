@@ -6,6 +6,7 @@ const { directories, files, favorites } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
 const databaseMaintenance = require('./databaseMaintenance');
+const indexDb = require('./indexDb');
 const { TRASH_DDL } = require('./trash/schema');
 const { VERSIONS_DDL } = require('./versions/schema');
 
@@ -732,7 +733,6 @@ const migrate = (db) => {
 
   // A shared /config directory may have its schema version advanced by another
   // image. Keep additive schema available in this mixed-version case.
-  db.exec(FOLDER_SIZE_INDEX_DDL);
   db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
   db.exec(RECENT_DESTINATIONS_DDL);
   db.exec(FOLDER_PREFERENCES_DDL);
@@ -1003,14 +1003,14 @@ const getDb = async () => {
     logger.warn({ err }, '[DB] Failed to configure WAL/busy_timeout');
   }
   migrate(db);
-  // Idempotently ensure feature tables exist regardless of the recorded
-  // schema_version. A database created by another build that shares this
-  // /config volume may already be past migration v9 without this table, which
-  // would otherwise make the folder size indexer crash with "no such table".
+  // The indexes live in a database of their own under the cache directory
+  // (see indexDb.js). The migrations above still create their tables here for
+  // an installation coming from before; this carries them over, once. Before
+  // the rewrite below, so that the space they held leaves app.db with them.
   try {
-    db.exec(FOLDER_SIZE_INDEX_DDL);
+    indexDb.moveIndexesOutOf(db);
   } catch (err) {
-    logger.warn({ err }, '[DB] Failed to ensure folder_size_index table');
+    logger.warn({ err }, '[DB] Failed to move the indexes out of app.db');
   }
   ensureAnonymousUser(db);
   // A database created before incremental auto-vacuum is rewritten once, here,
@@ -1028,6 +1028,7 @@ const closeDb = () => {
 };
 
 module.exports = {
+  FOLDER_SIZE_INDEX_DDL,
   getDb,
   prepared,
   closeDb,

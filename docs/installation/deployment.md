@@ -5,7 +5,7 @@ Deploy nextExplorer via Docker Compose for reproducible self-hosted workflows. T
 ## Prerequisites
 
 - **Docker Engine 24+ and Docker Compose v2** (or later). The official image depends on modern orchestration features.
-- **Host directories** for data volumes, `/config`, and optional `/cache` (make sure the Docker user can read/write these paths).
+- **Host directories** for data volumes, `/config`, and `/cache` (make sure the Docker user can read/write these paths). `/cache` can be left out, but it holds the search index and the folder sizes: without a persistent mount, every new container reads the volumes again to rebuild them.
 - **TLS-capable reverse proxy** if you need HTTPS, custom domains, or sticky sessions.
 
 ## Image variants

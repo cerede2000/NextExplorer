@@ -37,10 +37,10 @@ const setup = async ({ mode = 'full', exclude } = {}) => {
     ],
     env: { FOLDER_SIZE_MODE: mode, ...(exclude ? { FOLDER_SIZE_EXCLUDE_PATHS: exclude } : {}) },
   });
-  const { getDb } = env.requireFresh('src/services/db');
+  const { getIndexDb } = env.requireFresh('src/services/indexDb');
   const index = env.requireFresh('src/services/folderSizeIndex');
   const hooks = env.requireFresh('src/services/folderSizeHooks');
-  const db = await getDb();
+  const db = await getIndexDb();
   ctx = { env, db, index, hooks, volume: env.volumeDir };
   return ctx;
 };

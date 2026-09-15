@@ -24,7 +24,7 @@ const {
 const pathBindings = require('./pathBindingsService');
 const folderSizeHooks = require('./folderSizeHooks');
 const config = require('../config/index');
-const { getDb } = require('./db');
+const { getIndexDb } = require('./indexDb');
 const folderSizeIndex = require('./folderSizeIndex');
 const { getVolumeScope } = require('./folderSizeIndexer');
 const { scheduleThumbnailRemoval } = require('./thumbnailService');
@@ -172,7 +172,7 @@ const throwIfCancelled = (signal) => {
 const getFolderSizeLookup = async () => {
   if (!config.folderSize.enabled) return null;
   try {
-    return { db: await getDb(), scope: getVolumeScope() };
+    return { db: await getIndexDb(), scope: getVolumeScope() };
   } catch (_) {
     // Folder-size indexing is optional. A transfer must never depend on it.
     return null;

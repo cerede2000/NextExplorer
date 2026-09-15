@@ -33,8 +33,7 @@ const build = async (env = {}) => {
     tag: 'search-index-manager-',
     env: { SEARCH_INDEX: 'true', SEARCH_INDEX_CPU_PERCENT: '100', ...env },
   });
-  const dbService = envContext.requireFresh('src/services/db');
-  db = await dbService.getDb();
+  db = await envContext.requireFresh('src/services/indexDb').getIndexDb();
   store = envContext.requireFresh('src/services/searchIndexStore');
   manager = envContext.requireFresh('src/services/searchIndexManager');
 };

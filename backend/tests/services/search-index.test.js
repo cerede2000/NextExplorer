@@ -19,8 +19,7 @@ const volumePath = (...parts) => path.join(envContext.volumeDir, ...parts);
 
 const build = async (env = {}) => {
   envContext = await setupTestEnv({ tag: 'search-index-', env });
-  const dbService = envContext.requireFresh('src/services/db');
-  db = await dbService.getDb();
+  db = await envContext.requireFresh('src/services/indexDb').getIndexDb();
   store = envContext.requireFresh('src/services/searchIndexStore');
   indexer = envContext.requireFresh('src/services/searchIndexer');
 };

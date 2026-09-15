@@ -89,7 +89,11 @@ const convertToIncremental = (db) => {
     },
     '[DB] Rewrote the database once so that its free space can be handed back from now on'
   );
-  return { converted: isIncremental(db), beforeBytes: before.fileBytes, afterBytes: after.fileBytes };
+  return {
+    converted: isIncremental(db),
+    beforeBytes: before.fileBytes,
+    afterBytes: after.fileBytes,
+  };
 };
 
 const yieldToRequests = () => new Promise((resolve) => setImmediate(resolve));
@@ -139,25 +143,42 @@ const reclaimFreePages = async (
 let interval = null;
 let running = null;
 
+// Required when a pass runs rather than at the top: both require this module.
+const DATABASES = [
+  // eslint-disable-next-line global-require
+  { name: 'app.db', open: () => require('./db').getDb() },
+  // eslint-disable-next-line global-require
+  { name: 'index.db', open: () => require('./indexDb').getIndexDb() },
+];
+
 const runPass = ({ reason = 'scheduled' } = {}) => {
   if (running) return running;
   running = (async () => {
-    // Required here rather than at the top: db.js requires this module.
-    // eslint-disable-next-line global-require
-    const db = await require('./db').getDb();
-    const result = await reclaimFreePages(db);
-    if (result.reclaimedBytes > 0) {
-      logger.info(
-        { reason, reclaimedMb: toMb(result.reclaimedBytes), fileMb: toMb(result.fileBytes) },
-        '[DB] Handed free space back to the filesystem'
-      );
-    } else if (result.skipped === 'not-incremental' && result.freeBytes >= MIN_RECLAIM_BYTES) {
-      logger.warn(
-        { reason, freeMb: toMb(result.freeBytes) },
-        '[DB] Free space is kept until the database can be rewritten at a start'
-      );
+    const results = {};
+    for (const { name, open } of DATABASES) {
+      // eslint-disable-next-line no-await-in-loop
+      const db = await open();
+      // eslint-disable-next-line no-await-in-loop
+      const result = await reclaimFreePages(db);
+      results[name] = result;
+      if (result.reclaimedBytes > 0) {
+        logger.info(
+          {
+            database: name,
+            reason,
+            reclaimedMb: toMb(result.reclaimedBytes),
+            fileMb: toMb(result.fileBytes),
+          },
+          '[DB] Handed free space back to the filesystem'
+        );
+      } else if (result.skipped === 'not-incremental' && result.freeBytes >= MIN_RECLAIM_BYTES) {
+        logger.warn(
+          { database: name, reason, freeMb: toMb(result.freeBytes) },
+          '[DB] Free space is kept until the database can be rewritten at a start'
+        );
+      }
     }
-    return result;
+    return results;
   })().finally(() => {
     running = null;
   });
@@ -170,9 +191,7 @@ const start = () => {
     logger.warn({ err: error }, '[DB] Handing free space back at startup failed')
   );
   interval = setInterval(() => {
-    runPass().catch((error) =>
-      logger.warn({ err: error }, '[DB] Handing free space back failed')
-    );
+    runPass().catch((error) => logger.warn({ err: error }, '[DB] Handing free space back failed'));
   }, PASS_INTERVAL_MS);
   interval.unref?.();
 };

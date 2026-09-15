@@ -545,19 +545,20 @@ describe('the search index of schema 16', () => {
     legacy.close();
 
     const db = await startApplication();
+    const index = await envContext.requireFresh('src/services/indexDb').getIndexDb();
     const searchIndexStore = envContext.requireFresh('src/services/searchIndexStore');
 
     expect(schemaVersion(db)).toBe('19');
     expect(
-      db
+      index
         .prepare('PRAGMA table_info(search_documents)')
         .all()
         .map((c) => c.name)
     ).toContain('dir');
-    expect(db.prepare('SELECT COUNT(*) FROM search_documents').pluck().get()).toBe(0);
+    expect(index.prepare('SELECT COUNT(*) FROM search_documents').pluck().get()).toBe(0);
     expect(
-      db.prepare("SELECT rowid FROM search_terms WHERE search_terms MATCH 'brochure'").all()
+      index.prepare("SELECT rowid FROM search_terms WHERE search_terms MATCH 'brochure'").all()
     ).toEqual([]);
-    expect(searchIndexStore.isReady(db)).toBe(false);
+    expect(searchIndexStore.isReady(index)).toBe(false);
   });
 });

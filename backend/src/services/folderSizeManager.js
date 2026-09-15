@@ -30,6 +30,7 @@ const folderSizeIndex = require('./folderSizeIndex');
 const transferState = require('./folderSizeTransferState');
 const exclusions = require('./folderSizeExclusions');
 const { getDb } = require('./db');
+const { getIndexDb } = require('./indexDb');
 
 let db = null;
 let scope = null;
@@ -321,9 +322,10 @@ const pruneExcludedIndexEntries = (relativePaths = exclusions.effectivePaths()) 
 };
 
 const init = async () => {
-  db = await getDb();
+  db = await getIndexDb();
   scope = indexer.getVolumeScope();
-  exclusions.loadFromDatabase(db);
+  // The folders not to measure are a setting, and settings stay in app.db.
+  exclusions.loadFromDatabase(await getDb());
   pruneExcludedIndexEntries();
 
   // Baseline once (or on explicit rebuild). Async + cooperative yields, so it

@@ -29,13 +29,13 @@ const buildContext = async ({ user, userVolumes = false, folderSizeMode = 'full'
     },
   });
 
-  const { getDb } = env.requireFresh('src/services/db');
+  const { getIndexDb } = env.requireFresh('src/services/indexDb');
   const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
   const indexer = env.requireFresh('src/services/folderSizeIndexer');
   const manager = env.requireFresh('src/services/folderSizeManager');
   const routes = env.requireFresh('src/routes/folderSize');
 
-  const db = await getDb();
+  const db = await getIndexDb();
   const scope = { root: env.volumeDir, label: 'volume' };
 
   const app = createTestApp({ router: routes, mountPath: '/api', user });

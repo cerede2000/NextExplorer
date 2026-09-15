@@ -3,6 +3,7 @@ const path = require('path');
 
 const { search: searchConfig, directories } = require('../config/index');
 const { getDb } = require('./db');
+const { getIndexDb } = require('./indexDb');
 const store = require('./searchIndexStore');
 const exclusions = require('./searchIndexExclusions');
 const { indexTree, indexFile } = require('./searchIndexer');
@@ -106,7 +107,7 @@ const setAdminExclusions = async (paths) => {
   if (!enabled() || changed.added.length === 0) return { ...changed };
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     let removed = 0;
     for (const relativePath of changed.added) removed += store.removeUnder(db, relativePath);
     if (removed > 0) {
@@ -129,7 +130,7 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
     // Nothing else touching the index while a pass runs: the pass is already
     // the whole budget, and a read racing it is a read nobody accounted for.
     await drain();
-    const db = await getDb();
+    const db = await getIndexDb();
     const result = await indexTree({
       db,
       rootAbs: directories.volume,
@@ -216,6 +217,7 @@ const start = () => {
   // exclusion or a silent hole, and nothing in the log told them apart — the
   // question had to be asked and answered by hand.
   enqueue(async () => {
+    // The folders not to read are a setting, and settings stay in app.db.
     const db = await getDb();
     exclusions.loadFromDatabase(db);
     const { environmentExcludedPaths, excludedPaths } = exclusions.snapshot();
@@ -231,7 +233,7 @@ const start = () => {
     // Deliberately before the first pass, so the rebuild is the pass rather
     // than a second one after it.
     enqueue(async () => {
-      const db = await getDb();
+      const db = await getIndexDb();
       store.clear(db);
       logger.warn(
         'SEARCH_INDEX_REBUILD is set: the search index was emptied and will be read again ' +
@@ -277,7 +279,7 @@ const onFileChanged = async (absolutePath) => {
   if (!relative) return;
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     await indexFile(db, relative, absolutePath);
   });
 };
@@ -290,7 +292,7 @@ const onPathRemoved = async (absolutePath) => {
   if (!relative) return;
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     store.removeUnder(db, relative);
   });
 };
@@ -304,7 +306,7 @@ const onPathMoved = async (fromAbsolutePath, toAbsolutePath) => {
   if (!from && !to) return;
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     if (from && to) {
       store.movePath(db, from, to);
       return;
@@ -333,7 +335,7 @@ const onTreeAdded = async (absolutePath) => {
   if (exclude.some((entry) => relative === entry || relative.startsWith(`${entry}/`))) return;
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     const stats = await fs.stat(absolutePath).catch(() => null);
     if (!stats) return;
     if (!stats.isDirectory()) {
@@ -358,7 +360,7 @@ const status = async () => {
   if (!enabled()) return { enabled: false };
 
   try {
-    const db = await getDb();
+    const db = await getIndexDb();
     return {
       enabled: true,
       running,

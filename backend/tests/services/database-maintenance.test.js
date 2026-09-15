@@ -119,7 +119,8 @@ describe('a database created before', () => {
     createDatabaseFromBefore(20);
     const exec = Database.prototype.exec;
     const refuse = vi.spyOn(Database.prototype, 'exec').mockImplementation(function (sql) {
-      if (/^\s*VACUUM\s*$/i.test(sql)) throw Object.assign(new Error('database or disk is full'), { code: 'SQLITE_FULL' });
+      if (/^\s*VACUUM\s*$/i.test(sql))
+        throw Object.assign(new Error('database or disk is full'), { code: 'SQLITE_FULL' });
       return exec.call(this, sql);
     });
 
@@ -152,7 +153,7 @@ describe('the pass', () => {
     expect(freeBytes(db)).toBeGreaterThan(30 * MB);
 
     const maintenance = envContext.requireFresh('src/services/databaseMaintenance');
-    const result = await maintenance.runPass();
+    const { 'app.db': result } = await maintenance.runPass();
 
     expect(freeBytes(db)).toBe(0);
     expect(result.reclaimedBytes).toBeGreaterThan(30 * MB);
@@ -168,7 +169,7 @@ describe('the pass', () => {
     expect(free).toBeGreaterThan(0);
 
     const maintenance = envContext.requireFresh('src/services/databaseMaintenance');
-    const result = await maintenance.runPass();
+    const { 'app.db': result } = await maintenance.runPass();
 
     expect(result).toMatchObject({ reclaimedBytes: 0, skipped: 'below-threshold' });
     expect(freeBytes(db)).toBe(free);
@@ -187,7 +188,7 @@ describe('the pass', () => {
     rows.next();
 
     const maintenance = envContext.requireFresh('src/services/databaseMaintenance');
-    await expect(maintenance.runPass()).resolves.toMatchObject({ freeBytes: 0 });
+    await expect(maintenance.runPass()).resolves.toMatchObject({ 'app.db': { freeBytes: 0 } });
     expect(freeBytes(db)).toBe(0);
 
     rows.return();

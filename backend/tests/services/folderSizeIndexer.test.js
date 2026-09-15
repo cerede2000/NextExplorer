@@ -19,10 +19,10 @@ const createContext = async (extraEnv = {}) => {
     modules: INDEXER_MODULES,
     env: { FOLDER_SIZE_MODE: 'full', ...extraEnv },
   });
-  const { getDb } = env.requireFresh('src/services/db');
+  const { getIndexDb } = env.requireFresh('src/services/indexDb');
   const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
   const indexer = env.requireFresh('src/services/folderSizeIndexer');
-  const db = await getDb();
+  const db = await getIndexDb();
   const scope = { root: env.volumeDir, label: 'volume' };
   return { env, db, folderSizeIndex, indexer, scope };
 };
@@ -405,14 +405,14 @@ describe('folderSizeIndexer', () => {
     });
     ctx = { env };
 
-    const { getDb } = env.requireFresh('src/services/db');
+    const { getIndexDb } = env.requireFresh('src/services/indexDb');
     const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
     const scope = { root: env.volumeDir, label: 'volume' };
     const legacy = path.join(scope.root, 'Legacy');
     await fs.mkdir(path.join(legacy, 'nested'), { recursive: true });
     await fs.writeFile(path.join(legacy, 'nested', 'payload.bin'), Buffer.alloc(42));
 
-    const db = await getDb();
+    const db = await getIndexDb();
     const scannedAt = new Date().toISOString();
     folderSizeIndex.upsertScanEntry(db, scope, {
       absolutePath: scope.root,
