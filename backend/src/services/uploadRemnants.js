@@ -6,7 +6,8 @@ const logger = require('../utils/logger');
 /**
  * Remove what a killed upload left behind.
  *
- * `uploadService` writes to `<final name>.uploading` and renames on success.
+ * `uploadService` writes to a hidden `.upload-<random>.uploading` beside the
+ * destination and moves it under its real name on success.
  * Every failure it can observe cleans up after itself, but nothing survives the
  * process being killed: restart the container mid-upload and a half-written
  * `holiday.mp4.uploading` stays in the folder for good, with nothing anywhere

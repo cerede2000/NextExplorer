@@ -184,8 +184,7 @@ export function useFileUploader() {
   // Auto-fallback modes (auto on, admin hasn't force-enabled chunking):
   //  - "direct":  no size learned yet  → uploads go out as a single XHR
   //  - "chunked": a size is remembered → uploads go through TUS
-  const inDirectMode = () =>
-    isWatchingDirectUploads(appSettings.state?.uploads, readFallbackMiB());
+  const inDirectMode = () => isWatchingDirectUploads(appSettings.state?.uploads, readFallbackMiB());
   const inFallbackChunkedMode = () =>
     isInFallbackChunked(appSettings.state?.uploads, readFallbackMiB());
   const isLargeFile = isLargeUpload;
@@ -314,6 +313,25 @@ export function useFileUploader() {
     return null;
   };
 
+  /**
+   * The reason the server gave when every byte arrived but the file could not
+   * be put in its folder, or '' when it gave none.
+   *
+   * Nothing is gained by trying again. A retry asks for the offset first, the
+   * offset is complete, and before the server said otherwise the client took
+   * that as an upload that had succeeded; falling back to smaller chunks would
+   * send the whole file again into the same failure.
+   */
+  const getFinalizeError = (error) => {
+    const raw = error?.originalResponse?.getHeader?.('Upload-Finalize-Error');
+    if (!raw) return '';
+    try {
+      return decodeURIComponent(raw);
+    } catch (_) {
+      return String(raw);
+    }
+  };
+
   const isNetworkUploadError = (error) => {
     const message = String(error?.message || '').toLowerCase();
     return (
@@ -371,6 +389,7 @@ export function useFileUploader() {
         // ("server connection was lost") kills a whole large-chunk upload.
         retryDelays: [0, 1000, 3000, 5000, 10000],
         onShouldRetry: (error, _retryAttempt, _options, next) => {
+          if (getFinalizeError(error)) return false; // received, but not placed — see above
           const status = getTusErrorStatus(error);
           if (status === 507) return false; // storage full — retrying won't help
           if (status && status >= 400 && status < 500) return false; // auth / permission / too large
@@ -646,14 +665,23 @@ export function useFileUploader() {
       // drop, or a chunked attempt whose size still failed): fall back to chunks
       // / step the ladder down and retry instead of surfacing the error.
       const status = getTusErrorStatus(error) ?? response?.status ?? null;
-      if (handleUploadFailure(file, status, Number(file?.progress?.bytesUploaded) || 0)) return;
+      const finalizeError = getFinalizeError(error);
+      if (
+        !finalizeError &&
+        handleUploadFailure(file, status, Number(file?.progress?.bytesUploaded) || 0)
+      ) {
+        return;
+      }
 
       const body = response?.body;
       const nested = body && typeof body === 'object' ? body?.error : null;
       const nestedObj = nested && typeof nested === 'object' ? nested : null;
-      const networkError = isNetworkUploadError(error);
+      // A failed PATCH reads like a dropped connection to the check below, and
+      // the server's reason is the whole point here.
+      const networkError = !finalizeError && isNetworkUploadError(error);
 
       const rawHeading =
+        finalizeError ||
         nestedObj?.message ||
         (typeof nested === 'string' ? nested : '') ||
         error?.message ||

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
 const fss = require('fs');
@@ -6,7 +7,8 @@ const multer = require('multer');
 
 const { uploads } = require('../config/index');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
-const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
+const { normalizeRelativePath } = require('../utils/pathUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
@@ -130,7 +132,7 @@ function CustomStorage() {
   // Custom multer storage engine for handling file uploads with:
   // - Access control checks
   // - Atomic-like writes via temporary files
-  // - Automatic file name conflict resolution
+  // - A name that never replaces a file already holding it
 }
 
 CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
@@ -167,14 +169,20 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       await ensureDir(destinationDir);
       await prepareDestinationOnce(req, destinationDir);
 
-      let finalPath = destinationPath;
-      if (await pathExists(finalPath)) {
-        const desiredName = path.basename(destinationPath);
-        const availableName = await findAvailableName(destinationDir, desiredName);
-        finalPath = path.join(destinationDir, availableName);
-      }
-
-      const temporaryPath = `${finalPath}${UPLOADING_SUFFIX}`;
+      // The bytes go to a hidden name of their own beside the destination, and
+      // the real name is only taken once they are all there. Choosing that name
+      // first, as this did, left it free for the whole transfer: whatever
+      // arrived under it meanwhile — another upload, a copy, a file saved over
+      // SMB — was replaced by the rename at the end, and two uploads of the same
+      // name wrote into the same temporary file. The temporary name is random,
+      // so it never collides and never derives from a name that could exceed
+      // the filesystem's limit, and it still ends in `.uploading`, which the
+      // listing hides and the remnant sweep recognises.
+      const desiredName = path.basename(destinationPath);
+      const temporaryPath = path.join(
+        destinationDir,
+        `.upload-${crypto.randomBytes(8).toString('hex')}${UPLOADING_SUFFIX}`
+      );
 
       const cleanupTemporary = async () => {
         let lastError = null;
@@ -263,17 +271,20 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       }
 
       try {
-        await fs.rename(temporaryPath, finalPath);
+        // Taken by an operation that fails when the name is held, moving on to
+        // "name (1).ext" and so on: nothing already there is ever replaced. What
+        // was taken is what the response reports.
+        const placed = await placeWithoutOverwrite(temporaryPath, destinationDir, desiredName);
         cb(null, {
-          path: finalPath,
+          path: placed.path,
           size: outStream.bytesWritten,
-          filename: path.basename(finalPath),
-          logicalPath: logicalRelativePath,
+          filename: placed.name,
+          logicalPath: normalizeRelativePath(path.join(relDestDir, placed.name)),
         });
-      } catch (renameErr) {
+      } catch (placeErr) {
         await waitForClosed(outStream);
         await cleanupTemporary();
-        cb(renameErr);
+        cb(placeErr);
       }
     } catch (uploadError) {
       cb(uploadError);

@@ -93,6 +93,46 @@ const expectUploadGone = async (tusDir, uploadId) => {
   await expect(fs.access(path.join(tusDir, `${uploadId}.json`))).rejects.toBeTruthy();
 };
 
+/**
+ * Moves out of the upload cache, intercepted. A finished upload is moved by a
+ * hard link, or by a rename where the filesystem has none, so both are
+ * patched. `before` runs first — to hold the move, or to put something under
+ * the name at the last moment — and `code`, when given, then fails the move as
+ * a cache on another filesystem (EXDEV) or a folder the server may not write
+ * (EACCES) does. Answers the function that puts both back.
+ */
+const interceptCacheMoves = (tusDir, { code = null, before = null } = {}) => {
+  const originalLink = fs.link;
+  const originalRename = fs.rename;
+  const intercept = (original) => async (source, destination) => {
+    if (String(source).startsWith(tusDir + path.sep)) {
+      if (before) await before(source, destination);
+      if (code) throw codedError(code, 'intercepted move out of the upload cache');
+    }
+    return original(source, destination);
+  };
+  fs.link = intercept(originalLink);
+  fs.rename = intercept(originalRename);
+  return () => {
+    fs.link = originalLink;
+    fs.rename = originalRename;
+  };
+};
+
+/** Ask for an upload's offset, as a client resuming it does. */
+const head = (baseUrl, uploadPath, user) => {
+  const req = request(baseUrl).head(uploadPath).set('Tus-Resumable', '1.0.0');
+  return user ? req.set('X-Test-User', user) : req;
+};
+
+const finalizeError = (response) => {
+  const raw = response.headers['upload-finalize-error'];
+  return raw === undefined ? undefined : decodeURIComponent(raw);
+};
+
+const NOT_ALLOWED =
+  'The file was received, but it could not be put in its folder: the server is not allowed to write there.';
+
 describe('TUS upload route', () => {
   let envContext;
 
@@ -130,13 +170,22 @@ describe('TUS upload route', () => {
       req.session.establishedAt = new Date().toISOString();
       res.json({ ok: true });
     });
+    const requestLog = [];
     app.use((req, _res, next) => {
-      req.user = { id: 'admin', email: 'admin@example.com', roles: ['admin'] };
+      if (req.path.startsWith('/api/upload/tus')) requestLog.push(req.method);
+      // Someone other than the person uploading, when a test names one.
+      const other = req.headers['x-test-user'];
+      req.user = other
+        ? { id: other, email: `${other}@example.com`, roles: ['user'] }
+        : { id: 'admin', email: 'admin@example.com', roles: ['admin'] };
       next();
     });
     app.use('/api', uploadRoutes);
     app.use(errorHandler);
-    return http.createServer(app);
+    const server = http.createServer(app);
+    // What reached the chunked upload route, by method, in order.
+    server.requestLog = requestLog;
+    return server;
   };
 
   // Both switches, not one. TUS carries forced chunking *and* the client-side
@@ -459,16 +508,10 @@ describe('TUS upload route', () => {
     let seen = null;
 
     // Only a move out of the cache crosses devices: the partial copy is written
-    // beside its destination and renamed within that filesystem.
+    // beside its destination and linked under its name within that filesystem.
     const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
-    const originalRename = fs.rename;
     const originalUnlink = fs.unlink;
-    fs.rename = async (source, destination) => {
-      if (String(source).startsWith(tusDir + path.sep)) {
-        throw codedError('EXDEV', 'cross-device link not permitted');
-      }
-      return originalRename(source, destination);
-    };
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EXDEV' });
 
     const server = buildApp();
     const baseUrl = await startServer(server);
@@ -524,7 +567,7 @@ describe('TUS upload route', () => {
       const after = await request(baseUrl).get('/api/upload/finalizations');
       expect(after.body).toEqual({ items: [] });
     } finally {
-      fs.rename = originalRename;
+      restoreMoves();
       fs.unlink = originalUnlink;
       await closeServer(server);
     }
@@ -552,20 +595,14 @@ describe('TUS upload route', () => {
     const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
     const content = Buffer.from('sent in full, never arrived');
 
-    const originalRename = fs.rename;
-    fs.rename = async (source, destination) => {
-      if (String(source).startsWith(tusDir + path.sep)) {
-        throw codedError('EACCES', 'permission denied');
-      }
-      return originalRename(source, destination);
-    };
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EACCES' });
 
     try {
       const oldPath = await createUpload(baseUrl, cookie, 'old.txt', content.length);
       const recentPath = await createUpload(baseUrl, cookie, 'recent.txt', content.length);
       expect((await sendUpload(baseUrl, oldPath, content)).status).toBe(500);
       expect((await sendUpload(baseUrl, recentPath, content)).status).toBe(500);
-      fs.rename = originalRename;
+      restoreMoves();
 
       const oldId = path.basename(oldPath);
       const recentId = path.basename(recentPath);
@@ -580,7 +617,7 @@ describe('TUS upload route', () => {
       await expectUploadGone(tusDir, oldId);
       await expectUploadInCache(tusDir, recentId, content.length);
     } finally {
-      fs.rename = originalRename;
+      restoreMoves();
       await closeServer(server);
     }
   });
@@ -608,15 +645,13 @@ describe('TUS upload route', () => {
       releaseMove = resolve;
     });
 
-    const originalRename = fs.rename;
-    fs.rename = async (source, destination) => {
-      if (String(source).startsWith(tusDir + path.sep)) {
+    const restoreMoves = interceptCacheMoves(tusDir, {
+      code: 'EXDEV',
+      before: async () => {
         markMoveReached();
         await moveReleased;
-        throw codedError('EXDEV', 'cross-device link not permitted');
-      }
-      return originalRename(source, destination);
-    };
+      },
+    });
 
     try {
       const uploadPath = await createUpload(baseUrl, cookie, 'late.txt', content.length);
@@ -636,7 +671,7 @@ describe('TUS upload route', () => {
       ).resolves.toBe('moved while the sweep ran');
     } finally {
       releaseMove();
-      fs.rename = originalRename;
+      restoreMoves();
       await closeServer(server);
     }
   });
@@ -656,14 +691,8 @@ describe('TUS upload route', () => {
     const nvmDir = path.join(envContext.volumeDir, 'Nvm');
     const content = Buffer.alloc(256 * 1024, 'x');
 
-    const originalRename = fs.rename;
     const originalCreateWriteStream = fsSync.createWriteStream;
-    fs.rename = async (source, destination) => {
-      if (String(source).startsWith(tusDir + path.sep)) {
-        throw codedError('EXDEV', 'cross-device link not permitted');
-      }
-      return originalRename(source, destination);
-    };
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EXDEV' });
 
     let partialBytes = 0;
     let folderDuringCopy = null;
@@ -692,7 +721,12 @@ describe('TUS upload route', () => {
 
     try {
       const uploadPath = await createUpload(baseUrl, cookie, 'large.bin', content.length);
-      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(500);
+      const response = await sendUpload(baseUrl, uploadPath, content);
+      // A full volume, said as such: 507 and the reason, not a generic 500.
+      expect(response.status).toBe(507);
+      expect(finalizeError(response)).toBe(
+        'The file was received, but it could not be put in its folder: there is not enough space left on the volume.'
+      );
 
       // A partial file really was on disk when the folder was read.
       expect(partialBytes).toBeGreaterThan(0);
@@ -703,17 +737,17 @@ describe('TUS upload route', () => {
       expect(await fs.readdir(nvmDir)).toEqual([]);
       await expectUploadInCache(tusDir, path.basename(uploadPath), content.length);
     } finally {
-      fs.rename = originalRename;
+      restoreMoves();
       fsSync.createWriteStream = originalCreateWriteStream;
       await closeServer(server);
     }
   });
 
   /**
-   * The name is chosen before the copy starts. A file written under it used to
-   * hold it for the copy's whole length; a hidden partial copy does not, so
-   * whatever lands there meanwhile must not be overwritten by the rename. The
-   * move is held after the name is chosen, and a file arrives under it.
+   * A file written under its own name used to hold that name for the copy's
+   * whole length; a hidden partial copy does not, so whatever lands there
+   * meanwhile must not be overwritten when the copy takes the name. The move is
+   * held before the copy, and a file arrives under the name.
    */
   it('does not overwrite a file that arrives under the same name during the copy', async () => {
     await enableChunkedUploads();
@@ -733,15 +767,13 @@ describe('TUS upload route', () => {
       releaseMove = resolve;
     });
 
-    const originalRename = fs.rename;
-    fs.rename = async (source, destination) => {
-      if (String(source).startsWith(tusDir + path.sep)) {
+    const restoreMoves = interceptCacheMoves(tusDir, {
+      code: 'EXDEV',
+      before: async () => {
         markMoveReached();
         await moveReleased;
-        throw codedError('EXDEV', 'cross-device link not permitted');
-      }
-      return originalRename(source, destination);
-    };
+      },
+    });
 
     try {
       const uploadPath = await createUpload(baseUrl, cookie, 'large.bin', content.length);
@@ -761,7 +793,7 @@ describe('TUS upload route', () => {
       );
     } finally {
       releaseMove();
-      fs.rename = originalRename;
+      restoreMoves();
       await closeServer(server);
     }
   });
@@ -786,6 +818,415 @@ describe('TUS upload route', () => {
     try {
       await createUpload(baseUrl, cookie, 'next.txt', 5);
       await expect(fs.access(remnant)).rejects.toBeTruthy();
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * On one filesystem the finished file is linked into its folder. The name is
+   * free when the move begins; a file put under it at the last moment, just
+   * before the move, is kept, and the upload takes the next name.
+   */
+  it('does not overwrite a file that arrives under the name as the upload is moved in', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const content = Buffer.from('the upload');
+
+    let arrived = false;
+    const restoreMoves = interceptCacheMoves(tusDir, {
+      before: async (_source, destination) => {
+        if (arrived) return;
+        arrived = true;
+        await fs.writeFile(destination, 'arrived meanwhile');
+      },
+    });
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(204);
+
+      expect(arrived).toBe(true);
+      expect((await fs.readdir(nvmDir)).sort()).toEqual(['notes (1).txt', 'notes.txt']);
+      await expect(fs.readFile(path.join(nvmDir, 'notes.txt'), 'utf8')).resolves.toBe(
+        'arrived meanwhile'
+      );
+      await expect(fs.readFile(path.join(nvmDir, 'notes (1).txt'), 'utf8')).resolves.toBe(
+        'the upload'
+      );
+    } finally {
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * Every byte arrived and the file could not be moved into its folder. Thrown,
+   * that was a 500 with a generic body, which the client retried into a false
+   * success (see the HEAD tests below). It is answered with the reason, in the
+   * body and in a header a cross-origin client is allowed to read, and without
+   * the server's own paths.
+   */
+  it('answers a move into the folder that fails with the reason, in a header the client can read', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const content = Buffer.from('sent in full');
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EACCES' });
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      const response = await sendUpload(baseUrl, uploadPath, content);
+
+      expect(response.status).toBe(500);
+      expect(finalizeError(response)).toBe(NOT_ALLOWED);
+      expect(response.text.trim()).toBe(NOT_ALLOWED);
+      expect(response.text).not.toContain(envContext.tmpRoot);
+      expect(response.headers['access-control-expose-headers']).toMatch(
+        /\bUpload-Finalize-Error\b/
+      );
+      await expectUploadInCache(tusDir, path.basename(uploadPath), content.length);
+    } finally {
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * The client retries a failed PATCH by asking for the offset. @tus/server
+   * answered from the cache, where the upload is complete, and tus-js-client
+   * then reported the upload as done without another request: a file that
+   * never reached its folder, shown as uploaded. The move is tried again
+   * instead, and the offset is complete only once the file is in its folder.
+   */
+  it('tries the move again when asked for the offset, and says complete only once the file is in place', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const content = Buffer.from('placed on the second try');
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EACCES' });
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      const uploadId = path.basename(uploadPath);
+      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(500);
+
+      // Still failing: an error with the reason. Never complete, and never the
+      // other refusals, which the client takes as an upload to create again.
+      const failing = await head(baseUrl, uploadPath);
+      expect(failing.status).toBe(423);
+      expect(finalizeError(failing)).toBe(NOT_ALLOWED);
+      expect(failing.headers['upload-offset']).toBeUndefined();
+      expect(await fs.readdir(nvmDir)).toEqual([]);
+      await expectUploadInCache(tusDir, uploadId, content.length);
+
+      restoreMoves();
+      const placed = await head(baseUrl, uploadPath);
+      expect(placed.status).toBe(200);
+      expect(placed.headers['upload-offset']).toBe(String(content.length));
+      expect(placed.headers['upload-length']).toBe(String(content.length));
+      expect(placed.headers['cache-control']).toBe('no-store');
+      expect(finalizeError(placed)).toBeUndefined();
+      await expect(fs.readFile(path.join(nvmDir, 'notes.txt'), 'utf8')).resolves.toBe(
+        'placed on the second try'
+      );
+      await expectUploadGone(tusDir, uploadId);
+
+      // Asked again: still complete, and placed once.
+      expect((await head(baseUrl, uploadPath)).status).toBe(200);
+      expect(await fs.readdir(nvmDir)).toEqual(['notes.txt']);
+    } finally {
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * Once placed, the upload leaves the cache, and @tus/server answers a HEAD for
+   * it with 404, which tus-js-client takes as an upload to start over: a PATCH
+   * whose response was lost during a long copy was retried that way, and the
+   * whole file sent again and stored twice. Said only to the person who sent it.
+   */
+  it('says an upload placed a moment ago is complete, to the person who sent it', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const content = Buffer.from('already in its folder');
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(204);
+
+      const response = await head(baseUrl, uploadPath);
+      expect(response.status).toBe(200);
+      expect(response.headers['upload-offset']).toBe(String(content.length));
+      expect(response.headers['upload-length']).toBe(String(content.length));
+      expect(response.headers['tus-resumable']).toBe('1.0.0');
+      expect(response.headers['cache-control']).toBe('no-store');
+
+      expect((await head(baseUrl, uploadPath, 'someone-else')).status).toBe(404);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * Asked for the offset while the file is being moved in, by a client whose
+   * PATCH response was lost during a long copy, the answer waits for that move
+   * rather than reading the cache, and the file is placed once.
+   */
+  it('waits for a move in progress before saying the upload is complete', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const content = Buffer.from('moved while someone asked');
+
+    let markMoveReached;
+    const moveReached = new Promise((resolve) => {
+      markMoveReached = resolve;
+    });
+    let releaseMove;
+    const moveReleased = new Promise((resolve) => {
+      releaseMove = resolve;
+    });
+    const restoreMoves = interceptCacheMoves(tusDir, {
+      before: async () => {
+        markMoveReached();
+        await moveReleased;
+      },
+    });
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'late.txt', content.length);
+      const pending = sendUpload(baseUrl, uploadPath, content).then((response) => response);
+      await moveReached;
+
+      let placedWhenAnswered = null;
+      const asked = head(baseUrl, uploadPath).then((response) => {
+        placedWhenAnswered = fsSync.existsSync(path.join(nvmDir, 'late.txt'));
+        return response;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(placedWhenAnswered).toBeNull();
+
+      releaseMove();
+      expect((await pending).status).toBe(204);
+      const answer = await asked;
+      expect(answer.status).toBe(200);
+      expect(answer.headers['upload-offset']).toBe(String(content.length));
+      expect(placedWhenAnswered).toBe(true);
+      expect(await fs.readdir(nvmDir)).toEqual(['late.txt']);
+    } finally {
+      releaseMove();
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * The move tried again on a HEAD is authorised with that request's user, as
+   * the PATCH was: someone who may not upload to the folder cannot finish an
+   * upload into it.
+   */
+  it('does not move a stuck upload into place for someone who may not upload there', async () => {
+    await enableChunkedUploads();
+    await envContext
+      .requireFresh('src/services/accessControlService')
+      .setRules([{ path: 'Nvm', recursive: true, permissions: 'ro' }]);
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const content = Buffer.from('an administrator sent this');
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EACCES' });
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      const uploadId = path.basename(uploadPath);
+      expect((await sendUpload(baseUrl, uploadPath, content)).status).toBe(500);
+      restoreMoves();
+
+      const refused = await head(baseUrl, uploadPath, 'reader');
+      expect(refused.status).toBe(403);
+      expect(await fs.readdir(nvmDir)).toEqual([]);
+      await expectUploadInCache(tusDir, uploadId, content.length);
+
+      // The administrator who sent it still can.
+      expect((await head(baseUrl, uploadPath)).status).toBe(200);
+      expect(await fs.readdir(nvmDir)).toEqual(['notes.txt']);
+    } finally {
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * Send `content` with tus-js-client, the library behind the browser's
+   * uploads, and answer how it ended. Its own decision on what to retry, with
+   * no wait in between.
+   */
+  const uploadWithClient = (baseUrl, name, content) =>
+    new Promise((resolve) => {
+      const { Upload } = require('tus-js-client');
+      const upload = new Upload(content, {
+        endpoint: `${baseUrl}/api/upload/tus`,
+        metadata: { filename: name, relativePath: name, uploadTo: 'Nvm' },
+        retryDelays: [0, 0, 0],
+        onSuccess: () => resolve({ succeeded: true }),
+        onError: (error) => resolve({ succeeded: false, error }),
+      });
+      upload.start();
+    });
+
+  /**
+   * What the person finally sees is the client's reading of the exchange, so
+   * the exchange is played with the client itself. A move that keeps failing
+   * used to end in a success: the retry's HEAD was answered complete from the
+   * cache. It ends in an error carrying the reason, and the file is not created
+   * and sent a second time, which tus-js-client does for any refusal of that
+   * HEAD other than 423.
+   */
+  it('ends, for tus-js-client, in an error with the reason when the move keeps failing', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EACCES' });
+
+    try {
+      const outcome = await uploadWithClient(baseUrl, 'notes.txt', Buffer.from('never placed'));
+
+      expect(outcome.succeeded).toBe(false);
+      const header = outcome.error?.originalResponse?.getHeader('Upload-Finalize-Error');
+      expect(decodeURIComponent(header)).toBe(NOT_ALLOWED);
+      expect(server.requestLog.filter((method) => method === 'POST')).toHaveLength(1);
+      expect(await fs.readdir(nvmDir)).toEqual([]);
+    } finally {
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  it('ends, for tus-js-client, in a success only once a retried move put the file in its folder', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    let failures = 0;
+    const restoreMoves = interceptCacheMoves(tusDir, {
+      before: async () => {
+        if (failures > 0) return;
+        failures += 1;
+        throw codedError('EACCES', 'permission denied');
+      },
+    });
+
+    try {
+      const outcome = await uploadWithClient(
+        baseUrl,
+        'notes.txt',
+        Buffer.from('placed on the retry')
+      );
+
+      expect(outcome.error).toBeUndefined();
+      expect(outcome.succeeded).toBe(true);
+      expect(failures).toBe(1);
+      await expect(fs.readFile(path.join(nvmDir, 'notes.txt'), 'utf8')).resolves.toBe(
+        'placed on the retry'
+      );
+      expect(await fs.readdir(nvmDir)).toEqual(['notes.txt']);
+      expect(server.requestLog.filter((method) => method === 'POST')).toHaveLength(1);
+    } finally {
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * Across filesystems the cache copy is removed once the file is in its
+   * folder. A failure to remove it used to fail the upload, though the file
+   * had arrived, and a retry would then have placed it a second time. What
+   * stays in the cache is the sweep's to remove.
+   */
+  it('reports a copied upload as arrived even when its cache copy cannot be removed', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const tusDir = path.join(envContext.cacheDir, 'tus-uploads');
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+    const content = Buffer.from('copied, then stuck in the cache');
+    const restoreMoves = interceptCacheMoves(tusDir, { code: 'EXDEV' });
+    const originalUnlink = fs.unlink;
+    let refusedRemoval = false;
+    fs.unlink = async (target) => {
+      const inCache = String(target).startsWith(tusDir + path.sep);
+      if (inCache && !String(target).endsWith('.json')) {
+        refusedRemoval = true;
+        throw codedError('EBUSY', 'resource busy or locked');
+      }
+      return originalUnlink(target);
+    };
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'notes.txt', content.length);
+      const response = await sendUpload(baseUrl, uploadPath, content);
+
+      expect(refusedRemoval).toBe(true);
+      expect(response.status).toBe(204);
+      expect(finalizeError(response)).toBeUndefined();
+      await expect(fs.readFile(path.join(nvmDir, 'notes.txt'), 'utf8')).resolves.toBe(
+        'copied, then stuck in the cache'
+      );
+
+      // Asked again, it is complete, and still in its folder once.
+      expect((await head(baseUrl, uploadPath)).status).toBe(200);
+      expect(await fs.readdir(nvmDir)).toEqual(['notes.txt']);
+    } finally {
+      fs.unlink = originalUnlink;
+      restoreMoves();
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * Only an upload whose every byte arrived is answered here. One still being
+   * sent is answered as before, with its real offset, and nothing is moved
+   * into the folder before its last byte.
+   */
+  it('answers an unfinished upload with its offset and moves nothing', async () => {
+    await enableChunkedUploads();
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+    const nvmDir = path.join(envContext.volumeDir, 'Nvm');
+
+    try {
+      const uploadPath = await createUpload(baseUrl, cookie, 'half.txt', 20);
+      const first = await sendUpload(baseUrl, uploadPath, Buffer.from('0123456789'));
+      expect(first.status).toBe(204);
+
+      const response = await head(baseUrl, uploadPath);
+      expect(response.status).toBe(200);
+      expect(response.headers['upload-offset']).toBe('10');
+      expect(response.headers['upload-length']).toBe('20');
+      expect(await fs.readdir(nvmDir)).toEqual([]);
     } finally {
       await closeServer(server);
     }

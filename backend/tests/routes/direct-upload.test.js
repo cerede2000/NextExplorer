@@ -76,8 +76,8 @@ describe('a direct upload', () => {
 
       expect(response.status).toBe(200);
       expect(await fs.readFile(path.join(destination, 'hello.txt'), 'utf8')).toBe('hello there');
-      // The temporary file it was written through is gone.
-      expect(await exists(path.join(destination, 'hello.txt.uploading'))).toBe(false);
+      // The temporary file it was written through is gone, whatever its name.
+      expect(await fs.readdir(destination)).toEqual(['hello.txt']);
     } finally {
       await closeServer(server);
     }

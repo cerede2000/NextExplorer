@@ -83,6 +83,10 @@ const tree = async (dir) => {
   return entries.map((entry) => entry.split(path.sep).join('/')).sort();
 };
 
+/** The hidden files uploads are written through, in `dir`. */
+const temporaries = async (dir) =>
+  (await fs.readdir(dir)).filter((name) => /^\.upload-[0-9a-f]{16}\.uploading$/.test(name));
+
 const waitFor = async (predicate, timeoutMs = 3000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -142,6 +146,114 @@ describe('a name already taken', () => {
     expect(response.status).toBe(200);
     expect(await fs.readFile(path.join(destination, 'report.txt'), 'utf8')).toBe('the original');
     expect(await fs.readFile(path.join(destination, 'report (1).txt'), 'utf8')).toBe('the upload');
+    // What the listing and the person are told is the name it really took.
+    expect(response.body).toEqual([
+      expect.objectContaining({ name: 'report (1).txt', path: 'Nvm' }),
+    ]);
+  });
+
+  /**
+   * The name used to be chosen before the transfer and taken by a rename after
+   * it, which replaces a file silently: whatever arrived under it in between —
+   * another upload, a copy, a file saved over SMB — was lost. A file is put
+   * under the name at the last moment, after every byte arrived and just
+   * before the upload takes the name.
+   */
+  it('keeps a file that arrives under the name at the last moment', async () => {
+    const destination = await seed();
+    const target = path.join(destination, 'report.txt');
+
+    let arrived = false;
+    const arriveFirst = (original) =>
+      async function arriving(from, to) {
+        if (!arrived && String(from).endsWith('.uploading') && to === target) {
+          arrived = true;
+          await fs.writeFile(target, 'arrived meanwhile');
+        }
+        return original.call(this, from, to);
+      };
+    const { link, rename } = fsp;
+    vi.spyOn(fsp, 'link').mockImplementation(arriveFirst(link));
+    vi.spyOn(fsp, 'rename').mockImplementation(arriveFirst(rename));
+
+    const response = await upload(
+      buildApp(),
+      { uploadTo: 'Nvm', relativePath: 'report.txt' },
+      { name: 'report.txt', content: 'the upload' }
+    );
+
+    expect(arrived).toBe(true);
+    expect(response.status).toBe(200);
+    expect(await fs.readFile(target, 'utf8')).toBe('arrived meanwhile');
+    expect(await fs.readFile(path.join(destination, 'report (1).txt'), 'utf8')).toBe('the upload');
+    // Named and measured after the file it became, not the one that arrived.
+    expect(response.body).toEqual([
+      expect.objectContaining({ name: 'report (1).txt', size: 'the upload'.length }),
+    ]);
+    expect(await tree(destination)).toEqual(['report (1).txt', 'report.txt']);
+  });
+
+  /**
+   * Two uploads of one name at once used to pick the same name, and so the
+   * same `name.uploading` temporary: each wrote into the other's file, and the
+   * rename of the first left the second nothing to rename. Both are sent half
+   * way before either finishes.
+   */
+  it('gives two uploads of the same name at once a name each, with their own content', async () => {
+    const destination = await seed();
+    const port = await listen(buildApp(ADMIN));
+
+    const send = (content) => {
+      const tail = Buffer.from(`\r\n--${BOUNDARY}--\r\n`);
+      const head = partHead('notes.txt');
+      const body = Buffer.from(content);
+      const half = Math.floor(body.length / 2);
+      let resolveResponse;
+      const response = new Promise((resolve, reject) => {
+        resolveResponse = { resolve, reject };
+      });
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          method: 'POST',
+          path: '/api/upload?uploadTo=Nvm&relativePath=notes.txt',
+          headers: {
+            'Content-Type': `multipart/form-data; boundary=${BOUNDARY}`,
+            'Content-Length': String(head.length + body.length + tail.length),
+          },
+        },
+        (res) => {
+          let text = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            text += chunk;
+          });
+          res.on('end', () => resolveResponse.resolve({ status: res.statusCode, text }));
+        }
+      );
+      req.on('error', (err) => resolveResponse.reject(err));
+      req.write(Buffer.concat([head, body.subarray(0, half)]));
+      return { finish: () => req.end(Buffer.concat([body.subarray(half), tail])), response };
+    };
+
+    const first = send('a'.repeat(128 * 1024));
+    const second = send('b'.repeat(128 * 1024));
+    // Both are writing before either finishes. The old code shared one
+    // temporary between them, so this only waits as long as it has to.
+    await waitFor(async () => (await temporaries(destination)).length === 2, 1500);
+    first.finish();
+    second.finish();
+    const answers = await Promise.all([first.response, second.response]);
+
+    expect(answers.map((answer) => answer.status)).toEqual([200, 200]);
+    const told = answers.map((answer) => JSON.parse(answer.text)[0].name).sort();
+    expect(told).toEqual(['notes (1).txt', 'notes.txt']);
+    expect(await tree(destination)).toEqual(['notes (1).txt', 'notes.txt']);
+    const contents = await Promise.all(
+      told.map((name) => fs.readFile(path.join(destination, name), 'utf8'))
+    );
+    expect(contents.sort()).toEqual(['a'.repeat(128 * 1024), 'b'.repeat(128 * 1024)]);
   });
 });
 
@@ -300,10 +412,9 @@ describe('an upload that does not finish', () => {
   it('leaves nothing behind when the client goes away half way', async () => {
     const destination = await seed();
     const port = await listen(buildApp(ADMIN));
-    const temporary = path.join(destination, 'film.mkv.uploading');
 
     const req = startPartialUpload(port, 'film.mkv');
-    expect(await waitFor(() => exists(temporary))).toBe(true);
+    expect(await waitFor(async () => (await temporaries(destination)).length === 1)).toBe(true);
 
     req.destroy();
 
@@ -319,11 +430,10 @@ describe('an upload that does not finish', () => {
   it('leaves nothing behind when the client stops sending and never hangs up', async () => {
     const destination = await seed({ env: { UPLOAD_INACTIVITY_TIMEOUT: '300' } });
     const port = await listen(buildApp(ADMIN));
-    const temporary = path.join(destination, 'stalled.bin.uploading');
 
     const req = startPartialUpload(port, 'stalled.bin');
     try {
-      expect(await waitFor(() => exists(temporary))).toBe(true);
+      expect(await waitFor(async () => (await temporaries(destination)).length === 1)).toBe(true);
 
       expect(await waitFor(async () => (await tree(destination)).length === 0)).toBe(true);
       expect(req.destroyed).toBe(false);

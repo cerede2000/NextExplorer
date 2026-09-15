@@ -8,8 +8,9 @@ const { Server } = require('@tus/server');
 const { FileStore } = require('@tus/file-store');
 
 const { upload: uploadConfig } = require('../config');
-const { ensureDir, pathExists } = require('../utils/fsUtils');
-const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
+const { ensureDir } = require('../utils/fsUtils');
+const { normalizeRelativePath } = require('../utils/pathUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
@@ -138,7 +139,10 @@ const getLastActivityMs = (...stats) =>
   );
 
 /**
- * Uploads whose onUploadFinish is running, whatever their age.
+ * Uploads being moved into place, whatever their age: by onUploadFinish, or by
+ * a HEAD retrying a move that failed. Each holds the attempt, so a second
+ * caller waits for it rather than placing the same file twice, and the upload
+ * it is for.
  *
  * Age alone does not protect them. The last write refreshes the data file just
  * before the hook starts, but a copy to another filesystem can outlast the TTL
@@ -147,7 +151,7 @@ const getLastActivityMs = (...stats) =>
  * cache for a day can be moving into place right now. The sweep asks this set
  * immediately before each removal, with nothing awaited in between.
  */
-const finishing = new Set();
+const finishing = new Map();
 
 const cleanupInactiveUploads = async (now = Date.now()) => {
   if (TUS_INCOMPLETE_UPLOAD_TTL_MS <= 0) return 0;
@@ -403,10 +407,20 @@ const copyWithProgress = async (source, destination, onProgress) => {
   await pipeline(readStream, fsSync.createWriteStream(destination));
 };
 
-const moveFile = async (source, destination, onProgress) => {
+/**
+ * Move a finished upload into `directory` under `desiredName`, or the first
+ * free name after it, and answer the name and path it took.
+ *
+ * Nothing already holding the name is ever replaced. A name chosen beforehand
+ * was free when it was chosen, not when the file arrived: whatever came under
+ * it in between, another upload, a copy, a file saved over SMB, was replaced by
+ * the rename at the end, which replaces a file silently.
+ */
+const moveFile = async (source, directory, desiredName, onProgress) => {
+  // One filesystem: the cache file is linked under the name, which fails when
+  // the name is taken and moves on to "name (1).ext".
   try {
-    await fs.rename(source, destination);
-    return;
+    return await placeWithoutOverwrite(source, directory, desiredName);
   } catch (err) {
     if (err?.code !== 'EXDEV') {
       throw err;
@@ -420,26 +434,18 @@ const moveFile = async (source, destination, onProgress) => {
   // The name does not derive from the file's own, which could then exceed the
   // filesystem's limit where the real name does not; the listing hides it, and
   // the remnant sweep recognises it where uploads land.
-  const directory = path.dirname(destination);
   const temporary = path.join(
     directory,
     `.upload-${crypto.randomBytes(8).toString('hex')}${UPLOADING_SUFFIX}`
   );
 
-  let finalPath = destination;
+  let placed;
   try {
     await copyWithProgress(source, temporary, onProgress);
 
-    // The name was free when it was chosen, but a long copy no longer holds it
-    // the way a file being written under it did. Something that arrived
-    // meanwhile is not overwritten: the upload takes the next free name.
-    if (await pathExists(finalPath)) {
-      finalPath = path.join(
-        directory,
-        await findAvailableName(directory, path.basename(destination))
-      );
-    }
-    await fs.rename(temporary, finalPath);
+    // A long copy holds no name while it runs, so the name is taken only now,
+    // the same way: whatever arrived under it meanwhile is kept.
+    placed = await placeWithoutOverwrite(temporary, directory, desiredName);
   } catch (err) {
     try {
       await fs.rm(temporary, { force: true });
@@ -452,8 +458,15 @@ const moveFile = async (source, destination, onProgress) => {
     throw err;
   }
 
-  await fs.unlink(source);
-  return finalPath;
+  try {
+    await fs.unlink(source);
+  } catch (err) {
+    // The file is in its folder. Failing now would report it as never having
+    // arrived, and a retry would place it a second time; the copy left in the
+    // cache loses its metadata below, and the sweep removes it.
+    logger.warn({ source, err }, 'A TUS upload was placed, but its cache copy stayed');
+  }
+  return placed;
 };
 
 /** What is still being written to its destination, for one user. */
@@ -465,6 +478,175 @@ const listFinalizations = (nodeReq) => {
     .filter((entry) => entry.owner === owner)
     .map(({ name, copiedBytes, totalBytes }) => ({ name, copiedBytes, totalBytes }));
 };
+
+/**
+ * What the client is told when a finished upload could not be moved into its
+ * folder: the file arrived, and why it is not where it was sent.
+ *
+ * Thrown, the failure became a 500 with a generic body, which the client
+ * retried. A retry asks for the offset first, @tus/server answers it from the
+ * cache, where the upload is complete, and tus-js-client then reported a file
+ * that never arrived as uploaded, without another request. The reason travels
+ * in a header as well as the body, since the client only reads headers, and
+ * its presence is what tells the client not to retry.
+ */
+const FINALIZE_ERROR_HEADER = 'Upload-Finalize-Error';
+
+const STORAGE_FULL_CODES = new Set(['ENOSPC', 'EDQUOT']);
+
+// Worded for the person reading it, never the raw message: those carry the
+// server's own paths.
+const FAILURE_REASONS = {
+  EACCES: 'the server is not allowed to write there',
+  EPERM: 'the server is not allowed to write there',
+  EROFS: 'the volume is read-only',
+  ENOENT: 'the folder, or the received file, is no longer there',
+  ENOTDIR: 'the folder is no longer there',
+  ENAMETOOLONG: 'the name is too long for that volume',
+  EEXIST: 'no free name is left for it in that folder',
+  EFBIG: 'the file is too large for that volume',
+  EIO: 'the volume reported a read or write error',
+};
+
+const describeFinalizeFailure = (err) => {
+  if (err instanceof InsufficientStorageError || STORAGE_FULL_CODES.has(err?.code)) {
+    return { storageFull: true, reason: 'there is not enough space left on the volume' };
+  }
+  if (typeof err?.code === 'string' && FAILURE_REASONS[err.code]) {
+    return { storageFull: false, reason: FAILURE_REASONS[err.code] };
+  }
+  // A refusal already worded for the person: this module's own, or an
+  // application error.
+  const worded = typeof err?.body === 'string' ? err.body : err?.isOperational ? err.message : '';
+  return {
+    storageFull: false,
+    reason:
+      String(worded || '')
+        .trim()
+        .replace(/\.$/, '') || 'the server ran into an unexpected error',
+  };
+};
+
+const finalizeFailure = (err) => {
+  const { storageFull, reason } = describeFinalizeFailure(err);
+  const message = `The file was received, but it could not be put in its folder: ${reason}.`;
+  return {
+    status_code: storageFull ? 507 : 500,
+    body: `${message}\n`,
+    headers: { [FINALIZE_ERROR_HEADER]: encodeURIComponent(message) },
+  };
+};
+
+/**
+ * Uploads placed a moment ago, so a client asking for their offset afterwards
+ * hears that they are complete.
+ *
+ * Once placed, an upload's cache entry is gone and @tus/server answers a HEAD
+ * with 404, which tus-js-client takes as an upload to start over: a PATCH
+ * whose response was lost during a long copy was retried, and the whole file
+ * sent again and placed a second time. Kept as long as an unfinished upload is,
+ * and for a bounded number of uploads.
+ */
+const FINISHED_MEMORY_MS =
+  TUS_INCOMPLETE_UPLOAD_TTL_MS > 0 ? TUS_INCOMPLETE_UPLOAD_TTL_MS : 60 * 60 * 1000;
+const FINISHED_MEMORY_LIMIT = 1000;
+const finished = new Map();
+
+const rememberFinished = (uploadId, entry) => {
+  finished.delete(uploadId);
+  finished.set(uploadId, { ...entry, at: Date.now() });
+  // A Map iterates in insertion order: the first key is the oldest.
+  while (finished.size > FINISHED_MEMORY_LIMIT) {
+    finished.delete(finished.keys().next().value);
+  }
+};
+
+const recallFinished = (uploadId) => {
+  const entry = finished.get(uploadId);
+  if (!entry) return null;
+  if (Date.now() - entry.at > FINISHED_MEMORY_MS) {
+    finished.delete(uploadId);
+    return null;
+  }
+  return entry;
+};
+
+const finalizeUpload = async (nodeReq, upload) => {
+  const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
+  const sourcePath = upload.storage?.path || path.join(TUS_CACHE_DIR, upload.id);
+  const desiredName = path.basename(target.destinationPath);
+  const totalBytes = Number.isFinite(upload.size) ? upload.size : 0;
+  const owner = ownerOf(nodeReq);
+
+  await ensureDir(target.destinationDir);
+
+  // Named as the client knows the file, which is how it finds the entry. The
+  // name the file ends up under is taken once its bytes are in place, and the
+  // entry goes away then.
+  finalizations.set(upload.id, { name: desiredName, copiedBytes: 0, totalBytes, owner });
+
+  let placed;
+  try {
+    placed = await moveFile(sourcePath, target.destinationDir, desiredName, (copiedBytes) => {
+      const entry = finalizations.get(upload.id);
+      if (entry) entry.copiedBytes = copiedBytes;
+    });
+  } finally {
+    finalizations.delete(upload.id);
+  }
+
+  try {
+    await fileStore.configstore.delete(upload.id);
+  } catch (err) {
+    logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
+  }
+
+  const result = { name: placed.name, path: placed.path, size: totalBytes, owner };
+  rememberFinished(upload.id, result);
+  return result;
+};
+
+/**
+ * Move a finished upload into place once, however many ask: a caller arriving
+ * while it moves waits for that attempt, and one arriving after it succeeded
+ * gets its result.
+ */
+const finalizeOnce = (nodeReq, upload) => {
+  const running = finishing.get(upload.id);
+  if (running) return running.promise;
+  const done = recallFinished(upload.id);
+  if (done) return Promise.resolve(done);
+
+  // Registered before anything is awaited, and until the metadata is gone too:
+  // the cache sweep leaves an upload alone for as long as it is in `finishing`.
+  const promise = finalizeUpload(nodeReq, upload)
+    .catch((err) => {
+      logger.error(
+        { uploadId: upload.id, err },
+        'A finished TUS upload could not be moved into its folder'
+      );
+      throw err;
+    })
+    .finally(() => {
+      finishing.delete(upload.id);
+    });
+  finishing.set(upload.id, { promise, upload });
+  return promise;
+};
+
+const TUS_RESUMABLE = '1.0.0';
+
+const EXPOSED_HEADERS = [
+  'Location',
+  'Tus-Resumable',
+  'Upload-Length',
+  'Upload-Offset',
+  'Upload-Metadata',
+  'Upload-Expires',
+  // Read by the client from a failed PATCH or HEAD; a cross-origin client
+  // cannot see a header that is not exposed.
+  FINALIZE_ERROR_HEADER,
+];
 
 const server = new Server({
   path: TUS_PATH,
@@ -480,14 +662,7 @@ const server = new Server({
     'Upload-Offset',
     'Tus-Resumable',
   ],
-  exposedHeaders: [
-    'Location',
-    'Tus-Resumable',
-    'Upload-Length',
-    'Upload-Offset',
-    'Upload-Metadata',
-    'Upload-Expires',
-  ],
+  exposedHeaders: EXPOSED_HEADERS,
   async onIncomingRequest(req, uploadId) {
     if (req.method === 'OPTIONS') {
       return;
@@ -530,53 +705,13 @@ const server = new Server({
     };
   },
   async onUploadFinish(req, upload) {
-    // Before anything is awaited, and until the metadata is gone too: the
-    // cache sweep leaves an upload alone for as long as it is in this set.
-    finishing.add(upload.id);
+    const { nodeReq } = getContext(req);
     try {
-      const { nodeReq } = getContext(req);
-      const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
-      const sourcePath = upload.storage?.path || path.join(TUS_CACHE_DIR, upload.id);
-
-      await ensureDir(target.destinationDir);
-
-      let finalPath = target.destinationPath;
-      if (await pathExists(finalPath)) {
-        const availableName = await findAvailableName(
-          target.destinationDir,
-          path.basename(target.destinationPath)
-        );
-        finalPath = path.join(target.destinationDir, availableName);
-      }
-
-      // Only reported once the copy starts moving: a rename within one filesystem
-      // returns before the client could poll, and an entry stuck at zero bytes
-      // would be worse than none at all.
-      finalizations.set(upload.id, {
-        name: path.basename(finalPath),
-        copiedBytes: 0,
-        totalBytes: Number.isFinite(upload.size) ? upload.size : 0,
-        owner: ownerOf(nodeReq),
-      });
-
-      try {
-        await moveFile(sourcePath, finalPath, (copiedBytes) => {
-          const entry = finalizations.get(upload.id);
-          if (entry) entry.copiedBytes = copiedBytes;
-        });
-      } finally {
-        finalizations.delete(upload.id);
-      }
-
-      try {
-        await fileStore.configstore.delete(upload.id);
-      } catch (err) {
-        logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
-      }
-
+      await finalizeOnce(nodeReq, upload);
       return {};
-    } finally {
-      finishing.delete(upload.id);
+    } catch (err) {
+      // Answered rather than thrown: see finalizeFailure.
+      return finalizeFailure(err);
     }
   },
   onResponseError(req, err) {
@@ -584,7 +719,104 @@ const server = new Server({
   },
 });
 
+// The upload's id, the last segment after the TUS path — wherever the app is
+// mounted, as @tus/server itself reads it.
+const UPLOAD_ID_PATTERN = new RegExp(`${TUS_PATH}/([A-Za-z0-9_-]+)/?$`);
+
+const uploadIdFromRequest = (req) => {
+  const pathname = String(req.originalUrl || req.url || '').split('?')[0];
+  return UPLOAD_ID_PATTERN.exec(pathname)?.[1] || null;
+};
+
+const answerHead = (req, res, status, headers) => {
+  res.writeHead(status, {
+    'Tus-Resumable': TUS_RESUMABLE,
+    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': server.getCorsOrigin(req.headers.origin),
+    'Access-Control-Expose-Headers': EXPOSED_HEADERS.join(', '),
+    'Access-Control-Allow-Credentials': 'true',
+    ...headers,
+  });
+  res.end();
+};
+
+const answerComplete = (req, res, size) =>
+  answerHead(req, res, 200, { 'Upload-Offset': String(size), 'Upload-Length': String(size) });
+
+/**
+ * 423, not the 500 or 507 a PATCH answers with. tus-js-client takes any other
+ * refusal of a HEAD as an upload that no longer exists and silently creates a
+ * new one, sending the whole file again; a locked upload is the one it reports
+ * as an error, which is where the client reads the header.
+ */
+const answerFinalizeFailure = (req, res, err) => {
+  answerHead(req, res, 423, finalizeFailure(err).headers);
+};
+
+/**
+ * Answer a client asking for the offset of an upload whose bytes have all
+ * arrived, and answer it with the truth about the file, not the cache.
+ *
+ * - Placed a moment ago: complete, where @tus/server would answer 404 and the
+ *   client would send the whole file again.
+ * - Being placed right now: complete once that attempt succeeds.
+ * - Complete in the cache and not moving, because the move failed or the
+ *   server restarted: the move is tried again, and the answer is complete only
+ *   if it succeeds. @tus/server would answer complete from the cache, and the
+ *   client would report the upload as done without another request.
+ *
+ * Anything else, and anything the usual gate refuses, is left to @tus/server.
+ * Answers whether it answered.
+ */
+const answerFinishedUploadHead = async (req, res) => {
+  const uploadId = uploadIdFromRequest(req);
+  if (!uploadId || !req.headers['tus-resumable']) return false;
+
+  try {
+    await ensureTusEnabled();
+  } catch {
+    return false;
+  }
+  const owner = ownerOf(req);
+  if (!owner) return false;
+
+  const done = recallFinished(uploadId);
+  if (done) {
+    if (done.owner !== owner) return false;
+    answerComplete(req, res, done.size);
+    return true;
+  }
+
+  let upload = finishing.get(uploadId)?.upload;
+  if (!upload) {
+    try {
+      upload = await fileStore.getUpload(uploadId);
+    } catch {
+      return false;
+    }
+    if (!Number.isFinite(upload.size) || upload.offset !== upload.size) return false;
+  }
+
+  // Authorised as the PATCH was, with this request's user: the move below
+  // resolves the folder with the same user again.
+  try {
+    await resolveTusUploadTarget(req, upload.metadata || {});
+  } catch {
+    return false;
+  }
+
+  try {
+    const result = await finalizeOnce(req, upload);
+    answerComplete(req, res, result.size);
+  } catch (err) {
+    answerFinalizeFailure(req, res, err);
+  }
+  return true;
+};
+
 const handleTusUpload = async (req, res) => {
+  if (req.method === 'HEAD' && (await answerFinishedUploadHead(req, res))) return;
+
   const routerUrl = req.url;
   req.url = req.originalUrl || req.url;
   try {

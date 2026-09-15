@@ -74,7 +74,9 @@ vi.mock('@uppy/drop-target', () => ({
 }));
 
 const api = vi.hoisted(() => ({
-  reserveFolderUploadTarget: vi.fn(async (_to, sourceRoot) => ({ targetRoot: `${sourceRoot} (1)` })),
+  reserveFolderUploadTarget: vi.fn(async (_to, sourceRoot) => ({
+    targetRoot: `${sourceRoot} (1)`,
+  })),
 }));
 
 vi.mock('@/api', () => ({
@@ -418,9 +420,12 @@ describe('what the person is told when an upload really fails', () => {
   it('is not repeated when Uppy re-announces the same per-file error', async () => {
     const uppy = await mountUploader();
 
-    uppy.emit('error', Object.assign(new Error('Failed to upload archive.zip'), {
-      isUserFacing: true,
-    }));
+    uppy.emit(
+      'error',
+      Object.assign(new Error('Failed to upload archive.zip'), {
+        isUserFacing: true,
+      })
+    );
     await settle();
 
     expect(stores.notifications.addNotification).not.toHaveBeenCalled();
@@ -433,6 +438,92 @@ describe('what the person is told when an upload really fails', () => {
     await settle();
 
     expect(lastToast().heading).toBe('Uppy fell over');
+  });
+});
+
+/**
+ * Every byte of a chunked upload arrived, and the server could not put the
+ * file in its folder. It says so in `Upload-Finalize-Error`. Retried, the
+ * client asked for the offset, heard "complete", and reported a file that
+ * never arrived as uploaded; falling back to smaller chunks sent the whole
+ * file again into the same failure.
+ */
+describe('a chunked upload the server received but could not put in its folder', () => {
+  const reason =
+    'The file was received, but it could not be put in its folder: the server is not allowed to write there.';
+
+  /** What tus-js-client hands over for a PATCH answered this way. */
+  const finalizeFailure = (status = 500, header = encodeURIComponent(reason)) => {
+    const error = new Error(
+      'tus: unexpected response while uploading chunk, originated from request (method: PATCH, response code: 500)'
+    );
+    error.originalRequest = {};
+    error.originalResponse = {
+      getStatus: () => status,
+      getHeader: (name) => (name === 'Upload-Finalize-Error' ? header : undefined),
+    };
+    return error;
+  };
+
+  // null, not undefined, which would fall back to the default reason.
+  const withoutReason = (status) => finalizeFailure(status, null);
+
+  const mountChunked = async () => {
+    stores.settings.state = { uploads: { chunkedEnabled: true } };
+    const uppy = await mountUploader();
+    return { uppy, onShouldRetry: lastTus().opts.onShouldRetry };
+  };
+
+  it('is not retried', async () => {
+    const { onShouldRetry } = await mountChunked();
+    const next = vi.fn(() => true);
+
+    expect(onShouldRetry(finalizeFailure(500), 0, {}, next)).toBe(false);
+    expect(onShouldRetry(finalizeFailure(423), 0, {}, next)).toBe(false);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  /** The same response without the reason is what a dropped copy looks like. */
+  it('leaves any other server error to the usual retry', async () => {
+    const { onShouldRetry } = await mountChunked();
+
+    expect(onShouldRetry(withoutReason(500), 0, {}, () => true)).toBe(true);
+  });
+
+  it('is shown with the reason the server gave, not as a lost connection', async () => {
+    const { uppy } = await mountChunked();
+
+    uppy.emit('upload-error', largeFile({ size: 1024 }), finalizeFailure(500));
+    await settle();
+
+    expect(lastToast().heading).toBe(reason);
+    expect(lastToast().body).toBe('');
+  });
+
+  it('is shown as sent when the reason is not encoded', async () => {
+    const { uppy } = await mountChunked();
+
+    uppy.emit('upload-error', largeFile({ size: 1024 }), finalizeFailure(500, '100% %full'));
+    await settle();
+
+    expect(lastToast().heading).toBe('100% %full');
+  });
+
+  /**
+   * A large file failing in fallback chunked mode steps the chunk size down and
+   * sends the file again. The size was never the problem here.
+   */
+  it('does not send a large file again in smaller chunks', async () => {
+    localStorage.setItem(FALLBACK_KEY, '32');
+    const uppy = await mountUploader();
+    const file = largeFile();
+
+    uppy.emit('upload-error', file, finalizeFailure(500));
+    await settle();
+
+    expect(getUploadFallbackMiB()).toBe(32);
+    expect(uppy.getFiles()).toHaveLength(0);
+    expect(lastToast().heading).toBe(reason);
   });
 });
 
