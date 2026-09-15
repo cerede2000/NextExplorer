@@ -40,7 +40,7 @@ expecting an old tag to still be there.
 
 | Purpose                            | Container path                                | Notes                                                                                                 |
 | ---------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Configuration, user DB, extensions | `/config`                                     | Holds SQLite, `app-config.json`, and upgrades. Back this directory up before changes.                 |
+| Accounts, shares, settings         | `/config`                                     | Holds `app.db` and `logos/`. The folder to back up — see [Backups](/admin/guide#backups-persistence). |
 | Thumbnails, sessions, indexes      | `/cache`                                      | Regenerable and needs no backup, but mount it persistently: it holds `index.db`, the search index and folder sizes, and deleting it signs everyone out and reads every volume again. |
 | Browsable data                     | `/mnt/Label`                                  | Each mount appears as a top-level volume with the given label.                                        |
 | Personal user data (optional)      | `/srv/users` (or any path set as `USER_ROOT`) | When `USER_DIR_ENABLED=true`, each authenticated user gets their own private folder inside this root. |
@@ -91,8 +91,8 @@ docker compose pull
 docker compose up -d
 ```
 
-- Persistent state (`app.db`, `app-config.json`, extensions) stays inside `/config`. Always back this up before major upgrades.
-- The default entrypoint moves legacy config files from `/cache` to `/config` on first run; keep `/config` mounted to avoid data loss.
+- Persistent state (`app.db`, `logos/`) stays inside `/config`. Back it up before upgrading, with the container stopped or together with `app.db-wal`.
+- Installations that started on 1.1.7 or earlier kept `app.db` in `/cache`. Nothing moves it any more: copy it to `/config` by hand before upgrading such an installation. Links named `app.db`, `app-config.json` or `extensions` left in `/cache` by 1.1.8 to 2.0.2 are unused and can be deleted.
 
 ## Monitoring & logs
 

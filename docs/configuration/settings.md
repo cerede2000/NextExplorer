@@ -37,5 +37,5 @@ Customize the appearance and branding of your nextExplorer instance:
 
 ## Additional hints
 
-- Most settings persist in `/config/app-config.json`. Back up `/config` before making sweeping changes.
+- Settings persist in `app.db` under `/config`, and the logo uploaded in Branding in `/config/logos`. Back up `/config` before making sweeping changes.
 - Favorites and access control settings sync with the sidebar, so once you pin a favorite it surfaces immediately for all sessions.

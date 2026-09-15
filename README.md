@@ -101,7 +101,7 @@ services:
       - '3000:3000'
     volumes:
       - ./config:/config # contains config files, db, settings etc.
-      - ./cache:/cache # contains thumbnail cache and other files which are generated automatically
+      - ./cache:/cache # thumbnails, sessions and index.db (search index, folder sizes): rebuildable, but keep it persistent
 
       # Each /mnt/<Label> mount becomes a top-level volume in the UI
       - /path/to/your/files:/mnt/Files
@@ -131,8 +131,8 @@ services:
 
       # Paths & volumes (optional)
       # VOLUME_ROOT: "/mnt" # Root directory that houses all mounted volumes. App will display all directores inside this directory as volumes.
-      # CONFIG_DIR: "/config" # Location for SQLite, `app-config.json`, extensions, and settings.
-      # CACHE_DIR: "/cache" # Location for thumbnails, ripgrep indexes, and temporary data.
+      # CONFIG_DIR: "/config" # app.db (accounts, shares, settings) and logos/ — the folder to back up.
+      # CACHE_DIR: "/cache" # Thumbnails, sessions, index.db (search index and folder sizes), uploads in progress.
       # USER_ROOT: "/mnt/_users" # Root directory for per-user personal folders (defaults to `<VOLUME_ROOT>/_users` when unset). Make sure you persist this path if you use USER_DIR_ENABLED.
 
       # Authentication (optional)

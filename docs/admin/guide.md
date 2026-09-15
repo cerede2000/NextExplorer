@@ -50,8 +50,10 @@ Administrators control users, folders, and security policies through Settings. T
 
 ## Backups & persistence
 
-- `/config` houses `app.db`, `app-config.json`, and extension packages. Back these files up before upgrades or migrations.
+- `/config` houses `app.db` — accounts, shares, settings, and the records of the trash and file versions — and `logos/`, the logo uploaded in Branding. Back it up before upgrades. Copy `app.db` with the container stopped, or together with `app.db-wal`: a copy of `app.db` alone can miss what was written last.
+- Back up `app.db` and the volumes together. The trash and file versions keep their content in each volume’s `.nextexplorer` folder and their records in `app.db`; one restored without the other leaves items that cannot be restored, or content nothing lists.
+- `app-config.json` in `/config` held settings and favorites in early releases, and is only read once to carry them into `app.db`; a current installation keeps nothing in it.
 - `app.db` gives back the space its deletions free. SQLite keeps freed pages inside the file, so a large deletion used to leave `app.db` — and every backup of it — at its largest size. An hourly pass now hands free space back once more than 16 MB of it has built up, and the write-ahead log is cut back to 64 MB after a checkpoint. A database created by an earlier release is rewritten once, at the first start, to make this possible; the log says how large it was before and after.
 - `/cache` holds what can be made again: thumbnails, sessions, and `index.db` — the search index and the folder sizes. Nothing in it needs a backup. Deleting it signs everyone out and costs a pass over the volumes to rebuild the indexes, so keep it on a persistent mount: without one, every new container reads the volumes again.
 - An installation upgraded from 3.6.0 or earlier has its indexes moved out of `app.db` into `/cache/index.db` at the first start, as they are — the volumes are not read again for it — and `app.db` is rewritten without them.
-- When upgrading, run `docker compose pull` followed by `docker compose up -d`; the entrypoint preserves `CONFIG_DIR` while migrating legacy `/cache` configs.
+- When upgrading, run `docker compose pull` followed by `docker compose up -d`. An installation that started on 1.1.7 or earlier kept `app.db` in `/cache`; nothing moves it to `/config` any more, so copy it there by hand first. Links named `app.db`, `app-config.json` or `extensions` left in `/cache` by 1.1.8 to 2.0.2 are unused and can be deleted.

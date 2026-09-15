@@ -20,7 +20,7 @@ Keep this page handy when deployment, authentication, or UI behaviors need quick
 
 - **Slow or missing search results:** Install or enable ripgrep. The official image bundles `rg`; custom builds need either the tool or fallback search (which may skip large files controlled by `SEARCH_MAX_FILESIZE`).
 - **Thumbnails not generating:** Verify FFmpeg/ffprobe are available (paths override via `FFMPEG_PATH`/`FFPROBE_PATH`) and that `/cache` is writable.
-- **Cache rebuild:** Clearing `/cache` removes thumbnails/indexes but keeps user data. The app regenerates thumbnails when you revisit folders.
+- **Cache rebuild:** Clearing `/cache` keeps every account, share and setting, but signs everyone out, and the search index and folder sizes (`index.db`) are rebuilt by a pass over the volumes. Thumbnails come back as folders are visited.
 
 ## Reverse proxy issues
 
@@ -31,8 +31,8 @@ Keep this page handy when deployment, authentication, or UI behaviors need quick
 
 ## Updates & persistence
 
-- **Settings lost after update:** Mount `/config` persistently; it contains `app.db`, `app-config.json`, and extensions. Back this folder up before upgrading.
-- **`/cache` filling disk:** `/cache` holds thumbnails and indexes; delete it if you need to reclaim space (the app rebuilds contents as needed).
+- **Settings lost after update:** Mount `/config` persistently; it contains `app.db` and `logos/`. Back this folder up before upgrading. An installation that started on 1.1.7 or earlier kept `app.db` in `/cache`, and nothing moves it to `/config` any more.
+- **`/cache` filling disk:** `/cache` holds thumbnails, sessions and `index.db`. Deleting it reclaims the space at the cost above. `THUMBNAIL_CACHE_MAX_FILES` bounds the thumbnails; `SEARCH_INDEX_EXCLUDE` keeps folders nobody searches out of the index.
 
 ## ONLYOFFICE token errors
 
