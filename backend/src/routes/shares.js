@@ -5,7 +5,7 @@ const path = require('path');
 const archiver = require('archiver');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
-const { sendCompressible } = require('../utils/compressedResponse');
+const { sendTextFile } = require('../utils/textFileResponse');
 const {
   ValidationError,
   UnauthorizedError,
@@ -984,20 +984,20 @@ const handleSharedEditorRequest = async (req, res) => {
   if (!target) return;
 
   const { share, innerPath, accessInfo, resolved } = target;
-  const { text } = await readTextFile(resolved.absolutePath);
+  const name = path.basename(resolved.absolutePath);
+  const canDownload = Boolean(accessInfo.canDownload);
+  const canWrite = Boolean(accessInfo.canWrite);
 
-  await trackShareAccess(share.id, { ipAddress: req.ip });
-  res.set({
-    'Cache-Control': 'private, no-store',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Robots-Tag': 'noindex',
-  });
-  await sendCompressible(req, res, {
-    name: path.basename(resolved.absolutePath),
-    path: innerPath,
-    content: text,
-    canDownload: Boolean(accessInfo.canDownload),
-    canWrite: Boolean(accessInfo.canWrite),
+  await sendTextFile(req, res, {
+    absolutePath: resolved.absolutePath,
+    // What the answer says besides the text is part of its identity: a share
+    // turned read-only must never be answered 304 to an editor that still
+    // offers to save, nor a renamed file under its old name.
+    describe: { name, path: innerPath, canDownload, canWrite },
+    headers: { 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
+    // A revalidation is still somebody opening the file.
+    onAnswer: () => trackShareAccess(share.id, { ipAddress: req.ip }),
+    render: ({ text }) => ({ name, path: innerPath, content: text, canDownload, canWrite }),
   });
 };
 

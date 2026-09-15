@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -157,7 +158,7 @@ const isProbablyBinaryText = (text) => {
   }
 
   return suspicious / length > 0.3;
-}
+};
 
 async function readTextFile(absolutePath) {
   const stats = await fs.stat(absolutePath);
@@ -190,6 +191,53 @@ async function readTextFile(absolutePath) {
 }
 
 /**
+ * Bumped whenever `readTextFile` would make something different of the same
+ * bytes: how an encoding is detected, a mark stripped, what counts as binary.
+ * It is part of the identity below, so a browser holding text decoded under the
+ * old rules is not told by a 304 that its copy is still right.
+ */
+const TEXT_READING_VERSION = 1;
+
+/**
+ * The identity of the text a file answers with, as a weak ETag, made from the
+ * file's metadata alone so that an unchanged file can be answered 304 without
+ * being read.
+ *
+ * Taken from a bigint stat — an inode past 2^53 and a time in nanoseconds do
+ * not survive a double — and made of:
+ *  - the inode: a save writes a new file and renames it over the old one, so a
+ *    save that comes out the same size within one clock tick still differs;
+ *  - the size and the modification time: a write in place;
+ *  - the change time: a write in place that put the modification time back, as
+ *    `cp -p`, `rsync --inplace -t` or an archive extracted over the file do.
+ *    Nothing can put that one back;
+ *  - `describe`, hashed: whatever else the answer carries, so that a change
+ *    there — a share turned read-only — is never hidden behind a 304.
+ *
+ * Weak, because the same text goes compressed or not: equivalent answers, not
+ * the same bytes.
+ *
+ * The stat has to be taken before the file is read. Content changing between
+ * the two then pairs newer text with an older identity, which costs the next
+ * visit one download; the other order pairs older text with a newer identity,
+ * and every 304 after it would keep the older text.
+ *
+ * @param {import('fs').BigIntStats} stats
+ * @param {object} [describe]
+ */
+const textFileEtag = (stats, describe) => {
+  const parts = [stats.ino, stats.size, stats.mtimeNs, stats.ctimeNs].map((value) =>
+    value.toString(36)
+  );
+  parts.push(`t${TEXT_READING_VERSION}`);
+  if (describe !== undefined) {
+    const digest = crypto.createHash('sha256').update(JSON.stringify(describe)).digest('base64url');
+    parts.push(digest.slice(0, 16));
+  }
+  return `W/"${parts.join('-')}"`;
+};
+
+/**
  * The encoding a file already on disk is written in, so a save keeps it.
  *
  * Reads only the head of the file: a mark is the first three bytes, and the
@@ -216,5 +264,6 @@ module.exports = {
   detectTextEncoding,
   decodeText,
   encodeText,
+  textFileEtag,
   MAX_EDITOR_FILE_SIZE,
 };

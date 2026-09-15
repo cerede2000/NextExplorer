@@ -964,7 +964,7 @@ describe('Shares Routes', () => {
       const publicApp = buildApp();
       const editor = await request(publicApp).get(`/api/share/${create.body.shareToken}/editor`);
       expect(editor.status).toBe(200);
-      expect(editor.headers['cache-control']).toContain('no-store');
+      expect(editor.headers['cache-control']).toBe('private, no-cache');
       expect(editor.body).toMatchObject({
         name: 'Analyze-FileServerData.ps1',
         content: 'Write-Output hello',
@@ -1025,6 +1025,65 @@ describe('Shares Routes', () => {
       expect(editor.headers['content-encoding']).toBe('gzip');
       expect(editor.headers.vary).toMatch(/accept-encoding/i);
       expect(editor.body).toMatchObject({ name: 'journal.md', content, canWrite: false });
+    });
+
+    /**
+     * The shared editor's answer says whether the visitor may save. Kept by the
+     * browser and revalidated, it must be read again when that changes, even
+     * though the file did not.
+     */
+    it('should never hide a change of permission behind a 304', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-etag');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'notes.txt'), 'Shared notes');
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-etag@example.com',
+        username: 'shared-editor-etag',
+        displayName: 'Shared Editor Etag',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorEtagVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorEtagVol/notes.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const editorUrl = `/api/share/${create.body.shareToken}/editor`;
+      const first = await request(publicApp).get(editorUrl);
+      expect(first.body).toMatchObject({ content: 'Shared notes', canWrite: false });
+      expect(first.headers.etag).toMatch(/^W\/".+"$/);
+
+      const unchanged = await request(publicApp)
+        .get(editorUrl)
+        .set('If-None-Match', first.headers.etag);
+      expect(unchanged.status).toBe(304);
+
+      const updated = await request(ownerApp)
+        .put(`/api/shares/${create.body.id}`)
+        .send({ accessMode: 'readwrite' });
+      expect(updated.status).toBe(200);
+
+      const after = await request(publicApp)
+        .get(editorUrl)
+        .set('If-None-Match', first.headers.etag);
+      expect(after.status).toBe(200);
+      expect(after.body).toMatchObject({ content: 'Shared notes', canWrite: true });
+      expect(after.headers.etag).not.toBe(first.headers.etag);
     });
 
     it('should save a text file only through a read-write share', async () => {

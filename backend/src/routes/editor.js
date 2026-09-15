@@ -6,20 +6,20 @@ const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const asyncHandler = require('../utils/asyncHandler');
-const { sendCompressible } = require('../utils/compressedResponse');
+const { sendTextFile } = require('../utils/textFileResponse');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const folderSizeHooks = require('../services/folderSizeHooks');
 const versions = require('../services/versions/operations');
 const {
-  readTextFile,
   readFileEncoding,
   encodeText,
+  textFileEtag,
   MAX_EDITOR_FILE_SIZE,
 } = require('../services/textEditorService');
 
 const router = express.Router();
 
-async function readTextFileBuffer(req, relative) {
+async function resolveReadableFile(req, relative) {
   if (typeof relative !== 'string' || !relative) {
     throw new ValidationError('A valid file path is required.');
   }
@@ -46,29 +46,43 @@ async function readTextFileBuffer(req, relative) {
     throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
   }
 
-  const { absolutePath } = resolved;
-  const textFile = await readTextFile(absolutePath);
-  return { ...textFile, absolutePath };
+  return resolved.absolutePath;
 }
+
+/**
+ * The editor's read. By GET, which the browser keeps and revalidates, so the
+ * editor opened from the Markdown preview does not download the file again; by
+ * POST for the clients written against it, which nothing keeps.
+ */
+const sendEditorText = async (req, res, relative) => {
+  const absolutePath = await resolveReadableFile(req, relative);
+  await sendTextFile(req, res, { absolutePath, render: ({ text }) => ({ content: text }) });
+};
+
+router.get(
+  '/editor',
+  asyncHandler(async (req, res) => {
+    await sendEditorText(req, res, req.query?.path);
+  })
+);
 
 router.post(
   '/editor',
   asyncHandler(async (req, res) => {
     const { path: relative = '' } = req.body || {};
-    const { text } = await readTextFileBuffer(req, relative);
-    await sendCompressible(req, res, { content: text });
+    await sendEditorText(req, res, relative);
   })
 );
 
 router.get(
   '/raw',
   asyncHandler(async (req, res) => {
-    const relative = req.query?.path;
-    const { text } = await readTextFileBuffer(req, relative);
-
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    await sendCompressible(req, res, text);
+    const absolutePath = await resolveReadableFile(req, req.query?.path);
+    await sendTextFile(req, res, {
+      absolutePath,
+      headers: { 'X-Content-Type-Options': 'nosniff' },
+      render: ({ text }) => text,
+    });
   })
 );
 
@@ -144,16 +158,33 @@ router.put(
     // Written beside the file and renamed over it: writing in place left a
     // truncated file behind a crash in the middle of a save. What it replaces
     // is kept as a version.
+    let written = null;
     await versions.saveFile(
       absolutePath,
-      (temporaryPath) => fs.writeFile(temporaryPath, payload, { flag: 'wx' }),
+      async (temporaryPath) => {
+        await fs.writeFile(temporaryPath, payload, { flag: 'wx' });
+        written = await fs.stat(temporaryPath, { bigint: true });
+      },
       { author: versions.authorOf(context), source: 'editor' }
     );
-    const updated = await fs.stat(absolutePath);
+    const updated = await fs.stat(absolutePath, { bigint: true });
     if (existed) {
-      await folderSizeHooks.onFileReplaced(absolutePath, previousSize, updated.size);
+      await folderSizeHooks.onFileReplaced(absolutePath, previousSize, Number(updated.size));
     } else {
-      await folderSizeHooks.onFileWritten(absolutePath, updated.size);
+      await folderSizeHooks.onFileWritten(absolutePath, Number(updated.size));
+    }
+    // The identity the next read of the file will carry — given only when the
+    // file now at the path is the one this save wrote. A save set aside, or one
+    // whose content was already there, leaves another file in place; a write in
+    // place right after the rename changes the modification time. Either way
+    // this answer would name content it did not send.
+    if (
+      written &&
+      updated.ino === written.ino &&
+      updated.size === written.size &&
+      updated.mtimeNs === written.mtimeNs
+    ) {
+      res.setHeader('ETag', textFileEtag(updated));
     }
     res.send({ success: true });
   })
