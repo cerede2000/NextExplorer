@@ -182,6 +182,15 @@ const quiesceLoadedServices = async () => {
     /* an unopened index has no handle to close */
   }
 
+  // The chunked-upload cache sweep runs on a timer once started, and recreates
+  // the cache directory it inspects.
+  const tusUploads = loadedModule('src/services/tusUploadService');
+  try {
+    await tusUploads?.stopCacheSweep?.();
+  } catch {
+    /* a sweep that never started has nothing to stop */
+  }
+
   const db = loadedModule('src/services/db');
   try {
     db?.closeDb?.();

@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('node:fs');
@@ -12,6 +13,7 @@ const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
+const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
 const { getSystemSettings } = require('./settingsService');
 const { InsufficientStorageError } = require('../errors/AppError');
 const logger = require('../utils/logger');
@@ -135,6 +137,18 @@ const getLastActivityMs = (...stats) =>
     ...stats.filter(Boolean).map((statsItem) => Number(statsItem.mtimeMs || statsItem.ctimeMs || 0))
   );
 
+/**
+ * Uploads whose onUploadFinish is running, whatever their age.
+ *
+ * Age alone does not protect them. The last write refreshes the data file just
+ * before the hook starts, but a copy to another filesystem can outlast the TTL
+ * without touching the source again, and @tus/server calls the hook again for
+ * an empty PATCH at the final offset — so a finished upload that has sat in the
+ * cache for a day can be moving into place right now. The sweep asks this set
+ * immediately before each removal, with nothing awaited in between.
+ */
+const finishing = new Set();
+
 const cleanupInactiveUploads = async (now = Date.now()) => {
   if (TUS_INCOMPLETE_UPLOAD_TTL_MS <= 0) return 0;
 
@@ -159,6 +173,7 @@ const cleanupInactiveUploads = async (now = Date.now()) => {
 
     const dataStats = await safeStat(dataPath);
     if (!dataStats || now - getLastActivityMs(dataStats) < TUS_INCOMPLETE_UPLOAD_TTL_MS) continue;
+    if (finishing.has(entry.name)) continue;
 
     if (await rmIfExists(dataPath)) removedCount += 1;
   }
@@ -177,15 +192,29 @@ const cleanupInactiveUploads = async (now = Date.now()) => {
 
     const lastActivityMs = getLastActivityMs(metadataStats, dataStats);
     if (now - lastActivityMs < TUS_INCOMPLETE_UPLOAD_TTL_MS) continue;
+    if (finishing.has(uploadId)) continue;
 
     if (!dataStats) {
       if (await rmIfExists(metadataPath)) removedCount += 1;
       continue;
     }
 
+    // A complete upload still here is one whose move into place failed: the
+    // hook removes the data by moving it. Nothing else would ever take it
+    // away, so it goes on the same TTL as an abandoned one — and says so, since
+    // it is a file someone sent that never arrived.
     const expectedSize = Number(metadata?.size);
-    const isIncomplete = !Number.isFinite(expectedSize) || dataStats.size < expectedSize;
-    if (!isIncomplete) continue;
+    const isComplete = Number.isFinite(expectedSize) && dataStats.size >= expectedSize;
+    if (isComplete) {
+      logger.warn(
+        {
+          uploadId,
+          size: dataStats.size,
+          destination: metadata?.metadata?.logicalRelativePath || metadata?.metadata?.filename,
+        },
+        'Removing a finished TUS upload that was never moved into place'
+      );
+    }
 
     const removed = await Promise.all([rmIfExists(dataPath), rmIfExists(metadataPath)]);
     removedCount += removed.filter(Boolean).length;
@@ -198,28 +227,74 @@ const cleanupInactiveUploads = async (now = Date.now()) => {
   return removedCount;
 };
 
+let runningSweep = null;
+
 const cleanupExpiredUploads = async ({ force = false } = {}) => {
+  if (runningSweep) return runningSweep;
+
   const now = Date.now();
   if (!force && now - lastCleanupAt < CLEANUP_INTERVAL_MS) return;
   lastCleanupAt = now;
 
-  try {
-    await ensureDir(TUS_CACHE_DIR);
-  } catch (err) {
-    logger.warn({ err }, 'Failed to prepare TUS upload cache for cleanup');
-    return;
-  }
+  runningSweep = (async () => {
+    try {
+      await ensureDir(TUS_CACHE_DIR);
+    } catch (err) {
+      logger.warn({ err }, 'Failed to prepare TUS upload cache for cleanup');
+      return;
+    }
 
-  try {
-    await cleanupInactiveUploads(now);
-  } catch (err) {
-    logger.warn({ err }, 'Failed to clean up inactive TUS uploads');
+    try {
+      await cleanupInactiveUploads(now);
+    } catch (err) {
+      logger.warn({ err }, 'Failed to clean up inactive TUS uploads');
+    }
+  })().finally(() => {
+    runningSweep = null;
+  });
+
+  return runningSweep;
+};
+
+let sweepTimer = null;
+let sweepStarted = false;
+
+/**
+ * Sweep the upload cache now and every TUS_CLEANUP_INTERVAL_MS.
+ *
+ * Creating an upload sweeps too, but a server nobody uploads to never did
+ * again after starting, so whatever a failed day left in the cache stayed
+ * there until the next upload or the next restart. The timer is unref'd: it
+ * must not keep a stopping process alive.
+ */
+const startCacheSweep = () => {
+  if (sweepStarted) return;
+  sweepStarted = true;
+
+  cleanupExpiredUploads({ force: true }).catch((err) => {
+    logger.warn({ err }, 'Failed to run initial TUS upload cleanup');
+  });
+
+  if (CLEANUP_INTERVAL_MS > 0) {
+    sweepTimer = setInterval(() => {
+      cleanupExpiredUploads({ force: true }).catch((err) => {
+        logger.warn({ err }, 'Failed to run periodic TUS upload cleanup');
+      });
+    }, CLEANUP_INTERVAL_MS);
+    sweepTimer.unref?.();
   }
 };
 
-cleanupExpiredUploads({ force: true }).catch((err) => {
-  logger.warn({ err }, 'Failed to run initial TUS upload cleanup');
-});
+/**
+ * Stop the timer and wait for a sweep in progress, so nothing is still reading
+ * or recreating the cache directory once this resolves.
+ */
+const stopCacheSweep = async () => {
+  if (sweepTimer) clearInterval(sweepTimer);
+  sweepTimer = null;
+  sweepStarted = false;
+  if (runningSweep) await runningSweep.catch(() => {});
+};
 
 const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
   const filename =
@@ -338,9 +413,47 @@ const moveFile = async (source, destination, onProgress) => {
     }
   }
 
-  // Different filesystems: the bytes have to be read and written again.
-  await copyWithProgress(source, destination, onProgress);
+  // Different filesystems: the bytes have to be read and written again. They
+  // are written beside the destination under a hidden `.uploading` name and
+  // only a whole file takes the real one, so a copy that fails, or a process
+  // killed halfway, never leaves a truncated file where the user will open it.
+  // The name does not derive from the file's own, which could then exceed the
+  // filesystem's limit where the real name does not; the listing hides it, and
+  // the remnant sweep recognises it where uploads land.
+  const directory = path.dirname(destination);
+  const temporary = path.join(
+    directory,
+    `.upload-${crypto.randomBytes(8).toString('hex')}${UPLOADING_SUFFIX}`
+  );
+
+  let finalPath = destination;
+  try {
+    await copyWithProgress(source, temporary, onProgress);
+
+    // The name was free when it was chosen, but a long copy no longer holds it
+    // the way a file being written under it did. Something that arrived
+    // meanwhile is not overwritten: the upload takes the next free name.
+    if (await pathExists(finalPath)) {
+      finalPath = path.join(
+        directory,
+        await findAvailableName(directory, path.basename(destination))
+      );
+    }
+    await fs.rename(temporary, finalPath);
+  } catch (err) {
+    try {
+      await fs.rm(temporary, { force: true });
+    } catch (cleanupErr) {
+      logger.warn(
+        { temporary, err: cleanupErr },
+        'Failed to remove a partial copy of a TUS upload'
+      );
+    }
+    throw err;
+  }
+
   await fs.unlink(source);
+  return finalPath;
 };
 
 /** What is still being written to its destination, for one user. */
@@ -398,6 +511,10 @@ const server = new Server({
     const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
     const uploadSize = Number.isFinite(upload.size) ? upload.size : null;
 
+    // What a copy killed halfway left in the destination, as a direct upload
+    // does before the same check: what it removes is space about to be measured.
+    await sweepStaleUploadRemnants(target.destinationDir);
+
     await ensureTusStorageAvailable(TUS_CACHE_DIR, uploadSize, 'temporary upload storage');
     await ensureTusStorageAvailable(target.destinationDir, uploadSize, 'destination storage');
 
@@ -413,47 +530,54 @@ const server = new Server({
     };
   },
   async onUploadFinish(req, upload) {
-    const { nodeReq } = getContext(req);
-    const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
-    const sourcePath = upload.storage?.path || path.join(TUS_CACHE_DIR, upload.id);
-
-    await ensureDir(target.destinationDir);
-
-    let finalPath = target.destinationPath;
-    if (await pathExists(finalPath)) {
-      const availableName = await findAvailableName(
-        target.destinationDir,
-        path.basename(target.destinationPath)
-      );
-      finalPath = path.join(target.destinationDir, availableName);
-    }
-
-    // Only reported once the copy starts moving: a rename within one filesystem
-    // returns before the client could poll, and an entry stuck at zero bytes
-    // would be worse than none at all.
-    finalizations.set(upload.id, {
-      name: path.basename(finalPath),
-      copiedBytes: 0,
-      totalBytes: Number.isFinite(upload.size) ? upload.size : 0,
-      owner: ownerOf(nodeReq),
-    });
-
+    // Before anything is awaited, and until the metadata is gone too: the
+    // cache sweep leaves an upload alone for as long as it is in this set.
+    finishing.add(upload.id);
     try {
-      await moveFile(sourcePath, finalPath, (copiedBytes) => {
-        const entry = finalizations.get(upload.id);
-        if (entry) entry.copiedBytes = copiedBytes;
+      const { nodeReq } = getContext(req);
+      const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
+      const sourcePath = upload.storage?.path || path.join(TUS_CACHE_DIR, upload.id);
+
+      await ensureDir(target.destinationDir);
+
+      let finalPath = target.destinationPath;
+      if (await pathExists(finalPath)) {
+        const availableName = await findAvailableName(
+          target.destinationDir,
+          path.basename(target.destinationPath)
+        );
+        finalPath = path.join(target.destinationDir, availableName);
+      }
+
+      // Only reported once the copy starts moving: a rename within one filesystem
+      // returns before the client could poll, and an entry stuck at zero bytes
+      // would be worse than none at all.
+      finalizations.set(upload.id, {
+        name: path.basename(finalPath),
+        copiedBytes: 0,
+        totalBytes: Number.isFinite(upload.size) ? upload.size : 0,
+        owner: ownerOf(nodeReq),
       });
+
+      try {
+        await moveFile(sourcePath, finalPath, (copiedBytes) => {
+          const entry = finalizations.get(upload.id);
+          if (entry) entry.copiedBytes = copiedBytes;
+        });
+      } finally {
+        finalizations.delete(upload.id);
+      }
+
+      try {
+        await fileStore.configstore.delete(upload.id);
+      } catch (err) {
+        logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
+      }
+
+      return {};
     } finally {
-      finalizations.delete(upload.id);
+      finishing.delete(upload.id);
     }
-
-    try {
-      await fileStore.configstore.delete(upload.id);
-    } catch (err) {
-      logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
-    }
-
-    return {};
   },
   onResponseError(req, err) {
     logger.warn({ err, method: req.method, url: req.url }, 'TUS upload request failed');
@@ -475,4 +599,6 @@ module.exports = {
   listFinalizations,
   cleanupExpiredUploads,
   cleanupInactiveUploads,
+  startCacheSweep,
+  stopCacheSweep,
 };
