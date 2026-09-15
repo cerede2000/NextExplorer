@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 const ACCESS_MODULES = [
-  'src/services/storage/jsonStorage',
   'src/services/settingsService',
   'src/services/accessControlService',
 ];

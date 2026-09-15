@@ -3,7 +3,6 @@ import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 const MODULES = [
-  'src/services/storage/jsonStorage',
   'src/services/settingsService',
   'src/services/db',
   'src/routes/settings',

@@ -3,7 +3,6 @@ const { cachedForRequest } = require('../utils/requestContext');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { parseByteSize } = require('../utils/env');
 const env = require('../config/env');
-const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 const folderSizeExclusions = require('./folderSizeExclusions');
 const searchIndexExclusions = require('./searchIndexExclusions');
 const { generateId } = require('../utils/ids');
@@ -287,35 +286,20 @@ const sanitizeVersions = (versions = {}) => {
  * Get public settings (branding only, no auth required)
  */
 const getPublicSettings = async () => {
-  try {
-    const db = await getDb();
-    const brandingRow = db
-      .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
-      .get('branding', 'branding');
+  const db = await getDb();
+  const brandingRow = db
+    .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
+    .get('branding', 'branding');
 
-    if (brandingRow) {
-      const branding = JSON.parse(brandingRow.value);
-      return {
-        branding: sanitizeBranding(branding),
-      };
+  let branding = {};
+  if (brandingRow) {
+    try {
+      branding = JSON.parse(brandingRow.value);
+    } catch {
+      // An unreadable value is the default branding, not a failure to sign in.
     }
-  } catch (err) {
-    // Fallback to JSON if DB read fails
   }
-
-  // Fallback to JSON storage
-  try {
-    const data = await storage.get();
-    const branding = data.settings?.branding || {};
-    return {
-      branding: sanitizeBranding(branding),
-    };
-  } catch (err) {
-    // Return defaults if all else fails
-    return {
-      branding: sanitizeBranding({}),
-    };
-  }
+  return { branding: sanitizeBranding(branding) };
 };
 
 /**
@@ -374,100 +358,71 @@ const upsertUserSetting = (db, userId, key, value) => {
 /**
  * Get system settings (admin only)
  */
+/**
+ * System settings, read from app.db and nowhere else.
+ *
+ * They used to fall back to app-config.json whenever the read failed. That file
+ * stopped following the settings long ago — the screens save to app.db alone —
+ * so a read that failed ran with whatever the file last held, often no access
+ * rules at all: a folder hidden by a rule opened for everyone for as long as the
+ * database could not be read. A read that fails now fails the request.
+ */
 const getSystemSettings = async () => {
-  try {
-    const db = await getDb();
-    const rows = db
-      .prepare('SELECT key, value FROM system_settings WHERE category = ?')
-      .all('system');
+  const db = await getDb();
+  const rows = db
+    .prepare('SELECT key, value FROM system_settings WHERE category = ?')
+    .all('system');
 
-    const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
-    const access = { rules: [] };
-    let uploads = defaultUploadSettings();
-    const folderSize = { excludedPaths: [] };
-    const searchIndex = { excludedPaths: [] };
-    const trash = {};
-    const versions = {};
+  const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
+  const access = { rules: [] };
+  let uploads = defaultUploadSettings();
+  const folderSize = { excludedPaths: [] };
+  const searchIndex = { excludedPaths: [] };
+  const trash = {};
+  const versions = {};
 
-    for (const row of rows) {
-      try {
-        if (row.key === 'thumbnails') {
-          Object.assign(thumbnails, JSON.parse(row.value));
-        } else if (row.key === 'access') {
-          const accessData = JSON.parse(row.value);
-          if (accessData.rules) {
-            access.rules = accessData.rules;
-          }
-        } else if (row.key === 'uploads') {
-          uploads = { ...uploads, ...JSON.parse(row.value) };
-        } else if (row.key === 'folderSize') {
-          Object.assign(folderSize, JSON.parse(row.value));
-        } else if (row.key === 'searchIndex') {
-          Object.assign(searchIndex, JSON.parse(row.value));
-        } else if (row.key === 'trash') {
-          Object.assign(trash, JSON.parse(row.value));
-        } else if (row.key === 'versions') {
-          Object.assign(versions, JSON.parse(row.value));
-        }
-      } catch (err) {
-        // Skip invalid JSON
-      }
-    }
-
-    return {
-      thumbnails: sanitizeThumbnails(thumbnails),
-      access: {
-        rules: sanitizeAccessRules(access.rules),
-      },
-      uploads: sanitizeUploads(uploads),
-      trash: sanitizeTrash(trash),
-      versions: sanitizeVersions(versions),
-      folderSize: {
-        ...sanitizeFolderSize(folderSize),
-        environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
-      },
-      searchIndex: {
-        ...sanitizeSearchIndex(searchIndex),
-        environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
-      },
-    };
-  } catch (err) {
-    // Fallback to JSON storage
+  for (const row of rows) {
     try {
-      const data = await storage.get();
-      const settings = data.settings || {};
-      return {
-        thumbnails: sanitizeThumbnails(settings.thumbnails),
-        access: {
-          rules: sanitizeAccessRules(settings.access?.rules || []),
-        },
-        uploads: sanitizeUploads(settings.uploads),
-        trash: sanitizeTrash(settings.trash),
-        versions: sanitizeVersions(settings.versions),
-        folderSize: {
-          ...sanitizeFolderSize(settings.folderSize),
-          environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
-        },
-        searchIndex: {
-          ...sanitizeSearchIndex(settings.searchIndex),
-          environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
-        },
-      };
-    } catch (err2) {
-      // Return defaults
-      return {
-        thumbnails: sanitizeThumbnails({}),
-        access: { rules: [] },
-        uploads: sanitizeUploads({}),
-        trash: sanitizeTrash({}),
-        versions: sanitizeVersions({}),
-        folderSize: {
-          excludedPaths: [],
-          environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
-        },
-      };
+      if (row.key === 'thumbnails') {
+        Object.assign(thumbnails, JSON.parse(row.value));
+      } else if (row.key === 'access') {
+        const accessData = JSON.parse(row.value);
+        if (accessData.rules) {
+          access.rules = accessData.rules;
+        }
+      } else if (row.key === 'uploads') {
+        uploads = { ...uploads, ...JSON.parse(row.value) };
+      } else if (row.key === 'folderSize') {
+        Object.assign(folderSize, JSON.parse(row.value));
+      } else if (row.key === 'searchIndex') {
+        Object.assign(searchIndex, JSON.parse(row.value));
+      } else if (row.key === 'trash') {
+        Object.assign(trash, JSON.parse(row.value));
+      } else if (row.key === 'versions') {
+        Object.assign(versions, JSON.parse(row.value));
+      }
+    } catch (err) {
+      // Skip invalid JSON
     }
   }
+
+  return {
+    thumbnails: sanitizeThumbnails(thumbnails),
+    access: {
+      rules: sanitizeAccessRules(access.rules),
+    },
+    uploads: sanitizeUploads(uploads),
+    trash: sanitizeTrash(trash),
+    versions: sanitizeVersions(versions),
+    folderSize: {
+      ...sanitizeFolderSize(folderSize),
+      environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+    },
+    searchIndex: {
+      ...sanitizeSearchIndex(searchIndex),
+      environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
+    },
+  };
 };
 
 /**
@@ -791,22 +746,6 @@ const setSettings = async (partial) => {
   }
   if (partial.versions) {
     merged.versions = await setSystemSetting('system', 'versions', merged.versions);
-  }
-
-  // Also update JSON for backward compatibility during transition
-  try {
-    await storage.update((data) => ({
-      ...data,
-      settings: {
-        thumbnails: merged.thumbnails,
-        access: merged.access,
-        uploads: merged.uploads,
-        folderSize: merged.folderSize,
-        branding: merged.branding,
-      },
-    }));
-  } catch (err) {
-    // Non-fatal, continue
   }
 
   return merged;
