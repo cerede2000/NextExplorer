@@ -466,13 +466,30 @@ describe('what a configuration pass records', () => {
    * what it was handed. Nothing an administrator fixes by filling in
    * OIDC_ISSUER, so it must not read as a configuration that is missing.
    */
-  it.each([
-    ['an issuer that is not a URL', { OIDC_ISSUER: 'not a url' }],
-    ['a client secret the library insists on', { OIDC_CLIENT_SECRET: undefined }],
-  ])('says the provider is unavailable, not unconfigured, for %s', async (_name, broken) => {
-    const state = await runConfigure({ ...configured, ...broken });
+  it.each([['an issuer that is not a URL', { OIDC_ISSUER: 'not a url' }]])(
+    'says the provider is unavailable, not unconfigured, for %s',
+    async (_name, broken) => {
+      const state = await runConfigure({ ...configured, ...broken });
 
-    expect(state.status).toBe('unavailable');
-    expect(state.reason).toBeTruthy();
+      expect(state.status).toBe('unavailable');
+      expect(state.reason).toBeTruthy();
+    }
+  );
+
+  /**
+   * The client secret used to be the other way round, and wrongly: it was left
+   * out of the enablement check, so the library was handed a configuration it
+   * refuses and the instance reported a provider that could not be started.
+   * An administrator was sent to look at a provider that was perfectly well,
+   * while the one setting they had missed was named in the log and nowhere
+   * else. The hand-off asks for the authorization code flow, which has no
+   * other way to prove which application is asking, so a missing secret is a
+   * configuration that is missing — like the issuer, and named like it.
+   */
+  it('names the client secret rather than blaming the provider', async () => {
+    const state = await runConfigure({ ...configured, OIDC_CLIENT_SECRET: undefined });
+
+    expect(state.status).toBe('not-configured');
+    expect(state.reason).toContain('OIDC_CLIENT_SECRET');
   });
 });

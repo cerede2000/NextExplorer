@@ -285,9 +285,16 @@ const configureOidc = async (app) => {
     const sessionSecret =
       (envAuthConfig && envAuthConfig.sessionSecret) || crypto.randomBytes(32).toString('hex');
 
-    // Check if OIDC should be enabled
+    // Check if OIDC should be enabled.
+    //
+    // The client secret counts: the hand-off below asks for the authorization
+    // code flow, which has no other way to prove which application is asking.
+    // Left out, the library threw while being configured and the instance
+    // reported a provider that could not be started — sending an administrator
+    // to look at a provider that was perfectly well, while the one setting
+    // they had missed was named in the log and nowhere else.
     const eocEnabled = Boolean(
-      oidc.enabled && oidc.issuer && oidc.clientId && sessionSecret && baseURL
+      oidc.enabled && oidc.issuer && oidc.clientId && oidc.clientSecret && sessionSecret && baseURL
     );
     settingsArePresent = eocEnabled;
 
@@ -296,6 +303,7 @@ const configureOidc = async (app) => {
         enabled: eocEnabled,
         issuer: !!oidc.issuer,
         clientId: !!oidc.clientId,
+        clientSecret: !!oidc.clientSecret,
         baseURL: !!baseURL,
       },
       'EOC enablement check'
@@ -309,6 +317,7 @@ const configureOidc = async (app) => {
         !oidc.enabled && 'OIDC_ENABLED',
         !oidc.issuer && 'OIDC_ISSUER',
         !oidc.clientId && 'OIDC_CLIENT_ID',
+        !oidc.clientSecret && 'OIDC_CLIENT_SECRET',
         !sessionSecret && 'SESSION_SECRET',
         !baseURL && 'PUBLIC_URL or OIDC_CALLBACK_URL',
       ].filter(Boolean);

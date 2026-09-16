@@ -25,6 +25,24 @@ const isSubmittingLogin = ref(false);
 const statusError = computed(() => auth.lastError || '');
 const supportsLocal = computed(() => auth.strategies?.local !== false);
 const supportsOidc = computed(() => Boolean(auth.strategies?.oidc));
+
+/**
+ * Whether pressing the single sign-on button would reach anything.
+ *
+ * The server knows already — its configuration pass either mounted the
+ * hand-off or recorded why it could not — and until it said so here, the only
+ * way to find out was to press the button, travel to the provider, and come
+ * back to this screen with the answer. The two reasons are the two the round
+ * trip reports, so they are said in the same words.
+ */
+const OIDC_STATUS_MESSAGES = {
+  'not-configured': 'errors.oidcNotConfigured',
+  unavailable: 'errors.oidcProviderUnavailable',
+};
+const oidcUnavailableMessage = computed(() => {
+  const message = OIDC_STATUS_MESSAGES[auth.oidcStatus];
+  return message ? t(message) : '';
+});
 const returnedFromLogout = ref(window.sessionStorage.getItem('oidcSignedOut') === '1');
 
 /**
@@ -301,13 +319,18 @@ const handleOidcLogin = () => {
 
     <div v-if="supportsOidc" class="mb-2">
       <button
-        class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-700/50 hover:bg-neutral-700/70 active:bg-neutral-700/90 px-4 text-sm font-medium text-white ring-1 ring-inset ring-white/10"
+        class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-700/50 px-4 text-sm font-medium text-white ring-1 ring-inset ring-white/10 enabled:hover:bg-neutral-700/70 enabled:active:bg-neutral-700/90 disabled:cursor-not-allowed disabled:opacity-50"
         type="button"
+        :disabled="Boolean(oidcUnavailableMessage)"
+        :aria-describedby="oidcUnavailableMessage ? 'sso-unavailable' : undefined"
         @click="handleOidcLogin"
       >
         <KeyIcon class="h-5 w-5" />
         <span class="truncate">{{ $t('auth.sso.continue') }}</span>
       </button>
+      <p v-if="oidcUnavailableMessage" id="sso-unavailable" class="mt-2" :class="helperTextClasses">
+        {{ oidcUnavailableMessage }}
+      </p>
     </div>
 
     <p v-if="!supportsLocal && (loginError || statusError)" class="mt-4" :class="helperTextClasses">

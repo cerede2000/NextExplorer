@@ -26,6 +26,7 @@ vi.mock('@/stores/auth', async () => {
     requiresSetup: false,
     lastError: '',
     strategies: { local: true, oidc: false },
+    oidcStatus: 'ready',
     login,
     ensureStatus,
     clearError,
@@ -109,6 +110,7 @@ beforeEach(() => {
       requiresSetup: false,
       lastError: '',
       strategies: { local: true, oidc: false },
+      oidcStatus: 'ready',
     });
   }
   features.demoLogin = null;
@@ -517,5 +519,50 @@ describe('a public demo', () => {
 
     expect(view.loginIdentifier).toBe('');
     expect(view.loginError).toBe('');
+  });
+});
+
+/**
+ * The single sign-on button, before it is pressed.
+ *
+ * A provider that cannot be reached, or settings nobody filled in, used to be
+ * discovered by pressing it: the browser left, and came back to this screen
+ * with the answer. The server knows at load — its configuration pass either
+ * mounted the hand-off or recorded why it could not — and the screen now says
+ * the same two things without the journey.
+ */
+describe('the single sign-on button', () => {
+  const ssoButton = () =>
+    wrapper.findAll('button').find((button) => button.text().includes('auth.sso.continue'));
+
+  it.each([
+    ['not-configured', 'errors.oidcNotConfigured'],
+    ['unavailable', 'errors.oidcProviderUnavailable'],
+  ])('is refused, and says why, when the server reports %s', async (status, message) => {
+    auth.store.strategies = { local: true, oidc: true };
+    auth.store.oidcStatus = status;
+    await mountLogin();
+
+    expect(ssoButton().attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain(message);
+  });
+
+  it('is offered, with nothing to say, when the hand-off is mounted', async () => {
+    auth.store.strategies = { local: true, oidc: true };
+    auth.store.oidcStatus = 'ready';
+    await mountLogin();
+
+    expect(ssoButton().attributes('disabled')).toBeUndefined();
+    expect(wrapper.text()).not.toContain('errors.oidcNotConfigured');
+    expect(wrapper.text()).not.toContain('errors.oidcProviderUnavailable');
+  });
+
+  /** A server that says nothing about it is taken at its word, as before. */
+  it('is offered when the server reports nothing at all', async () => {
+    auth.store.strategies = { local: true, oidc: true };
+    auth.store.oidcStatus = undefined;
+    await mountLogin();
+
+    expect(ssoButton().attributes('disabled')).toBeUndefined();
   });
 });

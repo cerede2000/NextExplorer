@@ -17,6 +17,10 @@ export const useAuthStore = defineStore('auth', () => {
     local: true,
     oidc: false,
   });
+  // What the server's configuration pass concluded about single sign-on:
+  // 'ready', 'not-configured' or 'unavailable'. The sign-in screen shows the
+  // last two rather than sending somebody to a provider that cannot answer.
+  const oidcStatus = ref('ready');
   const currentUser = ref(null);
   const isLoading = ref(false);
   const hasStatus = ref(false);
@@ -52,6 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
         authEnabled.value = enabled;
         authMode.value = typeof status?.authMode === 'string' ? status.authMode : 'local';
         strategies.value = status?.strategies || { local: true, oidc: false };
+        oidcStatus.value = status?.oidc?.status || 'ready';
         currentUser.value = status?.user || null;
 
         // Clear guest session if user is now authenticated
@@ -145,6 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
     authEnabled,
     authMode,
     strategies,
+    oidcStatus,
     currentUser,
     lastError,
     initialize,

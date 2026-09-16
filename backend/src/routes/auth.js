@@ -102,6 +102,11 @@ const respondWithUser = async (req, res) => {
 
 router.get('/status', async (req, res) => {
   const oidcEnv = (auth && auth.oidc) || {};
+  // What the configuration pass concluded, so the sign-in screen can say a
+  // provider is not on offer before somebody presses the button and travels
+  // there to find out. The status only: the reason names settings and library
+  // messages, and this answer is given to anybody who asks.
+  const { status: oidcStatus } = getOidcAvailability();
   const authMode = auth.mode || 'both';
   // Skip setup requirement if AUTH_MODE is 'oidc' only
   const requiresSetup = auth.enabled && authMode !== 'oidc' ? (await countUsers()) === 0 : false;
@@ -128,6 +133,7 @@ router.get('/status', async (req, res) => {
       enabled: Boolean(oidcEnv.enabled),
       issuer: oidcEnv.issuer || null,
       scopes: oidcEnv.scopes || [],
+      status: oidcStatus,
     },
   });
 });

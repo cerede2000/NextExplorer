@@ -356,3 +356,41 @@ describe('exchanging a code for a session', () => {
     expect((await browser.get('/api/auth/me')).body.user).toBeNull();
   });
 });
+
+/**
+ * What the sign-in screen is told before anybody presses anything.
+ *
+ * A provider that cannot be reached, or settings that were never filled in,
+ * used to be discovered by pressing the button: the browser travelled to the
+ * provider, or to a hand-off that was not mounted, and came back here with the
+ * answer. The screen asks once, at load, and says the same two things without
+ * the round trip.
+ *
+ * The reason stays behind: it names settings and library messages, and this
+ * answer is given to anybody who can reach the server.
+ */
+describe('what /status says about single sign-on', () => {
+  it.each([
+    ['ready', (availability) => availability.recordOidcReady()],
+    ['not-configured', (availability) => availability.recordOidcNotConfigured('OIDC_ISSUER')],
+    ['unavailable', (availability) => availability.recordOidcUnavailable('ENOTFOUND idp.example')],
+  ])('reports %s', async (expected, record) => {
+    const { app, availability } = await build();
+    record(availability);
+
+    const response = await request(app).get('/api/auth/status');
+
+    expect(response.status).toBe(200);
+    expect(response.body.oidc.status).toBe(expected);
+  });
+
+  it('keeps the reason to itself', async () => {
+    const { app, availability } = await build();
+    availability.recordOidcUnavailable('client secret is required, and the issuer is idp.internal');
+
+    const response = await request(app).get('/api/auth/status');
+
+    expect(JSON.stringify(response.body)).not.toContain('idp.internal');
+    expect(response.body.oidc).not.toHaveProperty('reason');
+  });
+});
