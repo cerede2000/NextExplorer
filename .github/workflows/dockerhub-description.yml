@@ -17,6 +17,11 @@ env:
   IMAGE_NAME: explorer
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
+# This run pushes to Docker Hub with a Docker Hub token; it wants nothing at
+# all from GITHUB_TOKEN beyond reading the README it is about to publish.
+permissions:
+  contents: read
+
 jobs:
   sync:
     name: Update Docker Hub description
@@ -26,11 +31,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Update description
         if: ${{ env.DOCKERHUB_USERNAME != '' }}
-        uses: peter-evans/dockerhub-description@v3
+        # v3 runs on node16, a runtime the runner no longer offers; GitHub has
+        # been forcing such actions onto a newer one, and that is a courtesy
+        # rather than a guarantee. v5 is the current major and takes the same
+        # inputs this step already passes.
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

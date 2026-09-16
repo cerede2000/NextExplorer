@@ -33,9 +33,11 @@ jobs:
     name: Release tag matches the manifests
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Compare the tag with package.json
         run: |
@@ -76,9 +78,13 @@ jobs:
     needs: build
     if: ${{ needs.build.result == 'success' && github.event_name != 'release' }}
     runs-on: ubuntu-latest
+    # The deletions here go to Docker Hub with a Docker Hub token. GITHUB_TOKEN
+    # only has to fetch the script it runs.
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

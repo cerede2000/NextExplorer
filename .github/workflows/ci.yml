@@ -12,12 +12,21 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# With no block here the jobs take whatever the repository hands out by
+# default, which for a repository that has never been narrowed is write on
+# every scope. Nothing below writes anything: it reads the checkout, installs,
+# and runs the suites. A `pull_request` from a fork is read-only whatever this
+# says — a push to a branch in the repository is not, and that is the run this
+# protects.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # The commit check below reads every commit a push brings, which a
           # shallow clone of the tip does not have.
@@ -218,7 +227,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Run the ffmpeg and HEIC suites on the image's base
         run: |

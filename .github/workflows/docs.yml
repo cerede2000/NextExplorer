@@ -11,10 +11,12 @@ on:
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
+# Workflow-wide, `pages: write` and `id-token: write` were also handed to the
+# build job, which runs the site's own dependencies — the place where a
+# compromised package would look for exactly those. They belong to the deploy
+# job, which is the one that publishes.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: 'pages'
@@ -25,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -39,24 +41,37 @@ jobs:
         working-directory: ./docs
         run: npm ci
 
+      # No `npm install` before the build: the step above already installed
+      # from docs/package-lock.json, and running install after it re-resolves
+      # the tree against the registry — which is to say the lockfile stops
+      # deciding what the published site was built from.
       - name: Build VitePress site
         working-directory: ./docs
-        run: |
-          npm install
-          npx vitepress build
+        run: npx vitepress build
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
+          # v4 began dropping dotfiles from the artifact. Nothing says the
+          # built site has none, and a file that silently stops being
+          # published is the kind of thing noticed months later, so keep what
+          # v3 uploaded.
+          include-hidden-files: true
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # A job-level block replaces the workflow's rather than adding to it, so
+    # the read has to be repeated here.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
