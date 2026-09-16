@@ -522,6 +522,23 @@ const archives = (() => {
       return Number.isFinite(parsed) && parsed > 0 ? parsed : 32 * 1024 * 1024 * 1024;
     })(),
     maxEntries: env.MAX_ARCHIVE_ENTRIES,
+    // A compound archive — a .tar.gz and its family — is two archives, and the
+    // inner one has to be decompressed before anything inside it can be named.
+    // Above this it is not: browsing a backup by unpacking it first would
+    // betray the whole point, and extracting it is the operation that exists
+    // for that. The number is the inner archive's own declared size, so the
+    // refusal comes before anything is written.
+    browseMaxBytes: (() => {
+      const parsed = parseByteSize(env.MAX_BROWSABLE_ARCHIVE_SIZE);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 2 * 1024 * 1024 * 1024;
+    })(),
+    // What those decompressed copies may take up altogether. They are a
+    // convenience and are made again whenever they are missing, so the least
+    // recently opened goes first when this is passed.
+    cacheMaxBytes: (() => {
+      const parsed = parseByteSize(env.ARCHIVE_CACHE_MAX_SIZE);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 8 * 1024 * 1024 * 1024;
+    })(),
   };
   if (!raw) return { extensions: DEFAULT_ARCHIVE_EXTENSIONS, ...limits };
   // 'zip,iso' replaces the default list; '+udf,squashfs' extends it.

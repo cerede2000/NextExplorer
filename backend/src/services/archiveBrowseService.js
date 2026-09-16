@@ -3,7 +3,8 @@ const { promisify } = require('util');
 
 const { archives } = require('../config/index');
 const { AppError } = require('../errors/AppError');
-const { isArchivePasswordError } = require('./archiveService');
+const { isArchivePasswordError, TAR_WRAPPER_EXTENSIONS } = require('./archiveService');
+const { cachedInnerArchive } = require('./archiveCacheService');
 
 const execFileAsync = promisify(execFile);
 
@@ -247,6 +248,38 @@ const readArchiveListing = async (archiveAbsolutePath) => {
 };
 
 /**
+ * Where to read this archive from, and what it holds.
+ *
+ * A compound archive — gzip, bzip2, xz or zstd wrapped around a tar — is two
+ * archives, and 7-Zip peels one layer per run: listing `backup.tar.gz` answers
+ * with a single entry called `backup.tar`. True, and no use at all to somebody
+ * looking for a file inside it.
+ *
+ * The layer below is read from a decompressed copy of the inner archive, made
+ * once and kept in the cache directory. Three things have to hold together for
+ * that: the outer extension is one of the wrappers, there is exactly one entry,
+ * and that entry is a tar. A gzipped text file is one entry too, and it is not
+ * an archive to go inside — it is a file to hand over, which is what the
+ * listing already offers.
+ */
+const readBrowsableArchive = async (archiveAbsolutePath) => {
+  const listing = await readArchiveListing(archiveAbsolutePath);
+
+  const extension = archiveAbsolutePath.slice(archiveAbsolutePath.lastIndexOf('.') + 1);
+  const [only] = listing.entries;
+  const wrapsATar =
+    TAR_WRAPPER_EXTENSIONS.has(extension.toLowerCase()) &&
+    listing.entries.length === 1 &&
+    !only.isDirectory &&
+    /\.tar$/i.test(only.path);
+
+  if (!wrapsATar) return { source: archiveAbsolutePath, listing };
+
+  const source = await cachedInnerArchive(archiveAbsolutePath, only.size);
+  return { source, listing: await readArchiveListing(source) };
+};
+
+/**
  * What is at one level of an archive.
  *
  * @param {string} archiveAbsolutePath the archive itself, on disk
@@ -261,7 +294,9 @@ const browseArchive = async (archiveAbsolutePath, inside = '') => {
     throw listingError('That is not a folder inside this archive.', 'ARCHIVE_BAD_POSITION', 400);
   }
 
-  const { entries, outside } = await readArchiveListing(archiveAbsolutePath);
+  const {
+    listing: { entries, outside },
+  } = await readBrowsableArchive(archiveAbsolutePath);
   const level = levelOf(entries, position);
 
   if (!level.exists) {
@@ -291,7 +326,10 @@ const findArchiveEntry = async (archiveAbsolutePath, entryPath) => {
     throw listingError('That is not a file inside this archive.', 'ARCHIVE_BAD_POSITION', 400);
   }
 
-  const { entries } = await readArchiveListing(archiveAbsolutePath);
+  const {
+    source,
+    listing: { entries },
+  } = await readBrowsableArchive(archiveAbsolutePath);
   const found = entries.find((entry) => entry.path === wanted);
   if (!found) {
     throw listingError('That file is not in this archive.', 'ARCHIVE_ENTRY_NOT_FOUND', 404);
@@ -307,7 +345,7 @@ const findArchiveEntry = async (archiveAbsolutePath, entryPath) => {
     );
   }
 
-  return found;
+  return { entry: found, source };
 };
 
 /** How long one entry may take to come out before nobody is still waiting. */
@@ -384,6 +422,7 @@ const openArchiveEntry = (archiveAbsolutePath, entryPath) => {
 
 module.exports = {
   browseArchive,
+  readBrowsableArchive,
   findArchiveEntry,
   openArchiveEntry,
   readArchiveListing,

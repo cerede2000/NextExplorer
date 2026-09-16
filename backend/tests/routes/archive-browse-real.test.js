@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import fss from 'node:fs';
 import express from 'express';
 import request from 'supertest';
-import { ZipArchive } from 'archiver';
+import { TarArchive, ZipArchive } from 'archiver';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 import { hasSevenZip } from '../helpers/media-tools.js';
@@ -27,6 +27,11 @@ const sevenZip = await hasSevenZip();
 let currentEnv;
 
 afterEach(async () => {
+  try {
+    await currentEnv?.requireFresh('src/services/archiveCacheService').stopArchiveCacheWork();
+  } catch (_) {
+    // Never loaded, which is as stopped as it gets.
+  }
   if (currentEnv) {
     await currentEnv.cleanup();
     currentEnv = null;
@@ -45,6 +50,18 @@ const writeZip = (file, entries) =>
       if (entry.directory) archive.append(null, { name: `${entry.path}/`, type: 'directory' });
       else archive.append(entry.content ?? 'x', { name: entry.path });
     }
+    archive.finalize();
+  });
+
+/** A real .tar.gz: gzip around a tar, which is two archives rather than one. */
+const writeTarGz = (file, entries) =>
+  new Promise((resolve, reject) => {
+    const output = fss.createWriteStream(file);
+    const archive = new TarArchive({ gzip: true });
+    output.on('close', resolve);
+    archive.on('error', reject);
+    archive.pipe(output);
+    for (const entry of entries) archive.append(entry.content ?? 'x', { name: entry.path });
     archive.finalize();
   });
 
@@ -180,6 +197,49 @@ describe.skipIf(!sevenZip)('browsing a real archive with the real 7-Zip', () => 
       .query({ path: 'backup.zip', entry: 'docs/report.txt' });
 
     expect(await fs.readdir(volume)).toEqual(before);
+  });
+
+  /**
+   * The compound case, against the real tool. What the stand-in cannot prove is
+   * the assumption the whole path rests on: that 7-Zip reports a .tar.gz as one
+   * entry whose name ends in .tar. If that is ever untrue, this is where it
+   * shows, rather than in somebody's backup.
+   */
+  it('goes inside a real .tar.gz, and keeps one copy of the tar', async () => {
+    const volume = await seed();
+    await writeTarGz(path.join(volume, 'backup.tar.gz'), [
+      { path: 'docs/report.txt', content: 'a report' },
+      { path: 'notes.txt', content: 'twelve bytes' },
+    ]);
+    const app = buildApp();
+
+    const top = await request(app).get('/api/archive/list').query({ path: 'backup.tar.gz' });
+
+    expect(top.status).toBe(200);
+    expect(top.body.entries.map((entry) => entry.name)).toEqual(['docs', 'notes.txt']);
+
+    const inside = await request(app)
+      .get('/api/archive/list')
+      .query({ path: 'backup.tar.gz', inside: 'docs' });
+
+    expect(inside.body.entries.map((entry) => entry.name)).toEqual(['report.txt']);
+
+    const entry = await request(app)
+      .get('/api/archive/entry')
+      .query({ path: 'backup.tar.gz', entry: 'docs/report.txt' })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(entry.body.toString()).toBe('a report');
+
+    // One copy, in the cache directory, and nothing beside the archive.
+    const cached = await fs.readdir(path.join(currentEnv.cacheDir, 'archives'));
+    expect(cached.filter((name) => name.endsWith('.inner'))).toHaveLength(1);
+    expect(await fs.readdir(volume)).toEqual(['backup.tar.gz']);
   });
 
   it('refuses a file that is not an archive, whatever it is called', async () => {

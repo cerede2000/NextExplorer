@@ -508,6 +508,7 @@ const extractArchive = async (
 };
 
 module.exports = {
+  TAR_WRAPPER_EXTENSIONS,
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
   readArchiveFootprint,

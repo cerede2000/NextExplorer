@@ -33,6 +33,10 @@ const mayDeleteFromDisk = [
   'backend/src/utils/placeWithoutOverwrite.js',
   // What an undone operation wrote, told apart by inode from what others added.
   'backend/src/utils/ownedTree.js',
+  // Its own decompressed copies of archives, under the cache directory: made
+  // again from the archive whenever they are missing, so nothing is lost by
+  // taking one away.
+  'backend/src/services/archiveCacheService.js',
   'backend/src/services/archiveService.js',
   'backend/src/services/rawPreviewService.js',
   'backend/src/services/thumbnailService.js',

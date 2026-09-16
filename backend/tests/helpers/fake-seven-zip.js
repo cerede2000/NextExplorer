@@ -51,12 +51,21 @@ case "$1" in
     exit 0
     ;;
   x)
+    # The last two arguments are the archive and the entry inside it — unless
+    # there is no entry, which is how one layer of a compound archive is peeled:
+    # then the archive is last, and what it decompresses to is the file a test
+    # filed beside it.
+    for entry; do archive="$previous"; previous="$entry"; done
+    if [ "$archive" = "--" ]; then
+      cat "$entry.inner"
+      exit $?
+    fi
+    # Only an extraction that names an entry needs the switch that stops 7-Zip
+    # reading that name as a pattern; peeling a whole archive names nothing.
     case " $* " in
       *" -spd "*) ;;
-      *) echo "fake 7z: x without -spd would read the name as a pattern" >&2; exit 1 ;;
+      *) echo "fake 7z: x of one entry without -spd would read its name as a pattern" >&2; exit 1 ;;
     esac
-    # The last two arguments are the archive and the entry inside it.
-    for entry; do archive="$previous"; previous="$entry"; done
     awk -v want="$entry" '
       seen && index($0, want "\t") == 1 { printf "%s", substr($0, length(want) + 2); found = 1 }
       /^%%FAKE-7Z-CONTENT%%$/ { seen = 1 }
@@ -126,4 +135,15 @@ const fakeListing = (entries) =>
     '',
   ].join('\n');
 
-module.exports = { useFakeSevenZip, fakeListing };
+/**
+ * A compound archive: one that decompresses to another archive rather than to
+ * a file, which is what a .tar.gz is. The stand-in answers `l` with the single
+ * entry a real 7-Zip reports, and a whole-archive `x` with the inner listing —
+ * so what the test writes as `inner` is what the cache ends up holding.
+ */
+const fakeCompound = ({ innerName = 'backup.tar', innerSize = 4096, entries = [] } = {}) => ({
+  outer: fakeListing([{ path: innerName, size: innerSize }]),
+  inner: fakeListing(entries),
+});
+
+module.exports = { useFakeSevenZip, fakeListing, fakeCompound };
