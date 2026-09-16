@@ -1,149 +1,164 @@
 <template>
-  <div class="flex h-full flex-col" data-testid="archive-preview">
-    <!--
+  <!--
+    A window rather than the whole screen. What is in an archive is a listing,
+    and a listing is read beside what opened it: the preview overlay is for a
+    photograph or a document, where filling the screen is the point.
+  -->
+  <ModalDialog :model-value="true" wide @update:model-value="close">
+    <template #title>
+      <ArchiveIcon class="h-5 w-5 shrink-0" />
+      <span class="truncate">{{ item?.name || filePath }}</span>
+    </template>
+
+    <div class="-m-6 flex flex-col" data-testid="archive-preview">
+      <!--
       Where we are inside the archive, in the shape the explorer's own path bar
       has: the archive itself is the first step, so going back to the top is a
       click rather than a guess at what that level was called.
     -->
-    <nav
-      class="flex flex-wrap items-center gap-0.5 border-b border-neutral-200 px-4 py-2 text-sm dark:border-neutral-800"
-      :aria-label="$t('archive.breadcrumb')"
-    >
-      <template v-for="(step, index) in trail" :key="step.inside">
-        <ChevronRightIcon
-          v-if="index > 0"
-          class="h-3.5 w-3.5 shrink-0 text-neutral-400"
-          aria-hidden="true"
-        />
-        <button
-          type="button"
-          class="max-w-[14rem] truncate rounded px-1.5 py-0.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 disabled:cursor-default disabled:font-medium disabled:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white dark:disabled:text-white"
-          :disabled="index === trail.length - 1"
-          @click="open(step.inside)"
-        >
-          {{ step.label }}
-        </button>
-      </template>
-    </nav>
-
-    <p v-if="error" class="p-6 text-sm text-red-600 dark:text-red-400" data-testid="archive-error">
-      {{ error }}
-    </p>
-
-    <p
-      v-else-if="loading"
-      class="p-6 text-sm text-neutral-500 dark:text-neutral-400"
-      data-testid="archive-loading"
-    >
-      {{ $t('common.loading') }}
-    </p>
-
-    <template v-else>
-      <p
-        v-if="entries.length === 0"
-        class="p-6 text-sm text-neutral-500 dark:text-neutral-400"
-        data-testid="archive-empty"
+      <nav
+        class="flex flex-wrap items-center gap-0.5 border-b border-neutral-200 px-4 py-2 text-sm dark:border-neutral-800"
+        :aria-label="$t('archive.breadcrumb')"
       >
-        {{ $t('archive.empty') }}
+        <template v-for="(step, index) in trail" :key="step.inside">
+          <ChevronRightIcon
+            v-if="index > 0"
+            class="h-3.5 w-3.5 shrink-0 text-neutral-400"
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            class="max-w-[14rem] truncate rounded px-1.5 py-0.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 disabled:cursor-default disabled:font-medium disabled:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white dark:disabled:text-white"
+            :disabled="index === trail.length - 1"
+            @click="open(step.inside)"
+          >
+            {{ step.label }}
+          </button>
+        </template>
+      </nav>
+
+      <p
+        v-if="error"
+        class="p-6 text-sm text-red-600 dark:text-red-400"
+        data-testid="archive-error"
+      >
+        {{ error }}
       </p>
 
-      <div v-else class="flex-1 overflow-auto">
-        <!-- The columns the list view uses, in the order it uses them. -->
-        <div
-          class="sticky top-0 z-10 grid min-w-max items-center gap-2 border-b border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-500 dark:border-neutral-800 dark:bg-zinc-900 dark:text-neutral-400"
-          :style="{ gridTemplateColumns: COLUMNS }"
+      <p
+        v-else-if="loading"
+        class="p-6 text-sm text-neutral-500 dark:text-neutral-400"
+        data-testid="archive-loading"
+      >
+        {{ $t('common.loading') }}
+      </p>
+
+      <template v-else>
+        <p
+          v-if="entries.length === 0"
+          class="p-6 text-sm text-neutral-500 dark:text-neutral-400"
+          data-testid="archive-empty"
         >
-          <span aria-hidden="true"></span>
-          <span>{{ $t('common.name') }}</span>
-          <span class="text-right">{{ $t('common.size') }}</span>
-          <span>{{ $t('common.modified') }}</span>
-          <span aria-hidden="true"></span>
+          {{ $t('archive.empty') }}
+        </p>
+
+        <div v-else>
+          <!-- The columns the list view uses, in the order it uses them. -->
+          <div
+            class="archive-row sticky top-0 z-10 items-center border-b border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-500 dark:border-neutral-800 dark:bg-zinc-900 dark:text-neutral-400"
+          >
+            <span aria-hidden="true"></span>
+            <span>{{ $t('common.name') }}</span>
+            <span class="text-right">{{ $t('common.size') }}</span>
+            <span class="hidden sm:block">{{ $t('common.modified') }}</span>
+            <span aria-hidden="true"></span>
+          </div>
+
+          <ul data-testid="archive-entries">
+            <li v-for="entry in entries" :key="entry.path" class="group/item">
+              <div
+                class="archive-row cursor-default items-center rounded-md px-4 py-1 group-even/item:bg-zinc-100 hover:bg-blue-50 dark:group-even/item:bg-neutral-700/30 dark:hover:bg-blue-900/20"
+                :class="{ 'cursor-pointer': entry.isDirectory }"
+                @dblclick="entry.isDirectory && open(entry.path)"
+              >
+                <FileIcon :item="asItem(entry)" class="w-6 shrink-0" disable-thumbnails />
+
+                <button
+                  v-if="entry.isDirectory"
+                  type="button"
+                  :title="entry.name"
+                  class="min-w-0 truncate text-left text-sm text-neutral-900 hover:underline dark:text-white"
+                  @click="open(entry.path)"
+                >
+                  {{ entry.name }}
+                </button>
+                <span
+                  v-else
+                  :title="entry.name"
+                  class="min-w-0 truncate text-sm text-neutral-900 dark:text-white"
+                >
+                  {{ entry.name }}
+                </span>
+
+                <span
+                  class="text-right text-sm tabular-nums text-neutral-500 dark:text-neutral-400"
+                  >{{ entry.isDirectory ? '—' : formatBytes(entry.size ?? 0) }}</span
+                >
+                <span
+                  class="hidden truncate text-sm text-neutral-500 sm:block dark:text-neutral-400"
+                  >{{ entry.modified || '—' }}</span
+                >
+
+                <span class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="rounded p-1 text-neutral-500 opacity-0 hover:bg-neutral-200 hover:text-neutral-900 group-hover/item:opacity-100 focus:opacity-100 disabled:opacity-40 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-white"
+                    :title="$t('archive.extract')"
+                    :aria-label="$t('archive.extractNamed', { name: entry.name })"
+                    :disabled="extracting === entry.path"
+                    @click.stop="extract(entry)"
+                  >
+                    <ArrowUpTrayIcon class="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <a
+                    v-if="!entry.isDirectory"
+                    :href="entryUrl(entry)"
+                    class="rounded p-1 text-neutral-500 opacity-0 hover:bg-neutral-200 hover:text-neutral-900 group-hover/item:opacity-100 focus:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-white"
+                    :title="$t('archive.download')"
+                    :aria-label="$t('archive.downloadNamed', { name: entry.name })"
+                    download
+                  >
+                    <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true" />
+                  </a>
+                </span>
+              </div>
+            </li>
+          </ul>
         </div>
 
-        <ul data-testid="archive-entries">
-          <li v-for="entry in entries" :key="entry.path" class="group/item">
-            <div
-              class="grid min-w-max cursor-default items-center gap-2 rounded-md px-4 py-1 group-even/item:bg-zinc-100 hover:bg-blue-50 dark:group-even/item:bg-neutral-700/30 dark:hover:bg-blue-900/20"
-              :style="{ gridTemplateColumns: COLUMNS }"
-              :class="{ 'cursor-pointer': entry.isDirectory }"
-              @dblclick="entry.isDirectory && open(entry.path)"
-            >
-              <FileIcon :item="asItem(entry)" class="w-6 shrink-0" disable-thumbnails />
-
-              <button
-                v-if="entry.isDirectory"
-                type="button"
-                :title="entry.name"
-                class="min-w-0 truncate text-left text-sm text-neutral-900 hover:underline dark:text-white"
-                @click="open(entry.path)"
-              >
-                {{ entry.name }}
-              </button>
-              <span
-                v-else
-                :title="entry.name"
-                class="min-w-0 truncate text-sm text-neutral-900 dark:text-white"
-              >
-                {{ entry.name }}
-              </span>
-
-              <span
-                class="text-right text-sm tabular-nums text-neutral-500 dark:text-neutral-400"
-                >{{ entry.isDirectory ? '—' : formatBytes(entry.size ?? 0) }}</span
-              >
-              <span class="truncate text-sm text-neutral-500 dark:text-neutral-400">{{
-                entry.modified || '—'
-              }}</span>
-
-              <span class="flex items-center justify-end gap-1">
-                <button
-                  type="button"
-                  class="rounded p-1 text-neutral-500 opacity-0 hover:bg-neutral-200 hover:text-neutral-900 group-hover/item:opacity-100 focus:opacity-100 disabled:opacity-40 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-white"
-                  :title="$t('archive.extract')"
-                  :aria-label="$t('archive.extractNamed', { name: entry.name })"
-                  :disabled="extracting === entry.path"
-                  @click.stop="extract(entry)"
-                >
-                  <ArrowUpTrayIcon class="h-4 w-4" aria-hidden="true" />
-                </button>
-                <a
-                  v-if="!entry.isDirectory"
-                  :href="entryUrl(entry)"
-                  class="rounded p-1 text-neutral-500 opacity-0 hover:bg-neutral-200 hover:text-neutral-900 group-hover/item:opacity-100 focus:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-white"
-                  :title="$t('archive.download')"
-                  :aria-label="$t('archive.downloadNamed', { name: entry.name })"
-                  download
-                >
-                  <ArrowDownTrayIcon class="h-4 w-4" aria-hidden="true" />
-                </a>
-              </span>
-            </div>
-          </li>
-        </ul>
-      </div>
-
-      <div
-        class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"
-      >
-        <span data-testid="archive-count">{{ $t('archive.count', total) }}</span>
-        <!--
+        <div
+          class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"
+        >
+          <span data-testid="archive-count">{{ $t('archive.count', total) }}</span>
+          <!--
           Said out loud rather than left out silently: an archive can carry
           names that point outside itself, and what cannot be shown as
           somewhere is not shown as somewhere.
         -->
-        <span v-if="outside > 0" data-testid="archive-outside">{{
-          $t('archive.outside', outside)
-        }}</span>
-        <span
-          v-if="extracted"
-          class="text-green-700 dark:text-green-400"
-          data-testid="archive-took"
-        >
-          {{ extracted }}
-        </span>
-      </div>
-    </template>
-  </div>
+          <span v-if="outside > 0" data-testid="archive-outside">{{
+            $t('archive.outside', outside)
+          }}</span>
+          <span
+            v-if="extracted"
+            class="text-green-700 dark:text-green-400"
+            data-testid="archive-took"
+          >
+            {{ extracted }}
+          </span>
+        </div>
+      </template>
+    </div>
+  </ModalDialog>
 </template>
 
 <script setup>
@@ -154,17 +169,21 @@ import { ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronRightIcon } from '@heroicons
 import { browseArchive, archiveEntryUrl, extractFromArchive } from '@/api';
 import { formatBytes } from '@/utils';
 import FileIcon from '@/icons/FileIcon.vue';
+import ArchiveIcon from '@/icons/files/archive-icon.vue';
+import ModalDialog from '@/components/ModalDialog.vue';
 
 const props = defineProps({
   item: { type: Object, required: true },
   extension: { type: String, required: true },
   filePath: { type: String, required: true },
+  // What the preview host offers a plugin that draws its own window: closing
+  // is the host's to do, because it is the host that opened this.
+  api: { type: Object, default: () => ({}) },
 });
 
-const { t } = useI18n();
+const close = () => props.api?.close?.();
 
-/** Icon, name, size, date, actions — the explorer's own order. */
-const COLUMNS = '1.5rem minmax(12rem, 1fr) 6rem 11rem 4.5rem';
+const { t } = useI18n();
 
 const inside = ref('');
 const entries = ref([]);
@@ -245,3 +264,26 @@ watch(
   () => open('')
 );
 </script>
+
+<style scoped>
+/**
+ * Icon, name, size, date, actions — the explorer's own order.
+ *
+ * The date goes on a phone: five columns across 375 pixels means scrolling
+ * sideways to read a size, which is worse than not showing a date nobody asked
+ * for. Written here rather than as utility classes because the template is an
+ * arbitrary value with a comma in it, and what the build made of that was one
+ * column per cell.
+ */
+.archive-row {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1.5rem minmax(7rem, 1fr) 5.5rem 4rem;
+}
+
+@media (min-width: 640px) {
+  .archive-row {
+    grid-template-columns: 1.5rem minmax(12rem, 1fr) 6rem 11rem 4.5rem;
+  }
+}
+</style>

@@ -15,6 +15,14 @@ const props = defineProps({
    * would otherwise cover it completely.
    */
   elevated: Boolean,
+  /**
+   * A dialog that shows a listing rather than a question.
+   *
+   * The ordinary width is meant for a sentence and two buttons; something with
+   * names, sizes and dates in it needs room, and cramming it into 500 pixels
+   * is how a panel ends up scrolling sideways.
+   */
+  wide: Boolean,
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -116,11 +124,23 @@ function onBackgroundClick() {
 </script>
 <template>
   <Teleport to="body" v-if="popupOpened">
+    <!--
+      The padding is what keeps a dialog off the edges of the screen, and the
+      width is a ceiling rather than a size: at 500 pixels flat, a phone in
+      portrait had a dialog wider than itself and scrolled sideways to reach
+      the buttons.
+    -->
     <div
       @click="onBackgroundClick"
-      class="fixed top-0 flex items-center justify-center w-full h-full max-sm:items-end bg-zinc-700/50 dark:bg-neutral-700/50 backdrop-blur-xs"
+      class="fixed inset-0 flex items-center justify-center bg-zinc-700/50 p-4 backdrop-blur-xs max-sm:items-end max-sm:p-0 dark:bg-neutral-700/50"
       :class="elevated ? 'z-2200' : 'z-50'"
     >
+      <!--
+        A column with a ceiling on its height, so the heading and whatever the
+        dialog puts at the bottom stay where they are and the middle scrolls.
+        Without it a long list simply grew: the title went off the top of the
+        screen, the buttons off the bottom, and neither could be reached.
+      -->
       <div
         ref="dialogRef"
         role="dialog"
@@ -129,20 +149,39 @@ function onBackgroundClick() {
         tabindex="-1"
         @click.stop
         @keydown="onKeydown"
-        class="rounded-xl w-[500px] shadow-lg text-gray-800 dark:text-neutral-300 bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 transition-all duration-300"
+        class="flex max-h-[85vh] w-full flex-col rounded-xl border border-zinc-400 bg-white text-gray-800 shadow-lg transition-all duration-300 max-sm:rounded-b-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-neutral-300"
+        :class="wide ? 'sm:w-[54rem]' : 'sm:w-[500px]'"
       >
-        <div class="flex justify-between p-6">
-          <h2 :id="titleId" class="flex items-center gap-2 text-lg font-bold">
+        <div class="flex shrink-0 justify-between p-6">
+          <h2 :id="titleId" class="flex min-w-0 items-center gap-2 text-lg font-bold">
             <slot name="title"> Modal </slot>
           </h2>
-          <button type="button" :aria-label="t('common.close')" @click="popupOpened = false">
+          <button
+            type="button"
+            class="shrink-0"
+            :aria-label="t('common.close')"
+            @click="popupOpened = false"
+          >
             <XMarkIcon class="h-6" />
           </button>
         </div>
-        <hr class="h-px border-0 bg-zinc-300 dark:bg-zinc-800" />
+        <hr class="h-px shrink-0 border-0 bg-zinc-300 dark:bg-zinc-800" />
 
-        <div class="p-6 py-6 text-sm">
+        <div class="min-h-0 flex-1 overflow-y-auto p-6 py-6 text-sm">
           <slot> </slot>
+        </div>
+
+        <!--
+          What a dialog asks for stays where it can be reached. Inside the
+          scrolling part, a long list pushed the buttons below the fold, on a
+          window that could not grow: the answer to a question was off the
+          screen, and the only way back was Escape.
+        -->
+        <div
+          v-if="$slots.footer"
+          class="shrink-0 border-t border-zinc-300 px-6 py-4 text-sm dark:border-zinc-800"
+        >
+          <slot name="footer" />
         </div>
       </div>
     </div>

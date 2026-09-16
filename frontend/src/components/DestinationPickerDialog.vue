@@ -177,8 +177,14 @@ watch(
   <ModalDialog v-model="isOpen" :elevated="['version-copy', 'file'].includes(props.mode)">
     <template #title>{{ title }}</template>
 
-    <div class="flex flex-col gap-3">
-      <div v-if="shortcuts.length" class="flex flex-col gap-1">
+    <div class="flex max-h-full min-h-0 flex-col gap-3">
+      <!--
+        Favourites and recent destinations, capped. Ten of them pushed the
+        folder list and the buttons off the bottom of the screen, on a dialog
+        that had nowhere to scroll: what is above the list has to give way to
+        it, not the other way round.
+      -->
+      <div v-if="shortcuts.length" class="flex max-h-44 shrink-0 flex-col gap-1 overflow-y-auto">
         <ul class="flex flex-col gap-1">
           <li v-for="shortcut in shortcuts" :key="`${shortcut.kind}:${shortcut.path}`">
             <button
@@ -224,8 +230,13 @@ watch(
         </template>
       </nav>
 
+      <!--
+        The folder list takes what is left rather than a fixed height: on a
+        short screen it shrinks instead of pushing the buttons out of reach,
+        and on a tall one it fills.
+      -->
       <div
-        class="h-64 overflow-y-auto rounded-lg border border-neutral-200 dark:border-zinc-700"
+        class="min-h-40 flex-1 overflow-y-auto rounded-lg border border-neutral-200 dark:border-zinc-700"
         role="listbox"
       >
         <p v-if="isLoading" class="p-4 text-neutral-500 dark:text-neutral-400">
@@ -264,28 +275,32 @@ watch(
           </li>
         </ul>
       </div>
-
-      <p v-if="currentRejection" class="text-xs text-amber-600 dark:text-amber-400">
-        {{ currentRejection }}
-      </p>
-
-      <div class="flex justify-end gap-2">
-        <button
-          type="button"
-          class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-zinc-800"
-          @click="isOpen = false"
-        >
-          {{ t('common.cancel') }}
-        </button>
-        <button
-          type="button"
-          class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="!canConfirm"
-          @click="confirm"
-        >
-          {{ confirmLabel }}
-        </button>
-      </div>
     </div>
+
+    <template #footer>
+      <div class="flex items-center justify-between gap-3">
+        <p v-if="currentRejection" class="min-w-0 text-xs text-amber-600 dark:text-amber-400">
+          {{ currentRejection }}
+        </p>
+        <span v-else></span>
+        <div class="flex shrink-0 justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-zinc-800"
+            @click="isOpen = false"
+          >
+            {{ t('common.cancel') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="!canConfirm"
+            @click="confirm"
+          >
+            {{ confirmLabel }}
+          </button>
+        </div>
+      </div>
+    </template>
   </ModalDialog>
 </template>

@@ -12,6 +12,9 @@ export const archivePreviewPlugin = () => ({
   id: 'core-archive-preview',
   label: 'Archive',
   priority: 25,
+  // The window is this component's own: the preview overlay fills the screen,
+  // which is right for a photograph and wrong for a listing.
+  standalone: true,
 
   match: (context) => {
     const extension = String(context.extension || '').toLowerCase();

@@ -35,7 +35,13 @@ const i18n = createI18n({
   locale: 'en',
   messages: {
     en: {
-      common: { loading: 'Loading', name: 'Name', size: 'Size', modified: 'Modified' },
+      common: {
+        loading: 'Loading',
+        name: 'Name',
+        size: 'Size',
+        modified: 'Modified',
+        close: 'Close',
+      },
       archive: {
         breadcrumb: 'Inside the archive',
         empty: 'This folder is empty.',
@@ -90,7 +96,9 @@ const open = async (levels = [TOP]) => {
       extension: 'zip',
       filePath: 'Work/backup.zip',
     },
-    global: { plugins: [i18n] },
+    // The window teleports to the body; kept in place so these stay about what
+    // the panel shows rather than about where Vue put it.
+    global: { plugins: [i18n], stubs: { teleport: true } },
   });
   await flushPromises();
   return wrapper;
@@ -224,7 +232,7 @@ describe('an archive that has something to hide', () => {
         extension: 'zip',
         filePath: 'Work/secret.zip',
       },
-      global: { plugins: [i18n] },
+      global: { plugins: [i18n], stubs: { teleport: true } },
     });
     await flushPromises();
 
@@ -243,7 +251,7 @@ describe('an archive that has something to hide', () => {
         extension: 'zip',
         filePath: 'Work/secret.zip',
       },
-      global: { plugins: [i18n] },
+      global: { plugins: [i18n], stubs: { teleport: true } },
     });
     await flushPromises();
 
@@ -294,5 +302,37 @@ describe('extracting an entry', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="archive-error"]').text()).toBe('Destination is read-only.');
+  });
+});
+
+/**
+ * The window itself.
+ *
+ * A listing is read beside what opened it, not instead of it: the preview
+ * overlay fills the screen, which is right for a photograph and wrong for a
+ * table of names. Closing belongs to whoever opened this.
+ */
+describe('the window it draws', () => {
+  it('names the archive, and hands closing back to the host', async () => {
+    const close = vi.fn();
+    browseArchive.mockReset();
+    browseArchive.mockResolvedValueOnce(TOP);
+    const wrapper = mount(ArchivePreview, {
+      props: {
+        item: { name: 'backup.zip', kind: 'zip', path: 'Work' },
+        extension: 'zip',
+        filePath: 'Work/backup.zip',
+        api: { close },
+      },
+      global: { plugins: [i18n], stubs: { teleport: true } },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[role="dialog"] h2').text()).toContain('backup.zip');
+
+    await wrapper.find('[role="dialog"] button[aria-label="Close"]').trigger('click');
+
+    expect(close).toHaveBeenCalled();
   });
 });

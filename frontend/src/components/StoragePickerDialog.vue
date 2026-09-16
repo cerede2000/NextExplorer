@@ -73,7 +73,7 @@ watch(
   <ModalDialog v-model="isOpen" :elevated="elevated">
     <template #title>{{ title }}</template>
 
-    <div class="flex flex-col gap-3">
+    <div class="flex max-h-full min-h-0 flex-col gap-3">
       <nav
         class="flex flex-wrap items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400"
         :aria-label="t('storagePicker.breadcrumb')"
@@ -98,7 +98,7 @@ watch(
       </nav>
 
       <div
-        class="h-72 overflow-y-auto rounded-lg border border-neutral-200 dark:border-zinc-700"
+        class="min-h-40 flex-1 overflow-y-auto rounded-lg border border-neutral-200 dark:border-zinc-700"
         role="listbox"
       >
         <p v-if="isLoading" class="p-4 text-neutral-500 dark:text-neutral-400">
@@ -128,7 +128,9 @@ watch(
           </li>
         </ul>
       </div>
+    </div>
 
+    <template #footer>
       <div class="flex justify-end">
         <button
           type="button"
@@ -138,6 +140,6 @@ watch(
           {{ t('common.cancel') }}
         </button>
       </div>
-    </div>
+    </template>
   </ModalDialog>
 </template>
