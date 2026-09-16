@@ -27,6 +27,13 @@ on:
         description: 'Build without publishing when false — how the release path is tried from a branch'
         type: boolean
         default: true
+      package_refresh:
+        description: >-
+          Rebuild the published images against today's distribution packages
+          rather than because the code changed. Publishes the floating tags
+          only, and refuses the layer cache for the stage that installs them.
+        type: boolean
+        default: false
 
 env:
   IMAGE_NAME: explorer
@@ -90,7 +97,18 @@ jobs:
       - name: Work out the tags this channel publishes
         id: spec
         run: |
-          if [ '${{ inputs.channel }}' = 'release' ]; then
+          if [ '${{ inputs.package_refresh }}' = 'true' ]; then
+            # A package refresh publishes what floats and nothing else. The
+            # version tags name a release, and a release is a set of bytes
+            # somebody can pull again and get the same thing; re-pushing 3.6.1
+            # with this week's packages under it would make that untrue. The
+            # commit tag would be a second lie: same commit, different image.
+            {
+              echo 'tags<<SPEC'
+              echo 'type=raw,value=latest'
+              echo SPEC
+            } >> "$GITHUB_OUTPUT"
+          elif [ '${{ inputs.channel }}' = 'release' ]; then
             # package.json is the source of the number, so a push to main carries
             # a version tag too rather than only moving latest. scripts/version.js
             # keeps the manifests in step and CI checks it.
@@ -174,6 +192,14 @@ jobs:
           # throws away a warm cache and makes the next build slow for nothing.
           cache-from: type=gha,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
           cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
+          # The whole point of a refresh is the one layer the cache would be
+          # proudest of restoring: `runtime` is where apk installs ffmpeg,
+          # ripgrep, poppler and the rest, so a cached hit there would rebuild
+          # the image against the packages of the day it was first built and
+          # change nothing at all. Only that stage is refused — the ffmpeg the
+          # lean variant compiles is pinned to a version and takes forty
+          # minutes, and rebuilding it weekly would buy nothing.
+          no-cache-filters: ${{ inputs.package_refresh && 'runtime' || '' }}
 
       # An image that names a commit it was not built from makes diagnosis
       # harder exactly when diagnosis matters: a startup banner said 06b739a
@@ -191,6 +217,23 @@ jobs:
             exit 1
           fi
           echo "Stamped $stamped, which is the commit that was built."
+
+      # A refresh that nobody can read is a ritual. This says what the image
+      # it just published actually carries, so the weekly run answers the
+      # question it exists for — which version of ffmpeg, of 7-Zip, of
+      # everything — without anyone pulling the image to find out.
+      - name: Say what the refreshed image carries
+        if: ${{ inputs.package_refresh && inputs.push }}
+        continue-on-error: true
+        run: |
+          tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
+          {
+            echo "## ${{ matrix.variant }}"
+            echo
+            echo '```'
+            docker run --rm --entrypoint sh "$tag" -c 'ffmpeg -version | head -n 1; 7zzs 2>/dev/null | head -n 2 | tail -n 1; apk info -v 2>/dev/null | sort'
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The entrypoint used to renumber `appuser` and chown the volume
       # directories before dropping to it, all of which need root — so a

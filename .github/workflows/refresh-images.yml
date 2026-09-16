@@ -1,0 +1,54 @@
+name: Refresh the published images
+
+# apk resolves against the branch head at build time, so an image says what
+# was current on the day it was built and nothing more. `latest` published in
+# March carries March's ffmpeg, March's ripgrep, March's openssl — including
+# whatever has been fixed since. Nothing here rebuilt it, so the only way a
+# user got this week's security updates was a commit landing on main for an
+# unrelated reason.
+#
+# This closes that: once a week the floating tags are built again from the
+# same code, against today's packages. It publishes `latest` and `latest-lean`
+# and nothing else — a version tag names a release, and a release is a set of
+# bytes somebody can pull again and get the same thing.
+#
+# It runs from the default branch, as every schedule does: this file has no
+# effect until it is on main.
+on:
+  schedule:
+    # Monday, early. The image prune runs Sunday at 04:00, so the week starts
+    # by taking away what is old and then putting back what is current, rather
+    # than the two meeting in the middle.
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build without publishing. How this is tried from a branch before it can reach main.'
+        type: boolean
+        default: false
+
+# One refresh at a time, and never against a release build: both write the
+# same layer cache and push the same tags.
+concurrency:
+  group: docker-build-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Rebuild against today's packages
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-image.yml
+    with:
+      channel: release
+      platforms: linux/amd64,linux/arm64
+      # The same scope the release builds use, on purpose: what this refreshes
+      # is what the next build of main starts from, so the fix reaches that
+      # image too rather than being thrown away at the end of the run.
+      cache_scope_prefix: ''
+      package_refresh: true
+      # Unset on every event but a manual one, where `!null` is true — so only
+      # someone asking for a dry run gets a build that publishes nothing.
+      push: ${{ !inputs.dry_run }}
+    secrets: inherit
