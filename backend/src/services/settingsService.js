@@ -189,6 +189,13 @@ const sanitizeAccessRules = (rules = [], { strict = false } = {}) => {
         return refuse('this is not a rule.');
       }
 
+      // A path of nothing but spaces normalises to itself: the rule was stored
+      // as it came and matched no folder — written by an administrator, listed
+      // on the page, and doing nothing. Refused now, and only when it is blank
+      // all through: a folder may legitimately be called "My Documents", or
+      // even " x ", so nothing here trims what somebody wrote.
+      if (!String(rule.path ?? '').trim()) return refuse('a rule needs the path of a folder.');
+
       // Validate path
       let normalizedPath;
       try {
@@ -724,6 +731,11 @@ const sanitizeSystemSetting = (key, value) => {
   if (key === 'uploads') return sanitizeUploads(value);
   if (key === 'branding') return sanitizeBranding(value);
   if (key === 'folderSize') return sanitizeFolderSize(value);
+  // The search index had no case here, so what was stored for it was the
+  // merge as it came: paths with spaces around them, empty entries, the same
+  // folder twice. The worker was handed a sanitised copy and behaved, so only
+  // the stored value was wrong — and it is the one the next merge starts from.
+  if (key === 'searchIndex') return sanitizeSearchIndex(value);
   if (key === 'trash') return sanitizeTrash(value);
   if (key === 'versions') return sanitizeVersions(value);
   return value;

@@ -454,3 +454,67 @@ describe('a payload with a valid section and a refused one', () => {
     expect(settings.access.rules.map((rule) => rule.path)).toEqual(['Private']);
   });
 });
+
+/**
+ * A rule that names no folder, and an exclusion list stored as it came.
+ *
+ * Both are the same kind of defect: something an administrator saved, that the
+ * page then showed back to them, doing nothing. A path of nothing but spaces
+ * normalises to itself, so it was stored and matched no folder. The search
+ * index had no sanitiser on its way into storage, so its list kept whatever
+ * spacing and repetition it arrived with — the worker was handed a clean copy
+ * and behaved, which is exactly why nobody noticed the stored one.
+ */
+describe('what a rule and an exclusion list are held to', () => {
+  it.each([['   '], ['\t'], [''], ['  \n ']])(
+    'refuses an access rule whose path is %j',
+    async (blank) => {
+      await seed();
+
+      const response = await patch(['admin'], {
+        access: { rules: [{ path: blank, permissions: 'hidden' }] },
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.message).toMatch(/Access rule 1.*folder/);
+      expect((await readAsAdmin()).access.rules).toEqual([]);
+    }
+  );
+
+  it('keeps a folder whose name has spaces in it', async () => {
+    await seed();
+
+    const response = await patch(['admin'], {
+      access: { rules: [{ path: 'My Documents/Q1 2026', permissions: 'ro' }] },
+    });
+
+    expect(response.status).toBe(200);
+    expect((await readAsAdmin()).access.rules.map((rule) => rule.path)).toEqual([
+      'My Documents/Q1 2026',
+    ]);
+  });
+
+  it('stores the search index exclusions as the worker is given them', async () => {
+    const db = await seed();
+
+    const response = await patch(['admin'], {
+      searchIndex: { excludedPaths: ['  Private  ', 'Private', '', '/Cache/'] },
+    });
+
+    expect(response.status).toBe(200);
+    const stored = JSON.parse(
+      db
+        .prepare(
+          "SELECT value FROM system_settings WHERE category = 'system' AND key = 'searchIndex'"
+        )
+        .get().value
+    );
+
+    // Trimmed, emptied of nothing, and each folder once — the list the worker
+    // is handed, rather than what the request happened to carry.
+    expect(stored.excludedPaths).not.toContain('  Private  ');
+    expect(stored.excludedPaths).not.toContain('');
+    expect(stored.excludedPaths.filter((entry) => entry === 'Private')).toHaveLength(1);
+    expect(stored.excludedPaths).toEqual((await readAsAdmin()).searchIndex.excludedPaths);
+  });
+});
