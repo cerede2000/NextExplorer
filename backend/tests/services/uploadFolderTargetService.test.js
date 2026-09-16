@@ -1,42 +1,53 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
-import uploadFolderTargetService from '../../src/services/uploadFolderTargetService.js';
+import { setupTestEnv } from '../helpers/env-test-utils.js';
 
-const { reserveFolderUploadTarget, resolveFolderUploadRelativePath } = uploadFolderTargetService;
+/**
+ * The name a picked folder takes in its destination.
+ *
+ * The destination is a real one under the volume, because the folder about to
+ * be created is authorized by its logical path before the mkdir: a name an
+ * administrator hid, or the zone's own, never reaches the disk. What that
+ * refusal leaves is covered from the routes, in `upload-landing.test.js`.
+ */
 
-const roots = [];
+let envContext;
+let service;
+
+const OWNER = { user: { id: 'test-user' } };
+
+const build = async () => {
+  envContext = await setupTestEnv({ tag: 'upload-folder-target-' });
+  service = envContext.requireFresh('src/services/uploadFolderTargetService');
+  const destinationRoot = path.join(envContext.volumeDir, 'Inbox');
+  await fs.mkdir(destinationRoot, { recursive: true });
+  return destinationRoot;
+};
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
+  if (envContext) await envContext.cleanup();
+  envContext = null;
+  service = null;
 });
 
 describe('folder upload target reservation', () => {
   it('keeps a duplicate folder batch together under one available directory', async () => {
-    const destinationRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'upload-folder-target-'));
-    roots.push(destinationRoot);
+    const destinationRoot = await build();
     await fs.mkdir(path.join(destinationRoot, 'photos'));
 
-    const context = { user: { id: 'test-user' } };
-    const first = await resolveFolderUploadRelativePath({
-      relativePath: 'photos/2026/one.jpg',
-      destinationRoot,
-      context,
-      uploadBatchId: 'folder-upload-0001',
-    });
-    const second = await resolveFolderUploadRelativePath({
-      relativePath: 'photos/2026/two.jpg',
-      destinationRoot,
-      context,
-      uploadBatchId: 'folder-upload-0001',
-    });
-    const nextBatch = await resolveFolderUploadRelativePath({
-      relativePath: 'photos/2026/three.jpg',
-      destinationRoot,
-      context,
-      uploadBatchId: 'folder-upload-0002',
-    });
+    const resolve = (relativePath, uploadBatchId) =>
+      service.resolveFolderUploadRelativePath({
+        relativePath,
+        destinationRoot,
+        logicalBase: 'Inbox',
+        context: OWNER,
+        uploadBatchId,
+      });
+
+    const first = await resolve('photos/2026/one.jpg', 'folder-upload-0001');
+    const second = await resolve('photos/2026/two.jpg', 'folder-upload-0001');
+    const nextBatch = await resolve('photos/2026/three.jpg', 'folder-upload-0002');
 
     expect(first).toBe('photos (1)/2026/one.jpg');
     expect(second).toBe('photos (1)/2026/two.jpg');
@@ -44,14 +55,17 @@ describe('folder upload target reservation', () => {
   });
 
   it('atomically reserves a distinct destination before folder files are queued', async () => {
-    const destinationRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'upload-folder-session-'));
-    roots.push(destinationRoot);
+    const destinationRoot = await build();
     await fs.mkdir(path.join(destinationRoot, 'photos'));
 
-    const context = { user: { id: 'test-user' } };
     const targetRoots = await Promise.all(
       Array.from({ length: 3 }, () =>
-        reserveFolderUploadTarget({ destinationRoot, sourceRoot: 'photos', context })
+        service.reserveFolderUploadTarget({
+          destinationRoot,
+          logicalBase: 'Inbox',
+          sourceRoot: 'photos',
+          context: OWNER,
+        })
       )
     );
 
@@ -59,14 +73,14 @@ describe('folder upload target reservation', () => {
   });
 
   it('rejects a nested path as a folder root reservation', async () => {
-    const destinationRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'upload-folder-session-'));
-    roots.push(destinationRoot);
+    const destinationRoot = await build();
 
     await expect(
-      reserveFolderUploadTarget({
+      service.reserveFolderUploadTarget({
         destinationRoot,
+        logicalBase: 'Inbox',
         sourceRoot: 'photos/2026',
-        context: { user: { id: 'owner' } },
+        context: OWNER,
       })
     ).rejects.toThrow('top-level folder name');
   });

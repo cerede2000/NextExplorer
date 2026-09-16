@@ -64,8 +64,12 @@ router.post(
       throw new ForbiddenError(accessInfo?.denialReason || 'Cannot upload files to this path.');
     }
 
+    // The destination is authorized above; the folder the session is about to
+    // create inside it is a path of its own, and is authorized before the
+    // mkdir rather than when the first file arrives.
     const targetRoot = await reserveFolderUploadTarget({
       destinationRoot: resolved.absolutePath,
+      logicalBase: resolved.relativePath,
       sourceRoot,
       context,
     });

@@ -331,6 +331,86 @@ describe('the folder a relative path lands in', () => {
   });
 });
 
+/**
+ * The folder a picked folder is poured into is created by the server, before
+ * any file of the batch arrives: a folder session reserves it, and so does the
+ * first file of a batch that has no session. That reservation used to come
+ * before the folder was authorized, so a refusal left it behind, empty — and
+ * `.nextexplorer`, the zone's own name, left one that no path can reach again.
+ */
+describe('what a refused folder upload leaves', () => {
+  const startSession = (app, body) => request(app).post('/api/upload/folder-session').send(body);
+
+  it('does not take the zone name for a folder session', async () => {
+    const destination = await seed();
+
+    const response = await startSession(buildApp(ADMIN), {
+      uploadTo: 'Nvm',
+      sourceRoot: '.nextexplorer',
+    });
+
+    expect(response.status).toBe(403);
+    expect(reason(response)).toMatch(/reserved by the application/);
+    expect(await tree(destination)).toEqual([]);
+  });
+
+  it('does not create the folder a session asks for where an administrator hid it', async () => {
+    const destination = await seed({
+      rules: [{ path: 'Nvm/Secret', recursive: true, permissions: 'hidden' }],
+    });
+
+    const response = await startSession(buildApp(ADMIN), { uploadTo: 'Nvm', sourceRoot: 'Secret' });
+
+    expect(response.status).toBe(403);
+    expect(reason(response)).toBe('Path is hidden');
+    expect(await tree(destination)).toEqual([]);
+  });
+
+  it('does not create the folder a session asks for where it is read-only', async () => {
+    const destination = await seed({
+      rules: [{ path: 'Nvm/Archive', recursive: true, permissions: 'ro' }],
+    });
+
+    const response = await startSession(buildApp(REGULAR), {
+      uploadTo: 'Nvm',
+      sourceRoot: 'Archive',
+    });
+
+    expect(response.status).toBe(403);
+    expect(reason(response)).toBe('Cannot upload files to this path.');
+    expect(await tree(destination)).toEqual([]);
+  });
+
+  /**
+   * A batch without a session reserves its folder on the first file. The batch
+   * id is what turns that reservation on, so it is the form that leaves
+   * something behind — the same request without one is refused with nothing
+   * created, and is covered above.
+   */
+  it.each([
+    ['the zone name', '.nextexplorer/trash/planted.txt', [], /reserved by the application/],
+    ['a folder an administrator hid', 'Secret/planted.txt', ['Nvm/Secret'], /hidden/],
+  ])('does not create %s for a batch of files', async (_label, relativePath, paths, refusal) => {
+    const destination = await seed({
+      rules: paths.map((rulePath) => ({
+        path: rulePath,
+        recursive: true,
+        permissions: 'hidden',
+      })),
+    });
+
+    const response = await upload(
+      buildApp(ADMIN),
+      { uploadTo: 'Nvm', relativePath, uploadBatchId: 'batch-refused-0001' },
+      { name: 'planted.txt' }
+    );
+
+    expect(response.status).toBe(403);
+    expect(reason(response)).toMatch(refusal);
+    expect(await tree(destination)).toEqual([]);
+  });
+});
+
 describe('a relative path that points elsewhere', () => {
   it('cannot climb out of the chosen destination into a sibling folder', async () => {
     const destination = await seed();

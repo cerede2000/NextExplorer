@@ -84,6 +84,9 @@ const resolveUploadPaths = async (req, file) => {
     : await resolveFolderUploadRelativePath({
         relativePath: requestedRelativePath,
         destinationRoot,
+        // The reservation creates the folder the batch lands in, and it is
+        // authorized by its logical path, not by where it sits on disk.
+        logicalBase,
         context,
         uploadBatchId,
       });

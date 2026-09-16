@@ -46,6 +46,7 @@ describe('the files of one folder upload, arriving together', () => {
         service.resolveFolderUploadRelativePath({
           relativePath: `photos/${file}`,
           destinationRoot,
+          logicalBase: 'Inbox',
           context: OWNER,
           uploadBatchId: 'batch-together-01',
         })
@@ -66,12 +67,14 @@ describe('two uploads of the same folder, started at the same time', () => {
       service.resolveFolderUploadRelativePath({
         relativePath: 'photos/a.jpg',
         destinationRoot,
+        logicalBase: 'Inbox',
         context: OWNER,
         uploadBatchId: 'batch-first-0001',
       }),
       service.resolveFolderUploadRelativePath({
         relativePath: 'photos/a.jpg',
         destinationRoot,
+        logicalBase: 'Inbox',
         context: OWNER,
         uploadBatchId: 'batch-second-001',
       }),
@@ -115,6 +118,7 @@ describe('a folder arriving under the name an upload chose', () => {
     const landed = await service.resolveFolderUploadRelativePath({
       relativePath: 'photos/a.jpg',
       destinationRoot,
+      logicalBase: 'Inbox',
       context: OWNER,
       uploadBatchId: 'batch-arriving-01',
     });
@@ -132,6 +136,7 @@ describe('a folder arriving under the name an upload chose', () => {
     const landed = await service.resolveFolderUploadRelativePath({
       relativePath: 'photos/a.jpg',
       destinationRoot,
+      logicalBase: 'Inbox',
       context: OWNER,
       uploadBatchId: 'batch-arriving-02',
     });
@@ -145,6 +150,7 @@ describe('a folder arriving under the name an upload chose', () => {
     const landed = await service.resolveFolderUploadRelativePath({
       relativePath: 'photos/a.jpg',
       destinationRoot,
+      logicalBase: 'Inbox/not yet made',
       context: OWNER,
       uploadBatchId: 'batch-new-root-01',
     });
@@ -169,6 +175,7 @@ describe('reserving a folder where none can be made', () => {
     await expect(
       service.reserveFolderUploadTarget({
         destinationRoot: missing,
+        logicalBase: 'Inbox/unmounted',
         sourceRoot: 'photos',
         context: OWNER,
       })
