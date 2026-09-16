@@ -173,6 +173,50 @@ every one of them varies on `Accept-Encoding`. `curl --compressed` asks for it.
 Nothing else is compressed by the application — downloads, previews, media and
 progress streams go as they are, most of them already compressed.
 
+## Looking inside an archive
+
+`GET /api/archive/list?path=Work/backup.zip` answers what is at the top of an
+archive, and `&inside=docs` what is in one of its folders. The archive is named
+by its path like any other file, and where you are looking inside it is a
+separate parameter — never one path with the archive in the middle of it.
+
+```json
+{
+  "path": "Work/backup.zip",
+  "name": "backup.zip",
+  "inside": "docs",
+  "entries": [
+    { "name": "deep", "path": "docs/deep", "isDirectory": true, "size": null, "modified": null },
+    {
+      "name": "report.txt",
+      "path": "docs/report.txt",
+      "isDirectory": false,
+      "size": 4096,
+      "modified": "2026-09-16 11:22:33",
+      "encrypted": false
+    }
+  ],
+  "total": 12,
+  "outside": 0
+}
+```
+
+`total` is how many entries the whole archive holds; `outside` is how many were
+left out because their names point outside it — a crafted archive can carry
+`../../etc/passwd`, and no answer here ever presents one as a place.
+
+`GET /api/archive/entry?path=Work/backup.zip&entry=docs/report.txt` writes that
+one file back, as an attachment, without unpacking the rest. The name is looked
+up in the listing first, so what comes back is an entry the archive holds under
+exactly that name, or nothing.
+
+Both refuse with a code the caller can act on: `ARCHIVE_ENCRYPTED` (409) for an
+archive or entry behind a password, `ARCHIVE_UNREADABLE` (422) for a damaged
+one, `ARCHIVE_ENTRY_NOT_FOUND` (404), `ARCHIVE_BAD_POSITION` (400) for a name
+that points outside the archive, `ARCHIVE_TOO_MANY_ENTRIES` (413), and
+`ARCHIVE_TOO_LARGE_TO_BROWSE` (413) for a compound archive past
+`MAX_BROWSABLE_ARCHIVE_SIZE`.
+
 ## Endpoint reference
 
 | Area                | Endpoints                                                                                                   |
@@ -184,7 +228,7 @@ progress streams go as they are, most of them already compressed.
 | Shares              | `POST /api/shares` · `GET /api/shares`, `/shared-with-me`, `/:id` · `PUT`/`DELETE /api/shares/:id`          |
 | Public share access | `GET /api/share/:token/info`, `/access`, `/browse/*`, `/file` · `POST /api/share/:token/verify`             |
 | Previews            | `GET /api/preview`, `/api/thumbnails/*`, `/api/media/tracks`, `/api/media/subtitle` · `POST /api/download`  |
-| Archives            | `POST /api/files/zip/compress`, `/api/files/zip/extract`                                                    |
+| Archives            | `POST /api/files/zip/compress`, `/api/files/zip/extract` · `GET /api/archive/list`, `/api/archive/entry`    |
 | Folder sizes        | `GET /api/folder-size/*` · `POST /api/folder-size/refresh/*`, `/batch`                                      |
 | Favourites          | `GET`/`POST`/`DELETE /api/favorites` · `PATCH /api/favorites/:id`, `/reorder`                               |
 | Editing             | `GET`/`POST`/`PUT /api/editor` · `GET /api/raw`                                                             |

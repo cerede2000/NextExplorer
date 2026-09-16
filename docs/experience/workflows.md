@@ -40,6 +40,10 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 - **Preview:** Click images/videos/PDFs to open them inside the app (previews are cached in `/cache`).
 - **Editor:** Double-click text/code files to open the inline editor with syntax highlighting, line numbers, and Save/Cancel actions. The editor supports 50+ file types by default including common text formats (txt, md, log), data files (json, yaml, xml, csv), programming languages (js, ts, py, java, go, rust, etc.), config files (ini, env, properties), shell scripts (sh, bash, ps1), and web formats (html, css, scss, vue). Add support for custom file types (e.g., `.toml`, `.proto`, `.graphql`) at runtime using the `EDITOR_EXTENSIONS` environment variable—no rebuild needed, changes apply on container restart.
 - **ONLYOFFICE:** When configured, office documents (DOCX, XLSX, PPTX, ODT, ODS, ODP) launch in the embedded ONLYOFFICE editor; nextExplorer signs requests with `ONLYOFFICE_SECRET` and calls `/api/onlyoffice/config`, `/api/onlyoffice/file`, and `/api/onlyoffice/callback` to orchestrate editing.
+- **Inside an archive:** Open a zip, 7z, rar or tar to see what is in it without extracting anything. Folders open, the trail at the top walks back, and each file has a link that takes that one file out — the rest of the archive is never unpacked, and nothing is written to your volume. Which formats open is the same list the Extract action offers, and it depends on the 7-Zip the image was built with.
+  - A `.tar.gz` and its family (`.tbz2`, `.txz`, `.tar.zst`) are two archives, so the tar inside is decompressed once into `CACHE_DIR/archives` and read from there. `MAX_BROWSABLE_ARCHIVE_SIZE` (2 GB by default) is the point above which the answer is to extract the archive instead.
+  - An archive whose table of contents is itself password-protected says so rather than opening empty; entries whose contents are encrypted are listed but not handed over. Extraction is where a password is asked for.
+  - An archive can hold names that point outside itself. Those are never shown as a place inside it, and the panel says how many were left out.
 
 ## Sharing items
 

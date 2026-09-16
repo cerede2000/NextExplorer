@@ -96,55 +96,52 @@ Why it matters here: [the API reference](docs/reference/api.md) documents this
 gap plainly, and automation against a self-hosted file server is exactly where
 a stolen long-lived session cookie hurts most.
 
-## Browsing inside an archive without extracting it
+## Browsing inside an archive — done, and what it left
 
-Answering "what is in this backup?" costs a full extraction today — forty
-gigabytes written to disk to read one filename. FileBrowser Quantum lists this
-as in progress and does not have it; Filestash does.
+Answering "what is in this backup?" cost a full extraction. It now costs a
+listing: `GET /api/archive/list` reads 7-Zip's table of contents, and
+`GET /api/archive/entry` writes one file back without unpacking the rest.
+Opening an archive in the browser shows what is in it, a level at a time.
 
-Half of it is already written. `readArchiveFootprint` runs `7z l -slt` before
-every extraction, to refuse an archive that would expand beyond its limit, and
-throws away everything in that listing except the sum of the sizes. Per-entry
-records — path, size, date, whether it is a folder, whether it is encrypted —
-are what the same output already carries.
+What was decided in advance held, and is worth keeping written down:
 
-**The shape that keeps it cheap:** a dedicated endpoint where the path is always
-a real archive on disk and the position inside it is a separate, validated
-parameter. Not a virtual path like `/mnt/Docs/pack.zip/inner/file`. Twenty-six
-files call `authorizeAndResolve` or `resolvePathWithAccess`, and every one of
-them assumes what comes back is a real file: renaming, deleting, uploading,
-thumbnails, shares, folder sizes, the search index. Teaching all of them a new
-kind of path is where the bugs and the holes would be.
+- **The archive is an ordinary path and the position inside it is a separate
+  parameter.** Not one virtual path like `/Work/pack.zip/inner/file`: twenty-six
+  files resolve a path and every one of them takes what comes back for a real
+  file. Nothing read out of an archive leaves the archive route.
+- **Every name in an archive is hostile input**, and what one is allowed to mean
+  is decided in a single function. An entry that climbs out with `..`, starts at
+  the root or names a Windows drive is left out of the listing and counted, and
+  the count is answered so a shorter listing is never a silent one.
+- **Encrypted archives are out.** A table of contents behind a password says so
+  (409); an entry whose contents are encrypted is listed and not handed over.
+  Extraction is where a password is asked for.
+- **A compound archive is decompressed once.** `.tar.gz` and its family are two
+  archives, so the inner tar is written to `CACHE_DIR/archives` and read from
+  there, with a budget and least-recently-opened eviction.
+  `MAX_BROWSABLE_ARCHIVE_SIZE` (2 GB) is where the answer becomes "extract it
+  instead", and it is checked against the size the outer archive declares —
+  before anything is written.
 
-Three things decided in advance:
+### Left for later
 
-- **Entry names come from the archive, so they are hostile input.** A crafted
-  zip holds `../../etc/passwd`, or names with newlines in them. They are never
-  used to build a filesystem path and never reach `7z` without validation.
-  `assertNoSymlinks` guards what has already been extracted; this needs a guard
-  before that.
-- **Random access is real for zip and a lie elsewhere.** A zip has a central
-  directory, so one entry costs one entry. A `.tar.gz`, a `.tar.xz` or a solid
-  `.7z` decompresses from the beginning every time — and compound tarballs
-  already take two passes here. Those formats are browsed by extracting once
-  into `CACHE_DIR/archives/<fingerprint of path, mtime and size>`, with the
-  TTL, size budget and eviction the thumbnail cache already models, and the
-  single-flight lock `rawPreviewService` already uses. Never into the user's
-  volume: it would show up in listings, be read by the search index, counted in
-  folder sizes, and swept up by whatever backs that volume up.
-- **Encrypted archives are out of the first version.** The password is
-  deliberately kept out of `argv`, and holding one in memory for a browsing
-  session is a new surface for a secret. Say so rather than improvise it.
-
-`ARCHIVE_BROWSE_MAX_BYTES` refuses to browse what is too large to hold, and
-points at the extraction that already exists. Browsing a forty-gigabyte archive
-by unpacking it first would betray the whole point.
-
-Costed at six and a half days, in three usable stages: listing (1 day), reading
-one entry (1 day), the extraction cache (2 days), the panel and its thirteen
-translations (2 days), documentation (half a day). The first stage plus a
-minimal panel — about a day and a half — already answers the question that
-started this.
+- **An entry is downloaded, never previewed.** A file inside somebody's archive
+  is their HTML as easily as their photograph, and serving it inline would run
+  it on this application's origin. Previewing one means either fetching it into
+  the page and rendering it there, or a sandboxed response — a decision about
+  previewing, and it was not made here.
+- **A solid `.7z` reads every entry from the beginning.** Unlike zip, it has no
+  per-entry start, so reading the last file of a solid archive decompresses the
+  ones before it. Correct, and slow on a large one; the cache that exists for
+  compound archives would answer this too, keyed the same way.
+- **Nothing is offered but reading.** No extracting one entry to a folder, no
+  adding to an archive, no dragging out. Those are operations on the volume, and
+  each one has to answer the overwrite question the rest of the application
+  answers.
+- **`.tgz` is covered by the same rule as `.tar.gz`** — the outer extension is a
+  wrapper and the single entry ends in `.tar` — but only the second is checked
+  against a real 7-Zip. If a build ever names the inner entry differently, that
+  archive quietly falls back to showing one entry, which is what it did before.
 
 ## What the comparison against Quantum and Filestash found missing
 
