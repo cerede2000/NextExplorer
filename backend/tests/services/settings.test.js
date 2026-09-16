@@ -152,7 +152,6 @@ describe('Settings Service', () => {
         ).run('user-1', 'user-1@example.com', 1, 'user-1', 'User 1', '["user"]', now, now);
 
         for (let index = 0; index < 150; index += 1) {
-          // eslint-disable-next-line no-await-in-loop
           await settingsService.setUserFolderSort('user-1', `Projects/folder-${index}`, {
             by: 'customColumn',
             order: 'desc',

@@ -908,7 +908,6 @@ describe.each(ENGINES)('with the %s engine', (engine) => {
         const index = await currentEnv.requireFresh('src/services/indexDb').getIndexDb();
         const folderSizeIndex = currentEnv.requireFresh('src/services/folderSizeIndex');
         currentEnv.requireFresh('src/services/folderSizeHooks');
-        // eslint-disable-next-line global-require
         const transferState = require(modulePath('src/services/folderSizeTransferState'));
         const controller = new AbortController();
         let during = null;

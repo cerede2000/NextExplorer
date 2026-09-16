@@ -106,7 +106,6 @@ const withHistory = async (relative = DOCUMENT) => {
   const target = absolute(relative);
   await fs.writeFile(target, 'first');
   for (const content of ['second', 'third']) {
-    // eslint-disable-next-line no-await-in-loop
     await load('src/services/versions/operations').saveFile(
       target,
       (temporaryPath) => fs.writeFile(temporaryPath, content),

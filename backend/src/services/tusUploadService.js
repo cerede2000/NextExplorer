@@ -159,7 +159,7 @@ const cleanupInactiveUploads = async (now = Date.now()) => {
 
   await ensureDir(TUS_CACHE_DIR);
 
-  let entries = [];
+  let entries;
   try {
     entries = await fs.readdir(TUS_CACHE_DIR, { withFileTypes: true });
   } catch (err) {
@@ -618,10 +618,8 @@ const sweepFinishedRecords = async (now = Date.now()) => {
   for (const name of names) {
     if (!name.endsWith('.json')) continue;
     const file = path.join(FINISHED_RECORDS_DIR, name);
-    // eslint-disable-next-line no-await-in-loop
     const stats = await safeStat(file);
     if (!stats || now - stats.mtimeMs < FINISHED_MEMORY_MS) continue;
-    // eslint-disable-next-line no-await-in-loop
     if (await rmIfExists(file)) removed += 1;
   }
   return removed;

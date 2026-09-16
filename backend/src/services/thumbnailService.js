@@ -1162,7 +1162,7 @@ const getThumbnailPathIfExists = async (filePath, stats = null) => {
       return '';
     }
     return `/static/thumbnails/${thumbFile}`;
-  } catch (error) {
+  } catch (_) {
     return '';
   }
 };
@@ -1224,7 +1224,7 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
               thumbnailStats.cacheHits += 1;
               finishThumbnailJob(jobId, 'cache-hit');
               return `/static/thumbnails/${thumbFile}`;
-            } catch (error) {
+            } catch (_) {
               // Still doesn't exist, generate it
             }
 
@@ -1237,7 +1237,7 @@ const getThumbnail = async (filePath, { priority = 0 } = {}) => {
               thumbnailStats.generated += 1;
               finishThumbnailJob(jobId, 'generated');
               return `/static/thumbnails/${thumbFile}`;
-            } catch (missing) {
+            } catch (_) {
               logger.warn(
                 { filePath, thumbPath },
                 'Thumbnail generation completed but file not found'

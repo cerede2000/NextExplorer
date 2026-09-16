@@ -7,7 +7,6 @@
 const getTrashSettings = async () => {
   // Required lazily: the settings service is a large module that most of the
   // trash has no other reason to load.
-  // eslint-disable-next-line global-require
   const { getSystemSettings } = require('../settingsService');
   return (await getSystemSettings()).trash;
 };

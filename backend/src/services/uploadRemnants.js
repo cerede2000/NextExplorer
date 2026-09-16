@@ -60,11 +60,9 @@ const sweepStaleUploadRemnants = async (
 
     const remnant = path.join(directory, entry.name);
     try {
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(remnant);
       if (stats.mtimeMs > cutoff) continue;
 
-      // eslint-disable-next-line no-await-in-loop
       await fs.rm(remnant, { force: true });
       removed += 1;
       logger.info(

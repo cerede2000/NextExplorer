@@ -855,11 +855,11 @@ const resolveSharedFileTarget = async (
 ) => {
   const shareToken = req.params.token;
   const rawInnerPath = (req.params.splat || []).join('/');
-  let innerPath = '';
+  let innerPath;
 
   try {
     innerPath = rawInnerPath ? normalizeRelativePath(rawInnerPath) : '';
-  } catch (error) {
+  } catch (_) {
     throw new ValidationError('Invalid file path.');
   }
 

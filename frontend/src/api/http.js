@@ -273,7 +273,7 @@ const requestRaw = async (endpoint, options = {}) => {
               nativeMessage: error.message || null,
             },
           }) || 'Network Error';
-        throw new Error(translatedMessage);
+        throw new Error(translatedMessage, { cause: error });
       }
       throw error;
     }
@@ -328,7 +328,6 @@ const requestStream = async (endpoint, { onEvent, suppressErrorCodes = [], ...op
   };
 
   for (;;) {
-    // eslint-disable-next-line no-await-in-loop
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });

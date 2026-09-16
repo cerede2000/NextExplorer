@@ -139,7 +139,6 @@ const flush = async () => {
     for (const abs of dirs) {
       let agg;
       try {
-        // eslint-disable-next-line no-await-in-loop
         agg = await indexer.aggregateDirectory(db, scope, abs, {
           mode: config.folderSize.mode,
           shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
@@ -192,7 +191,6 @@ const touch = async (absDirs = []) => {
     if (transferState.isRelatedToActiveTransfer(abs)) continue;
     let stat;
     try {
-      // eslint-disable-next-line no-await-in-loop
       stat = await indexer.withIoTimeout('stat', abs, () => fsp.stat(abs));
     } catch (err) {
       if (isFolderSizeIoSafetyError(err)) {

@@ -590,7 +590,6 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
     throwIfCancelled(signal);
     const src = path.join(sourcePath, entry.name);
     const dest = path.join(destinationPath, entry.name);
-    // eslint-disable-next-line no-await-in-loop
     copiedBytes += await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
   }
   return copiedBytes;
@@ -756,7 +755,6 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
       allowed: srcAllowed,
       accessInfo: srcAccess,
       resolved: srcResolved,
-      // eslint-disable-next-line no-await-in-loop
     } = await authorizeAndResolve(context, sourceCombined, ACTIONS.read);
     if (!srcAllowed || !srcResolved) {
       throw new ForbiddenError(
@@ -766,21 +764,21 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
 
     const { relativePath: sourceRelative, absolutePath: sourceAbsolute } = srcResolved;
 
-    // eslint-disable-next-line no-await-in-loop
     if (!(await pathExists(sourceAbsolute))) {
       throw new NotFoundError(`Source path not found: ${sourceRelative}`);
     }
 
     if (operation === 'move') {
-      const { allowed: deleteAllowed, accessInfo: deleteAccess } =
-        // eslint-disable-next-line no-await-in-loop
-        await authorizePath(context, sourceCombined, ACTIONS.delete);
+      const { allowed: deleteAllowed, accessInfo: deleteAccess } = await authorizePath(
+        context,
+        sourceCombined,
+        ACTIONS.delete
+      );
       if (!deleteAllowed) {
         throw new ForbiddenError(deleteAccess?.denialReason || 'Cannot move items from this path.');
       }
     }
 
-    // eslint-disable-next-line no-await-in-loop
     const stats = await fs.stat(sourceAbsolute);
     const isDirectory = stats.isDirectory();
     const sourceParent = normalizeRelativePath(path.dirname(sourceRelative));
@@ -799,7 +797,6 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     }
 
     const destinationAction = isDirectory ? ACTIONS.createFolder : ACTIONS.createFile;
-    // eslint-disable-next-line no-await-in-loop
     const { allowed: createAllowed, accessInfo: createAccess } = await authorizePath(
       context,
       destinationRelative,
@@ -814,7 +811,6 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
     // A copied directory may contain files as well as folders. Do not let the
     // directory permission become a way around the file creation restriction.
     if (isDirectory) {
-      // eslint-disable-next-line no-await-in-loop
       const { allowed: filesAllowed, accessInfo: filesAccess } = await authorizePath(
         context,
         destinationRelative,
@@ -914,7 +910,6 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
 
       // What lands at the destination is the entry itself: a rename moves a
       // link as a link, and both engines copy one as a link.
-      // eslint-disable-next-line no-await-in-loop
       const entryIsDirectory = (await fs.lstat(plan.sourceAbsolute)).isDirectory();
       // Nothing is visible under the entry's name until it is whole there. A
       // copy is written under a hidden name beside it and put in place once
@@ -979,11 +974,8 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       };
 
       if (operation === 'copy') {
-        // eslint-disable-next-line no-await-in-loop
         const copied = await copyIntoPlace(placement);
-        // eslint-disable-next-line no-await-in-loop
         await land(copied.placed);
-        // eslint-disable-next-line no-await-in-loop
         await folderSizeHooks.onEntryCopied(target.landedAt, {
           isDirectory: plan.isDirectory,
           size: copied.size ?? plan.size,
@@ -991,9 +983,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
           directoryTransferPrepared: plan.isDirectory,
         });
       } else if (operation === 'move') {
-        // eslint-disable-next-line no-await-in-loop
         const moved = await moveIntoPlace({ ...placement, size: plan.size, onLanded: land });
-        // eslint-disable-next-line no-await-in-loop
         await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, target.landedAt, {
           isDirectory: plan.isDirectory,
           size: moved.size ?? plan.size,
@@ -1017,7 +1007,6 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         await pathBindings.movePath(plan.sourceRelative, targetRelative);
         // And the histories, whose versions stay where they were kept: even to
         // another volume, nothing is copied for them. A copy starts with none.
-        // eslint-disable-next-line global-require
         await require('./versions/lifecycle').onMoved(plan.sourceAbsolute, targetAbsolute);
       }
 
@@ -1056,7 +1045,6 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       // A deletion waiting on this write must always be released, even if one
       // of the optional folder-size hooks fails during transfer cleanup.
       activeWriteOperation?.finish();
-      activeWriteOperation = null;
     }
     throw error;
   }
@@ -1171,7 +1159,6 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
         const index = next;
         next += 1;
         if (index >= items.length) return;
-        // eslint-disable-next-line no-await-in-loop
         await resolveOne(items[index], index);
       }
     })
@@ -1322,7 +1309,6 @@ const deleteItems = async (items = [], options = {}) => {
     });
     // Deleted for good, the history goes with it; into the trash, it went along.
     if (!trashItemId) {
-      // eslint-disable-next-line global-require
       await require('./versions/lifecycle').onDeleted(absolutePath);
     }
     // In the trash, a share is switched off but kept with the item, so a restore
@@ -1356,7 +1342,6 @@ const deleteItems = async (items = [], options = {}) => {
       const index = next;
       next += 1;
       if (index >= targets.length) return;
-      // eslint-disable-next-line no-await-in-loop
       await removeOne(targets[index], index);
     }
   });

@@ -121,7 +121,6 @@ const reclaimFreePages = async (
     // Nothing moved: stop rather than spin.
     if (left >= remaining) break;
     remaining = left;
-    // eslint-disable-next-line no-await-in-loop
     await yieldToRequests();
   }
 
@@ -148,13 +147,11 @@ let running = null;
 
 // Required when a pass runs rather than at the top: both require this module.
 const DATABASES = [
-  // eslint-disable-next-line global-require
   { name: 'app.db', open: () => require('./db').getDb() },
   {
     name: 'index.db',
     // Not created for the pass: a server with neither index on has none.
     open: () => {
-      // eslint-disable-next-line global-require
       const indexDb = require('./indexDb');
       return fs.existsSync(indexDb.getIndexDbPath()) ? indexDb.getIndexDb() : null;
     },
@@ -163,10 +160,8 @@ const DATABASES = [
     name: 'sessions.db',
     // The session middleware's own connection; nothing is created for the pass.
     open: () => {
-      // eslint-disable-next-line global-require
       const { directories } = require('../config/index');
       if (!fs.existsSync(path.join(directories.cache, 'sessions.db'))) return null;
-      // eslint-disable-next-line global-require
       return require('../utils/sessionStore').localStore.db;
     },
   },
@@ -179,10 +174,8 @@ const runPass = ({ reason = 'scheduled' } = {}) => {
     for (const { name, open } of DATABASES) {
       let result;
       try {
-        // eslint-disable-next-line no-await-in-loop
         const db = await open();
         if (!db) continue;
-        // eslint-disable-next-line no-await-in-loop
         result = await reclaimFreePages(db);
       } catch (error) {
         // One file failing is no reason to leave the other as it is.

@@ -90,9 +90,7 @@ const temporaries = async (dir) =>
 const waitFor = async (predicate, timeoutMs = 3000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    // eslint-disable-next-line no-await-in-loop
     if (await predicate()) return true;
-    // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   return false;
@@ -271,7 +269,6 @@ describe('the folder a relative path lands in', () => {
       { uploadTo: 'Nvm', relativePath: 'Secret/planted.txt' },
       { uploadTo: 'Nvm', resolvedRelativePath: 'Secret/planted.txt' },
     ]) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await upload(app, query, { name: 'planted.txt' });
 
       expect(response.status).toBe(403);
@@ -321,7 +318,6 @@ describe('the folder a relative path lands in', () => {
       { uploadTo: 'Nvm', relativePath: '.nextexplorer/trash/planted.txt' },
       { uploadTo: 'Nvm', resolvedRelativePath: '.nextexplorer/versions/planted.txt' },
     ]) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await upload(app, query, { name: 'planted.txt' });
 
       expect(response.status).toBe(403);
@@ -425,7 +421,6 @@ describe('a relative path that points elsewhere', () => {
       { uploadTo: 'Nvm/Inbox', relativePath: '../Other/moved.txt' },
       { uploadTo: 'Nvm/Inbox', resolvedRelativePath: '../Other/moved.txt' },
     ]) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await upload(app, query);
 
       expect(response.status).toBe(400);
@@ -445,7 +440,6 @@ describe('a relative path that points elsewhere', () => {
 
     for (const climb of ['../../escaped.txt', '..\\..\\..\\escaped.txt']) {
       for (const key of ['relativePath', 'resolvedRelativePath']) {
-        // eslint-disable-next-line no-await-in-loop
         const response = await upload(app, { uploadTo: 'Nvm', [key]: climb });
 
         expect(response.status).toBe(400);

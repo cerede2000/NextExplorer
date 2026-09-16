@@ -159,7 +159,7 @@ if (env.PUBLIC_URL) {
     const url = new URL(env.PUBLIC_URL);
     publicUrl = url.href.replace(/\/$/, '');
     publicOrigin = url.origin;
-  } catch (err) {
+  } catch (_) {
     console.warn(`[Config] Invalid PUBLIC_URL: ${env.PUBLIC_URL}`);
   }
 }
@@ -176,7 +176,7 @@ const parseOriginList = (value, variableName = 'INTERNAL_URL') =>
     .map((entry) => {
       try {
         return new URL(entry).origin;
-      } catch (err) {
+      } catch (_) {
         console.warn(`[Config] Invalid ${variableName} entry: ${entry}`);
         return null;
       }
@@ -420,7 +420,6 @@ const onlyoffice = {
 // Silent JWT mismatches surface to the user as "Document security token is not
 // correctly configured", with nothing in the logs pointing at the cause.
 if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
-  // eslint-disable-next-line no-console
   console.warn(
     '[config] ONLYOFFICE_URL is set without ONLYOFFICE_SECRET. A derived secret is used, ' +
       'which will not match the Document Server unless its JWT_SECRET is set to the same ' +

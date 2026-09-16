@@ -22,7 +22,7 @@ const requireThumbnailToken = (req, res, next) => {
 
   // The cache is flat, so the request names one file and nothing else. Taking
   // the basename instead would let a token for "x.webp" unlock "sub/dir/x.webp".
-  let filename = '';
+  let filename;
   try {
     filename = decodeURIComponent((req.path || '').replace(/^\/+/, ''));
   } catch {

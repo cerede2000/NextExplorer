@@ -26,7 +26,7 @@ export function useMediaTracks(media, api, enabled) {
 
     const token = current.key;
     pending = token;
-    let result = null;
+    let result;
     try {
       result = await api.getMediaTracks(current.item);
     } catch (_) {

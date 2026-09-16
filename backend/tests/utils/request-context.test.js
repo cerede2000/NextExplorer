@@ -25,7 +25,12 @@ afterEach(async () => {
 const load = async (tag) => {
   currentEnv = await setupTestEnv({
     tag,
-    modules: ['src/config/env', 'src/config/index', 'src/utils/requestContext', 'src/utils/pathUtils'],
+    modules: [
+      'src/config/env',
+      'src/config/index',
+      'src/utils/requestContext',
+      'src/utils/pathUtils',
+    ],
   });
   // Load the context first: pathUtils captures this very instance when it is
   // required, and reloading it afterwards would hand the test a different
@@ -45,7 +50,6 @@ describe('Per-request realpath cache', () => {
 
     const resolveTwentyTargets = async () => {
       for (let i = 0; i < 20; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await pathUtils.resolveVolumePath(`destination/new-${i}.txt`);
       }
     };
@@ -128,9 +132,7 @@ describe('Settings read once per request', () => {
 
     const reads = await context.runInRequestContext(async () => {
       const first = await settings.getSettings();
-      const rest = await Promise.all(
-        Array.from({ length: 49 }, () => settings.getSettings())
-      );
+      const rest = await Promise.all(Array.from({ length: 49 }, () => settings.getSettings()));
       return [first, ...rest];
     });
 

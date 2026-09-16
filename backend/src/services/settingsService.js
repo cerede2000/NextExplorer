@@ -363,7 +363,7 @@ const getUserSettings = async (userId) => {
     for (const row of rows) {
       try {
         settings[row.key] = JSON.parse(row.value);
-      } catch (err) {
+      } catch (_) {
         // Skip invalid JSON
       }
     }
@@ -373,7 +373,7 @@ const getUserSettings = async (userId) => {
     Object.assign(settings, await getUserFolderPreferences(userId));
 
     return settings;
-  } catch (err) {
+  } catch (_) {
     return {};
   }
 };
@@ -448,7 +448,7 @@ const getSystemSettings = async () => {
       } else if (row.key === 'versions') {
         Object.assign(versions, JSON.parse(row.value));
       }
-    } catch (err) {
+    } catch (_) {
       // Skip invalid JSON
     }
   }

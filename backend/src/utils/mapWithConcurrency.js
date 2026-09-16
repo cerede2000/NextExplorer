@@ -28,7 +28,6 @@ const mapWithConcurrency = async (items, mapper, concurrency = DEFAULT_CONCURREN
       const index = next;
       next += 1;
       if (index >= list.length) return;
-      // eslint-disable-next-line no-await-in-loop
       results[index] = await mapper(list[index], index);
     }
   });

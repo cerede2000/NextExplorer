@@ -111,7 +111,6 @@ describe('when the same term matches many filenames', () => {
     const dir = await seed();
     await fs.mkdir(dir, { recursive: true });
     for (let index = 0; index < 120; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(path.join(dir, `pangolin-${index}.txt`), 'nothing to see\n');
     }
     await fs.writeFile(path.join(dir, 'zzz-notes.md'), 'the word pangolin is in here\n');
@@ -406,7 +405,6 @@ describe('how long a search may take', () => {
     const dir = await seed({ SEARCH_TIMEOUT_MS: '1' });
     await fs.mkdir(dir, { recursive: true });
     for (let index = 0; index < 60; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(path.join(dir, `doc-${index}.pdf`), buildPdf('nothing of interest'));
     }
 

@@ -172,7 +172,6 @@ const runSequence = async (envContext, seed) => {
     // A process that died holds nothing in flight.
     operations.inflight.clear();
     for (const zone of store.listZones(db)) {
-      // eslint-disable-next-line no-await-in-loop
       await operations.recoverZone(zone);
     }
   };
@@ -395,7 +394,6 @@ const runSequence = async (envContext, seed) => {
     const context = `seed ${seed} after: ${log.slice(-8).join(' | ')}`;
 
     for (const volume of VOLUMES) {
-      // eslint-disable-next-line no-await-in-loop
       const onDisk = (await fs.readdir(abs(volume))).filter((name) => name !== '.nextexplorer');
       const expected = [...live.keys()]
         .filter((relative) => volumeOf(relative) === volume)
@@ -403,7 +401,6 @@ const runSequence = async (envContext, seed) => {
       expect(onDisk.sort(), context).toEqual(expected.sort());
     }
     for (const [relative, entry] of live) {
-      // eslint-disable-next-line no-await-in-loop
       expect(await readEntry(abs(relative), entry.kind), context).toBe(entry.content);
     }
 
@@ -412,7 +409,6 @@ const runSequence = async (envContext, seed) => {
       [...elsewhere.keys()].sort()
     );
     for (const [name, entry] of elsewhere) {
-      // eslint-disable-next-line no-await-in-loop
       expect(await readEntry(abs(`${ELSEWHERE}/${name}`), entry.kind), context).toBe(entry.content);
     }
 
@@ -424,23 +420,19 @@ const runSequence = async (envContext, seed) => {
       expect(row.state, context).toBe('trashed');
       expect(row.originalPath, context).toBe(abs(item.original));
       expect(row.size, context).toBe(item.size);
-      // eslint-disable-next-line no-await-in-loop
       expect(await readEntry(zones.itemPaths(zone.root, row.id).payload, item.kind), context).toBe(
         item.content
       );
     }
     for (const zone of store.listZones(db)) {
-      // eslint-disable-next-line no-await-in-loop
       expect((await verify.verifyZone(zone)).violations, context).toEqual([]);
     }
   };
 
   for (let step = 0; step < STEPS; step += 1) {
     const name = random.pick(weighted);
-    // eslint-disable-next-line no-await-in-loop
     const done = await actions[name]();
     if (done) log.push(done);
-    // eslint-disable-next-line no-await-in-loop
     await compare();
   }
 

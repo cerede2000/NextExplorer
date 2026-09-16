@@ -154,7 +154,6 @@ const listVersions = async (context, relativePath) => {
   const availability = new Map();
   for (const zoneId of new Set(versions.map((version) => version.zoneId))) {
     const zone = trashStore.getZone(db, zoneId);
-    // eslint-disable-next-line no-await-in-loop
     availability.set(zoneId, zone ? (await zones.inspectZone(zone)).available : false);
   }
   const labels = accountLabels(db, [
@@ -250,7 +249,6 @@ const markRestored = async (absolutePath, relative) => {
     const db = await getDb();
     const file = await historyOf(db, absolutePath);
     if (file) store.setRestoredAt(db, file.id, clock.nowIso());
-    // eslint-disable-next-line global-require
     await require('../onlyofficeDocumentKeyService').releaseDocumentKey(relative);
   } catch (error) {
     logger.warn({ err: error, absolutePath }, 'A restore could not be announced to open editors');
@@ -429,7 +427,6 @@ const deleteVersions = async (context, relativePath, { ids, all = false } = {}) 
       continue;
     }
     try {
-      // eslint-disable-next-line no-await-in-loop
       const outcome = await operations.purgeVersion(id);
       items.push({ id, status: outcome.status === 'unavailable' ? 'pending' : outcome.status });
     } catch (error) {

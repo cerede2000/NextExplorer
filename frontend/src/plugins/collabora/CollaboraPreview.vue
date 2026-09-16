@@ -164,7 +164,7 @@ const load = async () => {
       const url = new URL(urlSrc.value);
       collaboraOrigin.value = url.origin;
       logger.debug('[Collabora] Extracted origin from URL', collaboraOrigin.value);
-    } catch (e) {
+    } catch (_) {
       logger.warning('[Collabora] Could not extract origin from URL');
     }
   } catch (e) {

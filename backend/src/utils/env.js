@@ -30,7 +30,9 @@ const readSecret = (...names) => {
     try {
       contents = fs.readFileSync(file, 'utf8');
     } catch (error) {
-      throw new Error(`${name}_FILE: cannot read ${file} (${error.code || error.message})`);
+      throw new Error(`${name}_FILE: cannot read ${file} (${error.code || error.message})`, {
+        cause: error,
+      });
     }
 
     // Trailing newlines are what `echo secret > file` leaves behind, and they

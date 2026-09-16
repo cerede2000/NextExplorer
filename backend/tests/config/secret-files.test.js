@@ -22,14 +22,12 @@ const requireFreshConfig = () => {
   clearModuleCache('src/utils/env');
   clearModuleCache('src/config/env');
   clearModuleCache('src/config/index');
-  // eslint-disable-next-line global-require
   return require('../../src/config/index');
 };
 
 const requireFreshEnv = () => {
   clearModuleCache('src/utils/env');
   clearModuleCache('src/config/env');
-  // eslint-disable-next-line global-require
   return require('../../src/config/env');
 };
 

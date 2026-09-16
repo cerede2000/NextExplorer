@@ -63,7 +63,6 @@ describe('the text editor', () => {
     const application = app();
 
     for (const content of ['# Second\n', '# Third\n']) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await request(application)
         .put('/api/editor')
         .send({ path: 'Projects/notes.md', content });

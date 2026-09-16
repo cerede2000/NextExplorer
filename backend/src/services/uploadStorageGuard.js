@@ -58,7 +58,6 @@ const ensureStorageAvailable = async (directory, uploadSize, label) => {
     // oldest first, and only when doing so is enough — before anything is
     // refused on account of it.
     try {
-      // eslint-disable-next-line global-require
       const freed = await require('./trash/maintenance').makeRoom(directory, requiredBytes);
       if (freed > 0) {
         const after = await getAvailableBytes(directory);

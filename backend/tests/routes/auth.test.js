@@ -98,13 +98,11 @@ describe('Auth Routes', () => {
       expect(s1.body.authEnabled).toBe(true);
 
       // setup admin
-      const setup = await request(app)
-        .post('/api/auth/setup')
-        .send({
-          email: 'admin@example.com',
-          username: 'admin',
-          password: 'secret123',
-        });
+      const setup = await request(app).post('/api/auth/setup').send({
+        email: 'admin@example.com',
+        username: 'admin',
+        password: 'secret123',
+      });
       expect(setup.status).toBe(201);
       expect(setup.body.user).toBeDefined();
       expect(setup.body.user.roles).toContain('admin');
@@ -137,13 +135,11 @@ describe('Auth Routes', () => {
       const app = buildApp({ authEnabled: true });
 
       // setup admin
-      const setup = await request(app)
-        .post('/api/auth/setup')
-        .send({
-          email: 'admin@example.com',
-          username: 'admin',
-          password: 'secret123',
-        });
+      const setup = await request(app).post('/api/auth/setup').send({
+        email: 'admin@example.com',
+        username: 'admin',
+        password: 'secret123',
+      });
       expect(setup.status).toBe(201);
 
       // login
@@ -193,7 +189,6 @@ describe('a sign-in refused because the account is locked', () => {
       .post('/api/auth/setup')
       .send({ email: 'admin@example.com', username: 'admin', password: 'secret123' });
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await request(app).post('/api/auth/login').send({ identifier: 'admin', password: 'wrong' });
     }
 

@@ -29,7 +29,7 @@ onMounted(async () => {
   if (!appSettings.loaded && !appSettings.loading) {
     try {
       await appSettings.load();
-    } catch (e) {
+    } catch (_) {
       // Settings load may fail for non-admin users trying to access system settings
       // This is handled gracefully in the store, but ensure branding is at least loaded
       if (!appSettings.publicSettings.branding.appName) {

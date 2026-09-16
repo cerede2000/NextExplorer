@@ -184,7 +184,7 @@ const FOLDER_PREFERENCES_DDL = `
  * sort, which is not worth failing a startup over.
  */
 const migrateFolderPreferencesFromUserSettings = (db) => {
-  let rows = [];
+  let rows;
   try {
     rows = db
       .prepare(
@@ -658,7 +658,6 @@ const migrate = (db) => {
     if (version < 13) {
       logger.info('[DB Migration] Migrating to v13: Remembering recent destinations...');
       db.exec(RECENT_DESTINATIONS_DDL);
-      // eslint-disable-next-line global-require
       db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
       db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
         'schema_version',
@@ -685,7 +684,6 @@ const migrate = (db) => {
       db.exec(
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_personal_folder ON users(personal_folder_name);'
       );
-      // eslint-disable-next-line global-require
       const { claimAllPersonalFolderNames } = require('./personalFolders');
       const claimed = claimAllPersonalFolderNames(db);
       logger.info({ claimed }, '[DB Migration] Personal folder names assigned');
@@ -697,7 +695,6 @@ const migrate = (db) => {
     }
     if (version < 16) {
       logger.info('[DB Migration] Migrating to v16: Full-text search index...');
-      // eslint-disable-next-line global-require
       db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
       db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
         'schema_version',
@@ -715,7 +712,6 @@ const migrate = (db) => {
       db.exec('DROP TABLE IF EXISTS search_terms');
       db.exec('DROP TABLE IF EXISTS search_documents');
       db.prepare('DELETE FROM meta WHERE key = ?').run('search_index_complete_at');
-      // eslint-disable-next-line global-require
       db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
       db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
         'schema_version',

@@ -332,7 +332,6 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
       let entries = null;
       try {
         reportProgress('readdir', frame.abs);
-        // eslint-disable-next-line no-await-in-loop
         entries = await limit(() =>
           guardedFs('readdir', frame.abs, () => fs.readdir(frame.abs, { withFileTypes: true }))
         );
@@ -367,7 +366,6 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
           throwIfAborted();
           const paths = filePaths.slice(offset, offset + batchSize);
           reportProgress('stat', frame.abs);
-          // eslint-disable-next-line no-await-in-loop
           const fileSizes = await Promise.all(
             paths.map((filePath) =>
               limit(async () => {
@@ -384,7 +382,6 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
           frame.directFileBytes += fileSizes.reduce((total, size) => total + size, 0);
           files += paths.length;
           if (offset + paths.length < filePaths.length) {
-            // eslint-disable-next-line no-await-in-loop
             await yieldAndPause();
           }
         }
@@ -416,7 +413,6 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
     }
 
     if (folders % yieldEvery === 0) {
-      // eslint-disable-next-line no-await-in-loop
       await yieldAndPause();
     }
   }
@@ -508,7 +504,6 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
     } else if (entry.isFile()) {
       entryCount += 1;
       try {
-        // eslint-disable-next-line no-await-in-loop
         directFileBytes += (
           await withIoTimeout('stat', full, () => fs.stat(full), { timeoutMs: ioTimeoutMs })
         ).size;
@@ -680,7 +675,6 @@ const reconcile = async (db, scope, options = {}) => {
     for (const row of rows) {
       if (signal?.aborted || (maxDirectories > 0 && processed >= maxDirectories)) break;
       processed += 1;
-      // eslint-disable-next-line no-await-in-loop
       await handleRow(row);
       cursor = row.relativePath;
     }
@@ -689,7 +683,6 @@ const reconcile = async (db, scope, options = {}) => {
       exhausted = true;
       break;
     }
-    // eslint-disable-next-line no-await-in-loop
     if (pauseMs > 0) await sleep(pauseMs);
   }
 

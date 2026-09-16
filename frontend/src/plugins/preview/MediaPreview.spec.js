@@ -102,12 +102,10 @@ const pinch = async (wrapper, from, to) => {
 const doubleTap = async (wrapper, x = 400, y = 300) => {
   const element = stage(wrapper);
   for (let index = 0; index < 2; index += 1) {
-    // eslint-disable-next-line no-await-in-loop
     await element.trigger('touchstart', {
       touches: [touch(x, y)],
       changedTouches: [touch(x, y)],
     });
-    // eslint-disable-next-line no-await-in-loop
     await element.trigger('touchend', { touches: [], changedTouches: [touch(x, y)] });
   }
 };

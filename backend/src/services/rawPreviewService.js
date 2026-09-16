@@ -20,7 +20,6 @@ let exiftoolCleanupRegistered = false;
 const loadExiftool = () => {
   if (exiftoolSingleton) return exiftoolSingleton;
   try {
-    // eslint-disable-next-line global-require
     const { exiftool } = require('exiftool-vendored');
     exiftoolSingleton = exiftool;
 
@@ -46,7 +45,7 @@ const loadExiftool = () => {
         shutdown().finally(() => process.exit(0));
       });
     }
-  } catch (error) {
+  } catch (_) {
     exiftoolSingleton = null;
   }
 
@@ -176,7 +175,6 @@ const cleanupRawPreviewCache = async () => {
       let deleted = 0;
       for (const name of toDelete) {
         try {
-          // eslint-disable-next-line no-await-in-loop
           await fs.rm(path.join(dir, name), { force: true });
           deleted += 1;
         } catch (_) {

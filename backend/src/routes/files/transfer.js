@@ -88,19 +88,16 @@ router.get(
 
     const reachable = [];
     for (const relativePath of paths) {
-      // eslint-disable-next-line no-await-in-loop
       const { allowed, resolved } = await authorizeAndResolve(
         context,
         relativePath,
         ACTIONS.upload
       );
-      // eslint-disable-next-line no-await-in-loop
       const stats = resolved ? await fs.stat(resolved.absolutePath).catch(() => null) : null;
 
       if (allowed && stats?.isDirectory()) {
         reachable.push(relativePath);
       } else {
-        // eslint-disable-next-line no-await-in-loop
         await recentDestinations.forget(req.user?.id, relativePath);
       }
     }

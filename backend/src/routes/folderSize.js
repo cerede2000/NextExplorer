@@ -71,7 +71,9 @@ const lookupFolderSize = async (context, inputRelRaw) => {
 
   const db = await getIndexDb();
   const scope = getVolumeScope();
-  const withinRoot = Boolean(absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath));
+  const withinRoot = Boolean(
+    absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath)
+  );
   const excluded = withinRoot && folderSizeExclusions.isExcluded(absolutePath, scope);
   const entry = withinRoot ? folderSizeIndex.getByAbsolutePath(db, absolutePath) : null;
 
@@ -228,7 +230,6 @@ router.post(
     const touchPaths = [];
     for (const p of limited) {
       try {
-        // eslint-disable-next-line no-await-in-loop
         const { result, absolutePath } = await lookupFolderSize(
           context,
           typeof p === 'string' ? p : ''

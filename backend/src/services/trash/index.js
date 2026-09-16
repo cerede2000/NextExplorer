@@ -215,7 +215,6 @@ const listItems = async (context) => {
     if (item.state !== 'trashed' || !visibleTo(item, user)) continue;
     const zone = zoneRows.get(item.zoneId) || null;
     if (!availability.has(item.zoneId)) {
-      // eslint-disable-next-line no-await-in-loop
       availability.set(item.zoneId, zone ? (await zones.inspectZone(zone)).available : false);
     }
     items.push(
@@ -301,7 +300,6 @@ const settleSharesElsewhere = async (kept, choice, { context, user, relativePath
   let root = null;
   try {
     const { resolved } = await authorizeAndResolve(context, relativePath, ACTIONS.read);
-    // eslint-disable-next-line global-require
     if (resolved) root = require('../fileTransferService').getShareSourceTarget(resolved, false);
   } catch (error) {
     logger.debug({ err: error, relativePath }, 'A restored item could not be named for its shares');
@@ -326,20 +324,16 @@ const restoreItems = async (ids, context, { shares } = {}) => {
       results.push({ id, status: 'not-found' });
       continue;
     }
-    // eslint-disable-next-line no-await-in-loop
     if (!(await mayRestore(item, context, user))) {
       results.push({ id, status: 'forbidden', name: item.name });
       continue;
     }
     // Read first: the item takes the shares it kept with it when it leaves.
-    // eslint-disable-next-line no-await-in-loop
     const kept = await trashShares.listForItem(id);
-    // eslint-disable-next-line no-await-in-loop
     const outcome = await operations.restoreItem(id);
     if (outcome.status === 'restored') {
       announceRestored(item, outcome.restorePath);
       const restoredName = path.basename(outcome.restorePath);
-      // eslint-disable-next-line no-await-in-loop
       const sharesOutcome = await settleShares(
         kept,
         sharesChoice,
@@ -500,7 +494,6 @@ const restoreEntries = async (id, paths, context, { shares } = {}) => {
     const name = path.posix.basename(entry);
     let outcome;
     try {
-      // eslint-disable-next-line no-await-in-loop
       outcome = await operations.restoreEntry(item.id, entry);
     } catch (error) {
       logger.warn(
@@ -513,7 +506,6 @@ const restoreEntries = async (id, paths, context, { shares } = {}) => {
       announceRestored(outcome, outcome.restorePath);
       const restoredName = path.basename(outcome.restorePath);
       const kept = trashShares.underEntry(keptInFolder, entry);
-      // eslint-disable-next-line no-await-in-loop
       const sharesOutcome = await settleShares(
         kept,
         sharesChoice,
@@ -566,7 +558,6 @@ const mayCreateIn = async (context, relativePath, kind) => {
   const actions =
     kind === 'directory' ? [ACTIONS.createFolder, ACTIONS.createFile] : [ACTIONS.createFile];
   for (const action of actions) {
-    // eslint-disable-next-line no-await-in-loop
     const { allowed } = await authorizePath(context, relativePath, action);
     if (!allowed) return false;
   }
@@ -677,21 +668,18 @@ const executeRestoreTo = async (plan, { onEvent = () => {}, signal } = {}) => {
       continue;
     }
     if (!rightToRestore.has(item.id)) {
-      // eslint-disable-next-line no-await-in-loop
       rightToRestore.set(item.id, await mayRestore(item, context, user));
     }
     if (!rightToRestore.get(item.id)) {
       results.push({ ...key, status: 'forbidden', name });
       continue;
     }
-    // eslint-disable-next-line no-await-in-loop
     if (!(await mayCreateIn(context, target.relativePath, described.kind))) {
       results.push({ ...key, status: 'forbidden', reason: 'destination', name });
       continue;
     }
 
     // Read first: a whole item takes the shares it kept with it when it leaves.
-    // eslint-disable-next-line no-await-in-loop
     const keptForItem = await trashShares.listForItem(item.id);
     const kept = task.entry ? trashShares.underEntry(keptForItem, task.entry) : keptForItem;
 
@@ -709,10 +697,8 @@ const executeRestoreTo = async (plan, { onEvent = () => {}, signal } = {}) => {
     let outcome;
     try {
       outcome = task.entry
-        ? // eslint-disable-next-line no-await-in-loop
-          await operations.restoreEntry(item.id, task.entry, options)
-        : // eslint-disable-next-line no-await-in-loop
-          await operations.restoreItem(item.id, options);
+        ? await operations.restoreEntry(item.id, task.entry, options)
+        : await operations.restoreItem(item.id, options);
     } catch (error) {
       logger.warn(
         { err: error, itemId: item.id, entry: task.entry || null },
@@ -727,7 +713,6 @@ const executeRestoreTo = async (plan, { onEvent = () => {}, signal } = {}) => {
     if (outcome.status === 'restored') {
       announceRestored(described, outcome.restorePath);
       const restoredName = path.basename(outcome.restorePath);
-      // eslint-disable-next-line no-await-in-loop
       const sharesOutcome = await settleSharesElsewhere(kept, plan.sharesChoice, {
         context,
         user,
@@ -774,10 +759,8 @@ const purgeItems = async (ids, context, { forgetUnavailable = false } = {}) => {
       results.push({ id, status: 'not-found' });
       continue;
     }
-    // eslint-disable-next-line no-await-in-loop
     let outcome = await operations.purgeItem(id);
     if (outcome.status === 'unavailable' && forgetUnavailable && isAdmin(user)) {
-      // eslint-disable-next-line no-await-in-loop
       outcome = await operations.forgetItem(id);
     }
     results.push({ id, status: outcome.status, reason: outcome.reason || null, name: item.name });
@@ -795,7 +778,6 @@ const emptyTrash = async (context) => {
   for (const item of store.listItems(db)) {
     if (item.state !== 'trashed' || !visibleTo(item, user)) continue;
     try {
-      // eslint-disable-next-line no-await-in-loop
       const outcome = await operations.purgeItem(item.id);
       if (outcome.status === 'purged') summary.purged += 1;
       else if (outcome.status === 'unavailable') summary.unavailable += 1;
@@ -814,11 +796,8 @@ const verifyAll = async () => {
   const db = await getDb();
   const results = [];
   for (const zone of store.listZones(db)) {
-    // eslint-disable-next-line no-await-in-loop
     const inspection = await zones.inspectZone(zone);
-    // eslint-disable-next-line no-await-in-loop
     const limits = inspection.available ? await maintenance.limitsFor(zone.root, settings) : {};
-    // eslint-disable-next-line no-await-in-loop
     const result = await verifyZone(zone, limits);
     results.push({ ...result, ...zones.describeZoneRoot(zone.root) });
   }

@@ -47,7 +47,7 @@ const collectInputPaths = (...sources) => {
       if (typeof value.path === 'string' && typeof value.name === 'string') {
         try {
           add(combineRelativePath(value.path, value.name));
-        } catch (error) {
+        } catch (_) {
           // ignore invalid combined paths and continue collecting
         }
         return;

@@ -85,10 +85,8 @@ const assertCandidateAllowed = async ({ logicalBase, candidate, context }) => {
 const reserveFolderCandidate = async ({ destinationRoot, logicalBase, sourceRoot, context }) => {
   for (let counter = 0; counter < MAX_FOLDER_CANDIDATES; counter += 1) {
     const targetRoot = nextFolderCandidate(sourceRoot, counter);
-    // eslint-disable-next-line no-await-in-loop
     await assertCandidateAllowed({ logicalBase, candidate: targetRoot, context });
     try {
-      // eslint-disable-next-line no-await-in-loop
       await fs.mkdir(path.join(destinationRoot, targetRoot));
       return targetRoot;
     } catch (err) {

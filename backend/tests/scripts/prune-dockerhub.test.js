@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 
-// eslint-disable-next-line global-require
 const { decide } = require('../../../scripts/prune-dockerhub.js');
 
 /**

@@ -162,7 +162,7 @@ router.post(
               await execFileAsync('chmod', ['-R', mode, resolved.absolutePath]);
             } catch (e) {
               logger.error({ err: e }, 'Failed to apply recursive chmod');
-              throw new Error('Failed to apply permissions recursively.');
+              throw new Error('Failed to apply permissions recursively.', { cause: e });
             }
           } else {
             // On Windows, we'd need to recursively walk the directory
@@ -264,7 +264,7 @@ router.post(
               'Permission denied. Changing ownership typically requires root/admin privileges.'
             );
           }
-          throw new Error('Failed to change ownership: ' + e.message);
+          throw new Error('Failed to change ownership: ' + e.message, { cause: e });
         }
       } else {
         throw new ValidationError('Changing ownership is not supported on Windows.');

@@ -193,7 +193,6 @@ async function streamInBatches(items, batchSize, runBatch, onEvent) {
   // same folder would both find `report.txt` free, and one would overwrite the
   // other with nothing said. Making the destination side race-safe comes first.
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
-    // eslint-disable-next-line no-await-in-loop
     await runOne(batchIndex);
   }
 
@@ -254,7 +253,6 @@ async function deleteItems(items, options = {}) {
   const deletedItems = [];
   for (let index = 0; index < normalizedItems.length; index += DELETE_BATCH_SIZE) {
     const batch = normalizedItems.slice(index, index + DELETE_BATCH_SIZE);
-    // eslint-disable-next-line no-await-in-loop
     const response = await requestJson('/api/files', {
       method: 'DELETE',
       body: JSON.stringify({ items: batch, ...permanentFlag(options) }),

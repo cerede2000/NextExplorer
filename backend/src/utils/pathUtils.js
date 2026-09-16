@@ -182,7 +182,6 @@ const assertRealPathWithinRoot = async (
   let candidate = absolutePath;
 
   for (;;) {
-    // eslint-disable-next-line no-await-in-loop
     const realCandidate = await realpathOrNull(candidate);
 
     if (realCandidate) {
@@ -190,7 +189,6 @@ const assertRealPathWithinRoot = async (
       return;
     }
 
-    // eslint-disable-next-line no-await-in-loop
     const link = await readLinkOrNull(candidate);
     if (link !== null) {
       if (hops >= MAX_SYMLINK_HOPS) {

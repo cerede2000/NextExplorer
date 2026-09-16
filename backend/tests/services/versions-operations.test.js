@@ -254,7 +254,6 @@ describe('saving over a file', () => {
     await setVersions({ maxPerFile: 2 });
     await write('Projects/report.txt', 'v0');
     for (const content of ['v1', 'v2', 'v3', 'v4']) {
-      // eslint-disable-next-line no-await-in-loop
       await save('Projects/report.txt', content);
     }
 
@@ -479,7 +478,6 @@ describe('the recovery of a zone', () => {
   it('touches nothing when too many contents have vanished at once', async () => {
     await write('Projects/report.txt', 'v0');
     for (let index = 1; index <= 6; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await save('Projects/report.txt', `v${index}`);
     }
     await fs.rm(zones.versionsDirectory(zoneOf().root), { recursive: true });

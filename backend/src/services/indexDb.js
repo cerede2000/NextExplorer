@@ -103,7 +103,6 @@ const isUnreadable = (error) =>
 
 const createIndexSchema = (db) => {
   // Required here: db.js requires this module.
-  // eslint-disable-next-line global-require
   const { FOLDER_SIZE_INDEX_DDL } = require('./db');
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)');
   db.exec(SEARCH_INDEX_DDL);
@@ -354,7 +353,6 @@ const openFile = (file) => {
 const openIndexDb = async () => {
   // app.db first: opening it is what carries an existing index over, and that
   // has to happen before this file is created empty.
-  // eslint-disable-next-line global-require
   const appDb = await require('./db').getDb();
 
   const file = getIndexDbPath();

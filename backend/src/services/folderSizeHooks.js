@@ -50,7 +50,6 @@ const withIndex = async (fn) => {
  */
 const notifySearchIndex = (method, ...args) => {
   try {
-    // eslint-disable-next-line global-require
     const searchIndexManager = require('./searchIndexManager');
     Promise.resolve(searchIndexManager[method](...args)).catch(() => {});
   } catch {

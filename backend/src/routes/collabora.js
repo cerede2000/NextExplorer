@@ -61,7 +61,7 @@ const verifyWopiToken = (req, fileId) => {
     throw new UnauthorizedError('Missing access_token.');
   }
 
-  let payload = null;
+  let payload;
   try {
     payload = jwt.verify(token, collabora.secret, { algorithms: ['HS256'] });
   } catch (_e) {

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-env node */
 
 /**
  * Set — or check — the version, everywhere it is written down.

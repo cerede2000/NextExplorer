@@ -69,7 +69,6 @@ const measure = async (absolutePath) => {
     const current = stack.pop();
     let dirents;
     try {
-      // eslint-disable-next-line no-await-in-loop
       dirents = await fsp.readdir(current, { withFileTypes: true });
     } catch {
       continue;
@@ -82,7 +81,6 @@ const measure = async (absolutePath) => {
       else if (dirent.isFile()) files.push(child);
     }
     for (let index = 0; index < files.length; index += MEASURE_BATCH) {
-      // eslint-disable-next-line no-await-in-loop
       const sizes = await Promise.all(
         files.slice(index, index + MEASURE_BATCH).map((file) =>
           fsp.lstat(file).then(
@@ -278,7 +276,6 @@ const entrySegments = (entryPath) => {
 const walkInside = async (payload, segments) => {
   let current = payload;
   for (const segment of segments) {
-    // eslint-disable-next-line no-await-in-loop
     const stats = await lstatOrNull(current);
     if (!stats?.isDirectory()) return null;
     current = path.join(current, segment);
@@ -316,7 +313,6 @@ const prepareDestination = async (zone, parent) => {
 
   // The deepest folder that already exists is where a link could stand.
   let existing = parent;
-  // eslint-disable-next-line no-await-in-loop
   while (existing !== zone.root && !(await lstatOrNull(existing))) {
     existing = path.dirname(existing);
   }
@@ -386,7 +382,6 @@ const bytesReporter = (onBytes) => {
 
 /** Required when used: the transfer service itself requires the trash. */
 const copyTree = (source, destination, isDirectory, onBytes, signal) =>
-  // eslint-disable-next-line global-require
   require('../fileTransferService').copyEntryWithProgress(
     source,
     destination,
@@ -413,23 +408,19 @@ const nameCopy = async ({ db, item, staging, entryPath, restorePath, stoppedSinc
   for (let attempt = 1; attempt <= MAX_NAMING_ATTEMPTS; attempt += 1) {
     // A crash between the link and the removal of the hidden name left the
     // copy under both: it is already named.
-    // eslint-disable-next-line no-await-in-loop
     const alreadyNamed =
       (await linkedUnderBoth(staging, target)) ||
       (stoppedSince !== null && (await sameLinkUnderBoth(staging, target, stoppedSince)));
     if (!alreadyNamed) {
       try {
-        // eslint-disable-next-line no-await-in-loop
         await moveNoReplace(staging, target);
       } catch (error) {
         if (error?.code !== 'EEXIST') throw error;
-        // eslint-disable-next-line no-await-in-loop
         target = path.join(directory, await findAvailableName(directory, desired));
         store.setItemState(db, item.id, 'copied', { restorePath: target, restoreEntry: entryPath });
         continue;
       }
     }
-    // eslint-disable-next-line no-await-in-loop
     await dropOldName(staging, target);
     return target;
   }
@@ -812,7 +803,6 @@ const listEntries = async (itemId, entryPath = '') => {
   const names = await fsp.readdir(found.absolutePath);
   const entries = [];
   for (let index = 0; index < names.length; index += LIST_BATCH) {
-    // eslint-disable-next-line no-await-in-loop
     const batch = await Promise.all(
       names.slice(index, index + LIST_BATCH).map(async (name) => {
         const stats = await lstatOrNull(path.join(found.absolutePath, name));
@@ -1295,7 +1285,6 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
     );
   } else {
     for (const row of vanished) {
-      // eslint-disable-next-line no-await-in-loop
       await drop(row, zones.itemPaths(zone.root, row.id).sidecar, 'lost');
       report.lost += 1;
     }
@@ -1305,7 +1294,6 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
     if (name.endsWith('.json')) {
       const id = name.slice(0, -'.json'.length);
       if (!knownIds.has(id) && !onDisk.has(id) && ITEM_ID_PATTERN.test(id)) {
-        // eslint-disable-next-line no-await-in-loop
         await fsp.rm(path.join(trashDirectory, name), { force: true });
         report.removedSidecars += 1;
       }
@@ -1314,12 +1302,9 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
     if (knownIds.has(name) || !ITEM_ID_PATTERN.test(name)) continue;
 
     const { payload, sidecar } = zones.itemPaths(zone.root, name);
-    // eslint-disable-next-line no-await-in-loop
     const described = onDisk.has(`${name}.json`) ? await readSidecar(sidecar) : null;
-    // eslint-disable-next-line no-await-in-loop
     const stats = await fsp.lstat(payload).catch(() => null);
     if (!stats) continue;
-    // eslint-disable-next-line no-await-in-loop
     const { bytes } = await measure(payload);
 
     const recoveredName = `recovered-${name.slice(0, 8)}`;
@@ -1354,7 +1339,6 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
           : clock.nowIso(),
     };
     store.insertItem(db, adopted);
-    // eslint-disable-next-line no-await-in-loop
     await writeSidecar(sidecar, adopted, 'w');
     store.insertEvent(db, {
       zoneId: zone.id,

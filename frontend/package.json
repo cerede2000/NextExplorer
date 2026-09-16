@@ -10,7 +10,7 @@
     "test:unit": "vitest",
     "pretest:e2e": "playwright install chromium",
     "test:e2e": "playwright test --config playwright.config.js",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
+    "lint": "eslint . --fix",
     "format": "prettier --config ../prettier.config.cjs --write .",
     "format:check": "prettier --config ../prettier.config.cjs --check .",
     "test:coverage": "vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary"
@@ -52,9 +52,6 @@
     "@vitejs/plugin-vue": "^6.0.9",
     "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.4.5",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.2",
-    "eslint-plugin-vue": "^9.23.0",
     "jsdom": "^24.0.0",
     "postcss": "^8.4.38",
     "prettier": "^3.6.2",

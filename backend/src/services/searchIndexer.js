@@ -61,10 +61,39 @@ const NON_TEXT_EXTENSIONS = new Set([
   ...extensions.rawImages,
   ...extensions.videos,
   ...extensions.audios,
-  'zip', 'rar', '7z', 'gz', 'bz2', 'xz', 'zst', 'tar', 'tgz', 'iso', 'dmg', 'jar',
-  'exe', 'dll', 'so', 'dylib', 'bin', 'o', 'a', 'class', 'pyc', 'wasm',
-  'ttf', 'otf', 'woff', 'woff2', 'eot',
-  'db', 'sqlite', 'sqlite3', 'mdb', 'pack', 'idx',
+  'zip',
+  'rar',
+  '7z',
+  'gz',
+  'bz2',
+  'xz',
+  'zst',
+  'tar',
+  'tgz',
+  'iso',
+  'dmg',
+  'jar',
+  'exe',
+  'dll',
+  'so',
+  'dylib',
+  'bin',
+  'o',
+  'a',
+  'class',
+  'pyc',
+  'wasm',
+  'ttf',
+  'otf',
+  'woff',
+  'woff2',
+  'eot',
+  'db',
+  'sqlite',
+  'sqlite3',
+  'mdb',
+  'pack',
+  'idx',
 ]);
 
 const extensionOf = (absolutePath) => path.extname(absolutePath).slice(1).toLowerCase();
@@ -369,7 +398,9 @@ const indexTree = async ({
         skipped,
         batches,
         reindexed: reindexedKnown,
-        ...(worstFolder ? { rereadTopFolder: worstFolder.value, rereadTopCount: worstFolder.count } : {}),
+        ...(worstFolder
+          ? { rereadTopFolder: worstFolder.value, rereadTopCount: worstFolder.count }
+          : {}),
         ...cost(),
       });
     }
@@ -400,13 +431,11 @@ const indexTree = async ({
       if (isExcluded(relativePath)) continue;
 
       if (entry.isDirectory()) {
-        // eslint-disable-next-line no-await-in-loop
         await walk(absolutePath, relativePath);
         continue;
       }
       if (!entry.isFile()) continue;
 
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(absolutePath).catch(() => null);
       if (!stats) continue;
       if (maxFileSizeBytes && stats.size > maxFileSizeBytes) continue;
@@ -418,7 +447,6 @@ const indexTree = async ({
       const known = store.getIndexedDocument(db, relativePath);
       if (store.isUpToDate(known, stats)) {
         skipped += 1;
-        // eslint-disable-next-line no-await-in-loop
         await payForTimeUsed();
         continue;
       }
@@ -453,7 +481,6 @@ const indexTree = async ({
         }
       }
 
-      // eslint-disable-next-line no-await-in-loop
       const text = await readIndexableText(absolutePath, stats.size, scratch);
       if (text === null || !text.trim()) continue;
 
@@ -470,7 +497,6 @@ const indexTree = async ({
       // handful of large documents from being held together.
       if (pending.length >= batchSize || pendingBytes >= MAX_TEXT_PER_BATCH) flush();
 
-      // eslint-disable-next-line no-await-in-loop
       await payForTimeUsed();
     }
 

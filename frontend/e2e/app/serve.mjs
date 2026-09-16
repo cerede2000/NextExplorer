@@ -1,4 +1,3 @@
-/* eslint-env node */
 // Starts the application for the browser tests the way the image runs it: the
 // real server entry point, serving the real frontend build from the directory
 // the Dockerfile copies it to.

@@ -144,7 +144,7 @@ router.get(
     let targetPath;
     try {
       targetPath = path.resolve(requestedPath);
-    } catch (err) {
+    } catch (_) {
       throw new ValidationError('Invalid path');
     }
 
@@ -152,7 +152,7 @@ router.get(
     let stats;
     try {
       stats = await fs.stat(targetPath);
-    } catch (err) {
+    } catch (_) {
       throw new NotFoundError('Path not found');
     }
 
@@ -164,7 +164,7 @@ router.get(
     let entries;
     try {
       entries = await fs.readdir(targetPath, { withFileTypes: true });
-    } catch (err) {
+    } catch (_) {
       throw new ForbiddenError('Cannot read directory');
     }
 

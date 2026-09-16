@@ -154,10 +154,8 @@ const arriveBeforeTaking = (target, arrive) => {
 
 const waitFor = async (condition, what) => {
   const deadline = Date.now() + 5000;
-  // eslint-disable-next-line no-await-in-loop
   while (!(await condition())) {
     if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}`);
-    // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 };

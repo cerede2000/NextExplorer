@@ -49,7 +49,6 @@ const verifyVersions = async (zone, { measureSizes = true } = {}) => {
       continue;
     }
     if (measureSizes) {
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fsp.lstat(path.join(directory, row.id));
       if (stats.size !== row.size) {
         violations.push({

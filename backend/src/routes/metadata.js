@@ -136,7 +136,7 @@ router.get(
     let resolved;
     try {
       ({ accessInfo, resolved } = await resolvePathWithAccess(context, relativePath));
-    } catch (error) {
+    } catch (_) {
       throw new NotFoundError('Path not found.');
     }
 

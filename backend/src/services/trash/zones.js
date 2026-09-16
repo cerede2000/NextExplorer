@@ -69,7 +69,7 @@ const userVolumePaths = async () => {
  */
 const locateZoneRoot = async (absolutePath) => {
   const target = path.resolve(absolutePath);
-  let root = null;
+  let root;
 
   // The personal root first: by default it sits inside the volume root.
   if (isWithin(directories.userRoot, target) && target !== directories.userRoot) {

@@ -396,7 +396,6 @@ describe('a move that goes wrong', () => {
     const refuse = refuseTheCopy();
     let last;
     for (let attempt = 1; attempt <= MAX_MOVE_ATTEMPTS; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       last = await restart();
       if (attempt < MAX_MOVE_ATTEMPTS) {
         expect(count(last.app, 'search_documents'), `start ${attempt}`).toBe(4);

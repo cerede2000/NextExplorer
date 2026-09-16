@@ -17,7 +17,6 @@ import { clearModuleCache, overrideEnv } from '../helpers/env-test-utils.js';
  * what the freshly loaded configuration says.
  */
 
-// eslint-disable-next-line global-require
 const logger = require('../../src/utils/logger');
 
 const HEX_SECRET = /^[0-9a-f]{64}$/;
@@ -30,7 +29,6 @@ const loadConfig = () => {
   clearModuleCache('src/config/env');
   clearModuleCache('src/config/sessionSecret');
   clearModuleCache('src/config/index');
-  // eslint-disable-next-line global-require
   return require('../../src/config/index');
 };
 

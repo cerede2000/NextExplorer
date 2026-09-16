@@ -79,9 +79,7 @@ const makeOwner = async (files = { 'hello.txt': 'bonjour' }) => {
   const root = path.join(envContext.tmpRoot, `door-volume-${seq}`);
   await fs.mkdir(root, { recursive: true });
   for (const [name, contents] of Object.entries(files)) {
-    // eslint-disable-next-line no-await-in-loop
     await fs.mkdir(path.dirname(path.join(root, name)), { recursive: true });
-    // eslint-disable-next-line no-await-in-loop
     await fs.writeFile(path.join(root, name), contents);
   }
 
@@ -150,16 +148,18 @@ describe('what a link tells someone holding it', () => {
 
     const info = await request(visitor()).get(`/api/share/${share.shareToken}/info`);
 
-    expect(Object.keys(info.body).sort()).toEqual([
-      'expiresAt',
-      'hasPassword',
-      'isDirectory',
-      'isExpired',
-      'label',
-      'requiresPassword',
-      'sharingType',
-      'shareToken',
-    ].sort());
+    expect(Object.keys(info.body).sort()).toEqual(
+      [
+        'expiresAt',
+        'hasPassword',
+        'isDirectory',
+        'isExpired',
+        'label',
+        'requiresPassword',
+        'sharingType',
+        'shareToken',
+      ].sort()
+    );
     expect(JSON.stringify(info.body)).not.toContain(label);
   });
 
@@ -272,9 +272,7 @@ describe('typing the password on a link', () => {
   it('refuses an empty one', async () => {
     const { share } = await lockedShare();
 
-    const refused = await request(visitor())
-      .post(`/api/share/${share.shareToken}/verify`)
-      .send({});
+    const refused = await request(visitor()).post(`/api/share/${share.shareToken}/verify`).send({});
 
     expect(refused.status).toBe(401);
   });
@@ -345,9 +343,7 @@ describe('typing the password on a link', () => {
       userIds: [other.user.id],
     });
 
-    const refused = await request(visitor())
-      .post(`/api/share/${share.shareToken}/verify`)
-      .send({});
+    const refused = await request(visitor()).post(`/api/share/${share.shareToken}/verify`).send({});
 
     expect(refused.status).toBe(401);
   });

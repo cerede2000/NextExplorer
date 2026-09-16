@@ -398,7 +398,6 @@ async function* mergeResults(...generators) {
 
   try {
     while (next.size > 0) {
-      // eslint-disable-next-line no-await-in-loop
       const { generator, result } = await Promise.race(next.values());
       if (result.done) {
         next.delete(generator);
@@ -461,14 +460,12 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
     let lineNumber = null;
 
     if (isSearchableDocument(absolutePath)) {
-      // eslint-disable-next-line no-await-in-loop
       const match = await findDocumentTextMatch(absolutePath, needle);
       if (match) {
         line = match.line;
         lineNumber = match.lineNumber;
       }
     } else {
-      // eslint-disable-next-line no-await-in-loop
       const match = await findPlainTextMatch(absolutePath, needle);
       if (match) {
         line = match.line;
@@ -481,7 +478,6 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
     if (!lineNumber) continue;
 
     seenPaths.add(rel);
-    // eslint-disable-next-line no-await-in-loop
     if (await shouldInclude(rel)) {
       yield formatResult(rel, 'file', line, lineNumber);
     }
@@ -546,18 +542,15 @@ async function* streamDocumentMatches(
     // either looks harmless on a machine that does not take that path — which
     // is why the bound tests name their engine and run on both.
     if (maxBytes) {
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(absolutePath).catch(() => null);
       if (!stats || stats.size > maxBytes) continue;
     }
 
     examined += 1;
-    // eslint-disable-next-line no-await-in-loop
     const match = await findDocumentTextMatch(absolutePath, needle);
     if (!match) continue;
 
     seenPaths.add(rel);
-    // eslint-disable-next-line no-await-in-loop
     if (await shouldInclude(rel)) {
       yield formatResult(rel, 'file', match.line, match.lineNumber);
     }
@@ -755,7 +748,7 @@ router.get(
     let resolvedBase;
     try {
       ({ accessInfo, resolved: resolvedBase } = await resolvePathWithAccess(context, relBaseInput));
-    } catch (error) {
+    } catch (_) {
       throw new NotFoundError('Base path not found.');
     }
 
@@ -880,8 +873,8 @@ router.get(
       contents: contentItems,
     });
 
-    let truncated = false;
-    let abandoned = false;
+    let truncated;
+    let abandoned;
     {
       // Guaranteeing content a share means looking for it until the reserve is
       // full or the tree runs out — and on a large one that is a long time to

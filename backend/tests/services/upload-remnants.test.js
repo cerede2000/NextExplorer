@@ -71,7 +71,6 @@ describe('sweeping the remains of interrupted uploads', () => {
 
     expect(await sweepStaleUploadRemnants(dir)).toBe(0);
     for (const target of kept) {
-      // eslint-disable-next-line no-await-in-loop
       expect(await exists(target)).toBe(true);
     }
   });

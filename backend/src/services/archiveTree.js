@@ -63,20 +63,16 @@ const collectArchiveEntries = async (context, sources) => {
       const absolutePath = path.join(absoluteDir, child.name);
       const logicalPath = combineRelativePath(logicalDir, child.name);
       const name = `${entryDir}/${child.name}`;
-      // eslint-disable-next-line no-await-in-loop
       if (!(await visible({ absolutePath, logicalPath, name: child.name, guardPersonalRoot }))) {
         excluded += 1;
         continue;
       }
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fs.lstat(absolutePath);
       if (stats.isSymbolicLink()) {
         // Kept as the link it is, never followed: its target is text, not content.
-        // eslint-disable-next-line no-await-in-loop
         entries.push({ type: 'symlink', name, target: await fs.readlink(absolutePath) });
       } else if (stats.isDirectory()) {
         entries.push({ type: 'directory', name });
-        // eslint-disable-next-line no-await-in-loop
         await walk({
           absoluteDir: absolutePath,
           logicalDir: logicalPath,
@@ -99,7 +95,6 @@ const collectArchiveEntries = async (context, sources) => {
       entries.push({ type: 'directory', name: entryName });
       // A folder that is itself inside the personal root was reached through the
       // personal space, or a share of it, which already decided whose it is.
-      // eslint-disable-next-line no-await-in-loop
       await walk({
         absoluteDir: source.absolutePath,
         logicalDir: source.logicalPath,

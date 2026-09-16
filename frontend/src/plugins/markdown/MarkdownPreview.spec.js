@@ -67,7 +67,6 @@ const runFrames = async (limit = Infinity) => {
     const due = frameCallbacks;
     frameCallbacks = [];
     for (const callback of due) callback();
-    // eslint-disable-next-line no-await-in-loop
     await flushPromises();
     turns += 1;
   }

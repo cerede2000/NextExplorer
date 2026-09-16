@@ -8,7 +8,7 @@ const pathExists = async (targetPath) => {
   try {
     await fs.access(targetPath);
     return true;
-  } catch (error) {
+  } catch (_) {
     return false;
   }
 };

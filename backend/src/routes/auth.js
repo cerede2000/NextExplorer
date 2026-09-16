@@ -174,7 +174,7 @@ router.post(
     // was typed into the one box on the sign-in screen.
     const typed = identifier || email || username;
 
-    let user = null;
+    let user;
     try {
       user = await attemptLocalLogin({ identifier: typed, password });
     } catch (e) {

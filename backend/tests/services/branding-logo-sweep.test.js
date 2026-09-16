@@ -42,7 +42,6 @@ const seed = async (names, branding) => {
   }
   await fs.mkdir(logoDir(), { recursive: true });
   for (const name of names) {
-    // eslint-disable-next-line no-await-in-loop
     await fs.writeFile(path.join(logoDir(), name), name);
   }
   return env.requireFresh('src/services/brandingLogo');

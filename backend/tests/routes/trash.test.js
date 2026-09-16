@@ -712,7 +712,6 @@ describe('restoring into a chosen folder', () => {
     expect((await restoreTo('alice', { ids: [id] })).status).toBe(400);
     expect((await restoreTo('alice', { ids: [], destination: 'Archive' })).status).toBe(400);
     for (const destination of ['Archive/file.txt', 'Archive/nowhere', 'Projects/.nextexplorer']) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await restoreTo('alice', { ids: [id], destination });
       expect(refusedOutright(response), destination).toBe(true);
     }

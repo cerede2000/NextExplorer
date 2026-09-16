@@ -20,13 +20,13 @@ const parseDiscoveryXml = (xml) => {
   const content = typeof xml === 'string' ? xml : '';
 
   const actionTagRegex = /<action\b([^>]*?)\/?>/gi;
-  let match = null;
+  let match;
 
   while ((match = actionTagRegex.exec(content))) {
     const attrsRaw = match[1] || '';
     const attrs = {};
     const attrRegex = /([A-Za-z0-9:_-]+)="([^"]*)"/g;
-    let a = null;
+    let a;
     while ((a = attrRegex.exec(attrsRaw))) {
       attrs[a[1]] = a[2];
     }

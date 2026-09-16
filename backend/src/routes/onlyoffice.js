@@ -730,7 +730,7 @@ router.post(
       : null;
 
     // Backend context for storage requests (signed separately and passed via query)
-    let backendToken = null;
+    let backendToken;
     if (onlyoffice.secret) {
       const backendPayload = {
         typ: BACKEND_TOKEN_TYPE,
@@ -1251,7 +1251,7 @@ router.get(
       }
       try {
         jwt.verify(token, onlyoffice.secret, { algorithms: ['HS256'] });
-      } catch (e) {
+      } catch (_) {
         throw new UnauthorizedError('Invalid token.');
       }
     }
@@ -1262,7 +1262,7 @@ router.get(
     // Determine absolute path:
     // - Prefer signed backend context when available (works for personal/share paths)
     // - Fallback to resolving logical path without user for volume-only paths
-    let abs = null;
+    let abs;
     if (backendCtx) {
       abs = await resolveSaveTarget(backendCtx);
     } else {
@@ -1315,7 +1315,7 @@ router.post(
         }
         try {
           jwt.verify(token, onlyoffice.secret, { algorithms: ['HS256'] });
-        } catch (e) {
+        } catch (_) {
           throw new UnauthorizedError('Invalid token.');
         }
       }

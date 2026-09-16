@@ -242,7 +242,6 @@ onMounted(async () => {
         // and asking for it to be redrawn while the container is growing is
         // asking the browser to lay the whole thing out again.
         renderedPercent.value = Math.round((index / total) * 100);
-        // eslint-disable-next-line no-await-in-loop
         await yieldToBrowser();
         sliceStartedAt = Date.now();
       }

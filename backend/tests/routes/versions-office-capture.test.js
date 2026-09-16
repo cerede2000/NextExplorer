@@ -262,7 +262,6 @@ describe('Collabora saves', () => {
     const application = app();
 
     for (const content of ['autosave one', 'autosave two', 'autosave three']) {
-      // eslint-disable-next-line no-await-in-loop
       expect((await put(application, content)).status).toBe(200);
     }
 

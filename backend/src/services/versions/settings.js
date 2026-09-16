@@ -5,7 +5,6 @@
  * expects the next save to see it.
  */
 const getVersionSettings = async () => {
-  // eslint-disable-next-line global-require
   const { getSystemSettings } = require('../settingsService');
   return (await getSystemSettings()).versions;
 };

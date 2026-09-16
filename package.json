@@ -20,8 +20,8 @@
     "docs:preview": "npm run docs:preview -w docs --",
     "build": "npm run build -w frontend",
     "test": "npm run test -w backend && npm run test:unit -w frontend",
-    "lint": "eslint . --ext .js,.cjs,.mjs,.vue",
-    "lint:fix": "eslint . --ext .js,.cjs,.mjs,.vue --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "version:check": "node scripts/version.js --check",
     "version:set": "node scripts/version.js",
     "format": "prettier . --write",
@@ -34,10 +34,13 @@
     "test:e2e": "npm run test:e2e -w frontend"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.1.11",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.2",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.11.0",
+    "globals": "^16.5.0",
     "prettier": "^3.6.2"
   }
 }

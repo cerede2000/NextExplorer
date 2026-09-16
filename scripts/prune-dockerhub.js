@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-env node */
 
 /**
  * Keep only the last two releases on Docker Hub.
@@ -79,13 +78,11 @@ const login = async () => {
 const listTags = async (jwt) => {
   const tags = [];
   for (let page = 1; page <= 100; page += 1) {
-    // eslint-disable-next-line no-await-in-loop
     const response = await fetch(
       `${API}/repositories/${NAMESPACE}/${REPOSITORY}/tags?page_size=100&page=${page}`,
       { headers: { authorization: `JWT ${jwt}` } }
     );
     if (!response.ok) throw new Error(`list tags → ${response.status}`);
-    // eslint-disable-next-line no-await-in-loop
     const body = await response.json();
     if (!Array.isArray(body.results) || body.results.length === 0) break;
     tags.push(...body.results);
@@ -164,7 +161,6 @@ const main = async () => {
   const tags = await listTags(jwt);
   console.log(`${tags.length} tags on ${NAMESPACE}/${REPOSITORY}.`);
 
-  // eslint-disable-next-line global-require
   const { version: currentVersion } = require('../package.json');
   const { kept, doomed, releases } = decide({ tags, keepVersions, currentVersion });
 
@@ -183,7 +179,6 @@ const main = async () => {
   }
 
   for (const { name } of doomed) {
-    // eslint-disable-next-line no-await-in-loop
     await deleteTag(jwt, name);
     console.log(`  removed ${name}`);
   }

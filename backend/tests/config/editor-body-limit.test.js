@@ -14,7 +14,6 @@ import { clearModuleCache, overrideEnv } from '../helpers/env-test-utils.js';
 const requireFreshConfig = () => {
   clearModuleCache('src/config/env');
   clearModuleCache('src/config/index');
-  // eslint-disable-next-line global-require
   return require('../../src/config/index');
 };
 

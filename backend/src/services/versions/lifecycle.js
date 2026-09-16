@@ -158,7 +158,6 @@ const relinkRestored = (db, { itemId, entryPath = null, target, restorePath }) =
 const purgeFiles = async (fileIds) => {
   for (const fileId of fileIds) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       await operations.purgeFile(fileId);
     } catch (error) {
       logger.warn({ err: error, fileId }, 'A file history could not be purged');
@@ -276,7 +275,6 @@ const reviewZone = async (
     .filter((file) => file.state === 'live' || file.state === 'orphaned');
   const checked = [];
   for (let index = 0; index < files.length; index += REVIEW_BATCH) {
-    // eslint-disable-next-line no-await-in-loop
     const batch = await Promise.all(
       files.slice(index, index + REVIEW_BATCH).map(async (file) => {
         const stats = await lstatOrNull(path.join(zone.root, ...file.relativePath.split('/')));
@@ -315,7 +313,6 @@ const reviewZone = async (
   for (const file of store.listFiles(db, { zoneId: zone.id, state: 'orphaned' })) {
     const orphanedAt = Date.parse(file.orphanedAt || '');
     if (Number.isFinite(orphanedAt) && orphanedAt > expiry) continue;
-    // eslint-disable-next-line no-await-in-loop
     await purgeFiles([file.id]);
     report.expired += 1;
   }

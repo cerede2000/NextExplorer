@@ -157,7 +157,6 @@ describe('an instance with no admin group configured', () => {
     seedOidcUser(db, { roles: ['admin'] });
 
     for (let i = 0; i < 3; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await signInAsMiddlewareWould(users, { groups: ['staff'] }, []);
     }
 

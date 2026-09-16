@@ -95,7 +95,6 @@ describe('staying out of the way when it cannot know', () => {
     const guard = await build();
 
     for (const unknown of [null, undefined, Number.NaN, -1]) {
-      // eslint-disable-next-line no-await-in-loop
       await expect(
         guard.ensureStorageAvailable(envContext.volumeDir, unknown, 'destination storage')
       ).resolves.toBeUndefined();

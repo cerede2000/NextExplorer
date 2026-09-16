@@ -82,7 +82,9 @@ const writeDocx = async (absolutePath, text) => {
 };
 
 const search = async (q, query = {}) => {
-  const response = await request(buildApp()).get('/api/search').query({ q, ...query });
+  const response = await request(buildApp())
+    .get('/api/search')
+    .query({ q, ...query });
   expect(response.status).toBe(200);
   return response.body.items || [];
 };
@@ -178,7 +180,6 @@ describe('the bounds on how much it will read', () => {
   it('respects the result limit the caller asked for', async () => {
     const dir = await seed();
     for (let i = 0; i < 5; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await writeDocx(path.join(dir, `doc${i}.docx`), 'the word pangolin appears here');
     }
 

@@ -868,7 +868,7 @@ export const useFileStore = defineStore('fileStore', () => {
       if (appSettings.thumbnailsEnabledForSession === false) {
         return null;
       }
-    } catch (e) {
+    } catch (_) {
       // If settings store fails, fail open to avoid breaking UI, but do not spam
     }
 

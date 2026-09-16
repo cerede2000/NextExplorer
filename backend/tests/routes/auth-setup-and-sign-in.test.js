@@ -260,7 +260,6 @@ describe('signing in', { timeout: 30_000 }, () => {
     const { app } = await build();
 
     for (let attempt = 0; attempt < 10; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await request(app)
         .post('/api/auth/login')
         .send({ identifier: `guess-${attempt}`, password: PASSWORD });

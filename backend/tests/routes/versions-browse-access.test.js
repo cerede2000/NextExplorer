@@ -79,7 +79,6 @@ describe('what a listing says about file histories', () => {
     expect((await browseAs(file.body)).body.access.canSeeVersions).toBe(false);
 
     for (const share of [folder.body, file.body]) {
-      // eslint-disable-next-line no-await-in-loop
       await request(app)
         .put(`/api/shares/${share.id}`)
         .set('x-test-user', 'alice')

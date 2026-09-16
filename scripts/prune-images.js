@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-env node */
 
 /**
  * Prune old container images, without breaking the ones that are kept.
@@ -63,7 +62,6 @@ const listVersions = async () => {
   // No fixed page limit: the registry had accumulated thousands of versions,
   // and stopping at ten pages silently left most of them in place.
   for (let page = 1; page <= 200; page += 1) {
-    // eslint-disable-next-line no-await-in-loop
     const batch = await api(
       `${BASE}/packages/container/${PACKAGE}/versions?per_page=100&page=${page}`
     );
@@ -154,7 +152,6 @@ const main = async () => {
   const token = await registryToken();
   const byDigest = new Map(versions.map((version) => [version.name, version]));
   for (const version of versions.filter((v) => keep.has(v.id))) {
-    // eslint-disable-next-line no-await-in-loop
     for (const digest of await childDigests(token, version.name)) {
       const child = byDigest.get(digest);
       if (child) keep.add(child.id);
@@ -175,7 +172,6 @@ const main = async () => {
       }`
     );
     if (apply) {
-      // eslint-disable-next-line no-await-in-loop
       await api(`${BASE}/packages/container/${PACKAGE}/versions/${version.id}`, {
         method: 'DELETE',
       });

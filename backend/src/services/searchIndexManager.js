@@ -55,7 +55,6 @@ const drain = async () => {
     while (pending.length > 0 && !stopped) {
       const job = pending.shift();
       try {
-        // eslint-disable-next-line no-await-in-loop
         await job();
       } catch (error) {
         logger.debug({ err: error }, 'A search index update failed');

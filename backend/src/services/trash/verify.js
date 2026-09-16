@@ -61,7 +61,6 @@ const verifyZone = async (
       violations.push({ invariant: 'I1', itemId: row.id, detail: 'description missing' });
     }
     if (measureSizes) {
-      // eslint-disable-next-line no-await-in-loop
       const { bytes } = await operations.measure(zones.itemPaths(zone.root, row.id).payload);
       if (bytes !== row.size) {
         violations.push({

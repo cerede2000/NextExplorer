@@ -220,7 +220,6 @@ describe('an account locked by failed sign-ins', () => {
 
   const lockOut = async (users, identifier) => {
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await users.attemptLocalLogin({ identifier, password: 'wrong password' });
     }
   };

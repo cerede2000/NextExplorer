@@ -125,7 +125,9 @@ const isArchivePasswordError = (error) =>
 
 const createArchivePasswordError = (passwordProvided) => {
   const error = new Error(
-    passwordProvided ? 'Incorrect archive password or corrupted archive.' : 'Archive password required.'
+    passwordProvided
+      ? 'Incorrect archive password or corrupted archive.'
+      : 'Archive password required.'
   );
   error.code = passwordProvided ? 'ARCHIVE_INVALID_PASSWORD' : 'ARCHIVE_PASSWORD_REQUIRED';
   return error;
@@ -353,7 +355,7 @@ const readArchiveFootprint = async (archiveAbsolutePath) => {
       }
     }
     return entryCount ? { totalBytes, entryCount } : null;
-  } catch (error) {
+  } catch (_) {
     return null;
   }
 };
@@ -412,7 +414,6 @@ const watchExtractionSize = (destinationAbsolutePath, maxBytes, onExceeded) => {
     clearInterval(timer);
   };
 };
-
 
 /**
  * Reject an extraction that produced a symbolic link.

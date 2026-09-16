@@ -101,7 +101,6 @@ export function useFileUploader() {
         folderReservationByBatch.set(key, reservation);
       }
 
-      // eslint-disable-next-line no-await-in-loop
       const response = await reservation;
       const targetRoot = response?.targetRoot;
       if (!targetRoot) throw new Error('The server did not reserve a destination folder.');

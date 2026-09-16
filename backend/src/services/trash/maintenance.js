@@ -83,7 +83,6 @@ const applyPlan = async (db, zone, plan, itemsById) => {
   for (const entry of plan) {
     const item = itemsById.get(entry.id);
     try {
-      // eslint-disable-next-line no-await-in-loop
       const result = await operations.purgeItem(entry.id);
       if (result.status === 'unavailable') break;
       if (result.status !== 'purged') continue;
@@ -122,7 +121,6 @@ const applyVersionPlan = async (db, zone, plan) => {
   const outcome = { versionsPurged: 0, versionBytesPurged: 0, versionsEvictedEarly: 0 };
   for (const entry of plan) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const result = await versionOperations.purgeVersion(entry.id);
       if (result.status === 'unavailable') break;
       if (result.status !== 'purged') continue;
@@ -227,7 +225,6 @@ const runOnce = async ({ reason }) => {
   const results = [];
   for (const zone of store.listZones(db)) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const summary = await maintainZone(zone, settings);
       store.pruneEvents(db, { zoneId: zone.id, keep: EVENTS_KEPT_PER_ZONE });
       lastPasses.set(zone.id, summary);
@@ -275,7 +272,6 @@ const runPass = async ({ reason = 'manual' } = {}) => {
     let results;
     do {
       again = false;
-      // eslint-disable-next-line no-await-in-loop
       results = await runOnce({ reason });
     } while (again);
     return results;
@@ -300,7 +296,6 @@ const requestPass = ({ delayMs = REQUEST_DELAY_MS } = {}) => {
 /** Resolves once no pass is scheduled or running. */
 const idle = async () => {
   while (requested || running) {
-    // eslint-disable-next-line no-await-in-loop
     await (running || new Promise((resolve) => setTimeout(resolve, 5)));
   }
 };
@@ -322,13 +317,11 @@ const makeRoom = async (directory, requiredBytes) => {
     // Emptying a trash for an upload that would be refused anyway destroys
     // people's deleted files for nothing: only when the trash can cover the
     // shortfall is anything purged.
-    // eslint-disable-next-line no-await-in-loop
     const { freeBytes } = await module.exports.measureVolume(root);
     const held =
       trashedItemsOf(db, zone).reduce((total, item) => total + item.size, 0) +
       versionBytesIn(db, zone);
     if (Number.isFinite(freeBytes) && freeBytes + held < requiredBytes) continue;
-    // eslint-disable-next-line no-await-in-loop
     const summary = await maintainZone(zone, settings, { floorBytes: requiredBytes });
     freed += summary.purgedBytes || 0;
   }
@@ -341,10 +334,8 @@ const zonesOverview = async () => {
   const db = await getDb();
   const overview = [];
   for (const zone of store.listZones(db)) {
-    // eslint-disable-next-line no-await-in-loop
     const inspection = await zones.inspectZone(zone);
     const items = store.listItemsByZone(db, zone.id);
-    // eslint-disable-next-line no-await-in-loop
     const limits = inspection.available ? await limitsFor(zone.root, settings) : null;
     overview.push({
       id: zone.id,

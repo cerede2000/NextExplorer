@@ -106,7 +106,6 @@ describe('renaming an entry', () => {
   // Answering 500 sent everyone looking in the wrong place, the logs included.
   it('answers a name with a path in it as a bad request', async () => {
     for (const newName of ['../escape.txt', 'sub/report.txt', '..']) {
-      // eslint-disable-next-line no-await-in-loop
       await expect(
         renameEntry({
           context,
@@ -122,7 +121,6 @@ describe('renaming an entry', () => {
 
   it('refuses an empty or missing name', async () => {
     for (const newName of ['', null, undefined, 42]) {
-      // eslint-disable-next-line no-await-in-loop
       await expect(
         renameEntry({
           context,

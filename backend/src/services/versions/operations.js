@@ -142,9 +142,7 @@ const placeOf = async (absolutePath) => {
 
 /** Whether content of this size could ever fit in the zone's budget. */
 const tooLargeFor = async (root, size) => {
-  // eslint-disable-next-line global-require
   const maintenance = require('../trash/maintenance');
-  // eslint-disable-next-line global-require
   const { getTrashSettings } = require('../trash/settings');
   const { budgetBytes } = await maintenance.limitsFor(root, await getTrashSettings());
   return admission({ size, budgetBytes }) === 'too-large';
@@ -152,7 +150,6 @@ const tooLargeFor = async (root, size) => {
 
 const requestPass = () => {
   try {
-    // eslint-disable-next-line global-require
     require('../trash/maintenance').requestPass();
   } catch (error) {
     logger.debug({ err: error }, 'No maintenance pass could be requested after a capture');
@@ -213,7 +210,6 @@ const purgeFile = async (fileId) => {
     states: ['capturing', 'kept', 'purging'],
   });
   for (const version of versions) {
-    // eslint-disable-next-line no-await-in-loop
     const outcome = await purgeVersion(version.id);
     if (outcome.status !== 'purged' && outcome.status !== 'missing') left += 1;
   }
@@ -235,7 +231,6 @@ const thinFile = async (fileId) => {
     }));
   const drop = thinVersions({ versions, now: clock.now(), settings });
   for (const entry of drop) {
-    // eslint-disable-next-line no-await-in-loop
     await purgeVersion(entry.id);
   }
   return drop;
@@ -603,20 +598,17 @@ const recoverZone = async (
       }
       const file = store.getFile(db, row.fileId);
       const livePath = file?.state === 'live' ? absolutePathOf(db, file) : null;
-      // eslint-disable-next-line no-await-in-loop
       const [content, live] = await Promise.all([
         lstatOrNull(payload),
         livePath ? lstatOrNull(livePath) : null,
       ]);
       if (!row.aside && content && live && content.ino === live.ino && content.dev === live.dev) {
-        // eslint-disable-next-line no-await-in-loop
         await fsp.rm(payload, { force: true });
         store.deleteVersion(db, row.id);
         report.undone += 1;
       } else if (!row.aside && content && livePath && !live) {
         // Renamed out of the way on a filesystem without hard links, and the
         // new content never took its place: the file gets its content back.
-        // eslint-disable-next-line no-await-in-loop
         await fsp.rename(payload, livePath);
         store.deleteVersion(db, row.id);
         report.undone += 1;
@@ -625,7 +617,6 @@ const recoverZone = async (
         report.finished += 1;
       }
     } else if (row.state === 'purging') {
-      // eslint-disable-next-line no-await-in-loop
       await fsp.rm(payload, { force: true });
       store.deleteVersion(db, row.id);
       report.purged += 1;
@@ -640,7 +631,6 @@ const recoverZone = async (
     if (onDisk.has(row.id)) continue;
     // Looked at again: a capture that finished since the directory was read
     // is not a loss.
-    // eslint-disable-next-line no-await-in-loop
     if (!(await lstatOrNull(path.join(directory, row.id)))) vanished.push(row);
   }
   if (
@@ -673,7 +663,6 @@ const recoverZone = async (
     for (const version of versions) {
       if (version.zoneId !== zone.id || inflight.has(version.id)) continue;
       if (!VERSION_ID_PATTERN.test(version.id)) continue;
-      // eslint-disable-next-line no-await-in-loop
       await fsp.rm(contentPath(zone, version.id), { force: true });
       store.deleteVersion(db, version.id);
       report.purged += 1;
@@ -691,10 +680,8 @@ const recoverZone = async (
     if (known.has(name) || stillKnown.has(name) || inflight.has(name)) continue;
     if (!VERSION_ID_PATTERN.test(name)) continue;
     const absolute = path.join(directory, name);
-    // eslint-disable-next-line no-await-in-loop
     const stats = await lstatOrNull(absolute);
     if (!stats || (graceMs > 0 && clock.now() - stats.ctimeMs < graceMs)) continue;
-    // eslint-disable-next-line no-await-in-loop
     await fsp.rm(absolute, { recursive: true, force: true });
     report.removedContents += 1;
   }
