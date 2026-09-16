@@ -210,3 +210,45 @@ describe('the ONLYOFFICE transfer dialog', () => {
     await expect(answer).resolves.toBe(false);
   });
 });
+
+/**
+ * Two transfers asking at once.
+ *
+ * One question is shared by the whole application, so a second one replaces
+ * the first. The first was simply dropped: its promise never settled, and
+ * whoever was waiting on it — a move, a copy — waited for the rest of the
+ * tab's life. The dialog is modal, so reaching this takes a transfer started
+ * from somewhere that does not go through it; the cost of being wrong about
+ * that is an operation that never finishes and never says so.
+ */
+describe('a second question while the first is open', () => {
+  it('answers the first rather than abandoning it', async () => {
+    const question = useOnlyOfficeTransferConfirm();
+    mountDialog();
+
+    const first = settled(question.requestConfirmation([editing('report.docx')]));
+    const second = settled(question.requestConfirmation([editing('budget.xlsx')]));
+    await flushPromises();
+
+    expect(first.done).toBe(true);
+    expect(first.value).toBe(false);
+    expect(second.done).toBe(false);
+
+    question.confirm();
+    await flushPromises();
+
+    expect(second.value).toBe(true);
+  });
+
+  it('shows the documents of the question that replaced it', async () => {
+    const question = useOnlyOfficeTransferConfirm();
+    mountDialog();
+
+    question.requestConfirmation([editing('report.docx')]);
+    question.requestConfirmation([editing('budget.xlsx')]);
+    await flushPromises();
+
+    expect(question.isOpen.value).toBe(true);
+    expect(question.activeItems.value.map((item) => item.name)).toEqual(['budget.xlsx']);
+  });
+});

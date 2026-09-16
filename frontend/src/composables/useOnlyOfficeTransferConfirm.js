@@ -19,6 +19,13 @@ export function useOnlyOfficeTransferConfirm() {
     );
     if (itemsBeingEdited.length === 0) return Promise.resolve(true);
 
+    // A second question replaces the one on screen, and the first must not be
+    // left unanswered: whoever is waiting on it is holding a transfer open,
+    // for as long as the tab lives. It is answered as refused — nobody said
+    // yes to it, and a transfer that does not happen is the safe half of the
+    // question this asks.
+    if (resolvePending) settle(false);
+
     pendingItems.value = itemsBeingEdited;
     isOpen.value = true;
 
