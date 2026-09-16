@@ -34,6 +34,23 @@ const OFF = { enabled: false, pending: false, recoveryCodesLeft: 0 };
 const ON = { enabled: true, pending: false, recoveryCodesLeft: 10 };
 const CODES = Array.from({ length: 10 }, (_, index) => `AAAAA-0000${index}`);
 
+/**
+ * Wait for the QR generator to arrive.
+ *
+ * It is loaded on demand, and a module load is not a microtask: flushing
+ * promises once returns while the import is still in flight. That is invisible
+ * on a machine where the module is already warm and reliably wrong on a cold
+ * one, which is where this was first seen.
+ */
+const untilDrawn = async (wrapper) => {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (wrapper.findAll('[data-test="two-factor-qr"] rect').length > 0) return;
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+};
+
 const open = async (status = OFF) => {
   api.fetchTwoFactorStatus.mockResolvedValue(status);
   const wrapper = mount(SettingsTwoFactor, {
@@ -66,6 +83,7 @@ describe('turning it on', () => {
 
     await wrapper.find('button').trigger('click');
     await flushPromises();
+    await untilDrawn(wrapper);
 
     const square = wrapper.find('[data-test="two-factor-qr"]');
     expect(square.exists()).toBe(true);
