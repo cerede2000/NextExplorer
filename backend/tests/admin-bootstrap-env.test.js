@@ -1,8 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import express from 'express';
 import session from 'express-session';
 import request from 'supertest';
 import { setupTestEnv, clearModuleCache } from './helpers/env-test-utils.js';
+
+/**
+ * A whole-file budget, against a vitest default of five seconds.
+ *
+ * Every test here hashes a password with bcrypt at cost twelve, twice over for
+ * the bootstrap that replaces one, and the suite runs a worker per core: on a
+ * contended machine that is not slow work, it is queued work. Sized for an idle
+ * machine, it fails on the scheduler rather than on anything this file checks —
+ * which is what it did here, with three suites running at once.
+ */
+vi.setConfig({ testTimeout: 30_000 });
 
 describe('Admin Bootstrap from Environment', () => {
   let envContext;
