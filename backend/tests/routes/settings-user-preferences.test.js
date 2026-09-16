@@ -162,6 +162,88 @@ describe('PATCH /api/settings — user preferences', () => {
     }
   });
 
+  /**
+   * A switch used to be `Boolean(whatever came)`, which has an opinion about
+   * everything: `'false'` — what a form field, a query string or a shell
+   * client sends — was true, and `0` was false. Either way the preference was
+   * set to something nobody had chosen, and answered as though they had.
+   *
+   * Each case stores the opposite of what the coercion would have made of the
+   * value, so "it stayed" cannot be confused with "it was already like that".
+   */
+  it.each([
+    ['showHiddenFiles', 'false', false],
+    ['showThumbnails', 0, true],
+    ['showSidebarFavorites', 'no', false],
+    ['markdownOpensInEditor', '', true],
+    ['skipHome', 0, true],
+  ])('leaves %s as it was when sent %j', async (key, sent, stored) => {
+    const { envContext, app } = await buildContext();
+    try {
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { [key]: stored } })
+        .expect(200);
+
+      const saved = await request(app)
+        .patch('/api/settings')
+        .send({ user: { [key]: sent } })
+        .expect(200);
+
+      expect(saved.body.user[key]).toBe(stored);
+      const reread = await request(app).get('/api/settings').expect(200);
+      expect(reread.body.user[key]).toBe(stored);
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
+  /**
+   * A view mode we do not have used to become null, and null is a value here:
+   * the built-in default. One unknown word therefore put every folder back to
+   * the built-in view rather than being refused.
+   */
+  it('leaves the default view as it was when sent a mode there is no such thing as', async () => {
+    const { envContext, app } = await buildContext();
+    try {
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultView: 'list' } })
+        .expect(200);
+
+      const saved = await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultView: 'mosaic' } })
+        .expect(200);
+
+      expect(saved.body.user.defaultView).toBe('list');
+      const reread = await request(app).get('/api/settings').expect(200);
+      expect(reread.body.user.defaultView).toBe('list');
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
+  it('still takes null for the default view, which is the built-in one', async () => {
+    const { envContext, app } = await buildContext();
+    try {
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultView: 'list' } })
+        .expect(200);
+
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { defaultView: null } })
+        .expect(200);
+
+      const reread = await request(app).get('/api/settings').expect(200);
+      expect(reread.body.user.defaultView).toBeNull();
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
   it('ignores a key that is not a user preference', async () => {
     const { envContext, app } = await buildContext();
     try {

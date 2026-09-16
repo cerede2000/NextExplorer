@@ -504,11 +504,22 @@ const getSettingsForUser = async (user) => {
   return result;
 };
 
-const asBoolean = (value) => Boolean(value);
+/**
+ * Anything that is not a boolean is not an answer, and answers undefined, so
+ * the stored value stays.
+ *
+ * It used to be `Boolean(value)`, which has an opinion about everything:
+ * `'false'` — what a form field, a query string or a shell client sends — was
+ * true, and `0` was false. Either way the switch was set to something nobody
+ * had chosen, and the answer said it had been saved.
+ */
+const asBoolean = (value) => (typeof value === 'boolean' ? value : undefined);
 
 // null means "no answer of my own": for skipHome, defer to the environment.
-const asNullableBoolean = (value) =>
-  value === null || value === undefined ? null : Boolean(value);
+const asNullableBoolean = (value) => {
+  if (value === null || value === undefined) return null;
+  return typeof value === 'boolean' ? value : undefined;
+};
 
 /**
  * A default share expiry: null for none, or a whole number of at least one
@@ -527,9 +538,17 @@ const asShareExpiration = (value) => {
   return { value: amount, unit: value.unit };
 };
 
-// The view a folder gets when it has none of its own (#360). Anything we do not
-// recognise becomes null, meaning "use the built-in default".
-const asViewMode = (value) => (VIEW_MODES.includes(value) ? value : null);
+/**
+ * The view a folder gets when it has none of its own (#360).
+ *
+ * null is a value here, and means "use the built-in default". A mode we do not
+ * have is not: it used to become null too, so one unknown word put every
+ * folder back to the built-in view instead of being refused.
+ */
+const asViewMode = (value) => {
+  if (value === null || value === undefined) return null;
+  return VIEW_MODES.includes(value) ? value : undefined;
+};
 
 /**
  * Every preference a user may set, each with the coercion that belongs to it.

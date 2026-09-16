@@ -133,7 +133,6 @@ const keepValid = (section, fields) => {
   return update;
 };
 
-const isNumber = (value) => Number.isFinite(value);
 const isBoolean = (value) => typeof value === 'boolean';
 const isText = (value) => typeof value === 'string';
 
@@ -211,17 +210,25 @@ const applyUploads = (section) =>
     })
   );
 
-const isNumberOrNull = (value) => value === null || Number.isFinite(value);
+// The trash's size cap is the one field where nothing is a value: null removes
+// the cap. Zero is not that — it is what an emptied field sends, and the
+// service read it as "no cap given" and put the default back.
+const isPositiveNumberOrNull = (value) => value === null || isPositiveNumber(value);
 
+// A retention of no days, or of fewer than none, is what an emptied or
+// mistyped field sends. The service brought each up to its lowest bound — a
+// retention of 0 became one day, of -5 became one day — in place of the ninety
+// the administrator had. The settings page refuses them with the same bounds;
+// this is what an API client used to see instead.
 const applyTrash = (section) =>
   mergeSection(
     'system',
     'trash',
     keepValid(section, {
       enabled: isBoolean,
-      retentionDays: isNumber,
-      maxPercent: isNumber,
-      maxBytes: isNumberOrNull,
+      retentionDays: isPositiveNumber,
+      maxPercent: isPositiveNumber,
+      maxBytes: isPositiveNumberOrNull,
     })
   );
 
@@ -231,11 +238,11 @@ const applyVersions = (section) =>
     'versions',
     keepValid(section, {
       enabled: isBoolean,
-      keepAllHours: isNumber,
-      hourlyDays: isNumber,
-      dailyDays: isNumber,
-      maxPerFile: isNumber,
-      sessionCheckpointMinutes: isNumber,
+      keepAllHours: isPositiveNumber,
+      hourlyDays: isPositiveNumber,
+      dailyDays: isPositiveNumber,
+      maxPerFile: isPositiveNumber,
+      sessionCheckpointMinutes: isPositiveNumber,
     })
   );
 

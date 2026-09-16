@@ -165,6 +165,17 @@ describe('a size or a count of nothing', () => {
     ['thumbnails.size', 0, 'thumbnails', 'size', 320],
     ['thumbnails.quality', -5, 'thumbnails', 'quality', 55],
     ['thumbnails.concurrency', 0, 'thumbnails', 'concurrency', 4],
+    // The trash and the file versions, which the settings page already refuses
+    // with these bounds — this is what an API client saw instead.
+    ['trash.retentionDays', 0, 'trash', 'retentionDays', 90],
+    ['trash.retentionDays', -5, 'trash', 'retentionDays', 90],
+    ['trash.maxPercent', 0, 'trash', 'maxPercent', 40],
+    ['trash.maxBytes', 0, 'trash', 'maxBytes', 5_000_000_000],
+    ['versions.keepAllHours', 0, 'versions', 'keepAllHours', 48],
+    ['versions.hourlyDays', -3, 'versions', 'hourlyDays', 14],
+    ['versions.dailyDays', 0, 'versions', 'dailyDays', 60],
+    ['versions.maxPerFile', 0, 'versions', 'maxPerFile', 7],
+    ['versions.sessionCheckpointMinutes', -1, 'versions', 'sessionCheckpointMinutes', 30],
   ])('leaves %s as it was when sent %j', async (_label, sent, section, field, kept) => {
     await seed();
     await patch(['admin'], { [section]: { [field]: kept } });
@@ -178,11 +189,18 @@ describe('a size or a count of nothing', () => {
   it('still brings a positive value beyond its bounds within them', async () => {
     await seed();
 
-    await patch(['admin'], { thumbnails: { size: 5000 }, uploads: { chunkSizeBytes: 1024 } });
+    await patch(['admin'], {
+      thumbnails: { size: 5000 },
+      uploads: { chunkSizeBytes: 1024 },
+      trash: { retentionDays: 9000 },
+      versions: { maxPerFile: 5000 },
+    });
 
     const settings = await readAsAdmin();
     expect(settings.thumbnails.size).toBe(1024);
     expect(settings.uploads.chunkSizeBytes).toBe(MiB);
+    expect(settings.trash.retentionDays).toBe(3650);
+    expect(settings.versions.maxPerFile).toBe(1000);
   });
 });
 

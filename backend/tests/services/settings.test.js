@@ -107,17 +107,27 @@ describe('Settings Service', () => {
         ).run('user-1', 'user-1@example.com', 1, 'user-1', 'User 1', '["user"]', now, now);
 
         await settingsService.setUserSetting('user-1', 'showSidebarFavorites', false);
-        await settingsService.setUserSetting('user-1', 'showSidebarShares', 0);
-        await settingsService.setUserSetting('user-1', 'showSidebarTools', 'yes');
+        await settingsService.setUserSetting('user-1', 'showSidebarShares', true);
         // Whether a .md file opens in the editor rather than the preview (#347)
-        // is a per-user choice, and coerced like the other booleans.
-        await settingsService.setUserSetting('user-1', 'markdownOpensInEditor', 'yes');
+        // is a per-user choice, and a boolean like the others.
+        await settingsService.setUserSetting('user-1', 'markdownOpensInEditor', true);
+
+        // Anything that is not a boolean is not an answer, and is not stored:
+        // `Boolean('yes')` used to store true and `Boolean(0)` false, in place
+        // of what the person had chosen.
+        expect(
+          await settingsService.setUserSetting('user-1', 'showSidebarShares', 0)
+        ).toBeUndefined();
+        expect(
+          await settingsService.setUserSetting('user-1', 'showSidebarTools', 'yes')
+        ).toBeUndefined();
 
         const settings = await settingsService.getUserSettings('user-1');
 
         expect(settings.showSidebarFavorites).toBe(false);
-        expect(settings.showSidebarShares).toBe(false);
-        expect(settings.showSidebarTools).toBe(true);
+        expect(settings.showSidebarShares).toBe(true);
+        // Never stored, so the client's own default is what applies.
+        expect(settings.showSidebarTools).toBeUndefined();
         expect(settings.markdownOpensInEditor).toBe(true);
       } finally {
         await envContext.cleanup();
