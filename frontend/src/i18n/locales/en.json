@@ -76,7 +76,8 @@
     "toggleSection": "Toggle section",
     "back": "Back",
     "add": "Add",
-    "dismissWarning": "Dismiss warning"
+    "dismissWarning": "Dismiss warning",
+    "logoAlt": "{name} logo"
   },
   "editor": {
     "editing": "Editing",
@@ -491,7 +492,6 @@
       "appNameHelp": "The name displayed in headers, login page, and footer (max 100 characters).",
       "appNameRequired": "The application name cannot be empty.",
       "logo": "Logo Image",
-      "logoAlt": "{name} logo",
       "logoHelp": "Upload an SVG, PNG, or JPG file for your custom logo (max 2MB).",
       "chooseLogo": "Choose a logo",
       "chooseAnotherLogo": "Choose another file",

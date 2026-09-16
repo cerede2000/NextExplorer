@@ -76,7 +76,8 @@
     "toggleSection": "Sectie in- of uitklappen",
     "back": "Terug",
     "add": "Toevoegen",
-    "dismissWarning": "Waarschuwing sluiten"
+    "dismissWarning": "Waarschuwing sluiten",
+    "logoAlt": "Logo van {name}"
   },
   "editor": {
     "editing": "Bewerken",
@@ -491,7 +492,6 @@
       "appNameHelp": "De naam die wordt weergegeven in kopregels, loginpagina, en voetregel (max 100 tekens).",
       "appNameRequired": "De naam van de toepassing mag niet leeg zijn.",
       "logo": "Logo-afbeelding",
-      "logoAlt": "Logo van {name}",
       "logoHelp": "Upload een SVG-, PNG- of JPG-bestand als aangepast logo (max 2MB).",
       "chooseLogo": "Logo kiezen",
       "chooseAnotherLogo": "Ander bestand kiezen",

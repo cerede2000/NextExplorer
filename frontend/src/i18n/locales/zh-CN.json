@@ -76,7 +76,8 @@
     "toggleSection": "展开或折叠此部分",
     "back": "后退",
     "add": "添加",
-    "dismissWarning": "忽略此警告"
+    "dismissWarning": "忽略此警告",
+    "logoAlt": "{name} 的徽标"
   },
   "editor": {
     "editing": "编辑中",
@@ -488,7 +489,6 @@
       "appNameHelp": "在页眉、登录页和页脚中显示的名称（最多 100 个字符）。",
       "appNameRequired": "应用名称不能为空。",
       "logo": "标志图片",
-      "logoAlt": "{name} 的徽标",
       "logoHelp": "上传 SVG、PNG 或 JPG 文件作为自定义标志（最大 2MB）。",
       "chooseLogo": "选择徽标",
       "chooseAnotherLogo": "选择其他文件",

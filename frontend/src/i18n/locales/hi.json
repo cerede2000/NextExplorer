@@ -76,7 +76,8 @@
     "toggleSection": "अनुभाग दिखाएँ या छिपाएँ",
     "back": "पीछे",
     "add": "जोड़ें",
-    "dismissWarning": "चेतावनी हटाएँ"
+    "dismissWarning": "चेतावनी हटाएँ",
+    "logoAlt": "{name} का लोगो"
   },
   "editor": {
     "editing": "संपादन जारी",
@@ -488,7 +489,6 @@
       "appNameHelp": "हेडर, लॉगिन पेज और फ़ुटर में दिखने वाला नाम (अधिकतम 100 अक्षर)।",
       "appNameRequired": "एप्लिकेशन का नाम खाली नहीं हो सकता।",
       "logo": "लोगो छवि",
-      "logoAlt": "{name} का लोगो",
       "logoHelp": "अपने कस्टम लोगो के लिए SVG, PNG या JPG फ़ाइल अपलोड करें (अधिकतम 2MB)।",
       "chooseLogo": "लोगो चुनें",
       "chooseAnotherLogo": "दूसरी फ़ाइल चुनें",

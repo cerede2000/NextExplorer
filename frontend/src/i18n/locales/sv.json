@@ -76,7 +76,8 @@
     "toggleSection": "Visa eller dölj avsnittet",
     "back": "Bakåt",
     "add": "Lägg till",
-    "dismissWarning": "Avfärda varningen"
+    "dismissWarning": "Avfärda varningen",
+    "logoAlt": "Logotyp för {name}"
   },
   "editor": {
     "editing": "Redigerar",
@@ -488,7 +489,6 @@
       "appNameHelp": "Namnet som visas i sidhuvuden, inloggningssidan och sidfoten (max 100 tecken).",
       "appNameRequired": "Applikationsnamnet får inte vara tomt.",
       "logo": "Logotypbild",
-      "logoAlt": "Logotyp för {name}",
       "logoHelp": "Ladda upp en SVG-, PNG- eller JPG-fil för din egna logotyp (max 2 MB).",
       "chooseLogo": "Välj en logotyp",
       "chooseAnotherLogo": "Välj en annan fil",

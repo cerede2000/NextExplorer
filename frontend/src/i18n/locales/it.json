@@ -76,7 +76,8 @@
     "toggleSection": "Mostra o nascondi la sezione",
     "back": "Indietro",
     "add": "Aggiungi",
-    "dismissWarning": "Ignora l'avviso"
+    "dismissWarning": "Ignora l'avviso",
+    "logoAlt": "Logo di {name}"
   },
   "editor": {
     "editing": "Modifica in corso",
@@ -488,7 +489,6 @@
       "appNameHelp": "Il nome visualizzato in intestazioni, pagina di accesso e piè di pagina (max 100 caratteri).",
       "appNameRequired": "Il nome dell’applicazione non può essere vuoto.",
       "logo": "Immagine del logo",
-      "logoAlt": "Logo di {name}",
       "logoHelp": "Carica un file SVG, PNG o JPG per il tuo logo personalizzato (max 2 MB).",
       "chooseLogo": "Scegli un logo",
       "chooseAnotherLogo": "Scegli un altro file",

@@ -76,7 +76,8 @@
     "toggleSection": "Pokaż lub ukryj sekcję",
     "back": "Wstecz",
     "add": "Dodaj",
-    "dismissWarning": "Odrzuć ostrzeżenie"
+    "dismissWarning": "Odrzuć ostrzeżenie",
+    "logoAlt": "Logo {name}"
   },
   "editor": {
     "editing": "Edytowanie",
@@ -488,7 +489,6 @@
       "appNameHelp": "Nazwa wyświetlana w nagłówkach, na stronie logowania i w stopce (maks. 100 znaków).",
       "appNameRequired": "Nazwa aplikacji nie może być pusta.",
       "logo": "Obraz logo",
-      "logoAlt": "Logo {name}",
       "logoHelp": "Prześlij plik SVG, PNG lub JPG dla niestandardowego logo (maks. 2 MB).",
       "chooseLogo": "Wybierz logo",
       "chooseAnotherLogo": "Wybierz inny plik",

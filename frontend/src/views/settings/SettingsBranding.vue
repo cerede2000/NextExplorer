@@ -221,7 +221,7 @@ const useDefaultLogo = () => {
               >
                 <img
                   :src="logoPreviewUrl"
-                  :alt="t('settings.branding.logoAlt', { name: local.appName })"
+                  :alt="t('common.logoAlt', { name: local.appName })"
                   class="h-24 w-auto max-w-full"
                 />
                 <button
@@ -302,7 +302,7 @@ const useDefaultLogo = () => {
           <div class="flex items-center gap-3">
             <img
               :src="logoPreviewUrl"
-              :alt="t('settings.branding.logoAlt', { name: local.appName })"
+              :alt="t('common.logoAlt', { name: local.appName })"
               class="h-10 w-auto"
               @error="$event.target.style.display = 'none'"
             />

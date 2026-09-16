@@ -76,7 +76,8 @@
     "toggleSection": "섹션 펼치기/접기",
     "back": "뒤로 가기",
     "add": "추가",
-    "dismissWarning": "경고 닫기"
+    "dismissWarning": "경고 닫기",
+    "logoAlt": "{name} 로고"
   },
   "editor": {
     "editing": "편집 중",
@@ -488,7 +489,6 @@
       "appNameHelp": "설정된 이름은 헤더, 로그인 페이지, 페이지 하단에 표시됩니다 (최대 100 글자).",
       "appNameRequired": "애플리케이션 이름은 비워 둘 수 없습니다.",
       "logo": "로고 이미지",
-      "logoAlt": "{name} 로고",
       "logoHelp": "커스텀 로고로 사용할 SVG, PNG, JPG 파일을 업로드하세요 (최대 2MB).",
       "chooseLogo": "로고 선택",
       "chooseAnotherLogo": "다른 파일 선택",

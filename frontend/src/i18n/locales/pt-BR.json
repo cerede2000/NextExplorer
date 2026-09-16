@@ -76,7 +76,8 @@
     "toggleSection": "Mostrar ou ocultar a seção",
     "back": "Voltar",
     "add": "Adicionar",
-    "dismissWarning": "Dispensar o aviso"
+    "dismissWarning": "Dispensar o aviso",
+    "logoAlt": "Logotipo de {name}"
   },
   "editor": {
     "editing": "Editando",
@@ -491,7 +492,6 @@
       "appNameHelp": "O nome exibido nos cabeçalhos, na página de login e no rodapé (máx. 100 caracteres).",
       "appNameRequired": "O nome do aplicativo não pode ficar vazio.",
       "logo": "Imagem do Logotipo",
-      "logoAlt": "Logotipo de {name}",
       "logoHelp": "Envie um arquivo SVG, PNG ou JPG para seu logotipo personalizado (máx. 2MB).",
       "chooseLogo": "Escolher um logotipo",
       "chooseAnotherLogo": "Escolher outro arquivo",

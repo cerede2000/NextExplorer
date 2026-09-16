@@ -76,7 +76,8 @@
     "toggleSection": "Afișează sau ascunde secțiunea",
     "back": "Înapoi",
     "add": "Adaugă",
-    "dismissWarning": "Închideți avertismentul"
+    "dismissWarning": "Închideți avertismentul",
+    "logoAlt": "Sigla {name}"
   },
   "editor": {
     "editing": "În curs de editare",
@@ -488,7 +489,6 @@
       "appNameHelp": "Numele afișat în antete, pe pagina de autentificare și în subsol (max. 100 de caractere).",
       "appNameRequired": "Numele aplicației nu poate fi gol.",
       "logo": "Imagine siglă",
-      "logoAlt": "Sigla {name}",
       "logoHelp": "Încarcă un fișier SVG, PNG sau JPG pentru sigla ta personalizată (max. 2 MB).",
       "chooseLogo": "Alegeți o siglă",
       "chooseAnotherLogo": "Alegeți alt fișier",

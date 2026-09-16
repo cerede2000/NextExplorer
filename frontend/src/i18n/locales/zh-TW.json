@@ -76,7 +76,8 @@
     "toggleSection": "展開或摺疊此區段",
     "back": "後退",
     "add": "新增",
-    "dismissWarning": "忽略此警告"
+    "dismissWarning": "忽略此警告",
+    "logoAlt": "{name} 的標誌"
   },
   "editor": {
     "editing": "編輯中",
@@ -488,7 +489,6 @@
       "appNameHelp": "在頁首、登入頁和頁尾中顯示的名稱（最多 100 個字符）。",
       "appNameRequired": "應用名稱不能為空。",
       "logo": "標誌圖片",
-      "logoAlt": "{name} 的標誌",
       "logoHelp": "上傳 SVG、PNG 或 JPG 文件作為自定義圖示（最大 2MB）。",
       "chooseLogo": "選擇標誌",
       "chooseAnotherLogo": "選擇其他檔案",
