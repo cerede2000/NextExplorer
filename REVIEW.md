@@ -516,7 +516,7 @@ deliberate decision, not a silent default.
 
 ### Checked and sound
 
-- **Base images are pinned to exact versions** — `node:24.16-alpine3.23`,
+- **Base images are pinned to exact versions** — `node:24.21-alpine3.23`,
   `alpine:3.23`. No `latest` anywhere in the build.
 - **The application does not run as root.** The entrypoint starts privileged
   only to remap ownership, then hands over with `gosu appuser`.

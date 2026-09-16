@@ -8,7 +8,7 @@ ARG FFMPEG_VARIANT=apk
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:24.16-alpine3.23 AS base
+FROM public.ecr.aws/docker/library/node:24.21-alpine3.23 AS base
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
@@ -50,15 +50,22 @@ RUN npm run -w frontend build -- --sourcemap false
 # Alpine's p7zip build does not include the RAR codec.  Use the official,
 # architecture-specific static binary instead so zip, 7z and RAR extraction
 # have the same capabilities in the full and lean images.
+#
+# Taking the binary out of apk's hands means its security updates are this
+# pin's job, and the archive handlers are the part of the image a visitor
+# reaches most directly: every extension in DEFAULT_ARCHIVE_EXTENSIONS is a
+# parser fed bytes someone uploaded. 26.02 fixed a heap overflow in the XZ
+# decoder (CVE-2026-14266, remote code execution), and `xz`/`txz` are in that
+# list — so this version is not a detail to leave where it was.
 # ---------------------------------------------------------------------------
 FROM alpine:3.23 AS seven_zip
 ARG TARGETARCH
-ARG SEVEN_ZIP_VERSION=26.01
+ARG SEVEN_ZIP_VERSION=26.03
 
 RUN apk add --no-cache curl libarchive-tools \
   && case "$TARGETARCH" in \
-    amd64) archive_arch=x64; archive_sha256=8ea0fc8a135e7b848e80a4116fe22dff56c8c4518dde1f43cce67f4e340b437a ;; \
-    arm64) archive_arch=arm64; archive_sha256=39f8c9070c300a63c7484d9a983119ef3edf841e1ddf69f1affae29fdec5f612 ;; \
+    amd64) archive_arch=x64; archive_sha256=dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695 ;; \
+    arm64) archive_arch=arm64; archive_sha256=2389ba20e4d8295e8709c20b6263b69bd1ec4972fe38a04ad7a1badbf595b996 ;; \
     *) echo "Unsupported 7-Zip architecture: $TARGETARCH" >&2; exit 1 ;; \
   esac \
   && archive_version=$(printf '%s' "$SEVEN_ZIP_VERSION" | tr -d .) \
