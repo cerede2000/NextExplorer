@@ -154,7 +154,14 @@ test('a shared link opens for someone with no account, and opens nothing else', 
 });
 
 const trashDirectory = path.join(volume, '.nextexplorer', 'trash');
-/** What the trash holds on disk: the items, not their descriptions. */
+/**
+ * What the trash holds on disk: the items, not their descriptions.
+ *
+ * Read through a poll wherever it should be empty: content leaves the trash by
+ * being linked under its new name and then unlinked from the old one, so at the
+ * instant the restored file is readable its payload can still be there. Read
+ * once, the assertion is a race — and it lost one on CI.
+ */
 const trashPayloads = () =>
   fs.existsSync(trashDirectory)
     ? fs.readdirSync(trashDirectory).filter((name) => !name.endsWith('.json'))
@@ -189,7 +196,7 @@ test('a deleted file goes to the trash and comes back as it was', async () => {
   await expect
     .poll(() => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null))
     .toBe(content);
-  expect(trashPayloads()).toEqual([]);
+  await expect.poll(() => trashPayloads()).toEqual([]);
   await expect(page.getByText('The trash is empty.')).toBeVisible();
 });
 
@@ -265,7 +272,7 @@ test('one file comes back out of a deleted folder, and the rest stays in the tra
   await expect.poll(() => fs.existsSync(path.join(rest, 'drafts', 'v1.txt'))).toBe(true);
   expect(fs.readFileSync(path.join(rest, 'brief.txt'), 'utf8')).toBe('the brief\n');
   expect(fs.readFileSync(restored, 'utf8')).toBe('second draft\n');
-  expect(trashPayloads()).toEqual([]);
+  await expect.poll(() => trashPayloads()).toEqual([]);
 });
 
 /**
@@ -300,7 +307,7 @@ test('a deleted file can be restored into another folder', async () => {
     .poll(() => (fs.existsSync(landed) ? fs.readFileSync(landed, 'utf8') : null))
     .toBe('invoice 42\n');
   expect(fs.existsSync(file)).toBe(false);
-  expect(trashPayloads()).toEqual([]);
+  await expect.poll(() => trashPayloads()).toEqual([]);
   await expect(page.getByText('The trash is empty.')).toBeVisible();
 });
 
