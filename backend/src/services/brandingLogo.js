@@ -90,6 +90,53 @@ const forgetReplacedLogo = async (previousUrl, currentUrl) => {
 };
 
 /**
+ * Remove the logos nothing points at, once, at start.
+ *
+ * A logo is written, placed under a name of its own, made the logo in the
+ * settings, and only then is the one it replaced removed. Two things leave a
+ * file behind: a stop between the placement and the settings write, and a
+ * removal that fails. Neither leaves anything that can be reached again — a
+ * logo's address is the name of its file, so a file no setting names is a file
+ * nobody can ask for — and at 2 MB apiece they stay until someone goes looking.
+ *
+ * Start is the moment to do it: nothing of ours is being placed, so a file
+ * under one of our names is a finished one rather than one in flight.
+ *
+ * Only the names this application writes are looked at, and never the logo in
+ * use. `/config/logos` is a directory on somebody's disk; whatever else is in
+ * it they put there, and it is not ours to tidy — which is why the names, and
+ * not the listing, decide what goes.
+ */
+const sweepUnreferencedLogos = async () => {
+  let entries;
+  try {
+    entries = await fs.readdir(logoDirectory(), { withFileTypes: true });
+  } catch (error) {
+    // No logo has ever been uploaded: there is no directory yet.
+    if (error?.code === 'ENOENT') return;
+    logger.warn({ err: error }, 'Could not look for logos no longer in use');
+    return;
+  }
+
+  let inUse;
+  try {
+    const { branding } = await settingsService.getPublicSettings();
+    inUse = ownLogoName(branding?.appLogoUrl);
+  } catch (error) {
+    // Not knowing which logo is in use, removing any of them could remove it.
+    logger.warn({ err: error }, 'Could not read the branding; leaving the logos alone');
+    return;
+  }
+
+  const unreferenced = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => name !== inUse && (OWN_NAME.test(name) || LEGACY_NAMES.includes(name)));
+
+  await Promise.all(unreferenced.map(removeLogoFile));
+};
+
+/**
  * Write the image under a name of its own, and answer that name.
  *
  * The bytes go to a hidden name first — the static handler does not serve
@@ -153,4 +200,5 @@ module.exports = {
   forgetReplacedLogo,
   ownLogoName,
   replaceLogo,
+  sweepUnreferencedLogos,
 };

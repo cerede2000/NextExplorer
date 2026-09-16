@@ -27,6 +27,7 @@ const searchIndexManager = require('./services/searchIndexManager');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
 const { reportLegacyCache } = require('./services/legacyCacheCheck');
+const { sweepUnreferencedLogos } = require('./services/brandingLogo');
 const { sweepInterrupted } = require('./services/inFlightFiles');
 const trashMaintenance = require('./services/trash/maintenance');
 const databaseMaintenance = require('./services/databaseMaintenance');
@@ -120,6 +121,13 @@ const startServer = async () => {
   // And what releases before 2.0.3 left in the cache directory: an old app.db
   // nothing reads, or the links 1.1.8 left beside it.
   reportLegacyCache();
+
+  // A logo left behind by a stop in the middle of a branding change, or by a
+  // removal that failed, is 2 MB nothing can reach. Here, where nothing is
+  // being placed, so a file under one of our names is a finished one.
+  sweepUnreferencedLogos().catch((error) => {
+    logger.warn({ err: error }, 'Sweeping logos no longer in use failed');
+  });
 
   // Cleanup on process termination
   const cleanup = async () => {
