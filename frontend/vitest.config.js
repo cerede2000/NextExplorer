@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { mergeConfig, defineConfig, configDefaults } from 'vitest/config';
-import viteConfig from './vite.config';
+import viteConfig from './vite.config.js';
 
 // One file holds both sides' floors, so the CI summary can read the same
 // numbers the suites are held to rather than a copy that drifts.
