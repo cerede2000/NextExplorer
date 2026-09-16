@@ -461,68 +461,55 @@ mesa-va-gallium 25.2.7 to 26.1.6.
   lean image it is the right dependency, but it does mean a demo build is not
   reproducible from the checkout alone.
 
-## What the dependency pass of 16 September 2026 left to decide
+## What the dependency pass of 16 September 2026 did, and what it left
 
 `npm audit` at the repo root found eleven advisories. Four of them were in the
 image, and none is now: `multer`, `sharp`, `adm-zip` and `joi` were closed
-inside their current majors, and `vitest` took the patch for its own. What
-follows is what a version bump could not settle.
+inside their current majors, and `vitest` took the patch for its own. Then the
+five decisions that a version bump could not settle were taken, in this order.
 
 The number to hold on to for next time: the root figure is not the figure.
-The image runs `npm ci --omit=dev --workspace backend`, which is 401 packages,
-and the frontend reaches it as a built `dist/` with no `node_modules` at all.
+The image runs `npm ci --omit=dev --workspace backend`, and the frontend
+reaches it as a built `dist/` with no `node_modules` at all.
 `npm audit --omit=dev --workspace backend` is the question worth asking, and
-it now answers nothing.
+it answers nothing.
 
-### The vite advisories, and the two different answers they need
+### Settled
 
-Three reports against `vite` and one against `esbuild` are all against the
-**dev server**, which nothing deployed runs: the image serves a built `dist/`
-out of Express, and `vite` is in no layer of it. Two of the three are
-Windows-only. The reach is `npm run dev`, and the development compose file.
+- **`exifr` is gone**, replaced by `exif-reader` — no Perl, no Python, and one
+  fewer read of the file: sharp already opens it for the dimensions and hands
+  the EXIF block back with them. TIFF is read from disk, up to 32 MB, because
+  there the file is the block.
+- **Vite 5 to 7**, with the Vue, devtools and Tailwind plugins alongside it.
+  The three dev-server advisories against the frontend's copy are closed.
+- **`vue-i18n` 9 to 11**, the version its authors point at. Nothing this code
+  used was removed on the way.
+- **ESLint 8 to 10**, three `.eslintrc.cjs` files becoming one
+  `eslint.config.mjs`. What the new rules found is in that commit.
+- **Prettier runs in CI**, after 63 files had drifted with nothing checking.
 
-They are still worth closing, and there are two copies of vite here, not one:
+### Still open, and why
 
-- `node_modules/vitest/node_modules/vite` is already **8.3.0** and unaffected —
-  vitest 4 brings its own.
-- `node_modules/vite` is **5.4.21**, and nothing in the 5 line is patched. The
-  fix begins at 6.4.3.
-
-For the frontend build, **vite 7 is the target, not vite 8**, and everything
-needed for it is published: `@vitejs/plugin-vue` accepts 5 through 8,
-`vite-plugin-vue-devtools` 8 accepts 6 and 7, `vitest` 4 accepts 6 through 8.
-`@tailwindcss/vite` 4.1.18 peers `^5.2.0 || ^6 || ^7`, and is what would break
-on 8. So this is one coordinated major across four packages, with the build
-and the styling to check after it, for a defect no deployment can reach.
-
-For the docs there is nothing to decide yet. `vitepress` 1.6.4 is the current
-release and peers `vite ^5.4.14`; 2.0.0 is at `alpha.20`. Until it ships,
-`npm audit` keeps reporting this chain with no fix available.
-
-### Two dependencies whose own authors have stopped supporting them
-
-- **`vue-i18n` 9.14.5 is deprecated on npm**, in those words: "v9 and v10 no
-  longer supported. please migrate to v11." There is no advisory — and there
-  will be no fix if one arrives. It is in the browser bundle and every
-  translated string goes through it, so the migration is two majors across the
-  whole surface.
-- **`eslint` 8.57.1 is end of life**, and npm marks it deprecated too. ESLint
-  10 is not a version bump: flat config replaces `.eslintrc.cjs` and
-  `.eslintignore`, and `eslint-config-prettier` and `eslint-plugin-vue` each
-  need their own major alongside it.
+- **`vitepress` keeps the last advisory alive.** 1.6.4 is the current release
+  and it depends on `vite ^5.4.14` and `@vitejs/plugin-vue ^5.2.1`, so the
+  path-traversal and `server.fs.deny` reports follow it. Forcing a newer vite
+  underneath it would put two untested majors under a tool that drives vite's
+  own SSR API. 2.0.0 is at `alpha.20`. The reach is `npm run docs:dev` on a
+  contributor's machine; the published site is built output.
+- **The browser baseline is now a decision, not a default.** Vite 7 would have
+  raised it from Safari 14 to Safari 16 and Chrome 87 to Chrome 107 on its own.
+  `build.target` in `frontend/vite.config.js` holds the old one until somebody
+  decides who is still being served.
+- **`no-await-in-loop` is not enabled.** The 206 disable comments that referred
+  to it were removed with the rest of the dead ones. Turning it on for real
+  would mean 168 new exceptions for sequential work that is deliberate.
 
 ### Packages that have stopped moving
 
 Measured as last publish to npm and last push to the repository. None is
-archived, none has had a release in years.
+archived, none has had a release in years. Every one of them is now at its own
+newest version, so this list is about maintenance, not about being behind.
 
-- **`exifr` 7.1.3** — published May 2022, repository last pushed March 2024.
-  This is the one that matters. It is in the image, and `routes/metadata.js`
-  hands it whatever file was asked for, which is the definition of untrusted
-  input. A replacement is already in the tree — `exiftool-vendored`, published
-  this month — but it costs a Perl runtime, and dropping Perl is exactly what
-  `INCLUDE_RAW=false` exists for. The swap is not free, which is why it is
-  here and not done.
 - **`vuedraggable` 4.1.0** — the Vue 3 line, whose repository last moved in
   September 2023. `npm outdated` gives its "latest" as **2.24.3**, because the
   tag still points at the Vue 2 build: being told to go backwards is the
@@ -533,8 +520,11 @@ archived, none has had a release in years.
 - **`@coleqiu/vue-drag-select` 2.0.6-beta.1** — a scoped fork published January
   2024, with no `repository` field in its manifest and a beta as its newest
   version. It is the rubber-band selection in the folder view.
-- **`@vicons/*` 0.12.0** — icon sets, last published December 2024. Build-time
-  and inert; listed so the next pass does not have to look them up again.
+- **`@vicons/*` 0.13.0** — icon sets, last published December 2024. Build-time
+  and inert.
+
+None of the four reads anything a stranger supplies, which is what separated
+`exifr` from them and got it replaced first.
 
 ### Smaller things found on the way
 
@@ -544,10 +534,6 @@ archived, none has had a release in years.
 - **`prebuild-install` 7.1.3 is marked "No longer maintained"** upstream. It
   arrives with `better-sqlite3` and `node-pty`, so nothing at this level
   decides it.
-- **The frontend runs coverage with a provider it does not declare.**
-  `npm run test:coverage -w frontend` needs `@vitest/coverage-v8`, and only
-  `backend/package.json` asks for it; today it resolves through the shared
-  tree, and CI runs that script.
 - **`docs/package-lock.json` is a second lockfile inside a workspace.** npm
   installs from the root one and never reads it, so it can only drift.
 
@@ -558,9 +544,6 @@ archived, none has had a release in years.
   1,355 of 1,387 versions to remove, keeping the two latest releases. But a
   schedule runs the workflow from `main`, where the step still passes `--apply`
   only for a manual run with the box ticked.
-- **Four workflows use `actions/setup-node@v4`**, which GitHub now forces onto
-  Node 24 with a deprecation warning on every run: `ci.yml`, `docs.yml`,
-  `docker-publish.yml`, `cleanup-packages.yml`.
 - The repository is still marked as a fork of `nxzai/NextExplorer`; detaching it
   is a request to GitHub support.
 - `demo/content/` holds 28 KB across seven files, so the gallery and thumbnails —
