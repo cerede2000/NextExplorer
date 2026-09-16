@@ -161,3 +161,33 @@ describe('a refusal the catalogue has only a kind for', () => {
     expect(notifications[0].body).toBe('');
   });
 });
+
+/**
+ * Where a refusal belongs.
+ *
+ * A toast in the corner is right for something that failed behind the screen.
+ * A wrong password is not that: the screen that asked for it says so under the
+ * field, and a second copy in the corner is noise. The translation is wanted
+ * either way, which is why this is an option and not a separate path.
+ */
+describe('a refusal the screen will say itself', () => {
+  it('translates it and raises nothing', () => {
+    const { handle, notifications } = build();
+
+    const heading = handle(
+      { code: 'AUTH_INVALID_CREDENTIALS', message: 'Invalid credentials.' },
+      { quiet: true }
+    );
+
+    expect(heading).toBe('Invalid email or password');
+    expect(notifications).toHaveLength(0);
+  });
+
+  it('still raises one when nobody asked for quiet', () => {
+    const { handle, notifications } = build();
+
+    handle({ code: 'AUTH_INVALID_CREDENTIALS', message: 'Invalid credentials.' });
+
+    expect(notifications).toHaveLength(1);
+  });
+});

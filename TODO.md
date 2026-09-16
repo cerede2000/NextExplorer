@@ -549,17 +549,14 @@ None of the four reads anything a stranger supplies, which is what separated
 
 ## What the two-factor work found on the way
 
-- **A 401 on the sign-in screen loses its translation.** The session-expiry
-  handler answers every 401 while an auth screen is showing — that is what
-  stops a row of toasts when a session ends mid-navigation — and `http.js` then
-  throws an error of its own carrying the server's raw sentence. A wrong
-  password has read "Invalid credentials." on a French screen for as long as
-  that path has existed. The code the server sent is now kept on that error, so
-  a screen can recognise the refusal and say it in the reader's language, which
-  is what the sign-in screen does for a wrong second-factor code. The general
-  case is still open: every other 401 message on those screens is the server's
-  English. The fix is either to translate on that path too, or to stop calling
-  it an expired session when nothing had expired.
+- ~~**A 401 on the sign-in screen loses its translation.**~~ Done, the second
+  way: the handler no longer calls it an expiry when nothing expired. It
+  answers `'expired'` for a session that ended, `'quiet'` for a 401 on the
+  sign-in screen — an answer to what somebody typed — and `false` for anything
+  that is not its business. A quiet one keeps the translated message and the
+  code the server sent, and raises no toast, because the screen says it under
+  the field. A wrong password read "Invalid credentials." on a French screen
+  for as long as that path existed; it reads "Identifiants invalides" now.
 
 ## Open, not scheduled
 

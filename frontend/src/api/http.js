@@ -202,17 +202,17 @@ const requestRaw = async (endpoint, options = {}) => {
             : { message: error || `Request failed with status ${response.status}` }),
         };
 
-        // A 401 is not this request being wrong, it is the session being over —
-        // and every other request in flight is about to say the same thing. The
-        // handler answers once, by taking the person to the login screen.
-        if (response.status === 401 && sessionExpiredHandler?.(errorInfo)) {
+        // A 401 is usually not this request being wrong, it is the session being
+        // over — and every other request in flight is about to say the same
+        // thing, so the handler answers once by taking the person to the login
+        // screen. On that screen it is the other way round: a 401 is the answer
+        // to what somebody typed, and the handler says `quiet` rather than
+        // `expired` so the refusal keeps its own message and its own code.
+        const session = response.status === 401 ? sessionExpiredHandler?.(errorInfo) : false;
+        if (session === 'expired' || session === true) {
           const expired = new Error(errorInfo.message);
           expired.statusCode = 401;
           expired.sessionExpired = true;
-          // The code the server sent, kept on the way through. On the sign-in
-          // screen this path swallows every 401 — a wrong password, a wrong
-          // code — and without it the screen has nothing to recognise them by,
-          // so it shows the server's own sentence in the server's own language.
           if (errorInfo.code) expired.code = errorInfo.code;
           throw expired;
         }
@@ -222,7 +222,7 @@ const requestRaw = async (endpoint, options = {}) => {
         // toast. The status code is still attached so callers can react.
         const translatedMessage = options.suppressErrorHandler
           ? errorInfo.message
-          : errorHandler?.(errorInfo) || errorInfo.message;
+          : errorHandler?.(errorInfo, { quiet: session === 'quiet' }) || errorInfo.message;
         const requestError = new Error(translatedMessage);
         requestError.statusCode = response.status;
         if (errorInfo.code) requestError.code = errorInfo.code;
@@ -254,7 +254,12 @@ const requestRaw = async (endpoint, options = {}) => {
         // Before calling it a network failure, find out whether it was only the
         // session. The handler answers once for every request in flight, so
         // asking here costs one extra call and not one per failure.
-        if (sessionExpiredHandler && (await sessionHasEnded()) && sessionExpiredHandler()) {
+        // `quiet` is not an expiry: on the login screen a request that never
+        // arrived is a request that never arrived, and saying "session expired"
+        // to somebody who has not signed in yet explains nothing.
+        const answer =
+          sessionExpiredHandler && (await sessionHasEnded()) && sessionExpiredHandler();
+        if (answer === 'expired' || answer === true) {
           const expired = new Error('Session expired');
           expired.statusCode = 401;
           expired.sessionExpired = true;

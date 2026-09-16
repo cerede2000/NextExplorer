@@ -65,8 +65,8 @@ describe('a session that runs out mid-use', () => {
    * request would be answered 401 too — or, with an identity provider, with a
    * redirect a fetch cannot follow, which is where the CORS message came from.
    */
-  it('reports that it has taken the request in hand', () => {
-    expect(handler()()).toBe(true);
+  it('reports that it has taken the request in hand, as an expiry', () => {
+    expect(handler()()).toBe('expired');
   });
 });
 
@@ -91,16 +91,36 @@ describe('the burst of requests behind it', () => {
 
     onExpiry();
 
-    expect(onExpiry()).toBe(true);
-    expect(onExpiry()).toBe(true);
+    expect(onExpiry()).toBe('expired');
+    expect(onExpiry()).toBe('expired');
   });
 
-  it('does nothing more once the login screen is showing', () => {
+  /**
+   * On the login screen a 401 is the answer to what somebody typed, not a
+   * session ending: nowhere to send them, nothing to announce, and the refusal
+   * keeps its own message and code so the screen can say it under the field.
+   */
+  it('calls a 401 on the login screen quiet rather than expired', () => {
     router.currentRoute = routeAt('/auth/login', { authScreen: true });
     auth.isAuthenticated = false;
 
-    expect(handler()()).toBe(true);
+    expect(handler()()).toBe('quiet');
     expect(router.replace).not.toHaveBeenCalled();
+    expect(auth.forgetSession).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The ones that failed with the first: they are the same expiry, even after
+   * the redirect has put the login screen on screen, because the redirect is
+   * still under way.
+   */
+  it('keeps the burst together while the redirect is under way', () => {
+    const onExpiry = handler();
+    onExpiry();
+    expect(router.replace).toHaveBeenCalled();
+
+    router.currentRoute = routeAt('/auth/login', { authScreen: true });
+    expect(onExpiry()).toBe('expired');
   });
 });
 

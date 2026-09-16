@@ -11,7 +11,14 @@ export function createErrorHandler(notificationsStore, i18n) {
   // codes the server sends have no entry.
   const knows = (key) => i18n.global.te(key) || i18n.global.te(key, 'en');
 
-  return (errorInfo) => {
+  /**
+   * @param {object} errorInfo what the server refused with
+   * @param {object} [options]
+   * @param {boolean} [options.quiet] translate it, but raise no notification:
+   *   the screen that asked is about to say it itself, under the field it
+   *   belongs to, which is a better place for it than a toast in the corner.
+   */
+  return (errorInfo, { quiet = false } = {}) => {
     const { code, message, requestId, statusCode, details } = errorInfo;
 
     let heading = message || 'An error occurred';
@@ -40,13 +47,15 @@ export function createErrorHandler(notificationsStore, i18n) {
 
     const body = [explanation, details ? JSON.stringify(details) : null].filter(Boolean).join('\n');
 
-    notificationsStore.addNotification({
-      type: 'error',
-      heading,
-      body,
-      requestId,
-      statusCode,
-    });
+    if (!quiet) {
+      notificationsStore.addNotification({
+        type: 'error',
+        heading,
+        body,
+        requestId,
+        statusCode,
+      });
+    }
 
     // Return translated message for error thrown by http.js
     return heading;

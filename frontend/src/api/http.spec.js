@@ -255,7 +255,7 @@ describe('a 401 the session handler answers', () => {
   afterEach(() => setSessionExpiredHandler(null));
 
   it('keeps the code the server sent, so a screen can name the refusal', async () => {
-    setSessionExpiredHandler(() => true);
+    setSessionExpiredHandler(() => 'expired');
     fetchMock.mockResolvedValue(
       failed(401, { error: { message: 'That code is not right.', code: 'AUTH_INVALID_TOTP_CODE' } })
     );
@@ -265,6 +265,27 @@ describe('a 401 the session handler answers', () => {
     expect(error.sessionExpired).toBe(true);
     expect(error.code).toBe('AUTH_INVALID_TOTP_CODE');
     expect(error.statusCode).toBe(401);
+  });
+
+  /**
+   * The sign-in screen's own 401: an answer to what somebody typed. It is not
+   * an expiry, so it keeps the translated message and the code — and it raises
+   * no toast, because the screen says it under the field instead.
+   */
+  it('translates a quiet 401 and announces nothing', async () => {
+    const handler = vi.fn(() => 'Identifiants invalides');
+    setErrorHandler(handler);
+    setSessionExpiredHandler(() => 'quiet');
+    fetchMock.mockResolvedValue(
+      failed(401, { error: { message: 'Invalid credentials.', code: 'AUTH_INVALID_CREDENTIALS' } })
+    );
+
+    const { error } = await settle(requestRaw('/api/auth/login', { method: 'POST' }));
+
+    expect(error.sessionExpired).toBeUndefined();
+    expect(error.message).toBe('Identifiants invalides');
+    expect(error.code).toBe('AUTH_INVALID_CREDENTIALS');
+    expect(handler).toHaveBeenCalledWith(expect.anything(), { quiet: true });
   });
 
   it('leaves the ordinary path alone when nobody takes it in hand', async () => {
