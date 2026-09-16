@@ -166,11 +166,18 @@ box to one costing $290 a month.
 Ordered by what the absence costs someone comparing the three today, not by how
 hard each is.
 
-- **WebDAV.** The most structural gap: it turns a website into a network drive
-  — the Finder, the Explorer, a mobile app — and both others have it. The
-  per-path authorization layer already exists; the work is serving WebDAV
-  through it without going around it. High effort, and the security is where
-  the care goes.
+- **WebDAV: decided against, 16 September 2026.** Both others have it and it is
+  the one row where that shows, so the cross in the comparison is owned rather
+  than pending. NextExplorer is a file browser, not a server: something you
+  open and use, not something other software mounts. A protocol is a second
+  permanent way in, with its own way of proving who is asking, its own locks
+  and clients writing whenever they like, and every rule about who may read,
+  write or delete a path would have to hold on that side too — twice the
+  authorization surface for a filesystem the container already reaches. What
+  is mounted into the container is what this browses, the way a drive is a
+  volume in Windows Explorer: an NFS or SMB share mounted on the host is
+  already here, without this project speaking a protocol of its own. Reopen
+  only if someone brings a case that mounting on the host cannot answer.
 - **File versions against real office servers.** Versions are done on the
   trash's zone, journal and policy: capture on the four places the application
   overwrites a file, thinning, a shared budget, the Versions panel, share
