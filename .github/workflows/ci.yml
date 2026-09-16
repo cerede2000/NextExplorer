@@ -77,8 +77,8 @@ jobs:
       # rsync is what copies files and folders on Linux: FILE_TRANSFER_ENGINE is
       # native there, and the image ships it. A Mac has only openrsync, which the
       # service cannot use, so the native copy suites run here or nowhere.
-      - name: Install 7-Zip, ripgrep, poppler, ffmpeg and rsync
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils ffmpeg rsync
+      - name: Install 7-Zip, ripgrep, poppler, ffmpeg, rsync and genisoimage
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full ripgrep poppler-utils ffmpeg rsync genisoimage
 
       - name: Install dependencies
         run: npm ci
@@ -105,11 +105,14 @@ jobs:
       - name: Backend tests
         run: npm run test:coverage:backend
         env:
-          # ffmpeg and 7-Zip were installed above on purpose: the suites that
-          # need them must run, not skip because an apt change quietly dropped
-          # one. Reading an archive's table of contents is 7-Zip's answer, and
-          # a machine without it runs the stand-in and never the real thing.
-          REQUIRE_MEDIA_TOOLS: ffmpeg,7z
+          # ffmpeg, 7-Zip and an ISO builder were installed above on purpose:
+          # the suites that need them must run, not skip because an apt change
+          # quietly dropped one. Reading an archive's table of contents is
+          # 7-Zip's answer, and a machine without it runs the stand-in and never
+          # the real thing; the ISO builder is what lets the one format that is
+          # a filesystem rather than an archive be covered without a binary
+          # fixture in the repository.
+          REQUIRE_MEDIA_TOOLS: ffmpeg,7z,iso
           # The trash refuses a zone on another disk. That refusal is proven
           # against a real second device — /dev/shm beside the runner's disk —
           # which a Mac does not have, so locally the test skips; here a missing

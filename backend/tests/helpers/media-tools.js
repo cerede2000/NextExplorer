@@ -84,3 +84,44 @@ export const hasSevenZip = () =>
     await execFileAsync(process.env.SEVEN_ZIP_PATH || '7z', ['i']);
     return true;
   });
+
+/**
+ * Something that can build an ISO image, so the format can be covered without
+ * a binary fixture in the repository: `genisoimage` or `mkisofs` on Linux,
+ * `hdiutil` on a Mac. An ISO is worth covering because it is the one format in
+ * the offered list that is a filesystem rather than an archive, and 7-Zip is
+ * what makes it look like the others.
+ */
+export const isoBuilder = () =>
+  probe('iso', async () => {
+    for (const [command, args] of [
+      ['genisoimage', ['--version']],
+      ['mkisofs', ['-version']],
+      ['hdiutil', ['help']],
+    ]) {
+      try {
+        await execFileAsync(command, args);
+        return command;
+      } catch (_) {
+        // The next one, or none.
+      }
+    }
+    return false;
+  });
+
+/** Write `directory` as an ISO image at `file`, with whichever builder there is. */
+export const buildIso = async (builder, directory, file) => {
+  if (builder === 'hdiutil') {
+    await execFileAsync('hdiutil', [
+      'makehybrid',
+      '-iso',
+      '-joliet',
+      '-o',
+      file,
+      directory,
+      '-quiet',
+    ]);
+    return;
+  }
+  await execFileAsync(builder, ['-quiet', '-J', '-r', '-o', file, directory]);
+};

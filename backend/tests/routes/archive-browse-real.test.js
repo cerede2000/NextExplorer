@@ -7,7 +7,7 @@ import request from 'supertest';
 import { TarArchive, ZipArchive } from 'archiver';
 
 import { setupTestEnv } from '../helpers/env-test-utils.js';
-import { hasSevenZip } from '../helpers/media-tools.js';
+import { hasSevenZip, isoBuilder, buildIso } from '../helpers/media-tools.js';
 
 /**
  * The same browsing, against a real 7-Zip and a real archive.
@@ -23,6 +23,7 @@ import { hasSevenZip } from '../helpers/media-tools.js';
  */
 
 const sevenZip = await hasSevenZip();
+const iso = sevenZip ? await isoBuilder() : false;
 
 let currentEnv;
 
@@ -240,6 +241,86 @@ describe.skipIf(!sevenZip)('browsing a real archive with the real 7-Zip', () => 
     const cached = await fs.readdir(path.join(currentEnv.cacheDir, 'archives'));
     expect(cached.filter((name) => name.endsWith('.inner'))).toHaveLength(1);
     expect(await fs.readdir(volume)).toEqual(['backup.tar.gz']);
+  });
+
+  /**
+   * The formats that are not zip.
+   *
+   * Everything offered here goes through the same two commands, so what this
+   * checks is that assumption rather than each format's own business: a .7z
+   * made solid, where reading one entry means decompressing the ones before
+   * it; a plain .tar, which is a filesystem laid end to end; and an ISO, which
+   * is a filesystem full stop and only looks like an archive because 7-Zip
+   * makes it.
+   */
+  it.each([
+    ['a solid .7z', 'backup.7z'],
+    ['a plain .tar', 'backup.tar'],
+  ])('reads %s the same way', async (_name, filename) => {
+    const volume = await seed();
+    const source = path.join(currentEnv.tmpRoot, 'source');
+    await fs.mkdir(path.join(source, 'docs'), { recursive: true });
+    await fs.writeFile(path.join(source, 'notes.txt'), 'twelve bytes');
+    await fs.writeFile(path.join(source, 'docs', 'report.txt'), 'a report');
+
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const run = promisify(execFile);
+    const archivePath = path.join(volume, filename);
+    // Solid is 7-Zip's default for .7z, which is the case worth covering: the
+    // entries share one compressed stream.
+    await run('7z', ['a', '-y', archivePath, '.'], { cwd: source });
+
+    const app = buildApp();
+    const top = await request(app).get('/api/archive/list').query({ path: filename });
+
+    expect(top.status).toBe(200);
+    expect(top.body.entries.map((entry) => entry.name)).toEqual(['docs', 'notes.txt']);
+
+    const entry = await request(app)
+      .get('/api/archive/entry')
+      .query({ path: filename, entry: 'docs/report.txt' })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(entry.body.toString()).toBe('a report');
+  });
+
+  it.skipIf(!iso)('reads an ISO, which is a filesystem rather than an archive', async () => {
+    const volume = await seed();
+    const source = path.join(currentEnv.tmpRoot, 'source');
+    await fs.mkdir(path.join(source, 'docs'), { recursive: true });
+    await fs.writeFile(path.join(source, 'notes.txt'), 'twelve bytes');
+    await fs.writeFile(path.join(source, 'docs', 'report.txt'), 'a report');
+    await buildIso(iso, source, path.join(volume, 'disc.iso'));
+
+    const app = buildApp();
+    const top = await request(app).get('/api/archive/list').query({ path: 'disc.iso' });
+
+    expect(top.status).toBe(200);
+    expect(top.body.entries.map((entry) => entry.name)).toEqual(['docs', 'notes.txt']);
+
+    const inside = await request(app)
+      .get('/api/archive/list')
+      .query({ path: 'disc.iso', inside: 'docs' });
+
+    expect(inside.body.entries.map((entry) => entry.name)).toEqual(['report.txt']);
+
+    const entry = await request(app)
+      .get('/api/archive/entry')
+      .query({ path: 'disc.iso', entry: 'docs/report.txt' })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(entry.body.toString()).toBe('a report');
   });
 
   it('refuses a file that is not an archive, whatever it is called', async () => {
