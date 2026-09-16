@@ -38,9 +38,7 @@ describe('a session that runs out mid-use', () => {
   it('takes the person to the login screen', async () => {
     handler()();
 
-    expect(router.replace).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'auth-login' })
-    );
+    expect(router.replace).toHaveBeenCalledWith(expect.objectContaining({ name: 'auth-login' }));
   });
 
   it('says why the login screen is showing', async () => {

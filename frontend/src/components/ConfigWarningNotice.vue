@@ -47,7 +47,12 @@ onKeyStroke('Escape', dismiss);
 <template>
   <Teleport to="body">
     <TransitionRoot appear :show="true" as="template">
-      <div class="relative z-[90]" role="dialog" aria-modal="true" aria-labelledby="config-warning-title">
+      <div
+        class="relative z-[90]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="config-warning-title"
+      >
         <TransitionChild
           as="template"
           enter="ease-out duration-200"
@@ -57,7 +62,10 @@ onKeyStroke('Escape', dismiss);
           leave-from="opacity-100"
           leave-to="opacity-0"
         >
-          <div class="fixed inset-0 bg-black/30 backdrop-blur-xs dark:bg-black/50" @click="dismiss" />
+          <div
+            class="fixed inset-0 bg-black/30 backdrop-blur-xs dark:bg-black/50"
+            @click="dismiss"
+          />
         </TransitionChild>
 
         <div class="fixed inset-0 overflow-y-auto px-4 py-6 sm:px-6 sm:py-10">
@@ -94,9 +102,12 @@ onKeyStroke('Escape', dismiss);
                       >
                         `PUBLIC_URL` does not match this domain
                       </h2>
-                      <p class="mt-2 max-w-xl text-sm leading-6 text-neutral-600 dark:text-neutral-300">
-                        You can keep using the app, but sign-in, cookies, sharing links, and callback-based
-                        flows may be unreliable until the public URL matches the domain you opened.
+                      <p
+                        class="mt-2 max-w-xl text-sm leading-6 text-neutral-600 dark:text-neutral-300"
+                      >
+                        You can keep using the app, but sign-in, cookies, sharing links, and
+                        callback-based flows may be unreliable until the public URL matches the
+                        domain you opened.
                       </p>
                     </div>
 
@@ -116,10 +127,14 @@ onKeyStroke('Escape', dismiss);
                     <div
                       class="rounded-xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-white/10 dark:bg-white/[0.03]"
                     >
-                      <div class="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
+                      <div
+                        class="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400"
+                      >
                         Opened from
                       </div>
-                      <div class="mt-2 font-mono text-[13px] break-all text-neutral-900 dark:text-neutral-100">
+                      <div
+                        class="mt-2 font-mono text-[13px] break-all text-neutral-900 dark:text-neutral-100"
+                      >
                         {{ props.requestOrigin }}
                       </div>
                     </div>
@@ -127,10 +142,14 @@ onKeyStroke('Escape', dismiss);
                     <div
                       class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-400/20 dark:bg-amber-500/10"
                     >
-                      <div class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">
+                      <div
+                        class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300"
+                      >
                         Server expects
                       </div>
-                      <div class="mt-2 font-mono text-[13px] break-all text-amber-950 dark:text-amber-100">
+                      <div
+                        class="mt-2 font-mono text-[13px] break-all text-amber-950 dark:text-amber-100"
+                      >
                         {{ props.expectedOrigin }}
                       </div>
                     </div>
@@ -142,7 +161,9 @@ onKeyStroke('Escape', dismiss);
                     <div class="font-medium text-neutral-900 dark:text-neutral-100">Admin fix</div>
                     <p class="mt-1 leading-6">
                       If this domain is intended, update
-                      <span class="font-mono text-[13px]">PUBLIC_URL={{ props.requestOrigin }}</span>
+                      <span class="font-mono text-[13px]"
+                        >PUBLIC_URL={{ props.requestOrigin }}</span
+                      >
                       on the server and restart the app.
                     </p>
                   </div>

@@ -35,7 +35,11 @@ const OIDC_ENV = {
 let envContext;
 
 const build = async (env = {}) => {
-  envContext = await setupTestEnv({ tag: 'request-user-', env: { ...OIDC_ENV, ...env }, modules: MODULES });
+  envContext = await setupTestEnv({
+    tag: 'request-user-',
+    env: { ...OIDC_ENV, ...env },
+    modules: MODULES,
+  });
   const { getRequestUser } = envContext.requireFresh('src/services/users/requestUser');
   const db = await envContext.requireFresh('src/services/db').getDb();
   return { getRequestUser, db };
@@ -127,7 +131,11 @@ describe('an OIDC session for an account that exists', () => {
 
     const user = await getRequestUser(oidcRequest({ sub: 'sub-1' }));
 
-    expect(user).toMatchObject({ id: 'user-1', provider: 'oidc', oidcIssuer: 'https://idp.example' });
+    expect(user).toMatchObject({
+      id: 'user-1',
+      provider: 'oidc',
+      oidcIssuer: 'https://idp.example',
+    });
   });
 
   it('takes the picture from the claims when the account has none', async () => {

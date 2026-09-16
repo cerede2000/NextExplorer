@@ -61,11 +61,9 @@ const setup = async () => {
 
   /** The one that actually names a file, and is what authorises the fetch. */
   const backendToken = (claims = {}, secret = onlyoffice.secret) =>
-    jwt.sign(
-      { typ: 'nextexplorer-backend', absolutePath: ordinaryFile, ...claims },
-      secret,
-      { algorithm: 'HS256' }
-    );
+    jwt.sign({ typ: 'nextexplorer-backend', absolutePath: ordinaryFile, ...claims }, secret, {
+      algorithm: 'HS256',
+    });
 
   return { app, secretFile, ordinaryFile, dsToken, backendToken };
 };
@@ -82,7 +80,11 @@ const collectBody = (res, callback) => {
 };
 
 const fetchFile = (app, { query = {}, token } = {}) => {
-  const call = request(app).get('/api/onlyoffice/file').query(query).buffer(true).parse(collectBody);
+  const call = request(app)
+    .get('/api/onlyoffice/file')
+    .query(query)
+    .buffer(true)
+    .parse(collectBody);
   if (token) call.set('Authorization', `Bearer ${token}`);
   return call;
 };

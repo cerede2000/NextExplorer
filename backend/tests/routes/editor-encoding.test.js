@@ -201,7 +201,9 @@ describe('saving a text file that is not UTF-8', () => {
     const baseUrl = await startServer(server);
 
     try {
-      await request(baseUrl).put('/api/editor').send({ path: 'Nvm/notes.md', content: '# Autres\n' });
+      await request(baseUrl)
+        .put('/api/editor')
+        .send({ path: 'Nvm/notes.md', content: '# Autres\n' });
 
       expect(await fs.readFile(target)).toEqual(Buffer.from('# Autres\n', 'utf8'));
     } finally {
@@ -214,7 +216,9 @@ describe('saving a text file that is not UTF-8', () => {
     const baseUrl = await startServer(server);
 
     try {
-      await request(baseUrl).put('/api/editor').send({ path: 'Nvm/nouveau.md', content: 'Bonjour' });
+      await request(baseUrl)
+        .put('/api/editor')
+        .send({ path: 'Nvm/nouveau.md', content: 'Bonjour' });
 
       expect(await fs.readFile(path.join(destination, 'nouveau.md'))).toEqual(
         Buffer.from('Bonjour', 'utf8')

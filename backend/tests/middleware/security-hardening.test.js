@@ -62,7 +62,9 @@ describe('Client error messages', () => {
         // Shape of a real fs failure bubbling up from a nested service.
         next(
           Object.assign(
-            new Error(`ENOENT: no such file or directory, stat '${env.volumeDir}/secret/report.pdf'`),
+            new Error(
+              `ENOENT: no such file or directory, stat '${env.volumeDir}/secret/report.pdf'`
+            ),
             { statusCode: 404, isOperational: true }
           )
         );

@@ -60,9 +60,8 @@ const prep = (db, sql) => {
 
 /** What the index believes about a path, or null. */
 const getIndexedDocument = (db, path) =>
-  prep(db, 'SELECT id, mtime_ms AS mtimeMs, size FROM search_documents WHERE path = ?').get(
-    path
-  ) || null;
+  prep(db, 'SELECT id, mtime_ms AS mtimeMs, size FROM search_documents WHERE path = ?').get(path) ||
+  null;
 
 /** Whether the file on disk is the one already indexed. */
 const isUpToDate = (indexed, { mtimeMs, size }) =>
@@ -95,10 +94,7 @@ const upsertDocument = (db, { path, mtimeMs, size, text }) => {
     db,
     'INSERT INTO search_documents (path, dir, mtime_ms, size, indexed_at) VALUES (?, ?, ?, ?, ?)'
   ).run(path, parentOf(path), Math.floor(mtimeMs), size, now);
-  prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(
-    result.lastInsertRowid,
-    text
-  );
+  prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(result.lastInsertRowid, text);
   return result.lastInsertRowid;
 };
 
@@ -152,10 +148,11 @@ const movePath = (db, fromPath, toPath) => {
     like
   );
 
-  const movedSelf = prep(
-    db,
-    'UPDATE search_documents SET path = ?, dir = ? WHERE path = ?'
-  ).run(toPath, parentOf(toPath), fromPath);
+  const movedSelf = prep(db, 'UPDATE search_documents SET path = ?, dir = ? WHERE path = ?').run(
+    toPath,
+    parentOf(toPath),
+    fromPath
+  );
 
   return moved.changes + movedSelf.changes;
 };
@@ -196,9 +193,7 @@ const search = (db, term, limit = 100) => {
  * directory to the last, on a container whose whole working set is sixty.
  */
 const listDirectoryPaths = (db, dir) =>
-  prep(db, 'SELECT path FROM search_documents WHERE dir = ?')
-    .pluck()
-    .all(dir);
+  prep(db, 'SELECT path FROM search_documents WHERE dir = ?').pluck().all(dir);
 
 /** Every folder the index has something in. Streamed, never materialised. */
 const iterateIndexedDirectories = (db) =>

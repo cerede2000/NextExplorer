@@ -43,7 +43,11 @@ afterEach(() => {
 
 describe('adding one', () => {
   it('keeps what was given and fills in the rest', () => {
-    const id = store.addNotification({ type: 'error', heading: 'Upload failed', body: 'Timed out' });
+    const id = store.addNotification({
+      type: 'error',
+      heading: 'Upload failed',
+      body: 'Timed out',
+    });
 
     const entry = store.notifications.find((n) => n.id === id);
     expect(entry).toMatchObject({
@@ -85,9 +89,7 @@ describe('adding one', () => {
   });
 
   it('hands back an id that is not the same twice', () => {
-    const ids = new Set(
-      Array.from({ length: 50 }, () => store.addNotification({ heading: 'x' }))
-    );
+    const ids = new Set(Array.from({ length: 50 }, () => store.addNotification({ heading: 'x' })));
 
     expect(ids.size).toBe(50);
   });
@@ -228,7 +230,11 @@ describe('copying an error out', () => {
     const writeText = vi.fn().mockResolvedValue();
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     vi.stubGlobal('window', { ...globalThis.window, isSecureContext: true });
-    const id = store.addNotification({ type: 'error', heading: 'Upload failed', body: 'Timed out' });
+    const id = store.addNotification({
+      type: 'error',
+      heading: 'Upload failed',
+      body: 'Timed out',
+    });
 
     const copied = await store.copyNotification(id);
 

@@ -78,8 +78,4 @@ const isPreviewableAudio = (extension = '') => {
   return audioPreviewExtensionsSet.has(extension.toLowerCase());
 };
 
-export {
-  isPreviewableImage,
-  isPreviewableVideo,
-  isPreviewableAudio,
-};
+export { isPreviewableImage, isPreviewableVideo, isPreviewableAudio };

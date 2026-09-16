@@ -108,9 +108,7 @@ describe('Protected share, signed-in visitor', () => {
     expect(verify.status).toBe(200);
     // A browser applies the deletion and sends back only what is left; supertest
     // would replay the emptied cookie as-is.
-    const cookies = verify.headers['set-cookie'].filter(
-      (value) => !/^guestSession=;/.test(value)
-    );
+    const cookies = verify.headers['set-cookie'].filter((value) => !/^guestSession=;/.test(value));
 
     // ...and the very next request has to be accepted. It used to 401 forever.
     const after = await request(app)
@@ -130,9 +128,9 @@ describe('Protected share, signed-in visitor', () => {
     expect(cookies.some((value) => /^guestSession=;/.test(value) && /Path=\/api/.test(value))).toBe(
       true
     );
-    expect(cookies.some((value) => /^guestSession=[^;]+/.test(value) && /Path=\//.test(value))).toBe(
-      true
-    );
+    expect(
+      cookies.some((value) => /^guestSession=[^;]+/.test(value) && /Path=\//.test(value))
+    ).toBe(true);
   });
 
   it('lets the owner in without the password', async () => {

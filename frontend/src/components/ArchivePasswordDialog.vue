@@ -40,7 +40,10 @@ const submit = () => emit('submit', password.value);
       <p class="mb-5 text-base text-zinc-700 dark:text-zinc-200">
         {{ t('archive.password.description') }}
       </p>
-      <label class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-200" for="archive-password">
+      <label
+        class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-200"
+        for="archive-password"
+      >
         {{ t('archive.password.label') }}
       </label>
       <input

@@ -21,7 +21,10 @@ import { setupTestEnv } from '../helpers/env-test-utils.js';
 let currentEnv;
 
 const load = async () => {
-  currentEnv = await setupTestEnv({ tag: 'terminal-gate-', modules: ['src/services/terminalService'] });
+  currentEnv = await setupTestEnv({
+    tag: 'terminal-gate-',
+    modules: ['src/services/terminalService'],
+  });
   return currentEnv.requireFresh('src/services/terminalService');
 };
 

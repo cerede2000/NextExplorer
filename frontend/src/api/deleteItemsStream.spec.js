@@ -46,8 +46,6 @@ const respondWithProgress = () =>
     return { success: true, items: items.map((i) => i.name) };
   });
 
-
-
 // Counters are reset between tests, and the implementation is reinstalled with
 // them: clearing a mock also drops what it was told to do.
 beforeEach(() => {
@@ -57,7 +55,6 @@ beforeEach(() => {
 
 describe('Streamed deletion', () => {
   it('sends a small selection as one request', async () => {
-
     await deleteItemsStream(selection(120));
 
     expect(requestStream).toHaveBeenCalledTimes(1);

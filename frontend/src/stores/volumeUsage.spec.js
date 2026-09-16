@@ -210,7 +210,13 @@ describe('the figures it derives', () => {
   });
 
   it('prefers the percentage the server did send', async () => {
-    getUsage.mockResolvedValue({ path: 'Media', total: 400, used: 100, free: 300, percentUsed: 90 });
+    getUsage.mockResolvedValue({
+      path: 'Media',
+      total: 400,
+      used: 100,
+      free: 300,
+      percentUsed: 90,
+    });
     const store = useVolumeUsageStore();
 
     await store.loadVolumes();

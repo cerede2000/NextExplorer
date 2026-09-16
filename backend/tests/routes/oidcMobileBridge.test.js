@@ -188,9 +188,9 @@ describe('OIDC mobile bridge routes', () => {
         .post('/api/auth/oidc/exchange')
         .send({ code, code_verifier: verifier });
 
-      const cleared = [].concat(response.headers['set-cookie'] || []).filter((c) =>
-        c.startsWith('guestSession=')
-      );
+      const cleared = []
+        .concat(response.headers['set-cookie'] || [])
+        .filter((c) => c.startsWith('guestSession='));
       expect(cleared.some((c) => /Path=\/(;|$)/.test(c))).toBe(true);
       expect(cleared.some((c) => /Path=\/api/.test(c))).toBe(true);
     });

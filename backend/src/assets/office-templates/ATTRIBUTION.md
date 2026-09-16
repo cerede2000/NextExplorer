@@ -6,7 +6,7 @@ is created from. They are copied verbatim from
 (`new/default/`), which is licensed under Apache-2.0.
 
 They are kept as files rather than generated because a minimal OOXML package
-written by hand is only *nearly* valid: editors accept some of them and quietly
+written by hand is only _nearly_ valid: editors accept some of them and quietly
 repair or reject others, and the failure shows up as an unopenable document
 rather than as a build error.
 

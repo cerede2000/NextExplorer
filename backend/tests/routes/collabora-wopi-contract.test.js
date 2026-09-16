@@ -74,7 +74,12 @@ const setup = async () => {
       'exp' in claims ? { algorithm: 'HS256' } : { algorithm: 'HS256', expiresIn: 60 }
     );
 
-  return { app: buildApp(routes, errorMiddleware), secret: collabora.secret, absolutePath, tokenFor };
+  return {
+    app: buildApp(routes, errorMiddleware),
+    secret: collabora.secret,
+    absolutePath,
+    tokenFor,
+  };
 };
 
 const info = (app, token, fileId = 'file-1') =>

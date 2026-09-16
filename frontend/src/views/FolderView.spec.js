@@ -200,33 +200,27 @@ beforeEach(() => {
   composables.openBackgroundMenu.mockClear();
   composables.isEditableElement.mockReturnValue(false);
 
-  Object.assign(
-    stores.settings,
-    ({
-      view: 'list',
-      sortBy: { by: 'name', order: 'asc' },
-      setSort: vi.fn((by, order) => {
-        stores.settings.sortBy = { by, order };
-      }),
-      listViewColumnWidths: [0, 200, 100, 100, 160],
-      setListViewColumnWidth: vi.fn(),
-    })
-  );
+  Object.assign(stores.settings, {
+    view: 'list',
+    sortBy: { by: 'name', order: 'asc' },
+    setSort: vi.fn((by, order) => {
+      stores.settings.sortBy = { by, order };
+    }),
+    listViewColumnWidths: [0, 200, 100, 100, 160],
+    setListViewColumnWidth: vi.fn(),
+  });
 
-  Object.assign(
-    stores.file,
-    ({
-      currentPath: 'Docs',
-      currentPathData: null,
-      renameState: null,
-      items: [],
-      selectedItems: [],
-      fetchPathItems: vi.fn(async () => {}),
-      prefetchItemThumbnail: vi.fn(async () => true),
-      setKeyboardActionItem: vi.fn(),
-      clearKeyboardActionItem: vi.fn(),
-    })
-  );
+  Object.assign(stores.file, {
+    currentPath: 'Docs',
+    currentPathData: null,
+    renameState: null,
+    items: [],
+    selectedItems: [],
+    fetchPathItems: vi.fn(async () => {}),
+    prefetchItemThumbnail: vi.fn(async () => true),
+    setKeyboardActionItem: vi.fn(),
+    clearKeyboardActionItem: vi.fn(),
+  });
 
   // Real getters, so the view sees the listing change the way the store makes
   // it change. Object.assign would have copied one evaluation and frozen it.
@@ -236,8 +230,7 @@ beforeEach(() => {
   });
   Object.defineProperty(stores.file, 'selectedItemKeys', {
     configurable: true,
-    get: () =>
-      new Set(stores.file.selectedItems.map((item) => `${item.path || ''}::${item.name}`)),
+    get: () => new Set(stores.file.selectedItems.map((item) => `${item.path || ''}::${item.name}`)),
   });
 
   Object.assign(stores.folderSize, {
@@ -412,7 +405,10 @@ describe('what an empty folder says', () => {
   it('says nothing while it is still loading', async () => {
     stores.file.fetchPathItems.mockImplementationOnce(() => new Promise(() => {}));
     wrapper = mount(FolderView, {
-      global: { plugins: [i18n], stubs: { FileObject: { template: '<div />' }, LoadingIcon: true } },
+      global: {
+        plugins: [i18n],
+        stubs: { FileObject: { template: '<div />' }, LoadingIcon: true },
+      },
     });
 
     expect(wrapper.vm.showEmptyFolderMessage).toBe(false);
@@ -442,7 +438,10 @@ describe('what an empty folder says', () => {
     stores.file.items = [file('notes.txt')];
     stores.file.fetchPathItems.mockImplementationOnce(() => new Promise(() => {}));
     wrapper = mount(FolderView, {
-      global: { plugins: [i18n], stubs: { FileObject: { template: '<div />' }, LoadingIcon: true } },
+      global: {
+        plugins: [i18n],
+        stubs: { FileObject: { template: '<div />' }, LoadingIcon: true },
+      },
     });
 
     expect(wrapper.vm.showNoPhotosMessage).toBe(false);

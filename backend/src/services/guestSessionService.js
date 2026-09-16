@@ -1,8 +1,6 @@
 const { getDb } = require('./db');
 const { generateId, nowIso } = require('../utils/ids');
 
-
-
 // Default session duration: 24 hours
 const DEFAULT_SESSION_HOURS = 24;
 

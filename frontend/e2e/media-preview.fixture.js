@@ -20,7 +20,6 @@ import en from '../src/i18n/locales/en.json';
  */
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 
-
 const media = [
   { name: 'first.jpg', kind: 'jpg', path: 'Test' },
   { name: 'clip.mp4', kind: 'mp4', path: 'Test' },
@@ -28,11 +27,9 @@ const media = [
 ];
 
 const previewUrls = {
-  'first.jpg':
-    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+  'first.jpg': 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
   'clip.mp4': 'data:video/mp4;base64,',
-  'last.png':
-    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+  'last.png': 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
 };
 
 const item = media[0];
@@ -48,4 +45,6 @@ createApp(MediaPreview, {
     getPreviewUrl: (target) => previewUrls[target.name],
     getSiblings: () => media,
   },
-}).use(i18n).mount('#app');
+})
+  .use(i18n)
+  .mount('#app');

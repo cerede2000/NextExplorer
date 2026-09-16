@@ -27,9 +27,7 @@ setErrorHandler(createErrorHandler(notificationsStore, i18n));
 // A session that ends mid-use takes the person back to the login screen. The
 // navigation guard covers a visitor who arrives without one; this covers the
 // one who was already inside when it ran out.
-setSessionExpiredHandler(
-  createSessionExpiryHandler({ router, auth: useAuthStore(pinia) })
-);
+setSessionExpiredHandler(createSessionExpiryHandler({ router, auth: useAuthStore(pinia) }));
 
 const featuresStore = useFeaturesStore(pinia);
 featuresStore.initialize().catch((err) => {

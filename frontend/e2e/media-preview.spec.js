@@ -38,7 +38,9 @@ const dispatchTouchSwipe = async (page, locator, deltaX, deltaY) => {
   }
 };
 
-test('swipes through mixed media without treating vertical gestures as navigation', async ({ page }) => {
+test('swipes through mixed media without treating vertical gestures as navigation', async ({
+  page,
+}) => {
   await page.goto('/e2e/media-preview.html');
 
   const preview = page.locator('[data-test="media-preview"]');

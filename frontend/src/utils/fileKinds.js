@@ -213,4 +213,4 @@ function getKindLabel(item) {
 export {
   getKindLabel,
   // export tables for potential reuse/testing
-  };
+};

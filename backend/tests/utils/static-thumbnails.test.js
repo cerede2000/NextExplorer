@@ -104,16 +104,16 @@ describe('Thumbnail access', () => {
     const app = buildApp(env);
 
     const expired = createThumbnailToken('v3-abc.webp', Date.now() - TTL_MS - 1000);
-    expect((await request(app).get('/static/thumbnails/v3-abc.webp').query({ t: expired })).status).toBe(
-      401
-    );
+    expect(
+      (await request(app).get('/static/thumbnails/v3-abc.webp').query({ t: expired })).status
+    ).toBe(401);
 
     // Pushing the expiry out by hand invalidates the signature.
     const valid = createThumbnailToken('v3-abc.webp');
     const forged = `${Date.now() + 10 * 60 * 1000}.${valid.split('.')[1]}`;
-    expect((await request(app).get('/static/thumbnails/v3-abc.webp').query({ t: forged })).status).toBe(
-      401
-    );
+    expect(
+      (await request(app).get('/static/thumbnails/v3-abc.webp').query({ t: forged })).status
+    ).toBe(401);
   });
 
   it('does not let a token unlock a nested path with the same basename', async () => {

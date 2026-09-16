@@ -82,7 +82,6 @@ const refreshFolder = async () => {
   }
 };
 
-
 const toggleSelectionMode = () => {
   fileStore.toggleSelectionMode({ clearOnDisable: true });
 };

@@ -59,9 +59,9 @@ describe('Volume listing', () => {
     expect(guest.status).toBe(200);
     expect(guest.body).toEqual([]);
 
-    const anonymous = await request(
-      buildApp({ routes: volumesRoutes, mountPath: '/api' })
-    ).get('/api/volumes');
+    const anonymous = await request(buildApp({ routes: volumesRoutes, mountPath: '/api' })).get(
+      '/api/volumes'
+    );
     expect(anonymous.body).toEqual([]);
 
     // A real user still sees the volumes.

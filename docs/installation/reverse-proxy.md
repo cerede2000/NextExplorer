@@ -37,8 +37,8 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 
 ## Troubleshooting proxies
 
-| Symptom                      | Fix                                                                                            |
-| ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| CORS errors                  | Add the proxy domain to `CORS_ORIGINS` or set `PUBLIC_URL`.                                    |
-| Sessions drop                | Confirm `TRUST_PROXY` lets Express read `X-Forwarded-Proto` and `COOKIE` is not stripped.      |
+| Symptom                      | Fix                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| CORS errors                  | Add the proxy domain to `CORS_ORIGINS` or set `PUBLIC_URL`.                                      |
+| Sessions drop                | Confirm `TRUST_PROXY` lets Express read `X-Forwarded-Proto` and `COOKIE` is not stripped.        |
 | Redirect URI mismatch (OIDC) | Register `${PUBLIC_URL}/callback` and each configured internal `<origin>/callback` with the IdP. |

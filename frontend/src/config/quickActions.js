@@ -19,17 +19,54 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const QUICK_ACTIONS = [
-  { id: 'info', labelKey: 'context.getInfo', icon: InformationCircleIcon, item: true, folder: true },
-  { id: 'download', labelKey: 'actions.download', icon: ArrowDownTrayIcon, item: true, folder: false },
-  { id: 'copyName', labelKey: 'actions.copyName', icon: DocumentDuplicateIcon, item: true, folder: true },
-  { id: 'copyPath', labelKey: 'actions.copyPath', icon: ClipboardDocumentIcon, item: true, folder: true },
+  {
+    id: 'info',
+    labelKey: 'context.getInfo',
+    icon: InformationCircleIcon,
+    item: true,
+    folder: true,
+  },
+  {
+    id: 'download',
+    labelKey: 'actions.download',
+    icon: ArrowDownTrayIcon,
+    item: true,
+    folder: false,
+  },
+  {
+    id: 'copyName',
+    labelKey: 'actions.copyName',
+    icon: DocumentDuplicateIcon,
+    item: true,
+    folder: true,
+  },
+  {
+    id: 'copyPath',
+    labelKey: 'actions.copyPath',
+    icon: ClipboardDocumentIcon,
+    item: true,
+    folder: true,
+  },
   { id: 'copy', labelKey: 'actions.copy', icon: Square2StackIcon, item: true, folder: false },
   { id: 'cut', labelKey: 'actions.cut', icon: ScissorsIcon, item: true, folder: false },
   { id: 'rename', labelKey: 'actions.rename', icon: PencilSquareIcon, item: true, folder: false },
   { id: 'share', labelKey: 'actions.share', icon: ShareIcon, item: true, folder: false },
-  { id: 'compress', labelKey: 'actions.compressToZip', icon: ArchiveBoxArrowDownIcon, item: true, folder: false },
+  {
+    id: 'compress',
+    labelKey: 'actions.compressToZip',
+    icon: ArchiveBoxArrowDownIcon,
+    item: true,
+    folder: false,
+  },
   { id: 'favorite', labelKey: 'context.addToFavorites', icon: StarIcon, item: true, folder: true },
-  { id: 'delete', labelKey: 'common.delete', icon: TrashIcon, item: true, folder: false, danger: true },
+  {
+    id: 'delete',
+    labelKey: 'common.delete',
+    icon: TrashIcon,
+    item: true,
+    folder: false,
+    danger: true,
+  },
 ];
 
 export const QUICK_ACTION_IDS = QUICK_ACTIONS.map((action) => action.id);

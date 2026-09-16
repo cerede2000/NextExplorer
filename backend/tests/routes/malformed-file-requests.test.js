@@ -198,9 +198,7 @@ describe('a path the caller may not use', () => {
       .delete('/api/files')
       .send({ items: [{ path: 'Locked', name: 'note.txt' }] });
 
-    await expect(
-      fs.access(path.join(volume, 'Locked', 'note.txt'))
-    ).resolves.toBeUndefined();
+    await expect(fs.access(path.join(volume, 'Locked', 'note.txt'))).resolves.toBeUndefined();
   });
 
   it('says why rather than only that it failed', async () => {

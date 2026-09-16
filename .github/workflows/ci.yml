@@ -89,6 +89,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Prettier was configured, and a format script existed, and nothing ran
+      # either: 63 files had drifted out of the style the repository declares.
+      # Formatted once and held here, so the next diff is about what changed
+      # rather than about where the line breaks went.
+      - name: Formatting
+        run: npm run format:check
+
       # Run under coverage rather than beside it: it is the same suite with
       # instrumentation, so it costs one extra pass of nothing, and it produces
       # a number. Without this there was no coverage figure anywhere — and for

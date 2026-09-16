@@ -62,13 +62,7 @@ const listHeaderRef = ref(null);
 useUppyDropTarget(dropTargetRef);
 
 const { isTouchDevice } = useInputMode();
-const {
-  handleDragOver,
-  handleDragLeave,
-  handleDrop,
-  isDragTarget,
-  isCopyDragTarget,
-} =
+const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTarget } =
   useFileDragDrop();
 
 const currentFolderDropTarget = computed(() => ({
@@ -206,9 +200,7 @@ const revealPendingItem = async () => {
     // key already draws the ring that marks it — so the row can be found, and
     // it is visibly the one that was asked for once it is on screen.
     const item = sortedItems.value[index];
-    const row = target.querySelector(
-      `[data-keyboard-item-key="${CSS.escape(getItemKey(item))}"]`
-    );
+    const row = target.querySelector(`[data-keyboard-item-key="${CSS.escape(getItemKey(item))}"]`);
     if (!row?.scrollIntoView) return false;
     row.scrollIntoView({ block: 'center' });
   }
@@ -238,7 +230,8 @@ const visibleItems = computed(() =>
 const hasActiveFileOperation = computed(() => operationTasksStore.operationCount > 0);
 
 const isIdleThumbnailCandidate = (item) => {
-  if (!item || item.kind === 'directory' || item.thumbnail || item.thumbnailUnavailable) return false;
+  if (!item || item.kind === 'directory' || item.thumbnail || item.thumbnailUnavailable)
+    return false;
   return Boolean(item.supportsThumbnail);
 };
 
@@ -450,8 +443,7 @@ const isKeyboardNavigationBlocked = () => {
   return actions.isEditableElement ? actions.isEditableElement(active) : false;
 };
 
-const getItemIndexByKey = (key) =>
-  sortedItems.value.findIndex((item) => getItemKey(item) === key);
+const getItemIndexByKey = (key) => sortedItems.value.findIndex((item) => getItemKey(item) === key);
 
 const getKeyboardActiveIndex = () => {
   const activeIndex = getItemIndexByKey(keyboardActiveItemKey.value);
@@ -527,7 +519,8 @@ const scrollSelectionIntoView = async (item, index) => {
   const padding = 8;
   const topAdjustment = itemRect.top - (targetRect.top + padding);
   const bottomAdjustment = itemRect.bottom - (targetRect.bottom - padding);
-  const adjustment = topAdjustment < 0 ? topAdjustment : bottomAdjustment > 0 ? bottomAdjustment : 0;
+  const adjustment =
+    topAdjustment < 0 ? topAdjustment : bottomAdjustment > 0 ? bottomAdjustment : 0;
 
   if (adjustment === 0) return;
   if (typeof target.scrollBy === 'function') {
@@ -661,7 +654,8 @@ const handleFolderKeydown = (event) => {
 
   const activeIndex = getKeyboardActiveIndex();
   const activeItem = activeIndex >= 0 ? sortedItems.value[activeIndex] : null;
-  const selected = activeItem || (fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null);
+  const selected =
+    activeItem || (fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null);
   if (event.key === 'Enter' || (event.key === 'ArrowRight' && selected?.kind === 'directory')) {
     if (!selected) return;
     event.preventDefault();
@@ -675,12 +669,7 @@ const handleFolderKeydown = (event) => {
     return;
   }
 
-  if (
-    event.key.length === 1 &&
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.altKey
-  ) {
+  if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
     event.preventDefault();
     selectTypeaheadMatch(event.key);
   }
@@ -1032,61 +1021,61 @@ onBeforeUnmount(() => {
             class="sticky top-0 z-30 isolate -mx-2 min-w-max bg-white dark:bg-default"
           >
             <div
-            :class="[
-              'grid items-center',
-              'px-4 py-2 text-xs',
-              'text-neutral-600 dark:text-neutral-300',
-              'uppercase tracking-wide select-none',
-              'backdrop-blur-sm',
-              'min-w-max',
-            ]"
-            :style="{
-              gridTemplateColumns: settings.listViewGridTemplateColumns,
-            }"
-          >
-            <div class="flex items-center justify-center">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-                :checked="allItemsSelected"
-                :indeterminate.prop="someItemsSelected && !allItemsSelected"
-                :aria-label="allItemsSelected ? $t('folder.deselectAll') : $t('folder.selectAll')"
-                @change="toggleSelectAll"
-                @click.stop
-              />
-            </div>
-            <div
-              v-for="col in listColumns"
-              :key="col.key"
-              role="button"
-              tabindex="0"
-              :aria-sort="
-                sortIndicator(col.by) === 'asc'
-                  ? 'ascending'
-                  : sortIndicator(col.by) === 'desc'
-                    ? 'descending'
-                    : 'none'
-              "
-              class="relative flex cursor-pointer items-center gap-1 text-left outline-none hover:text-neutral-900 focus-visible:text-neutral-900 dark:hover:text-white dark:focus-visible:text-white"
-              @click="toggleSort(col.by, col.defaultOrder)"
-              @keydown.enter.prevent="toggleSort(col.by, col.defaultOrder)"
-              @keydown.space.prevent="toggleSort(col.by, col.defaultOrder)"
+              :class="[
+                'grid items-center',
+                'px-4 py-2 text-xs',
+                'text-neutral-600 dark:text-neutral-300',
+                'uppercase tracking-wide select-none',
+                'backdrop-blur-sm',
+                'min-w-max',
+              ]"
+              :style="{
+                gridTemplateColumns: settings.listViewGridTemplateColumns,
+              }"
             >
-              <span>{{ $t(col.labelKey) }}</span>
-              <ChevronUpIcon v-if="sortIndicator(col.by) === 'asc'" class="h-3.5 w-3.5" />
-              <ChevronDownIcon v-else-if="sortIndicator(col.by) === 'desc'" class="h-3.5 w-3.5" />
-              <div
-                class="absolute -right-2 top-0 h-full w-4 cursor-col-resize touch-none"
-                title="Resize"
-                @click.stop
-                @pointerdown.stop.prevent="startResize(col.widthIndex, $event)"
-                @dblclick.stop.prevent="settings.resetListViewColumnWidths()"
-              >
-                <div
-                  class="mx-auto h-full w-px bg-transparent hover:bg-neutral-300 dark:hover:bg-neutral-600"
-                ></div>
+              <div class="flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                  :checked="allItemsSelected"
+                  :indeterminate.prop="someItemsSelected && !allItemsSelected"
+                  :aria-label="allItemsSelected ? $t('folder.deselectAll') : $t('folder.selectAll')"
+                  @change="toggleSelectAll"
+                  @click.stop
+                />
               </div>
-            </div>
+              <div
+                v-for="col in listColumns"
+                :key="col.key"
+                role="button"
+                tabindex="0"
+                :aria-sort="
+                  sortIndicator(col.by) === 'asc'
+                    ? 'ascending'
+                    : sortIndicator(col.by) === 'desc'
+                      ? 'descending'
+                      : 'none'
+                "
+                class="relative flex cursor-pointer items-center gap-1 text-left outline-none hover:text-neutral-900 focus-visible:text-neutral-900 dark:hover:text-white dark:focus-visible:text-white"
+                @click="toggleSort(col.by, col.defaultOrder)"
+                @keydown.enter.prevent="toggleSort(col.by, col.defaultOrder)"
+                @keydown.space.prevent="toggleSort(col.by, col.defaultOrder)"
+              >
+                <span>{{ $t(col.labelKey) }}</span>
+                <ChevronUpIcon v-if="sortIndicator(col.by) === 'asc'" class="h-3.5 w-3.5" />
+                <ChevronDownIcon v-else-if="sortIndicator(col.by) === 'desc'" class="h-3.5 w-3.5" />
+                <div
+                  class="absolute -right-2 top-0 h-full w-4 cursor-col-resize touch-none"
+                  title="Resize"
+                  @click.stop
+                  @pointerdown.stop.prevent="startResize(col.widthIndex, $event)"
+                  @dblclick.stop.prevent="settings.resetListViewColumnWidths()"
+                >
+                  <div
+                    class="mx-auto h-full w-px bg-transparent hover:bg-neutral-300 dark:hover:bg-neutral-600"
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
 

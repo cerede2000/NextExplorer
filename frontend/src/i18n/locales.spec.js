@@ -75,7 +75,11 @@ describe('locale completeness', () => {
  * "Password". Parity could not see it: absent everywhere is still parity.
  */
 describe('every key the code asks for exists', () => {
-  const sources = import.meta.glob('../**/*.{vue,js}', { eager: true, query: '?raw', import: 'default' });
+  const sources = import.meta.glob('../**/*.{vue,js}', {
+    eager: true,
+    query: '?raw',
+    import: 'default',
+  });
 
   // t('a.b') and $t("a.b"), literals only — keys built at runtime
   // (`serverErrors.${code}`) cannot be checked this way.

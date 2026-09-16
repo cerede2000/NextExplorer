@@ -36,13 +36,20 @@ const heif = await ffmpegReadsHeif();
 const decodeToWebp = (size) =>
   new Promise((resolve, reject) => {
     const child = spawn('ffmpeg', [
-      '-v', 'error',
-      '-i', FIXTURE,
-      '-map', '0:v:0',
-      '-frames:v', '1',
-      '-vf', `scale=${size}:-1:flags=lanczos`,
-      '-vcodec', 'png',
-      '-f', 'image2pipe',
+      '-v',
+      'error',
+      '-i',
+      FIXTURE,
+      '-map',
+      '0:v:0',
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${size}:-1:flags=lanczos`,
+      '-vcodec',
+      'png',
+      '-f',
+      'image2pipe',
       'pipe:1',
     ]);
     const pipeline = sharp().webp({ quality: 80, effort: 3 });

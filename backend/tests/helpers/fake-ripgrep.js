@@ -48,17 +48,19 @@ const useFakeRipgrep = () => {
 /** Whether a real ripgrep is installed on this machine. */
 const hasRealRipgrep = () => {
   const previousPath = process.env.PATH;
-  return (process.env.PATH || '')
-    .split(path.delimiter)
-    .filter(Boolean)
-    .some((entry) => {
-      try {
-        fs.accessSync(path.join(entry, 'rg'), fs.constants.X_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    }) && Boolean(previousPath);
+  return (
+    (process.env.PATH || '')
+      .split(path.delimiter)
+      .filter(Boolean)
+      .some((entry) => {
+        try {
+          fs.accessSync(path.join(entry, 'rg'), fs.constants.X_OK);
+          return true;
+        } catch {
+          return false;
+        }
+      }) && Boolean(previousPath)
+  );
 };
 
 module.exports = { useFakeRipgrep, hasRealRipgrep };

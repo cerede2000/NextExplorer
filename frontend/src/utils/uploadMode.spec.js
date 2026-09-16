@@ -55,7 +55,10 @@ describe('when the administrator has forced chunked uploads', () => {
   });
 
   it('ignores it whether or not auto-fallback is allowed', () => {
-    const off = resolveUploadMode(settings({ chunkedEnabled: true, chunkedAutoFallback: false }), 8);
+    const off = resolveUploadMode(
+      settings({ chunkedEnabled: true, chunkedAutoFallback: false }),
+      8
+    );
 
     expect(off.chunkedEnabled).toBe(true);
     expect(off.chunkSizeBytes).toBe(16 * MIB);
@@ -152,18 +155,17 @@ describe('whether this origin has already fallen back', () => {
   });
 
   /** The two states are exclusive: a browser is watching, or it has learned. */
-  it.each([
-    [null],
-    [8],
-    [96],
-  ])('is never true at the same time as the watchdog (learned: %s)', (remembered) => {
-    for (const overrides of [{}, { chunkedEnabled: true }, { chunkedAutoFallback: false }]) {
-      const config = settings(overrides);
-      expect(
-        isWatchingDirectUploads(config, remembered) && isInFallbackChunked(config, remembered)
-      ).toBe(false);
+  it.each([[null], [8], [96]])(
+    'is never true at the same time as the watchdog (learned: %s)',
+    (remembered) => {
+      for (const overrides of [{}, { chunkedEnabled: true }, { chunkedAutoFallback: false }]) {
+        const config = settings(overrides);
+        expect(
+          isWatchingDirectUploads(config, remembered) && isInFallbackChunked(config, remembered)
+        ).toBe(false);
+      }
     }
-  });
+  );
 });
 
 describe('which files are worth watching', () => {

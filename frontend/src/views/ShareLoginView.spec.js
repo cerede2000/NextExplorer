@@ -95,7 +95,11 @@ beforeEach(() => {
   assigned = '';
   Object.defineProperty(window, 'location', {
     configurable: true,
-    value: { assign: (value) => { assigned = value; } },
+    value: {
+      assign: (value) => {
+        assigned = value;
+      },
+    },
   });
   Object.values(api).forEach((fn) => fn.mockClear());
   api.accessShare.mockResolvedValue({});

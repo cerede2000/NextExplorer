@@ -38,12 +38,12 @@ expecting an old tag to still be there.
 
 ## Host folder layout
 
-| Purpose                            | Container path                                | Notes                                                                                                 |
-| ---------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Accounts, shares, settings         | `/config`                                     | Holds `app.db`, `logos/` and `session-secret`. The folder to back up — see [Backups](/admin/guide#backups-persistence). |
-| Thumbnails, sessions, indexes      | `/cache`                                      | Regenerable and needs no backup, but mount it persistently: it holds `index.db`, the search index and folder sizes, and deleting it signs everyone out and reads every volume again. |
-| Browsable data                     | `/mnt/Label`                                  | Each mount appears as a top-level volume with the given label.                                        |
-| Personal user data (optional)      | `/srv/users` (or any path set as `USER_ROOT`) | When `USER_DIR_ENABLED=true`, each authenticated user gets their own private folder inside this root. |
+| Purpose                       | Container path                                | Notes                                                                                                                                                                                |
+| ----------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Accounts, shares, settings    | `/config`                                     | Holds `app.db`, `logos/` and `session-secret`. The folder to back up — see [Backups](/admin/guide#backups-persistence).                                                              |
+| Thumbnails, sessions, indexes | `/cache`                                      | Regenerable and needs no backup, but mount it persistently: it holds `index.db`, the search index and folder sizes, and deleting it signs everyone out and reads every volume again. |
+| Browsable data                | `/mnt/Label`                                  | Each mount appears as a top-level volume with the given label.                                                                                                                       |
+| Personal user data (optional) | `/srv/users` (or any path set as `USER_ROOT`) | When `USER_DIR_ENABLED=true`, each authenticated user gets their own private folder inside this root.                                                                                |
 
 ## Production compose example
 

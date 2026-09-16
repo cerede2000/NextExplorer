@@ -19,7 +19,11 @@ const { extractPdfTextLines } = require('./pdfTextExtract');
 
 const SEARCHABLE_EXTENSIONS = [...OFFICE_EXTENSIONS, 'pdf'];
 
-const extensionOf = (filePath) => path.extname(filePath || '').slice(1).toLowerCase();
+const extensionOf = (filePath) =>
+  path
+    .extname(filePath || '')
+    .slice(1)
+    .toLowerCase();
 
 /** Whether this is a document whose text has to be extracted to be searched. */
 const isSearchableDocument = (filePath) => SEARCHABLE_EXTENSIONS.includes(extensionOf(filePath));

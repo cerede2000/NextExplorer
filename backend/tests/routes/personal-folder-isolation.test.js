@@ -61,8 +61,7 @@ const setup = async ({ userRootEnv = {} } = {}) => {
   await fs.writeFile(path.join(aliceRoot, 'salary.txt'), 'alice private');
 
   const bob = { id: 'bob', username: 'bob', roles: ['user'] };
-  const asBob = (router) =>
-    createTestApp({ router, mountPath: '/api', user: bob, errorHandler });
+  const asBob = (router) => createTestApp({ router, mountPath: '/api', user: bob, errorHandler });
 
   return {
     env,
@@ -176,7 +175,7 @@ describe('a volume that does not hold the personal folders', () => {
 
     const browseRoutes = env.requireFresh('src/routes/browse');
     const { errorHandler } = env.requireFresh('src/middleware/errorHandler');
-    const db = await (env.requireFresh('src/services/db').getDb());
+    const db = await env.requireFresh('src/services/db').getDb();
     const now = new Date().toISOString();
     db.prepare(
       `INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)

@@ -30,7 +30,11 @@ vi.mock('@/stores/auth', async () => {
 });
 
 vi.mock('@/stores/features', () => ({
-  useFeaturesStore: () => ({ version: '3.4.0', demoLogin: null, ensureLoaded: vi.fn(async () => {}) }),
+  useFeaturesStore: () => ({
+    version: '3.4.0',
+    demoLogin: null,
+    ensureLoaded: vi.fn(async () => {}),
+  }),
 }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => ({ ensureLoaded: vi.fn() }) }));
 vi.mock('@/api', () => ({ apiBase: '' }));

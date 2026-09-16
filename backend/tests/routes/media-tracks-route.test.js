@@ -23,18 +23,39 @@ const execFileAsync = promisify(execFile);
 
 let ctx;
 
-
 const buildFilm = async (dir) => {
   const srt = path.join(dir, 'subs.srt');
   await fs.writeFile(srt, '1\n00:00:00,500 --> 00:00:02,000\nBonjour le monde\n');
   await execFileAsync('ffmpeg', [
-    '-v', 'error', '-y',
-    '-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=25:duration=2',
-    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
-    '-i', srt,
-    '-map', '0:v', '-map', '1:a', '-map', '2:s',
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'ac3', '-c:s', 'srt',
-    '-metadata:s:a:0', 'language=fre',
+    '-v',
+    'error',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'testsrc=size=160x120:rate=25:duration=2',
+    '-f',
+    'lavfi',
+    '-i',
+    'sine=frequency=440:duration=2',
+    '-i',
+    srt,
+    '-map',
+    '0:v',
+    '-map',
+    '1:a',
+    '-map',
+    '2:s',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'ultrafast',
+    '-c:a',
+    'ac3',
+    '-c:s',
+    'srt',
+    '-metadata:s:a:0',
+    'language=fre',
     path.join(dir, 'film.mkv'),
   ]);
   await fs.rm(srt);
@@ -90,7 +111,9 @@ describe.skipIf(!(await hasFfmpeg()))('asking what is in a video', () => {
   it('names the soundtrack it found', async () => {
     const response = await tracksOf(await setup());
 
-    expect(response.body.audio).toEqual([expect.objectContaining({ codec: 'ac3', language: 'fr' })]);
+    expect(response.body.audio).toEqual([
+      expect.objectContaining({ codec: 'ac3', language: 'fr' }),
+    ]);
   });
 
   /** The reported symptom: sound present, browser silent. */
@@ -195,7 +218,10 @@ describe.skipIf(!(await hasFfmpeg()))('asking for a subtitle', () => {
    */
   it('refuses a subtitle file belonging to another video', async () => {
     const app = await setup();
-    await fs.writeFile(path.join(ctx.volumeDir, 'other.fr.srt'), '1\n00:00:01,000 --> 00:00:02,000\nx\n');
+    await fs.writeFile(
+      path.join(ctx.volumeDir, 'other.fr.srt'),
+      '1\n00:00:01,000 --> 00:00:02,000\nx\n'
+    );
 
     const response = await subtitle(app, { path: 'film.mkv', file: 'other.fr.srt' });
 

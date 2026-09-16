@@ -150,12 +150,9 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Source');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer(
-      [{ path: '', name: 'Source' }],
-      'Target',
-      'copy',
-      { user }
-    );
+    const prep = await service.prepareTransfer([{ path: '', name: 'Source' }], 'Target', 'copy', {
+      user,
+    });
     await service.executeTransfer(prep, 'copy', undefined, { user });
 
     expect(await exists(path.join(volume, 'Target', 'Source', 'nested', 'deep.txt'))).toBe(true);
@@ -166,12 +163,9 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Source');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer(
-      [{ path: '', name: 'Source' }],
-      'Target',
-      'copy',
-      { user }
-    );
+    const prep = await service.prepareTransfer([{ path: '', name: 'Source' }], 'Target', 'copy', {
+      user,
+    });
     await service.executeTransfer(prep, 'copy', undefined, { user });
 
     expect(await exists(path.join(volume, 'Source', 'top.txt'))).toBe(true);
@@ -182,12 +176,9 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await fs.writeFile(path.join(volume, 'note.txt'), 'the actual bytes');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer(
-      [{ path: '', name: 'note.txt' }],
-      'Target',
-      'copy',
-      { user }
-    );
+    const prep = await service.prepareTransfer([{ path: '', name: 'note.txt' }], 'Target', 'copy', {
+      user,
+    });
     await service.executeTransfer(prep, 'copy', undefined, { user });
 
     expect(await fs.readFile(path.join(volume, 'Target', 'note.txt'), 'utf8')).toBe(
@@ -200,12 +191,9 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Source');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer(
-      [{ path: '', name: 'Source' }],
-      'Target',
-      'move',
-      { user }
-    );
+    const prep = await service.prepareTransfer([{ path: '', name: 'Source' }], 'Target', 'move', {
+      user,
+    });
     await service.executeTransfer(prep, 'move', undefined, { user });
 
     expect(await exists(path.join(volume, 'Target', 'Source', 'top.txt'))).toBe(true);
@@ -216,9 +204,9 @@ describe.each(ENGINES)('the %s engine', (engine) => {
   it('refuses a transfer with no items', async () => {
     const { service, user } = await setup(engine);
 
-    await expect(
-      service.prepareTransfer([], 'Target', 'copy', { user })
-    ).rejects.toThrow(/at least one item/i);
+    await expect(service.prepareTransfer([], 'Target', 'copy', { user })).rejects.toThrow(
+      /at least one item/i
+    );
   });
 
   it('refuses a delete that was cancelled before it began', async () => {

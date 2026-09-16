@@ -91,7 +91,10 @@ describe('the window itself', () => {
   });
 
   it('covers the viewport plus overscan at both ends', () => {
-    const result = window_({ scrollTop: 100 * LIST_ROW_HEIGHT, viewportHeight: 20 * LIST_ROW_HEIGHT });
+    const result = window_({
+      scrollTop: 100 * LIST_ROW_HEIGHT,
+      viewportHeight: 20 * LIST_ROW_HEIGHT,
+    });
 
     expect(result.endIndex - result.startIndex).toBe(20 + LIST_ROW_OVERSCAN * 2);
   });

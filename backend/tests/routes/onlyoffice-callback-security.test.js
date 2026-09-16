@@ -173,10 +173,7 @@ describe('ONLYOFFICE callback security', () => {
     });
     try {
       const { onlyoffice } = env.requireFresh('src/config/index');
-      expect(onlyoffice.downloadOrigins).toEqual([
-        'http://onlyoffice-internal',
-        'https://ds.lan',
-      ]);
+      expect(onlyoffice.downloadOrigins).toEqual(['http://onlyoffice-internal', 'https://ds.lan']);
     } finally {
       await env.cleanup();
     }

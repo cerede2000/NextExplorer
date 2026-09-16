@@ -10,7 +10,7 @@ If your browser shows errors like:
 
 ## The quick fix (most common)
 
-1. Decide the *one* URL you will use to access nextExplorer (scheme + host + optional port), for example:
+1. Decide the _one_ URL you will use to access nextExplorer (scheme + host + optional port), for example:
    - `https://files.example.com`
 2. Set it on the server:
    - `PUBLIC_URL=https://files.example.com`
@@ -22,7 +22,7 @@ If you access nextExplorer from multiple domains (or you have a separate fronten
 
 ### `CORS_ORIGINS` / `CORS_ORIGIN` / `ALLOWED_ORIGINS`
 
-- **What it is:** A comma-separated list of allowed *origins* (no paths).
+- **What it is:** A comma-separated list of allowed _origins_ (no paths).
 - **Examples:**
   - `CORS_ORIGINS=https://files.example.com`
   - `CORS_ORIGINS=https://files.example.com,https://admin.example.com`
@@ -81,4 +81,3 @@ CORS_ORIGINS=http://localhost:5173
 - Confirm your reverse proxy forwards `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For`.
 - Make sure you’re visiting the exact `PUBLIC_URL` (including `https` vs `http` and ports).
 - Double-check there’s no browser cache/service-worker holding onto an old origin.
-

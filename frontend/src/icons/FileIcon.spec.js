@@ -144,7 +144,12 @@ describe('which icon a row gets', () => {
 
 describe('the thumbnail, when there is one', () => {
   const withThumb = (overrides = {}) =>
-    file({ kind: 'jpg', supportsThumbnail: true, thumbnail: '/api/thumbnails/a.jpg', ...overrides });
+    file({
+      kind: 'jpg',
+      supportsThumbnail: true,
+      thumbnail: '/api/thumbnails/a.jpg',
+      ...overrides,
+    });
 
   it('replaces the type icon', async () => {
     const wrapper = await render(withThumb());

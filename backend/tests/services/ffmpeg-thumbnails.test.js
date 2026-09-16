@@ -184,9 +184,7 @@ describe('a video thumbnail', () => {
     const source = path.join(env.volumeDir, 'broken.mp4');
     await fs.writeFile(source, Buffer.from('not a video'));
 
-    await expect(
-      service.queueThumbnailGeneration(source, { priority: 10 })
-    ).resolves.toBeDefined();
+    await expect(service.queueThumbnailGeneration(source, { priority: 10 })).resolves.toBeDefined();
   });
 });
 

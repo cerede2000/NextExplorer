@@ -55,7 +55,7 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 ## Access control & admin actions
 
 - **Access Control rules:** Settings → Access Control defines per-folder policies (`rw`, `ro`, `hidden`). The first matched rule applies.
-- **Hidden folders:** Use `hidden` to keep a folder out of listings *and* refuse it when asked for by name — it is a denial, not a cosmetic filter. This page used to say the opposite, which would have talked an administrator out of the one control that stops a path being read.
+- **Hidden folders:** Use `hidden` to keep a folder out of listings _and_ refuse it when asked for by name — it is a denial, not a cosmetic filter. This page used to say the opposite, which would have talked an administrator out of the one control that stops a path being read.
 - **Admin users:** Settings → Admin lets you add local users, reset passwords, and grant the admin role. Demoting an admin via UI is disabled to avoid lockouts.
 - **Changing a password:** Settings → Password changes your own. Every other session of your account is signed out — another browser, another device, anyone who had the old password — and the one you changed it from stays signed in. A reset by an administrator signs the account out everywhere.
 - **Sign-out:** Use the user menu in the sidebar to log out or manage user-specific settings.
