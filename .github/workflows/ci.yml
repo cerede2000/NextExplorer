@@ -36,23 +36,47 @@ jobs:
       # commit, or says why not with a `No-test:` trailer. First, because it
       # needs nothing installed and a refusal here should not wait on the suites.
       - name: Every code change carries its test
+        env:
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          case "${{ github.event_name }}" in
+          case "$EVENT" in
             pull_request)
-              base="${{ github.event.pull_request.base.sha }}"
-              head="${{ github.event.pull_request.head.sha }}" ;;
+              base="$PR_BASE"
+              head="$PR_HEAD" ;;
             push)
-              base="${{ github.event.before }}"
-              head="${{ github.sha }}" ;;
+              head="$HEAD_SHA"
+              # Everything the branch carries that main does not, rather than
+              # what this push added. A push that follows another closely
+              # cancels the run in flight, and the commits it was reading are
+              # never read again — the next push starts from the commit it
+              # pushed over. Two reached main through that gap and the refusal
+              # arrived on the release, where the history can no longer be
+              # changed. Re-reading what is unreleased costs a second and
+              # leaves no gap. On main there is nothing to compare against, so
+              # the push's own range stands as the last backstop.
+              if [ "$BRANCH" = "main" ]; then
+                base="$BEFORE"
+              else
+                base="$(git merge-base origin/main "$head" 2>/dev/null || true)"
+              fi ;;
             *)
-              echo "Nothing to compare on ${{ github.event_name }}."
+              echo "Nothing to compare on $EVENT."
               exit 0 ;;
           esac
           # A new branch has no `before`, and a force push can leave one that is
           # no longer in the history: fall back to where the branch left main.
-          if [ "$base" = "0000000000000000000000000000000000000000" ] \
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
             || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-            base="$(git merge-base origin/main "$head")"
+            base="$(git merge-base origin/main "$head" 2>/dev/null || true)"
+          fi
+          if [ -z "$base" ]; then
+            echo "Nothing to compare $head against."
+            exit 0
           fi
           scripts/check-commit-tests.sh "${base}..${head}"
 

@@ -31,7 +31,12 @@ for sha in $(git rev-list --no-merges "$RANGE"); do
   [ -n "$code" ] || continue
   printf '%s\n' "$files" | grep -qE "$TESTS" && continue
 
-  reason="$(git log -1 --format='%(trailers:key=No-test,valueonly)' "$sha" | sed '/^$/d' | head -1)"
+  # Read the line rather than the trailer. Git only sees a trailer when the
+  # whole last paragraph looks like one, so a reason long enough to wrap onto a
+  # second line stops being a trailer at all and the exception disappears — the
+  # author wrote it down, the commit landed, and the failure arrives on someone
+  # else's push. Written down is what the rule asks for.
+  reason="$(git log -1 --format=%B "$sha" | grep -m1 -E '^No-test:[[:space:]]*[^[:space:]]' || true)"
   [ -n "$reason" ] && continue
 
   offenders=$((offenders + 1))
