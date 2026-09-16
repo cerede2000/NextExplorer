@@ -211,15 +211,31 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
  * lasts — thirty days by default — and whoever had the password keeps what it
  * opened.
  *
+ * The sessions the identity provider opened count too. They hold its tokens
+ * rather than our account id, so what names the account there is the subject
+ * of the id token — the same subject `auth_methods` keeps for this user. The
+ * store reads the tokens; only here is it known whose they are.
+ *
  * Called before the new hash is written, in the same turn: nothing can sign in
  * with the old password between the two, and a store that cannot end the
  * sessions throws before the password is changed rather than after.
  */
-const endSessionsOpenedWithOldPassword = (userId, keepSessionId) => {
+const endSessionsOpenedWithOldPassword = (db, userId, keepSessionId) => {
+  // Every OIDC identity of the account, enabled or not: a method switched off
+  // can still have a session open, and every session ended here belongs to the
+  // account whose password just changed.
+  const providerIdentities = db
+    .prepare(
+      `SELECT provider_issuer AS issuer, provider_sub AS subject
+       FROM auth_methods
+       WHERE user_id = ? AND method_type = 'oidc'`
+    )
+    .all(userId);
+
   // Required here and not at the top: loading the store opens sessions.db, which
   // nothing that only reads accounts should do.
   const { localStore } = require('../../utils/sessionStore');
-  return localStore.destroyByUser(userId, keepSessionId || null);
+  return localStore.destroyByUser(userId, keepSessionId || null, providerIdentities);
 };
 
 const logEndedSessions = (userId, ended) => {
@@ -281,7 +297,7 @@ const changeLocalPassword = async ({ userId, currentPassword, newPassword, keepS
   }
 
   const hash = await bcrypt.hash(newPassword, 12);
-  const ended = endSessionsOpenedWithOldPassword(userId, keepSessionId);
+  const ended = endSessionsOpenedWithOldPassword(db, userId, keepSessionId);
   db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
   logEndedSessions(userId, ended);
   return true;
@@ -330,7 +346,7 @@ const setLocalPasswordAdmin = async ({ userId, newPassword, keepSessionId }) => 
 
   if (authMethod) {
     // Update existing password
-    const ended = endSessionsOpenedWithOldPassword(userId, keepSessionId);
+    const ended = endSessionsOpenedWithOldPassword(db, userId, keepSessionId);
     db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
     logEndedSessions(userId, ended);
   } else {

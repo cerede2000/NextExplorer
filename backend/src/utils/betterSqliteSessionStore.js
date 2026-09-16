@@ -3,9 +3,29 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const session = require('express-session');
 const logger = require('./logger');
+const { readIdTokenClaims } = require('./idToken');
 const { configureStorage, convertToIncremental } = require('../services/databaseMaintenance');
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * One provider identity, as a string two of them can be compared by.
+ *
+ * Both halves are required: a subject is only unique within its issuer, so
+ * matching on the subject alone could end the session of somebody else who
+ * happens to carry the same one at another provider.
+ *
+ * The trailing slash goes, on both sides, because the two halves come from two
+ * places that disagree about it — `auth_methods` keeps `OIDC_ISSUER` as it was
+ * configured, the id token carries the `iss` the provider mints — and the same
+ * provider written both ways is the same provider. It is the normalisation
+ * discovery already applies (see services/oidcService.js).
+ */
+const identityKey = (issuer, subject) => {
+  if (typeof issuer !== 'string' || !issuer.trim()) return null;
+  if (typeof subject !== 'string' || !subject.trim()) return null;
+  return `${issuer.trim().replace(/\/+$/, '')}\n${subject.trim()}`;
+};
 
 class BetterSqliteSessionStore extends session.Store {
   constructor(filename) {
@@ -50,6 +70,17 @@ class BetterSqliteSessionStore extends session.Store {
     this.destroyByUserStatement = this.db.prepare(
       `DELETE FROM sessions
        WHERE CASE WHEN json_valid(sess) THEN json_extract(sess, '$.localUserId') END = ?
+         AND sid IS NOT ?`
+    );
+    // A session the identity provider opened carries its tokens and no account
+    // id: express-openid-connect stores the token set under `data`. The id
+    // token is the only thing in the row that says who signed in, so the rows
+    // are read back rather than matched in SQL. Same `json_valid` guard, and
+    // the same `IS NOT` for a missing exception.
+    this.providerSessionsStatement = this.db.prepare(
+      `SELECT sid, CASE WHEN json_valid(sess) THEN json_extract(sess, '$.data.id_token') END AS idToken
+       FROM sessions
+       WHERE CASE WHEN json_valid(sess) THEN json_extract(sess, '$.data.id_token') END IS NOT NULL
          AND sid IS NOT ?`
     );
 
@@ -112,17 +143,54 @@ class BetterSqliteSessionStore extends session.Store {
    * Synchronous, unlike the methods express-session calls, and on purpose: the
    * caller changing a password ends the sessions and writes the new hash in the
    * same turn, so no sign-in with the old password can land between the two.
-   * Only sessions opened by signing in here carry the account; one opened by the
-   * identity provider holds its tokens instead and is not matched.
+   *
+   * Sessions opened by signing in here carry the account id. One opened by the
+   * identity provider carries its tokens instead, so the account it belongs to
+   * is the subject of its id token — which only the caller can turn into an
+   * account, through `auth_methods`. It therefore hands the identities in.
    *
    * @param {string} userId
    * @param {string|null} [exceptSid] the session to keep, usually the caller's
+   * @param {Array<{issuer: string|null, subject: string|null}>} [providerIdentities]
+   *   the provider identities of the same account. An empty list ends only the
+   *   sessions opened by signing in here.
    * @returns {number} how many sessions were ended
    */
-  destroyByUser(userId, exceptSid = null) {
+  destroyByUser(userId, exceptSid = null, providerIdentities = []) {
     // No guard needed for a missing id: NULL equals nothing in SQL, and no
     // session carries an empty one.
-    return this.destroyByUserStatement.run(userId, exceptSid || null).changes;
+    const ended = this.destroyByUserStatement.run(userId, exceptSid || null).changes;
+    return ended + this.destroyProviderSessions(providerIdentities, exceptSid);
+  }
+
+  /**
+   * End the sessions the identity provider opened for these identities.
+   *
+   * A row whose id token cannot be read names nobody, and is left alone: it
+   * may belong to another account, and ending it on a guess would sign a
+   * stranger out. One unreadable row does not stop the ones after it either —
+   * the point of the pass is that a password change ends what it can.
+   *
+   * @param {Array<{issuer: string|null, subject: string|null}>} providerIdentities
+   * @param {string|null} exceptSid
+   * @returns {number} how many sessions were ended
+   */
+  destroyProviderSessions(providerIdentities, exceptSid = null) {
+    const wanted = new Set(
+      (Array.isArray(providerIdentities) ? providerIdentities : [])
+        .map((identity) => identityKey(identity?.issuer, identity?.subject))
+        .filter(Boolean)
+    );
+    if (wanted.size === 0) return 0;
+
+    let ended = 0;
+    for (const row of this.providerSessionsStatement.all(exceptSid || null)) {
+      const claims = readIdTokenClaims(row.idToken);
+      const key = identityKey(claims?.iss, claims?.sub);
+      if (!key || !wanted.has(key)) continue;
+      ended += this.destroyStatement.run(row.sid).changes;
+    }
+    return ended;
   }
 
   touch(sid, sessionData, callback = () => {}) {

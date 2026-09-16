@@ -12,10 +12,19 @@ Administrators control users, folders, and security policies through Settings. T
 
 - Navigate to **Settings → Admin → Users** to add local users, assign roles, and reset passwords.
 - Resetting a password signs that account out of every session it has open, on
-  every device. Someone changing their own password from **Settings → Password**
-  is signed out everywhere except where they made the change. A changed
-  `AUTH_ADMIN_PASSWORD` does the same to the administrator at the next start;
-  the same value set again at each restart signs nobody out.
+  every device — the sessions opened with a password and the ones opened through
+  the identity provider alike. Someone changing their own password from
+  **Settings → Password** is signed out everywhere except where they made the
+  change. A changed `AUTH_ADMIN_PASSWORD` does the same to the administrator at
+  the next start; the same value set again at each restart signs nobody out.
+- One thing a password change does **not** end: the tokens already handed to
+  ONLYOFFICE and Collabora for documents open at that moment. Those are signed
+  rather than stored, so there is nothing on the server to withdraw. Each
+  reaches the one file it was minted for, with the rights it was minted with,
+  and expires on its own — within 12 hours for ONLYOFFICE, 6 for Collabora.
+  Reopening the document asks for a new one, which the new password governs. To
+  end them sooner, change `ONLYOFFICE_SECRET` or `COLLABORA_SECRET` and restart:
+  every token signed with the old value stops working at once, for everyone.
 - When `USER_VOLUMES=true`, each user profile includes a **Volumes** tab for assigning per-user volumes. See [User volumes](/admin/user-volumes).
 - Local users store credentials in the SQLite database inside your `/config` mount.
 - People sign in with **either their email address or their username**, in the

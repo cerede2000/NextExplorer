@@ -9,6 +9,7 @@ const {
 } = require('../services/users');
 const { fetchUserInfoClaims } = require('../services/oidcService');
 const { oidcStore } = require('../utils/sessionStore');
+const { readIdTokenClaims } = require('../utils/idToken');
 const { UnauthorizedError } = require('../errors/AppError');
 const {
   uniqueOrigins,
@@ -151,23 +152,6 @@ const resolveOidcScopes = (oidc) => {
 };
 
 /**
- * The claims inside an id token, read without checking its signature — the
- * library has already verified it, nonce included, before the after-callback
- * handler is handed the session. Anything that is not a JWT reads as none.
- */
-const claimsFromIdToken = (idToken) => {
-  if (typeof idToken !== 'string') return null;
-  const payload = idToken.split('.')[1];
-  if (!payload) return null;
-  try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
  * Creates the afterCallback handler for user synchronization
  */
 const createAfterCallbackHandler = (oidc, envAuthConfig) => {
@@ -194,7 +178,7 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
       // if it had one, which made a second person in the same browser a
       // "mismatch" and let a brand-new sign-in skip the subject check entirely.
       const idTokenClaims =
-        claimsFromIdToken(session?.id_token) || session?.id_token_claims || session?.claims || null;
+        readIdTokenClaims(session?.id_token) || session?.id_token_claims || session?.claims || null;
       let claims = idTokenClaims || {};
 
       // Fetch from userinfo endpoint if access token is available
