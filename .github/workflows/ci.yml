@@ -246,6 +246,18 @@ jobs:
           base="$(awk '$1 == "FROM" && $NF == "base" { print $2 }' Dockerfile)"
           [ -n "$base" ] || { echo "::error::No base stage found in the Dockerfile"; exit 1; }
           echo "Base image: $base"
+
+          # The registry answers an anonymous pull with "toomanyrequests" when
+          # enough runners ask at once, and this job then fails for a reason
+          # that has nothing to do with the suites it runs. Pulled separately,
+          # with a few waits, so that the run that follows is about ffmpeg.
+          for attempt in 1 2 3 4 5; do
+            docker pull "$base" && break
+            [ "$attempt" = 5 ] && { echo "::error::Could not pull $base after 5 tries"; exit 1; }
+            echo "Pull refused; waiting $((attempt * 30))s"
+            sleep $((attempt * 30))
+          done
+
           docker run --rm -v "$PWD:/work" -w /work "$base" sh -euc '
             apk add --no-cache ffmpeg python3 make g++ >/dev/null
             ffmpeg -version | head -n 1
