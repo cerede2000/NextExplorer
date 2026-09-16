@@ -231,7 +231,7 @@ jobs:
             echo "## ${{ matrix.variant }}"
             echo
             echo '```'
-            docker run --rm --entrypoint sh "$tag" -c 'ffmpeg -version | head -n 1; 7zzs 2>/dev/null | head -n 2 | tail -n 1; apk info -v 2>/dev/null | sort'
+            docker run --rm --entrypoint sh "$tag" -c "ffmpeg -version | head -n 1; 7z 2>&1 | grep -m1 -i '7-zip'; apk info -v 2>/dev/null | sort"
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
