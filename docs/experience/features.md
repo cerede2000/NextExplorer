@@ -63,99 +63,104 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 
 ## How it compares
 
-Three projects solve the same problem from a different angle, and this is where
-they stand against each other. Checked on **16 September 2026** against each
-project's own repository, documentation and pricing page — not their marketing,
-and not from memory. Every row has a source, and they are listed underneath,
-including the rows about NextExplorer.
+Two projects solve the same problem from a different angle: **FileBrowser
+Quantum**, the active fork of File Browser, and **Filestash**, which speaks
+every storage protocol there is. Every cell below was read on **16 September
+2026** from the project it describes — its repository, its documentation, its
+pricing page — rather than from anybody's marketing or anybody's comparison
+chart. The sources are listed underneath, including the ones about NextExplorer.
 
-✅ shipped · 🚧 the project says it is coming · ❌ not offered · 💰 paid tier ·
-— not documented
+✅ shipped · 🚧 announced by that project as coming · ❌ not offered · 💰 paid
+tier · — not documented
 
-|                                          | **NextExplorer 3.7**               | [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser) | [Filestash](https://github.com/mickael-kerjean/filestash) | [Caby](https://github.com/caby-io/caby) |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------- | --------------------------------------- |
-| **Licence**                              | GPL-3.0                            | Apache-2.0                                                         | AGPL-3.0 (core)                                           | AGPL-3.0                                |
-| **Price**                                | Free                               | Free                                                               | Free — Pro from $50/mo, Enterprise from $290/mo           | Free                                    |
-| **Maturity**                             | Released, maintained               | Released, maintained                                               | Released, maintained                                      | Pre-1.0                                 |
-| **Serves a filesystem you already have** | ✅                                 | ✅                                                                 | ✅                                                        | ✅                                      |
-| **Archives**                             |                                    |                                                                    |                                                           |                                         |
-| Browse one without extracting it         | ✅ zip, 7z, rar, iso, tar, tar.gz… | 🚧                                                                 | ✅ viewer plugin                                          | ❌                                      |
-| Read a file inside one                   | ✅ text, Markdown, images          | 🚧                                                                 | ✅ viewer plugin                                          | ❌                                      |
-| Take part of one out, where you choose   | ✅                                 | ❌                                                                 | ❌                                                        | ❌                                      |
-| Compress a selection                     | ✅                                 | ✅                                                                 | ❌                                                        | ❌                                      |
-| **The safety net**                       |                                    |                                                                    |                                                           |                                         |
-| Trash, with restore                      | ✅                                 | 🚧                                                                 | ❌                                                        | ❌                                      |
-| Restore part of a deleted folder         | ✅                                 | ❌                                                                 | ❌                                                        | ❌                                      |
-| Earlier versions of a file               | ✅                                 | ❌                                                                 | 💰 Enterprise                                             | 🚧                                      |
-| Never replaces a file silently           | ✅                                 | —                                                                  | —                                                         | —                                       |
-| **Finding and viewing**                  |                                    |                                                                    |                                                           |                                         |
-| Search by name                           | ✅ indexed                         | ✅ indexed                                                         | ✅                                                        | —                                       |
-| Search inside file contents              | ✅ Office and PDF too              | ❌                                                                 | ✅                                                        | ❌                                      |
-| Image, video and audio previews          | ✅                                 | ✅                                                                 | ✅                                                        | ✅                                      |
-| Office viewing and editing               | ✅ ONLYOFFICE / Collabora          | ✅                                                                 | ✅                                                        | ❌                                      |
-| Text and code editor                     | ✅                                 | ✅                                                                 | ✅                                                        | 🚧                                      |
-| **Who gets in**                          |                                    |                                                                    |                                                           |                                         |
-| Local accounts                           | ✅                                 | ✅                                                                 | ✅                                                        | ✅                                      |
-| OIDC single sign-on                      | ✅                                 | ✅                                                                 | 💰                                                        | ✅                                      |
-| Two-factor on a local account            | ✅                                 | ✅                                                                 | 💰                                                        | ❌                                      |
-| Access rules per path                    | ✅ read, write, delete apart       | ✅                                                                 | 💰 RBAC                                                   | 🚧                                      |
-| **Sharing**                              |                                    |                                                                    |                                                           |                                         |
-| Links with a password and an expiry      | ✅                                 | ✅                                                                 | ✅                                                        | ✅                                      |
-| Per-operation permissions on a link      | ✅                                 | ✅                                                                 | ✅                                                        | 🚧                                      |
-| **Running it**                           |                                    |                                                                    |                                                           |                                         |
-| Chunked, resumable uploads               | ✅                                 | ✅                                                                 | ✅                                                        | ✅                                      |
-| Docker image, amd64 and arm64            | ✅                                 | ✅                                                                 | ✅                                                        | ✅                                      |
-| Activity log                             | 🚧                                 | ✅                                                                 | 💰                                                        | ❌                                      |
-| Space quotas                             | 🚧                                 | 🚧                                                                 | 💰                                                        | ❌                                      |
-| WebDAV                                   | 🚧                                 | ✅                                                                 | ✅                                                        | ❌                                      |
-| API tokens                               | 🚧                                 | ✅                                                                 | ✅                                                        | —                                       |
-| Storage beyond the local filesystem      | ❌ by choice                       | ❌                                                                 | ✅ about 25 protocols                                     | ❌                                      |
-| Terminal in the browser                  | ✅ switchable                      | ❌ removed deliberately                                            | ❌                                                        | ❌                                      |
+|                                               | **NextExplorer 3.7**               | [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser) | [Filestash](https://github.com/mickael-kerjean/filestash) |
+| --------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------- |
+| **The project**                               |                                    |                                                                    |                                                           |
+| Licence                                       | GPL-3.0                            | Apache-2.0                                                         | AGPL-3.0 (core)                                           |
+| Price                                         | Free                               | Free                                                               | Free — Pro from $50/mo, Enterprise from $290/mo           |
+| Interface languages                           | 15                                 | 26                                                                 | —                                                         |
+| Docker image, amd64 and arm64                 | ✅                                 | ✅                                                                 | ✅                                                        |
+| Official installer outside Docker             | ❌                                 | ✅                                                                 | 💰                                                        |
+| **Archives, without unpacking them**          |                                    |                                                                    |                                                           |
+| Browse one like a folder                      | ✅ zip, 7z, rar, iso, tar, tar.gz… | 🚧                                                                 | ✅ viewer plugin                                          |
+| Read a file inside one                        | ✅ text, Markdown, images          | 🚧                                                                 | ✅ viewer plugin                                          |
+| Take one entry — or several — out             | ✅ into any folder you pick        | ❌                                                                 | ❌                                                        |
+| Compress a selection                          | ✅                                 | ✅                                                                 | ❌                                                        |
+| **Getting data in and out**                   |                                    |                                                                    |                                                           |
+| Chunked, resumable uploads                    | ✅                                 | ✅                                                                 | ✅                                                        |
+| Upload a whole folder                         | ✅                                 | ✅                                                                 | ✅                                                        |
+| Never replaces a file silently                | ✅ “name (1)”, and it says so      | —                                                                  | —                                                         |
+| **When something goes wrong**                 |                                    |                                                                    |                                                           |
+| Trash, with restore                           | ✅                                 | 🚧                                                                 | ❌                                                        |
+| Restore part of a deleted folder              | ✅                                 | ❌                                                                 | ❌                                                        |
+| Earlier versions of a file                    | ✅                                 | ❌                                                                 | 💰 Enterprise                                             |
+| Versions from the office editors' own history | ✅ ONLYOFFICE and Collabora        | ❌                                                                 | ❌                                                        |
+| **Finding things**                            |                                    |                                                                    |                                                           |
+| Search by name, indexed, as you type          | ✅                                 | ✅                                                                 | ✅                                                        |
+| Search inside file contents                   | ✅ Office documents and PDFs too   | ❌                                                                 | ✅                                                        |
+| **Viewing and editing**                       |                                    |                                                                    |                                                           |
+| Images, video and audio, in the browser       | ✅                                 | ✅                                                                 | ✅                                                        |
+| Office documents                              | ✅ ONLYOFFICE / Collabora          | ✅                                                                 | ✅                                                        |
+| Text and code editor                          | ✅                                 | ✅                                                                 | ✅                                                        |
+| Folder sizes in the listing                   | ✅                                 | ✅                                                                 | —                                                         |
+| **Who gets in**                               |                                    |                                                                    |                                                           |
+| Local accounts                                | ✅                                 | ✅                                                                 | ✅                                                        |
+| OIDC single sign-on                           | ✅                                 | ✅                                                                 | 💰 Enterprise                                             |
+| LDAP sign-on                                  | ❌                                 | ✅                                                                 | 💰 Enterprise                                             |
+| Second factor from an authenticator app       | ✅ with recovery codes             | ✅                                                                 | 💰 Enterprise                                             |
+| Passkeys (WebAuthn)                           | ❌                                 | ✅                                                                 | 💰 Enterprise                                             |
+| Brute force on the sign-in                    | ✅ account lockout                 | ✅ rate limiting                                                   | —                                                         |
+| Access rules per path                         | ✅ read, write and delete apart    | ✅                                                                 | 💰 RBAC                                                   |
+| **Sharing**                                   |                                    |                                                                    |                                                           |
+| Links with a password and an expiry           | ✅                                 | ✅                                                                 | ✅                                                        |
+| Per-operation permissions on a link           | ✅                                 | ✅                                                                 | ✅                                                        |
+| Guests can upload into a share                | ✅                                 | ✅                                                                 | ✅                                                        |
+| **Running it**                                |                                    |                                                                    |                                                           |
+| WebDAV                                        | 🚧                                 | ✅                                                                 | ✅                                                        |
+| Storage beyond the local filesystem           | ❌ by choice                       | ❌                                                                 | ✅ about 25 protocols                                     |
+| API tokens for scripts                        | 🚧                                 | ✅                                                                 | ✅                                                        |
+| Activity log                                  | 🚧                                 | ✅                                                                 | 💰                                                        |
+| Space quotas                                  | 🚧                                 | 🚧                                                                 | 💰                                                        |
+| Terminal in the browser                       | ✅ switchable                      | ❌ removed deliberately                                            | ❌                                                        |
 
 ### Where each answer comes from
 
 - **NextExplorer**: the pages on this site — [archives](/experience/workflows),
   [trash](/admin/trash), [file versions](/admin/versions),
   [search](/experience/features), [two-factor and access](/admin/guide) — and
-  the test suites in the repository. The four 🚧 are recorded in the
-  repository's `TODO.md` as wanted, with what each of them would take; they are
-  intentions, not dates. The ❌ is a decision rather than a gap: twenty storage
-  protocols are somebody else's ground, and chasing them would dilute what this
-  is good at — knowing one filesystem deeply — to arrive second.
-- **FileBrowser Quantum** publishes its own comparison chart in its
-  [README](https://github.com/gtsteffaniak/filebrowser#comparison-chart), which
-  is the source for the rows it covers: trash and quotas 🚧, browsing archives
-  🚧, content-aware search ❌, WebDAV, the activity log, office support and API
-  tokens ✅. Its README also states that shell commands were removed on
-  purpose, and lists OIDC, LDAP and password + 2FA. Chunked uploads, share
-  expiry and TOTP are in its source; extraction and versioning are not, which
-  is what those two ❌ rest on.
-- **Filestash** separates free from paid on its
-  [pricing page](https://www.filestash.app/pricing/): the self-hosted Hobby
-  edition is AGPL and free, Pro starts at $50/month, Enterprise at $290/month.
-  In its own feature table, versioning, RBAC, OIDC and MFA are Enterprise, and
-  quotas and the audit journal are Pro. Its
+  the suites in the repository. The 🚧 are recorded in `TODO.md` with what each
+  would take; they are intentions, not dates. The two ❌ are honest: there is no
+  LDAP here, and no passkeys yet.
+- **FileBrowser Quantum**: its [README](https://github.com/gtsteffaniak/filebrowser)
+  states OIDC, LDAP, JWT, password + 2FA and proxy sign-in, WebDAV, folder
+  sizes, API tokens, granular permissions, share expiry and permissions, and
+  that shell commands were removed on purpose. Its own comparison chart is
+  where trash, quotas and browsing archives are marked as coming, and
+  content-aware search as absent. In its source: chunked uploads, TOTP,
+  WebAuthn passkeys, rate limiting on the auth routes, archive creation as zip
+  or tar.gz, and twenty-six interface languages — and no extraction from an
+  archive, and nothing about versioning.
+- **Filestash**: its [pricing page](https://www.filestash.app/pricing/) is
+  where free ends and paid begins — the self-hosted Hobby edition is AGPL and
+  free, Pro starts at $50/month, Enterprise at $290/month. In its own feature
+  table, OIDC, SAML, LDAP sign-on, MFA, RBAC and versioning are Enterprise;
+  quotas and the audit journal are Pro; resumable uploads, shared links, the
+  editors and Docker are free, and the Debian and RHEL installers are not. Its
   [README](https://github.com/mickael-kerjean/filestash) is the source for the
-  storage protocols, the workflow engine and the viewer plugin that opens
-  `tar`, `tgz` and `zip`. Nothing in either describes a trash or an extraction.
-- **Caby** lists what it does and what it intends in its
-  [README](https://github.com/caby-io/caby): OIDC or a built-in password,
-  spaces, chunked uploads and shares are shipped; a web editor, file versioning
-  and fine-grained access are on its roadmap. It says plainly that it is
-  pre-1.0. Nothing there describes archives, a trash, office editing or a
-  content search.
+  storage protocols and the viewer plugin that opens `tar`, `tgz` and `zip`.
+  Nothing in either describes a trash or an extraction.
 - **The original [File Browser](https://github.com/filebrowser/filebrowser)**
-  is left out of the table: its README says it was archived on 1 September 2026,
-  that there will be no further releases, and that two classes of security issue
-  — the command runner, and sessions that are self-contained JWTs and therefore
-  cannot be revoked — will not be fixed. Quantum is its active fork, and is in
-  the table instead.
+  is left out: its README says it was archived on 1 September 2026, that there
+  will be no further releases, and that two classes of security issue — the
+  command runner, and sessions that are self-contained JWTs and therefore
+  cannot be revoked — will not be fixed. Quantum is its active fork, and stands
+  in the table instead.
 
 ### Reading the 🚧 in our column
 
-WebDAV, an activity log, space quotas and API tokens are the four things the
-comparison says are missing here, and all four are in the repository's backlog
-with the shape they would take. WebDAV is the most structural of them: it turns
-a website into a network drive, the per-path authorization layer it needs
-already exists, and the work is serving the protocol through that layer rather
-than around it.
+WebDAV, an activity log, space quotas and API tokens are what the comparison
+says is missing here, and all four are in the backlog with the shape they would
+take. WebDAV is the most structural: it turns a website into a network drive in
+the Finder and the Explorer, the per-path authorization layer it needs already
+exists, and the work is serving the protocol through that layer rather than
+around it.
