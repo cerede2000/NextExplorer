@@ -339,6 +339,13 @@ module.exports = {
       : 30000,
   THUMBNAIL_SLOW_JOB_MS:
     process.env.THUMBNAIL_SLOW_JOB_MS != null ? Number(process.env.THUMBNAIL_SLOW_JOB_MS) : 10000,
+  // How long one ffmpeg may take over a single thumbnail before it is killed.
+  // Not a deadline anything waits on — the queue has given up long before —
+  // but the only thing that ends a process that has stopped making progress.
+  THUMBNAIL_FFMPEG_TIMEOUT_MS:
+    process.env.THUMBNAIL_FFMPEG_TIMEOUT_MS != null
+      ? Number(process.env.THUMBNAIL_FFMPEG_TIMEOUT_MS)
+      : 5 * 60 * 1000,
   // Niceness applied to child ffmpeg/convert processes (0 = disabled, 1-19 lowers
   // their CPU priority so the Node event loop stays responsive during generation).
   THUMBNAIL_PROCESS_NICE:

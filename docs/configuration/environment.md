@@ -246,6 +246,7 @@ Saving over a file keeps what the save replaces as a version, in the same `.next
 | `THUMBNAIL_VIDEO_SEEK_SECONDS`        | `5`                | Fixed position in the video used to grab the thumbnail frame, when no percentage is set.                                                                                                                                                                                                                    |
 | `THUMBNAIL_VIDEO_THREADS`             | `2`                | Threads allowed to one ffmpeg thumbnail job.                                                                                                                                                                                                                                                                |
 | `THUMBNAIL_SLOW_JOB_MS`               | `10000`            | Duration threshold after which a thumbnail job/process is logged even when diagnostics are disabled.                                                                                                                                                                                                        |
+| `THUMBNAIL_FFMPEG_TIMEOUT_MS`         | `300000`           | Longest one ffmpeg may take over a single thumbnail before it is killed and the thumbnail marked failed. Raise it if very large videos on slow storage are being cut short; the minimum is `1000`.                                                                                                          |
 
 ## Collabora (WOPI)
 

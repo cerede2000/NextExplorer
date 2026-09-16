@@ -197,6 +197,7 @@ services:
       # THUMBNAIL_DIAGNOSTICS_ENABLED: "false" # Enable detailed thumbnail queue/memory/process logs.
       # THUMBNAIL_DIAGNOSTICS_INTERVAL_MS: "30000" # Interval for thumbnail diagnostics logs.
       # THUMBNAIL_SLOW_JOB_MS: "10000" # Log thumbnail jobs/processes slower than this threshold.
+      # THUMBNAIL_FFMPEG_TIMEOUT_MS: "300000" # Kill one ffmpeg thumbnail run that has taken this long; the thumbnail is marked failed.
 
       # Container user mapping (optional)
       # PUID: "1000" # Map container processes to host UID so created files have consistent ownership.

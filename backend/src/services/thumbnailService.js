@@ -101,6 +101,12 @@ const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOST
 const THUMBNAIL_SLOW_JOB_MS = Number.isFinite(env.THUMBNAIL_SLOW_JOB_MS)
   ? Math.max(1000, Math.floor(env.THUMBNAIL_SLOW_JOB_MS))
   : 10000;
+// Generous on purpose: a long video on a slow disk is allowed to take minutes,
+// and a thumbnail killed early is a thumbnail that never appears. See
+// startFfmpegCeiling.
+const THUMBNAIL_FFMPEG_TIMEOUT_MS = Number.isFinite(env.THUMBNAIL_FFMPEG_TIMEOUT_MS)
+  ? Math.max(1000, Math.floor(env.THUMBNAIL_FFMPEG_TIMEOUT_MS))
+  : 5 * 60 * 1000;
 const THUMBNAIL_PROCESS_NICE = Number.isFinite(env.THUMBNAIL_PROCESS_NICE)
   ? Math.max(0, Math.min(19, Math.floor(env.THUMBNAIL_PROCESS_NICE)))
   : 10;
@@ -560,6 +566,31 @@ const attachFfmpegDiagnostics = (command) => {
   return { describeFailure, settledExit };
 };
 
+/**
+ * The longest one ffmpeg may take over one thumbnail.
+ *
+ * Nothing else ends a run that has stopped making progress. The queues do time
+ * out, but a timeout there only frees the slot — deliberately, so that a job
+ * still working is not started a second time — and the file stays in flight
+ * behind the process nobody is waiting for any more. One ffmpeg that never
+ * exits therefore meant one file with no thumbnail until a restart, whoever
+ * asked for it and however often.
+ *
+ * The ceiling sits far above what the work takes, because everything under it
+ * is a thumbnail that would have arrived: a long video on a slow disk is
+ * allowed its minutes. Past it the process is killed and the run fails like
+ * any other failure — remembered for its ten minutes, then asked for again.
+ *
+ * @param {(error: Error) => void} expire  the run's own `fail`
+ * @returns {() => void} stops it; every way out of the run calls this
+ */
+const startFfmpegCeiling = (expire) => {
+  const timer = setTimeout(() => {
+    expire(new Error(`FFmpeg did not finish within ${THUMBNAIL_FFMPEG_TIMEOUT_MS} ms`));
+  }, THUMBNAIL_FFMPEG_TIMEOUT_MS);
+  return () => clearTimeout(timer);
+};
+
 const atomicWriteSharpFile = async (finalPath, pipeline) => {
   await ensureDir(path.dirname(finalPath));
   const tmpPath = buildTempThumbnailPath(finalPath);
@@ -651,8 +682,10 @@ const makeVideoThumb = async (srcPath, destPath) => {
     let command = null;
     let externalProcessId = null;
     let settled = false;
+    let stopCeiling = null;
 
     const cleanup = ({ killProcess = false } = {}) => {
+      stopCeiling?.();
       if (killProcess) {
         try {
           command?.kill('SIGKILL');
@@ -722,6 +755,7 @@ const makeVideoThumb = async (srcPath, destPath) => {
     lowerChildProcessPriority(command.pid);
 
     diagnostics = attachFfmpegDiagnostics(command);
+    stopCeiling = startFfmpegCeiling(fail);
     command.on('error', fail);
     command.on('close', (code) => {
       // Stop tracking it as running the moment it exits, rather than when the
@@ -769,8 +803,10 @@ const makeHeicThumb = async (srcPath, destPath) => {
     let stream = null;
     let pipeline = null;
     let settled = false;
+    let stopCeiling = null;
 
     const cleanup = ({ killProcess = false } = {}) => {
+      stopCeiling?.();
       if (killProcess && command) {
         try {
           command.kill('SIGKILL');
@@ -826,6 +862,7 @@ const makeHeicThumb = async (srcPath, destPath) => {
     lowerChildProcessPriority(command.pid);
 
     diagnostics = attachFfmpegDiagnostics(command);
+    stopCeiling = startFfmpegCeiling(fail);
     command.on('error', fail);
 
     stream = command.stdout;
