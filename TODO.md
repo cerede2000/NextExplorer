@@ -373,59 +373,49 @@ their destination, and two ways into sign-in) and a dozen smaller ones, all fixe
 with their tests. What follows was found at the same time and judged not worth
 holding the release for. Each was reproduced; none is guessed.
 
-- **An unreachable identity provider reads as "OIDC is not configured".** The
-  404 from `/api/auth/oidc/login` sends an administrator to the configuration
-  when the provider is down.
-- **What a refused upload leaves.** `ensureDir` runs before the landing folder is
-  authorized, so a refused upload can create empty folders — a `.nextexplorer`
-  one included, through a folder session's `sourceRoot`. Nothing is written in
-  them, and the zone accepts a folder without its marker; still, a refusal should
-  leave nothing.
 - **Several files in one upload request measure the free space once**, before
   the first file has finished writing. Only API clients send several.
-- **An access rule on `../Secret`** is dropped by the server without a word, and
-  its row disappears from the page.
 - **The ONLYOFFICE transfer question** leaves the first promise unresolved if a
   second transfer asks while it is open. The dialog is modal, so this is
   theoretical.
 
-Found while fixing the rest of that list, the same evening, and left for later:
+The rest of that list was fixed on 16 September 2026, with the leftovers the
+same evening had found. What those fixes left behind, or decided not to do:
 
-- **A password change leaves three credentials alive.** Sessions the identity
-  provider opened are not ended — they carry its tokens, not our account id, so
-  ending them means reading each one's `sub` back through `auth_methods`. The
-  ONLYOFFICE backend tokens (12 h) and Collabora's WOPI tokens (6 h) are signed
-  and cannot be revoked without state on the server.
-- **Two saves of one settings section at once can lose one.** `mergeSection`
-  merges into the settings read at the start of the request. Branding no longer
-  goes through it.
-- **User preferences still coerce what they should refuse.** `asBoolean('false')`
-  is true, and an unknown view mode resets the folder to the default view.
-- **The trash and versions routes accept 0 or a negative retention**, which the
-  service raises to its bound. The settings page already refuses them.
-- **A logo can be left behind, unreferenced,** by a crash between its placement
-  and the settings switch, or when removing the one it replaced fails. At most
-  2 MB in `/config/logos`; not swept by pattern, which could take a file someone
-  else put there.
-- **The header logo's alternative text** is still English.
-- **A direct upload over MAX_DIRECT_UPLOAD_SIZE** is briefly placed, truncated,
-  under its real name before multer removes it. Checking `file.stream.truncated`
-  before placing it would close that.
-- **A thumbnail whose ffmpeg never exits stays in flight until a restart.** It
-  no longer starts a second ffmpeg each time the folder opens; nothing kills the
-  first one either.
-- **What is left of the large-file work.** A 19 MB file now travels compressed
-  and is revalidated rather than downloaded again, the editor no longer copies
-  it on every keystroke, a file whose parser would hold the page opens without
-  colours, and the preview cuts a document with no blank line. Still open:
+- **Two signed tokens outlive a password change, by decision.** ONLYOFFICE's
+  backend tokens (12 h) and Collabora's WOPI tokens (6 h) reach one file with
+  the rights written into them, and revoking one means state read on every
+  operation of every open editor. `docs/admin/guide.md` now says what a password
+  change ends and what it does not, and how to end those sooner.
+- **`/api/auth/status` does not say whether single sign-on is available**, so
+  the sign-in screen only learns a provider is down by trying. A field there
+  would let the button say so before it is pressed. A missing
+  `OIDC_CLIENT_SECRET` also reads as "could not be started" rather than "a
+  setting is missing"; only the log names it.
+- **A refusal after the landing folder was authorized still leaves folders.**
+  The folder is authorized before it is created now, but `ensureDir` in
+  `_handleFile` creates the sub-folders of a relative path afterwards, and a
+  refusal past that point — no space, a truncated file, a client that left —
+  leaves them empty.
+- **A settings save applies its sections one after another**, so a payload with
+  a valid section and a refused one writes the first before answering 400.
+- **An access rule whose path is nothing but spaces** is stored as it came: it
+  matches nothing, and is neither refused nor trimmed. `searchIndex` still has
+  no sanitiser of its own, so what is stored for it is the merge as it came.
+- **A logo interrupted mid-write** leaves `.logo-<uuid>.part`, which the sweep
+  at start does not look at — it takes only finished names.
+- **What is left of the large-file work.** A 19 MB file travels compressed and
+  is revalidated rather than downloaded again, the editor no longer copies it on
+  every keystroke, a file whose parser would hold the page opens without colours,
+  and the preview cuts a document with no blank line. Still open:
   - the first-hand check on the report that started it — Edge on a Mac, by the
     server's local address. Chromium keeps a compressed answer only up to about
     6 MB; the second opening there should show a 304 in the network panel;
   - the editor now reads with a GET, so the file's path is in the access log,
-    as `/api/raw` and `/api/versions` already put it;
-  - `vue-codemirror` is no longer imported and still in `frontend/package.json`;
-  - saving through a share reads the whole file to learn its encoding, where
-    the editor's own save reads its first bytes (`readFileEncoding`).
+    as `/api/raw` and `/api/versions` already put it.
+- **The download on a phone** — a long press, then Download, answered "session
+  expired" and cancelled itself — is fixed here and not confirmed there: it was
+  never reproduced in Chromium, whose requests survive the form's navigation.
 - **One browser test failed once:** the share link read right after trashing its
   file answered `ECONNRESET` (run 35020703315). It passed on the rerun and in
   three separate local runs of the file.
