@@ -471,12 +471,27 @@ describe('a relative path that points elsewhere', () => {
 describe('an upload that does not finish', () => {
   /**
    * The parser stops a file at the size limit by ending it early, so to the
-   * storage the truncated file looks complete and is moved into place. It is
-   * the removal afterwards that keeps a cut-off copy from sitting there under
-   * the real name.
+   * storage the truncated file looks complete: it was moved into place and
+   * removed a moment later, and nothing is left either way. What is watched
+   * here is that moment in between — the name a refused upload must never
+   * hold, since it is the name another upload may be asking for right then.
+   *
+   * A name is taken by the link or the rename that puts a file under it, so
+   * every one of those is recorded and the refused name must not be among
+   * them. `fs.open(target, 'wx')` on a filesystem without hard links is
+   * followed by the rename that is recorded here.
    */
-  it('leaves nothing behind when it is larger than the limit', async () => {
+  it('never takes the name it asked for when it is larger than the limit', async () => {
     const destination = await seed({ env: { MAX_DIRECT_UPLOAD_SIZE: '1K' } });
+    const taken = [];
+    const record = (original, target) =>
+      function taking(...args) {
+        taken.push(String(args[target]));
+        return original.apply(this, args);
+      };
+    const { link, rename } = fsp;
+    vi.spyOn(fsp, 'link').mockImplementation(record(link, 1));
+    vi.spyOn(fsp, 'rename').mockImplementation(record(rename, 1));
 
     const response = await upload(
       buildApp(ADMIN),
@@ -487,6 +502,7 @@ describe('an upload that does not finish', () => {
     // 413 naming the limit and the setting, not multer's "File too large" as a 500.
     expect(response.status).toBe(413);
     expect(reason(response)).toMatch(/larger than the 1 KB a direct upload accepts/);
+    expect(taken).not.toContain(path.join(destination, 'large.bin'));
     expect(await tree(destination)).toEqual([]);
   });
 

@@ -273,6 +273,23 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         req.off('close', handleClose);
       }
 
+      // The parser stops a file at the size limit by ending its stream early,
+      // so to the storage a truncated file looks like a complete one: it was
+      // put under the name it asked for, and only removed once the refusal had
+      // travelled back up through multer. A refused upload must never hold the
+      // name it asked for, not even for that instant — the name is one another
+      // upload may be asking for at the same moment, and a listing in between
+      // answers with a file that is not what it says it is. The refusal is
+      // multer's own, so the client is told what it was already going to be
+      // told, with this route's sentence and its 413.
+      if (file.stream?.truncated) {
+        const truncatedError = new multer.MulterError('LIMIT_FILE_SIZE', file.fieldname);
+        await waitForClosed(outStream);
+        await cleanupTemporary();
+        cb(truncatedError);
+        return;
+      }
+
       try {
         // Taken by an operation that fails when the name is held, moving on to
         // "name (1).ext" and so on: nothing already there is ever replaced. What
