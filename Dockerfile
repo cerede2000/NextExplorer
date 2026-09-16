@@ -8,7 +8,7 @@ ARG FFMPEG_VARIANT=apk
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:24.21-alpine3.23 AS base
+FROM public.ecr.aws/docker/library/node:24.21-alpine3.24 AS base
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ RUN npm run -w frontend build -- --sourcemap false
 # decoder (CVE-2026-14266, remote code execution), and `xz`/`txz` are in that
 # list — so this version is not a detail to leave where it was.
 # ---------------------------------------------------------------------------
-FROM alpine:3.23 AS seven_zip
+FROM alpine:3.24 AS seven_zip
 ARG TARGETARCH
 ARG SEVEN_ZIP_VERSION=26.03
 
@@ -100,7 +100,7 @@ RUN apk add --no-cache curl libarchive-tools \
 # publishes a detached signature (ffmpeg-<version>.tar.xz.asc) for anyone who
 # wants to go further than pinning the bytes.
 # ---------------------------------------------------------------------------
-FROM alpine:3.23 AS ffmpeg_build
+FROM alpine:3.24 AS ffmpeg_build
 ARG FFMPEG_VERSION=8.1.2
 ARG FFMPEG_SHA256=464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
 

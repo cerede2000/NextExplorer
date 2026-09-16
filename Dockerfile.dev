@@ -1,4 +1,4 @@
-FROM alpine:3.23 AS seven_zip
+FROM alpine:3.24 AS seven_zip
 ARG TARGETARCH
 ARG SEVEN_ZIP_VERSION=26.03
 RUN apk add --no-cache curl libarchive-tools \
@@ -14,7 +14,7 @@ RUN apk add --no-cache curl libarchive-tools \
   && bsdtar -xJf /tmp/7z.tar.xz -C /tmp/7z \
   && install -m 0755 "$(find /tmp/7z -type f -name 7zzs -print -quit)" /out/7z
 
-FROM public.ecr.aws/docker/library/node:24.21-alpine3.23
+FROM public.ecr.aws/docker/library/node:24.21-alpine3.24
 
 WORKDIR /repo
 ENV NODE_ENV=development
