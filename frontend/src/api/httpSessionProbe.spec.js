@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { requestJson, setErrorHandler, setSessionExpiredHandler } from './http';
+import {
+  expectBrowserNavigation,
+  requestJson,
+  setErrorHandler,
+  setSessionExpiredHandler,
+} from './http';
 
 /**
  * A request that gets no response at all, and what it means.
@@ -71,8 +76,11 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   setErrorHandler(null);
   setSessionExpiredHandler(null);
+  // A window that has already passed: no test starts inside another's download.
+  expectBrowserNavigation(-1);
 });
 
 const attempt = async () => {
@@ -156,12 +164,30 @@ describe('a request that gets no response', () => {
     expect(expiries).toHaveLength(1);
   });
 
-  it('treats a probe that gets nowhere as the session being over', async () => {
+  it('treats a probe that gets nowhere twice as the session being over', async () => {
     withProbe(() => noResponse());
 
     await attempt();
 
     expect(expiries).toHaveLength(1);
+  });
+
+  /**
+   * Its own silence is not proof. A page the browser suspended — for a
+   * download, for a switch to another app — cannot ask anything either, and
+   * asking again once it is running settles which of the two it was.
+   */
+  it('asks a second time before believing its own silence', async () => {
+    let asked = 0;
+    withProbe(() => {
+      asked += 1;
+      return asked === 1 ? noResponse() : Promise.resolve(json(SIGNED_IN));
+    });
+
+    await attempt();
+
+    expect(asked).toBe(2);
+    expect(expiries).toEqual([]);
   });
 
   it('treats a 401 on the probe as the session being over', async () => {
@@ -235,5 +261,50 @@ describe('when everything in flight fails at once', () => {
     await attempt();
 
     expect(fetchMock.mock.calls.filter(([url]) => isProbe(url))).toHaveLength(2);
+  });
+});
+
+/**
+ * Downloading posts a hidden form, which is a navigation: a phone suspends the
+ * page while it takes the file, and everything in flight ends without a
+ * response. Read as a lost session, that sent somebody who was only
+ * downloading to the login screen — and the navigation there cancelled the
+ * download, so the file never arrived however many times they tried.
+ */
+describe('a request the browser cut short', () => {
+  const hidePage = () => vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+  it('asks nothing and says nothing while the page is not on screen', async () => {
+    hidePage();
+    fetchMock.mockImplementation(() => noResponse());
+
+    const { error } = await attempt();
+
+    expect(error.navigationInterrupted).toBe(true);
+    expect(fetchMock.mock.calls.filter(([url]) => isProbe(url))).toEqual([]);
+    expect(expiries).toEqual([]);
+    expect(toasts).toEqual([]);
+  });
+
+  it('asks nothing and says nothing while a download may be under way', async () => {
+    expectBrowserNavigation();
+    fetchMock.mockImplementation(() => noResponse());
+
+    const { error } = await attempt();
+
+    expect(error.navigationInterrupted).toBe(true);
+    expect(fetchMock.mock.calls.filter(([url]) => isProbe(url))).toEqual([]);
+    expect(expiries).toEqual([]);
+    expect(toasts).toEqual([]);
+  });
+
+  /** Once the download can no longer be the reason, the ordinary path is back. */
+  it('is an ordinary failure again once that window has passed', async () => {
+    expectBrowserNavigation(-1);
+    withProbe(() => Promise.resolve(json(SIGNED_IN)));
+
+    await attempt();
+
+    expect(toasts.map((t) => t.message)).toEqual(['Network Error']);
   });
 });

@@ -20,8 +20,11 @@ vi.mock('@/stores/features', () => ({ useFeaturesStore: () => featuresState }));
 vi.mock('@/composables/useDestinationPicker', () => ({
   useDestinationPicker: () => ({ pick }),
 }));
+const api = vi.hoisted(() => ({ expectBrowserNavigation: vi.fn() }));
+
 vi.mock('@/api', () => ({
   buildUrl: (p) => `https://files.example.com${p}`,
+  expectBrowserNavigation: (...args) => api.expectBrowserNavigation(...args),
   normalizePath: (p) =>
     String(p || '')
       .replace(/\\/g, '/')
@@ -255,6 +258,33 @@ describe('downloading', () => {
     setup({ selection: [] }).actions.runDownload();
 
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The form is a navigation, and a phone suspends the page while it takes the
+   * file: requests in flight then end without a response. Said before the
+   * submit, so that silence is read as a download rather than as a session that
+   * ended — which used to send the person to the login screen and cancel the
+   * download with them.
+   */
+  it('says a download is about to take the page, before it submits', () => {
+    api.expectBrowserNavigation.mockClear();
+    const order = [];
+    api.expectBrowserNavigation.mockImplementation(() => order.push('announced'));
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => order.push('submitted'));
+
+    setup().actions.runDownload();
+
+    expect(order).toEqual(['announced', 'submitted']);
+  });
+
+  it('says nothing when there is nothing to download', () => {
+    api.expectBrowserNavigation.mockClear();
+    formSubmits();
+
+    setup({ selection: [] }).actions.runDownload();
+
+    expect(api.expectBrowserNavigation).not.toHaveBeenCalled();
   });
 
   /**

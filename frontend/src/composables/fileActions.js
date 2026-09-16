@@ -1,7 +1,7 @@
 import { computed } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
 import { useFeaturesStore } from '@/stores/features';
-import { buildUrl, normalizePath } from '@/api';
+import { buildUrl, expectBrowserNavigation, normalizePath } from '@/api';
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
 
 function isEditableElement(el) {
@@ -218,6 +218,10 @@ export function useFileActions() {
     form.appendChild(basePathInput);
 
     document.body.appendChild(form);
+    // Submitting is a navigation: the browser may suspend the page while it
+    // takes the file, and the requests in flight end without a response. Said
+    // here so that silence is read as a download rather than as a lost session.
+    expectBrowserNavigation();
     form.submit();
     document.body.removeChild(form);
   };

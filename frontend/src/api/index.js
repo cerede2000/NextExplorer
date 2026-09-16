@@ -1,7 +1,7 @@
 // /api/index.js
 
 // Export core helpers (optional, but can be useful)
-export { apiBase, buildUrl, normalizePath, encodePath } from './http';
+export { apiBase, buildUrl, expectBrowserNavigation, normalizePath, encodePath } from './http';
 
 // Export all domain-specific functions
 export * from './files.api';

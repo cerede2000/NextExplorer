@@ -39,6 +39,42 @@ const normalizePath = (relativePath = '') => {
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
 
 /**
+ * A download the browser performs itself.
+ *
+ * Downloading posts a hidden form, which is a navigation: the browser leaves to
+ * fetch the file, and what it does to the page meanwhile is its own business.
+ * A phone suspends it — the download panel comes up, the page stops running —
+ * and every request in flight ends without a response, which looks exactly like
+ * a server that has gone away. The session probe below then asked a question
+ * the suspended page could not ask either, read its own silence as proof, and
+ * sent somebody who was only downloading a file to the login screen; the
+ * navigation that took them there cancelled the download.
+ *
+ * So a download says so first, and for as long as it may be under way a failure
+ * without a response is what it is: a request the browser cut short.
+ */
+let navigationExpectedUntil = 0;
+const NAVIGATION_WINDOW_MS = 10000;
+
+export const expectBrowserNavigation = (windowMs = NAVIGATION_WINDOW_MS) => {
+  navigationExpectedUntil = Date.now() + windowMs;
+};
+
+/** The page is not running the request: it is downloading, or it is not on screen. */
+const requestWasCutShort = () =>
+  Date.now() < navigationExpectedUntil ||
+  (typeof document !== 'undefined' && document.visibilityState === 'hidden');
+
+const interrupted = () => {
+  const error = new Error('The browser interrupted the request.');
+  error.navigationInterrupted = true;
+  return error;
+};
+
+/** How long to wait before asking the probe a second time. */
+const PROBE_RETRY_DELAY_MS = 700;
+
+/**
  * Whether the session is over, asked of the one endpoint that can still answer.
  *
  * A request that gets no response at all looks identical whether the server is
@@ -74,7 +110,7 @@ const sessionHasEnded = () => {
   return sessionProbe;
 };
 
-const askWhetherSessionEnded = async () => {
+const askWhetherSessionEnded = async (secondTry = false) => {
   try {
     const response = await fetch(buildUrl('/api/auth/status'), {
       method: 'GET',
@@ -92,10 +128,13 @@ const askWhetherSessionEnded = async () => {
     const status = await response.json();
     return status?.authEnabled === true && status?.authenticated === false;
   } catch (_) {
-    // Even this got nowhere. Somebody signed in a moment ago cannot reach the
-    // one endpoint that needs no session, which is a gateway turning everything
-    // away rather than a server that has gone quiet.
-    return true;
+    // Even this got nowhere — which is a gateway turning every call away, or a
+    // page that was not running long enough to make one. Asked again a moment
+    // later, a gateway answers the same way and a page that has come back
+    // answers properly, so only the second silence is taken as proof.
+    if (secondTry) return true;
+    await wait(PROBE_RETRY_DELAY_MS);
+    return askWhetherSessionEnded(true);
   }
 };
 
@@ -199,6 +238,11 @@ const requestRaw = async (endpoint, options = {}) => {
           await wait(NETWORK_RETRY_DELAYS_MS[attempt]);
           continue;
         }
+
+        // A download is under way, or the page is not on screen: the request
+        // was cut short by the browser, and says nothing about the session or
+        // the network. Nothing to probe, nothing to tell anyone.
+        if (requestWasCutShort()) throw interrupted();
 
         const targetUrl = buildUrl(endpoint);
 
