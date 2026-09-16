@@ -1,4 +1,4 @@
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
 
 const { archives } = require('../config/index');
@@ -276,8 +276,116 @@ const browseArchive = async (archiveAbsolutePath, inside = '') => {
   };
 };
 
+/**
+ * One entry of an archive, as the archive itself describes it.
+ *
+ * The name comes from whoever asked, so it is looked up in the listing rather
+ * than taken on trust: what is read is an entry this archive holds, under
+ * exactly the name it holds it under. That lookup is also where the size and
+ * the encryption come from, which are the two things the answer needs and the
+ * caller must not be allowed to assert.
+ */
+const findArchiveEntry = async (archiveAbsolutePath, entryPath) => {
+  const wanted = entryPathOf(entryPath);
+  if (wanted === null) {
+    throw listingError('That is not a file inside this archive.', 'ARCHIVE_BAD_POSITION', 400);
+  }
+
+  const { entries } = await readArchiveListing(archiveAbsolutePath);
+  const found = entries.find((entry) => entry.path === wanted);
+  if (!found) {
+    throw listingError('That file is not in this archive.', 'ARCHIVE_ENTRY_NOT_FOUND', 404);
+  }
+  if (found.isDirectory) {
+    throw listingError('That is a folder, not a file.', 'ARCHIVE_ENTRY_IS_FOLDER', 400);
+  }
+  if (found.encrypted) {
+    throw listingError(
+      'This file is encrypted and cannot be read without its password.',
+      'ARCHIVE_ENCRYPTED',
+      409
+    );
+  }
+
+  return found;
+};
+
+/** How long one entry may take to come out before nobody is still waiting. */
+const READ_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * The bytes of one entry, straight out of the archive and nowhere else.
+ *
+ * `-so` writes to standard output, so nothing is ever placed on disk — the
+ * whole point of this, and the thing a later change would quietly lose by
+ * extracting to a temporary folder first.
+ *
+ * `-spd` matters as much: without it 7-Zip reads the name as a pattern, so an
+ * entry genuinely called `report*.txt` would come back as every report in the
+ * archive, joined end to end. The name is checked against the listing before
+ * it gets here, which stops it naming another archive's business, but not one
+ * name standing for several of its own.
+ *
+ * stderr is read and kept short on purpose: left unread it fills its pipe at
+ * 64 KB and the extraction stops there, holding the connection open.
+ */
+const openArchiveEntry = (archiveAbsolutePath, entryPath) => {
+  const child = spawn(
+    SEVEN_ZIP_BIN,
+    ['x', '-so', '-y', '-p', '-spd', '--', archiveAbsolutePath, entryPath],
+    { stdio: ['ignore', 'pipe', 'pipe'] }
+  );
+
+  let output = '';
+  child.stderr.on('data', (chunk) => {
+    output = `${output}${chunk}`.slice(-2000);
+  });
+
+  const timer = setTimeout(() => child.kill('SIGKILL'), READ_TIMEOUT_MS);
+  timer.unref?.();
+
+  const finished = new Promise((resolve, reject) => {
+    child.once('error', (error) => {
+      clearTimeout(timer);
+      reject(
+        error?.code === 'ENOENT'
+          ? listingError('Archives cannot be read on this server.', 'ARCHIVE_TOOL_MISSING', 503)
+          : error
+      );
+    });
+    child.once('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      const error = new Error(`7z exited with code ${code}: ${output.trim().slice(-500)}`);
+      reject(
+        isArchivePasswordError(error)
+          ? listingError(
+              'This file is encrypted and cannot be read without its password.',
+              'ARCHIVE_ENCRYPTED',
+              409
+            )
+          : listingError('This entry could not be read.', 'ARCHIVE_UNREADABLE', 422)
+      );
+    });
+  });
+
+  return {
+    stdout: child.stdout,
+    finished,
+    stop: () => {
+      clearTimeout(timer);
+      child.kill('SIGKILL');
+    },
+  };
+};
+
 module.exports = {
   browseArchive,
+  findArchiveEntry,
+  openArchiveEntry,
   readArchiveListing,
   describeEntries,
   parseRecords,

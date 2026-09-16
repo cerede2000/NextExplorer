@@ -250,3 +250,150 @@ describe('who may look inside an archive', () => {
     expect(response.status).not.toBe(200);
   });
 });
+
+/**
+ * Taking one file out of an archive.
+ *
+ * The name is the caller's, so the answer is decided by the archive: it is
+ * looked up in the listing, and what comes back is that entry or nothing. And
+ * it always arrives as an attachment — a file inside somebody's archive is
+ * their HTML as easily as their photograph, and served inline it would run on
+ * this application's origin.
+ */
+describe('reading one entry of an archive', () => {
+  /** Served as an attachment, so nothing here is a type superagent parses. */
+  const binary = (res, callback) => {
+    const chunks = [];
+    res.on('data', (chunk) => chunks.push(chunk));
+    res.on('end', () => callback(null, Buffer.concat(chunks)));
+  };
+
+  const read = (query) =>
+    request(buildApp()).get('/api/archive/entry').query(query).buffer(true).parse(binary);
+
+  /** A refusal is JSON, and is read as JSON. */
+  const refuse = (query) => request(buildApp()).get('/api/archive/entry').query(query);
+
+  it('answers the bytes of the entry that was asked for', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [
+      { path: 'notes.txt', size: 12, content: 'twelve bytes' },
+      { path: 'docs/report.txt', size: 8, content: 'a report' },
+    ]);
+
+    const response = await read({ path: 'pack.zip', entry: 'docs/report.txt' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.toString()).toBe('a report');
+  });
+
+  it('names and types the file it hands over, as an attachment', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [
+      { path: 'docs/report.txt', size: 8, content: 'a report' },
+    ]);
+
+    const response = await read({ path: 'pack.zip', entry: 'docs/report.txt' });
+
+    expect(response.headers['content-disposition']).toContain('attachment');
+    expect(response.headers['content-disposition']).toContain('report.txt');
+    // The type table this application keeps is about media; everything else is
+    // handed over as bytes, which for an attachment is the safe answer anyway.
+    expect(response.headers['content-type']).toContain('application/octet-stream');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['content-length']).toBe('8');
+  });
+
+  /** Even a page, which is the one this rule is about. */
+  it('hands over a web page as an attachment too', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [{ path: 'page.html', size: 5, content: '<h1/>' }]);
+
+    const response = await read({ path: 'pack.zip', entry: 'page.html' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-disposition']).toContain('attachment');
+  });
+
+  it('refuses a name that points outside the archive', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [{ path: 'notes.txt', size: 1, content: 'x' }]);
+
+    const response = await refuse({ path: 'pack.zip', entry: '../../etc/passwd' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('ARCHIVE_BAD_POSITION');
+  });
+
+  /**
+   * The lookup is the guard: a name the archive does not hold is refused here
+   * rather than handed to 7-Zip to be interpreted.
+   */
+  it('refuses a name the archive does not hold', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [{ path: 'notes.txt', size: 1, content: 'x' }]);
+
+    const response = await refuse({ path: 'pack.zip', entry: 'invented.txt' });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('ARCHIVE_ENTRY_NOT_FOUND');
+  });
+
+  it('refuses a folder', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [
+      { path: 'docs', directory: true },
+      { path: 'docs/report.txt', size: 1, content: 'x' },
+    ]);
+
+    const response = await refuse({ path: 'pack.zip', entry: 'docs' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('ARCHIVE_ENTRY_IS_FOLDER');
+  });
+
+  it('refuses an entry whose contents are encrypted', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [
+      { path: 'secret.txt', size: 6, encrypted: true, content: 'hidden' },
+    ]);
+
+    const response = await refuse({ path: 'pack.zip', entry: 'secret.txt' });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('ARCHIVE_ENCRYPTED');
+  });
+
+  it('needs an entry to read', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'pack.zip', [{ path: 'notes.txt', size: 1, content: 'x' }]);
+
+    const response = await refuse({ path: 'pack.zip' });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('is refused for an archive the caller may not read', async () => {
+    const volume = await seed({
+      env: { USER_VOLUMES: 'true' },
+      rules: [{ path: 'Private', permissions: 'hidden', recursive: true }],
+    });
+    await writeArchive(volume, 'Private/pack.zip', [{ path: 'notes.txt', size: 1, content: 'x' }]);
+
+    const routes = currentEnv.requireFresh('src/routes/archive');
+    const { errorHandler } = currentEnv.requireFresh('src/middleware/errorHandler');
+    const app = express();
+    app.use((req, _res, next) => {
+      req.user = { id: 'restricted', roles: [] };
+      next();
+    });
+    app.use('/api', routes);
+    app.use(errorHandler);
+
+    const response = await request(app)
+      .get('/api/archive/entry')
+      .query({ path: 'Private/pack.zip', entry: 'notes.txt' });
+
+    expect([403, 404]).toContain(response.status);
+  });
+});

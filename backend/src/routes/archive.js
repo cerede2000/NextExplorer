@@ -5,7 +5,14 @@ const path = require('path');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { getSupportedArchiveExtensions } = require('../services/archiveService');
-const { browseArchive } = require('../services/archiveBrowseService');
+const {
+  browseArchive,
+  findArchiveEntry,
+  openArchiveEntry,
+} = require('../services/archiveBrowseService');
+const { toExtension, resolveMimeType } = require('../utils/fileTypes');
+const { encodeContentDisposition } = require('./files/utils');
+const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 
@@ -82,6 +89,58 @@ router.get(
       name: path.basename(archive.relativePath),
       ...listing,
     });
+  })
+);
+
+/**
+ * One file out of an archive, without unpacking the rest of it.
+ *
+ * Always as an attachment. A file inside somebody's archive is somebody else's
+ * HTML as easily as their photograph, and served inline it would run on this
+ * application's origin: that is a decision about previewing, not about reading,
+ * and it is not made here. The type is still declared, so a saved file arrives
+ * named and typed as what it is, and `nosniff` stops the browser arguing.
+ */
+router.get(
+  '/archive/entry',
+  asyncHandler(async (req, res) => {
+    const archive = await resolveArchive(req);
+    const wanted = typeof req.query.entry === 'string' ? req.query.entry : '';
+    const entry = await findArchiveEntry(archive.absolutePath, wanted);
+
+    const name = entry.path.slice(entry.path.lastIndexOf('/') + 1);
+    res.setHeader('Content-Type', resolveMimeType(toExtension(name)));
+    res.setHeader('Content-Disposition', encodeContentDisposition(name, 'attachment'));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Robots-Tag', 'noindex');
+    // What the archive says the entry weighs, which is what `-so` writes. A
+    // damaged archive that writes less ends the download short, which is what
+    // it is, rather than looking like a file that arrived whole.
+    if (Number.isFinite(entry.size)) res.setHeader('Content-Length', String(entry.size));
+
+    const reading = openArchiveEntry(archive.absolutePath, entry.path);
+
+    // Whoever closed the tab is not waiting for the rest of it, and 7-Zip would
+    // otherwise go on decompressing into a pipe nobody reads.
+    res.once('close', () => {
+      if (!res.writableEnded) reading.stop();
+    });
+
+    reading.stdout.pipe(res);
+
+    try {
+      await reading.finished;
+    } catch (error) {
+      reading.stop();
+      if (res.headersSent) {
+        // The answer was already on its way: there is no status left to send,
+        // and ending it short is the only honest thing available.
+        logger.warn({ err: error, entry: entry.path }, 'Reading an archive entry stopped short');
+        res.destroy();
+        return;
+      }
+      throw error;
+    }
   })
 );
 

@@ -11,10 +11,14 @@ const path = require('node:path');
  * — and on a machine without 7-Zip installed none of it could be run at all,
  * which is most machines somebody develops on.
  *
- * The stand-in answers `i` with a format list, and `l` by printing the archive
- * file itself: a test writes the listing it wants read, exactly as 7-Zip would
- * have printed it, and the route is then decided by this application rather
- * than by an archive somebody had to commit.
+ * The stand-in answers `i` with a format list, `l` by printing the listing a
+ * test wrote into the archive file, and `x -so` by printing the bytes that
+ * test filed under the name being asked for. So the route is decided by this
+ * application rather than by an archive somebody had to commit.
+ *
+ * It refuses an `x` that does not carry `-spd`, which is the switch that stops
+ * 7-Zip reading a name as a pattern. Nothing else would notice its absence
+ * until an archive held a file called `report*.txt`.
  *
  * That is the limit of it, and it is why the suites that use a real 7-Zip stay:
  * this proves what is done with a listing, never that 7-Zip prints one.
@@ -43,7 +47,21 @@ case "$1" in
       echo "ERROR: Unexpected end of archive" >&2
       exit 2
     fi
-    cat "$last"
+    sed '/^%%FAKE-7Z-CONTENT%%$/,$d' "$last"
+    exit 0
+    ;;
+  x)
+    case " $* " in
+      *" -spd "*) ;;
+      *) echo "fake 7z: x without -spd would read the name as a pattern" >&2; exit 1 ;;
+    esac
+    # The last two arguments are the archive and the entry inside it.
+    for entry; do archive="$previous"; previous="$entry"; done
+    awk -v want="$entry" '
+      seen && index($0, want "\t") == 1 { printf "%s", substr($0, length(want) + 2); found = 1 }
+      /^%%FAKE-7Z-CONTENT%%$/ { seen = 1 }
+      END { exit(found ? 0 : 2) }
+    ' "$archive" || { echo "ERROR: No files to process" >&2; exit 2; }
     exit 0
     ;;
 esac
@@ -76,7 +94,10 @@ const useFakeSevenZip = () => {
   };
 };
 
-/** The text 7-Zip prints for an archive holding these entries. */
+/**
+ * An archive the stand-in can answer for: the listing 7-Zip would print, and
+ * then the bytes of each entry that has any, behind a marker `l` never reads.
+ */
 const fakeListing = (entries) =>
   [
     '7-Zip (z) 26.03 (x64) : Copyright (c) 1999-2026 Igor Pavlov',
@@ -98,6 +119,11 @@ const fakeListing = (entries) =>
         '',
       ].join('\n')
     ),
+    '%%FAKE-7Z-CONTENT%%',
+    ...entries
+      .filter((entry) => typeof entry.content === 'string')
+      .map((entry) => `${entry.path}\t${entry.content}`),
+    '',
   ].join('\n');
 
 module.exports = { useFakeSevenZip, fakeListing };

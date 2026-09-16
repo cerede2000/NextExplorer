@@ -118,6 +118,70 @@ describe.skipIf(!sevenZip)('browsing a real archive with the real 7-Zip', () => 
     expect(await fs.readdir(volume)).toEqual(before);
   });
 
+  /**
+   * The read, against the real tool. Two things only a real 7-Zip can prove:
+   * that `-so` writes the bytes rather than a file, and that a name holding a
+   * character 7-Zip reads as a pattern comes back as one file rather than
+   * every file it matches.
+   */
+  it('takes one file out, by its exact name', async () => {
+    const volume = await seed();
+    await writeZip(path.join(volume, 'backup.zip'), [
+      { path: 'docs/report.txt', content: 'the report itself' },
+      { path: 'docs/other.txt', content: 'not this one' },
+    ]);
+
+    const response = await request(buildApp())
+      .get('/api/archive/entry')
+      .query({ path: 'backup.zip', entry: 'docs/report.txt' })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.toString()).toBe('the report itself');
+    expect(response.headers['content-disposition']).toContain('report.txt');
+  });
+
+  it('reads a name 7-Zip would otherwise take for a pattern', async () => {
+    const volume = await seed();
+    await writeZip(path.join(volume, 'backup.zip'), [
+      { path: 'report*.txt', content: 'the literal one' },
+      { path: 'report1.txt', content: 'not this' },
+      { path: 'report2.txt', content: 'nor this' },
+    ]);
+
+    const response = await request(buildApp())
+      .get('/api/archive/entry')
+      .query({ path: 'backup.zip', entry: 'report*.txt' })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.toString()).toBe('the literal one');
+  });
+
+  it('writes nothing to disk to hand a file over', async () => {
+    const volume = await seed();
+    await writeZip(path.join(volume, 'backup.zip'), [
+      { path: 'docs/report.txt', content: 'the report itself' },
+    ]);
+    const before = await fs.readdir(volume);
+
+    await request(buildApp())
+      .get('/api/archive/entry')
+      .query({ path: 'backup.zip', entry: 'docs/report.txt' });
+
+    expect(await fs.readdir(volume)).toEqual(before);
+  });
+
   it('refuses a file that is not an archive, whatever it is called', async () => {
     const volume = await seed();
     await fs.writeFile(path.join(volume, 'pretend.zip'), 'not a zip at all');
