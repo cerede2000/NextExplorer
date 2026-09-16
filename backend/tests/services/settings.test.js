@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
-const SETTINGS_MODULES = [
-  'src/services/settingsService',
-  'src/services/db',
-];
+const SETTINGS_MODULES = ['src/services/settingsService', 'src/services/db'];
 
 const createSettingsContext = async () => {
   const envContext = await setupTestEnv({
@@ -37,17 +34,13 @@ describe('Settings Service', () => {
   });
 
   describe('setSettings', () => {
-    it('should sanitize thumbnails and filter access rules', async () => {
+    it('should sanitize thumbnails and uploads, and tidy a rule path', async () => {
       const { envContext, settingsService } = await createSettingsContext();
       try {
         const payload = {
           thumbnails: { size: 5000, quality: 150, concurrency: -2 },
           access: {
-            rules: [
-              { path: '/Projects', permissions: 'ro', recursive: true },
-              { path: 'uploads', permissions: 'invalid', recursive: false },
-              { path: '../bad', permissions: 'hidden' },
-            ],
+            rules: [{ path: '/Projects', permissions: 'ro', recursive: true }],
           },
           uploads: { chunkedEnabled: true, chunkSizeBytes: 512 },
         };
@@ -58,11 +51,42 @@ describe('Settings Service', () => {
         expect(updated.thumbnails.quality).toBe(100);
         expect(updated.thumbnails.concurrency).toBe(1);
         expect(updated.thumbnails.enabled).toBe(true);
-        expect(updated.access.rules.length).toBe(2);
+        expect(updated.access.rules.length).toBe(1);
         expect(updated.access.rules[0].path).toBe('Projects');
-        expect(updated.access.rules[1].permissions).toBe('rw');
         expect(updated.uploads.chunkedEnabled).toBe(true);
         expect(updated.uploads.chunkSizeBytes).toBe(1024 * 1024);
+      } finally {
+        await envContext.cleanup();
+      }
+    });
+
+    /**
+     * A number out of its bounds is brought within them, because every value in
+     * the range means the same kind of thing. A rule is not like that: there is
+     * no nearest valid folder for `../bad`, and the nearest valid permissions
+     * for a misspelt `readonly` used to be `rw` — the opposite of what was
+     * meant. Both are answered instead, and nothing is stored.
+     */
+    it('should refuse an access rule it cannot store rather than repair it', async () => {
+      const { envContext, settingsService } = await createSettingsContext();
+      try {
+        await settingsService.setSettings({
+          access: { rules: [{ path: 'Projects', permissions: 'ro', recursive: true }] },
+        });
+
+        await expect(
+          settingsService.setSettings({
+            access: { rules: [{ path: 'uploads', permissions: 'invalid', recursive: false }] },
+          })
+        ).rejects.toThrow(/is not one of the permissions/);
+        await expect(
+          settingsService.setSettings({
+            access: { rules: [{ path: '../bad', permissions: 'hidden' }] },
+          })
+        ).rejects.toThrow(/Traversal outside the volume root/);
+
+        const { access } = await settingsService.getSystemSettings();
+        expect(access.rules).toEqual([expect.objectContaining({ path: 'Projects' })]);
       } finally {
         await envContext.cleanup();
       }

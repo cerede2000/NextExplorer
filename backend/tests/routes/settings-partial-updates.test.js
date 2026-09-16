@@ -272,6 +272,73 @@ describe('a list sent as something that is not a list', () => {
   });
 });
 
+/**
+ * A rule the server cannot store as it was written.
+ *
+ * Every one of these used to be sanitised away with a 200: the row for
+ * `../Secret` vanished from the page the moment it was saved, and an
+ * administrator was left believing a folder was hidden that never was. Worse,
+ * permissions that were not one of the three became `rw`, so a mistyped
+ * `readonly` opened a folder for writing instead of refusing the word.
+ *
+ * Each one stores a good rule first, so a refusal can be told from a list that
+ * was replaced by nothing.
+ */
+describe('an access rule the server cannot store', () => {
+  const STORED = { id: 'kept', path: 'Private', permissions: 'hidden', recursive: true };
+
+  it.each([
+    [
+      'a path that climbs out of the volume',
+      { path: '../Secret', permissions: 'hidden' },
+      /Traversal outside the volume root/,
+    ],
+    ['no path at all', { path: '', permissions: 'ro' }, /a rule needs the path of a folder/],
+    [
+      'permissions that are not one of the three',
+      { path: 'Legal', permissions: 'readonly' },
+      /is not one of the permissions/,
+    ],
+    [
+      'a recursive flag that is not one',
+      { path: 'Legal', permissions: 'ro', recursive: 'yes' },
+      /does not say whether the rule covers what is inside/,
+    ],
+    ['something that is not a rule', 'Legal', /this is not a rule/],
+  ])('is refused, with the reason, and changes nothing: %s', async (_label, rule, reason) => {
+    await seed();
+    await patch(['admin'], { access: { rules: [STORED] } });
+
+    const response = await patch(['admin'], { access: { rules: [STORED, rule] } });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toMatch(reason);
+    // Numbered as the page numbers the rows, so the reason names the one to fix.
+    expect(response.body.error.message).toMatch(/^Access rule 2: /);
+    expect((await readAsAdmin()).access.rules).toEqual([expect.objectContaining(STORED)]);
+  });
+
+  /**
+   * Read back, the same rule is still dropped rather than refused. A value an
+   * older version stored, or one edited into app.db by hand, must not make the
+   * settings unreadable — unreadable settings are every hidden folder visible.
+   */
+  it('is dropped, not refused, when it is already in the database', async () => {
+    const db = await seed();
+    db.prepare(
+      `INSERT INTO system_settings (id, category, key, value, updated_at)
+       VALUES ('a1', 'system', 'access', ?, ?)`
+    ).run(
+      JSON.stringify({ rules: [STORED, { path: '../Secret', permissions: 'hidden' }] }),
+      new Date().toISOString()
+    );
+
+    const settings = await readAsAdmin();
+
+    expect(settings.access.rules).toEqual([expect.objectContaining(STORED)]);
+  });
+});
+
 describe('what a regular account may not change', () => {
   /**
    * `settings-write-boundary.test.js` covers one field of five sections. These

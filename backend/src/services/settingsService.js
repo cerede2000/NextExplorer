@@ -6,6 +6,7 @@ const env = require('../config/env');
 const folderSizeExclusions = require('./folderSizeExclusions');
 const searchIndexExclusions = require('./searchIndexExclusions');
 const { generateId } = require('../utils/ids');
+const { ValidationError } = require('../errors/AppError');
 
 const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
 const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
@@ -153,30 +154,62 @@ const sanitizeSearchIndex = (searchIndex = {}) => ({
   excludedPaths: searchIndexExclusions.sanitizePaths(searchIndex.excludedPaths || []),
 });
 
+const ACCESS_PERMISSIONS = ['rw', 'ro', 'hidden'];
+
 /**
- * Sanitize access control rules
+ * Sanitize access control rules.
+ *
+ * Read back (`strict: false`), a rule that cannot stand is dropped. Anything
+ * else would make one bad row — left by an older version, or edited into
+ * app.db by hand — unreadable settings, and unreadable settings are every
+ * hidden folder visible to everybody.
+ *
+ * Saved (`strict: true`), the same rule is refused with its reason and nothing
+ * is written. Dropping it silently answered 200 with a list the page then
+ * adopted: the row for `../Secret` disappeared the moment it was saved, and an
+ * administrator was left believing a folder was hidden that never was. The
+ * permissions were worse — anything not one of the three became `rw`, so a
+ * mistyped `readonly` opened a folder for writing instead of refusing the word.
  */
-const sanitizeAccessRules = (rules = []) => {
-  if (!Array.isArray(rules)) return [];
+const sanitizeAccessRules = (rules = [], { strict = false } = {}) => {
+  if (!Array.isArray(rules)) {
+    if (strict) throw new ValidationError('The access rules have to be sent as a list.');
+    return [];
+  }
 
   return rules
-    .map((rule) => {
-      if (!rule || typeof rule !== 'object') return null;
+    .map((rule, index) => {
+      // Numbered as the page numbers them, so the reason names the row.
+      const refuse = (reason) => {
+        if (!strict) return null;
+        throw new ValidationError(`Access rule ${index + 1}: ${reason}`);
+      };
+
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+        return refuse('this is not a rule.');
+      }
 
       // Validate path
       let normalizedPath;
       try {
         normalizedPath = normalizeRelativePath(rule.path || '');
-      } catch {
-        return null; // Invalid path
+      } catch (error) {
+        return refuse(`"${rule.path}" is not a folder path. ${error.message}`);
       }
 
-      if (!normalizedPath) return null;
+      if (!normalizedPath) return refuse('a rule needs the path of a folder.');
 
       // Validate permissions
-      const permissions = ['rw', 'ro', 'hidden'].includes(rule.permissions)
-        ? rule.permissions
-        : 'rw';
+      if (rule.permissions !== undefined && !ACCESS_PERMISSIONS.includes(rule.permissions)) {
+        return refuse(
+          `"${rule.permissions}" is not one of the permissions a rule gives: rw, ro or hidden.`
+        );
+      }
+      const permissions = ACCESS_PERMISSIONS.includes(rule.permissions) ? rule.permissions : 'rw';
+
+      if (rule.recursive !== undefined && typeof rule.recursive !== 'boolean') {
+        return refuse(`"${rule.recursive}" does not say whether the rule covers what is inside.`);
+      }
 
       return {
         id: rule.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -667,8 +700,10 @@ const setSystemSetting = async (category, key, value) => {
   if (key === 'thumbnails') {
     sanitizedValue = sanitizeThumbnails(value);
   } else if (key === 'access') {
+    // Strict: what is being stored was just written by somebody, and a rule
+    // that cannot be stored as they wrote it is answered rather than dropped.
     sanitizedValue = {
-      rules: sanitizeAccessRules(value.rules || []),
+      rules: sanitizeAccessRules(value.rules || [], { strict: true }),
     };
   } else if (key === 'uploads') {
     sanitizedValue = sanitizeUploads(value);

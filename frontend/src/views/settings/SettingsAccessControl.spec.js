@@ -140,18 +140,28 @@ describe('adding a rule', () => {
   });
 
   /**
-   * A rule with no path would apply to nothing the server can resolve, and the
-   * server drops it anyway; the page drops it first rather than send it.
+   * A rule with no path used to be left out here, and the server dropped the
+   * rules it could not store: either way the row left the page the moment it
+   * was saved, and the folder it was meant to name was never protected. Every
+   * row is sent, and the server answers with the rule it refused and why.
    */
-  it('leaves out a row whose path is empty or only slashes', async () => {
+  it.each([
+    ['', 'empty'],
+    ['///', 'only slashes'],
+  ])('sends a row whose path is %j, %s, rather than dropping it', async (typed) => {
     await open();
+    const refusal = 'Access rule 4: a rule needs the path of a folder.';
+    appSettings.save.mockRejectedValue(new Error(refusal));
 
     await button('actions.addRule').trigger('click');
-    await button('actions.addRule').trigger('click');
-    await row(4).get('input:not([type])').setValue('///');
+    await row(3).get('input:not([type])').setValue(typed);
     await save();
 
-    expect(sent().access.rules).toEqual(RULES);
+    expect(sent().access.rules).toHaveLength(4);
+    expect(sent().access.rules.at(-1)).toMatchObject({ path: '' });
+    // The row is still there to be corrected, with the reason beside it.
+    expect(rows()).toHaveLength(4);
+    expect(wrapper.get('[data-test="access-save-error"]').text()).toBe(refusal);
   });
 });
 

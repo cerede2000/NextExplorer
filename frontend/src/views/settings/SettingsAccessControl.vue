@@ -38,13 +38,16 @@ const reset = () => {
 const saveError = ref('');
 
 const save = async () => {
-  // basic sanitization client-side
-  const cleaned = local.rules
-    .map((r) => ({
-      ...r,
-      path: String(r.path || '').replace(/^\/+|\/+$/g, ''),
-    }))
-    .filter((r) => r.path);
+  // Every row on screen is sent, with the slashes around its path taken off.
+  // A row whose path was empty used to be dropped here, and the server dropped
+  // the rules it could not store: either way the row left the page the moment
+  // it was saved, and an administrator was left believing a folder was hidden
+  // that never was. The server refuses such a rule now and says which one, so
+  // nothing decides on its own that a rule is not worth sending.
+  const cleaned = local.rules.map((r) => ({
+    ...r,
+    path: String(r.path || '').replace(/^\/+|\/+$/g, ''),
+  }));
   saveError.value = '';
   try {
     await appSettings.save({ access: { rules: cleaned } });
