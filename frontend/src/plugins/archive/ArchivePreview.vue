@@ -53,6 +53,10 @@
         {{ $t('common.loading') }}
       </p>
 
+      <template v-else-if="reading">
+        <ArchiveEntryReader :file-path="filePath" :entry="reading" />
+      </template>
+
       <template v-else>
         <p
           v-if="entries.length === 0"
@@ -78,17 +82,22 @@
             <li v-for="entry in entries" :key="entry.path" class="group/item">
               <div
                 class="archive-row cursor-default items-center rounded-md px-4 py-1 group-even/item:bg-zinc-100 hover:bg-blue-50 dark:group-even/item:bg-neutral-700/30 dark:hover:bg-blue-900/20"
-                :class="{ 'cursor-pointer': entry.isDirectory }"
-                @dblclick="entry.isDirectory && open(entry.path)"
+                :class="{ 'cursor-pointer': opens(entry) }"
+                @dblclick="activate(entry)"
               >
                 <FileIcon :item="asItem(entry)" class="w-6 shrink-0" disable-thumbnails />
 
+                <!--
+                  A name is a link only where it leads somewhere: a folder to
+                  open, or a file the panel can show. Everything else is text,
+                  rather than an invitation that ends in an apology.
+                -->
                 <button
-                  v-if="entry.isDirectory"
+                  v-if="opens(entry)"
                   type="button"
                   :title="entry.name"
                   class="min-w-0 truncate text-left text-sm text-neutral-900 hover:underline dark:text-white"
-                  @click="open(entry.path)"
+                  @click="activate(entry)"
                 >
                   {{ entry.name }}
                 </button>
@@ -168,9 +177,12 @@ import { ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronRightIcon } from '@heroicons
 
 import { browseArchive, archiveEntryUrl, extractFromArchive } from '@/api';
 import { formatBytes } from '@/utils';
+import { isEditableExtension } from '@/config/editor';
 import FileIcon from '@/icons/FileIcon.vue';
 import ArchiveIcon from '@/icons/files/archive-icon.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
+import ArchiveEntryReader from './ArchiveEntryReader.vue';
+import { entryKind } from './readable';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -192,6 +204,8 @@ const total = ref(0);
 const loading = ref(true);
 const error = ref('');
 const extracting = ref('');
+/** The entry being read, or null while the listing is what is on screen. */
+const reading = ref(null);
 const extracted = ref('');
 
 /** The archive, then every folder of the position, each one a way back to it. */
@@ -202,8 +216,19 @@ const trail = computed(() => {
     walked = walked ? `${walked}/${part}` : part;
     steps.push({ inside: walked, label: part });
   }
+  // A file being read is the last step of the trail, which is what makes the
+  // folder it is in a step to go back to rather than a place to guess at.
+  if (reading.value) steps.push({ inside: reading.value.path, label: reading.value.name });
   return steps;
 });
+
+/** Whether this row's name leads anywhere: into a folder, or into a file. */
+const opens = (entry) => entry.isDirectory || Boolean(entryKind(entry.name, isEditableExtension));
+
+const activate = (entry) => {
+  if (entry.isDirectory) return open(entry.path);
+  if (opens(entry)) reading.value = entry;
+};
 
 /** What the shared file icon needs: the same shape a listing gives it. */
 const asItem = (entry) => ({
@@ -214,6 +239,7 @@ const asItem = (entry) => ({
 const entryUrl = (entry) => archiveEntryUrl(props.filePath, entry.path);
 
 const open = async (position) => {
+  reading.value = null;
   loading.value = true;
   error.value = '';
   extracted.value = '';

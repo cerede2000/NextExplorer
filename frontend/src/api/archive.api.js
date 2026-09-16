@@ -1,4 +1,4 @@
-import { buildUrl, normalizePath, requestJson, requestStream } from './http';
+import { buildUrl, normalizePath, requestJson, requestRaw, requestStream } from './http';
 
 /**
  * Looking inside an archive without unpacking it.
@@ -23,6 +23,22 @@ function archiveEntryUrl(path, entry) {
 }
 
 /**
+ * The bytes of one entry, to look at rather than to keep.
+ *
+ * The same address the download link points at, asked for as data. The server
+ * answers it as an attachment and tells the browser not to guess at its type,
+ * which is what keeps somebody else's HTML from ever running as a page on this
+ * origin — so what is read here is drawn by the panel itself, never handed to
+ * the browser as something to open.
+ */
+async function readArchiveEntry(path, entry, options = {}) {
+  return requestRaw(`/api/archive/entry?${pathQuery(path)}&entry=${encodeURIComponent(entry)}`, {
+    method: 'GET',
+    signal: options.signal,
+  });
+}
+
+/**
  * Take entries out of an archive, into the folder the archive is in.
  *
  * A folder stands for everything under it. The endpoint answers with the same
@@ -38,4 +54,4 @@ async function extractFromArchive(path, entries, options = {}) {
   });
 }
 
-export { browseArchive, archiveEntryUrl, extractFromArchive };
+export { browseArchive, archiveEntryUrl, readArchiveEntry, extractFromArchive };

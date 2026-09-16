@@ -22,6 +22,22 @@ const archiveEntryUrl = vi.hoisted(() =>
 
 vi.mock('@/api', () => ({ browseArchive, archiveEntryUrl, extractFromArchive }));
 
+// What the explorer calls text comes from the server through a store; here it
+// only has to be something and not everything.
+vi.mock('@/config/editor', () => ({
+  isEditableExtension: (extension) => ['txt', 'json'].includes(extension),
+}));
+
+// Reading an entry is its own component, with its own tests. What this one has
+// to get right is which entry it is handed, and when.
+vi.mock('./ArchiveEntryReader.vue', () => ({
+  default: {
+    name: 'ArchiveEntryReaderStub',
+    props: ['filePath', 'entry'],
+    template: '<div data-testid="reader-stub">{{ entry.path }}</div>',
+  },
+}));
+
 // The explorer's own icon, which reaches for the file store and thumbnails it
 // has no business loading for something that is not on disk.
 vi.mock('@/icons/FileIcon.vue', () => ({
@@ -104,8 +120,7 @@ const open = async (levels = [TOP]) => {
   return wrapper;
 };
 
-/** The name of each row: the button that opens a folder, or the file's own text. */
-/** The name of each row: the button that opens a folder, or the file's own text. */
+/** The name of each row: the button that opens it, or the file's own text. */
 const rowNames = (wrapper) =>
   wrapper
     .findAll('[data-testid="archive-entries"] li')
@@ -334,5 +349,70 @@ describe('the window it draws', () => {
     await wrapper.find('[role="dialog"] button[aria-label="Close"]').trigger('click');
 
     expect(close).toHaveBeenCalled();
+  });
+});
+
+describe('reading a file without taking it out', () => {
+  const WITH_A_BINARY = {
+    ...TOP,
+    entries: [
+      ...TOP.entries,
+      { name: 'devinv.dll', path: 'devinv.dll', isDirectory: false, size: 861000, modified: null },
+    ],
+  };
+
+  it('opens a file the panel can show, and hands the reader that entry', async () => {
+    const wrapper = await open();
+
+    await wrapper
+      .find('[data-testid="archive-entries"] button[title="notes.txt"]')
+      .trigger('click');
+
+    const reader = wrapper.find('[data-testid="reader-stub"]');
+    expect(reader.exists()).toBe(true);
+    expect(reader.text()).toBe('notes.txt');
+    // Reading is not browsing: the server is not asked for another level.
+    expect(browseArchive).toHaveBeenCalledTimes(1);
+  });
+
+  /** A name that leads nowhere is text, not an invitation ending in an apology. */
+  it('leaves a file it cannot show as plain text', async () => {
+    const wrapper = await open([WITH_A_BINARY]);
+    const rows = wrapper.findAll('[data-testid="archive-entries"] li');
+
+    expect(rows[2].find('button[title="devinv.dll"]').exists()).toBe(false);
+    expect(rows[2].find('span[title="devinv.dll"]').exists()).toBe(true);
+  });
+
+  it('makes the file the last step of the trail, and the folder the way back', async () => {
+    const wrapper = await open([TOP, INSIDE_DOCS]);
+    await wrapper.find('[data-testid="archive-entries"] button[title="docs"]').trigger('click');
+    await flushPromises();
+
+    await wrapper
+      .find('[data-testid="archive-entries"] button[title="report.txt"]')
+      .trigger('click');
+
+    expect(wrapper.findAll('nav button').map((button) => button.text())).toEqual([
+      'backup.zip',
+      'docs',
+      'report.txt',
+    ]);
+
+    browseArchive.mockResolvedValueOnce(INSIDE_DOCS);
+    await wrapper.findAll('nav button')[1].trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="reader-stub"]').exists()).toBe(false);
+    expect(rowNames(wrapper)).toEqual(['report.txt']);
+  });
+
+  it('opens it on a double click of the row as well', async () => {
+    const wrapper = await open();
+    const rows = wrapper.findAll('[data-testid="archive-entries"] li');
+
+    await rows[1].find('.archive-row').trigger('dblclick');
+
+    expect(wrapper.find('[data-testid="reader-stub"]').text()).toBe('notes.txt');
   });
 });

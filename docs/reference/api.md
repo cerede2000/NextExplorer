@@ -210,6 +210,11 @@ one file back, as an attachment, without unpacking the rest. The name is looked
 up in the listing first, so what comes back is an entry the archive holds under
 exactly that name, or nothing.
 
+It is always an attachment, and always `X-Content-Type-Options: nosniff`, even
+where the answer is what the panel is about to show on screen: nothing out of
+somebody else's archive is ever opened as a page on this origin. A client that
+wants to display an entry reads the answer as data and draws it itself.
+
 `POST /api/archive/extract` takes part of an archive out onto the volume,
 into the folder the archive is in. The body names the archive and the entries
 — `{ "path": "Work/backup.zip", "entries": ["docs", "notes.txt"] }` — and a

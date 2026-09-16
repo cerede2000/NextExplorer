@@ -125,11 +125,14 @@ What was decided in advance held, and is worth keeping written down:
 
 ### Left for later
 
-- **An entry is downloaded, never previewed.** A file inside somebody's archive
-  is their HTML as easily as their photograph, and serving it inline would run
-  it on this application's origin. Previewing one means either fetching it into
-  the page and rendering it there, or a sandboxed response — a decision about
-  previewing, and it was not made here.
+- **Only what a browser draws from raw bytes is shown.** Text, Markdown and the
+  images a browser decodes on its own are read in the panel; the answer stays an
+  attachment and the page draws it itself, which is what keeps somebody's HTML
+  out of this origin. What is not offered: video and audio, which would want
+  ranges the entry endpoint does not serve; PDF, which would want an object or
+  an iframe and so a decision about sandboxing; Office documents, which go
+  through a converter that reads from the volume. Each is a separate decision,
+  and none of them is this one.
 - **A solid `.7z` reads every entry from the beginning.** Unlike zip, it has no
   per-entry start, so reading the last file of a solid archive decompresses the
   ones before it. Correct, and slow on a large one; the cache that exists for
