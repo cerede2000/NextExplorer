@@ -20,14 +20,24 @@ export default defineConfig({
     __GIT_BRANCH__: JSON.stringify(process.env.VITE_GIT_BRANCH || ''),
     __REPO_URL__: JSON.stringify(process.env.VITE_REPO_URL || ''),
   },
-  // Which browsers the build is written for. Vite 7 raised its own default
-  // from Safari 14 to Safari 16 and Chrome 87 to Chrome 107, which would have
-  // dropped a phone still on iOS 15 the moment the toolchain was updated —
-  // silently, since nothing in the build says so. Written down instead, so
-  // that raising it is a decision about who is still being served rather than
-  // a side effect of a version bump.
+  // Which browsers the build is written for, and it is not the toolchain's
+  // business to decide: Vite 7 would have raised its own default to Safari 16
+  // and Chrome 107, dropping every phone that stops at iOS 15 as a side effect
+  // of a version bump, with nothing anywhere saying so.
+  //
+  // These four versions are where the application actually stands, read off
+  // what the bundle calls rather than guessed: `Object.hasOwn` (the folder
+  // listing merges with it, and so does Uppy, which does the uploading) and
+  // `Array.prototype.at` (four places here). Both landed together, in early
+  // 2022. Nothing in the bundle needs anything newer — `requestIdleCallback`
+  // and `crypto.randomUUID` are each asked for behind a check.
+  //
+  // What this leaves in: an iPhone 6s, a 7 or an SE of the first generation,
+  // which stop at iOS 15.8 and are exactly what Vite's own default would have
+  // turned away. Moving it is a decision about who is still being served, and
+  // the two names above are where to start looking.
   build: {
-    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    target: ['chrome93', 'edge93', 'firefox92', 'safari15.4'],
   },
   resolve: {
     alias: {
