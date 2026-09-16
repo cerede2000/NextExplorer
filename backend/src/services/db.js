@@ -15,6 +15,40 @@ let dbInstance = null;
 // The folder name a deleted account held, kept while its folder is on disk so
 // that the next account deriving the same name is not handed that folder. See
 // personalFolders.js.
+/**
+ * Two-factor on a local account.
+ *
+ * One row per account, and only a confirmed one counts: a secret written while
+ * somebody was halfway through setting their phone up must never be what
+ * stands between them and their files. `last_step` is what stops a code being
+ * used twice — the six digits are good for thirty seconds, and for one login.
+ *
+ * Recovery codes are hashed like passwords, so losing the key file beside the
+ * database costs an authenticator, not an account.
+ */
+const TWO_FACTOR_DDL = `
+  CREATE TABLE IF NOT EXISTS totp_credentials (
+    user_id TEXT PRIMARY KEY,
+    secret TEXT NOT NULL,
+    confirmed_at TEXT,
+    last_step INTEGER,
+    last_used_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS totp_recovery_codes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    used_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_totp_recovery_user ON totp_recovery_codes(user_id);
+`;
+
 const PERSONAL_FOLDER_RESERVATIONS_DDL = `
   CREATE TABLE IF NOT EXISTS personal_folder_reservations (
     name TEXT PRIMARY KEY,
@@ -759,6 +793,16 @@ const migrate = (db) => {
       );
       version = 20;
     }
+
+    if (version < 21) {
+      logger.info('[DB Migration] Migrating to v21: two-factor on local accounts...');
+      db.exec(TWO_FACTOR_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(21)
+      );
+      version = 21;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -775,6 +819,7 @@ const migrate = (db) => {
   db.exec(VERSIONS_DDL);
   ensureShareOperationPermissionColumns(db);
   db.exec(PERSONAL_FOLDER_RESERVATIONS_DDL);
+  db.exec(TWO_FACTOR_DDL);
 };
 
 /**
