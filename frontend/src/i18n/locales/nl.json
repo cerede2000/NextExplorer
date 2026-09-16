@@ -142,7 +142,13 @@
     "download": "Downloaden",
     "downloadNamed": "{name} downloaden",
     "outside": "Eén item wordt niet getoond: de naam wijst buiten het archief. | {count} items worden niet getoond: hun namen wijzen buiten het archief.",
-    "unreadable": "Dit archief kon niet worden gelezen."
+    "unreadable": "Dit archief kon niet worden gelezen.",
+    "extract": "Hier uitpakken",
+    "extractNamed": "{name} hier uitpakken",
+    "extracted": "Uitgepakt: {name}",
+    "extractedNothing": "Er kwam niets uit.",
+    "extractFailed": "Dit kon niet worden uitgepakt.",
+    "count": "Eén item in dit archief | {count} items in dit archief"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

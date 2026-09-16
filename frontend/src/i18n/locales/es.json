@@ -142,7 +142,13 @@
     "download": "Descargar",
     "downloadNamed": "Descargar {name}",
     "outside": "No se muestra una entrada: su nombre apunta fuera del archivo comprimido. | No se muestran {count} entradas: sus nombres apuntan fuera del archivo comprimido.",
-    "unreadable": "No se ha podido leer este archivo comprimido."
+    "unreadable": "No se ha podido leer este archivo comprimido.",
+    "extract": "Extraer aquí",
+    "extractNamed": "Extraer {name} aquí",
+    "extracted": "Extraído: {name}",
+    "extractedNothing": "No ha salido nada.",
+    "extractFailed": "No se ha podido extraer esto.",
+    "count": "Una entrada en este archivo comprimido | {count} entradas en este archivo comprimido"
   },
   "placeholders": {
     "email": "usuario{'@'}ejemplo.com",

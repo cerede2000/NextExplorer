@@ -1,4 +1,4 @@
-import { buildUrl, normalizePath, requestJson } from './http';
+import { buildUrl, normalizePath, requestJson, requestStream } from './http';
 
 /**
  * Looking inside an archive without unpacking it.
@@ -22,4 +22,20 @@ function archiveEntryUrl(path, entry) {
   return buildUrl(`/api/archive/entry?${pathQuery(path)}&entry=${encodeURIComponent(entry)}`);
 }
 
-export { browseArchive, archiveEntryUrl };
+/**
+ * Take entries out of an archive, into the folder the archive is in.
+ *
+ * A folder stands for everything under it. The endpoint answers with the same
+ * stream of events the other archive operations write — start, progress, done
+ * or error — so `onEvent` sees each one as it arrives.
+ */
+async function extractFromArchive(path, entries, options = {}) {
+  return requestStream('/api/archive/extract', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizePath(path), entries }),
+    onEvent: options.onEvent,
+    signal: options.signal,
+  });
+}
+
+export { browseArchive, archiveEntryUrl, extractFromArchive };

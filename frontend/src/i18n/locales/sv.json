@@ -142,7 +142,13 @@
     "download": "Ladda ner",
     "downloadNamed": "Ladda ner {name}",
     "outside": "En post visas inte: dess namn pekar utanför arkivet. | {count} poster visas inte: deras namn pekar utanför arkivet.",
-    "unreadable": "Det gick inte att läsa det här arkivet."
+    "unreadable": "Det gick inte att läsa det här arkivet.",
+    "extract": "Extrahera hit",
+    "extractNamed": "Extrahera {name} hit",
+    "extracted": "Extraherat: {name}",
+    "extractedNothing": "Inget kom ut.",
+    "extractFailed": "Det gick inte att extrahera detta.",
+    "count": "En post i det här arkivet | {count} poster i det här arkivet"
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",

@@ -142,7 +142,13 @@
     "download": "Herunterladen",
     "downloadNamed": "{name} herunterladen",
     "outside": "Ein Eintrag wird nicht angezeigt: Sein Name verweist aus dem Archiv heraus. | {count} Einträge werden nicht angezeigt: Ihre Namen verweisen aus dem Archiv heraus.",
-    "unreadable": "Dieses Archiv konnte nicht gelesen werden."
+    "unreadable": "Dieses Archiv konnte nicht gelesen werden.",
+    "extract": "Hier entpacken",
+    "extractNamed": "{name} hier entpacken",
+    "extracted": "Entpackt: {name}",
+    "extractedNothing": "Es kam nichts heraus.",
+    "extractFailed": "Dies konnte nicht entpackt werden.",
+    "count": "Ein Eintrag in diesem Archiv | {count} Einträge in diesem Archiv"
   },
   "placeholders": {
     "email": "benutzer{'@'}beispiel.com",

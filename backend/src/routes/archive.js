@@ -4,11 +4,25 @@ const path = require('path');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
+const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const { track: trackInFlight } = require('../services/inFlightFiles');
+const { removeInventoried } = require('../utils/ownedTree');
+const { mapWithConcurrency } = require('../utils/mapWithConcurrency');
+const { startNdjsonStream, throttlePercent } = require('../utils/ndjsonStream');
+const { sanitizeClientMessage } = require('../middleware/errorHandler');
+const { ensureStorageAvailable } = require('../services/uploadStorageGuard');
+const {
+  ensureArchiveWithinLimits,
+  extractIntoCurrentFolder,
+} = require('../services/archiveExtraction');
+const { extractArchiveEntries } = require('../services/archiveService');
 const { getSupportedArchiveExtensions } = require('../services/archiveService');
 const {
   browseArchive,
   findArchiveEntry,
   openArchiveEntry,
+  readBrowsableArchive,
+  entryPathOf,
 } = require('../services/archiveBrowseService');
 const { toExtension, resolveMimeType } = require('../utils/fileTypes');
 const { encodeContentDisposition } = require('./files/utils');
@@ -32,10 +46,8 @@ const router = express.Router();
  */
 
 /** The archive named by the request, once the caller is allowed to read it. */
-const resolveArchive = async (req) => {
-  const relativePath = normalizeRelativePath(
-    typeof req.query.path === 'string' ? req.query.path : ''
-  );
+const resolveArchive = async (req, named = req.query.path) => {
+  const relativePath = normalizeRelativePath(typeof named === 'string' ? named : '');
   if (!relativePath) {
     throw new ValidationError('The path of an archive is required.');
   }
@@ -142,6 +154,154 @@ router.get(
         return;
       }
       throw error;
+    }
+  })
+);
+
+/**
+ * Take some of an archive out onto the volume, without unpacking the rest.
+ *
+ * The other half of looking inside one: a folder of photographs in a backup is
+ * found here and wanted *there*, and downloading it and putting it back is not
+ * an answer on a server somebody reaches from a phone.
+ *
+ * What comes out goes into the folder the archive is in, which is the folder
+ * the person is already looking at. Where else it could go is a question for
+ * the day somebody asks it; picking a destination is a dialog this does not
+ * need in order to be useful.
+ */
+router.post(
+  '/archive/extract',
+  asyncHandler(async (req, res) => {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    const onClose = () => {
+      if (!res.writableEnded) abort();
+    };
+    req.once('aborted', abort);
+    res.once('close', onClose);
+
+    const archive = await resolveArchive(req, req.body?.path);
+    const asked = Array.isArray(req.body?.entries) ? req.body.entries : [];
+    if (asked.length === 0) {
+      throw new ValidationError('At least one entry is required.');
+    }
+
+    // The folder the archive is in, and the right to write in it. Read on the
+    // archive is not enough: what comes out of it is a new file on somebody's
+    // volume, and a folder an administrator made read-only stays read-only.
+    const context = { user: req.user, guestSession: req.guestSession };
+    const destinationRelativePath = normalizeRelativePath(
+      path.posix.dirname(archive.relativePath || '')
+    );
+    for (const action of [ACTIONS.createFolder, ACTIONS.createFile]) {
+      const { allowed, accessInfo } = await authorizeAndResolve(
+        context,
+        destinationRelativePath,
+        action
+      );
+      if (!allowed) {
+        throw new ForbiddenError(accessInfo?.denialReason || 'Destination is read-only.');
+      }
+    }
+    const { resolved: destinationResolved } = await authorizeAndResolve(
+      context,
+      destinationRelativePath,
+      ACTIONS.createFile
+    );
+    const destinationAbsolutePath = destinationResolved?.absolutePath;
+    if (!destinationAbsolutePath) throw new ForbiddenError('Cannot resolve destination folder.');
+
+    const { source, listing } = await readBrowsableArchive(archive.absolutePath);
+
+    // Each name is looked up in the listing rather than taken on trust, and a
+    // folder stands for everything under it: what is extracted is entries this
+    // archive holds, named as it names them.
+    const selected = new Map();
+    for (const name of asked) {
+      const wanted = entryPathOf(typeof name === 'string' ? name : '');
+      if (wanted === null) {
+        throw new ValidationError('That is not something inside this archive.');
+      }
+      const under = listing.entries.filter(
+        (entry) => entry.path === wanted || entry.path.startsWith(`${wanted}/`)
+      );
+      if (under.length === 0) {
+        throw new NotFoundError('That is not in this archive.');
+      }
+      for (const entry of under) selected.set(entry.path, entry);
+    }
+
+    const chosen = [...selected.values()];
+    if (chosen.some((entry) => entry.encrypted)) {
+      throw new ForbiddenError(
+        'This file is encrypted and cannot be extracted without its password.'
+      );
+    }
+
+    const totalBytes = chosen.reduce((sum, entry) => sum + (entry.size || 0), 0);
+    ensureArchiveWithinLimits({ entryCount: chosen.length, totalBytes });
+    await ensureStorageAvailable(destinationAbsolutePath, totalBytes, 'destination storage');
+
+    // Written into a hidden folder of its own first, and moved out of it only
+    // once whole: a name that appears on the volume meanwhile is never replaced,
+    // and a failure has nothing of its own under a real name to take back.
+    const stagingAbsolutePath = await fs.mkdtemp(
+      path.join(destinationAbsolutePath, '.nextexplorer-extract-')
+    );
+    const movedPaths = [];
+    const inFlight = trackInFlight(stagingAbsolutePath, 'staging-directory');
+
+    // Everything above throws before a byte is written, so a refusal is still an
+    // ordinary HTTP error. From here the answer is the same stream of events the
+    // other archive operations write.
+    const writeEvent = startNdjsonStream(res);
+    writeEvent({ type: 'start', name: path.posix.basename(chosen[0].path) });
+    const onPercent = throttlePercent(writeEvent);
+
+    try {
+      await extractArchiveEntries(
+        source,
+        stagingAbsolutePath,
+        chosen.map((entry) => entry.path),
+        onPercent,
+        { signal: controller.signal }
+      );
+
+      const items = await extractIntoCurrentFolder({
+        stagingDirectory: stagingAbsolutePath,
+        destinationDirectory: destinationAbsolutePath,
+        relativeParentPath: destinationRelativePath,
+        movedPaths,
+      });
+      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+      writeEvent({
+        type: 'done',
+        success: true,
+        item: items.length === 1 ? items[0] : null,
+        items,
+      });
+    } catch (error) {
+      logger.warn(
+        { err: error, archive: archive.relativePath },
+        'Extracting from an archive failed'
+      );
+      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+      // What this placed, and only that: a file somebody saved into a placed
+      // folder in the meantime stays, with the folders holding it.
+      await mapWithConcurrency(movedPaths, (moved) =>
+        removeInventoried(moved.path, moved.inventory)
+      );
+      writeEvent({
+        type: 'error',
+        message: sanitizeClientMessage(error.message || 'Extraction failed.'),
+        code: error.code || 'EXTRACT_FAILED',
+      });
+    } finally {
+      inFlight.release();
+      req.off('aborted', abort);
+      res.off('close', onClose);
+      res.end();
     }
   })
 );

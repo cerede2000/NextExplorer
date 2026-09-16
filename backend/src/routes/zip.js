@@ -15,7 +15,7 @@ const {
   ensureValidName,
 } = require('../utils/pathUtils');
 const { placeWithoutOverwrite, predictAvailableName } = require('../utils/placeWithoutOverwrite');
-const { takeInventory, removeInventoried } = require('../utils/ownedTree');
+const { removeInventoried } = require('../utils/ownedTree');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
@@ -30,45 +30,21 @@ const {
   normalizeArchivePassword,
 } = require('../services/archiveService');
 const folderSizeHooks = require('../services/folderSizeHooks');
+const {
+  ensureArchiveWithinLimits,
+  buildItemMetadata,
+  extractIntoCurrentFolder,
+} = require('../services/archiveExtraction');
 const { collectArchiveEntries, writeZipFile } = require('../services/archiveTree');
 const { archives } = require('../config/index');
 
 const router = express.Router();
-
-/**
- * Refuse archives that would expand far beyond their own size.
- *
- * Extraction is otherwise unbounded: a few kilobytes of nested, highly
- * compressible entries can fill the volume ("zip bomb"). The declared sizes
- * come from the archive itself, so this is a cheap pre-flight check, not a
- * guarantee — it stops the accidental and the trivially malicious case.
- */
-const ensureArchiveWithinLimits = ({ entryCount = 0, totalBytes = 0 }) => {
-  if (entryCount > archives.maxEntries) {
-    throw new ValidationError(
-      `This archive holds more than ${archives.maxEntries} entries and was not extracted.`
-    );
-  }
-  if (totalBytes > archives.maxExtractedBytes) {
-    throw new ValidationError(
-      'This archive expands beyond the allowed size and was not extracted.'
-    );
-  }
-};
 
 /** Declared footprint of a zip read by the bundled JS extractor. */
 const admZipFootprint = (entries = []) => ({
   entryCount: entries.length,
   totalBytes: entries.reduce((total, entry) => total + (entry?.header?.size || 0), 0),
 });
-
-const buildItemMetadata = async (absolutePath, relativeParent, name) => {
-  const stats = await fs.stat(absolutePath);
-  const ext = path.extname(name).slice(1).toLowerCase();
-  const kind = stats.isDirectory() ? 'directory' : ext.length > 10 ? 'unknown' : ext || 'unknown';
-
-  return { name, path: relativeParent, kind, size: stats.size, dateModified: stats.mtime };
-};
 
 const defaultZipNameForItems = (items = []) => {
   if (!Array.isArray(items) || items.length === 0) return 'Archive.zip';
@@ -81,44 +57,6 @@ const defaultZipNameForItems = (items = []) => {
 
   const ext = path.extname(name);
   return `${ext ? name.slice(0, -ext.length) : name}.zip`;
-};
-
-const extractIntoCurrentFolder = async ({
-  stagingDirectory,
-  destinationDirectory,
-  relativeParentPath,
-  movedPaths,
-}) => {
-  const stagedEntries = await fs.readdir(stagingDirectory, { withFileTypes: true });
-  const items = [];
-
-  for (const entry of stagedEntries) {
-    const entryName = ensureValidName(entry.name);
-    const sourcePath = path.join(stagingDirectory, entryName);
-    // Taken stock of before it moves: undoing the extraction removes exactly
-    // this, and not what someone puts in a placed folder afterwards.
-    const inventory = await takeInventory(sourcePath);
-    // The name is taken by the move itself, never looked at first and renamed
-    // into later: a file, or an empty folder, that appears under it meanwhile
-    // stays as it is, and the entry goes to "name (1)".
-    const { name: destinationName, path: destinationPath } = await placeWithoutOverwrite(
-      sourcePath,
-      destinationDirectory,
-      entryName
-    );
-    movedPaths.push({ path: destinationPath, inventory });
-
-    if (entry.isDirectory()) {
-      folderSizeHooks.onDirectoryTreeCreated(destinationPath);
-    } else {
-      const stats = await fs.stat(destinationPath);
-      folderSizeHooks.onFileWritten(destinationPath, stats.size);
-    }
-
-    items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
-  }
-
-  return items;
 };
 
 router.post(

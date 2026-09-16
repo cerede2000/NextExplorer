@@ -142,7 +142,13 @@
     "download": "下载",
     "downloadNamed": "下载 {name}",
     "outside": "有 {count} 个条目未显示：它们的名称指向压缩包之外。",
-    "unreadable": "无法读取此压缩包。"
+    "unreadable": "无法读取此压缩包。",
+    "extract": "解压到此处",
+    "extractNamed": "将 {name} 解压到此处",
+    "extracted": "已解压：{name}",
+    "extractedNothing": "没有解压出任何内容。",
+    "extractFailed": "无法解压此项。",
+    "count": "此压缩包中有 {count} 个条目"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

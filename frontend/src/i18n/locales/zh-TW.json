@@ -142,7 +142,13 @@
     "download": "下載",
     "downloadNamed": "下載 {name}",
     "outside": "有 {count} 個項目未顯示：它們的名稱指向壓縮檔之外。",
-    "unreadable": "無法讀取此壓縮檔。"
+    "unreadable": "無法讀取此壓縮檔。",
+    "extract": "解壓縮到此處",
+    "extractNamed": "將 {name} 解壓縮到此處",
+    "extracted": "已解壓縮：{name}",
+    "extractedNothing": "沒有解壓縮出任何內容。",
+    "extractFailed": "無法解壓縮此項。",
+    "count": "此壓縮檔中有 {count} 個項目"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

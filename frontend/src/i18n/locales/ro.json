@@ -142,7 +142,13 @@
     "download": "Descarcă",
     "downloadNamed": "Descarcă {name}",
     "outside": "O intrare nu este afișată: numele ei indică în afara arhivei. | {count} intrări nu sunt afișate: numele lor indică în afara arhivei.",
-    "unreadable": "Această arhivă nu a putut fi citită."
+    "unreadable": "Această arhivă nu a putut fi citită.",
+    "extract": "Extrage aici",
+    "extractNamed": "Extrage {name} aici",
+    "extracted": "Extras: {name}",
+    "extractedNothing": "Nu a ieșit nimic.",
+    "extractFailed": "Acest lucru nu a putut fi extras.",
+    "count": "O intrare în această arhivă | {count} intrări în această arhivă"
   },
   "placeholders": {
     "email": "utilizator{'@'}exemplu.com",

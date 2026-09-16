@@ -12,6 +12,7 @@ import { createI18n } from 'vue-i18n';
  */
 
 const browseArchive = vi.hoisted(() => vi.fn());
+const extractFromArchive = vi.hoisted(() => vi.fn());
 const archiveEntryUrl = vi.hoisted(() =>
   vi.fn(
     (path, entry) =>
@@ -19,7 +20,13 @@ const archiveEntryUrl = vi.hoisted(() =>
   )
 );
 
-vi.mock('@/api', () => ({ browseArchive, archiveEntryUrl }));
+vi.mock('@/api', () => ({ browseArchive, archiveEntryUrl, extractFromArchive }));
+
+// The explorer's own icon, which reaches for the file store and thumbnails it
+// has no business loading for something that is not on disk.
+vi.mock('@/icons/FileIcon.vue', () => ({
+  default: { name: 'FileIconStub', props: ['item'], template: '<span />' },
+}));
 
 const ArchivePreview = (await import('./ArchivePreview.vue')).default;
 
@@ -28,7 +35,7 @@ const i18n = createI18n({
   locale: 'en',
   messages: {
     en: {
-      common: { loading: 'Loading' },
+      common: { loading: 'Loading', name: 'Name', size: 'Size', modified: 'Modified' },
       archive: {
         breadcrumb: 'Inside the archive',
         empty: 'This folder is empty.',
@@ -37,6 +44,12 @@ const i18n = createI18n({
         outside:
           'One entry is not shown: its name points outside the archive. | {count} entries are not shown: their names point outside the archive.',
         unreadable: 'This archive could not be read.',
+        count: 'One entry in this archive | {count} entries in this archive',
+        extract: 'Extract here',
+        extractNamed: 'Extract {name} here',
+        extracted: 'Extracted: {name}',
+        extractedNothing: 'Nothing came out of it.',
+        extractFailed: 'This could not be extracted.',
       },
     },
   },
@@ -84,13 +97,15 @@ const open = async (levels = [TOP]) => {
 };
 
 /** The name of each row: the button that opens a folder, or the file's own text. */
+/** The name of each row: the button that opens a folder, or the file's own text. */
 const rowNames = (wrapper) =>
   wrapper
     .findAll('[data-testid="archive-entries"] li')
-    .map((row) => row.find('button, span').text());
+    .map((row) => row.find('button[title], span[title]').text());
 
 beforeEach(() => {
   archiveEntryUrl.mockClear();
+  extractFromArchive.mockReset();
 });
 
 describe('opening an archive', () => {
@@ -127,6 +142,12 @@ describe('opening an archive', () => {
     expect(rows[0].find('a').exists()).toBe(false);
   });
 
+  it('says how many entries the whole archive holds', async () => {
+    const wrapper = await open();
+
+    expect(wrapper.find('[data-testid="archive-count"]').text()).toBe('4 entries in this archive');
+  });
+
   it('says a folder is empty rather than showing nothing at all', async () => {
     const wrapper = await open([{ ...TOP, entries: [] }]);
 
@@ -138,7 +159,7 @@ describe('going down and back up', () => {
   it('opens a folder by asking the server for that level', async () => {
     const wrapper = await open([TOP, INSIDE_DOCS]);
 
-    await wrapper.findAll('[data-testid="archive-entries"] button')[0].trigger('click');
+    await wrapper.find('[data-testid="archive-entries"] button[title="docs"]').trigger('click');
     await flushPromises();
 
     expect(browseArchive).toHaveBeenLastCalledWith('Work/backup.zip', 'docs');
@@ -147,7 +168,7 @@ describe('going down and back up', () => {
 
   it('keeps the archive and every folder of the way as a step back', async () => {
     const wrapper = await open([TOP, INSIDE_DOCS]);
-    await wrapper.findAll('[data-testid="archive-entries"] button')[0].trigger('click');
+    await wrapper.find('[data-testid="archive-entries"] button[title="docs"]').trigger('click');
     await flushPromises();
 
     const trail = wrapper.findAll('nav button').map((button) => button.text());
@@ -164,7 +185,7 @@ describe('going down and back up', () => {
   /** Where you already are is not a link. */
   it('leaves the step you are on unclickable', async () => {
     const wrapper = await open([TOP, INSIDE_DOCS]);
-    await wrapper.findAll('[data-testid="archive-entries"] button')[0].trigger('click');
+    await wrapper.find('[data-testid="archive-entries"] button[title="docs"]').trigger('click');
     await flushPromises();
 
     const trail = wrapper.findAll('nav button');
@@ -229,5 +250,49 @@ describe('an archive that has something to hide', () => {
     expect(wrapper.find('[data-testid="archive-error"]').text()).toBe(
       'This archive could not be read.'
     );
+  });
+});
+
+/**
+ * Taking something out onto the volume.
+ *
+ * The half that makes the panel more than a viewer: what is found here is
+ * wanted *there*, and downloading it to put it back is not an answer on a
+ * server somebody reaches from a phone.
+ */
+describe('extracting an entry', () => {
+  const extractButton = (wrapper, name) =>
+    wrapper.find(`[data-testid="archive-entries"] button[aria-label="Extract ${name} here"]`);
+
+  it('asks the server for that entry, and says what it was called when it landed', async () => {
+    const wrapper = await open();
+    extractFromArchive.mockResolvedValueOnce({ items: [{ name: 'notes (1).txt' }] });
+
+    await extractButton(wrapper, 'notes.txt').trigger('click');
+    await flushPromises();
+
+    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['notes.txt']);
+    expect(wrapper.find('[data-testid="archive-took"]').text()).toBe('Extracted: notes (1).txt');
+  });
+
+  /** A folder is taken out whole, which is the point of offering it at all. */
+  it('offers it for a folder too', async () => {
+    const wrapper = await open();
+    extractFromArchive.mockResolvedValueOnce({ items: [{ name: 'docs' }] });
+
+    await extractButton(wrapper, 'docs').trigger('click');
+    await flushPromises();
+
+    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['docs']);
+  });
+
+  it('shows what the server said when it refused', async () => {
+    const wrapper = await open();
+    extractFromArchive.mockRejectedValueOnce(new Error('Destination is read-only.'));
+
+    await extractButton(wrapper, 'notes.txt').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="archive-error"]').text()).toBe('Destination is read-only.');
   });
 });

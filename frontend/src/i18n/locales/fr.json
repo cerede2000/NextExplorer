@@ -142,7 +142,13 @@
     "download": "Télécharger",
     "downloadNamed": "Télécharger {name}",
     "outside": "Une entrée n'est pas affichée : son nom pointe hors de l'archive. | {count} entrées ne sont pas affichées : leurs noms pointent hors de l'archive.",
-    "unreadable": "Cette archive n'a pas pu être lue."
+    "unreadable": "Cette archive n'a pas pu être lue.",
+    "extract": "Extraire ici",
+    "extractNamed": "Extraire {name} ici",
+    "extracted": "Extrait : {name}",
+    "extractedNothing": "Rien n'en est sorti.",
+    "extractFailed": "Impossible d'extraire ceci.",
+    "count": "Une entrée dans cette archive | {count} entrées dans cette archive"
   },
   "placeholders": {
     "email": "utilisateur{'@'}exemple.com",

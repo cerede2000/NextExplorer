@@ -142,7 +142,13 @@
     "download": "Pobierz",
     "downloadNamed": "Pobierz {name}",
     "outside": "Jeden wpis nie jest pokazany: jego nazwa wskazuje poza archiwum. | {count} wpisy nie są pokazane: ich nazwy wskazują poza archiwum. | {count} wpisów nie jest pokazanych: ich nazwy wskazują poza archiwum.",
-    "unreadable": "Nie udało się odczytać tego archiwum."
+    "unreadable": "Nie udało się odczytać tego archiwum.",
+    "extract": "Wypakuj tutaj",
+    "extractNamed": "Wypakuj {name} tutaj",
+    "extracted": "Wypakowano: {name}",
+    "extractedNothing": "Nic z tego nie wyszło.",
+    "extractFailed": "Nie udało się tego wypakować.",
+    "count": "Jeden wpis w tym archiwum | {count} wpisy w tym archiwum | {count} wpisów w tym archiwum"
   },
   "placeholders": {
     "email": "uzytkownik{'@'}przyklad.com",

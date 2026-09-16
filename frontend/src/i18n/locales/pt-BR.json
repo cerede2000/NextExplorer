@@ -142,7 +142,13 @@
     "download": "Baixar",
     "downloadNamed": "Baixar {name}",
     "outside": "Uma entrada não é exibida: o nome dela aponta para fora do arquivo. | {count} entradas não são exibidas: os nomes delas apontam para fora do arquivo.",
-    "unreadable": "Não foi possível ler este arquivo."
+    "unreadable": "Não foi possível ler este arquivo.",
+    "extract": "Extrair aqui",
+    "extractNamed": "Extrair {name} aqui",
+    "extracted": "Extraído: {name}",
+    "extractedNothing": "Nada saiu dele.",
+    "extractFailed": "Não foi possível extrair isto.",
+    "count": "Uma entrada neste arquivo | {count} entradas neste arquivo"
   },
   "placeholders": {
     "email": "usuario{'@'}exemplo.com",

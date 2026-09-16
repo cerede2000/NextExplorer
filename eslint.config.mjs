@@ -47,6 +47,9 @@ const mayDeleteFromDisk = [
   // A logo it wrote into /config/logos, once another has replaced it, or when
   // the settings could not be switched to it.
   'backend/src/services/brandingLogo.js',
+  // The hidden folder it extracts into, which it made itself and which never
+  // holds anything but what came out of the archive.
+  'backend/src/routes/archive.js',
   'backend/src/routes/zip.js',
   'backend/src/scripts/**',
 ];

@@ -210,6 +210,18 @@ one file back, as an attachment, without unpacking the rest. The name is looked
 up in the listing first, so what comes back is an entry the archive holds under
 exactly that name, or nothing.
 
+`POST /api/archive/extract` takes part of an archive out onto the volume,
+into the folder the archive is in. The body names the archive and the entries
+— `{ "path": "Work/backup.zip", "entries": ["docs", "notes.txt"] }` — and a
+folder stands for everything under it. It answers with the same stream of
+events the other archive operations write (`start`, `progress`, `done`,
+`error`), and the `done` event carries the name each entry landed under, which
+is not always the name it had: nothing is ever replaced, so a name already
+held becomes “name (1)”.
+
+Reading an archive is not the right to write beside it: extraction is refused
+unless the caller may create files and folders in the archive's own folder.
+
 Both refuse with a code the caller can act on: `ARCHIVE_ENCRYPTED` (409) for an
 archive or entry behind a password, `ARCHIVE_UNREADABLE` (422) for a damaged
 one, `ARCHIVE_ENTRY_NOT_FOUND` (404), `ARCHIVE_BAD_POSITION` (400) for a name

@@ -142,7 +142,13 @@
     "download": "Scarica",
     "downloadNamed": "Scarica {name}",
     "outside": "Una voce non è mostrata: il suo nome punta fuori dall'archivio. | {count} voci non sono mostrate: i loro nomi puntano fuori dall'archivio.",
-    "unreadable": "Non è stato possibile leggere questo archivio."
+    "unreadable": "Non è stato possibile leggere questo archivio.",
+    "extract": "Estrai qui",
+    "extractNamed": "Estrai {name} qui",
+    "extracted": "Estratto: {name}",
+    "extractedNothing": "Non ne è uscito nulla.",
+    "extractFailed": "Non è stato possibile estrarre questo.",
+    "count": "Una voce in questo archivio | {count} voci in questo archivio"
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",
