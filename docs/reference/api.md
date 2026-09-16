@@ -217,7 +217,10 @@ wants to display an entry reads the answer as data and draws it itself.
 
 `POST /api/archive/extract` takes part of an archive out onto the volume,
 into the folder the archive is in. The body names the archive and the entries
-— `{ "path": "Work/backup.zip", "entries": ["docs", "notes.txt"] }` — and a
+— `{ "path": "Work/backup.zip", "entries": ["docs", "notes.txt"] }` — with an
+optional `"destination": "Work/Elsewhere"` for somewhere else on the volume,
+authorized exactly as the default folder is, and refused before anything is
+written if it is not a folder this caller may write in. A
 folder stands for everything under it. It answers with the same stream of
 events the other archive operations write (`start`, `progress`, `done`,
 `error`), and the `done` event carries the name each entry landed under, which

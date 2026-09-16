@@ -148,6 +148,10 @@
     "tooBigToRead": "여기에 표시하기에는 너무 큽니다: {size}, 한도는 {ceiling}입니다. 내려받거나 압축을 풀어서 여세요.",
     "extract": "여기에 압축 풀기",
     "extractNamed": "{name}을(를) 여기에 압축 풀기",
+    "extractTo": "다음 위치에 풀기…",
+    "selectAll": "여기 있는 항목 모두 선택",
+    "selectNamed": "{name} 선택",
+    "selected": "1개 선택됨 | {count}개 선택됨",
     "extracted": "압축을 풀었습니다: {name}",
     "extractedNothing": "나온 것이 없습니다.",
     "extractFailed": "압축을 풀 수 없습니다.",
@@ -916,7 +920,9 @@
     "replaceHere": "이 파일 바꾸기",
     "fileRequired": "파일을 선택하세요",
     "sameFileRejected": "이 파일이 아닌 다른 파일을 선택하세요",
-    "nothingHere": "여기에는 아무것도 없습니다"
+    "nothingHere": "여기에는 아무것도 없습니다",
+    "extractTitle": "다음 위치에 풀기",
+    "extractHere": "여기에 풀기"
   },
   "mediaPreview": {
     "download": "미디어 다운로드",

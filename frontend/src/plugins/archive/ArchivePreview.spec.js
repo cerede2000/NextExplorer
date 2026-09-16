@@ -28,6 +28,11 @@ vi.mock('@/config/editor', () => ({
   isEditableExtension: (extension) => ['txt', 'json'].includes(extension),
 }));
 
+const pick = vi.hoisted(() => vi.fn());
+vi.mock('@/composables/useDestinationPicker', () => ({
+  useDestinationPicker: () => ({ pick }),
+}));
+
 // Reading an entry is its own component, with its own tests. What this one has
 // to get right is which entry it is handed, and when.
 vi.mock('./ArchiveEntryReader.vue', () => ({
@@ -72,6 +77,10 @@ const i18n = createI18n({
         extracted: 'Extracted: {name}',
         extractedNothing: 'Nothing came out of it.',
         extractFailed: 'This could not be extracted.',
+        extractTo: 'Extract to…',
+        selectAll: 'Select everything here',
+        selectNamed: 'Select {name}',
+        selected: 'One selected | {count} selected',
       },
     },
   },
@@ -127,6 +136,7 @@ const rowNames = (wrapper) =>
     .map((row) => row.find('button[title], span[title]').text());
 
 beforeEach(() => {
+  pick.mockReset();
   archiveEntryUrl.mockClear();
   extractFromArchive.mockReset();
 });
@@ -294,7 +304,11 @@ describe('extracting an entry', () => {
     await extractButton(wrapper, 'notes.txt').trigger('click');
     await flushPromises();
 
-    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['notes.txt']);
+    // No destination: the row's own button is the fast path, and the fast path
+    // is the folder the archive is in.
+    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['notes.txt'], {
+      destination: '',
+    });
     expect(wrapper.find('[data-testid="archive-took"]').text()).toBe('Extracted: notes (1).txt');
   });
 
@@ -306,7 +320,9 @@ describe('extracting an entry', () => {
     await extractButton(wrapper, 'docs').trigger('click');
     await flushPromises();
 
-    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['docs']);
+    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['docs'], {
+      destination: '',
+    });
   });
 
   it('shows what the server said when it refused', async () => {
@@ -443,5 +459,110 @@ describe('reading a file without taking it out', () => {
     await rows[1].find('.archive-row').trigger('dblclick');
 
     expect(wrapper.find('[data-testid="reader-stub"]').text()).toBe('notes.txt');
+  });
+});
+
+/**
+ * Several at once, and somewhere other than here.
+ *
+ * The endpoint always took a list; until now the panel could only ever hand it
+ * one name, and only ever the folder the archive sits in. What has to hold: a
+ * tick means an entry at this level, the whole selection goes out in one
+ * request, and closing the destination dialog without choosing does nothing at
+ * all — not the default folder, not the root.
+ */
+describe('taking several out, and choosing where', () => {
+  const boxes = (wrapper) =>
+    wrapper.findAll('[data-testid="archive-entries"] input[type=checkbox]');
+
+  const tick = async (wrapper, index) => {
+    await boxes(wrapper)[index].setValue(true);
+  };
+
+  it('counts what is ticked', async () => {
+    const wrapper = await open();
+
+    expect(wrapper.find('[data-testid="archive-selected"]').exists()).toBe(false);
+
+    await tick(wrapper, 0);
+    expect(wrapper.find('[data-testid="archive-selected"]').text()).toBe('One selected');
+
+    await tick(wrapper, 1);
+    expect(wrapper.find('[data-testid="archive-selected"]').text()).toBe('2 selected');
+  });
+
+  it('ticks everything at this level at once', async () => {
+    const wrapper = await open();
+
+    await wrapper.find('[data-testid="archive-select-all"]').setValue(true);
+
+    expect(wrapper.find('[data-testid="archive-selected"]').text()).toBe('2 selected');
+
+    await wrapper.find('[data-testid="archive-select-all"]').setValue(false);
+    expect(wrapper.find('[data-testid="archive-selected"]').exists()).toBe(false);
+  });
+
+  it('asks for the whole selection in one request', async () => {
+    const wrapper = await open();
+    extractFromArchive.mockResolvedValueOnce({ items: [{ name: 'docs' }, { name: 'notes.txt' }] });
+
+    await tick(wrapper, 0);
+    await tick(wrapper, 1);
+    await wrapper.find('[data-testid="archive-extract-selected"]').trigger('click');
+    await flushPromises();
+
+    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['docs', 'notes.txt'], {
+      destination: '',
+    });
+    expect(wrapper.find('[data-testid="archive-took"]').text()).toBe('Extracted: docs, notes.txt');
+  });
+
+  it('asks where, starting from the folder the archive is in', async () => {
+    const wrapper = await open();
+    pick.mockResolvedValueOnce('Work/Elsewhere');
+    extractFromArchive.mockResolvedValueOnce({ items: [{ name: 'notes.txt' }] });
+
+    await tick(wrapper, 1);
+    await wrapper.find('[data-testid="archive-extract-elsewhere"]').trigger('click');
+    await flushPromises();
+
+    expect(pick).toHaveBeenCalledWith(expect.objectContaining({ mode: 'extract', from: 'Work' }));
+    expect(extractFromArchive).toHaveBeenCalledWith('Work/backup.zip', ['notes.txt'], {
+      destination: 'Work/Elsewhere',
+    });
+  });
+
+  /** Closing the dialog is an answer, and the answer is no. */
+  it('does nothing when the dialog is closed without choosing', async () => {
+    const wrapper = await open();
+    pick.mockResolvedValueOnce(null);
+
+    await tick(wrapper, 1);
+    await wrapper.find('[data-testid="archive-extract-elsewhere"]').trigger('click');
+    await flushPromises();
+
+    expect(extractFromArchive).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="archive-selected"]').text()).toBe('One selected');
+  });
+
+  it('forgets the ticks when another folder is opened', async () => {
+    const wrapper = await open([TOP, INSIDE_DOCS]);
+
+    await tick(wrapper, 1);
+    await wrapper.find('[data-testid="archive-entries"] button[title="docs"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="archive-selected"]').exists()).toBe(false);
+  });
+
+  it('forgets them once what was ticked has come out', async () => {
+    const wrapper = await open();
+    extractFromArchive.mockResolvedValueOnce({ items: [{ name: 'notes.txt' }] });
+
+    await tick(wrapper, 1);
+    await wrapper.find('[data-testid="archive-extract-selected"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="archive-selected"]').exists()).toBe(false);
   });
 });

@@ -148,6 +148,10 @@
     "tooBigToRead": "太大，无法在此显示：{size}，上限为 {ceiling}。请下载或解压后打开。",
     "extract": "解压到此处",
     "extractNamed": "将 {name} 解压到此处",
+    "extractTo": "解压到…",
+    "selectAll": "全选当前层级",
+    "selectNamed": "选择 {name}",
+    "selected": "已选 1 项 | 已选 {count} 项",
     "extracted": "已解压：{name}",
     "extractedNothing": "没有解压出任何内容。",
     "extractFailed": "无法解压此项。",
@@ -916,7 +920,9 @@
     "replaceHere": "替换此文件",
     "fileRequired": "请选择一个文件",
     "sameFileRejected": "请选择此文件以外的文件",
-    "nothingHere": "这里什么都没有"
+    "nothingHere": "这里什么都没有",
+    "extractTitle": "解压到",
+    "extractHere": "解压到此处"
   },
   "mediaPreview": {
     "download": "下载媒体",

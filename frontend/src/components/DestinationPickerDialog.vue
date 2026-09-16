@@ -124,6 +124,9 @@ const LABELS = {
     confirm: 'destinationPicker.versionCopyHere',
   },
   file: { title: 'destinationPicker.replaceTitle', confirm: 'destinationPicker.replaceHere' },
+  // Out of an archive and onto the volume: nothing is leaving a folder here
+  // either, so the same reading as a restore.
+  extract: { title: 'destinationPicker.extractTitle', confirm: 'destinationPicker.extractHere' },
 };
 const labels = computed(() => LABELS[props.value.mode] || LABELS.move);
 const title = computed(() => t(labels.value.title));
@@ -174,7 +177,15 @@ watch(
 
 <template>
   <!-- Above the Versions panel, which asks for these two over an open editor too. -->
-  <ModalDialog v-model="isOpen" :elevated="['version-copy', 'file'].includes(props.mode)">
+  <!--
+    Raised above what asked for it whenever that is itself a window: the
+    versions panel, the editor, and the archive panel all sit above the page,
+    and a dialog at the page's own level would open behind them.
+  -->
+  <ModalDialog
+    v-model="isOpen"
+    :elevated="['version-copy', 'file', 'extract'].includes(props.mode)"
+  >
     <template #title>{{ title }}</template>
 
     <div class="flex max-h-full min-h-0 flex-col gap-3">

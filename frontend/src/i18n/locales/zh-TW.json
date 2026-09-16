@@ -148,6 +148,10 @@
     "tooBigToRead": "太大，無法在此顯示：{size}，上限為 {ceiling}。請下載或解壓縮後開啟。",
     "extract": "解壓縮到此處",
     "extractNamed": "將 {name} 解壓縮到此處",
+    "extractTo": "解壓縮到…",
+    "selectAll": "全選目前層級",
+    "selectNamed": "選擇 {name}",
+    "selected": "已選 1 項 | 已選 {count} 項",
     "extracted": "已解壓縮：{name}",
     "extractedNothing": "沒有解壓縮出任何內容。",
     "extractFailed": "無法解壓縮此項。",
@@ -916,7 +920,9 @@
     "replaceHere": "取代此檔案",
     "fileRequired": "請選擇一個檔案",
     "sameFileRejected": "請選擇此檔案以外的檔案",
-    "nothingHere": "這裡什麼都沒有"
+    "nothingHere": "這裡什麼都沒有",
+    "extractTitle": "解壓縮到",
+    "extractHere": "解壓縮到此處"
   },
   "mediaPreview": {
     "download": "下載媒體",

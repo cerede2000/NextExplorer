@@ -148,6 +148,10 @@
     "tooBigToRead": "Zu groß für die Anzeige hier: {size}, das Limit liegt bei {ceiling}. Laden Sie die Datei herunter oder entpacken Sie sie.",
     "extract": "Hier entpacken",
     "extractNamed": "{name} hier entpacken",
+    "extractTo": "Entpacken nach…",
+    "selectAll": "Alles hier auswählen",
+    "selectNamed": "{name} auswählen",
+    "selected": "Ein Element ausgewählt | {count} Elemente ausgewählt",
     "extracted": "Entpackt: {name}",
     "extractedNothing": "Es kam nichts heraus.",
     "extractFailed": "Dies konnte nicht entpackt werden.",
@@ -916,7 +920,9 @@
     "replaceHere": "Diese Datei ersetzen",
     "fileRequired": "Wählen Sie eine Datei",
     "sameFileRejected": "Wählen Sie eine andere Datei als diese",
-    "nothingHere": "Hier ist nichts"
+    "nothingHere": "Hier ist nichts",
+    "extractTitle": "Entpacken nach",
+    "extractHere": "Hierher entpacken"
   },
   "mediaPreview": {
     "download": "Medium herunterladen",

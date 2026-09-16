@@ -148,6 +148,10 @@
     "tooBigToRead": "Too large to show here: {size}, and up to {ceiling} can be shown. Download it or extract it to open it.",
     "extract": "Extract here",
     "extractNamed": "Extract {name} here",
+    "extractTo": "Extract to…",
+    "selectAll": "Select everything here",
+    "selectNamed": "Select {name}",
+    "selected": "One selected | {count} selected",
     "extracted": "Extracted: {name}",
     "extractedNothing": "Nothing came out of it.",
     "extractFailed": "This could not be extracted.",
@@ -916,7 +920,9 @@
     "replaceHere": "Replace this file",
     "fileRequired": "Pick a file",
     "sameFileRejected": "Pick a file other than this one",
-    "nothingHere": "Nothing here"
+    "nothingHere": "Nothing here",
+    "extractTitle": "Extract to",
+    "extractHere": "Extract here"
   },
   "mediaPreview": {
     "download": "Download media",

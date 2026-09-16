@@ -34,7 +34,7 @@ export function useDestinationPicker() {
 
     // `version-copy` puts an earlier version of a file into a folder; `file`
     // asks for an existing file rather than a folder, to put a version over it.
-    mode.value = ['copy', 'restore', 'version-copy', 'file'].includes(requestedMode)
+    mode.value = ['copy', 'restore', 'version-copy', 'file', 'extract'].includes(requestedMode)
       ? requestedMode
       : 'move';
     items.value = Array.isArray(requestedItems) ? requestedItems : [];

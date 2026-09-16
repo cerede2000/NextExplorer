@@ -148,6 +148,10 @@
     "tooBigToRead": "Слишком большой для просмотра здесь: {size}, предел — {ceiling}. Скачайте или извлеките файл, чтобы открыть его.",
     "extract": "Извлечь сюда",
     "extractNamed": "Извлечь {name} сюда",
+    "extractTo": "Извлечь в…",
+    "selectAll": "Выбрать всё здесь",
+    "selectNamed": "Выбрать {name}",
+    "selected": "Выбран один элемент | Выбрано элементов: {count}",
     "extracted": "Извлечено: {name}",
     "extractedNothing": "Ничего не извлечено.",
     "extractFailed": "Не удалось это извлечь.",
@@ -916,7 +920,9 @@
     "replaceHere": "Заменить этот файл",
     "fileRequired": "Выберите файл",
     "sameFileRejected": "Выберите другой файл, не этот",
-    "nothingHere": "Здесь ничего нет"
+    "nothingHere": "Здесь ничего нет",
+    "extractTitle": "Извлечь в",
+    "extractHere": "Извлечь сюда"
   },
   "mediaPreview": {
     "download": "Скачать медиафайл",

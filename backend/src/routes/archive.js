@@ -165,10 +165,11 @@ router.get(
  * found here and wanted *there*, and downloading it and putting it back is not
  * an answer on a server somebody reaches from a phone.
  *
- * What comes out goes into the folder the archive is in, which is the folder
- * the person is already looking at. Where else it could go is a question for
- * the day somebody asks it; picking a destination is a dialog this does not
- * need in order to be useful.
+ * What comes out goes into the folder the archive is in unless the body names
+ * another one, which is the folder somebody picked in the dialog. A named
+ * destination is not a shortcut around anything: it is authorized exactly like
+ * the default is, so the answer to "may I write here" is the same whoever asks
+ * and wherever they point.
  */
 router.post(
   '/archive/extract',
@@ -191,8 +192,9 @@ router.post(
     // archive is not enough: what comes out of it is a new file on somebody's
     // volume, and a folder an administrator made read-only stays read-only.
     const context = { user: req.user, guestSession: req.guestSession };
+    const asDestination = typeof req.body?.destination === 'string' ? req.body.destination : '';
     const destinationRelativePath = normalizeRelativePath(
-      path.posix.dirname(archive.relativePath || '')
+      asDestination.trim() ? asDestination : path.posix.dirname(archive.relativePath || '')
     );
     for (const action of [ACTIONS.createFolder, ACTIONS.createFile]) {
       const { allowed, accessInfo } = await authorizeAndResolve(
@@ -211,6 +213,14 @@ router.post(
     );
     const destinationAbsolutePath = destinationResolved?.absolutePath;
     if (!destinationAbsolutePath) throw new ForbiddenError('Cannot resolve destination folder.');
+
+    // A folder that is not there, or is not a folder, is said plainly here: the
+    // first thing the extraction does is create a staging directory inside it,
+    // and that failure arrives halfway through a stream of progress events.
+    const destinationStat = await fs.stat(destinationAbsolutePath).catch(() => null);
+    if (!destinationStat?.isDirectory()) {
+      throw new NotFoundError('That destination folder does not exist.');
+    }
 
     const { source, listing } = await readBrowsableArchive(archive.absolutePath);
 

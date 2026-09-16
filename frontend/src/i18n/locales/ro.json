@@ -148,6 +148,10 @@
     "tooBigToRead": "Prea mare pentru a fi afișat aici: {size}, limita este {ceiling}. Descărcați-l sau extrageți-l pentru a-l deschide.",
     "extract": "Extrage aici",
     "extractNamed": "Extrage {name} aici",
+    "extractTo": "Extrageți în…",
+    "selectAll": "Selectați tot de aici",
+    "selectNamed": "Selectați {name}",
+    "selected": "Un element selectat | {count} elemente selectate",
     "extracted": "Extras: {name}",
     "extractedNothing": "Nu a ieșit nimic.",
     "extractFailed": "Acest lucru nu a putut fi extras.",
@@ -916,7 +920,9 @@
     "replaceHere": "Înlocuiți acest fișier",
     "fileRequired": "Alegeți un fișier",
     "sameFileRejected": "Alegeți alt fișier decât acesta",
-    "nothingHere": "Nimic aici"
+    "nothingHere": "Nimic aici",
+    "extractTitle": "Extrageți în",
+    "extractHere": "Extrageți aici"
   },
   "mediaPreview": {
     "download": "Descarcă fișierul media",

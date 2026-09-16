@@ -39,16 +39,21 @@ async function readArchiveEntry(path, entry, options = {}) {
 }
 
 /**
- * Take entries out of an archive, into the folder the archive is in.
+ * Take entries out of an archive, onto the volume.
  *
- * A folder stands for everything under it. The endpoint answers with the same
+ * A folder stands for everything under it. Where they land is the folder the
+ * archive is in unless `destination` names another one — the server asks for
+ * the right to write there either way. The endpoint answers with the same
  * stream of events the other archive operations write — start, progress, done
  * or error — so `onEvent` sees each one as it arrives.
  */
 async function extractFromArchive(path, entries, options = {}) {
+  const destination = options.destination
+    ? { destination: normalizePath(options.destination) }
+    : {};
   return requestStream('/api/archive/extract', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizePath(path), entries }),
+    body: JSON.stringify({ path: normalizePath(path), entries, ...destination }),
     onEvent: options.onEvent,
     signal: options.signal,
   });

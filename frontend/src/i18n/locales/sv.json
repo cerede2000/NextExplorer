@@ -148,6 +148,10 @@
     "tooBigToRead": "För stor för att visas här: {size}, gränsen är {ceiling}. Ladda ner eller packa upp filen för att öppna den.",
     "extract": "Extrahera hit",
     "extractNamed": "Extrahera {name} hit",
+    "extractTo": "Packa upp till…",
+    "selectAll": "Markera allt här",
+    "selectNamed": "Markera {name}",
+    "selected": "Ett objekt markerat | {count} objekt markerade",
     "extracted": "Extraherat: {name}",
     "extractedNothing": "Inget kom ut.",
     "extractFailed": "Det gick inte att extrahera detta.",
@@ -916,7 +920,9 @@
     "replaceHere": "Ersätt den här filen",
     "fileRequired": "Välj en fil",
     "sameFileRejected": "Välj en annan fil än den här",
-    "nothingHere": "Inget här"
+    "nothingHere": "Inget här",
+    "extractTitle": "Packa upp till",
+    "extractHere": "Packa upp här"
   },
   "mediaPreview": {
     "download": "Ladda ner media",

@@ -209,3 +209,97 @@ describe.skipIf(!sevenZip)('taking one entry out of an archive', () => {
     expect(await tree(path.join(volume, 'ReadOnly'))).toEqual(['backup.zip']);
   });
 });
+
+/**
+ * Where it comes out.
+ *
+ * The folder the archive sits in is the answer when nobody says otherwise, and
+ * it is the one the dialog offers first. A named destination changes where the
+ * files land and nothing else: the same right to write is asked for, in the
+ * same way, so pointing somewhere is never a way around what a read-only
+ * folder means.
+ */
+describe.skipIf(!sevenZip)('choosing where it comes out', () => {
+  it('puts what comes out in the folder that was asked for', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'backup.zip', [{ path: 'notes.txt', content: 'twelve bytes' }]);
+    await fs.mkdir(path.join(volume, 'Elsewhere'));
+
+    const { done } = await extract({
+      path: 'backup.zip',
+      entries: ['notes.txt'],
+      destination: 'Elsewhere',
+    });
+
+    expect(done).toMatchObject({ success: true });
+    expect(await tree(volume)).toEqual(['Elsewhere', 'Elsewhere/notes.txt', 'backup.zip']);
+    expect(done.items[0].path).toBe('Elsewhere');
+  });
+
+  it('falls back to the folder the archive is in, not to the root', async () => {
+    const volume = await seed();
+    await fs.mkdir(path.join(volume, 'Backups'));
+    await writeArchive(volume, path.join('Backups', 'backup.zip'), [
+      { path: 'notes.txt', content: 'twelve bytes' },
+    ]);
+
+    const { done } = await extract({ path: 'Backups/backup.zip', entries: ['notes.txt'] });
+
+    expect(done.success).toBe(true);
+    expect(await tree(volume)).toEqual(['Backups', 'Backups/backup.zip', 'Backups/notes.txt']);
+  });
+
+  /**
+   * Which layer refuses it is not the point: this route normalises the name and
+   * the path layer under it refuses the same thing again. What is pinned is
+   * that the answer is a refusal, before anything is written.
+   */
+  it('refuses a destination that climbs out of the volume', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'backup.zip', [{ path: 'notes.txt', content: 'twelve bytes' }]);
+
+    const { response } = await extract({
+      path: 'backup.zip',
+      entries: ['notes.txt'],
+      destination: '../../etc',
+    });
+
+    expect(response.status).toBe(400);
+    expect(await tree(volume)).toEqual(['backup.zip']);
+  });
+
+  /**
+   * Said before the stream starts, rather than as a failed event halfway
+   * through it: the first thing the extraction does is make a staging folder
+   * inside the destination, and that error would arrive after "start".
+   */
+  it('refuses a destination that is not there, as an ordinary error', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'backup.zip', [{ path: 'notes.txt', content: 'twelve bytes' }]);
+
+    const { response, events } = await extract({
+      path: 'backup.zip',
+      entries: ['notes.txt'],
+      destination: 'Nowhere',
+    });
+
+    expect(response.status).toBe(404);
+    expect(events.some((event) => event.type === 'start')).toBe(false);
+    expect(await tree(volume)).toEqual(['backup.zip']);
+  });
+
+  it('refuses a destination that is a file rather than a folder', async () => {
+    const volume = await seed();
+    await writeArchive(volume, 'backup.zip', [{ path: 'notes.txt', content: 'twelve bytes' }]);
+    await fs.writeFile(path.join(volume, 'target.txt'), 'not a folder');
+
+    const { response } = await extract({
+      path: 'backup.zip',
+      entries: ['notes.txt'],
+      destination: 'target.txt',
+    });
+
+    expect(response.status).toBe(404);
+    expect(await tree(volume)).toEqual(['backup.zip', 'target.txt']);
+  });
+});

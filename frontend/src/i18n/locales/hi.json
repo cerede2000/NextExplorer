@@ -148,6 +148,10 @@
     "tooBigToRead": "यहाँ दिखाने के लिए बहुत बड़ी: {size}, सीमा {ceiling} है। इसे डाउनलोड करें या निकालकर खोलें।",
     "extract": "यहाँ निकालें",
     "extractNamed": "{name} यहाँ निकालें",
+    "extractTo": "यहाँ निकालें…",
+    "selectAll": "यहाँ सब चुनें",
+    "selectNamed": "{name} चुनें",
+    "selected": "एक चुना गया | {count} चुने गए",
     "extracted": "निकाला गया: {name}",
     "extractedNothing": "इसमें से कुछ नहीं निकला।",
     "extractFailed": "इसे निकाला नहीं जा सका।",
@@ -916,7 +920,9 @@
     "replaceHere": "यह फ़ाइल बदलें",
     "fileRequired": "एक फ़ाइल चुनें",
     "sameFileRejected": "इसके अलावा कोई दूसरी फ़ाइल चुनें",
-    "nothingHere": "यहाँ कुछ नहीं है"
+    "nothingHere": "यहाँ कुछ नहीं है",
+    "extractTitle": "यहाँ निकालें",
+    "extractHere": "यहीं निकालें"
   },
   "mediaPreview": {
     "download": "मीडिया डाउनलोड करें",

@@ -148,6 +148,10 @@
     "tooBigToRead": "Troppo grande per essere mostrato qui: {size}, il limite è {ceiling}. Scaricalo o estrailo per aprirlo.",
     "extract": "Estrai qui",
     "extractNamed": "Estrai {name} qui",
+    "extractTo": "Estrai in…",
+    "selectAll": "Seleziona tutto qui",
+    "selectNamed": "Seleziona {name}",
+    "selected": "Un elemento selezionato | {count} elementi selezionati",
     "extracted": "Estratto: {name}",
     "extractedNothing": "Non ne è uscito nulla.",
     "extractFailed": "Non è stato possibile estrarre questo.",
@@ -916,7 +920,9 @@
     "replaceHere": "Sostituisci questo file",
     "fileRequired": "Scegli un file",
     "sameFileRejected": "Scegli un file diverso da questo",
-    "nothingHere": "Qui non c'è niente"
+    "nothingHere": "Qui non c'è niente",
+    "extractTitle": "Estrai in",
+    "extractHere": "Estrai qui"
   },
   "mediaPreview": {
     "download": "Scarica contenuto",
