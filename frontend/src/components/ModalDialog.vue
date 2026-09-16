@@ -23,6 +23,15 @@ const props = defineProps({
    * is how a panel ends up scrolling sideways.
    */
   wide: Boolean,
+  /**
+   * Hand the body's box over to whatever fills it.
+   *
+   * A panel that pins a column header has to own its own scrolling: sticky
+   * offsets are measured from the content box, so a header pinned inside a
+   * padded scroller settled below the top of the view, and the rows scrolled
+   * through the gap left above it.
+   */
+  flush: Boolean,
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -167,7 +176,10 @@ function onBackgroundClick() {
         </div>
         <hr class="h-px shrink-0 border-0 bg-zinc-300 dark:bg-zinc-800" />
 
-        <div class="min-h-0 flex-1 overflow-y-auto p-6 py-6 text-sm">
+        <div
+          class="min-h-0 flex-1 text-sm"
+          :class="flush ? 'flex flex-col overflow-hidden' : 'overflow-y-auto p-6'"
+        >
           <slot> </slot>
         </div>
 

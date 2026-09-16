@@ -4,20 +4,20 @@
     and a listing is read beside what opened it: the preview overlay is for a
     photograph or a document, where filling the screen is the point.
   -->
-  <ModalDialog :model-value="true" wide @update:model-value="close">
+  <ModalDialog :model-value="true" wide flush @update:model-value="close">
     <template #title>
       <ArchiveIcon class="h-5 w-5 shrink-0" />
       <span class="truncate">{{ item?.name || filePath }}</span>
     </template>
 
-    <div class="-m-6 flex flex-col" data-testid="archive-preview">
+    <div class="flex min-h-0 flex-1 flex-col" data-testid="archive-preview">
       <!--
       Where we are inside the archive, in the shape the explorer's own path bar
       has: the archive itself is the first step, so going back to the top is a
       click rather than a guess at what that level was called.
     -->
       <nav
-        class="flex flex-wrap items-center gap-0.5 border-b border-neutral-200 px-4 py-2 text-sm dark:border-neutral-800"
+        class="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-neutral-200 px-4 py-2 text-sm dark:border-neutral-800"
         :aria-label="$t('archive.breadcrumb')"
       >
         <template v-for="(step, index) in trail" :key="step.inside">
@@ -62,10 +62,10 @@
           {{ $t('archive.empty') }}
         </p>
 
-        <div v-else>
+        <div v-else class="flex min-h-0 flex-1 flex-col">
           <!-- The columns the list view uses, in the order it uses them. -->
           <div
-            class="archive-row sticky top-0 z-10 items-center border-b border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-500 dark:border-neutral-800 dark:bg-zinc-900 dark:text-neutral-400"
+            class="archive-row shrink-0 items-center border-b border-neutral-200 px-4 py-1.5 text-xs font-medium text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"
           >
             <span aria-hidden="true"></span>
             <span>{{ $t('common.name') }}</span>
@@ -74,7 +74,7 @@
             <span aria-hidden="true"></span>
           </div>
 
-          <ul data-testid="archive-entries">
+          <ul class="min-h-0 flex-1 overflow-y-auto" data-testid="archive-entries">
             <li v-for="entry in entries" :key="entry.path" class="group/item">
               <div
                 class="archive-row cursor-default items-center rounded-md px-4 py-1 group-even/item:bg-zinc-100 hover:bg-blue-50 dark:group-even/item:bg-neutral-700/30 dark:hover:bg-blue-900/20"
@@ -137,7 +137,7 @@
         </div>
 
         <div
-          class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"
+          class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400"
         >
           <span data-testid="archive-count">{{ $t('archive.count', total) }}</span>
           <!--
