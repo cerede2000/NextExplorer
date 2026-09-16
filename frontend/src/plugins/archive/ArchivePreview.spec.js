@@ -352,6 +352,35 @@ describe('the window it draws', () => {
   });
 });
 
+/**
+ * What stays still while the rows move.
+ *
+ * The column header used to be pinned inside the dialog's own scrolling body,
+ * and sticky offsets are measured from the content box: padded, it settled
+ * below the top of the view and rows scrolled through the strip above it. The
+ * header is outside the scrolling part now, which is what makes it stay put.
+ */
+describe('what stays still', () => {
+  it('scrolls the rows only, with the column header outside them', async () => {
+    const wrapper = await open();
+
+    const list = wrapper.find('[data-testid="archive-entries"]');
+    expect(list.classes()).toContain('overflow-y-auto');
+
+    const header = wrapper.findAll('div').find((node) => node.text().startsWith('NameSize'));
+    expect(header).toBeDefined();
+    expect(list.element.contains(header.element)).toBe(false);
+  });
+
+  it('keeps the count of the archive out of the scrolling part too', async () => {
+    const wrapper = await open();
+    const list = wrapper.find('[data-testid="archive-entries"]');
+    const count = wrapper.find('[data-testid="archive-count"]');
+
+    expect(list.element.contains(count.element)).toBe(false);
+  });
+});
+
 describe('reading a file without taking it out', () => {
   const WITH_A_BINARY = {
     ...TOP,

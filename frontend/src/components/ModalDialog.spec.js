@@ -143,3 +143,36 @@ describe('ModalDialog keyboard trap', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * Where the scrolling happens decides what can be pinned.
+ *
+ * A panel that pins a column header cannot borrow a padded scroller: sticky
+ * offsets are measured from the content box, so a header pinned inside one
+ * settles below the top of the view and rows scroll through the strip above it.
+ */
+describe('who scrolls', () => {
+  /** Whatever holds what the dialog was handed, named by that content. */
+  const body = () => document.getElementById('inner').parentElement;
+
+  it('scrolls the body itself, padded, for an ordinary dialog', () => {
+    const wrapper = mountDialog();
+    const classes = body().className;
+
+    expect(classes).toContain('overflow-y-auto');
+    expect(classes).toContain('p-6');
+
+    wrapper.unmount();
+  });
+
+  it('hands the box over, unpadded, to a panel that lays itself out', () => {
+    const wrapper = mountDialog({ flush: true });
+    const classes = body().className;
+
+    expect(classes).toContain('flex-col');
+    expect(classes).not.toContain('overflow-y-auto');
+    expect(classes).not.toContain('p-6');
+
+    wrapper.unmount();
+  });
+});
