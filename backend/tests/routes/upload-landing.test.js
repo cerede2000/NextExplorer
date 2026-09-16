@@ -603,3 +603,73 @@ describe('the room left for a request of several files', () => {
     expect(await tree(destination)).toEqual(['first.bin', 'second.bin']);
   });
 });
+
+/**
+ * The folders an upload had to create, when it is then refused.
+ *
+ * The destination is authorized before anything is made, but a file carries a
+ * relative path of its own and the folders of that path are created after —
+ * so a refusal past that point left them behind: empty folders an upload
+ * invented, in somebody's tree, with nothing to say where they came from. The
+ * two refusals that reach that point are a volume that cannot hold what is
+ * coming, and a file over the size limit.
+ */
+describe('folders an upload created before it was refused', () => {
+  it('are taken back when the volume cannot hold the upload', async () => {
+    const destination = await seed({ env: { UPLOAD_STORAGE_RESERVE: '900T' } });
+
+    const response = await upload(
+      buildApp(),
+      { uploadTo: 'Nvm', relativePath: 'Invented/Deeper/report.txt' },
+      { name: 'report.txt' }
+    );
+
+    expect(response.status).toBe(507);
+    expect(await tree(destination)).toEqual([]);
+  });
+
+  it('are taken back when the file is over the size limit', async () => {
+    const destination = await seed({ env: { MAX_DIRECT_UPLOAD_SIZE: '16' } });
+
+    const response = await upload(
+      buildApp(),
+      { uploadTo: 'Nvm', relativePath: 'Invented/Deeper/report.txt' },
+      { name: 'report.txt', content: 'x'.repeat(4096) }
+    );
+
+    expect(response.status).toBe(413);
+    expect(await tree(destination)).toEqual([]);
+  });
+
+  /**
+   * Only what this upload created, and only while it is empty. A folder that
+   * was already there is not the upload's to remove, and one that has since
+   * been written into is somebody's — which is why `rmdir` refusing a folder
+   * that is not empty is the guard, rather than a look of our own that could
+   * be out of date by the time it is acted on.
+   */
+  it('leaves a folder that was already there, and one that is not empty', async () => {
+    const destination = await seed({ env: { MAX_DIRECT_UPLOAD_SIZE: '4096' } });
+    await fs.mkdir(path.join(destination, 'Existing'), { recursive: true });
+
+    const landed = await upload(
+      buildApp(),
+      { uploadTo: 'Nvm', relativePath: 'Existing/Kept/small.txt' },
+      { name: 'small.txt', content: 'small enough' }
+    );
+    expect(landed.status).toBe(200);
+
+    const refused = await upload(
+      buildApp(),
+      { uploadTo: 'Nvm', relativePath: 'Existing/Kept/Invented/big.txt' },
+      { name: 'big.txt', content: 'x'.repeat(8192) }
+    );
+
+    expect(refused.status).toBe(413);
+    expect(await tree(destination)).toEqual([
+      'Existing',
+      'Existing/Kept',
+      'Existing/Kept/small.txt',
+    ]);
+  });
+});

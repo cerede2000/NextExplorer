@@ -55,6 +55,39 @@ const upload = (baseUrl, { name = 'hello.txt', content = 'hello' } = {}) =>
     .query({ uploadTo: 'Nvm', relativePath: name })
     .attach('filedata', Buffer.from(content), name);
 
+/**
+ * The same upload, sent without a Content-Length: node writes the body chunked
+ * when it is not told how long it is, which is what a client streaming a file
+ * does and what supertest never does.
+ */
+const uploadWithoutContentLength = (baseUrl, name) => {
+  const http = require('node:http');
+  const boundary = 'direct-upload-no-length';
+  const { port } = new URL(baseUrl);
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        method: 'POST',
+        path: `/api/upload?uploadTo=Nvm&relativePath=${encodeURIComponent(name)}`,
+        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      },
+      (res) => {
+        res.resume();
+        res.on('end', () => resolve(res.statusCode));
+      }
+    );
+    req.on('error', reject);
+    req.write(
+      `--${boundary}\r\nContent-Disposition: form-data; name="filedata"; filename="${name}"\r\n` +
+        'Content-Type: text/plain\r\n\r\n'
+    );
+    req.write('a few bytes');
+    req.end(`\r\n--${boundary}--\r\n`);
+  });
+};
+
 const exists = async (target) =>
   fs
     .access(target)
@@ -95,6 +128,45 @@ describe('a direct upload', () => {
       expect(response.status).toBe(507);
       expect(await exists(path.join(destination, 'too-big.bin'))).toBe(false);
       expect(await exists(path.join(destination, 'too-big.bin.uploading'))).toBe(false);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  /**
+   * An upload that announces no size at all.
+   *
+   * The only measure of what is coming is Content-Length, and a request sent
+   * chunked has none — what an API client streaming a file does. The guard
+   * takes a number and was handed nothing, so it returned without looking:
+   * this upload landed on a volume the one above it was refused on. Zero is
+   * what is honestly known about what is coming, and the reserve is still held
+   * free, which is the part that keeps the database alive.
+   */
+  it('is refused when it announces no size and the reserve is already gone', async () => {
+    const { destination, server } = await build({ UPLOAD_STORAGE_RESERVE: '900T' });
+    const baseUrl = await startServer(server);
+
+    try {
+      const status = await uploadWithoutContentLength(baseUrl, 'streamed.txt');
+
+      expect(status).toBe(507);
+      expect(await fs.readdir(destination)).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  /** And one that announces nothing still lands where there is room for it. */
+  it('is accepted when it announces no size and there is room', async () => {
+    const { destination, server } = await build();
+    const baseUrl = await startServer(server);
+
+    try {
+      const status = await uploadWithoutContentLength(baseUrl, 'streamed.txt');
+
+      expect(status).toBe(200);
+      expect(await fs.readdir(destination)).toEqual(['streamed.txt']);
     } finally {
       await closeServer(server);
     }

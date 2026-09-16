@@ -106,29 +106,78 @@ const resolveUploadPaths = async (req, file) => {
  * Clear the remains of dead uploads from the destination, then refuse this one
  * if what is coming will not fit.
  *
- * Once per request, on its first file. Multer hands files over one at a time
- * and knows no size in advance, so the only measure of what is coming is the
- * request's Content-Length — which covers the whole body. Checking it again for
- * each later file would weigh the whole body against the space left after the
- * earlier ones had landed, and refuse an upload that fits.
+ * Once per destination, not once per request. Multer hands files over one at a
+ * time and knows no size in advance, so the only measure of what is coming is
+ * the request's Content-Length — which covers the whole body. Checking that
+ * again for each later file going to the *same* folder would weigh the whole
+ * body against the space left after the earlier ones had landed, and refuse an
+ * upload that fits.
+ *
+ * A folder this request has not written to yet is a different matter, and used
+ * to be missed entirely: each file carries its own relative path, so one
+ * request can reach several folders, and on a machine with more than one disk
+ * that is several disks. The second one had its free space never measured and
+ * its dead uploads never swept — and the answer for it is the first one's
+ * reasoning, unchanged: nothing of this request has landed there either.
  *
  * The sweep comes first because what it removes is space the check is about to
  * measure.
  */
-const REQUEST_PREPARED = Symbol('uploadDestinationPrepared');
+const REQUEST_PREPARED = Symbol('uploadDestinationsPrepared');
 
 const prepareDestinationOnce = async (req, destinationDir) => {
-  if (req[REQUEST_PREPARED]) return;
-  req[REQUEST_PREPARED] = true;
+  const prepared = (req[REQUEST_PREPARED] ??= new Set());
+  if (prepared.has(destinationDir)) return;
+  prepared.add(destinationDir);
 
   await sweepStaleUploadRemnants(destinationDir);
 
+  // A request that announces no size — chunked, which is what an API client
+  // sending a stream does — used to skip the check altogether: the guard takes
+  // a number and was handed nothing, so an upload could fill a volume that was
+  // already past its reserve, on a machine where a full volume takes the
+  // database down with it. Zero is what is honestly known about what is
+  // coming, and it still holds the reserve itself free.
   const declaredBytes = Number(req.headers?.['content-length']);
   await ensureStorageAvailable(
     destinationDir,
-    Number.isFinite(declaredBytes) ? declaredBytes : null,
+    Number.isFinite(declaredBytes) ? declaredBytes : 0,
     'destination storage'
   );
+};
+
+/**
+ * Remove the folders this upload created, while they are still empty.
+ *
+ * `mkdir` with `recursive` answers the topmost folder it had to create, so
+ * what lies between that and the destination is exactly what this file added.
+ * A refusal after that point — no space left, a file over the size limit, a
+ * client that went away — used to leave them behind: empty folders an upload
+ * invented, in somebody's tree, with nothing to say where they came from.
+ *
+ * Deepest first, and each one only if nothing is in it. Another file of the
+ * same request may have landed in the very folder this one created, so the
+ * guard is `rmdir` refusing a folder that is not empty rather than a check of
+ * our own, which could be out of date by the time it is acted on.
+ */
+const removeEmptyCreatedDirectories = async (deepestPath, topmostCreated) => {
+  if (!topmostCreated) return;
+
+  let current = deepestPath;
+  for (;;) {
+    try {
+      await fs.rmdir(current);
+    } catch (error) {
+      // Already gone: whatever removed it may have left its parents, which are
+      // as much ours as it was. Anything else — a folder somebody has put a
+      // file in, a permission — is where this stops.
+      if (error?.code !== 'ENOENT') return;
+    }
+    if (current === topmostCreated) return;
+    const parent = path.dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
 };
 
 function CustomStorage() {
@@ -140,6 +189,15 @@ function CustomStorage() {
 
 CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
   (async () => {
+    // What this file had to create to have somewhere to land, and where it was
+    // going: enough to undo it if the upload is refused after this point.
+    let createdDirectoryRoot = null;
+    let preparedDestinationDir = null;
+    const fail = async (error) => {
+      await removeEmptyCreatedDirectories(preparedDestinationDir, createdDirectoryRoot);
+      cb(error);
+    };
+
     try {
       const { destinationPath, destinationDir, logicalRelativePath, logicalBase } =
         await resolveUploadPaths(req, file);
@@ -169,7 +227,8 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         }
       }
 
-      await ensureDir(destinationDir);
+      createdDirectoryRoot = (await ensureDir(destinationDir)) || null;
+      preparedDestinationDir = destinationDir;
       await prepareDestinationOnce(req, destinationDir);
 
       // The bytes go to a hidden name of their own beside the destination, and
@@ -264,7 +323,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         destroyStream(outStream, error);
         await waitForClosed(outStream);
         await cleanupTemporary();
-        cb(error);
+        await fail(error);
         return;
       } finally {
         clearInactivityTimer();
@@ -286,7 +345,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         const truncatedError = new multer.MulterError('LIMIT_FILE_SIZE', file.fieldname);
         await waitForClosed(outStream);
         await cleanupTemporary();
-        cb(truncatedError);
+        await fail(truncatedError);
         return;
       }
 
@@ -304,10 +363,10 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       } catch (placeErr) {
         await waitForClosed(outStream);
         await cleanupTemporary();
-        cb(placeErr);
+        await fail(placeErr);
       }
     } catch (uploadError) {
-      cb(uploadError);
+      await fail(uploadError);
     }
   })();
 };
