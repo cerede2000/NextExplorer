@@ -371,51 +371,50 @@ Writing tests for the least covered code found three security defects (archives
 carrying the trash zone and hidden paths, copy target names that climbed out of
 their destination, and two ways into sign-in) and a dozen smaller ones, all fixed
 with their tests. What follows was found at the same time and judged not worth
-holding the release for. Each was reproduced; none is guessed.
+holding the release for.
 
-- **Several files in one upload request measure the free space once**, before
-  the first file has finished writing. Only API clients send several.
-- **The ONLYOFFICE transfer question** leaves the first promise unresolved if a
-  second transfer asks while it is open. The dialog is modal, so this is
-  theoretical.
+Every one of them was dealt with on 16 September 2026, each with the test that
+holds it and a mutation that proves the test would have caught the old
+behaviour. What the work found on the way is worth keeping:
 
-The rest of that list was fixed on 16 September 2026, with the leftovers the
-same evening had found. What those fixes left behind, or decided not to do:
+- **A settings save no longer stores half of itself.** Each section is now
+  checked in one step and written in another, and none of the writing starts
+  until all of the checking has passed — the person's own preferences included,
+  which used to be applied before the sections and survived a refusal further
+  down.
+- **An access rule whose path is nothing but spaces is refused**, and only when
+  it is blank all through: a folder may legitimately be called "My Documents".
+  The search index gained the sanitiser every other section had on its way into
+  storage.
+- **A logo an interrupted write left behind is swept**, under the same rule as
+  the rest: the exact shape this application writes, never the listing.
+- **The sign-in screen says whether single sign-on can work** before the button
+  is pressed, in the two sentences the round trip used to bring back. One
+  classification was wrong and is corrected: a missing client secret is a
+  configuration that is missing, not a provider that could not be started.
+- **A refused upload takes back the folders it created**, deepest first and only
+  while each is still empty.
+- **An upload that announces no size is measured.** This one was worse than the
+  note suggested: a chunked body skipped the space check entirely, so the upload
+  refused with 507 when it declared its length landed when it did not.
+- **The ONLYOFFICE transfer question answers the one it replaces**, rather than
+  leaving a transfer waiting for the life of the tab.
+
+Still open, and needing somebody other than the code:
 
 - **Two signed tokens outlive a password change, by decision.** ONLYOFFICE's
   backend tokens (12 h) and Collabora's WOPI tokens (6 h) reach one file with
   the rights written into them, and revoking one means state read on every
-  operation of every open editor. `docs/admin/guide.md` now says what a password
+  operation of every open editor. `docs/admin/guide.md` says what a password
   change ends and what it does not, and how to end those sooner.
-- **`/api/auth/status` does not say whether single sign-on is available**, so
-  the sign-in screen only learns a provider is down by trying. A field there
-  would let the button say so before it is pressed. A missing
-  `OIDC_CLIENT_SECRET` also reads as "could not be started" rather than "a
-  setting is missing"; only the log names it.
-- **A refusal after the landing folder was authorized still leaves folders.**
-  The folder is authorized before it is created now, but `ensureDir` in
-  `_handleFile` creates the sub-folders of a relative path afterwards, and a
-  refusal past that point — no space, a truncated file, a client that left —
-  leaves them empty.
-- **A settings save applies its sections one after another**, so a payload with
-  a valid section and a refused one writes the first before answering 400.
-- **An access rule whose path is nothing but spaces** is stored as it came: it
-  matches nothing, and is neither refused nor trimmed. `searchIndex` still has
-  no sanitiser of its own, so what is stored for it is the merge as it came.
-- **A logo interrupted mid-write** leaves `.logo-<uuid>.part`, which the sweep
-  at start does not look at — it takes only finished names.
-- **What is left of the large-file work.** A 19 MB file travels compressed and
-  is revalidated rather than downloaded again, the editor no longer copies it on
-  every keystroke, a file whose parser would hold the page opens without colours,
-  and the preview cuts a document with no blank line. Still open:
-  - the first-hand check on the report that started it — Edge on a Mac, by the
-    server's local address. Chromium keeps a compressed answer only up to about
-    6 MB; the second opening there should show a 304 in the network panel;
-  - the editor now reads with a GET, so the file's path is in the access log,
-    as `/api/raw` and `/api/versions` already put it.
+- **The first-hand check on the large-file report** — Edge on a Mac, by the
+  server's local address. Chromium keeps a compressed answer only up to about
+  6 MB; the second opening there should show a 304 in the network panel.
 - **The download on a phone** — a long press, then Download, answered "session
   expired" and cancelled itself — is fixed here and not confirmed there: it was
   never reproduced in Chromium, whose requests survive the form's navigation.
+- **The editor now reads with a GET**, so the file's path is in the access log,
+  as `/api/raw` and `/api/versions` already put it.
 - **One browser test failed once:** the share link read right after trashing its
   file answered `ECONNRESET` (run 35020703315). It passed on the rerun and in
   three separate local runs of the file.
@@ -451,11 +450,14 @@ mesa-va-gallium 25.2.7 to 26.1.6.
 - **ffmpeg 9.0.1 is out**, and the source pin is on 8.1.2 — the newest patch of
   its own branch, so this is currency rather than a fix. Moving a major means
   re-running `docker/verify-ffmpeg.sh` for real, which is the point of it.
-- **Nothing rebuilds the published images on a schedule.** apk resolves against
-  the branch head at build time, so the audit above says what an image built
-  _today_ contains; one published in March carries March. A weekly rebuild of
-  `latest` would close that, and the cleanup workflow already proves a schedule
-  works here.
+- **The published images are rebuilt weekly**, by `refresh-images.yml`: apk
+  resolves against the branch head at build time, so an image says what was
+  current on the day it was built and nothing more. It publishes the floating
+  tags only — a version tag names a set of bytes somebody can pull again — and
+  refuses the layer cache for the `runtime` stage, which is where apk installs
+  ffmpeg, ripgrep and the rest and where a cache hit would have made the whole
+  exercise pointless. Each run says what it produced, in its summary. Like
+  every schedule, it does nothing until it is on `main`.
 - **`demo/Dockerfile` builds from `ghcr.io/cerede2000/explorer:latest-lean`**,
   the one floating tag in the repository. For a demo that is meant to track the
   lean image it is the right dependency, but it does mean a demo build is not
@@ -528,9 +530,11 @@ None of the four reads anything a stranger supplies, which is what separated
 
 ### Smaller things found on the way
 
-- **`archiver` 6.0.2 is two majors back**, and it is what puts `glob@8`, and so
-  `inflight@1.0.6`, in the container — the package npm itself calls unsupported
-  and leaking memory. No advisory names it. Archiver 8 drops it.
+- **`archiver` is at 8**, so `glob@8` and `inflight@1.0.6` — the package npm
+  itself calls unsupported and leaking memory — are out of the container. It
+  was never executed there: only `archive.glob()` would have, and this code
+  calls `append`, `file` and `symlink`. Version 8 is ES modules and exports
+  classes, which is the whole of the migration.
 - **`prebuild-install` 7.1.3 is marked "No longer maintained"** upstream. It
   arrives with `better-sqlite3` and `node-pty`, so nothing at this level
   decides it.
