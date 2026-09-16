@@ -60,3 +60,78 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 - **Cancellable file operations:** Copy and move run natively with real progress and can be stopped mid-way, leaving nothing half-written.
 - **Nothing is ever replaced:** A copy, a move, an upload, an extraction, a new archive, a new folder, a Save as, a copy of a version or a restore from the trash takes the name it asks for only when nothing holds it — even something that arrives while it runs — and otherwise takes “name (1)”, or “name 2” for a new folder. It never replaces a file and never pours into a folder that is already there, and undoing one that failed removes only what it wrote itself: a file someone saved in the meantime stays.
 - **Keyboard shortcuts:** ⌘/Ctrl+C/X/V for clipboard actions, plus quick navigation via breadcrumbs and toolbar icons.
+
+## How it compares
+
+Three projects are watched closely because they solve the same problem from a
+different angle: **[FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser)**,
+**[Filestash](https://github.com/mickael-kerjean/filestash)** and
+**[Caby](https://github.com/caby-io/caby)**. The table below was checked on
+**16 September 2026** against each project's own repository, documentation and
+pricing page — not their marketing, and not from memory. Where a row says a
+project does not do something, the source for that is given underneath.
+
+✅ shipped · 🚧 the project itself says it is coming · ❌ not offered · 💰 paid tier
+
+|                                               | NextExplorer 3.7                                               | FileBrowser Quantum     | Filestash                                                  | Caby                     |
+| --------------------------------------------- | -------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------- | ------------------------ |
+| Licence and price                             | GPL-3.0, free                                                  | Apache-2.0, free        | AGPL core, free — Pro from $50/mo, Enterprise from $290/mo | AGPL-3.0, free (pre-1.0) |
+| Browse an archive without extracting it       | ✅ zip, 7z, rar, iso, tar, tar.gz and the rest of 7-Zip's list | 🚧                      | ✅ viewer plugin                                           | ❌                       |
+| Read a file inside an archive                 | ✅ text, Markdown, images                                      | 🚧                      | ✅ viewer plugin                                           | ❌                       |
+| Take part of an archive out, where you choose | ✅                                                             | ❌                      | ❌                                                         | ❌                       |
+| Trash with restore                            | ✅                                                             | 🚧                      | ❌                                                         | ❌                       |
+| Earlier versions of a file                    | ✅                                                             | ❌                      | 💰 Enterprise                                              | 🚧 roadmap               |
+| Search inside file contents                   | ✅ full-text index and ripgrep                                 | ❌                      | ✅                                                         | ❌                       |
+| Two-factor on local accounts                  | ✅ TOTP and recovery codes                                     | ✅                      | 💰 Enterprise                                              | ❌                       |
+| OIDC single sign-on                           | ✅                                                             | ✅                      | 💰                                                         | ✅                       |
+| Access rules per path                         | ✅ read, write and delete apart                                | ✅                      | 💰 RBAC                                                    | 🚧 roadmap               |
+| Office editing (ONLYOFFICE / Collabora)       | ✅                                                             | ✅                      | ✅                                                         | ❌                       |
+| Share links with password and expiry          | ✅                                                             | ✅                      | ✅                                                         | ✅                       |
+| Storage beyond the local filesystem           | ❌                                                             | ❌                      | ✅ about 25 protocols                                      | ❌                       |
+| WebDAV                                        | ❌                                                             | ✅                      | ✅                                                         | ❌                       |
+| Space quotas                                  | ❌                                                             | 🚧                      | 💰                                                         | ❌                       |
+| Activity log                                  | ❌                                                             | ✅                      | 💰                                                         | ❌                       |
+| Terminal in the browser                       | ✅ switchable by variable                                      | ❌ removed deliberately | ❌                                                         | ❌                       |
+
+### Where each answer comes from
+
+- **FileBrowser Quantum** publishes its own comparison chart in its
+  [README](https://github.com/gtsteffaniak/filebrowser#comparison-chart), and
+  that chart is the source for the rows about it: trash, browsing archives and
+  quotas are marked 🚧 there, content-aware search ❌, and WebDAV, the activity
+  log, office support, OIDC and password + 2FA ✅. Its README also states that
+  shell commands were removed on purpose. Its source carries no extraction path
+  and nothing about versioning, which is what the two ❌ rest on.
+- **Filestash** separates what is free from what is not on its
+  [pricing page](https://www.filestash.app/pricing/): the self-hosted Hobby
+  edition is AGPL and free, Pro starts at $50/month and Enterprise at
+  $290/month. In its own comparison table, versioning, RBAC, OIDC and MFA are
+  Enterprise, and quotas and the audit journal are Pro. Its
+  [README](https://github.com/mickael-kerjean/filestash) is the source for the
+  storage protocols and for the viewer plugin that opens `tar`, `tgz` and `zip`.
+  Nothing in its documentation or its source describes a trash.
+- **Caby** lists what it does and what it intends to do in its
+  [README](https://github.com/caby-io/caby): OIDC or a built-in password,
+  spaces, chunked uploads and shares are shipped; a web editor, file versioning
+  and fine-grained user access are on its roadmap. It is explicitly pre-1.0.
+  Nothing there describes a trash, an archive browser, office editing or a
+  content search.
+- **NextExplorer**: every row above is documented on this site —
+  [archives](/experience/workflows#archives), [trash](/admin/trash),
+  [file versions](/admin/versions), [search](/experience/features),
+  [two-factor](/admin/guide), [access control](/admin/guide) — and covered by
+  the test suites in the repository.
+
+### What the others do better
+
+Said as plainly as the rest, because a comparison that only flatters is not
+worth reading:
+
+- **Filestash speaks about twenty-five storage protocols**; NextExplorer speaks
+  one filesystem deeply. Chasing S3 and SharePoint would dilute what makes this
+  useful to arrive second on ground that is already occupied, so it is not
+  planned.
+- **Quantum has WebDAV**, which turns a website into a network drive. It is the
+  most structural thing missing here, and it is open.
+- **Quantum and Filestash both have an activity log**, and Filestash has
+  quotas. Both are recorded as wanted.

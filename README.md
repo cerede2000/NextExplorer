@@ -35,8 +35,8 @@ Two images are published, on both registries:
 
 | Tag                         | Contains                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------- |
-| `latest`, `3.6.1`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
-| `latest-lean`, `3.6.1-lean` | The same application without VA-API or RAW — a considerably smaller image        |
+| `latest`, `3.7.0`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
+| `latest-lean`, `3.7.0-lean` | The same application without VA-API or RAW — a considerably smaller image        |
 
 Take the full image unless you know you need neither: VA-API only helps where the host exposes a render device to the container, and RAW support only matters if you keep camera files. Both variants are built for `linux/amd64` and `linux/arm64`.
 
@@ -49,7 +49,7 @@ They are also on Docker Hub under the same tags.
 
 `latest` and `latest-lean` follow `main`, so a fix reaches them without waiting
 for a release. Every build is also published under the version in
-`package.json` — `3.6.1`, `3.6.1-lean` — republished for as long as that
+`package.json` — `3.7.0`, `3.7.0-lean` — republished for as long as that
 version is current, and left alone once the next one is cut.
 
 Only the last two versions stay published: on Docker Hub the older one is
@@ -59,13 +59,65 @@ expecting an old tag to still be there.
 
 ## Highlights
 
-- Secure by default: local users & groups, optional OIDC SSO.
-- Fast previews: images, videos, PDFs, thumbnails (FFmpeg), and inline players.
-- Built-in editor: edit text/code with syntax highlighting (extensible via `EDITOR_EXTENSIONS`).
-- Sharing workflows: link-based sharing (read-only/read-write), guest access, “Shared with me”.
-- Smart search: ripgrep-backed filename + content search with tunable limits, filename patterns (`*.ps1`), and an optional full-text index that reads Office documents and PDFs.
-- Modern UX: grid/list/column views, drag-and-drop, context menus, keyboard shortcuts.
-- Docker-native: single image, mount volumes under `/mnt`, reverse-proxy friendly via `PUBLIC_URL`.
+- **Look inside an archive without unpacking it.** Open a zip, 7z, rar, iso, tar
+  or tar.gz and browse it like a folder: go into its folders, read a text file,
+  a Markdown file or an image inside it, and take one file — or one folder —
+  out onto your volume, here or wherever you choose. The rest of the archive is
+  never written to disk.
+- **Deleting goes to a trash.** Restore where it was or into a folder you pick,
+  restore part of a deleted folder, or empty it for good. The trash lives in
+  each volume, so a 40 GB folder is deleted as fast as a small file.
+- **Saving over a file keeps what it replaced.** Versions from the editor, from
+  a share link, from ONLYOFFICE and Collabora — open one read-only, download it,
+  restore it, or put it over another file. Thinned as they age, and pinned ones
+  are kept.
+- **Nothing is ever replaced silently.** Upload, copy, move, extract, restore:
+  a name already taken becomes “name (1)”, and the interface says which name
+  the file landed under.
+- **Two-factor on local accounts.** Any authenticator app, ten recovery codes,
+  and an administrator who can take it off an account that lost both.
+- **Search that reads inside files.** A filename search as you type, patterns
+  like `*.ps1`, and a full-text index that reads Office documents and PDFs.
+- **Previews and editing.** Images, video, audio, PDF, Markdown, a code editor,
+  and Office documents through ONLYOFFICE or Collabora.
+- **Sharing.** Links with a password, an expiry and per-operation permissions,
+  guest access, and “Shared with me”.
+- **Access control.** Local accounts and groups, optional OIDC SSO, and rules
+  per path with read, write and delete kept apart.
+- **Docker-native.** One image, volumes under `/mnt`, reverse-proxy friendly via
+  `PUBLIC_URL`.
+
+## How it compares
+
+Checked on 16 September 2026 against each project's own repository and
+documentation — not their marketing, and not from memory. ✅ shipped ·
+🚧 the project says it is coming · ❌ not offered · 💰 paid tier.
+
+|                                               | **NextExplorer 3.7**               | [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser) | [Filestash](https://github.com/mickael-kerjean/filestash)  | [Caby](https://github.com/caby-io/caby) |
+| --------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------- | --------------------------------------- |
+| Licence and price                             | GPL-3.0, free                      | Apache-2.0, free                                                   | AGPL core, free — Pro from $50/mo, Enterprise from $290/mo | AGPL-3.0, free (pre-1.0)                |
+| Browse an archive without extracting it       | ✅ zip, 7z, rar, iso, tar, tar.gz… | 🚧                                                                 | ✅ viewer plugin                                           | ❌                                      |
+| Read a file inside an archive                 | ✅ text, Markdown, images          | 🚧                                                                 | ✅ viewer plugin                                           | ❌                                      |
+| Take part of an archive out, where you choose | ✅                                 | ❌                                                                 | ❌                                                         | ❌                                      |
+| Trash with restore                            | ✅                                 | 🚧                                                                 | ❌                                                         | ❌                                      |
+| Earlier versions of a file                    | ✅                                 | ❌                                                                 | 💰 Enterprise                                              | 🚧 roadmap                              |
+| Search inside file contents                   | ✅ index + ripgrep                 | ❌                                                                 | ✅                                                         | ❌                                      |
+| Two-factor on local accounts                  | ✅                                 | ✅                                                                 | 💰 Enterprise                                              | ❌                                      |
+| OIDC single sign-on                           | ✅                                 | ✅                                                                 | 💰                                                         | ✅                                      |
+| Access rules per path                         | ✅                                 | ✅                                                                 | 💰 RBAC                                                    | 🚧 roadmap                              |
+| Office editing (ONLYOFFICE / Collabora)       | ✅                                 | ✅                                                                 | ✅                                                         | ❌                                      |
+| Share links with password and expiry          | ✅                                 | ✅                                                                 | ✅                                                         | ✅                                      |
+| Storage beyond the local filesystem           | ❌                                 | ❌                                                                 | ✅ ~25 protocols                                           | ❌                                      |
+| WebDAV                                        | ❌                                 | ✅                                                                 | ✅                                                         | ❌                                      |
+| Space quotas                                  | ❌                                 | 🚧                                                                 | 💰                                                         | ❌                                      |
+| Activity log                                  | ❌                                 | ✅                                                                 | 💰                                                         | ❌                                      |
+| Terminal in the browser                       | ✅ switchable                      | ❌ removed deliberately                                            | ❌                                                         | ❌                                      |
+
+Where the others are ahead is said as plainly as where we are: Filestash speaks
+about twenty-five storage protocols and NextExplorer speaks one filesystem
+deeply, Quantum has WebDAV and an activity log, and both of those are open here.
+The sources for every row are in the
+[feature comparison](https://cerede2000.github.io/NextExplorer/experience/features#how-it-compares).
 
 ## Quickstart (Docker Compose)
 
