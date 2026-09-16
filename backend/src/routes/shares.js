@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs/promises');
 const fss = require('fs');
 const path = require('path');
-const archiver = require('archiver');
+const { ZipArchive } = require('archiver');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendTextFile } = require('../utils/textFileResponse');
@@ -316,7 +316,7 @@ const streamResolvedDirectoryZip = async ({
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Robots-Tag', 'noindex');
 
-  const archive = archiver('zip', { zlib: { level: 1 } });
+  const archive = new ZipArchive({ zlib: { level: 1 } });
   archive.on('error', (archiveError) => {
     logger.error({ err: archiveError }, 'Direct share archive creation failed');
     if (!res.headersSent) {

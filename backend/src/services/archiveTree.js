@@ -1,7 +1,7 @@
 const fs = require('fs/promises');
 const fss = require('fs');
 const path = require('path');
-const archiver = require('archiver');
+const { ZipArchive } = require('archiver');
 
 const { excludedFiles } = require('../config/index');
 const { combineRelativePath, isInsidePersonalRoot } = require('../utils/pathUtils');
@@ -145,7 +145,7 @@ const writeZipFile = (entries, destinationPath, { totalBytes = 0, onPercent, sig
     }
 
     const output = fss.createWriteStream(destinationPath);
-    const archive = archiver('zip', { zlib: { level: 1 } });
+    const archive = new ZipArchive({ zlib: { level: 1 } });
     let settled = false;
     const finish = (error) => {
       if (settled) return;

@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs/promises');
-const archiver = require('archiver');
+const { ZipArchive } = require('archiver');
 const { normalizeRelativePath } = require('../../utils/pathUtils');
 const { resolvePathWithAccess } = require('../../services/accessManager');
 const { trackShareDownload } = require('../../services/sharesService');
@@ -117,7 +117,7 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', encodeContentDisposition(archiveName));
 
-  const archive = archiver('zip', { zlib: { level: 1 } });
+  const archive = new ZipArchive({ zlib: { level: 1 } });
   archive.on('error', (archiveError) => {
     logger.error({ err: archiveError }, 'Archive creation failed');
     if (!res.headersSent) {

@@ -24,7 +24,7 @@
     "@tus/file-store": "^2.1.0",
     "@tus/server": "^2.4.1",
     "adm-zip": "^0.6.1",
-    "archiver": "^6.0.2",
+    "archiver": "^8.0.0",
     "axios": "^1.18.1",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.11.1",
