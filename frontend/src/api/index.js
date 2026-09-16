@@ -16,3 +16,4 @@ export * from './features.api';
 export * from './terminal.api';
 export * from './trash.api';
 export * from './versions.api';
+export * from './archive.api';

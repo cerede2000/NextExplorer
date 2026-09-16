@@ -136,7 +136,13 @@
       "invalid": "Nieprawidłowe hasło lub archiwum jest uszkodzone.",
       "submit": "Wypakuj",
       "extracting": "Wypakowywanie..."
-    }
+    },
+    "breadcrumb": "W archiwum",
+    "empty": "Ten folder jest pusty.",
+    "download": "Pobierz",
+    "downloadNamed": "Pobierz {name}",
+    "outside": "Jeden wpis nie jest pokazany: jego nazwa wskazuje poza archiwum. | {count} wpisy nie są pokazane: ich nazwy wskazują poza archiwum. | {count} wpisów nie jest pokazanych: ich nazwy wskazują poza archiwum.",
+    "unreadable": "Nie udało się odczytać tego archiwum."
   },
   "placeholders": {
     "email": "uzytkownik{'@'}przyklad.com",

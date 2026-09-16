@@ -136,7 +136,13 @@
       "invalid": "Mot de passe incorrect ou archive endommagée.",
       "submit": "Extraire",
       "extracting": "Extraction en cours..."
-    }
+    },
+    "breadcrumb": "Dans l'archive",
+    "empty": "Ce dossier est vide.",
+    "download": "Télécharger",
+    "downloadNamed": "Télécharger {name}",
+    "outside": "Une entrée n'est pas affichée : son nom pointe hors de l'archive. | {count} entrées ne sont pas affichées : leurs noms pointent hors de l'archive.",
+    "unreadable": "Cette archive n'a pas pu être lue."
   },
   "placeholders": {
     "email": "utilisateur{'@'}exemple.com",

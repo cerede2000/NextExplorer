@@ -136,7 +136,13 @@
       "invalid": "Felaktigt lösenord, eller så är arkivet skadat.",
       "submit": "Extrahera",
       "extracting": "Extraherar..."
-    }
+    },
+    "breadcrumb": "Inuti arkivet",
+    "empty": "Den här mappen är tom.",
+    "download": "Ladda ner",
+    "downloadNamed": "Ladda ner {name}",
+    "outside": "En post visas inte: dess namn pekar utanför arkivet. | {count} poster visas inte: deras namn pekar utanför arkivet.",
+    "unreadable": "Det gick inte att läsa det här arkivet."
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",

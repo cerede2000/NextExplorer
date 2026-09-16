@@ -136,7 +136,13 @@
       "invalid": "Onjuist wachtwoord, of het archief is beschadigd.",
       "submit": "Uitpakken",
       "extracting": "Bezig met uitpakken..."
-    }
+    },
+    "breadcrumb": "In het archief",
+    "empty": "Deze map is leeg.",
+    "download": "Downloaden",
+    "downloadNamed": "{name} downloaden",
+    "outside": "Eén item wordt niet getoond: de naam wijst buiten het archief. | {count} items worden niet getoond: hun namen wijzen buiten het archief.",
+    "unreadable": "Dit archief kon niet worden gelezen."
   },
   "placeholders": {
     "email": "user{'@'}example.com",

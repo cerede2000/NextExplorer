@@ -136,7 +136,13 @@
       "invalid": "Parolă incorectă sau arhivă deteriorată.",
       "submit": "Extrage",
       "extracting": "Se extrage..."
-    }
+    },
+    "breadcrumb": "În arhivă",
+    "empty": "Acest folder este gol.",
+    "download": "Descarcă",
+    "downloadNamed": "Descarcă {name}",
+    "outside": "O intrare nu este afișată: numele ei indică în afara arhivei. | {count} intrări nu sunt afișate: numele lor indică în afara arhivei.",
+    "unreadable": "Această arhivă nu a putut fi citită."
   },
   "placeholders": {
     "email": "utilizator{'@'}exemplu.com",

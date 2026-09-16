@@ -136,7 +136,13 @@
       "invalid": "Incorrect password, or the archive is damaged.",
       "submit": "Extract",
       "extracting": "Extracting..."
-    }
+    },
+    "breadcrumb": "Inside the archive",
+    "empty": "This folder is empty.",
+    "download": "Download",
+    "downloadNamed": "Download {name}",
+    "outside": "One entry is not shown: its name points outside the archive. | {count} entries are not shown: their names point outside the archive.",
+    "unreadable": "This archive could not be read."
   },
   "placeholders": {
     "email": "user{'@'}example.com",

@@ -136,7 +136,13 @@
       "invalid": "Contraseña incorrecta o el archivo comprimido está dañado.",
       "submit": "Extraer",
       "extracting": "Extrayendo..."
-    }
+    },
+    "breadcrumb": "Dentro del archivo comprimido",
+    "empty": "Esta carpeta está vacía.",
+    "download": "Descargar",
+    "downloadNamed": "Descargar {name}",
+    "outside": "No se muestra una entrada: su nombre apunta fuera del archivo comprimido. | No se muestran {count} entradas: sus nombres apuntan fuera del archivo comprimido.",
+    "unreadable": "No se ha podido leer este archivo comprimido."
   },
   "placeholders": {
     "email": "usuario{'@'}ejemplo.com",

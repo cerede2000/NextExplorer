@@ -136,7 +136,13 @@
       "invalid": "비밀번호가 올바르지 않거나 압축 파일이 손상되었습니다.",
       "submit": "압축 풀기",
       "extracting": "압축 푸는 중..."
-    }
+    },
+    "breadcrumb": "압축 파일 안",
+    "empty": "이 폴더는 비어 있습니다.",
+    "download": "다운로드",
+    "downloadNamed": "{name} 다운로드",
+    "outside": "항목 {count}개는 표시되지 않습니다: 이름이 압축 파일 바깥을 가리킵니다.",
+    "unreadable": "이 압축 파일을 읽을 수 없습니다."
   },
   "placeholders": {
     "email": "user{'@'}example.com",

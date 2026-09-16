@@ -3,6 +3,7 @@ import { imagePreviewPlugin } from '@/plugins/image/imagePreview';
 import { videoPreviewPlugin } from '@/plugins/video/videoPreview';
 import { audioPreviewPlugin } from '@/plugins/audio/audioPreview';
 import { markdownPreviewPlugin } from '@/plugins/markdown/markdownPreview';
+import { archivePreviewPlugin } from '@/plugins/archive/archivePreview';
 import { pdfPreviewPlugin } from '@/plugins/pdf/pdfPreview';
 import { onlyofficePreviewPlugin } from '@/plugins/onlyoffice/onlyofficePreview';
 import { collaboraPreviewPlugin } from '@/plugins/collabora/collaboraPreview';
@@ -51,6 +52,7 @@ function registerCorePlugins(manager) {
     audioPreviewPlugin(),
     pdfPreviewPlugin(),
     markdownPreviewPlugin(),
+    archivePreviewPlugin(),
   ];
 
   plugins.forEach((plugin) => manager.register(plugin));

@@ -136,7 +136,13 @@
       "invalid": "Falsches Passwort oder das Archiv ist beschädigt.",
       "submit": "Entpacken",
       "extracting": "Wird entpackt..."
-    }
+    },
+    "breadcrumb": "Im Archiv",
+    "empty": "Dieser Ordner ist leer.",
+    "download": "Herunterladen",
+    "downloadNamed": "{name} herunterladen",
+    "outside": "Ein Eintrag wird nicht angezeigt: Sein Name verweist aus dem Archiv heraus. | {count} Einträge werden nicht angezeigt: Ihre Namen verweisen aus dem Archiv heraus.",
+    "unreadable": "Dieses Archiv konnte nicht gelesen werden."
   },
   "placeholders": {
     "email": "benutzer{'@'}beispiel.com",

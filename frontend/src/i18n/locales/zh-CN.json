@@ -136,7 +136,13 @@
       "invalid": "密码不正确，或压缩包已损坏。",
       "submit": "解压",
       "extracting": "正在解压..."
-    }
+    },
+    "breadcrumb": "压缩包内",
+    "empty": "此文件夹为空。",
+    "download": "下载",
+    "downloadNamed": "下载 {name}",
+    "outside": "有 {count} 个条目未显示：它们的名称指向压缩包之外。",
+    "unreadable": "无法读取此压缩包。"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

@@ -136,7 +136,13 @@
       "invalid": "Password errata o archivio danneggiato.",
       "submit": "Estrai",
       "extracting": "Estrazione in corso..."
-    }
+    },
+    "breadcrumb": "Dentro l'archivio",
+    "empty": "Questa cartella è vuota.",
+    "download": "Scarica",
+    "downloadNamed": "Scarica {name}",
+    "outside": "Una voce non è mostrata: il suo nome punta fuori dall'archivio. | {count} voci non sono mostrate: i loro nomi puntano fuori dall'archivio.",
+    "unreadable": "Non è stato possibile leggere questo archivio."
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",
