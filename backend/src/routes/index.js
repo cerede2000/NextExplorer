@@ -19,6 +19,7 @@ const terminalRoutes = require('./terminal');
 const permissionsRoutes = require('./permissions');
 const sharesRoutes = require('./shares');
 const zipRoutes = require('./zip');
+const archiveRoutes = require('./archive');
 const userVolumesRoutes = require('./userVolumes');
 const trashRoutes = require('./trash');
 const versionsRoutes = require('./versions');
@@ -43,6 +44,7 @@ const registerRoutes = (app) => {
   app.use('/api', metadataRoutes);
   app.use('/api', permissionsRoutes);
   app.use('/api', zipRoutes);
+  app.use('/api', archiveRoutes);
   app.use('/api', trashRoutes);
   app.use('/api', versionsRoutes);
   // User volumes management (admin only, requires USER_VOLUMES feature)

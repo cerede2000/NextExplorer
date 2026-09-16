@@ -71,3 +71,16 @@ export const ffmpegReadsHeif = () =>
     ]);
     return stdout.trim() === 'hevc';
   });
+
+/**
+ * 7-Zip, which is what reads an archive's table of contents.
+ *
+ * Named here rather than probed inline for the same reason as the rest: a
+ * machine without it skips those suites, and CI asks for it by name so that a
+ * skip there is a failure instead of a quiet gap.
+ */
+export const hasSevenZip = () =>
+  probe('7z', async () => {
+    await execFileAsync(process.env.SEVEN_ZIP_PATH || '7z', ['i']);
+    return true;
+  });

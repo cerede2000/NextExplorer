@@ -105,9 +105,11 @@ jobs:
       - name: Backend tests
         run: npm run test:coverage:backend
         env:
-          # ffmpeg was installed above on purpose: the suites that need it must
-          # run, not skip because an apt change quietly dropped it.
-          REQUIRE_MEDIA_TOOLS: ffmpeg
+          # ffmpeg and 7-Zip were installed above on purpose: the suites that
+          # need them must run, not skip because an apt change quietly dropped
+          # one. Reading an archive's table of contents is 7-Zip's answer, and
+          # a machine without it runs the stand-in and never the real thing.
+          REQUIRE_MEDIA_TOOLS: ffmpeg,7z
           # The trash refuses a zone on another disk. That refusal is proven
           # against a real second device — /dev/shm beside the runner's disk —
           # which a Mac does not have, so locally the test skips; here a missing
