@@ -100,12 +100,29 @@ const resetErrors = () => {
   auth.clearError();
 };
 
+/**
+ * The refusals this screen can say better than the server can.
+ *
+ * A sign-in that could not be started has two causes, and telling them apart is
+ * the difference between an administrator checking their settings and an
+ * administrator checking their provider. The server sends the code beside its
+ * own sentence; anything not listed here keeps that sentence.
+ */
+const SIGN_IN_ERROR_MESSAGES = {
+  AUTH_OIDC_NOT_CONFIGURED: 'errors.oidcNotConfigured',
+  AUTH_OIDC_PROVIDER_UNAVAILABLE: 'errors.oidcProviderUnavailable',
+};
+
 const syncErrorFromRoute = (nextRoute) => {
   const query = nextRoute?.query || {};
+  const errorCode = query.error_code;
   const errorDescription = query.error_description;
   const error = query.error;
-  const message =
-    typeof errorDescription === 'string' && errorDescription.trim()
+  const known =
+    typeof errorCode === 'string' ? SIGN_IN_ERROR_MESSAGES[errorCode.trim()] : undefined;
+  const message = known
+    ? t(known)
+    : typeof errorDescription === 'string' && errorDescription.trim()
       ? errorDescription.trim()
       : typeof error === 'string' && error.trim()
         ? error.trim()
@@ -115,10 +132,15 @@ const syncErrorFromRoute = (nextRoute) => {
     loginError.value = message;
   }
 
-  if (typeof query.error === 'string' || typeof query.error_description === 'string') {
+  if (
+    typeof query.error === 'string' ||
+    typeof query.error_description === 'string' ||
+    typeof query.error_code === 'string'
+  ) {
     const cleanedQuery = { ...query };
     delete cleanedQuery.error;
     delete cleanedQuery.error_description;
+    delete cleanedQuery.error_code;
     router.replace({ query: cleanedQuery });
   }
 };
@@ -167,11 +189,15 @@ const handleOidcLogin = () => {
   resetErrors();
   const returnTo = redirectTarget.value;
   const base = apiBase || '';
-  // Prefer EOC's native /login route; Vite proxies /login to backend in dev.
-  const loginUrl = `${base}/login`;
+  // Our own route rather than the provider library's `/login`: that one is
+  // mounted only where there is a provider to hand the sign-in to, so on the
+  // installation that most needs telling — nothing configured, or configured
+  // and not answering — it is not there at all, and the button led nowhere.
+  // This one always answers, and says which of the two it was.
+  const loginUrl = `${base}/api/auth/oidc/login`;
   const query = new URLSearchParams();
   if (returnTo && typeof returnTo === 'string') {
-    query.set('returnTo', returnTo);
+    query.set('redirect', returnTo);
   }
   if (returnedFromLogout.value) {
     query.set('prompt', 'login');

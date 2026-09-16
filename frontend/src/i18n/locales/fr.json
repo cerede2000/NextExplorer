@@ -183,6 +183,8 @@
     "passwordMin": "Le mot de passe doit comporter au moins 6 caractères",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "localSignInDisabled": "La connexion locale est désactivée",
+    "oidcNotConfigured": "L'authentification unique n'est pas configurée sur ce serveur.",
+    "oidcProviderUnavailable": "L'authentification unique n'a pas pu démarrer. Les réglages sont bien présents ; le journal du serveur indique ce qui a échoué.",
     "deleteShare": "Échec de la suppression du partage",
     "browseDirectories": "Échec de la navigation dans les dossiers",
     "labelRequired": "Le libellé est obligatoire",

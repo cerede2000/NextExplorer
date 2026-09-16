@@ -183,6 +183,8 @@
     "passwordMin": "密碼至少需要 6 個字符",
     "passwordMismatch": "兩次輸入的密碼不一致",
     "localSignInDisabled": "本地登入已停用",
+    "oidcNotConfigured": "此伺服器未設定單一登入。",
+    "oidcProviderUnavailable": "無法啟動單一登入。設定項目都在，詳細原因請見伺服器記錄。",
     "deleteShare": "刪除分享失敗",
     "browseDirectories": "瀏覽檔案局失敗",
     "labelRequired": "需要標籤",

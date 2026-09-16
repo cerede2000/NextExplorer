@@ -59,7 +59,7 @@ address and restarting restores the admin role on that account.
 A native iOS or Android client cannot complete an OIDC sign-in the way the web
 app does. On iOS, passkeys only work inside `ASWebAuthenticationSession`, and
 that system web view never hands the `HttpOnly` session cookie back to the
-application. The web view that *can* read cookies does not do passkeys
+application. The web view that _can_ read cookies does not do passkeys
 reliably. So against a passkey-only provider, an app is stuck: the person signs
 in successfully and the application never learns of it.
 
@@ -91,3 +91,13 @@ otherwise — and no configuration is needed to keep it off.
 - **Sessions drop after restart**: Keep `/config` persistent, since the session secret generated when `SESSION_SECRET` is unset is kept there, or supply a stable `SESSION_SECRET`.
 - **Not an admin after login**: Verify the IdP includes the expected group claim (e.g., `groups` scope) and that `OIDC_ADMIN_GROUPS` contains the group name exactly. Both are required before the IdP may set roles at all — without them the role stored on the account is kept, whatever the claims say.
 - **Cookies flagged Insecure**: Run the app over HTTPS (`PUBLIC_URL` must use `https`) and confirm your proxy forwards `X-Forwarded-Proto`/`Host` headers (see the Reverse Proxy guide).
+- **The sign-in screen says single sign-on is not configured**: it means what it
+  says — one of `OIDC_ENABLED`, `OIDC_ISSUER`, `OIDC_CLIENT_ID` or a public
+  address (`PUBLIC_URL`, or `OIDC_CALLBACK_URL`) is missing. The start-up log
+  names which.
+- **The sign-in screen says single sign-on could not be started**: the settings
+  are all there and the hand-off failed — the provider did not answer, discovery
+  failed, or the library refused what it was given (a missing
+  `OIDC_CLIENT_SECRET` is the usual one). Nothing to change in the configuration
+  before reading the server log, which carries the reason; the message shown in
+  the browser never does, because it would name the provider's internal host.

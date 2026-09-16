@@ -183,6 +183,8 @@
     "passwordMin": "A senha deve ter pelo menos 6 caracteres",
     "passwordMismatch": "As senhas não coincidem",
     "localSignInDisabled": "O login local está desativado",
+    "oidcNotConfigured": "O Single Sign-On não está configurado neste servidor.",
+    "oidcProviderUnavailable": "Não foi possível iniciar o Single Sign-On. As configurações estão presentes; o log do servidor diz o que falhou.",
     "deleteShare": "Falha ao excluir compartilhamento",
     "browseDirectories": "Falha ao navegar pelos diretórios",
     "labelRequired": "O rótulo é obrigatório",

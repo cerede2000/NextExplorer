@@ -183,6 +183,8 @@
     "passwordMin": "La contraseña debe tener al menos 6 caracteres",
     "passwordMismatch": "Las contraseñas no coinciden",
     "localSignInDisabled": "El inicio de sesión local está desactivado",
+    "oidcNotConfigured": "El inicio de sesión único no está configurado en este servidor.",
+    "oidcProviderUnavailable": "No se ha podido iniciar el inicio de sesión único. La configuración está presente; el registro del servidor indica qué ha fallado.",
     "deleteShare": "Error al eliminar la compartición",
     "browseDirectories": "",
     "labelRequired": "",

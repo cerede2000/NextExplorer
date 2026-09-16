@@ -294,13 +294,19 @@ describe('signing in through an identity provider', () => {
     auth.store.strategies = { local: true, oidc: true };
   });
 
-  it('goes to the provider, carrying where to come back to', async () => {
+  /**
+   * Our own route, not the provider library's `/login`: that one exists only
+   * where a provider was mounted, so on the installation that most needs
+   * telling — nothing configured, or configured and failing — the button led
+   * nowhere at all.
+   */
+  it('goes to the provider through our own route, carrying where to come back to', async () => {
     routing.route.query = { redirect: '/browse/Docs' };
     const view = await mountLogin();
 
     view.handleOidcLogin();
 
-    expect(navigatedTo).toBe('/login?returnTo=%2Fbrowse%2FDocs');
+    expect(navigatedTo).toBe('/api/auth/oidc/login?redirect=%2Fbrowse%2FDocs');
   });
 
   /**
@@ -334,7 +340,7 @@ describe('signing in through an identity provider', () => {
 
     await mountLogin();
 
-    expect(navigatedTo).toContain('/login');
+    expect(navigatedTo).toContain('/api/auth/oidc/login');
   });
 
   /** Except straight after a sign-out, which would make leaving impossible. */
@@ -413,6 +419,57 @@ describe('an error handed back by the identity provider', () => {
   });
 });
 
+/**
+ * A sign-in that never reached the provider.
+ *
+ * There are two reasons and they call for opposite actions: fill the settings
+ * in, or go and look at the provider. Both used to arrive as "OIDC is not
+ * configured", which sent an administrator whose provider was merely down to
+ * change a configuration that was already right. The server names which it was;
+ * this screen is where it is said, and it says it in the reader's language.
+ */
+describe('a sign-in that could not be started', () => {
+  it('says the configuration is missing when that is what the server said', async () => {
+    routing.route.query = { error_code: 'AUTH_OIDC_NOT_CONFIGURED', error: 'ignored' };
+
+    const view = await mountLogin();
+
+    expect(view.loginError).toBe('errors.oidcNotConfigured');
+  });
+
+  it('says the opposite thing when the configuration is there and failed', async () => {
+    routing.route.query = { error_code: 'AUTH_OIDC_PROVIDER_UNAVAILABLE', error: 'ignored' };
+
+    const view = await mountLogin();
+
+    expect(view.loginError).toBe('errors.oidcProviderUnavailable');
+  });
+
+  /** Every other code is the provider's own, and its sentence is the better one. */
+  it('keeps the words that came with a code it does not know', async () => {
+    routing.route.query = {
+      error_code: 'AUTH_REQUIRED',
+      error_description: 'Email must be verified before linking an existing account.',
+    };
+
+    const view = await mountLogin();
+
+    expect(view.loginError).toBe('Email must be verified before linking an existing account.');
+  });
+
+  /**
+   * An error left in the address bar is shown again on every reload, long after
+   * it stopped being true — the code no less than the words.
+   */
+  it('takes the code out of the address bar once it has been read', async () => {
+    routing.route.query = { error_code: 'AUTH_OIDC_NOT_CONFIGURED', redirect: '/browse/Docs' };
+
+    await mountLogin();
+
+    expect(replace).toHaveBeenCalledWith({ query: { redirect: '/browse/Docs' } });
+  });
+});
+
 describe('a public demo', () => {
   beforeEach(() => {
     features.demoLogin = { email: 'demo@example.com', password: 'demo' };
@@ -429,7 +486,11 @@ describe('a public demo', () => {
   /** Somebody who has started typing has said what they want in the boxes. */
   it('leaves alone a form somebody has already started', async () => {
     let arrive;
-    features.ensureLoaded.mockReturnValueOnce(new Promise((resolve) => { arrive = resolve; }));
+    features.ensureLoaded.mockReturnValueOnce(
+      new Promise((resolve) => {
+        arrive = resolve;
+      })
+    );
     const view = await mountLogin();
 
     view.loginIdentifier = 'moi@example.com';

@@ -1,5 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { createRequire } from 'node:module';
+import express from 'express';
+import { setupTestEnv, modulePath } from '../helpers/env-test-utils.js';
+
+const require = createRequire(import.meta.url);
 
 /**
  * This is the path that decides who someone is, in the deployments that use
@@ -216,7 +220,10 @@ describe('what happens when someone comes back from the provider', () => {
  * signs out.
  */
 describe('signing out through the identity provider', () => {
-  const buildHandler = async ({ logoutURL = 'https://idp.example/logout', returnTo = '/browse/' } = {}) => {
+  const buildHandler = async ({
+    logoutURL = 'https://idp.example/logout',
+    returnTo = '/browse/',
+  } = {}) => {
     const { middleware } = await build();
     const handler = middleware.createLogoutHandler({
       logoutURL,
@@ -397,5 +404,75 @@ describe('signing out through the identity provider', () => {
         getSessionCookieName: () => 'appSession',
       })
     ).toBeNull();
+  });
+});
+
+/**
+ * What the configuration pass concluded, which is the only place it is known.
+ *
+ * A sign-in refused later has to say whether the settings are missing or
+ * whether what was configured could not be made to work: the first is answered
+ * by filling them in, the second by looking at the provider, and answering the
+ * first for both is what sent administrators to change a configuration that was
+ * already right. Everything that fails here used to be one warning in the log
+ * and nothing else.
+ */
+describe('what a configuration pass records', () => {
+  const configured = {
+    OIDC_ENABLED: 'true',
+    OIDC_ISSUER: 'https://idp.example',
+    OIDC_CLIENT_ID: 'nextexplorer',
+    OIDC_CLIENT_SECRET: 'shhh',
+    PUBLIC_URL: 'https://files.example.com',
+  };
+
+  const runConfigure = async (env) => {
+    envContext = await setupTestEnv({ tag: 'oidc-configure-', env });
+    const middleware = envContext.requireFresh('src/middleware/oidc');
+    await middleware.configureOidc(express());
+    // Required rather than required fresh: a fresh one would be a second
+    // instance, and the pass wrote to the one the middleware loaded.
+    return require(modulePath('src/utils/oidcAvailability')).getOidcAvailability();
+  };
+
+  it('says nothing is configured, and which settings are missing', async () => {
+    const state = await runConfigure({});
+
+    expect(state.status).toBe('not-configured');
+    expect(state.reason).toContain('OIDC_ENABLED');
+    expect(state.reason).toContain('OIDC_ISSUER');
+  });
+
+  /** Enabled, named, and with nowhere for the provider to come back to. */
+  it('names the address it could not derive', async () => {
+    const state = await runConfigure({
+      OIDC_ENABLED: 'true',
+      OIDC_ISSUER: 'https://idp.example',
+      OIDC_CLIENT_ID: 'nextexplorer',
+    });
+
+    expect(state.status).toBe('not-configured');
+    expect(state.reason).toContain('PUBLIC_URL');
+  });
+
+  it('says it is ready when the hand-off is mounted', async () => {
+    const state = await runConfigure(configured);
+
+    expect(state.status).toBe('ready');
+  });
+
+  /**
+   * The settings this server asks for are all there and the library refuses
+   * what it was handed. Nothing an administrator fixes by filling in
+   * OIDC_ISSUER, so it must not read as a configuration that is missing.
+   */
+  it.each([
+    ['an issuer that is not a URL', { OIDC_ISSUER: 'not a url' }],
+    ['a client secret the library insists on', { OIDC_CLIENT_SECRET: undefined }],
+  ])('says the provider is unavailable, not unconfigured, for %s', async (_name, broken) => {
+    const state = await runConfigure({ ...configured, ...broken });
+
+    expect(state.status).toBe('unavailable');
+    expect(state.reason).toBeTruthy();
   });
 });

@@ -6,7 +6,10 @@ const {
   getConfiguredRequestOrigin,
   callbackUrlForOrigin,
   sanitizeOidcPrompt,
+  markProviderSignIn,
 } = require('../utils/oidcRedirect');
+const { getOidcAvailability, oidcIsConfigured } = require('../utils/oidcAvailability');
+const logger = require('../utils/logger');
 
 const {
   countUsers,
@@ -26,6 +29,7 @@ const {
   RateLimitError,
   NotFoundError,
   ForbiddenError,
+  ServiceUnavailableError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
 const { startAuthenticatedSession } = require('../utils/authenticatedSession');
@@ -303,26 +307,81 @@ router.get('/me', async (req, res) => {
 
 router.post('/token', (req, res) => res.status(400).json({ error: 'Token minting is disabled.' }));
 
+/**
+ * The provider was asked to take the sign-in, and did not.
+ *
+ * The real reason goes to the log and never into the response: it is the
+ * network's own words, and they name the provider's internal host.
+ */
+const providerDidNotAnswer = (reason) => {
+  logger.error(
+    { issuer: auth?.oidc?.issuer, reason },
+    'Could not start a sign-in at the identity provider'
+  );
+  return new ServiceUnavailableError(
+    'The identity provider could not be reached.',
+    ErrorCodes.AUTH_OIDC_PROVIDER_UNAVAILABLE
+  );
+};
+
+/**
+ * Nothing here can hand a sign-in over. Which of the two it is decides what an
+ * administrator should go and do.
+ *
+ * Answering 404 "OIDC is not configured" for both is the defect: it sends
+ * somebody whose provider is simply down to change a configuration that is
+ * already right. The configuration pass records which it was.
+ */
+const noProviderSignInAvailable = () => {
+  const { reason } = getOidcAvailability();
+
+  // Configured, and it could not be mounted: a bad issuer URL, a client secret
+  // the library insists on, a provider that did not answer discovery. Which of
+  // those it was is in the log; what matters here is that it is not the
+  // settings an administrator would be sent to fill in.
+  if (oidcIsConfigured()) {
+    logger.error(
+      { issuer: auth?.oidc?.issuer, reason },
+      'Single sign-on is configured and could not be started'
+    );
+    return new ServiceUnavailableError(
+      'Single sign-on could not be started.',
+      ErrorCodes.AUTH_OIDC_PROVIDER_UNAVAILABLE
+    );
+  }
+
+  logger.warn(
+    { missing: reason },
+    'A sign-in at the identity provider was asked for, and none is configured'
+  );
+  return new NotFoundError('OIDC is not configured.', ErrorCodes.AUTH_OIDC_NOT_CONFIGURED);
+};
+
 router.get(
   '/oidc/login',
   asyncHandler(async (req, res) => {
-    try {
-      if (res.oidc && typeof res.oidc.login === 'function') {
-        const redirect = sanitizeReturnTo(req.query?.redirect, '/browse/');
-        const origins = uniqueOrigins([auth?.oidc?.callbackUrl, ...(publicConfig?.origins || [])]);
-        const origin = getConfiguredRequestOrigin(req, origins) || origins[0];
-        const prompt = sanitizeOidcPrompt(req.query?.prompt);
-        const authorizationParams = {
-          ...(origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {}),
-          ...(prompt ? { prompt } : {}),
-        };
-        await res.oidc.login({ returnTo: redirect, authorizationParams });
-        return;
-      }
-    } catch (e) {
-      // ignore
+    if (!(res.oidc && typeof res.oidc.login === 'function')) {
+      throw noProviderSignInAvailable();
     }
-    throw new NotFoundError('OIDC is not configured.');
+
+    const redirect = sanitizeReturnTo(req.query?.redirect, '/browse/');
+    const origins = uniqueOrigins([auth?.oidc?.callbackUrl, ...(publicConfig?.origins || [])]);
+    const origin = getConfiguredRequestOrigin(req, origins) || origins[0];
+    const prompt = sanitizeOidcPrompt(req.query?.prompt);
+    const authorizationParams = {
+      ...(origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {}),
+      ...(prompt ? { prompt } : {}),
+    };
+
+    try {
+      // Marked for the OIDC error middleware: the library usually reports a
+      // failure to a `next` of its own rather than throwing here.
+      markProviderSignIn(req);
+      await res.oidc.login({ returnTo: redirect, authorizationParams });
+    } catch (e) {
+      // It was asked and it failed, so this is never the configuration.
+      throw providerDidNotAnswer(e?.message || null);
+    }
   })
 );
 
@@ -352,7 +411,7 @@ router.get(
   '/oidc/mobile/login',
   asyncHandler(async (req, res) => {
     if (!(res.oidc && typeof res.oidc.login === 'function')) {
-      throw new NotFoundError('OIDC is not configured.');
+      throw noProviderSignInAvailable();
     }
     const codeChallenge = req.query?.code_challenge;
     const method = req.query?.code_challenge_method || 'S256';
@@ -366,7 +425,12 @@ router.get(
     if (req.session) {
       req.session.oidcMobile = { codeChallenge, method, redirectUri };
     }
-    await res.oidc.login({ returnTo: '/api/auth/oidc/mobile/complete' });
+    try {
+      markProviderSignIn(req);
+      await res.oidc.login({ returnTo: '/api/auth/oidc/mobile/complete' });
+    } catch (e) {
+      throw providerDidNotAnswer(e?.message || null);
+    }
   })
 );
 

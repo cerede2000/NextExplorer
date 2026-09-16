@@ -183,6 +183,8 @@
     "passwordMin": "Hasło musi mieć co najmniej 6 znaków",
     "passwordMismatch": "Hasła nie są zgodne",
     "localSignInDisabled": "Logowanie lokalne jest wyłączone",
+    "oidcNotConfigured": "Logowanie jednokrotne nie jest skonfigurowane na tym serwerze.",
+    "oidcProviderUnavailable": "Nie udało się rozpocząć logowania jednokrotnego. Ustawienia są na miejscu; dziennik serwera wyjaśnia, co zawiodło.",
     "deleteShare": "Nie udało się usunąć udostępnienia",
     "browseDirectories": "Nie udało się przeglądać katalogów",
     "labelRequired": "Etykieta jest wymagana",

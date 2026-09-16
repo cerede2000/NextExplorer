@@ -9,6 +9,11 @@ const ErrorCodes = {
   AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
   AUTH_PASSWORD_INCORRECT: 'AUTH_PASSWORD_INCORRECT',
 
+  // Signing in at an identity provider. The two are told apart on purpose: one
+  // is answered in the configuration, the other by looking at the provider.
+  AUTH_OIDC_NOT_CONFIGURED: 'AUTH_OIDC_NOT_CONFIGURED',
+  AUTH_OIDC_PROVIDER_UNAVAILABLE: 'AUTH_OIDC_PROVIDER_UNAVAILABLE',
+
   // Validation (400)
   VALIDATION_EMAIL_REQUIRED: 'VALIDATION_EMAIL_REQUIRED',
   VALIDATION_PASSWORD_REQUIRED: 'VALIDATION_PASSWORD_REQUIRED',

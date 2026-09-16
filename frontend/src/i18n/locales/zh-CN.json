@@ -183,6 +183,8 @@
     "passwordMin": "密码至少需要 6 个字符",
     "passwordMismatch": "两次输入的密码不一致",
     "localSignInDisabled": "本地登录已禁用",
+    "oidcNotConfigured": "此服务器未配置单点登录。",
+    "oidcProviderUnavailable": "无法启动单点登录。配置项都在，具体原因见服务器日志。",
     "deleteShare": "无法删除分享",
     "browseDirectories": "无法浏览目录",
     "labelRequired": "必须填写标签",

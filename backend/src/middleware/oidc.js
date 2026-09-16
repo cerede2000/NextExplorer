@@ -10,7 +10,13 @@ const {
 const { fetchUserInfoClaims } = require('../services/oidcService');
 const { oidcStore } = require('../utils/sessionStore');
 const { readIdTokenClaims } = require('../utils/idToken');
-const { UnauthorizedError } = require('../errors/AppError');
+const {
+  recordOidcNotConfigured,
+  recordOidcReady,
+  recordOidcUnavailable,
+} = require('../utils/oidcAvailability');
+const { UnauthorizedError, ServiceUnavailableError } = require('../errors/AppError');
+const { ErrorCodes } = require('../errors/errorCodes');
 const {
   uniqueOrigins,
   sanitizeReturnTo,
@@ -19,6 +25,8 @@ const {
   callbackUrlForOrigin,
   oidcCookieNamesForOrigin,
   sanitizeOidcPrompt,
+  markProviderSignIn,
+  isProviderSignIn,
 } = require('../utils/oidcRedirect');
 const logger = require('../utils/logger');
 
@@ -262,6 +270,10 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
  * Configures Express OpenID Connect (OIDC) authentication
  */
 const configureOidc = async (app) => {
+  // Whether the settings for a sign-in were all there. Read again in the catch
+  // below, where what is worth saying depends on how far this got.
+  let settingsArePresent = false;
+
   try {
     logger.debug('Configuring Express OpenID Connect');
 
@@ -277,6 +289,7 @@ const configureOidc = async (app) => {
     const eocEnabled = Boolean(
       oidc.enabled && oidc.issuer && oidc.clientId && sessionSecret && baseURL
     );
+    settingsArePresent = eocEnabled;
 
     logger.debug(
       {
@@ -289,7 +302,19 @@ const configureOidc = async (app) => {
     );
 
     if (!eocEnabled) {
+      // Named one by one, and recorded: a sign-in refused later says it is the
+      // configuration that is missing, and this is where an administrator finds
+      // which part of it.
+      const missing = [
+        !oidc.enabled && 'OIDC_ENABLED',
+        !oidc.issuer && 'OIDC_ISSUER',
+        !oidc.clientId && 'OIDC_CLIENT_ID',
+        !sessionSecret && 'SESSION_SECRET',
+        !baseURL && 'PUBLIC_URL or OIDC_CALLBACK_URL',
+      ].filter(Boolean);
+      recordOidcNotConfigured(missing.join(', ') || null);
       logger.info(
+        { missing },
         'Express OpenID Connect not configured (missing issuer/client/baseURL/secret or disabled)'
       );
       logger.debug(
@@ -380,6 +405,7 @@ const configureOidc = async (app) => {
         return;
       }
       const prompt = sanitizeOidcPrompt(req.query?.prompt);
+      markProviderSignIn(req);
       res.oidc.login({
         returnTo: sanitizeReturnTo(req.query?.returnTo),
         authorizationParams: {
@@ -419,10 +445,39 @@ const configureOidc = async (app) => {
       });
     }
 
+    // A hand-off that fails reports it to the `next` express-openid-connect
+    // captured when it built the request context, not to the route's own — so
+    // neither the route nor a try/catch around `login()` ever sees it, and the
+    // raw failure reached the browser as a 500 quoting the provider's internal
+    // host. Registered after the routes it covers, and a no-op for every other
+    // error, which is what the mark is for.
+    app.use((err, req, res, next) => {
+      if (!isProviderSignIn(req) || res.headersSent) {
+        next(err);
+        return;
+      }
+      logger.error(
+        { err, issuer: oidc.issuer },
+        'Could not start a sign-in at the identity provider'
+      );
+      next(
+        new ServiceUnavailableError(
+          'The identity provider could not be reached.',
+          ErrorCodes.AUTH_OIDC_PROVIDER_UNAVAILABLE
+        )
+      );
+    });
+
+    recordOidcReady();
     logger.info({ origins: oidcOrigins }, 'Express OpenID Connect is configured');
     logger.debug({ origins: oidcOrigins }, 'Origin-aware EOC middleware mounted');
   } catch (e) {
-    logger.warn({ err: e }, 'Failed to configure Express OpenID Connect');
+    // The settings were there and could not be made to work — a bad issuer URL,
+    // a secret the library refuses. Saying "not configured" for this is what
+    // sends an administrator to change a configuration that is already right.
+    if (settingsArePresent) recordOidcUnavailable(e?.message || null);
+    else recordOidcNotConfigured(e?.message || null);
+    logger.error({ err: e }, 'Failed to configure Express OpenID Connect');
   }
 };
 

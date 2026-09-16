@@ -37,9 +37,21 @@ const sanitizeClientMessage = (message) => {
   ).replace(/(?<=^|[\s'"(])\/(?:[\w.@-]+\/)+([\w.@ -]+)/g, '…/$1');
 };
 
+/**
+ * The addresses a browser is sent to, rather than fetches, on the way through
+ * an identity provider: where a sign-in starts, and where it comes back.
+ *
+ * A failure at either is a page the person is looking at, so it has to land
+ * back on the sign-in screen. `/login` is the provider's own route, mounted
+ * only when there is a provider to mount; `/api/auth/oidc/login` answers
+ * whether or not there is, which is how the screen learns which of the two
+ * happened.
+ */
+const OIDC_DOCUMENT_PATHS = new Set(['/callback', '/login', '/api/auth/oidc/login']);
+
 const isOidcDocumentRequest = (req) => {
   const path = req?.path || '';
-  if (path !== '/callback') return false;
+  if (!OIDC_DOCUMENT_PATHS.has(path)) return false;
   const accept = typeof req.headers?.accept === 'string' ? req.headers.accept : '';
   const secFetchDest =
     typeof req.headers?.['sec-fetch-dest'] === 'string' ? req.headers['sec-fetch-dest'] : '';
@@ -139,9 +151,14 @@ const errorHandler = (err, req, res, next) => {
     // Same redaction as the JSON body: this one lands in the address bar,
     // browser history and every proxy log along the way, so a raw server path
     // here travels further than it would in a response body.
-    const nextUrl = `/auth/login?error=${encodeURIComponent(sanitizeClientMessage(message))}`;
+    const query = new URLSearchParams({ error: sanitizeClientMessage(message) });
+    // The code travels beside the sentence, never instead of it. The screen
+    // says what the codes it knows mean in the reader's own language — which is
+    // how "the provider could not be reached" stops reading as "OIDC is not
+    // configured" — and falls back to the sentence for the ones it does not.
+    if (err.code) query.set('error_code', String(err.code));
     res.setHeader('Cache-Control', 'no-store');
-    res.redirect(302, nextUrl);
+    res.redirect(302, `/auth/login?${query.toString()}`);
     return;
   }
 

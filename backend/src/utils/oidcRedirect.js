@@ -81,7 +81,24 @@ const sanitizeOidcPrompt = (candidate) => {
   return typeof candidate === 'string' && allowedPrompts.has(candidate) ? candidate : null;
 };
 
+/**
+ * Mark a request as a hand-off to the identity provider, and read the mark.
+ *
+ * express-openid-connect reports a failure to start one to the `next` it
+ * captured when it built the request context, not to the route's own — so
+ * neither the route nor a try/catch around `login()` ever sees it. The mark is
+ * what lets the error handling tell "the provider did not answer" from any
+ * other error on any other route.
+ */
+const markProviderSignIn = (req) => {
+  if (req) req.nextExplorerOidcSignIn = true;
+};
+
+const isProviderSignIn = (req) => Boolean(req && req.nextExplorerOidcSignIn);
+
 module.exports = {
+  markProviderSignIn,
+  isProviderSignIn,
   uniqueOrigins,
   sanitizeReturnTo,
   getConfiguredRequestOrigin,

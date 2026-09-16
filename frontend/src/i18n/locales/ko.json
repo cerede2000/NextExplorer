@@ -183,6 +183,8 @@
     "passwordMin": "비밀번호는 최소 6글자 이상이어야 합니다",
     "passwordMismatch": "비밀번호가 일치하지 않습니다",
     "localSignInDisabled": "로컬 로그인이 비활성화 상태입니다",
+    "oidcNotConfigured": "이 서버에는 SSO(Single Sign-On)가 구성되어 있지 않습니다.",
+    "oidcProviderUnavailable": "SSO(Single Sign-On)를 시작할 수 없습니다. 설정은 갖춰져 있으며, 서버 로그에 원인이 기록되어 있습니다.",
     "deleteShare": "공유 삭제 실패",
     "browseDirectories": "경로 탐색 실패",
     "labelRequired": "레이블이 필요합니다",

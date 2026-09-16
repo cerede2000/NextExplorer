@@ -183,6 +183,8 @@
     "passwordMin": "Password must be at least 6 characters",
     "passwordMismatch": "Passwords do not match",
     "localSignInDisabled": "Local sign-in is disabled",
+    "oidcNotConfigured": "Single Sign-On is not configured on this server.",
+    "oidcProviderUnavailable": "Single Sign-On could not be started. The settings are there; the server log says what went wrong.",
     "deleteShare": "Failed to delete share",
     "browseDirectories": "Failed to browse directories",
     "labelRequired": "Label is required",

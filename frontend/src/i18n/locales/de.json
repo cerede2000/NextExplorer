@@ -183,6 +183,8 @@
     "passwordMin": "Das Passwort muss mindestens 6 Zeichen haben",
     "passwordMismatch": "Passwörter stimmen nicht überein",
     "localSignInDisabled": "Lokale Anmeldung ist deaktiviert",
+    "oidcNotConfigured": "Single Sign-On ist auf diesem Server nicht konfiguriert.",
+    "oidcProviderUnavailable": "Single Sign-On konnte nicht gestartet werden. Die Einstellungen sind vorhanden; das Serverprotokoll nennt den Grund.",
     "deleteShare": "Freigabe konnte nicht gelöscht werden",
     "browseDirectories": "Verzeichnisse konnten nicht durchsucht werden",
     "labelRequired": "Bezeichnung ist erforderlich",

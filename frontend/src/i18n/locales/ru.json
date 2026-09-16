@@ -183,6 +183,8 @@
     "passwordMin": "Пароль должен быть не менее 6 символов",
     "passwordMismatch": "Пароли не совпадают",
     "localSignInDisabled": "Локальный вход отключен",
+    "oidcNotConfigured": "Single Sign-On не настроен на этом сервере.",
+    "oidcProviderUnavailable": "Не удалось начать вход через Single Sign-On. Настройки на месте; причина указана в журнале сервера.",
     "deleteShare": "Не удалось удалить общий доступ",
     "browseDirectories": "Не удалось просмотреть каталоги",
     "labelRequired": "Требуется метка",

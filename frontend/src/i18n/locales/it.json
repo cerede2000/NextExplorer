@@ -183,6 +183,8 @@
     "passwordMin": "La password deve contenere almeno 6 caratteri",
     "passwordMismatch": "Le password non corrispondono",
     "localSignInDisabled": "L'accesso locale è disabilitato",
+    "oidcNotConfigured": "Il Single Sign-On non è configurato su questo server.",
+    "oidcProviderUnavailable": "Non è stato possibile avviare il Single Sign-On. Le impostazioni ci sono; il log del server dice che cosa non ha funzionato.",
     "deleteShare": "Impossibile eliminare la condivisione",
     "browseDirectories": "Impossibile sfogliare le directory",
     "labelRequired": "L'etichetta è obbligatoria",

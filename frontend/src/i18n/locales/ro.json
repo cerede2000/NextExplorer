@@ -183,6 +183,8 @@
     "passwordMin": "Parola trebuie să aibă cel puțin 6 caractere",
     "passwordMismatch": "Parolele nu se potrivesc",
     "localSignInDisabled": "Conectarea locală este dezactivată",
+    "oidcNotConfigured": "Single Sign-On nu este configurat pe acest server.",
+    "oidcProviderUnavailable": "Autentificarea Single Sign-On nu a putut fi pornită. Setările există; jurnalul serverului arată ce nu a funcționat.",
     "deleteShare": "Nu s-a putut șterge partajarea",
     "browseDirectories": "Nu s-au putut parcurge directoarele",
     "labelRequired": "Eticheta este obligatorie",

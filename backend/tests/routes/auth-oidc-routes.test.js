@@ -39,7 +39,14 @@ afterEach(async () => {
   }
 });
 
-const build = async ({ providerReachable = true } = {}) => {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.providerReachable] whether the hand-off succeeds
+ * @param {boolean} [options.providerMounted] whether there is a hand-off at
+ *   all: `res.oidc` is what `configureOidc` attaches, and an installation it
+ *   declined to configure — or could not — has none.
+ */
+const build = async ({ providerReachable = true, providerMounted = true } = {}) => {
   currentEnv = await setupTestEnv({
     tag: 'auth-oidc-routes-',
     env: {
@@ -53,6 +60,9 @@ const build = async ({ providerReachable = true } = {}) => {
   const authRoutes = currentEnv.requireFresh('src/routes/auth');
   const errorHandlers = currentEnv.requireFresh('src/middleware/errorHandler');
   const bridge = require(modulePath('src/services/oidcMobileBridge'));
+  // The same instance the routes read: the configuration pass writes what it
+  // concluded here, and there is no configuration pass in this suite.
+  const availability = require(modulePath('src/utils/oidcAvailability'));
   const db = await require(modulePath('src/services/db')).getDb();
 
   const logins = [];
@@ -65,22 +75,24 @@ const build = async ({ providerReachable = true } = {}) => {
       isAuthenticated: () => Boolean(sub),
       user: sub ? { sub, email: `${sub}@example.com`, email_verified: true } : undefined,
     };
-    res.oidc = {
-      login: async (options) => {
-        logins.push(options);
-        if (!providerReachable) {
-          throw new Error('getaddrinfo ENOTFOUND idp.internal.example');
-        }
-        res.redirect(options.returnTo);
-      },
-    };
+    if (providerMounted) {
+      res.oidc = {
+        login: async (options) => {
+          logins.push(options);
+          if (!providerReachable) {
+            throw new Error('getaddrinfo ENOTFOUND idp.internal.example');
+          }
+          res.redirect(options.returnTo);
+        },
+      };
+    }
     next();
   });
   app.use('/api/auth', authRoutes);
   app.use(errorHandlers.notFoundHandler);
   app.use(errorHandlers.errorHandler);
 
-  return { app, bridge, db, logins };
+  return { app, bridge, db, logins, availability };
 };
 
 /** An account linked to the provider subject `sub-1`. */
@@ -145,6 +157,96 @@ describe('starting a sign-in at the provider', () => {
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.headers.location).toBeUndefined();
     expect(JSON.stringify(response.body)).not.toMatch(/ENOTFOUND|idp\.internal/);
+  });
+});
+
+/**
+ * Which of the two it is.
+ *
+ * Every refusal here used to be 404 "OIDC is not configured", including the one
+ * meant for a provider that is simply down — so the administrator was sent to
+ * change a configuration that was already right, and the reason the sign-in
+ * failed was never written anywhere. The two answers are told apart by their
+ * status and by a code, because the sign-in screen says what the code means in
+ * the reader's own language and a server sentence cannot.
+ */
+describe('a sign-in that cannot be started', () => {
+  const codeOf = (response) => response.body?.error?.code;
+
+  it('says the configuration is missing when nothing was configured', async () => {
+    const { app } = await build({ providerMounted: false });
+
+    const response = await request(app).get('/api/auth/oidc/login');
+
+    expect(response.status).toBe(404);
+    expect(codeOf(response)).toBe('AUTH_OIDC_NOT_CONFIGURED');
+  });
+
+  /**
+   * Settings that are all there and could not be made to work — a bad issuer
+   * URL, discovery that did not answer at startup. Nothing to change in the
+   * configuration, so nothing that should read as a missing one.
+   */
+  it('says the provider is unavailable when the configuration was there and failed', async () => {
+    const { app, availability } = await build({ providerMounted: false });
+    availability.recordOidcUnavailable('getaddrinfo ENOTFOUND idp.internal.example');
+
+    const response = await request(app).get('/api/auth/oidc/login');
+
+    expect(response.status).toBe(503);
+    expect(codeOf(response)).toBe('AUTH_OIDC_PROVIDER_UNAVAILABLE');
+    expect(JSON.stringify(response.body)).not.toMatch(/ENOTFOUND|idp\.internal/);
+  });
+
+  it('says the same of a provider that was asked and did not answer', async () => {
+    const { app } = await build({ providerReachable: false });
+
+    const response = await request(app).get('/api/auth/oidc/login');
+
+    expect(response.status).toBe(503);
+    expect(codeOf(response)).toBe('AUTH_OIDC_PROVIDER_UNAVAILABLE');
+  });
+
+  /** The native app gets the same two answers, for the same reason. */
+  it('tells the mobile hand-off apart as well', async () => {
+    const { app } = await build({ providerMounted: false });
+    const challenge = makePkce().challenge;
+
+    const notConfigured = await request(app)
+      .get('/api/auth/oidc/mobile/login')
+      .query({ code_challenge: challenge });
+    expect(notConfigured.status).toBe(404);
+    expect(codeOf(notConfigured)).toBe('AUTH_OIDC_NOT_CONFIGURED');
+  });
+
+  /**
+   * A browser is sent here, not a script: it navigates, and a JSON body becomes
+   * a standalone error page it cannot read. It goes back to the sign-in screen
+   * with the code, which is where the difference between the two is finally
+   * shown to the person who can act on it.
+   */
+  it('sends a browser back to the sign-in screen, carrying which of the two it was', async () => {
+    const { app } = await build({ providerReachable: false });
+
+    const response = await request(app)
+      .get('/api/auth/oidc/login')
+      .set('Accept', 'text/html,application/xhtml+xml');
+
+    expect(response.status).toBe(302);
+    const landing = new URL(response.headers.location, PUBLIC_URL);
+    expect(landing.pathname).toBe('/auth/login');
+    expect(landing.searchParams.get('error_code')).toBe('AUTH_OIDC_PROVIDER_UNAVAILABLE');
+    expect(landing.search).not.toMatch(/ENOTFOUND|idp\.internal/);
+  });
+
+  it('sends it back saying the configuration is missing when that is what it is', async () => {
+    const { app } = await build({ providerMounted: false });
+
+    const response = await request(app).get('/api/auth/oidc/login').set('Accept', 'text/html');
+
+    expect(response.status).toBe(302);
+    const landing = new URL(response.headers.location, PUBLIC_URL);
+    expect(landing.searchParams.get('error_code')).toBe('AUTH_OIDC_NOT_CONFIGURED');
   });
 });
 

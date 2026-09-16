@@ -183,6 +183,8 @@
     "passwordMin": "Lösenordet måste bestå av minst 6 tecken",
     "passwordMismatch": "Lösenorden stämmer inte överens",
     "localSignInDisabled": "Lokal inlogging är inaktiverad",
+    "oidcNotConfigured": "Enkel inloggning är inte konfigurerad på den här servern.",
+    "oidcProviderUnavailable": "Enkel inloggning kunde inte startas. Inställningarna finns; serverloggen berättar vad som gick fel.",
     "deleteShare": "Misslyckades med att ta bort utdelning",
     "browseDirectories": "Det gick inte att bläddra bland katalogerna",
     "labelRequired": "Etikett krävs",

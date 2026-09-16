@@ -183,6 +183,8 @@
     "passwordMin": "Wachtwoord moet minstens 6 tekens zijn",
     "passwordMismatch": "Wachtwoorden komen niet overeen",
     "localSignInDisabled": "Lokale aanmelding is uitgeschakeld",
+    "oidcNotConfigured": "Single Sign-On is niet geconfigureerd op deze server.",
+    "oidcProviderUnavailable": "Single Sign-On kon niet worden gestart. De instellingen zijn aanwezig; het serverlogboek vertelt wat er misging.",
     "deleteShare": "Share verwijderen is mislukt",
     "browseDirectories": "Mappen doorbladeren is mislukt",
     "labelRequired": "Label is vereist",
