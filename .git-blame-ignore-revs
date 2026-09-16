@@ -1,0 +1,11 @@
+# Commits that changed how the code looks and nothing about what it does.
+#
+# `git blame` reads this when it is told to:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub reads it by itself. Without it, the line beside every reformatted
+# line is this commit rather than the change that wrote it.
+
+# Format the repository, and have CI hold it there
+8901d0cfe45c9e148c21de5fd9640cc476a23064
