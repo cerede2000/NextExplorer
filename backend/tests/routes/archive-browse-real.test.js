@@ -244,6 +244,39 @@ describe.skipIf(!sevenZip)('browsing a real archive with the real 7-Zip', () => 
   });
 
   /**
+   * `.tgz` is the same two archives under one extension, and 7-Zip is the one
+   * that decides what the entry inside is called. The rule this rests on is
+   * that the name ends in `.tar` — which is a claim about 7-Zip's own extension
+   * mapping, not about our code, so only the real tool can answer it.
+   */
+  it('goes inside a real .tgz, whose inner name only 7-Zip decides', async () => {
+    const volume = await seed();
+    await writeTarGz(path.join(volume, 'backup.tgz'), [
+      { path: 'docs/report.txt', content: 'a report' },
+      { path: 'notes.txt', content: 'twelve bytes' },
+    ]);
+    const app = buildApp();
+
+    const top = await request(app).get('/api/archive/list').query({ path: 'backup.tgz' });
+
+    expect(top.status).toBe(200);
+    expect(top.body.entries.map((entry) => entry.name)).toEqual(['docs', 'notes.txt']);
+
+    const entry = await request(app)
+      .get('/api/archive/entry')
+      .query({ path: 'backup.tgz', entry: 'notes.txt' })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(entry.body.toString()).toBe('twelve bytes');
+    expect(await fs.readdir(volume)).toEqual(['backup.tgz']);
+  });
+
+  /**
    * The formats that are not zip.
    *
    * Everything offered here goes through the same two commands, so what this

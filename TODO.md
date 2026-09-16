@@ -133,18 +133,22 @@ What was decided in advance held, and is worth keeping written down:
   an iframe and so a decision about sandboxing; Office documents, which go
   through a converter that reads from the volume. Each is a separate decision,
   and none of them is this one.
-- **A solid `.7z` reads every entry from the beginning.** Unlike zip, it has no
-  per-entry start, so reading the last file of a solid archive decompresses the
-  ones before it. Correct, and slow on a large one; the cache that exists for
-  compound archives would answer this too, keyed the same way.
-- **Nothing is offered but reading.** No extracting one entry to a folder, no
-  adding to an archive, no dragging out. Those are operations on the volume, and
-  each one has to answer the overwrite question the rest of the application
-  answers.
-- **`.tgz` is covered by the same rule as `.tar.gz`** — the outer extension is a
-  wrapper and the single entry ends in `.tar` — but only the second is checked
-  against a real 7-Zip. If a build ever names the inner entry differently, that
-  archive quietly falls back to showing one entry, which is what it did before.
+- **A solid `.7z` reads every entry from the beginning — and stays that way for
+  now.** Unlike zip, it has no per-entry start, so reading the last file of a
+  solid archive decompresses the ones before it. The cache that exists for
+  compound archives holds one file; answering this needs it to hold a
+  directory, because what would be cached is the whole extracted tree. That is
+  the objection: extracting an eight-gigabyte archive onto the disk because
+  somebody clicked one file inside it is a worse trade than the slow read it
+  replaces, and picking the rule that avoids it — cache only on the second
+  entry read, only under a budget — wants a measurement against a real 7-Zip on
+  a real archive, not a guess. Deliberately not built until that measurement
+  exists.
+- **Nothing is offered but adding.** Extracting several entries and choosing
+  where they land are both done. What is still missing: adding a file to an
+  existing archive, and dragging one out of the panel onto the folder view.
+  Both are operations on the volume, and each has to answer the overwrite
+  question the rest of the application answers.
 
 ## What the comparison against Quantum and Filestash found missing
 
