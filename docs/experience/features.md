@@ -191,7 +191,7 @@ tier · — not documented
   cannot be revoked — will not be fixed. Quantum is its active fork, and stands
   in the table instead.
 
-### Reading the 🚧, and the two crosses that will not change
+### The three intentions, and the two crosses that stay
 
 An activity log, space quotas and API tokens are what the comparison says is
 missing here, and the three are in the backlog with the shape each would take:
