@@ -6,6 +6,7 @@ const {
   setUserFolderSort,
   setUserFolderView,
   setSystemSetting,
+  checkSystemSection,
   mergeSystemSection,
   replaceBranding,
   WRITABLE_USER_SETTINGS,
@@ -185,30 +186,33 @@ const applyUserPreferences = async (user, section) => {
   return Object.keys(updates).length > 0 ? updates : null;
 };
 
-const applyThumbnails = (section) =>
-  mergeSection(
-    'system',
-    'thumbnails',
-    keepValid(section, {
-      // Anything but a boolean used to be read as "on": "false" switched
-      // thumbnails on for everybody.
-      enabled: isBoolean,
-      size: isPositiveNumber,
-      quality: isPositiveNumber,
-      concurrency: isPositiveNumber,
-    })
-  );
+/**
+ * A section checked in one step and written in another.
+ *
+ * Both halves exist because one save carries several sections: a refusal in
+ * the third must not leave the first two stored. `check` answers what is to be
+ * written, or null when the section sends nothing this route stores, and it is
+ * where a refusal comes from. `write` stores it, and cannot refuse.
+ */
+const merging = (key, fields) => ({
+  check: (section) => keepValid(section, fields),
+  write: (update) => mergeSection('system', key, update),
+});
 
-const applyUploads = (section) =>
-  mergeSection(
-    'system',
-    'uploads',
-    keepValid(section, {
-      chunkedEnabled: isBoolean,
-      chunkedAutoFallback: isBoolean,
-      chunkSizeBytes: isPositiveNumber,
-    })
-  );
+const thumbnailsSection = merging('thumbnails', {
+  // Anything but a boolean used to be read as "on": "false" switched
+  // thumbnails on for everybody.
+  enabled: isBoolean,
+  size: isPositiveNumber,
+  quality: isPositiveNumber,
+  concurrency: isPositiveNumber,
+});
+
+const uploadsSection = merging('uploads', {
+  chunkedEnabled: isBoolean,
+  chunkedAutoFallback: isBoolean,
+  chunkSizeBytes: isPositiveNumber,
+});
 
 // The trash's size cap is the one field where nothing is a value: null removes
 // the cap. Zero is not that — it is what an emptied field sends, and the
@@ -220,31 +224,21 @@ const isPositiveNumberOrNull = (value) => value === null || isPositiveNumber(val
 // retention of 0 became one day, of -5 became one day — in place of the ninety
 // the administrator had. The settings page refuses them with the same bounds;
 // this is what an API client used to see instead.
-const applyTrash = (section) =>
-  mergeSection(
-    'system',
-    'trash',
-    keepValid(section, {
-      enabled: isBoolean,
-      retentionDays: isPositiveNumber,
-      maxPercent: isPositiveNumber,
-      maxBytes: isPositiveNumberOrNull,
-    })
-  );
+const trashSection = merging('trash', {
+  enabled: isBoolean,
+  retentionDays: isPositiveNumber,
+  maxPercent: isPositiveNumber,
+  maxBytes: isPositiveNumberOrNull,
+});
 
-const applyVersions = (section) =>
-  mergeSection(
-    'system',
-    'versions',
-    keepValid(section, {
-      enabled: isBoolean,
-      keepAllHours: isPositiveNumber,
-      hourlyDays: isPositiveNumber,
-      dailyDays: isPositiveNumber,
-      maxPerFile: isPositiveNumber,
-      sessionCheckpointMinutes: isPositiveNumber,
-    })
-  );
+const versionsSection = merging('versions', {
+  enabled: isBoolean,
+  keepAllHours: isPositiveNumber,
+  hourlyDays: isPositiveNumber,
+  dailyDays: isPositiveNumber,
+  maxPerFile: isPositiveNumber,
+  sessionCheckpointMinutes: isPositiveNumber,
+});
 
 /**
  * Branding is read and written in one step rather than merged over the
@@ -252,24 +246,33 @@ const applyVersions = (section) =>
  * then removed: reset to the default, or pointed elsewhere, the old file would
  * otherwise stay behind with nothing to serve or remove it.
  */
-const applyBranding = async (section) => {
-  const update = keepValid(section, {
-    appName: isName,
-    appLogoUrl: isText,
-    showPoweredBy: isBoolean,
-  });
-  if (Object.keys(update).length === 0) return null;
-
-  const { previous, current } = await replaceBranding(update);
-  await forgetReplacedLogo(previous.appLogoUrl, current.appLogoUrl);
-  return current;
+const brandingSection = {
+  check: (section) => {
+    const update = keepValid(section, {
+      appName: isName,
+      appLogoUrl: isText,
+      showPoweredBy: isBoolean,
+    });
+    return Object.keys(update).length > 0 ? update : null;
+  },
+  write: async (update) => {
+    const { previous, current } = await replaceBranding(update);
+    await forgetReplacedLogo(previous.appLogoUrl, current.appLogoUrl);
+  },
 };
 
-/** Access rules replace the list rather than merging into it. */
-const applyAccess = async (section) => {
-  if (!Array.isArray(section.rules)) return null;
-  await setSystemSetting('system', 'access', { rules: section.rules });
-  return { rules: section.rules };
+/**
+ * Access rules replace the list rather than merging into it, and they are the
+ * one section that refuses what it was sent: a rule with no folder, or a
+ * permission that is not one of the three, is answered rather than dropped.
+ * Which is why it is checked here, before any other section is written — a
+ * list sent as something that is not a list is still dropped, as it always
+ * was, because then there is nothing to store.
+ */
+const accessSection = {
+  check: (section) =>
+    Array.isArray(section.rules) ? checkSystemSection('access', { rules: section.rules }) : null,
+  write: (update) => setSystemSetting('system', 'access', update),
 };
 
 /**
@@ -279,28 +282,25 @@ const applyAccess = async (section) => {
  * actually applying — the stored one plus whatever the environment set, which
  * an administrator cannot remove from here.
  */
-const applyExclusions = async (key, manager, section) => {
-  if (!Array.isArray(section.excludedPaths)) return null;
-
-  const saved = await mergeSection('system', key, { excludedPaths: section.excludedPaths });
-  const applied = await manager.setAdminExclusions(saved.excludedPaths);
-
-  return {
-    excludedPaths: applied.excludedPaths,
-    environmentExcludedPaths: applied.environmentExcludedPaths,
-  };
-};
+const excluding = (key, manager) => ({
+  check: (section) =>
+    Array.isArray(section.excludedPaths) ? { excludedPaths: section.excludedPaths } : null,
+  write: async (update) => {
+    const saved = await mergeSection('system', key, update);
+    await manager.setAdminExclusions(saved.excludedPaths);
+  },
+});
 
 /** Every section only an administrator may write, and what writes it. */
 const SYSTEM_SECTIONS = {
-  thumbnails: applyThumbnails,
-  access: applyAccess,
-  uploads: applyUploads,
-  trash: applyTrash,
-  versions: applyVersions,
-  branding: applyBranding,
-  folderSize: (section) => applyExclusions('folderSize', folderSizeManager, section),
-  searchIndex: (section) => applyExclusions('searchIndex', searchIndexManager, section),
+  thumbnails: thumbnailsSection,
+  access: accessSection,
+  uploads: uploadsSection,
+  trash: trashSection,
+  versions: versionsSection,
+  branding: brandingSection,
+  folderSize: excluding('folderSize', folderSizeManager),
+  searchIndex: excluding('searchIndex', searchIndexManager),
 };
 
 router.patch(
@@ -319,16 +319,25 @@ router.patch(
       return res.status(403).json({ error: 'Admin access required for system settings.' });
     }
 
+    // Every section is checked before any of them is written. A save carrying
+    // a valid section and a refused one used to store the first and then answer
+    // 400: a request reported as refused that had changed something, and left
+    // the page showing settings the server had only half taken.
+    const toWrite = [];
+    if (isAdmin) {
+      for (const [name, section] of Object.entries(SYSTEM_SECTIONS)) {
+        const sent = payload[name];
+        if (!sent || typeof sent !== 'object') continue;
+        const update = section.check(sent);
+        if (update !== null) toWrite.push([section, update]);
+      }
+    }
+
     if (payload.user && typeof payload.user === 'object' && user?.id) {
       await applyUserPreferences(user, payload.user);
     }
 
-    if (isAdmin) {
-      for (const [name, apply] of Object.entries(SYSTEM_SECTIONS)) {
-        const section = payload[name];
-        if (section && typeof section === 'object') await apply(section);
-      }
-    }
+    for (const [section, update] of toWrite) await section.write(update);
 
     // Read back rather than assembled from what was written: the stored value
     // is sanitised on its way out, so what the caller applies to its own state

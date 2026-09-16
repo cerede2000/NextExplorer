@@ -730,6 +730,15 @@ const sanitizeSystemSetting = (key, value) => {
 };
 
 /**
+ * What a section would be stored as, without storing it.
+ *
+ * The route checks every section of a save before writing any of them, so a
+ * section that refuses what it was sent refuses before another has been
+ * stored.
+ */
+const checkSystemSection = (key, value) => sanitizeSystemSetting(key, value);
+
+/**
  * Set a system setting (admin only)
  */
 const setSystemSetting = async (category, key, value) => {
@@ -912,6 +921,7 @@ const setSettings = async (partial) => {
 };
 
 module.exports = {
+  checkSystemSection,
   getPublicSettings,
   getUserSettings,
   getSystemSettings,

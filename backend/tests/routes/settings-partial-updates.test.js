@@ -382,3 +382,75 @@ describe('what a regular account may not change', () => {
     expect(readBack(await readAsAdmin())).toBe(kept);
   });
 });
+
+/**
+ * A save the route refuses halfway.
+ *
+ * One payload carries a section per group, and the sections used to be applied
+ * one after another: a valid one before a refused one was stored, and the
+ * answer was still 400. The person saw their save refused, the page kept the
+ * values it had sent, and the server had taken some of them — the two
+ * disagreed until the next reload, which is the worst state of the three.
+ *
+ * The access rules are the only section that refuses what it was sent, so they
+ * are what makes this reachable. The sections are checked in the order they
+ * are declared, and thumbnails come first: it is written before access is
+ * reached, or it is not written at all.
+ */
+describe('a payload with a valid section and a refused one', () => {
+  const REFUSED = { access: { rules: [{ path: 'Private', permissions: 'sideways' }] } };
+
+  it('stores none of it, and says which rule it refused', async () => {
+    await seed();
+    await patch(['admin'], { thumbnails: { size: 321 } });
+
+    const response = await patch(['admin'], { ...REFUSED, thumbnails: { size: 654 } });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toMatch(/Access rule 1/);
+    expect((await readAsAdmin()).thumbnails.size).toBe(321);
+  });
+
+  /**
+   * The other direction, so this cannot pass on the order of the sections
+   * alone: branding is written after access, and must be no more stored than
+   * thumbnails was.
+   */
+  it('stores nothing that comes after the refusal either', async () => {
+    await seed();
+    await patch(['admin'], { branding: { appName: 'Before' } });
+
+    const response = await patch(['admin'], { ...REFUSED, branding: { appName: 'After' } });
+
+    expect(response.status).toBe(400);
+    expect((await readAsAdmin()).branding.appName).toBe('Before');
+  });
+
+  /** A preference of one's own is not stored by a save the server refuses. */
+  it('leaves the sender’s own preferences alone', async () => {
+    await seed();
+    await patch(['admin'], { user: { showHiddenFiles: true } });
+
+    const response = await patch(['admin'], { ...REFUSED, user: { showHiddenFiles: false } });
+
+    expect(response.status).toBe(400);
+    expect((await readAsAdmin()).user.showHiddenFiles).toBe(true);
+  });
+
+  /** And a save with nothing wrong in it still writes every section it carries. */
+  it('still writes every section when none of them is refused', async () => {
+    await seed();
+
+    const response = await patch(['admin'], {
+      thumbnails: { size: 654 },
+      branding: { appName: 'After' },
+      access: { rules: [{ path: 'Private', permissions: 'hidden', recursive: true }] },
+    });
+
+    expect(response.status).toBe(200);
+    const settings = await readAsAdmin();
+    expect(settings.thumbnails.size).toBe(654);
+    expect(settings.branding.appName).toBe('After');
+    expect(settings.access.rules.map((rule) => rule.path)).toEqual(['Private']);
+  });
+});
