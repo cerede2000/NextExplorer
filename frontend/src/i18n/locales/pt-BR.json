@@ -167,7 +167,8 @@
     "path": "ex.: Fotos/Férias",
     "search": "Pesquisar arquivos e pastas…",
     "volumeLabel": "ex.: Documentos, Projetos, Mídia",
-    "emailOrUsername": "nome{'@'}empresa.com ou nome"
+    "emailOrUsername": "nome{'@'}empresa.com ou nome",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Carregando…",
@@ -211,7 +212,9 @@
     "saveVolume": "Falha ao salvar volume",
     "removeVolume": "Falha ao remover volume",
     "identifierRequired": "É necessário um e-mail ou nome de usuário",
-    "unlockUser": "Não foi possível desbloquear a conta"
+    "unlockUser": "Não foi possível desbloquear a conta",
+    "totpCodeRequired": "Digite o código.",
+    "totpCodeWrong": "Esse código não está certo."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticação necessária",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Acesso negado",
     "NOT_FOUND": "Não encontrado",
     "CONFLICT": "Conflito",
-    "RATE_LIMIT_EXCEEDED": "Solicitações demais"
+    "RATE_LIMIT_EXCEEDED": "Solicitações demais",
+    "AUTH_INVALID_TOTP_CODE": "Esse código não está certo."
   },
   "titles": {
     "volumes": "Volumes",
@@ -446,7 +450,11 @@
         "title": "Atualizamos a forma de entrar",
         "intro": "Agora você precisa usar seu novo nome de usuário no formato de e-mail."
       },
-      "sessionExpired": "Sua sessão expirou. Entre novamente para continuar de onde parou."
+      "sessionExpired": "Sua sessão expirou. Entre novamente para continuar de onde parou.",
+      "totpExplain": "Sua senha foi aceita. Digite o código do seu aplicativo autenticador, ou um dos seus códigos de recuperação.",
+      "totpCode": "Código",
+      "totpSubmit": "Entrar",
+      "totpBack": "Começar de novo"
     },
     "setup": {
       "headline": "Vamos configurar",
@@ -496,7 +504,8 @@
       "accessControl": "Controle de Acesso",
       "adminUsers": "Gerenciamento de Usuários",
       "searchIndex": "Índice de busca",
-      "trash": "Lixeira e versões"
+      "trash": "Lixeira e versões",
+      "accountTwoFactor": "Dois fatores"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -775,6 +784,36 @@
         "sharedSpace": "Versões e lixeira dividem o espaço reservado de cada volume. Quando falta espaço, saem primeiro as versões antigas, depois os itens da lixeira, depois a última versão de cada arquivo e, por fim, as versões fixadas.",
         "environmentNote": "Os padrões vêm de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Autenticação em dois fatores",
+      "intro": "Um código do seu celular, além da sua senha.",
+      "notLocalUser": "Esta conta entra por um provedor de identidade, que é onde o segundo fator deve ser configurado.",
+      "off": "A autenticação em dois fatores está desligada nesta conta.",
+      "on": "A autenticação em dois fatores está ligada.",
+      "turnOn": "Ligar",
+      "turnOff": "Desligar",
+      "scan": "Escaneie isto com o seu aplicativo autenticador.",
+      "orType": "Ou digite este segredo no aplicativo:",
+      "qrLabel": "QR code para o seu aplicativo autenticador",
+      "codeLabel": "Código do aplicativo",
+      "confirm": "Confirmar",
+      "confirmPassword": "Sua senha",
+      "codesTitle": "Códigos de recuperação",
+      "codesExplain": "Guarde-os em outro lugar que não o celular. Cada um serve para uma entrada, para o dia em que o celular não estiver por perto. Eles aparecem agora e nunca mais.",
+      "copyCodes": "Copiar",
+      "copied": "Copiado.",
+      "codesLeft": "Resta um código de recuperação | Restam {count} códigos de recuperação",
+      "newCodesButton": "Gerar novos códigos",
+      "newCodes": "Novos códigos de recuperação gerados. Os anteriores não funcionam mais.",
+      "turnedOn": "A autenticação em dois fatores está ligada.",
+      "turnedOff": "A autenticação em dois fatores está desligada.",
+      "loadFailed": "Não foi possível ler as configurações de dois fatores desta conta.",
+      "startFailed": "Não foi possível começar a configurar o segundo fator.",
+      "confirmFailed": "Esse código não está certo.",
+      "codesFailed": "Não foi possível gerar novos códigos de recuperação.",
+      "disableFailed": "Não foi possível desligar a autenticação em dois fatores.",
+      "wrongPassword": "Essa senha não está certa."
     }
   },
   "share": {

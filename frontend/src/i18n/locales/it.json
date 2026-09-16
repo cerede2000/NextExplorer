@@ -167,7 +167,8 @@
     "path": "es. Immagini/Vacanze",
     "search": "Cerca file e cartelle…",
     "volumeLabel": "es. Documenti, Progetti, Media",
-    "emailOrUsername": "nome{'@'}azienda.it o nome"
+    "emailOrUsername": "nome{'@'}azienda.it o nome",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Caricamento…",
@@ -211,7 +212,9 @@
     "saveVolume": "Impossibile salvare il volume",
     "removeVolume": "Impossibile rimuovere il volume",
     "identifierRequired": "È richiesto un indirizzo email o un nome utente",
-    "unlockUser": "Impossibile sbloccare l'account"
+    "unlockUser": "Impossibile sbloccare l'account",
+    "totpCodeRequired": "Inserisci il codice.",
+    "totpCodeWrong": "Questo codice non è corretto."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Accesso negato",
     "NOT_FOUND": "Non trovato",
     "CONFLICT": "Conflitto",
-    "RATE_LIMIT_EXCEEDED": "Troppe richieste"
+    "RATE_LIMIT_EXCEEDED": "Troppe richieste",
+    "AUTH_INVALID_TOTP_CODE": "Questo codice non è corretto."
   },
   "titles": {
     "volumes": "Volumi",
@@ -443,7 +447,11 @@
         "title": "Abbiamo aggiornato il modo in cui accedi",
         "intro": "Ora devi usare il tuo nuovo nome utente in formato email."
       },
-      "sessionExpired": "La tua sessione è scaduta. Accedi di nuovo per riprendere da dove eri arrivato."
+      "sessionExpired": "La tua sessione è scaduta. Accedi di nuovo per riprendere da dove eri arrivato.",
+      "totpExplain": "La password è stata accettata. Inserisci il codice della tua app di autenticazione, o uno dei codici di recupero.",
+      "totpCode": "Codice",
+      "totpSubmit": "Accedi",
+      "totpBack": "Ricomincia"
     },
     "setup": {
       "headline": "Configuriamo tutto",
@@ -493,7 +501,8 @@
       "uploads": "Caricamenti",
       "folderSize": "Dimensioni cartelle",
       "searchIndex": "Indice di ricerca",
-      "trash": "Cestino e versioni"
+      "trash": "Cestino e versioni",
+      "accountTwoFactor": "Due fattori"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -772,6 +781,36 @@
         "sharedSpace": "Le versioni e il cestino condividono lo spazio riservato di ogni volume. Quando scarseggia, se ne vanno prima le versioni vecchie, poi gli elementi del cestino, poi l'ultima versione di ogni file e infine le versioni fissate.",
         "environmentNote": "I valori predefiniti provengono da VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Autenticazione a due fattori",
+      "intro": "Un codice dal telefono, oltre alla password.",
+      "notLocalUser": "Questo account accede tramite un fornitore di identità, ed è lì che va impostato il secondo fattore.",
+      "off": "L'autenticazione a due fattori è disattivata su questo account.",
+      "on": "L'autenticazione a due fattori è attiva.",
+      "turnOn": "Attiva",
+      "turnOff": "Disattiva",
+      "scan": "Inquadra questo con la tua app di autenticazione.",
+      "orType": "Oppure digita questo segreto nell'app:",
+      "qrLabel": "Codice QR per la tua app di autenticazione",
+      "codeLabel": "Codice dall'app",
+      "confirm": "Conferma",
+      "confirmPassword": "La tua password",
+      "codesTitle": "Codici di recupero",
+      "codesExplain": "Conservali altrove che sul telefono. Ognuno vale per un accesso, per il giorno in cui il telefono non c'è. Sono mostrati ora e mai più.",
+      "copyCodes": "Copia",
+      "copied": "Copiato.",
+      "codesLeft": "Resta un codice di recupero | Restano {count} codici di recupero",
+      "newCodesButton": "Genera nuovi codici",
+      "newCodes": "Nuovi codici di recupero generati. I precedenti non funzionano più.",
+      "turnedOn": "L'autenticazione a due fattori è attiva.",
+      "turnedOff": "L'autenticazione a due fattori è disattivata.",
+      "loadFailed": "Non è stato possibile leggere le impostazioni a due fattori di questo account.",
+      "startFailed": "Non è stato possibile avviare la configurazione del secondo fattore.",
+      "confirmFailed": "Questo codice non è corretto.",
+      "codesFailed": "Non è stato possibile generare nuovi codici di recupero.",
+      "disableFailed": "Non è stato possibile disattivare l'autenticazione a due fattori.",
+      "wrongPassword": "Questa password non è corretta."
     }
   },
   "share": {

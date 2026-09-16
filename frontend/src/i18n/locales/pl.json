@@ -167,7 +167,8 @@
     "path": "np. Obrazy/Wakacje",
     "search": "Szukaj plików i folderów…",
     "volumeLabel": "np. Dokumenty, Projekty, Multimedia",
-    "emailOrUsername": "imie{'@'}firma.pl lub nazwa"
+    "emailOrUsername": "imie{'@'}firma.pl lub nazwa",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Ładowanie…",
@@ -211,7 +212,9 @@
     "saveVolume": "Nie udało się zapisać wolumenu",
     "removeVolume": "Nie udało się usunąć wolumenu",
     "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika",
-    "unlockUser": "Nie udało się odblokować konta"
+    "unlockUser": "Nie udało się odblokować konta",
+    "totpCodeRequired": "Wpisz kod.",
+    "totpCodeWrong": "Ten kod jest nieprawidłowy."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Wymagana autentykacja",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Odmowa dostępu",
     "NOT_FOUND": "Nie znaleziono",
     "CONFLICT": "Konflikt",
-    "RATE_LIMIT_EXCEEDED": "Zbyt wiele żądań"
+    "RATE_LIMIT_EXCEEDED": "Zbyt wiele żądań",
+    "AUTH_INVALID_TOTP_CODE": "Ten kod jest nieprawidłowy."
   },
   "titles": {
     "volumes": "Woluminy",
@@ -443,7 +447,11 @@
         "title": "Zmieniliśmy sposób logowania",
         "intro": "Teraz musisz używać nowej nazwy użytkownika w formacie e-mail."
       },
-      "sessionExpired": "Twoja sesja wygasła. Zaloguj się ponownie, aby wrócić tam, gdzie skończyłeś."
+      "sessionExpired": "Twoja sesja wygasła. Zaloguj się ponownie, aby wrócić tam, gdzie skończyłeś.",
+      "totpExplain": "Hasło zostało przyjęte. Wpisz kod z aplikacji uwierzytelniającej albo jeden z kodów zapasowych.",
+      "totpCode": "Kod",
+      "totpSubmit": "Zaloguj się",
+      "totpBack": "Zacznij od nowa"
     },
     "setup": {
       "headline": "Skonfigurujmy wszystko",
@@ -493,7 +501,8 @@
       "uploads": "Przesyłanie",
       "folderSize": "Rozmiary folderów",
       "searchIndex": "Indeks wyszukiwania",
-      "trash": "Kosz i wersje"
+      "trash": "Kosz i wersje",
+      "accountTwoFactor": "Dwa składniki"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -772,6 +781,36 @@
         "sharedSpace": "Wersje i kosz dzielą zarezerwowaną przestrzeń każdego woluminu. Gdy jej brakuje, najpierw znikają starsze wersje, potem elementy kosza, potem ostatnia wersja każdego pliku, a na końcu przypięte wersje.",
         "environmentNote": "Wartości domyślne pochodzą z VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE i VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Uwierzytelnianie dwuskładnikowe",
+      "intro": "Kod z telefonu, oprócz hasła.",
+      "notLocalUser": "To konto loguje się przez dostawcę tożsamości i tam należy ustawić drugi składnik.",
+      "off": "Uwierzytelnianie dwuskładnikowe jest wyłączone dla tego konta.",
+      "on": "Uwierzytelnianie dwuskładnikowe jest włączone.",
+      "turnOn": "Włącz",
+      "turnOff": "Wyłącz",
+      "scan": "Zeskanuj to aplikacją uwierzytelniającą.",
+      "orType": "Albo wpisz ten sekret w aplikacji:",
+      "qrLabel": "Kod QR dla aplikacji uwierzytelniającej",
+      "codeLabel": "Kod z aplikacji",
+      "confirm": "Potwierdź",
+      "confirmPassword": "Twoje hasło",
+      "codesTitle": "Kody zapasowe",
+      "codesExplain": "Przechowuj je gdzie indziej niż w telefonie. Każdy loguje raz, na dzień, w którym telefonu nie ma. Są pokazane teraz i nigdy więcej.",
+      "copyCodes": "Kopiuj",
+      "copied": "Skopiowano.",
+      "codesLeft": "Został jeden kod zapasowy | Zostały {count} kody zapasowe",
+      "newCodesButton": "Wygeneruj nowe kody",
+      "newCodes": "Wygenerowano nowe kody zapasowe. Poprzednie już nie działają.",
+      "turnedOn": "Uwierzytelnianie dwuskładnikowe jest włączone.",
+      "turnedOff": "Uwierzytelnianie dwuskładnikowe jest wyłączone.",
+      "loadFailed": "Nie udało się odczytać ustawień dwuskładnikowych tego konta.",
+      "startFailed": "Nie udało się rozpocząć konfiguracji drugiego składnika.",
+      "confirmFailed": "Ten kod jest nieprawidłowy.",
+      "codesFailed": "Nie udało się wygenerować nowych kodów zapasowych.",
+      "disableFailed": "Nie udało się wyłączyć uwierzytelniania dwuskładnikowego.",
+      "wrongPassword": "To hasło jest nieprawidłowe."
     }
   },
   "share": {

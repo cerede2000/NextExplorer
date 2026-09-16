@@ -209,6 +209,11 @@ const requestRaw = async (endpoint, options = {}) => {
           const expired = new Error(errorInfo.message);
           expired.statusCode = 401;
           expired.sessionExpired = true;
+          // The code the server sent, kept on the way through. On the sign-in
+          // screen this path swallows every 401 — a wrong password, a wrong
+          // code — and without it the screen has nothing to recognise them by,
+          // so it shows the server's own sentence in the server's own language.
+          if (errorInfo.code) expired.code = errorInfo.code;
           throw expired;
         }
 

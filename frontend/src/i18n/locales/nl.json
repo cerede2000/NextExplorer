@@ -167,7 +167,8 @@
     "path": "bijv. Afbeeldingen/Vakanties",
     "search": "Bestanden en mappen zoeken…",
     "volumeLabel": "bijv. Documenten, Projecten, Media",
-    "emailOrUsername": "naam{'@'}bedrijf.nl of naam"
+    "emailOrUsername": "naam{'@'}bedrijf.nl of naam",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Laden…",
@@ -211,7 +212,9 @@
     "saveVolume": "Volume opslaan is mislukt",
     "removeVolume": "Volume verwijderen is mislukt",
     "identifierRequired": "Een e-mailadres of gebruikersnaam is verplicht",
-    "unlockUser": "Het account kon niet worden ontgrendeld"
+    "unlockUser": "Het account kon niet worden ontgrendeld",
+    "totpCodeRequired": "Voer de code in.",
+    "totpCodeWrong": "Die code klopt niet."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authenticatie vereist",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Toegang geweigerd",
     "NOT_FOUND": "Niet gevonden",
     "CONFLICT": "Conflict",
-    "RATE_LIMIT_EXCEEDED": "Te veel verzoeken"
+    "RATE_LIMIT_EXCEEDED": "Te veel verzoeken",
+    "AUTH_INVALID_TOTP_CODE": "Die code klopt niet."
   },
   "titles": {
     "volumes": "Volumes",
@@ -446,7 +450,11 @@
         "title": "We hebben de manier waarop u zich aanmeldt bijgewerkt",
         "intro": "U moet nu uw nieuwe gebruikersnaam in e-mailstijl gebruiken."
       },
-      "sessionExpired": "Uw sessie is beëindigd. Meld u opnieuw aan om verder te gaan waar u gebleven was."
+      "sessionExpired": "Uw sessie is beëindigd. Meld u opnieuw aan om verder te gaan waar u gebleven was.",
+      "totpExplain": "Uw wachtwoord is geaccepteerd. Voer de code uit uw authenticatie-app in, of een van uw herstelcodes.",
+      "totpCode": "Code",
+      "totpSubmit": "Aanmelden",
+      "totpBack": "Opnieuw beginnen"
     },
     "setup": {
       "headline": "Laten we alles opzetten",
@@ -496,7 +504,8 @@
       "accessControl": "Toegangscontrole",
       "adminUsers": "Gebruikersbeheer",
       "searchIndex": "Zoekindex",
-      "trash": "Prullenbak en versies"
+      "trash": "Prullenbak en versies",
+      "accountTwoFactor": "Tweestaps"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -775,6 +784,36 @@
         "sharedSpace": "Versies en de prullenbak delen de gereserveerde ruimte van elk volume. Wordt die krap, dan gaan eerst oudere versies, daarna items uit de prullenbak, dan de laatste versie van elk bestand en als laatste vastgezette versies.",
         "environmentNote": "Standaardwaarden komen uit VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE en VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Tweestapsverificatie",
+      "intro": "Een code van uw telefoon, bovenop uw wachtwoord.",
+      "notLocalUser": "Dit account meldt zich aan via een identiteitsaanbieder; daar hoort de tweede stap thuis.",
+      "off": "Tweestapsverificatie staat uit voor dit account.",
+      "on": "Tweestapsverificatie staat aan.",
+      "turnOn": "Inschakelen",
+      "turnOff": "Uitschakelen",
+      "scan": "Scan dit met uw authenticatie-app.",
+      "orType": "Of typ dit geheim in de app:",
+      "qrLabel": "QR-code voor uw authenticatie-app",
+      "codeLabel": "Code uit de app",
+      "confirm": "Bevestigen",
+      "confirmPassword": "Uw wachtwoord",
+      "codesTitle": "Herstelcodes",
+      "codesExplain": "Bewaar deze ergens anders dan op uw telefoon. Elke code meldt u één keer aan, voor de dag dat de telefoon er niet is. Ze worden nu getoond en daarna nooit meer.",
+      "copyCodes": "Kopiëren",
+      "copied": "Gekopieerd.",
+      "codesLeft": "Nog één herstelcode | Nog {count} herstelcodes",
+      "newCodesButton": "Nieuwe codes maken",
+      "newCodes": "Nieuwe herstelcodes gemaakt. De vorige werken niet meer.",
+      "turnedOn": "Tweestapsverificatie staat aan.",
+      "turnedOff": "Tweestapsverificatie staat uit.",
+      "loadFailed": "De tweestapsinstellingen van dit account konden niet worden gelezen.",
+      "startFailed": "Het instellen van een tweede stap kon niet worden gestart.",
+      "confirmFailed": "Die code klopt niet.",
+      "codesFailed": "Er konden geen nieuwe herstelcodes worden gemaakt.",
+      "disableFailed": "Tweestapsverificatie kon niet worden uitgeschakeld.",
+      "wrongPassword": "Dat wachtwoord klopt niet."
     }
   },
   "share": {

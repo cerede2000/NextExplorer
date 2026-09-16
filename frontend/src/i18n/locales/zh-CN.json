@@ -167,7 +167,8 @@
     "path": "例如：Pictures/Holidays",
     "search": "搜索文件和文件夹…",
     "volumeLabel": "例如：文档、项目、媒体",
-    "emailOrUsername": "name{'@'}company.com 或 name"
+    "emailOrUsername": "name{'@'}company.com 或 name",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "加载中…",
@@ -211,7 +212,9 @@
     "saveVolume": "无法保存卷",
     "removeVolume": "无法移除卷",
     "identifierRequired": "需要邮箱地址或用户名",
-    "unlockUser": "无法解锁账户"
+    "unlockUser": "无法解锁账户",
+    "totpCodeRequired": "请输入验证码。",
+    "totpCodeWrong": "验证码不正确。"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "访问被拒绝",
     "NOT_FOUND": "未找到",
     "CONFLICT": "冲突",
-    "RATE_LIMIT_EXCEEDED": "请求过多"
+    "RATE_LIMIT_EXCEEDED": "请求过多",
+    "AUTH_INVALID_TOTP_CODE": "验证码不正确。"
   },
   "titles": {
     "volumes": "卷",
@@ -443,7 +447,11 @@
         "title": "我们更新了登录方式",
         "intro": "您现在需要使用新的邮箱格式用户名。"
       },
-      "sessionExpired": "您的会话已结束。重新登录即可从上次的位置继续。"
+      "sessionExpired": "您的会话已结束。重新登录即可从上次的位置继续。",
+      "totpExplain": "密码已通过。请输入验证器应用中的验证码，或一个恢复码。",
+      "totpCode": "验证码",
+      "totpSubmit": "登录",
+      "totpBack": "重新开始"
     },
     "setup": {
       "headline": "开始设置",
@@ -493,7 +501,8 @@
       "uploads": "上传",
       "folderSize": "文件夹大小",
       "searchIndex": "搜索索引",
-      "trash": "回收站和版本"
+      "trash": "回收站和版本",
+      "accountTwoFactor": "两步验证"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -772,6 +781,36 @@
         "sharedSpace": "版本与回收站共用每个卷的预留空间。空间不足时，依次移除旧版本、回收站项目、每个文件的最新版本，最后才是已固定的版本。",
         "environmentNote": "默认值来自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
       }
+    },
+    "twoFactor": {
+      "title": "两步验证",
+      "intro": "在密码之外，再加一个手机上的验证码。",
+      "notLocalUser": "此账号通过身份提供方登录，第二重验证应在那里设置。",
+      "off": "此账号的两步验证已关闭。",
+      "on": "两步验证已开启。",
+      "turnOn": "开启",
+      "turnOff": "关闭",
+      "scan": "用验证器应用扫描此二维码。",
+      "orType": "或在应用中输入此密钥：",
+      "qrLabel": "用于验证器应用的二维码",
+      "codeLabel": "应用中的验证码",
+      "confirm": "确认",
+      "confirmPassword": "您的密码",
+      "codesTitle": "恢复码",
+      "codesExplain": "请保存在手机之外的地方。每个恢复码只能登录一次，用于手机不在身边的那天。它们只显示这一次。",
+      "copyCodes": "复制",
+      "copied": "已复制。",
+      "codesLeft": "还剩 1 个恢复码 | 还剩 {count} 个恢复码",
+      "newCodesButton": "生成新的恢复码",
+      "newCodes": "已生成新的恢复码，之前的不再有效。",
+      "turnedOn": "两步验证已开启。",
+      "turnedOff": "两步验证已关闭。",
+      "loadFailed": "无法读取此账号的两步验证设置。",
+      "startFailed": "无法开始设置第二重验证。",
+      "confirmFailed": "验证码不正确。",
+      "codesFailed": "无法生成新的恢复码。",
+      "disableFailed": "无法关闭两步验证。",
+      "wrongPassword": "密码不正确。"
     }
   },
   "share": {

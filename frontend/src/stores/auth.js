@@ -5,6 +5,7 @@ import {
   fetchAuthStatus,
   setupAccount as setupAccountApi,
   login as loginApi,
+  submitTotpCode as submitTotpCodeApi,
   logout as logoutApi,
   fetchCurrentUser,
 } from '@/api';
@@ -22,6 +23,14 @@ export const useAuthStore = defineStore('auth', () => {
   // last two rather than sending somebody to a provider that cannot answer.
   const oidcStatus = ref('ready');
   const currentUser = ref(null);
+  /**
+   * The password was right, and the account asks for a code as well.
+   *
+   * Read back from the server on every start, not only set when a sign-in
+   * happens here: a reload in the middle of one lands back on the code rather
+   * than on a password screen that would start the whole thing again.
+   */
+  const totpPending = ref(false);
   const isLoading = ref(false);
   const hasStatus = ref(false);
   const lastError = ref(null);
@@ -58,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
         strategies.value = status?.strategies || { local: true, oidc: false };
         oidcStatus.value = status?.oidc?.status || 'ready';
         currentUser.value = status?.user || null;
+        totpPending.value = Boolean(status?.totpPending);
 
         // Clear guest session if user is now authenticated
         if (currentUser.value) {
@@ -93,10 +103,54 @@ export const useAuthStore = defineStore('auth', () => {
     lastError.value = null;
     const response = await loginApi({ identifier, password });
     hasStatus.value = true;
+
+    // Halfway: the password was right and a code is wanted as well. Nobody is
+    // signed in until it arrives, so nothing here says anybody is.
+    if (response?.totpRequired) {
+      totpPending.value = true;
+      currentUser.value = null;
+      return { totpRequired: true };
+    }
+
+    totpPending.value = false;
     currentUser.value = response?.user || null;
 
     // Clear guest session when user logs in
     sessionStorage.removeItem('guestSessionId');
+    return { totpRequired: false };
+  };
+
+  /**
+   * Finish a sign-in with the code from the phone, or one off the paper.
+   *
+   * @returns {Promise<{usedRecoveryCode: boolean, recoveryCodesLeft: number|null}>}
+   */
+  const submitTotpCode = async (code) => {
+    lastError.value = null;
+    const response = await submitTotpCodeApi(code);
+    totpPending.value = false;
+    currentUser.value = response?.user || null;
+    sessionStorage.removeItem('guestSessionId');
+    return {
+      usedRecoveryCode: Boolean(response?.usedRecoveryCode),
+      recoveryCodesLeft: response?.recoveryCodesLeft ?? null,
+    };
+  };
+
+  /**
+   * Back to the password, when somebody gives up on finding their phone.
+   *
+   * The server is told, rather than only the screen: it is the one holding the
+   * half-open sign-in, and a page reload would otherwise come back to the code
+   * for a step this person has already walked away from.
+   */
+  const cancelTotp = async () => {
+    totpPending.value = false;
+    try {
+      await logoutApi();
+    } catch (_) {
+      // Nothing was signed in; a server that cannot be reached changes that.
+    }
   };
 
   const logout = async () => {
@@ -108,6 +162,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     hasStatus.value = true;
     currentUser.value = null;
+    totpPending.value = false;
   };
 
   /**
@@ -122,6 +177,9 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const forgetSession = () => {
     currentUser.value = null;
+    // A session that is over is not one halfway through: whatever was waiting
+    // for a code is gone with it, and the screen starts at the password.
+    totpPending.value = false;
     hasStatus.value = true;
     lastError.value = null;
   };
@@ -152,11 +210,14 @@ export const useAuthStore = defineStore('auth', () => {
     strategies,
     oidcStatus,
     currentUser,
+    totpPending,
     lastError,
     initialize,
     ensureStatus: initialize,
     setupAccount,
     login,
+    submitTotpCode,
+    cancelTotp,
     logout,
     forgetSession,
     clearError,

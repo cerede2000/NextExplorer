@@ -167,7 +167,8 @@
     "path": "ex. Imagini/Vacanțe",
     "search": "Caută fișiere și dosare…",
     "volumeLabel": "ex. Documente, Proiecte, Media",
-    "emailOrUsername": "nume{'@'}companie.ro sau nume"
+    "emailOrUsername": "nume{'@'}companie.ro sau nume",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Se încarcă…",
@@ -211,7 +212,9 @@
     "saveVolume": "Nu s-a putut salva volumul",
     "removeVolume": "Nu s-a putut elimina volumul",
     "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator",
-    "unlockUser": "Contul nu a putut fi deblocat"
+    "unlockUser": "Contul nu a putut fi deblocat",
+    "totpCodeRequired": "Introduceți codul.",
+    "totpCodeWrong": "Acest cod nu este corect."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentificare necesară",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Acces refuzat",
     "NOT_FOUND": "Negăsit",
     "CONFLICT": "Conflict",
-    "RATE_LIMIT_EXCEEDED": "Prea multe cereri"
+    "RATE_LIMIT_EXCEEDED": "Prea multe cereri",
+    "AUTH_INVALID_TOTP_CODE": "Acest cod nu este corect."
   },
   "titles": {
     "volumes": "Volume",
@@ -443,7 +447,11 @@
         "title": "Am actualizat modul de conectare",
         "intro": "Acum trebuie să folosești noul nume de utilizator în format email."
       },
-      "sessionExpired": "Sesiunea ta a expirat. Conectează-te din nou pentru a continua de unde ai rămas."
+      "sessionExpired": "Sesiunea ta a expirat. Conectează-te din nou pentru a continua de unde ai rămas.",
+      "totpExplain": "Parola a fost acceptată. Introduceți codul din aplicația de autentificare sau unul dintre codurile de recuperare.",
+      "totpCode": "Cod",
+      "totpSubmit": "Conectați-vă",
+      "totpBack": "Reluați"
     },
     "setup": {
       "headline": "Să configurăm totul",
@@ -493,7 +501,8 @@
       "uploads": "Încărcări",
       "folderSize": "Dimensiunea dosarelor",
       "searchIndex": "Index de căutare",
-      "trash": "Coș de gunoi și versiuni"
+      "trash": "Coș de gunoi și versiuni",
+      "accountTwoFactor": "Doi factori"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -772,6 +781,36 @@
         "sharedSpace": "Versiunile și coșul de gunoi împart spațiul rezervat al fiecărui volum. Când nu ajunge, pleacă întâi versiunile vechi, apoi elementele din coș, apoi ultima versiune a fiecărui fișier și, la final, versiunile fixate.",
         "environmentNote": "Valorile implicite provin din VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE și VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Autentificare în doi factori",
+      "intro": "Un cod de pe telefon, pe lângă parolă.",
+      "notLocalUser": "Acest cont se autentifică printr-un furnizor de identitate, acolo unde îi este locul celui de-al doilea factor.",
+      "off": "Autentificarea în doi factori este dezactivată pentru acest cont.",
+      "on": "Autentificarea în doi factori este activată.",
+      "turnOn": "Activați",
+      "turnOff": "Dezactivați",
+      "scan": "Scanați acest cod cu aplicația de autentificare.",
+      "orType": "Sau tastați acest secret în aplicație:",
+      "qrLabel": "Cod QR pentru aplicația de autentificare",
+      "codeLabel": "Codul din aplicație",
+      "confirm": "Confirmați",
+      "confirmPassword": "Parola dumneavoastră",
+      "codesTitle": "Coduri de recuperare",
+      "codesExplain": "Păstrați-le în altă parte decât pe telefon. Fiecare vă autentifică o dată, pentru ziua în care telefonul nu este la îndemână. Sunt afișate acum și niciodată după aceea.",
+      "copyCodes": "Copiați",
+      "copied": "Copiat.",
+      "codesLeft": "A mai rămas un cod de recuperare | Au mai rămas {count} coduri de recuperare",
+      "newCodesButton": "Generați coduri noi",
+      "newCodes": "Coduri de recuperare noi generate. Cele dinainte nu mai funcționează.",
+      "turnedOn": "Autentificarea în doi factori este activată.",
+      "turnedOff": "Autentificarea în doi factori este dezactivată.",
+      "loadFailed": "Setările de doi factori ale acestui cont nu au putut fi citite.",
+      "startFailed": "Configurarea celui de-al doilea factor nu a putut fi pornită.",
+      "confirmFailed": "Acest cod nu este corect.",
+      "codesFailed": "Nu au putut fi generate coduri de recuperare noi.",
+      "disableFailed": "Autentificarea în doi factori nu a putut fi dezactivată.",
+      "wrongPassword": "Această parolă nu este corectă."
     }
   },
   "share": {

@@ -181,12 +181,14 @@ hard each is.
   counters are already in the database; what is missing is the table, the
   retention and the page. This is the feature that decides whether a deployment
   can account for itself, and Filestash sells it at the top of its range.
-- **Two-factor on local accounts.** With OIDC the provider handles it. Without
-  — the simplest mode, and therefore the most common — a password is all that
-  stands in front of an entire filesystem. TOTP is a small amount of code for a
-  disproportionate gain. Nobody has asked for it, upstream or here, but Quantum
-  already offers it — password and 2FA are in its README — so this is catching
-  up, not getting ahead.
+- ~~**Two-factor on local accounts.**~~ Done. RFC 6238 written against its own
+  published vectors rather than taken from a package, secrets kept unreadable
+  in `app.db` under `/config/totp-key`, ten hashed recovery codes, and an
+  administrator who can take it off an account that lost both the phone and the
+  paper. What it brought with it: one dependency, `qrcode-generator` — zero
+  dependencies of its own, a frozen algorithm, and it is handed our own
+  `otpauth://` string and nothing a stranger supplies, which is the line the
+  dependency audit drew.
 - **Space quotas.** Needed the moment personal folders are opened to people who
   are not administrators. The recursive folder-size index already does the
   counting; a quota is that count, a limit, and a refusal in the right place.
@@ -544,6 +546,20 @@ None of the four reads anything a stranger supplies, which is what separated
   decides it.
 - **`docs/package-lock.json` is a second lockfile inside a workspace.** npm
   installs from the root one and never reads it, so it can only drift.
+
+## What the two-factor work found on the way
+
+- **A 401 on the sign-in screen loses its translation.** The session-expiry
+  handler answers every 401 while an auth screen is showing — that is what
+  stops a row of toasts when a session ends mid-navigation — and `http.js` then
+  throws an error of its own carrying the server's raw sentence. A wrong
+  password has read "Invalid credentials." on a French screen for as long as
+  that path has existed. The code the server sent is now kept on that error, so
+  a screen can recognise the refusal and say it in the reader's language, which
+  is what the sign-in screen does for a wrong second-factor code. The general
+  case is still open: every other 401 message on those screens is the server's
+  English. The fix is either to translate on that path too, or to stop calling
+  it an expired session when nothing had expired.
 
 ## Open, not scheduled
 

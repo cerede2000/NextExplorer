@@ -16,6 +16,7 @@ import {
   KeyIcon,
   UsersIcon,
   UserCircleIcon,
+  ShieldCheckIcon,
   TrashIcon,
 } from '@heroicons/vue/24/outline';
 
@@ -51,6 +52,13 @@ const userCategories = [
     i18nKey: 'accountPassword',
     name: 'Change Password',
     icon: Cog8ToothIcon,
+    requiresLocal: true,
+  },
+  {
+    key: 'account-two-factor',
+    i18nKey: 'accountTwoFactor',
+    name: 'Two-factor authentication',
+    icon: ShieldCheckIcon,
     requiresLocal: true,
   },
   {

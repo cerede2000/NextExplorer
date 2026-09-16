@@ -46,6 +46,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 ## Access & security
 
 - **Local users & groups:** Create local accounts from Settings → Admin; the first account becomes admin and can’t be removed while others exist.
+- **Two-factor authentication:** Any local account can turn on a second factor in Settings → Two-factor — a QR code for any authenticator app, a code to confirm the phone kept the secret, and ten recovery codes shown once. Signing in then asks for a code after the password; six digits are worth one sign-in, and a recovery code one use. With OIDC the second factor is the provider's.
 - **OIDC SSO:** Express OpenID Connect exposes `/login`, `/logout`, and `/callback`, so you can federate with Keycloak, Authentik, Authelia, or any compliant provider. Admin elevation happens when the IdP groups/roles intersect `OIDC_ADMIN_GROUPS`.
 - **Per-user access control:** Grant or deny paths per user or group, with read, write and delete kept apart. Personal folders (`USER_DIR_ENABLED`) and per-user volumes build on the same rules.
 - **Secrets from files:** Every credential can be read from a file instead of the environment, so nothing sensitive appears in `docker inspect`. See [Secrets](/configuration/environment#secrets).

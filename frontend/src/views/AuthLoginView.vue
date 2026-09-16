@@ -21,6 +21,8 @@ const loginIdentifier = ref('');
 const loginPasswordValue = ref('');
 const loginError = ref('');
 const isSubmittingLogin = ref(false);
+/** The code from the phone, or one off the paper, when the account asks. */
+const totpCodeValue = ref('');
 
 const statusError = computed(() => auth.lastError || '');
 const supportsLocal = computed(() => auth.strategies?.local !== false);
@@ -129,6 +131,14 @@ const resetErrors = () => {
 const SIGN_IN_ERROR_MESSAGES = {
   AUTH_OIDC_NOT_CONFIGURED: 'errors.oidcNotConfigured',
   AUTH_OIDC_PROVIDER_UNAVAILABLE: 'errors.oidcProviderUnavailable',
+  AUTH_INVALID_TOTP_CODE: 'errors.totpCodeWrong',
+};
+
+/** The server's sentence, or ours where we have one in this reader's language. */
+const messageFor = (error, fallback) => {
+  const known = SIGN_IN_ERROR_MESSAGES[error?.code];
+  if (known) return t(known);
+  return error instanceof Error && error.message ? error.message : t(fallback);
 };
 
 const syncErrorFromRoute = (nextRoute) => {
@@ -189,18 +199,47 @@ const handleLoginSubmit = async () => {
   isSubmittingLogin.value = true;
 
   try {
-    await auth.login({
-      identifier: loginIdentifier.value.trim(),
-      password: loginPasswordValue.value,
-    });
+    const { totpRequired } =
+      (await auth.login({
+        identifier: loginIdentifier.value.trim(),
+        password: loginPasswordValue.value,
+      })) ?? {};
     loginIdentifier.value = '';
     loginPasswordValue.value = '';
+    // Halfway: nobody is signed in yet, so nothing is redirected anywhere.
+    if (totpRequired) return;
     redirectToDestination();
   } catch (error) {
     loginError.value = error instanceof Error ? error.message : t('errors.signIn');
   } finally {
     isSubmittingLogin.value = false;
   }
+};
+
+const handleTotpSubmit = async () => {
+  resetErrors();
+  if (!totpCodeValue.value.trim()) {
+    loginError.value = t('errors.totpCodeRequired');
+    return;
+  }
+
+  isSubmittingLogin.value = true;
+  try {
+    await auth.submitTotpCode(totpCodeValue.value.trim());
+    totpCodeValue.value = '';
+    redirectToDestination();
+  } catch (error) {
+    loginError.value = messageFor(error, 'errors.signIn');
+  } finally {
+    isSubmittingLogin.value = false;
+  }
+};
+
+/** Give up on finding the phone, and start again at the password. */
+const handleTotpCancel = () => {
+  resetErrors();
+  totpCodeValue.value = '';
+  auth.cancelTotp();
 };
 
 const handleOidcLogin = () => {
@@ -255,7 +294,59 @@ const handleOidcLogin = () => {
       {{ t('auth.login.sessionExpired') }}
     </p>
 
-    <form v-if="supportsLocal" class="space-y-5" @submit.prevent="handleLoginSubmit">
+    <!--
+      One screen, two steps. The password form is replaced rather than added to:
+      what is being asked for now is a code, and leaving the fields that are
+      already answered on screen is an invitation to answer them again.
+    -->
+    <form
+      v-if="auth.totpPending"
+      class="space-y-5"
+      data-test="totp-step"
+      @submit.prevent="handleTotpSubmit"
+    >
+      <p class="text-sm text-white/70">{{ $t('auth.login.totpExplain') }}</p>
+
+      <label class="block">
+        <span class="block text-sm font-medium text-white/80">{{ $t('auth.login.totpCode') }}</span>
+        <input
+          id="login-totp"
+          v-model="totpCodeValue"
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          autofocus
+          :class="inputBaseClasses"
+          :placeholder="$t('placeholders.totpCode')"
+          :disabled="isSubmittingLogin"
+        />
+      </label>
+
+      <p v-if="loginError" :class="helperTextClasses">{{ loginError }}</p>
+
+      <button
+        type="submit"
+        class="h-12 w-full rounded-xl bg-neutral-100 px-4 font-semibold text-neutral-900 hover:bg-neutral-100/90 active:bg-neutral-100/70 disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="isSubmittingLogin"
+      >
+        <span v-if="isSubmittingLogin">{{ $t('common.verifying') }}</span>
+        <span v-else class="inline-flex items-center gap-2">
+          <LockClosedIcon class="h-5 w-5" />
+          {{ $t('auth.login.totpSubmit') }}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        class="w-full text-xs font-medium text-white/70 underline-offset-4 hover:text-white hover:underline"
+        data-test="totp-cancel"
+        @click="handleTotpCancel"
+      >
+        {{ $t('auth.login.totpBack') }}
+      </button>
+    </form>
+
+    <form v-else-if="supportsLocal" class="space-y-5" @submit.prevent="handleLoginSubmit">
       <label class="block">
         <span class="block text-sm font-medium text-white/80">{{
           $t('auth.emailOrUsername')
@@ -311,13 +402,16 @@ const handleOidcLogin = () => {
       </button>
     </form>
 
-    <div v-if="supportsLocal && supportsOidc" class="my-4 flex items-center gap-4">
+    <div
+      v-if="!auth.totpPending && supportsLocal && supportsOidc"
+      class="my-4 flex items-center gap-4"
+    >
       <div class="h-px w-full bg-white/10"></div>
       <span class="text-xs text-white/50">{{ $t('common.or') }}</span>
       <div class="h-px w-full bg-white/10"></div>
     </div>
 
-    <div v-if="supportsOidc" class="mb-2">
+    <div v-if="supportsOidc && !auth.totpPending" class="mb-2">
       <button
         class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-700/50 px-4 text-sm font-medium text-white ring-1 ring-inset ring-white/10 enabled:hover:bg-neutral-700/70 enabled:active:bg-neutral-700/90 disabled:cursor-not-allowed disabled:opacity-50"
         type="button"

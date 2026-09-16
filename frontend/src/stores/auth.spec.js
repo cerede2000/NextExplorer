@@ -26,10 +26,12 @@ const fetchAuthStatus = vi.fn();
 const loginApi = vi.fn();
 const logoutApi = vi.fn();
 const setupAccountApi = vi.fn();
+const submitTotpCodeApi = vi.fn();
 
 vi.mock('@/api', () => ({
   fetchAuthStatus: (...a) => fetchAuthStatus(...a),
   login: (...a) => loginApi(...a),
+  submitTotpCode: (...a) => submitTotpCodeApi(...a),
   logout: (...a) => logoutApi(...a),
   setupAccount: (...a) => setupAccountApi(...a),
 }));
@@ -328,5 +330,103 @@ describe('clearing the error', () => {
     store.clearError();
 
     expect(store.lastError).toBeNull();
+  });
+});
+
+/**
+ * The half-signed-in state.
+ *
+ * Between a right password and a code, nobody is signed in. Every guard in the
+ * application reads `isAuthenticated` off this store, so the rule that matters
+ * is that nothing here sets a user until the second step is answered.
+ */
+describe('a sign-in waiting for a code', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    [fetchAuthStatus, loginApi, submitTotpCodeApi, logoutApi].forEach((mock) => mock.mockReset());
+  });
+
+  it('holds the sign-in rather than finishing it', async () => {
+    loginApi.mockResolvedValue({ totpRequired: true });
+    const store = useAuthStore();
+
+    const outcome = await store.login({ identifier: 'someone', password: 'secret' });
+
+    expect(outcome).toEqual({ totpRequired: true });
+    expect(store.totpPending).toBe(true);
+    expect(store.currentUser).toBeNull();
+    expect(store.isAuthenticated).toBe(false);
+  });
+
+  it('finishes on the code, and says what was used', async () => {
+    loginApi.mockResolvedValue({ totpRequired: true });
+    submitTotpCodeApi.mockResolvedValue({
+      user: USER,
+      usedRecoveryCode: true,
+      recoveryCodesLeft: 9,
+    });
+    const store = useAuthStore();
+    await store.login({ identifier: 'someone', password: 'secret' });
+
+    const outcome = await store.submitTotpCode('12345678');
+
+    expect(submitTotpCodeApi).toHaveBeenCalledWith('12345678');
+    expect(outcome).toEqual({ usedRecoveryCode: true, recoveryCodesLeft: 9 });
+    expect(store.totpPending).toBe(false);
+    expect(store.currentUser).toEqual(USER);
+  });
+
+  /** A reload in the middle of one lands back on the code, not on the password. */
+  it('reads the waiting state back from the server', async () => {
+    fetchAuthStatus.mockResolvedValue({
+      authEnabled: true,
+      strategies: { local: true, oidc: false },
+      totpPending: true,
+      user: null,
+    });
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(store.totpPending).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+  });
+
+  it('forgets it when the session ends', async () => {
+    loginApi.mockResolvedValue({ totpRequired: true });
+    logoutApi.mockResolvedValue(undefined);
+    const store = useAuthStore();
+    await store.login({ identifier: 'someone', password: 'secret' });
+
+    await store.logout();
+    expect(store.totpPending).toBe(false);
+
+    await store.login({ identifier: 'someone', password: 'secret' });
+    store.forgetSession();
+    expect(store.totpPending).toBe(false);
+  });
+
+  /** The server holds the half-open sign-in, so the server is the one told. */
+  it('gives up on it, and says so, when somebody goes back to the password', async () => {
+    loginApi.mockResolvedValue({ totpRequired: true });
+    logoutApi.mockResolvedValue(undefined);
+    const store = useAuthStore();
+    await store.login({ identifier: 'someone', password: 'secret' });
+
+    await store.cancelTotp();
+
+    expect(store.totpPending).toBe(false);
+    expect(logoutApi).toHaveBeenCalled();
+  });
+
+  it('gives up on it even when the server cannot be reached', async () => {
+    loginApi.mockResolvedValue({ totpRequired: true });
+    logoutApi.mockRejectedValue(new Error('offline'));
+    const store = useAuthStore();
+    await store.login({ identifier: 'someone', password: 'secret' });
+
+    await store.cancelTotp();
+
+    expect(store.totpPending).toBe(false);
   });
 });

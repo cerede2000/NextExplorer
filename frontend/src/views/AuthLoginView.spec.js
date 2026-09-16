@@ -14,6 +14,8 @@ import { mount, flushPromises } from '@vue/test-utils';
 
 const auth = vi.hoisted(() => ({ store: null }));
 const login = vi.hoisted(() => vi.fn(async () => {}));
+const submitTotpCode = vi.hoisted(() => vi.fn(async () => ({})));
+const cancelTotp = vi.hoisted(() => vi.fn());
 const ensureStatus = vi.hoisted(() => vi.fn(async () => {}));
 const clearError = vi.hoisted(() => vi.fn());
 
@@ -28,6 +30,9 @@ vi.mock('@/stores/auth', async () => {
     strategies: { local: true, oidc: false },
     oidcStatus: 'ready',
     login,
+    submitTotpCode,
+    cancelTotp,
+    totpPending: false,
     ensureStatus,
     clearError,
   });
@@ -111,12 +116,20 @@ beforeEach(() => {
       lastError: '',
       strategies: { local: true, oidc: false },
       oidcStatus: 'ready',
+      totpPending: false,
     });
   }
   features.demoLogin = null;
-  [login, ensureStatus, clearError, replace, push, features.ensureLoaded].forEach((m) =>
-    m.mockClear()
-  );
+  [
+    login,
+    submitTotpCode,
+    cancelTotp,
+    ensureStatus,
+    clearError,
+    replace,
+    push,
+    features.ensureLoaded,
+  ].forEach((m) => m.mockClear());
   login.mockResolvedValue(undefined);
   ensureStatus.mockResolvedValue(undefined);
 });
@@ -564,5 +577,102 @@ describe('the single sign-on button', () => {
     await mountLogin();
 
     expect(ssoButton().attributes('disabled')).toBeUndefined();
+  });
+});
+
+/**
+ * The second step, on the same screen.
+ *
+ * The rule that matters is the one a redirect would break: a password that was
+ * right is not a sign-in, so nothing leaves this screen until the code is
+ * answered. The rest is what somebody sees while that is true.
+ */
+describe('when the account asks for a code', () => {
+  it('stays on the screen when the password is only half of it', async () => {
+    login.mockResolvedValue({ totpRequired: true });
+    const view = await mountLogin();
+
+    await signIn(view);
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('asks for the code instead of the password, and not for the provider', async () => {
+    auth.store.totpPending = true;
+    auth.store.strategies = { local: true, oidc: true };
+    const view = await mountLogin();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="totp-step"]').exists()).toBe(true);
+    expect(wrapper.find('#login-password').exists()).toBe(false);
+    expect(wrapper.find('#login-totp').exists()).toBe(true);
+    // A provider button in the middle of a second step is a way out of it.
+    expect(wrapper.text()).not.toContain('auth.sso.continue');
+    expect(view).toBeTruthy();
+  });
+
+  it('hands the code over and goes where the sign-in was headed', async () => {
+    auth.store.totpPending = true;
+    submitTotpCode.mockResolvedValue({ usedRecoveryCode: false });
+    const view = await mountLogin();
+
+    view.totpCodeValue = ' 081804 ';
+    await view.handleTotpSubmit();
+    await flushPromises();
+
+    expect(submitTotpCode).toHaveBeenCalledWith('081804');
+    expect(replace).toHaveBeenCalled();
+  });
+
+  /**
+   * The refusal this screen causes on purpose, said in the reader's language.
+   * The server's own sentence is English wherever it is written; a code the
+   * screen recognises is a sentence out of the catalogue instead.
+   */
+  it('says a wrong code in its own words, and stays put', async () => {
+    auth.store.totpPending = true;
+    const refusal = new Error('That code is not right.');
+    refusal.code = 'AUTH_INVALID_TOTP_CODE';
+    submitTotpCode.mockRejectedValue(refusal);
+    const view = await mountLogin();
+
+    view.totpCodeValue = '000000';
+    await view.handleTotpSubmit();
+    await flushPromises();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('errors.totpCodeWrong');
+  });
+
+  it('falls back to what the server said when it recognises nothing', async () => {
+    auth.store.totpPending = true;
+    submitTotpCode.mockRejectedValue(new Error('The server is having a lie down.'));
+    const view = await mountLogin();
+
+    view.totpCodeValue = '000000';
+    await view.handleTotpSubmit();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('The server is having a lie down.');
+  });
+
+  it('asks for nothing when the box is empty', async () => {
+    auth.store.totpPending = true;
+    const view = await mountLogin();
+
+    view.totpCodeValue = '   ';
+    await view.handleTotpSubmit();
+
+    expect(submitTotpCode).not.toHaveBeenCalled();
+  });
+
+  it('goes back to the password for somebody who cannot find their phone', async () => {
+    auth.store.totpPending = true;
+    const view = await mountLogin();
+
+    await wrapper.find('[data-test="totp-cancel"]').trigger('click');
+
+    expect(cancelTotp).toHaveBeenCalled();
+    expect(view.totpCodeValue).toBe('');
   });
 });

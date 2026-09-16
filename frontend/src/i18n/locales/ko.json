@@ -167,7 +167,8 @@
     "path": "예시: 사진/여행",
     "search": "파일 또는 폴더를 검색하세요…",
     "volumeLabel": "예시: 문서, 프로젝트, 영상",
-    "emailOrUsername": "name{'@'}company.com 또는 name"
+    "emailOrUsername": "name{'@'}company.com 또는 name",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "로딩 중…",
@@ -211,7 +212,9 @@
     "saveVolume": "볼륨 저장 실패",
     "removeVolume": "볼륨 제거 실패",
     "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다",
-    "unlockUser": "계정 잠금을 해제할 수 없습니다"
+    "unlockUser": "계정 잠금을 해제할 수 없습니다",
+    "totpCodeRequired": "코드를 입력하세요.",
+    "totpCodeWrong": "코드가 올바르지 않습니다."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "인증이 필요합니다",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "접근이 거부되었습니다",
     "NOT_FOUND": "찾을 수 없음",
     "CONFLICT": "충돌",
-    "RATE_LIMIT_EXCEEDED": "요청이 너무 많습니다"
+    "RATE_LIMIT_EXCEEDED": "요청이 너무 많습니다",
+    "AUTH_INVALID_TOTP_CODE": "코드가 올바르지 않습니다."
   },
   "titles": {
     "volumes": "볼륨",
@@ -443,7 +447,11 @@
         "title": "로그인 방식이 변경되었습니다",
         "intro": "이제부터 이메일 형식의 유저 이름으로 로그인해야 합니다."
       },
-      "sessionExpired": "세션이 만료되었습니다. 다시 로그인하면 이어서 계속할 수 있습니다."
+      "sessionExpired": "세션이 만료되었습니다. 다시 로그인하면 이어서 계속할 수 있습니다.",
+      "totpExplain": "비밀번호가 확인되었습니다. 인증 앱의 코드나 복구 코드 중 하나를 입력하세요.",
+      "totpCode": "코드",
+      "totpSubmit": "로그인",
+      "totpBack": "다시 시작"
     },
     "setup": {
       "headline": "초기 설정",
@@ -493,7 +501,8 @@
       "uploads": "업로드",
       "folderSize": "폴더 크기",
       "searchIndex": "검색 색인",
-      "trash": "휴지통 및 버전"
+      "trash": "휴지통 및 버전",
+      "accountTwoFactor": "2단계 인증"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -772,6 +781,36 @@
         "sharedSpace": "버전과 휴지통은 각 볼륨의 예약 공간을 함께 사용합니다. 공간이 부족하면 오래된 버전, 휴지통 항목, 각 파일의 최신 버전 순으로 제거되며 고정된 버전은 마지막에 제거됩니다.",
         "environmentNote": "기본값은 VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE, VERSIONS_SESSION_CHECKPOINT_MINUTES에서 가져옵니다."
       }
+    },
+    "twoFactor": {
+      "title": "2단계 인증",
+      "intro": "비밀번호에 더해, 휴대폰의 코드까지.",
+      "notLocalUser": "이 계정은 ID 공급자를 통해 로그인하므로 2단계 인증도 그쪽에서 설정합니다.",
+      "off": "이 계정의 2단계 인증이 꺼져 있습니다.",
+      "on": "2단계 인증이 켜져 있습니다.",
+      "turnOn": "켜기",
+      "turnOff": "끄기",
+      "scan": "인증 앱으로 이 코드를 스캔하세요.",
+      "orType": "또는 앱에 이 비밀키를 입력하세요:",
+      "qrLabel": "인증 앱용 QR 코드",
+      "codeLabel": "앱의 코드",
+      "confirm": "확인",
+      "confirmPassword": "비밀번호",
+      "codesTitle": "복구 코드",
+      "codesExplain": "휴대폰이 아닌 곳에 보관하세요. 각 코드는 한 번 로그인할 수 있으며, 휴대폰이 없는 날을 위한 것입니다. 지금만 표시되고 다시는 볼 수 없습니다.",
+      "copyCodes": "복사",
+      "copied": "복사했습니다.",
+      "codesLeft": "복구 코드 1개 남음 | 복구 코드 {count}개 남음",
+      "newCodesButton": "새 코드 만들기",
+      "newCodes": "새 복구 코드를 만들었습니다. 이전 코드는 더 이상 쓸 수 없습니다.",
+      "turnedOn": "2단계 인증이 켜졌습니다.",
+      "turnedOff": "2단계 인증이 꺼졌습니다.",
+      "loadFailed": "이 계정의 2단계 인증 설정을 읽지 못했습니다.",
+      "startFailed": "2단계 인증 설정을 시작하지 못했습니다.",
+      "confirmFailed": "코드가 올바르지 않습니다.",
+      "codesFailed": "새 복구 코드를 만들지 못했습니다.",
+      "disableFailed": "2단계 인증을 끄지 못했습니다.",
+      "wrongPassword": "비밀번호가 올바르지 않습니다."
     }
   },
   "share": {

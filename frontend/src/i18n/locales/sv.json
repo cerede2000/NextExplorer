@@ -167,7 +167,8 @@
     "path": "t.ex. Bilder/Semestrar",
     "search": "Sök efter filer och mappar…",
     "volumeLabel": "t.ex. Dokument, Projekt, Media",
-    "emailOrUsername": "namn{'@'}foretag.se eller namn"
+    "emailOrUsername": "namn{'@'}foretag.se eller namn",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Läser in…",
@@ -211,7 +212,9 @@
     "saveVolume": "Det gick inte att spara volymen",
     "removeVolume": "Det gick inte att ta bort volymen",
     "identifierRequired": "En e-postadress eller ett användarnamn krävs",
-    "unlockUser": "Kontot kunde inte låsas upp"
+    "unlockUser": "Kontot kunde inte låsas upp",
+    "totpCodeRequired": "Ange koden.",
+    "totpCodeWrong": "Den koden stämmer inte."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Åtkomst nekad",
     "NOT_FOUND": "Hittades inte",
     "CONFLICT": "Konflikt",
-    "RATE_LIMIT_EXCEEDED": "För många förfrågningar"
+    "RATE_LIMIT_EXCEEDED": "För många förfrågningar",
+    "AUTH_INVALID_TOTP_CODE": "Den koden stämmer inte."
   },
   "titles": {
     "volumes": "Volymer",
@@ -443,7 +447,11 @@
         "title": "Vi har uppdaterat hur du loggar in",
         "intro": "Du behöver nu använda ditt nya användarnamn liknande e-postadress."
       },
-      "sessionExpired": "Din session har gått ut. Logga in igen för att fortsätta där du slutade."
+      "sessionExpired": "Din session har gått ut. Logga in igen för att fortsätta där du slutade.",
+      "totpExplain": "Ditt lösenord godtogs. Ange koden från din autentiseringsapp, eller en av dina återställningskoder.",
+      "totpCode": "Kod",
+      "totpSubmit": "Logga in",
+      "totpBack": "Börja om"
     },
     "setup": {
       "headline": "Låt oss komma igång",
@@ -493,7 +501,8 @@
       "uploads": "Uppladdningar",
       "folderSize": "Mappstorlekar",
       "searchIndex": "Sökindex",
-      "trash": "Papperskorg och versioner"
+      "trash": "Papperskorg och versioner",
+      "accountTwoFactor": "Tvåfaktor"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -772,6 +781,36 @@
         "sharedSpace": "Versioner och papperskorgen delar varje volyms reserverade utrymme. När det inte räcker försvinner först äldre versioner, sedan objekt i papperskorgen, sedan varje fils senaste version och sist fästa versioner.",
         "environmentNote": "Standardvärden kommer från VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE och VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Tvåfaktorsautentisering",
+      "intro": "En kod från telefonen, utöver lösenordet.",
+      "notLocalUser": "Det här kontot loggar in via en identitetsleverantör, och där hör den andra faktorn hemma.",
+      "off": "Tvåfaktorsautentisering är av för det här kontot.",
+      "on": "Tvåfaktorsautentisering är på.",
+      "turnOn": "Slå på",
+      "turnOff": "Stäng av",
+      "scan": "Skanna det här med din autentiseringsapp.",
+      "orType": "Eller skriv in den här hemligheten i appen:",
+      "qrLabel": "QR-kod för din autentiseringsapp",
+      "codeLabel": "Kod från appen",
+      "confirm": "Bekräfta",
+      "confirmPassword": "Ditt lösenord",
+      "codesTitle": "Återställningskoder",
+      "codesExplain": "Spara dem någon annanstans än på telefonen. Varje kod loggar in dig en gång, för dagen då telefonen inte finns till hands. De visas nu och aldrig igen.",
+      "copyCodes": "Kopiera",
+      "copied": "Kopierat.",
+      "codesLeft": "En återställningskod kvar | {count} återställningskoder kvar",
+      "newCodesButton": "Skapa nya koder",
+      "newCodes": "Nya återställningskoder skapade. De tidigare fungerar inte längre.",
+      "turnedOn": "Tvåfaktorsautentisering är på.",
+      "turnedOff": "Tvåfaktorsautentisering är av.",
+      "loadFailed": "Kontots tvåfaktorsinställningar kunde inte läsas.",
+      "startFailed": "Det gick inte att börja ställa in en andra faktor.",
+      "confirmFailed": "Den koden stämmer inte.",
+      "codesFailed": "Det gick inte att skapa nya återställningskoder.",
+      "disableFailed": "Det gick inte att stänga av tvåfaktorsautentisering.",
+      "wrongPassword": "Det lösenordet stämmer inte."
     }
   },
   "share": {

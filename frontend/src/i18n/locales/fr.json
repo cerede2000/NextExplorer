@@ -167,7 +167,8 @@
     "path": "ex. Images/Vacances",
     "search": "Rechercher des fichiers et des dossiers…",
     "volumeLabel": "ex. Documents, Projets, Médias",
-    "emailOrUsername": "nom{'@'}entreprise.com ou nom"
+    "emailOrUsername": "nom{'@'}entreprise.com ou nom",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Chargement…",
@@ -211,7 +212,9 @@
     "saveVolume": "Échec de l'enregistrement du volume",
     "removeVolume": "Échec de la suppression du volume",
     "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis",
-    "unlockUser": "Impossible de déverrouiller le compte"
+    "unlockUser": "Impossible de déverrouiller le compte",
+    "totpCodeRequired": "Saisissez le code.",
+    "totpCodeWrong": "Ce code n'est pas le bon."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Accès refusé",
     "NOT_FOUND": "Introuvable",
     "CONFLICT": "Conflit",
-    "RATE_LIMIT_EXCEEDED": "Trop de requêtes"
+    "RATE_LIMIT_EXCEEDED": "Trop de requêtes",
+    "AUTH_INVALID_TOTP_CODE": "Ce code n'est pas le bon."
   },
   "titles": {
     "volumes": "Volumes",
@@ -446,7 +450,11 @@
         "title": "Nous avons mis à jour la façon de vous connecter",
         "intro": "Vous devez maintenant utiliser votre nouveau nom d'utilisateur au format e-mail."
       },
-      "sessionExpired": "Votre session a expiré. Reconnectez-vous pour reprendre où vous en étiez."
+      "sessionExpired": "Votre session a expiré. Reconnectez-vous pour reprendre où vous en étiez.",
+      "totpExplain": "Votre mot de passe a été accepté. Saisissez le code de votre application d'authentification, ou l'un de vos codes de secours.",
+      "totpCode": "Code",
+      "totpSubmit": "Se connecter",
+      "totpBack": "Recommencer"
     },
     "setup": {
       "headline": "Procédons à la configuration",
@@ -496,7 +504,8 @@
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs",
       "searchIndex": "Index de recherche",
-      "trash": "Corbeille et versions"
+      "trash": "Corbeille et versions",
+      "accountTwoFactor": "Double facteur"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -775,6 +784,36 @@
         "sharedSpace": "Les versions et la corbeille partagent l'espace réservé de chaque volume. Quand il manque, les versions anciennes partent d'abord, puis les éléments de la corbeille, puis la dernière version de chaque fichier, et les versions épinglées en dernier.",
         "environmentNote": "Les valeurs par défaut viennent de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE et VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Authentification à double facteur",
+      "intro": "Un code depuis votre téléphone, en plus de votre mot de passe.",
+      "notLocalUser": "Ce compte se connecte via un fournisseur d'identité, et c'est là que son second facteur se règle.",
+      "off": "Le double facteur est désactivé sur ce compte.",
+      "on": "Le double facteur est activé.",
+      "turnOn": "Activer",
+      "turnOff": "Désactiver",
+      "scan": "Scannez ceci avec votre application d'authentification.",
+      "orType": "Ou saisissez ce secret dans l'application :",
+      "qrLabel": "QR code pour votre application d'authentification",
+      "codeLabel": "Code de l'application",
+      "confirm": "Confirmer",
+      "confirmPassword": "Votre mot de passe",
+      "codesTitle": "Codes de secours",
+      "codesExplain": "Conservez-les ailleurs que sur votre téléphone. Chacun vous connecte une fois, pour le jour où le téléphone n'est pas là. Ils sont affichés maintenant et plus jamais.",
+      "copyCodes": "Copier",
+      "copied": "Copié.",
+      "codesLeft": "Un code de secours restant | {count} codes de secours restants",
+      "newCodesButton": "Générer de nouveaux codes",
+      "newCodes": "Nouveaux codes de secours générés. Les précédents ne fonctionnent plus.",
+      "turnedOn": "Le double facteur est activé.",
+      "turnedOff": "Le double facteur est désactivé.",
+      "loadFailed": "Impossible de lire les réglages de double facteur de ce compte.",
+      "startFailed": "Impossible de démarrer la configuration du second facteur.",
+      "confirmFailed": "Ce code n'est pas le bon.",
+      "codesFailed": "Impossible de générer de nouveaux codes de secours.",
+      "disableFailed": "Impossible de désactiver le double facteur.",
+      "wrongPassword": "Ce mot de passe n'est pas le bon."
     }
   },
   "share": {

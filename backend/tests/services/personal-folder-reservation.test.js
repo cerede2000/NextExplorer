@@ -136,7 +136,7 @@ describe('deleting an account', () => {
 
     const reopened = await envContext.requireFresh('src/services/db').getDb();
 
-    expect(count(reopened, "SELECT value FROM meta WHERE key = 'schema_version'")).toBe('20');
+    expect(count(reopened, "SELECT value FROM meta WHERE key = 'schema_version'")).toBe('21');
     for (const table of ['folder_preferences', 'recent_destinations']) {
       expect(
         count(reopened, `SELECT COUNT(*) FROM ${table} WHERE user_id = 'deleted-long-ago'`)

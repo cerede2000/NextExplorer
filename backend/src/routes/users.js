@@ -8,6 +8,8 @@ const {
   setLocalPasswordAdmin,
   deleteUser,
   getById,
+  disableTwoFactor,
+  twoFactorStatus,
 } = require('../services/users');
 const asyncHandler = require('../utils/asyncHandler');
 const { searchLocalUsers } = require('../services/userSearchService');
@@ -52,10 +54,16 @@ router.get(
     const [users, locks] = await Promise.all([listUsers(), listActiveLocks()]);
     // Locks are keyed on the account (see localAuth), so the list can say which
     // account is locked and until when — the first question an administrator
-    // has when somebody cannot sign in.
-    res.json({
-      users: users.map((user) => ({ ...user, lockedUntil: locks.get(user.id) || null })),
-    });
+    // has when somebody cannot sign in. Whether a second factor is on is the
+    // second one, and the answer to "I have lost my phone".
+    const withFactors = await Promise.all(
+      users.map(async (user) => ({
+        ...user,
+        lockedUntil: locks.get(user.id) || null,
+        twoFactorEnabled: (await twoFactorStatus(user.id)).enabled,
+      }))
+    );
+    res.json({ users: withFactors });
   })
 );
 
@@ -134,6 +142,31 @@ router.post(
       keepSessionId: ownSession ? req.sessionID : null,
     });
     if (ownSession) await startAuthenticatedSession(req, id);
+    res.status(204).end();
+  })
+);
+
+/**
+ * DELETE /api/users/:id/two-factor — take somebody's second factor off.
+ *
+ * The lost phone with the recovery codes in the same bag. Without this the
+ * answer is an administrator editing the database by hand, which is worse in
+ * every way: this one is a deliberate act by somebody who can already reset
+ * the account's password, and it says so in the log.
+ */
+router.delete(
+  '/users/:id/two-factor',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params || {};
+    const user = await getById(id);
+    if (!user) throw new NotFoundError('User not found');
+
+    const removed = await disableTwoFactor(id);
+    logger.warn(
+      { userId: id, by: req.user?.id || null, removed },
+      'An administrator turned two-factor authentication off for an account'
+    );
     res.status(204).end();
   })
 );

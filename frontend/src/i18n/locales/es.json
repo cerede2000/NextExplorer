@@ -167,7 +167,8 @@
     "path": "p. ej. Imágenes/Vacaciones",
     "search": "Buscar archivos y carpetas…",
     "volumeLabel": "",
-    "emailOrUsername": "nombre{'@'}empresa.com o nombre"
+    "emailOrUsername": "nombre{'@'}empresa.com o nombre",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Cargando…",
@@ -211,7 +212,9 @@
     "saveVolume": "",
     "removeVolume": "",
     "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario",
-    "unlockUser": "No se pudo desbloquear la cuenta"
+    "unlockUser": "No se pudo desbloquear la cuenta",
+    "totpCodeRequired": "Introduzca el código.",
+    "totpCodeWrong": "Ese código no es correcto."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Se requiere autenticación",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Acceso denegado",
     "NOT_FOUND": "No encontrado",
     "CONFLICT": "Conflicto",
-    "RATE_LIMIT_EXCEEDED": "Demasiadas solicitudes"
+    "RATE_LIMIT_EXCEEDED": "Demasiadas solicitudes",
+    "AUTH_INVALID_TOTP_CODE": "Ese código no es correcto."
   },
   "titles": {
     "volumes": "Volúmenes",
@@ -443,7 +447,11 @@
         "title": "Hemos actualizado la forma de iniciar sesión",
         "intro": "Ahora debes usar tu nuevo nombre de usuario con formato de correo electrónico."
       },
-      "sessionExpired": "Su sesión ha caducado. Vuelva a iniciar sesión para continuar donde lo dejó."
+      "sessionExpired": "Su sesión ha caducado. Vuelva a iniciar sesión para continuar donde lo dejó.",
+      "totpExplain": "Su contraseña se ha aceptado. Introduzca el código de su aplicación de autenticación o uno de sus códigos de recuperación.",
+      "totpCode": "Código",
+      "totpSubmit": "Iniciar sesión",
+      "totpBack": "Empezar de nuevo"
     },
     "setup": {
       "headline": "Vamos a configurarlo",
@@ -493,7 +501,8 @@
       "uploads": "Subidas",
       "folderSize": "Tamaño de carpetas",
       "searchIndex": "Índice de búsqueda",
-      "trash": "Papelera y versiones"
+      "trash": "Papelera y versiones",
+      "accountTwoFactor": "Doble factor"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -772,6 +781,36 @@
         "sharedSpace": "Las versiones y la papelera comparten el espacio reservado de cada volumen. Cuando falta, primero se van las versiones antiguas, luego los elementos de la papelera, luego la última versión de cada archivo y, por último, las versiones fijadas.",
         "environmentNote": "Los valores predeterminados vienen de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE y VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Autenticación de doble factor",
+      "intro": "Un código desde su teléfono, además de su contraseña.",
+      "notLocalUser": "Esta cuenta inicia sesión mediante un proveedor de identidad, que es donde corresponde su segundo factor.",
+      "off": "El doble factor está desactivado en esta cuenta.",
+      "on": "El doble factor está activado.",
+      "turnOn": "Activar",
+      "turnOff": "Desactivar",
+      "scan": "Escanee esto con su aplicación de autenticación.",
+      "orType": "O escriba este secreto en la aplicación:",
+      "qrLabel": "Código QR para su aplicación de autenticación",
+      "codeLabel": "Código de la aplicación",
+      "confirm": "Confirmar",
+      "confirmPassword": "Su contraseña",
+      "codesTitle": "Códigos de recuperación",
+      "codesExplain": "Guárdelos en un sitio que no sea su teléfono. Cada uno sirve para un inicio de sesión, para el día en que el teléfono no esté. Se muestran ahora y nunca más.",
+      "copyCodes": "Copiar",
+      "copied": "Copiado.",
+      "codesLeft": "Queda un código de recuperación | Quedan {count} códigos de recuperación",
+      "newCodesButton": "Generar códigos nuevos",
+      "newCodes": "Nuevos códigos de recuperación generados. Los anteriores ya no funcionan.",
+      "turnedOn": "El doble factor está activado.",
+      "turnedOff": "El doble factor está desactivado.",
+      "loadFailed": "No se han podido leer los ajustes de doble factor de esta cuenta.",
+      "startFailed": "No se ha podido iniciar la configuración del segundo factor.",
+      "confirmFailed": "Ese código no es correcto.",
+      "codesFailed": "No se han podido generar códigos de recuperación nuevos.",
+      "disableFailed": "No se ha podido desactivar el doble factor.",
+      "wrongPassword": "Esa contraseña no es correcta."
     }
   },
   "share": {

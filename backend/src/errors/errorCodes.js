@@ -6,6 +6,10 @@ const ErrorCodes = {
   // Authentication (401)
   AUTH_REQUIRED: 'AUTH_REQUIRED',
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+  // The second step of a sign-in, so a screen can say "that code" rather than
+  // "those credentials" — the password was right, and saying otherwise sends
+  // somebody looking for the wrong mistake.
+  AUTH_INVALID_TOTP_CODE: 'AUTH_INVALID_TOTP_CODE',
   AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
   AUTH_PASSWORD_INCORRECT: 'AUTH_PASSWORD_INCORRECT',
 

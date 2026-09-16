@@ -133,7 +133,7 @@ describe('accounts from before sign-in methods had a table of their own (schema 
   it('keeps every account under its id, with its email or a placeholder not marked verified', async () => {
     const db = await upgrade();
 
-    expect(schemaVersion(db)).toBe('20');
+    expect(schemaVersion(db)).toBe('21');
     expect(
       db
         .prepare(
@@ -330,7 +330,7 @@ describe('favorites kept in app-config.json (schema 3)', () => {
 
     const db = await upgrade({ appConfig: '{ "favorites": [' });
 
-    expect(schemaVersion(db)).toBe('20');
+    expect(schemaVersion(db)).toBe('21');
     expect(favorites(db)).toEqual([]);
     expect(reported).toHaveBeenCalledWith(
       '[DB Migration] Error migrating favorites:',
@@ -548,7 +548,7 @@ describe('the search index of schema 16', () => {
     const index = await envContext.requireFresh('src/services/indexDb').getIndexDb();
     const searchIndexStore = envContext.requireFresh('src/services/searchIndexStore');
 
-    expect(schemaVersion(db)).toBe('20');
+    expect(schemaVersion(db)).toBe('21');
     expect(
       index
         .prepare('PRAGMA table_info(search_documents)')

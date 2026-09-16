@@ -167,7 +167,8 @@
     "path": "e.g. Pictures/Holidays",
     "search": "Search files and folders…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "emailOrUsername": "name{'@'}company.com or name"
+    "emailOrUsername": "name{'@'}company.com or name",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Loading…",
@@ -211,7 +212,9 @@
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
     "identifierRequired": "An email address or username is required",
-    "unlockUser": "Could not unlock the account"
+    "unlockUser": "Could not unlock the account",
+    "totpCodeRequired": "Enter the code.",
+    "totpCodeWrong": "That code is not right."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentication required",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Access denied",
     "NOT_FOUND": "Not found",
     "CONFLICT": "Conflict",
-    "RATE_LIMIT_EXCEEDED": "Too many requests"
+    "RATE_LIMIT_EXCEEDED": "Too many requests",
+    "AUTH_INVALID_TOTP_CODE": "That code is not right."
   },
   "titles": {
     "volumes": "Volumes",
@@ -446,7 +450,11 @@
         "title": "We've updated how you sign in",
         "intro": "You now need to use your new email-style username."
       },
-      "sessionExpired": "Your session has ended. Sign in again to carry on where you left off."
+      "sessionExpired": "Your session has ended. Sign in again to carry on where you left off.",
+      "totpExplain": "Your password was accepted. Enter the code from your authenticator app, or one of your recovery codes.",
+      "totpCode": "Code",
+      "totpSubmit": "Sign in",
+      "totpBack": "Start again"
     },
     "setup": {
       "headline": "Let's get set up",
@@ -496,7 +504,8 @@
       "accessControl": "Access Control",
       "adminUsers": "User Management",
       "searchIndex": "Search index",
-      "trash": "Trash and versions"
+      "trash": "Trash and versions",
+      "accountTwoFactor": "Two-factor"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -775,6 +784,36 @@
         "sharedSpace": "Versions and the trash share each volume's reserved space. When it runs short, older versions go first, then trash items, then each file's latest version, and pinned versions last.",
         "environmentNote": "Defaults come from VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE and VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Two-factor authentication",
+      "intro": "A code from your phone, on top of your password.",
+      "notLocalUser": "This account signs in through an identity provider, which is where its second factor belongs.",
+      "off": "Two-factor authentication is off for this account.",
+      "on": "Two-factor authentication is on.",
+      "turnOn": "Turn on",
+      "turnOff": "Turn off",
+      "scan": "Scan this with your authenticator app.",
+      "orType": "Or type this secret into the app:",
+      "qrLabel": "QR code for your authenticator app",
+      "codeLabel": "Code from the app",
+      "confirm": "Confirm",
+      "confirmPassword": "Your password",
+      "codesTitle": "Recovery codes",
+      "codesExplain": "Keep these somewhere other than your phone. Each one signs you in once, for the day the phone is not there. They are shown now and never again.",
+      "copyCodes": "Copy",
+      "copied": "Copied.",
+      "codesLeft": "One recovery code left | {count} recovery codes left",
+      "newCodesButton": "Draw new codes",
+      "newCodes": "New recovery codes drawn. The ones before them no longer work.",
+      "turnedOn": "Two-factor authentication is on.",
+      "turnedOff": "Two-factor authentication is off.",
+      "loadFailed": "Could not read this account's two-factor settings.",
+      "startFailed": "Could not start setting up a second factor.",
+      "confirmFailed": "That code is not right.",
+      "codesFailed": "Could not draw new recovery codes.",
+      "disableFailed": "Could not turn two-factor authentication off.",
+      "wrongPassword": "That password is not right."
     }
   },
   "share": {

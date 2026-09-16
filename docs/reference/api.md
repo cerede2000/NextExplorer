@@ -24,6 +24,26 @@ Pass `-b cookies.txt` on everything afterwards. The session lasts as long as
 `SESSION_MAX_AGE_DAYS` (30 by default), so a long-running job does not have to
 sign in repeatedly.
 
+An account with two-factor authentication answers that call with
+`{"totpRequired": true}` and no user: the password was right, and the session
+is holding the sign-in rather than granting it. Finish it within five minutes
+with the code from the authenticator, or one of the recovery codes:
+
+```bash
+curl -b cookies.txt -c cookies.txt -X POST https://your-host/api/auth/login/totp \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"123456"}'
+```
+
+Six digits are worth one sign-in and one recovery code is worth one use, so a
+script cannot keep either. A wrong code answers `401` with
+`AUTH_INVALID_TOTP_CODE` and counts against the same lockout a wrong password
+does. `GET /api/auth/totp` says whether an account asks for one and how many
+recovery codes it has left; `POST /api/auth/totp/start` and `/confirm` set one
+up, `POST /api/auth/totp/recovery-codes` and `DELETE /api/auth/totp` need the
+account's password, and `DELETE /api/users/:id/two-factor` is an administrator
+taking it off an account that has lost both the phone and the paper.
+
 It ends sooner if the account's password changes. `POST /api/auth/password`
 signs out every other session of the account, and moves the one that made the
 change to a new cookie, which its response sets — keep writing to the cookie
@@ -239,22 +259,22 @@ that points outside the archive, `ARCHIVE_TOO_MANY_ENTRIES` (413), and
 
 ## Endpoint reference
 
-| Area                | Endpoints                                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Auth                | `GET /api/auth/status`, `/methods`, `/me` · `POST /api/auth/login`, `/logout`, `/setup`, `/password`        |
-| Browsing            | `GET /api/browse/*`, `/api/volumes`, `/api/search`, `/api/metadata/*`, `/api/usage/*`                       |
-| Files               | `POST /api/files/file`, `/folder`, `/rename`, `/copy`, `/move`, `/office-document` · `DELETE /api/files`    |
-| Uploads             | `ALL /api/upload/tus*` · `POST /api/upload`, `/api/upload/folder-session` · `GET /api/upload/finalizations` |
-| Shares              | `POST /api/shares` · `GET /api/shares`, `/shared-with-me`, `/:id` · `PUT`/`DELETE /api/shares/:id`          |
-| Public share access | `GET /api/share/:token/info`, `/access`, `/browse/*`, `/file` · `POST /api/share/:token/verify`             |
-| Previews            | `GET /api/preview`, `/api/thumbnails/*`, `/api/media/tracks`, `/api/media/subtitle` · `POST /api/download`  |
-| Archives            | `POST /api/files/zip/compress`, `/api/files/zip/extract` · `GET /api/archive/list`, `/api/archive/entry`    |
-| Folder sizes        | `GET /api/folder-size/*` · `POST /api/folder-size/refresh/*`, `/batch`                                      |
-| Favourites          | `GET`/`POST`/`DELETE /api/favorites` · `PATCH /api/favorites/:id`, `/reorder`                               |
-| Editing             | `GET`/`POST`/`PUT /api/editor` · `GET /api/raw`                                                             |
-| Admin               | `GET`/`POST`/`PATCH`/`DELETE /api/users` · `/api/users/:userId/volumes` · `GET`/`PATCH /api/settings`       |
-| Permissions         | `GET /api/permissions/*` · `POST /api/permissions/chmod`, `/chown`                                          |
-| Health              | `GET /api/healthz`, `/api/readyz`                                                                           |
+| Area                | Endpoints                                                                                                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth                | `GET /api/auth/status`, `/methods`, `/me`, `/totp` · `POST /api/auth/login`, `/login/totp`, `/logout`, `/setup`, `/password`, `/totp/start`, `/totp/confirm`, `/totp/recovery-codes` · `DELETE /api/auth/totp` |
+| Browsing            | `GET /api/browse/*`, `/api/volumes`, `/api/search`, `/api/metadata/*`, `/api/usage/*`                                                                                                                          |
+| Files               | `POST /api/files/file`, `/folder`, `/rename`, `/copy`, `/move`, `/office-document` · `DELETE /api/files`                                                                                                       |
+| Uploads             | `ALL /api/upload/tus*` · `POST /api/upload`, `/api/upload/folder-session` · `GET /api/upload/finalizations`                                                                                                    |
+| Shares              | `POST /api/shares` · `GET /api/shares`, `/shared-with-me`, `/:id` · `PUT`/`DELETE /api/shares/:id`                                                                                                             |
+| Public share access | `GET /api/share/:token/info`, `/access`, `/browse/*`, `/file` · `POST /api/share/:token/verify`                                                                                                                |
+| Previews            | `GET /api/preview`, `/api/thumbnails/*`, `/api/media/tracks`, `/api/media/subtitle` · `POST /api/download`                                                                                                     |
+| Archives            | `POST /api/files/zip/compress`, `/api/files/zip/extract` · `GET /api/archive/list`, `/api/archive/entry`                                                                                                       |
+| Folder sizes        | `GET /api/folder-size/*` · `POST /api/folder-size/refresh/*`, `/batch`                                                                                                                                         |
+| Favourites          | `GET`/`POST`/`DELETE /api/favorites` · `PATCH /api/favorites/:id`, `/reorder`                                                                                                                                  |
+| Editing             | `GET`/`POST`/`PUT /api/editor` · `GET /api/raw`                                                                                                                                                                |
+| Admin               | `GET`/`POST`/`PATCH`/`DELETE /api/users` · `/api/users/:userId/volumes` · `GET`/`PATCH /api/settings`                                                                                                          |
+| Permissions         | `GET /api/permissions/*` · `POST /api/permissions/chmod`, `/chown`                                                                                                                                             |
+| Health              | `GET /api/healthz`, `/api/readyz`                                                                                                                                                                              |
 
 ONLYOFFICE and Collabora endpoints exist only where those integrations are
 configured; the routes are not mounted otherwise, and asking for them returns

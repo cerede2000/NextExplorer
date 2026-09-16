@@ -167,7 +167,8 @@
     "path": "z. B. Bilder/Urlaub",
     "search": "Dateien und Ordner durchsuchen…",
     "volumeLabel": "z. B. Dokumente, Projekte, Medien",
-    "emailOrUsername": "name{'@'}firma.de oder name"
+    "emailOrUsername": "name{'@'}firma.de oder name",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Wird geladen…",
@@ -211,7 +212,9 @@
     "saveVolume": "Volume konnte nicht gespeichert werden",
     "removeVolume": "Volume konnte nicht entfernt werden",
     "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich",
-    "unlockUser": "Das Konto konnte nicht entsperrt werden"
+    "unlockUser": "Das Konto konnte nicht entsperrt werden",
+    "totpCodeRequired": "Geben Sie den Code ein.",
+    "totpCodeWrong": "Dieser Code stimmt nicht."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "Zugriff verweigert",
     "NOT_FOUND": "Nicht gefunden",
     "CONFLICT": "Konflikt",
-    "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen"
+    "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen",
+    "AUTH_INVALID_TOTP_CODE": "Dieser Code stimmt nicht."
   },
   "titles": {
     "volumes": "Volumes",
@@ -443,7 +447,11 @@
         "title": "Wir haben die Anmeldung aktualisiert",
         "intro": "Sie müssen jetzt Ihren neuen E-Mail-ähnlichen Benutzernamen verwenden."
       },
-      "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um dort weiterzumachen, wo Sie aufgehört haben."
+      "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um dort weiterzumachen, wo Sie aufgehört haben.",
+      "totpExplain": "Ihr Passwort wurde akzeptiert. Geben Sie den Code aus Ihrer Authenticator-App ein oder einen Ihrer Wiederherstellungscodes.",
+      "totpCode": "Code",
+      "totpSubmit": "Anmelden",
+      "totpBack": "Neu beginnen"
     },
     "setup": {
       "headline": "Lassen Sie uns loslegen",
@@ -493,7 +501,8 @@
       "uploads": "Uploads",
       "folderSize": "Ordnergrößen",
       "searchIndex": "Suchindex",
-      "trash": "Papierkorb und Versionen"
+      "trash": "Papierkorb und Versionen",
+      "accountTwoFactor": "Zwei-Faktor"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -772,6 +781,36 @@
         "sharedSpace": "Versionen und Papierkorb teilen sich den reservierten Bereich jedes Volumes. Wird er knapp, gehen zuerst ältere Versionen, dann Papierkorbelemente, dann die letzte Version jeder Datei und zuletzt angeheftete Versionen.",
         "environmentNote": "Standardwerte stammen aus VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE und VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "twoFactor": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "intro": "Ein Code von Ihrem Telefon, zusätzlich zum Passwort.",
+      "notLocalUser": "Dieses Konto meldet sich über einen Identitätsanbieter an; dort gehört sein zweiter Faktor hin.",
+      "off": "Die Zwei-Faktor-Authentifizierung ist für dieses Konto aus.",
+      "on": "Die Zwei-Faktor-Authentifizierung ist an.",
+      "turnOn": "Einschalten",
+      "turnOff": "Ausschalten",
+      "scan": "Scannen Sie dies mit Ihrer Authenticator-App.",
+      "orType": "Oder geben Sie dieses Geheimnis in der App ein:",
+      "qrLabel": "QR-Code für Ihre Authenticator-App",
+      "codeLabel": "Code aus der App",
+      "confirm": "Bestätigen",
+      "confirmPassword": "Ihr Passwort",
+      "codesTitle": "Wiederherstellungscodes",
+      "codesExplain": "Bewahren Sie diese woanders als auf dem Telefon auf. Jeder meldet Sie einmal an, für den Tag, an dem das Telefon fehlt. Sie werden jetzt gezeigt und nie wieder.",
+      "copyCodes": "Kopieren",
+      "copied": "Kopiert.",
+      "codesLeft": "Ein Wiederherstellungscode übrig | {count} Wiederherstellungscodes übrig",
+      "newCodesButton": "Neue Codes erzeugen",
+      "newCodes": "Neue Wiederherstellungscodes erzeugt. Die vorherigen funktionieren nicht mehr.",
+      "turnedOn": "Die Zwei-Faktor-Authentifizierung ist an.",
+      "turnedOff": "Die Zwei-Faktor-Authentifizierung ist aus.",
+      "loadFailed": "Die Zwei-Faktor-Einstellungen dieses Kontos konnten nicht gelesen werden.",
+      "startFailed": "Die Einrichtung des zweiten Faktors konnte nicht gestartet werden.",
+      "confirmFailed": "Dieser Code stimmt nicht.",
+      "codesFailed": "Es konnten keine neuen Wiederherstellungscodes erzeugt werden.",
+      "disableFailed": "Die Zwei-Faktor-Authentifizierung konnte nicht ausgeschaltet werden.",
+      "wrongPassword": "Dieses Passwort stimmt nicht."
     }
   },
   "share": {

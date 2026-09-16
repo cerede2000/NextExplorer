@@ -17,6 +17,7 @@ import {
   requestJson,
   requestRaw,
   setErrorHandler,
+  setSessionExpiredHandler,
 } from './http';
 
 const ok = (body = {}, status = 200) => ({
@@ -240,6 +241,42 @@ describe('an answer the server refused', () => {
     expect(handler).not.toHaveBeenCalled();
     expect(error.message).toBe('Not found');
     expect(error.statusCode).toBe(404);
+  });
+});
+
+/**
+ * The 401 that somebody else has taken in hand.
+ *
+ * On the sign-in screen the session handler answers every 401 — a wrong
+ * password and a wrong second-factor code both land here — so what that path
+ * keeps decides what the screen can say about them.
+ */
+describe('a 401 the session handler answers', () => {
+  afterEach(() => setSessionExpiredHandler(null));
+
+  it('keeps the code the server sent, so a screen can name the refusal', async () => {
+    setSessionExpiredHandler(() => true);
+    fetchMock.mockResolvedValue(
+      failed(401, { error: { message: 'That code is not right.', code: 'AUTH_INVALID_TOTP_CODE' } })
+    );
+
+    const { error } = await settle(requestRaw('/api/auth/login/totp', { method: 'POST' }));
+
+    expect(error.sessionExpired).toBe(true);
+    expect(error.code).toBe('AUTH_INVALID_TOTP_CODE');
+    expect(error.statusCode).toBe(401);
+  });
+
+  it('leaves the ordinary path alone when nobody takes it in hand', async () => {
+    setSessionExpiredHandler(() => false);
+    fetchMock.mockResolvedValue(
+      failed(401, { error: { message: 'Invalid credentials.', code: 'AUTH_INVALID_CREDENTIALS' } })
+    );
+
+    const { error } = await settle(requestRaw('/api/auth/login', { method: 'POST' }));
+
+    expect(error.sessionExpired).toBeUndefined();
+    expect(error.code).toBe('AUTH_INVALID_CREDENTIALS');
   });
 });
 

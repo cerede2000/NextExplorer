@@ -20,7 +20,7 @@ import {
  * rows back.
  */
 
-const LATEST_SCHEMA_VERSION = '20';
+const LATEST_SCHEMA_VERSION = '21';
 
 let envContext;
 let dbModule;
@@ -123,6 +123,8 @@ const APPLICATION_TABLES = [
   'version_files',
   'file_versions',
   'personal_folder_reservations',
+  'totp_credentials',
+  'totp_recovery_codes',
 ];
 
 /** The indexes, in their own database under the cache directory. */
@@ -902,13 +904,22 @@ describe('a database whose recorded version is ahead of its tables', () => {
     const { configDir } = await prepareEnv();
     const legacy = createLegacyDatabase(configDir, 17);
     seedRelease350(legacy);
-    legacy.prepare("UPDATE meta SET value = '20' WHERE key = 'schema_version'").run();
+    legacy
+      .prepare('UPDATE meta SET value = ? WHERE key = ?')
+      .run(LATEST_SCHEMA_VERSION, 'schema_version');
     legacy.close();
 
     const db = await startApplication();
 
-    expect(schemaVersion(db)).toBe('20');
-    for (const table of ['trash_items', 'trash_shares', 'version_files', 'file_versions']) {
+    expect(schemaVersion(db)).toBe(LATEST_SCHEMA_VERSION);
+    for (const table of [
+      'trash_items',
+      'trash_shares',
+      'version_files',
+      'file_versions',
+      'totp_credentials',
+      'totp_recovery_codes',
+    ]) {
       expect(tableNames(db).has(table), table).toBe(true);
     }
     expect(share(db, 'share-team')).toMatchObject({ versions_visible: 1, versions_download: 1 });

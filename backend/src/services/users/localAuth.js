@@ -114,6 +114,27 @@ const attemptLocalLogin = async ({ identifier, email, password }) => {
   return clientUser;
 };
 
+/**
+ * Whether this is the account's own password.
+ *
+ * For the things somebody already signed in may only do by proving it is still
+ * them — turning a second factor off, drawing new recovery codes. Deliberately
+ * not counted against the lockout: the account is signed in, the route behind
+ * it is rate limited, and a counter here would let a tab left open on a shared
+ * machine lock its owner out.
+ */
+const verifyLocalPassword = async ({ userId, password }) => {
+  const db = await getDb();
+  const authMethod = db
+    .prepare(
+      `SELECT password_hash FROM auth_methods
+       WHERE user_id = ? AND method_type = 'local_password' AND enabled = 1`
+    )
+    .get(userId);
+  if (!authMethod?.password_hash) return false;
+  return bcrypt.compare(password || '', authMethod.password_hash);
+};
+
 // Create user with local password authentication
 const createLocalUser = async ({ email, password, username, displayName, roles = ['user'] }) => {
   const db = await getDb();
@@ -412,6 +433,7 @@ const addLocalPassword = async ({ userId, password }) => {
 };
 
 module.exports = {
+  verifyLocalPassword,
   attemptLocalLogin,
   createLocalUser,
   changeLocalPassword,

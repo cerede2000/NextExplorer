@@ -167,7 +167,8 @@
     "path": "例如：Pictures/Holidays",
     "search": "搜尋檔案和檔案夾…",
     "volumeLabel": "例如：Documents, Projects, Media",
-    "emailOrUsername": "name{'@'}company.com 或 name"
+    "emailOrUsername": "name{'@'}company.com 或 name",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "載入中…",
@@ -211,7 +212,9 @@
     "saveVolume": "儲存儲存卷失敗",
     "removeVolume": "移除儲存卷失敗",
     "identifierRequired": "需要電子郵件地址或使用者名稱",
-    "unlockUser": "無法解鎖帳戶"
+    "unlockUser": "無法解鎖帳戶",
+    "totpCodeRequired": "請輸入驗證碼。",
+    "totpCodeWrong": "驗證碼不正確。"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份驗證",
@@ -232,7 +235,8 @@
     "FORBIDDEN": "存取遭拒",
     "NOT_FOUND": "找不到",
     "CONFLICT": "衝突",
-    "RATE_LIMIT_EXCEEDED": "要求過多"
+    "RATE_LIMIT_EXCEEDED": "要求過多",
+    "AUTH_INVALID_TOTP_CODE": "驗證碼不正確。"
   },
   "titles": {
     "volumes": "儲存卷",
@@ -443,7 +447,11 @@
         "title": "我們更新了登入方式",
         "intro": "您現在需要使用新的電子郵件格式使用者名稱。"
       },
-      "sessionExpired": "您的工作階段已結束。重新登入即可從上次的位置繼續。"
+      "sessionExpired": "您的工作階段已結束。重新登入即可從上次的位置繼續。",
+      "totpExplain": "密碼已通過。請輸入驗證器應用程式中的驗證碼，或一個復原碼。",
+      "totpCode": "驗證碼",
+      "totpSubmit": "登入",
+      "totpBack": "重新開始"
     },
     "setup": {
       "headline": "開始設定",
@@ -493,7 +501,8 @@
       "uploads": "上傳",
       "folderSize": "檔案夾大小",
       "searchIndex": "搜尋索引",
-      "trash": "資源回收筒和版本"
+      "trash": "資源回收筒和版本",
+      "accountTwoFactor": "兩步驗證"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -772,6 +781,36 @@
         "sharedSpace": "版本與資源回收筒共用每個磁碟區的保留空間。空間不足時，依序移除舊版本、資源回收筒項目、每個檔案的最新版本，最後才是已釘選的版本。",
         "environmentNote": "預設值來自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
       }
+    },
+    "twoFactor": {
+      "title": "兩步驗證",
+      "intro": "在密碼之外，再加一個手機上的驗證碼。",
+      "notLocalUser": "這個帳號透過身分提供者登入，第二重驗證應在那裡設定。",
+      "off": "這個帳號的兩步驗證已關閉。",
+      "on": "兩步驗證已開啟。",
+      "turnOn": "開啟",
+      "turnOff": "關閉",
+      "scan": "用驗證器應用程式掃描這個 QR code。",
+      "orType": "或在應用程式中輸入這組密鑰：",
+      "qrLabel": "給驗證器應用程式的 QR code",
+      "codeLabel": "應用程式中的驗證碼",
+      "confirm": "確認",
+      "confirmPassword": "您的密碼",
+      "codesTitle": "復原碼",
+      "codesExplain": "請存放在手機以外的地方。每個復原碼只能登入一次，用於手機不在身邊的那天。它們只會顯示這一次。",
+      "copyCodes": "複製",
+      "copied": "已複製。",
+      "codesLeft": "還剩 1 個復原碼 | 還剩 {count} 個復原碼",
+      "newCodesButton": "產生新的復原碼",
+      "newCodes": "已產生新的復原碼，先前的不再有效。",
+      "turnedOn": "兩步驗證已開啟。",
+      "turnedOff": "兩步驗證已關閉。",
+      "loadFailed": "無法讀取這個帳號的兩步驗證設定。",
+      "startFailed": "無法開始設定第二重驗證。",
+      "confirmFailed": "驗證碼不正確。",
+      "codesFailed": "無法產生新的復原碼。",
+      "disableFailed": "無法關閉兩步驗證。",
+      "wrongPassword": "密碼不正確。"
     }
   },
   "share": {
