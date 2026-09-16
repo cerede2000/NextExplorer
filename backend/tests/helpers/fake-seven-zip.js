@@ -25,6 +25,11 @@ const path = require('node:path');
  */
 
 const SCRIPT = `#!/bin/sh
+# Every call, for a test that needs to know how much work was asked of 7-Zip
+# rather than only what came back.
+if [ -n "$FAKE_7Z_LOG" ]; then
+  echo "$*" >> "$FAKE_7Z_LOG"
+fi
 case "$1" in
   i)
     echo "7-Zip (z) 26.03 (x64) : Copyright (c) 1999-2026 Igor Pavlov"
@@ -51,6 +56,20 @@ case "$1" in
     exit 0
     ;;
   x)
+    # Everything into a directory: how a solid archive is put in the cache.
+    out=""
+    for arg; do case "$arg" in -o*) out="\${arg#-o}";; esac; done
+    if [ -n "$out" ]; then
+      for last; do :; done
+      mkdir -p "$out"
+      tab=$(printf '\\t')
+      sed -n '/^%%FAKE-7Z-CONTENT%%$/,$p' "$last" | tail -n +2 | while IFS="$tab" read -r name body; do
+        [ -n "$name" ] || continue
+        mkdir -p "$out/$(dirname "$name")"
+        printf '%s' "$body" > "$out/$name"
+      done
+      exit 0
+    fi
     # The last two arguments are the archive and the entry inside it — unless
     # there is no entry, which is how one layer of a compound archive is peeled:
     # then the archive is last, and what it decompresses to is the file a test
@@ -107,7 +126,7 @@ const useFakeSevenZip = () => {
  * An archive the stand-in can answer for: the listing 7-Zip would print, and
  * then the bytes of each entry that has any, behind a marker `l` never reads.
  */
-const fakeListing = (entries) =>
+const fakeListing = (entries, { solid = false } = {}) =>
   [
     '7-Zip (z) 26.03 (x64) : Copyright (c) 1999-2026 Igor Pavlov',
     '',
@@ -115,7 +134,10 @@ const fakeListing = (entries) =>
     '',
     '--',
     'Path = pack.zip',
-    'Type = zip',
+    `Type = ${solid ? '7z' : 'zip'}`,
+    // What 7-Zip prints for an archive whose files share one compressed
+    // stream, and the whole reason a cached tree exists.
+    ...(solid ? ['Solid = +', 'Blocks = 1'] : []),
     '',
     '----------',
     ...entries.map((entry) =>

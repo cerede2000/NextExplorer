@@ -20,7 +20,7 @@ const { getSupportedArchiveExtensions } = require('../services/archiveService');
 const {
   browseArchive,
   findArchiveEntry,
-  openArchiveEntry,
+  readArchiveEntry,
   readBrowsableArchive,
   entryPathOf,
 } = require('../services/archiveBrowseService');
@@ -120,7 +120,8 @@ router.get(
     const wanted = typeof req.query.entry === 'string' ? req.query.entry : '';
     // `source` is the archive the entry is actually read from, which for a
     // compound one is the decompressed copy rather than the file on the volume.
-    const { entry, source } = await findArchiveEntry(archive.absolutePath, wanted);
+    const found = await findArchiveEntry(archive.absolutePath, wanted);
+    const { entry } = found;
 
     const name = entry.path.slice(entry.path.lastIndexOf('/') + 1);
     res.setHeader('Content-Type', resolveMimeType(toExtension(name)));
@@ -132,7 +133,8 @@ router.get(
     // it is, rather than looking like a file that arrived whole.
     if (Number.isFinite(entry.size)) res.setHeader('Content-Length', String(entry.size));
 
-    const reading = openArchiveEntry(source, entry.path);
+    // From the archive, or from the tree a solid one was extracted into.
+    const reading = await readArchiveEntry(found);
 
     // Whoever closed the tab is not waiting for the rest of it, and 7-Zip would
     // otherwise go on decompressing into a pipe nobody reads.

@@ -133,17 +133,20 @@ What was decided in advance held, and is worth keeping written down:
   an iframe and so a decision about sandboxing; Office documents, which go
   through a converter that reads from the volume. Each is a separate decision,
   and none of them is this one.
-- **A solid `.7z` reads every entry from the beginning — and stays that way for
-  now.** Unlike zip, it has no per-entry start, so reading the last file of a
-  solid archive decompresses the ones before it. The cache that exists for
-  compound archives holds one file; answering this needs it to hold a
-  directory, because what would be cached is the whole extracted tree. That is
-  the objection: extracting an eight-gigabyte archive onto the disk because
-  somebody clicked one file inside it is a worse trade than the slow read it
-  replaces, and picking the rule that avoids it — cache only on the second
-  entry read, only under a budget — wants a measurement against a real 7-Zip on
-  a real archive, not a guess. Deliberately not built until that measurement
-  exists.
+- ~~**A solid `.7z` reads every entry from the beginning.**~~ Measured, then
+  built. On a runner with a real 7-Zip, fifty megabytes in two hundred files
+  that compress about two to one: reading the first entry takes 0.02 s, the
+  middle one 0.70 s, the last 1.37 s — the cost is the entries before the one
+  asked for. Extracting the whole archive takes 1.41 s, about what reading the
+  last entry alone costs, and ten entries read one at a time take 6.95 s. So
+  the second read of a solid archive extracts it once into the cache and every
+  read after it is a file on disk; the first is left alone, because somebody
+  who opens one small file near the front would otherwise wait 1.4 s instead of
+  0.02 s for a tree nobody asks for again. The ceiling that already decides
+  what may be browsed decides what may be extracted, and the cache's own budget
+  and sweep now count directories as well as files.
+  `scripts/measure-solid-7z.mjs` is the bench, and the workflow beside it runs
+  it again on demand.
 - **Nothing is offered but adding.** Extracting several entries and choosing
   where they land are both done. What is still missing: adding a file to an
   existing archive, and dragging one out of the panel onto the folder view.

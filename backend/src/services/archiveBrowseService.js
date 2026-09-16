@@ -1,10 +1,13 @@
 const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
 
 const { archives } = require('../config/index');
 const { AppError } = require('../errors/AppError');
 const { isArchivePasswordError, TAR_WRAPPER_EXTENSIONS } = require('./archiveService');
-const { cachedInnerArchive } = require('./archiveCacheService');
+const { cachedInnerArchive, cachedSolidTree, existingSolidTree } = require('./archiveCacheService');
 
 const execFileAsync = promisify(execFile);
 
@@ -44,6 +47,25 @@ const ENTRY_SEPARATOR = /^----------\r?$/m;
  * can carry one — and belongs to the key above rather than being dropped,
  * which would leave a truncated name that reads like a different file.
  */
+/**
+ * The block 7-Zip prints before the entries: what the archive is, and how.
+ *
+ * `Solid = +` is the one that matters here — it says every file went into one
+ * compressed stream, so reading the last means decompressing the ones before
+ * it. A zip never says it; a `.7z` usually does.
+ */
+const headerOf = (stdout) => {
+  const [before] = String(stdout).split(ENTRY_SEPARATOR);
+  const header = {};
+  for (const rawLine of String(before).split('\n')) {
+    const line = rawLine.replace(/\r$/, '');
+    const at = line.indexOf(' = ');
+    if (at === -1) continue;
+    header[line.slice(0, at)] = line.slice(at + 3);
+  }
+  return header;
+};
+
 const parseRecords = (stdout) => {
   const separated = String(stdout).split(ENTRY_SEPARATOR);
   if (separated.length < 2) return [];
@@ -244,7 +266,15 @@ const readArchiveListing = async (archiveAbsolutePath) => {
     );
   }
 
-  return { entries, outside };
+  const header = headerOf(stdout);
+  return {
+    entries,
+    outside,
+    // Both are about how much work one read is: what the archive holds, and
+    // whether reaching one entry means decompressing the others.
+    solid: header.Solid === '+',
+    totalBytes: entries.reduce((sum, entry) => sum + (Number(entry.size) || 0), 0),
+  };
 };
 
 /**
@@ -326,11 +356,8 @@ const findArchiveEntry = async (archiveAbsolutePath, entryPath) => {
     throw listingError('That is not a file inside this archive.', 'ARCHIVE_BAD_POSITION', 400);
   }
 
-  const {
-    source,
-    listing: { entries },
-  } = await readBrowsableArchive(archiveAbsolutePath);
-  const found = entries.find((entry) => entry.path === wanted);
+  const { source, listing } = await readBrowsableArchive(archiveAbsolutePath);
+  const found = listing.entries.find((entry) => entry.path === wanted);
   if (!found) {
     throw listingError('That file is not in this archive.', 'ARCHIVE_ENTRY_NOT_FOUND', 404);
   }
@@ -345,7 +372,80 @@ const findArchiveEntry = async (archiveAbsolutePath, entryPath) => {
     );
   }
 
-  return { entry: found, source };
+  return { entry: found, source, listing };
+};
+
+/**
+ * Reads of an archive since this process started, by the archive it was.
+ *
+ * What it decides: the second read of a solid archive is the one worth
+ * extracting for, because that read costs a full pass whichever way it goes
+ * and every read after it is then a file on disk. The first is left alone — a
+ * small file near the front of a big archive costs 0.02 s to read and 1.4 s to
+ * extract for, and nobody asked for the other entries.
+ *
+ * In memory, and bounded: a restart forgets, which costs one more slow read.
+ */
+const readsSoFar = new Map();
+const REMEMBERED_ARCHIVES = 500;
+
+const countRead = (key) => {
+  const count = (readsSoFar.get(key) || 0) + 1;
+  // Re-inserted so the map's own order is least-recently-read first.
+  readsSoFar.delete(key);
+  readsSoFar.set(key, count);
+  if (readsSoFar.size > REMEMBERED_ARCHIVES) {
+    const [oldest] = readsSoFar.keys();
+    readsSoFar.delete(oldest);
+  }
+  return count;
+};
+
+/** For a test, and for anything that wants a process to start over. */
+const forgetArchiveReads = () => readsSoFar.clear();
+
+/**
+ * One entry out of the cached tree, in the shape a spawned read has.
+ *
+ * Null when it is not there under that name — 7-Zip and this listing agree in
+ * every case seen, and a read that falls back to the archive is slower rather
+ * than wrong.
+ */
+const openFromTree = async (treePath, entryPath) => {
+  const file = path.resolve(treePath, entryPath);
+  // The listing already refuses a name that points outside the archive. This
+  // is the second lock on the same door: what is read is under the tree.
+  if (file !== treePath && !file.startsWith(`${treePath}${path.sep}`)) return null;
+
+  const stats = await fsp.stat(file).catch(() => null);
+  if (!stats?.isFile()) return null;
+
+  const stream = fs.createReadStream(file);
+  const finished = new Promise((resolve, reject) => {
+    stream.once('end', resolve);
+    stream.once('error', reject);
+  });
+  return { stdout: stream, finished, stop: () => stream.destroy() };
+};
+
+/**
+ * Read one entry: from the extracted tree where there is one, from the archive
+ * otherwise.
+ *
+ * @param {object} found what `findArchiveEntry` answered
+ */
+const readArchiveEntry = async ({ source, entry, listing }) => {
+  const existing = await existingSolidTree(source);
+  const fromExisting = existing && (await openFromTree(existing, entry.path));
+  if (fromExisting) return fromExisting;
+
+  if (listing?.solid && !existing && countRead(source) >= 2) {
+    const tree = await cachedSolidTree(source, listing.totalBytes);
+    const fromFresh = tree && (await openFromTree(tree, entry.path));
+    if (fromFresh) return fromFresh;
+  }
+
+  return openArchiveEntry(source, entry.path);
 };
 
 /** How long one entry may take to come out before nobody is still waiting. */
@@ -422,6 +522,9 @@ const openArchiveEntry = (archiveAbsolutePath, entryPath) => {
 
 module.exports = {
   browseArchive,
+  readArchiveEntry,
+  forgetArchiveReads,
+  openFromTree,
   readBrowsableArchive,
   findArchiveEntry,
   openArchiveEntry,

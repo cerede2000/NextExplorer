@@ -47,6 +47,17 @@ const CACHE_VERSION = 1;
 const CACHED_NAME = /^v\d+-[0-9a-f]+\.inner$/;
 const TEMPORARY_NAME = /^v\d+-[0-9a-f]+\.inner\.tmp-/;
 
+/**
+ * The same, for the extracted tree of a solid archive.
+ *
+ * A directory rather than a file, because what is kept is what came out: a
+ * solid `.7z` compresses every file into one stream, so reading the last entry
+ * decompresses the ones before it and there is nothing smaller to keep that
+ * would answer the next read.
+ */
+const CACHED_TREE_NAME = /^v\d+-[0-9a-f]+\.tree$/;
+const TEMPORARY_TREE_NAME = /^v\d+-[0-9a-f]+\.tree\.tmp-/;
+
 const cacheDirectory = () => path.join(directories.cache, 'archives');
 
 const ensureCacheDirectory = async () => {
@@ -68,6 +79,33 @@ const fingerprintOf = async (archiveAbsolutePath) => {
     .update(String(stats.size))
     .update(String(Math.floor(stats.mtimeMs)))
     .digest('hex');
+};
+
+/** What a cached tree weighs: everything under it, files only. */
+const sizeOfTree = async (treePath) => {
+  let total = 0;
+  const walk = async (directory) => {
+    let contents;
+    try {
+      contents = await fs.readdir(directory, { withFileTypes: true });
+    } catch (_) {
+      return;
+    }
+    for (const item of contents) {
+      const full = path.join(directory, item.name);
+      if (item.isDirectory()) {
+        await walk(full);
+        continue;
+      }
+      // Never follows a link: what is counted is what this cache wrote, and it
+      // was written with symbolic links turned off.
+      if (!item.isFile()) continue;
+      const stats = await fs.stat(full).catch(() => null);
+      if (stats) total += stats.size;
+    }
+  };
+  await walk(treePath);
+  return total;
 };
 
 const inflight = new Map();
@@ -173,6 +211,109 @@ const cachedInnerArchive = async (archiveAbsolutePath, innerSize) => {
 };
 
 /**
+ * Everything a solid archive holds, extracted once into the cache.
+ *
+ * Measured on a runner with a real 7-Zip, on two hundred files of two hundred
+ * and fifty-six kilobytes that compress about two to one: reading the first
+ * entry takes 0.02 s, the middle one 0.70 s, the last 1.37 s — the cost is the
+ * entries before the one asked for. Extracting the whole archive takes 1.41 s,
+ * about what reading the last entry alone costs, and ten entries read one at a
+ * time take 6.95 s. So the second read of a solid archive is where this pays:
+ * it costs about what that read was going to cost anyway, and every read after
+ * it is a file on disk. (`scripts/measure-solid-7z.mjs`, and the workflow that
+ * runs it.)
+ *
+ * Deliberately not the first read: somebody who opens one small file near the
+ * front would wait 1.4 s instead of 0.02 s for a tree nobody asks for again.
+ */
+const extractInto = async (archiveAbsolutePath, destination) => {
+  await ensureDir(destination);
+  // -snl- keeps 7-Zip from restoring symbolic links; -spd from reading a name
+  // as a pattern. The same two the extraction onto the volume uses.
+  const child = spawn(
+    SEVEN_ZIP_BIN,
+    ['x', '-y', '-p', '-snl-', '-spd', `-o${destination}`, '--', archiveAbsolutePath],
+    { stdio: ['ignore', 'ignore', 'pipe'] }
+  );
+
+  let output = '';
+  child.stderr.on('data', (chunk) => {
+    output = `${output}${chunk}`.slice(-2000);
+  });
+
+  await new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (code) =>
+      code === 0 ? resolve() : reject(new Error(`7z exited with code ${code}: ${output.trim()}`))
+    );
+  });
+};
+
+const treePathFor = async (archiveAbsolutePath) =>
+  path.join(cacheDirectory(), `v${CACHE_VERSION}-${await fingerprintOf(archiveAbsolutePath)}.tree`);
+
+/**
+ * The tree this archive was already extracted into, or null.
+ *
+ * Asked before every read, because a tree that exists answers for nothing —
+ * the first read of an archive whose tree is already there is as free as the
+ * tenth.
+ */
+const existingSolidTree = async (archiveAbsolutePath) => {
+  const treePath = await treePathFor(archiveAbsolutePath).catch(() => null);
+  if (!treePath || !(await pathExists(treePath))) return null;
+  // Using one is reading it, so the sweep counts it as recently used.
+  const now = new Date();
+  await fs.utimes(treePath, now, now).catch(() => {});
+  return treePath;
+};
+
+/**
+ * Extract it, and answer with where it went.
+ *
+ * Written under a name of our own and renamed into place only once it is
+ * whole, so an extraction interrupted half way leaves a temporary directory
+ * the sweep takes rather than a tree that is missing its end.
+ *
+ * @param {string} archiveAbsolutePath the solid archive
+ * @param {number} uncompressedBytes what its listing says it holds
+ */
+const cachedSolidTree = async (archiveAbsolutePath, uncompressedBytes) => {
+  if (!Number.isFinite(uncompressedBytes) || uncompressedBytes < 0) return null;
+  if (uncompressedBytes > archives.browseMaxBytes) return null;
+
+  const existing = await existingSolidTree(archiveAbsolutePath);
+  if (existing) return existing;
+
+  const directory = await ensureCacheDirectory();
+  const finalPath = await treePathFor(archiveAbsolutePath);
+
+  let pending = inflight.get(finalPath);
+  if (!pending) {
+    pending = (async () => {
+      await ensureStorageAvailable(directory, uncompressedBytes, 'archive cache');
+
+      const temporaryPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
+      liveTempFiles.add(path.basename(temporaryPath));
+      try {
+        await extractInto(archiveAbsolutePath, temporaryPath);
+        await fs.rename(temporaryPath, finalPath);
+        return finalPath;
+      } finally {
+        await fs.rm(temporaryPath, { recursive: true, force: true }).catch(() => {});
+        liveTempFiles.delete(path.basename(temporaryPath));
+      }
+    })().finally(() => inflight.delete(finalPath));
+
+    inflight.set(finalPath, pending);
+  }
+
+  // A cache is a convenience: an extraction that fails leaves the read to go
+  // to the archive itself, which is what it did before this existed.
+  return pending.catch(() => null);
+};
+
+/**
  * What the cache may hold, and for how long.
  *
  * A cached copy is a convenience: it can always be made again from the archive
@@ -192,16 +333,25 @@ const sweepArchiveCache = async () => {
     pattern: TEMPORARY_NAME,
     live: liveTempFiles,
   });
-  for (const name of abandoned) {
-    await fs.rm(path.join(directory, name), { force: true }).catch(() => {});
+  const abandonedTrees = await findAbandonedTempFiles(directory, names, {
+    pattern: TEMPORARY_TREE_NAME,
+    live: liveTempFiles,
+  });
+  for (const name of [...abandoned, ...abandonedTrees]) {
+    await fs.rm(path.join(directory, name), { recursive: true, force: true }).catch(() => {});
   }
 
-  const cached = names.filter((name) => CACHED_NAME.test(name));
+  const cached = names.filter((name) => CACHED_NAME.test(name) || CACHED_TREE_NAME.test(name));
   const entries = [];
   for (const name of cached) {
     try {
-      const stats = await fs.stat(path.join(directory, name));
-      entries.push({ name, mtimeMs: stats.mtimeMs, size: stats.size });
+      const full = path.join(directory, name);
+      const stats = await fs.stat(full);
+      // A tree's size is what is under it. Walked here rather than remembered,
+      // because the sweep is the one place that has to be right about it and
+      // it runs once an hour, not once a read.
+      const size = stats.isDirectory() ? await sizeOfTree(full) : stats.size;
+      entries.push({ name, mtimeMs: stats.mtimeMs, size });
     } catch (_) {
       // Taken by another pass, or by the rename of a copy being made.
     }
@@ -211,7 +361,9 @@ const sweepArchiveCache = async () => {
   const kept = [];
   for (const entry of entries) {
     if (CACHE_TTL_MS > 0 && now - entry.mtimeMs > CACHE_TTL_MS) {
-      await fs.rm(path.join(directory, entry.name), { force: true }).catch(() => {});
+      await fs
+        .rm(path.join(directory, entry.name), { recursive: true, force: true })
+        .catch(() => {});
       continue;
     }
     kept.push(entry);
@@ -225,7 +377,7 @@ const sweepArchiveCache = async () => {
   kept.sort((left, right) => left.mtimeMs - right.mtimeMs);
   for (const entry of kept) {
     if (total <= archives.cacheMaxBytes) break;
-    await fs.rm(path.join(directory, entry.name), { force: true }).catch(() => {});
+    await fs.rm(path.join(directory, entry.name), { recursive: true, force: true }).catch(() => {});
     total -= entry.size;
   }
 };
@@ -258,6 +410,8 @@ scheduleArchiveCacheCleanup(CACHE_CLEANUP_INTERVAL_MS);
 
 module.exports = {
   cachedInnerArchive,
+  cachedSolidTree,
+  existingSolidTree,
   sweepArchiveCache,
   stopArchiveCacheWork,
   cacheDirectory,

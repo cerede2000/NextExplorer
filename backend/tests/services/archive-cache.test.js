@@ -117,3 +117,84 @@ describe('sweeping the cache of decompressed archives', () => {
     await expect(service.sweepArchiveCache()).resolves.toBeUndefined();
   });
 });
+
+/**
+ * A tree is a directory rather than a file, and the sweep has to read it as
+ * one: its size is what is under it, and taking it means taking all of it.
+ */
+const writeTree = async (directory, name, { files = 2, size = 1024, agedMs = 0 } = {}) => {
+  const tree = path.join(directory, name);
+  await fs.mkdir(path.join(tree, 'nested'), { recursive: true });
+  for (let index = 0; index < files; index += 1) {
+    await fs.writeFile(path.join(tree, 'nested', `file-${index}`), Buffer.alloc(size));
+  }
+  if (agedMs) {
+    const when = new Date(Date.now() - agedMs);
+    await fs.utimes(tree, when, when);
+  }
+  return tree;
+};
+
+describe('sweeping the extracted trees of solid archives', () => {
+  it('counts what is under a tree, not the directory entry', async () => {
+    const { service, directory } = await seed({ ARCHIVE_CACHE_MAX_SIZE: '3K' });
+    // Six kilobytes in two files, against a budget of three.
+    await writeTree(directory, 'v1-aaaa.tree', { files: 2, size: 3072 });
+
+    await service.sweepArchiveCache();
+
+    expect(await remaining(directory)).toEqual([]);
+  });
+
+  it('keeps one that fits, whole', async () => {
+    const { service, directory } = await seed();
+    await writeTree(directory, 'v1-bbbb.tree', { files: 2, size: 16 });
+
+    await service.sweepArchiveCache();
+
+    expect(await remaining(directory)).toEqual(['v1-bbbb.tree']);
+    expect(await fs.readdir(path.join(directory, 'v1-bbbb.tree', 'nested'))).toHaveLength(2);
+  });
+
+  it('takes one nobody has opened in a long time', async () => {
+    const { service, directory } = await seed();
+    await writeTree(directory, 'v1-cccc.tree', { agedMs: 400 * 24 * 60 * 60 * 1000 });
+
+    await service.sweepArchiveCache();
+
+    expect(await remaining(directory)).toEqual([]);
+  });
+
+  /** Files and trees are the same cache, and share its budget. */
+  it('weighs trees and copies against one budget, oldest first', async () => {
+    const { service, directory } = await seed({ ARCHIVE_CACHE_MAX_SIZE: '5K' });
+    await writeTree(directory, 'v1-d1d1.tree', {
+      files: 1,
+      size: 4096,
+      agedMs: 3 * 60 * 60 * 1000,
+    });
+    await writeCached(directory, 'v1-d2d2.inner', { size: 4096, agedMs: 60 * 60 * 1000 });
+
+    await service.sweepArchiveCache();
+
+    expect(await remaining(directory)).toEqual(['v1-d2d2.inner']);
+  });
+
+  it('takes a half-made tree a stopped run left behind', async () => {
+    const { service, directory } = await seed();
+    await writeTree(directory, 'v1-eeee.tree.tmp-1-2', { agedMs: 3 * 60 * 60 * 1000 });
+
+    await service.sweepArchiveCache();
+
+    expect(await remaining(directory)).toEqual([]);
+  });
+
+  it('never touches a directory it did not write', async () => {
+    const { service, directory } = await seed({ ARCHIVE_CACHE_MAX_SIZE: '1K' });
+    await writeTree(directory, 'somebody-elses-work', { files: 2, size: 4096 });
+
+    await service.sweepArchiveCache();
+
+    expect(await remaining(directory)).toEqual(['somebody-elses-work']);
+  });
+});

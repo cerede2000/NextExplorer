@@ -1,0 +1,50 @@
+name: Measure a solid .7z
+
+# Not a test and not a gate: a measurement, run on demand, because the decision
+# it informs cannot be made from a laptop without 7-Zip. What it answers: how
+# much of reading a solid archive is the entries before the one asked for, and
+# what a cache would have to hold to avoid that.
+on:
+  # `workflow_dispatch` only offers workflows that are on the default branch,
+  # which this one is not yet. A branch named for the measurement runs it in
+  # the meantime, and nothing else answers that name.
+  push:
+    branches: ['measure/**']
+  workflow_dispatch:
+    inputs:
+      files:
+        description: How many files in the archive
+        default: '200'
+      kb:
+        description: Kilobytes per file
+        default: '256'
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: What 7-Zip is this
+        run: 7z 2>&1 | head -n 3
+
+      # A push carries no inputs, so the defaults have to live here as well as
+      # in the dispatch form — without them the first run measured an archive
+      # with no files in it, and said so in a column of nulls.
+      - name: Measure
+        run: |
+          node scripts/measure-solid-7z.mjs \
+            --files "${{ inputs.files || '200' }}" \
+            --kb "${{ inputs.kb || '256' }}"
