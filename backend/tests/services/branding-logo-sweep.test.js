@@ -113,6 +113,38 @@ describe('sweeping the logos no longer in use', () => {
     expect(await remaining()).toEqual([...theirs].sort());
   });
 
+  /**
+   * A write interrupted before the file took its name.
+   *
+   * The bytes go to a hidden `.part` first, and the write removes it whether
+   * it succeeded or not — unless the process does not get to: a stop, a full
+   * disk, a crash. Hidden, so nothing lists it; up to 2 MB, so it is worth
+   * removing; and at start nothing of ours is being placed, which is what
+   * makes one of these safe to take.
+   */
+  it('removes what an interrupted write left behind', async () => {
+    const partial = '.logo-7e8f9a01-4b55-4c66-8d77-9e0f1a2b3c4d.part';
+    const service = await seed([partial, A_LOGO], {
+      appName: 'Explorer',
+      appLogoUrl: `/static/logos/${A_LOGO}`,
+      showPoweredBy: false,
+    });
+
+    await service.sweepUnreferencedLogos();
+
+    expect(await remaining()).toEqual([A_LOGO]);
+  });
+
+  /** The shape is matched exactly here too: a `.part` of somebody else's stays. */
+  it('leaves a part file that is not one of ours', async () => {
+    const theirs = ['.logo-not-a-uuid.part', '.logo-7e8f9a01-4b55-4c66-8d77-9e0f1a2b3c4d.part.bak'];
+    const service = await seed(theirs, { appName: 'Explorer', appLogoUrl: '/logo.svg' });
+
+    await service.sweepUnreferencedLogos();
+
+    expect(await remaining()).toEqual([...theirs].sort());
+  });
+
   it('leaves a directory alone, whatever it is called', async () => {
     const service = await seed([], { appName: 'Explorer', appLogoUrl: '/logo.svg' });
     await fs.mkdir(path.join(logoDir(), A_LOGO));

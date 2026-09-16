@@ -41,6 +41,12 @@ const OWN_NAME =
 // What earlier versions wrote, one name per type. Nothing writes them now.
 const LEGACY_NAMES = ['custom-logo.svg', 'custom-logo.png', 'custom-logo.jpg'];
 
+// The name the bytes go to before the file takes its own. A write that
+// finishes removes it either way; one interrupted by a stop, a full disk or a
+// crash does not, and at up to 2 MB it stays for good — hidden, so nothing
+// even lists it.
+const PARTIAL_NAME = /^\.logo-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.part$/;
+
 const logoDirectory = () => path.join(directories.config, 'logos');
 
 const logoUrlFor = (name) => `${LOGO_URL_PREFIX}${encodeURIComponent(name)}`;
@@ -131,7 +137,11 @@ const sweepUnreferencedLogos = async () => {
   const unreferenced = entries
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
-    .filter((name) => name !== inUse && (OWN_NAME.test(name) || LEGACY_NAMES.includes(name)));
+    .filter(
+      (name) =>
+        name !== inUse &&
+        (OWN_NAME.test(name) || LEGACY_NAMES.includes(name) || PARTIAL_NAME.test(name))
+    );
 
   await Promise.all(unreferenced.map(removeLogoFile));
 };
