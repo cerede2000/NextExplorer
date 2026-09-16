@@ -160,9 +160,11 @@ const isProbablyBinaryText = (text) => {
   return suspicious / length > 0.3;
 };
 
-async function readTextFile(absolutePath) {
-  const stats = await fs.stat(absolutePath);
-
+/**
+ * What the editor refuses before it has read a byte: a directory, a file past
+ * the limit, a format the editor is not for.
+ */
+const refuseUnopenable = (absolutePath, stats) => {
   if (stats.isDirectory()) {
     throw new ValidationError('Cannot open a directory in the text editor.');
   }
@@ -175,19 +177,84 @@ async function readTextFile(absolutePath) {
   if (VIDEO_EXTENSIONS.includes(ext)) {
     throw new UnsupportedMediaTypeError('This file type cannot be opened in the text editor.');
   }
+};
 
-  const buffer = await fs.readFile(absolutePath);
-  const detected = detectTextEncoding(buffer);
-  const isUtf16 = detected.encoding !== 'utf8';
-  const text = decodeText(buffer, detected);
+/**
+ * And what it refuses once it has seen the start of the file.
+ *
+ * The decoded text is passed in when the caller already has it; UTF-16 is
+ * judged by its characters, so without it the bytes are decoded here.
+ */
+const refuseBinary = (buffer, detected, decoded = null) => {
+  const binary =
+    detected.encoding === 'utf8'
+      ? isProbablyBinaryBuffer(buffer)
+      : isProbablyBinaryText(decoded ?? decodeText(buffer, detected));
 
-  if (isUtf16 ? isProbablyBinaryText(text) : isProbablyBinaryBuffer(buffer)) {
+  if (binary) {
     throw new UnsupportedMediaTypeError(
       'This file appears to be binary and cannot be opened in the text editor.'
     );
   }
+};
+
+/** The first `byteCount` bytes of a file, or as many of them as there are. */
+const readHead = async (absolutePath, byteCount) => {
+  let handle;
+  try {
+    handle = await fs.open(absolutePath, 'r');
+    const head = Buffer.alloc(byteCount);
+    const { bytesRead } = await handle.read(head, 0, byteCount, 0);
+    return head.subarray(0, bytesRead);
+  } finally {
+    await handle?.close();
+  }
+};
+
+async function readTextFile(absolutePath) {
+  const stats = await fs.stat(absolutePath);
+  refuseUnopenable(absolutePath, stats);
+
+  const buffer = await fs.readFile(absolutePath);
+  const detected = detectTextEncoding(buffer);
+  const text = decodeText(buffer, detected);
+  refuseBinary(buffer, detected, text);
 
   return { buffer, stats, text, encoding: detected };
+}
+
+/**
+ * How much of a file the judgements above need to reach the verdict the whole
+ * file would reach.
+ *
+ * Twice the sample, because the only one of them that looks at characters
+ * rather than bytes looks at SAMPLE_BYTES of them, and in UTF-16 a character
+ * is two bytes. Detection needs no more: a mark is three bytes and the pairing
+ * test caps itself at SAMPLE_BYTES either way.
+ */
+const HEAD_BYTES = SAMPLE_BYTES * 2;
+
+/**
+ * What a save needs to know about the file it is replacing: that the editor
+ * would have opened it at all, and what it is written in.
+ *
+ * Every refusal `readTextFile` makes, made from the stat and the head of the
+ * file rather than from the whole of it — which is all any of them ever
+ * looked at. The save through a share link asked `readTextFile` for the
+ * encoding alone and so read and decoded up to a megabyte to look at three
+ * bytes.
+ *
+ * @returns {Promise<{stats: import('fs').Stats, encoding: {encoding: string, bom: boolean}}>}
+ */
+async function readTextFileHead(absolutePath) {
+  const stats = await fs.stat(absolutePath);
+  refuseUnopenable(absolutePath, stats);
+
+  const head = await readHead(absolutePath, HEAD_BYTES);
+  const detected = detectTextEncoding(head);
+  refuseBinary(head, detected);
+
+  return { stats, encoding: detected };
 }
 
 /**
@@ -244,22 +311,17 @@ const textFileEtag = (stats, describe) => {
  * pairing that betrays a markless UTF-16 shows in the first few hundred.
  */
 async function readFileEncoding(absolutePath) {
-  let handle;
   try {
-    handle = await fs.open(absolutePath, 'r');
-    const head = Buffer.alloc(SAMPLE_BYTES);
-    const { bytesRead } = await handle.read(head, 0, SAMPLE_BYTES, 0);
-    return detectTextEncoding(head.subarray(0, bytesRead));
+    return detectTextEncoding(await readHead(absolutePath, SAMPLE_BYTES));
   } catch (_) {
     // No file yet: a new one is written in the encoding everything else uses.
     return { encoding: 'utf8', bom: false };
-  } finally {
-    await handle?.close();
   }
 }
 
 module.exports = {
   readTextFile,
+  readTextFileHead,
   readFileEncoding,
   detectTextEncoding,
   decodeText,

@@ -41,7 +41,11 @@ const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
 const { collectArchiveEntries, appendEntries } = require('../services/archiveTree');
 const logger = require('../utils/logger');
-const { readTextFile, encodeText, MAX_EDITOR_FILE_SIZE } = require('../services/textEditorService');
+const {
+  readTextFileHead,
+  encodeText,
+  MAX_EDITOR_FILE_SIZE,
+} = require('../services/textEditorService');
 const versions = require('../services/versions/operations');
 const { rightsFrom: versionRights } = require('../services/versions');
 
@@ -1021,8 +1025,9 @@ const handleSharedEditorSaveRequest = async (req, res) => {
   }
   // Reuse the editor's text validation before writing so a writable share
   // cannot be used to modify directories, binaries, or oversized files. It also
-  // says what the file is written in, so the save keeps that.
-  const { encoding } = await readTextFile(resolved.absolutePath);
+  // says what the file is written in, so the save keeps that. From the head of
+  // the file: this asked for the whole of it, decoded, to read three bytes.
+  const { encoding } = await readTextFileHead(resolved.absolutePath);
   const payload = encodeText(content, encoding);
   if (payload.length > MAX_EDITOR_FILE_SIZE) {
     throw new ValidationError('This file is too large to save in the text editor.');
