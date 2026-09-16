@@ -684,42 +684,85 @@ const setUserFolderView = async (userId, folderPath, view) => {
   return preferences?.folderViews ?? null;
 };
 
+const assertSystemCategory = (category) => {
+  if (category !== 'branding' && category !== 'system') {
+    throw new Error('Invalid category. Must be "branding" or "system"');
+  }
+};
+
+/**
+ * What a section is held to before it is stored, by key.
+ *
+ * The same shaping a read applies, so a section merged over the row itself
+ * comes out as it would have come out of the settings: a field nobody sent
+ * takes the sanitiser's default, which is the one a read would have given it.
+ */
+const sanitizeSystemSetting = (key, value) => {
+  if (key === 'thumbnails') return sanitizeThumbnails(value);
+  // Strict: what is being stored was just written by somebody, and a rule that
+  // cannot be stored as they wrote it is answered rather than dropped.
+  if (key === 'access') return { rules: sanitizeAccessRules(value.rules || [], { strict: true }) };
+  if (key === 'uploads') return sanitizeUploads(value);
+  if (key === 'branding') return sanitizeBranding(value);
+  if (key === 'folderSize') return sanitizeFolderSize(value);
+  if (key === 'trash') return sanitizeTrash(value);
+  if (key === 'versions') return sanitizeVersions(value);
+  return value;
+};
+
 /**
  * Set a system setting (admin only)
  */
 const setSystemSetting = async (category, key, value) => {
-  if (category !== 'branding' && category !== 'system') {
-    throw new Error('Invalid category. Must be "branding" or "system"');
-  }
+  assertSystemCategory(category);
 
   const db = await getDb();
-  const now = new Date().toISOString();
+  const sanitizedValue = sanitizeSystemSetting(key, value);
 
-  // Sanitize based on key
-  let sanitizedValue = value;
-  if (key === 'thumbnails') {
-    sanitizedValue = sanitizeThumbnails(value);
-  } else if (key === 'access') {
-    // Strict: what is being stored was just written by somebody, and a rule
-    // that cannot be stored as they wrote it is answered rather than dropped.
-    sanitizedValue = {
-      rules: sanitizeAccessRules(value.rules || [], { strict: true }),
-    };
-  } else if (key === 'uploads') {
-    sanitizedValue = sanitizeUploads(value);
-  } else if (key === 'branding') {
-    sanitizedValue = sanitizeBranding(value);
-  } else if (key === 'folderSize') {
-    sanitizedValue = sanitizeFolderSize(value);
-  } else if (key === 'trash') {
-    sanitizedValue = sanitizeTrash(value);
-  } else if (key === 'versions') {
-    sanitizedValue = sanitizeVersions(value);
-  }
-
-  writeSystemSetting(db, category, key, sanitizedValue, now);
+  writeSystemSetting(db, category, key, sanitizedValue);
 
   return sanitizedValue;
+};
+
+/** One section as it is stored, before any default is put around it. */
+const readStoredSection = (db, category, key) => {
+  const row = db
+    .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
+    .get(category, key);
+  if (!row) return {};
+
+  try {
+    const stored = JSON.parse(row.value);
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  } catch {
+    // An unreadable value is the section's defaults, exactly as a read treats it.
+    return {};
+  }
+};
+
+/**
+ * Merge an update over one stored section and write it back, and answer the
+ * whole section as it now stands.
+ *
+ * Read and written without yielding in between — the database answers
+ * synchronously — so two saves of one section at once cannot both start from
+ * the same stored value. The route used to merge over the settings read at the
+ * start of the request, with two awaits between that read and the write: a
+ * retention of ninety days saved in one tab disappeared when the other tab
+ * saved a size cap a moment later, and the person who set it was told it was
+ * saved. Branding was taken out of this path for the same reason, where losing
+ * a save also left a logo file behind with nothing to serve or remove it.
+ */
+const mergeSystemSection = async (category, key, update) => {
+  assertSystemCategory(category);
+
+  const db = await getDb();
+  const merged = sanitizeSystemSetting(key, {
+    ...readStoredSection(db, category, key),
+    ...update,
+  });
+  writeSystemSetting(db, category, key, merged);
+  return merged;
 };
 
 /** Store one system setting as it is, in a single synchronous step. */
@@ -861,6 +904,7 @@ module.exports = {
   setUserFolderSort,
   setUserFolderView,
   setSystemSetting,
+  mergeSystemSection,
   replaceBranding,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,
   // Legacy methods for backward compatibility

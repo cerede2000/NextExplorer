@@ -6,8 +6,8 @@ const {
   setUserFolderSort,
   setUserFolderView,
   setSystemSetting,
+  mergeSystemSection,
   replaceBranding,
-  getSettings,
   WRITABLE_USER_SETTINGS,
 } = require('../services/settingsService');
 const { forgetReplacedLogo, replaceLogo } = require('../services/brandingLogo');
@@ -151,15 +151,20 @@ const isName = (value) => typeof value === 'string' && value.trim() !== '';
 /**
  * Merge an update over what is stored, and give back the whole section.
  *
+ * The merge is the service's, which reads the stored section and writes it
+ * back without yielding in between. Merging over the settings read at the
+ * start of the request, as this did, left two awaits between the read and the
+ * write: two saves of one section at once both started from the same stored
+ * value, and the second wrote over the first's field while telling the person
+ * who set it that it was saved. Branding already had its own reason for a
+ * read and a write in one step; every section has this one.
+ *
  * @returns {Promise<object|null>} null when there was nothing to change, so a
  *   caller can tell "no valid field" from "field set to its current value".
  */
 const mergeSection = async (category, key, update) => {
   if (Object.keys(update).length === 0) return null;
-  const current = await getSettings();
-  const merged = { ...current[key], ...update };
-  await setSystemSetting(category, key, merged);
-  return merged;
+  return mergeSystemSection(category, key, update);
 };
 
 /** A person's own preferences, which they may change whatever their role. */
@@ -270,11 +275,7 @@ const applyAccess = async (section) => {
 const applyExclusions = async (key, manager, section) => {
   if (!Array.isArray(section.excludedPaths)) return null;
 
-  const current = await getSettings();
-  const saved = await setSystemSetting('system', key, {
-    ...current[key],
-    excludedPaths: section.excludedPaths,
-  });
+  const saved = await mergeSection('system', key, { excludedPaths: section.excludedPaths });
   const applied = await manager.setAdminExclusions(saved.excludedPaths);
 
   return {
