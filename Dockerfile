@@ -219,7 +219,8 @@ RUN addgroup -S appuser && \
 # Optional feature stacks — toggled at build time. Defaults keep the FULL image
 # byte-for-byte identical to before.
 #   INCLUDE_RAW=false    drops perl + the exiftool-vendored node module: removes
-#                        RAW-photo previews only (normal EXIF still works via exifr).
+#                        RAW-photo previews only; ordinary EXIF is read from the
+#                        block sharp hands back, which costs nothing extra.
 #   INCLUDE_VAAPI=false  drops libva + mesa-va-gallium (Mesa + LLVM, 211 MB): ffmpeg
 #                        still decodes video in software. VA-API is opt-in anyway,
 #                        used only when FFMPEG_HWACCEL is set with a GPU passed in.

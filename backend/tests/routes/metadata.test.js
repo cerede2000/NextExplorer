@@ -222,6 +222,44 @@ describe('a picture', () => {
   });
 
   /**
+   * The camera's own account of the picture, through the route rather than
+   * through the parser: what this pins is the wiring — the block sharp hands
+   * back reaching the panel, with the extension it needs to know when to go
+   * looking in the file itself.
+   */
+  it('reports the camera, the lens and where it was taken', async () => {
+    const volume = await seed();
+    const file = path.join(volume, 'Photos', 'holiday.jpg');
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await sharp({ create: { width: 12, height: 8, channels: 3, background: '#336699' } })
+      .withExif({
+        IFD0: { Make: 'FUJIFILM', Model: 'X-T5' },
+        IFD2: { DateTimeOriginal: '2024:05:03 18:22:41', LensModel: 'XF16-55mmF2.8' },
+        IFD3: {
+          GPSLatitudeRef: 'N',
+          GPSLatitude: '48/1 51/1 2952/100',
+          GPSLongitudeRef: 'E',
+          GPSLongitude: '2/1 17/1 2988/100',
+        },
+      })
+      .jpeg()
+      .toFile(file);
+
+    const response = await request(buildApp()).get('/api/metadata/Photos/holiday.jpg');
+
+    expect(response.status).toBe(200);
+    expect(response.body.image).toMatchObject({
+      width: 12,
+      height: 8,
+      cameraMake: 'FUJIFILM',
+      cameraModel: 'X-T5',
+      lensModel: 'XF16-55mmF2.8',
+      dateTaken: '2024-05-03T18:22:41',
+    });
+    expect(response.body.image.gps.lat).toBeCloseTo(48.8582, 4);
+  });
+
+  /**
    * A file named `.png` that is not one. The panel loses the picture's own
    * details and keeps everything the filesystem knows, which is what somebody
    * looking at a damaged file most needs.

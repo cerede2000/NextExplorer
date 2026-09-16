@@ -3,9 +3,9 @@ const fs = require('fs/promises');
 const path = require('path');
 const sharp = require('sharp');
 const ffmpegRunner = require('../services/ffmpegRunner');
-let exifr = null;
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
+const { readExifDetails } = require('../utils/exifDetails');
 const { extensions } = require('../config/index');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
@@ -13,18 +13,6 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 
 const router = express.Router();
-
-// Optional: try to require exifr only when route is hit
-const loadExifr = () => {
-  if (exifr) return exifr;
-  try {
-    // eslint-disable-next-line global-require
-    exifr = require('exifr');
-  } catch (e) {
-    exifr = null;
-  }
-  return exifr;
-};
 
 const probeVideo = async (filePath) => {
   const data = await ffmpegRunner.probe(filePath);
@@ -74,72 +62,35 @@ const sumDirectory = async (dirPath, limit = 200000) => {
 /**
  * What a picture says about itself.
  *
- * Two libraries, asked separately and both allowed to fail: a file that cannot
+ * Two readings, asked separately and both allowed to fail: a file that cannot
  * be read as an image still has a name, a size and a date, which is what
  * somebody looking at a damaged file most needs. Losing the whole answer over
  * a broken header would be the wrong trade.
+ *
+ * One read of the file covers both, because sharp hands back the EXIF block
+ * along with the dimensions it was opened for.
  */
-const readImageDetails = async (absolutePath) => {
+const readImageDetails = async (absolutePath, extension) => {
   const details = {};
+  let metadata = null;
 
   try {
-    const meta = await sharp(absolutePath).metadata();
-    details.width = meta.width || null;
-    details.height = meta.height || null;
-    details.orientation = meta.orientation || null;
+    metadata = await sharp(absolutePath).metadata();
+    details.width = metadata.width || null;
+    details.height = metadata.height || null;
+    details.orientation = metadata.orientation || null;
   } catch (e) {
     logger.debug({ err: e }, 'sharp.metadata failed');
   }
 
   try {
-    const exif = loadExifr()
-      ? await exifr.parse(absolutePath, {
-          tiff: true,
-          ifd0: true,
-          exif: true,
-          gps: true,
-          iptc: true,
-        })
-      : null;
-    if (exif) Object.assign(details, readExifFields(exif), { gps: readCoordinates(exif) });
+    const exif = await readExifDetails(absolutePath, metadata, extension);
+    if (exif) Object.assign(details, exif);
   } catch (e) {
     logger.debug({ err: e }, 'EXIF parse failed');
   }
 
   return Object.keys(details).length > 0 ? details : null;
-};
-
-/**
- * What each detail is called in an EXIF block, in the order to look.
- *
- * Cameras disagree about capitalisation and about which date they write, so
- * every field is several names — a table rather than a chain of `||`, which is
- * what it plainly is and what makes adding a camera's spelling a one-line
- * change.
- */
-const EXIF_FIELDS = {
-  cameraMake: ['Make', 'make'],
-  cameraModel: ['Model', 'model'],
-  lensModel: ['LensModel', 'lensModel'],
-  software: ['Software'],
-  dateTaken: ['DateTimeOriginal', 'CreateDate', 'ModifyDate'],
-};
-
-const readExifFields = (exif) =>
-  Object.fromEntries(
-    Object.entries(EXIF_FIELDS).map(([name, candidates]) => [
-      name,
-      candidates.map((candidate) => exif[candidate]).find(Boolean) ?? null,
-    ])
-  );
-
-/** Where a photograph was taken, under whichever pair of names it was stored. */
-const readCoordinates = (exif) => {
-  if (exif.latitude && exif.longitude) return { lat: exif.latitude, lon: exif.longitude };
-  if (exif.GPSLatitude && exif.GPSLongitude) {
-    return { lat: exif.GPSLatitude, lon: exif.GPSLongitude };
-  }
-  return null;
 };
 
 /** What the filesystem alone knows about a path. */
@@ -159,7 +110,7 @@ const describeEntry = (logicalPath, stats) => {
 /** The file's own details, when its kind has any to give. */
 const readKindDetails = async (absolutePath, extension) => {
   if (extensions.images.includes(extension)) {
-    const image = await readImageDetails(absolutePath);
+    const image = await readImageDetails(absolutePath, extension);
     return image ? { image } : {};
   }
 
