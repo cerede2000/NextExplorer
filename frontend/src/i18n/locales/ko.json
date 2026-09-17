@@ -878,6 +878,7 @@
         "account-passkey": "패스키 변경",
         "admin-user": "계정 변경",
         "admin-settings": "설정 변경",
+        "admin-activity-clear": "기록 비움",
         "share-create": "공유 링크 생성",
         "share-delete": "공유 링크 삭제",
         "share-download": "링크로 다운로드",

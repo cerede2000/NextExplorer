@@ -878,6 +878,7 @@
         "account-passkey": "Clave de acceso cambiada",
         "admin-user": "Cuenta modificada",
         "admin-settings": "Ajustes cambiados",
+        "admin-activity-clear": "Registro vaciado",
         "share-create": "Enlace creado",
         "share-delete": "Enlace eliminado",
         "share-download": "Descargado con un enlace",

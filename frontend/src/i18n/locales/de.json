@@ -878,6 +878,7 @@
         "account-passkey": "Passkey geändert",
         "admin-user": "Konto geändert",
         "admin-settings": "Einstellungen geändert",
+        "admin-activity-clear": "Protokoll geleert",
         "share-create": "Freigabe erstellt",
         "share-delete": "Freigabe gelöscht",
         "share-download": "Über einen Link heruntergeladen",

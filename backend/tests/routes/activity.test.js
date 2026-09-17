@@ -234,18 +234,58 @@ describe('who may read it', { timeout: 30_000 }, () => {
     expect((await request(app).get('/api/activity')).status).toBe(401);
   });
 
-  it('and an administrator can empty it', async () => {
+  it('and an administrator can empty it, leaving the line that says they did', async () => {
     const { app } = await build();
     const browser = await setUpOwner(app);
     await turnOn(browser);
     await browser.post('/api/auth/logout').send({});
     await browser.post('/api/auth/login').send({ identifier: 'owner', password: PASSWORD });
-    expect((await read(browser)).events.length).toBeGreaterThan(0);
+    const before = (await read(browser)).events;
+    expect(before.length).toBeGreaterThan(0);
 
     const cleared = await browser.delete('/api/activity');
 
     expect(cleared.status).toBe(200);
+    expect(cleared.body.removed).toBe(before.length);
+    // The history is gone, which is what was asked. What does not go with it
+    // is that somebody took it away, when, and how much there was: a log that
+    // can be emptied without a trace is worth less than the rows it lost.
+    const after = (await read(browser)).events;
+    expect(after).toHaveLength(1);
+    expect(after[0]).toMatchObject({ action: 'admin.activity-clear', actor: 'owner' });
+    expect(JSON.parse(after[0].detail)).toEqual({ removed: before.length });
+  });
+
+  it('empties again, and counts only what was left', async () => {
+    const { app } = await build();
+    const browser = await setUpOwner(app);
+    await turnOn(browser);
+
+    await browser.delete('/api/activity');
+    const second = await browser.delete('/api/activity');
+
+    // The one line the first emptying left behind, and no more.
+    expect(second.body.removed).toBe(1);
+    expect((await read(browser)).events).toHaveLength(1);
+  });
+
+  it('writes nothing when the log is off, like every other kind of event', async () => {
+    const { app } = await build();
+    const browser = await setUpOwner(app);
+    await turnOn(browser);
+    await browser.post('/api/auth/logout').send({});
+    await browser.post('/api/auth/login').send({ identifier: 'owner', password: PASSWORD });
+    await turnOn(browser, { enabled: false });
+
+    // Rows written while it was on are still there, and still go.
+    const cleared = await browser.delete('/api/activity');
     expect(cleared.body.removed).toBeGreaterThan(0);
-    expect((await read(browser)).events).toEqual([]);
+
+    // Off means nothing is written — including this. Anybody who can empty
+    // the log can also switch it off first, so the alternative would buy a
+    // trace nobody can rely on at the cost of writing into a table the
+    // operator was told is inert.
+    await turnOn(browser, { enabled: true });
+    expect((await read(browser)).events.map((event) => event.action)).toEqual(['admin.settings']);
   });
 });

@@ -878,6 +878,7 @@
         "account-passkey": "Nyckel ändrad",
         "admin-user": "Konto ändrat",
         "admin-settings": "Inställningar ändrade",
+        "admin-activity-clear": "Loggen tömd",
         "share-create": "Delning skapad",
         "share-delete": "Delning borttagen",
         "share-download": "Hämtad via en länk",

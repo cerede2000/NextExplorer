@@ -28,6 +28,7 @@ const ACTIONS = new Set([
   'account.passkey',
   'admin.user',
   'admin.settings',
+  'admin.activity-clear',
   'share.create',
   'share.delete',
   'share.download',

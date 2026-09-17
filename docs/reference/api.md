@@ -72,9 +72,11 @@ and finishes at `/api/auth/login/totp` like a password does.
 `action`, `outcome`, `user`, `from`, `to`, `q`, `limit` narrow it, and `before`
 — the `nextBefore` of the page before — is where to carry on from, so rows
 arriving while somebody reads do not shift a page. `DELETE /api/activity`
-empties it. The answer also says whether the log is on (`enabled`) and what
-kinds of event exist (`actions`); with it off, `events` is empty because
-nothing was recorded. It is switched on at `PATCH /api/settings` with
+empties it, answers how many rows went (`removed`) and writes one last line —
+`admin.activity-clear`, naming who asked and that count — after the deletion,
+so it is the only row to survive it. The answer also says whether the log is on
+(`enabled`) and what kinds of event exist (`actions`); with it off, `events` is
+empty because nothing was recorded. It is switched on at `PATCH /api/settings` with
 `{"activity": {"enabled": true, "retentionDays": 90}}`.
 
 It ends sooner if the account's password changes. `POST /api/auth/password`

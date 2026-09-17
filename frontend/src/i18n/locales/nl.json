@@ -881,6 +881,7 @@
         "account-passkey": "Passkey gewijzigd",
         "admin-user": "Account gewijzigd",
         "admin-settings": "Instellingen gewijzigd",
+        "admin-activity-clear": "Logboek geleegd",
         "share-create": "Deellink gemaakt",
         "share-delete": "Deellink verwijderd",
         "share-download": "Via een link gedownload",

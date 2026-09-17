@@ -45,12 +45,23 @@ router.get(
  *
  * The one thing an administrator may want that a retention cannot give them: a
  * log switched on to look into something, and emptied when it is over.
+ *
+ * Emptying it is itself something somebody did, so the log says so: the line
+ * is written after the deletion, which makes it the only one to survive it. A
+ * log that can be emptied without a trace is worth less than the rows it lost.
  */
 router.delete(
   '/activity',
   ensureAdmin,
   asyncHandler(async (req, res) => {
-    res.json({ removed: await activityLog.clearActivity() });
+    const removed = await activityLog.clearActivity();
+    await activityLog.record({
+      action: 'admin.activity-clear',
+      user: req.user,
+      detail: { removed },
+      req,
+    });
+    res.json({ removed });
   })
 );
 

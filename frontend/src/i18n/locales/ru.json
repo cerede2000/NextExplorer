@@ -878,6 +878,7 @@
         "account-passkey": "Ключ доступа изменён",
         "admin-user": "Учётная запись изменена",
         "admin-settings": "Настройки изменены",
+        "admin-activity-clear": "Журнал очищен",
         "share-create": "Ссылка создана",
         "share-delete": "Ссылка удалена",
         "share-download": "Скачано по ссылке",

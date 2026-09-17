@@ -878,6 +878,7 @@
         "account-passkey": "變更通行金鑰",
         "admin-user": "變更帳戶",
         "admin-settings": "變更設定",
+        "admin-activity-clear": "清空日誌",
         "share-create": "建立分享",
         "share-delete": "刪除分享",
         "share-download": "透過連結下載",

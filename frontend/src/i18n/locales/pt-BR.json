@@ -881,6 +881,7 @@
         "account-passkey": "Chave de acesso alterada",
         "admin-user": "Conta alterada",
         "admin-settings": "Configurações alteradas",
+        "admin-activity-clear": "Registro limpo",
         "share-create": "Compartilhamento criado",
         "share-delete": "Compartilhamento excluído",
         "share-download": "Baixado por um link",

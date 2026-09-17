@@ -881,6 +881,7 @@
         "account-passkey": "Passkey changed",
         "admin-user": "Account changed",
         "admin-settings": "Settings changed",
+        "admin-activity-clear": "Log cleared",
         "share-create": "Share created",
         "share-delete": "Share deleted",
         "share-download": "Downloaded through a link",
