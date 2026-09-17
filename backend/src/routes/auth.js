@@ -46,6 +46,7 @@ const {
 const { ErrorCodes } = require('../errors/errorCodes');
 const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 const { incrementFailedAttempts, clearLock, isLocked } = require('../services/users/lockout');
+const { clientAddress } = require('../utils/clientAddress');
 
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
@@ -537,7 +538,7 @@ const refusePasskey = (error, req) => {
   if (error.status === 409) {
     throw new ValidationError(error.message);
   }
-  logger.warn({ reason: error.message, ip: req.ip }, 'A passkey was refused');
+  logger.warn({ reason: error.message, ip: clientAddress(req) }, 'A passkey was refused');
   // Not awaited: this is the throwing path, and a log line is not worth
   // holding a refusal for. `record` never rejects.
   activityLog.record({

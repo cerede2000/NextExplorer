@@ -13,6 +13,7 @@ const logger = require('../../utils/logger');
 const { collectInputPaths, encodeContentDisposition, stripBasePath, toPosix } = require('./utils');
 
 const router = require('express').Router();
+const { clientAddress } = require('../../utils/clientAddress');
 
 const getLogicalSegments = (relativePath = '') => toPosix(relativePath).split('/').filter(Boolean);
 
@@ -69,7 +70,7 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   const shareDownloadIds = [...new Set(targets.map(({ shareId }) => shareId).filter(Boolean))];
   await mapWithConcurrency(shareDownloadIds, (shareId) =>
-    trackShareDownload(shareId, { ipAddress: req.ip })
+    trackShareDownload(shareId, { ipAddress: clientAddress(req) })
   );
 
   // What left, named once for the whole request: a selection is one download

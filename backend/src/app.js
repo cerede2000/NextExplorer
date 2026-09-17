@@ -9,6 +9,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const { configureTrustProxy } = require('./middleware/trustProxy');
+const { forwardedAddressWarning } = require('./utils/clientAddress');
 const { configureSecurityHeaders } = require('./middleware/securityHeaders');
 const { requestContextMiddleware } = require('./utils/requestContext');
 const { uploads } = require('./config/index');
@@ -47,6 +48,10 @@ const createApp = async (options = {}) => {
   const app = express();
 
   configureTrustProxy(app);
+  // Says once, on the first request that shows it, when a proxy is announcing
+  // a client this server was not told to believe: without it every recorded
+  // address is the proxy's and nothing anywhere says why.
+  app.use(forwardedAddressWarning);
   // Opens the per-request scratch space early, so everything downstream can
   // memoize work that must not be reused by the next request.
   app.use(requestContextMiddleware);

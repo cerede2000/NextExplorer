@@ -49,6 +49,7 @@ const {
 const versions = require('../services/versions/operations');
 const activityLog = require('../services/activityLog');
 const { rightsFrom: versionRights } = require('../services/versions');
+const { clientAddress } = require('../utils/clientAddress');
 
 const router = express.Router();
 
@@ -702,10 +703,10 @@ router.post(
       if (share.sharingType === 'anyone') {
         const session = await createGuestSession({
           shareId: share.id,
-          ipAddress: req.ip,
+          ipAddress: clientAddress(req),
           userAgent: req.get('user-agent'),
         });
-        await trackShareAccess(share.id, { ipAddress: req.ip });
+        await trackShareAccess(share.id, { ipAddress: clientAddress(req) });
 
         // Set guest session cookie
         setGuestSessionCookie(req, res, session.id);
@@ -732,10 +733,10 @@ router.post(
     if (share.sharingType === 'anyone') {
       const session = await createGuestSession({
         shareId: share.id,
-        ipAddress: req.ip,
+        ipAddress: clientAddress(req),
         userAgent: req.get('user-agent'),
       });
-      await trackShareAccess(share.id, { ipAddress: req.ip });
+      await trackShareAccess(share.id, { ipAddress: clientAddress(req) });
 
       // Set guest session cookie
       setGuestSessionCookie(req, res, session.id);
@@ -802,7 +803,7 @@ router.get(
         // looking made the branch below ask for the password a second time,
         // for a share it had just been given.
         if (req.guestSession && req.guestSession.shareId === share.id) {
-          await trackShareAccess(share.id, { ipAddress: req.ip });
+          await trackShareAccess(share.id, { ipAddress: clientAddress(req) });
 
           return res.json({
             share: {
@@ -821,10 +822,10 @@ router.get(
         if (!share.hasPassword) {
           const session = await createGuestSession({
             shareId: share.id,
-            ipAddress: req.ip,
+            ipAddress: clientAddress(req),
             userAgent: req.get('user-agent'),
           });
-          await trackShareAccess(share.id, { ipAddress: req.ip });
+          await trackShareAccess(share.id, { ipAddress: clientAddress(req) });
 
           // Set guest session cookie (overwrites any existing session)
           setGuestSessionCookie(req, res, session.id);
@@ -845,7 +846,7 @@ router.get(
         throw new UnauthorizedError('Password verification required');
       }
 
-      await trackShareAccess(share.id, { ipAddress: req.ip });
+      await trackShareAccess(share.id, { ipAddress: clientAddress(req) });
     }
 
     // Return share access info
@@ -972,7 +973,7 @@ const handleDirectFileRequest = async (req, res) => {
   const { share, resolved, stats, context } = target;
   if (stats.isDirectory()) {
     // Directories are always delivered as a ZIP attachment.
-    await trackShareDownload(share.id, { ipAddress: req.ip });
+    await trackShareDownload(share.id, { ipAddress: clientAddress(req) });
     await recordShareDownload({ share, resolved, req });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
@@ -994,10 +995,10 @@ const handleDirectFileRequest = async (req, res) => {
   const mode = normalizeDirectFileMode(req.query?.mode);
   const { disposition } = getDirectFilePresentation(path.basename(resolved.absolutePath), mode);
   if (disposition === 'attachment') {
-    await trackShareDownload(share.id, { ipAddress: req.ip });
+    await trackShareDownload(share.id, { ipAddress: clientAddress(req) });
     await recordShareDownload({ share, resolved, req });
   } else {
-    await trackShareAccess(share.id, { ipAddress: req.ip });
+    await trackShareAccess(share.id, { ipAddress: clientAddress(req) });
   }
   await streamResolvedFile({
     absolutePath: resolved.absolutePath,
@@ -1036,7 +1037,7 @@ const handleSharedEditorRequest = async (req, res) => {
     describe: { name, path: innerPath, canDownload, canWrite },
     headers: { 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
     // A revalidation is still somebody opening the file.
-    onAnswer: () => trackShareAccess(share.id, { ipAddress: req.ip }),
+    onAnswer: () => trackShareAccess(share.id, { ipAddress: clientAddress(req) }),
     render: ({ text }) => ({ name, path: innerPath, content: text, canDownload, canWrite }),
   });
 };

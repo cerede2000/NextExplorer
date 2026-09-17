@@ -27,7 +27,7 @@ afterEach(async () => {
   }
 });
 
-const build = async (env = {}) => {
+const build = async (env = {}, { trustProxy } = {}) => {
   currentEnv = await setupTestEnv({
     tag: 'activity-routes-',
     env: { AUTH_ENABLED: 'true', AUTH_MODE: 'local', ...env },
@@ -40,6 +40,7 @@ const build = async (env = {}) => {
   const { errorHandler, notFoundHandler } = currentEnv.requireFresh('src/middleware/errorHandler');
 
   const app = express();
+  if (trustProxy !== undefined) app.set('trust proxy', trustProxy);
   app.use(express.json());
   app.use(cookieParser());
   configureSession(app);
@@ -287,5 +288,55 @@ describe('who may read it', { timeout: 30_000 }, () => {
     // operator was told is inert.
     await turnOn(browser, { enabled: true });
     expect((await read(browser)).events.map((event) => event.action)).toEqual(['admin.settings']);
+  });
+});
+
+/**
+ * Which address a line carries.
+ *
+ * In a container the socket is opened by the Docker bridge, so a log that
+ * writes down whoever opened the socket says `172.18.0.1` on every line — the
+ * address of no one. Behind a proxy the person is named in a header, and a
+ * header is worth reading exactly when the machine that sent it is one this
+ * server was told to believe.
+ */
+describe('the address in a line', { timeout: 30_000 }, () => {
+  const signIn = (app, headers = {}) =>
+    request(app).post('/api/auth/login').set(headers).send({
+      identifier: 'owner',
+      password: PASSWORD,
+    });
+
+  it('is the person behind the proxy, once that proxy is believed', async () => {
+    const { app } = await build({}, { trustProxy: 'loopback' });
+    const browser = await setUpOwner(app);
+    await turnOn(browser);
+
+    await signIn(app, { 'x-forwarded-for': '192.168.1.42' });
+
+    const [event] = (await read(browser, '?action=sign-in')).events;
+    expect(event.ip).toBe('192.168.1.42');
+  });
+
+  it('reads X-Real-IP too, which is all some proxies send', async () => {
+    const { app } = await build({}, { trustProxy: 'loopback' });
+    const browser = await setUpOwner(app);
+    await turnOn(browser);
+
+    await signIn(app, { 'x-real-ip': '192.168.1.42' });
+
+    expect((await read(browser, '?action=sign-in')).events[0].ip).toBe('192.168.1.42');
+  });
+
+  it('is the machine at the other end when no proxy is believed', async () => {
+    // Otherwise anybody on the network chooses what the log says about them,
+    // which is worse than a log that names the proxy.
+    const { app } = await build();
+    const browser = await setUpOwner(app);
+    await turnOn(browser);
+
+    await signIn(app, { 'x-forwarded-for': '192.168.1.42' });
+
+    expect((await read(browser, '?action=sign-in')).events[0].ip).toBe('127.0.0.1');
   });
 });

@@ -23,6 +23,37 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 - Override with values such as `1` (trust one hop) or CIDRs (`10.0.0.0/8,172.16.0.0/12`).
 - Avoid `TRUST_PROXY=true` alone; the entrypoint maps it to `loopback,uniquelocal` for safety.
 
+## The address that gets recorded
+
+The activity log, share access counters and the server's own warnings all
+write down one address per request, and which one that is depends entirely on
+this page.
+
+- **No proxy.** Whoever opened the socket. In a container that is often not the
+  person: a connection made from the Docker host itself, or relayed by Docker's
+  userland proxy — which is every connection on Docker Desktop — arrives from
+  the bridge (`172.17.0.1`, `172.18.0.1`). From another machine on the LAN to a
+  published port on Linux, the real address survives. Nothing in the
+  application can recover an address the kernel already replaced; that is a
+  Docker networking matter, not a setting here.
+- **Behind a proxy.** `TRUST_PROXY` decides whether the address the proxy
+  announces is believed. `loopback` alone is not enough when the proxy is
+  another container: it speaks from the bridge network, so use
+  `loopback,uniquelocal` or the proxy's own CIDR.
+- **A chain is read from the right**, and stops at the first hop that is not
+  trusted — a hop nobody vouches for could have written everything to its left.
+  Trust one proxy and three appear in the chain, and what you get is the third
+  one, not the person.
+- **`X-Forwarded-For` and `X-Real-IP` are both read**, in that order. Nginx's
+  own example configuration sends the second and not the first.
+- **Never trust a proxy that is not yours.** With `TRUST_PROXY` set, anybody who
+  can reach the port directly can choose what the log says about them.
+
+When a proxy announces a client and nothing here believes it, the server says
+so once in its own log, naming the address it was told and the one it is
+recording instead — the alternative is a log where every line says
+`172.18.0.1` and nothing anywhere says why.
+
 ## CORS & headers
 
 - Set `CORS_ORIGINS`/`ALLOWED_ORIGINS` when the app is accessed from multiple domains.
@@ -37,8 +68,9 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 
 ## Troubleshooting proxies
 
-| Symptom                      | Fix                                                                                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| CORS errors                  | Add the proxy domain to `CORS_ORIGINS` or set `PUBLIC_URL`.                                      |
-| Sessions drop                | Confirm `TRUST_PROXY` lets Express read `X-Forwarded-Proto` and `COOKIE` is not stripped.        |
-| Redirect URI mismatch (OIDC) | Register `${PUBLIC_URL}/callback` and each configured internal `<origin>/callback` with the IdP. |
+| Symptom                                  | Fix                                                                                                                                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CORS errors                              | Add the proxy domain to `CORS_ORIGINS` or set `PUBLIC_URL`.                                                                                                                            |
+| Sessions drop                            | Confirm `TRUST_PROXY` lets Express read `X-Forwarded-Proto` and `COOKIE` is not stripped.                                                                                              |
+| Redirect URI mismatch (OIDC)             | Register `${PUBLIC_URL}/callback` and each configured internal `<origin>/callback` with the IdP.                                                                                       |
+| Every logged address is the same `172.x` | The proxy is not trusted, or there is no proxy and Docker replaced the source. Set `TRUST_PROXY=loopback,uniquelocal`; the server warns once when it is ignoring an announced address. |

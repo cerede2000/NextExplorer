@@ -1,6 +1,7 @@
 const { getDb } = require('./db');
 const { generateId, nowIso } = require('../utils/ids');
 const logger = require('../utils/logger');
+const { clientAddress } = require('../utils/clientAddress');
 
 /**
  * The activity log: who did what, when, and from where.
@@ -74,11 +75,13 @@ const clamp = (value, max) => {
 /**
  * The address the request came from.
  *
- * Express already works this out behind a trusted proxy; what it cannot do is
- * decide whether an operator wants it kept, which is why the whole log is a
- * switch rather than something that happens quietly.
+ * Worked out once, for everything that records one: behind a proxy it is the
+ * person's address and not the proxy's, and an IPv4 client on a dual-stack
+ * socket is written the way somebody reading the log would write it. What a
+ * proxy claims is believed only when `trust proxy` says that proxy may be
+ * believed — see `utils/clientAddress`.
  */
-const addressOf = (req) => (req && typeof req.ip === 'string' ? req.ip : null);
+const addressOf = (req) => (req ? clientAddress(req) : null);
 
 /**
  * Write one line, if anybody asked for a log.
