@@ -31,10 +31,14 @@ router.post(
     const outcome = await trash.restoreItems(req.body?.ids, contextOf(req), {
       shares: req.body?.shares,
     });
+    // What came back, under the name it came back as: a restore that had to
+    // take "name (1)" is exactly the line somebody will be looking for.
+    const restored = (outcome.items || []).filter((item) => item.status === 'restored');
     await activityLog.record({
       action: 'file.restore',
       user: req.user,
-      detail: { items: countOf(req.body?.ids) },
+      target: restored[0]?.restoredName || restored[0]?.name || null,
+      detail: { items: restored.length || countOf(req.body?.ids) },
       req,
     });
     res.json(outcome);

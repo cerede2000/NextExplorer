@@ -32,11 +32,18 @@ router.post(
  * that only the plain one recorded would be a log with a hole exactly where
  * people look.
  */
+const nameOf = (item) => {
+  if (typeof item === 'string') return item;
+  // The interface sends the folder and the name apart; a line naming only the
+  // folder says a file went missing from somewhere and nothing more.
+  return [item?.path, item?.name].filter(Boolean).join('/') || null;
+};
+
 const recordDeletion = ({ items, permanent, req }) =>
   activityLog.record({
     action: permanent === true ? 'file.purge' : 'file.delete',
     user: req.user,
-    target: typeof items[0] === 'string' ? items[0] : items[0]?.path,
+    target: nameOf(items[0]),
     detail: items.length > 1 ? { items: items.length } : null,
     req,
   });

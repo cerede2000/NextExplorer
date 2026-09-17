@@ -135,8 +135,10 @@ describe('a file leaving', () => {
       .send({ items: [{ path: 'Files', name: 'doomed.txt' }] });
 
     expect(response.status).toBe(200);
+    // The file, not the folder it was in: a line naming only the folder says
+    // something went missing from somewhere and nothing more.
     expect(await eventsOf('file.delete')).toMatchObject([
-      { actor: 'admin', target: expect.any(String) },
+      { actor: 'admin', target: 'Files/doomed.txt' },
     ]);
   });
 
@@ -166,7 +168,9 @@ describe('a file leaving', () => {
       .send({ ids: [item.id] });
 
     expect(restored.status).toBe(200);
-    expect(await eventsOf('file.restore')).toMatchObject([{ actor: 'admin' }]);
+    expect(await eventsOf('file.restore')).toMatchObject([
+      { actor: 'admin', target: 'second-thoughts.txt' },
+    ]);
   });
 });
 
