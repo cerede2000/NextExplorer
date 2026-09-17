@@ -340,3 +340,62 @@ describe('the address in a line', { timeout: 30_000 }, () => {
     expect((await read(browser, '?action=sign-in')).events[0].ip).toBe('127.0.0.1');
   });
 });
+
+/**
+ * The question in front of a log whose every line carries the same address:
+ * is nobody announcing a client, or is this server not believing the one who
+ * does? Both look identical from the outside, which is the whole reason this
+ * exists.
+ */
+describe('asking what this server sees', { timeout: 30_000 }, () => {
+  it('names the address it would record, the peer, and the rule it decided with', async () => {
+    const { app } = await build({}, { trustProxy: 'loopback' });
+    const browser = await setUpOwner(app);
+
+    const { body } = await browser
+      .get('/api/activity/address')
+      .set({ 'cf-connecting-ip': '203.0.113.9' });
+
+    expect(body).toMatchObject({
+      recorded: '203.0.113.9',
+      peer: '127.0.0.1',
+      trustsPeer: true,
+      trustProxy: 'loopback',
+      announced: { 'cf-connecting-ip': '203.0.113.9' },
+    });
+  });
+
+  it('says plainly when nobody announced anybody', async () => {
+    // A tunnel that forwards raw TCP rather than HTTP adds no header, and no
+    // setting recovers an address that never arrived. An empty list here is
+    // the difference between that and a proxy nobody believes.
+    const { app } = await build({}, { trustProxy: 'loopback' });
+    const browser = await setUpOwner(app);
+
+    const { body } = await browser.get('/api/activity/address');
+
+    expect(body.announced).toEqual({});
+    expect(body.recorded).toBe(body.peer);
+  });
+
+  it('shows the rule as false when nothing was configured', async () => {
+    const { app } = await build();
+    const browser = await setUpOwner(app);
+
+    const { body } = await browser
+      .get('/api/activity/address')
+      .set({ 'x-forwarded-for': '203.0.113.9' });
+
+    expect(body).toMatchObject({ trustProxy: false, trustsPeer: false, recorded: '127.0.0.1' });
+    // The header is still reported: it is there, it is simply not believed.
+    expect(body.announced).toEqual({ 'x-forwarded-for': '203.0.113.9' });
+  });
+
+  it('is for administrators, like the rest of this', async () => {
+    const { app } = await build();
+    const owner = await setUpOwner(app);
+    expect((await owner.get('/api/activity/address')).status).toBe(200);
+
+    expect((await request(app).get('/api/activity/address')).status).toBe(401);
+  });
+});

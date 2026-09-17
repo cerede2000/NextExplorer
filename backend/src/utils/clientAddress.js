@@ -20,8 +20,24 @@ const logger = require('./logger');
  * than one that names the proxy.
  */
 
-/** Headers a proxy uses to name the client it is speaking for. */
-const FORWARDING_HEADERS = ['x-forwarded-for', 'x-real-ip', 'forwarded'];
+/**
+ * Headers a proxy uses to name the client it is speaking for.
+ *
+ * `cf-connecting-ip` is the one Cloudflare sets itself, and it is the one to
+ * believe when a tunnel is in front: it names the person even when several
+ * proxies have added themselves to the chain since. `true-client-ip` is the
+ * same idea under the name enterprise plans use.
+ */
+const FORWARDING_HEADERS = [
+  'cf-connecting-ip',
+  'true-client-ip',
+  'x-forwarded-for',
+  'x-real-ip',
+  'forwarded',
+];
+
+/** The ones this reads directly, in the order it believes them. */
+const NAMED_CLIENT_HEADERS = ['cf-connecting-ip', 'true-client-ip', 'x-real-ip'];
 
 /** `::ffff:192.168.1.7` is 192.168.1.7 in a dual-stack coat. */
 const unmask = (value) => {
@@ -61,14 +77,27 @@ const peerIsTrusted = (req) => {
 const hasForwarding = (req) =>
   FORWARDING_HEADERS.some((name) => Boolean(firstValue(req?.headers?.[name])));
 
+/** What a trusted proxy names the client as, in the order to believe it. */
+const announcedAddress = (req) => {
+  for (const name of NAMED_CLIENT_HEADERS) {
+    const announced = normalizeAddress(firstValue(req?.headers?.[name]));
+    if (announced) return announced;
+  }
+  return null;
+};
+
 const clientAddress = (req) => {
   const peer = normalizeAddress(req?.socket?.remoteAddress);
   const resolved = normalizeAddress(req?.ip);
 
   if (!peerIsTrusted(req)) return resolved || peer;
-  // Express read `X-Forwarded-For` for us when there was one to read.
+  // Cloudflare's own header first: behind a tunnel it names the person even
+  // when the chain has grown a hop since. Then whatever Express made of
+  // `X-Forwarded-For`, then the header nginx's example configuration sends.
+  const cloudflare = normalizeAddress(firstValue(req?.headers?.['cf-connecting-ip']));
+  if (cloudflare) return cloudflare;
   if (resolved && resolved !== peer) return resolved;
-  return normalizeAddress(firstValue(req?.headers?.['x-real-ip'])) || resolved || peer;
+  return announcedAddress(req) || resolved || peer;
 };
 
 /**
@@ -88,9 +117,8 @@ const warnAboutIgnoredForwarding = (req) => {
   if (alreadySaid || !hasForwarding(req) || peerIsTrusted(req)) return null;
   alreadySaid = true;
   const details = {
-    announced: normalizeAddress(
-      firstValue(req?.headers?.['x-forwarded-for'] ?? req?.headers?.['x-real-ip'])
-    ),
+    announced:
+      normalizeAddress(firstValue(req?.headers?.['x-forwarded-for'])) || announcedAddress(req),
     recorded: clientAddress(req),
     hint: 'Set TRUST_PROXY (for example TRUST_PROXY=loopback,uniquelocal) so the address recorded is the one of the person rather than of the proxy.',
   };
@@ -109,6 +137,8 @@ const forwardedAddressWarning = (req, _res, next) => {
 };
 
 module.exports = {
+  FORWARDING_HEADERS,
+  announcedAddress,
   clientAddress,
   forgetForwardingWarning,
   forwardedAddressWarning,

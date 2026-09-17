@@ -84,6 +84,26 @@ describe('the address of a request', () => {
     expect(await ask(app, { 'x-real-ip': '203.0.113.9' })).toBe('127.0.0.1');
   });
 
+  it('believes Cloudflare over anything else in front of it', async () => {
+    // Behind a tunnel, `CF-Connecting-IP` names the person even when a hop has
+    // added itself to the chain since; it is the one Cloudflare sets itself.
+    const app = serve('loopback');
+
+    expect(
+      await ask(app, {
+        'cf-connecting-ip': '203.0.113.9',
+        'x-forwarded-for': '10.248.0.7',
+        'x-real-ip': '10.248.0.7',
+      })
+    ).toBe('203.0.113.9');
+  });
+
+  it("will not take Cloudflare's word from somebody who is not a proxy", async () => {
+    const app = serve();
+
+    expect(await ask(app, { 'cf-connecting-ip': '203.0.113.9' })).toBe('127.0.0.1');
+  });
+
   it('prefers the forwarded chain to X-Real-IP when both are there', async () => {
     const app = serve('loopback');
 

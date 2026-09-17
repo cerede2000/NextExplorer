@@ -3,6 +3,12 @@ const express = require('express');
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const activityLog = require('../services/activityLog');
+const {
+  FORWARDING_HEADERS,
+  clientAddress,
+  normalizeAddress,
+  peerIsTrusted,
+} = require('../utils/clientAddress');
 
 /**
  * Reading the activity log.
@@ -64,5 +70,36 @@ router.delete(
     res.json({ removed });
   })
 );
+
+/**
+ * Where this server thinks the request came from, and why.
+ *
+ * The question every operator asks once, in front of a log whose every line
+ * carries the same address: is the proxy not announcing anybody, or is this
+ * server not believing it? Reading the code to find out is an afternoon;
+ * opening this is a minute. It answers about the person asking and nobody
+ * else, and only for an administrator.
+ */
+router.get('/activity/address', ensureAdmin, (req, res) => {
+  const announced = {};
+  for (const name of FORWARDING_HEADERS) {
+    const value = req.get(name);
+    if (value) announced[name] = value;
+  }
+
+  res.json({
+    recorded: clientAddress(req),
+    peer: normalizeAddress(req.socket?.remoteAddress),
+    // Whether this server would believe what that peer announces, and the
+    // rule it is deciding with — which is also how to tell that TRUST_PROXY
+    // never reached the process.
+    trustsPeer: peerIsTrusted(req),
+    trustProxy: req.app.get('trust proxy') ?? false,
+    // Nothing here means nobody announced a client: a tunnel forwarding raw
+    // TCP rather than HTTP has no header to add, and no setting recovers an
+    // address that never arrived.
+    announced,
+  });
+});
 
 module.exports = router;

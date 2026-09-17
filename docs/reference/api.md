@@ -79,6 +79,12 @@ so it is the only row to survive it. The answer also says whether the log is on
 empty because nothing was recorded. It is switched on at `PATCH /api/settings` with
 `{"activity": {"enabled": true, "retentionDays": 90}}`.
 
+`GET /api/activity/address` (administrators) answers why a line carries the
+address it carries: `recorded`, the `peer` at the other end of the socket,
+`trustsPeer`, the `trustProxy` rule in force, and every forwarding header that
+arrived. No headers means nobody announced a client — see
+[the reverse proxy guide](/installation/reverse-proxy).
+
 It ends sooner if the account's password changes. `POST /api/auth/password`
 signs out every other session of the account, and moves the one that made the
 change to a new cookie, which its response sets — keep writing to the cookie

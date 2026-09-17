@@ -44,8 +44,15 @@ this page.
   trusted — a hop nobody vouches for could have written everything to its left.
   Trust one proxy and three appear in the chain, and what you get is the third
   one, not the person.
-- **`X-Forwarded-For` and `X-Real-IP` are both read**, in that order. Nginx's
-  own example configuration sends the second and not the first.
+- **`CF-Connecting-IP` wins where Cloudflare is in front**, then
+  `X-Forwarded-For`, then `X-Real-IP` (nginx's own example configuration sends
+  that one and not the first). `True-Client-IP` is read as well.
+- **A Cloudflare tunnel only helps when it carries HTTP.** A public hostname
+  route goes through Cloudflare's edge, which adds `CF-Connecting-IP`, so the
+  person is named. A private network route — reaching the machine through WARP
+  by its own address and port — forwards raw TCP: there is no HTTP for a header
+  to be added to, the origin sees `cloudflared` itself, and nothing on this
+  page recovers an address that never arrived.
 - **Never trust a proxy that is not yours.** With `TRUST_PROXY` set, anybody who
   can reach the port directly can choose what the log says about them.
 
@@ -53,6 +60,14 @@ When a proxy announces a client and nothing here believes it, the server says
 so once in its own log, naming the address it was told and the one it is
 recording instead — the alternative is a log where every line says
 `172.18.0.1` and nothing anywhere says why.
+
+To settle it from a browser rather than from the logs, an administrator can
+open `/api/activity/address`. It answers with the address that would be
+recorded, the machine at the other end of the socket, whether that machine is
+believed, the rule in force — which is also how to see that `TRUST_PROXY` never
+reached the process — and every forwarding header that arrived. An empty list
+of headers is the answer to the hardest version of the question: nobody
+announced a client, so there is nothing to believe.
 
 ## CORS & headers
 
