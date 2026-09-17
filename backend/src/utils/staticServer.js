@@ -33,7 +33,7 @@ const configureStaticFiles = (app) => {
     logger.debug({ frontendDir, indexFile }, 'Mounted static frontend');
 
     // SPA fallback - serve index.html for all non-API routes
-    app.get('*', (req, res, next) => {
+    app.get('/{*splat}', (req, res, next) => {
       // Skip API routes and static asset routes
       if (req.path.startsWith('/api') || req.path.startsWith('/static/')) {
         return next();
