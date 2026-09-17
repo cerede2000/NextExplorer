@@ -480,7 +480,7 @@ describe('the original location', () => {
 
     await wrapper.get('[data-test="trash-open-location"]').trigger('click');
 
-    expect(push).toHaveBeenCalledWith({ name: 'FolderView', params: { path: 'Projects/a/b' } });
+    expect(push).toHaveBeenCalledWith({ path: '/browse/Projects/a/b' });
   });
 
   it('offers nothing to open when this person cannot reach it', async () => {

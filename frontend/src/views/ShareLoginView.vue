@@ -14,6 +14,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import logger from '@/utils/logger';
+import { folderRoute } from '@/utils/folderRoute';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -108,10 +109,7 @@ function navigateAfterShareAccess() {
     return;
   }
 
-  router.push({
-    name: 'FolderView',
-    params: { path: `share/${shareToken.value}` },
-  });
+  router.push(folderRoute(`share/${shareToken.value}`));
 }
 
 async function handleAutoAccess() {

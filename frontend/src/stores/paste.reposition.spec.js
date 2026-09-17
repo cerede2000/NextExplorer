@@ -101,8 +101,7 @@ describe('fileStore paste repositioning', () => {
 
     expect(routerPush).toHaveBeenCalledTimes(1);
     expect(routerPush).toHaveBeenCalledWith({
-      name: 'FolderView',
-      params: { path: 'Usb/temp' },
+      path: '/browse/Usb/temp',
       query: { select: 'f.bin' },
     });
     // The router-driven remount performs the fetch; the store must not refresh directly.

@@ -27,6 +27,7 @@ import { useFolderSizeStore } from '@/stores/folderSize';
 import { useFeaturesStore } from '@/stores/features';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { useNotificationsStore } from '@/stores/notifications';
+import { folderRoute } from '@/utils/folderRoute';
 
 export const useFileStore = defineStore('fileStore', () => {
   // How many thumbnail HTTP requests the client keeps in flight at once. The
@@ -389,11 +390,7 @@ export const useFileStore = defineStore('fileStore', () => {
         // the destination and select the entry, which also updates the address bar.
         const firstName = pastedNames[0];
         router
-          .push({
-            name: 'FolderView',
-            params: { path: finalDestination },
-            ...(firstName ? { query: { select: firstName } } : {}),
-          })
+          .push(folderRoute(finalDestination, firstName ? { select: firstName } : undefined))
           .catch(() => {});
       }
       return;

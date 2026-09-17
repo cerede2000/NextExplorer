@@ -30,6 +30,7 @@ import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { formatBytes, formatLocalDateTime } from '@/utils';
+import { folderRoute } from '@/utils/folderRoute';
 
 /**
  * The trash: what this person deleted, and what came from their own folder or
@@ -526,7 +527,7 @@ const confirmMessage = computed(() => {
 
 const openLocation = (item) => {
   if (!item.openPath) return;
-  router.push({ name: 'FolderView', params: { path: item.openPath } });
+  router.push(folderRoute(item.openPath));
 };
 
 const refresh = () => (folderId.value ? loadFolder() : load());

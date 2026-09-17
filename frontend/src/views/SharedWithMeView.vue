@@ -9,6 +9,7 @@ import { LockClosedIcon, LockOpenIcon, UserIcon } from '@heroicons/vue/24/outlin
 import FileIcon from '@/icons/FileIcon.vue';
 import ShareListToolbar from '@/components/shares/ShareListToolbar.vue';
 import ShareListState from '@/components/shares/ShareListState.vue';
+import { folderRoute } from '@/utils/folderRoute';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -78,11 +79,7 @@ const { filterMode, sortMode, searchQuery, isExpired, visibleShares } = useShare
 const handleOpenShare = (share) => {
   if (isExpired(share)) return;
 
-  // Using named route with params ensures proper URL encoding
-  router.push({
-    name: 'FolderView',
-    params: { path: `share/${share.shareToken}` },
-  });
+  router.push(folderRoute(`share/${share.shareToken}`));
 };
 
 onMounted(async () => {

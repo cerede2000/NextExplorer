@@ -84,7 +84,7 @@ describe('opening a markdown file', () => {
     useNavigation().openItem({ kind: 'directory', name: 'Archive', path: 'Notes' });
 
     expect(previewOpen).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith({ name: 'FolderView', params: { path: 'Notes/Archive' } });
+    expect(push).toHaveBeenCalledWith({ path: '/browse/Notes/Archive' });
   });
 
   // Where no preview plugin matches, the editor was already the destination —

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { search as searchApi, normalizePath } from '@/api';
 import FileIcon from '@/icons/FileIcon.vue';
+import { folderRoute } from '@/utils/folderRoute';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -70,14 +71,12 @@ function openResult(it) {
   // Open the matched folder itself for directories; open parent for files
   const target = kind === 'dir' ? [it.path, it.name].filter(Boolean).join('/') : it.path || '';
   const normalized = normalizePath(target || '');
-  router.push({
-    name: 'FolderView',
-    params: { path: normalized },
-    // Naming the file is what lets the folder open on it rather than at the
-    // top: landing in the right folder and leaving the reader to find the row
-    // themselves is most of the way to not having searched at all.
-    ...(kind === 'file' && it.name ? { query: { select: it.name } } : {}),
-  });
+  // Naming the file is what lets the folder open on it rather than at the
+  // top: landing in the right folder and leaving the reader to find the row
+  // themselves is most of the way to not having searched at all.
+  router.push(
+    folderRoute(normalized, kind === 'file' && it.name ? { select: it.name } : undefined)
+  );
 }
 
 function toIconItem(it) {

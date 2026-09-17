@@ -1,5 +1,6 @@
 import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
+import { folderRoute } from '@/utils/folderRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
@@ -32,16 +33,16 @@ export function useNavigation() {
           : '';
 
     if (kind === 'volume') {
-      navigate({ name: 'FolderView', params: { path: name } });
+      navigate(folderRoute(name));
       return;
     }
     if (kind === 'personal') {
-      navigate({ name: 'FolderView', params: { path: 'personal' } });
+      navigate(folderRoute('personal'));
       return;
     }
     if (kind === 'directory') {
       const newPath = currentPath ? `${currentPath}/${name}` : name;
-      navigate({ name: 'FolderView', params: { path: newPath } });
+      navigate(folderRoute(newPath));
       return;
     }
 
@@ -81,7 +82,7 @@ export function useNavigation() {
       navigate({ name: 'HomeView' });
       return;
     }
-    navigate({ name: 'FolderView', params: { path } });
+    navigate(folderRoute(path));
   };
 
   const goUp = () => {
@@ -97,7 +98,7 @@ export function useNavigation() {
     segments.pop();
     const newPath = segments.join('/');
     if (newPath) {
-      navigate({ name: 'FolderView', params: { path: newPath } });
+      navigate(folderRoute(newPath));
       return;
     }
     navigate({ name: 'HomeView' });

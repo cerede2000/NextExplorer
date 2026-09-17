@@ -161,8 +161,7 @@ describe('opening a result', () => {
     await openFirst([{ name: 'notes.md', path: 'Docs/Deep', kind: 'file' }]);
 
     expect(push).toHaveBeenCalledWith({
-      name: 'FolderView',
-      params: { path: 'Docs/Deep' },
+      path: '/browse/Docs/Deep',
       query: { select: 'notes.md' },
     });
   });
@@ -172,9 +171,6 @@ describe('opening a result', () => {
   it('names nothing when the result is a folder', async () => {
     await openFirst([{ name: 'Archive', path: 'Docs', kind: 'dir' }]);
 
-    expect(push).toHaveBeenCalledWith({
-      name: 'FolderView',
-      params: { path: 'Docs/Archive' },
-    });
+    expect(push).toHaveBeenCalledWith({ path: '/browse/Docs/Archive' });
   });
 });

@@ -1,3 +1,5 @@
+import { folderRoute } from '@/utils/folderRoute';
+
 /**
  * Where the home page goes when there is nothing to choose on it.
  *
@@ -30,7 +32,7 @@ export const skipHomeDestination = async ({ appSettings, featuresStore, getVolum
   try {
     const volumes = await getVolumes();
     const first = Array.isArray(volumes) ? volumes[0] : null;
-    if (first?.path) return { name: 'FolderView', params: { path: first.path } };
+    if (first?.path) return folderRoute(first.path);
   } catch (_) {
     // No volumes to jump into is the same as nowhere to jump.
   }

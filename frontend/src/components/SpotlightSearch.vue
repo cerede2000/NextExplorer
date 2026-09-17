@@ -7,6 +7,7 @@ import { search as searchApi, normalizePath } from '@/api';
 import { useSpotlightStore } from '@/stores/spotlight';
 import FileIcon from '@/icons/FileIcon.vue';
 import { useI18n } from 'vue-i18n';
+import { folderRoute } from '@/utils/folderRoute';
 
 const router = useRouter();
 const route = useRoute();
@@ -147,15 +148,9 @@ function openResult(item) {
 
   const normalizedPath = normalizePath(targetPath);
 
-  if (!isDirectory && item.name) {
-    router.push({
-      name: 'FolderView',
-      params: { path: normalizedPath },
-      query: { select: item.name },
-    });
-  } else {
-    router.push({ name: 'FolderView', params: { path: normalizedPath } });
-  }
+  router.push(
+    folderRoute(normalizedPath, !isDirectory && item.name ? { select: item.name } : undefined)
+  );
   spotlight.close();
 }
 

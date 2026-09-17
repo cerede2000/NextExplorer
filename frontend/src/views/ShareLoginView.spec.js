@@ -128,10 +128,7 @@ describe('where a visitor is sent once they are in', () => {
 
     expect(view.redirectTarget).toBeNull();
     expect(assigned).toBe('');
-    expect(push).toHaveBeenCalledWith({
-      name: 'FolderView',
-      params: { path: 'share/tok123' },
-    });
+    expect(push).toHaveBeenCalledWith({ path: '/browse/share/tok123' });
   });
 
   it('refuses an address somewhere else outright', async () => {
@@ -161,10 +158,7 @@ describe('where a visitor is sent once they are in', () => {
   it('goes to the share itself when nothing else was asked for', async () => {
     await openOn(PUBLIC_SHARE);
 
-    expect(push).toHaveBeenCalledWith({
-      name: 'FolderView',
-      params: { path: 'share/tok123' },
-    });
+    expect(push).toHaveBeenCalledWith({ path: '/browse/share/tok123' });
   });
 });
 

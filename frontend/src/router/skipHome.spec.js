@@ -41,7 +41,7 @@ describe('whether to skip the home page at all', () => {
       context({ deploymentDefault: true, volumes: VOLUMES })
     );
 
-    expect(destination).toEqual({ name: 'FolderView', params: { path: 'Media' } });
+    expect(destination).toEqual({ path: '/browse/Media' });
   });
 
   /**
@@ -62,7 +62,7 @@ describe('whether to skip the home page at all', () => {
       context({ preference: true, deploymentDefault: false, volumes: VOLUMES })
     );
 
-    expect(destination).toMatchObject({ name: 'FolderView' });
+    expect(destination).toMatchObject({ path: '/browse/Media' });
   });
 });
 
