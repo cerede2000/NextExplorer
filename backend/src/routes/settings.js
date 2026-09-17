@@ -240,6 +240,11 @@ const versionsSection = merging('versions', {
   sessionCheckpointMinutes: isPositiveNumber,
 });
 
+const activitySection = merging('activity', {
+  enabled: isBoolean,
+  retentionDays: isPositiveNumber,
+});
+
 /**
  * Branding is read and written in one step rather than merged over the
  * settings read at the start of the request, because a logo it replaces is
@@ -298,6 +303,7 @@ const SYSTEM_SECTIONS = {
   uploads: uploadsSection,
   trash: trashSection,
   versions: versionsSection,
+  activity: activitySection,
   branding: brandingSection,
   folderSize: excluding('folderSize', folderSizeManager),
   searchIndex: excluding('searchIndex', searchIndexManager),

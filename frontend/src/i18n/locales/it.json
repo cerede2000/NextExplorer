@@ -505,6 +505,7 @@
       "folderSize": "Dimensioni cartelle",
       "searchIndex": "Indice di ricerca",
       "trash": "Cestino e versioni",
+      "activity": "Registro attività",
       "accountTwoFactor": "Due fattori",
       "accountPasskeys": "Passkey"
     },
@@ -843,6 +844,32 @@
       "addFailed": "Impossibile aggiungere questa passkey.",
       "cancelled": "Non è stato aggiunto nulla: il browser è stato chiuso o ci ha messo troppo.",
       "alreadyHere": "Questo dispositivo ha già una passkey per questo account."
+    },
+    "activity": {
+      "title": "Registro attività",
+      "intro": "Chi ha fatto cosa, quando e da dove. Spento finché non lo chiedi.",
+      "enabled": "Registra l’attività",
+      "enabledHelp": "Accessi, download, condivisioni e modifiche all’account vengono annotati finché è attivo. Quello che è successo prima non c’è.",
+      "retention": "Conserva (giorni)",
+      "retentionInvalid": "Tra 1 e 3650 giorni.",
+      "saveFailed": "Impossibile salvare queste impostazioni.",
+      "off": "Il registro è spento: non viene annotato nulla.",
+      "none": "Ancora nulla di registrato.",
+      "loadFailed": "Impossibile leggere il registro.",
+      "clearFailed": "Impossibile svuotare il registro.",
+      "filterAction": "Tipo",
+      "anyAction": "Qualsiasi tipo",
+      "filterText": "Cerca",
+      "filterTextPlaceholder": "Un nome o un percorso",
+      "refresh": "Aggiorna",
+      "clear": "Svuota il registro",
+      "more": "Mostra altro",
+      "when": "Quando",
+      "who": "Chi",
+      "what": "Cosa",
+      "target": "Su",
+      "from": "Da",
+      "refused": "rifiutato"
     }
   },
   "share": {

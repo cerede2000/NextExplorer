@@ -508,6 +508,7 @@
       "adminUsers": "Gerenciamento de Usuários",
       "searchIndex": "Índice de busca",
       "trash": "Lixeira e versões",
+      "activity": "Registro de atividades",
       "accountTwoFactor": "Dois fatores",
       "accountPasskeys": "Chaves de acesso"
     },
@@ -846,6 +847,32 @@
       "addFailed": "Não foi possível adicionar esta chave de acesso.",
       "cancelled": "Nada foi adicionado: o navegador foi fechado ou demorou demais.",
       "alreadyHere": "Este dispositivo já tem uma chave de acesso para esta conta."
+    },
+    "activity": {
+      "title": "Registro de atividades",
+      "intro": "Quem fez o quê, quando e de onde. Desligado até você pedir.",
+      "enabled": "Registrar atividade",
+      "enabledHelp": "Entradas, downloads, compartilhamentos e mudanças de conta são anotados enquanto isto estiver ligado. O que veio antes não está aqui.",
+      "retention": "Guardar por (dias)",
+      "retentionInvalid": "Entre 1 e 3650 dias.",
+      "saveFailed": "Não foi possível salvar estas configurações.",
+      "off": "O registro está desligado: nada está sendo anotado.",
+      "none": "Nada registrado ainda.",
+      "loadFailed": "Não foi possível ler o registro.",
+      "clearFailed": "Não foi possível esvaziar o registro.",
+      "filterAction": "Tipo",
+      "anyAction": "Qualquer tipo",
+      "filterText": "Buscar",
+      "filterTextPlaceholder": "Um nome ou um caminho",
+      "refresh": "Atualizar",
+      "clear": "Esvaziar o registro",
+      "more": "Mostrar mais",
+      "when": "Quando",
+      "who": "Quem",
+      "what": "O quê",
+      "target": "Em",
+      "from": "De",
+      "refused": "recusado"
     }
   },
   "share": {

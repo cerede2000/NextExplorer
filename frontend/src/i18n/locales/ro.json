@@ -505,6 +505,7 @@
       "folderSize": "Dimensiunea dosarelor",
       "searchIndex": "Index de căutare",
       "trash": "Coș de gunoi și versiuni",
+      "activity": "Jurnal de activitate",
       "accountTwoFactor": "Doi factori",
       "accountPasskeys": "Chei de acces"
     },
@@ -843,6 +844,32 @@
       "addFailed": "Cheia de acces nu a putut fi adăugată.",
       "cancelled": "Nu s-a adăugat nimic: browserul a fost închis sau a durat prea mult.",
       "alreadyHere": "Acest dispozitiv are deja o cheie de acces pentru acest cont."
+    },
+    "activity": {
+      "title": "Jurnal de activitate",
+      "intro": "Cine ce a făcut, când și de unde. Oprit până îl cereți.",
+      "enabled": "Înregistrează activitatea",
+      "enabledHelp": "Conectările, descărcările, partajările și schimbările de cont sunt notate cât timp este pornit. Ce a fost înainte nu apare.",
+      "retention": "Păstrează (zile)",
+      "retentionInvalid": "Între 1 și 3650 de zile.",
+      "saveFailed": "Aceste setări nu au putut fi salvate.",
+      "off": "Jurnalul este oprit: nu se înregistrează nimic.",
+      "none": "Încă nu s-a înregistrat nimic.",
+      "loadFailed": "Jurnalul nu a putut fi citit.",
+      "clearFailed": "Jurnalul nu a putut fi golit.",
+      "filterAction": "Tip",
+      "anyAction": "Orice tip",
+      "filterText": "Caută",
+      "filterTextPlaceholder": "Un nume sau o cale",
+      "refresh": "Reîmprospătează",
+      "clear": "Golește jurnalul",
+      "more": "Arată mai multe",
+      "when": "Când",
+      "who": "Cine",
+      "what": "Ce",
+      "target": "Asupra",
+      "from": "De la",
+      "refused": "refuzat"
     }
   },
   "share": {

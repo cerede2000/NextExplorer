@@ -47,6 +47,7 @@ const {
   MAX_EDITOR_FILE_SIZE,
 } = require('../services/textEditorService');
 const versions = require('../services/versions/operations');
+const activityLog = require('../services/activityLog');
 const { rightsFrom: versionRights } = require('../services/versions');
 
 const router = express.Router();
@@ -452,6 +453,14 @@ router.post(
     const shareUrl = `${baseUrl}/share/${share.shareToken}`;
     const directFileUrl = `${baseUrl}${buildDirectFilePath(share.shareToken)}`;
 
+    await activityLog.record({
+      action: 'share.create',
+      user: req.user,
+      target: share.sourcePath,
+      detail: { label: share.label || null, expiresAt: share.expiresAt || null },
+      req,
+    });
+
     res.status(201).json({
       ...share,
       shareUrl,
@@ -628,6 +637,13 @@ router.delete(
     }
 
     await deleteShare(share.id);
+    await activityLog.record({
+      action: 'share.delete',
+      user: req.user,
+      target: share.sourcePath,
+      detail: { label: share.label || null },
+      req,
+    });
 
     res.status(204).end();
   })
@@ -931,6 +947,24 @@ const resolveSharedFileTarget = async (
   return { share, innerPath, accessInfo, resolved, stats, context };
 };
 
+/**
+ * A file that left through a link.
+ *
+ * The share's own counters answer "how many"; this answers "which file, when,
+ * and from where" — the question somebody actually asks the day a link turns
+ * out to have been handed around. The person on the other end has no account,
+ * so the actor is the link itself.
+ */
+const recordShareDownload = ({ share, resolved, req }) =>
+  activityLog.record({
+    action: 'share.download',
+    user: req.user,
+    actor: req.user?.username || share.label || `link ${share.shareToken?.slice(0, 8)}`,
+    target: resolved.relativePath || share.sourcePath,
+    detail: { share: share.label || null, token: share.shareToken?.slice(0, 8) || null },
+    req,
+  });
+
 const handleDirectFileRequest = async (req, res) => {
   const target = await resolveSharedFileTarget(req, res, { requireDownload: true });
   if (!target) return;
@@ -939,6 +973,7 @@ const handleDirectFileRequest = async (req, res) => {
   if (stats.isDirectory()) {
     // Directories are always delivered as a ZIP attachment.
     await trackShareDownload(share.id, { ipAddress: req.ip });
+    await recordShareDownload({ share, resolved, req });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
       logicalPath: resolved.relativePath,
@@ -960,6 +995,7 @@ const handleDirectFileRequest = async (req, res) => {
   const { disposition } = getDirectFilePresentation(path.basename(resolved.absolutePath), mode);
   if (disposition === 'attachment') {
     await trackShareDownload(share.id, { ipAddress: req.ip });
+    await recordShareDownload({ share, resolved, req });
   } else {
     await trackShareAccess(share.id, { ipAddress: req.ip });
   }

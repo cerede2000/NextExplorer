@@ -17,6 +17,7 @@ import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsTwoFactor from '@/views/settings/SettingsTwoFactor.vue';
 import SettingsPasskeys from '@/views/settings/SettingsPasskeys.vue';
+import SettingsActivity from '@/views/settings/SettingsActivity.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
 import AuthSetupView from '@/views/AuthSetupView.vue';
@@ -80,6 +81,11 @@ const router = createRouter({
             {
               path: 'trash',
               component: SettingsTrash,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'activity',
+              component: SettingsActivity,
               meta: { requiresAdmin: true },
             },
             { path: 'account-password', component: SettingsPassword },

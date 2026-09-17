@@ -14,6 +14,7 @@ const logger = require('../utils/logger');
 const {
   countUsers,
   createLocalUser,
+  getById,
   attemptLocalLogin,
   changeLocalPassword,
   addLocalPassword,
@@ -29,6 +30,7 @@ const {
   verifySecondFactor,
 } = require('../services/users');
 const passkeys = require('../services/users/passkeys');
+const activityLog = require('../services/activityLog');
 const { WebAuthnError } = require('../utils/webauthn');
 const { issueCode, redeemCode, isValidChallenge } = require('../services/oidcMobileBridge');
 const rateLimit = require('express-rate-limit');
@@ -268,6 +270,14 @@ router.post(
       throw e;
     }
     if (!user) {
+      await activityLog.record({
+        action: 'sign-in',
+        outcome: 'refused',
+        // The name that was typed, not one this server confirmed exists.
+        actor: String(typed || '').slice(0, 200) || 'unknown',
+        detail: { method: 'password' },
+        req,
+      });
       throw new UnauthorizedError('Invalid credentials.', ErrorCodes.AUTH_INVALID_CREDENTIALS);
     }
 
@@ -282,6 +292,7 @@ router.post(
     }
 
     await startAuthenticatedSession(req, user.id);
+    await activityLog.record({ action: 'sign-in', user, detail: { method: 'password' }, req });
 
     // Clear guest session cookie when user logs in
     // Clear both scopes: the cookie used to be set on /api, and browsers
@@ -326,6 +337,14 @@ router.post(
     const outcome = await verifySecondFactor({ userId, code });
     if (!outcome.ok) {
       await incrementFailedAttempts(userId);
+      await activityLog.record({
+        action: 'sign-in',
+        outcome: 'refused',
+        userId,
+        actor: (await getById(userId))?.username || userId,
+        detail: { method: 'code' },
+        req,
+      });
       throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
     }
 
@@ -337,6 +356,12 @@ router.post(
     res.clearCookie('guestSession', { path: '/api' });
 
     const user = await getRequestUser(req);
+    await activityLog.record({
+      action: 'sign-in',
+      user,
+      detail: { method: outcome.usedRecoveryCode ? 'recovery code' : 'code' },
+      req,
+    });
     res.json({
       user,
       usedRecoveryCode: Boolean(outcome.usedRecoveryCode),
@@ -393,6 +418,7 @@ router.post(
       throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
     }
     logger.info({ userId: me.id }, 'Two-factor authentication turned on');
+    await activityLog.record({ action: 'account.two-factor', user: me, detail: { on: true }, req });
     res.json(confirmed);
   })
 );
@@ -437,6 +463,12 @@ router.delete(
 
     await disableTwoFactor(me.id);
     logger.info({ userId: me.id }, 'Two-factor authentication turned off');
+    await activityLog.record({
+      action: 'account.two-factor',
+      user: me,
+      detail: { on: false },
+      req,
+    });
     res.status(204).end();
   })
 );
@@ -506,6 +538,15 @@ const refusePasskey = (error, req) => {
     throw new ValidationError(error.message);
   }
   logger.warn({ reason: error.message, ip: req.ip }, 'A passkey was refused');
+  // Not awaited: this is the throwing path, and a log line is not worth
+  // holding a refusal for. `record` never rejects.
+  activityLog.record({
+    action: 'sign-in',
+    outcome: 'refused',
+    actor: 'unknown',
+    detail: { method: 'passkey' },
+    req,
+  });
   throw new UnauthorizedError(
     'That passkey did not open anything here.',
     ErrorCodes.AUTH_PASSKEY_REJECTED
@@ -577,6 +618,13 @@ router.post(
         name: req.body?.name,
         expected: { challenge, origins, rpId },
       });
+      await activityLog.record({
+        action: 'account.passkey',
+        user: me,
+        target: passkey.name,
+        detail: { added: true },
+        req,
+      });
       res.status(201).json({ passkey });
     } catch (error) {
       refusePasskey(error, req);
@@ -633,6 +681,12 @@ router.delete(
         'This is the only way into this account. Add a password, or another passkey, before removing it.'
       );
     }
+    await activityLog.record({
+      action: 'account.passkey',
+      user: me,
+      detail: { added: false },
+      req,
+    });
     res.status(204).end();
   })
 );
@@ -712,6 +766,12 @@ router.post(
       'Signed in with a passkey'
     );
     const user = await getRequestUser(req);
+    await activityLog.record({
+      action: 'sign-in',
+      user,
+      detail: { method: 'passkey', passkey: outcome.name },
+      req,
+    });
     res.json({ user });
   })
 );
@@ -738,6 +798,7 @@ router.post(
       keepSessionId: signedInHere ? req.sessionID : null,
     });
     if (signedInHere) await startAuthenticatedSession(req, me.id);
+    await activityLog.record({ action: 'account.password', user: me, req });
     res.status(204).end();
   })
 );
@@ -782,7 +843,10 @@ router.get(
   })
 );
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  // Read who this is before the session that says so is destroyed.
+  await activityLog.record({ action: 'sign-out', user: await getRequestUser(req), req });
+
   // Clear local app session if present (local auth)
   if (req.session) {
     try {

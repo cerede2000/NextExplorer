@@ -505,6 +505,7 @@
       "folderSize": "폴더 크기",
       "searchIndex": "검색 색인",
       "trash": "휴지통 및 버전",
+      "activity": "활동 로그",
       "accountTwoFactor": "2단계 인증",
       "accountPasskeys": "패스키"
     },
@@ -843,6 +844,32 @@
       "addFailed": "이 패스키를 추가하지 못했습니다.",
       "cancelled": "아무것도 추가되지 않았습니다: 브라우저가 닫혔거나 시간이 초과되었습니다.",
       "alreadyHere": "이 기기에는 이미 이 계정의 패스키가 있습니다."
+    },
+    "activity": {
+      "title": "활동 로그",
+      "intro": "누가, 언제, 어디서 무엇을 했는지. 요청하기 전에는 꺼져 있습니다.",
+      "enabled": "활동 기록",
+      "enabledHelp": "켜져 있는 동안 로그인, 다운로드, 공유, 계정 변경이 기록됩니다. 켜기 전의 일은 남아 있지 않습니다.",
+      "retention": "보관 기간(일)",
+      "retentionInvalid": "1일에서 3650일 사이.",
+      "saveFailed": "설정을 저장하지 못했습니다.",
+      "off": "로그가 꺼져 있어 아무것도 기록되지 않습니다.",
+      "none": "아직 기록된 항목이 없습니다.",
+      "loadFailed": "로그를 읽지 못했습니다.",
+      "clearFailed": "로그를 비우지 못했습니다.",
+      "filterAction": "종류",
+      "anyAction": "모든 종류",
+      "filterText": "검색",
+      "filterTextPlaceholder": "이름 또는 경로",
+      "refresh": "새로 고침",
+      "clear": "로그 비우기",
+      "more": "더 보기",
+      "when": "시각",
+      "who": "누가",
+      "what": "무엇",
+      "target": "대상",
+      "from": "출처",
+      "refused": "거부됨"
     }
   },
   "share": {

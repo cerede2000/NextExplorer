@@ -505,6 +505,7 @@
       "folderSize": "Rozmiary folderów",
       "searchIndex": "Indeks wyszukiwania",
       "trash": "Kosz i wersje",
+      "activity": "Dziennik aktywności",
       "accountTwoFactor": "Dwa składniki",
       "accountPasskeys": "Klucze dostępu"
     },
@@ -843,6 +844,32 @@
       "addFailed": "Nie udało się dodać tego klucza dostępu.",
       "cancelled": "Nic nie dodano: przeglądarka została zamknięta lub minęło zbyt dużo czasu.",
       "alreadyHere": "To urządzenie ma już klucz dostępu do tego konta."
+    },
+    "activity": {
+      "title": "Dziennik aktywności",
+      "intro": "Kto co zrobił, kiedy i skąd. Wyłączony, dopóki go nie włączysz.",
+      "enabled": "Zapisuj aktywność",
+      "enabledHelp": "Logowania, pobrania, udostępnienia i zmiany konta są zapisywane, gdy to działa. Tego, co było wcześniej, tu nie ma.",
+      "retention": "Przechowuj (dni)",
+      "retentionInvalid": "Od 1 do 3650 dni.",
+      "saveFailed": "Nie udało się zapisać tych ustawień.",
+      "off": "Dziennik jest wyłączony, nic nie jest zapisywane.",
+      "none": "Jeszcze nic nie zapisano.",
+      "loadFailed": "Nie udało się odczytać dziennika.",
+      "clearFailed": "Nie udało się wyczyścić dziennika.",
+      "filterAction": "Rodzaj",
+      "anyAction": "Dowolny rodzaj",
+      "filterText": "Szukaj",
+      "filterTextPlaceholder": "Nazwa lub ścieżka",
+      "refresh": "Odśwież",
+      "clear": "Wyczyść dziennik",
+      "more": "Pokaż więcej",
+      "when": "Kiedy",
+      "who": "Kto",
+      "what": "Co",
+      "target": "Na",
+      "from": "Skąd",
+      "refused": "odmowa"
     }
   },
   "share": {

@@ -508,6 +508,7 @@
       "adminUsers": "Gebruikersbeheer",
       "searchIndex": "Zoekindex",
       "trash": "Prullenbak en versies",
+      "activity": "Activiteitenlogboek",
       "accountTwoFactor": "Tweestaps",
       "accountPasskeys": "Passkeys"
     },
@@ -846,6 +847,32 @@
       "addFailed": "Kon deze passkey niet toevoegen.",
       "cancelled": "Er is niets toegevoegd: de browser werd gesloten of het duurde te lang.",
       "alreadyHere": "Dit apparaat heeft al een passkey voor dit account."
+    },
+    "activity": {
+      "title": "Activiteitenlogboek",
+      "intro": "Wie wat deed, wanneer en vanwaar. Uit tot je erom vraagt.",
+      "enabled": "Activiteit vastleggen",
+      "enabledHelp": "Aanmeldingen, downloads, gedeelde links en accountwijzigingen worden vastgelegd zolang dit aanstaat. Wat daarvoor gebeurde staat er niet in.",
+      "retention": "Bewaren (dagen)",
+      "retentionInvalid": "Tussen 1 en 3650 dagen.",
+      "saveFailed": "Kon deze instellingen niet opslaan.",
+      "off": "Het logboek staat uit, er wordt niets vastgelegd.",
+      "none": "Nog niets vastgelegd.",
+      "loadFailed": "Kon het logboek niet lezen.",
+      "clearFailed": "Kon het logboek niet legen.",
+      "filterAction": "Soort",
+      "anyAction": "Alle soorten",
+      "filterText": "Zoeken",
+      "filterTextPlaceholder": "Een naam of een pad",
+      "refresh": "Vernieuwen",
+      "clear": "Logboek legen",
+      "more": "Meer tonen",
+      "when": "Wanneer",
+      "who": "Wie",
+      "what": "Wat",
+      "target": "Op",
+      "from": "Vanaf",
+      "refused": "geweigerd"
     }
   },
   "share": {

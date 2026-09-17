@@ -505,6 +505,7 @@
       "folderSize": "Tamaño de carpetas",
       "searchIndex": "Índice de búsqueda",
       "trash": "Papelera y versiones",
+      "activity": "Registro de actividad",
       "accountTwoFactor": "Doble factor",
       "accountPasskeys": "Claves de acceso"
     },
@@ -843,6 +844,32 @@
       "addFailed": "No se ha podido añadir esta clave de acceso.",
       "cancelled": "No se ha añadido nada: se cerró el navegador o tardó demasiado.",
       "alreadyHere": "Este dispositivo ya tiene una clave de acceso para esta cuenta."
+    },
+    "activity": {
+      "title": "Registro de actividad",
+      "intro": "Quién hizo qué, cuándo y desde dónde. Desactivado mientras no lo pidas.",
+      "enabled": "Registrar la actividad",
+      "enabledHelp": "Inicios de sesión, descargas, enlaces y cambios de cuenta se anotan mientras esté activo. Lo anterior a activarlo no aparece.",
+      "retention": "Conservar (días)",
+      "retentionInvalid": "Entre 1 y 3650 días.",
+      "saveFailed": "No se han podido guardar estos ajustes.",
+      "off": "El registro está desactivado: no se anota nada.",
+      "none": "Todavía no hay nada registrado.",
+      "loadFailed": "No se ha podido leer el registro.",
+      "clearFailed": "No se ha podido vaciar el registro.",
+      "filterAction": "Tipo",
+      "anyAction": "Cualquier tipo",
+      "filterText": "Buscar",
+      "filterTextPlaceholder": "Un nombre o una ruta",
+      "refresh": "Actualizar",
+      "clear": "Vaciar el registro",
+      "more": "Mostrar más",
+      "when": "Cuándo",
+      "who": "Quién",
+      "what": "Qué",
+      "target": "Sobre",
+      "from": "Desde",
+      "refused": "rechazado"
     }
   },
   "share": {

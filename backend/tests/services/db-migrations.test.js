@@ -20,7 +20,7 @@ import {
  * rows back.
  */
 
-const LATEST_SCHEMA_VERSION = '22';
+const LATEST_SCHEMA_VERSION = '23';
 
 let envContext;
 let dbModule;
@@ -126,6 +126,7 @@ const APPLICATION_TABLES = [
   'totp_credentials',
   'totp_recovery_codes',
   'passkeys',
+  'activity_events',
 ];
 
 /** The indexes, in their own database under the cache directory. */

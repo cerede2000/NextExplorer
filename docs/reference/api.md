@@ -64,6 +64,17 @@ exist here. A passkey that was unlocked signs in outright; one that was not
 answers `{"totpRequired": true}` on an account that asks for a second factor,
 and finishes at `/api/auth/login/totp` like a password does.
 
+### The activity log
+
+`GET /api/activity` (administrators) reads what was recorded, newest first:
+`action`, `outcome`, `user`, `from`, `to`, `q`, `limit` narrow it, and `before`
+— the `nextBefore` of the page before — is where to carry on from, so rows
+arriving while somebody reads do not shift a page. `DELETE /api/activity`
+empties it. The answer also says whether the log is on (`enabled`) and what
+kinds of event exist (`actions`); with it off, `events` is empty because
+nothing was recorded. It is switched on at `PATCH /api/settings` with
+`{"activity": {"enabled": true, "retentionDays": 90}}`.
+
 It ends sooner if the account's password changes. `POST /api/auth/password`
 signs out every other session of the account, and moves the one that made the
 change to a new cookie, which its response sets — keep writing to the cookie

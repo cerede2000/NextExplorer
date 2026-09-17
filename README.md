@@ -174,17 +174,17 @@ tier · — not documented
 
 ### Running it
 
-|                                     | **NextExplorer 3.7** | **FileBrowser Quantum** | **Filestash**         |
-| ----------------------------------- | -------------------- | ----------------------- | --------------------- |
-| WebDAV                              | ❌ by choice         | ✅                      | ✅                    |
-| Storage beyond the local filesystem | ❌ by choice         | ❌                      | ✅ about 25 protocols |
-| API tokens for scripts              | 🚧                   | ✅                      | ✅                    |
-| Activity log                        | 🚧                   | ✅                      | 💰                    |
-| Space quotas                        | 🚧                   | 🚧                      | 💰                    |
-| Terminal in the browser             | ✅ switchable        | ❌ removed deliberately | ❌                    |
+|                                     | **NextExplorer 3.7**        | **FileBrowser Quantum** | **Filestash**         |
+| ----------------------------------- | --------------------------- | ----------------------- | --------------------- |
+| WebDAV                              | ❌ by choice                | ✅                      | ✅                    |
+| Storage beyond the local filesystem | ❌ by choice                | ❌                      | ✅ about 25 protocols |
+| API tokens for scripts              | 🚧                          | ✅                      | ✅                    |
+| Activity log                        | ✅ optional, off by default | ✅                      | 💰                    |
+| Space quotas                        | 🚧                          | 🚧                      | 💰                    |
+| Terminal in the browser             | ✅ switchable               | ❌ removed deliberately | ❌                    |
 
 The rows where somebody else is ahead are in there for the same reason as the
-rest. The three 🚧 in our column are the answer to three of them. The two ❌
+rest. The two 🚧 left in our column are the answer to two of them. The two ❌
 marked _by choice_ are decisions rather than gaps: NextExplorer is a file
 browser, not a server — something you open and use, not something other
 software mounts. What it browses is what the container was given: each

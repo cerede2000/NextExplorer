@@ -55,6 +55,9 @@ export const useAppSettings = defineStore('appSettings', () => {
     searchIndex: { excludedPaths: [], environmentExcludedPaths: [] },
     trash: createDefaultTrashSettings(),
     versions: createDefaultVersionSettings(),
+    // Off until an administrator asks for it, which is what the server says
+    // too: a page that starts by showing the switch on would be a lie.
+    activity: { enabled: false, retentionDays: 90 },
   });
 
   // Three-tier settings structure
@@ -197,6 +200,9 @@ export const useAppSettings = defineStore('appSettings', () => {
       if (s?.versions) {
         systemSettings.value.versions = { ...createDefaultVersionSettings(), ...s.versions };
       }
+      if (s?.activity) {
+        systemSettings.value.activity = { enabled: false, retentionDays: 90, ...s.activity };
+      }
 
       if (userId === authStore.currentUser?.id) {
         loadedForUserId.value = userId;
@@ -304,6 +310,9 @@ export const useAppSettings = defineStore('appSettings', () => {
           ...createDefaultVersionSettings(),
           ...updated.versions,
         };
+      }
+      if (updated?.activity) {
+        systemSettings.value.activity = { enabled: false, retentionDays: 90, ...updated.activity };
       }
 
       loaded.value = true;

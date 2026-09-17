@@ -505,6 +505,7 @@
       "folderSize": "檔案夾大小",
       "searchIndex": "搜尋索引",
       "trash": "資源回收筒和版本",
+      "activity": "活動記錄",
       "accountTwoFactor": "兩步驗證",
       "accountPasskeys": "通行金鑰"
     },
@@ -843,6 +844,32 @@
       "addFailed": "無法新增此通行金鑰。",
       "cancelled": "未新增任何項目：瀏覽器已關閉或操作逾時。",
       "alreadyHere": "此裝置已有此帳戶的通行金鑰。"
+    },
+    "activity": {
+      "title": "活動記錄",
+      "intro": "誰在何時、從何處做了什麼。除非你開啟，否則不記錄。",
+      "enabled": "記錄活動",
+      "enabledHelp": "開啟期間，登入、下載、分享與帳戶變更都會被記錄。開啟之前發生的事不在其中。",
+      "retention": "保留（天）",
+      "retentionInvalid": "1 到 3650 天之間。",
+      "saveFailed": "無法儲存這些設定。",
+      "off": "記錄已關閉，沒有記錄任何內容。",
+      "none": "尚未記錄任何內容。",
+      "loadFailed": "無法讀取記錄。",
+      "clearFailed": "無法清空記錄。",
+      "filterAction": "類型",
+      "anyAction": "所有類型",
+      "filterText": "搜尋",
+      "filterTextPlaceholder": "名稱或路徑",
+      "refresh": "重新整理",
+      "clear": "清空記錄",
+      "more": "顯示更多",
+      "when": "時間",
+      "who": "誰",
+      "what": "做了什麼",
+      "target": "對象",
+      "from": "來源",
+      "refused": "遭拒"
     }
   },
   "share": {

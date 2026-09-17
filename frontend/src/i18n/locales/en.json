@@ -508,6 +508,7 @@
       "adminUsers": "User Management",
       "searchIndex": "Search index",
       "trash": "Trash and versions",
+      "activity": "Activity log",
       "accountTwoFactor": "Two-factor",
       "accountPasskeys": "Passkeys"
     },
@@ -846,6 +847,32 @@
       "addFailed": "Could not add this passkey.",
       "cancelled": "Nothing was added: the browser was closed or it took too long.",
       "alreadyHere": "This device already holds a passkey for this account."
+    },
+    "activity": {
+      "title": "Activity log",
+      "intro": "Who did what, when, and from where. Off unless you ask for it.",
+      "enabled": "Record activity",
+      "enabledHelp": "Sign-ins, downloads, shares and account changes are written down while this is on. Nothing before it was switched on is there.",
+      "retention": "Keep for (days)",
+      "retentionInvalid": "Between 1 and 3650 days.",
+      "saveFailed": "Could not save these settings.",
+      "off": "The log is off, so nothing is being recorded.",
+      "none": "Nothing recorded yet.",
+      "loadFailed": "Could not read the log.",
+      "clearFailed": "Could not empty the log.",
+      "filterAction": "Kind",
+      "anyAction": "Any kind",
+      "filterText": "Search",
+      "filterTextPlaceholder": "A name or a path",
+      "refresh": "Refresh",
+      "clear": "Empty the log",
+      "more": "Show more",
+      "when": "When",
+      "who": "Who",
+      "what": "What",
+      "target": "On",
+      "from": "From",
+      "refused": "refused"
     }
   },
   "share": {

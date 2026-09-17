@@ -187,10 +187,15 @@ hard each is.
   Document Server or Collabora. Open a document's History in both, restore
   from it, and check a co-editor's next save is set aside, before calling it
   proven.
-- **An activity log.** Who downloaded what, when, from which share. The share
-  counters are already in the database; what is missing is the table, the
-  retention and the page. This is the feature that decides whether a deployment
-  can account for itself, and Filestash sells it at the top of its range.
+- ~~**An activity log.**~~ Done, and off unless somebody asks for it. Sign-ins
+  (the refused ones included, with the name that was tried), sign-outs,
+  downloads, what left through which share link, deletions, and every change to
+  a password, a second factor or a passkey. Kept for a retention, swept hourly
+  whether the log is on or off, and readable by administrators only. Two
+  decisions worth keeping: no foreign key to the accounts, because what
+  somebody did while their account existed is exactly what the log is for; and
+  nothing in it may fail the request it describes, so a line that cannot be
+  written is reported to the server's own log and the download carries on.
 - ~~**Passkeys (WebAuthn).**~~ Done, and written here rather than taken from a
   package: the CBOR reader is checked against RFC 8949's published vectors and
   the ceremonies against a software authenticator built from the format, so the

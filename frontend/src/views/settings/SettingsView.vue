@@ -19,6 +19,7 @@ import {
   ShieldCheckIcon,
   TrashIcon,
   FingerPrintIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
@@ -118,6 +119,12 @@ const adminCategories = [
     i18nKey: 'trash',
     name: 'Trash',
     icon: TrashIcon,
+  },
+  {
+    key: 'activity',
+    i18nKey: 'activity',
+    name: 'Activity log',
+    icon: ClipboardDocumentListIcon,
   },
   {
     key: 'access-control',

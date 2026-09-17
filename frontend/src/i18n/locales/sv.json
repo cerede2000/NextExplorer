@@ -505,6 +505,7 @@
       "folderSize": "Mappstorlekar",
       "searchIndex": "Sökindex",
       "trash": "Papperskorg och versioner",
+      "activity": "Aktivitetslogg",
       "accountTwoFactor": "Tvåfaktor",
       "accountPasskeys": "Lösenordsnycklar"
     },
@@ -843,6 +844,32 @@
       "addFailed": "Det gick inte att lägga till nyckeln.",
       "cancelled": "Ingenting lades till: webbläsaren stängdes eller det tog för lång tid.",
       "alreadyHere": "Den här enheten har redan en nyckel för det här kontot."
+    },
+    "activity": {
+      "title": "Aktivitetslogg",
+      "intro": "Vem som gjorde vad, när och varifrån. Av tills du ber om den.",
+      "enabled": "Registrera aktivitet",
+      "enabledHelp": "Inloggningar, nedladdningar, delningar och kontoändringar skrivs ned så länge detta är på. Det som hände innan finns inte med.",
+      "retention": "Behåll (dagar)",
+      "retentionInvalid": "Mellan 1 och 3650 dagar.",
+      "saveFailed": "Det gick inte att spara inställningarna.",
+      "off": "Loggen är av, ingenting registreras.",
+      "none": "Ingenting registrerat ännu.",
+      "loadFailed": "Det gick inte att läsa loggen.",
+      "clearFailed": "Det gick inte att tömma loggen.",
+      "filterAction": "Sort",
+      "anyAction": "Alla sorter",
+      "filterText": "Sök",
+      "filterTextPlaceholder": "Ett namn eller en sökväg",
+      "refresh": "Uppdatera",
+      "clear": "Töm loggen",
+      "more": "Visa fler",
+      "when": "När",
+      "who": "Vem",
+      "what": "Vad",
+      "target": "På",
+      "from": "Från",
+      "refused": "nekad"
     }
   },
   "share": {

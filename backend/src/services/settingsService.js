@@ -306,6 +306,24 @@ const sanitizeTrash = (trash = {}) => {
 };
 
 /**
+ * The activity log settings in force: on or off, and how long a line is kept.
+ *
+ * Off is the default and stays the default: a log nobody asked for is a record
+ * of somebody's day that nobody reads.
+ */
+const sanitizeActivity = (activity = {}) => {
+  const { activity: defaults } = require('../config/index');
+  const source = activity && typeof activity === 'object' ? activity : {};
+  const retentionDays = Number(source.retentionDays);
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    retentionDays: Number.isFinite(retentionDays)
+      ? clampNumber(Math.round(retentionDays), 1, 3650)
+      : defaults.retentionDays,
+  };
+};
+
+/**
  * The file version settings in force: on or off, how long everything is kept
  * before thinning starts, how long one an hour and one a day are kept, how many
  * versions a file keeps at most, and how often an editing session leaves a
@@ -434,6 +452,7 @@ const getSystemSettings = async () => {
   const searchIndex = { excludedPaths: [] };
   const trash = {};
   const versions = {};
+  const activity = {};
 
   for (const row of rows) {
     try {
@@ -454,6 +473,8 @@ const getSystemSettings = async () => {
         Object.assign(trash, JSON.parse(row.value));
       } else if (row.key === 'versions') {
         Object.assign(versions, JSON.parse(row.value));
+      } else if (row.key === 'activity') {
+        Object.assign(activity, JSON.parse(row.value));
       }
     } catch (_) {
       // Skip invalid JSON
@@ -468,6 +489,7 @@ const getSystemSettings = async () => {
     uploads: sanitizeUploads(uploads),
     trash: sanitizeTrash(trash),
     versions: sanitizeVersions(versions),
+    activity: sanitizeActivity(activity),
     folderSize: {
       ...sanitizeFolderSize(folderSize),
       environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
@@ -505,6 +527,7 @@ const getSettingsForUser = async (user) => {
       result.searchIndex = systemSettings.searchIndex;
       result.trash = systemSettings.trash;
       result.versions = systemSettings.versions;
+      result.activity = systemSettings.activity;
     }
   }
 
@@ -737,6 +760,7 @@ const sanitizeSystemSetting = (key, value) => {
   // the stored value was wrong — and it is the one the next merge starts from.
   if (key === 'searchIndex') return sanitizeSearchIndex(value);
   if (key === 'trash') return sanitizeTrash(value);
+  if (key === 'activity') return sanitizeActivity(value);
   if (key === 'versions') return sanitizeVersions(value);
   return value;
 };
@@ -897,6 +921,7 @@ const setSettings = async (partial) => {
     uploads: { ...current.uploads, ...(partial.uploads || {}) },
     trash: { ...current.trash, ...(partial.trash || {}) },
     versions: { ...current.versions, ...(partial.versions || {}) },
+    activity: { ...current.activity, ...(partial.activity || {}) },
     folderSize: {
       excludedPaths:
         partial.folderSize?.excludedPaths !== undefined
@@ -928,6 +953,9 @@ const setSettings = async (partial) => {
   if (partial.versions) {
     merged.versions = await setSystemSetting('system', 'versions', merged.versions);
   }
+  if (partial.activity) {
+    merged.activity = await setSystemSetting('system', 'activity', merged.activity);
+  }
 
   return merged;
 };
@@ -939,6 +967,7 @@ module.exports = {
   getSystemSettings,
   sanitizeTrash,
   sanitizeVersions,
+  sanitizeActivity,
   getSettingsForUser,
   setUserSetting,
   WRITABLE_USER_SETTINGS,

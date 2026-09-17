@@ -505,6 +505,7 @@
       "folderSize": "Ordnergrößen",
       "searchIndex": "Suchindex",
       "trash": "Papierkorb und Versionen",
+      "activity": "Aktivitätsprotokoll",
       "accountTwoFactor": "Zwei-Faktor",
       "accountPasskeys": "Passkeys"
     },
@@ -843,6 +844,32 @@
       "addFailed": "Dieser Passkey konnte nicht hinzugefügt werden.",
       "cancelled": "Nichts wurde hinzugefügt: Der Browser wurde geschlossen oder es hat zu lange gedauert.",
       "alreadyHere": "Dieses Gerät hat bereits einen Passkey für dieses Konto."
+    },
+    "activity": {
+      "title": "Aktivitätsprotokoll",
+      "intro": "Wer wann was getan hat, und von wo. Aus, solange Sie es nicht einschalten.",
+      "enabled": "Aktivität aufzeichnen",
+      "enabledHelp": "Anmeldungen, Downloads, Freigaben und Kontoänderungen werden aufgezeichnet, solange dies aktiv ist. Was davor geschah, steht nicht darin.",
+      "retention": "Aufbewahren (Tage)",
+      "retentionInvalid": "Zwischen 1 und 3650 Tagen.",
+      "saveFailed": "Diese Einstellungen konnten nicht gespeichert werden.",
+      "off": "Das Protokoll ist aus, es wird nichts aufgezeichnet.",
+      "none": "Noch nichts aufgezeichnet.",
+      "loadFailed": "Das Protokoll konnte nicht gelesen werden.",
+      "clearFailed": "Das Protokoll konnte nicht geleert werden.",
+      "filterAction": "Art",
+      "anyAction": "Alle Arten",
+      "filterText": "Suchen",
+      "filterTextPlaceholder": "Ein Name oder ein Pfad",
+      "refresh": "Aktualisieren",
+      "clear": "Protokoll leeren",
+      "more": "Mehr anzeigen",
+      "when": "Wann",
+      "who": "Wer",
+      "what": "Was",
+      "target": "Wobei",
+      "from": "Von",
+      "refused": "abgelehnt"
     }
   },
   "share": {

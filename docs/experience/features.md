@@ -62,6 +62,8 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 - **Nothing is ever replaced:** A copy, a move, an upload, an extraction, a new archive, a new folder, a Save as, a copy of a version or a restore from the trash takes the name it asks for only when nothing holds it — even something that arrives while it runs — and otherwise takes “name (1)”, or “name 2” for a new folder. It never replaces a file and never pours into a folder that is already there, and undoing one that failed removes only what it wrote itself: a file someone saved in the meantime stays.
 - **Keyboard shortcuts:** ⌘/Ctrl+C/X/V for clipboard actions, plus quick navigation via breadcrumbs and toolbar icons.
 
+- **Activity log:** Off unless an administrator turns it on, in Settings → Activity log. On, it writes down who signed in — including who tried and failed — what was downloaded, what left through which share link, what was deleted, and every change to a password, a second factor or a passkey. Administrators read it, and it keeps each line for as long as the retention says.
+
 ## How it compares
 
 Two projects solve the same problem from a different angle:
@@ -149,14 +151,14 @@ tier · — not documented
 
 ### Running it
 
-|                                     | **NextExplorer 3.7** | **FileBrowser Quantum** | **Filestash**         |
-| ----------------------------------- | -------------------- | ----------------------- | --------------------- |
-| WebDAV                              | ❌ by choice         | ✅                      | ✅                    |
-| Storage beyond the local filesystem | ❌ by choice         | ❌                      | ✅ about 25 protocols |
-| API tokens for scripts              | 🚧                   | ✅                      | ✅                    |
-| Activity log                        | 🚧                   | ✅                      | 💰                    |
-| Space quotas                        | 🚧                   | 🚧                      | 💰                    |
-| Terminal in the browser             | ✅ switchable        | ❌ removed deliberately | ❌                    |
+|                                     | **NextExplorer 3.7**        | **FileBrowser Quantum** | **Filestash**         |
+| ----------------------------------- | --------------------------- | ----------------------- | --------------------- |
+| WebDAV                              | ❌ by choice                | ✅                      | ✅                    |
+| Storage beyond the local filesystem | ❌ by choice                | ❌                      | ✅ about 25 protocols |
+| API tokens for scripts              | 🚧                          | ✅                      | ✅                    |
+| Activity log                        | ✅ optional, off by default | ✅                      | 💰                    |
+| Space quotas                        | 🚧                          | 🚧                      | 💰                    |
+| Terminal in the browser             | ✅ switchable               | ❌ removed deliberately | ❌                    |
 
 ### Where each answer comes from
 
@@ -192,13 +194,14 @@ tier · — not documented
   cannot be revoked — will not be fixed. Quantum is its active fork, and stands
   in the table instead.
 
-### The three intentions, and the two crosses that stay
+### The two intentions, and the two crosses that stay
 
-An activity log, space quotas and API tokens are what the comparison says is
-missing here, and the three are in the backlog with the shape each would take:
-the share counters an activity log would read already exist, the recursive
+Space quotas and API tokens are what the comparison still says is missing here,
+and both are in the backlog with the shape they would take: the recursive
 folder-size index already counts what a quota would hold people to, and token
-minting is written and deliberately switched off.
+minting is written and deliberately switched off. The activity log that was
+here beside them arrived in 3.8.0, off by default — see
+[Admin & Access](/admin/guide).
 
 WebDAV is a cross rather than a 🚧, and stays one. NextExplorer is a file
 browser, not a server: something you open and use, not something other software

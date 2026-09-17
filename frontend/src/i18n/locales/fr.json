@@ -508,6 +508,7 @@
       "adminUsers": "Gestion des utilisateurs",
       "searchIndex": "Index de recherche",
       "trash": "Corbeille et versions",
+      "activity": "Journal d’activité",
       "accountTwoFactor": "Double facteur",
       "accountPasskeys": "Clés d’accès"
     },
@@ -846,6 +847,32 @@
       "addFailed": "Impossible d’ajouter cette clé d’accès.",
       "cancelled": "Rien n’a été ajouté : le navigateur a été fermé ou le délai a expiré.",
       "alreadyHere": "Cet appareil détient déjà une clé d’accès pour ce compte."
+    },
+    "activity": {
+      "title": "Journal d’activité",
+      "intro": "Qui a fait quoi, quand, et depuis où. Désactivé tant que vous ne le demandez pas.",
+      "enabled": "Enregistrer l’activité",
+      "enabledHelp": "Connexions, téléchargements, partages et modifications de compte sont consignés tant que c’est actif. Rien de ce qui précède l’activation n’y figure.",
+      "retention": "Conserver (jours)",
+      "retentionInvalid": "Entre 1 et 3650 jours.",
+      "saveFailed": "Impossible d’enregistrer ces réglages.",
+      "off": "Le journal est désactivé : rien n’est enregistré.",
+      "none": "Rien d’enregistré pour l’instant.",
+      "loadFailed": "Impossible de lire le journal.",
+      "clearFailed": "Impossible de vider le journal.",
+      "filterAction": "Type",
+      "anyAction": "Tous les types",
+      "filterText": "Rechercher",
+      "filterTextPlaceholder": "Un nom ou un chemin",
+      "refresh": "Actualiser",
+      "clear": "Vider le journal",
+      "more": "Afficher plus",
+      "when": "Quand",
+      "who": "Qui",
+      "what": "Quoi",
+      "target": "Sur",
+      "from": "Depuis",
+      "refused": "refusé"
     }
   },
   "share": {

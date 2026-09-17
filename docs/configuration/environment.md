@@ -133,6 +133,16 @@ set, and the name the request arrived on answers it where it is not. See
 | `WEBAUTHN_RP_ID`   | _(from `PUBLIC_URL`, else the request's host)_ | The hostname passkeys are bound to. Set it where an installation is reached through more than one name, so a passkey made on one works on the others. Changing it stops the passkeys already made from working. |
 | `WEBAUTHN_RP_NAME` | `NextExplorer`                                 | The name the browser shows while asking for a fingerprint or a PIN.                                                                                                                                             |
 
+## Activity log
+
+Off unless somebody asks for it. These are the defaults; administrators change
+what is in force under **Settings → Activity log**.
+
+| Variable                  | Default | Description                                                                                                                           |
+| ------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `ACTIVITY_ENABLED`        | `false` | Record who did what: sign-ins, downloads, share links, deletions and account changes. Nothing from before it was switched on is kept. |
+| `ACTIVITY_RETENTION_DAYS` | `90`    | How long a line is kept, from 1 to 3650 days. Swept hourly, whether the log is on or off.                                             |
+
 ## OIDC & SSO
 
 | Variable                                                        | Default                                           | Description                                                                                                                                                                                                                                                                     |

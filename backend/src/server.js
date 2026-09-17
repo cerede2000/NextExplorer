@@ -30,6 +30,7 @@ const { reportLegacyCache } = require('./services/legacyCacheCheck');
 const { sweepUnreferencedLogos } = require('./services/brandingLogo');
 const { sweepInterrupted } = require('./services/inFlightFiles');
 const trashMaintenance = require('./services/trash/maintenance');
+const { sweepActivity } = require('./services/activityLog');
 const databaseMaintenance = require('./services/databaseMaintenance');
 const tusUploads = require('./services/tusUploadService');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
@@ -94,15 +95,18 @@ const startServer = async () => {
   const EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
   const sweepExpiredRecords = async () => {
     try {
-      const [shares, sessions, documentKeys] = await Promise.all([
+      const [shares, sessions, documentKeys, activity] = await Promise.all([
         cleanupExpiredShares(),
         cleanupExpiredSessions(),
         purgeExpiredDocumentKeys(),
+        // Whether or not the log is on: switching it off should let the disk
+        // go back rather than freeze yesterday's rows for ever.
+        sweepActivity(),
       ]);
-      if (shares || sessions || documentKeys) {
+      if (shares || sessions || documentKeys || activity) {
         logger.info(
-          { shares, sessions, documentKeys },
-          'Purged expired shares, guest sessions and ONLYOFFICE document keys'
+          { shares, sessions, documentKeys, activity },
+          'Purged expired shares, guest sessions, ONLYOFFICE document keys and activity'
         );
       }
     } catch (error) {

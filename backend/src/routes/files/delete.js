@@ -4,6 +4,7 @@ const {
   getDeleteImpact,
   resolveDeleteTargets,
 } = require('../../services/fileTransferService');
+const activityLog = require('../../services/activityLog');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../utils/logger');
 const { startNdjsonStream, throttleProgress } = require('../../utils/ndjsonStream');
@@ -30,6 +31,15 @@ router.delete(
       user: req.user,
       guestSession: req.guestSession,
       permanent: permanent === true,
+    });
+    await activityLog.record({
+      // Into the trash is one thing and off the disk is another, and the day
+      // somebody comes looking, which of the two it was is the question.
+      action: permanent === true ? 'file.purge' : 'file.delete',
+      user: req.user,
+      target: typeof items[0] === 'string' ? items[0] : items[0]?.path,
+      detail: items.length > 1 ? { items: items.length } : null,
+      req,
     });
     res.json({ success: true, items: results });
   })
