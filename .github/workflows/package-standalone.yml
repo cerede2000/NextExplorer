@@ -132,7 +132,11 @@ jobs:
           echo "$features" | grep -q '"rar"' \
             || { echo "The bundled 7-Zip was not found through the unit's PATH"; exit 1; }
           # A shell on the host is not something an installation opens by itself.
-          grep -q '^TERMINAL_ENABLED=false' /etc/nextexplorer/nextexplorer.env
+          # Read with sudo on purpose: the configuration may hold a secret, so
+          # the installer leaves it 0640 root:nextexplorer, and an ordinary
+          # account being unable to read it is part of what is being checked.
+          sudo grep -q '^TERMINAL_ENABLED=false' /etc/nextexplorer/nextexplorer.env
+          test "$(stat -c '%a %U:%G' /etc/nextexplorer/nextexplorer.env)" = '640 root:nextexplorer'
 
       - name: The tools it said it would install are there
         run: |
@@ -148,7 +152,7 @@ jobs:
           sudo install -d -o nextexplorer -g nextexplorer /srv/nextexplorer/Photos
           sudo touch /var/lib/nextexplorer/proof-of-data
           sudo "$RELEASE_DIR/install.sh" --yes
-          grep -q 'PUBLIC_URL=https://files.example.test' /etc/nextexplorer/nextexplorer.env
+          sudo grep -q 'PUBLIC_URL=https://files.example.test' /etc/nextexplorer/nextexplorer.env
           test -e /var/lib/nextexplorer/proof-of-data
           test -d /srv/nextexplorer/Photos
           systemctl is-active --quiet nextexplorer

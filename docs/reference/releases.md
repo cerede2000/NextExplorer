@@ -6,6 +6,75 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.8.0 (2026-09-18)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.8.0)
+
+### Install it without Docker
+
+Every release now carries a Linux archive, for x86_64 and arm64, that installs
+the application as a systemd service:
+
+```sh
+tar -xzf nextexplorer-3.8.0-linux-x64.tar.gz
+cd nextexplorer-3.8.0-linux-x64
+sudo ./install.sh
+```
+
+- **Nothing has to be installed first and nothing is compiled.** The Node
+  runtime travels in the archive, and so does the official 7-Zip build — the
+  one with the RAR codec, which the builds distributions package do not have.
+- **Five optional tools come from the distribution**: ffmpeg, ripgrep,
+  pdftotext, perl and rsync. The script says which are missing, what each one
+  buys, and offers to install them through apt, dnf, pacman or zypper — one at
+  a time, so a name a distribution does not carry costs that line rather than
+  the whole set. The application runs without any of them, and picks them up
+  whenever they appear.
+- **The same script is the update path.** Run it again from a newer archive and
+  the program is replaced while your configuration file, your database and your
+  volumes are left exactly as they are. It also installs `nextexplorer-upgrade`,
+  which reads the latest release, checks the archive against the checksum
+  published beside it, and hands over to that release's own script. Nothing runs
+  on a timer: updating a file server is a decision somebody makes.
+- **systemd does what the container entrypoint had to do by hand.** No
+  `PUID`/`PGID`, no `chown -R`: the unit names the account. It is also hardened
+  — the whole filesystem is read-only to the service except its own two
+  directories and the volumes, so a volume outside `VOLUME_ROOT` wants a line
+  in a drop-in, and a path that does not exist stops the service rather than
+  being quietly unwritable.
+- **The browser terminal is off in this install**, and that is the reason for a
+  default rather than a footnote: in the image it opens a shell inside the
+  container, here it would open one on the machine, as the account the service
+  runs as.
+- **On Alpine or another musl system it says so and stops**, rather than failing
+  later: the bundled runtime is linked against glibc, and the image is the
+  answer there.
+- `sudo ./install.sh --uninstall` removes the program and the service and keeps
+  every file of yours.
+
+This answers [issue #9](https://github.com/cerede2000/NextExplorer/issues/9),
+which asked for a standalone binary and said an archive would do. A single
+binary is not coming, and the guide says why: Node cannot embed a native addon,
+and there are three in this tree.
+
+Documentation: [Install without Docker](https://cerede2000.github.io/NextExplorer/installation/standalone)
+
+### Everything follows, on every release
+
+The archive is built and installed by the same workflow that publishes the
+images, on every push to `main` and on every release, where both architectures
+are attached to the release itself. It is installed for real before it is
+published: on a runner with systemd, as root, checking that the service answers
+with this version and that the bundled 7-Zip is reachable through the unit's
+PATH — then again on a bare Debian and a bare Fedora, where the package manager
+has to do its part and no Node exists at all.
+
+Thirteen tests drive the install script in a sandbox for what matters on an
+update: a configuration file somebody edited survives, the database and the
+volumes survive, a file that left the release stops being installed, two
+identical runs change nothing, and an archive built for another architecture is
+refused rather than unpacked.
+
 ## v3.7.5 (2026-09-17)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.7.5)
