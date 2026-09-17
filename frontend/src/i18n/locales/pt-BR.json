@@ -471,6 +471,9 @@
     "sso": {
       "continue": "Continuar com Single Sign-On"
     },
+    "passkey": {
+      "signIn": "Entrar com uma chave de acesso"
+    },
     "emailOrUsername": "E-mail ou nome de usuário"
   },
   "breadcrumb": {
@@ -505,7 +508,8 @@
       "adminUsers": "Gerenciamento de Usuários",
       "searchIndex": "Índice de busca",
       "trash": "Lixeira e versões",
-      "accountTwoFactor": "Dois fatores"
+      "accountTwoFactor": "Dois fatores",
+      "accountPasskeys": "Chaves de acesso"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -814,6 +818,34 @@
       "codesFailed": "Não foi possível gerar novos códigos de recuperação.",
       "disableFailed": "Não foi possível desligar a autenticação em dois fatores.",
       "wrongPassword": "Essa senha não está certa."
+    },
+    "passkeys": {
+      "title": "Chaves de acesso",
+      "intro": "Entre com sua digital, seu rosto ou o PIN do dispositivo, em vez de uma senha.",
+      "notLocalUser": "Esta conta entra por um provedor de identidade, que é onde ficam suas chaves de acesso.",
+      "unavailable": "Chaves de acesso exigem uma página segura.",
+      "unavailableHelp": "Esta página não é servida por https, então o navegador não tem a que vincular uma chave. Acesse o servidor por https, ou por localhost, para adicionar uma.",
+      "none": "Ainda não há chaves de acesso nesta conta.",
+      "nameLabel": "Adicionar uma chave de acesso",
+      "namePlaceholder": "Dê um nome, para reconhecê-la depois",
+      "add": "Adicionar chave de acesso",
+      "added": "{name} adicionada.",
+      "addedOn": "Adicionada em {when}",
+      "lastUsed": "usada pela última vez em {when}",
+      "neverUsed": "nunca usada",
+      "synced": "sincronizada entre seus dispositivos",
+      "rename": "Renomear",
+      "renamePrompt": "Um nome para esta chave de acesso",
+      "renamed": "Renomeada.",
+      "renameFailed": "Não foi possível renomear esta chave de acesso.",
+      "remove": "Remover",
+      "removed": "{name} removida.",
+      "removeFailed": "Não foi possível remover esta chave de acesso.",
+      "confirmPassword": "Sua senha, para mudar como você entra",
+      "loadFailed": "Não foi possível ler as chaves de acesso desta conta.",
+      "addFailed": "Não foi possível adicionar esta chave de acesso.",
+      "cancelled": "Nada foi adicionado: o navegador foi fechado ou demorou demais.",
+      "alreadyHere": "Este dispositivo já tem uma chave de acesso para esta conta."
     }
   },
   "share": {

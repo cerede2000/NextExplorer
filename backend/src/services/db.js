@@ -49,6 +49,43 @@ const TWO_FACTOR_DDL = `
   CREATE INDEX IF NOT EXISTS idx_totp_recovery_user ON totp_recovery_codes(user_id);
 `;
 
+/**
+ * Passkeys: a public key per authenticator, and what is needed to trust its
+ * next signature.
+ *
+ * `credential_id` is unique across every account, not per account. An
+ * authenticator returns the same credential to whoever asks for it by name, so
+ * two accounts holding the same credential would be one key opening two doors
+ * — and the sign-in, which starts from the credential alone, would have to
+ * pick one.
+ *
+ * `sign_count` is the authenticator's own counter, and it only ever goes up.
+ * Keeping the last one seen is what turns a copied key into a refusal rather
+ * than a second way in. Passkeys synchronised between devices report zero for
+ * ever, which is the one case where nothing can be told from it.
+ *
+ * The public key is public: nothing here is a secret, and a stolen database
+ * gives no way to sign anything.
+ */
+const PASSKEYS_DDL = `
+  CREATE TABLE IF NOT EXISTS passkeys (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    aaguid TEXT,
+    backed_up INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id);
+`;
+
 const PERSONAL_FOLDER_RESERVATIONS_DDL = `
   CREATE TABLE IF NOT EXISTS personal_folder_reservations (
     name TEXT PRIMARY KEY,
@@ -803,6 +840,16 @@ const migrate = (db) => {
       );
       version = 21;
     }
+
+    if (version < 22) {
+      logger.info('[DB Migration] Migrating to v22: passkeys...');
+      db.exec(PASSKEYS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(22)
+      );
+      version = 22;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -820,6 +867,7 @@ const migrate = (db) => {
   ensureShareOperationPermissionColumns(db);
   db.exec(PERSONAL_FOLDER_RESERVATIONS_DDL);
   db.exec(TWO_FACTOR_DDL);
+  db.exec(PASSKEYS_DDL);
 };
 
 /**

@@ -468,6 +468,9 @@
     "sso": {
       "continue": "Continuar con inicio de sesión único"
     },
+    "passkey": {
+      "signIn": "Iniciar sesión con una clave de acceso"
+    },
     "emailOrUsername": "Correo electrónico o nombre de usuario"
   },
   "breadcrumb": {
@@ -502,7 +505,8 @@
       "folderSize": "Tamaño de carpetas",
       "searchIndex": "Índice de búsqueda",
       "trash": "Papelera y versiones",
-      "accountTwoFactor": "Doble factor"
+      "accountTwoFactor": "Doble factor",
+      "accountPasskeys": "Claves de acceso"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -811,6 +815,34 @@
       "codesFailed": "No se han podido generar códigos de recuperación nuevos.",
       "disableFailed": "No se ha podido desactivar el doble factor.",
       "wrongPassword": "Esa contraseña no es correcta."
+    },
+    "passkeys": {
+      "title": "Claves de acceso",
+      "intro": "Inicia sesión con tu huella, tu cara o el PIN de tu dispositivo, en lugar de una contraseña.",
+      "notLocalUser": "Esta cuenta inicia sesión con un proveedor de identidad, que es donde deben estar sus claves de acceso.",
+      "unavailable": "Las claves de acceso necesitan una página segura.",
+      "unavailableHelp": "Esta página no se sirve por https, así que el navegador no tiene a qué vincular una clave. Accede al servidor por https, o por localhost, para añadir una.",
+      "none": "Todavía no hay claves de acceso en esta cuenta.",
+      "nameLabel": "Añadir una clave de acceso",
+      "namePlaceholder": "Ponle un nombre para reconocerla más tarde",
+      "add": "Añadir una clave de acceso",
+      "added": "{name} añadida.",
+      "addedOn": "Añadida el {when}",
+      "lastUsed": "usada por última vez el {when}",
+      "neverUsed": "nunca usada",
+      "synced": "sincronizada entre tus dispositivos",
+      "rename": "Cambiar el nombre",
+      "renamePrompt": "Un nombre para esta clave de acceso",
+      "renamed": "Nombre cambiado.",
+      "renameFailed": "No se ha podido cambiar el nombre de esta clave.",
+      "remove": "Quitar",
+      "removed": "{name} eliminada.",
+      "removeFailed": "No se ha podido eliminar esta clave de acceso.",
+      "confirmPassword": "Tu contraseña, para cambiar cómo inicias sesión",
+      "loadFailed": "No se han podido leer las claves de acceso de esta cuenta.",
+      "addFailed": "No se ha podido añadir esta clave de acceso.",
+      "cancelled": "No se ha añadido nada: se cerró el navegador o tardó demasiado.",
+      "alreadyHere": "Este dispositivo ya tiene una clave de acceso para esta cuenta."
     }
   },
   "share": {

@@ -468,6 +468,9 @@
     "sso": {
       "continue": "SSO(Single Sign-On)로 계속"
     },
+    "passkey": {
+      "signIn": "패스키로 로그인"
+    },
     "emailOrUsername": "이메일 주소 또는 사용자 이름"
   },
   "breadcrumb": {
@@ -502,7 +505,8 @@
       "folderSize": "폴더 크기",
       "searchIndex": "검색 색인",
       "trash": "휴지통 및 버전",
-      "accountTwoFactor": "2단계 인증"
+      "accountTwoFactor": "2단계 인증",
+      "accountPasskeys": "패스키"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -811,6 +815,34 @@
       "codesFailed": "새 복구 코드를 만들지 못했습니다.",
       "disableFailed": "2단계 인증을 끄지 못했습니다.",
       "wrongPassword": "비밀번호가 올바르지 않습니다."
+    },
+    "passkeys": {
+      "title": "패스키",
+      "intro": "비밀번호 대신 지문, 얼굴 또는 기기 PIN으로 로그인합니다.",
+      "notLocalUser": "이 계정은 ID 공급자를 통해 로그인하며, 패스키도 그곳에 있습니다.",
+      "unavailable": "패스키에는 보안 페이지가 필요합니다.",
+      "unavailableHelp": "이 페이지는 https로 제공되지 않아 브라우저가 패스키를 묶을 대상이 없습니다. https 또는 localhost로 서버에 접속한 뒤 추가하세요.",
+      "none": "이 계정에는 아직 패스키가 없습니다.",
+      "nameLabel": "패스키 추가",
+      "namePlaceholder": "나중에 구분할 수 있도록 이름을 지정하세요",
+      "add": "패스키 추가",
+      "added": "{name}을(를) 추가했습니다.",
+      "addedOn": "{when}에 추가됨",
+      "lastUsed": "마지막 사용 {when}",
+      "neverUsed": "사용한 적 없음",
+      "synced": "기기 간 동기화됨",
+      "rename": "이름 변경",
+      "renamePrompt": "이 패스키의 이름",
+      "renamed": "이름을 변경했습니다.",
+      "renameFailed": "이 패스키의 이름을 변경하지 못했습니다.",
+      "remove": "삭제",
+      "removed": "{name}을(를) 삭제했습니다.",
+      "removeFailed": "이 패스키를 삭제하지 못했습니다.",
+      "confirmPassword": "로그인 방식을 바꾸려면 비밀번호를 입력하세요",
+      "loadFailed": "이 계정의 패스키를 읽지 못했습니다.",
+      "addFailed": "이 패스키를 추가하지 못했습니다.",
+      "cancelled": "아무것도 추가되지 않았습니다: 브라우저가 닫혔거나 시간이 초과되었습니다.",
+      "alreadyHere": "이 기기에는 이미 이 계정의 패스키가 있습니다."
     }
   },
   "share": {

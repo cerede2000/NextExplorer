@@ -27,11 +27,13 @@ const loginApi = vi.fn();
 const logoutApi = vi.fn();
 const setupAccountApi = vi.fn();
 const submitTotpCodeApi = vi.fn();
+const signInWithPasskeyApi = vi.fn();
 
 vi.mock('@/api', () => ({
   fetchAuthStatus: (...a) => fetchAuthStatus(...a),
   login: (...a) => loginApi(...a),
   submitTotpCode: (...a) => submitTotpCodeApi(...a),
+  signInWithPasskey: (...a) => signInWithPasskeyApi(...a),
   logout: (...a) => logoutApi(...a),
   setupAccount: (...a) => setupAccountApi(...a),
 }));
@@ -97,7 +99,9 @@ describe('reading the status', () => {
     await store.initialize();
 
     expect(store.authMode).toBe('local');
-    expect(store.strategies).toEqual({ local: true, oidc: false });
+    // A server that says nothing offers a password and nothing else: no
+    // provider, and no passkey button on a screen that cannot know yet.
+    expect(store.strategies).toEqual({ local: true, oidc: false, passkey: false });
   });
 
   /**
@@ -428,5 +432,57 @@ describe('a sign-in waiting for a code', () => {
     await store.cancelTotp();
 
     expect(store.totpPending).toBe(false);
+  });
+});
+
+/**
+ * A passkey, which signs somebody in without naming them first.
+ *
+ * It ends in one of the two places a password ends: signed in, or waiting for
+ * a code. The second only happens for a passkey that was not unlocked — one
+ * that was is already the second factor, and the server says so by answering
+ * with the account rather than with a question.
+ */
+describe('signing in with a passkey', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    [fetchAuthStatus, loginApi, signInWithPasskeyApi, submitTotpCodeApi].forEach((mock) =>
+      mock.mockReset()
+    );
+  });
+
+  it('signs the account in, with nothing typed', async () => {
+    signInWithPasskeyApi.mockResolvedValue({ user: USER });
+    const store = useAuthStore();
+
+    const outcome = await store.signInWithPasskey();
+
+    expect(outcome).toEqual({ totpRequired: false });
+    expect(store.currentUser).toEqual(USER);
+    expect(store.isAuthenticated).toBe(true);
+    expect(store.totpPending).toBe(false);
+  });
+
+  it('waits for a code when the passkey was not unlocked', async () => {
+    signInWithPasskeyApi.mockResolvedValue({ totpRequired: true });
+    const store = useAuthStore();
+
+    const outcome = await store.signInWithPasskey();
+
+    expect(outcome).toEqual({ totpRequired: true });
+    expect(store.totpPending).toBe(true);
+    expect(store.currentUser).toBeNull();
+    expect(store.isAuthenticated).toBe(false);
+  });
+
+  it('lets the browser’s refusal through, signing nobody in', async () => {
+    const refusal = new Error('not allowed');
+    refusal.name = 'NotAllowedError';
+    signInWithPasskeyApi.mockRejectedValue(refusal);
+    const store = useAuthStore();
+
+    await expect(store.signInWithPasskey()).rejects.toBe(refusal);
+    expect(store.currentUser).toBeNull();
+    expect(store.isAuthenticated).toBe(false);
   });
 });

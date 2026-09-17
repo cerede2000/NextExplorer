@@ -3,8 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 
 import AuthLayout from '@/layouts/AuthLayout.vue';
-import { LockClosedIcon, KeyIcon } from '@heroicons/vue/24/outline';
-import { apiBase } from '@/api';
+import { FingerPrintIcon, LockClosedIcon, KeyIcon } from '@heroicons/vue/24/outline';
+import { apiBase, passkeysSupported } from '@/api';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
@@ -27,6 +27,14 @@ const totpCodeValue = ref('');
 const statusError = computed(() => auth.lastError || '');
 const supportsLocal = computed(() => auth.strategies?.local !== false);
 const supportsOidc = computed(() => Boolean(auth.strategies?.oidc));
+/**
+ * Whether to offer a passkey at all.
+ *
+ * Two answers have to agree: the server offers local accounts, and this
+ * browser can do it — which over plain http it cannot, whatever it supports.
+ * A button that opens a dialog only to fail is worse than no button.
+ */
+const supportsPasskey = computed(() => Boolean(auth.strategies?.passkey) && passkeysSupported());
 
 /**
  * Whether pressing the single sign-on button would reach anything.
@@ -242,6 +250,27 @@ const handleTotpCancel = () => {
   auth.cancelTotp();
 };
 
+/**
+ * Sign in with a passkey. Nobody is named: the browser offers what it holds
+ * for this site, and a person who has none is told so by the browser itself.
+ */
+const handlePasskeyLogin = async () => {
+  resetErrors();
+  isSubmittingLogin.value = true;
+  try {
+    const { totpRequired } = (await auth.signInWithPasskey()) ?? {};
+    if (totpRequired) return;
+    redirectToDestination();
+  } catch (error) {
+    // A browser that was closed, or a person who changed their mind, both
+    // arrive as NotAllowedError; neither is a failure worth shouting about.
+    if (error?.name === 'NotAllowedError') return;
+    loginError.value = messageFor(error, 'errors.signIn');
+  } finally {
+    isSubmittingLogin.value = false;
+  }
+};
+
 const handleOidcLogin = () => {
   resetErrors();
   const returnTo = redirectTarget.value;
@@ -401,6 +430,19 @@ const handleOidcLogin = () => {
         </span>
       </button>
     </form>
+
+    <div v-if="supportsPasskey && !auth.totpPending" class="mt-3">
+      <button
+        class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-700/50 px-4 text-sm font-medium text-white ring-1 ring-inset ring-white/10 enabled:hover:bg-neutral-700/70 enabled:active:bg-neutral-700/90 disabled:cursor-not-allowed disabled:opacity-50"
+        type="button"
+        :disabled="isSubmittingLogin"
+        data-test="passkey-sign-in"
+        @click="handlePasskeyLogin"
+      >
+        <FingerPrintIcon class="h-5 w-5" />
+        <span class="truncate">{{ $t('auth.passkey.signIn') }}</span>
+      </button>
+    </div>
 
     <div
       v-if="!auth.totpPending && supportsLocal && supportsOidc"

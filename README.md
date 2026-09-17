@@ -154,15 +154,15 @@ tier · — not documented
 
 ### Who gets in
 
-|                                         | **NextExplorer 3.7**            | **FileBrowser Quantum** | **Filestash** |
-| --------------------------------------- | ------------------------------- | ----------------------- | ------------- |
-| Local accounts                          | ✅                              | ✅                      | ✅            |
-| OIDC single sign-on                     | ✅                              | ✅                      | 💰 Enterprise |
-| LDAP sign-on                            | ❌                              | ✅                      | 💰 Enterprise |
-| Second factor from an authenticator app | ✅ with recovery codes          | ✅                      | 💰 Enterprise |
-| Passkeys (WebAuthn)                     | ❌                              | ✅                      | 💰 Enterprise |
-| Brute force on the sign-in              | ✅ account lockout              | ✅ rate limiting        | —             |
-| Access rules per path                   | ✅ read, write and delete apart | ✅                      | 💰 RBAC       |
+|                                         | **NextExplorer 3.7**                 | **FileBrowser Quantum** | **Filestash** |
+| --------------------------------------- | ------------------------------------ | ----------------------- | ------------- |
+| Local accounts                          | ✅                                   | ✅                      | ✅            |
+| OIDC single sign-on                     | ✅                                   | ✅                      | 💰 Enterprise |
+| LDAP sign-on                            | ❌                                   | ✅                      | 💰 Enterprise |
+| Second factor from an authenticator app | ✅ with recovery codes               | ✅                      | 💰 Enterprise |
+| Passkeys (WebAuthn)                     | ✅ and they answer the second factor | ✅                      | 💰 Enterprise |
+| Brute force on the sign-in              | ✅ account lockout                   | ✅ rate limiting        | —             |
+| Access rules per path                   | ✅ read, write and delete apart      | ✅                      | 💰 RBAC       |
 
 ### Sharing
 

@@ -46,6 +46,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 ## Access & security
 
 - **Local users & groups:** Create local accounts from Settings → Admin; the first account becomes admin and can’t be removed while others exist.
+- **Passkeys:** Any local account can add one in Settings → Passkeys, and sign in with a fingerprint, a face or the device's PIN instead of a password. The key stays on the device and what it signs names this site, so it cannot be phished, watched or replayed. A passkey that was unlocked to be used answers the second factor as well; one that was not still asks for the code. Browsers only allow this on a secure page served from a hostname, which the page says when it cannot be offered.
 - **Two-factor authentication:** Any local account can turn on a second factor in Settings → Two-factor — a QR code for any authenticator app, a code to confirm the phone kept the secret, and ten recovery codes shown once. Signing in then asks for a code after the password; six digits are worth one sign-in, and a recovery code one use. With OIDC the second factor is the provider's.
 - **OIDC SSO:** Express OpenID Connect exposes `/login`, `/logout`, and `/callback`, so you can federate with Keycloak, Authentik, Authelia, or any compliant provider. Admin elevation happens when the IdP groups/roles intersect `OIDC_ADMIN_GROUPS`.
 - **Per-user access control:** Grant or deny paths per user or group, with read, write and delete kept apart. Personal folders (`USER_DIR_ENABLED`) and per-user volumes build on the same rules.
@@ -128,15 +129,15 @@ tier · — not documented
 
 ### Who gets in
 
-|                                         | **NextExplorer 3.7**            | **FileBrowser Quantum** | **Filestash** |
-| --------------------------------------- | ------------------------------- | ----------------------- | ------------- |
-| Local accounts                          | ✅                              | ✅                      | ✅            |
-| OIDC single sign-on                     | ✅                              | ✅                      | 💰 Enterprise |
-| LDAP sign-on                            | ❌                              | ✅                      | 💰 Enterprise |
-| Second factor from an authenticator app | ✅ with recovery codes          | ✅                      | 💰 Enterprise |
-| Passkeys (WebAuthn)                     | ❌                              | ✅                      | 💰 Enterprise |
-| Brute force on the sign-in              | ✅ account lockout              | ✅ rate limiting        | —             |
-| Access rules per path                   | ✅ read, write and delete apart | ✅                      | 💰 RBAC       |
+|                                         | **NextExplorer 3.7**                 | **FileBrowser Quantum** | **Filestash** |
+| --------------------------------------- | ------------------------------------ | ----------------------- | ------------- |
+| Local accounts                          | ✅                                   | ✅                      | ✅            |
+| OIDC single sign-on                     | ✅                                   | ✅                      | 💰 Enterprise |
+| LDAP sign-on                            | ❌                                   | ✅                      | 💰 Enterprise |
+| Second factor from an authenticator app | ✅ with recovery codes               | ✅                      | 💰 Enterprise |
+| Passkeys (WebAuthn)                     | ✅ and they answer the second factor | ✅                      | 💰 Enterprise |
+| Brute force on the sign-in              | ✅ account lockout                   | ✅ rate limiting        | —             |
+| Access rules per path                   | ✅ read, write and delete apart      | ✅                      | 💰 RBAC       |
 
 ### Sharing
 
@@ -161,10 +162,10 @@ tier · — not documented
 
 - **NextExplorer**: the pages on this site — [archives](/experience/workflows),
   [trash](/admin/trash), [file versions](/admin/versions),
-  [search](/experience/features), [two-factor and access](/admin/guide) — and
-  the suites in the repository. The 🚧 are recorded in `TODO.md` with what each
-  would take; they are intentions, not dates. The ❌ are honest: there is no
-  LDAP here and no passkeys yet, and the two marked _by choice_ are settled
+  [search](/experience/features), [two-factor, passkeys and
+  access](/admin/guide) — and the suites in the repository. The 🚧 are recorded
+  in `TODO.md` with what each would take; they are intentions, not dates. The ❌
+  are honest: there is no LDAP here, and the two marked _by choice_ are settled
   positions rather than a backlog nobody got to.
 - **FileBrowser Quantum**: its [README](https://github.com/gtsteffaniak/filebrowser)
   states OIDC, LDAP, JWT, password + 2FA and proxy sign-in, WebDAV, folder

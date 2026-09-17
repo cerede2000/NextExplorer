@@ -18,6 +18,7 @@ import {
   UserCircleIcon,
   ShieldCheckIcon,
   TrashIcon,
+  FingerPrintIcon,
 } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
@@ -59,6 +60,13 @@ const userCategories = [
     i18nKey: 'accountTwoFactor',
     name: 'Two-factor authentication',
     icon: ShieldCheckIcon,
+    requiresLocal: true,
+  },
+  {
+    key: 'account-passkeys',
+    i18nKey: 'accountPasskeys',
+    name: 'Passkeys',
+    icon: FingerPrintIcon,
     requiresLocal: true,
   },
   {

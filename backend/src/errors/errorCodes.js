@@ -12,6 +12,14 @@ const ErrorCodes = {
   AUTH_INVALID_TOTP_CODE: 'AUTH_INVALID_TOTP_CODE',
   AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
   AUTH_PASSWORD_INCORRECT: 'AUTH_PASSWORD_INCORRECT',
+  // A passkey that did not open anything: the wrong site, a stale question, a
+  // signature that does not hold, or a credential this server has never seen.
+  // One code for all of them, because telling them apart would answer which
+  // passkeys exist here to whoever asks.
+  AUTH_PASSKEY_REJECTED: 'AUTH_PASSKEY_REJECTED',
+  // The browser cannot do this: no passkey support, or a page that is not on a
+  // secure origin, which is a setup problem rather than a wrong answer.
+  AUTH_PASSKEY_UNAVAILABLE: 'AUTH_PASSKEY_UNAVAILABLE',
 
   // Signing in at an identity provider. The two are told apart on purpose: one
   // is answered in the configuration, the other by looking at the provider.

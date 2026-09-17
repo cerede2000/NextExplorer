@@ -191,6 +191,15 @@ hard each is.
   counters are already in the database; what is missing is the table, the
   retention and the page. This is the feature that decides whether a deployment
   can account for itself, and Filestash sells it at the top of its range.
+- ~~**Passkeys (WebAuthn).**~~ Done, and written here rather than taken from a
+  package: the CBOR reader is checked against RFC 8949's published vectors and
+  the ceremonies against a software authenticator built from the format, so the
+  verifier can be taken apart one check at a time. Attestation is deliberately
+  not verified — which company made the authenticator is not a file server's
+  business — and the checks that matter are the challenge, the origin, the
+  relying party, the flags, the signature and the counter. A passkey that was
+  unlocked answers the second factor as well, because it is already two things.
+  What it brought with it: no dependency at all.
 - ~~**Two-factor on local accounts.**~~ Done. RFC 6238 written against its own
   published vectors rather than taken from a package, secrets kept unreadable
   in `app.db` under `/config/totp-key`, ten hashed recovery codes, and an

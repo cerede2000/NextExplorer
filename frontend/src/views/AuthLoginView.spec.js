@@ -18,6 +18,8 @@ const submitTotpCode = vi.hoisted(() => vi.fn(async () => ({})));
 const cancelTotp = vi.hoisted(() => vi.fn());
 const ensureStatus = vi.hoisted(() => vi.fn(async () => {}));
 const clearError = vi.hoisted(() => vi.fn());
+const signInWithPasskey = vi.hoisted(() => vi.fn(async () => ({})));
+const passkeysSupported = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock('@/stores/auth', async () => {
   const { reactive } = await import('vue');
@@ -27,9 +29,10 @@ vi.mock('@/stores/auth', async () => {
     isAuthenticated: false,
     requiresSetup: false,
     lastError: '',
-    strategies: { local: true, oidc: false },
+    strategies: { local: true, oidc: false, passkey: false },
     oidcStatus: 'ready',
     login,
+    signInWithPasskey,
     submitTotpCode,
     cancelTotp,
     totpPending: false,
@@ -47,7 +50,7 @@ const features = vi.hoisted(() => ({
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => ({ ensureLoaded: vi.fn() }) }));
 
-vi.mock('@/api', () => ({ apiBase: '' }));
+vi.mock('@/api', () => ({ apiBase: '', passkeysSupported }));
 
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -114,7 +117,7 @@ beforeEach(() => {
       isAuthenticated: false,
       requiresSetup: false,
       lastError: '',
-      strategies: { local: true, oidc: false },
+      strategies: { local: true, oidc: false, passkey: false },
       oidcStatus: 'ready',
       totpPending: false,
     });
@@ -122,6 +125,7 @@ beforeEach(() => {
   features.demoLogin = null;
   [
     login,
+    signInWithPasskey,
     submitTotpCode,
     cancelTotp,
     ensureStatus,
@@ -131,6 +135,8 @@ beforeEach(() => {
     features.ensureLoaded,
   ].forEach((m) => m.mockClear());
   login.mockResolvedValue(undefined);
+  signInWithPasskey.mockResolvedValue({});
+  passkeysSupported.mockReturnValue(true);
   ensureStatus.mockResolvedValue(undefined);
 });
 
@@ -674,5 +680,87 @@ describe('when the account asks for a code', () => {
 
     expect(cancelTotp).toHaveBeenCalled();
     expect(view.totpCodeValue).toBe('');
+  });
+});
+
+/**
+ * The passkey button.
+ *
+ * Two answers have to agree before it is on screen — the server offers local
+ * accounts, and this browser can actually do it. A button that opens a dialog
+ * and then fails teaches people the feature is broken.
+ */
+describe('signing in with a passkey', () => {
+  it('is offered when the server and the browser both allow it', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: true };
+
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="passkey-sign-in"]').exists()).toBe(true);
+  });
+
+  it('is not offered when the server does not have it on', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: false };
+
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="passkey-sign-in"]').exists()).toBe(false);
+  });
+
+  it('is not offered where the browser cannot do it', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: true };
+    passkeysSupported.mockReturnValue(false);
+
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="passkey-sign-in"]').exists()).toBe(false);
+  });
+
+  it('signs in and goes where the visitor was heading', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: true };
+    signInWithPasskey.mockResolvedValue({ totpRequired: false });
+    await mountLogin();
+
+    await wrapper.find('[data-test="passkey-sign-in"]').trigger('click');
+    await flushPromises();
+
+    expect(signInWithPasskey).toHaveBeenCalled();
+    expect(replace).toHaveBeenCalled();
+  });
+
+  it('stays put when the account also wants a code', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: true };
+    signInWithPasskey.mockResolvedValue({ totpRequired: true });
+    await mountLogin();
+
+    await wrapper.find('[data-test="passkey-sign-in"]').trigger('click');
+    await flushPromises();
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('says nothing when somebody changes their mind', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: true };
+    const refusal = new Error('not allowed');
+    refusal.name = 'NotAllowedError';
+    signInWithPasskey.mockRejectedValue(refusal);
+    await mountLogin();
+
+    await wrapper.find('[data-test="passkey-sign-in"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('not allowed');
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('shows a refusal that is not somebody changing their mind', async () => {
+    auth.store.strategies = { local: true, oidc: false, passkey: true };
+    signInWithPasskey.mockRejectedValue(new Error('That passkey did not open anything here.'));
+    await mountLogin();
+
+    await wrapper.find('[data-test="passkey-sign-in"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('That passkey did not open anything here.');
   });
 });

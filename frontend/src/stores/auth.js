@@ -5,6 +5,7 @@ import {
   fetchAuthStatus,
   setupAccount as setupAccountApi,
   login as loginApi,
+  signInWithPasskey as signInWithPasskeyApi,
   submitTotpCode as submitTotpCodeApi,
   logout as logoutApi,
   fetchCurrentUser,
@@ -17,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   const strategies = ref({
     local: true,
     oidc: false,
+    passkey: false,
   });
   // What the server's configuration pass concluded about single sign-on:
   // 'ready', 'not-configured' or 'unavailable'. The sign-in screen shows the
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
         requiresSetup.value = enabled ? Boolean(status.requiresSetup) : false;
         authEnabled.value = enabled;
         authMode.value = typeof status?.authMode === 'string' ? status.authMode : 'local';
-        strategies.value = status?.strategies || { local: true, oidc: false };
+        strategies.value = status?.strategies || { local: true, oidc: false, passkey: false };
         oidcStatus.value = status?.oidc?.status || 'ready';
         currentUser.value = status?.user || null;
         totpPending.value = Boolean(status?.totpPending);
@@ -116,6 +118,30 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = response?.user || null;
 
     // Clear guest session when user logs in
+    sessionStorage.removeItem('guestSessionId');
+    return { totpRequired: false };
+  };
+
+  /**
+   * Sign in with a passkey, which names nobody.
+   *
+   * The same two endings as a password: signed in, or waiting for a code. A
+   * passkey that was unlocked — a fingerprint, a face, a PIN — is already the
+   * second factor, so only one that was not lands here waiting.
+   */
+  const signInWithPasskey = async () => {
+    lastError.value = null;
+    const response = await signInWithPasskeyApi();
+    hasStatus.value = true;
+
+    if (response?.totpRequired) {
+      totpPending.value = true;
+      currentUser.value = null;
+      return { totpRequired: true };
+    }
+
+    totpPending.value = false;
+    currentUser.value = response?.user || null;
     sessionStorage.removeItem('guestSessionId');
     return { totpRequired: false };
   };
@@ -216,6 +242,7 @@ export const useAuthStore = defineStore('auth', () => {
     ensureStatus: initialize,
     setupAccount,
     login,
+    signInWithPasskey,
     submitTotpCode,
     cancelTotp,
     logout,

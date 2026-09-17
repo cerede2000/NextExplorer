@@ -121,6 +121,18 @@ Targeted subtree recoveries are always serialized so concurrent external changes
 | `AUTH_ADMIN_EMAIL`                      | _none_                                                | Optional first-run bootstrap for local auth: when set with `AUTH_ADMIN_PASSWORD`, the backend creates an admin user on startup (and the setup wizard is skipped).                                                                                                                                                                                                                                                                                                                                                        |
 | `AUTH_ADMIN_PASSWORD`                   | _none_                                                | Password used for `AUTH_ADMIN_EMAIL` bootstrap. If a user already exists with the same email, this value **overrides/resets** the local password on startup. (Minimum 6 chars; avoid leaving this set unless you want the password enforced on every restart.)                                                                                                                                                                                                                                                           |
 
+## Passkeys
+
+A passkey is bound to the hostname it was made on. Nothing here is required for
+a single-hostname installation: `PUBLIC_URL` already answers it where it is
+set, and the name the request arrived on answers it where it is not. See
+[Admin & Access](/admin/guide).
+
+| Variable           | Default                                        | Description                                                                                                                                                                                                     |
+| ------------------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WEBAUTHN_RP_ID`   | _(from `PUBLIC_URL`, else the request's host)_ | The hostname passkeys are bound to. Set it where an installation is reached through more than one name, so a passkey made on one works on the others. Changing it stops the passkeys already made from working. |
+| `WEBAUTHN_RP_NAME` | `NextExplorer`                                 | The name the browser shows while asking for a fingerprint or a PIN.                                                                                                                                             |
+
 ## OIDC & SSO
 
 | Variable                                                        | Default                                           | Description                                                                                                                                                                                                                                                                     |

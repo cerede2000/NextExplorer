@@ -468,6 +468,9 @@
     "sso": {
       "continue": "Fortsätt med enkel inloggning"
     },
+    "passkey": {
+      "signIn": "Logga in med en lösenordsnyckel"
+    },
     "emailOrUsername": "E-postadress eller användarnamn"
   },
   "breadcrumb": {
@@ -502,7 +505,8 @@
       "folderSize": "Mappstorlekar",
       "searchIndex": "Sökindex",
       "trash": "Papperskorg och versioner",
-      "accountTwoFactor": "Tvåfaktor"
+      "accountTwoFactor": "Tvåfaktor",
+      "accountPasskeys": "Lösenordsnycklar"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -811,6 +815,34 @@
       "codesFailed": "Det gick inte att skapa nya återställningskoder.",
       "disableFailed": "Det gick inte att stänga av tvåfaktorsautentisering.",
       "wrongPassword": "Det lösenordet stämmer inte."
+    },
+    "passkeys": {
+      "title": "Lösenordsnycklar",
+      "intro": "Logga in med ditt fingeravtryck, ditt ansikte eller enhetens PIN-kod i stället för ett lösenord.",
+      "notLocalUser": "Det här kontot loggar in via en identitetsleverantör, och där hör också dess nycklar hemma.",
+      "unavailable": "Lösenordsnycklar kräver en säker sida.",
+      "unavailableHelp": "Den här sidan levereras inte över https, så webbläsaren har ingenting att binda en nyckel till. Nå servern över https, eller via localhost, för att lägga till en.",
+      "none": "Inga lösenordsnycklar på det här kontot ännu.",
+      "nameLabel": "Lägg till en lösenordsnyckel",
+      "namePlaceholder": "Ge den ett namn, så att du känner igen den senare",
+      "add": "Lägg till en nyckel",
+      "added": "{name} tillagd.",
+      "addedOn": "Tillagd {when}",
+      "lastUsed": "senast använd {when}",
+      "neverUsed": "aldrig använd",
+      "synced": "synkroniserad mellan dina enheter",
+      "rename": "Byt namn",
+      "renamePrompt": "Ett namn för den här nyckeln",
+      "renamed": "Namnet ändrat.",
+      "renameFailed": "Det gick inte att byta namn på nyckeln.",
+      "remove": "Ta bort",
+      "removed": "{name} borttagen.",
+      "removeFailed": "Det gick inte att ta bort nyckeln.",
+      "confirmPassword": "Ditt lösenord, för att ändra hur du loggar in",
+      "loadFailed": "Det gick inte att läsa kontots lösenordsnycklar.",
+      "addFailed": "Det gick inte att lägga till nyckeln.",
+      "cancelled": "Ingenting lades till: webbläsaren stängdes eller det tog för lång tid.",
+      "alreadyHere": "Den här enheten har redan en nyckel för det här kontot."
     }
   },
   "share": {

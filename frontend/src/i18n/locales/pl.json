@@ -468,6 +468,9 @@
     "sso": {
       "continue": "Kontynuuj z logowaniem jednokrotnym"
     },
+    "passkey": {
+      "signIn": "Zaloguj się kluczem dostępu"
+    },
     "emailOrUsername": "Adres e-mail lub nazwa użytkownika"
   },
   "breadcrumb": {
@@ -502,7 +505,8 @@
       "folderSize": "Rozmiary folderów",
       "searchIndex": "Indeks wyszukiwania",
       "trash": "Kosz i wersje",
-      "accountTwoFactor": "Dwa składniki"
+      "accountTwoFactor": "Dwa składniki",
+      "accountPasskeys": "Klucze dostępu"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -811,6 +815,34 @@
       "codesFailed": "Nie udało się wygenerować nowych kodów zapasowych.",
       "disableFailed": "Nie udało się wyłączyć uwierzytelniania dwuskładnikowego.",
       "wrongPassword": "To hasło jest nieprawidłowe."
+    },
+    "passkeys": {
+      "title": "Klucze dostępu",
+      "intro": "Zaloguj się odciskiem palca, twarzą lub kodem PIN urządzenia zamiast hasłem.",
+      "notLocalUser": "To konto loguje się przez dostawcę tożsamości i tam też należą jego klucze dostępu.",
+      "unavailable": "Klucze dostępu wymagają bezpiecznej strony.",
+      "unavailableHelp": "Ta strona nie jest serwowana przez https, więc przeglądarka nie ma do czego przypiąć klucza. Połącz się z serwerem przez https lub przez localhost, aby dodać klucz.",
+      "none": "Na tym koncie nie ma jeszcze kluczy dostępu.",
+      "nameLabel": "Dodaj klucz dostępu",
+      "namePlaceholder": "Nadaj mu nazwę, aby później go rozpoznać",
+      "add": "Dodaj klucz dostępu",
+      "added": "Dodano {name}.",
+      "addedOn": "Dodano {when}",
+      "lastUsed": "ostatnio użyty {when}",
+      "neverUsed": "nigdy nieużywany",
+      "synced": "synchronizowany między urządzeniami",
+      "rename": "Zmień nazwę",
+      "renamePrompt": "Nazwa tego klucza dostępu",
+      "renamed": "Nazwa zmieniona.",
+      "renameFailed": "Nie udało się zmienić nazwy klucza.",
+      "remove": "Usuń",
+      "removed": "Usunięto {name}.",
+      "removeFailed": "Nie udało się usunąć tego klucza dostępu.",
+      "confirmPassword": "Twoje hasło, aby zmienić sposób logowania",
+      "loadFailed": "Nie udało się odczytać kluczy dostępu tego konta.",
+      "addFailed": "Nie udało się dodać tego klucza dostępu.",
+      "cancelled": "Nic nie dodano: przeglądarka została zamknięta lub minęło zbyt dużo czasu.",
+      "alreadyHere": "To urządzenie ma już klucz dostępu do tego konta."
     }
   },
   "share": {

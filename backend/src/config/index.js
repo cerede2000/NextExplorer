@@ -613,6 +613,30 @@ const versions = (() => {
     ),
   };
 })();
+// --- Passkeys ---
+// The relying party: the name a passkey is bound to. Left unset, each request
+// answers for the hostname it arrived on, which is right until an installation
+// is reached through two names — a passkey made on one is refused on the other,
+// by design, and WEBAUTHN_RP_ID is how an operator settles which name counts.
+const webauthn = {
+  rpId: env.WEBAUTHN_RP_ID,
+  rpName: env.WEBAUTHN_RP_NAME || 'NextExplorer',
+};
+
+// --- Activity log ---
+// Defaults only, like the trash's. Off: on a machine one person uses, a record
+// of what that person did all day is weight without a reader.
+const activity = (() => {
+  const retentionDays = Number(env.ACTIVITY_RETENTION_DAYS);
+  return {
+    enabled: env.ACTIVITY_ENABLED === true,
+    retentionDays:
+      Number.isFinite(retentionDays) && retentionDays >= 1
+        ? Math.min(3650, Math.round(retentionDays))
+        : 90,
+  };
+})();
+
 // --- Folder size index ---
 const VALID_FOLDER_SIZE_MODES = new Set(['off', 'shallow', 'full']);
 const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
@@ -828,6 +852,8 @@ module.exports = {
   archives,
   trash,
   versions,
+  webauthn,
+  activity,
   VERSION_BOUNDS,
 
   features: {

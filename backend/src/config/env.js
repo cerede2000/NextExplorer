@@ -188,6 +188,19 @@ module.exports = {
   VERSIONS_SESSION_CHECKPOINT_MINUTES:
     process.env.VERSIONS_SESSION_CHECKPOINT_MINUTES?.trim() || '10',
 
+  // Passkeys. The name a passkey is bound to is the domain it was made on, so
+  // an installation reached through more than one hostname pins it here rather
+  // than letting each name hold its own passkeys. Empty means "the name this
+  // request arrived on", which is what a single-hostname installation wants.
+  WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID?.trim() || null,
+  WEBAUTHN_RP_NAME: process.env.WEBAUTHN_RP_NAME?.trim() || null,
+
+  // Activity log: off unless somebody asks for it. It is a record of who did
+  // what, which is worth having when several people share an installation and
+  // is only weight when nobody is going to read it.
+  ACTIVITY_ENABLED: normalizeBoolean(process.env.ACTIVITY_ENABLED) ?? false,
+  ACTIVITY_RETENTION_DAYS: process.env.ACTIVITY_RETENTION_DAYS?.trim() || '90',
+
   // Folder size index
   // Mode: 'off' (default, feature disabled), 'shallow' (size of a folder's
   // direct entries only) or 'full' (recursive size of the whole subtree).

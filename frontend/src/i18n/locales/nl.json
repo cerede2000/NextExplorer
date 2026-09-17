@@ -471,6 +471,9 @@
     "sso": {
       "continue": "Doorgaan met Single Sign-On"
     },
+    "passkey": {
+      "signIn": "Aanmelden met een passkey"
+    },
     "emailOrUsername": "E-mailadres of gebruikersnaam"
   },
   "breadcrumb": {
@@ -505,7 +508,8 @@
       "adminUsers": "Gebruikersbeheer",
       "searchIndex": "Zoekindex",
       "trash": "Prullenbak en versies",
-      "accountTwoFactor": "Tweestaps"
+      "accountTwoFactor": "Tweestaps",
+      "accountPasskeys": "Passkeys"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -814,6 +818,34 @@
       "codesFailed": "Er konden geen nieuwe herstelcodes worden gemaakt.",
       "disableFailed": "Tweestapsverificatie kon niet worden uitgeschakeld.",
       "wrongPassword": "Dat wachtwoord klopt niet."
+    },
+    "passkeys": {
+      "title": "Passkeys",
+      "intro": "Meld je aan met je vingerafdruk, je gezicht of de pincode van je apparaat, in plaats van met een wachtwoord.",
+      "notLocalUser": "Dit account meldt zich aan via een identiteitsprovider; daar horen ook zijn passkeys thuis.",
+      "unavailable": "Passkeys hebben een beveiligde pagina nodig.",
+      "unavailableHelp": "Deze pagina wordt niet via https geleverd, dus de browser heeft niets om een passkey aan te binden. Bereik de server via https, of via localhost, om er een toe te voegen.",
+      "none": "Nog geen passkeys op dit account.",
+      "nameLabel": "Een passkey toevoegen",
+      "namePlaceholder": "Geef hem een naam, om hem later te herkennen",
+      "add": "Passkey toevoegen",
+      "added": "{name} toegevoegd.",
+      "addedOn": "Toegevoegd op {when}",
+      "lastUsed": "laatst gebruikt op {when}",
+      "neverUsed": "nooit gebruikt",
+      "synced": "gesynchroniseerd tussen je apparaten",
+      "rename": "Naam wijzigen",
+      "renamePrompt": "Een naam voor deze passkey",
+      "renamed": "Naam gewijzigd.",
+      "renameFailed": "Kon deze passkey niet hernoemen.",
+      "remove": "Verwijderen",
+      "removed": "{name} verwijderd.",
+      "removeFailed": "Kon deze passkey niet verwijderen.",
+      "confirmPassword": "Je wachtwoord, om te wijzigen hoe je je aanmeldt",
+      "loadFailed": "Kon de passkeys van dit account niet lezen.",
+      "addFailed": "Kon deze passkey niet toevoegen.",
+      "cancelled": "Er is niets toegevoegd: de browser werd gesloten of het duurde te lang.",
+      "alreadyHere": "Dit apparaat heeft al een passkey voor dit account."
     }
   },
   "share": {
