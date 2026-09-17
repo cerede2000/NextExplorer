@@ -6,6 +6,167 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.7.5 (2026-09-17)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.7.5)
+
+### Sign in with a passkey
+
+Any local account can add one in **Settings → Passkeys** and sign in with a
+fingerprint, a face or the device's PIN instead of a password.
+
+- **It cannot be phished, watched or replayed.** The key never leaves the
+  device, and what it signs names this site: a copy of the sign-in page on
+  another address gets nothing it can use.
+- **A passkey that was unlocked to be used answers the second factor as well** —
+  the device, plus whoever can open it. One used without that unlock still asks
+  for the code.
+- **The last door is kept.** An account with no password cannot remove its last
+  passkey. An administrator can remove all of them from an account, the way they
+  can already reset its second factor.
+- **No dependency was added for it.** The one serious library exists mostly to
+  check which brand of authenticator is being held, which is the one thing this
+  deliberately does not want to know; the two ceremonies and a CBOR reader are
+  written here, and the tests drive them with a software authenticator that
+  encodes CBOR its own way.
+- **Browsers only allow this on a secure page served from a hostname**, so it is
+  not offered over plain HTTP or on an IP address — the settings page says which
+  of the two is in the way instead of showing a button that cannot work.
+- Passkeys belong to local accounts. Where the identity provider owns the
+  sign-in (`AUTH_MODE=oidc`) they are not offered at all.
+
+### An activity log, off unless somebody asks for it
+
+**Settings → Activity log** turns it on, and nothing before that moment is in
+it. Seventeen kinds of event: who signed in — including who tried and failed,
+and under what name — what was downloaded, uploaded, sent to the trash, restored
+or removed for good, what left through which share link and what arrived through
+one, every change to a password, a second factor or a passkey, and every account
+or setting an administrator changed.
+
+- **Administrators read it**, filtered by kind, by account, by outcome or by
+  words, and paged from the moment of the last line rather than by an offset, so
+  lines arriving while somebody reads do not shift the page.
+- **Emptying it leaves the line that says who emptied it**, with how many lines
+  went. It is written after the deletion, which is what makes it the only one to
+  survive.
+- **Off costs nothing measurable** — 0.017 ms per event that is not written —
+  and the retention is swept hourly whether it is on or off, so switching it off
+  hands the disk back instead of freezing yesterday.
+- **Nothing here can fail the request it describes.** A download does not stop
+  because a line could not be written.
+- **No link to the accounts table.** Removing an account takes its files and its
+  sessions; what it did while it existed is precisely what a log is for, so the
+  name is copied into the line.
+- **Which events are recorded is not a setting**, and that is a decision rather
+  than an omission: every comparable project offers one switch, a retention and
+  filters when the log is read. The reasoning, and what was checked, is in
+  `TODO.md`.
+
+### The address in a line is the person's, not the proxy's
+
+Every line carried whoever opened the socket, which in a container is the Docker
+bridge as often as it is anybody: `172.18.0.1` line after line, and nothing to
+say why.
+
+- **One helper now decides the address** for everything that writes one down —
+  the log, the share counters, the refused-passkey warning.
+- **`CF-Connecting-IP` first**, which is what Cloudflare sets in front of a
+  tunnel on a public hostname, then `X-Forwarded-For`, then `X-Real-IP` — nginx's
+  own example configuration sends that one and not the first, which left those
+  installations naming the proxy on every line.
+- **Only from a proxy `TRUST_PROXY` says may be believed.** A log the people in
+  it can write is worse than one that names the proxy.
+- `::ffff:192.168.1.7` is written the way somebody reading the log would write
+  it.
+- **A proxy being ignored is now said once**, naming the address it announced
+  and the one being recorded instead. And `GET /api/activity/address`
+  (administrators) answers the whole question from a browser: what would be
+  recorded, the machine at the other end, whether it is believed, the rule in
+  force, and every forwarding header that arrived.
+- The limit worth knowing: a tunnel that forwards raw TCP rather than HTTP — a
+  Cloudflare private network route over WARP, say — has no header to add, and
+  nothing recovers an address that never arrived.
+
+### A folder's address reads like a path again
+
+`/browse/Stacks/data`, not `/browse/Stacks%2Fdata`. A router parameter is one
+segment, so every slash inside it was encoded; each segment is now encoded on
+its own, the way the editor's addresses always were. Addresses already saved
+keep working. Apache refuses an encoded slash unless `AllowEncodedSlashes` is
+turned on, so this was a 404 waiting behind somebody's reverse proxy.
+
+### Smaller
+
+- Each kind of event is named in the reader's own language, in all fifteen.
+- A deletion names the file rather than the folder it was in, and a restore
+  names what came back.
+- In French the switch read “Enregistrer l'activité” directly above a button
+  reading “Enregistrer”: it is “Consigner l'activité” now, and the same
+  collision was fixed in Polish.
+- Four kinds of event were offered by the filter and written by nothing at all,
+  and a deletion from the interface — which goes through a different route than
+  the API's — wrote nothing. A test now fails if a kind exists in the list and
+  nowhere else.
+- The check that every code change carries a test reads the `No-test:` line
+  itself rather than asking git for a trailer it cannot parse when the line
+  wraps, and it audits the whole range even when an earlier run was cancelled.
+- The reverse proxy guide gains the section that explains which address ends up
+  in a line, and this changelog gains the v3.7.0 entry it never got.
+
+### Upgrading
+
+Schema 23, two new tables (`passkeys`, `activity_events`), applied at the first
+start. Nothing to do by hand, and nothing is recorded until the log is switched
+on.
+
+## v3.7.0 (2026-09-16)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.7.0)
+
+### Look inside an archive without unpacking it
+
+A `.zip`, `.7z`, `.rar`, `.iso`, `.tar` or `.tar.gz` opens like a folder —
+entries with their sizes and dates, folders to go into, a trail to walk back —
+and nothing is written to disk to show it.
+
+- **Read a file inside it:** text and code, Markdown rendered, and the images a
+  browser draws itself. Text stops at 2 MB and an image at 32 MB; past that the
+  panel says the size rather than freezing the tab.
+- **Take part of it out:** one entry or several at once, into the archive's own
+  folder or one picked from the same dialog as the rest of the application. A
+  folder stands for everything under it, and nothing is ever replaced.
+- **Which formats:** whatever the image's 7-Zip reads — zip, 7z, rar, iso, tar,
+  gz, tgz, bz2, xz, cab, wim, cpio, rpm, deb and more. A `.tar.gz` is two
+  archives, so the tar inside is decompressed once into the cache;
+  `MAX_BROWSABLE_ARCHIVE_SIZE` (2 GB) is where the answer becomes “extract it
+  instead”.
+- **A solid `.7z` is extracted once, on the second read**, measured rather than
+  guessed: the first entry of a fifty-megabyte solid archive takes 0.02 s, the
+  last 1.37 s, the whole thing 1.41 s.
+- Nothing from inside an archive is ever served as a page.
+
+### Two-factor on a local account
+
+**Settings → Two-factor** offers a QR code for any authenticator app, one code
+to confirm the phone kept the secret, and ten recovery codes shown once.
+
+- The password alone opens nothing after that: the sign-in waits for a code for
+  five minutes, and a wrong one counts against the same lockout a wrong password
+  does.
+- A code is worth one sign-in, a recovery code one use.
+- The secret is unreadable in `app.db`, under a key drawn beside it in
+  `/config/totp-key`. Back that file up with the database.
+- An administrator can take it off an account that lost both the phone and the
+  paper.
+
+### How it compares
+
+The README and the documentation carry a comparison against FileBrowser Quantum
+and Filestash, every cell read from that project's own repository, documentation
+or pricing page rather than from its marketing — including the rows where they
+are ahead.
+
 ## v3.6.1 (2026-09-15)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.6.1)

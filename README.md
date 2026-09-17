@@ -35,8 +35,8 @@ Two images are published, on both registries:
 
 | Tag                         | Contains                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------- |
-| `latest`, `3.7.0`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
-| `latest-lean`, `3.7.0-lean` | The same application without VA-API or RAW — a considerably smaller image        |
+| `latest`, `3.7.5`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
+| `latest-lean`, `3.7.5-lean` | The same application without VA-API or RAW — a considerably smaller image        |
 
 Take the full image unless you know you need neither: VA-API only helps where the host exposes a render device to the container, and RAW support only matters if you keep camera files. Both variants are built for `linux/amd64` and `linux/arm64`.
 
@@ -49,7 +49,7 @@ They are also on Docker Hub under the same tags.
 
 `latest` and `latest-lean` follow `main`, so a fix reaches them without waiting
 for a release. Every build is also published under the version in
-`package.json` — `3.7.0`, `3.7.0-lean` — republished for as long as that
+`package.json` — `3.7.5`, `3.7.5-lean` — republished for as long as that
 version is current, and left alone once the next one is cut.
 
 Only the last two versions stay published: on Docker Hub the older one is
@@ -76,6 +76,21 @@ expecting an old tag to still be there.
   the file landed under.
 - **Two-factor on local accounts.** Any authenticator app, ten recovery codes,
   and an administrator who can take it off an account that lost both.
+- **Sign in with a passkey.** A fingerprint, a face or the device's PIN instead
+  of a password. The key never leaves the device and what it signs names this
+  site, so it cannot be phished, watched or replayed — and a passkey you
+  unlocked to use answers the second factor as well. Written here without
+  adding a dependency: the only library worth using exists to check which brand
+  of authenticator you hold, which is the one thing this deliberately does not
+  want to know.
+- **An activity log, off unless you ask for it.** Who signed in — including who
+  tried and failed, and under what name — what was downloaded, uploaded, sent
+  to the trash, restored or removed for good, what left through which share
+  link and what arrived through one, and every account or setting an
+  administrator changed. Administrators read it, each line is kept for as long
+  as the retention says, and emptying it leaves the one line saying who emptied
+  it. On a machine one person uses it has no reader, which is why it is a
+  switch rather than something that happens quietly.
 - **Search that reads inside files.** A filename search as you type, patterns
   like `*.ps1`, and a full-text index that reads Office documents and PDFs.
 - **Previews and editing.** Images, video, audio, PDF, Markdown, a code editor,
