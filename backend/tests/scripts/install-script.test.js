@@ -143,9 +143,12 @@ describe('a first installation', () => {
   });
 
   it('renders a unit that names the paths it may write to', () => {
-    // No --no-service: the unit is written, and the missing systemctl is
-    // reported rather than fatal.
+    // No --no-service, so the unit is written — and under a prefix this
+    // machine's systemd is left alone, which is the whole point of a staged
+    // install and the reason this test says the same thing on a laptop with no
+    // systemctl and on a runner that has one.
     const output = install([]);
+    expect(output).toMatch(/systemd was not asked to do anything/);
 
     const unit = read('etc', 'systemd', 'system', 'nextexplorer.service');
     expect(unit).toContain('User=nextexplorer');
@@ -156,7 +159,6 @@ describe('a first installation', () => {
     );
     expect(unit).toContain('ProtectSystem=strict');
     expect(unit).not.toMatch(/@[A-Z_]+@/);
-    if (!hasSystemctl()) expect(output).toMatch(/No systemctl/i);
   });
 
   it('says which optional tools are missing, and what each one is for', () => {
@@ -302,8 +304,4 @@ function hasTool(tool) {
   } catch {
     return false;
   }
-}
-
-function hasSystemctl() {
-  return hasTool('systemctl');
 }

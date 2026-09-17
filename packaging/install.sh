@@ -95,12 +95,14 @@ confirm() {
 # --- Removing it, if that is what was asked ---------------------------------
 if [ "$action" = uninstall ]; then
   say "Removing NextExplorer"
-  if [ "$with_service" = yes ] && command -v systemctl >/dev/null 2>&1; then
+  if [ -z "$prefix" ] && [ "$with_service" = yes ] && command -v systemctl >/dev/null 2>&1; then
     systemctl disable --now nextexplorer.service 2>/dev/null || true
   fi
   rm -f "$UNIT_FILE" "$UPGRADE_BIN"
   rm -rf "$PROGRAM_DIR"
-  [ "$with_service" = yes ] && command -v systemctl >/dev/null 2>&1 && systemctl daemon-reload || true
+  if [ -z "$prefix" ] && [ "$with_service" = yes ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload || true
+  fi
   note "Program removed."
   note "Kept, because they are yours: $ETC_DIR, $STATE_DIR, $CACHE_DIR, and every volume."
   exit 0
@@ -336,7 +338,12 @@ else
   chmod 0644 "$UNIT_FILE"
   note "$UNIT_FILE"
 
-  if command -v systemctl >/dev/null 2>&1; then
+  if [ -n "$prefix" ]; then
+    # A staged install: the unit is under the prefix, where this machine's
+    # systemd cannot see it. Reloading it here would reload somebody else's
+    # configuration and start nothing.
+    note "Staged under a prefix, so systemd was not asked to do anything."
+  elif command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload
     systemctl enable nextexplorer.service >/dev/null 2>&1 || warn "could not enable the service at boot"
     systemctl restart nextexplorer.service
