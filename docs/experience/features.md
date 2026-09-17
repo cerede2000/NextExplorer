@@ -62,7 +62,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 - **Nothing is ever replaced:** A copy, a move, an upload, an extraction, a new archive, a new folder, a Save as, a copy of a version or a restore from the trash takes the name it asks for only when nothing holds it — even something that arrives while it runs — and otherwise takes “name (1)”, or “name 2” for a new folder. It never replaces a file and never pours into a folder that is already there, and undoing one that failed removes only what it wrote itself: a file someone saved in the meantime stays.
 - **Keyboard shortcuts:** ⌘/Ctrl+C/X/V for clipboard actions, plus quick navigation via breadcrumbs and toolbar icons.
 
-- **Activity log:** Off unless an administrator turns it on, in Settings → Activity log. On, it writes down who signed in — including who tried and failed — what was downloaded, what left through which share link, what was deleted, and every change to a password, a second factor or a passkey. Administrators read it, and it keeps each line for as long as the retention says.
+- **Activity log:** Off unless an administrator turns it on, in Settings → Activity log. On, it writes down who signed in — including who tried and failed — what was downloaded, uploaded, deleted, restored and removed for good, what left through which share link and what arrived through one, every change to a password, a second factor or a passkey, and every account or setting an administrator changed. Administrators read it, and it keeps each line for as long as the retention says.
 
 ## How it compares
 

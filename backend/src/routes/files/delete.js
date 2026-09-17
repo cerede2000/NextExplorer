@@ -23,6 +23,24 @@ router.post(
   })
 );
 
+/**
+ * What a deletion writes down.
+ *
+ * Into the trash is one thing and off the disk is another, and the day
+ * somebody comes looking, which of the two it was is the question. Both routes
+ * record through here: the interface uses the streamed one, and a deletion
+ * that only the plain one recorded would be a log with a hole exactly where
+ * people look.
+ */
+const recordDeletion = ({ items, permanent, req }) =>
+  activityLog.record({
+    action: permanent === true ? 'file.purge' : 'file.delete',
+    user: req.user,
+    target: typeof items[0] === 'string' ? items[0] : items[0]?.path,
+    detail: items.length > 1 ? { items: items.length } : null,
+    req,
+  });
+
 router.delete(
   '/files',
   asyncHandler(async (req, res) => {
@@ -32,15 +50,7 @@ router.delete(
       guestSession: req.guestSession,
       permanent: permanent === true,
     });
-    await activityLog.record({
-      // Into the trash is one thing and off the disk is another, and the day
-      // somebody comes looking, which of the two it was is the question.
-      action: permanent === true ? 'file.purge' : 'file.delete',
-      user: req.user,
-      target: typeof items[0] === 'string' ? items[0] : items[0]?.path,
-      detail: items.length > 1 ? { items: items.length } : null,
-      req,
-    });
+    await recordDeletion({ items, permanent, req });
     res.json({ success: true, items: results });
   })
 );
@@ -95,6 +105,7 @@ router.post(
         },
         'Bulk delete completed'
       );
+      await recordDeletion({ items, permanent, req });
       writeEvent({ type: 'done', success: true, items: results });
     } catch (error) {
       writeEvent({

@@ -105,6 +105,16 @@ router.patch(
       });
     }
 
+    if (Array.isArray(roles) || hasProfileUpdates) {
+      await activityLog.record({
+        action: 'admin.user',
+        user: req.user,
+        target: user.username || user.email || id,
+        detail: { roles: Array.isArray(roles) ? roles : undefined, profile: hasProfileUpdates },
+        req,
+      });
+    }
+
     res.json({ user });
   })
 );
@@ -122,6 +132,13 @@ router.post(
       displayName: displayName || username || email?.split('@')[0],
       password,
       roles: r,
+    });
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: user.username || user.email || user.id,
+      detail: { created: true, roles: r },
+      req,
     });
     res.status(201).json({ user });
   })
@@ -242,6 +259,15 @@ router.delete(
     // deleteUser gets the rule and not only this route. A second copy here
     // read as the enforcement and was not: removing it changed nothing.
     await deleteUser({ userId: id });
+    // Written after the deletion, and it outlives it: the row names the
+    // account as text, and nothing cascades this log away.
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: existing.username || existing.email || id,
+      detail: { deleted: true },
+      req,
+    });
     res.status(204).end();
   })
 );

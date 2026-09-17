@@ -301,3 +301,40 @@ describe('forgetting', () => {
     expect(await activityLog.countActivity()).toBe(0);
   });
 });
+
+/**
+ * The filter offers a list of kinds, and a kind nothing writes is a promise
+ * the page cannot keep: somebody picks `file.upload`, sees nothing, and
+ * concludes the log is broken rather than that uploads are not recorded.
+ *
+ * This reads the sources rather than exercising every route, so it is a guard
+ * against drift rather than proof that each line is reached — the route tests
+ * do that for the ones a person is most likely to try first.
+ */
+describe('every kind the page offers to filter by', () => {
+  it('is named somewhere that writes one', async () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { ACTIONS } = require('../../src/services/activityLog');
+
+    // Everything but the file that declares the list, so a kind that exists
+    // only in that list is what this catches. Two of them are written through
+    // a ternary — `req.user ? 'file.upload' : 'share.upload'` — so the search
+    // is for the name rather than for a shape of call, and the route tests
+    // are what prove the lines are reached.
+    const sources = [];
+    const walk = (directory) => {
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const full = path.join(directory, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.js') && !full.endsWith('services/activityLog.js')) {
+          sources.push(fs.readFileSync(full, 'utf8'));
+        }
+      }
+    };
+    walk(path.join(__dirname, '..', '..', 'src'));
+    const everything = sources.join('\n');
+
+    expect([...ACTIONS].filter((action) => !everything.includes(`'${action}'`))).toEqual([]);
+  });
+});

@@ -12,6 +12,7 @@ const {
   WRITABLE_USER_SETTINGS,
 } = require('../services/settingsService');
 const { forgetReplacedLogo, replaceLogo } = require('../services/brandingLogo');
+const activityLog = require('../services/activityLog');
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const multer = require('multer');
@@ -335,7 +336,7 @@ router.patch(
         const sent = payload[name];
         if (!sent || typeof sent !== 'object') continue;
         const update = section.check(sent);
-        if (update !== null) toWrite.push([section, update]);
+        if (update !== null) toWrite.push([name, section, update]);
       }
     }
 
@@ -343,7 +344,23 @@ router.patch(
       await applyUserPreferences(user, payload.user);
     }
 
-    for (const [section, update] of toWrite) await section.write(update);
+    // What was stored, not what was sent: a section whose every field was
+    // refused writes nothing, and a log line saying otherwise would send
+    // somebody looking for a change that never happened.
+    const stored = [];
+    for (const [name, section, update] of toWrite) {
+      if (await section.write(update)) stored.push(name);
+    }
+    if (stored.length) {
+      // Which settings, not what they were set to: values belong in the
+      // settings, and some of them are somebody's business alone.
+      await activityLog.record({
+        action: 'admin.settings',
+        user,
+        detail: { sections: stored },
+        req,
+      });
+    }
 
     // Read back rather than assembled from what was written: the stored value
     // is sanitised on its way out, so what the caller applies to its own state

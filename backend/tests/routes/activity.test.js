@@ -94,7 +94,13 @@ describe('the switch', { timeout: 30_000 }, () => {
 
     const body = await read(browser);
     expect(body.enabled).toBe(true);
-    expect(body.events.map((event) => event.action)).toEqual(['sign-in', 'sign-out']);
+    // The switch being turned on is itself the first thing the log has to
+    // say: who started keeping this record, and when.
+    expect(body.events.map((event) => event.action)).toEqual([
+      'sign-in',
+      'sign-out',
+      'admin.settings',
+    ]);
     expect(body.events[0]).toMatchObject({ actor: 'owner', outcome: 'ok' });
     expect(JSON.parse(body.events[0].detail)).toEqual({ method: 'password' });
   });

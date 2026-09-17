@@ -21,11 +21,23 @@ router.get(
   })
 );
 
+/** How many items a restore was asked for, for the line that records it. */
+const countOf = (value) => (Array.isArray(value) ? value.length : value ? 1 : 0);
+
 // POST /api/trash/restore - put items back where they were deleted from
 router.post(
   '/trash/restore',
   asyncHandler(async (req, res) => {
-    res.json(await trash.restoreItems(req.body?.ids, contextOf(req), { shares: req.body?.shares }));
+    const outcome = await trash.restoreItems(req.body?.ids, contextOf(req), {
+      shares: req.body?.shares,
+    });
+    await activityLog.record({
+      action: 'file.restore',
+      user: req.user,
+      detail: { items: countOf(req.body?.ids) },
+      req,
+    });
+    res.json(outcome);
   })
 );
 
@@ -42,11 +54,17 @@ router.get(
 router.post(
   '/trash/items/:id/restore',
   asyncHandler(async (req, res) => {
-    res.json(
-      await trash.restoreEntries(req.params.id, req.body?.paths, contextOf(req), {
-        shares: req.body?.shares,
-      })
-    );
+    const outcome = await trash.restoreEntries(req.params.id, req.body?.paths, contextOf(req), {
+      shares: req.body?.shares,
+    });
+    await activityLog.record({
+      action: 'file.restore',
+      user: req.user,
+      target: Array.isArray(req.body?.paths) ? req.body.paths[0] : null,
+      detail: { items: countOf(req.body?.paths), from: req.params.id },
+      req,
+    });
+    res.json(outcome);
   })
 );
 
@@ -91,6 +109,16 @@ const restoreTo = (planFrom) =>
       const result = await trash.executeRestoreTo(plan, {
         onEvent: writeEvent,
         signal: controller.signal,
+      });
+      // Recorded where the restore finished rather than where it was asked
+      // for: the stream can be closed half-way, and what matters is what came
+      // back out of the trash.
+      await activityLog.record({
+        action: 'file.restore',
+        user: req.user,
+        target: req.body?.destination || null,
+        detail: { chosenDestination: true },
+        req,
       });
       writeEvent({ type: 'done', ...result });
     } catch (error) {

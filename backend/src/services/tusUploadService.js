@@ -12,6 +12,7 @@ const { ensureDir } = require('../utils/fsUtils');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
+const activityLog = require('./activityLog');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
@@ -663,6 +664,17 @@ const finalizeUpload = async (nodeReq, upload) => {
   } catch (err) {
     logger.debug({ err, path: placed.path }, 'Folder sizes were not told about a chunked upload');
   }
+
+  // The one place a chunked upload finishes, whichever request finished it: a
+  // client that reconnects and asks again gets the result rather than a second
+  // move, and this line goes with the move.
+  await activityLog.record({
+    action: nodeReq?.user ? 'file.upload' : 'share.upload',
+    user: nodeReq?.user,
+    target: target.destinationPath,
+    detail: { bytes: totalBytes, resumable: true },
+    req: nodeReq,
+  });
 
   const result = { name: placed.name, path: placed.path, size: totalBytes, owner };
   rememberFinished(upload.id, result);
