@@ -200,7 +200,7 @@ Space quotas and API tokens are what the comparison still says is missing here,
 and both are in the backlog with the shape they would take: the recursive
 folder-size index already counts what a quota would hold people to, and token
 minting is written and deliberately switched off. The activity log that was
-here beside them arrived in 3.8.0, off by default — see
+here beside them is done, and off by default — see
 [Admin & Access](/admin/guide).
 
 WebDAV is a cross rather than a 🚧, and stays one. NextExplorer is a file
