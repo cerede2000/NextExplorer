@@ -4,6 +4,20 @@ Release notes for nextExplorer. GitHub remains the source of truth: https://gith
 
 Releases are listed newest to oldest.
 
+## v3.1.0 (2026-09-18)
+
+[GitHub release](https://github.com/nxzai/NextExplorer/releases/tag/v3.1.0)
+
+### What's changed
+
+#### Fixes and reliability
+
+- **Improved media previews:** Portrait videos now remain fully visible with their controls accessible. Image previews now provide zoom and rotation controls, support mouse panning while zoomed, and display a clear error when an image cannot be loaded.
+- **Localized media-preview controls:** Added translations for the new image controls, playback-track labels, and unsupported-media messages across all supported locales.
+- **Restored single-page app fallback:** Updated the frontend fallback route for Express 5, so direct navigation to non-API application routes continues to load the app.
+
+**Full Changelog**: https://github.com/nxzai/NextExplorer/compare/v3.0.0...v3.1.0
+
 ## v3.0.0 (2026-09-10)
 
 [GitHub release](https://github.com/nxzai/NextExplorer/releases/tag/v3.0.0)
