@@ -849,7 +849,7 @@
       "title": "活動記錄",
       "intro": "誰在何時、從何處做了什麼。除非你開啟，否則不記錄。",
       "enabled": "記錄活動",
-      "enabledHelp": "開啟期間，登入、下載、分享與帳戶變更都會被記錄。開啟之前發生的事不在其中。",
+      "enabledHelp": "開啟期間，登入、下載、上傳、刪除、還原、分享與帳戶變更都會被記錄。開啟之前發生的事不在其中。",
       "retention": "保留（天）",
       "retentionInvalid": "1 到 3650 天之間。",
       "saveFailed": "無法儲存這些設定。",
@@ -869,7 +869,25 @@
       "what": "做了什麼",
       "target": "對象",
       "from": "來源",
-      "refused": "遭拒"
+      "refused": "遭拒",
+      "actions": {
+        "sign-in": "登入",
+        "sign-out": "登出",
+        "account-password": "變更密碼",
+        "account-two-factor": "變更兩步驗證",
+        "account-passkey": "變更通行金鑰",
+        "admin-user": "變更帳戶",
+        "admin-settings": "變更設定",
+        "share-create": "建立分享",
+        "share-delete": "刪除分享",
+        "share-download": "透過連結下載",
+        "share-upload": "透過連結上傳",
+        "file-download": "下載",
+        "file-upload": "上傳",
+        "file-delete": "移至回收桶",
+        "file-restore": "還原",
+        "file-purge": "永久刪除"
+      }
     }
   },
   "share": {

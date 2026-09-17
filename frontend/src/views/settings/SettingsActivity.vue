@@ -17,7 +17,21 @@ import { formatLocalDateTime } from '@/utils';
  */
 
 const appSettings = useAppSettings();
-const { t } = useI18n();
+const { t, te } = useI18n();
+
+/**
+ * A kind of event, in the reader's language.
+ *
+ * The server names them `share.download` and the like — a vocabulary, not a
+ * label — and the page showed them as they came, which is the one place in the
+ * interface that spoke to somebody in the server's terms. A dot would nest the
+ * key, so the separator changes; a kind this catalogue has never heard of
+ * falls back to its own name rather than to a blank.
+ */
+const labelFor = (action) => {
+  const key = `settings.activity.actions.${String(action).replace(/\./g, '-')}`;
+  return te(key) ? t(key) : action;
+};
 
 const current = computed(
   () => appSettings.systemSettings?.activity || { enabled: false, retentionDays: 90 }
@@ -200,7 +214,9 @@ const inputClasses =
             @change="load()"
           >
             <option value="">{{ t('settings.activity.anyAction') }}</option>
-            <option v-for="name in actions" :key="name" :value="name">{{ name }}</option>
+            <option v-for="name in actions" :key="name" :value="name">
+              {{ labelFor(name) }}
+            </option>
           </select>
         </div>
         <div>
@@ -271,14 +287,14 @@ const inputClasses =
               <td class="py-2 pr-4 text-zinc-900 dark:text-zinc-100">{{ event.actor }}</td>
               <td class="py-2 pr-4">
                 <span
-                  class="font-mono text-xs"
+                  class="text-xs"
                   :class="
                     event.outcome === 'refused'
                       ? 'text-red-600 dark:text-red-400'
                       : 'text-zinc-700 dark:text-zinc-300'
                   "
                 >
-                  {{ event.action }}
+                  {{ labelFor(event.action) }}
                   <span v-if="event.outcome === 'refused'">
                     · {{ t('settings.activity.refused') }}</span
                   >

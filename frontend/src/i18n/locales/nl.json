@@ -852,7 +852,7 @@
       "title": "Activiteitenlogboek",
       "intro": "Wie wat deed, wanneer en vanwaar. Uit tot je erom vraagt.",
       "enabled": "Activiteit vastleggen",
-      "enabledHelp": "Aanmeldingen, downloads, gedeelde links en accountwijzigingen worden vastgelegd zolang dit aanstaat. Wat daarvoor gebeurde staat er niet in.",
+      "enabledHelp": "Aanmeldingen, downloads, uploads, verwijderingen, terugzettingen, deellinks en accountwijzigingen worden vastgelegd zolang dit aanstaat. Wat daarvoor gebeurde staat er niet in.",
       "retention": "Bewaren (dagen)",
       "retentionInvalid": "Tussen 1 en 3650 dagen.",
       "saveFailed": "Kon deze instellingen niet opslaan.",
@@ -872,7 +872,25 @@
       "what": "Wat",
       "target": "Op",
       "from": "Vanaf",
-      "refused": "geweigerd"
+      "refused": "geweigerd",
+      "actions": {
+        "sign-in": "Aangemeld",
+        "sign-out": "Afgemeld",
+        "account-password": "Wachtwoord gewijzigd",
+        "account-two-factor": "Tweede factor gewijzigd",
+        "account-passkey": "Passkey gewijzigd",
+        "admin-user": "Account gewijzigd",
+        "admin-settings": "Instellingen gewijzigd",
+        "share-create": "Deellink gemaakt",
+        "share-delete": "Deellink verwijderd",
+        "share-download": "Via een link gedownload",
+        "share-upload": "Via een link geüpload",
+        "file-download": "Gedownload",
+        "file-upload": "Geüpload",
+        "file-delete": "Naar de prullenbak",
+        "file-restore": "Teruggezet",
+        "file-purge": "Definitief verwijderd"
+      }
     }
   },
   "share": {

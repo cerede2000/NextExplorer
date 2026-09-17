@@ -852,7 +852,7 @@
       "title": "Registro de atividades",
       "intro": "Quem fez o quê, quando e de onde. Desligado até você pedir.",
       "enabled": "Registrar atividade",
-      "enabledHelp": "Entradas, downloads, compartilhamentos e mudanças de conta são anotados enquanto isto estiver ligado. O que veio antes não está aqui.",
+      "enabledHelp": "Entradas, downloads, envios, exclusões, restaurações, compartilhamentos e mudanças de conta são anotados enquanto isto estiver ligado. O que veio antes não está aqui.",
       "retention": "Guardar por (dias)",
       "retentionInvalid": "Entre 1 e 3650 dias.",
       "saveFailed": "Não foi possível salvar estas configurações.",
@@ -872,7 +872,25 @@
       "what": "O quê",
       "target": "Em",
       "from": "De",
-      "refused": "recusado"
+      "refused": "recusado",
+      "actions": {
+        "sign-in": "Entrou",
+        "sign-out": "Saiu",
+        "account-password": "Senha alterada",
+        "account-two-factor": "Segundo fator alterado",
+        "account-passkey": "Chave de acesso alterada",
+        "admin-user": "Conta alterada",
+        "admin-settings": "Configurações alteradas",
+        "share-create": "Compartilhamento criado",
+        "share-delete": "Compartilhamento excluído",
+        "share-download": "Baixado por um link",
+        "share-upload": "Enviado por um link",
+        "file-download": "Baixado",
+        "file-upload": "Enviado",
+        "file-delete": "Movido para a lixeira",
+        "file-restore": "Restaurado",
+        "file-purge": "Excluído definitivamente"
+      }
     }
   },
   "share": {

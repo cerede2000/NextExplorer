@@ -26,7 +26,15 @@ vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => store.settings })
 
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal()),
-  useI18n: () => ({ t: (key) => key }),
+  useI18n: () => ({
+    t: (key) => key,
+    // The real catalogue knows the kinds it has labels for; this one knows the
+    // two the fixtures use, so the fallback has something to be tested on.
+    te: (key) =>
+      ['settings.activity.actions.sign-in', 'settings.activity.actions.share-download'].includes(
+        key
+      ),
+  }),
 }));
 
 vi.mock('@/components/ToggleSwitch.vue', () => ({
@@ -199,5 +207,45 @@ describe('the list', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="activity-error"]').text()).toContain('no such table');
+  });
+});
+
+describe('naming what happened', () => {
+  it('shows each kind in the reader’s language, not the server’s vocabulary', async () => {
+    const wrapper = await open();
+
+    const rows = wrapper.findAll('[data-test="activity-row"]');
+    // The label, not the name: the mock renders a key, so what is asserted is
+    // that a key was asked for at all. The fallback case below is what proves
+    // the raw name is still shown when there is no label.
+    expect(rows[0].text()).toContain('settings.activity.actions.sign-in');
+    expect(rows[1].text()).toContain('settings.activity.actions.share-download');
+  });
+
+  it('labels the filter the same way', async () => {
+    const wrapper = await open();
+
+    const options = wrapper.findAll('[data-test="activity-filter-action"] option');
+    expect(options.map((option) => option.text())).toEqual([
+      'settings.activity.anyAction',
+      'settings.activity.actions.sign-in',
+      'settings.activity.actions.share-download',
+    ]);
+    // The value sent back is still the server's name, whatever is shown.
+    expect(options[1].attributes('value')).toBe('sign-in');
+  });
+
+  it('falls back to the kind’s own name when nothing has been written for it', async () => {
+    const wrapper = await open(
+      page({
+        actions: ['file.teleport'],
+        events: [{ ...EVENTS[0], action: 'file.teleport' }],
+      })
+    );
+
+    expect(wrapper.find('[data-test="activity-row"]').text()).toContain('file.teleport');
+    expect(wrapper.findAll('[data-test="activity-filter-action"] option')[1].text()).toBe(
+      'file.teleport'
+    );
   });
 });

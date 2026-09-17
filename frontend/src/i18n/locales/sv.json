@@ -849,7 +849,7 @@
       "title": "Aktivitetslogg",
       "intro": "Vem som gjorde vad, när och varifrån. Av tills du ber om den.",
       "enabled": "Registrera aktivitet",
-      "enabledHelp": "Inloggningar, nedladdningar, delningar och kontoändringar skrivs ned så länge detta är på. Det som hände innan finns inte med.",
+      "enabledHelp": "Inloggningar, nedladdningar, uppladdningar, borttagningar, återställningar, delningar och kontoändringar skrivs ned så länge detta är på. Det som hände innan finns inte med.",
       "retention": "Behåll (dagar)",
       "retentionInvalid": "Mellan 1 och 3650 dagar.",
       "saveFailed": "Det gick inte att spara inställningarna.",
@@ -869,7 +869,25 @@
       "what": "Vad",
       "target": "På",
       "from": "Från",
-      "refused": "nekad"
+      "refused": "nekad",
+      "actions": {
+        "sign-in": "Inloggad",
+        "sign-out": "Utloggad",
+        "account-password": "Lösenord ändrat",
+        "account-two-factor": "Andra faktorn ändrad",
+        "account-passkey": "Nyckel ändrad",
+        "admin-user": "Konto ändrat",
+        "admin-settings": "Inställningar ändrade",
+        "share-create": "Delning skapad",
+        "share-delete": "Delning borttagen",
+        "share-download": "Hämtad via en länk",
+        "share-upload": "Uppladdad via en länk",
+        "file-download": "Hämtad",
+        "file-upload": "Uppladdad",
+        "file-delete": "Till papperskorgen",
+        "file-restore": "Återställd",
+        "file-purge": "Borttagen för gott"
+      }
     }
   },
   "share": {

@@ -849,7 +849,7 @@
       "title": "活动日志",
       "intro": "谁在何时、从何处做了什么。除非你开启，否则不记录。",
       "enabled": "记录活动",
-      "enabledHelp": "开启期间，登录、下载、分享和账户变更会被记录。开启之前发生的事不在其中。",
+      "enabledHelp": "开启期间，登录、下载、上传、删除、还原、分享和账户变更会被记录。开启之前发生的事不在其中。",
       "retention": "保留（天）",
       "retentionInvalid": "1 到 3650 天之间。",
       "saveFailed": "无法保存这些设置。",
@@ -869,7 +869,25 @@
       "what": "做了什么",
       "target": "对象",
       "from": "来源",
-      "refused": "被拒绝"
+      "refused": "被拒绝",
+      "actions": {
+        "sign-in": "登录",
+        "sign-out": "退出登录",
+        "account-password": "修改密码",
+        "account-two-factor": "修改两步验证",
+        "account-passkey": "修改通行密钥",
+        "admin-user": "修改账户",
+        "admin-settings": "修改设置",
+        "share-create": "创建分享",
+        "share-delete": "删除分享",
+        "share-download": "通过链接下载",
+        "share-upload": "通过链接上传",
+        "file-download": "下载",
+        "file-upload": "上传",
+        "file-delete": "移入回收站",
+        "file-restore": "还原",
+        "file-purge": "永久删除"
+      }
     }
   },
   "share": {

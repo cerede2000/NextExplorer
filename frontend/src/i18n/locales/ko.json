@@ -849,7 +849,7 @@
       "title": "활동 로그",
       "intro": "누가, 언제, 어디서 무엇을 했는지. 요청하기 전에는 꺼져 있습니다.",
       "enabled": "활동 기록",
-      "enabledHelp": "켜져 있는 동안 로그인, 다운로드, 공유, 계정 변경이 기록됩니다. 켜기 전의 일은 남아 있지 않습니다.",
+      "enabledHelp": "켜져 있는 동안 로그인, 다운로드, 업로드, 삭제, 복원, 공유, 계정 변경이 기록됩니다. 켜기 전의 일은 남아 있지 않습니다.",
       "retention": "보관 기간(일)",
       "retentionInvalid": "1일에서 3650일 사이.",
       "saveFailed": "설정을 저장하지 못했습니다.",
@@ -869,7 +869,25 @@
       "what": "무엇",
       "target": "대상",
       "from": "출처",
-      "refused": "거부됨"
+      "refused": "거부됨",
+      "actions": {
+        "sign-in": "로그인",
+        "sign-out": "로그아웃",
+        "account-password": "비밀번호 변경",
+        "account-two-factor": "2단계 인증 변경",
+        "account-passkey": "패스키 변경",
+        "admin-user": "계정 변경",
+        "admin-settings": "설정 변경",
+        "share-create": "공유 링크 생성",
+        "share-delete": "공유 링크 삭제",
+        "share-download": "링크로 다운로드",
+        "share-upload": "링크로 업로드",
+        "file-download": "다운로드",
+        "file-upload": "업로드",
+        "file-delete": "휴지통으로 이동",
+        "file-restore": "복원",
+        "file-purge": "영구 삭제"
+      }
     }
   },
   "share": {

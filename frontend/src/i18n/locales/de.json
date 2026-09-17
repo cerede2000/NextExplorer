@@ -849,7 +849,7 @@
       "title": "Aktivitätsprotokoll",
       "intro": "Wer wann was getan hat, und von wo. Aus, solange Sie es nicht einschalten.",
       "enabled": "Aktivität aufzeichnen",
-      "enabledHelp": "Anmeldungen, Downloads, Freigaben und Kontoänderungen werden aufgezeichnet, solange dies aktiv ist. Was davor geschah, steht nicht darin.",
+      "enabledHelp": "Anmeldungen, Downloads, Uploads, Löschungen, Wiederherstellungen, Freigabelinks und Kontoänderungen werden aufgezeichnet, solange dies aktiv ist. Was davor geschah, steht nicht darin.",
       "retention": "Aufbewahren (Tage)",
       "retentionInvalid": "Zwischen 1 und 3650 Tagen.",
       "saveFailed": "Diese Einstellungen konnten nicht gespeichert werden.",
@@ -869,7 +869,25 @@
       "what": "Was",
       "target": "Wobei",
       "from": "Von",
-      "refused": "abgelehnt"
+      "refused": "abgelehnt",
+      "actions": {
+        "sign-in": "Angemeldet",
+        "sign-out": "Abgemeldet",
+        "account-password": "Passwort geändert",
+        "account-two-factor": "Zweiter Faktor geändert",
+        "account-passkey": "Passkey geändert",
+        "admin-user": "Konto geändert",
+        "admin-settings": "Einstellungen geändert",
+        "share-create": "Freigabe erstellt",
+        "share-delete": "Freigabe gelöscht",
+        "share-download": "Über einen Link heruntergeladen",
+        "share-upload": "Über einen Link hochgeladen",
+        "file-download": "Heruntergeladen",
+        "file-upload": "Hochgeladen",
+        "file-delete": "In den Papierkorb verschoben",
+        "file-restore": "Wiederhergestellt",
+        "file-purge": "Endgültig gelöscht"
+      }
     }
   },
   "share": {

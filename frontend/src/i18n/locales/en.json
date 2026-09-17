@@ -852,7 +852,7 @@
       "title": "Activity log",
       "intro": "Who did what, when, and from where. Off unless you ask for it.",
       "enabled": "Record activity",
-      "enabledHelp": "Sign-ins, downloads, shares and account changes are written down while this is on. Nothing before it was switched on is there.",
+      "enabledHelp": "Sign-ins, downloads, uploads, deletions, restores, share links and account changes are written down while this is on. Nothing before it was switched on is there.",
       "retention": "Keep for (days)",
       "retentionInvalid": "Between 1 and 3650 days.",
       "saveFailed": "Could not save these settings.",
@@ -872,7 +872,25 @@
       "what": "What",
       "target": "On",
       "from": "From",
-      "refused": "refused"
+      "refused": "refused",
+      "actions": {
+        "sign-in": "Signed in",
+        "sign-out": "Signed out",
+        "account-password": "Password changed",
+        "account-two-factor": "Second factor changed",
+        "account-passkey": "Passkey changed",
+        "admin-user": "Account changed",
+        "admin-settings": "Settings changed",
+        "share-create": "Share created",
+        "share-delete": "Share deleted",
+        "share-download": "Downloaded through a link",
+        "share-upload": "Uploaded through a link",
+        "file-download": "Downloaded",
+        "file-upload": "Uploaded",
+        "file-delete": "Sent to the trash",
+        "file-restore": "Restored",
+        "file-purge": "Removed for good"
+      }
     }
   },
   "share": {

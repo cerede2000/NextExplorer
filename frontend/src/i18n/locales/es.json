@@ -849,7 +849,7 @@
       "title": "Registro de actividad",
       "intro": "Quién hizo qué, cuándo y desde dónde. Desactivado mientras no lo pidas.",
       "enabled": "Registrar la actividad",
-      "enabledHelp": "Inicios de sesión, descargas, enlaces y cambios de cuenta se anotan mientras esté activo. Lo anterior a activarlo no aparece.",
+      "enabledHelp": "Inicios de sesión, descargas, subidas, eliminaciones, restauraciones, enlaces y cambios de cuenta se anotan mientras esté activo. Lo anterior a activarlo no aparece.",
       "retention": "Conservar (días)",
       "retentionInvalid": "Entre 1 y 3650 días.",
       "saveFailed": "No se han podido guardar estos ajustes.",
@@ -869,7 +869,25 @@
       "what": "Qué",
       "target": "Sobre",
       "from": "Desde",
-      "refused": "rechazado"
+      "refused": "rechazado",
+      "actions": {
+        "sign-in": "Inicio de sesión",
+        "sign-out": "Cierre de sesión",
+        "account-password": "Contraseña cambiada",
+        "account-two-factor": "Segundo factor cambiado",
+        "account-passkey": "Clave de acceso cambiada",
+        "admin-user": "Cuenta modificada",
+        "admin-settings": "Ajustes cambiados",
+        "share-create": "Enlace creado",
+        "share-delete": "Enlace eliminado",
+        "share-download": "Descargado con un enlace",
+        "share-upload": "Subido con un enlace",
+        "file-download": "Descargado",
+        "file-upload": "Subido",
+        "file-delete": "Enviado a la papelera",
+        "file-restore": "Restaurado",
+        "file-purge": "Eliminado definitivamente"
+      }
     }
   },
   "share": {

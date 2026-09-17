@@ -848,8 +848,8 @@
     "activity": {
       "title": "Dziennik aktywności",
       "intro": "Kto co zrobił, kiedy i skąd. Wyłączony, dopóki go nie włączysz.",
-      "enabled": "Zapisuj aktywność",
-      "enabledHelp": "Logowania, pobrania, udostępnienia i zmiany konta są zapisywane, gdy to działa. Tego, co było wcześniej, tu nie ma.",
+      "enabled": "Rejestruj aktywność",
+      "enabledHelp": "Logowania, pobrania, wysyłki, usunięcia, przywrócenia, udostępnienia i zmiany konta są zapisywane, gdy to działa. Tego, co było wcześniej, tu nie ma.",
       "retention": "Przechowuj (dni)",
       "retentionInvalid": "Od 1 do 3650 dni.",
       "saveFailed": "Nie udało się zapisać tych ustawień.",
@@ -869,7 +869,25 @@
       "what": "Co",
       "target": "Na",
       "from": "Skąd",
-      "refused": "odmowa"
+      "refused": "odmowa",
+      "actions": {
+        "sign-in": "Zalogowano",
+        "sign-out": "Wylogowano",
+        "account-password": "Zmiana hasła",
+        "account-two-factor": "Zmiana drugiego składnika",
+        "account-passkey": "Zmiana klucza dostępu",
+        "admin-user": "Zmiana konta",
+        "admin-settings": "Zmiana ustawień",
+        "share-create": "Utworzono udostępnienie",
+        "share-delete": "Usunięto udostępnienie",
+        "share-download": "Pobrano przez link",
+        "share-upload": "Wysłano przez link",
+        "file-download": "Pobrano",
+        "file-upload": "Wysłano",
+        "file-delete": "Przeniesiono do kosza",
+        "file-restore": "Przywrócono",
+        "file-purge": "Usunięto trwale"
+      }
     }
   },
   "share": {
