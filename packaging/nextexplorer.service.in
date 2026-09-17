@@ -1,0 +1,56 @@
+[Unit]
+Description=NextExplorer, a self-hosted file explorer
+Documentation=https://cerede2000.github.io/NextExplorer/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@PROGRAM_DIR@/app
+EnvironmentFile=@ENV_FILE@
+
+# The 7-Zip that came with the release goes first: it is the official build,
+# and it is the one with the RAR codec. Everything else is the distribution's.
+Environment=PATH=@PROGRAM_DIR@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=NODE_ENV=production
+
+ExecStart=@PROGRAM_DIR@/runtime/bin/node src/server.js
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=30
+# A file server holds a descriptor per upload, per watcher and per open file.
+LimitNOFILE=65535
+
+# --- What it may reach ------------------------------------------------------
+# The whole filesystem is read-only to this service except the three paths
+# below. Add another volume with `systemctl edit nextexplorer` and one more
+# ReadWritePaths line — a path that does not exist stops the service from
+# starting, which is the loud failure rather than the quiet one.
+ProtectSystem=strict
+ReadWritePaths=@STATE_DIR@ @CACHE_DIR@ @VOLUME_ROOT@
+PrivateTmp=true
+
+# --- What it may do ---------------------------------------------------------
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Two that are deliberately not set here:
+#   MemoryDenyWriteExecute — V8 compiles as it runs, and this would stop it.
+#   PrivateDevices — it would hide /dev/dri, and hardware video decoding needs
+#   it. Add `PrivateDevices=true` in a drop-in if no volume needs a device.
+
+[Install]
+WantedBy=multi-user.target

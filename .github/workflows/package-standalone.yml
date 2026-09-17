@@ -1,0 +1,272 @@
+name: Standalone release archive
+
+# The archive somebody installs without Docker, built the same way the images
+# are: on every push to main, so a break is found on the commit that caused it,
+# and again when a release is published — where it is attached to the release,
+# because a release that names an installation method and does not carry it is
+# a broken promise.
+on:
+  # The payload is the whole application, so anything can break it: no path
+  # filter here.
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+  # How a working branch tries this path before it can reach main:
+  #   gh workflow run package-standalone.yml --ref integration
+  workflow_dispatch:
+
+concurrency:
+  group: standalone-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24.21.0'
+
+jobs:
+  build:
+    name: Assemble (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Assemble the archive
+        run: packaging/assemble.sh
+
+      - name: What came out
+        run: |
+          ls -la dist-standalone/
+          cat dist-standalone/*.sha256
+
+      - name: Keep it for the other jobs
+        uses: actions/upload-artifact@v5
+        with:
+          name: standalone-${{ matrix.arch }}
+          path: |
+            dist-standalone/*.tar.gz
+            dist-standalone/*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  # The runner is a whole Ubuntu with systemd, root and an ephemeral disk, so
+  # the install can be tried exactly as somebody will try it — service and all
+  # — rather than approximated.
+  install:
+    name: Install it for real (${{ matrix.arch }})
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Take the archive
+        uses: actions/download-artifact@v6
+        with:
+          name: standalone-${{ matrix.arch }}
+
+      - name: Unpack it the way the instructions say
+        run: |
+          set -eux
+          sha256sum -c ./*.tar.gz.sha256
+          tar -xzf ./*.tar.gz
+          echo "RELEASE_DIR=$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)" >> "$GITHUB_ENV"
+
+      - name: Check the unit before anything is installed from it
+        run: |
+          set -eux
+          # systemd's own parser, on the template with its placeholders filled
+          # by the same substitutions the script makes.
+          sed -e 's|@USER@|nextexplorer|g' -e 's|@GROUP@|nextexplorer|g' \
+              -e 's|@PROGRAM_DIR@|/opt/nextexplorer|g' \
+              -e 's|@ENV_FILE@|/etc/nextexplorer/nextexplorer.env|g' \
+              -e 's|@STATE_DIR@|/var/lib/nextexplorer|g' \
+              -e 's|@CACHE_DIR@|/var/cache/nextexplorer|g' \
+              -e 's|@VOLUME_ROOT@|/srv/nextexplorer|g' \
+              "$RELEASE_DIR/nextexplorer.service.in" > /tmp/nextexplorer.service
+          systemd-analyze verify /tmp/nextexplorer.service
+
+      - name: Install
+        run: sudo "$RELEASE_DIR/install.sh" --yes
+
+      - name: It is running, and answering
+        run: |
+          set -eux
+          systemctl is-active --quiet nextexplorer
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/health
+          features="$(curl -fsS http://127.0.0.1:3000/api/features)"
+          echo "$features" | head -c 400
+          expected="$(cat "$RELEASE_DIR/VERSION")"
+          echo "$features" | grep -q "\"app\":\"$expected\"" \
+            || { echo "The running application does not report $expected"; exit 1; }
+          # The bundled 7-Zip is the build with the RAR codec, and the unit's
+          # PATH is what puts it in front of anything the distribution has. If
+          # that line is wrong, this list is missing rar and nothing else says so.
+          echo "$features" | grep -q '"rar"' \
+            || { echo "The bundled 7-Zip was not found through the unit's PATH"; exit 1; }
+          # A shell on the host is not something an installation opens by itself.
+          grep -q '^TERMINAL_ENABLED=false' /etc/nextexplorer/nextexplorer.env
+
+      - name: The tools it said it would install are there
+        run: |
+          set -eux
+          for tool in ffprobe rg pdftotext perl rsync; do
+            command -v "$tool" >/dev/null || { echo "$tool was not installed"; exit 1; }
+          done
+
+      - name: Running it again keeps what is the operator's
+        run: |
+          set -eux
+          printf 'PUBLIC_URL=https://files.example.test\n' | sudo tee -a /etc/nextexplorer/nextexplorer.env >/dev/null
+          sudo install -d -o nextexplorer -g nextexplorer /srv/nextexplorer/Photos
+          sudo touch /var/lib/nextexplorer/proof-of-data
+          sudo "$RELEASE_DIR/install.sh" --yes
+          grep -q 'PUBLIC_URL=https://files.example.test' /etc/nextexplorer/nextexplorer.env
+          test -e /var/lib/nextexplorer/proof-of-data
+          test -d /srv/nextexplorer/Photos
+          systemctl is-active --quiet nextexplorer
+
+      - name: The update command reads the published release
+        run: |
+          set -eux
+          # --check changes nothing, and on a machine holding an unreleased
+          # build it is allowed to report either answer; what is being tested
+          # is that it can read the release feed and compare.
+          sudo nextexplorer-upgrade --check | tee /tmp/upgrade-check
+          grep -q 'installed:' /tmp/upgrade-check
+          grep -q 'published:' /tmp/upgrade-check
+
+      - name: Taking it off keeps the data
+        run: |
+          set -eux
+          sudo touch /var/lib/nextexplorer/still-here
+          sudo "$RELEASE_DIR/install.sh" --uninstall
+          test ! -e /etc/systemd/system/nextexplorer.service
+          test ! -d /opt/nextexplorer
+          test -e /var/lib/nextexplorer/still-here
+          test -e /etc/nextexplorer/nextexplorer.env
+          systemctl is-active nextexplorer && { echo "still running"; exit 1; } || true
+
+  # A bare distribution image, where nothing is installed and the package
+  # manager has to do its part. No systemd in here, so the service is started
+  # by hand; what is under test is the dependency step and that the payload
+  # runs on a machine with no compiler and no Node.
+  bare:
+    name: A bare ${{ matrix.image }}
+    needs: build
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:13
+          - fedora:42
+    steps:
+      - name: The few things needed to unpack an archive
+        run: |
+          set -eux
+          if command -v apt-get >/dev/null; then
+            apt-get update -qq
+            apt-get install -y --no-install-recommends ca-certificates curl tar gzip hostname
+          else
+            dnf install -y ca-certificates curl tar gzip hostname shadow-utils
+          fi
+
+      - name: Take the archive
+        uses: actions/download-artifact@v6
+        with:
+          name: standalone-x64
+
+      - name: Unpack
+        run: |
+          set -eux
+          tar -xzf ./*.tar.gz
+          echo "RELEASE_DIR=$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)" >> "$GITHUB_ENV"
+
+      - name: Install, with the package manager doing its part
+        run: |
+          "$RELEASE_DIR/install.sh" --yes --no-service
+
+      - name: It runs, on a machine with no Node and no compiler
+        shell: bash
+        run: |
+          set -eux
+          command -v node && { echo "this image has node after all; the test proves less than it claims"; } || true
+          set -a; . /etc/nextexplorer/nextexplorer.env; set +a
+          export PATH="/opt/nextexplorer/bin:$PATH"
+          cd /opt/nextexplorer/app
+          /opt/nextexplorer/runtime/bin/node src/server.js > /tmp/server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS "http://127.0.0.1:${PORT:-3000}/health" >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:${PORT:-3000}/health" || { cat /tmp/server.log; exit 1; }
+          features="$(curl -fsS "http://127.0.0.1:${PORT:-3000}/api/features")"
+          echo "$features" | grep -q "\"app\":\"$(cat "$RELEASE_DIR/VERSION")\""
+          echo "$features" | grep -q '"rar"'
+          # sharp and better-sqlite3 are the native modules: a listing proves
+          # the database opened, and the log would carry the loader's error.
+          grep -qi "error" /tmp/server.log && { cat /tmp/server.log; exit 1; } || true
+
+      - name: What the dependency step managed on this distribution
+        run: |
+          set -eu
+          for tool in ffprobe rg pdftotext perl rsync; do
+            if command -v "$tool" >/dev/null; then echo "  $tool: yes"; else echo "  $tool: NO"; fi
+          done
+
+  # Only now, and only for a release: the archive goes on the release itself.
+  publish:
+    name: Attach to the release
+    if: github.event_name == 'release'
+    needs:
+      - install
+      - bare
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Take both archives
+        uses: actions/download-artifact@v6
+        with:
+          pattern: standalone-*
+          merge-multiple: true
+
+      - name: Upload them
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          ls -la
+          gh release upload "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" --clobber \
+            ./*.tar.gz ./*.tar.gz.sha256
