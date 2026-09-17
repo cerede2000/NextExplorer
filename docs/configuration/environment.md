@@ -59,20 +59,65 @@ nextExplorer is configured almost entirely through environment variables. The ba
 | `OIDC_ADMIN_GROUPS`                                             | _none_                                            | Space/comma-separated names that grant admin rights when found in `groups`, `roles`, or `entitlements`.                                                                                          |
 | `OIDC_REQUIRE_EMAIL_VERIFIED`                                   | `false`                                           | When `true`, requires the IdP to verify the user's email before allowing user creation or auto-linking. Some providers like newer Authentik versions set `email_verified` to `false` by default. |
 | `OIDC_AUTO_CREATE_USERS`                                        | `true`                                            | When `false`, the user must already exist in the nextExplorer database (local or previously OIDC-linked), otherwise OIDC login is denied.                                                        |
+| `OIDC_MOBILE_REDIRECT_URIS`                                     | `nextexplorer://oidc-callback`                    | Comma-separated allowlist of native-app custom-scheme redirect URIs for the mobile PKCE bridge. HTTP(S) URIs are rejected; only an allowlisted URI can receive the one-time authorization code.     |
+
+## Search
+
+| Variable              | Default | Description |
+| --------------------- | ------- | ----------- |
+| `SEARCH_DEEP`         | `true`  | Enables deep content search; ripgrep is used when `SEARCH_RIPGREP` is true. |
+| `SEARCH_RIPGREP`      | `true`  | Prefer ripgrep for fast searches; fallback search is used when unavailable. |
+| `SEARCH_MAX_FILESIZE` | `5MB`   | Skip content search for files larger than this. Accepts a byte count or `K`, `M`, `G`, or `T` suffix. |
+| `SEARCH_TIMEOUT_MS`   | `5000`  | Maximum time a live search may run before returning the results collected so far. |
+
+## Optional content search index
+
+The index stores file metadata and extracted search terms, not file contents. It is disabled by default; set `SEARCH_INDEX=true` to build it. The live search remains available while the index catches up.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SEARCH_INDEX` | `false` | Enables the resumable contentless search index. |
+| `SEARCH_INDEX_BATCH` | `25` | Documents committed per index transaction. |
+| `SEARCH_INDEX_CPU_PERCENT` | `25` | Maximum share of one CPU core used while indexing (`1`–`100`). |
+| `SEARCH_INDEX_MEMORY_MB` | `256` | Extra process-memory budget for an indexing pass when no container memory limit applies. |
+| `SEARCH_INDEX_EXCLUDE` | _empty_ | Comma- or newline-separated relative paths that the index must not read. |
+| `SEARCH_INDEX_REBUILD` | `false` | When `true`, clears the derived index at startup and rebuilds it. |
+| `SEARCH_INDEX_RECONCILE_MS` | `3600000` | Interval for reconciling the index with filesystem changes. |
+
+## Archives
+
+The official image includes 7-Zip. Archive operations stream to disk, report progress, can be cancelled, and reject archives that exceed the configured extraction limits.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `ARCHIVE_EXTENSIONS` | Built-in archive list | Comma-separated extraction allowlist. Prefix with `+` to extend the built-in list instead of replacing it (for example, `+udf,squashfs`). |
+| `MAX_EXTRACTED_ARCHIVE_SIZE` | `32GB` | Maximum total uncompressed size allowed during extraction. Accepts a byte count or `K`, `M`, `G`, or `T` suffix. |
+| `MAX_ARCHIVE_ENTRIES` | `100000` | Maximum number of archive entries allowed during extraction. |
+
+## Recursive folder sizes
+
+Folder-size indexing is off by default. It calculates recursive byte totals and entry counts in the background; scans resume after interruption and use timeouts and circuit breakers to avoid overloading slow filesystems.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `FOLDER_SIZE_MODE` | `off` | `off` disables indexing; `shallow` indexes listed folders; `full` recursively indexes the available tree. |
+| `FOLDER_SIZE_EXCLUDE_PATHS` | _empty_ | Comma- or newline-separated paths to omit from folder-size scans. |
+| `FOLDER_SIZE_CONCURRENCY` | `6` | Maximum concurrent local filesystem operations. |
+| `FOLDER_SIZE_NETWORK_CONCURRENCY` | `2` | Maximum concurrent operations on network filesystems. |
+| `FOLDER_SIZE_FLUSH_MS` | `3000` | Delay before queued index updates are flushed to storage. |
+| `FOLDER_SIZE_RECONCILE_MS` | `0` | Optional fixed reconciliation interval; `0` uses adaptive scheduling. |
+| `FOLDER_SIZE_REBUILD` | `false` | When `true`, rebuilds the derived folder-size index at startup. |
 
 ## Feature toggles
 
-| Variable                   | Default     | Description                                                                                                                                                                                                                                         |
-| -------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SEARCH_DEEP`              | _false_     | Enables deep content search; ripgrep is used when `SEARCH_RIPGREP` is true.                                                                                                                                                                         |
-| `SEARCH_RIPGREP`           | _true_      | Prefer ripgrep for fast searches; fallback search is used when unavailable.                                                                                                                                                                         |
-| `SEARCH_MAX_FILESIZE`      | _unbounded_ | Skip ripgrep for files larger than this (e.g., `5MB`).                                                                                                                                                                                              |
-| `SHOW_VOLUME_USAGE`        | `false`     | Show volume usage badges in the sidebar.                                                                                                                                                                                                            |
-| `USER_DIR_ENABLED`         | `false`     | When `true`, enables a **personal “My Files” space** for each authenticated user under `USER_ROOT`. The frontend shows a “My Files” entry when this flag is on.                                                                                     |
-| `USER_VOLUMES`             | `false`     | When `true`, non-admin users only see volumes assigned to them by an admin. See [User volumes](/admin/user-volumes).                                                                                                                                |
-| `SKIP_HOME`                | `false`     | When `true`, visits to the home view (`/browse/`) automatically redirect into the first volume instead.                                                                                                                                             |
-| `TERMINAL_ENABLED`         | `true`      | Controls the admin terminal feature. When `false`, terminal routes/UI are disabled. When `true`, nextExplorer attempts to load terminal dependencies and automatically hides/disables terminal if dependencies are unavailable (startup continues). |
-| `TERMINAL_FILE_EXTENSIONS` | `sh`        | Comma-separated list of file extensions that show the context-menu action to open the file in the admin terminal (for example `sh,bash` or `.sh,.bash`).                                                                                            |
+| Variable                   | Default | Description |
+| -------------------------- | ------- | ----------- |
+| `SHOW_VOLUME_USAGE`        | `false` | Show volume usage badges in the sidebar. |
+| `USER_DIR_ENABLED`         | `false` | When `true`, enables a protected personal **My Files** space for each authenticated user under `USER_ROOT`. |
+| `USER_VOLUMES`             | `false` | When `true`, non-admin users only see volumes assigned to them by an admin. See [User volumes](/admin/user-volumes). |
+| `SKIP_HOME`                | `false` | When `true`, visits to the home view (`/browse/`) automatically redirect into the first volume. |
+| `TERMINAL_ENABLED`         | `true`  | Controls the admin terminal feature. When `false`, terminal routes/UI are disabled. |
+| `TERMINAL_FILE_EXTENSIONS` | `sh`    | Comma-separated extensions that show the context-menu action to open a file in the admin terminal (for example `sh,bash` or `.sh,.bash`). |
 
 The sharing system (toolbar **Share** button, guest links such as `/share/:token`, and the **Shared with me** page) works out of the box with the feature flags above. Advanced share tuning knobs are documented under **Sharing (advanced)** below.
 

@@ -30,12 +30,19 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 - Click the search icon in the toolbar, type a query, and press Enter.
 - Search covers filenames and file contents thanks to ripgrep; disable deep search with `SEARCH_DEEP=false` if you want faster scans.
 - Large files respect `SEARCH_MAX_FILESIZE`; if ripgrep isn’t available, the app falls back to a built-in indexer that still searches filenames.
+- Use glob patterns to search names without searching contents: `*.pdf` finds PDFs and `reports/*.xlsx` matches files in that relative path. Set `SEARCH_TIMEOUT_MS` when a search should return partial results sooner; enable `SEARCH_INDEX=true` for a resumable background index.
 
 ## Previews & editing
 
-- **Preview:** Click images/videos/PDFs to open them inside the app (previews are cached in `/cache`).
+- **Preview:** Click images/videos/PDFs to open them inside the app (previews are cached in `/cache`). Compatible embedded and sidecar subtitles are available in media previews; unsupported codecs are identified clearly.
 - **Editor:** Double-click text/code files to open the inline editor with syntax highlighting, line numbers, and Save/Cancel actions. The editor supports 50+ file types by default including common text formats (txt, md, log), data files (json, yaml, xml, csv), programming languages (js, ts, py, java, go, rust, etc.), config files (ini, env, properties), shell scripts (sh, bash, ps1), and web formats (html, css, scss, vue). Add support for custom file types (e.g., `.toml`, `.proto`, `.graphql`) at runtime using the `EDITOR_EXTENSIONS` environment variable—no rebuild needed, changes apply on container restart.
 - **ONLYOFFICE:** When configured, office documents (DOCX, XLSX, PPTX, ODT, ODS, ODP) launch in the embedded ONLYOFFICE editor; nextExplorer signs requests with `ONLYOFFICE_SECRET` and calls `/api/onlyoffice/config`, `/api/onlyoffice/file`, and `/api/onlyoffice/callback` to orchestrate editing.
+
+## Archives
+
+- **Extract:** Right-click a supported archive and choose **Extract**. Password-protected archives prompt for a password; progress is shown while extraction runs and the operation can be cancelled.
+- **Create:** Select files or folders, then use the context-menu archive action to create an archive in the current folder.
+- **Safety limits:** Extractions are refused when their declared entry count or expanded size exceeds `MAX_ARCHIVE_ENTRIES` or `MAX_EXTRACTED_ARCHIVE_SIZE`.
 
 ## Sharing items
 

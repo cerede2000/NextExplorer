@@ -7,6 +7,7 @@ This section explains how it works and how to enable it.
 ## How personal folders work
 
 - Each authenticated user gets a private directory under a common root (`USER_ROOT`).
+- The resolver confines every personal path to that user’s directory. It rejects attempts to traverse through symlinks, access another user’s folder, or exploit a colliding folder name.
 - Logical paths for personal items always start with `personal/`:
   - Example: `personal`, `personal/photos`, `personal/docs/report.docx`.
 - The backend maps those logical paths to the filesystem:
@@ -115,6 +116,7 @@ services:
 ## Permissions and access control
 
 - Personal folders are designed to be **per-user** homes.
+- Users cannot browse another user’s personal folder, even when directory names derived from usernames or email addresses are similar.
 - By default, access control rules (Settings → Access Control) apply to logical paths:
   - You can create rules targeting `personal` or `personal/<subpath>` if you want to further restrict access.
 - Favorites and quick access:

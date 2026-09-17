@@ -5,7 +5,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 ## File browsing & previews
 
 - **Dual views:** Switch between responsive grid, list, and column modes while keeping breadcrumbs, toolbar, and search accessible.
-- **Inline previews:** Images, videos, PDFs, and text files preview instantly without downloads. Image/video thumbnails are generated automatically using FFmpeg (`FFMPEG_PATH`/`FFPROBE_PATH` can override binaries).
+- **Inline previews:** Images, videos, PDFs, and text files preview instantly without downloads. Media previews identify unsupported codecs and support embedded or sidecar subtitles, converting compatible subtitle tracks to WebVTT. Image/video thumbnails are generated automatically using FFmpeg (`FFMPEG_PATH`/`FFPROBE_PATH` can override binaries).
 - **Drag-to-move (desktop):** Select one or more items, then drag them onto a destination folder to move them.
 - **Drag-to-upload:** Drop files or folders from your device onto the main pane to upload them.
 - **Mobile selection mode:** On touch devices, use **Select** to enable checkbox selection for batch actions.
@@ -23,17 +23,18 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 - **“Shared with me” view:** The **Shares** section in the sidebar links to a **Shared with me** page showing items other people have shared with you, including status (active/expired), access mode, and last accessed time.
 - **ONLYOFFICE integration:** When `ONLYOFFICE_URL` and the JWT `ONLYOFFICE_SECRET` are configured, docx/xlsx/pptx/odt/ods/odp files open with co-editing capabilities via `/api/onlyoffice/*` endpoints.
 - **Favorites:** Pin folders to the sidebar with a star so critical paths stay in reach across sessions.
+- **Archive operations:** Extract supported 7-Zip formats or create archives from the context menu. Password-protected archives, progress, cancellation, and extraction safety limits are supported.
 
 ## Search & metadata
 
-- **Smart search:** The search bar uses ripgrep under the hood (enable or disable via `SEARCH_RIPGREP`, `SEARCH_DEEP`, and `SEARCH_MAX_FILESIZE`) to find filenames and contents inside the current folder and its children.
+- **Smart search:** Search filenames, Office documents, PDFs, and file contents from one interface. Filename glob patterns such as `*.pdf` match names without scanning contents; `SEARCH_RIPGREP`, `SEARCH_DEEP`, `SEARCH_MAX_FILESIZE`, and `SEARCH_TIMEOUT_MS` tune live searches. Set `SEARCH_INDEX=true` for an optional, bounded background index.
 - **Metadata overlays:** List view shows size, kind, modified date, owner, and volume stats (volume usage visibility flips on with `SHOW_VOLUME_USAGE`).
 - **Thumbnail cache:** `/cache` holds thumbnails and search indexes that regenerate when cleared.
 
 ## Access & security
 
 - **Local users & groups:** Create local accounts from Settings → Admin; the first account becomes admin and can’t be removed while others exist.
-- **OIDC SSO:** Express OpenID Connect exposes `/login`, `/logout`, and `/callback`, so you can federate with Keycloak, Authentik, Authelia, or any compliant provider. Admin elevation happens when the IdP groups/roles intersect `OIDC_ADMIN_GROUPS`.
+- **OIDC SSO:** Express OpenID Connect exposes `/login`, `/logout`, and `/callback`, so you can federate with Keycloak, Authentik, Authelia, or any compliant provider. Native iOS and Android clients can use the PKCE-secured mobile bridge. Admin elevation happens when the IdP groups/roles intersect `OIDC_ADMIN_GROUPS`.
 - **Workspace lock:** A workspace password (set on first run) gates access, and admin-only sections (Files & Thumbnails, Security, Access Control, Admin Users) appear only when your role allows it.
 
 ## Operational helpers

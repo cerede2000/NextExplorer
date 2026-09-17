@@ -11,6 +11,7 @@ nextExplorer uses Express OpenID Connect (EOC) to federate authentication with e
 - `OIDC_ADMIN_GROUPS` contains comma/space-separated group names that grant the admin role when present in `groups`, `roles`, or `entitlements` claims.
 - `OIDC_REQUIRE_EMAIL_VERIFIED` (default `false`) — when `true`, requires the IdP to verify the user's email before allowing user creation or auto-linking. Some providers like newer versions of Authentik set `email_verified` to `false` by default; keep this setting as `false` to allow those users to log in.
 - `OIDC_AUTO_CREATE_USERS` (default `true`) — when `false`, the user must already exist in the nextExplorer database (local or previously OIDC-linked), otherwise OIDC login is denied.
+- `OIDC_MOBILE_REDIRECT_URIS` — optional comma-separated allowlist of native-app custom-scheme callbacks for the mobile bridge. The default is `nextexplorer://oidc-callback`; HTTP(S) URLs are deliberately rejected.
 - Optional overrides: `OIDC_AUTHORIZATION_URL`, `OIDC_TOKEN_URL`, `OIDC_USERINFO_URL`, `OIDC_LOGOUT_URL`, and an explicit `OIDC_CALLBACK_URL` (defaults to `${PUBLIC_URL}/callback`).
   - `OIDC_LOGOUT_URL` — optional custom IdP logout URL. When set, logout requests redirect to this URL with a `post_logout_redirect_uri` parameter (OIDC standard). If not set, logout only clears the local session without redirecting to the IdP.
 
@@ -36,9 +37,21 @@ Use `AUTH_MODE` to control which authentication methods are available:
 - If any entry matches `OIDC_ADMIN_GROUPS` (case-insensitive), the user is promoted to admin.
 - Without a match, the user receives the standard `user` role and only sees non-admin settings.
 
+## Native iOS & Android clients
+
+The mobile bridge lets a native client use the device’s system browser (such as `ASWebAuthenticationSession` on iOS or Custom Tabs on Android) while keeping the authorization result bound to the app with PKCE.
+
+1. Generate a PKCE verifier and its `S256` challenge in the app.
+2. Open `GET /api/auth/oidc/mobile/login` in the system browser with `code_challenge`, `code_challenge_method=S256`, and an allowlisted `redirect_uri`.
+3. After the IdP completes sign-in, nextExplorer redirects to that custom-scheme URI with a short-lived, single-use `code`.
+4. Send the `code` and original `code_verifier` to `POST /api/auth/oidc/exchange` to establish the normal nextExplorer session.
+
+Only custom-scheme URIs listed in `OIDC_MOBILE_REDIRECT_URIS` can receive the code. Do not use an embedded web view, reuse an authorization code, or send the PKCE verifier through the redirect URI.
+
 ## Common troubleshooting
 
 - **Invalid redirect URI**: Ensure your IdP’s redirect URI matches `${PUBLIC_URL}/callback` or the explicitly configured `OIDC_CALLBACK_URL`.
 - **Sessions drop after restart**: Supply a stable `SESSION_SECRET` instead of letting the app generate one dynamically.
 - **Not an admin after login**: Verify the IdP includes the expected group claim (e.g., `groups` scope) and that `OIDC_ADMIN_GROUPS` contains the group name exactly.
 - **Cookies flagged Insecure**: Run the app over HTTPS (`PUBLIC_URL` must use `https`) and confirm your proxy forwards `X-Forwarded-Proto`/`Host` headers (see the Reverse Proxy guide).
+- **Mobile callback rejected**: Add the app’s exact custom-scheme URI to `OIDC_MOBILE_REDIRECT_URIS`, and ensure the request uses an `S256` PKCE challenge.

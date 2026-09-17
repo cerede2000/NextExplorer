@@ -1,8 +1,38 @@
 # Changelog
 
-Release notes for nextExplorer. GitHub remains the source of truth: https://github.com/vikramsoni2/nextExplorer/releases
+Release notes for nextExplorer. GitHub remains the source of truth: https://github.com/nxzai/NextExplorer/releases
 
 Releases are listed newest to oldest.
+
+## v3.0.0 (2026-09-10)
+
+[GitHub release](https://github.com/nxzai/NextExplorer/releases/tag/v3.0.0)
+
+### What's changed
+
+#### New features
+
+- **Mobile OIDC authentication bridge:** Native iOS and Android clients can complete OIDC sign-in in the system browser using PKCE, then exchange a one-time code for a session. See [OIDC](/integrations/oidc#native-ios--android-clients).
+- **Brazilian Portuguese:** The complete `pt-BR` translation is available. Regional locales, including `pt-BR`, `zh-CN`, and `zh-TW`, are recognized case-insensitively.
+- **Safer, more responsive terminal sessions:** Terminal connection logs no longer expose session credentials, folder listings refresh after terminal file operations, and session validation is stricter.
+- **7-Zip archive operations:** Extract and create archives with password support, progress reporting, cancellation, and protections against archive bombs.
+- **Advanced search:** Search content in Office documents and PDFs, use filename glob patterns, and tune result, file-size, and timeout limits.
+- **Media tracks and subtitles:** Media previews detect unsupported codecs, handle embedded and sidecar subtitles, convert compatible subtitles to WebVTT, and improve navigation and zoom.
+- **Optional content search index:** Enable a resumable, contentless index with bounded CPU and memory use through `SEARCH_INDEX=true`.
+- **Recursive folder sizes:** Enable background, resumable folder-size and entry-count indexing with bounded concurrency, timeouts, and circuit breakers.
+- **Personal-folder isolation:** Personal folders are protected against cross-user access, symlink escapes, and folder-name collisions.
+- **Express 5:** The backend now uses Express 5, including updated wildcard routes and path handling.
+- **Documentation homepage:** A refreshed documentation home page is now available.
+- **Improved swipe gestures:** Touch swipe behavior has been refined, resolving #354 and #251.
+
+#### Fixes and reliability
+
+- Restored required API modules and middleware, preventing frontend build and backend startup failures; CI now validates pull requests and pushes to `main`.
+- Added `p7zip` and `poppler-utils` to the container image, restoring archive extraction and PDF text search.
+- Corrected folder-size route syntax for compatibility with the prior Express 4 dependency during the migration.
+- Replaced a literal NUL byte in `pathUtils.js`, making the source reviewable and searchable again.
+
+**Full Changelog**: https://github.com/nxzai/NextExplorer/compare/v2.2.7...v3.0.0
 
 ## v2.0.7 (2025-12-23)
 
