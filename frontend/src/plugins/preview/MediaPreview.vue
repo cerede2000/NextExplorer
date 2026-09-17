@@ -26,6 +26,43 @@
         </select>
       </label>
 
+      <div v-if="canZoom && !imageFailed" class="hidden items-center gap-1 sm:flex">
+        <button
+          type="button"
+          class="rounded-md p-2 text-neutral-200 transition hover:bg-white/15 hover:text-white"
+          :aria-label="t('mediaPreview.rotateLeft')"
+          @click="rotateImage(-90)"
+        >
+          <ArrowUturnLeftIcon class="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          class="rounded-md p-2 text-neutral-200 transition hover:bg-white/15 hover:text-white"
+          :aria-label="t('mediaPreview.rotateRight')"
+          @click="rotateImage(90)"
+        >
+          <ArrowUturnRightIcon class="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          class="rounded-md p-2 text-neutral-200 transition hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          :aria-label="t('mediaPreview.zoomOut')"
+          :disabled="!zoom.isZoomed.value"
+          @click="zoomOut"
+        >
+          <MagnifyingGlassMinusIcon class="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          class="rounded-md p-2 text-neutral-200 transition hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          :aria-label="t('mediaPreview.zoomIn')"
+          :disabled="zoom.scale.value >= zoom.maxScale"
+          @click="zoomIn"
+        >
+          <MagnifyingGlassPlusIcon class="h-5 w-5" />
+        </button>
+      </div>
+
       <button
         v-if="api.download"
         type="button"
@@ -51,6 +88,7 @@
       data-test="media-preview"
       :style="{ touchAction: zoom.isZoomed.value ? 'none' : 'pan-y' }"
       @pointerdown.capture="startSwipe"
+      @pointermove.capture="movePointer"
       @pointerup.capture="finishSwipe"
       @pointercancel.capture="resetSwipe"
       @touchstart.capture="startTouchSwipe"
@@ -72,35 +110,43 @@
       </button>
 
       <img
-        v-if="isPreviewableImage(currentMedia.extension)"
+        v-if="isPreviewableImage(currentMedia.extension) && !imageFailed"
         :src="currentMedia.previewUrl"
         :alt="currentMedia.item.name"
         class="max-h-full max-w-full object-contain"
-        :class="zoom.isZoomed.value ? 'cursor-grab' : ''"
+        :class="{
+          'cursor-grab': zoom.isZoomed.value && !pointerPanActive,
+          'cursor-grabbing': pointerPanActive,
+        }"
         draggable="false"
         :style="{
           touchAction: zoom.isZoomed.value ? 'none' : 'pan-y',
-          transform: zoom.transform.value,
+          transform: imageTransform,
           transformOrigin: 'center center',
         }"
         @dragstart.prevent
+        @load="imageFailed = false"
+        @error="imageFailed = true"
       />
+      <div
+        v-else-if="isPreviewableImage(currentMedia.extension)"
+        class="mx-12 max-w-md rounded-lg border border-white/15 bg-white/5 px-6 py-5 text-center"
+        role="alert"
+      >
+        <p class="font-medium">{{ t('mediaPreview.imageLoadError') }}</p>
+        <p class="mt-1 text-sm text-neutral-400">{{ currentMedia.item.name }}</p>
+      </div>
       <!--
-        A grid, so the video is actually contained.
-
-        `max-h-full` on the video used to resolve against this wrapper, whose
-        own height is content-driven — and a percentage against an indefinite
-        height computes to none. A portrait video therefore rendered at its
-        natural height and hung below the stage, which clips it: the control
-        bar was simply off-screen, and only fullscreen brought it back. A grid
-        area has a definite size, so the same percentage now means what it
-        says. Landscape videos, which fit either way, are laid out identically.
+        The wrapper takes the whole stage so the video scales from the available
+        viewport instead of its often-small encoded dimensions. object-contain
+        keeps portrait and landscape videos uncropped and leaves the native
+        controls inside the visible area.
       -->
-      <div v-else class="relative grid min-h-0 max-h-full max-w-full place-items-center">
+      <div v-else class="relative grid h-full w-full min-h-0 place-items-center">
         <video
           :key="currentMedia.key"
           ref="videoRef"
-          class="block min-h-0 max-h-full max-w-full bg-black"
+          class="block h-full w-full min-h-0 bg-black object-contain"
           controls
           autoplay
           playsinline
@@ -126,11 +172,6 @@
           />
           Your browser does not support the video tag.
         </video>
-        <div
-          class="absolute inset-x-0 top-0 bottom-14"
-          aria-hidden="true"
-          style="touch-action: pan-y"
-        ></div>
       </div>
 
       <!--
@@ -165,8 +206,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   ArrowDownTrayIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon,
   SpeakerWaveIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -185,6 +230,8 @@ const props = defineProps({
 });
 
 const SWIPE_THRESHOLD = 48;
+const SWIPE_DOWN_CLOSE_THRESHOLD = 96;
+const SWIPE_DOWN_INTENT_THRESHOLD = 16;
 // Two taps further apart than this are two taps, not a double tap.
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_SLOP = 30;
@@ -198,6 +245,16 @@ const stageRef = ref(null);
 const zoom = useMediaZoom();
 const pinchStart = ref(null);
 const lastTap = ref(null);
+const imageFailed = ref(false);
+const imageRotation = ref(0);
+const pointerPanActive = ref(false);
+
+const imageTransform = computed(() => {
+  const transforms = [];
+  if (zoom.transform.value !== 'none') transforms.push(zoom.transform.value);
+  if (imageRotation.value) transforms.push(`rotate(${imageRotation.value}deg)`);
+  return transforms.join(' ') || 'none';
+});
 
 const stageBounds = () => stageRef.value?.getBoundingClientRect() || null;
 
@@ -421,8 +478,16 @@ watch(currentMedia, (nextMedia, previousMedia) => {
     // A new picture starts at natural size — carrying the previous one's zoom
     // over would land somewhere arbitrary in an unrelated image.
     zoom.reset();
+    imageRotation.value = 0;
+    imageFailed.value = false;
   }
 });
+
+const zoomIn = () => zoom.zoomBy(1.5, stageBounds());
+const zoomOut = () => zoom.zoomBy(1 / 1.5, stageBounds());
+const rotateImage = (degrees) => {
+  imageRotation.value = (imageRotation.value + degrees + 360) % 360;
+};
 
 const move = (offset) => {
   const { length } = mediaItems.value;
@@ -436,13 +501,42 @@ const previous = () => move(-1);
 const next = () => move(1);
 
 const startSwipe = (event) => {
-  if (event.pointerType === 'mouse' || event.pointerType === 'touch') return;
+  // Touch has its own handlers below. A mouse drag only has meaning after an
+  // image is zoomed; at natural size it must not turn ordinary clicks into
+  // gallery navigation.
+  if (event.pointerType === 'touch' || (event.pointerType === 'mouse' && !zoom.isZoomed.value)) {
+    return;
+  }
 
   swipeStart.value = {
     pointerId: event.pointerId,
     x: event.clientX,
     y: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
   };
+
+  if (zoom.isZoomed.value) {
+    pointerPanActive.value = true;
+    event.currentTarget?.setPointerCapture?.(event.pointerId);
+  }
+};
+
+const movePointer = (event) => {
+  const start = swipeStart.value;
+  if (
+    !start ||
+    event.pointerType === 'touch' ||
+    event.pointerId !== start.pointerId ||
+    !zoom.isZoomed.value
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  zoom.panBy(event.clientX - start.lastX, event.clientY - start.lastY, stageBounds());
+  start.lastX = event.clientX;
+  start.lastY = event.clientY;
 };
 
 const startTouchSwipe = (event) => {
@@ -481,14 +575,25 @@ const moveTouch = (event) => {
     return;
   }
 
-  // One finger on a zoomed picture moves the picture. At natural size it is
-  // left alone, so the gallery can read it as a swipe when it ends.
   const start = swipeStart.value;
-  if (!start || !zoom.isZoomed.value) return;
-
+  if (!start) return;
   const touch = Array.from(event.touches || []).find((item) => item.identifier === start.pointerId);
   if (!touch) return;
 
+  // Once a downward gesture is clearly intentional, keep the browser from
+  // scrolling the page under the fixed viewer. The distance remains generous
+  // enough that taps and the native video controls are left untouched.
+  if (!zoom.isZoomed.value) {
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (deltaY >= SWIPE_DOWN_INTENT_THRESHOLD && Math.abs(deltaY) > Math.abs(deltaX)) {
+      event.preventDefault();
+    }
+    return;
+  }
+
+  // One finger on a zoomed picture moves the picture. At natural size it is
+  // left alone, so the gallery can read it as a swipe when it ends.
   event.preventDefault();
   zoom.panBy(touch.clientX - start.lastX, touch.clientY - start.lastY, stageBounds());
   start.lastX = touch.clientX;
@@ -527,6 +632,7 @@ const handleWheel = (event) => {
 const resetSwipe = () => {
   swipeStart.value = null;
   pinchStart.value = null;
+  pointerPanActive.value = false;
 };
 
 const navigateForSwipe = (start, event) => {
@@ -536,6 +642,11 @@ const navigateForSwipe = (start, event) => {
 
   const deltaX = event.clientX - start.x;
   const deltaY = event.clientY - start.y;
+
+  if (deltaY >= SWIPE_DOWN_CLOSE_THRESHOLD && Math.abs(deltaY) > Math.abs(deltaX)) {
+    close();
+    return true;
+  }
 
   if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaX) <= Math.abs(deltaY)) {
     return false;
@@ -606,6 +717,14 @@ const originatedFromVideo = (event) => {
 };
 
 const handleKeydown = (event) => {
+  // Escape belongs to the containing viewer even when the native video has
+  // focus. Arrow keys remain the video's, so seeking and volume still work.
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    close();
+    return;
+  }
+
   if (originatedFromVideo(event)) return;
 
   if (event.key === 'ArrowLeft') {
@@ -614,8 +733,6 @@ const handleKeydown = (event) => {
   } else if (event.key === 'ArrowRight') {
     event.preventDefault();
     next();
-  } else if (event.key === 'Escape') {
-    close();
   }
 };
 

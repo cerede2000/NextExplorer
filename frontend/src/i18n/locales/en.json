@@ -542,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Audio track",
+    "audioTrackNumbered": "Track {number}",
+    "close": "Close preview",
+    "download": "Download media",
+    "imageLoadError": "This image could not be displayed.",
+    "next": "Next media",
+    "noPlayableAudio": "This browser cannot play the {codecs} audio track. Open the file in a media player to hear it.",
+    "noPlayableVideo": "This browser cannot play the {codecs} video. Open the file in a media player.",
+    "previous": "Previous media",
+    "rotateLeft": "Rotate left",
+    "rotateRight": "Rotate right",
+    "subtitleExternal": "external",
+    "subtitleForced": "forced",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
+  },
   "share": {
     "sharedWithMe": "Shared With Me",
     "sharedWithMeDescription": "Files and folders other people have shared with your account.",

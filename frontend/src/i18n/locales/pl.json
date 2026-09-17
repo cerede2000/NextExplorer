@@ -228,7 +228,10 @@
       "single": "Na pewno chcesz usunąć \"{name}\"? Tej operacji nie można cofnąć.",
       "multiple": "Na pewno chcesz usunąć te {count} elementy? Tej operacji nie można cofnąć.",
       "generic": "Nie wybrano żadnych elementów."
-    }
+    },
+    "checkingDeleteImpact": "Sprawdzanie powiązanych udostępnień...",
+    "deleteImpactUnavailable": "Nie można sprawdzić powiązanych udostępnień. Usunięcie nadal zostanie wymuszone przez serwer.",
+    "deleteLinkedShares": "Ta zawartość ma {count} powiązane udostępnienie, które zostanie usunięte wraz z nią. | Ta zawartość ma {count} powiązane udostępnienia, które zostaną usunięte wraz z nią. | Ta zawartość ma {count} powiązanych udostępnień, które zostaną usunięte wraz z nią."
   },
   "folder": {
     "kind": "Rodzaj",
@@ -236,7 +239,11 @@
     "noPhotos": "Brak zdjęć w tym folderze",
     "noPhotosHint": "Zmień tryb widoku, aby zobaczyć wszystkie pliki",
     "empty": "Ten folder jest pusty",
-    "emptyHint": "Prześlij lub utwórz pliki, aby rozpocząć."
+    "emptyHint": "Prześlij lub utwórz pliki, aby rozpocząć.",
+    "scrollTop": "Góra",
+    "scrollBottom": "Dół",
+    "selectAll": "Zaznacz wszystko",
+    "deselectAll": "Odznacz wszystko"
   },
   "volumes": {
     "quickAccess": "Szybki dostęp",
@@ -535,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Ścieżka dźwiękowa",
+    "audioTrackNumbered": "Ścieżka {number}",
+    "close": "Zamknij podgląd",
+    "download": "Pobierz multimedia",
+    "imageLoadError": "Nie udało się wyświetlić tego obrazu.",
+    "next": "Następne multimedia",
+    "noPlayableAudio": "Ta przeglądarka nie może odtworzyć ścieżki dźwiękowej {codecs}. Otwórz plik w odtwarzaczu multimedialnym, aby jej posłuchać.",
+    "noPlayableVideo": "Ta przeglądarka nie może odtworzyć wideo {codecs}. Otwórz plik w odtwarzaczu multimedialnym.",
+    "previous": "Poprzednie multimedia",
+    "rotateLeft": "Obróć w lewo",
+    "rotateRight": "Obróć w prawo",
+    "subtitleExternal": "zewnętrzne",
+    "subtitleForced": "wymuszone",
+    "zoomIn": "Powiększ",
+    "zoomOut": "Pomniejsz"
+  },
   "share": {
     "sharedWithMe": "Udostępnione dla mnie",
     "sharedWithMeDescription": "Pliki i foldery, które inni udostępnili Twojemu kontu.",
@@ -593,6 +617,20 @@
     "removeShare": "Usuń udostępnienie",
     "sharedWithAnyone": "Wszyscy",
     "sharedWithUsers": "{count} użytkownik | {count} użytkownicy | {count} użytkowników",
-    "expiresNever": "Nigdy"
+    "expiresNever": "Nigdy",
+    "directFileLink": "Bezpośredni link do pliku",
+    "directFolderLink": "Bezpośredni link ZIP do folderu",
+    "copyShareLink": "Kopiuj link udostępniania",
+    "directLinkMode": "Tryb bezpośredniego linku",
+    "copyDirectFileLink": "Kopiuj bezpośredni link do pliku",
+    "copyDirectFolderLink": "Kopiuj bezpośredni link ZIP do folderu",
+    "directLinkModes": {
+      "auto": "Automatycznie",
+      "inline": "Wyświetl",
+      "raw": "Surowy",
+      "download": "Pobierz"
+    },
+    "deleteShareTitle": "Usunąć udostępnienie?",
+    "deleteShareMessage": "Osoby z tym linkiem nie będą już mogły uzyskać dostępu do udostępnionego elementu."
   }
 }

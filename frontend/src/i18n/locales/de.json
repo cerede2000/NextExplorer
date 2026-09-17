@@ -228,7 +228,10 @@
       "single": "Sind Sie sicher, dass Sie \"{name}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "multiple": "Sind Sie sicher, dass Sie diese {count} Elemente löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "generic": "Keine Elemente ausgewählt."
-    }
+    },
+    "checkingDeleteImpact": "Verknüpfte Freigaben werden geprüft...",
+    "deleteImpactUnavailable": "Verknüpfte Freigaben konnten nicht geprüft werden. Das Löschen wird weiterhin vom Server erzwungen.",
+    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden."
   },
   "folder": {
     "kind": "Art",
@@ -236,7 +239,11 @@
     "noPhotos": "Keine Fotos in diesem Ordner",
     "noPhotosHint": "Wechseln Sie in einen anderen Ansichtsmodus, um alle Dateien zu sehen",
     "empty": "Dieser Ordner ist leer",
-    "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen."
+    "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen.",
+    "scrollTop": "Oben",
+    "scrollBottom": "Unten",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Auswahl aufheben"
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
@@ -535,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Audiospur",
+    "audioTrackNumbered": "Spur {number}",
+    "close": "Vorschau schließen",
+    "download": "Medium herunterladen",
+    "imageLoadError": "Dieses Bild konnte nicht angezeigt werden.",
+    "next": "Nächstes Medium",
+    "noPlayableAudio": "Dieser Browser kann die {codecs}-Audiospur nicht wiedergeben. Öffne die Datei in einem Mediaplayer, um sie anzuhören.",
+    "noPlayableVideo": "Dieser Browser kann das {codecs}-Video nicht wiedergeben. Öffne die Datei in einem Mediaplayer.",
+    "previous": "Vorheriges Medium",
+    "rotateLeft": "Nach links drehen",
+    "rotateRight": "Nach rechts drehen",
+    "subtitleExternal": "extern",
+    "subtitleForced": "erzwungen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern"
+  },
   "share": {
     "sharedWithMe": "Mit mir geteilt",
     "sharedWithMeDescription": "Dateien und Ordner, die andere Personen mit Ihrem Konto geteilt haben.",
@@ -593,6 +617,20 @@
     "removeShare": "Freigabe entfernen",
     "sharedWithAnyone": "Alle",
     "sharedWithUsers": "{count} Benutzer",
-    "expiresNever": "Nie"
+    "expiresNever": "Nie",
+    "directFileLink": "Direkter Dateilink",
+    "directFolderLink": "Direkter Ordner-ZIP-Link",
+    "copyShareLink": "Freigabelink kopieren",
+    "directLinkMode": "Modus für direkten Link",
+    "copyDirectFileLink": "Direkten Dateilink kopieren",
+    "copyDirectFolderLink": "Direkten Ordner-ZIP-Link kopieren",
+    "directLinkModes": {
+      "auto": "Automatisch",
+      "inline": "Anzeigen",
+      "raw": "Roh",
+      "download": "Herunterladen"
+    },
+    "deleteShareTitle": "Freigabe entfernen?",
+    "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen."
   }
 }

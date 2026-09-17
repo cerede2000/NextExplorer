@@ -542,6 +542,23 @@
       "noOidcProfileMessage": "Nenhum perfil OIDC vinculado a esta conta."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Faixa de áudio",
+    "audioTrackNumbered": "Faixa {number}",
+    "close": "Fechar pré-visualização",
+    "download": "Baixar mídia",
+    "imageLoadError": "Não foi possível exibir esta imagem.",
+    "next": "Próxima mídia",
+    "noPlayableAudio": "Este navegador não consegue reproduzir a faixa de áudio {codecs}. Abra o arquivo em um reprodutor de mídia para ouvi-la.",
+    "noPlayableVideo": "Este navegador não consegue reproduzir o vídeo {codecs}. Abra o arquivo em um reprodutor de mídia.",
+    "previous": "Mídia anterior",
+    "rotateLeft": "Girar para a esquerda",
+    "rotateRight": "Girar para a direita",
+    "subtitleExternal": "externa",
+    "subtitleForced": "forçada",
+    "zoomIn": "Ampliar",
+    "zoomOut": "Reduzir"
+  },
   "share": {
     "sharedWithMe": "Compartilhado Comigo",
     "sharedWithMeDescription": "Arquivos e pastas que outras pessoas compartilharam com sua conta.",

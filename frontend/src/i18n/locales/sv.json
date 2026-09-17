@@ -228,7 +228,10 @@
       "single": "Är du säker på att du vill radera \"{name}\"? Denna åtgärd går inte att ångra.",
       "multiple": "Är du säker på att du vill radera dessa {count} objekt? Denna åtgärd går inte att ångra.",
       "generic": "Inga objekt valda."
-    }
+    },
+    "checkingDeleteImpact": "Kontrollerar länkade delningar...",
+    "deleteImpactUnavailable": "Det gick inte att kontrollera länkade delningar. Raderingen kommer fortfarande att verkställas av servern.",
+    "deleteLinkedShares": "Det här innehållet har {count} länkad delning som tas bort tillsammans med det. | Det här innehållet har {count} länkade delningar som tas bort tillsammans med det."
   },
   "folder": {
     "kind": "Typ",
@@ -236,7 +239,11 @@
     "noPhotos": "Inga bilder i denna mapp",
     "noPhotosHint": "Växla till en annan vy för att se alla filer",
     "empty": "Den här mappen är tom",
-    "emptyHint": "Ladda upp eller skapa filer för att komma igång."
+    "emptyHint": "Ladda upp eller skapa filer för att komma igång.",
+    "scrollTop": "Överst",
+    "scrollBottom": "Nederst",
+    "selectAll": "Markera alla",
+    "deselectAll": "Avmarkera alla"
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
@@ -535,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Ljudspår",
+    "audioTrackNumbered": "Spår {number}",
+    "close": "Stäng förhandsvisning",
+    "download": "Hämta media",
+    "imageLoadError": "Bilden kunde inte visas.",
+    "next": "Nästa media",
+    "noPlayableAudio": "Den här webbläsaren kan inte spela upp ljudspåret {codecs}. Öppna filen i en mediaspelare för att lyssna på det.",
+    "noPlayableVideo": "Den här webbläsaren kan inte spela upp videon {codecs}. Öppna filen i en mediaspelare.",
+    "previous": "Föregående media",
+    "rotateLeft": "Rotera åt vänster",
+    "rotateRight": "Rotera åt höger",
+    "subtitleExternal": "extern",
+    "subtitleForced": "tvingad",
+    "zoomIn": "Zooma in",
+    "zoomOut": "Zooma ut"
+  },
   "share": {
     "sharedWithMe": "Utdelade till mig",
     "sharedWithMeDescription": "Filer och mappar som andra personer har delat med ditt konto.",
@@ -593,6 +617,20 @@
     "removeShare": "Ta bort utdelning",
     "sharedWithAnyone": "Alla",
     "sharedWithUsers": "{count} användare | {count} användare",
-    "expiresNever": "Aldrig"
+    "expiresNever": "Aldrig",
+    "directFileLink": "Direkt fillänk",
+    "directFolderLink": "Direkt ZIP-länk till mapp",
+    "copyShareLink": "Kopiera delningslänk",
+    "directLinkMode": "Läge för direktlänk",
+    "copyDirectFileLink": "Kopiera direkt fillänk",
+    "copyDirectFolderLink": "Kopiera direkt ZIP-länk till mapp",
+    "directLinkModes": {
+      "auto": "Automatiskt",
+      "inline": "Visa",
+      "raw": "Rå",
+      "download": "Hämta"
+    },
+    "deleteShareTitle": "Ta bort delning?",
+    "deleteShareMessage": "Personer med den här länken kommer inte längre åt det delade objektet."
   }
 }
