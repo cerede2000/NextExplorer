@@ -582,6 +582,38 @@ None of the four reads anything a stranger supplies, which is what separated
   the field. A wrong password read "Invalid credentials." on a French screen
   for as long as that path existed; it reads "Identifiants invalides" now.
 
+## Choosing what gets logged — decided against, 17 September 2026
+
+Asked whether an operator should be able to pick which kinds of event the
+activity log records. Checked what the others do, in their sources and manuals
+rather than their marketing:
+
+- **Quantum** — 26 kinds, recorded by default, one switch
+  (`database.activity.disabled`) plus retention and buffering. Narrowing by
+  kind or scope happens when the log is read.
+- **Nextcloud `admin_audit`** — every listener registered unconditionally, no
+  config read anywhere in `Application.php`. The official answer on the forum
+  is to comment out classes or filter the file with `jq`.
+- **Nextcloud's Activity app** — `Data::send()` is called unconditionally; the
+  per-type settings govern notifications and mail, not what is stored.
+- **Seafile Pro** — `[AUDIT] enabled`, off by default, nothing else.
+- **FileRun** — one switch for file activity plus a retention, off by default
+  on new installations; who may _read_ it is per role.
+- **Filestash** — no audit log in the open edition; `IAuditPlugin` is an
+  extension point with no implementation in the repository.
+- **Microsoft Purview** — on by default, all or nothing per tenant.
+
+Nobody offers it. The shape is the same everywhere: one switch, a retention,
+and rich filters at read time — which is what this already has. The value of
+an audit trail is that it is complete, and the person who would want deletions
+left out of it is the person it exists for. So: not built, and this is the
+record of why rather than an omission to rediscover.
+
+If it ever comes back, the only division worth having is FileRun's — the file
+activity apart from the rest, because that is the privacy argument (knowing
+who signs in and who shares a link is not the same as keeping a register of
+every file a household opened) rather than an argument about volume.
+
 ## Open, not scheduled
 
 - **The weekly image cleanup deletes nothing until `d42ff55` is on `main`.**
