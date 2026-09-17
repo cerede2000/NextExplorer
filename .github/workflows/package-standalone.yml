@@ -11,6 +11,12 @@ on:
   push:
     branches:
       - main
+      # Like the test image beside it: a working branch builds and installs
+      # the archive too, so a break is found before a release needs it. A
+      # dispatch cannot reach a working branch — GitHub only offers that from
+      # the default branch — so this trigger is also the only way to try it
+      # from here.
+      - integration
   release:
     types:
       - published
