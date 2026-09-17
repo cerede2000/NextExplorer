@@ -228,7 +228,10 @@
       "single": "¿Seguro que quieres eliminar \"{name}\"? Esta acción no se puede deshacer.",
       "multiple": "¿Seguro que quieres eliminar estos {count} elementos? Esta acción no se puede deshacer.",
       "generic": "No hay elementos seleccionados."
-    }
+    },
+    "checkingDeleteImpact": "Comprobando enlaces compartidos...",
+    "deleteImpactUnavailable": "No se pudieron comprobar los enlaces compartidos. El servidor seguirá aplicando la eliminación.",
+    "deleteLinkedShares": "Este contenido tiene {count} enlace compartido que se eliminará junto con él. | Este contenido tiene {count} enlaces compartidos que se eliminarán junto con él."
   },
   "folder": {
     "kind": "Tipo",
@@ -236,7 +239,11 @@
     "noPhotos": "No hay fotos en esta carpeta",
     "noPhotosHint": "Cambia a otro modo de vista para ver todos los archivos",
     "empty": "Esta carpeta está vacía",
-    "emptyHint": "Sube o crea archivos para comenzar."
+    "emptyHint": "Sube o crea archivos para comenzar.",
+    "scrollTop": "Arriba",
+    "scrollBottom": "Abajo",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo"
   },
   "volumes": {
     "quickAccess": "Acceso rápido",
@@ -535,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Pista de audio",
+    "audioTrackNumbered": "Pista {number}",
+    "close": "Cerrar vista previa",
+    "download": "Descargar contenido",
+    "imageLoadError": "No se pudo mostrar esta imagen.",
+    "next": "Siguiente elemento",
+    "noPlayableAudio": "Este navegador no puede reproducir la pista de audio {codecs}. Abre el archivo en un reproductor multimedia para escucharla.",
+    "noPlayableVideo": "Este navegador no puede reproducir el vídeo {codecs}. Abre el archivo en un reproductor multimedia.",
+    "previous": "Elemento anterior",
+    "rotateLeft": "Girar a la izquierda",
+    "rotateRight": "Girar a la derecha",
+    "subtitleExternal": "externo",
+    "subtitleForced": "forzado",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar"
+  },
   "share": {
     "sharedWithMe": "Compartido conmigo",
     "sharedWithMeDescription": "Archivos y carpetas que otras personas han compartido con tu cuenta.",
@@ -593,6 +617,20 @@
     "removeShare": "Eliminar compartición",
     "sharedWithAnyone": "Todos",
     "sharedWithUsers": "{count} usuario | {count} usuarios",
-    "expiresNever": "Nunca"
+    "expiresNever": "Nunca",
+    "directFileLink": "Enlace directo al archivo",
+    "directFolderLink": "Enlace directo ZIP de la carpeta",
+    "copyShareLink": "Copiar enlace compartido",
+    "directLinkMode": "Modo de enlace directo",
+    "copyDirectFileLink": "Copiar enlace directo al archivo",
+    "copyDirectFolderLink": "Copiar enlace directo ZIP de la carpeta",
+    "directLinkModes": {
+      "auto": "Automático",
+      "inline": "Ver",
+      "raw": "Sin procesar",
+      "download": "Descargar"
+    },
+    "deleteShareTitle": "¿Eliminar enlace compartido?",
+    "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido."
   }
 }

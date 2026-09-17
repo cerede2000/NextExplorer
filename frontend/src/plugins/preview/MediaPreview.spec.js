@@ -13,6 +13,11 @@ const i18n = createI18n({
         close: 'Close preview',
         previous: 'Previous media',
         next: 'Next media',
+        imageLoadError: 'This image could not be displayed.',
+        rotateLeft: 'Rotate left',
+        rotateRight: 'Rotate right',
+        zoomIn: 'Zoom in',
+        zoomOut: 'Zoom out',
       },
     },
   },
@@ -128,14 +133,23 @@ describe('MediaPreview', () => {
     expect(wrapper.get('img').attributes('src')).toBe('/api/preview/first.jpg');
   });
 
-  it('does not navigate for vertical or short touch gestures', async () => {
-    const { wrapper } = createWrapper();
+  it('closes on a downward swipe without changing the active media', async () => {
+    const { api, wrapper } = createWrapper();
 
     await swipe(wrapper, 200, 100, 220, 240);
+    expect(wrapper.get('img').attributes('src')).toBe('/api/preview/first.jpg');
+    expect(api.close).toHaveBeenCalledOnce();
+  });
+
+  it('does not navigate for upward, vertical, or short touch gestures', async () => {
+    const { api, wrapper } = createWrapper();
+
+    await swipe(wrapper, 200, 240, 220, 100);
     expect(wrapper.get('img').attributes('src')).toBe('/api/preview/first.jpg');
 
     await swipe(wrapper, 200, 100, 170, 100);
     expect(wrapper.get('img').attributes('src')).toBe('/api/preview/first.jpg');
+    expect(api.close).not.toHaveBeenCalled();
   });
 
   it('downloads the media currently shown after swiping', async () => {
@@ -173,6 +187,45 @@ describe('MediaPreview', () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(wrapper.get('source').attributes('src')).toBe('/api/preview/clip.mp4');
+  });
+
+  it('closes on Escape even when the video has focus', () => {
+    const { api, wrapper } = createWrapper(media[1]);
+    const event = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+
+    wrapper.get('video').element.focus();
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(api.close).toHaveBeenCalledOnce();
+  });
+
+  it('does not cover the native video surface with an interaction overlay', () => {
+    const { wrapper } = createWrapper(media[1]);
+
+    expect(wrapper.find('video + [aria-hidden="true"]').exists()).toBe(false);
+  });
+
+  it('scales video to the full preview stage without cropping it', () => {
+    const { wrapper } = createWrapper(media[1]);
+    const video = wrapper.get('video');
+
+    expect(video.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full', 'object-contain']));
+    expect(video.element.parentElement.classList).toContain('h-full');
+    expect(video.element.parentElement.classList).toContain('w-full');
+  });
+
+  it('shows a useful fallback if the browser cannot render an image', async () => {
+    const { wrapper } = createWrapper();
+
+    await wrapper.get('img').trigger('error');
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('This image could not be displayed.');
+    expect(wrapper.get('[role="alert"]').text()).toContain('first.jpg');
   });
 });
 
@@ -263,5 +316,72 @@ describe('MediaPreview zoom', () => {
     wheel(false);
     await wrapper.vm.$nextTick();
     expect(imageTransform(wrapper)).toBe(zoomed);
+  });
+
+  it('retains visible desktop zoom controls', async () => {
+    const { wrapper } = createWrapper();
+
+    expect(wrapper.get('button[aria-label="Zoom out"]').attributes()).toHaveProperty('disabled');
+    await wrapper.get('button[aria-label="Zoom in"]').trigger('click');
+
+    expect(imageTransform(wrapper)).toContain('scale(1.5)');
+    expect(wrapper.get('button[aria-label="Zoom out"]').attributes()).not.toHaveProperty(
+      'disabled'
+    );
+
+    await wrapper.get('button[aria-label="Zoom out"]').trigger('click');
+    expect(imageTransform(wrapper)).not.toContain('scale(');
+  });
+
+  it('retains image rotation controls and resets rotation between media', async () => {
+    const { wrapper } = createWrapper();
+
+    await wrapper.get('button[aria-label="Rotate right"]').trigger('click');
+    expect(imageTransform(wrapper)).toContain('rotate(90deg)');
+
+    await wrapper.get('button[aria-label="Next media"]').trigger('click');
+    await wrapper.get('button[aria-label="Next media"]').trigger('click');
+    expect(imageTransform(wrapper)).not.toContain('rotate(');
+  });
+
+  it('pans a zoomed image with a mouse drag', async () => {
+    const { wrapper } = createWrapper();
+    const preview = stage(wrapper);
+    vi.spyOn(preview.element, 'getBoundingClientRect').mockReturnValue({
+      width: 1000,
+      height: 800,
+      top: 0,
+      right: 1000,
+      bottom: 800,
+      left: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    await wrapper.get('button[aria-label="Zoom in"]').trigger('click');
+    await preview.trigger('pointerdown', {
+      pointerId: 7,
+      pointerType: 'mouse',
+      clientX: 400,
+      clientY: 300,
+    });
+    await preview.trigger('pointermove', {
+      pointerId: 7,
+      pointerType: 'mouse',
+      clientX: 460,
+      clientY: 340,
+    });
+
+    expect(imageTransform(wrapper)).toContain('translate(60px, 40px)');
+    expect(wrapper.get('img').classes()).toContain('cursor-grabbing');
+
+    await preview.trigger('pointerup', {
+      pointerId: 7,
+      pointerType: 'mouse',
+      clientX: 460,
+      clientY: 340,
+    });
+    expect(wrapper.get('img').classes()).toContain('cursor-grab');
   });
 });

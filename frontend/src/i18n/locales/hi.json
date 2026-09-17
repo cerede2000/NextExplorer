@@ -228,7 +228,10 @@
       "single": "क्या आप वाकई \"{name}\" हटाना चाहते हैं? यह क्रिया वापस नहीं की जा सकती।",
       "multiple": "क्या आप वाकई ये {count} आइटम हटाना चाहते हैं? यह क्रिया वापस नहीं की जा सकती।",
       "generic": "कोई आइटम चयनित नहीं है।"
-    }
+    },
+    "checkingDeleteImpact": "लिंक किए गए शेयर जाँचे जा रहे हैं...",
+    "deleteImpactUnavailable": "लिंक किए गए शेयर जाँचे नहीं जा सके। हटाने का कार्य फिर भी सर्वर द्वारा लागू किया जाएगा।",
+    "deleteLinkedShares": "इस सामग्री के साथ {count} लिंक किया गया शेयर भी हटाया जाएगा। | इस सामग्री के साथ {count} लिंक किए गए शेयर भी हटाए जाएंगे।"
   },
   "folder": {
     "kind": "प्रकार",
@@ -236,7 +239,11 @@
     "noPhotos": "इस फ़ोल्डर में कोई फ़ोटो नहीं है",
     "noPhotosHint": "सभी फ़ाइलें देखने के लिए दृश्य मोड बदलें",
     "empty": "यह फ़ोल्डर खाली है",
-    "emptyHint": "शुरू करने के लिए फ़ाइलें अपलोड करें या बनाएं।"
+    "emptyHint": "शुरू करने के लिए फ़ाइलें अपलोड करें या बनाएं।",
+    "scrollTop": "शीर्ष",
+    "scrollBottom": "नीचे",
+    "selectAll": "सभी चुनें",
+    "deselectAll": "सभी का चयन हटाएँ"
   },
   "volumes": {
     "quickAccess": "त्वरित पहुँच",
@@ -535,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "ऑडियो ट्रैक",
+    "audioTrackNumbered": "ट्रैक {number}",
+    "close": "पूर्वावलोकन बंद करें",
+    "download": "मीडिया डाउनलोड करें",
+    "imageLoadError": "यह चित्र प्रदर्शित नहीं किया जा सका।",
+    "next": "अगला मीडिया",
+    "noPlayableAudio": "यह ब्राउज़र {codecs} ऑडियो ट्रैक नहीं चला सकता। इसे सुनने के लिए फ़ाइल को किसी मीडिया प्लेयर में खोलें।",
+    "noPlayableVideo": "यह ब्राउज़र {codecs} वीडियो नहीं चला सकता। फ़ाइल को किसी मीडिया प्लेयर में खोलें।",
+    "previous": "पिछला मीडिया",
+    "rotateLeft": "बाईं ओर घुमाएँ",
+    "rotateRight": "दाईं ओर घुमाएँ",
+    "subtitleExternal": "बाहरी",
+    "subtitleForced": "अनिवार्य",
+    "zoomIn": "ज़ूम इन",
+    "zoomOut": "ज़ूम आउट"
+  },
   "share": {
     "sharedWithMe": "मेरे साथ साझा किया गया",
     "sharedWithMeDescription": "फ़ाइलें और फ़ोल्डर जो अन्य लोगों ने आपके खाते के साथ साझा किए हैं।",
@@ -593,6 +617,20 @@
     "removeShare": "शेयर हटाएं",
     "sharedWithAnyone": "सभी",
     "sharedWithUsers": "{count} उपयोगकर्ता",
-    "expiresNever": "कभी नहीं"
+    "expiresNever": "कभी नहीं",
+    "directFileLink": "सीधा फ़ाइल लिंक",
+    "directFolderLink": "सीधा फ़ोल्डर ZIP लिंक",
+    "copyShareLink": "शेयर लिंक कॉपी करें",
+    "directLinkMode": "सीधा लिंक मोड",
+    "copyDirectFileLink": "सीधा फ़ाइल लिंक कॉपी करें",
+    "copyDirectFolderLink": "सीधा फ़ोल्डर ZIP लिंक कॉपी करें",
+    "directLinkModes": {
+      "auto": "स्वचालित",
+      "inline": "देखें",
+      "raw": "रॉ",
+      "download": "डाउनलोड करें"
+    },
+    "deleteShareTitle": "शेयर हटाएँ?",
+    "deleteShareMessage": "इस लिंक वाले लोग अब साझा किए गए आइटम तक पहुँच नहीं कर पाएँगे।"
   }
 }

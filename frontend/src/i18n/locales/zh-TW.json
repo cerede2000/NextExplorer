@@ -228,7 +228,10 @@
       "single": "確定要刪除 \"{name}\" 嗎？此動作無法還原。",
       "multiple": "確定要刪除這 {count} 個項目嗎？此動作無法還原。",
       "generic": "未選擇任何項目。"
-    }
+    },
+    "checkingDeleteImpact": "正在檢查已連結的分享...",
+    "deleteImpactUnavailable": "無法檢查已連結的分享。伺服器仍會執行刪除作業。",
+    "deleteLinkedShares": "此內容有 {count} 個已連結的分享，將隨其一併移除。"
   },
   "folder": {
     "kind": "類型",
@@ -236,7 +239,11 @@
     "noPhotos": "此檔案夾中沒有照片",
     "noPhotosHint": "切換到其他檢視模式以查看所有檔案",
     "empty": "此檔案夾為空",
-    "emptyHint": "上傳或建立檔案以開始。"
+    "emptyHint": "上傳或建立檔案以開始。",
+    "scrollTop": "頂端",
+    "scrollBottom": "底端",
+    "selectAll": "全選",
+    "deselectAll": "取消全選"
   },
   "volumes": {
     "quickAccess": "快速訪問",
@@ -535,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "音軌",
+    "audioTrackNumbered": "音軌 {number}",
+    "close": "關閉預覽",
+    "download": "下載媒體",
+    "imageLoadError": "無法顯示此圖片。",
+    "next": "下一個媒體檔案",
+    "noPlayableAudio": "此瀏覽器無法播放 {codecs} 音軌。請在媒體播放器中開啟檔案以聆聽音訊。",
+    "noPlayableVideo": "此瀏覽器無法播放 {codecs} 影片。請在媒體播放器中開啟檔案。",
+    "previous": "上一個媒體檔案",
+    "rotateLeft": "向左旋轉",
+    "rotateRight": "向右旋轉",
+    "subtitleExternal": "外部",
+    "subtitleForced": "強制",
+    "zoomIn": "放大",
+    "zoomOut": "縮小"
+  },
   "share": {
     "sharedWithMe": "與我分享",
     "sharedWithMeDescription": "其他人與你的帳戶分享的檔案和檔案夾。",
@@ -593,6 +617,20 @@
     "removeShare": "移除分享",
     "sharedWithAnyone": "所有人",
     "sharedWithUsers": "{count} 位使用者",
-    "expiresNever": "永不"
+    "expiresNever": "永不",
+    "directFileLink": "直接檔案連結",
+    "directFolderLink": "直接資料夾 ZIP 連結",
+    "copyShareLink": "複製分享連結",
+    "directLinkMode": "直接連結模式",
+    "copyDirectFileLink": "複製直接檔案連結",
+    "copyDirectFolderLink": "複製直接資料夾 ZIP 連結",
+    "directLinkModes": {
+      "auto": "自動",
+      "inline": "檢視",
+      "raw": "原始",
+      "download": "下載"
+    },
+    "deleteShareTitle": "移除分享？",
+    "deleteShareMessage": "擁有此連結的人將無法再存取分享的項目。"
   }
 }

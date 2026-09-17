@@ -542,6 +542,23 @@
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
     }
   },
+  "mediaPreview": {
+    "audioTrack": "Piste audio",
+    "audioTrackNumbered": "Piste {number}",
+    "close": "Fermer l’aperçu",
+    "download": "Télécharger le média",
+    "imageLoadError": "Cette image n’a pas pu être affichée.",
+    "next": "Média suivant",
+    "noPlayableAudio": "Ce navigateur ne peut pas lire la piste audio {codecs}. Ouvrez le fichier dans un lecteur multimédia pour l’écouter.",
+    "noPlayableVideo": "Ce navigateur ne peut pas lire la vidéo {codecs}. Ouvrez le fichier dans un lecteur multimédia.",
+    "previous": "Média précédent",
+    "rotateLeft": "Pivoter à gauche",
+    "rotateRight": "Pivoter à droite",
+    "subtitleExternal": "externe",
+    "subtitleForced": "forcé",
+    "zoomIn": "Agrandir",
+    "zoomOut": "Réduire"
+  },
   "share": {
     "sharedWithMe": "Partagé avec moi",
     "sharedWithMeDescription": "Fichiers et dossiers que d'autres personnes ont partagés avec votre compte.",
