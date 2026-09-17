@@ -293,7 +293,7 @@ describe('forgetting', () => {
   });
 
   it('empties the whole thing when an administrator asks', async () => {
-    const { db, activityLog } = await on();
+    const { activityLog } = await on();
     await activityLog.record({ action: 'sign-in', actor: 'someone' });
     await activityLog.record({ action: 'sign-out', actor: 'someone' });
 
