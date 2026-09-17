@@ -16,6 +16,8 @@ const { searchLocalUsers } = require('../services/userSearchService');
 const { NotFoundError, ValidationError, UnauthorizedError } = require('../errors/AppError');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const { clearLock, listActiveLocks } = require('../services/users/lockout');
+const { deleteAllPasskeys } = require('../services/users/passkeys');
+const activityLog = require('../services/activityLog');
 const logger = require('../utils/logger');
 const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 
@@ -167,6 +169,39 @@ router.delete(
       { userId: id, by: req.user?.id || null, removed },
       'An administrator turned two-factor authentication off for an account'
     );
+    res.status(204).end();
+  })
+);
+
+/**
+ * DELETE /api/users/:id/passkeys — take somebody's passkeys off.
+ *
+ * The laptop that was the passkey, gone with the passkey on it. The same
+ * deliberate act by the same person who could already reset the account's
+ * password, for the same reason: the alternative is editing the database by
+ * hand. What is left is an account that signs in with its password, and adds a
+ * passkey again from whatever device is in front of it.
+ */
+router.delete(
+  '/users/:id/passkeys',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params || {};
+    const user = await getById(id);
+    if (!user) throw new NotFoundError('User not found');
+
+    const removed = await deleteAllPasskeys(id);
+    logger.warn(
+      { userId: id, by: req.user?.id || null, removed },
+      'An administrator removed the passkeys of an account'
+    );
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: user.username || user.email || id,
+      detail: { passkeysRemoved: removed },
+      req,
+    });
     res.status(204).end();
   })
 );

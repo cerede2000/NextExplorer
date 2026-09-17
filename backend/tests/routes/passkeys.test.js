@@ -677,3 +677,73 @@ describe('the site a passkey is bound to', { timeout: 30_000 }, () => {
     expect((await request(app).post('/api/auth/login/passkey/start').send({})).status).toBe(403);
   });
 });
+
+/**
+ * The laptop that was the passkey, gone with the passkey on it.
+ *
+ * The same deliberate act as taking somebody's second factor off, by the same
+ * person: an administrator who can already reset that account's password.
+ */
+describe('an administrator handing an account back', { timeout: 40_000 }, () => {
+  const createRegular = async (owner) =>
+    (
+      await owner.post('/api/users').send({
+        email: 'regular@example.com',
+        username: 'regular',
+        password: PASSWORD,
+        roles: ['user'],
+      })
+    ).body.user;
+
+  const buildWithUsers = async () => {
+    const built = await build();
+    const userRoutes = currentEnv.requireFresh('src/routes/users');
+    built.app.use('/api', userRoutes);
+    return built;
+  };
+
+  it('takes every passkey off, and the account signs in with its password', async () => {
+    const { app } = await buildWithUsers();
+    const owner = await setUpOwner(app);
+    const regular = await createRegular(owner);
+
+    const theirs = request.agent(app);
+    await theirs.post('/api/auth/login').send({ identifier: 'regular', password: PASSWORD });
+    const { credential } = await addPasskey(theirs);
+    expect((await theirs.get('/api/auth/passkeys')).body.passkeys).toHaveLength(1);
+
+    expect((await owner.delete(`/api/users/${regular.id}/passkeys`)).status).toBe(204);
+
+    expect((await theirs.get('/api/auth/passkeys')).body.passkeys).toEqual([]);
+    await theirs.post('/api/auth/logout').send({});
+    expect((await signInWith(theirs, credential)).status).toBe(401);
+
+    const again = request.agent(app);
+    const response = await again
+      .post('/api/auth/login')
+      .send({ identifier: 'regular', password: PASSWORD });
+    expect(response.body.user.username).toBe('regular');
+  });
+
+  it('refuses anybody who is not an administrator', async () => {
+    const { app } = await buildWithUsers();
+    const owner = await setUpOwner(app);
+    const regular = await createRegular(owner);
+
+    const theirs = request.agent(app);
+    await theirs.post('/api/auth/login').send({ identifier: 'regular', password: PASSWORD });
+    await addPasskey(theirs);
+
+    const response = await theirs.delete(`/api/users/${regular.id}/passkeys`);
+
+    expect(response.status).toBe(403);
+    expect((await theirs.get('/api/auth/passkeys')).body.passkeys).toHaveLength(1);
+  });
+
+  it('has nothing to say about an account that is not there', async () => {
+    const { app } = await buildWithUsers();
+    const owner = await setUpOwner(app);
+
+    expect((await owner.delete('/api/users/nobody/passkeys')).status).toBe(404);
+  });
+});
