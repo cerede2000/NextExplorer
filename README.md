@@ -123,7 +123,7 @@ tier · — not documented
 | Price                             | Free                 | Free                    | Free — Pro from $50/mo, Enterprise from $290/mo |
 | Interface languages               | 15                   | 26                      | —                                               |
 | Docker image, amd64 and arm64     | ✅                   | ✅                      | ✅                                              |
-| Official installer outside Docker | ❌                   | ✅                      | 💰                                              |
+| Official installer outside Docker | ✅ Linux archive     | ✅                      | 💰                                              |
 
 ### Archives, without unpacking them
 
@@ -215,6 +215,30 @@ is in the documentation.
 The original [File Browser](https://github.com/filebrowser/filebrowser) is not
 in the table: its own README says it was archived on 1 September 2026, with two
 classes of security issue that will not be fixed. Quantum is its active fork.
+
+## Install without Docker
+
+Every release carries a Linux archive that installs the application as a
+systemd service, for x86_64 and arm64. It brings its own Node runtime and its
+own 7-Zip, so nothing has to be installed first and nothing is compiled:
+
+```sh
+tar -xzf nextexplorer-<version>-linux-x64.tar.gz
+cd nextexplorer-<version>-linux-x64
+sudo ./install.sh
+```
+
+It says which optional tools are missing — ffmpeg, ripgrep, pdftotext, perl,
+rsync — what each one buys, and offers to install them through apt, dnf, pacman
+or zypper. Updating is `sudo nextexplorer-upgrade`, which checks the next
+release against its published checksum and leaves your configuration, your
+database and your files alone. Running `install.sh` again from a newer archive
+does the same.
+
+[The full guide](https://cerede2000.github.io/NextExplorer/installation/standalone)
+covers volumes, the systemd unit, and what differs from the container — chiefly
+that the browser terminal is off, since outside a container it would open a
+shell on the machine itself.
 
 ## Quickstart (Docker Compose)
 

@@ -99,24 +99,18 @@ jobs:
           set -eux
           sha256sum -c ./*.tar.gz.sha256
           tar -xzf ./*.tar.gz
-          echo "RELEASE_DIR=$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)" >> "$GITHUB_ENV"
-
-      - name: Check the unit before anything is installed from it
-        run: |
-          set -eux
-          # systemd's own parser, on the template with its placeholders filled
-          # by the same substitutions the script makes.
-          sed -e 's|@USER@|nextexplorer|g' -e 's|@GROUP@|nextexplorer|g' \
-              -e 's|@PROGRAM_DIR@|/opt/nextexplorer|g' \
-              -e 's|@ENV_FILE@|/etc/nextexplorer/nextexplorer.env|g' \
-              -e 's|@STATE_DIR@|/var/lib/nextexplorer|g' \
-              -e 's|@CACHE_DIR@|/var/cache/nextexplorer|g' \
-              -e 's|@VOLUME_ROOT@|/srv/nextexplorer|g' \
-              "$RELEASE_DIR/nextexplorer.service.in" > /tmp/nextexplorer.service
-          systemd-analyze verify /tmp/nextexplorer.service
+          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)")" >> "$GITHUB_ENV"
 
       - name: Install
         run: sudo "$RELEASE_DIR/install.sh" --yes
+
+      - name: The unit is one systemd has nothing to say about
+        run: |
+          set -eux
+          # Its own parser, on the file that was installed rather than on the
+          # template: `verify` resolves ExecStart, so it can only run once the
+          # runtime is where the unit says it is.
+          systemd-analyze verify /etc/systemd/system/nextexplorer.service
 
       - name: It is running, and answering
         run: |
@@ -216,7 +210,7 @@ jobs:
         run: |
           set -eux
           tar -xzf ./*.tar.gz
-          echo "RELEASE_DIR=$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)" >> "$GITHUB_ENV"
+          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)")" >> "$GITHUB_ENV"
 
       - name: Install, with the package manager doing its part
         run: |
@@ -239,9 +233,14 @@ jobs:
           features="$(curl -fsS "http://127.0.0.1:${PORT:-3000}/api/features")"
           echo "$features" | grep -q "\"app\":\"$(cat "$RELEASE_DIR/VERSION")\""
           echo "$features" | grep -q '"rar"'
-          # sharp and better-sqlite3 are the native modules: a listing proves
-          # the database opened, and the log would carry the loader's error.
-          grep -qi "error" /tmp/server.log && { cat /tmp/server.log; exit 1; } || true
+          # The ways a bundled native module fails: not found, built for
+          # another ABI, or linked against something this machine has not got.
+          # A plain search for "error" would catch the name of a middleware.
+          if grep -qE 'MODULE_NOT_FOUND|NODE_MODULE_VERSION|invalid ELF|cannot open shared object' /tmp/server.log; then
+            cat /tmp/server.log
+            exit 1
+          fi
+          tail -5 /tmp/server.log
 
       - name: What the dependency step managed on this distribution
         run: |

@@ -85,7 +85,7 @@ tier · — not documented
 | Price                             | Free                 | Free                    | Free — Pro from $50/mo, Enterprise from $290/mo |
 | Interface languages               | 15                   | 26                      | —                                               |
 | Docker image, amd64 and arm64     | ✅                   | ✅                      | ✅                                              |
-| Official installer outside Docker | ❌                   | ✅                      | 💰                                              |
+| Official installer outside Docker | ✅ Linux archive     | ✅                      | 💰                                              |
 
 ### Archives, without unpacking them
 
@@ -193,6 +193,17 @@ tier · — not documented
   command runner, and sessions that are self-contained JWTs and therefore
   cannot be revoked — will not be fixed. Quantum is its active fork, and stands
   in the table instead.
+
+### Installing it without Docker
+
+That row was a cross until 3.8.0, and what turned it is
+[an archive](/installation/standalone) rather than a single binary: the Node
+runtime and the official 7-Zip build travel in it, an install script makes the
+account, the directories and the systemd service, and the same script is the
+update path. Quantum's ✅ is one static Go binary, which is a property of its
+language rather than a difference in effort — Node cannot embed the three
+native modules in this tree. What the request behind it asked for, which was
+not being made to install Docker, is answered.
 
 ### The two intentions, and the two crosses that stay
 

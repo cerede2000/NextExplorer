@@ -34,6 +34,10 @@ export default defineConfig({
         items: [
           { text: 'Deployment', link: '/installation/deployment' },
           {
+            text: 'Install without Docker',
+            link: '/installation/standalone',
+          },
+          {
             text: 'Reverse Proxy & Networking',
             link: '/installation/reverse-proxy',
           },
@@ -85,6 +89,10 @@ export default defineConfig({
         text: 'Installation & Deployment',
         items: [
           { text: 'Deployment', link: '/installation/deployment' },
+          {
+            text: 'Install without Docker',
+            link: '/installation/standalone',
+          },
           {
             text: 'Reverse Proxy & Networking',
             link: '/installation/reverse-proxy',
