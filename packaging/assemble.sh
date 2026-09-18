@@ -69,10 +69,19 @@ npm --prefix "$root" ci --workspace frontend
 npm --prefix "$root" run -w frontend build -- --sourcemap false
 
 echo "==> Backend production dependencies"
-# Same command the image uses. On glibc every native module here has a
-# published prebuild for Node 24, so nothing is compiled — the smoke test in
-# CI is what proves it, by installing on a machine with no compiler.
-NODE_ENV=production npm --prefix "$root" ci --omit=dev --workspace backend
+# Cleaned first: the frontend install above filled this same tree with build
+# tools, and a workspace-filtered `npm ci` leaves what it did not ask for —
+# 4.6 MB of Babel rode into the 3.8.1 archive that way, extraneous to
+# everything in it.
+rm -rf "$root/node_modules"
+# On glibc every native module here has a published prebuild for Node 24, so
+# nothing is compiled — the smoke test in CI is what proves it, by installing
+# on a machine with no compiler.
+#
+# Without the optional ones: @tus/server offers a Redis lock it is never asked
+# for here, and npm installs those by default — 9.5 MB of a client for a
+# server this does not speak to. The whole backend suite passes without them.
+NODE_ENV=production npm --prefix "$root" ci --omit=dev --omit=optional --workspace backend
 
 cp -a "$root/node_modules" "$stage/app/node_modules"
 cp "$root/package.json" "$stage/app/package.json"
@@ -82,9 +91,11 @@ mkdir -p "$stage/app/src/public"
 cp -a "$root/frontend/dist/." "$stage/app/src/public/"
 
 # Nothing at runtime reads a dependency's own coverage dump, and one package
-# ships 11 MB of it.
+# ships 11 MB of it. `@types` is the same kind of passenger: declaration files
+# a type checker reads and Node never opens, 2.5 MB of them.
 find "$stage/app/node_modules" -type d \( -name coverage -o -name .nyc_output \) \
   -prune -exec rm -rf {} + 2>/dev/null || true
+rm -rf "$stage/app/node_modules/@types"
 
 # --- The Node runtime, so nothing has to be installed first ------------------
 echo "==> Node $NODE_VERSION"
