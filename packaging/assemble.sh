@@ -78,10 +78,10 @@ rm -rf "$root/node_modules"
 # nothing is compiled — the smoke test in CI is what proves it, by installing
 # on a machine with no compiler.
 #
-# Without the optional ones: @tus/server offers a Redis lock it is never asked
-# for here, and npm installs those by default — 9.5 MB of a client for a
-# server this does not speak to. The whole backend suite passes without them.
-NODE_ENV=production npm --prefix "$root" ci --omit=dev --omit=optional --workspace backend
+# Not `--omit=optional`: that is how sharp ships its own binaries, and without
+# them it cannot load at all. The two packages worth dropping are named below
+# instead.
+NODE_ENV=production npm --prefix "$root" ci --omit=dev --workspace backend
 
 cp -a "$root/node_modules" "$stage/app/node_modules"
 cp "$root/package.json" "$stage/app/package.json"
@@ -90,12 +90,15 @@ cp "$root/docker/healthcheck.js" "$stage/app/healthcheck.js"
 mkdir -p "$stage/app/src/public"
 cp -a "$root/frontend/dist/." "$stage/app/src/public/"
 
-# Nothing at runtime reads a dependency's own coverage dump, and one package
-# ships 11 MB of it. `@types` is the same kind of passenger: declaration files
-# a type checker reads and Node never opens, 2.5 MB of them.
+# Three passengers, named one by one because a blanket rule took sharp's own
+# binaries with it. Nothing at runtime reads a dependency's coverage dump, and
+# one package ships 11 MB of it; `@types` is declaration files a type checker
+# reads and Node never opens; `@redis` and `ioredis` are the lock @tus/server
+# offers and this never asks for.
 find "$stage/app/node_modules" -type d \( -name coverage -o -name .nyc_output \) \
   -prune -exec rm -rf {} + 2>/dev/null || true
-rm -rf "$stage/app/node_modules/@types"
+rm -rf "$stage/app/node_modules/@types" \
+  "$stage/app/node_modules/@redis" "$stage/app/node_modules/ioredis"
 
 # --- The Node runtime, so nothing has to be installed first ------------------
 echo "==> Node $NODE_VERSION"

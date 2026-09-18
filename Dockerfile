@@ -28,10 +28,7 @@ COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 COPY docs/package.json docs/package.json
-# Without the optional ones: @tus/server offers a Redis lock this never asks
-# for, and npm installs it by default — 9.5 MB of a client for a server this
-# does not speak to. The whole backend suite passes without them.
-RUN npm ci --omit=dev --omit=optional --workspace backend && npm cache clean --force
+RUN npm ci --omit=dev --workspace backend && npm cache clean --force
 
 # ---------------------------------------------------------------------------
 # Stage 2: Frontend build (dev dependencies, discarded after build)
@@ -308,7 +305,7 @@ RUN --mount=from=backend_deps,source=/app,target=/deps \
     fi; \
     find node_modules -type d \( -name coverage -o -name .nyc_output \) \
       -prune -exec rm -rf {} +; \
-    rm -rf node_modules/@types
+    rm -rf node_modules/@types node_modules/@redis node_modules/ioredis
 COPY --from=seven_zip /out/7z /usr/local/bin/7z
 COPY docker/verify-7zip-password.js ./verify-7zip-password.js
 # Verify both the RAR codec and the non-interactive password flow through the
