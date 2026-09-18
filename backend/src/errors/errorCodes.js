@@ -21,6 +21,14 @@ const ErrorCodes = {
   // secure origin, which is a setup problem rather than a wrong answer.
   AUTH_PASSKEY_UNAVAILABLE: 'AUTH_PASSKEY_UNAVAILABLE',
 
+  // An API token: not valid at all, or valid and reaching for something no
+  // token may reach. One code for every way the first can happen — see
+  // middleware/apiTokenAuth.js for why the reason is written in the log and
+  // never in the answer.
+  AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
+  AUTH_TOKEN_NOT_ALLOWED: 'AUTH_TOKEN_NOT_ALLOWED',
+  AUTH_TOKEN_READ_ONLY: 'AUTH_TOKEN_READ_ONLY',
+
   // Signing in at an identity provider. The two are told apart on purpose: one
   // is answered in the configuration, the other by looking at the provider.
   AUTH_OIDC_NOT_CONFIGURED: 'AUTH_OIDC_NOT_CONFIGURED',

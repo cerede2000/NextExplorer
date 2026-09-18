@@ -151,6 +151,9 @@ const deleteUser = async ({ userId }) => {
     db.prepare('DELETE FROM folder_preferences WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM recent_destinations WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM auth_locks WHERE key = ?').run(userId);
+    // Its API tokens do cascade, and are removed here all the same: a way into
+    // an account is the one leftover worth writing twice.
+    db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM users WHERE id = ?').run(userId);
   })();
   return true;

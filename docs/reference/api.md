@@ -9,10 +9,70 @@ Every example on this page was run against the
 
 ## Authentication
 
-Sign-in returns a session cookie, and that cookie is the credential. Token
-minting is deliberately disabled — `POST /api/auth/token` answers `400` — so a
-script authenticates the same way a browser does, and keeps the cookie for the
-rest of its work.
+Two ways in. A session cookie is what the interface uses. An **API token** is
+what a script should use: it is narrower than the account it belongs to, it can
+be taken away on its own, and it does not stop working when somebody changes
+their password.
+
+### API tokens
+
+Issue one from **Settings → API tokens**. The value is shown once, at that
+moment, and stored hashed — losing it costs a new token, which is the property
+that makes a stolen database worth nothing here.
+
+```bash
+curl -H 'Authorization: Bearer nxe_…' https://your-host/api/volumes
+```
+
+That header is the only place a token may be presented. Not a query parameter,
+which lands in every access log and every history; not a cookie, which a
+browser attaches to requests another site made.
+
+**What a token may do** is its scope, chosen when it is issued:
+
+| Scope   | What it reaches                                                                                                       |
+| ------- | --------------------------------------------------------------------------------------------------------------------- |
+| `read`  | `GET` and `HEAD`, plus `POST /api/files/download` — downloading a selection is a read that arrives as a POST because a hundred file names do not fit in a URL |
+| `write` | everything the account itself can do with files: upload, move, rename, delete                                          |
+
+**What no token ever reaches**, whatever its scope and whoever owns it:
+
+- `/api/auth/*` — the account. It cannot change a password, add a passkey, take
+  off a second factor, or issue another token. A credential that can issue
+  credentials is one revocation that revokes nothing. `GET /api/auth/me` is the
+  exception, so a script can ask who it is without being able to change who it
+  is;
+- every administrative route, even when the account is an administrator;
+- the terminal.
+
+A token follows its account as the account changes: a role taken away applies
+to the next request, and deleting the account takes its tokens with it.
+
+**Managing them** — from a session, never from a token:
+
+| Call                            | What it does                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `GET /api/auth/tokens`          | the live ones: name, scope, when issued, when last used and from where, when it expires          |
+| `POST /api/auth/tokens`         | `{ name, scope, expiresInDays, password }` — answers `{ token, secret }`, the only time `secret` exists |
+| `PATCH /api/auth/tokens/:id`    | `{ name }`                                                                                         |
+| `DELETE /api/auth/tokens/:id`   | revokes it, and it stops working on the next request                                             |
+
+Issuing one asks for the account's password when the account has one: a browser
+left unlocked on a desk should not be enough to walk away with a credential
+that outlives the session. Revoking asks for nothing — somebody who has just
+realised a token leaked must be able to stop it now. `expiresInDays` is a
+number of days up to 3650, or `null` for a token that lasts until it is
+revoked. Fifty per account.
+
+**Refusals** are deliberately uninformative. Every unusable token — forged,
+unknown, revoked, expired — is answered `401` with `AUTH_TOKEN_INVALID`, and
+never with which of the four it was: telling them apart would tell somebody
+holding a stolen value that they have the right server. Which it was is written
+in the [activity log](/admin/guide) instead, once an hour per token rather than
+once per request. Reaching for a closed door answers `403`, with
+`AUTH_TOKEN_READ_ONLY` or `AUTH_TOKEN_NOT_ALLOWED`.
+
+### A session, the way the interface signs in
 
 ```bash
 curl -c cookies.txt -X POST https://your-host/api/auth/login \
@@ -22,7 +82,8 @@ curl -c cookies.txt -X POST https://your-host/api/auth/login \
 
 Pass `-b cookies.txt` on everything afterwards. The session lasts as long as
 `SESSION_MAX_AGE_DAYS` (30 by default), so a long-running job does not have to
-sign in repeatedly.
+sign in repeatedly. It is as wide as the account, which is why a token is the
+better credential for anything that runs unattended.
 
 An account with two-factor authentication answers that call with
 `{"totpRequired": true}` and no user: the password was right, and the session

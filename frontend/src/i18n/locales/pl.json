@@ -507,7 +507,8 @@
       "trash": "Kosz i wersje",
       "activity": "Dziennik aktywności",
       "accountTwoFactor": "Dwa składniki",
-      "accountPasskeys": "Klucze dostępu"
+      "accountPasskeys": "Klucze dostępu",
+      "accountApiTokens": "Tokeny API"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -887,8 +888,48 @@
         "file-upload": "Wysłano",
         "file-delete": "Przeniesiono do kosza",
         "file-restore": "Przywrócono",
-        "file-purge": "Usunięto trwale"
+        "file-purge": "Usunięto trwale",
+        "account-token": "Zmiana tokenu API"
       }
+    },
+    "apiTokens": {
+      "title": "Tokeny API",
+      "intro": "Token pozwala skryptowi korzystać z tego serwera w Twoim imieniu, bez hasła i bez przeglądarki. Każdy można unieważnić osobno i żaden nie zmieni Twojego konta ani nie będzie administrował serwerem.",
+      "none": "Brak tokenów na tym koncie.",
+      "newToken": "Nowy token",
+      "nameLabel": "Nazwa",
+      "namePlaceholder": "Skrypt kopii zapasowej",
+      "scopeLabel": "Co może robić",
+      "scopeRead": "Tylko odczyt",
+      "scopeWrite": "Odczyt i zapis",
+      "scopeReadHelp": "Może wyświetlać, wyszukiwać i pobierać. Niczego nie zmieni.",
+      "scopeWriteHelp": "Może robić z plikami to, co Ty: wysyłać, przenosić, zmieniać nazwy, usuwać.",
+      "expiryLabel": "Jak długo działa",
+      "expiryNever": "Do unieważnienia",
+      "expiryDays": "{days} dni",
+      "confirmPassword": "Twoje hasło",
+      "create": "Wydaj token",
+      "rename": "Zmień nazwę",
+      "revoke": "Unieważnij",
+      "renamePrompt": "Nowa nazwa tego tokenu",
+      "renamed": "Nazwa tokenu została zmieniona.",
+      "revoked": "{name} został unieważniony i od razu przestaje działać.",
+      "revokeConfirm": "Unieważnić {name}? Wszystko, co go używa, natychmiast przestanie działać.",
+      "shownOnce": "Oto token. Pokazujemy go raz i nie da się go odczytać ponownie — skopiuj go teraz.",
+      "copy": "Kopiuj",
+      "copied": "Skopiowano",
+      "useIt": "Wysyłaj go jako ten nagłówek przy każdym żądaniu.",
+      "createdOn": "Wydany {when}",
+      "lastUsed": "ostatnio użyty {when} z {from}",
+      "neverUsed": "nigdy nieużywany",
+      "unknownAddress": "nieznanego adresu",
+      "expiresOn": "wygasa {when}",
+      "neverExpires": "bez wygaśnięcia",
+      "limits": "Token nigdy nie znaczy więcej niż konto, do którego należy, i zawsze mniej: nie zmieni hasła, nie doda klucza dostępu, nie wyda kolejnego tokenu, nie będzie administrował serwerem ani nie otworzy terminala. Do 50 tokenów na konto.",
+      "loadFailed": "Nie udało się wczytać tokenów.",
+      "createFailed": "Nie udało się wydać tokenu.",
+      "renameFailed": "Nie udało się zmienić nazwy tokenu.",
+      "revokeFailed": "Nie udało się unieważnić tokenu."
     }
   },
   "share": {

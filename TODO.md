@@ -73,29 +73,6 @@ edits; it should be a decision, not an omission.
 Order: `allowComment` on shares, then the third state in the token, then volume
 rules only if the need shows up there.
 
-## Per-user API tokens, managed in settings
-
-The HTTP API authenticates by session cookie only; `POST /api/auth/token`
-answers `400 Token minting is disabled`. Anything driving the application from
-a script therefore signs in as a user and holds a full session — there is no way
-to issue a credential that is narrower than the account it belongs to, and no
-way to revoke one without changing that account's password.
-
-What it should become:
-
-- A user issues tokens for themselves, from **Settings**, alongside the rest of
-  their account.
-- Each token is named, so it can be recognised months later, and shows when it
-  was last used.
-- Each is revocable on its own, without disturbing the account or the others.
-- A token carries at most the permissions of the user who created it, and
-  ideally less — read-only being the case worth having first.
-- The value is shown once, at creation, and stored hashed.
-
-Why it matters here: [the API reference](docs/reference/api.md) documents this
-gap plainly, and automation against a self-hosted file server is exactly where
-a stolen long-lived session cookie hurts most.
-
 ## Browsing inside an archive — done, and what it left
 
 Answering "what is in this backup?" cost a full extraction. It now costs a

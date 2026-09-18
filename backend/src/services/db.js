@@ -87,6 +87,42 @@ const PASSKEYS_DDL = `
 `;
 
 /**
+ * API tokens: a credential a script holds, narrower than the account.
+ *
+ * `id` is the public half of the token and is what the value is looked up by,
+ * so authenticating a request costs one indexed read rather than a hash
+ * against every row. `secret_hash` is a SHA-256 of the other half — see
+ * apiTokens.js for why that is the right hash here and bcrypt is not.
+ *
+ * A revoked token keeps its row, with `revoked_at` set and the hash
+ * overwritten: the tombstone is what lets the log say "the token you revoked
+ * on Tuesday is still being presented", which is exactly the thing worth
+ * knowing and exactly the thing a deleted row cannot say. They are purged
+ * after ninety days.
+ *
+ * Cascaded from `users`, unlike the activity log: a token is a way in, and a
+ * way into an account that no longer exists is a way in that must not outlive
+ * it.
+ */
+const API_TOKENS_DDL = `
+  CREATE TABLE IF NOT EXISTS api_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    secret_hash TEXT NOT NULL,
+    scope TEXT NOT NULL DEFAULT 'read',
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    last_used_at TEXT,
+    last_used_ip TEXT,
+    revoked_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id, created_at DESC);
+`;
+
+/**
  * The activity log: who did what, when, and from where.
  *
  * Off unless somebody asks for it, which is why nothing else depends on it —
@@ -890,6 +926,15 @@ const migrate = (db) => {
       );
       version = 23;
     }
+    if (version < 24) {
+      logger.info('[DB Migration] Migrating to v24: API tokens...');
+      db.exec(API_TOKENS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(24)
+      );
+      version = 24;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -909,6 +954,7 @@ const migrate = (db) => {
   db.exec(TWO_FACTOR_DDL);
   db.exec(PASSKEYS_DDL);
   db.exec(ACTIVITY_DDL);
+  db.exec(API_TOKENS_DDL);
 };
 
 /**

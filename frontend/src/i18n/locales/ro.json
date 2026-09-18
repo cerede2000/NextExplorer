@@ -507,7 +507,8 @@
       "trash": "Coș de gunoi și versiuni",
       "activity": "Jurnal de activitate",
       "accountTwoFactor": "Doi factori",
-      "accountPasskeys": "Chei de acces"
+      "accountPasskeys": "Chei de acces",
+      "accountApiTokens": "Jetoane API"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -887,8 +888,48 @@
         "file-upload": "Încărcat",
         "file-delete": "Trimis la coșul de gunoi",
         "file-restore": "Restaurat",
-        "file-purge": "Șters definitiv"
+        "file-purge": "Șters definitiv",
+        "account-token": "Jeton API schimbat"
       }
+    },
+    "apiTokens": {
+      "title": "Jetoane API",
+      "intro": "Un jeton permite unui script să folosească acest server în numele dumneavoastră, fără parolă și fără browser. Fiecare se revocă separat și niciunul nu vă poate schimba contul sau administra serverul.",
+      "none": "Niciun jeton pe acest cont.",
+      "newToken": "Jeton nou",
+      "nameLabel": "Nume",
+      "namePlaceholder": "Script de backup",
+      "scopeLabel": "Ce poate face",
+      "scopeRead": "Doar citire",
+      "scopeWrite": "Citire și scriere",
+      "scopeReadHelp": "Poate lista, căuta și descărca. Nu poate schimba nimic.",
+      "scopeWriteHelp": "Poate face cu fișierele ce faceți și dumneavoastră: încărca, muta, redenumi, șterge.",
+      "expiryLabel": "Cât durează",
+      "expiryNever": "Până la revocare",
+      "expiryDays": "{days} zile",
+      "confirmPassword": "Parola dumneavoastră",
+      "create": "Emite jeton",
+      "rename": "Redenumește",
+      "revoke": "Revocă",
+      "renamePrompt": "Un nume nou pentru acest jeton",
+      "renamed": "Jetonul a fost redenumit.",
+      "revoked": "{name} a fost revocat și nu mai funcționează de acum.",
+      "revokeConfirm": "Revocați {name}? Tot ce îl folosește se oprește imediat.",
+      "shownOnce": "Acesta este jetonul. Se arată o singură dată și nu mai poate fi citit — copiați-l acum.",
+      "copy": "Copiază",
+      "copied": "Copiat",
+      "useIt": "Trimiteți-l ca acest antet la fiecare cerere.",
+      "createdOn": "Emis la {when}",
+      "lastUsed": "ultima folosire la {when} de la {from}",
+      "neverUsed": "niciodată folosit",
+      "unknownAddress": "o adresă necunoscută",
+      "expiresOn": "expiră la {when}",
+      "neverExpires": "fără expirare",
+      "limits": "Un jeton nu valorează niciodată mai mult decât contul căruia îi aparține, și întotdeauna mai puțin: nu vă poate schimba parola, adăuga o cheie de acces, emite alt jeton, administra serverul sau deschide un terminal. Până la 50 de jetoane pe cont.",
+      "loadFailed": "Jetoanele nu au putut fi încărcate.",
+      "createFailed": "Jetonul nu a putut fi emis.",
+      "renameFailed": "Jetonul nu a putut fi redenumit.",
+      "revokeFailed": "Jetonul nu a putut fi revocat."
     }
   },
   "share": {

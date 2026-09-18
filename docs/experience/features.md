@@ -155,7 +155,7 @@ tier · — not documented
 | ----------------------------------- | --------------------------- | ----------------------- | --------------------- |
 | WebDAV                              | ❌ by choice                | ✅                      | ✅                    |
 | Storage beyond the local filesystem | ❌ by choice                | ❌                      | ✅ about 25 protocols |
-| API tokens for scripts              | 🚧                          | ✅                      | ✅                    |
+| API tokens for scripts              | ✅ read-only or read-write  | ✅                      | ✅                    |
 | Activity log                        | ✅ optional, off by default | ✅                      | 💰                    |
 | Space quotas                        | 🚧                          | 🚧                      | 💰                    |
 | Terminal in the browser             | ✅ switchable               | ❌ removed deliberately | ❌                    |
@@ -205,14 +205,25 @@ language rather than a difference in effort — Node cannot embed the three
 native modules in this tree. What the request behind it asked for, which was
 not being made to install Docker, is answered.
 
-### The two intentions, and the two crosses that stay
+### API tokens
 
-Space quotas and API tokens are what the comparison still says is missing here,
-and both are in the backlog with the shape they would take: the recursive
-folder-size index already counts what a quota would hold people to, and token
-minting is written and deliberately switched off. The activity log that was
-here beside them is done, and off by default — see
-[Admin & Access](/admin/guide).
+That row was a 🚧 until a script had a credential of its own. A token is issued
+from the settings of the account it belongs to, shown once and stored hashed,
+and revoked on its own without disturbing the account or the other tokens. It
+is deliberately **less** than the account: a read-only token reaches `GET` and
+nothing that changes anything, and no token at all — whatever its scope, and
+even when its owner is an administrator — reaches the account's own settings,
+any administrative route, or the terminal. [Driving the API](/reference/api) has
+the whole of it.
+
+### The intention left, and the two crosses that stay
+
+Space quotas are what the comparison still says is missing here, and it is in
+the backlog with the shape it would take: the recursive folder-size index
+already counts what a quota would hold people to; what it needs is a decision
+about what a quota applies to, and one place where a write is refused rather
+than ten. The activity log and the API tokens that were here beside it are
+done — see [Admin & Access](/admin/guide).
 
 WebDAV is a cross rather than a 🚧, and stays one. NextExplorer is a file
 browser, not a server: something you open and use, not something other software

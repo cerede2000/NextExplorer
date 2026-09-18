@@ -225,7 +225,7 @@ describe('moving the indexes out of app.db', () => {
         .pluck()
         .get()
     ).toBe(0);
-    expect(metaValue(app, 'schema_version')).toBe('23');
+    expect(metaValue(app, 'schema_version')).toBe('24');
 
     // And the index file holds the indexes only.
     const indexTables = tableNames(index);

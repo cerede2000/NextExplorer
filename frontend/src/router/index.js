@@ -17,6 +17,7 @@ import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsTwoFactor from '@/views/settings/SettingsTwoFactor.vue';
 import SettingsPasskeys from '@/views/settings/SettingsPasskeys.vue';
+import SettingsApiTokens from '@/views/settings/SettingsApiTokens.vue';
 import SettingsActivity from '@/views/settings/SettingsActivity.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
@@ -91,6 +92,7 @@ const router = createRouter({
             { path: 'account-password', component: SettingsPassword },
             { path: 'account-two-factor', component: SettingsTwoFactor },
             { path: 'account-passkeys', component: SettingsPasskeys },
+            { path: 'account-api-tokens', component: SettingsApiTokens },
             { path: 'user-preferences', component: SettingsUserPreferences },
             {
               path: 'access-control',

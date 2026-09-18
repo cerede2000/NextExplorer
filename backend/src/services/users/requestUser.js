@@ -25,6 +25,35 @@ const getRequestUser = async (req) => {
     return req.user;
   }
 
+  /**
+   * An API token names one account and nothing else about itself.
+   *
+   * Read before the session on purpose: a request that presents a token is a
+   * token's request, even if a browser cookie happened to ride along with it.
+   * The account is loaded fresh on every request, so a role taken away, or an
+   * account deleted, applies to the token at once — a token is never more than
+   * the account it belongs to, including a moment later.
+   */
+  if (req?.apiToken?.userId) {
+    const db = await getDb();
+    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.apiToken.userId);
+    if (!row) return null;
+    const user = toClientUser(withPersonalFolder(db, row));
+    if (user) {
+      // Which kind of account this is lives in `auth_methods` rather than on
+      // the row — the column that used to say so was carried there years ago.
+      const local = db
+        .prepare(
+          `SELECT 1 FROM auth_methods
+           WHERE user_id = ? AND method_type = 'local_password' AND enabled = 1
+           LIMIT 1`
+        )
+        .get(row.id);
+      user.provider = local ? 'local' : 'oidc';
+    }
+    return user;
+  }
+
   // Local session
   if (req?.session?.localUserId) {
     const db = await getDb();

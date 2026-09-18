@@ -20,6 +20,7 @@ import {
   TrashIcon,
   FingerPrintIcon,
   ClipboardDocumentListIcon,
+  CommandLineIcon,
 } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
@@ -69,6 +70,12 @@ const userCategories = [
     name: 'Passkeys',
     icon: FingerPrintIcon,
     requiresLocal: true,
+  },
+  {
+    key: 'account-api-tokens',
+    i18nKey: 'accountApiTokens',
+    name: 'API tokens',
+    icon: CommandLineIcon,
   },
   {
     key: 'user-preferences',

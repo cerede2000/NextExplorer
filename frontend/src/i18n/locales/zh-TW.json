@@ -507,7 +507,8 @@
       "trash": "資源回收筒和版本",
       "activity": "活動記錄",
       "accountTwoFactor": "兩步驗證",
-      "accountPasskeys": "通行金鑰"
+      "accountPasskeys": "通行金鑰",
+      "accountApiTokens": "API 權杖"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -887,8 +888,48 @@
         "file-upload": "上傳",
         "file-delete": "移至回收桶",
         "file-restore": "還原",
-        "file-purge": "永久刪除"
+        "file-purge": "永久刪除",
+        "account-token": "修改 API 權杖"
       }
+    },
+    "apiTokens": {
+      "title": "API 權杖",
+      "intro": "權杖讓指令稿代表你使用本伺服器，不需要密碼，也不需要瀏覽器。每個權杖都能單獨撤銷，任何權杖都不能修改你的帳戶或管理伺服器。",
+      "none": "此帳戶沒有權杖。",
+      "newToken": "新增權杖",
+      "nameLabel": "名稱",
+      "namePlaceholder": "備份指令稿",
+      "scopeLabel": "可以做什麼",
+      "scopeRead": "唯讀",
+      "scopeWrite": "讀寫",
+      "scopeReadHelp": "可以列出、搜尋與下載，不能修改任何內容。",
+      "scopeWriteHelp": "可以像你一樣操作檔案：上傳、移動、重新命名、刪除。",
+      "expiryLabel": "有效期限",
+      "expiryNever": "直到被撤銷",
+      "expiryDays": "{days} 天",
+      "confirmPassword": "你的密碼",
+      "create": "簽發權杖",
+      "rename": "重新命名",
+      "revoke": "撤銷",
+      "renamePrompt": "為這個權杖取一個新名稱",
+      "renamed": "權杖已重新命名。",
+      "revoked": "{name} 已撤銷，從現在起停止運作。",
+      "revokeConfirm": "撤銷 {name}？使用它的一切會立刻停止運作。",
+      "shownOnce": "這是權杖。它只顯示一次，之後無法再讀取——請立刻複製。",
+      "copy": "複製",
+      "copied": "已複製",
+      "useIt": "在每個請求中以這個標頭送出。",
+      "createdOn": "簽發於 {when}",
+      "lastUsed": "最後使用於 {when}，來自 {from}",
+      "neverUsed": "從未使用",
+      "unknownAddress": "未知位址",
+      "expiresOn": "{when} 到期",
+      "neverExpires": "永不到期",
+      "limits": "權杖的權限從不超過它所屬的帳戶，而且總是更少：它不能修改密碼、新增密碼金鑰、簽發另一個權杖、管理伺服器或開啟終端機。每個帳戶最多 50 個權杖。",
+      "loadFailed": "無法載入權杖。",
+      "createFailed": "無法簽發權杖。",
+      "renameFailed": "無法重新命名權杖。",
+      "revokeFailed": "無法撤銷權杖。"
     }
   },
   "share": {

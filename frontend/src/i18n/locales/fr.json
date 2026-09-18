@@ -510,7 +510,8 @@
       "trash": "Corbeille et versions",
       "activity": "Journal d’activité",
       "accountTwoFactor": "Double facteur",
-      "accountPasskeys": "Clés d’accès"
+      "accountPasskeys": "Clés d’accès",
+      "accountApiTokens": "Jetons d’API"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -890,8 +891,48 @@
         "file-upload": "Envoyé",
         "file-delete": "Mis à la corbeille",
         "file-restore": "Restauré",
-        "file-purge": "Supprimé définitivement"
+        "file-purge": "Supprimé définitivement",
+        "account-token": "Jeton d’API modifié"
       }
+    },
+    "apiTokens": {
+      "title": "Jetons d’API",
+      "intro": "Un jeton permet à un script d’utiliser ce serveur en votre nom, sans votre mot de passe et sans navigateur. Chacun se révoque séparément, et aucun ne peut modifier votre compte ni administrer le serveur.",
+      "none": "Aucun jeton sur ce compte.",
+      "newToken": "Nouveau jeton",
+      "nameLabel": "Nom",
+      "namePlaceholder": "Script de sauvegarde",
+      "scopeLabel": "Ce qu’il peut faire",
+      "scopeRead": "Lecture seule",
+      "scopeWrite": "Lecture et écriture",
+      "scopeReadHelp": "Il peut lister, chercher et télécharger. Il ne peut rien modifier.",
+      "scopeWriteHelp": "Il peut faire ce que vous faites avec les fichiers : envoyer, déplacer, renommer, supprimer.",
+      "expiryLabel": "Durée de vie",
+      "expiryNever": "Jusqu’à sa révocation",
+      "expiryDays": "{days} jours",
+      "confirmPassword": "Votre mot de passe",
+      "create": "Émettre le jeton",
+      "rename": "Renommer",
+      "revoke": "Révoquer",
+      "renamePrompt": "Un nouveau nom pour ce jeton",
+      "renamed": "Le jeton a été renommé.",
+      "revoked": "{name} est révoqué et cesse de fonctionner immédiatement.",
+      "revokeConfirm": "Révoquer {name} ? Tout ce qui l’utilise s’arrête aussitôt.",
+      "shownOnce": "Voici le jeton. Il n’est montré qu’une fois et ne pourra plus être relu — copiez-le maintenant.",
+      "copy": "Copier",
+      "copied": "Copié",
+      "useIt": "Envoyez-le comme cet en-tête à chaque requête.",
+      "createdOn": "Émis le {when}",
+      "lastUsed": "dernier usage le {when} depuis {from}",
+      "neverUsed": "jamais utilisé",
+      "unknownAddress": "une adresse inconnue",
+      "expiresOn": "expire le {when}",
+      "neverExpires": "sans expiration",
+      "limits": "Un jeton ne vaut jamais plus que le compte auquel il appartient, et toujours moins : il ne peut pas changer votre mot de passe, ajouter une clé d’accès, émettre un autre jeton, administrer le serveur ni ouvrir un terminal. Jusqu’à 50 jetons par compte.",
+      "loadFailed": "Les jetons n’ont pas pu être chargés.",
+      "createFailed": "Le jeton n’a pas pu être émis.",
+      "renameFailed": "Le jeton n’a pas pu être renommé.",
+      "revokeFailed": "Le jeton n’a pas pu être révoqué."
     }
   },
   "share": {

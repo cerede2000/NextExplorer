@@ -1,7 +1,9 @@
 const { getRequestUser } = require('../services/users');
 const { auth } = require('../config/index');
-const { ForbiddenError } = require('../errors/AppError');
+const { ForbiddenError, UnauthorizedError } = require('../errors/AppError');
 const logger = require('../utils/logger');
+const { applyApiToken } = require('./apiTokenAuth');
+const apiTokens = require('../services/apiTokens');
 
 /**
  * Whoever a request arrives as, when authentication is switched off.
@@ -152,6 +154,99 @@ const attachAuthenticatedUser = async (req, { throughIdentityProvider, requestPa
 };
 
 /**
+ * Say, once in a while, that a token this server knows was refused.
+ *
+ * Only tokens it knows: gibberish in an Authorization header is noise anybody
+ * can produce, and writing a line for each of those would turn the audit trail
+ * into a way to fill a disk. A revoked token still being presented, or one
+ * reaching for a door it may not open, is the opposite — it is the thing
+ * somebody would want to have been told.
+ */
+const reportRefusal = async (req, refused) => {
+  if (!refused?.tokenId) return;
+  if (!apiTokens.shouldReportRefusal(refused.tokenId)) return;
+  try {
+    const activityLog = require('../services/activityLog');
+    await activityLog.record({
+      action: 'sign-in',
+      outcome: 'refused',
+      actor: refused.name ? `token: ${refused.name}` : 'token',
+      target: req.path,
+      detail: { via: 'api-token', reason: refused.reason, token: refused.tokenId },
+      req,
+    });
+  } catch (error) {
+    logger.debug({ err: error }, 'Could not record a refused API token');
+  }
+};
+
+/** The one refusal every unusable token gets, whichever way it is unusable. */
+const notAValidToken = () =>
+  new UnauthorizedError('That API token is not valid.', 'AUTH_TOKEN_INVALID');
+
+/**
+ * Authenticate with the API token this request presented, if it presented one.
+ *
+ * @returns {{authenticated: boolean, error?: Error}} whether the caller is now
+ *   known, and what to refuse them with if they are not.
+ */
+const authenticateWithToken = async (req) => {
+  let outcome;
+  try {
+    outcome = await applyApiToken(req);
+  } catch (error) {
+    // A token that cannot be checked is not a token that is believed.
+    logger.warn({ err: error }, 'An API token could not be checked');
+    return { authenticated: false, error: notAValidToken() };
+  }
+
+  if (!outcome) return { authenticated: false };
+
+  if (!outcome.ok) {
+    await reportRefusal(req, outcome.refused);
+    return {
+      authenticated: false,
+      error:
+        outcome.status === 403 ? new ForbiddenError(outcome.error, outcome.code) : notAValidToken(),
+    };
+  }
+
+  req.apiToken = {
+    id: outcome.token.tokenId,
+    name: outcome.token.name,
+    scope: outcome.token.scope,
+    userId: outcome.token.userId,
+  };
+
+  const user = await getRequestUser(req);
+  if (!user) {
+    // The token is good and the account it named is gone. Refused as an
+    // invalid token, because from the caller's side that is what it is.
+    return { authenticated: false, error: notAValidToken() };
+  }
+
+  req.user = user;
+  return { authenticated: true };
+};
+
+/**
+ * The path, spelled the one way every decision below is written for.
+ *
+ * Express matches routes without regard to case, so `/API/Files/list` reaches
+ * the same handler `/api/files/list` does. Every check in this file compares a
+ * prefix, and a prefix compared as it arrived does not match that — so
+ * `/API/anything` answered the very first question ("does this need an
+ * identity?") with *no*, and walked past authentication entirely. It was not a
+ * way in: no session was attached either, so the routes that ask who is
+ * calling refused. It was worse than that — it was a gate that did not hold,
+ * in front of routes that are entitled to assume it did.
+ *
+ * Folded once, here, rather than at each of the comparisons below, because the
+ * one that gets forgotten is the one that matters.
+ */
+const pathForDecisions = (req) => (req.path || '').toLowerCase();
+
+/**
  * Who is calling, and whether they may be here at all.
  *
  * Four questions in order, each answerable on its own: what needs no identity,
@@ -163,7 +258,7 @@ const attachAuthenticatedUser = async (req, { throughIdentityProvider, requestPa
  * application serves.
  */
 const authMiddleware = async (req, res, next) => {
-  const requestPath = req.path || '';
+  const requestPath = pathForDecisions(req);
 
   if (needsNoIdentity(req, requestPath)) {
     next();
@@ -172,6 +267,19 @@ const authMiddleware = async (req, res, next) => {
 
   if (auth.enabled === false) {
     req.user = { ...ANONYMOUS_USER };
+    next();
+    return;
+  }
+
+  // A script's credential, before anything a browser carries. A request that
+  // presents a token is answered as that token, with that token's scope — a
+  // session cookie that happened to ride along does not widen it.
+  const withToken = await authenticateWithToken(req);
+  if (withToken.error) {
+    next(withToken.error);
+    return;
+  }
+  if (withToken.authenticated) {
     next();
     return;
   }

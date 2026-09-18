@@ -27,6 +27,7 @@ const ACTIONS = new Set([
   'account.password',
   'account.two-factor',
   'account.passkey',
+  'account.token',
   'admin.user',
   'admin.settings',
   'admin.activity-clear',

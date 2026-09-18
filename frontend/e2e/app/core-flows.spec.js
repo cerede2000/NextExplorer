@@ -527,6 +527,7 @@ test('no screen hides content where nothing can scroll', async () => {
     ['the search results', '/search?q=many', 'text=/many-\\d{3}\\.txt/'],
     ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
     ['the activity log in the settings', '/settings/activity', 'text=Activity log'],
+    ['the API tokens in the settings', '/settings/account-api-tokens', 'text=New token'],
     ['the trash', '/trash', 'body'],
   ];
 
@@ -623,6 +624,7 @@ test('nothing is hidden on a phone either', async () => {
       ['the editor on a long file', '/editor/Projects/wall-of-text.md', '.cm-content'],
       ['the search results', '/search?q=many', 'text=/many-\\d{3}\\.txt/'],
       ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
+      ['the API tokens in the settings', '/settings/account-api-tokens', 'text=New token'],
     ];
     for (const [what, route, marker] of screens) {
       await page.goto(route);
