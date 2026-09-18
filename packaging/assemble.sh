@@ -90,15 +90,18 @@ cp "$root/docker/healthcheck.js" "$stage/app/healthcheck.js"
 mkdir -p "$stage/app/src/public"
 cp -a "$root/frontend/dist/." "$stage/app/src/public/"
 
-# Three passengers, named one by one because a blanket rule took sharp's own
+# Four passengers, named one by one because a blanket rule took sharp's own
 # binaries with it. Nothing at runtime reads a dependency's coverage dump, and
 # one package ships 11 MB of it; `@types` is declaration files a type checker
 # reads and Node never opens; `@redis` and `ioredis` are the lock @tus/server
-# offers and this never asks for.
+# offers and this never asks for; `@babel` is the parser Vue's single-file
+# compiler needs — at build time, in a frontend that is already built by the
+# time any of this is packaged.
 find "$stage/app/node_modules" -type d \( -name coverage -o -name .nyc_output \) \
   -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$stage/app/node_modules/@types" \
-  "$stage/app/node_modules/@redis" "$stage/app/node_modules/ioredis"
+  "$stage/app/node_modules/@redis" "$stage/app/node_modules/ioredis" \
+  "$stage/app/node_modules/@babel"
 
 # --- The Node runtime, so nothing has to be installed first ------------------
 echo "==> Node $NODE_VERSION"

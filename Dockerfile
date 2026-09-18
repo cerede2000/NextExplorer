@@ -305,7 +305,7 @@ RUN --mount=from=backend_deps,source=/app,target=/deps \
     fi; \
     find node_modules -type d \( -name coverage -o -name .nyc_output \) \
       -prune -exec rm -rf {} +; \
-    rm -rf node_modules/@types node_modules/@redis node_modules/ioredis
+    rm -rf node_modules/@types node_modules/@redis node_modules/ioredis node_modules/@babel
 COPY --from=seven_zip /out/7z /usr/local/bin/7z
 COPY docker/verify-7zip-password.js ./verify-7zip-password.js
 # Verify both the RAR codec and the non-interactive password flow through the
