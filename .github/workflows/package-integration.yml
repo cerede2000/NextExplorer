@@ -23,8 +23,12 @@ jobs:
     uses: ./.github/workflows/build-image.yml
     with:
       channel: test
-      # amd64 only: this is a test image, and waiting on an arm64 build doubles
-      # the time between a push and something to try.
-      platforms: linux/amd64
+      # Both, now that each architecture builds on a runner of its own: they
+      # run side by side rather than one waiting on the other through
+      # emulation, so this no longer doubles the time between a push and
+      # something to try. It also means the release path — two architectures,
+      # a manifest assembled from digests — is exercised here before a release
+      # ever depends on it, and that an arm64 homelab can try the branch.
+      platforms: linux/amd64,linux/arm64
       cache_scope_prefix: integration-
     secrets: inherit

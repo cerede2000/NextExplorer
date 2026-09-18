@@ -43,42 +43,61 @@ env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
+  # Which architectures, on which runners. The caller says `linux/amd64` or
+  # `linux/amd64,linux/arm64`; this turns that into one job per architecture on
+  # a runner of that architecture, rather than one job emulating the other.
+  plan:
+    name: What to build
+    runs-on: ubuntu-24.04
+    outputs:
+      variants: ${{ steps.plan.outputs.variants }}
+      targets: ${{ steps.plan.outputs.targets }}
+    steps:
+      - name: Work out the matrix
+        id: plan
+        run: |
+          set -eu
+          # The full image carries hardware video acceleration and RAW photo
+          # support; the lean one leaves both out, which is a great deal
+          # smaller and all that is needed where neither is used. The lean
+          # image also builds its own ffmpeg with the encoders stripped: that
+          # build has no VA-API, which is exactly why it belongs to the variant
+          # that has already given it up.
+          cat >> "$GITHUB_OUTPUT" <<'VARIANTS'
+          variants=[{"name":"full","suffix":"","args":""},{"name":"lean","suffix":"-lean","args":"INCLUDE_VAAPI=false\nINCLUDE_RAW=false\nFFMPEG_VARIANT=source"}]
+          VARIANTS
+
+          targets='[]'
+          case '${{ inputs.platforms }}' in
+            *amd64*) targets='[{"platform":"linux/amd64","arch":"amd64","runner":"ubuntu-24.04"}]' ;;
+          esac
+          case '${{ inputs.platforms }}' in
+            *arm64*)
+              arm='{"platform":"linux/arm64","arch":"arm64","runner":"ubuntu-24.04-arm"}'
+              if [ "$targets" = '[]' ]; then targets="[$arm]"; else targets="${targets%]},$arm]"; fi
+              ;;
+          esac
+          if [ "$targets" = '[]' ]; then
+            echo "::error::No architecture in '${{ inputs.platforms }}'"
+            exit 1
+          fi
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Building on: $targets"
+
   build:
-    name: ${{ inputs.channel }} (${{ matrix.variant }})
-    runs-on: ubuntu-latest
-    # Three hours, which is far more than any of these takes, and it is the
-    # lean image on arm64 that needs the room. That variant compiles ffmpeg,
-    # and the release path builds arm64 under emulation on an amd64 runner:
-    # the same compile that takes seventeen minutes natively had not finished
-    # after forty-two, and the job was cut off at the old hour limit having
-    # published nothing.
-    #
-    # A ceiling is not a fix. The layer cache makes the second build skip the
-    # compile entirely, so this is only paid when that stage actually changes —
-    # but paying an hour for it is why building each architecture on a runner
-    # of its own is worth doing rather than emulating one of them.
-    timeout-minutes: 180
+    name: ${{ inputs.channel }} ${{ matrix.variant.name }} (${{ matrix.target.arch }})
+    needs: plan
+    runs-on: ${{ matrix.target.runner }}
+    # Generous rather than tight: the lean variant compiles ffmpeg, and a cold
+    # cache pays for that compile in full. Natively it is about seventeen
+    # minutes; emulated it went past forty and once past an hour, which is the
+    # reason each architecture now has a runner of its own.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # The full image carries hardware video acceleration and RAW photo
-          # support; the lean one leaves both out, which is a great deal smaller
-          # and all that is needed where neither is used.
-          #
-          # The lean image also builds its own ffmpeg, with the encoders
-          # stripped out. That build has no VA-API, which is exactly why it
-          # belongs here and not in the full image: this variant has already
-          # given up hardware acceleration, so it costs nothing it still has.
-          - variant: full
-            suffix: ''
-            extra_build_args: ''
-          - variant: lean
-            suffix: '-lean'
-            extra_build_args: |
-              INCLUDE_VAAPI=false
-              INCLUDE_RAW=false
-              FFMPEG_VARIANT=source
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+        target: ${{ fromJSON(needs.plan.outputs.targets) }}
     permissions:
       contents: read
       packages: write
@@ -88,11 +107,182 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Only the multi-architecture build needs emulation. A test image is
-      # amd64, and waiting on QEMU it will not use is time before something to try.
-      - name: Set up QEMU
-        if: contains(inputs.platforms, 'arm64')
-        uses: docker/setup-qemu-action@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Labels only. The tags belong to the manifest the next job assembles:
+      # what is pushed here is one architecture, named by its digest and by
+      # nothing else, so that no tag ever points at half an image.
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          pull: true
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.target.platform }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
+            REPO_URL=https://github.com/${{ github.repository }}
+            ${{ matrix.variant.args }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ inputs.push }}
+          # One scope per architecture as well as per variant: two builds
+          # sharing a scope would each throw away what the other put there.
+          # Renaming a scope costs one cold build, which is what the previous
+          # release paid anyway when the repository's cache hit its ceiling.
+          cache-from: type=gha,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant.name }}-${{ matrix.target.arch }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant.name }}-${{ matrix.target.arch }}
+          # The whole point of a refresh is the one layer the cache would be
+          # proudest of restoring: `runtime` is where apk installs ffmpeg,
+          # ripgrep, poppler and the rest, so a cached hit there would rebuild
+          # the image against the packages of the day it was first built and
+          # change nothing at all.
+          no-cache-filters: ${{ inputs.package_refresh && 'runtime' || '' }}
+
+      # Everything below runs on the architecture it is checking, which is new:
+      # emulated builds could only ever start the amd64 half, so nothing had
+      # ever run the arm64 image at all.
+      - name: Check the image names the commit it was built from
+        if: ${{ inputs.push }}
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          echo "Inspecting $IMAGE"
+          stamped="$(docker run --rm --entrypoint sh "$IMAGE" -c 'printf "%s" "$GIT_COMMIT"')"
+          if [ "$stamped" != "${{ github.sha }}" ]; then
+            echo "::error::The image is stamped $stamped but was built from ${{ github.sha }}"
+            exit 1
+          fi
+          echo "Stamped $stamped, which is the commit that was built."
+
+      # The entrypoint used to renumber `appuser` and chown the volume
+      # directories before dropping to it, all of which need root — so a
+      # container started as a fixed user died at the first `groupmod`, before
+      # the server existed. That is what Compose's `user:` gives, and what a
+      # Kubernetes cluster enforcing the restricted Pod Security Standard
+      # imposes. Reading the script is not proof; starting it is.
+      - name: Check the image starts as a non-root user
+        if: ${{ inputs.push }}
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          echo "Starting $IMAGE as 1000:1000"
+          if ! docker run --rm --user 1000:1000 "$IMAGE" node -e 'process.exit(0)'; then
+            echo "::error::The image does not start when the container is given a non-root user"
+            exit 1
+          fi
+          echo "Started, and the command it was given ran."
+
+          echo "Starting $IMAGE as root, which must still renumber and drop to appuser"
+          # Only the last line: the entrypoint narrates what it is doing on
+          # stdout, and those lines come out of the same pipe as the command's.
+          ran_as="$(docker run --rm -e PUID=1234 -e PGID=1234 "$IMAGE" node -e 'console.log(`${process.getuid()}:${process.getgid()}`)' | tail -n 1)"
+          if [ "$ran_as" != "1234:1234" ]; then
+            echo "::error::Started as root the process should run as PUID:PGID, but ran as $ran_as"
+            exit 1
+          fi
+          echo "Ran as $ran_as, which is the PUID:PGID that was asked for."
+
+      # Each variant ships its own ffmpeg — Alpine's package in the full image,
+      # one built from source in the lean one — and nothing proved either could
+      # read a HEIC. verify-ffmpeg.sh took HEVC in MP4 as standing for it, which
+      # it does not: an ffmpeg before 7.1 decodes the one and cannot open the
+      # other. So each image is handed a real HEIC, decodes it the way the
+      # thumbnail service does (docker/check-heic.cjs: ffmpeg to PNG, then
+      # sharp), and has to put red on the left and blue on the right: reading
+      # only one tile, or flipping it, moves those colours.
+      - name: Check the image's ffmpeg decodes a HEIC
+        if: ${{ inputs.push }}
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          pixels="$(docker run --rm --entrypoint node -w /app \
+              -v "$PWD/docker/check-heic.cjs:/tmp/check-heic.cjs:ro" \
+              -v "$PWD/backend/tests/fixtures/half-red-half-blue.heic:/tmp/photo.heic:ro" \
+              "$IMAGE" /tmp/check-heic.cjs /tmp/photo.heic)" || pixels=""
+          echo "Decoded, as R G B left then right: $pixels"
+          set -- $pixels
+          if [ "$#" -ne 6 ] || [ "$1" -lt 200 ] || [ "$3" -gt 60 ] || [ "$4" -gt 60 ] || [ "$6" -lt 200 ]; then
+            echo "::error::The image's ffmpeg did not decode the HEIC fixture to red on the left and blue on the right"
+            exit 1
+          fi
+          echo "Red on the left, blue on the right."
+
+      # A refresh that nobody can read is a ritual. This says what the image it
+      # just published actually carries, so the weekly run answers the question
+      # it exists for without anyone pulling the image to find out.
+      - name: Say what the refreshed image carries
+        if: ${{ inputs.package_refresh && inputs.push }}
+        continue-on-error: true
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "## ${{ matrix.variant.name }} (${{ matrix.target.arch }})"
+            echo
+            echo '```'
+            docker run --rm --entrypoint sh "$IMAGE" -c "ffmpeg -version | head -n 1; 7z 2>&1 | grep -m1 -i '7-zip'; apk info -v 2>/dev/null | sort"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Hand the digest to the merge
+        if: ${{ inputs.push }}
+        run: |
+          mkdir -p /tmp/digests
+          printf '%s' '${{ steps.build.outputs.digest }}' > "/tmp/digests/${{ matrix.target.arch }}"
+
+      - name: Keep it
+        if: ${{ inputs.push }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: digest-${{ inputs.channel }}-${{ matrix.variant.name }}-${{ matrix.target.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # The tags are created here and nowhere else: one manifest per variant,
+  # listing the architectures built above. Until this runs, the images exist
+  # only as digests, so a tag never points at an image missing an architecture
+  # — which is what a half-failed matrix would otherwise publish.
+  merge:
+    name: Publish ${{ matrix.variant.name }}
+    if: ${{ inputs.push }}
+    needs:
+      - plan
+      - build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Take the digests of this variant
+        uses: actions/download-artifact@v6
+        with:
+          pattern: digest-${{ inputs.channel }}-${{ matrix.variant.name }}-*
+          path: /tmp/digests
+          merge-multiple: true
 
       - name: Work out the tags this channel publishes
         id: spec
@@ -117,7 +307,6 @@ jobs:
               echo 'No version found in package.json; aborting.'
               exit 1
             fi
-
             # Git tags are written v3.1.0; image tags conventionally are not, and
             # `pull image:3.1.0` is what a reader of the release notes will type.
             # Publish both so neither form is a dead end. The variant suffix is
@@ -137,26 +326,14 @@ jobs:
             # and rename a tag that has always been test-lean-<sha>.
             {
               echo 'tags<<SPEC'
-              echo "type=raw,value=test${{ matrix.suffix }}"
-              echo "type=raw,value=test${{ matrix.suffix }}-${GITHUB_SHA}"
+              echo "type=raw,value=test${{ matrix.variant.suffix }}"
+              echo "type=raw,value=test${{ matrix.variant.suffix }}-${GITHUB_SHA}"
               echo SPEC
             } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-            ${{ inputs.channel == 'release' && env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
-          tags: ${{ steps.spec.outputs.tags }}
-          # onlatest applies the suffix to `latest` too, so the lean build
-          # publishes latest-lean rather than overwriting latest.
-          flavor: ${{ inputs.channel == 'release' && format('suffix={0},onlatest=true', matrix.suffix) || '' }}
 
       - name: Log in to Docker Hub
         if: ${{ inputs.channel == 'release' && env.DOCKERHUB_USERNAME != '' }}
@@ -173,120 +350,48 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
         with:
-          pull: true
-          context: .
-          file: ./Dockerfile
-          build-args: |
-            GIT_COMMIT=${{ github.sha }}
-            GIT_BRANCH=${{ github.ref_name }}
-            REPO_URL=https://github.com/${{ github.repository }}
-            ${{ matrix.extra_build_args }}
-          push: ${{ inputs.push }}
-          platforms: ${{ inputs.platforms }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # The scope names are the ones each channel already used: renaming one
-          # throws away a warm cache and makes the next build slow for nothing.
-          cache-from: type=gha,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant }}
-          # The whole point of a refresh is the one layer the cache would be
-          # proudest of restoring: `runtime` is where apk installs ffmpeg,
-          # ripgrep, poppler and the rest, so a cached hit there would rebuild
-          # the image against the packages of the day it was first built and
-          # change nothing at all. Only that stage is refused — the ffmpeg the
-          # lean variant compiles is pinned to a version and takes forty
-          # minutes, and rebuilding it weekly would buy nothing.
-          no-cache-filters: ${{ inputs.package_refresh && 'runtime' || '' }}
+          images: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+            ${{ inputs.channel == 'release' && env.DOCKERHUB_USERNAME != '' && format('docker.io/{0}/{1}', env.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
+          tags: ${{ steps.spec.outputs.tags }}
+          # onlatest applies the suffix to `latest` too, so the lean build
+          # publishes latest-lean rather than overwriting latest.
+          flavor: ${{ inputs.channel == 'release' && format('suffix={0},onlatest=true', matrix.variant.suffix) || '' }}
 
-      # An image that names a commit it was not built from makes diagnosis
-      # harder exactly when diagnosis matters: a startup banner said 06b739a
-      # while the code inside was demonstrably f3f0389, and an afternoon was
-      # spent reasoning about the wrong source. Rather than argue about how
-      # that happens, the build proves it did not.
-      - name: Check the image names the commit it was built from
-        if: ${{ inputs.push }}
+      - name: Create the manifest, on every registry at once
+        env:
+          SOURCE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
         run: |
-          tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
-          echo "Inspecting $tag"
-          stamped="$(docker run --rm --entrypoint sh "$tag" -c 'printf "%s" "$GIT_COMMIT"')"
-          if [ "$stamped" != "${{ github.sha }}" ]; then
-            echo "::error::The image is stamped $stamped but was built from ${{ github.sha }}"
-            exit 1
-          fi
-          echo "Stamped $stamped, which is the commit that was built."
+          set -eu
+          ls -la /tmp/digests
+          sources=""
+          for file in /tmp/digests/*; do
+            sources="$sources $SOURCE@$(cat "$file")"
+          done
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ steps.meta.outputs.json }}') \
+            $sources
 
-      # A refresh that nobody can read is a ritual. This says what the image
-      # it just published actually carries, so the weekly run answers the
-      # question it exists for — which version of ffmpeg, of 7-Zip, of
-      # everything — without anyone pulling the image to find out.
-      - name: Say what the refreshed image carries
-        if: ${{ inputs.package_refresh && inputs.push }}
-        continue-on-error: true
+      # A tag that points at one architecture is the failure this arrangement
+      # exists to prevent, so it is read back rather than assumed.
+      - name: The manifest carries what was built
+        env:
+          EXPECTED: ${{ inputs.platforms }}
         run: |
+          set -eu
           tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
-          {
-            echo "## ${{ matrix.variant }}"
-            echo
-            echo '```'
-            docker run --rm --entrypoint sh "$tag" -c "ffmpeg -version | head -n 1; 7z 2>&1 | grep -m1 -i '7-zip'; apk info -v 2>/dev/null | sort"
-            echo '```'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-
-      # The entrypoint used to renumber `appuser` and chown the volume
-      # directories before dropping to it, all of which need root — so a
-      # container started as a fixed user died at the first `groupmod`, before
-      # the server existed. That is what Compose's `user:` gives, and what a
-      # Kubernetes cluster enforcing the restricted Pod Security Standard
-      # imposes. Reading the script is not proof; starting it is.
-      - name: Check the image starts as a non-root user
-        if: ${{ inputs.push }}
-        run: |
-          tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
-          echo "Starting $tag as 1000:1000"
-          if ! docker run --rm --user 1000:1000 "$tag" node -e 'process.exit(0)'; then
-            echo "::error::The image does not start when the container is given a non-root user"
-            exit 1
-          fi
-          echo "Started, and the command it was given ran."
-
-          echo "Starting $tag as root, which must still renumber and drop to appuser"
-          # Only the last line: the entrypoint narrates what it is doing on
-          # stdout, and those lines come out of the same pipe as the command's.
-          ran_as="$(docker run --rm -e PUID=1234 -e PGID=1234 "$tag" node -e 'console.log(`${process.getuid()}:${process.getgid()}`)' | tail -n 1)"
-          if [ "$ran_as" != "1234:1234" ]; then
-            echo "::error::Started as root the process should run as PUID:PGID, but ran as $ran_as"
-            exit 1
-          fi
-          echo "Ran as $ran_as, which is the PUID:PGID that was asked for."
-
-      # Each variant ships its own ffmpeg — Alpine's package in the full image,
-      # one built from source in the lean one — and nothing proved either could
-      # read a HEIC. verify-ffmpeg.sh took HEVC in MP4 as standing for it, which
-      # it does not: an ffmpeg before 7.1 decodes the one and cannot open the
-      # other. So each image is handed a real HEIC, decodes it the way the
-      # thumbnail service does (docker/check-heic.cjs: ffmpeg to PNG, then
-      # sharp), and has to put red on the left and blue on the right: reading
-      # only one tile, or flipping it, moves those colours. PNG and not a raw
-      # dump because the lean ffmpeg is built without the encoders it does not
-      # need, and a raw dump is one of them — the first version of this check
-      # failed on that, not on the HEIC.
-      - name: Check the image's ffmpeg decodes a HEIC
-        if: ${{ inputs.push }}
-        run: |
-          tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
-          pixels="$(docker run --rm --entrypoint node -w /app \
-              -v "$PWD/docker/check-heic.cjs:/tmp/check-heic.cjs:ro" \
-              -v "$PWD/backend/tests/fixtures/half-red-half-blue.heic:/tmp/photo.heic:ro" \
-              "$tag" /tmp/check-heic.cjs /tmp/photo.heic)" || pixels=""
-          # Under bash -e a failed run would stop the step here, before the
-          # message below says what it was checking; the empty answer fails it.
-          echo "Decoded, as R G B left then right: $pixels"
-          set -- $pixels
-          if [ "$#" -ne 6 ] || [ "$1" -lt 200 ] || [ "$3" -gt 60 ] || [ "$4" -gt 60 ] || [ "$6" -lt 200 ]; then
-            echo "::error::The image's ffmpeg did not decode the HEIC fixture to red on the left and blue on the right"
-            exit 1
-          fi
-          echo "Red on the left, blue on the right."
+          echo "Reading $tag"
+          got="$(docker buildx imagetools inspect "$tag" --format '{{range .Manifest.Manifests}}{{if ne .Platform.Architecture "unknown"}}{{.Platform.OS}}/{{.Platform.Architecture}} {{end}}{{end}}')"
+          echo "The manifest lists: $got"
+          for platform in $(printf '%s' "$EXPECTED" | tr ',' ' '); do
+            case " $got " in
+              *" $platform "*) ;;
+              *) echo "::error::$tag does not carry $platform"; exit 1 ;;
+            esac
+          done
+          echo "Every architecture that was asked for is in the manifest."
