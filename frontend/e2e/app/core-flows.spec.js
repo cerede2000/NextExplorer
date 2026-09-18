@@ -516,15 +516,15 @@ test('no screen hides content where nothing can scroll', async () => {
     Array.from({ length: 900 }, (_, line) => `line ${line + 1}`).join('\n')
   );
 
-  // A marker that is certainly rendered: the folder listing draws only the
-  // rows in view, so the three-hundredth file is not in the page until
-  // somebody scrolls to it — which is the thing under test rather than a
-  // precondition for it.
+  // Markers that do not depend on which rows happen to be drawn: the folder
+  // listing renders only what is in view and in whatever order it was last
+  // sorted, so naming one file is a coin toss — any of the three hundred
+  // proves the screen is there.
   const screens = [
     ['the dashboard, with thirty volumes', '/browse/', 'text=Volume-30'],
-    ['a folder of three hundred files', '/browse/Projects', 'text=many-001.txt'],
+    ['a folder of three hundred files', '/browse/Projects', 'text=/many-\\d{3}\\.txt/'],
     ['the editor on a long file', '/editor/Projects/wall-of-text.md', '.cm-content'],
-    ['the search results', '/search?q=many', 'text=many-001.txt'],
+    ['the search results', '/search?q=many', 'text=/many-\\d{3}\\.txt/'],
     ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
     ['the activity log in the settings', '/settings/activity', 'text=Activity log'],
     ['the trash', '/trash', 'body'],
@@ -557,11 +557,13 @@ test('no screen hides content where nothing can scroll', async () => {
  * one is filled with more than fits before it is looked at.
  */
 test('no panel or dialog hides content where nothing can scroll', async () => {
-  const file = 'many-001.txt';
+  // Whichever row the listing drew, rather than one named in advance: it
+  // renders what is in view, in the order it was last sorted.
+  const aRow = () => page.getByRole('button', { name: /^Select many-/ }).first();
   const rightClick = async () => {
     await page.goto('/browse/Projects');
-    await expect(page.getByRole('button', { name: `Select ${file}` })).toBeVisible();
-    await page.getByRole('button', { name: `Select ${file}` }).click({ button: 'right' });
+    await expect(aRow()).toBeVisible();
+    await aRow().click({ button: 'right' });
   };
 
   const surfaces = [
@@ -578,7 +580,8 @@ test('no panel or dialog hides content where nothing can scroll', async () => {
       'the share dialog',
       async () => {
         await page.goto('/browse/Projects');
-        await page.getByRole('button', { name: `Select ${file}` }).click();
+        await expect(aRow()).toBeVisible();
+        await aRow().click();
         await page.getByRole('button', { name: 'Share selected item' }).click();
       },
       'role=dialog',
@@ -616,9 +619,9 @@ test('nothing is hidden on a phone either', async () => {
   try {
     const screens = [
       ['the dashboard', '/browse/', 'text=Volume-30'],
-      ['a folder of three hundred files', '/browse/Projects', 'text=many-001.txt'],
+      ['a folder of three hundred files', '/browse/Projects', 'text=/many-\\d{3}\\.txt/'],
       ['the editor on a long file', '/editor/Projects/wall-of-text.md', '.cm-content'],
-      ['the search results', '/search?q=many', 'text=many-001.txt'],
+      ['the search results', '/search?q=many', 'text=/many-\\d{3}\\.txt/'],
       ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
     ];
     for (const [what, route, marker] of screens) {
