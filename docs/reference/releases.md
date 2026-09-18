@@ -6,6 +6,50 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.8.1 (2026-09-18)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.8.1)
+
+### Four places where content had nowhere to go
+
+[Issue #10](https://github.com/cerede2000/NextExplorer/issues/10) reported that
+a Markdown or YAML file longer than the window could not be scrolled in Firefox.
+Measured in both engines, Firefox was not the fault: it was broken everywhere.
+
+- **The editor.** CodeMirror grows with its document unless it is told to fill
+  its host, so a 900-line file drew an editor 20,000 px tall inside a page whose
+  root clips at the window. There was no viewport anywhere and the wheel moved
+  nothing in any browser. What differed between engines was only what the
+  keyboard did — moving the caret scrolls a clipping container by as much as
+  each one chooses, 57 px a press in one and 9,747 in the other — which is what
+  made it read as a browser quirk.
+- **The search results showed ten matches of a hundred.** Every other list here
+  scrolls its own list; this one drew all of them into a box that clips, with no
+  scrollbar anywhere.
+- **The dashboard clipped its last volumes**: 460 px of 1,120 unreachable at
+  thirty-one volumes, which is a number of mounts an ordinary NAS has.
+- **The sidebar could only be scrolled by a pointer hovering it**, because that
+  is how its scrollbar was hidden — `overflow-y: hidden` until `:hover`. On a
+  touch screen nothing hovers, so 897 px of it had no way in at all. The
+  scrollbar is still hidden until hover; the scrolling is not.
+
+The last three were found by looking for the shape rather than the case:
+content taller than its box, with nothing scrollable between it and the first
+ancestor that clips.
+
+### The search is what is left behind
+
+Three tests now fill the installation with more than fits — thirty volumes,
+three hundred files, a nine-hundred-line file, a hundred search results — and
+walk the screens, the panels and dialogs that open on top of them, and all of it
+again at a phone's size. Any box taller than its content with no way to reach
+the rest fails the build, naming the screen, the element and the pixels lost.
+Four fixture tests cover the editor's own contract, and they run in Firefox as
+well as Chromium, because this was reported against Firefox and only a second
+engine could say whether that mattered.
+
+All of them fail on the old code.
+
 ## v3.8.0 (2026-09-18)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.8.0)
