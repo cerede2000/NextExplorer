@@ -394,6 +394,51 @@ test('a shared file sent to the trash comes back with its link', async ({ browse
 });
 
 /**
+ * A file longer than the window has to be reachable in the editor.
+ *
+ * Reported as #10, against Firefox, and it was broken in every browser:
+ * CodeMirror grows with its document unless it is told to fill its host, and
+ * the page's own root clips. So a 900-line file drew 20,000 px of editor with
+ * no viewport anywhere to scroll, and the wheel moved nothing.
+ *
+ * The component's side of this is covered in two engines by
+ * `e2e/editor-scroll.spec.js`. What only the real view can show is the other
+ * half: that the chain of heights from the page down to the editor is
+ * unbroken, which is one `min-h-0` away from being false again.
+ */
+test('a file longer than the window scrolls inside the editor', async () => {
+  const file = path.join(volume, 'long-notes.md');
+  fs.writeFileSync(
+    file,
+    Array.from({ length: 900 }, (_, index) => `line ${index + 1} of a long file`).join('\n')
+  );
+
+  await page.goto('/editor/Projects/long-notes.md');
+  const scroller = page.locator('.cm-scroller');
+  await expect(page.locator('.cm-content')).toContainText('line 1 of a long file');
+
+  const sizes = await scroller.evaluate((el) => ({
+    visible: el.clientHeight,
+    document: el.scrollHeight,
+  }));
+  // A viewport over the document rather than the whole of it.
+  expect(sizes.visible).toBeLessThan(sizes.document / 4);
+
+  const box = await scroller.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 1500);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(50);
+
+  // And the page itself still clips nothing: whatever the editor does not
+  // show is inside it, not hanging off the bottom of the window.
+  const overflow = await page.evaluate(() => {
+    const root = document.querySelector('#app > div');
+    return root.scrollHeight - root.clientHeight;
+  });
+  expect(overflow).toBeLessThanOrEqual(2);
+});
+
+/**
  * Every save in the editor keeps what it replaced. From a right click, the
  * Versions panel lists those versions and puts an earlier one back — and what
  * the restore replaced is kept in turn, so restoring the wrong one loses

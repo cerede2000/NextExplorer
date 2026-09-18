@@ -56,6 +56,19 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
     },
+    // The editor's scrolling was reported as a Firefox fault (#10) and was in
+    // fact broken everywhere, but what the keyboard did differed by engine —
+    // so it is checked in a second engine rather than only in Chromium. Just
+    // this one spec: the rest of the fixtures are tuned to Chromium's
+    // viewports and codecs, and failures there would say nothing about them.
+    {
+      name: 'editor-firefox',
+      testMatch: /editor-scroll\.spec\.js/,
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1280, height: 720 },
+      },
+    },
     // What someone actually does with the application, end to end: set it up,
     // sign in, open a volume, upload, share. English is pinned because the
     // interface follows the browser's language and the labels are asserted.

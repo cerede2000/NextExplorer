@@ -10,6 +10,25 @@ import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 
 /**
+ * The editor fills its host, and scrolls inside it.
+ *
+ * Without this CodeMirror grows with the document — `.cm-editor` was 20,000 px
+ * tall for a 900-line file — and there is no viewport to scroll: the page's own
+ * root is `h-screen overflow-hidden`, so everything past the first screen was
+ * simply clipped. The wheel moved nothing in any browser; what differed between
+ * them was only what the keyboard did, because moving the caret scrolls a
+ * hidden container by as much as each engine feels like.
+ *
+ * `&` is the editor itself in CodeMirror's theme syntax. Written as an
+ * extension rather than as a stylesheet rule so it travels with the component
+ * and cannot be undone by the order two stylesheets happen to load in.
+ */
+const fillsItsHost = EditorView.theme({
+  '&': { height: '100%' },
+  '.cm-scroller': { overflow: 'auto' },
+});
+
+/**
  * CodeMirror, without a copy of the whole document on every keystroke.
  *
  * The editor used vue-codemirror's `v-model`. Every change made it turn the
@@ -64,6 +83,7 @@ onMounted(() => {
     doc: props.content,
     extensions: [
       basicSetup,
+      fillsItsHost,
       keymap.of([indentWithTab]),
       EditorState.tabSize.of(2),
       trackChanges,

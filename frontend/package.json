@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
-    "pretest:e2e": "playwright install chromium",
+    "pretest:e2e": "playwright install chromium firefox",
     "test:e2e": "playwright test --config playwright.config.js",
     "lint": "eslint . --fix",
     "format": "prettier --config ../prettier.config.cjs --write .",
