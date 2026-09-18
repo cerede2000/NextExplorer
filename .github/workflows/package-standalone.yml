@@ -178,6 +178,162 @@ jobs:
           test -e /etc/nextexplorer/nextexplorer.env
           systemctl is-active nextexplorer && { echo "still running"; exit 1; } || true
 
+  # The documentation's own procedure, run as written. A page that tells
+  # somebody to install by hand is a promise about the archive, and this is
+  # what keeps the two from drifting: the commands are lifted out of the page
+  # rather than copied here.
+  by-hand:
+    name: The procedure in the documentation
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Take the archive
+        uses: actions/download-artifact@v6
+        with:
+          name: standalone-x64
+          path: artifact
+
+      - name: Unpack
+        run: |
+          set -eux
+          tar -xzf artifact/*.tar.gz
+          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)")" >> "$GITHUB_ENV"
+
+      - name: Lift the commands out of the page
+        run: |
+          set -eu
+          python3 - <<'PY' > /tmp/by-hand.sh
+          import pathlib, re
+          page = pathlib.Path('docs/installation/standalone.md').read_text(encoding='utf-8')
+          body = page.split('<!-- by-hand:start -->')[1].split('<!-- by-hand:end -->')[0]
+          blocks = re.findall(r'```sh\n(.*?)```', body, re.S)
+          assert len(blocks) >= 4, f'only {len(blocks)} blocks found between the markers'
+          print('set -eux')
+          print('\n'.join(blocks))
+          PY
+          cat /tmp/by-hand.sh
+
+      - name: Run them, from inside the archive as the page says
+        run: |
+          set -eux
+          cd "$RELEASE_DIR"
+          bash /tmp/by-hand.sh
+          systemctl is-active --quiet nextexplorer
+
+      - name: A volume, the way the page adds one
+        run: |
+          set -eux
+          sudo install -d -o nextexplorer -g nextexplorer /srv/nextexplorer/Files
+          sudo systemctl restart nextexplorer
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/api/features | grep -q '"app":"'"$(cat "$RELEASE_DIR/VERSION")"'"'
+
+      - name: What the program directory looks like before it is used
+        run: |
+          set -eu
+          sudo find /opt/nextexplorer -type f -exec sha256sum {} + | sort > /tmp/before.sums
+          wc -l < /tmp/before.sums
+
+      - name: Use it — an account, an upload, a thumbnail
+        run: |
+          set -eux
+          jar=/tmp/cookies
+          curl -fsS -c $jar -b $jar -X POST http://127.0.0.1:3000/api/auth/setup \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"owner@example.test","username":"owner","password":"secret123"}' \
+            -o /dev/null
+          # A real PNG, so the image processor has something to do.
+          printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==' \
+            | base64 -d > /tmp/probe.png
+          curl -fsS -c $jar -b $jar -X POST \
+            "http://127.0.0.1:3000/api/upload?uploadTo=Files&relativePath=probe.png" \
+            -F "filedata=@/tmp/probe.png" -o /dev/null
+          sudo test -f /srv/nextexplorer/Files/probe.png
+          curl -fsS -c $jar -b $jar "http://127.0.0.1:3000/api/thumbnails/Files/probe.png" -o /dev/null
+          # The database and the cache are where the configuration puts them.
+          sudo test -f /var/lib/nextexplorer/app.db
+          sudo find /var/cache/nextexplorer -type f | head -3
+
+      - name: And the program directory is exactly as it was
+        run: |
+          set -eu
+          sudo find /opt/nextexplorer -type f -exec sha256sum {} + | sort > /tmp/after.sums
+          if ! diff -u /tmp/before.sums /tmp/after.sums; then
+            echo "Something under /opt/nextexplorer changed while the application ran."
+            exit 1
+          fi
+          echo "Not one file changed, and none appeared."
+
+      - name: Removing it by hand leaves the data
+        run: |
+          set -eux
+          sudo systemctl disable --now nextexplorer
+          sudo rm -f /etc/systemd/system/nextexplorer.service
+          sudo systemctl daemon-reload
+          sudo rm -rf /opt/nextexplorer
+          sudo test -f /var/lib/nextexplorer/app.db
+          sudo test -f /srv/nextexplorer/Files/probe.png
+
+  # The other half of what the page offers: somebody who would rather keep one
+  # Node for the machine deletes the runtime and points at their own. It only
+  # works on the major the native modules were built for, and that is the whole
+  # reason this job exists.
+  system-node:
+    name: With the machine's own Node 24
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: A Node of the machine's own
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24.21.0'
+
+      - name: Take the archive
+        uses: actions/download-artifact@v6
+        with:
+          name: standalone-x64
+
+      - name: Unpack, and throw the bundled runtime away
+        run: |
+          set -eux
+          tar -xzf ./*.tar.gz
+          dir="$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)"
+          du -sh "$dir" "$dir/runtime"
+          rm -rf "$dir/runtime"
+          du -sh "$dir"
+          echo "RELEASE_DIR=$(realpath "$dir")" >> "$GITHUB_ENV"
+
+      - name: Run it with that Node
+        run: |
+          set -eux
+          node -v
+          mkdir -p /tmp/data/config /tmp/data/cache /tmp/data/volumes/Files
+          cd "$RELEASE_DIR/app"
+          CONFIG_DIR=/tmp/data/config CACHE_DIR=/tmp/data/cache \
+          VOLUME_ROOT=/tmp/data/volumes SESSION_SECRET=a-secret-for-this-job \
+          PATH="$RELEASE_DIR/bin:$PATH" \
+            node src/server.js > /tmp/server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/health || { cat /tmp/server.log; exit 1; }
+          features="$(curl -fsS http://127.0.0.1:3000/api/features)"
+          echo "$features" | grep -q '"app":"'"$(cat "$RELEASE_DIR/VERSION")"'"'
+          # The three native modules loaded under a runtime that did not come
+          # with them, which is the claim being tested.
+          if grep -qE 'MODULE_NOT_FOUND|NODE_MODULE_VERSION|invalid ELF|cannot open shared object' /tmp/server.log; then
+            cat /tmp/server.log
+            exit 1
+          fi
+          echo "$features" | grep -q '"rar"'
+
   # A bare distribution image, where nothing is installed and the package
   # manager has to do its part. No systemd in here, so the service is started
   # by hand; what is under test is the dependency step and that the payload
@@ -260,6 +416,8 @@ jobs:
     needs:
       - install
       - bare
+      - by-hand
+      - system-node
     runs-on: ubuntu-24.04
     permissions:
       contents: write

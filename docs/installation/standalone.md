@@ -55,6 +55,162 @@ program and the service and keeps every file of yours.
 The first three are remembered in the configuration file. Later runs read it
 rather than asking again, so an update cannot quietly move your port.
 
+## Installing it by hand
+
+The script is a convenience and not a requirement. It does eight things, and
+here they are — nothing below differs from what it would have done. The
+commands are run in CI on every release, taken from this page, so the
+procedure cannot drift from the archive it describes.
+
+Run them from inside the unpacked archive.
+
+<!-- by-hand:start -->
+
+**The account it will run as.** It owns nothing in the program directory: the
+program belongs to root, and is read-only to the service.
+
+```sh
+sudo groupadd --system nextexplorer
+sudo useradd --system --gid nextexplorer --home-dir /var/lib/nextexplorer \
+  --shell /usr/sbin/nologin --comment NextExplorer nextexplorer
+```
+
+**The program**, and the directories that hold what is yours.
+
+```sh
+sudo mkdir -p /opt/nextexplorer /etc/nextexplorer
+sudo cp -a app runtime bin /opt/nextexplorer/
+sudo chmod -R a+rX /opt/nextexplorer
+
+sudo install -d -o nextexplorer -g nextexplorer \
+  /var/lib/nextexplorer /var/cache/nextexplorer /srv/nextexplorer
+```
+
+**The configuration.** The example in the archive is the whole of it, with four
+paths to fill in. Read it afterwards: everything in it is commented, and
+nothing else has to be set.
+
+```sh
+sed -e 's|@PORT@|3000|' \
+    -e 's|@VOLUME_ROOT@|/srv/nextexplorer|' \
+    -e 's|@CONFIG_DIR@|/var/lib/nextexplorer|' \
+    -e 's|@CACHE_DIR@|/var/cache/nextexplorer|' \
+    config.env.example | sudo tee /etc/nextexplorer/nextexplorer.env > /dev/null
+sudo chown root:nextexplorer /etc/nextexplorer/nextexplorer.env
+sudo chmod 0640 /etc/nextexplorer/nextexplorer.env
+```
+
+**The service.** Same idea: the unit in the archive with its paths filled in.
+
+```sh
+sed -e 's|@USER@|nextexplorer|g' \
+    -e 's|@GROUP@|nextexplorer|g' \
+    -e 's|@PROGRAM_DIR@|/opt/nextexplorer|g' \
+    -e 's|@ENV_FILE@|/etc/nextexplorer/nextexplorer.env|g' \
+    -e 's|@STATE_DIR@|/var/lib/nextexplorer|g' \
+    -e 's|@CACHE_DIR@|/var/cache/nextexplorer|g' \
+    -e 's|@VOLUME_ROOT@|/srv/nextexplorer|g' \
+    nextexplorer.service.in | sudo tee /etc/systemd/system/nextexplorer.service > /dev/null
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now nextexplorer
+```
+
+<!-- by-hand:end -->
+
+That is the installation. The optional tools below are the ninth thing, and
+they can be installed at any time — including never.
+
+### Updating by hand
+
+Your data is in the two directories and the volumes, so an update is the
+program and nothing else:
+
+```sh
+sudo systemctl stop nextexplorer
+sudo rm -rf /opt/nextexplorer/app /opt/nextexplorer/runtime /opt/nextexplorer/bin
+sudo cp -a app runtime bin /opt/nextexplorer/      # from the new archive
+sudo chmod -R a+rX /opt/nextexplorer
+sudo systemctl start nextexplorer
+```
+
+Removed rather than copied over: a file that left the release should stop being
+installed. The database carries its own version and migrates itself at the
+first start.
+
+### Removing it by hand
+
+```sh
+sudo systemctl disable --now nextexplorer
+sudo rm -f /etc/systemd/system/nextexplorer.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/nextexplorer
+```
+
+Your configuration, database and files are in `/etc/nextexplorer`,
+`/var/lib/nextexplorer`, `/var/cache/nextexplorer` and the volumes, and are
+still there. Remove those four yourself if you mean to.
+
+### Without installing anything at all
+
+To try it, or to keep the whole thing inside one folder you can delete: unpack
+it anywhere and run it, with the data somewhere of your choosing.
+
+```sh
+cd nextexplorer-<version>-linux-<arch>/app
+CONFIG_DIR="$HOME/nextexplorer/config" \
+CACHE_DIR="$HOME/nextexplorer/cache" \
+VOLUME_ROOT="$HOME/nextexplorer/volumes" \
+PATH="$PWD/../bin:$PATH" \
+../runtime/bin/node src/server.js
+```
+
+Uninstalling is `rm -rf` on the folder you unpacked. Nothing was installed
+anywhere else: no account, no unit, nothing under `/etc`.
+
+### Using the Node you already have
+
+The runtime travels in the archive so that nothing has to be installed first.
+If you would rather keep one Node for the whole machine, delete `runtime/` —
+121 MB of the 263 the archive unpacks to — and point the unit at yours:
+
+```ini
+ExecStart=/usr/bin/node src/server.js
+```
+
+One condition, and it is not negotiable: **Node 24**. The three native modules
+in the tree — the SQLite driver, the image processor and the terminal — are
+prebuilt for its ABI, and another major will refuse to load them with
+`NODE_MODULE_VERSION`. Most distributions package an older one: Debian 13 has
+20.19, Ubuntu 24.04 has 18.19, Fedora 42's default is 22.21 — though Fedora
+also carries a `nodejs24` package, which is the one to install there. Elsewhere
+that means NodeSource or the tarball from nodejs.org.
+
+### What else can be thrown away
+
+|                                       |                                                         |
+| ------------------------------------- | ------------------------------------------------------- |
+| `runtime/`                            | 121 MB — only if you provide Node 24 yourself, as above |
+| `app/node_modules/exiftool-vendored*` | 23 MB — the metadata of RAW photos, and nothing else    |
+
+The rest is load-bearing: the image processor and its libvips are 18 MB, the
+SQLite driver 12 MB, the built interface 7 MB, and 7-Zip 3.6 MB.
+
+### The program directory is read-only
+
+Nothing the application writes goes into it. The database, the keys and the
+sessions go to `CONFIG_DIR`, thumbnails and the search index to `CACHE_DIR`,
+and files to a volume — all three set in the configuration, all three outside
+the program. The layout above makes that a fact rather than an intention: the
+program belongs to root, the service runs as `nextexplorer`, and the unit's
+`ProtectSystem=strict` leaves the filesystem read-only to it apart from the
+three paths it names.
+
+It is checked rather than asserted. On every release the procedure on this page
+is run, an account is created, a file uploaded and a thumbnail drawn — and then
+a checksum of every file in the program directory is compared with the one
+taken before it started.
+
 ## The five optional tools
 
 Each one is a feature the application does without when it is absent, and each

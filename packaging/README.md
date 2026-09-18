@@ -13,6 +13,14 @@ That makes a system account, puts the program in `/opt/nextexplorer`, writes
 `/etc/nextexplorer/nextexplorer.env`, and starts a systemd service. Open the
 address it prints and make the first account.
 
+**Prefer not to run a script?** The guide has the same thing as eight commands
+you can read first — `groupadd`, `cp`, two `sed`, `systemctl` — and the page is
+what CI runs on every release, so it cannot drift from this archive. It also
+covers running the program straight out of this folder, with no account, no
+unit and nothing under `/etc`, so that `rm -rf` on the folder is the whole
+uninstall; and using a Node you installed yourself, if you would rather not
+keep the bundled one.
+
 Five optional tools come from your distribution — video thumbnails, fast
 content search, text out of PDFs, RAW metadata, and copying with progress. The
 script says which are missing, what each one buys, and offers to install them.
