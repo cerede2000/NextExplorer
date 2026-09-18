@@ -102,7 +102,14 @@ function toIconItem(it) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <!--
+    A column of the height it was given, so the list below can be a viewport
+    over the results rather than the whole of them. The content area this sits
+    in clips, and every other view that lists things does the same thing: the
+    trash, both share lists and the folder listing all scroll their own list.
+    This one did not, and a hundred results showed ten.
+  -->
+  <div class="flex h-full min-h-0 flex-col gap-3">
     <div class="text-sm text-neutral-600 dark:text-neutral-300">
       <span v-if="q">{{ $t('search.resultsFor', { q }) }}</span>
       <span v-if="basePath">
@@ -124,7 +131,7 @@ function toIconItem(it) {
 
     <div
       v-else
-      class="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800 rounded-md overflow-hidden"
+      class="min-h-0 flex-1 divide-y divide-neutral-200 overflow-y-auto rounded-md dark:divide-neutral-800"
     >
       <div
         v-for="it in items"

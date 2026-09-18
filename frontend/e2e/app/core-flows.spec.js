@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { findUnreachableContent } from './unreachable.js';
 
 /**
  * The journey one person takes through a fresh install, in order: set it up,
@@ -483,4 +484,66 @@ test('an earlier version of a file edited in the browser comes back from the Ver
   await expect(page.getByText('Version restored')).toBeVisible();
   // What the restore replaced is a version now, beside the two there were.
   await expect(rows).toHaveCount(3);
+});
+
+/**
+ * No screen may hide content where nothing can scroll.
+ *
+ * This is the last test on purpose: it fills the installation with more than
+ * fits — thirty volumes, three hundred files, a nine-hundred-line file — and
+ * then looks at every screen for the shape of the defect reported as #10
+ * rather than for the defect itself. That shape is content taller than its box
+ * with nothing scrollable between it and the first ancestor that clips, and
+ * looking for it found three more the day #10 was fixed: the search results
+ * showed ten of a hundred matches, the dashboard clipped its last volumes, and
+ * the sidebar could only be scrolled by a pointer that hovered it.
+ *
+ * A screen that does not load proves nothing, so each one names something that
+ * has to be on it before it is judged.
+ */
+test('no screen hides content where nothing can scroll', async () => {
+  const volumes = path.join(process.env.E2E_ROOT, 'volumes');
+  for (let index = 1; index <= 30; index += 1) {
+    const extra = path.join(volumes, `Volume-${String(index).padStart(2, '0')}`);
+    fs.mkdirSync(extra, { recursive: true });
+    fs.writeFileSync(path.join(extra, 'one.txt'), 'x');
+  }
+  for (let index = 1; index <= 300; index += 1) {
+    fs.writeFileSync(path.join(volume, `many-${String(index).padStart(3, '0')}.txt`), 'x');
+  }
+  fs.writeFileSync(
+    path.join(volume, 'wall-of-text.md'),
+    Array.from({ length: 900 }, (_, line) => `line ${line + 1}`).join('\n')
+  );
+
+  // A marker that is certainly rendered: the folder listing draws only the
+  // rows in view, so the three-hundredth file is not in the page until
+  // somebody scrolls to it — which is the thing under test rather than a
+  // precondition for it.
+  const screens = [
+    ['the dashboard, with thirty volumes', '/browse/', 'text=Volume-30'],
+    ['a folder of three hundred files', '/browse/Projects', 'text=many-001.txt'],
+    ['the editor on a long file', '/editor/Projects/wall-of-text.md', '.cm-content'],
+    ['the search results', '/search?q=many', 'text=many-001.txt'],
+    ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
+    ['the activity log in the settings', '/settings/activity', 'text=Activity log'],
+    ['the trash', '/trash', 'body'],
+  ];
+
+  for (const [what, route, marker] of screens) {
+    await page.goto(route);
+    // Loaded afresh rather than navigated to: the stores this page already
+    // holds were filled before the volumes above existed.
+    await page.reload();
+    // Nothing is judged before the screen is actually there.
+    await expect(page.locator(marker).first()).toBeVisible({ timeout: 15000 });
+    // The pointer parked away from everything: a panel that scrolls only
+    // under a hovering pointer is one a touch screen cannot scroll at all.
+    await page.mouse.move(2, 2);
+
+    const found = await page.evaluate(findUnreachableContent);
+    expect(found, `${what} (${route}) hides content: ${JSON.stringify(found, null, 2)}`).toEqual(
+      []
+    );
+  }
 });

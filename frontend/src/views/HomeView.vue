@@ -54,7 +54,12 @@ const openPersonal = () => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8 px-8">
+  <!--
+    Scrolls itself: the content area this sits in clips, so a dashboard with
+    enough volumes on it would otherwise have its last rows nowhere to go.
+    Measured at 31 volumes: 1,120 px of content in a 660 px box.
+  -->
+  <div class="flex h-full min-h-0 flex-col gap-8 overflow-y-auto px-8">
     <!-- Quick Access -->
     <section>
       <h3

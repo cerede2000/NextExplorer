@@ -255,10 +255,27 @@ const handleGuestLogin = () => {
 </template>
 
 <style scoped>
+/*
+ * The scrollbar appears on hover; the scrolling never goes away.
+ *
+ * This used to be `overflow-y: hidden` until `:hover`, which hides the
+ * scrollbar by making the panel unscrollable — so on a touch screen, where
+ * nothing hovers, whatever was below the fold could not be reached at all.
+ * Measured with 31 volumes in the sidebar: 897 px of it.
+ */
 .scroll-on-hover {
-  overflow-y: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll-on-hover::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 .scroll-on-hover:hover {
-  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.scroll-on-hover:hover::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 </style>
