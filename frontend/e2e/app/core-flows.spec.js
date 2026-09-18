@@ -547,3 +547,93 @@ test('no screen hides content where nothing can scroll', async () => {
     );
   }
 });
+
+/**
+ * The same question for what opens on top of a screen.
+ *
+ * A panel or a dialog is a box with a height of its own, which is exactly
+ * where content with nowhere to go hides: the list inside it is short in the
+ * seeded state of most tests and long in somebody's real installation. Each
+ * one is filled with more than fits before it is looked at.
+ */
+test('no panel or dialog hides content where nothing can scroll', async () => {
+  const file = 'many-001.txt';
+  const rightClick = async () => {
+    await page.goto('/browse/Projects');
+    await expect(page.getByRole('button', { name: `Select ${file}` })).toBeVisible();
+    await page.getByRole('button', { name: `Select ${file}` }).click({ button: 'right' });
+  };
+
+  const surfaces = [
+    [
+      'the info panel',
+      async () => {
+        await rightClick();
+        // The entries of this menu are buttons, as the tests above use them.
+        await page.getByRole('button', { name: 'Get Info' }).click();
+      },
+      '[aria-label="Info panel"]',
+    ],
+    [
+      'the share dialog',
+      async () => {
+        await page.goto('/browse/Projects');
+        await page.getByRole('button', { name: `Select ${file}` }).click();
+        await page.getByRole('button', { name: 'Share selected item' }).click();
+      },
+      'role=dialog',
+    ],
+    [
+      'the notifications panel',
+      async () => {
+        await page.goto('/browse/Projects');
+        await page.getByRole('button', { name: 'Open notifications' }).click();
+      },
+      // The close button carries its label in a screen-reader span rather
+      // than an attribute, so the heading is what says the panel is open.
+      'role=heading[name="Notifications"]',
+    ],
+  ];
+
+  for (const [what, open, marker] of surfaces) {
+    await open();
+    await expect(page.locator(marker).first()).toBeVisible({ timeout: 10000 });
+    await page.mouse.move(2, 2);
+
+    const found = await page.evaluate(findUnreachableContent);
+    expect(found, `${what} hides content: ${JSON.stringify(found, null, 2)}`).toEqual([]);
+    await page.keyboard.press('Escape');
+  }
+});
+
+/**
+ * And on a phone, where every box is shorter and the same content has further
+ * to go. The viewport is put back afterwards whatever happens: the tests in
+ * this file share one page, in order.
+ */
+test('nothing is hidden on a phone either', async () => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  try {
+    const screens = [
+      ['the dashboard', '/browse/', 'text=Volume-30'],
+      ['a folder of three hundred files', '/browse/Projects', 'text=many-001.txt'],
+      ['the editor on a long file', '/editor/Projects/wall-of-text.md', '.cm-content'],
+      ['the search results', '/search?q=many', 'text=many-001.txt'],
+      ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
+    ];
+    for (const [what, route, marker] of screens) {
+      await page.goto(route);
+      await page.reload();
+      await expect(page.locator(marker).first()).toBeVisible({ timeout: 15000 });
+      await page.mouse.move(2, 2);
+
+      const found = await page.evaluate(findUnreachableContent);
+      expect(
+        found,
+        `${what} (${route}) hides content on a phone: ${JSON.stringify(found, null, 2)}`
+      ).toEqual([]);
+    }
+  } finally {
+    await page.setViewportSize({ width: 1280, height: 720 });
+  }
+});

@@ -23,6 +23,14 @@ export const findUnreachableContent = () => {
       .slice(0, 4)
       .join('.')}`;
 
+  /**
+   * A box whose height comes from its own shape rather than from what is in
+   * it. A square thumbnail in a fixed-height frame overflows on purpose, and
+   * nobody scrolls a thumbnail — the file icon even writes the extension
+   * across it, so looking for words would not tell the two apart.
+   */
+  const sizedByShape = (el) => getComputedStyle(el).aspectRatio !== 'auto';
+
   const found = [];
   for (const el of document.querySelectorAll('body *')) {
     const overflow = el.scrollHeight - el.clientHeight;
@@ -33,6 +41,7 @@ export const findUnreachableContent = () => {
     const style = getComputedStyle(el);
     if (style.display.startsWith('inline')) continue;
     if (/(auto|scroll)/.test(style.overflowY)) continue;
+    if (sizedByShape(el)) continue;
 
     let reachable = false;
     let clippedBy = null;
