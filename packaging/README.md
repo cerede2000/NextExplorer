@@ -10,8 +10,8 @@ sudo ./install.sh
 ```
 
 **If this is the `-minimal` archive**, it brings no Node runtime, no ExifTool
-and no 7-Zip: it is about 120 MB unpacked instead of 263, for a machine that
-already has Node 24. Name that Node, because under `sudo` the PATH is root's
+and no 7-Zip: 103 MB unpacked instead of 263, for a machine that already has
+Node 24. Name that Node, because under `sudo` the PATH is root's
 and not yours:
 
 ```sh

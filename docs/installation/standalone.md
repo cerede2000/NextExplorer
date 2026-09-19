@@ -243,7 +243,8 @@ quietly lose a format.
 
 Every release also carries a second archive, `-minimal` in its name, without
 the three things a distribution can provide: the Node runtime, ExifTool and
-7-Zip. It is about **120 MB unpacked instead of 263**, and it is for a machine
+7-Zip. It is **103 MB unpacked instead of 263** — 25 MB to download instead of
+74 — and it is for a machine
 that already has Node 24 — or for packaging this for a distribution, where
 every megabyte is one the package manager could have supplied.
 
