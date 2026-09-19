@@ -25,13 +25,17 @@ SEVEN_ZIP_SHA256_arm64=2389ba20e4d8295e8709c20b6263b69bd1ec4972fe38a04ad7a1badbf
 
 out_dir="$root/dist-standalone"
 keep_tree=no
+minimal=no
 
 usage() {
   cat <<'USAGE'
-Usage: assemble.sh [--out DIR] [--keep-tree]
+Usage: assemble.sh [--out DIR] [--keep-tree] [--minimal]
 
   --out DIR     where to write the archive (default: dist-standalone/)
   --keep-tree   leave the assembled directory in place beside the archive
+  --minimal     leave out everything a distribution can provide: the Node
+                runtime, ExifTool and 7-Zip. For a machine that already has
+                Node 24 and would rather install the rest itself.
 USAGE
 }
 
@@ -39,6 +43,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --out) out_dir="$2"; shift 2 ;;
     --keep-tree) keep_tree=yes; shift ;;
+    --minimal) minimal=yes; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "assemble: unknown option $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -57,6 +62,7 @@ esac
 
 version="$(node -p "require('$root/package.json').version")"
 name="nextexplorer-${version}-linux-${arch}"
+[ "$minimal" = yes ] && name="$name-minimal"
 stage="$out_dir/$name"
 
 echo "==> Assembling $name"
@@ -103,7 +109,22 @@ rm -rf "$stage/app/node_modules/@types" \
   "$stage/app/node_modules/@redis" "$stage/app/node_modules/ioredis" \
   "$stage/app/node_modules/@babel"
 
+# --- What the minimal archive does without ----------------------------------
+# Asked for by somebody packaging this for a distribution, where every
+# megabyte is one the package manager could have provided (#9). Three things
+# go: the Node runtime, ExifTool, and 7-Zip. What is left is the application,
+# its native modules — which no package manager can supply, they are built for
+# one Node ABI — and the built interface.
+if [ "$minimal" = yes ]; then
+  echo "==> Minimal: no runtime, no ExifTool, no 7-Zip"
+  rm -rf "$stage"/app/node_modules/exiftool-vendored*
+  rmdir "$stage/runtime" "$stage/bin" 2>/dev/null || true
+fi
+
 # --- The Node runtime, so nothing has to be installed first ------------------
+if [ "$minimal" = yes ]; then
+  echo "==> Node: whichever this machine has, at install time"
+else
 echo "==> Node $NODE_VERSION"
 node_archive="node-v${NODE_VERSION}-linux-${arch}.tar.xz"
 work="$(mktemp -d)"
@@ -118,10 +139,17 @@ mkdir -p "$stage/runtime/bin" "$stage/runtime/include"
 cp "$work/node-v${NODE_VERSION}-linux-${arch}/bin/node" "$stage/runtime/bin/node"
 chmod 0755 "$stage/runtime/bin/node"
 rmdir "$stage/runtime/include"
+fi
 
 # --- 7-Zip, the one external tool a distribution cannot give us -------------
 # Alpine's and Debian's p7zip builds have no RAR codec; the official static
-# build does, and it is 2.5 MB.
+# build does, and it is 2.5 MB. Debian's own `7zip` package installs
+# /usr/bin/7z, which is what the application looks for when this is absent —
+# its description says the unRAR code was dropped to stay within the DFSG, and
+# `7zip-rar` in non-free is what puts RAR back.
+if [ "$minimal" = yes ]; then
+  echo "==> 7-Zip: whichever this machine has"
+else
 echo "==> 7-Zip $SEVEN_ZIP_VERSION"
 seven_zip_arch=$arch
 eval "expected=\$SEVEN_ZIP_SHA256_${arch}"
@@ -132,6 +160,7 @@ echo "${expected}  $work/7z.tar.xz" | sha256sum -c -
 mkdir -p "$work/7z"
 tar -xJf "$work/7z.tar.xz" -C "$work/7z"
 install -m 0755 "$(find "$work/7z" -type f -name 7zzs -print -quit)" "$stage/bin/7z"
+fi
 
 # --- What installs it -------------------------------------------------------
 install -m 0755 "$here/install.sh" "$stage/install.sh"

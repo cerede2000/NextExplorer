@@ -46,6 +46,17 @@ case "$(uname -m)" in
 esac
 
 installed="$(cat "$PROGRAM_DIR/VERSION" 2>/dev/null || echo none)"
+
+# The flavour that is installed is the flavour that gets installed.
+#
+# Somebody who took the minimal archive did so to be rid of the bundled
+# runtime; handing them the full one at the next update would put 121 MB back
+# without asking, and silently change which Node the service runs. The tree
+# says which it is: the minimal archive has no runtime directory.
+flavour=""
+if [ -d "$PROGRAM_DIR/app" ] && [ ! -x "$PROGRAM_DIR/runtime/bin/node" ]; then
+  flavour="-minimal"
+fi
 latest="$(curl -fsSL "$API_URL" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -1)"
 [ -n "$latest" ] || die "could not read the latest release from GitHub."
 
@@ -64,7 +75,8 @@ fi
 
 [ "$(id -u)" = 0 ] || die "run this as root: sudo nextexplorer-upgrade"
 
-name="nextexplorer-${latest}-linux-${arch}.tar.gz"
+name="nextexplorer-${latest}-linux-${arch}${flavour}.tar.gz"
+[ -n "$flavour" ] && note "Keeping the minimal archive, as installed."
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -83,7 +95,7 @@ computed="$(sha256sum "$work/$name" | awk '{print $1}')"
 note "Checksum matches."
 
 tar -xzf "$work/$name" -C "$work"
-release_dir="$work/nextexplorer-${latest}-linux-${arch}"
+release_dir="$work/nextexplorer-${latest}-linux-${arch}${flavour}"
 [ -x "$release_dir/install.sh" ] || die "the archive has no install script in it."
 
 note "Installing $latest"

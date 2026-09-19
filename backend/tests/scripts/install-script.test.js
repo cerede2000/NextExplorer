@@ -43,18 +43,28 @@ const machineArch = () => {
  * for the Node runtime: what is being tested is the installing, not the
  * program.
  */
-const buildRelease = ({ version = '9.9.9', arch = machineArch() } = {}) => {
+const buildRelease = ({ version = '9.9.9', arch = machineArch(), minimal = false } = {}) => {
+  // From nothing every time: a tree built over another one keeps whatever the
+  // first put there, and a leftover runtime is precisely what the minimal
+  // archive is the absence of.
+  fs.rmSync(release, { recursive: true, force: true });
   fs.mkdirSync(path.join(release, 'app', 'src'), { recursive: true });
   fs.mkdirSync(path.join(release, 'app', 'node_modules'), { recursive: true });
-  fs.mkdirSync(path.join(release, 'runtime', 'bin'), { recursive: true });
-  fs.mkdirSync(path.join(release, 'bin'), { recursive: true });
 
   fs.writeFileSync(path.join(release, 'app', 'src', 'server.js'), `// ${version}\n`);
   fs.writeFileSync(path.join(release, 'app', 'package.json'), '{"name":"stand-in"}\n');
-  fs.writeFileSync(path.join(release, 'runtime', 'bin', 'node'), '#!/bin/sh\nexit 0\n');
-  fs.chmodSync(path.join(release, 'runtime', 'bin', 'node'), 0o755);
-  fs.writeFileSync(path.join(release, 'bin', '7z'), '#!/bin/sh\nexit 0\n');
-  fs.chmodSync(path.join(release, 'bin', '7z'), 0o755);
+
+  // The minimal archive brings neither: the machine's Node runs it, and its
+  // 7-Zip comes from the distribution.
+  if (!minimal) {
+    fs.mkdirSync(path.join(release, 'runtime', 'bin'), { recursive: true });
+    fs.mkdirSync(path.join(release, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(release, 'runtime', 'bin', 'node'), '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(path.join(release, 'runtime', 'bin', 'node'), 0o755);
+    fs.writeFileSync(path.join(release, 'bin', '7z'), '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(path.join(release, 'bin', '7z'), 0o755);
+  }
+
   fs.writeFileSync(path.join(release, 'VERSION'), `${version}\n`);
   fs.writeFileSync(path.join(release, 'ARCH'), `${arch}\n`);
 
@@ -77,11 +87,11 @@ const buildRelease = ({ version = '9.9.9', arch = machineArch() } = {}) => {
  * or a missing systemctl it says on stderr — and that is exactly what the
  * tests below read.
  */
-const install = (extra = [], { expectFailure = false } = {}) => {
+const install = (extra = [], { expectFailure = false, env } = {}) => {
   const result = spawnSync(
     'bash',
     [path.join(release, 'install.sh'), '--prefix', prefix, '--skip-deps', '--no-account', ...extra],
-    { encoding: 'utf8' }
+    { encoding: 'utf8', env: env ? { ...process.env, ...env } : process.env }
   );
   const output = `${result.stdout || ''}${result.stderr || ''}`;
   if (result.status !== 0 && !expectFailure) {
@@ -245,7 +255,9 @@ describe('refusing rather than guessing', () => {
   });
 
   it('will not install from a directory that is not an unpacked release', () => {
-    fs.rmSync(path.join(release, 'runtime', 'bin', 'node'));
+    // The program itself, and not the runtime beside it: an archive without a
+    // runtime is the minimal one, which is a release and installs.
+    fs.rmSync(path.join(release, 'app', 'src'), { recursive: true });
 
     const output = install(['--no-service'], { expectFailure: true });
 
@@ -280,6 +292,125 @@ describe('taking it off again', () => {
     expect(exists('etc', 'nextexplorer', 'nextexplorer.env')).toBe(true);
     expect(read('var', 'lib', 'nextexplorer', 'app.db')).toBe('pretend');
     expect(output).toMatch(/Kept, because they are yours/);
+  });
+});
+
+/**
+ * The archive that brings no runtime.
+ *
+ * Asked for by somebody packaging this for a distribution, where a bundled
+ * Node is 121 MB the package manager could have provided (#9). What has to be
+ * right is the version check: the three native modules in this tree are
+ * prebuilt for one ABI, and another major refuses them with
+ * NODE_MODULE_VERSION three seconds after the service starts — which is a
+ * failure nobody reads. It is said at install time instead.
+ */
+describe('installing the minimal archive', () => {
+  /** A Node on PATH, of whichever major the test needs. */
+  const nodeSaying = (version) => {
+    const binaries = path.join(prefix, 'fake-bin');
+    fs.mkdirSync(binaries, { recursive: true });
+    fs.writeFileSync(
+      path.join(binaries, 'node'),
+      `#!/bin/sh\ncase "$*" in\n  *process.versions.node*) echo '${version}' ;;\n  *) exit 0 ;;\nesac\n`
+    );
+    fs.chmodSync(path.join(binaries, 'node'), 0o755);
+    return { PATH: `${binaries}:${process.env.PATH}` };
+  };
+
+  it('runs on the Node this machine already has', () => {
+    buildRelease({ minimal: true });
+
+    const output = install([], { env: nodeSaying('24') });
+
+    const unit = read('etc', 'systemd', 'system', 'nextexplorer.service');
+    expect(unit).toContain(`ExecStart=${path.join(prefix, 'fake-bin', 'node')} src/server.js`);
+    expect(unit).not.toContain('@NODE@');
+    expect(output).toContain('fake-bin/node');
+
+    // The program is there, without the two directories the archive did not
+    // carry — and nothing pretends they are.
+    expect(exists('opt', 'nextexplorer', 'app', 'src', 'server.js')).toBe(true);
+    expect(exists('opt', 'nextexplorer', 'runtime')).toBe(false);
+    expect(exists('opt', 'nextexplorer', 'bin')).toBe(false);
+  });
+
+  it('refuses a Node of the wrong major, and says which', () => {
+    buildRelease({ minimal: true });
+
+    const output = install([], { expectFailure: true, env: nodeSaying('22') });
+
+    expect(output).toMatch(/built for Node 24/i);
+    expect(output).toContain('22');
+    expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
+  });
+
+  it('refuses when there is no Node at all, and says where to get one', () => {
+    buildRelease({ minimal: true });
+
+    // Everything the script needs except a Node: emptying PATH outright would
+    // take `sed` and `id` with it and the script would fail for another
+    // reason entirely, which is not the refusal being tested.
+    const withoutNode = (process.env.PATH || '')
+      .split(path.delimiter)
+      .filter((entry) => entry && !fs.existsSync(path.join(entry, 'node')))
+      .join(path.delimiter);
+
+    const output = install([], { expectFailure: true, env: { PATH: withoutNode } });
+
+    expect(output).toMatch(/no Node runtime/i);
+    // The way out that needs nothing installed.
+    expect(output).toContain('-minimal');
+    expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
+  });
+
+  it('takes the Node it is given, which is what sudo makes necessary', () => {
+    buildRelease({ minimal: true });
+    const { PATH } = nodeSaying('24');
+    const named = path.join(prefix, 'fake-bin', 'node');
+
+    // Nothing on PATH: under `sudo` the PATH is root's, and a Node installed
+    // for somebody's own account is not on it. Naming it is the way out, and
+    // the only way out for most people who have Node through nvm or fnm.
+    const withoutNode = (process.env.PATH || '')
+      .split(path.delimiter)
+      .filter((entry) => entry && !fs.existsSync(path.join(entry, 'node')))
+      .join(path.delimiter);
+    expect(PATH).toContain('fake-bin');
+
+    install(['--node', named], { env: { PATH: withoutNode } });
+
+    expect(read('etc', 'systemd', 'system', 'nextexplorer.service')).toContain(
+      `ExecStart=${named} src/server.js`
+    );
+  });
+
+  it('refuses a --node that is not there', () => {
+    buildRelease({ minimal: true });
+
+    const output = install(['--node', path.join(prefix, 'nowhere', 'node')], {
+      expectFailure: true,
+    });
+
+    expect(output).toMatch(/is not something this can run/);
+    expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
+  });
+
+  it('takes the runtime away when a full install is replaced by a minimal one', () => {
+    buildRelease();
+    install();
+    expect(exists('opt', 'nextexplorer', 'runtime', 'bin', 'node')).toBe(true);
+
+    fs.rmSync(release, { recursive: true, force: true });
+    buildRelease({ minimal: true });
+    install([], { env: nodeSaying('24') });
+
+    // A runtime left behind would be the old version answering for a release
+    // that never shipped one.
+    expect(exists('opt', 'nextexplorer', 'runtime')).toBe(false);
+    expect(read('etc', 'systemd', 'system', 'nextexplorer.service')).toContain(
+      `ExecStart=${path.join(prefix, 'fake-bin', 'node')}`
+    );
   });
 });
 

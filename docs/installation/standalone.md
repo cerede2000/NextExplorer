@@ -105,6 +105,7 @@ sudo chmod 0640 /etc/nextexplorer/nextexplorer.env
 ```sh
 sed -e 's|@USER@|nextexplorer|g' \
     -e 's|@GROUP@|nextexplorer|g' \
+    -e 's|@NODE@|/opt/nextexplorer/runtime/bin/node|g' \
     -e 's|@PROGRAM_DIR@|/opt/nextexplorer|g' \
     -e 's|@ENV_FILE@|/etc/nextexplorer/nextexplorer.env|g' \
     -e 's|@STATE_DIR@|/var/lib/nextexplorer|g' \
@@ -237,6 +238,35 @@ they are picked up on the next start — nothing needs reconfiguring.
 7-Zip is the exception and comes with the archive: the builds Debian and Alpine
 package have no RAR codec, and browsing archives is the feature that would
 quietly lose a format.
+
+### The archive that brings none of it
+
+Every release also carries a second archive, `-minimal` in its name, without
+the three things a distribution can provide: the Node runtime, ExifTool and
+7-Zip. It is about **120 MB unpacked instead of 263**, and it is for a machine
+that already has Node 24 — or for packaging this for a distribution, where
+every megabyte is one the package manager could have supplied.
+
+```sh
+tar -xzf nextexplorer-<version>-linux-x64-minimal.tar.gz
+cd nextexplorer-<version>-linux-x64-minimal
+sudo ./install.sh --node "$(command -v node)"
+```
+
+`--node` is worth naming rather than leaving to be found: run under `sudo`,
+the PATH is root's and not yours, so a Node installed through nvm or fnm for
+your own account is invisible to it. Without it the script looks on PATH, and
+refuses anything that is not Node 24 — the three native modules in this tree
+are prebuilt for one ABI, and another major refuses them a few seconds after
+the service starts, which is a failure nobody reads.
+
+Everything else is the same: the same install script, the same service, the
+same update command — which keeps the flavour it was installed with, so an
+update does not put the runtime back.
+
+On Debian 13, `apt install nodejs` gives 20.19 and Ubuntu 24.04 gives 18.19;
+Fedora 42 carries a `nodejs24` package. Elsewhere it means NodeSource or the
+tarball from nodejs.org.
 
 ### Using what the machine already has
 

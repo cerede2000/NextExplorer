@@ -26,7 +26,10 @@ Environment=NODE_ENV=production
 # behave the same.
 Environment=UV_THREADPOOL_SIZE=16
 
-ExecStart=@PROGRAM_DIR@/runtime/bin/node src/server.js
+# The runtime the archive brought, or this machine's own when the archive was
+# the minimal one. Substituted by install.sh, which is also what checks that a
+# Node it did not bring is the major this tree's native modules were built for.
+ExecStart=@NODE@ src/server.js
 Restart=on-failure
 RestartSec=2
 KillSignal=SIGTERM

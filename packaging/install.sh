@@ -27,6 +27,8 @@ with_service=yes
 with_account=yes
 action=install
 
+node_given=""
+
 usage() {
   cat <<'USAGE'
 Usage: install.sh [options]
@@ -37,6 +39,9 @@ Usage: install.sh [options]
   --port N          port to listen on, first install only (default: 3000)
   --volumes DIR     where the volumes live, first install only
                     (default: /srv/nextexplorer)
+  --node PATH       the Node 24 to run it with, for the archive that brings
+                    none. Worth naming: run under sudo, root's PATH is not
+                    yours, and a Node installed for your account is invisible
   --yes             answer yes to installing missing tools
   --skip-deps       do not touch the package manager
   --no-service      install the files, leave systemd alone
@@ -56,6 +61,7 @@ while [ $# -gt 0 ]; do
     --group) service_group="$2"; shift 2 ;;
     --port) port="$2"; shift 2 ;;
     --volumes) volumes_dir="${2%/}"; shift 2 ;;
+    --node) node_given="$2"; shift 2 ;;
     --yes|-y) assume_yes=yes; shift ;;
     --skip-deps) with_deps=no; shift ;;
     --no-service) with_service=no; shift ;;
@@ -109,7 +115,7 @@ if [ "$action" = uninstall ]; then
 fi
 
 # --- Can this machine run what is in the archive? ---------------------------
-[ -x "$SELF_DIR/runtime/bin/node" ] || die "$SELF_DIR does not look like an unpacked release: runtime/bin/node is missing."
+[ -d "$SELF_DIR/app/src" ] || die "$SELF_DIR does not look like an unpacked release: app/src is missing."
 
 version="$(cat "$SELF_DIR/VERSION" 2>/dev/null || echo unknown)"
 packaged_arch="$(cat "$SELF_DIR/ARCH" 2>/dev/null || echo unknown)"
@@ -121,8 +127,38 @@ esac
 [ "$packaged_arch" = "$machine_arch" ] \
   || die "this archive is for linux-$packaged_arch and the machine is $machine_arch. Take the other one."
 
-if ! "$SELF_DIR/runtime/bin/node" -e 'process.exit(0)' >/dev/null 2>&1; then
-  die "the bundled Node runtime will not run here. It is linked against glibc, so on Alpine or another musl system use the Docker image instead."
+# --- Which Node runs it -----------------------------------------------------
+#
+# The full archive brings one; the minimal archive does not, and then this
+# machine's own has to do. Either way the answer is settled here and written
+# into the unit, so nothing is decided again at start-up.
+#
+# The major matters and nothing else does: the three native modules in this
+# tree — the SQLite driver, the image processor, the terminal — are prebuilt
+# for one ABI, and another major refuses them with NODE_MODULE_VERSION. Better
+# to say so here than to let the service fail three seconds after it starts.
+NODE_MAJOR_REQUIRED=24
+
+if [ -x "$SELF_DIR/runtime/bin/node" ]; then
+  if ! "$SELF_DIR/runtime/bin/node" -e 'process.exit(0)' >/dev/null 2>&1; then
+    die "the bundled Node runtime will not run here. It is linked against glibc, so on Alpine or another musl system use the Docker image instead."
+  fi
+  node_for_unit="@PROGRAM_DIR@/runtime/bin/node"
+  node_note="the one in the archive"
+else
+  if [ -n "$node_given" ]; then
+    system_node="$node_given"
+    [ -x "$system_node" ] || die "--node $system_node is not something this can run."
+  else
+    system_node="$(command -v node 2>/dev/null || true)"
+  fi
+  [ -n "$system_node" ] \
+    || die "this archive brings no Node runtime and there is none on PATH. Install Node ${NODE_MAJOR_REQUIRED} and name it with --node, or take the archive without -minimal in its name."
+  node_major="$("$system_node" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo unknown)"
+  [ "$node_major" = "$NODE_MAJOR_REQUIRED" ] \
+    || die "this tree's native modules are built for Node ${NODE_MAJOR_REQUIRED}, and $system_node is $node_major. Install Node ${NODE_MAJOR_REQUIRED}, or take the archive without -minimal in its name."
+  node_for_unit="$system_node"
+  node_note="$system_node"
 fi
 
 if [ "$prefix" = "" ] && [ "$(id -u)" != 0 ]; then
@@ -132,7 +168,7 @@ fi
 upgrading=no
 [ -e "$ENV_FILE" ] && upgrading=yes
 
-say "NextExplorer $version, linux-$machine_arch"
+say "NextExplorer $version, linux-$machine_arch — Node: $node_note"
 [ "$upgrading" = yes ] && note "Updating an existing installation." || note "First installation."
 
 # --- The tools the distribution provides ------------------------------------
@@ -266,6 +302,10 @@ mkdir -p "$PROGRAM_DIR"
 # writes.
 for part in app runtime bin; do
   rm -rf "$PROGRAM_DIR/$part"
+  # The minimal archive has no runtime and no 7-Zip. Removing what is not
+  # there is still right — an update from a full release to a minimal one must
+  # not leave the old runtime behind, answering for a version nobody installed.
+  [ -e "$SELF_DIR/$part" ] || continue
   cp -a "$SELF_DIR/$part" "$PROGRAM_DIR/$part"
 done
 install -m 0755 "$SELF_DIR/install.sh" "$PROGRAM_DIR/install.sh"
@@ -329,6 +369,7 @@ else
   sed \
     -e "s|@USER@|$service_user|g" \
     -e "s|@GROUP@|$service_group|g" \
+    -e "s|@NODE@|${node_for_unit}|g" \
     -e "s|@PROGRAM_DIR@|${PROGRAM_DIR#$prefix}|g" \
     -e "s|@ENV_FILE@|${ENV_FILE#$prefix}|g" \
     -e "s|@STATE_DIR@|${STATE_DIR#$prefix}|g" \

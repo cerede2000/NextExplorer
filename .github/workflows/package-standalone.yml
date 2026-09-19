@@ -58,10 +58,22 @@ jobs:
       - name: Assemble the archive
         run: packaging/assemble.sh
 
+      # The same tree without the three things a distribution can provide: the
+      # Node runtime, ExifTool and 7-Zip. Asked for by somebody packaging this,
+      # where every megabyte is one their package manager could have supplied
+      # (#9). Assembled from the same script so the two cannot drift.
+      - name: Assemble the minimal archive
+        run: packaging/assemble.sh --minimal
+
       - name: What came out
         run: |
           ls -la dist-standalone/
           cat dist-standalone/*.sha256
+          # Said out loud, because "smaller" is the whole point of the second
+          # one and a number is the only way to know it stayed true.
+          for archive in dist-standalone/*.tar.gz; do
+            printf '%s  %s\n' "$(du -h "$archive" | cut -f1)" "$archive"
+          done
 
       - name: Keep it for the other jobs
         uses: actions/upload-artifact@v5
@@ -299,15 +311,27 @@ jobs:
         with:
           name: standalone-x64
 
-      - name: Unpack, and throw the bundled runtime away
+      # The published minimal archive itself, rather than the full one with its
+      # runtime deleted: what is being tested is what somebody downloads.
+      - name: Unpack the minimal archive
         run: |
           set -eux
-          tar -xzf ./*.tar.gz
-          dir="$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)"
-          du -sh "$dir" "$dir/runtime"
-          rm -rf "$dir/runtime"
+          tar -xzf ./*-minimal.tar.gz
+          dir="$(find . -maxdepth 1 -type d -name 'nextexplorer-*-minimal' | head -1)"
           du -sh "$dir"
+          [ ! -e "$dir/runtime" ] || { echo 'the minimal archive brought a runtime'; exit 1; }
+          [ ! -e "$dir/bin" ] || { echo 'the minimal archive brought 7-Zip'; exit 1; }
+          ! ls -d "$dir"/app/node_modules/exiftool-vendored* 2>/dev/null \
+            || { echo 'the minimal archive brought ExifTool'; exit 1; }
           echo "RELEASE_DIR=$(realpath "$dir")" >> "$GITHUB_ENV"
+
+      - name: The 7-Zip this machine provides, since the archive brought none
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y 7zip
+          command -v 7z
+          7z i | head -20
 
       - name: Run it with that Node
         run: |
@@ -317,7 +341,6 @@ jobs:
           cd "$RELEASE_DIR/app"
           CONFIG_DIR=/tmp/data/config CACHE_DIR=/tmp/data/cache \
           VOLUME_ROOT=/tmp/data/volumes SESSION_SECRET=a-secret-for-this-job \
-          PATH="$RELEASE_DIR/bin:$PATH" \
             node src/server.js > /tmp/server.log 2>&1 &
           for attempt in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1 && break
@@ -332,7 +355,38 @@ jobs:
             cat /tmp/server.log
             exit 1
           fi
-          echo "$features" | grep -q '"rar"'
+          # Which archive formats are offered is read from `7z i` rather than
+          # assumed, so the answer here is whatever this machine's 7-Zip can
+          # do — and the point is that the two agree. Debian and Ubuntu drop
+          # the unRAR code to stay within the DFSG, so this is normally the
+          # branch without RAR; asserting either outright would be asserting
+          # the runner's package list.
+          if 7z i | grep -qi 'rar'; then
+            echo "$features" | grep -q '"rar"'
+          else
+            echo "$features" | grep -qv '"rar"' || { echo 'rar offered without a codec for it'; exit 1; }
+          fi
+          kill %1 || true
+
+      # The whole install, on the machine's own Node: this is where the unit is
+      # written, and the ExecStart it carries is the thing that would otherwise
+      # be discovered by a service that will not start.
+      - name: Install it as a service, and look at the unit
+        run: |
+          set -eux
+          # Named rather than discovered: under sudo the PATH is root's, and
+          # a Node set up for this job's account is not on it. This is what
+          # somebody with a user-local Node has to do too, so it is what is
+          # tested.
+          sudo "$RELEASE_DIR/install.sh" --yes --skip-deps --node "$(command -v node)"
+          unit=/etc/systemd/system/nextexplorer.service
+          sudo grep -q "ExecStart=$(command -v node) src/server.js" "$unit"
+          sudo grep -q 'Environment=UV_THREADPOOL_SIZE=16' "$unit"
+          systemd-analyze verify "$unit"
+          sudo systemctl is-active --quiet nextexplorer
+          curl -fsS "http://127.0.0.1:$(sudo sed -n 's/^PORT=//p' /etc/nextexplorer/nextexplorer.env)/health"
+          # Nothing of the runtime the archive did not carry.
+          [ ! -e /opt/nextexplorer/runtime ]
 
   # A bare distribution image, where nothing is installed and the package
   # manager has to do its part. No systemd in here, so the service is started
