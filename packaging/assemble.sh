@@ -34,8 +34,9 @@ Usage: assemble.sh [--out DIR] [--keep-tree] [--minimal]
   --out DIR     where to write the archive (default: dist-standalone/)
   --keep-tree   leave the assembled directory in place beside the archive
   --minimal     leave out everything a distribution can provide: the Node
-                runtime, ExifTool and 7-Zip. For a machine that already has
-                Node 24 and would rather install the rest itself.
+                runtime, the bundled ExifTool and 7-Zip. For a machine that
+                already has Node 24 or 26 and would rather install the rest
+                itself.
 USAGE
 }
 

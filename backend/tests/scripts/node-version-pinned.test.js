@@ -172,6 +172,31 @@ describe('the Node major this is built and shipped on', () => {
     // archive would carry a runtime its own installer refuses.
     expect(accepted).toContain(MAJOR);
   });
+
+  it('is what the README inside the archive tells somebody to have', () => {
+    // The page above is the guide somebody is sent to. This one travels in the
+    // archive and is the first thing they read after unpacking it, which is
+    // exactly why it drifted: it went on naming one major for a release after
+    // the installer had started accepting two. So every major it names is
+    // checked, in both directions.
+    const readme = read('packaging/README.md');
+    const accepted = read('packaging/install.sh')
+      .match(/NODE_MAJORS_SUPPORTED="([^"]+)"/)[1]
+      .trim()
+      .split(/\s+/);
+
+    const named = [...new Set([...readme.matchAll(/\bNode (\d+)\b/g)].map(([, major]) => major))];
+    expect(named.length, 'the README names no Node at all').toBeGreaterThan(0);
+
+    for (const major of named) {
+      expect(accepted, `the README names Node ${major}, which the installer refuses`).toContain(
+        major
+      );
+    }
+    for (const major of accepted) {
+      expect(named, `the README leaves out Node ${major}`).toContain(major);
+    }
+  });
 });
 
 /**

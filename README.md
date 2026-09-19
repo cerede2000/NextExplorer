@@ -235,6 +235,13 @@ release against its published checksum and leaves your configuration, your
 database and your files alone. Running `install.sh` again from a newer archive
 does the same.
 
+Every release also carries a second archive, `-minimal` in its name, without
+the three things a distribution can supply: the Node runtime, 7-Zip and the
+bundled ExifTool. 76 MB unpacked instead of 221, for a machine that already has
+Node 24 or 26 — `sudo ./install.sh --node "$(command -v node)"` — or for
+packaging this for a distribution. Both install the same way and update the
+same way, and an update keeps the one it was installed with.
+
 [The full guide](https://cerede2000.github.io/NextExplorer/installation/standalone)
 covers volumes, the systemd unit, and what differs from the container — chiefly
 that the browser terminal is off, since outside a container it would open a
