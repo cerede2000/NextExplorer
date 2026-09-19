@@ -18,6 +18,21 @@ const path = require('path');
 
 const WILDCARD = /[*?]/;
 
+/**
+ * The same letters, written the same way.
+ *
+ * `é` is one code point or two, and which one a filename carries depends on
+ * what wrote it: a browser sends the composed form, a Mac writing over SMB or
+ * rsync leaves the decomposed one. On Linux those are different bytes and
+ * different strings, so a file called `Résumé.pdf` could not be found by
+ * typing its name — the one thing somebody is most certain of (#11).
+ *
+ * Both sides are brought to the composed form before they are compared. It is
+ * a no-op for the ASCII names that are most of a tree, and it is the whole
+ * difference for the rest.
+ */
+const same = (value) => String(value).normalize('NFC');
+
 // Everything a regular expression treats specially, minus the two characters
 // that are the whole point. A term is typed by a person, so `a+b` is three
 // characters and not an expression.
@@ -30,8 +45,8 @@ const toRegExp = (pattern) =>
   );
 
 const textTerm = (text) => {
-  const needle = text.toLowerCase();
-  const contains = (value) => value.toLowerCase().includes(needle);
+  const needle = same(text).toLowerCase();
+  const contains = (value) => same(value).toLowerCase().includes(needle);
 
   return {
     isGlob: false,
@@ -49,7 +64,7 @@ const textTerm = (text) => {
 
 const globTerm = (text) => {
   const wholePath = text.includes('/');
-  const pattern = toRegExp(text);
+  const pattern = toRegExp(same(text));
 
   return {
     isGlob: true,
@@ -61,8 +76,8 @@ const globTerm = (text) => {
     // A pattern spanning folders cannot be answered by one name, so a folder
     // is never a match for it — `Stacks/*.log` describes files under Stacks,
     // not a folder called that.
-    matchesName: (name) => (wholePath ? false : pattern.test(name)),
-    matchesRelativePath: (rel) => pattern.test(wholePath ? rel : path.posix.basename(rel)),
+    matchesName: (name) => (wholePath ? false : pattern.test(same(name))),
+    matchesRelativePath: (rel) => pattern.test(same(wholePath ? rel : path.posix.basename(rel))),
   };
 };
 

@@ -75,3 +75,31 @@ describe('deciding whether to read inside files at all', () => {
     expect(parseSearchTerm('*.ps1').readsFileContents).toBe(false);
   });
 });
+
+describe('the same letters written two ways', () => {
+  // `é` is one code point or two. A browser sends the composed form; a file
+  // written by a Mac over SMB or rsync carries the decomposed one, and on
+  // Linux those are different strings. A name somebody is certain of was the
+  // one thing search could not find (#11).
+  const NFD = 'Résumé-annuel.txt';
+  const NFC = 'Résumé-annuel.txt';
+
+  it('is not fooled either way round', () => {
+    expect(parseSearchTerm('Résumé').matchesRelativePath(NFD)).toBe(true);
+    expect(parseSearchTerm('Résumé').matchesRelativePath(NFC)).toBe(true);
+  });
+
+  it('holds for a pattern as well as for text', () => {
+    expect(parseSearchTerm('Résumé*').matchesRelativePath(NFD)).toBe(true);
+    expect(parseSearchTerm('Résumé*').matchesRelativePath(NFC)).toBe(true);
+  });
+
+  it('holds for a bare name', () => {
+    expect(parseSearchTerm('Résumé').matchesName(NFD)).toBe(true);
+  });
+
+  // The two forms are the same word, not a licence to match a different one.
+  it('still refuses a name that is not the term', () => {
+    expect(parseSearchTerm('Résumé').matchesRelativePath('Rapport-annuel.txt')).toBe(false);
+  });
+});
