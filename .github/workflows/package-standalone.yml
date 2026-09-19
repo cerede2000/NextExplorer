@@ -109,9 +109,13 @@ jobs:
       - name: Unpack it the way the instructions say
         run: |
           set -eux
+          # Both checksums, and then the full archive by name: two archives
+          # are published now, and `tar -xzf ./*.tar.gz` would read the second
+          # one as a member to extract out of the first.
           sha256sum -c ./*.tar.gz.sha256
-          tar -xzf ./*.tar.gz
-          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)")" >> "$GITHUB_ENV"
+          full="$(ls ./*.tar.gz | grep -v -- '-minimal' | head -1)"
+          tar -xzf "$full"
+          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' ! -name '*-minimal' | head -1)")" >> "$GITHUB_ENV"
 
       - name: Install
         run: sudo "$RELEASE_DIR/install.sh" --yes
@@ -211,8 +215,9 @@ jobs:
       - name: Unpack
         run: |
           set -eux
-          tar -xzf artifact/*.tar.gz
-          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)")" >> "$GITHUB_ENV"
+          full="$(ls artifact/*.tar.gz | grep -v -- '-minimal' | head -1)"
+          tar -xzf "$full"
+          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' ! -name '*-minimal' | head -1)")" >> "$GITHUB_ENV"
 
       - name: Lift the commands out of the page
         run: |
@@ -364,7 +369,7 @@ jobs:
           if 7z i | grep -qi 'rar'; then
             echo "$features" | grep -q '"rar"'
           else
-            echo "$features" | grep -qv '"rar"' || { echo 'rar offered without a codec for it'; exit 1; }
+            ! echo "$features" | grep -q '"rar"' || { echo 'rar offered without a codec for it'; exit 1; }
           fi
           kill %1 || true
 
@@ -384,7 +389,15 @@ jobs:
           sudo grep -q 'Environment=UV_THREADPOOL_SIZE=16' "$unit"
           systemd-analyze verify "$unit"
           sudo systemctl is-active --quiet nextexplorer
-          curl -fsS "http://127.0.0.1:$(sudo sed -n 's/^PORT=//p' /etc/nextexplorer/nextexplorer.env)/health"
+          # Active is not listening: the service is up the moment systemd has
+          # started the process, and the port arrives a moment later.
+          port="$(sudo sed -n 's/^PORT=//p' /etc/nextexplorer/nextexplorer.env)"
+          for attempt in $(seq 1 30); do
+            curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:${port}/health" \
+            || { sudo journalctl -u nextexplorer --no-pager | tail -50; exit 1; }
           # Nothing of the runtime the archive did not carry.
           [ ! -e /opt/nextexplorer/runtime ]
 
@@ -423,8 +436,9 @@ jobs:
       - name: Unpack
         run: |
           set -eux
-          tar -xzf ./*.tar.gz
-          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' | head -1)")" >> "$GITHUB_ENV"
+          full="$(ls ./*.tar.gz | grep -v -- '-minimal' | head -1)"
+          tar -xzf "$full"
+          echo "RELEASE_DIR=$(realpath "$(find . -maxdepth 1 -type d -name 'nextexplorer-*' ! -name '*-minimal' | head -1)")" >> "$GITHUB_ENV"
 
       - name: Install, with the package manager doing its part
         run: |
