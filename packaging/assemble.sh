@@ -115,9 +115,16 @@ rm -rf "$stage/app/node_modules/@types" \
 # go: the Node runtime, ExifTool, and 7-Zip. What is left is the application,
 # its native modules — which no package manager can supply, they are built for
 # one Node ABI — and the built interface.
+#
+# ExifTool leaves as its distribution, not as its driver. `exiftool-vendored`
+# is the Node package that spawns the program and pools the processes; the 21 MB
+# is `exiftool-vendored.pl`, the Perl program itself. Taking both would leave
+# `EXIFTOOL_PATH` naming a program nothing can run, and RAW metadata would be
+# lost rather than handed to the distribution — which is the whole point of this
+# archive. The dot in the pattern is what keeps the driver.
 if [ "$minimal" = yes ]; then
-  echo "==> Minimal: no runtime, no ExifTool, no 7-Zip"
-  rm -rf "$stage"/app/node_modules/exiftool-vendored*
+  echo "==> Minimal: no runtime, no bundled ExifTool, no 7-Zip"
+  rm -rf "$stage"/app/node_modules/exiftool-vendored.*
   rmdir "$stage/runtime" "$stage/bin" 2>/dev/null || true
 fi
 

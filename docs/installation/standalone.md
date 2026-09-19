@@ -200,11 +200,11 @@ accept from the machine.
 
 ### What else can be thrown away
 
-|                                       |                                                                        |
-| ------------------------------------- | ---------------------------------------------------------------------- |
-| `runtime/`                            | 121 MB — only if you provide Node 24 or 26 yourself, as above          |
-| `app/node_modules/exiftool-vendored*` | 23 MB — only if you set `EXIFTOOL_PATH`, or accept losing RAW metadata |
-| `bin/7zz`                             | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                     |
+|                                         |                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------- |
+| `runtime/`                              | 121 MB — only if you provide Node 24 or 26 yourself, as above          |
+| `app/node_modules/exiftool-vendored.pl` | 21 MB — only if you set `EXIFTOOL_PATH`, or accept losing RAW metadata |
+| `bin/7zz`                               | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                     |
 
 The rest is load-bearing: the image processor and its libvips are 18 MB, the
 SQLite driver 12 MB, and the built interface 7 MB. Those three stay — see
@@ -257,6 +257,12 @@ MB to download instead of 81**. It is for a machine that already has a Node
 the installer accepts — or for packaging this for a distribution, where every
 megabyte is one the package manager could have supplied.
 
+Nothing is given up for good: `apt install libimage-exiftool-perl` and
+`EXIFTOOL_PATH=/usr/bin/exiftool` bring RAW metadata back, and `7zip` with
+`SEVEN_ZIP_PATH=/usr/bin/7z` brings archive browsing back. What this archive
+leaves out is the 21 MB of Perl and the 3.6 MB of 7-Zip, not the code that runs
+them — which is why those two variables have something to drive.
+
 ```sh
 tar -xzf nextexplorer-<version>-linux-x64-minimal.tar.gz
 cd nextexplorer-<version>-linux-x64-minimal
@@ -292,8 +298,11 @@ the unRAR code was dropped to stay within the DFSG — `7zip-rar`, in non-free,
 is what puts RAR back. `unrar` is a different program and is not used here.
 
 **ExifTool.** `EXIFTOOL_PATH` names the one to run, and
-`app/node_modules/exiftool-vendored*` — 23 MB — can then go. On Debian the
-package is `libimage-exiftool-perl`.
+`app/node_modules/exiftool-vendored.pl` — 21 MB of Perl — can then go. On Debian
+the package is `libimage-exiftool-perl`. Take the `.pl` and not the directory
+beside it: `exiftool-vendored` is the Node package that spawns the program and
+pools the processes, and without it `EXIFTOOL_PATH` names something nothing can
+run. The minimal archive already comes this way.
 
 **And two that cannot.** The SQLite driver and the image processor are native
 Node modules rather than libraries: `apt install sqlite3` or `libvips` does
