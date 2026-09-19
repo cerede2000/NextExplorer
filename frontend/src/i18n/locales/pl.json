@@ -574,7 +574,9 @@
       "viewGrid": "Siatka",
       "viewList": "Lista",
       "viewColumns": "Kolumny",
-      "viewPhotos": "Zdjęcia"
+      "viewPhotos": "Zdjęcia",
+      "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
+      "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce. Otwórz go w edytorze lub pobierz.",
     "tooLargeToRenderWithEditor": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce; edytor otwiera do {editorLimit}. Otwórz go w edytorze lub pobierz.",
-    "stillRendering": "Renderowanie… {percent}%"
+    "stillRendering": "Renderowanie… {percent}%",
+    "nothingOpensIt": "Nic tutaj nie otworzy {name}.",
+    "backToFolder": "Powrót do folderu"
   },
   "trash": {
     "title": "Kosz",

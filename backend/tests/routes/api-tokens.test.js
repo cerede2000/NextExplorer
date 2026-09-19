@@ -60,6 +60,17 @@ const setUpOwner = async (app) => {
   return browser;
 };
 
+/**
+ * The secret half of a token value.
+ *
+ * Not `split('_')`: the secret is base64url, whose alphabet includes `_`, so
+ * splitting on it returns a fragment about half the time — and a test that
+ * searches for a fragment of the secret is a test that would pass while the
+ * whole of it sat in the reply. The identifier is fixed-length hexadecimal,
+ * so the separator that matters is the second underscore and no other.
+ */
+const secretHalf = (token) => String(token).slice(String(token).indexOf('_', 4) + 1);
+
 const issue = (browser, body = {}) =>
   browser.post('/api/auth/tokens').send({ password: PASSWORD, name: 'Backup script', ...body });
 
@@ -78,7 +89,7 @@ describe('issuing an API token', () => {
     const listed = await browser.get('/api/auth/tokens');
     expect(listed.status).toBe(200);
     expect(listed.body.tokens).toHaveLength(1);
-    expect(JSON.stringify(listed.body)).not.toContain(made.body.secret.split('_')[2]);
+    expect(JSON.stringify(listed.body)).not.toContain(secretHalf(made.body.secret));
     expect(listed.body.tokens[0]).not.toHaveProperty('secret');
     expect(listed.body.tokens[0]).not.toHaveProperty('secretHash');
   });
@@ -193,7 +204,7 @@ describe('issuing an API token', () => {
     expect(events.map((event) => JSON.parse(event.detail).issued)).toEqual([false, true]);
     expect(events[0].target).toBe('Logged token');
     // What was issued is described; the value itself is not in the log.
-    expect(JSON.stringify(events)).not.toContain(made.body.secret.split('_')[2]);
+    expect(JSON.stringify(events)).not.toContain(secretHalf(made.body.secret));
   });
 
   it('issues none at all where there are no accounts', { timeout: 20000 }, async () => {

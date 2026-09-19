@@ -38,6 +38,7 @@ const STORED = {
   folderViews: { Photos: { mode: 'photos', updatedAt: 1 } },
   defaultView: 'list',
   markdownOpensInEditor: true,
+  documentsOpenInNewTab: true,
 };
 
 /** As the store holds them for somebody who never chose anything. */
@@ -59,6 +60,7 @@ const SWITCHES = [
   'showHiddenFiles',
   'showThumbnails',
   'markdownOpensInEditor',
+  'documentsOpenInNewTab',
   'showSidebarFavorites',
   'showSidebarShares',
   'showSidebarTools',
@@ -157,6 +159,7 @@ describe('the preferences', () => {
         skipHome: false,
         defaultView: 'list',
         markdownOpensInEditor: true,
+        documentsOpenInNewTab: true,
       },
     });
     expect(sentUser()).not.toHaveProperty('folderSorts');

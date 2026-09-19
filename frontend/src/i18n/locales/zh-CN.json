@@ -574,7 +574,9 @@
       "viewGrid": "网格",
       "viewList": "列表",
       "viewColumns": "分栏",
-      "viewPhotos": "照片"
+      "viewPhotos": "照片",
+      "documentsOpenInNewTab": "在新标签页中打开文档",
+      "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素。请在编辑器中打开或下载。",
     "tooLargeToRenderWithEditor": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素；编辑器最多可打开 {editorLimit}。请在编辑器中打开或下载。",
-    "stillRendering": "正在渲染… {percent}%"
+    "stillRendering": "正在渲染… {percent}%",
+    "nothingOpensIt": "这里没有什么能打开 {name}。",
+    "backToFolder": "返回文件夹"
   },
   "trash": {
     "title": "回收站",

@@ -18,6 +18,7 @@ import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsTwoFactor from '@/views/settings/SettingsTwoFactor.vue';
 import SettingsPasskeys from '@/views/settings/SettingsPasskeys.vue';
 import SettingsApiTokens from '@/views/settings/SettingsApiTokens.vue';
+import DocumentView from '@/views/DocumentView.vue';
 import SettingsActivity from '@/views/settings/SettingsActivity.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
@@ -216,6 +217,14 @@ const router = createRouter({
           component: EditorView,
         },
       ],
+    },
+    {
+      // One document, at an address of its own — see views/DocumentView.vue.
+      // Outside the browser layout on purpose: a document opened in its own
+      // tab is the document, and nothing else.
+      path: '/open/:path(.*)',
+      component: DocumentView,
+      meta: { requiresAuth: true },
     },
     {
       path: '/auth/setup',

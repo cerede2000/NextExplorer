@@ -10,19 +10,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * And what happens on the way out. The close hook is the last chance to save
  * what was typed since the last automatic save. It has to name the file as it
  * is called now — it may have been renamed from the editor's title bar — must
- * not hold the preview open behind a slow Document Server, and must release the
+ * not hold the preview open behind a slow Document Server, and must end the
  * editing session whether the save went through or not, or the document stays
  * marked as being edited.
+ *
+ * It closes two ways, and they have to agree: a panel closing over a folder,
+ * which can wait between the save and the close, and a browser tab being shut,
+ * which cannot wait for anything. Both end at the same request, which is what
+ * makes them the same close.
  */
 
-const requestOnlyOfficeForceSave = vi.fn();
-const closeOnlyOfficeSession = vi.fn();
+const endOnlyOfficeSession = vi.fn();
 const features = { onlyofficeEnabled: true, collaboraEnabled: false };
 const settings = { officeEditorPreference: 'onlyoffice' };
 
 vi.mock('@/api', () => ({
-  requestOnlyOfficeForceSave: (...args) => requestOnlyOfficeForceSave(...args),
-  closeOnlyOfficeSession: (...args) => closeOnlyOfficeSession(...args),
+  endOnlyOfficeSession: (...args) => endOnlyOfficeSession(...args),
 }));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 vi.mock('@/stores/settings', () => ({ useSettingsStore: () => settings }));
@@ -33,10 +36,8 @@ import { collaboraPreviewPlugin } from '@/plugins/collabora/collaboraPreview';
 beforeEach(() => {
   Object.assign(features, { onlyofficeEnabled: true, collaboraEnabled: false });
   settings.officeEditorPreference = 'onlyoffice';
-  requestOnlyOfficeForceSave.mockReset();
-  requestOnlyOfficeForceSave.mockResolvedValue({ queued: true });
-  closeOnlyOfficeSession.mockReset();
-  closeOnlyOfficeSession.mockResolvedValue(undefined);
+  endOnlyOfficeSession.mockReset();
+  endOnlyOfficeSession.mockResolvedValue({ ended: true });
 });
 
 afterEach(() => {
@@ -99,7 +100,7 @@ describe('closing ONLYOFFICE', () => {
 
   const contextFor = (previewState) => ({ filePath: 'Docs/report.docx', previewState });
 
-  it('saves and releases the session under the name the document has now', async () => {
+  it('saves and ends the session under the name the document has now', async () => {
     const requestForceSave = vi.fn(() => Promise.resolve({ queued: true }));
     const context = contextFor({
       forceSaveSessionId: 'session-1',
@@ -112,35 +113,29 @@ describe('closing ONLYOFFICE', () => {
     // The editor's own request, so that it cancels the pending automatic save
     // and is never sent alongside one already in flight.
     expect(requestForceSave).toHaveBeenCalledWith({ reason: 'close' });
-    expect(requestOnlyOfficeForceSave).not.toHaveBeenCalled();
-    expect(closeOnlyOfficeSession).toHaveBeenCalledWith(RENAMED, { sessionId: 'session-1' });
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith(RENAMED, { sessionId: 'session-1' });
   });
 
-  it('asks the server itself, under the current name, when the editor offers no save of its own', async () => {
+  it('leaves the save to the server when the editor offers none of its own', async () => {
     const context = contextFor({ forceSaveSessionId: 'session-1', documentPath: RENAMED });
 
     await onlyofficePreviewPlugin().onBeforeClose(context);
 
-    expect(requestOnlyOfficeForceSave).toHaveBeenCalledWith(RENAMED, {
-      sessionId: 'session-1',
-      reason: 'close',
-    });
-    expect(closeOnlyOfficeSession).toHaveBeenCalledWith(RENAMED, { sessionId: 'session-1' });
+    // One request, which flushes and then ends — there is nothing here to
+    // coalesce with, so the server queues the last save itself.
+    expect(endOnlyOfficeSession).toHaveBeenCalledTimes(1);
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith(RENAMED, { sessionId: 'session-1' });
   });
 
   it('names the file the preview was opened on when the document was never renamed', async () => {
     await onlyofficePreviewPlugin().onBeforeClose(contextFor({ forceSaveSessionId: 'session-1' }));
 
-    expect(requestOnlyOfficeForceSave).toHaveBeenCalledWith('Docs/report.docx', {
-      sessionId: 'session-1',
-      reason: 'close',
-    });
-    expect(closeOnlyOfficeSession).toHaveBeenCalledWith('Docs/report.docx', {
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith('Docs/report.docx', {
       sessionId: 'session-1',
     });
   });
 
-  it('waits for a save that hangs no longer than its grace period, then releases the session', async () => {
+  it('waits for a save that hangs no longer than its grace period, then ends the session', async () => {
     vi.useFakeTimers();
     const context = contextFor({
       forceSaveSessionId: 'session-1',
@@ -157,11 +152,11 @@ describe('closing ONLYOFFICE', () => {
 
     await vi.advanceTimersByTimeAsync(449);
     expect(closed).toBe(false);
-    expect(closeOnlyOfficeSession).not.toHaveBeenCalled();
+    expect(endOnlyOfficeSession).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
     expect(closed).toBe(true);
-    expect(closeOnlyOfficeSession).toHaveBeenCalledWith(RENAMED, { sessionId: 'session-1' });
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith(RENAMED, { sessionId: 'session-1' });
   });
 
   it('lets the preview close as soon as the save is accepted, without sitting out the grace period', async () => {
@@ -173,10 +168,10 @@ describe('closing ONLYOFFICE', () => {
 
     // No timer is advanced: only the accepted save can settle the hook.
     await expect(onlyofficePreviewPlugin().onBeforeClose(context)).resolves.toBeUndefined();
-    expect(closeOnlyOfficeSession).toHaveBeenCalledTimes(1);
+    expect(endOnlyOfficeSession).toHaveBeenCalledTimes(1);
   });
 
-  it('releases the session even when the save fails, and still lets the preview close', async () => {
+  it('ends the session even when the save fails, and still lets the preview close', async () => {
     const context = contextFor({
       forceSaveSessionId: 'session-1',
       requestForceSave: vi.fn().mockRejectedValue(new Error('Document Server unreachable')),
@@ -184,17 +179,17 @@ describe('closing ONLYOFFICE', () => {
 
     await expect(onlyofficePreviewPlugin().onBeforeClose(context)).resolves.toBeUndefined();
     expect(context.previewState.requestForceSave).toHaveBeenCalled();
-    expect(closeOnlyOfficeSession).toHaveBeenCalledWith('Docs/report.docx', {
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith('Docs/report.docx', {
       sessionId: 'session-1',
     });
   });
 
-  it('does not surface a session that could not be released', async () => {
-    closeOnlyOfficeSession.mockRejectedValue(new Error('offline'));
+  it('does not surface a session that could not be ended', async () => {
+    endOnlyOfficeSession.mockRejectedValue(new Error('offline'));
     const context = contextFor({ forceSaveSessionId: 'session-1' });
 
     await expect(onlyofficePreviewPlugin().onBeforeClose(context)).resolves.toBeUndefined();
-    expect(closeOnlyOfficeSession).toHaveBeenCalledTimes(1);
+    expect(endOnlyOfficeSession).toHaveBeenCalledTimes(1);
   });
 
   it('sends nothing for a preview that never had an editing session', async () => {
@@ -203,7 +198,50 @@ describe('closing ONLYOFFICE', () => {
     await plugin.onBeforeClose(contextFor({}));
     await plugin.onBeforeClose({ previewState: { forceSaveSessionId: 'session-1' } });
 
-    expect(requestOnlyOfficeForceSave).not.toHaveBeenCalled();
-    expect(closeOnlyOfficeSession).not.toHaveBeenCalled();
+    expect(endOnlyOfficeSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('closing the tab ONLYOFFICE was open in', () => {
+  const contextFor = (previewState) => ({ filePath: 'Docs/report.docx', previewState });
+
+  it('sends one request, as a beacon, and waits for nothing', () => {
+    const requestForceSave = vi.fn(() => new Promise(() => {}));
+    const context = contextFor({ forceSaveSessionId: 'session-1', requestForceSave });
+
+    // Deliberately not awaited: a page being unloaded runs this handler and
+    // then stops existing. Anything this hook left for a later turn of the
+    // event loop would never be sent, which is why the save is not asked for
+    // here and the server is told to do both instead.
+    onlyofficePreviewPlugin().onBeforeClose(context, { unloading: true });
+
+    expect(requestForceSave).not.toHaveBeenCalled();
+    expect(endOnlyOfficeSession).toHaveBeenCalledTimes(1);
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith('Docs/report.docx', {
+      sessionId: 'session-1',
+      beacon: true,
+    });
+  });
+
+  it('ends the same session, at the same endpoint, as closing the panel does', async () => {
+    const plugin = onlyofficePreviewPlugin();
+
+    await plugin.onBeforeClose(contextFor({ forceSaveSessionId: 'session-1' }));
+    const [panelPath, panelOptions] = endOnlyOfficeSession.mock.calls.at(-1);
+
+    plugin.onBeforeClose(contextFor({ forceSaveSessionId: 'session-1' }), { unloading: true });
+    const [tabPath, tabOptions] = endOnlyOfficeSession.mock.calls.at(-1);
+
+    // The same document and the same session, so the server is left holding
+    // the same thing. Only how the request travels differs, and it has to.
+    expect(tabPath).toBe(panelPath);
+    expect(tabOptions.sessionId).toBe(panelOptions.sessionId);
+    expect(tabOptions.beacon).toBe(true);
+    expect(panelOptions.beacon).toBeUndefined();
+  });
+
+  it('sends nothing for a tab that had no editing session', () => {
+    onlyofficePreviewPlugin().onBeforeClose(contextFor({}), { unloading: true });
+    expect(endOnlyOfficeSession).not.toHaveBeenCalled();
   });
 });

@@ -235,11 +235,12 @@ describe('ONLYOFFICE routes', () => {
     expect(failedCallback.body).toEqual({ error: 1 });
     expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
 
-    const closeResponse = await request(app).post('/api/onlyoffice/session-close').send({
+    const closeResponse = await request(app).post('/api/onlyoffice/session-end').send({
       path: filename,
       sessionId: configResponse.body.forceSaveSessionId,
     });
-    expect(closeResponse.status).toBe(204);
+    expect(closeResponse.status).toBe(200);
+    expect(closeResponse.body.ended).toBe(true);
 
     // Closing NextExplorer's embedded frame is not the same thing as
     // Document Server releasing the document. Keep the activity visible until

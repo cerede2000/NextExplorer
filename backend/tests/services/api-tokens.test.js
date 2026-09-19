@@ -37,6 +37,17 @@ const seed = async () => {
   return { db, apiTokens };
 };
 
+/**
+ * The secret half of a token value.
+ *
+ * Not `split('_')`: the secret is base64url, whose alphabet includes `_`, so
+ * splitting on it returns a fragment about half the time — and a test that
+ * searches for a fragment of the secret is a test that would pass while the
+ * whole of it sat in the reply. The identifier is fixed-length hexadecimal,
+ * so the separator that matters is the second underscore and no other.
+ */
+const secretHalf = (token) => String(token).slice(String(token).indexOf('_', 4) + 1);
+
 const mint = async (apiTokens, options = {}) => {
   const outcome = await apiTokens.mintToken({ userId: 'u1', name: 'Backup script', ...options });
   expect(outcome.error).toBeUndefined();
@@ -53,17 +64,17 @@ describe('the API token store', () => {
     // The secret half appears nowhere in the row — not in the hash, not in a
     // column somebody added later without thinking about it.
     const stored = JSON.stringify(row);
-    const secretHalf = secret.split('_')[2];
-    expect(secretHalf.length).toBe(43);
-    expect(stored).not.toContain(secretHalf);
+    const half = secretHalf(secret);
+    expect(half.length).toBe(43);
+    expect(stored).not.toContain(half);
     expect(stored).not.toContain(secret);
 
     // What it does hold is the hash, and the hash is of the secret half only.
-    expect(row.secret_hash).toBe(crypto.createHash('sha256').update(secretHalf).digest('hex'));
+    expect(row.secret_hash).toBe(crypto.createHash('sha256').update(half).digest('hex'));
 
     // And nothing that lists tokens ever carries it.
     const [listed] = await apiTokens.listTokens('u1');
-    expect(JSON.stringify(listed)).not.toContain(secretHalf);
+    expect(JSON.stringify(listed)).not.toContain(half);
   });
 
   it('names itself, so a leaked value can be recognised and looked up', async () => {
@@ -92,12 +103,17 @@ describe('the API token store', () => {
     const good = await apiTokens.authenticateToken(secret);
     expect(good).toMatchObject({ ok: true, userId: 'u1', tokenId: token.id, scope: 'write' });
 
-    const [prefix, id, value] = secret.split('_');
+    // The identifier is sixteen hexadecimal characters after `nxe_`, and the
+    // secret is everything after it — which may itself contain an underscore,
+    // so neither half is found by splitting on one.
+    const id = secret.slice(4, 20);
+    const value = secretHalf(secret);
+    expect(value.length).toBe(43);
     const nearMisses = [
-      `${prefix}_${id}_${value.slice(0, -1)}A`, // one character out
-      `${prefix}_${'0'.repeat(16)}_${value}`, // right secret, wrong name
-      `${prefix}_${id}_${value.slice(0, -1)}`, // truncated
-      `${prefix}_${id}_${value}x`, // lengthened
+      `nxe_${id}_${value.slice(0, -1)}${value.endsWith('A') ? 'B' : 'A'}`, // one character out
+      `nxe_${'0'.repeat(16)}_${value}`, // right secret, wrong name
+      `nxe_${id}_${value.slice(0, -1)}`, // truncated
+      `nxe_${id}_${value}x`, // lengthened
       secret.toUpperCase(),
       secret.replace('nxe_', 'nxf_'),
       '',
@@ -112,6 +128,29 @@ describe('the API token store', () => {
       const outcome = await apiTokens.authenticateToken(candidate);
       expect(outcome.ok, `accepted ${String(candidate)}`).toBe(false);
     }
+  });
+
+  it('works when the secret contains the character that separates the halves', async () => {
+    const { apiTokens } = await seed();
+
+    // base64url includes `_`, so about half of all secrets contain one. Both
+    // halves are found by position rather than by splitting — the identifier
+    // is sixteen hexadecimal characters — and a value that happens to carry an
+    // underscore has to authenticate like any other.
+    let withUnderscore = null;
+    for (let attempt = 0; attempt < 60 && !withUnderscore; attempt += 1) {
+      const minted = await mint(apiTokens, { name: `n${attempt}` });
+      if (secretHalf(minted.secret).includes('_')) withUnderscore = minted;
+    }
+    expect(withUnderscore, 'sixty secrets and not one underscore').not.toBeNull();
+
+    const parsed = apiTokens.parseToken(withUnderscore.secret);
+    expect(parsed.id).toBe(withUnderscore.token.id);
+    expect(parsed.secret).toBe(secretHalf(withUnderscore.secret));
+    expect(await apiTokens.authenticateToken(withUnderscore.secret)).toMatchObject({
+      ok: true,
+      tokenId: withUnderscore.token.id,
+    });
   });
 
   it('refuses what it cannot parse before the database is ever asked', async () => {

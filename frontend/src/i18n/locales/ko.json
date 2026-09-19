@@ -574,7 +574,9 @@
       "viewGrid": "그리드",
       "viewList": "목록",
       "viewColumns": "열",
-      "viewPhotos": "사진"
+      "viewPhotos": "사진",
+      "documentsOpenInNewTab": "문서를 새 탭에서 열기",
+      "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다."
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기에서 열거나 내려받으세요.",
     "tooLargeToRenderWithEditor": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기는 {editorLimit}까지 엽니다. 편집기에서 열거나 내려받으세요.",
-    "stillRendering": "그리는 중… {percent}%"
+    "stillRendering": "그리는 중… {percent}%",
+    "nothingOpensIt": "여기에서 {name}을(를) 열 수 있는 것이 없습니다.",
+    "backToFolder": "폴더로 돌아가기"
   },
   "trash": {
     "title": "휴지통",

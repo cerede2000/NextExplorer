@@ -19,7 +19,7 @@ const fetchOnlyOfficeHistory = vi.fn();
 const fetchOnlyOfficeHistoryData = vi.fn();
 const restoreVersion = vi.fn();
 const requestOnlyOfficeForceSave = vi.fn();
-const closeOnlyOfficeSession = vi.fn();
+const endOnlyOfficeSession = vi.fn();
 const renameOnlyOfficeDocument = vi.fn();
 const saveOnlyOfficeDocumentAs = vi.fn();
 const fetchOnlyOfficeStorageFile = vi.fn();
@@ -51,7 +51,7 @@ vi.mock('@/api', () => ({
   heartbeatOnlyOfficeSession: (...args) => heartbeatOnlyOfficeSession(...args),
   notifyOnlyOfficeMention: (...args) => notifyOnlyOfficeMention(...args),
   requestOnlyOfficeForceSave: (...args) => requestOnlyOfficeForceSave(...args),
-  closeOnlyOfficeSession: (...args) => closeOnlyOfficeSession(...args),
+  endOnlyOfficeSession: (...args) => endOnlyOfficeSession(...args),
   renameOnlyOfficeDocument: (...args) => renameOnlyOfficeDocument(...args),
   saveOnlyOfficeDocumentAs: (...args) => saveOnlyOfficeDocumentAs(...args),
   browse: vi.fn(() => Promise.resolve({ items: [], path: '' })),
@@ -136,8 +136,8 @@ beforeEach(() => {
   heartbeatOnlyOfficeSession.mockResolvedValue({ active: true });
   requestOnlyOfficeForceSave.mockReset();
   requestOnlyOfficeForceSave.mockResolvedValue({ queued: true });
-  closeOnlyOfficeSession.mockReset();
-  closeOnlyOfficeSession.mockResolvedValue(undefined);
+  endOnlyOfficeSession.mockReset();
+  endOnlyOfficeSession.mockResolvedValue({ ended: true });
   for (const mock of [
     renameOnlyOfficeDocument,
     saveOnlyOfficeDocumentAs,
@@ -846,7 +846,7 @@ describe('renaming from the title bar', () => {
       sessionId: 'session-1',
       reason: 'close',
     });
-    expect(closeOnlyOfficeSession).toHaveBeenCalledWith('Docs/Report.docx', {
+    expect(endOnlyOfficeSession).toHaveBeenCalledWith('Docs/Report.docx', {
       sessionId: 'session-1',
     });
 

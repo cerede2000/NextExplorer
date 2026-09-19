@@ -574,7 +574,9 @@
       "viewGrid": "格狀",
       "viewList": "清單",
       "viewColumns": "分欄",
-      "viewPhotos": "相片"
+      "viewPhotos": "相片",
+      "documentsOpenInNewTab": "在新分頁中開啟文件",
+      "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "這份文件大小為 {size}。預覽在 {limit} 處停止，因為它需要在瀏覽器中排版每一個元素。請在編輯器中開啟或下載。",
     "tooLargeToRenderWithEditor": "這份文件大小為 {size}。預覽在 {limit} 處停止，因為它需要在瀏覽器中排版每一個元素；編輯器最多可開啟 {editorLimit}。請在編輯器中開啟或下載。",
-    "stillRendering": "正在算繪… {percent}%"
+    "stillRendering": "正在算繪… {percent}%",
+    "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",
+    "backToFolder": "返回資料夾"
   },
   "trash": {
     "title": "資源回收筒",

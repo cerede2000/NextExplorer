@@ -574,7 +574,9 @@
       "viewGrid": "Raster",
       "viewList": "Liste",
       "viewColumns": "Spalten",
-      "viewPhotos": "Fotos"
+      "viewPhotos": "Fotos",
+      "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
+      "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner."
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt. Öffnen Sie es im Editor oder laden Sie es herunter.",
     "tooLargeToRenderWithEditor": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt; der Editor öffnet bis zu {editorLimit}. Öffnen Sie es im Editor oder laden Sie es herunter.",
-    "stillRendering": "Wird dargestellt… {percent} %"
+    "stillRendering": "Wird dargestellt… {percent} %",
+    "nothingOpensIt": "Hier kann nichts {name} öffnen.",
+    "backToFolder": "Zurück zum Ordner"
   },
   "trash": {
     "title": "Papierkorb",

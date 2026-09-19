@@ -1,6 +1,7 @@
 import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
+import { documentRoute } from '@/utils/documentRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
@@ -59,16 +60,43 @@ export function useNavigation() {
       (MARKDOWN_EXTENSIONS.includes(extensionFromKind) ||
         MARKDOWN_EXTENSIONS.includes(extensionFromName));
 
+    const basePath = item.path ? `${item.path}/${name}` : name;
+    const fullPath = basePath.replace(/^\/+/, '');
+    const editable =
+      isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);
+
+    // A tab of its own, when that is what this account asked for.
+    //
+    // One decision for every kind of file rather than one per plugin: a
+    // spreadsheet and a photograph open the same way, because a preference
+    // that holds for some files and not others is a preference nobody can
+    // predict. Both addresses already exist — `/open` for anything with a
+    // preview, `/editor` for anything the text editor opens — so this is the
+    // browser being handed one of them instead of this page filling itself.
+    if (appSettings.userSettings?.documentsOpenInNewTab) {
+      const target =
+        opensInEditor || (!previewManager.findPlugin(item) && editable)
+          ? { path: `/editor/${fullPath.split('/').map(encodeURIComponent).join('/')}` }
+          : previewManager.findPlugin(item)
+            ? documentRoute(fullPath)
+            : null;
+
+      if (target) {
+        // `noopener` because the page opened must not be able to reach back
+        // into this one through `window.opener`.
+        window.open(router.resolve(target).href, '_blank', 'noopener');
+        return;
+      }
+    }
+
     // Files: try preview first (no view transition – avoids double animations)
     if (!opensInEditor && previewManager.open(item)) {
       return;
     }
 
-    if (isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName)) {
-      const basePath = item.path ? `${item.path}/${name}` : name;
-      const fileToEdit = basePath.replace(/^\/+/, '');
+    if (editable) {
       // Encode each segment for editor path
-      const encodedPath = fileToEdit.split('/').map(encodeURIComponent).join('/');
+      const encodedPath = fullPath.split('/').map(encodeURIComponent).join('/');
       navigate({ path: `/editor/${encodedPath}` });
     }
   };

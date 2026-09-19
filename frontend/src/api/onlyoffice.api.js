@@ -1,6 +1,6 @@
 // /api/onlyoffice.api.js
 
-import { requestJson, normalizePath } from './http';
+import { buildUrl, requestJson, normalizePath } from './http';
 
 /**
  * `theme` is 'light' or 'dark'. It has to travel with the request rather than
@@ -155,12 +155,40 @@ export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
   });
 }
 
-export async function closeOnlyOfficeSession(path, { sessionId } = {}) {
+/**
+ * The editing session is over: the server flushes what the editor holds and
+ * lets the session go, in that order.
+ *
+ * `beacon` is for a page that is being unloaded. A tab being closed gives one
+ * synchronous moment, and an ordinary request started in it is cancelled along
+ * with everything else — `sendBeacon` hands the request to the browser, which
+ * sends it after the page is gone, with the same cookies. `keepalive` is the
+ * same idea through `fetch`, and is what answers when a browser has no
+ * `sendBeacon`; it is also what makes the reply readable, which is why the
+ * panel — which has time — uses it.
+ */
+export async function endOnlyOfficeSession(path, { sessionId, beacon = false } = {}) {
   const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath || !sessionId) return;
-  return requestJson('/api/onlyoffice/session-close', {
+  if (!normalizedPath || !sessionId) return null;
+  const body = JSON.stringify({ path: normalizedPath, sessionId });
+
+  if (beacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+    try {
+      const handedOver = navigator.sendBeacon(
+        buildUrl('/api/onlyoffice/session-end'),
+        // Typed, because the server reads JSON bodies and nothing else: a
+        // beacon sent as text/plain arrives with an empty body.
+        new Blob([body], { type: 'application/json' })
+      );
+      if (handedOver) return null;
+    } catch (_) {
+      // A browser that refused the beacon still has the request below.
+    }
+  }
+
+  return requestJson('/api/onlyoffice/session-end', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, sessionId }),
+    body,
     keepalive: true,
     suppressErrorHandler: true,
   });

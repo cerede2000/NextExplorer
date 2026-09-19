@@ -29,6 +29,10 @@ export const useAppSettings = defineStore('appSettings', () => {
     // Markdown is the one kind of file with both a preview and an editor, so
     // it is the only one where opening it is a choice (#347).
     markdownOpensInEditor: false,
+    // Opening a document in a browser tab of its own, rather than over the
+    // folder it is in. Off, so nothing changes for anybody who does not ask
+    // for it.
+    documentsOpenInNewTab: false,
   });
 
   const createDefaultTrashSettings = () => ({

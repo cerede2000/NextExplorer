@@ -440,6 +440,55 @@ test('a file longer than the window scrolls inside the editor', async () => {
 });
 
 /**
+ * A document in a browser tab of its own.
+ *
+ * The request was to keep documents open while browsing elsewhere, several at
+ * a time (nxzai/NextExplorer#303), and the answer is an address rather than a
+ * tab bar inside the application. What cannot be proved anywhere but in a
+ * browser is the part that decides whether the feature exists at all: that the
+ * double click really opens a second tab — `window.open` outside a gesture is
+ * a popup a browser silently blocks — and that the folder it was opened from
+ * is still sitting there behind it.
+ */
+test('a document opens in a tab of its own, and the folder stays where it was', async () => {
+  fs.writeFileSync(path.join(volume, 'tabbed.md'), '# In its own tab\n');
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="documents-in-new-tab"]');
+  await expect(preference).toBeVisible();
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  await page.goto('/browse/Projects');
+  // The row itself: the selection button beside it swallows a double click on
+  // purpose, so a double click there would select the file and open nothing.
+  const row = page.locator('[title="tabbed.md"]').first();
+  await expect(row).toBeVisible();
+
+  const [document] = await Promise.all([page.waitForEvent('popup'), row.dblclick()]);
+  await document.waitForLoadState('domcontentloaded');
+
+  expect(document.url()).toContain('/open/Projects/tabbed.md');
+  await expect(document.locator('[data-test="preview-surface"]')).toBeVisible();
+  await expect(document.getByText('tabbed.md')).toBeVisible();
+
+  // The folder it was opened from never moved: that is the whole point of
+  // opening elsewhere.
+  await expect(page).toHaveURL(/\/browse\/Projects/);
+  await expect(page.locator('[data-test="preview-surface"]')).toHaveCount(0);
+
+  await document.close();
+  await expect(page).toHaveURL(/\/browse\/Projects/);
+
+  // Back off, so the tests after this one open documents the way they expect.
+  await page.goto('/settings/user-preferences');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'false');
+});
+
+/**
  * Every save in the editor keeps what it replaced. From a right click, the
  * Versions panel lists those versions and puts an earlier one back — and what
  * the restore replaced is kept in turn, so restoring the wrong one loses
@@ -528,6 +577,11 @@ test('no screen hides content where nothing can scroll', async () => {
     ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
     ['the activity log in the settings', '/settings/activity', 'text=Activity log'],
     ['the API tokens in the settings', '/settings/account-api-tokens', 'text=New token'],
+    [
+      'a document at its own address',
+      '/open/Projects/wall-of-text.md',
+      '[data-test="preview-surface"]',
+    ],
     ['the trash', '/trash', 'body'],
   ];
 

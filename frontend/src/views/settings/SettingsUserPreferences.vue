@@ -31,6 +31,7 @@ const local = reactive({
   skipHome: null, // null = use env, true/false = override
   defaultView: null, // null = the built-in default, otherwise a view mode
   markdownOpensInEditor: false,
+  documentsOpenInNewTab: false,
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -50,7 +51,8 @@ const dirty = computed(() => {
     JSON.stringify(localExpiration) !== JSON.stringify(origExpiration) ||
     local.skipHome !== orig.skipHome ||
     local.defaultView !== orig.defaultView ||
-    local.markdownOpensInEditor !== (orig.markdownOpensInEditor ?? false)
+    local.markdownOpensInEditor !== (orig.markdownOpensInEditor ?? false) ||
+    local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false)
   );
 });
 
@@ -110,6 +112,7 @@ watch(
     local.skipHome = userSettings.skipHome ?? null;
     local.defaultView = userSettings.defaultView ?? null;
     local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
+    local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
   },
   { immediate: true }
 );
@@ -134,6 +137,7 @@ const reset = () => {
   local.skipHome = userSettings.skipHome ?? null;
   local.defaultView = userSettings.defaultView ?? null;
   local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
+  local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
 };
 
 const save = async () => {
@@ -153,6 +157,7 @@ const save = async () => {
       skipHome: local.skipHome,
       defaultView: local.defaultView,
       markdownOpensInEditor: local.markdownOpensInEditor,
+      documentsOpenInNewTab: local.documentsOpenInNewTab,
     },
   });
 };
@@ -243,6 +248,20 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.markdownOpensInEditor" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.documentsOpenInNewTab') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.documentsOpenInNewTabHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch v-model="local.documentsOpenInNewTab" data-test="documents-in-new-tab" />
         </div>
 
         <div

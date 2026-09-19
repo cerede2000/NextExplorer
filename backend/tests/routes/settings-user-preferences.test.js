@@ -55,6 +55,7 @@ const NON_DEFAULT = {
   showSidebarShares: false,
   showSidebarTools: false,
   markdownOpensInEditor: true,
+  documentsOpenInNewTab: true,
   defaultShareExpiration: { value: 3, unit: 'days' },
   skipHome: true,
   defaultView: 'list',

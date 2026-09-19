@@ -574,7 +574,9 @@
       "viewGrid": "Cuadrícula",
       "viewList": "Lista",
       "viewColumns": "Columnas",
-      "viewPhotos": "Fotos"
+      "viewPhotos": "Fotos",
+      "documentsOpenInNewTab": "Abrir los documentos en una pestaña nueva",
+      "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora."
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador. Ábralo en el editor o descárguelo.",
     "tooLargeToRenderWithEditor": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador; el editor abre hasta {editorLimit}. Ábralo en el editor o descárguelo.",
-    "stillRendering": "Representando… {percent} %"
+    "stillRendering": "Representando… {percent} %",
+    "nothingOpensIt": "Aquí nada puede abrir {name}.",
+    "backToFolder": "Volver a la carpeta"
   },
   "trash": {
     "title": "Papelera",

@@ -577,7 +577,9 @@
       "viewGrid": "Grid",
       "viewList": "List",
       "viewColumns": "Columns",
-      "viewPhotos": "Photos"
+      "viewPhotos": "Photos",
+      "documentsOpenInNewTab": "Open documents in a new tab",
+      "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser. Open it in the editor or download it.",
     "tooLargeToRenderWithEditor": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser; the editor opens up to {editorLimit}. Open it in the editor or download it.",
-    "stillRendering": "Rendering… {percent}%"
+    "stillRendering": "Rendering… {percent}%",
+    "nothingOpensIt": "Nothing here can open {name}.",
+    "backToFolder": "Back to the folder"
   },
   "trash": {
     "title": "Trash",

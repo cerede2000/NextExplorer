@@ -1127,8 +1127,28 @@ router.post(
   })
 );
 
+/**
+ * The editor is gone: flush what it holds, then let the session go.
+ *
+ * Two things in one request, and the order between them is the point. Closing
+ * the panel could afford two calls because it can wait between them — it asks
+ * for a force-save, waits until this server has accepted it, and only then
+ * ends the session. A browser tab being closed can wait for nothing: whatever
+ * is sent at that moment is sent in one breath, and a second request that
+ * depended on the first would arrive in whichever order the network felt like.
+ *
+ * So the order moved here, and both ways of closing use this one route. What
+ * the server ends up holding is the same whether the panel was closed or the
+ * tab was — which is the property the tests pin, because two ways of closing
+ * that leave two different states is how a document ends up reported as open
+ * by nobody.
+ *
+ * The advisory activity is deliberately *not* released: closing the frame does
+ * not mean Document Server has let the document go. It stays until its
+ * status-2/4 callback arrives, or until the short session TTL is reached.
+ */
 router.post(
-  '/onlyoffice/session-close',
+  '/onlyoffice/session-end',
   asyncHandler(async (req, res) => {
     const relativePath = normalizeRelativePath(req.body?.path || '');
     const sessionId = req.body?.sessionId || '';
@@ -1138,12 +1158,30 @@ router.post(
     const context = { user: req.user, guestSession: req.guestSession };
     const { accessInfo } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
-    await getEditorSession(req, sessionId, relativePath);
-    // Closing the embedded frame does not mean Document Server has released
-    // the document yet. Keep the advisory activity until its status-2/4
-    // callback arrives (or until the short session TTL is reached).
+    const session = await getEditorSession(req, sessionId, relativePath);
+
+    // Somebody who was reading has nothing to flush, and an integration with
+    // no Document Server has nowhere to ask. Neither is a reason to refuse the
+    // close — the session still has to end, or the document goes on being
+    // reported as open by somebody who has left.
+    //
+    // The secret is deliberately not checked: there is always one, derived
+    // when none was configured (config/index.js), so a condition on it would
+    // read as a guard and never be false.
+    let requestId = null;
+    if (onlyoffice.serverUrl && accessInfo.canWrite) {
+      requestId =
+        pendingForceSavesBySession.get(sessionId) ||
+        enqueueForceSave({
+          sessionId,
+          key: session.key,
+          relativePath,
+          reason: 'close',
+        });
+    }
+
     await editorSessions.remove(sessionId);
-    res.status(204).end();
+    res.json({ ended: true, flushed: Boolean(requestId), requestId });
   })
 );
 

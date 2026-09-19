@@ -574,7 +574,9 @@
       "viewGrid": "Rutnät",
       "viewList": "Lista",
       "viewColumns": "Kolumner",
-      "viewPhotos": "Foton"
+      "viewPhotos": "Foton",
+      "documentsOpenInNewTab": "Öppna dokument i en ny flik",
+      "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag."
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren. Öppna det i redigeraren eller ladda ner det.",
     "tooLargeToRenderWithEditor": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren; redigeraren öppnar upp till {editorLimit}. Öppna det i redigeraren eller ladda ner det.",
-    "stillRendering": "Renderar… {percent} %"
+    "stillRendering": "Renderar… {percent} %",
+    "nothingOpensIt": "Inget här kan öppna {name}.",
+    "backToFolder": "Tillbaka till mappen"
   },
   "trash": {
     "title": "Papperskorg",

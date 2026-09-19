@@ -577,7 +577,9 @@
       "viewGrid": "Raster",
       "viewList": "Lijst",
       "viewColumns": "Kolommen",
-      "viewPhotos": "Foto's"
+      "viewPhotos": "Foto's",
+      "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
+      "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu."
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Dit document is {size}. Het voorbeeld stopt bij {limit}, omdat het elk element in de browser opmaakt. Open het in de editor of download het.",
     "tooLargeToRenderWithEditor": "Dit document is {size}. Het voorbeeld stopt bij {limit}, omdat het elk element in de browser opmaakt; de editor opent tot {editorLimit}. Open het in de editor of download het.",
-    "stillRendering": "Weergeven… {percent}%"
+    "stillRendering": "Weergeven… {percent}%",
+    "nothingOpensIt": "Hier kan niets {name} openen.",
+    "backToFolder": "Terug naar de map"
   },
   "trash": {
     "title": "Prullenbak",

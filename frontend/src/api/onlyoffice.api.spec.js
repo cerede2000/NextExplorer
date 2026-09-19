@@ -28,6 +28,15 @@ const call = () => {
 
 const options = () => requestJson.mock.calls.at(-1)[1];
 
+/** jsdom's Blob has no `text()`, and what is in it is the point. */
+const readBlob = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+
 beforeEach(() => {
   requestJson.mockClear();
 });
@@ -234,19 +243,57 @@ describe('the ONLYOFFICE API', () => {
     expect(requestJson).not.toHaveBeenCalled();
   });
 
-  it('closes an editing session in a request that outlives the page, and not at all without one', async () => {
-    await api.closeOnlyOfficeSession('/Docs/report.docx/', { sessionId: 's1' });
+  it('ends an editing session in a request that outlives the page', async () => {
+    await api.endOnlyOfficeSession('/Docs/report.docx/', { sessionId: 's1' });
     expect(call()).toEqual({
-      endpoint: '/api/onlyoffice/session-close',
+      endpoint: '/api/onlyoffice/session-end',
       method: 'POST',
       body: { path: 'Docs/report.docx', sessionId: 's1' },
     });
+    // `keepalive` is what lets the request finish after the page has gone.
     expect(options()).toMatchObject({ keepalive: true, suppressErrorHandler: true });
 
     requestJson.mockClear();
-    await expect(api.closeOnlyOfficeSession('Docs/report.docx')).resolves.toBeUndefined();
-    await expect(api.closeOnlyOfficeSession('', { sessionId: 's1' })).resolves.toBeUndefined();
+    await expect(api.endOnlyOfficeSession('Docs/report.docx')).resolves.toBeNull();
+    await expect(api.endOnlyOfficeSession('', { sessionId: 's1' })).resolves.toBeNull();
     expect(requestJson).not.toHaveBeenCalled();
+  });
+
+  it('hands a closing tab to the beacon, as JSON the server will read', async () => {
+    const sendBeacon = vi.fn(() => true);
+    vi.stubGlobal('navigator', { ...globalThis.navigator, sendBeacon });
+
+    await api.endOnlyOfficeSession('Docs/report.docx', { sessionId: 's1', beacon: true });
+
+    // Nothing through fetch: a request started while a tab is closing is
+    // cancelled with everything else, which is the whole reason for the beacon.
+    expect(requestJson).not.toHaveBeenCalled();
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+
+    const [url, payload] = sendBeacon.mock.calls[0];
+    expect(url).toContain('/api/onlyoffice/session-end');
+    // Typed, because the server parses JSON bodies and nothing else — a beacon
+    // sent as text/plain arrives with an empty body and closes nothing.
+    expect(payload.type).toBe('application/json');
+    expect(JSON.parse(await readBlob(payload))).toEqual({
+      path: 'Docs/report.docx',
+      sessionId: 's1',
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('still ends the session when the browser has no beacon, or refuses it', async () => {
+    vi.stubGlobal('navigator', { ...globalThis.navigator, sendBeacon: undefined });
+    await api.endOnlyOfficeSession('Docs/report.docx', { sessionId: 's1', beacon: true });
+    expect(call().endpoint).toBe('/api/onlyoffice/session-end');
+
+    requestJson.mockClear();
+    vi.stubGlobal('navigator', { ...globalThis.navigator, sendBeacon: vi.fn(() => false) });
+    await api.endOnlyOfficeSession('Docs/report.docx', { sessionId: 's1', beacon: true });
+    expect(call().endpoint).toBe('/api/onlyoffice/session-end');
+
+    vi.unstubAllGlobals();
   });
 
   it('waits for a change in who is editing, from the last version it saw, without retrying or alerting', async () => {

@@ -577,7 +577,9 @@
       "viewGrid": "Grille",
       "viewList": "Liste",
       "viewColumns": "Colonnes",
-      "viewPhotos": "Photos"
+      "viewPhotos": "Photos",
+      "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
+      "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui."
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur. Ouvrez-le dans l'éditeur ou téléchargez-le.",
     "tooLargeToRenderWithEditor": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur ; l'éditeur, lui, ouvre jusqu'à {editorLimit}. Ouvrez-le dans l'éditeur ou téléchargez-le.",
-    "stillRendering": "Rendu en cours… {percent} %"
+    "stillRendering": "Rendu en cours… {percent} %",
+    "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",
+    "backToFolder": "Retour au dossier"
   },
   "trash": {
     "title": "Corbeille",

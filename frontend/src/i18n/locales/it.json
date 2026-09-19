@@ -574,7 +574,9 @@
       "viewGrid": "Griglia",
       "viewList": "Elenco",
       "viewColumns": "Colonne",
-      "viewPhotos": "Foto"
+      "viewPhotos": "Foto",
+      "documentsOpenInNewTab": "Aprire i documenti in una nuova scheda",
+      "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi."
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -1097,7 +1099,9 @@
   "preview": {
     "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",
     "tooLargeToRenderWithEditor": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser; l'editor apre fino a {editorLimit}. Aprilo nell'editor o scaricalo.",
-    "stillRendering": "Rendering in corso… {percent} %"
+    "stillRendering": "Rendering in corso… {percent} %",
+    "nothingOpensIt": "Qui niente sa aprire {name}.",
+    "backToFolder": "Torna alla cartella"
   },
   "trash": {
     "title": "Cestino",
