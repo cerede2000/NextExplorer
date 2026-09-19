@@ -16,6 +16,16 @@ EnvironmentFile=@ENV_FILE@
 Environment=PATH=@PROGRAM_DIR@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=NODE_ENV=production
 
+# The same thread pool the image runs with.
+#
+# libuv gives four threads by default, and every filesystem call, every hash
+# and every image the processor resizes goes through them — on a file server
+# that is the work, not the edges of it. The container has set this since it
+# was built; this install did not, so the same release was quietly slower
+# outside Docker than inside it. Found because somebody asked whether the two
+# behave the same.
+Environment=UV_THREADPOOL_SIZE=16
+
 ExecStart=@PROGRAM_DIR@/runtime/bin/node src/server.js
 Restart=on-failure
 RestartSec=2

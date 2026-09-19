@@ -316,6 +316,10 @@ module.exports = {
     process.env.THUMBNAIL_CACHE_TTL_DAYS != null
       ? Number(process.env.THUMBNAIL_CACHE_TTL_DAYS)
       : 30,
+  // ExifTool from the machine rather than the one in the archive: 23 MB of
+  // Perl somebody who already has it would rather not carry twice (#9).
+  // Empty means the bundled copy, which is the default and needs nothing.
+  EXIFTOOL_PATH: process.env.EXIFTOOL_PATH || '',
   // Embedded RAW previews are full-size JPEGs, far larger than a thumbnail, and
   // a new one is extracted whenever a RAW file changes.
   RAW_PREVIEW_CACHE_MAX_FILES:

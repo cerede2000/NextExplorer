@@ -158,6 +158,11 @@ describe('a first installation', () => {
       'ReadWritePaths=/var/lib/nextexplorer /var/cache/nextexplorer /srv/nextexplorer'
     );
     expect(unit).toContain('ProtectSystem=strict');
+    // The same environment the image runs with. The container has set the
+    // thread pool since it was built and this install did not, so the same
+    // release was quietly slower outside Docker than inside it (#9).
+    expect(unit).toContain('Environment=NODE_ENV=production');
+    expect(unit).toContain('Environment=UV_THREADPOOL_SIZE=16');
     expect(unit).not.toMatch(/@[A-Z_]+@/);
   });
 

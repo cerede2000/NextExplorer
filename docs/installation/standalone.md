@@ -161,6 +161,8 @@ cd nextexplorer-<version>-linux-<arch>/app
 CONFIG_DIR="$HOME/nextexplorer/config" \
 CACHE_DIR="$HOME/nextexplorer/cache" \
 VOLUME_ROOT="$HOME/nextexplorer/volumes" \
+NODE_ENV=production \
+UV_THREADPOOL_SIZE=16 \
 PATH="$PWD/../bin:$PATH" \
 ../runtime/bin/node src/server.js
 ```
@@ -188,13 +190,16 @@ that means NodeSource or the tarball from nodejs.org.
 
 ### What else can be thrown away
 
-|                                       |                                                         |
-| ------------------------------------- | ------------------------------------------------------- |
-| `runtime/`                            | 121 MB — only if you provide Node 24 yourself, as above |
-| `app/node_modules/exiftool-vendored*` | 23 MB — the metadata of RAW photos, and nothing else    |
+|                                       |                                                                        |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `runtime/`                            | 121 MB — only if you provide Node 24 yourself, as above                |
+| `app/node_modules/exiftool-vendored*` | 23 MB — only if you set `EXIFTOOL_PATH`, or accept losing RAW metadata |
+| `bin/7zz`                             | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                     |
 
 The rest is load-bearing: the image processor and its libvips are 18 MB, the
-SQLite driver 12 MB, the built interface 7 MB, and 7-Zip 3.6 MB.
+SQLite driver 12 MB, and the built interface 7 MB. Those three stay — see
+[using what the machine already has](#using-what-the-machine-already-has) for
+why the first two cannot come from a package manager.
 
 ### The program directory is read-only
 
@@ -232,6 +237,30 @@ they are picked up on the next start — nothing needs reconfiguring.
 7-Zip is the exception and comes with the archive: the builds Debian and Alpine
 package have no RAR codec, and browsing archives is the feature that would
 quietly lose a format.
+
+### Using what the machine already has
+
+Two of the things in the archive can come from your distribution instead, if
+you would rather not carry a second copy.
+
+**7-Zip.** `SEVEN_ZIP_PATH` names the one to run, so `bin/7zz` can be deleted
+and the variable pointed at yours. Which formats can be opened is not
+assumed: at startup the server asks `7z i` what that build supports and writes
+the answer to its log, so a build without a codec loses that format and
+nothing else. On Debian 13 the package is `7zip`, and its own description says
+the unRAR code was dropped to stay within the DFSG — `7zip-rar`, in non-free,
+is what puts RAR back. `unrar` is a different program and is not used here.
+
+**ExifTool.** `EXIFTOOL_PATH` names the one to run, and
+`app/node_modules/exiftool-vendored*` — 23 MB — can then go. On Debian the
+package is `libimage-exiftool-perl`.
+
+**And two that cannot.** The SQLite driver and the image processor are native
+Node modules rather than libraries: `apt install sqlite3` or `libvips` does
+not replace them, and building against a system library would mean compiling
+at install time, which is the one thing this archive promises never to do.
+See [what else can be thrown away](#what-else-can-be-thrown-away) for what
+each of them weighs.
 
 ## Where everything lives
 

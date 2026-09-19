@@ -17,11 +17,30 @@ const {
 let exiftoolSingleton = null;
 let exiftoolCleanupRegistered = false;
 
+/**
+ * ExifTool, from the archive or from the machine.
+ *
+ * `exiftool-vendored` brings its own copy, which is the right default: it is
+ * one dependency less to explain, and the version is the one this was tested
+ * against. It is also 23 MB of Perl, and somebody running the program outside
+ * a container may well have ExifTool already and would rather not carry a
+ * second one (#9). `EXIFTOOL_PATH` points at theirs.
+ *
+ * Nothing else changes: the same library drives it, and a path that turns out
+ * not to be ExifTool fails the way a missing one does — no RAW metadata, and
+ * the rest of the application carries on.
+ */
 const loadExiftool = () => {
   if (exiftoolSingleton) return exiftoolSingleton;
   try {
-    const { exiftool } = require('exiftool-vendored');
-    exiftoolSingleton = exiftool;
+    const vendored = require('exiftool-vendored');
+    const chosen = typeof env.EXIFTOOL_PATH === 'string' ? env.EXIFTOOL_PATH.trim() : '';
+    if (chosen) {
+      exiftoolSingleton = new vendored.ExifTool({ exiftoolPath: chosen });
+      logger.info({ exiftoolPath: chosen }, 'Using the ExifTool this machine provides');
+    } else {
+      exiftoolSingleton = vendored.exiftool;
+    }
 
     if (!exiftoolCleanupRegistered) {
       exiftoolCleanupRegistered = true;
