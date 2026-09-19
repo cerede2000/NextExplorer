@@ -130,16 +130,35 @@ let autoSaveIntervalMs = 0;
 let changesObserved = false;
 let disposed = false;
 let sessionHeartbeatTimer = null;
-const editorId = computed(() => {
-  const base = (props.filePath || 'document').toString();
-  return (
-    'onlyoffice-' +
-    base
-      .replace(/[^a-z0-9]+/gi, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80)
-  );
-});
+/**
+ * The element the Document Server's script attaches to, and a new one every
+ * time the editor is built.
+ *
+ * The script keeps what it attached in `window.DocEditor.instances`, keyed by
+ * that element's id, and refuses to attach twice to the same key — it logs
+ * "Skip loading. Instance already exists" and returns. Taking the previous one
+ * out of that registry is the Vue component's job, on unmount, and it does it
+ * by calling `destroyEditor()` first: throw there and the key is never
+ * cleared, so every rebuild after that produces an element with nothing in it
+ * and no message anywhere.
+ *
+ * Coming back from the version history is the rebuild that matters, and the
+ * one an editor is most likely to be busy during. A fresh id cannot collide
+ * with a registry entry that outlived its editor, so the way back does not
+ * depend on the teardown having gone well. It also changes the `key`, which
+ * is what makes the element itself new rather than reused.
+ */
+let editorGeneration = 0;
+const editorId = ref('');
+const takeEditorId = () => {
+  editorGeneration += 1;
+  const base = (documentPath.value || props.filePath || 'document').toString();
+  const slug = base
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  editorId.value = `onlyoffice-${slug}-${editorGeneration}`;
+};
 
 const clearAutoSaveTimer = () => {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
@@ -532,6 +551,10 @@ const load = async () => {
   error.value = null;
   serverUrl.value = null;
   config.value = null;
+  // In the same breath as the config, and before anything is awaited: the
+  // editor on screen is removed by this very render, so it unmounts under the
+  // id it was mounted with and takes that entry out of the registry itself.
+  takeEditorId();
   previewState.forceSaveSessionId = null;
   previewState.hasNativeClose = false;
   try {
@@ -699,7 +722,11 @@ const load = async () => {
       },
     };
     serverUrl.value = documentServerUrl;
-    logger.debug('ONLYOFFICE config', cfg);
+    // The element this build attaches to, said out loud: the next line in the
+    // console is either the editor reporting itself ready or the Document
+    // Server's script refusing the element, and which of the two it was is
+    // the whole diagnosis of an editor that comes back empty.
+    logger.debug('ONLYOFFICE config', { element: editorId.value, config: cfg });
     config.value = cfg;
   } catch (e) {
     error.value = e?.message || 'Failed to initialize ONLYOFFICE.';

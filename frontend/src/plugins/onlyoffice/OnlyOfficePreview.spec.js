@@ -107,6 +107,27 @@ const configResponse = (sessionId) => ({
 
 // Previews mounted by the tests below, unmounted after each one: a preview
 // left behind keeps its timers and its watchers, and answers the next test.
+/**
+ * The editor the preview will find, whatever the element ended up being
+ * called.
+ *
+ * The id carries a generation now — the element is new every time the editor
+ * is built, so that a registry entry left behind by a teardown that failed
+ * cannot keep the next one from attaching. These tests are about what the
+ * preview asks the editor to do, not about what the element is named, so they
+ * answer to any id rather than to a spelling they would have to be kept in
+ * step with.
+ */
+const registerEditor = (editor) => {
+  window.DocEditor = {
+    instances: new Proxy(
+      {},
+      { get: (_target, key) => (typeof key === 'string' ? editor : undefined) }
+    ),
+  };
+  return editor;
+};
+
 let openPreviews = [];
 
 const mountPreview = ({ filePath = 'report.docx', previewState = {} } = {}) => {
@@ -224,7 +245,7 @@ describe('the document history in the editor', () => {
     fetchOnlyOfficeHistoryData.mockReset();
     restoreVersion.mockReset();
     editor = { refreshHistory: vi.fn(), setHistoryData: vi.fn(), refreshFile: vi.fn() };
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': editor } };
+    registerEditor(editor);
     if (panel.store) Object.assign(panel.store, { restored: 0, relativePath: '' });
   });
 
@@ -436,7 +457,7 @@ describe('OnlyOffice preview presence', () => {
     // has to be there: without it the code takes its fallback path and never
     // reaches the heartbeat this test is about.
     const refreshFile = vi.fn();
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': { refreshFile } } };
+    registerEditor({ refreshFile });
 
     const wrapper = mountPreview();
     await flushPromises();
@@ -661,7 +682,7 @@ describe('a document replaced on disk while it is open', () => {
 
   it('hands the running editor the document as it now is, and moves every call to the new session', async () => {
     const editor = { refreshFile: vi.fn() };
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': editor } };
+    registerEditor(editor);
     const next = fresh();
     fetchOnlyOfficeConfig
       .mockResolvedValueOnce(configResponse('session-1'))
@@ -696,7 +717,7 @@ describe('a document replaced on disk while it is open', () => {
 
   it('rebuilds the editor when the Document Server cannot swap the document in place', async () => {
     // An older Document Server: the editor has no refreshFile.
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': {} } };
+    registerEditor({});
     fetchOnlyOfficeConfig
       .mockResolvedValueOnce(configResponse('session-1'))
       .mockImplementation(async () => fresh());
@@ -718,7 +739,7 @@ describe('a document replaced on disk while it is open', () => {
   });
 
   it('records why the document could not be refreshed, and keeps the session it had', async () => {
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': { refreshFile: vi.fn() } } };
+    registerEditor({ refreshFile: vi.fn() });
     const failure = new Error('The file no longer exists.');
     fetchOnlyOfficeConfig
       .mockResolvedValueOnce(configResponse('session-1'))
@@ -1018,7 +1039,7 @@ describe('files picked for the editor', () => {
 
   beforeEach(() => {
     editor = Object.fromEntries(METHODS.map((method) => [method, vi.fn()]));
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': editor } };
+    registerEditor(editor);
     fetchOnlyOfficeConfig.mockResolvedValue(configResponse('session-1'));
   });
 
@@ -1102,7 +1123,7 @@ describe('files picked for the editor', () => {
 describe('mentions in comments', () => {
   it('answers the editor every time, with the people found or with nobody', async () => {
     const editor = { setUsers: vi.fn() };
-    window.DocEditor = { instances: { 'onlyoffice-report-docx': editor } };
+    registerEditor(editor);
     const alice = { email: 'alice@example.com', name: 'Alice Martin', id: 'u1' };
     fetchOnlyOfficeMentionUsers
       .mockResolvedValueOnce({ users: [alice] })
