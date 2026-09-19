@@ -6,6 +6,117 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.9.0 (2026-09-19)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.0)
+
+### A credential for a script, narrower than the account it belongs to
+
+The HTTP API authenticated by session cookie only. Anything driving this
+server from a script signed in as a person and held a full session: as wide as
+the account, as long-lived as the session, and impossible to take away without
+changing the password — which takes every other script down with it.
+
+An **API token** is the opposite of all three. Issue one from **Settings → API
+tokens**: it is named, shown once, stored as a hash, and revoked on its own.
+
+- **`read` or `read and write`.** A read-only token reaches `GET` and `HEAD`,
+  and the one read that arrives as a POST — downloading a selection, because a
+  hundred file names do not fit in a URL. A write token does what its owner
+  does with files.
+- **Two doors stay shut whatever the scope**, and whoever owns it: the account
+  (`/api/auth/*`, so a token cannot change a password, add a passkey or issue
+  another token) and administration, including the terminal and the live
+  editors. `GET /api/auth/me` is the exception, so a script can ask who it is
+  without being able to change who it is.
+- **The value is presented in an `Authorization: Bearer` header and nowhere
+  else.** Not a query parameter, which lands in every access log; not a cookie,
+  which a browser attaches to a request another site made.
+- **Every unusable token is refused the same way** — forged, unknown, revoked,
+  expired — so a stolen value learns nothing from the answer. Which of the four
+  it was goes to the activity log instead, once an hour per token rather than
+  once per request.
+
+[Driving the API](/reference/api) has the whole of it, and
+[a test plan](/testing/api-tokens) is what to try by hand.
+
+### An authentication gate that did not hold
+
+Found while attacking the tokens on purpose, and older than them.
+
+Express matches routes without regard to case, so `/API/anything` is the same
+route as `/api/anything`. The authentication gate compared the path as it
+arrived, answered "this needs no identity" to anything not spelled `/api`, and
+**skipped itself**. Measured before the fix, with no credential at all:
+`/API/volumes` answered `200` and so did `/API/settings`.
+
+Nothing was granted — no session was attached either, so the routes that ask
+who is calling refused, and what came back was an empty list and the public
+branding. It was a gate that did not hold in front of routes entitled to
+assume it did. It decides on a folded path now, and a test holds every
+spelling to the same answer.
+
+### A document has an address
+
+Opening a document filled a panel over the folder it was in, driven by a store
+the browser knew nothing about: nothing could be linked to, nothing kept as a
+bookmark, the back button did not close it, and two documents could not be open
+at once.
+
+Every document now has a URL of its own, `/open/<path>`. **Settings →
+Preferences → "Open documents in a new tab"** makes a browser tab the default,
+for every kind of file at once — a photograph, a PDF, a spreadsheet in
+ONLYOFFICE or Collabora, a file the text editor opens, inside a share as well.
+Off by default, so nothing changes for anybody who does not ask for it.
+
+Closing the tab ends the editing session exactly as closing the panel does:
+`/api/onlyoffice/session-end` queues the last save and then lets the session
+go, and both ways of closing use it — a page being unloaded has one
+synchronous moment and cannot wait between two requests. So a document is not
+left marked as being edited by somebody who shut their browser.
+
+[A test plan](/testing/documents-in-a-tab) covers the part that needs two
+browsers and a Document Server.
+
+### A standalone archive with none of what a distribution can give
+
+[Issue #9](https://github.com/cerede2000/NextExplorer/issues/9) asked for the
+smallest possible install. Every release now carries a second archive,
+`-minimal` in its name, without the Node runtime, ExifTool or 7-Zip:
+**103 MB unpacked instead of 263**, 25 MB to download instead of 74.
+
+```sh
+sudo ./install.sh --node "$(command -v node)"
+```
+
+`--node` is worth naming rather than leaving to be found: under `sudo` the
+PATH is root's, so a Node installed through nvm or fnm for your own account is
+invisible. Anything that is not Node 24 is refused at install time rather than
+a few seconds after the service starts, and `nextexplorer-upgrade` keeps the
+flavour it finds installed.
+
+Two variables let the full archive shed the same weight: `SEVEN_ZIP_PATH` —
+which existed in the code and nowhere in the documentation — and the new
+`EXIFTOOL_PATH`. Which archive formats can be opened is read from `7z i` at
+startup rather than assumed, so a 7-Zip without the RAR codec loses RAR and
+nothing else.
+
+### The standalone install was quietly slower than the container
+
+The image has set `UV_THREADPOOL_SIZE=16` since it was built and the systemd
+unit did not. Every filesystem call, every hash and every image the processor
+resizes goes through those threads, and libuv gives four by default. The unit
+sets it now, and a test holds it there.
+
+### Node 24, pinned where a shell will read it
+
+`.nvmrc` is new, and a test takes the major from the root `package.json` and
+holds the fourteen files that name one to it — the image, the archive's
+runtime, the installer's refusal, six workflows, three manifests and the
+standalone page. The suites also say so out loud when they are running on
+another major, because this repository was worked on for a while from Node 25,
+which reached end of life on 31 March 2026.
+
 ## v3.8.1 (2026-09-18)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.8.1)

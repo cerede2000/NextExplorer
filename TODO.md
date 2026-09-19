@@ -591,6 +591,34 @@ activity apart from the rest, because that is the privacy argument (knowing
 who signs in and who shares a link is not the same as keeping a register of
 every file a household opened) rather than an argument about volume.
 
+## Node 26, when it is LTS and the three modules have caught up
+
+Node 24 is the LTS this is built, shipped and tested on, and it is supported
+until 2028 — so this is a move to make deliberately, not soon. Node 26 became
+Current on 5 May 2026 and is due to become LTS in October 2026.
+
+**What decides the date is not us.** The three native modules in this tree —
+`better-sqlite3`, `sharp`, `node-pty` — are installed as prebuilds, for one
+ABI, and for glibc _and_ musl. Until all three publish for Node 26's ABI on
+both, the image cannot move and neither can the archive: building them from
+source at install time is the one thing the standalone archive promises never
+to do.
+
+**When they have**, it is one commit, and the test names what it misses:
+`backend/tests/scripts/node-version-pinned.test.js` takes the major from the
+root `package.json` and holds fourteen files to it — the image, the archive's
+runtime, `install.sh`'s refusal, six workflows, three manifests, `.nvmrc` and
+the standalone page. Move the range, run it, fix what it lists.
+
+Two things to check rather than assume on the way:
+
+- the `NODE_MODULE_VERSION` refusal in `install.sh` has to keep refusing, and
+  the message has to name the new major;
+- `frontend/vitest.setup.js` carries a shim for Node 25's own `localStorage`,
+  written when this repository was worked on from a machine running it. Node
+  26's behaviour there is worth looking at before assuming the shim is still
+  needed — or still enough.
+
 ## Open, not scheduled
 
 - **The weekly image cleanup deletes nothing until `d42ff55` is on `main`.**
