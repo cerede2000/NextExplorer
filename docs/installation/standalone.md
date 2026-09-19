@@ -175,7 +175,7 @@ anywhere else: no account, no unit, nothing under `/etc`.
 
 The runtime travels in the archive so that nothing has to be installed first.
 If you would rather keep one Node for the whole machine, delete `runtime/` —
-121 MB of the 263 the archive unpacks to — and point the unit at yours:
+121 MB of the 221 the archive unpacks to — and point the unit at yours:
 
 ```ini
 ExecStart=/usr/bin/node src/server.js
@@ -206,8 +206,8 @@ accept from the machine.
 | `app/node_modules/exiftool-vendored.pl` | 21 MB — only if you set `EXIFTOOL_PATH`, or accept losing RAW metadata |
 | `bin/7zz`                               | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                     |
 
-The rest is load-bearing: the image processor and its libvips are 18 MB, the
-SQLite driver 12 MB, and the built interface 7 MB. Those three stay — see
+The rest is load-bearing: the image processor and its libvips are 19 MB, the
+SQLite driver 12 MB, and the built interface 5 MB. Those three stay — see
 [using what the machine already has](#using-what-the-machine-already-has) for
 why the first two cannot come from a package manager.
 
@@ -252,8 +252,8 @@ quietly lose a format.
 
 Every release also carries a second archive, `-minimal` in its name, without
 the three things a distribution can provide: the Node runtime, ExifTool and
-7-Zip. Measured on v3.9.2, linux-x64: **98 MB unpacked instead of 246, and 24
-MB to download instead of 81**. It is for a machine that already has a Node
+7-Zip. Measured on v3.9.3, linux-x64: **76 MB unpacked instead of 221, and 24
+MB to download instead of 74**. It is for a machine that already has a Node
 the installer accepts — or for packaging this for a distribution, where every
 megabyte is one the package manager could have supplied.
 

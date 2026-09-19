@@ -6,6 +6,43 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.9.3 (2026-09-19)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.3)
+
+### The archive without ExifTool took the wrong half of it
+
+The `-minimal` archive leaves out what a distribution can supply, and ExifTool
+is one of those: `apt install libimage-exiftool-perl`, `EXIFTOOL_PATH` at the
+one it installed, and RAW photo metadata goes on working. It did not go on
+working. Reported from somebody packaging this for a distribution, in
+[#9](https://github.com/cerede2000/NextExplorer/issues/9).
+
+The archive removed `exiftool-vendored*`, and that pattern matches two
+packages rather than one. `exiftool-vendored.pl` is the 21 MB of Perl — the
+program itself, and the right thing to leave behind. `exiftool-vendored` is
+the Node package that spawns it and pools the processes. With the second gone
+there was nothing left to run what `EXIFTOOL_PATH` named, so RAW metadata was
+lost rather than handed over — and quietly, because a missing ExifTool is a
+supported state: the module is loaded in a `try`, its absence sets the handle
+to null, and the application carries on without that one feature. The 1.8 MB
+driver's own dependencies travelled in the archive all the same, with nothing
+left that reads them.
+
+The pattern is `exiftool-vendored.*` now, which keeps the driver and drops the
+Perl. The test runs that line out of `assemble.sh` against a stand-in tree
+rather than restating it, and ties what survives to the name the service
+actually loads.
+
+Two places on the installation page gave the same wrong instruction to anyone
+trimming the full archive by hand — delete `exiftool-vendored*` and set the
+variable — and both now name the `.pl`. The page also says plainly what the
+minimal archive gets back, and how.
+
+Only the `-minimal` archive was affected, in v3.9.0, v3.9.1 and v3.9.2 — every
+release that has carried one. The full archive and both images ship ExifTool
+and were never touched by this.
+
 ## v3.9.2 (2026-09-19)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.2)
