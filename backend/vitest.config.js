@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 
+import { warnAboutNodeMajor } from '../scripts/node-major-notice.mjs';
+
+// Once, here, rather than from a setup file: a setup file runs inside every
+// worker, and vitest intercepts the console in there and attaches what it
+// catches to whichever test happened to be running.
+warnAboutNodeMajor();
+
 // One file holds both sides' floors, so the CI summary can read the same
 // numbers the suites are held to rather than a copy that drifts.
 const floors = JSON.parse(

@@ -3,6 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { mergeConfig, defineConfig, configDefaults } from 'vitest/config';
 import viteConfig from './vite.config.js';
 
+import { warnAboutNodeMajor } from '../scripts/node-major-notice.mjs';
+
+// Once, in the main process: vitest intercepts the console inside a worker,
+// so the same notice from a setup file would never be shown.
+warnAboutNodeMajor();
+
 // One file holds both sides' floors, so the CI summary can read the same
 // numbers the suites are held to rather than a copy that drifts.
 const floors = JSON.parse(
