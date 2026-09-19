@@ -20,7 +20,7 @@
   "author": "Vikram Soni",
   "license": "ISC",
   "dependencies": {
-    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1",
     "@tus/file-store": "^2.1.0",
     "@tus/server": "^2.4.1",
     "adm-zip": "^0.6.1",

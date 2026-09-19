@@ -74,11 +74,53 @@ describe('the Node major this is built and shipped on', () => {
     expect(pinned[1]).toBe(MAJOR);
   });
 
-  it('is what the installer insists on when the archive brings none', () => {
+  it('is among the majors the installer accepts when the archive brings none', () => {
+    // A list here rather than the single number the rest of this file holds,
+    // and the difference is deliberate. What ships is one major, because the
+    // archive carries one runtime and the image is built on one. What an
+    // archive without a runtime will accept from the machine is every major
+    // all three native modules have prebuilds for — the image processor takes
+    // any, and the other two publish the same set since node-pty 0.14.
+    //
+    // The two cannot drift apart in the direction that matters: whatever is
+    // shipped has to be accepted, or the full archive would install a runtime
+    // its own installer refuses.
     const installer = read('packaging/install.sh');
-    const required = installer.match(/NODE_MAJOR_REQUIRED=(\d+)/);
-    expect(required, 'install.sh no longer checks the major').not.toBeNull();
-    expect(required[1]).toBe(MAJOR);
+    const supported = installer.match(/NODE_MAJORS_SUPPORTED="([^"]+)"/);
+    expect(supported, 'install.sh no longer checks the major').not.toBeNull();
+
+    const majors = supported[1].trim().split(/\s+/);
+    expect(majors).toContain(MAJOR);
+    // Every one of them is a major somebody could actually be running: a list
+    // that names an end-of-life line is an invitation to install it.
+    expect(majors).not.toContain('25');
+  });
+
+  it('accepts exactly the majors the terminal has prebuilds for', () => {
+    // The one native module that decides it. The SQLite driver publishes the
+    // same set and the image processor is N-API, so this is the whole of the
+    // constraint — and when it moves, this test says the list may move too.
+    const prebuilds = path.join(
+      ROOT,
+      'node_modules/@homebridge/node-pty-prebuilt-multiarch/prebuilds/linux-x64'
+    );
+    const abis = new Set(
+      fs
+        .readdirSync(prebuilds)
+        .map((name) => name.match(/^node\.abi(\d+)\.node$/)?.[1])
+        .filter(Boolean)
+    );
+
+    // Node's own registry: 24 is ABI 137, 25 is 141, 26 is 147.
+    const ABI_OF = { 24: '137', 25: '141', 26: '147' };
+    const accepted = read('packaging/install.sh')
+      .match(/NODE_MAJORS_SUPPORTED="([^"]+)"/)[1]
+      .trim()
+      .split(/\s+/);
+
+    for (const major of accepted) {
+      expect(abis, `Node ${major} has no terminal prebuild`).toContain(ABI_OF[major]);
+    }
   });
 
   it('is what every workflow sets up', () => {
@@ -105,10 +147,30 @@ describe('the Node major this is built and shipped on', () => {
 
   it('is what the documentation tells somebody to install', () => {
     // The standalone page is where a reader is sent to find a Node, and the
-    // number in prose is the one they will act on.
+    // sentence stating the condition is the one they will act on. Checked
+    // against the installer's own list rather than against a number, and
+    // only that sentence: elsewhere the page names an unsupported major on
+    // purpose, to say why it is unsupported.
     const page = read('docs/installation/standalone.md');
-    expect(page).toContain(`Node ${MAJOR}`);
-    expect(page).not.toMatch(new RegExp(`Node ${Number(MAJOR) + 1}\\b`));
+    const accepted = read('packaging/install.sh')
+      .match(/NODE_MAJORS_SUPPORTED="([^"]+)"/)[1]
+      .trim()
+      .split(/\s+/);
+
+    const condition = page.split('\n').find((line) => line.startsWith('One condition'));
+    expect(condition, 'the page no longer states the condition').toBeTruthy();
+
+    for (const major of accepted) {
+      expect(condition, `the condition leaves out Node ${major}`).toContain(`Node ${major}`);
+    }
+    // And says nothing there about a major that would be refused.
+    const refused = ['20', '22', '25', '27'].filter((major) => !accepted.includes(major));
+    for (const major of refused) {
+      expect(condition, `the condition offers Node ${major}`).not.toContain(`Node ${major}`);
+    }
+    // The major that actually ships has to be one of them, or the full
+    // archive would carry a runtime its own installer refuses.
+    expect(accepted).toContain(MAJOR);
   });
 });
 

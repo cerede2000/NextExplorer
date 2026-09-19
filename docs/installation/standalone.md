@@ -181,19 +181,28 @@ If you would rather keep one Node for the whole machine, delete `runtime/` —
 ExecStart=/usr/bin/node src/server.js
 ```
 
-One condition, and it is not negotiable: **Node 24**. The three native modules
-in the tree — the SQLite driver, the image processor and the terminal — are
-prebuilt for its ABI, and another major will refuse to load them with
-`NODE_MODULE_VERSION`. Most distributions package an older one: Debian 13 has
-20.19, Ubuntu 24.04 has 18.19, Fedora 42's default is 22.21 — though Fedora
-also carries a `nodejs24` package, which is the one to install there. Elsewhere
-that means NodeSource or the tarball from nodejs.org.
+One condition: **Node 24 or Node 26**, and the installer checks before it
+installs anything. Of the three native modules in the tree, the image
+processor is N-API and takes any major, while the SQLite driver and the
+terminal publish prebuilds per ABI — 137, 141 and 147, which are Node 24, 25
+and 26. Node 25 is left out because it reached end of life on 31 March 2026,
+not because it would fail to load. Any other major refuses to load them with
+`NODE_MODULE_VERSION`.
+
+Most distributions package an older one: Debian 13 has 20.19, Ubuntu 24.04 has
+18.19, Fedora 42's default is 22.21 — though Fedora also carries a `nodejs24`
+package, which is the one to install there. Elsewhere that means NodeSource or
+the tarball from nodejs.org.
+
+The archive's own runtime is 24, the line under long-term support until 2028.
+That is what ships; the pair above is what an archive without a runtime will
+accept from the machine.
 
 ### What else can be thrown away
 
 |                                       |                                                                        |
 | ------------------------------------- | ---------------------------------------------------------------------- |
-| `runtime/`                            | 121 MB — only if you provide Node 24 yourself, as above                |
+| `runtime/`                            | 121 MB — only if you provide Node 24 or 26 yourself, as above          |
 | `app/node_modules/exiftool-vendored*` | 23 MB — only if you set `EXIFTOOL_PATH`, or accept losing RAW metadata |
 | `bin/7zz`                             | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                     |
 
@@ -243,10 +252,10 @@ quietly lose a format.
 
 Every release also carries a second archive, `-minimal` in its name, without
 the three things a distribution can provide: the Node runtime, ExifTool and
-7-Zip. It is **103 MB unpacked instead of 263** — 25 MB to download instead of
-74 — and it is for a machine
-that already has Node 24 — or for packaging this for a distribution, where
-every megabyte is one the package manager could have supplied.
+7-Zip. Measured on v3.9.2, linux-x64: **98 MB unpacked instead of 246, and 24
+MB to download instead of 81**. It is for a machine that already has a Node
+the installer accepts — or for packaging this for a distribution, where every
+megabyte is one the package manager could have supplied.
 
 ```sh
 tar -xzf nextexplorer-<version>-linux-x64-minimal.tar.gz
@@ -257,9 +266,9 @@ sudo ./install.sh --node "$(command -v node)"
 `--node` is worth naming rather than leaving to be found: run under `sudo`,
 the PATH is root's and not yours, so a Node installed through nvm or fnm for
 your own account is invisible to it. Without it the script looks on PATH, and
-refuses anything that is not Node 24 — the three native modules in this tree
-are prebuilt for one ABI, and another major refuses them a few seconds after
-the service starts, which is a failure nobody reads.
+refuses a major none of the native modules has a prebuild for — otherwise
+they refuse it themselves a few seconds after the service starts, with
+`NODE_MODULE_VERSION`, which is a failure nobody reads.
 
 Everything else is the same: the same install script, the same service, the
 same update command — which keeps the flavour it was installed with, so an

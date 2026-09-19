@@ -597,23 +597,32 @@ Node 24 is the LTS this is built, shipped and tested on, and it is supported
 until 2028 — so this is a move to make deliberately, not soon. Node 26 became
 Current on 5 May 2026 and is due to become LTS in October 2026.
 
-**What decides the date is not us.** The three native modules in this tree —
-`better-sqlite3`, `sharp`, `node-pty` — are installed as prebuilds, for one
-ABI, and for glibc _and_ musl. Until all three publish for Node 26's ABI on
-both, the image cannot move and neither can the archive: building them from
-source at install time is the one thing the standalone archive promises never
-to do.
+**What decided the date was not us, and it has now been decided.** Measured
+on 19 September 2026, in the versions this tree ships: `sharp` is N-API and
+takes any major; `better-sqlite3` 12.11.1 publishes `node-v137`, `v141` and
+`v147`; `node-pty` published 141 and 147 in 0.14.1, on 23 July 2026, for
+glibc and musl both. Node 26 is ABI 147, so all three are there.
 
-**When they have**, it is one commit, and the test names what it misses:
+`install.sh` accepts 24 or 26 since then — that part is done, and it is what
+an archive without a runtime takes from the machine. **What is left is what
+ships**: the image, the archive's bundled runtime, the workflows and the
+manifests are still 24, and they should stay there until 26 is actually LTS
+in October 2026. Nothing forces the move before that; Node 24 is supported
+until 2028.
+
+**When October comes**, it is one commit, and the test names what it misses:
 `backend/tests/scripts/node-version-pinned.test.js` takes the major from the
-root `package.json` and holds fourteen files to it — the image, the archive's
-runtime, `install.sh`'s refusal, six workflows, three manifests, `.nvmrc` and
-the standalone page. Move the range, run it, fix what it lists.
+root `package.json` and holds the rest to it — the image, the archive's
+runtime, six workflows, three manifests, `.nvmrc` and the standalone page.
+Move the range in the root manifest, run it, fix what it lists. The
+installer's own list is checked separately, against the ABIs `node-pty`
+actually carries, so it cannot claim a major nothing has a prebuild for.
 
 Two things to check rather than assume on the way:
 
-- the `NODE_MODULE_VERSION` refusal in `install.sh` has to keep refusing, and
-  the message has to name the new major;
+- `NODE_MAJORS_SUPPORTED` in `install.sh` drops 24 only when nothing ships on
+  it any more, not when 26 arrives: an installation on 24 has to keep
+  updating;
 - `frontend/vitest.setup.js` carries a shim for Node 25's own `localStorage`,
   written when this repository was worked on from a machine running it. Node
   26's behaviour there is worth looking at before assuming the shim is still

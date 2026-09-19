@@ -335,13 +335,40 @@ describe('installing the minimal archive', () => {
     expect(exists('opt', 'nextexplorer', 'bin')).toBe(false);
   });
 
-  it('refuses a Node of the wrong major, and says which', () => {
+  it('refuses a Node no native module has a prebuild for, and says which', () => {
     buildRelease({ minimal: true });
 
     const output = install([], { expectFailure: true, env: nodeSaying('22') });
 
-    expect(output).toMatch(/built for Node 24/i);
+    expect(output).toMatch(/prebuilds for Node 24 or 26/i);
     expect(output).toContain('22');
+    expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
+  });
+
+  it('takes a Node that is not the one the archive would have carried', () => {
+    // 26 rather than 24: what ships is one major, because the archive carries
+    // one runtime, but an archive that carries none accepts every major the
+    // native modules have prebuilds for. Refusing 26 would be refusing a
+    // runtime that works.
+    buildRelease({ minimal: true });
+
+    install([], { env: nodeSaying('26') });
+
+    expect(read('etc', 'systemd', 'system', 'nextexplorer.service')).toContain(
+      `ExecStart=${path.join(prefix, 'fake-bin', 'node')} src/server.js`
+    );
+    expect(exists('opt', 'nextexplorer', 'app', 'src', 'server.js')).toBe(true);
+  });
+
+  it('refuses the major that is no longer supported upstream, whatever its ABI', () => {
+    // Node 25 has an ABI the terminal and the SQLite driver both publish, so
+    // nothing would fail at load. It reached end of life on 31 March 2026,
+    // and a list that accepts it is an invitation to install it.
+    buildRelease({ minimal: true });
+
+    const output = install([], { expectFailure: true, env: nodeSaying('25') });
+
+    expect(output).toMatch(/prebuilds for Node 24 or 26/i);
     expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
   });
 
