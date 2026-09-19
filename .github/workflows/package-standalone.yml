@@ -326,8 +326,14 @@ jobs:
           du -sh "$dir"
           [ ! -e "$dir/runtime" ] || { echo 'the minimal archive brought a runtime'; exit 1; }
           [ ! -e "$dir/bin" ] || { echo 'the minimal archive brought 7-Zip'; exit 1; }
-          ! ls -d "$dir"/app/node_modules/exiftool-vendored* 2>/dev/null \
-            || { echo 'the minimal archive brought ExifTool'; exit 1; }
+          # ExifTool leaves as its distribution and not as its driver: the
+          # 21 MB of Perl goes, the package that spawns it stays. Without the
+          # second, EXIFTOOL_PATH names a program nothing can run and RAW
+          # metadata is lost rather than handed to the distribution.
+          ! ls -d "$dir"/app/node_modules/exiftool-vendored.* 2>/dev/null \
+            || { echo 'the minimal archive brought the bundled ExifTool'; exit 1; }
+          [ -d "$dir/app/node_modules/exiftool-vendored" ] \
+            || { echo 'the minimal archive lost the package that runs ExifTool'; exit 1; }
           echo "RELEASE_DIR=$(realpath "$dir")" >> "$GITHUB_ENV"
 
       - name: The 7-Zip this machine provides, since the archive brought none
@@ -337,6 +343,24 @@ jobs:
           sudo apt-get install -y 7zip
           command -v 7z
           7z i | head -20
+
+      - name: The ExifTool this machine provides, since the archive brought none
+        run: |
+          set -eux
+          sudo apt-get install -y libimage-exiftool-perl
+          # The point of leaving the 21 MB of Perl behind is that the driver
+          # which stayed can load and run the one apt installed. A listing of
+          # node_modules cannot say that — the pruning above it could have
+          # taken one of the driver's own dependencies — so this loads it for
+          # real and asks the binary its version.
+          cd "$RELEASE_DIR/app"
+          node -e "
+            const { ExifTool } = require('exiftool-vendored');
+            const et = new ExifTool({ exiftoolPath: '/usr/bin/exiftool' });
+            et.version()
+              .then((version) => { console.log('ExifTool ' + version + ' driven from the archive'); return et.end(); })
+              .catch(async (error) => { console.error(error); await et.end(); process.exit(1); });
+          "
 
       - name: Run it with that Node
         run: |
