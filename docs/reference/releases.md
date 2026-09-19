@@ -6,6 +6,84 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.9.1 (2026-09-19)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.1)
+
+### An empty panel on the way back from a document's history
+
+Reported from a real installation, and the reason was a disagreement about
+who owns a DOM node.
+
+The Document Server's script does not draw inside the element it is handed:
+it takes that element out of the page and puts its own frame where it stood.
+Measured on a live instance, `document.getElementById(...)` answers nothing
+while the editor is running. The application still held the removed element
+as the editor's own, so rebuilding the editor — which is what leaving the
+history does — asked the browser to insert a new one next to a node that was
+no longer anywhere. The render threw, nothing drew after it, and what was
+left was an empty panel with no message: the only thing still on screen was
+the floating close button, which is only there while no editor has reported
+itself ready.
+
+A rebuild over the same document no longer goes through the framework at all.
+The editor is handed a new configuration, which is its own way of being
+rebuilt: it destroys itself and attaches again to the same element while
+nothing around it is redrawn. Three paths take it — leaving the history,
+restoring from the history, and the fallback for a Document Server too old to
+swap a file in place. Opening a different document, or a version read-only,
+still builds from nothing, and so does a rebuild whose configuration never
+arrived: there is an error to show, and the editor has to make way for it.
+
+The editor's element also carries a generation now, so an entry left in the
+Document Server's registry by a teardown that failed cannot keep the next
+editor from attaching.
+
+The tests could not have caught any of this: the editor was stubbed as an
+empty element that was always ready. It is the library's real contract now —
+the asynchronous attach, the registry it refuses to attach twice into, the
+teardown, and the rebuild-in-place.
+
+### A file that has a history says so
+
+Versions have been kept since v3.6.0 and nothing in the interface said a file
+had any. They were found by right-clicking a file and looking, which works
+for the file you already suspect and for no other.
+
+A file with earlier versions now carries a small mark on its row, with how
+many; clicking it opens the Versions panel. It is on by default, and
+**Settings → Preferences → Mark files that have versions** turns it off,
+which takes the query away as well as the icon. It appears only where the
+history itself would be shown, so a share that does not hand out histories
+does not hand out the mark either.
+
+It costs one query per folder rather than one per file: a folder's children
+are a range in the index the histories are already kept under, so three
+hundred files cost what three cost.
+
+### Every file that has a history, in one list
+
+**Settings → File versions**, for administrators: every file in the
+installation that has earlier versions, where it is, how many, what they
+hold, and what became of the file — present, in the trash, or gone from the
+disk outside NextExplorer, which is the case nobody goes looking for and the
+one where the versions are the only copy left. Ordered by space used,
+searchable by path, and the versions are deletable from there, singly or
+whole.
+
+A history is named by its own id rather than by a path, because the
+interesting ones have no file left to be authorised against. The list shows
+paths from every space, personal folders included, which no account can
+otherwise see of another — hence administrators only, and hence a deletion
+from it is written to the activity log.
+
+### Also
+
+- The settings navigation could not be scrolled, so a tenth administrative
+  entry put the last ones out of reach.
+- Deleting versions from the Versions panel left the listing behind it
+  showing the old number.
+
 ## v3.9.0 (2026-09-19)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.0)
