@@ -10,6 +10,34 @@ Releases are listed newest to oldest.
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.3)
 
+### An archive with no runtime, and two Nodes it will take
+
+The `-minimal` archive refused anything but Node 24, and the reason given was
+that the three native modules are prebuilt for one ABI. That had stopped being
+true and nothing noticed. Measured in the versions this tree ships: the image
+processor is N-API and takes any major, the SQLite driver publishes prebuilds
+for 24, 25 and 26, and only the terminal still stopped at 24 — and it had
+moved too, in a release from July that carries the missing ABIs for glibc and
+musl both.
+
+So that one package is bumped, exercised against a real pty rather than
+assumed, and `install.sh` holds a list instead of a number: **Node 24 or Node
+26**. Node 25 is left out because it reached end of life on 31 March 2026, not
+because it would fail to load. Node 26 is the ABI that becomes long-term
+support in October.
+
+Nothing that ships moves. The image, the full archive's bundled runtime, the
+workflows and the manifests are still on 24, the line supported until 2028 —
+one major is shipped because the archive carries one runtime. The list is what
+an archive carrying none will take from the machine.
+
+Two tests hold the halves apart. One reads the ABIs the terminal package
+actually carries and refuses a list naming a major nothing has a prebuild for,
+so the list cannot promise what would fail three seconds after the service
+starts. The other checks the documentation against that same list rather than
+against a number, because the page names Node 25 on purpose, to say why it is
+not offered.
+
 ### The archive without ExifTool took the wrong half of it
 
 The `-minimal` archive leaves out what a distribution can supply, and ExifTool
