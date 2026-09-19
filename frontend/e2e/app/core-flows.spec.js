@@ -472,6 +472,8 @@ test('a document opens in a tab of its own, and the folder stays where it was', 
   expect(document.url()).toContain('/open/Projects/tabbed.md');
   await expect(document.locator('[data-test="preview-surface"]')).toBeVisible();
   await expect(document.getByText('tabbed.md')).toBeVisible();
+  // Four tabs all reading "Explorer" would be four tabs nobody can tell apart.
+  await expect(document).toHaveTitle('tabbed.md');
 
   // The folder it was opened from never moved: that is the whole point of
   // opening elsewhere.

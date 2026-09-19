@@ -114,6 +114,14 @@ describe('opening a document at its own address', () => {
     expect(open).toHaveBeenCalledWith({ name: 'report.docx', path: 'Docs/Reports' });
   });
 
+  it('names its browser tab after the document', async () => {
+    await show('Docs/Reports/report.docx');
+
+    // Several of these are open at once by design; tabs that all read
+    // "Explorer" are tabs nobody can tell apart.
+    expect(window.document.title).toBe('report.docx');
+  });
+
   it('loads the folder behind it, so the arrows still move between files', async () => {
     await show('Photos/2026/first.jpg');
 

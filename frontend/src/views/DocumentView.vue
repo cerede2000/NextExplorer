@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useTitle } from '@vueuse/core';
 
 import { normalizePath } from '@/api';
 import { usePreviewManager } from '@/plugins/preview/manager';
@@ -51,6 +52,12 @@ const name = computed(() => documentPath.value.split('/').filter(Boolean).pop() 
 const parentPath = computed(() =>
   documentPath.value.split('/').filter(Boolean).slice(0, -1).join('/')
 );
+
+// The point of this page is that several of them are open at once, and four
+// tabs all reading "Explorer" would be four tabs nobody can tell apart. The
+// folder listing names its tab after the folder (BrowserLayout); this one
+// names it after the document.
+useTitle(name);
 
 /** Back where closing the panel would have left you. */
 const leave = () => {
