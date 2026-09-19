@@ -508,7 +508,8 @@
       "activity": "活動記錄",
       "accountTwoFactor": "兩步驗證",
       "accountPasskeys": "通行金鑰",
-      "accountApiTokens": "API 權杖"
+      "accountApiTokens": "API 權杖",
+      "fileVersions": "檔案版本"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -576,7 +577,9 @@
       "viewColumns": "分欄",
       "viewPhotos": "相片",
       "documentsOpenInNewTab": "在新分頁中開啟文件",
-      "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。"
+      "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
+      "showVersionMarks": "標示有版本的檔案",
+      "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -932,6 +935,53 @@
       "createFailed": "無法簽發權杖。",
       "renameFailed": "無法重新命名權杖。",
       "revokeFailed": "無法撤銷權杖。"
+    },
+    "fileVersions": {
+      "title": "檔案版本",
+      "intro": "所有存在舊版本的檔案，不論位於何處，以及它們佔用的空間。這裡會列出所有空間的路徑，包括個人資料夾——因此本頁面僅供管理員使用。",
+      "search": "路徑包含",
+      "searchPlaceholder": "名稱或資料夾的一部分",
+      "zone": "空間",
+      "anyZone": "全部空間",
+      "state": "狀態",
+      "anyState": "全部",
+      "sort": "排序方式",
+      "sortBytes": "佔用空間",
+      "sortCount": "版本數量",
+      "sortNewest": "最新版本",
+      "sortPath": "路徑",
+      "summary": "{files} 個檔案，{versions} 個版本，{size}",
+      "file": "檔案",
+      "count": "版本",
+      "size": "大小",
+      "newest": "最新",
+      "states": {
+        "live": "仍在",
+        "trashed": "在回收筒",
+        "orphaned": "已消失"
+      },
+      "zoneKinds": {
+        "volume": "磁碟區 {name}",
+        "personal": "個人資料夾 {name}",
+        "user-volume": "指派的磁碟區 {name}"
+      },
+      "zoneUnknown": "未知空間",
+      "pinned": "已釘選",
+      "unavailable": "磁碟區無法使用",
+      "deleteAll": "刪除歷程記錄",
+      "deleteSelected": "刪除 {count} 個版本",
+      "deleteForGood": "永久刪除",
+      "confirmAllTitle": "刪除 {name} 的全部版本？",
+      "confirmSomeTitle": "刪除 {count} 個版本？",
+      "confirmMessage": "該內容會從磁碟上移除。檔案本身不受影響，且此操作無法復原。",
+      "none": "沒有檔案存在舊版本。",
+      "loadFailed": "無法讀取清單。",
+      "detailFailed": "無法讀取此歷程記錄。",
+      "deleteFailed": "無法刪除這些版本。",
+      "previous": "上一頁",
+      "next": "下一頁",
+      "range": "第 {from}–{to} 項，共 {total} 項",
+      "deleteSelectedNone": "刪除勾選的版本"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "對此版本的動作失敗"
-    }
+    },
+    "mark": "{count} 個舊版本"
   },
   "links": {
     "outside": "指向此磁碟區外部的連結",

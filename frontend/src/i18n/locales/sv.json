@@ -508,7 +508,8 @@
       "activity": "Aktivitetslogg",
       "accountTwoFactor": "Tvåfaktor",
       "accountPasskeys": "Lösenordsnycklar",
-      "accountApiTokens": "API-nycklar"
+      "accountApiTokens": "API-nycklar",
+      "fileVersions": "Filversioner"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -576,7 +577,9 @@
       "viewColumns": "Kolumner",
       "viewPhotos": "Foton",
       "documentsOpenInNewTab": "Öppna dokument i en ny flik",
-      "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag."
+      "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag.",
+      "showVersionMarks": "Märk filer som har versioner",
+      "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken."
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
@@ -932,6 +935,53 @@
       "createFailed": "Nyckeln kunde inte utfärdas.",
       "renameFailed": "Nyckeln kunde inte byta namn.",
       "revokeFailed": "Nyckeln kunde inte återkallas."
+    },
+    "fileVersions": {
+      "title": "Filversioner",
+      "intro": "Alla filer som har tidigare versioner, var de än ligger, och hur mycket plats de tar. Här syns sökvägar från alla utrymmen, personliga mappar inräknade — därför är sidan bara för administratörer.",
+      "search": "Sökvägen innehåller",
+      "searchPlaceholder": "En del av ett namn eller en mapp",
+      "zone": "Utrymme",
+      "anyZone": "Alla utrymmen",
+      "state": "Status",
+      "anyState": "Alla",
+      "sort": "Sortera efter",
+      "sortBytes": "Upptaget utrymme",
+      "sortCount": "Antal versioner",
+      "sortNewest": "Senaste versionen",
+      "sortPath": "Sökväg",
+      "summary": "{files} filer, {versions} versioner, {size}",
+      "file": "Fil",
+      "count": "Versioner",
+      "size": "Storlek",
+      "newest": "Senaste",
+      "states": {
+        "live": "Finns kvar",
+        "trashed": "I papperskorgen",
+        "orphaned": "Försvunnen"
+      },
+      "zoneKinds": {
+        "volume": "Volymen {name}",
+        "personal": "Personlig mapp {name}",
+        "user-volume": "Tilldelad volym {name}"
+      },
+      "zoneUnknown": "Okänt utrymme",
+      "pinned": "Fäst",
+      "unavailable": "Volymen är inte tillgänglig",
+      "deleteAll": "Ta bort historiken",
+      "deleteSelected": "Ta bort {count} version | Ta bort {count} versioner",
+      "deleteForGood": "Ta bort för gott",
+      "confirmAllTitle": "Ta bort alla versioner av {name}?",
+      "confirmSomeTitle": "Ta bort {count} version? | Ta bort {count} versioner?",
+      "confirmMessage": "Det innehållet tas bort från disken. Själva filen rörs inte, och ingenting av detta går att ångra.",
+      "none": "Ingen fil har tidigare versioner.",
+      "loadFailed": "Listan kunde inte läsas.",
+      "detailFailed": "Den här historiken kunde inte läsas.",
+      "deleteFailed": "Versionerna kunde inte tas bort.",
+      "previous": "Föregående",
+      "next": "Nästa",
+      "range": "{from} till {to} av {total}",
+      "deleteSelectedNone": "Ta bort de markerade versionerna"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "Åtgärden på den här versionen misslyckades"
-    }
+    },
+    "mark": "{count} tidigare version | {count} tidigare versioner"
   },
   "links": {
     "outside": "Länk utanför den här volymen",

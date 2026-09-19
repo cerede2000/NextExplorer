@@ -508,7 +508,8 @@
       "activity": "Registro de actividad",
       "accountTwoFactor": "Doble factor",
       "accountPasskeys": "Claves de acceso",
-      "accountApiTokens": "Tokens de API"
+      "accountApiTokens": "Tokens de API",
+      "fileVersions": "Versiones de archivos"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -576,7 +577,9 @@
       "viewColumns": "Columnas",
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Abrir los documentos en una pestaña nueva",
-      "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora."
+      "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora.",
+      "showVersionMarks": "Marcar los archivos con versiones",
+      "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial."
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",
@@ -932,6 +935,53 @@
       "createFailed": "No se ha podido emitir el token.",
       "renameFailed": "No se ha podido renombrar el token.",
       "revokeFailed": "No se ha podido revocar el token."
+    },
+    "fileVersions": {
+      "title": "Versiones de archivos",
+      "intro": "Todos los archivos con versiones anteriores, estén donde estén, y el espacio que ocupan. Aquí aparecen rutas de todos los espacios, incluidas las carpetas personales: por eso esta página es solo para administradores.",
+      "search": "La ruta contiene",
+      "searchPlaceholder": "Parte de un nombre o de una carpeta",
+      "zone": "Espacio",
+      "anyZone": "Todos los espacios",
+      "state": "Estado",
+      "anyState": "Todos",
+      "sort": "Ordenar por",
+      "sortBytes": "Espacio ocupado",
+      "sortCount": "Número de versiones",
+      "sortNewest": "Versión más reciente",
+      "sortPath": "Ruta",
+      "summary": "{files} archivos, {versions} versiones, {size}",
+      "file": "Archivo",
+      "count": "Versiones",
+      "size": "Tamaño",
+      "newest": "Más reciente",
+      "states": {
+        "live": "Presente",
+        "trashed": "En la papelera",
+        "orphaned": "Desaparecido"
+      },
+      "zoneKinds": {
+        "volume": "Volumen {name}",
+        "personal": "Carpeta personal {name}",
+        "user-volume": "Volumen asignado {name}"
+      },
+      "zoneUnknown": "Espacio desconocido",
+      "pinned": "Fijada",
+      "unavailable": "Volumen no disponible",
+      "deleteAll": "Eliminar el historial",
+      "deleteSelected": "Eliminar {count} versión | Eliminar {count} versiones",
+      "deleteForGood": "Eliminar definitivamente",
+      "confirmAllTitle": "¿Eliminar todas las versiones de {name}?",
+      "confirmSomeTitle": "¿Eliminar {count} versión? | ¿Eliminar {count} versiones?",
+      "confirmMessage": "Ese contenido se borra del disco. El archivo en sí no se toca, y nada de esto se puede deshacer.",
+      "none": "Ningún archivo tiene versiones anteriores.",
+      "loadFailed": "No se pudo leer la lista.",
+      "detailFailed": "No se pudo leer este historial.",
+      "deleteFailed": "No se pudieron eliminar las versiones.",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "range": "{from} a {to} de {total}",
+      "deleteSelectedNone": "Eliminar las versiones marcadas"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "La acción sobre esta versión falló"
-    }
+    },
+    "mark": "{count} versión anterior | {count} versiones anteriores"
   },
   "links": {
     "outside": "Enlace fuera de este volumen",

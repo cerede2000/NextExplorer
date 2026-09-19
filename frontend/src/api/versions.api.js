@@ -61,6 +61,39 @@ async function deleteVersions(path, { ids, all = false } = {}) {
   });
 }
 
+/**
+ * The administrator's side: every file that has a history, wherever it is.
+ *
+ * Addressed by the history's own id rather than by a path, because the ones
+ * worth finding include files that no longer exist — a history whose file was
+ * deleted outside the application has no path left to ask about.
+ */
+
+/** A page of the files that have versions: `{ files, total, totalBytes, zones, … }`. */
+async function getVersionedFiles({ zone, state, q, sort, limit, offset } = {}) {
+  const query = new URLSearchParams();
+  if (zone) query.set('zone', zone);
+  if (state) query.set('state', state);
+  if (q) query.set('q', q);
+  if (sort) query.set('sort', sort);
+  if (Number.isFinite(limit)) query.set('limit', String(limit));
+  if (Number.isFinite(offset) && offset > 0) query.set('offset', String(offset));
+  const suffix = query.toString();
+  return requestJson(`/api/versions/admin/files${suffix ? `?${suffix}` : ''}`, { method: 'GET' });
+}
+
+/** One history and its versions, by id. */
+async function getVersionedFile(id) {
+  return requestJson(`/api/versions/admin/files/${encodeURIComponent(id)}`, { method: 'GET' });
+}
+
+/** Delete versions of one history: `{ ids }`, or `{ all: true }`. */
+async function deleteVersionsOfFile(id, { ids, all = false } = {}) {
+  return send(`/api/versions/admin/files/${encodeURIComponent(id)}/delete`, 'POST', {
+    ...(all ? { all: true } : { ids }),
+  });
+}
+
 export {
   getVersions,
   getVersionDownloadUrl,
@@ -70,4 +103,7 @@ export {
   replaceWithVersion,
   updateVersion,
   deleteVersions,
+  getVersionedFiles,
+  getVersionedFile,
+  deleteVersionsOfFile,
 };

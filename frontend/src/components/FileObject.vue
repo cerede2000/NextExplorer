@@ -19,7 +19,8 @@ import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
 import { CheckIcon } from '@heroicons/vue/20/solid';
-import { PencilSquareIcon } from '@heroicons/vue/24/outline';
+import { ClockIcon, PencilSquareIcon } from '@heroicons/vue/24/outline';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
 import { useI18n } from 'vue-i18n';
@@ -109,6 +110,31 @@ const onlyofficeActivityLabel = computed(() => {
     ? `Édition en cours dans OnlyOffice : ${users.join(', ')}`
     : 'Édition en cours dans OnlyOffice';
 });
+
+/**
+ * The file has earlier versions, and how many.
+ *
+ * Sent with the listing when the person asked to see it and may see this
+ * file's history at all — a share hands out neither the history nor the fact
+ * that there is one unless its owner said so. Nothing is decided here: the
+ * mark is there when the count is.
+ */
+const versionsPanel = useVersionsPanelStore();
+const versionCount = computed(() => {
+  const count = Number(props.item?.versions?.count);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+});
+// `(key, named, plural)`, as the Versions panel calls it: the third argument
+// of the other overload is a bag of options, not a bag of values.
+const versionsLabel = computed(() =>
+  versionCount.value ? t('versions.mark', { count: versionCount.value }, versionCount.value) : ''
+);
+/** Straight to the history, rather than the row's own click: it is the one
+ *  thing the mark could mean, and the right-click route stays as it was. */
+const openVersions = () => {
+  if (!versionCount.value) return;
+  versionsPanel.open(props.item);
+};
 
 const showSelectionControl = computed(() => !isTouchDevice.value || selectionMode.value);
 
@@ -304,6 +330,19 @@ if (isTouchDevice.value) {
       >
         <PencilSquareIcon class="h-3.5 w-3.5" />
       </span>
+      <button
+        v-if="versionCount"
+        type="button"
+        :title="versionsLabel"
+        :aria-label="versionsLabel"
+        data-test="version-mark"
+        class="absolute bottom-2 left-2 z-10 inline-flex items-center gap-0.5 rounded-full bg-black/45 px-1.5 py-0.5 text-[0.65rem] font-medium leading-4 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-white"
+        @click.stop.prevent="openVersions"
+        @dblclick.stop.prevent
+      >
+        <ClockIcon class="h-3 w-3" />
+        <span>{{ versionCount }}</span>
+      </button>
       <FileIcon :item="item" class="w-full h-full" />
     </div>
 
@@ -367,7 +406,20 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
-          {{ ellipses(item.name, (maxl = 15)) }}
+          {{ ellipses(item.name, (maxl = 15))
+          }}<button
+            v-if="versionCount"
+            type="button"
+            :title="versionsLabel"
+            :aria-label="versionsLabel"
+            data-test="version-mark"
+            class="ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
+            @click.stop.prevent="openVersions"
+            @dblclick.stop.prevent
+          >
+            <ClockIcon class="h-3.5 w-3.5" />
+            <span>{{ versionCount }}</span>
+          </button>
         </template>
       </div>
     </div>
@@ -434,6 +486,19 @@ if (isTouchDevice.value) {
             >
               <PencilSquareIcon class="h-3.5 w-3.5" />
             </span>
+            <button
+              v-if="versionCount"
+              type="button"
+              :title="versionsLabel"
+              :aria-label="versionsLabel"
+              data-test="version-mark"
+              class="inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
+              @click.stop.prevent="openVersions"
+              @dblclick.stop.prevent
+            >
+              <ClockIcon class="h-3.5 w-3.5" />
+              <span>{{ versionCount }}</span>
+            </button>
           </template>
         </div>
         <p class="text-xs text-stone-400">
@@ -524,6 +589,19 @@ if (isTouchDevice.value) {
             >
               <PencilSquareIcon class="h-3.5 w-3.5" />
             </span>
+            <button
+              v-if="versionCount"
+              type="button"
+              :title="versionsLabel"
+              :aria-label="versionsLabel"
+              data-test="version-mark"
+              class="inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
+              @click.stop.prevent="openVersions"
+              @dblclick.stop.prevent
+            >
+              <ClockIcon class="h-3.5 w-3.5" />
+              <span>{{ versionCount }}</span>
+            </button>
             <InlineQuickActions :item="item" :active="qaHover" />
           </div>
         </template>

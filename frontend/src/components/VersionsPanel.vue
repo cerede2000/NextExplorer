@@ -427,6 +427,10 @@ const confirm = async () => {
         heading: t('versions.results.deleted', { count }, count),
         durationMs: 4000,
       });
+      // The row behind the panel carries a mark saying how many versions the
+      // file has. Deleting them here and leaving that mark at its old number
+      // is the panel disagreeing with the listing it was opened from.
+      await refreshListing(parentPath.value);
     }
   });
 };

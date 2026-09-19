@@ -33,6 +33,12 @@ export const useAppSettings = defineStore('appSettings', () => {
     // folder it is in. Off, so nothing changes for anybody who does not ask
     // for it.
     documentsOpenInNewTab: false,
+    // The small mark on a row whose file has earlier versions. On, unlike the
+    // two above: it says something true about the file that nothing else in
+    // the listing says, and a history nobody knows about is a history nobody
+    // uses. It is read as `!== false` on the server, so this default and that
+    // one cannot drift apart.
+    showVersionMarks: true,
   });
 
   const createDefaultTrashSettings = () => ({

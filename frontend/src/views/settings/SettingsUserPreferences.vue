@@ -32,6 +32,7 @@ const local = reactive({
   defaultView: null, // null = the built-in default, otherwise a view mode
   markdownOpensInEditor: false,
   documentsOpenInNewTab: false,
+  showVersionMarks: true,
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -52,7 +53,8 @@ const dirty = computed(() => {
     local.skipHome !== orig.skipHome ||
     local.defaultView !== orig.defaultView ||
     local.markdownOpensInEditor !== (orig.markdownOpensInEditor ?? false) ||
-    local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false)
+    local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
+    local.showVersionMarks !== (orig.showVersionMarks ?? true)
   );
 });
 
@@ -113,6 +115,7 @@ watch(
     local.defaultView = userSettings.defaultView ?? null;
     local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
     local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
+    local.showVersionMarks = userSettings.showVersionMarks ?? true;
   },
   { immediate: true }
 );
@@ -138,6 +141,7 @@ const reset = () => {
   local.defaultView = userSettings.defaultView ?? null;
   local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
   local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
+  local.showVersionMarks = userSettings.showVersionMarks ?? true;
 };
 
 const save = async () => {
@@ -158,6 +162,7 @@ const save = async () => {
       defaultView: local.defaultView,
       markdownOpensInEditor: local.markdownOpensInEditor,
       documentsOpenInNewTab: local.documentsOpenInNewTab,
+      showVersionMarks: local.showVersionMarks,
     },
   });
 };
@@ -262,6 +267,20 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.documentsOpenInNewTab" data-test="documents-in-new-tab" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.showVersionMarks') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.showVersionMarksHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch v-model="local.showVersionMarks" data-test="show-version-marks" />
         </div>
 
         <div

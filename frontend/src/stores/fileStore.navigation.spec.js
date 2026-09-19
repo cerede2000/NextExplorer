@@ -125,6 +125,29 @@ describe('fileStore folder navigation', () => {
     expect(store.currentPathItems[0].onlyofficeActivity).toBeUndefined();
   });
 
+  it('clears the versions mark when a refresh reports the last version deleted', async () => {
+    // The same shape of bug as the badge above: rows keep their identity
+    // across a refresh, so a key the server stops sending has to be taken off
+    // rather than left at its old value. Here that value is a count, and a
+    // stale one is a mark pointing at a history that no longer exists.
+    browse
+      .mockResolvedValueOnce({
+        path: 'Volume',
+        items: [{ name: 'report.docx', path: 'Volume', kind: 'docx', versions: { count: 2 } }],
+      })
+      .mockResolvedValueOnce({
+        path: 'Volume',
+        items: [{ name: 'report.docx', path: 'Volume', kind: 'docx' }],
+      });
+
+    const store = useFileStore();
+    await store.fetchPathItems('Volume');
+    expect(store.currentPathItems[0].versions).toEqual({ count: 2 });
+
+    await store.fetchPathItems('Volume', { preserveInteraction: true });
+    expect(store.currentPathItems[0].versions).toBeUndefined();
+  });
+
   // The endpoint is not mounted unless a document server is configured, so a
   // poll on an instance without one is a 404 answered straight away and retried
   // a second later, for as long as the tab is open.

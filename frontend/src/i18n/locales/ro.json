@@ -508,7 +508,8 @@
       "activity": "Jurnal de activitate",
       "accountTwoFactor": "Doi factori",
       "accountPasskeys": "Chei de acces",
-      "accountApiTokens": "Jetoane API"
+      "accountApiTokens": "Jetoane API",
+      "fileVersions": "Versiuni de fișiere"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -576,7 +577,9 @@
       "viewColumns": "Coloane",
       "viewPhotos": "Fotografii",
       "documentsOpenInNewTab": "Deschide documentele într-o filă nouă",
-      "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum."
+      "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
+      "showVersionMarks": "Marchează fișierele care au versiuni",
+      "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul."
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -932,6 +935,53 @@
       "createFailed": "Jetonul nu a putut fi emis.",
       "renameFailed": "Jetonul nu a putut fi redenumit.",
       "revokeFailed": "Jetonul nu a putut fi revocat."
+    },
+    "fileVersions": {
+      "title": "Versiuni de fișiere",
+      "intro": "Toate fișierele care au versiuni anterioare, oriunde s-ar afla, și spațiul pe care îl ocupă. Aici apar căi din toate spațiile, inclusiv din dosarele personale — de aceea pagina este rezervată administratorilor.",
+      "search": "Calea conține",
+      "searchPlaceholder": "O parte dintr-un nume sau dosar",
+      "zone": "Spațiu",
+      "anyZone": "Toate spațiile",
+      "state": "Stare",
+      "anyState": "Toate",
+      "sort": "Sortează după",
+      "sortBytes": "Spațiu ocupat",
+      "sortCount": "Numărul de versiuni",
+      "sortNewest": "Cea mai recentă versiune",
+      "sortPath": "Cale",
+      "summary": "{files} fișiere, {versions} versiuni, {size}",
+      "file": "Fișier",
+      "count": "Versiuni",
+      "size": "Dimensiune",
+      "newest": "Cea mai recentă",
+      "states": {
+        "live": "Prezent",
+        "trashed": "La coșul de gunoi",
+        "orphaned": "Dispărut"
+      },
+      "zoneKinds": {
+        "volume": "Volumul {name}",
+        "personal": "Dosar personal {name}",
+        "user-volume": "Volum atribuit {name}"
+      },
+      "zoneUnknown": "Spațiu necunoscut",
+      "pinned": "Fixată",
+      "unavailable": "Volum indisponibil",
+      "deleteAll": "Șterge istoricul",
+      "deleteSelected": "Șterge {count} versiune | Șterge {count} versiuni",
+      "deleteForGood": "Șterge definitiv",
+      "confirmAllTitle": "Ștergeți toate versiunile lui {name}?",
+      "confirmSomeTitle": "Ștergeți {count} versiune? | Ștergeți {count} versiuni?",
+      "confirmMessage": "Acest conținut este șters de pe disc. Fișierul în sine nu este atins, iar nimic din toate acestea nu poate fi anulat.",
+      "none": "Niciun fișier nu are versiuni anterioare.",
+      "loadFailed": "Lista nu a putut fi citită.",
+      "detailFailed": "Acest istoric nu a putut fi citit.",
+      "deleteFailed": "Versiunile nu au putut fi șterse.",
+      "previous": "Anterior",
+      "next": "Următor",
+      "range": "De la {from} la {to} din {total}",
+      "deleteSelectedNone": "Șterge versiunile bifate"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "Acțiunea asupra acestei versiuni a eșuat"
-    }
+    },
+    "mark": "{count} versiune anterioară | {count} versiuni anterioare"
   },
   "links": {
     "outside": "Legătură în afara acestui volum",

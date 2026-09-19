@@ -511,7 +511,8 @@
       "activity": "Journal d’activité",
       "accountTwoFactor": "Double facteur",
       "accountPasskeys": "Clés d’accès",
-      "accountApiTokens": "Jetons d’API"
+      "accountApiTokens": "Jetons d’API",
+      "fileVersions": "Versions de fichiers"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -579,7 +580,9 @@
       "viewColumns": "Colonnes",
       "viewPhotos": "Photos",
       "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
-      "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui."
+      "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
+      "showVersionMarks": "Signaler les fichiers qui ont des versions",
+      "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique."
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",
@@ -935,6 +938,53 @@
       "createFailed": "Le jeton n’a pas pu être émis.",
       "renameFailed": "Le jeton n’a pas pu être renommé.",
       "revokeFailed": "Le jeton n’a pas pu être révoqué."
+    },
+    "fileVersions": {
+      "title": "Versions de fichiers",
+      "intro": "Tous les fichiers qui ont des versions antérieures, où qu’ils soient, et la place qu’elles occupent. Les chemins de tous les espaces y figurent, dossiers personnels compris — c’est pourquoi cette page est réservée aux administrateurs.",
+      "search": "Le chemin contient",
+      "searchPlaceholder": "Une partie d’un nom ou d’un dossier",
+      "zone": "Espace",
+      "anyZone": "Tous les espaces",
+      "state": "État",
+      "anyState": "Tous",
+      "sort": "Trier par",
+      "sortBytes": "Place occupée",
+      "sortCount": "Nombre de versions",
+      "sortNewest": "Version la plus récente",
+      "sortPath": "Chemin",
+      "summary": "{files} fichiers, {versions} versions, {size}",
+      "file": "Fichier",
+      "count": "Versions",
+      "size": "Taille",
+      "newest": "La plus récente",
+      "states": {
+        "live": "Présent",
+        "trashed": "À la corbeille",
+        "orphaned": "Disparu"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Dossier personnel {name}",
+        "user-volume": "Volume attribué {name}"
+      },
+      "zoneUnknown": "Espace inconnu",
+      "pinned": "Épinglée",
+      "unavailable": "Volume indisponible",
+      "deleteAll": "Supprimer l’historique",
+      "deleteSelected": "Supprimer {count} version | Supprimer {count} versions",
+      "deleteForGood": "Supprimer définitivement",
+      "confirmAllTitle": "Supprimer toutes les versions de {name} ?",
+      "confirmSomeTitle": "Supprimer {count} version ? | Supprimer {count} versions ?",
+      "confirmMessage": "Ce contenu est effacé du disque. Le fichier lui-même n’est pas touché, et rien ici ne peut être annulé.",
+      "none": "Aucun fichier n’a de version antérieure.",
+      "loadFailed": "La liste n’a pas pu être lue.",
+      "detailFailed": "Cet historique n’a pas pu être lu.",
+      "deleteFailed": "Les versions n’ont pas pu être supprimées.",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "range": "{from} à {to} sur {total}",
+      "deleteSelectedNone": "Supprimer les versions cochées"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "L'action sur cette version a échoué"
-    }
+    },
+    "mark": "{count} version antérieure | {count} versions antérieures"
   },
   "links": {
     "outside": "Lien hors de ce volume",

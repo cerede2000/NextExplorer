@@ -23,6 +23,7 @@ const archiveRoutes = require('./archive');
 const userVolumesRoutes = require('./userVolumes');
 const trashRoutes = require('./trash');
 const versionsRoutes = require('./versions');
+const versionsAdminRoutes = require('./versionsAdmin');
 const activityRoutes = require('./activity');
 const { onlyoffice, collabora } = require('../config/index');
 
@@ -47,6 +48,9 @@ const registerRoutes = (app) => {
   app.use('/api', zipRoutes);
   app.use('/api', archiveRoutes);
   app.use('/api', trashRoutes);
+  // Before the per-file routes: `/versions/admin/…` must not be read as a
+  // version id with a suffix.
+  app.use('/api', versionsAdminRoutes);
   app.use('/api', versionsRoutes);
   app.use('/api', activityRoutes);
   // User volumes management (admin only, requires USER_VOLUMES feature)

@@ -29,6 +29,7 @@ import SharedWithMeView from '@/views/SharedWithMeView.vue';
 import SharedByMeView from '@/views/SharedByMeView.vue';
 import TrashView from '@/views/TrashView.vue';
 import SettingsTrash from '@/views/settings/SettingsTrash.vue';
+import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
@@ -83,6 +84,11 @@ const router = createRouter({
             {
               path: 'trash',
               component: SettingsTrash,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'file-versions',
+              component: SettingsFileVersions,
               meta: { requiresAdmin: true },
             },
             {

@@ -2,6 +2,8 @@
 
 Saving over a file keeps what the save replaces as a version. Earlier versions can be listed, opened, downloaded, restored, taken out as a copy or put over another file, named, pinned and deleted from the **Versions** panel — right-click a file, or open its details.
 
+A file that has versions carries a small mark in the folder listing, with how many; clicking it opens the panel. It is on by default and each person can turn it off under **Settings → Preferences → Mark files that have versions**. It appears only where its file's history would be shown anyway, so a share that does not hand out histories does not hand out the mark either.
+
 ## What is kept
 
 - **Every save through NextExplorer.** The text editor, the editor opened through a share link, ONLYOFFICE and Collabora all keep the content they replace. A file changed outside NextExplorer — over SMB, by a script — keeps its history, but those changes leave no version: nothing saw them happen.
@@ -76,6 +78,20 @@ Both are on for a new share with named people, who could see the history anyway,
 - **Sent to the trash**, a file takes its history with it, and gets it back when restored.
 - **Deleted for good** — from the trash, at the end of its retention, or straight away — a file's versions go with it.
 - **Deleted outside NextExplorer**, a file's history is kept for the trash retention, in case the file comes back to the same place, then removed.
+
+## Settings → File versions
+
+Every file in the installation that has a history, in one list, for administrators. The panel answers "what happened to this file"; this answers "where has the space gone", which no path can be asked about — a file deleted outside NextExplorer leaves its versions behind, and those are the histories least likely to be found by looking.
+
+Each row gives the file, the space it is in, how many versions it has and what they hold, and the date of the most recent. The list is ordered by space used by default, and can be searched by path, narrowed to one space, and narrowed by what became of the file:
+
+- **Present** — the file is still there;
+- **In the trash** — it was deleted and can still be restored, its history with it;
+- **Gone** — it disappeared outside NextExplorer, and its versions are the only copy left. They are kept for the trash retention in case it comes back.
+
+Open a row to see its versions, and delete any of them, or the whole history, from there. Deleting is permanent and includes pinned versions; the file itself is never touched. When a history whose file is gone loses its last version, its entry goes too.
+
+This list shows paths from every space, personal folders included — which no account can otherwise see of another. That is why the page is for administrators only, and why deleting from it is not something to do on somebody else's behalf without telling them.
 
 ## Settings → Trash and versions
 

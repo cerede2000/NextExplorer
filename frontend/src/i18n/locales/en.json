@@ -511,7 +511,8 @@
       "activity": "Activity log",
       "accountTwoFactor": "Two-factor",
       "accountPasskeys": "Passkeys",
-      "accountApiTokens": "API tokens"
+      "accountApiTokens": "API tokens",
+      "fileVersions": "File versions"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -579,7 +580,9 @@
       "viewColumns": "Columns",
       "viewPhotos": "Photos",
       "documentsOpenInNewTab": "Open documents in a new tab",
-      "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today."
+      "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today.",
+      "showVersionMarks": "Mark files that have versions",
+      "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
@@ -935,6 +938,53 @@
       "createFailed": "The token could not be issued.",
       "renameFailed": "The token could not be renamed.",
       "revokeFailed": "The token could not be revoked."
+    },
+    "fileVersions": {
+      "title": "File versions",
+      "intro": "Every file that has earlier versions, wherever it is, and what they take up. Paths from every space appear here, personal folders included — which is why this page is for administrators.",
+      "search": "Path contains",
+      "searchPlaceholder": "Part of a name or folder",
+      "zone": "Space",
+      "anyZone": "Any space",
+      "state": "Status",
+      "anyState": "Any",
+      "sort": "Sort by",
+      "sortBytes": "Space used",
+      "sortCount": "Number of versions",
+      "sortNewest": "Most recent version",
+      "sortPath": "Path",
+      "summary": "{files} files, {versions} versions, {size}",
+      "file": "File",
+      "count": "Versions",
+      "size": "Size",
+      "newest": "Most recent",
+      "states": {
+        "live": "Present",
+        "trashed": "In the trash",
+        "orphaned": "Gone"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Personal folder {name}",
+        "user-volume": "Assigned volume {name}"
+      },
+      "zoneUnknown": "Unknown space",
+      "pinned": "Pinned",
+      "unavailable": "Volume unavailable",
+      "deleteAll": "Delete the history",
+      "deleteSelected": "Delete {count} version | Delete {count} versions",
+      "deleteForGood": "Delete for good",
+      "confirmAllTitle": "Delete every version of {name}?",
+      "confirmSomeTitle": "Delete {count} version? | Delete {count} versions?",
+      "confirmMessage": "That content is removed from the disk. The file itself is not touched, and nothing here can be undone.",
+      "none": "No file has earlier versions.",
+      "loadFailed": "The list could not be read.",
+      "detailFailed": "This history could not be read.",
+      "deleteFailed": "The versions could not be deleted.",
+      "previous": "Previous",
+      "next": "Next",
+      "range": "{from} to {to} of {total}",
+      "deleteSelectedNone": "Delete the versions you tick"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "The action on this version failed"
-    }
+    },
+    "mark": "{count} earlier version | {count} earlier versions"
   },
   "links": {
     "outside": "Link out of this volume",

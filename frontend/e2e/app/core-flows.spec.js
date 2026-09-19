@@ -668,6 +668,50 @@ test('an earlier version of a file edited in the browser comes back from the Ver
 });
 
 /**
+ * The two ends of the same fact: a file has versions.
+ *
+ * In the folder, a mark on the row says so and opens the history. In the
+ * settings, one list holds every file in the installation that has one, which
+ * is the only place the space they take can be seen and given back. Deleting
+ * from there has to reach both — and leave the file itself alone.
+ */
+test('a file with versions is marked in the listing, and an administrator can clear it', async () => {
+  // By the row's own selection control and not by its text: the list view
+  // shortens a long name in the middle, so matching on the name is a test
+  // that depends on how wide the column happens to be.
+  const markFor = (name) =>
+    page
+      .locator('.group\\/item')
+      .filter({ has: page.locator(`[aria-label="Select ${name}"]`) })
+      .locator('[data-test="version-mark"]');
+
+  await page.goto('/browse/Projects');
+  await expect(markFor('minutes.txt')).toHaveText('3');
+  await expect(markFor('report.txt')).toHaveCount(0);
+
+  await markFor('minutes.txt').click();
+  await expect(page.getByRole('dialog', { name: 'File versions' })).toContainText('minutes.txt');
+  await page.keyboard.press('Escape');
+
+  await page.goto('/settings/file-versions');
+  const row = page.locator('[data-test="versions-row"]').filter({ hasText: 'minutes.txt' });
+  await expect(row).toHaveCount(1);
+  await expect(row.locator('[data-test="versions-count"]')).toHaveText('3');
+
+  await row.locator('[data-test="versions-expand"]').click();
+  await expect(page.locator('[data-test="versions-version"]')).toHaveCount(3);
+
+  await row.locator('[data-test="versions-delete-all"]').click();
+  await page.locator('[data-test="versions-confirm"]').click();
+  await expect(row).toHaveCount(0);
+
+  await page.goto('/browse/Projects');
+  await expect(markFor('minutes.txt')).toHaveCount(0);
+  // The history went; the file is exactly what the restore put back.
+  expect(fs.readFileSync(path.join(volume, 'minutes.txt'), 'utf8')).toBe('draft one');
+});
+
+/**
  * No screen may hide content where nothing can scroll.
  *
  * This is the last test on purpose: it fills the installation with more than

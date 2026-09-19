@@ -533,3 +533,54 @@ describe('a link out of the volume', () => {
     expect(notifications.addNotification).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The mark that says the file has earlier versions.
+ *
+ * Drawn in every view, because a folder is browsed in whichever one the
+ * person left it in, and a mark that only some views carry is a mark nobody
+ * can rely on. It is also a way into the history, which is the one thing it
+ * could mean.
+ */
+describe('the versions mark', () => {
+  const versioned = { ...FILE, versions: { count: 3, bytes: 900, newest: '2026-09-01T10:00:00Z' } };
+
+  it.each(['list', 'tab', 'grid'])('shows the count in the %s view', (view) => {
+    mountRow(versioned, view);
+
+    const mark = wrapper.find('[data-test="version-mark"]');
+    expect(mark.exists()).toBe(true);
+    expect(mark.text()).toBe('3');
+  });
+
+  it('shows it on a photo cell too, where there is no name to sit beside', () => {
+    mountRow({ ...versioned, name: 'holiday.jpg', kind: 'jpg' }, 'photos');
+
+    expect(wrapper.find('[data-test="version-mark"]').exists()).toBe(true);
+  });
+
+  it('is absent when the server sent no count', () => {
+    mountRow(FILE);
+
+    expect(wrapper.find('[data-test="version-mark"]').exists()).toBe(false);
+  });
+
+  it('is absent when the count is zero, rather than reading as a mark of nothing', () => {
+    mountRow({ ...FILE, versions: { count: 0 } });
+
+    expect(wrapper.find('[data-test="version-mark"]').exists()).toBe(false);
+  });
+
+  it('opens the history, and does not also open the file', async () => {
+    const { useVersionsPanelStore } = await import('@/stores/versionsPanel');
+    mountRow(versioned);
+
+    await wrapper.find('[data-test="version-mark"]').trigger('click');
+
+    const panel = useVersionsPanelStore();
+    expect(panel.isOpen).toBe(true);
+    expect(panel.item).toMatchObject({ name: 'rapport.docx', path: 'Docs' });
+    expect(navigation.openItem).not.toHaveBeenCalled();
+    expect(selection.handleSelection).not.toHaveBeenCalled();
+  });
+});

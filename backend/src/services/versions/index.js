@@ -103,6 +103,54 @@ const historyOf = async (db, absolutePath) => {
   return null;
 };
 
+/**
+ * How many kept versions each file in a folder has, by file name.
+ *
+ * What the listing needs to put a mark on a row, and the reason it is a
+ * folder's worth at a time: a count per file would be one query per row, and
+ * a folder of three hundred files is an ordinary folder.
+ *
+ * The zone root is resolved once here. `locateZoneRoot` answers `zone-root`
+ * for the root itself rather than naming it — true for a file being deleted,
+ * which cannot go into its own volume's trash, and wrong for a listing, where
+ * the top of a volume is a folder like any other and its files have
+ * histories. So that answer is turned back into the zone it is about.
+ */
+const marksForFolder = async (absoluteDir) => {
+  const directory = path.resolve(absoluteDir);
+  const located = await zones.locateZoneRoot(directory);
+  if (!located.root && located.reason !== 'zone-root') return new Map();
+
+  const db = await getDb();
+  const root = located.root || directory;
+  const relative = located.root ? path.relative(root, directory).split(path.sep).join('/') : '';
+  // Outside the zone after all: nothing here belongs to it.
+  if (relative.startsWith('..')) return new Map();
+
+  const zoneIds = trashStore
+    .listZones(db)
+    .filter((row) => row.root === root)
+    .map((row) => row.id);
+  if (zoneIds.length === 0) return new Map();
+
+  const marks = new Map();
+  for (const row of store.countKeptInFolder(db, zoneIds, relative)) {
+    const name = path.posix.basename(row.relativePath);
+    const existing = marks.get(name);
+    marks.set(
+      name,
+      existing
+        ? {
+            versions: existing.versions + row.versions,
+            bytes: existing.bytes + row.bytes,
+            newest: existing.newest > row.newest ? existing.newest : row.newest,
+          }
+        : { versions: row.versions, bytes: row.bytes, newest: row.newest }
+    );
+  }
+  return marks;
+};
+
 /** The names accounts go by now, for the versions they wrote. */
 const accountLabels = (db, ids) => {
   const wanted = [...new Set(ids.filter(Boolean))];
@@ -440,8 +488,221 @@ const deleteVersions = async (context, relativePath, { ids, all = false } = {}) 
   };
 };
 
+/**
+ * ---------------------------------------------------------------------------
+ * The whole installation's histories, for an administrator.
+ *
+ * Everything above answers about one file, and answers it with that file's
+ * own rights — which is the right shape for the person using the browser, and
+ * the wrong one for the question "what is taking the space, and where". That
+ * question has no path to hang on: a history whose file was deleted outside
+ * the application has no file left to be authorised against, and it is
+ * exactly the kind that nobody goes looking for.
+ *
+ * So these are addressed by the history's own id, and they are behind
+ * `ensureAdmin`. Two consequences worth stating rather than discovering:
+ * this lists paths from every space, personal folders included, which the
+ * browsing API never lets one account see of another; and it can delete a
+ * history that its owner would still want. It is an administrator's screen in
+ * the same sense as the trash's zones are.
+ * ---------------------------------------------------------------------------
+ */
+
+/** Each zone by id, with the shape the screen shows it in. */
+const describeZones = (db) =>
+  new Map(
+    trashStore.listZones(db).map((zone) => {
+      const described = zones.describeZoneRoot(zone.root);
+      return [
+        zone.id,
+        { id: zone.id, root: zone.root, kind: described.kind, name: described.name },
+      ];
+    })
+  );
+
+/**
+ * The path a browser could open, when there is one.
+ *
+ * Only a volume has one: its logical path is its name and then the path
+ * inside it. A personal folder is addressed as `personal/…` by the one
+ * account it belongs to and by nobody else, so an administrator looking at
+ * somebody else's has no address to be given — and being handed a link that
+ * answers 404 is worse than being handed none.
+ */
+const logicalPathFor = (zone, relativePath) =>
+  zone?.kind === 'volume' ? `${zone.name}/${relativePath}` : null;
+
+const ADMIN_PAGE_SIZE = 25;
+const MAX_ADMIN_PAGE_SIZE = 200;
+
+const boundedInteger = (value, fallback, min, max) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(number)));
+};
+
+/** A page of the files that have a history, and what the whole filter holds. */
+const listFilesWithVersions = async ({
+  zoneId = null,
+  state = null,
+  query = '',
+  sort = 'bytes',
+  limit = ADMIN_PAGE_SIZE,
+  offset = 0,
+} = {}) => {
+  if (state !== null && state !== undefined && state !== '' && !store.FILE_STATES.includes(state)) {
+    throw new ValidationError('That is not a state a history can be in.');
+  }
+  if (sort && !Object.keys(store.ADMIN_SORTS).includes(sort)) {
+    throw new ValidationError('That is not an order this list can be read in.');
+  }
+  if (typeof query !== 'string') throw new ValidationError('A search is text.');
+
+  const db = await getDb();
+  const zoneMap = describeZones(db);
+  const filter = {
+    zoneId: zoneId || null,
+    state: state || null,
+    query: query.slice(0, 200),
+  };
+  const page = {
+    ...filter,
+    sort: sort || 'bytes',
+    limit: boundedInteger(limit, ADMIN_PAGE_SIZE, 1, MAX_ADMIN_PAGE_SIZE),
+    offset: boundedInteger(offset, 0, 0, Number.MAX_SAFE_INTEGER),
+  };
+
+  const rows = store.listFilesWithVersions(db, page);
+  const totals = store.summariseFilesWithVersions(db, filter);
+
+  return {
+    files: rows.map((row) => {
+      const zone = zoneMap.get(row.zoneId) || null;
+      return {
+        id: row.id,
+        name: path.posix.basename(row.relativePath),
+        relativePath: row.relativePath,
+        folder:
+          path.posix.dirname(row.relativePath) === '.' ? '' : path.posix.dirname(row.relativePath),
+        path: logicalPathFor(zone, row.relativePath),
+        state: row.state,
+        versions: row.versions,
+        bytes: row.bytes,
+        newest: row.newest,
+        zone: zone ? { id: zone.id, kind: zone.kind, name: zone.name } : null,
+      };
+    }),
+    total: totals.files,
+    totalBytes: totals.bytes,
+    totalVersions: totals.versions,
+    limit: page.limit,
+    offset: page.offset,
+    zones: [...zoneMap.values()].map((zone) => ({
+      id: zone.id,
+      kind: zone.kind,
+      name: zone.name,
+    })),
+    states: [...store.FILE_STATES],
+    sorts: Object.keys(store.ADMIN_SORTS),
+  };
+};
+
+/** One history, with its versions — the same shape the panel shows, by id. */
+const readFileVersions = async (fileId) => {
+  const db = await getDb();
+  const file = typeof fileId === 'string' && fileId ? store.getFile(db, fileId) : null;
+  if (!file) throw new NotFoundError('This history does not exist.');
+
+  const zone = describeZones(db).get(file.zoneId) || null;
+  const versions = store.listVersionsOfFile(db, file.id);
+  const availability = new Map();
+  for (const zoneId of new Set(versions.map((version) => version.zoneId))) {
+    const row = trashStore.getZone(db, zoneId);
+    availability.set(zoneId, row ? (await zones.inspectZone(row)).available : false);
+  }
+  const labels = accountLabels(
+    db,
+    versions.map((version) => version.authorId)
+  );
+
+  return {
+    file: {
+      id: file.id,
+      name: path.posix.basename(file.relativePath),
+      relativePath: file.relativePath,
+      path: logicalPathFor(zone, file.relativePath),
+      state: file.state,
+      zone: zone ? { id: zone.id, kind: zone.kind, name: zone.name } : null,
+    },
+    versions: versions.map((version) =>
+      presentVersion(version, labels, availability.get(version.zoneId))
+    ),
+    totalBytes: versions.reduce((total, version) => total + version.size, 0),
+  };
+};
+
+/**
+ * Delete versions of one history, named by the history rather than by a path.
+ *
+ * `all` on a history whose file is gone takes the row with it: keeping an
+ * entry that leads to nothing would leave the list showing a file that has
+ * neither content nor versions. A live file keeps its row, because that row
+ * is also what the next save reads to tell an editing session from a change
+ * made behind its back.
+ */
+const deleteFileVersions = async (fileId, { ids, all = false } = {}) => {
+  const db = await getDb();
+  const file = typeof fileId === 'string' && fileId ? store.getFile(db, fileId) : null;
+  if (!file) throw new NotFoundError('This history does not exist.');
+
+  const kept = store.listVersionsOfFile(db, file.id);
+  let wanted;
+  if (all === true) {
+    wanted = kept.map((version) => version.id);
+  } else {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new ValidationError('At least one version is required.');
+    }
+    if (ids.length > MAX_IDS) {
+      throw new ValidationError(`At most ${MAX_IDS} versions can be deleted at once.`);
+    }
+    if (!ids.every((id) => typeof id === 'string' && id)) {
+      throw new ValidationError('Version ids must be strings.');
+    }
+    wanted = [...new Set(ids)];
+  }
+
+  const belongs = new Set(kept.map((version) => version.id));
+  const items = [];
+  for (const id of wanted) {
+    if (!belongs.has(id)) {
+      items.push({ id, status: 'not-found' });
+      continue;
+    }
+    try {
+      const outcome = await operations.purgeVersion(id);
+      items.push({ id, status: outcome.status === 'unavailable' ? 'pending' : outcome.status });
+    } catch (error) {
+      logger.warn({ err: error, versionId: id }, 'A version could not be deleted');
+      items.push({ id, status: 'failed' });
+    }
+  }
+
+  const left = store.listVersionsOfFile(db, file.id, {
+    states: ['capturing', 'kept', 'purging'],
+  });
+  if (left.length === 0 && file.state !== 'live') store.deleteFile(db, file.id);
+
+  return {
+    items,
+    deleted: items.filter((item) => item.status === 'purged' || item.status === 'pending').length,
+    remaining: store.listVersionsOfFile(db, file.id).length,
+  };
+};
+
 module.exports = {
   rightsFrom,
+  marksForFolder,
   listVersions,
   locateVersion,
   downloadVersion,
@@ -451,4 +712,7 @@ module.exports = {
   replaceWithVersion,
   updateVersion,
   deleteVersions,
+  listFilesWithVersions,
+  readFileVersions,
+  deleteFileVersions,
 };

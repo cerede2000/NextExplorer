@@ -61,6 +61,7 @@ const SWITCHES = [
   'showThumbnails',
   'markdownOpensInEditor',
   'documentsOpenInNewTab',
+  'showVersionMarks',
   'showSidebarFavorites',
   'showSidebarShares',
   'showSidebarTools',
@@ -141,6 +142,16 @@ describe('the preferences', () => {
     expect(button('common.save')).toBeUndefined();
   });
 
+  it('start with the versions mark on, as the server reads its absence', async () => {
+    // The server reads this one as `!== false`, so a client default of off
+    // would show a switch that disagrees with what the listings are doing —
+    // and turning it on would save nothing, because nothing changed.
+    await open(DEFAULTS);
+
+    expect(toggle('showVersionMarks').attributes('aria-checked')).toBe('true');
+    expect(button('common.save')).toBeUndefined();
+  });
+
   it('save one changed preference with every other one exactly as stored', async () => {
     await open();
 
@@ -160,6 +171,7 @@ describe('the preferences', () => {
         defaultView: 'list',
         markdownOpensInEditor: true,
         documentsOpenInNewTab: true,
+        showVersionMarks: true,
       },
     });
     expect(sentUser()).not.toHaveProperty('folderSorts');

@@ -56,6 +56,8 @@ const NON_DEFAULT = {
   showSidebarTools: false,
   markdownOpensInEditor: true,
   documentsOpenInNewTab: true,
+  // On by default, so off is the value that has to survive a round trip.
+  showVersionMarks: false,
   defaultShareExpiration: { value: 3, unit: 'days' },
   skipHome: true,
   defaultView: 'list',

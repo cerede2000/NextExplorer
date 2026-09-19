@@ -508,7 +508,8 @@
       "activity": "활동 로그",
       "accountTwoFactor": "2단계 인증",
       "accountPasskeys": "패스키",
-      "accountApiTokens": "API 토큰"
+      "accountApiTokens": "API 토큰",
+      "fileVersions": "파일 버전"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -576,7 +577,9 @@
       "viewColumns": "열",
       "viewPhotos": "사진",
       "documentsOpenInNewTab": "문서를 새 탭에서 열기",
-      "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다."
+      "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다.",
+      "showVersionMarks": "버전이 있는 파일 표시",
+      "showVersionMarksHelp": "이전 버전이 있는 파일에 개수와 함께 목록에서 작은 표시를 붙입니다. 누르면 기록이 열립니다."
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",
@@ -932,6 +935,53 @@
       "createFailed": "토큰을 발급하지 못했습니다.",
       "renameFailed": "토큰 이름을 바꾸지 못했습니다.",
       "revokeFailed": "토큰을 취소하지 못했습니다."
+    },
+    "fileVersions": {
+      "title": "파일 버전",
+      "intro": "이전 버전을 가진 모든 파일과 그 버전이 차지하는 용량입니다. 개인 폴더를 포함한 모든 공간의 경로가 나오므로 이 페이지는 관리자 전용입니다.",
+      "search": "경로에 포함",
+      "searchPlaceholder": "이름이나 폴더의 일부",
+      "zone": "공간",
+      "anyZone": "모든 공간",
+      "state": "상태",
+      "anyState": "전체",
+      "sort": "정렬 기준",
+      "sortBytes": "사용 용량",
+      "sortCount": "버전 수",
+      "sortNewest": "가장 최근 버전",
+      "sortPath": "경로",
+      "summary": "파일 {files}개, 버전 {versions}개, {size}",
+      "file": "파일",
+      "count": "버전",
+      "size": "크기",
+      "newest": "최근",
+      "states": {
+        "live": "있음",
+        "trashed": "휴지통",
+        "orphaned": "사라짐"
+      },
+      "zoneKinds": {
+        "volume": "볼륨 {name}",
+        "personal": "개인 폴더 {name}",
+        "user-volume": "할당된 볼륨 {name}"
+      },
+      "zoneUnknown": "알 수 없는 공간",
+      "pinned": "고정됨",
+      "unavailable": "볼륨을 사용할 수 없음",
+      "deleteAll": "기록 삭제",
+      "deleteSelected": "버전 {count}개 삭제",
+      "deleteForGood": "완전히 삭제",
+      "confirmAllTitle": "{name}의 모든 버전을 삭제할까요?",
+      "confirmSomeTitle": "버전 {count}개를 삭제할까요?",
+      "confirmMessage": "해당 내용은 디스크에서 지워집니다. 파일 자체는 그대로이며, 이 작업은 되돌릴 수 없습니다.",
+      "none": "이전 버전이 있는 파일이 없습니다.",
+      "loadFailed": "목록을 읽지 못했습니다.",
+      "detailFailed": "이 기록을 읽지 못했습니다.",
+      "deleteFailed": "버전을 삭제하지 못했습니다.",
+      "previous": "이전",
+      "next": "다음",
+      "range": "{total}개 중 {from}–{to}",
+      "deleteSelectedNone": "선택한 버전 삭제"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "이 버전에 대한 작업이 실패했습니다"
-    }
+    },
+    "mark": "이전 버전 {count}개"
   },
   "links": {
     "outside": "이 볼륨 밖을 가리키는 링크",

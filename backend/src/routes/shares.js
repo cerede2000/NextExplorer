@@ -48,7 +48,8 @@ const {
 } = require('../services/textEditorService');
 const versions = require('../services/versions/operations');
 const activityLog = require('../services/activityLog');
-const { rightsFrom: versionRights } = require('../services/versions');
+const versionsService = require('../services/versions');
+const { rightsFrom: versionRights } = versionsService;
 const { clientAddress } = require('../utils/clientAddress');
 
 const router = express.Router();
@@ -1142,6 +1143,17 @@ router.get(
         shareCache.set(resolved.shareInfo.shareToken, resolved.shareInfo);
       }
       const userVolumeCache = new Map();
+      const marks =
+        userSettings?.showVersionMarks === false
+          ? null
+          : await versionsService.marksForFolder(resolved.absolutePath).catch((error) => {
+              logger.warn(
+                { err: error, path: resolved.absolutePath },
+                'File versions were not counted for a shared listing'
+              );
+              return null;
+            });
+
       const items = await listDirectoryItems({
         absoluteDir: resolved.absolutePath,
         parentLogicalPath: resolved.relativePath,
@@ -1151,7 +1163,7 @@ router.get(
         permissionRules: settings?.access?.rules || [],
         shareCache,
         userVolumeCache,
-        itemExtras: () => ({
+        itemExtras: ({ name, stats, access }) => ({
           access: {
             canRead: true,
             canWrite: accessInfo.canWrite,
@@ -1164,6 +1176,18 @@ router.get(
             // and clicking it is the only way to find out.
             canDownload: accessInfo.canDownload,
           },
+          // The same mark the browser shows, under the same rule: a share
+          // says nothing about a file's history unless its owner turned
+          // histories on for it.
+          ...(marks && stats?.isFile() && marks.get(name) && versionRights(access).see
+            ? {
+                versions: {
+                  count: marks.get(name).versions,
+                  bytes: marks.get(name).bytes,
+                  newest: marks.get(name).newest,
+                },
+              }
+            : null),
         }),
       });
 

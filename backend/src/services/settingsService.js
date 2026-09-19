@@ -601,6 +601,7 @@ const USER_SETTINGS = {
   showSidebarTools: asBoolean,
   markdownOpensInEditor: asBoolean,
   documentsOpenInNewTab: asBoolean,
+  showVersionMarks: asBoolean,
   defaultShareExpiration: asShareExpiration,
   skipHome: asNullableBoolean,
   defaultView: asViewMode,

@@ -1088,6 +1088,13 @@ export const useFileStore = defineStore('fileStore', () => {
           if (!Object.hasOwn(incoming, 'onlyofficeActivity')) {
             delete existing.onlyofficeActivity;
           }
+          // The same, for the mark that says a file has earlier versions:
+          // delete the last one and the server stops sending the count, which
+          // `Object.assign` would otherwise have left on the row until the
+          // folder was left and come back to.
+          if (!Object.hasOwn(incoming, 'versions')) {
+            delete existing.versions;
+          }
           if (!incoming.thumbnail && prevThumbnail) {
             existing.thumbnail = prevThumbnail;
           }

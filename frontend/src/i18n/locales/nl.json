@@ -511,7 +511,8 @@
       "activity": "Activiteitenlogboek",
       "accountTwoFactor": "Tweestaps",
       "accountPasskeys": "Passkeys",
-      "accountApiTokens": "API-tokens"
+      "accountApiTokens": "API-tokens",
+      "fileVersions": "Bestandsversies"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -579,7 +580,9 @@
       "viewColumns": "Kolommen",
       "viewPhotos": "Foto's",
       "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
-      "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu."
+      "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
+      "showVersionMarks": "Bestanden met versies markeren",
+      "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen."
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",
@@ -935,6 +938,53 @@
       "createFailed": "Het token kon niet worden uitgegeven.",
       "renameFailed": "Het token kon niet worden hernoemd.",
       "revokeFailed": "Het token kon niet worden ingetrokken."
+    },
+    "fileVersions": {
+      "title": "Bestandsversies",
+      "intro": "Elk bestand met eerdere versies, waar het ook staat, en hoeveel ruimte die innemen. Hier verschijnen paden uit alle ruimtes, persoonlijke mappen inbegrepen — daarom is deze pagina alleen voor beheerders.",
+      "search": "Pad bevat",
+      "searchPlaceholder": "Deel van een naam of map",
+      "zone": "Ruimte",
+      "anyZone": "Alle ruimtes",
+      "state": "Status",
+      "anyState": "Alle",
+      "sort": "Sorteren op",
+      "sortBytes": "Gebruikte ruimte",
+      "sortCount": "Aantal versies",
+      "sortNewest": "Nieuwste versie",
+      "sortPath": "Pad",
+      "summary": "{files} bestanden, {versions} versies, {size}",
+      "file": "Bestand",
+      "count": "Versies",
+      "size": "Grootte",
+      "newest": "Nieuwste",
+      "states": {
+        "live": "Aanwezig",
+        "trashed": "In de prullenbak",
+        "orphaned": "Verdwenen"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Persoonlijke map {name}",
+        "user-volume": "Toegewezen volume {name}"
+      },
+      "zoneUnknown": "Onbekende ruimte",
+      "pinned": "Vastgezet",
+      "unavailable": "Volume niet beschikbaar",
+      "deleteAll": "Geschiedenis verwijderen",
+      "deleteSelected": "{count} versie verwijderen | {count} versies verwijderen",
+      "deleteForGood": "Definitief verwijderen",
+      "confirmAllTitle": "Alle versies van {name} verwijderen?",
+      "confirmSomeTitle": "{count} versie verwijderen? | {count} versies verwijderen?",
+      "confirmMessage": "Die inhoud wordt van de schijf verwijderd. Het bestand zelf blijft ongemoeid, en niets hiervan kan ongedaan worden gemaakt.",
+      "none": "Geen enkel bestand heeft eerdere versies.",
+      "loadFailed": "De lijst kon niet worden gelezen.",
+      "detailFailed": "Deze geschiedenis kon niet worden gelezen.",
+      "deleteFailed": "De versies konden niet worden verwijderd.",
+      "previous": "Vorige",
+      "next": "Volgende",
+      "range": "{from} tot {to} van {total}",
+      "deleteSelectedNone": "Aangevinkte versies verwijderen"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "De actie op deze versie is mislukt"
-    }
+    },
+    "mark": "{count} eerdere versie | {count} eerdere versies"
   },
   "links": {
     "outside": "Link buiten dit volume",

@@ -508,7 +508,8 @@
       "activity": "Aktivitätsprotokoll",
       "accountTwoFactor": "Zwei-Faktor",
       "accountPasskeys": "Passkeys",
-      "accountApiTokens": "API-Token"
+      "accountApiTokens": "API-Token",
+      "fileVersions": "Dateiversionen"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -576,7 +577,9 @@
       "viewColumns": "Spalten",
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
-      "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner."
+      "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner.",
+      "showVersionMarks": "Dateien mit Versionen kennzeichnen",
+      "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf."
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
@@ -932,6 +935,53 @@
       "createFailed": "Das Token konnte nicht ausgestellt werden.",
       "renameFailed": "Das Token konnte nicht umbenannt werden.",
       "revokeFailed": "Das Token konnte nicht widerrufen werden."
+    },
+    "fileVersions": {
+      "title": "Dateiversionen",
+      "intro": "Alle Dateien mit früheren Versionen, wo immer sie liegen, und wie viel Platz diese belegen. Hier erscheinen Pfade aus allen Bereichen, persönliche Ordner eingeschlossen — deshalb ist diese Seite Administratoren vorbehalten.",
+      "search": "Pfad enthält",
+      "searchPlaceholder": "Teil eines Namens oder Ordners",
+      "zone": "Bereich",
+      "anyZone": "Alle Bereiche",
+      "state": "Zustand",
+      "anyState": "Alle",
+      "sort": "Sortieren nach",
+      "sortBytes": "Belegter Platz",
+      "sortCount": "Anzahl der Versionen",
+      "sortNewest": "Neueste Version",
+      "sortPath": "Pfad",
+      "summary": "{files} Dateien, {versions} Versionen, {size}",
+      "file": "Datei",
+      "count": "Versionen",
+      "size": "Größe",
+      "newest": "Neueste",
+      "states": {
+        "live": "Vorhanden",
+        "trashed": "Im Papierkorb",
+        "orphaned": "Verschwunden"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Persönlicher Ordner {name}",
+        "user-volume": "Zugewiesenes Volume {name}"
+      },
+      "zoneUnknown": "Unbekannter Bereich",
+      "pinned": "Angeheftet",
+      "unavailable": "Volume nicht verfügbar",
+      "deleteAll": "Verlauf löschen",
+      "deleteSelected": "{count} Version löschen | {count} Versionen löschen",
+      "deleteForGood": "Endgültig löschen",
+      "confirmAllTitle": "Alle Versionen von {name} löschen?",
+      "confirmSomeTitle": "{count} Version löschen? | {count} Versionen löschen?",
+      "confirmMessage": "Dieser Inhalt wird von der Festplatte entfernt. Die Datei selbst bleibt unberührt, und nichts davon lässt sich rückgängig machen.",
+      "none": "Keine Datei hat frühere Versionen.",
+      "loadFailed": "Die Liste konnte nicht gelesen werden.",
+      "detailFailed": "Dieser Verlauf konnte nicht gelesen werden.",
+      "deleteFailed": "Die Versionen konnten nicht gelöscht werden.",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "range": "{from} bis {to} von {total}",
+      "deleteSelectedNone": "Angehakte Versionen löschen"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "Die Aktion für diese Version ist fehlgeschlagen"
-    }
+    },
+    "mark": "{count} frühere Version | {count} frühere Versionen"
   },
   "links": {
     "outside": "Verknüpfung außerhalb dieses Volumes",

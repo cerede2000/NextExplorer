@@ -508,7 +508,8 @@
       "activity": "Dziennik aktywności",
       "accountTwoFactor": "Dwa składniki",
       "accountPasskeys": "Klucze dostępu",
-      "accountApiTokens": "Tokeny API"
+      "accountApiTokens": "Tokeny API",
+      "fileVersions": "Wersje plików"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -576,7 +577,9 @@
       "viewColumns": "Kolumny",
       "viewPhotos": "Zdjęcia",
       "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
-      "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś."
+      "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
+      "showVersionMarks": "Oznaczaj pliki, które mają wersje",
+      "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -932,6 +935,53 @@
       "createFailed": "Nie udało się wydać tokenu.",
       "renameFailed": "Nie udało się zmienić nazwy tokenu.",
       "revokeFailed": "Nie udało się unieważnić tokenu."
+    },
+    "fileVersions": {
+      "title": "Wersje plików",
+      "intro": "Wszystkie pliki, które mają wcześniejsze wersje, gdziekolwiek się znajdują, i ile te wersje zajmują. Widać tu ścieżki ze wszystkich przestrzeni, także z folderów osobistych — dlatego ta strona jest tylko dla administratorów.",
+      "search": "Ścieżka zawiera",
+      "searchPlaceholder": "Część nazwy lub folderu",
+      "zone": "Przestrzeń",
+      "anyZone": "Wszystkie przestrzenie",
+      "state": "Stan",
+      "anyState": "Wszystkie",
+      "sort": "Sortuj według",
+      "sortBytes": "Zajęte miejsce",
+      "sortCount": "Liczba wersji",
+      "sortNewest": "Najnowsza wersja",
+      "sortPath": "Ścieżka",
+      "summary": "Plików: {files}, wersji: {versions}, {size}",
+      "file": "Plik",
+      "count": "Wersje",
+      "size": "Rozmiar",
+      "newest": "Najnowsza",
+      "states": {
+        "live": "Obecny",
+        "trashed": "W koszu",
+        "orphaned": "Zniknął"
+      },
+      "zoneKinds": {
+        "volume": "Wolumin {name}",
+        "personal": "Folder osobisty {name}",
+        "user-volume": "Przypisany wolumin {name}"
+      },
+      "zoneUnknown": "Nieznana przestrzeń",
+      "pinned": "Przypięta",
+      "unavailable": "Wolumin niedostępny",
+      "deleteAll": "Usuń historię",
+      "deleteSelected": "Usuń {count} wersję | Usuń {count} wersje | Usuń {count} wersji",
+      "deleteForGood": "Usuń na zawsze",
+      "confirmAllTitle": "Usunąć wszystkie wersje pliku {name}?",
+      "confirmSomeTitle": "Usunąć {count} wersję? | Usunąć {count} wersje? | Usunąć {count} wersji?",
+      "confirmMessage": "Ta zawartość zostaje usunięta z dysku. Sam plik pozostaje nietknięty, a tej operacji nie można cofnąć.",
+      "none": "Żaden plik nie ma wcześniejszych wersji.",
+      "loadFailed": "Nie udało się odczytać listy.",
+      "detailFailed": "Nie udało się odczytać tej historii.",
+      "deleteFailed": "Nie udało się usunąć wersji.",
+      "previous": "Poprzednie",
+      "next": "Następne",
+      "range": "Od {from} do {to} z {total}",
+      "deleteSelectedNone": "Usuń zaznaczone wersje"
     }
   },
   "share": {
@@ -1265,7 +1315,8 @@
     },
     "errors": {
       "action": "Działanie na tej wersji nie powiodło się"
-    }
+    },
+    "mark": "{count} wcześniejsza wersja | {count} wcześniejsze wersje | {count} wcześniejszych wersji"
   },
   "links": {
     "outside": "Łącze poza ten wolumin",
