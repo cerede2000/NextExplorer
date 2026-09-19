@@ -82,7 +82,32 @@ Finally, the awkward ones:
 - Two tabs on the **same** document, from the same account: they co-edit, and
   closing one leaves the other working.
 
-## 5. Inside a share
+## 5. What the second tab is allowed to be
+
+Three things that are invisible when they are wrong. All three are held by the
+browser suite; this is what they mean, and what to try if you want to see them
+fail.
+
+- **The tab cannot reach back.** It is opened with `noopener`, so
+  `window.opener` in it is `null`. Without that, a page in the second tab could
+  navigate the first one somewhere else.
+- **The beacon arrives as somebody.** Closing a tab sends one request to end
+  the editing session, and it has to carry the session cookie — a beacon that
+  arrived as nobody would be answered `401` and the document would stay marked
+  as open until it timed out. Same-origin, so `SameSite=Lax` does not stand in
+  its way; a beacon another site sent would not carry the cookie, which is
+  what makes this safe rather than what makes it work.
+- **The address is worth nothing without an account.** `/open/<path>` is a URL,
+  so it will be copied and pasted. Open one in a private window: the sign-in
+  screen, and not a word of the document.
+
+And one the tokens page also covers: **an API token cannot reach the editors at
+all** — not `/api/onlyoffice/*`, not `/api/collabora/*`. A token has no
+browser, so it has no editing session; a write token holding a session
+identifier could otherwise end a colleague's, and one calling `/config` could
+mark a document as being edited by a script that is not editing it.
+
+## 6. Inside a share
 
 A share is its own space — its paths are `share/<token>/…` rather than a
 volume's — so it is the place a preference like this quietly fails to apply.

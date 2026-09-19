@@ -26,6 +26,16 @@ const logger = require('../utils/logger');
  *
  * Read `GET /api/auth/me` is the one thing left open behind the first door, so
  * a script can ask who it is without being able to change who it is.
+ *
+ * The live editors are shut for a third reason, and a smaller one: a token has
+ * no browser, so it has no editing session — every route there either belongs
+ * to one somebody else opened, or opens one nothing will ever use. A write
+ * token holding a session identifier could end a colleague's editing session;
+ * one calling `/config` could mark a document as being edited by a script that
+ * is not editing it. Neither is a disaster, and neither is anything automation
+ * wants: a script that needs the document downloads it and uploads it back.
+ * The Document Server's own callbacks are not affected — they carry their own
+ * signed token and never reach this file.
  */
 
 /** What a token's value starts with, and therefore what this middleware owns. */
@@ -35,7 +45,7 @@ const TOKEN_MARKER = `${apiTokens.TOKEN_PREFIX}_`;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Shut to every token. */
-const CLOSED_PREFIXES = ['/api/auth', '/api/terminal'];
+const CLOSED_PREFIXES = ['/api/auth', '/api/terminal', '/api/onlyoffice', '/api/collabora'];
 
 /** Except this, which only says who the caller is. */
 const ALWAYS_OPEN = new Set(['/api/auth/me']);

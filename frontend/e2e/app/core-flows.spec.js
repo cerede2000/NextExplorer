@@ -491,6 +491,90 @@ test('a document opens in a tab of its own, and the folder stays where it was', 
 });
 
 /**
+ * What the second tab is allowed to be.
+ *
+ * Three things that are invisible when they are wrong. The tab must not be
+ * able to reach back into the page that opened it. The beacon that ends an
+ * editing session must actually arrive, with the cookie that says who sent it
+ * — a beacon the browser drops, or one that arrives as nobody, leaves a
+ * document marked as open for ever. And the address must be worth nothing to
+ * somebody with no account: it is a URL, so it will be copied and pasted.
+ */
+test('the second tab is sealed, and its address needs an account', async ({ browser }) => {
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="documents-in-new-tab"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  await page.goto('/browse/Projects');
+  const row = page.locator('[title="tabbed.md"]').first();
+  await expect(row).toBeVisible();
+  const [document] = await Promise.all([page.waitForEvent('popup'), row.dblclick()]);
+  await document.waitForLoadState('domcontentloaded');
+
+  // `noopener`: nothing in the new tab can touch the one it came from.
+  expect(await document.evaluate(() => window.opener)).toBeNull();
+
+  // The transport a closing tab uses to end an editing session.
+  //
+  // Fired by hand, and at a different endpoint: only ONLYOFFICE sends one, no
+  // Document Server runs here, and its routes are not even mounted without
+  // one. What has to be true is not about ONLYOFFICE — it is that
+  // `sendBeacon` leaves a page at all and arrives carrying the session cookie.
+  // A beacon that arrived as nobody would be answered 401, and the editing
+  // session it was meant to end would stay open until it timed out.
+  //
+  // So the same beacon is sent twice, from two places, and what separates the
+  // answers is the cookie and nothing else.
+  const beacon = () =>
+    navigator.sendBeacon(
+      '/api/favorites',
+      new Blob([JSON.stringify({})], { type: 'application/json' })
+    );
+
+  const [fromTheTab] = await Promise.all([
+    document.waitForResponse((response) => response.url().includes('/api/favorites')),
+    document.evaluate(beacon),
+  ]);
+  // 400 and not 401: the server knew who was asking, and refused the body.
+  expect(fromTheTab.status()).toBe(400);
+
+  await document.close();
+
+  // The same address, to somebody who was sent it and has no account.
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    const strangerPage = await stranger.newPage();
+    await strangerPage.goto('/open/Projects/tabbed.md');
+    await expect(strangerPage.locator('#login-identifier')).toBeVisible();
+    await expect(strangerPage.locator('[data-test="preview-surface"]')).toHaveCount(0);
+    expect(await strangerPage.locator('body').innerText()).not.toContain('In its own tab');
+
+    // The same beacon, from a page with no session: answered as nobody. That
+    // is the other half of the pair above — the cookie is what made the
+    // difference, not the shape of the request.
+    const [fromNobody] = await Promise.all([
+      strangerPage.waitForResponse((response) => response.url().includes('/api/favorites')),
+      strangerPage.evaluate(() =>
+        navigator.sendBeacon(
+          '/api/favorites',
+          new Blob([JSON.stringify({})], { type: 'application/json' })
+        )
+      ),
+    ]);
+    expect(fromNobody.status()).toBe(401);
+  } finally {
+    await stranger.close();
+  }
+
+  await page.goto('/settings/user-preferences');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'false');
+});
+
+/**
  * The same, inside a share.
  *
  * A share is its own space — `share/<token>/…` rather than a volume — and the
