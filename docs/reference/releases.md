@@ -6,6 +6,37 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.9.2 (2026-09-19)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.2)
+
+### A deletion that was written down as something else
+
+With the trash switched off, every file deleted was recorded in the activity
+log as having been moved to a trash that does not exist. Reported from an
+installation running with it off.
+
+The line was the only thing wrong. The deletion reads the settings on the
+server, so the file did go for good; it is the account of it that disagreed.
+
+That account was written from the `permanent` flag the request carried, and
+the flag answers a different question. The interface sends it to pick, item by
+item, what the trash will not take. With no trash there is nothing to pick, so
+it sends nothing — and "nothing" was read as "into the trash".
+
+The service already answers for each item, `trashed` or `deleted`, and that is
+the only account that cannot disagree with what happened. The line is written
+from there now, one per outcome, so a selection partly kept and partly removed
+says both instead of repeating the first.
+
+Two more went with it. An entry that was already gone was counted among the
+deleted, and so was one the trash refused for its size and left exactly where
+it was. Neither writes anything now, and the name on the line belongs to
+something that actually went.
+
+Present in v3.9.0 and v3.9.1. Nothing was lost or misplaced by it — only
+misreported.
+
 ## v3.9.1 (2026-09-19)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.1)
