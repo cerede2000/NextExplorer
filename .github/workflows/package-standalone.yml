@@ -347,6 +347,7 @@ jobs:
           CONFIG_DIR=/tmp/data/config CACHE_DIR=/tmp/data/cache \
           VOLUME_ROOT=/tmp/data/volumes SESSION_SECRET=a-secret-for-this-job \
             node src/server.js > /tmp/server.log 2>&1 &
+          by_hand=$!
           for attempt in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1 && break
             sleep 2
@@ -371,7 +372,15 @@ jobs:
           else
             ! echo "$features" | grep -q '"rar"' || { echo 'rar offered without a codec for it'; exit 1; }
           fi
-          kill %1 || true
+          # By its pid, not `%1`: job control is off in a non-interactive shell,
+          # and a server left holding port 3000 would make the service that is
+          # installed next fail to bind — for a reason nothing here would name.
+          kill "$by_hand"
+          for attempt in $(seq 1 15); do
+            kill -0 "$by_hand" 2>/dev/null || break
+            sleep 1
+          done
+          ! kill -0 "$by_hand" 2>/dev/null || { echo 'the hand-started server would not stop'; exit 1; }
 
       # The whole install, on the machine's own Node: this is where the unit is
       # written, and the ExecStart it carries is the thing that would otherwise
