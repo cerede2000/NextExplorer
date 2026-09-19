@@ -35,7 +35,6 @@ const { getSettings, getUserSettings } = require('../services/settingsService');
 const router = express.Router();
 
 // Constants
-const IGNORED_DIRS = new Set(['.git', 'node_modules', 'dist', 'build']);
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 // Filenames lead — they are what someone looking for a file expects first —
@@ -135,15 +134,12 @@ const buildRipgrepArgs = (includeHiddenFiles = false, relBasePath = '') => [
   // A folder excluded from search is excluded from all of it, and not only
   // from the index: walking the Docker overlay by name is what made every
   // filename search run out its budget.
+  //
+  // That list is the only one. Four names were hard-coded beside it — `.git`,
+  // `node_modules`, `dist`, `build` — which made a folder somebody called
+  // `build` unsearchable on a file server (#11). Nothing here decides what is
+  // not worth finding.
   ...ripgrepIgnoreGlobs(relBasePath, excludedSearchPaths()),
-  '-g',
-  '!.git',
-  '-g',
-  '!node_modules',
-  '-g',
-  '!dist',
-  '-g',
-  '!build',
   ...(includeHiddenFiles ? [] : hiddenFiles.ripgrepGlobExcludes.flatMap((glob) => ['-g', glob])),
 ];
 
@@ -164,10 +160,22 @@ const normalizePath = (p, relBasePath) => {
   return relBasePath ? path.posix.join(relBasePath, normalized) : normalized;
 };
 
+/**
+ * Whether a name is one this search never returns.
+ *
+ * Only the two that are this application's own business: the files it keeps
+ * for itself, and hidden ones when the reader has not asked for them. It used
+ * to carry `.git`, `node_modules`, `dist` and `build` as well — an editor's
+ * habits in a file server, where those are ordinary folder names somebody may
+ * have put a year of work in. A folder called `build` was unsearchable, by
+ * name and by content, with nothing in the answer to say so (#11).
+ *
+ * What a folder is worth finding is not ours to decide from here. The
+ * administrator's exclusion list is where that is said, it is visible in
+ * Settings, and it already applies to filenames as well as to content.
+ */
 const shouldIgnore = (name, includeHiddenFiles = false) =>
-  IGNORED_DIRS.has(name) ||
-  excludedFiles.includes(name) ||
-  (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
+  excludedFiles.includes(name) || (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
 
 const extractDirMatches = (fullPath, matcher, includeHiddenFiles = false) => {
   const dirs = new Set();
