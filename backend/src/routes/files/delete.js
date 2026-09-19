@@ -31,22 +31,41 @@ router.post(
  * record through here: the interface uses the streamed one, and a deletion
  * that only the plain one recorded would be a log with a hole exactly where
  * people look.
+ *
+ * Read from what each deletion did, and not from the `permanent` flag the
+ * request carried. That flag is what the caller asked for, which is not what
+ * happened: with the trash switched off, the interface asks for nothing in
+ * particular — there is no trash to choose — and every file it deleted for
+ * good was written down as having been moved to the trash that does not
+ * exist. The service already answers per item, `trashed` or `deleted`, and
+ * that is the only account of it that cannot be wrong.
+ *
+ * One line per outcome, so a selection that was partly kept and partly
+ * removed says both rather than the first one twice. An item that did not go
+ * anywhere — already missing, or refused by the trash and left where it is —
+ * writes nothing at all, where it used to be counted among the deleted.
  */
-const nameOf = (item) => {
-  if (typeof item === 'string') return item;
-  // The interface sends the folder and the name apart; a line naming only the
-  // folder says a file went missing from somewhere and nothing more.
-  return [item?.path, item?.name].filter(Boolean).join('/') || null;
-};
+const ACTION_FOR = { trashed: 'file.delete', deleted: 'file.purge' };
 
-const recordDeletion = ({ items, permanent, req }) =>
-  activityLog.record({
-    action: permanent === true ? 'file.purge' : 'file.delete',
-    user: req.user,
-    target: nameOf(items[0]),
-    detail: items.length > 1 ? { items: items.length } : null,
-    req,
-  });
+const recordDeletion = async ({ results, req }) => {
+  const byAction = new Map();
+  for (const result of Array.isArray(results) ? results : []) {
+    const action = ACTION_FOR[result?.status];
+    if (!action) continue;
+    if (!byAction.has(action)) byAction.set(action, []);
+    byAction.get(action).push(result.path);
+  }
+
+  for (const [action, paths] of byAction) {
+    await activityLog.record({
+      action,
+      user: req.user,
+      target: paths[0] || null,
+      detail: paths.length > 1 ? { items: paths.length } : null,
+      req,
+    });
+  }
+};
 
 router.delete(
   '/files',
@@ -57,7 +76,7 @@ router.delete(
       guestSession: req.guestSession,
       permanent: permanent === true,
     });
-    await recordDeletion({ items, permanent, req });
+    await recordDeletion({ results, req });
     res.json({ success: true, items: results });
   })
 );
@@ -112,7 +131,7 @@ router.post(
         },
         'Bulk delete completed'
       );
-      await recordDeletion({ items, permanent, req });
+      await recordDeletion({ results, req });
       writeEvent({ type: 'done', success: true, items: results });
     } catch (error) {
       writeEvent({

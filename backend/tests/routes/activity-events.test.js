@@ -153,6 +153,58 @@ describe('a file leaving', () => {
     expect(await eventsOf('file.delete')).toEqual([]);
   });
 
+  it('says it went for good when there is no trash for it to go to', async () => {
+    // Reported from an installation with the trash switched off: every file
+    // deleted was written down as having been moved to a trash that does not
+    // exist. The interface asks for nothing in particular when there is no
+    // trash to choose between — there is nothing to choose — so the request
+    // carried no `permanent`, and the line was written from that rather than
+    // from what the deletion did.
+    await load('src/services/settingsService').setSystemSetting('system', 'trash', {
+      enabled: false,
+    });
+    await write('no-trash-here.txt');
+
+    await request(app)
+      .post('/api/files/delete-stream')
+      .send({ items: [{ path: 'Files', name: 'no-trash-here.txt' }] });
+
+    expect(await eventsOf('file.purge')).toMatchObject([
+      { actor: 'admin', target: 'Files/no-trash-here.txt' },
+    ]);
+    expect(await eventsOf('file.delete')).toEqual([]);
+  });
+
+  it('writes nothing for an entry that was not there to be deleted', async () => {
+    // It used to count every item asked for, whatever became of it, so a
+    // deletion of something already gone read as a deletion that happened.
+    await request(app)
+      .post('/api/files/delete-stream')
+      .send({ items: [{ path: 'Files', name: 'never-existed.txt' }] });
+
+    expect(await eventsOf('file.delete')).toEqual([]);
+    expect(await eventsOf('file.purge')).toEqual([]);
+  });
+
+  it('names a file that actually went, and counts only those', async () => {
+    await write('one.txt');
+    await write('two.txt');
+
+    await request(app)
+      .post('/api/files/delete-stream')
+      .send({
+        items: [
+          { path: 'Files', name: 'never-existed.txt' },
+          { path: 'Files', name: 'one.txt' },
+          { path: 'Files', name: 'two.txt' },
+        ],
+      });
+
+    expect(await eventsOf('file.delete')).toMatchObject([
+      { target: 'Files/one.txt', detail: JSON.stringify({ items: 2 }) },
+    ]);
+  });
+
   it('comes back recorded as a restore', async () => {
     await write('second-thoughts.txt');
     await request(app)
