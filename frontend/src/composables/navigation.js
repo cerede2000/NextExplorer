@@ -74,12 +74,13 @@ export function useNavigation() {
     // preview, `/editor` for anything the text editor opens — so this is the
     // browser being handed one of them instead of this page filling itself.
     if (appSettings.userSettings?.documentsOpenInNewTab) {
-      const target =
-        opensInEditor || (!previewManager.findPlugin(item) && editable)
+      // Asked once: matching a plugin builds a context and walks the list.
+      const previewable = !opensInEditor && Boolean(previewManager.findPlugin(item));
+      const target = previewable
+        ? documentRoute(fullPath)
+        : opensInEditor || editable
           ? { path: `/editor/${fullPath.split('/').map(encodeURIComponent).join('/')}` }
-          : previewManager.findPlugin(item)
-            ? documentRoute(fullPath)
-            : null;
+          : null;
 
       if (target) {
         // `noopener` because the page opened must not be able to reach back
