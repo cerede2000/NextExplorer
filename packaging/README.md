@@ -9,6 +9,19 @@ cd nextexplorer-<version>-linux-<arch>
 sudo ./install.sh
 ```
 
+**If this is the `-minimal` archive**, it brings no Node runtime, no ExifTool
+and no 7-Zip: it is about 120 MB unpacked instead of 263, for a machine that
+already has Node 24. Name that Node, because under `sudo` the PATH is root's
+and not yours:
+
+```sh
+sudo ./install.sh --node "$(command -v node)"
+```
+
+Anything that is not Node 24 is refused here rather than three seconds after
+the service starts: the native modules in this tree are prebuilt for one ABI.
+Everything below applies to both archives.
+
 That makes a system account, puts the program in `/opt/nextexplorer`, writes
 `/etc/nextexplorer/nextexplorer.env`, and starts a systemd service. Open the
 address it prints and make the first account.
