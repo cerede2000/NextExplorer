@@ -77,10 +77,10 @@ router.post(
     // may belong to somebody else — which is the case the log exists for. It
     // is off by default and never fails a request.
     await activityLog.record({
-      action: 'file.purge',
+      action: 'versions.purge',
       user: req.user,
       target: before.file.path || `${before.file.zone?.name || '?'}/${before.file.relativePath}`,
-      detail: { versions: outcome.deleted, remaining: outcome.remaining, from: 'admin' },
+      detail: { versions: outcome.deleted, remaining: outcome.remaining, with: 'admin' },
       req,
     });
 

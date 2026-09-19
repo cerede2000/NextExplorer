@@ -325,7 +325,8 @@
       "tooLarge": "{size}, meer dan de {budget} die de prullenbak van het volume kan bevatten."
     },
     "deleteLinkedSharesTrash": "Deze inhoud heeft {count} deellink. Die werkt niet meer zolang de inhoud in de prullenbak ligt, en kan bij het terugzetten worden hersteld. | Deze inhoud heeft {count} deellinks. Die werken niet meer zolang de inhoud in de prullenbak ligt, en kunnen bij het terugzetten worden hersteld.",
-    "deleteLinkedSharesPermanent": "Deze inhoud heeft {count} deellink, die er definitief mee wordt verwijderd. | Deze inhoud heeft {count} deellinks, die er definitief mee worden verwijderd."
+    "deleteLinkedSharesPermanent": "Deze inhoud heeft {count} deellink, die er definitief mee wordt verwijderd. | Deze inhoud heeft {count} deellinks, die er definitief mee worden verwijderd.",
+    "deleteVersionsNotice": "Ook {count} eerdere versie wordt verwijderd ({size}); daarvan wordt nergens een kopie bewaard. | Ook {count} eerdere versies worden verwijderd ({size}); daarvan wordt nergens een kopie bewaard."
   },
   "folder": {
     "kind": "Soort",
@@ -897,7 +898,8 @@
         "file-delete": "Naar de prullenbak",
         "file-restore": "Teruggezet",
         "file-purge": "Definitief verwijderd",
-        "account-token": "API-token gewijzigd"
+        "account-token": "API-token gewijzigd",
+        "versions-purge": "Versies verwijderd"
       }
     },
     "apiTokens": {

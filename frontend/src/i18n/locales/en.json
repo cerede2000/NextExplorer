@@ -325,7 +325,8 @@
       "tooLarge": "{size}, more than the {budget} its volume's trash can hold."
     },
     "deleteLinkedSharesTrash": "This content has {count} share link. It stops working while the content is in the trash, and can be brought back when it is restored. | This content has {count} share links. They stop working while the content is in the trash, and can be brought back when it is restored.",
-    "deleteLinkedSharesPermanent": "This content has {count} share link, which will be deleted for good with it. | This content has {count} share links, which will be deleted for good with it."
+    "deleteLinkedSharesPermanent": "This content has {count} share link, which will be deleted for good with it. | This content has {count} share links, which will be deleted for good with it.",
+    "deleteVersionsNotice": "Also deleting {count} earlier version ({size}), which nothing keeps a copy of. | Also deleting {count} earlier versions ({size}), which nothing keeps a copy of."
   },
   "folder": {
     "kind": "Kind",
@@ -897,7 +898,8 @@
         "file-delete": "Sent to the trash",
         "file-restore": "Restored",
         "file-purge": "Removed for good",
-        "account-token": "API token changed"
+        "account-token": "API token changed",
+        "versions-purge": "Versions deleted"
       }
     },
     "apiTokens": {

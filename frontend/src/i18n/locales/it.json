@@ -325,7 +325,8 @@
       "tooLarge": "{size}, più dei {budget} che il cestino del suo volume può contenere."
     },
     "deleteLinkedSharesTrash": "Questo contenuto ha {count} link di condivisione. Non funziona finché il contenuto è nel cestino e può essere ripristinato insieme a esso. | Questo contenuto ha {count} link di condivisione. Non funzionano finché il contenuto è nel cestino e possono essere ripristinati insieme a esso.",
-    "deleteLinkedSharesPermanent": "Questo contenuto ha {count} link di condivisione, che verrà eliminato definitivamente con esso. | Questo contenuto ha {count} link di condivisione, che verranno eliminati definitivamente con esso."
+    "deleteLinkedSharesPermanent": "Questo contenuto ha {count} link di condivisione, che verrà eliminato definitivamente con esso. | Questo contenuto ha {count} link di condivisione, che verranno eliminati definitivamente con esso.",
+    "deleteVersionsNotice": "Viene eliminata anche {count} versione precedente ({size}); non ne resta alcuna copia. | Vengono eliminate anche {count} versioni precedenti ({size}); non ne resta alcuna copia."
   },
   "folder": {
     "kind": "Tipo",
@@ -894,7 +895,8 @@
         "file-delete": "Spostato nel cestino",
         "file-restore": "Ripristinato",
         "file-purge": "Eliminato definitivamente",
-        "account-token": "Token API modificato"
+        "account-token": "Token API modificato",
+        "versions-purge": "Versioni eliminate"
       }
     },
     "apiTokens": {

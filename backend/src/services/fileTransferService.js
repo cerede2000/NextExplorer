@@ -1186,11 +1186,25 @@ const getDeleteImpact = async (items = [], options = {}) => {
   const sharesByTarget = await getSharesBySourceTarget(
     targets.map((target) => target.shareSourceTarget).filter(Boolean)
   );
-  trashPlan.items = trashPlan.items.map((entry, index) => {
-    const { shareSourceTarget } = targets[index] || {};
-    const linked = shareSourceTarget ? sharesByTarget.get(shareTargetKey(shareSourceTarget)) : null;
-    return { ...entry, shareCount: linked ? linked.length : 0 };
-  });
+  // And, for anything that is not coming back, the history it takes with it.
+  // Only for those: into the trash a file keeps its versions and gets them
+  // back when it is restored, so there is nothing to warn about.
+  const versionLifecycle = require('./versions/lifecycle');
+  trashPlan.items = await Promise.all(
+    trashPlan.items.map(async (entry, index) => {
+      const target = targets[index] || {};
+      const linked = target.shareSourceTarget
+        ? sharesByTarget.get(shareTargetKey(target.shareSourceTarget))
+        : null;
+      const withShares = { ...entry, shareCount: linked ? linked.length : 0 };
+      if (entry.disposition !== 'permanent' || !target.absolutePath) return withShares;
+
+      const history = await versionLifecycle.countUnder(target.absolutePath);
+      return history.versions > 0
+        ? { ...withShares, versionCount: history.versions, versionBytes: history.bytes }
+        : withShares;
+    })
+  );
 
   return {
     shareCount: shares.length,
@@ -1308,8 +1322,11 @@ const deleteItems = async (items = [], options = {}) => {
       size: deletedEntryStats.size,
     });
     // Deleted for good, the history goes with it; into the trash, it went along.
+    // What it took is carried back so the deletion can be written down whole:
+    // one file on screen can be ten earlier copies of it on disk.
+    let versionsTaken = null;
     if (!trashItemId) {
-      await require('./versions/lifecycle').onDeleted(absolutePath);
+      versionsTaken = await require('./versions/lifecycle').onDeleted(absolutePath);
     }
     // In the trash, a share is switched off but kept with the item, so a restore
     // can bring it back; deleted for good, it goes for good.
@@ -1332,6 +1349,9 @@ const deleteItems = async (items = [], options = {}) => {
       ...(trashItemId ? { trashItemId } : {}),
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
       ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
+      ...(versionsTaken?.versions > 0
+        ? { versionsPurged: versionsTaken.versions, versionBytesPurged: versionsTaken.bytes }
+        : {}),
     };
     reportProgress(target, relativePath);
   };

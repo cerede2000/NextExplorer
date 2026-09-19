@@ -222,6 +222,87 @@ describe('what deleting will do, asked before confirming', () => {
     });
   });
 
+  it('says how many earlier versions a deletion for good would take', async () => {
+    // The half of a deletion nothing on screen shows: the file is a line in
+    // the folder and its history is none, so the confirmation has to say it.
+    await load('src/services/settingsService').setSystemSetting('system', 'trash', {
+      enabled: false,
+    });
+    await write('Projects/report.txt', 'one');
+    const save = (relative, content) =>
+      load('src/services/versions/operations').saveFile(
+        volume(relative),
+        (temporary) => require('node:fs/promises').writeFile(temporary, content),
+        { source: 'editor' }
+      );
+    await save('Projects/report.txt', 'two');
+    await save('Projects/report.txt', 'three');
+
+    const response = await as('alice').post('/api/files/delete-impact', {
+      items: [{ path: 'Projects', name: 'report.txt' }],
+    });
+
+    expect(response.body.trash.items).toEqual([
+      {
+        path: 'Projects/report.txt',
+        disposition: 'permanent',
+        reason: 'disabled',
+        shareCount: 0,
+        versionCount: 2,
+        versionBytes: 3 + 3,
+      },
+    ]);
+  });
+
+  it('says nothing about versions when the file is only going to the trash', async () => {
+    // It keeps them there and gets them back when it is restored, so there is
+    // nothing to warn about — and a warning that does not apply is worse than
+    // none, because the next one is read the same way.
+    await write('Projects/report.txt', 'one');
+    const save = (relative, content) =>
+      load('src/services/versions/operations').saveFile(
+        volume(relative),
+        (temporary) => require('node:fs/promises').writeFile(temporary, content),
+        { source: 'editor' }
+      );
+    await save('Projects/report.txt', 'two');
+
+    const response = await as('alice').post('/api/files/delete-impact', {
+      items: [{ path: 'Projects', name: 'report.txt' }],
+    });
+
+    expect(response.body.trash.items).toEqual([
+      { path: 'Projects/report.txt', disposition: 'trash', reason: null, shareCount: 0 },
+    ]);
+  });
+
+  it('counts what every file under a folder would take with it', async () => {
+    await load('src/services/settingsService').setSystemSetting('system', 'trash', {
+      enabled: false,
+    });
+    await write('Projects/deep/a.txt', 'one');
+    await write('Projects/deep/b.txt', 'one');
+    const save = (relative, content) =>
+      load('src/services/versions/operations').saveFile(
+        volume(relative),
+        (temporary) => require('node:fs/promises').writeFile(temporary, content),
+        { source: 'editor' }
+      );
+    await save('Projects/deep/a.txt', 'two');
+    await save('Projects/deep/a.txt', 'three');
+    await save('Projects/deep/b.txt', 'two');
+
+    const response = await as('alice').post('/api/files/delete-impact', {
+      items: [{ path: 'Projects', name: 'deep' }],
+    });
+
+    expect(response.body.trash.items[0]).toMatchObject({
+      path: 'Projects/deep',
+      disposition: 'permanent',
+      versionCount: 3,
+    });
+  });
+
   it('says everything is permanent when the trash is off', async () => {
     await load('src/services/settingsService').setSystemSetting('system', 'trash', {
       enabled: false,

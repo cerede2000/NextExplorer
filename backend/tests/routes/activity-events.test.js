@@ -205,6 +205,50 @@ describe('a file leaving', () => {
     ]);
   });
 
+  /** A version of a file, kept the way a save through the application keeps one. */
+  const saveOver = (name, content) =>
+    load('src/services/versions/operations').saveFile(
+      volume('Files', name),
+      (temporary) => fs.writeFile(temporary, content),
+      { source: 'editor' }
+    );
+
+  it('writes down the earlier versions a deletion took with it', async () => {
+    // The file is a line in the folder and its history is none, so a
+    // deletion that took ten earlier copies of it said exactly as much as
+    // one that took none. Versions are also the half nothing can restore.
+    await load('src/services/settingsService').setSystemSetting('system', 'trash', {
+      enabled: false,
+    });
+    await write('with-history.txt');
+    await saveOver('with-history.txt', 'second');
+    await saveOver('with-history.txt', 'third');
+
+    await request(app)
+      .post('/api/files/delete-stream')
+      .send({ items: [{ path: 'Files', name: 'with-history.txt' }] });
+
+    expect(await eventsOf('file.purge')).toMatchObject([{ target: 'Files/with-history.txt' }]);
+    expect(await eventsOf('versions.purge')).toMatchObject([
+      { actor: 'admin', target: 'Files/with-history.txt' },
+    ]);
+    const [line] = await eventsOf('versions.purge');
+    expect(JSON.parse(line.detail)).toMatchObject({ versions: 2, with: 'file' });
+  });
+
+  it('writes nothing about versions when the file only went to the trash', async () => {
+    // They went with it and come back with it, so nothing was destroyed.
+    await write('kept-history.txt');
+    await saveOver('kept-history.txt', 'second');
+
+    await request(app)
+      .post('/api/files/delete-stream')
+      .send({ items: [{ path: 'Files', name: 'kept-history.txt' }] });
+
+    expect(await eventsOf('file.delete')).toHaveLength(1);
+    expect(await eventsOf('versions.purge')).toEqual([]);
+  });
+
   it('comes back recorded as a restore', async () => {
     await write('second-thoughts.txt');
     await request(app)

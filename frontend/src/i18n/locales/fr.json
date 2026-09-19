@@ -325,7 +325,8 @@
       "tooLarge": "{size}, plus que les {budget} que peut contenir la corbeille de son volume."
     },
     "deleteLinkedSharesTrash": "Ce contenu possède {count} lien de partage. Il ne fonctionnera plus tant que le contenu est dans la corbeille, et pourra être rétabli à la restauration. | Ce contenu possède {count} liens de partage. Ils ne fonctionneront plus tant que le contenu est dans la corbeille, et pourront être rétablis à la restauration.",
-    "deleteLinkedSharesPermanent": "Ce contenu possède {count} lien de partage, qui sera supprimé définitivement avec lui. | Ce contenu possède {count} liens de partage, qui seront supprimés définitivement avec lui."
+    "deleteLinkedSharesPermanent": "Ce contenu possède {count} lien de partage, qui sera supprimé définitivement avec lui. | Ce contenu possède {count} liens de partage, qui seront supprimés définitivement avec lui.",
+    "deleteVersionsNotice": "{count} version antérieure part également ({size}) ; rien n’en garde de copie. | {count} versions antérieures partent également ({size}) ; rien n’en garde de copie."
   },
   "folder": {
     "kind": "Type",
@@ -897,7 +898,8 @@
         "file-delete": "Mis à la corbeille",
         "file-restore": "Restauré",
         "file-purge": "Supprimé définitivement",
-        "account-token": "Jeton d’API modifié"
+        "account-token": "Jeton d’API modifié",
+        "versions-purge": "Versions supprimées"
       }
     },
     "apiTokens": {

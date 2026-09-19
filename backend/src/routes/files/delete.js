@@ -65,6 +65,32 @@ const recordDeletion = async ({ results, req }) => {
       req,
     });
   }
+
+  // The part of a deletion that nothing on screen showed. A file is one line
+  // in a folder and its earlier versions are none, so a deletion that took
+  // ten of them said as much as one that took none — and versions are the
+  // half that cannot be restored from anywhere.
+  const withHistory = (Array.isArray(results) ? results : []).filter(
+    (result) => Number(result?.versionsPurged) > 0
+  );
+  if (withHistory.length === 0) return;
+  const versions = withHistory.reduce((total, result) => total + result.versionsPurged, 0);
+  const bytes = withHistory.reduce(
+    (total, result) => total + (Number(result.versionBytesPurged) || 0),
+    0
+  );
+  await activityLog.record({
+    action: 'versions.purge',
+    user: req.user,
+    target: withHistory[0].path,
+    detail: {
+      versions,
+      bytes,
+      ...(withHistory.length > 1 ? { files: withHistory.length } : {}),
+      with: 'file',
+    },
+    req,
+  });
 };
 
 router.delete(

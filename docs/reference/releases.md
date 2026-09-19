@@ -10,6 +10,25 @@ Releases are listed newest to oldest.
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.2)
 
+### What a deletion takes that nothing showed
+
+A file is one line in the folder and its earlier versions are none, so
+deleting it for good read as one thing going when it could be ten — and
+versions are the half that no trash and no restore brings back.
+
+The confirmation now says so before the button is pressed: how many earlier
+versions are about to go and how much they hold. Only for what is not coming
+back — a file going to the trash keeps its history and gets it back when it
+is restored, and a warning that does not apply is worse than none. A folder
+counts what every file under it would take with it.
+
+The activity log says it too, on a line of its own beside the deletion
+(**Versions deleted**), because one line saying a file went is not an account
+of ten copies of it going. Versions deleted from the panel, and by an
+administrator from **Settings → File versions**, are recorded the same way —
+until now the first wrote nothing at all, so the log answered "nobody" to the
+only question it is asked about a history that is no longer there.
+
 ### A deletion that was written down as something else
 
 With the trash switched off, every file deleted was recorded in the activity

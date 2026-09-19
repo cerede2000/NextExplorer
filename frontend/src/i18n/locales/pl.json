@@ -325,7 +325,8 @@
       "tooLarge": "{size}, więcej niż {budget}, które mieści kosz jego woluminu."
     },
     "deleteLinkedSharesTrash": "Ta zawartość ma linki udostępniania ({count}). Nie działają, dopóki zawartość jest w koszu, i można je przywrócić razem z nią.",
-    "deleteLinkedSharesPermanent": "Ta zawartość ma linki udostępniania ({count}), które zostaną trwale usunięte razem z nią."
+    "deleteLinkedSharesPermanent": "Ta zawartość ma linki udostępniania ({count}), które zostaną trwale usunięte razem z nią.",
+    "deleteVersionsNotice": "Usunięta zostanie też {count} wcześniejsza wersja ({size}); nigdzie nie ma jej kopii. | Usunięte zostaną też {count} wcześniejsze wersje ({size}); nigdzie nie ma ich kopii. | Usuniętych zostanie też {count} wcześniejszych wersji ({size}); nigdzie nie ma ich kopii."
   },
   "folder": {
     "kind": "Rodzaj",
@@ -894,7 +895,8 @@
         "file-delete": "Przeniesiono do kosza",
         "file-restore": "Przywrócono",
         "file-purge": "Usunięto trwale",
-        "account-token": "Zmiana tokenu API"
+        "account-token": "Zmiana tokenu API",
+        "versions-purge": "Usunięto wersje"
       }
     },
     "apiTokens": {

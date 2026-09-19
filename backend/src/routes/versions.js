@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 
 const asyncHandler = require('../utils/asyncHandler');
+const activityLog = require('../services/activityLog');
 const { sendCompressible } = require('../utils/compressedResponse');
 const logger = require('../utils/logger');
 const { resolveMimeType, toExtension } = require('../utils/fileTypes');
@@ -101,12 +102,25 @@ router.patch(
 router.post(
   '/versions/delete',
   asyncHandler(async (req, res) => {
-    res.json(
-      await versions.deleteVersions(contextOf(req), req.body?.path, {
-        ids: req.body?.ids,
-        all: req.body?.all === true,
-      })
-    );
+    const outcome = await versions.deleteVersions(contextOf(req), req.body?.path, {
+      ids: req.body?.ids,
+      all: req.body?.all === true,
+    });
+
+    // Recorded like every other way versions go. Leaving this one out would
+    // have made the log answer "nobody" to the only question it is asked
+    // about a history that is no longer there.
+    if (outcome.deleted > 0) {
+      await activityLog.record({
+        action: 'versions.purge',
+        user: req.user,
+        target: typeof req.body?.path === 'string' ? req.body.path : null,
+        detail: { versions: outcome.deleted, with: 'panel' },
+        req,
+      });
+    }
+
+    res.json(outcome);
   })
 );
 

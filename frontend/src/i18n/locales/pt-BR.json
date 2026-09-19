@@ -325,7 +325,8 @@
       "tooLarge": "{size}, mais do que os {budget} que a lixeira do seu volume comporta."
     },
     "deleteLinkedSharesTrash": "Este conteúdo tem {count} link de compartilhamento. Ele deixa de funcionar enquanto o conteúdo estiver na lixeira e pode ser recuperado na restauração. | Este conteúdo tem {count} links de compartilhamento. Eles deixam de funcionar enquanto o conteúdo estiver na lixeira e podem ser recuperados na restauração.",
-    "deleteLinkedSharesPermanent": "Este conteúdo tem {count} link de compartilhamento, que será excluído definitivamente com ele. | Este conteúdo tem {count} links de compartilhamento, que serão excluídos definitivamente com ele."
+    "deleteLinkedSharesPermanent": "Este conteúdo tem {count} link de compartilhamento, que será excluído definitivamente com ele. | Este conteúdo tem {count} links de compartilhamento, que serão excluídos definitivamente com ele.",
+    "deleteVersionsNotice": "{count} versão anterior também é excluída ({size}); nenhuma cópia dela é mantida. | {count} versões anteriores também são excluídas ({size}); nenhuma cópia delas é mantida."
   },
   "folder": {
     "kind": "Tipo",
@@ -897,7 +898,8 @@
         "file-delete": "Movido para a lixeira",
         "file-restore": "Restaurado",
         "file-purge": "Excluído definitivamente",
-        "account-token": "Token de API alterado"
+        "account-token": "Token de API alterado",
+        "versions-purge": "Versões excluídas"
       }
     },
     "apiTokens": {

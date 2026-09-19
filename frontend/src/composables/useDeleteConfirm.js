@@ -85,11 +85,21 @@ export function useDeleteConfirm() {
       (item) => byPath.get(pathOf(item))?.disposition === 'permanent'
     );
     const enabled = Boolean(trash.enabled);
+    // What goes for good takes its earlier versions with it, and those are
+    // the half of a deletion nothing on screen shows: a file is one line in
+    // the folder and its history is none. Counted only for what is not coming
+    // back — into the trash a file keeps its versions and gets them back.
+    const leaving = (trash.items || []).filter((entry) => entry.disposition === 'permanent');
+    const sum = (key) =>
+      leaving.reduce((total, entry) => total + (Number(entry[key]) || 0), 0) || 0;
+
     return {
       enabled,
       retentionDays: Number.isFinite(trash.retentionDays) ? trash.retentionDays : null,
       toTrash: enabled ? pendingItems.value.filter((item) => !announced.includes(item)) : [],
       permanent: enabled ? announced : pendingItems.value,
+      versions: sum('versionCount'),
+      versionBytes: sum('versionBytes'),
       reasons: [
         ...new Set(announced.map((item) => byPath.get(pathOf(item))?.reason).filter(Boolean)),
       ],

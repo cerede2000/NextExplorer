@@ -325,7 +325,8 @@
       "tooLarge": "{size}，超過所在磁碟區資源回收筒可容納的 {budget}。"
     },
     "deleteLinkedSharesTrash": "此內容有 {count} 個分享連結。內容在資源回收筒中時連結失效，還原時可以恢復。",
-    "deleteLinkedSharesPermanent": "此內容有 {count} 個分享連結，將隨之永久刪除。"
+    "deleteLinkedSharesPermanent": "此內容有 {count} 個分享連結，將隨之永久刪除。",
+    "deleteVersionsNotice": "另有 {count} 個舊版本一併刪除（{size}），任何地方都不會保留副本。"
   },
   "folder": {
     "kind": "類型",
@@ -894,7 +895,8 @@
         "file-delete": "移至回收桶",
         "file-restore": "還原",
         "file-purge": "永久刪除",
-        "account-token": "修改 API 權杖"
+        "account-token": "修改 API 權杖",
+        "versions-purge": "版本已刪除"
       }
     },
     "apiTokens": {

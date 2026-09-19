@@ -215,6 +215,24 @@ const deletePermanentNotice = computed(() => {
   return [t('context.deleteSomePermanent', { count }, count), ...reasons].join(' ');
 });
 
+/**
+ * The part of a deletion that nothing on screen shows.
+ *
+ * A file is one line in the folder and its earlier versions are none, so
+ * "delete" reads as one thing going when it can be ten. Only for what is not
+ * coming back: into the trash a file keeps its history and gets it back.
+ */
+const deleteVersionsNotice = computed(() => {
+  const plan = trashPlan.value;
+  const count = Number(plan?.versions) || 0;
+  if (count === 0) return '';
+  return t(
+    'context.deleteVersionsNotice',
+    { count, size: formatBytes(plan.versionBytes || 0) },
+    count
+  );
+});
+
 const goesToTrash = computed(() =>
   Boolean(
     provisionalTrash.value || (trashPlan.value?.enabled && trashPlan.value.toTrash.length > 0)
@@ -1002,6 +1020,13 @@ provide(explorerContextMenuSymbol, {
       class="-mt-3 mb-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700/60 dark:bg-red-900/20 dark:text-red-100"
     >
       {{ deletePermanentNotice }}
+    </p>
+    <p
+      v-if="!isLoadingDeleteImpact && deleteVersionsNotice"
+      data-test="delete-versions-notice"
+      class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
+    >
+      {{ deleteVersionsNotice }}
     </p>
     <div class="flex justify-end gap-3">
       <button

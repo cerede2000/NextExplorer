@@ -325,7 +325,8 @@
       "tooLarge": "{size}, mehr als die {budget}, die der Papierkorb seines Volumes fassen kann."
     },
     "deleteLinkedSharesTrash": "Für diesen Inhalt gibt es {count} Freigabelink. Er funktioniert nicht, solange der Inhalt im Papierkorb liegt, und kann beim Wiederherstellen zurückgeholt werden. | Für diesen Inhalt gibt es {count} Freigabelinks. Sie funktionieren nicht, solange der Inhalt im Papierkorb liegt, und können beim Wiederherstellen zurückgeholt werden.",
-    "deleteLinkedSharesPermanent": "Für diesen Inhalt gibt es {count} Freigabelink, der mit ihm endgültig gelöscht wird. | Für diesen Inhalt gibt es {count} Freigabelinks, die mit ihm endgültig gelöscht werden."
+    "deleteLinkedSharesPermanent": "Für diesen Inhalt gibt es {count} Freigabelink, der mit ihm endgültig gelöscht wird. | Für diesen Inhalt gibt es {count} Freigabelinks, die mit ihm endgültig gelöscht werden.",
+    "deleteVersionsNotice": "{count} frühere Version geht ebenfalls ({size}); davon wird nirgends eine Kopie aufbewahrt. | {count} frühere Versionen gehen ebenfalls ({size}); davon wird nirgends eine Kopie aufbewahrt."
   },
   "folder": {
     "kind": "Art",
@@ -894,7 +895,8 @@
         "file-delete": "In den Papierkorb verschoben",
         "file-restore": "Wiederhergestellt",
         "file-purge": "Endgültig gelöscht",
-        "account-token": "API-Token geändert"
+        "account-token": "API-Token geändert",
+        "versions-purge": "Versionen gelöscht"
       }
     },
     "apiTokens": {

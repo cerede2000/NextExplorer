@@ -325,7 +325,8 @@
       "tooLarge": "{size}，超过所在卷回收站可容纳的 {budget}。"
     },
     "deleteLinkedSharesTrash": "此内容有 {count} 个共享链接。内容在回收站中时链接失效，还原时可以恢复。",
-    "deleteLinkedSharesPermanent": "此内容有 {count} 个共享链接，将随之被永久删除。"
+    "deleteLinkedSharesPermanent": "此内容有 {count} 个共享链接，将随之被永久删除。",
+    "deleteVersionsNotice": "另有 {count} 个历史版本一并删除（{size}），任何地方都不会保留副本。"
   },
   "folder": {
     "kind": "类型",
@@ -894,7 +895,8 @@
         "file-delete": "移入回收站",
         "file-restore": "还原",
         "file-purge": "永久删除",
-        "account-token": "修改 API 令牌"
+        "account-token": "修改 API 令牌",
+        "versions-purge": "版本已删除"
       }
     },
     "apiTokens": {

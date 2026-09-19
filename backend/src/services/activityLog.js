@@ -40,6 +40,11 @@ const ACTIONS = new Set([
   'file.delete',
   'file.restore',
   'file.purge',
+  // Earlier versions going, whether on their own or with the file they belong
+  // to. Apart from `file.purge` because they are apart on disk and apart in
+  // the interface: a file can go with its history kept in the trash, and a
+  // history can go with its file left exactly where it is.
+  'versions.purge',
 ]);
 
 const OUTCOMES = new Set(['ok', 'refused']);

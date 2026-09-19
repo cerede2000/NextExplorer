@@ -101,6 +101,64 @@ describe('what the confirmation knows before anyone confirms', () => {
     expect(confirm.trashPlan.value.permanent.map((item) => item.name)).toEqual(['report.txt']);
   });
 
+  it('how many earlier versions go with what is not coming back', async () => {
+    getDeleteImpact.mockResolvedValue(
+      trashImpact(
+        [
+          {
+            path: 'Projects/report.txt',
+            disposition: 'permanent',
+            reason: 'disabled',
+            versionCount: 3,
+            versionBytes: 900,
+          },
+          {
+            path: 'Projects/rushes.mov',
+            disposition: 'permanent',
+            reason: 'disabled',
+            versionCount: 1,
+            versionBytes: 100,
+          },
+        ],
+        { enabled: false }
+      )
+    );
+    const confirm = await setup([REPORT, VIDEO]);
+
+    expect(confirm.trashPlan.value).toMatchObject({ versions: 4, versionBytes: 1000 });
+  });
+
+  it('leaves out the versions of what is only going to the trash', async () => {
+    // They go with the file and come back with it, so counting them among
+    // what is about to be destroyed would be a warning about nothing.
+    getDeleteImpact.mockResolvedValue(
+      trashImpact([
+        { path: 'Projects/report.txt', disposition: 'trash', reason: null, versionCount: 7 },
+        {
+          path: 'Projects/rushes.mov',
+          disposition: 'permanent',
+          reason: 'too-large',
+          versionCount: 2,
+          versionBytes: 50,
+        },
+      ])
+    );
+    const confirm = await setup([REPORT, VIDEO]);
+
+    expect(confirm.trashPlan.value).toMatchObject({ versions: 2, versionBytes: 50 });
+  });
+
+  it('none, when nothing that is going has any', async () => {
+    getDeleteImpact.mockResolvedValue(
+      trashImpact([{ path: 'Projects/report.txt', disposition: 'permanent', reason: 'disabled' }], {
+        enabled: false,
+      })
+    );
+    const confirm = await setup([REPORT]);
+
+    expect(confirm.trashPlan.value.versions).toBe(0);
+  });
+
   it('nothing, when the server could not be asked', async () => {
     getDeleteImpact.mockRejectedValue(new Error('offline'));
     const confirm = await setup([REPORT]);
