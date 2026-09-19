@@ -489,6 +489,52 @@ test('a document opens in a tab of its own, and the folder stays where it was', 
 });
 
 /**
+ * The same, inside a share.
+ *
+ * A share is its own space — `share/<token>/…` rather than a volume — and the
+ * preference is one decision for every kind of file, so it has to hold there
+ * too. A document that opened over the folder everywhere except inside a share
+ * would be exactly the surprise this feature exists to avoid.
+ */
+test('a document inside a share opens in a tab as well', async () => {
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select tabbed.md' }).click();
+  await page.getByRole('button', { name: 'Share selected item' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Create Share Link' }).click();
+  const link = await dialog.locator('input[readonly]').first().inputValue();
+  const token = link.split('/share/')[1];
+  await page.keyboard.press('Escape');
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="documents-in-new-tab"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  // The share as the account that made it sees it: the same listing, the same
+  // double click, in a space whose paths are not a volume's.
+  await page.goto(`/browse/share/${token}`);
+  const row = page.locator('[title="tabbed.md"]').first();
+  await expect(row).toBeVisible();
+
+  const [document] = await Promise.all([page.waitForEvent('popup'), row.dblclick()]);
+  await document.waitForLoadState('domcontentloaded');
+
+  expect(document.url()).toContain(`/open/share/${token}/tabbed.md`);
+  await expect(document.locator('[data-test="preview-surface"]')).toBeVisible();
+  // Not an empty shell: the document itself came through the share.
+  await expect(document.getByText('In its own tab')).toBeVisible();
+  await document.close();
+
+  await page.goto('/settings/user-preferences');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'false');
+});
+
+/**
  * Every save in the editor keeps what it replaced. From a right click, the
  * Versions panel lists those versions and puts an earlier one back — and what
  * the restore replaced is kept in turn, so restoring the wrong one loses

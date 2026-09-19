@@ -82,8 +82,14 @@ Finally, the awkward ones:
 - Two tabs on the **same** document, from the same account: they co-edit, and
   closing one leaves the other working.
 
-## 5. Where it does not apply
+## 5. Inside a share
 
-A document opened from a **share link** stays in the panel: the preference
-belongs to an account, and a visitor following a link has none. Check that a
-share still opens its document the way it always did.
+A share is its own space — its paths are `share/<token>/…` rather than a
+volume's — so it is the place a preference like this quietly fails to apply.
+
+- Signed in, browsing a share of your own: the preference holds, and the
+  document opens at `/open/share/<token>/…` with its content coming through the
+  share. Covered by the browser suite.
+- Following a share **link** with no account: the panel, as before. The
+  preference belongs to an account, and a visitor has none — check the share
+  still opens its document the way it always did.
