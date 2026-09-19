@@ -70,8 +70,13 @@ vi.mock('@onlyoffice/document-editor-vue', () => ({
   DocumentEditor: defineComponent({
     props: { config: { type: Object, default: null } },
     setup(props) {
-      capturedConfig = props.config;
-      return () => h('div');
+      // On every render, not only the first: the editor is rebuilt in place
+      // by handing it a new configuration, and a capture taken once would
+      // still be showing the one it opened with.
+      return () => {
+        capturedConfig = props.config;
+        return h('div');
+      };
     },
   }),
 }));
@@ -733,9 +738,11 @@ describe('a document replaced on disk while it is open', () => {
     // Once for the new document key, once more to open the editor on it.
     expect(fetchOnlyOfficeConfig).toHaveBeenCalledTimes(3);
     expect(previewState.forceSaveSessionId).toBe('session-2');
-    // A new editor, whose own close button is not drawn yet.
-    expect(previewState.hasNativeClose).toBe(false);
     expect(capturedConfig.document.key).toBe('k2');
+    // The editor is rebuilt where it stands rather than taken down and put
+    // up again — see `load` — so its own chrome never leaves the screen and
+    // the floating way out is not needed for a moment in the middle.
+    expect(previewState.hasNativeClose).toBe(true);
   });
 
   it('records why the document could not be refreshed, and keeps the session it had', async () => {

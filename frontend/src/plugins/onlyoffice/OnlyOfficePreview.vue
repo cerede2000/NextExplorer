@@ -370,7 +370,7 @@ const refreshDocument = async () => {
   if (typeof editor?.refreshFile !== 'function') {
     // Older Document Servers have no such method; rebuilding the editor is the
     // only way left to stop showing a document that no longer exists.
-    await load();
+    await load({ inPlace: true });
     return;
   }
 
@@ -493,7 +493,7 @@ const restoreFromHistory = async (version) => {
     });
     versionsPanel.markRestored();
     // The editor still shows the history, over what the restore replaced.
-    await load();
+    await load({ inPlace: true });
   } catch (restoreError) {
     notifications.addNotification({
       type: 'error',
@@ -512,9 +512,10 @@ const historyEvents = (cfg) => {
     onRequestHistoryData(event) {
       void showHistoryEntry(Number(event?.data));
     },
-    // Leaving the history: the editor expects to be opened again on the document.
+    // Leaving the history: the editor expects to be opened again on the
+    // document, and it has to be rebuilt where it stands — see `load`.
     onRequestHistoryClose() {
-      void load();
+      void load({ inPlace: true });
     },
   };
   // The Restore button is only offered to someone who may change the document.
@@ -542,21 +543,52 @@ watch(
   }
 );
 
-const load = async () => {
+/**
+ * Open the document, or open it again.
+ *
+ * `inPlace` is the difference between the two, and it is not a nicety.
+ *
+ * The Document Server's script does not render into the element it is given:
+ * it takes that element out of the document and puts its own iframe where it
+ * stood. Vue still holds the removed element as the editor component's own,
+ * so the moment anything asks Vue to swap that branch — which is what
+ * rebuilding by clearing the configuration does — it tries to anchor on a node
+ * with no parent, `insertBefore` is called on null, and the whole component
+ * update throws. Nothing renders after that: the panel is simply empty, with
+ * no error anywhere to say why. `destroyEditor` then puts the element back,
+ * which is why one is found orphaned in the tree afterwards.
+ *
+ * So a rebuild over the same document does not go through Vue at all. Handing
+ * the component a new configuration is the library's own way of being rebuilt:
+ * its watcher destroys the editor, takes it out of the registry and attaches a
+ * new one to the same element, while Vue renders nothing and touches nothing.
+ * Measured against a real Document Server, coming back from the version
+ * history: the editor reports itself ready again and no error is raised.
+ *
+ * The full path stays for everything that is not the same document in the same
+ * place — the first open, another file, a version opened read-only — and for a
+ * rebuild whose configuration never arrived, where there is an error to show
+ * and the editor has to make way for it.
+ */
+const load = async ({ inPlace = false } = {}) => {
   clearAutoSaveTimer();
   clearSessionHeartbeat();
   changesObserved = false;
   lastAutoSaveAt = 0;
   autoSaveIntervalMs = 0;
+  // Only worth rebuilding in place if there is something there to rebuild.
+  const swapInPlace = inPlace && Boolean(config.value) && Boolean(editorInstance());
   error.value = null;
-  serverUrl.value = null;
-  config.value = null;
-  // In the same breath as the config, and before anything is awaited: the
-  // editor on screen is removed by this very render, so it unmounts under the
-  // id it was mounted with and takes that entry out of the registry itself.
-  takeEditorId();
-  previewState.forceSaveSessionId = null;
-  previewState.hasNativeClose = false;
+  if (!swapInPlace) {
+    serverUrl.value = null;
+    config.value = null;
+    // In the same breath as the config, and before anything is awaited: the
+    // editor on screen is removed by this very render, so it unmounts under the
+    // id it was mounted with and takes that entry out of the registry itself.
+    takeEditorId();
+    previewState.forceSaveSessionId = null;
+    previewState.hasNativeClose = false;
+  }
   try {
     // The document may have been renamed from the title bar since it was opened;
     // the prop still names the file the preview was opened on.
@@ -729,6 +761,16 @@ const load = async () => {
     logger.debug('ONLYOFFICE config', { element: editorId.value, config: cfg });
     config.value = cfg;
   } catch (e) {
+    // An in-place rebuild kept the editor on screen; the error has nowhere to
+    // be shown while it is there, and the editor it is about is the one that
+    // could not be rebuilt.
+    if (swapInPlace) {
+      serverUrl.value = null;
+      config.value = null;
+      takeEditorId();
+      previewState.forceSaveSessionId = null;
+      previewState.hasNativeClose = false;
+    }
     error.value = e?.message || 'Failed to initialize ONLYOFFICE.';
   }
 };

@@ -4,23 +4,25 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 
 /**
- * Coming back from the version history, and every other reason the editor is
- * built again over the same document.
+ * Opening the document again over the top of itself — coming back from the
+ * version history, above all.
  *
- * The editor is not a component that redraws: it is an iframe the Document
- * Server's own script attaches to an element, and it registers itself in
- * `window.DocEditor.instances` under the element's id. That registry is the
- * part that matters here, because the script refuses to attach twice:
+ * The editor is not a component that redraws. The Document Server's script
+ * takes the element it is given out of the document and puts its own iframe
+ * where it stood, so the element Vue holds for that component is no longer in
+ * the tree. Ask Vue to swap that branch — which is what rebuilding by
+ * clearing the configuration does — and it anchors on a node with no parent:
+ * `insertBefore` on null, the component update throws, and nothing renders
+ * again. An empty panel, and nothing anywhere saying why.
  *
- *     if (window.DocEditor.instances[id]) return;   // "Skip loading"
+ * That was measured against a real Document Server before it was written
+ * down, and so was the way out: hand the component a new configuration and it
+ * rebuilds the editor itself, in place, while Vue renders nothing.
  *
- * So a rebuild that reuses the id depends on the previous instance having
- * been taken out of the registry first — and if anything stops that, the new
- * element stays empty with nothing on screen to say why. The spec beside this
- * one stubs the editor as a plain `<div>`, which cannot show any of this.
- *
- * The stub below is the library's real contract instead: asynchronous attach,
- * the registry, the guard, and `destroyEditor` on the way out.
+ * The stub below is the library's real contract rather than an empty `<div>`:
+ * the asynchronous attach, the registry it refuses to attach twice into,
+ * `destroyEditor` on the way out, and the watcher that rebuilds in place when
+ * the configuration changes under a mounted editor.
  */
 
 const fetchOnlyOfficeConfig = vi.fn();
@@ -67,8 +69,8 @@ vi.mock('@/utils/logger', () => ({
 let attached = [];
 /** Ids it refused to attach to because the registry still held one. */
 let refused = [];
-/** Make `destroyEditor` throw, as a Document Server mid-transition can. */
-let destroyThrows = false;
+/** How many times Vue took the editor component down. */
+let unmounts = 0;
 
 vi.mock('@onlyoffice/document-editor-vue', () => ({
   DocumentEditor: defineComponent({
@@ -78,34 +80,49 @@ vi.mock('@onlyoffice/document-editor-vue', () => ({
       config: { type: Object, default: null },
       documentServerUrl: { type: String, default: '' },
     },
-    mounted() {
-      // `loadScript(...).then(() => this.onLoad())`: never synchronous, even
-      // when the script is already in the page.
-      const id = this.id;
-      const config = this.config;
-      void Promise.resolve().then(() => {
+    methods: {
+      // `onLoad`, reached from `mounted` through `loadScript(...).then(...)`:
+      // never synchronous, even when the script is already in the page.
+      attach() {
+        const id = this.id;
         if (window.DocEditor?.instances?.[id]) {
           refused.push(id);
           return;
         }
         if (!window.DocEditor?.instances) window.DocEditor = { instances: {} };
         window.DocEditor.instances[id] = {
-          destroyEditor: () => {
-            if (destroyThrows) throw new Error('the editor was busy');
-          },
+          destroyEditor: vi.fn(),
           refreshHistory: vi.fn(),
           setHistoryData: vi.fn(),
         };
         attached.push(id);
-        config?.events?.onDocumentReady?.();
-      });
+        this.config?.events?.onDocumentReady?.();
+      },
+    },
+    mounted() {
+      void Promise.resolve().then(() => this.attach());
     },
     unmounted() {
+      unmounts += 1;
       const id = this.id;
       if (window.DocEditor?.instances?.[id]) {
         window.DocEditor.instances[id].destroyEditor();
         window.DocEditor.instances[id] = undefined;
       }
+    },
+    watch: {
+      // The library's own `onChangeProps`: a new configuration under a mounted
+      // editor destroys it and attaches a new one to the same element.
+      config: {
+        deep: true,
+        handler() {
+          const id = this.id;
+          if (!window.DocEditor?.instances?.[id]) return;
+          window.DocEditor.instances[id].destroyEditor();
+          window.DocEditor.instances[id] = undefined;
+          this.attach();
+        },
+      },
     },
     render() {
       return h('div');
@@ -162,10 +179,12 @@ beforeEach(() => {
   attached = [];
   refused = [];
   reported = [];
-  destroyThrows = false;
+  unmounts = 0;
   window.DocEditor = { instances: {} };
   capturedConfig = null;
-  fetchOnlyOfficeConfig.mockReset().mockResolvedValue(configResponse());
+  // A fresh object per call, as a server answers: the library rebuilds on a
+  // configuration that changed, and the same object twice has not changed.
+  fetchOnlyOfficeConfig.mockReset().mockImplementation(async () => configResponse());
   heartbeatOnlyOfficeSession.mockReset().mockResolvedValue({ active: true });
   fetchOnlyOfficeHistory.mockReset().mockResolvedValue({ currentVersion: 1, history: [] });
 });
@@ -180,9 +199,9 @@ afterEach(() => {
 });
 
 describe('leaving the version history', () => {
-  it('opens the document again, with an editor that actually attaches', async () => {
+  it('rebuilds the editor where it stands, without Vue taking it down', async () => {
     await open();
-    expect(attached).toHaveLength(1);
+    expect(attached).toEqual(['onlyoffice-Docs-report-docx-1']);
     // The editor has drawn its own chrome, so the floating way out stands down.
     expect(previewState.hasNativeClose).toBe(true);
 
@@ -191,25 +210,41 @@ describe('leaving the version history', () => {
     capturedConfig.events.onRequestHistoryClose();
     await flushPromises();
 
-    // The whole of the bug: a second element, and nothing in it.
+    // A second editor, on the same element, and Vue never unmounted anything:
+    // it is the swap through Vue that walks into the detached node.
+    expect(attached).toEqual(['onlyoffice-Docs-report-docx-1', 'onlyoffice-Docs-report-docx-1']);
+    expect(unmounts).toBe(0);
     expect(refused).toEqual([]);
-    expect(attached).toHaveLength(2);
+    expect(reported).toEqual([]);
     expect(previewState.hasNativeClose).toBe(true);
   });
 
-  it('opens it again even when the editor refuses to be destroyed', async () => {
-    // `destroyEditor` throwing leaves the registry holding the old instance,
-    // and every rebuild after that attaches to nothing. Whatever the reason
-    // the editor could not be torn down, the way back has to survive it.
+  it('never leaves the editor on screen when the rebuild could not be had', async () => {
+    // The configuration is what the rebuild is made of. Without it there is
+    // nothing to put in place of the editor, and an error with no way to be
+    // read is the blank panel again by another route.
     await open();
-    destroyThrows = true;
+    fetchOnlyOfficeConfig.mockRejectedValueOnce(new Error('the document server is down'));
 
     capturedConfig.events.onRequestHistoryClose();
     await flushPromises();
 
-    expect(reported.map((error) => error.message)).toEqual(['the editor was busy']);
+    expect(wrapper.text()).toContain('the document server is down');
+    expect(wrapper.findComponent({ name: 'DocumentEditor' }).exists()).toBe(false);
+    // And the floating way out is back, since no editor is drawing one.
+    expect(previewState.hasNativeClose).toBe(false);
+  });
+
+  it('still builds from nothing when there is no editor to rebuild', async () => {
+    // A first open, another document, a version opened read-only: the
+    // in-place path has no editor to hand a configuration to, so the ordinary
+    // one runs and the element is a new one.
+    await open();
+    await wrapper.setProps({ filePath: 'Docs/other.docx' });
+    await flushPromises();
+
+    expect(unmounts).toBe(1);
+    expect(attached).toEqual(['onlyoffice-Docs-report-docx-1', 'onlyoffice-Docs-other-docx-2']);
     expect(refused).toEqual([]);
-    expect(attached).toHaveLength(2);
-    expect(previewState.hasNativeClose).toBe(true);
   });
 });
