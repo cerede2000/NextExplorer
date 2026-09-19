@@ -154,6 +154,8 @@ export default defineConfig({
         items: [
           { text: 'Media preview', link: '/testing/media-preview-357' },
           { text: 'Folder size index', link: '/testing/folder-size-index' },
+          { text: 'API tokens', link: '/testing/api-tokens' },
+          { text: 'A document in a tab', link: '/testing/documents-in-a-tab' },
         ],
       },
       { text: 'Releases', link: '/reference/releases' },

@@ -30,10 +30,10 @@ browser attaches to requests another site made.
 
 **What a token may do** is its scope, chosen when it is issued:
 
-| Scope   | What it reaches                                                                                                       |
-| ------- | --------------------------------------------------------------------------------------------------------------------- |
+| Scope   | What it reaches                                                                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `read`  | `GET` and `HEAD`, plus `POST /api/files/download` — downloading a selection is a read that arrives as a POST because a hundred file names do not fit in a URL |
-| `write` | everything the account itself can do with files: upload, move, rename, delete                                          |
+| `write` | everything the account itself can do with files: upload, move, rename, delete                                                                                 |
 
 **What no token ever reaches**, whatever its scope and whoever owns it:
 
@@ -50,12 +50,12 @@ to the next request, and deleting the account takes its tokens with it.
 
 **Managing them** — from a session, never from a token:
 
-| Call                            | What it does                                                                                     |
-| ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `GET /api/auth/tokens`          | the live ones: name, scope, when issued, when last used and from where, when it expires          |
-| `POST /api/auth/tokens`         | `{ name, scope, expiresInDays, password }` — answers `{ token, secret }`, the only time `secret` exists |
-| `PATCH /api/auth/tokens/:id`    | `{ name }`                                                                                         |
-| `DELETE /api/auth/tokens/:id`   | revokes it, and it stops working on the next request                                             |
+| Call                          | What it does                                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `GET /api/auth/tokens`        | the live ones: name, scope, when issued, when last used and from where, when it expires                 |
+| `POST /api/auth/tokens`       | `{ name, scope, expiresInDays, password }` — answers `{ token, secret }`, the only time `secret` exists |
+| `PATCH /api/auth/tokens/:id`  | `{ name }`                                                                                              |
+| `DELETE /api/auth/tokens/:id` | revokes it, and it stops working on the next request                                                    |
 
 Issuing one asks for the account's password when the account has one: a browser
 left unlocked on a desk should not be enough to walk away with a credential
