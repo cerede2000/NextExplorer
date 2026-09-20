@@ -297,19 +297,53 @@ jobs:
           sudo test -f /var/lib/nextexplorer/app.db
           sudo test -f /srv/nextexplorer/Files/probe.png
 
+  # Which majors the archive claims it can be run by. Read from the archive
+  # rather than written here, so the job below tries every one of them and a
+  # claim nobody exercised cannot ship again: v3.9.3 offered Node 24 or 26 and
+  # crashed on 26, because this job tested 24 and only 24 (#9).
+  declared-nodes:
+    name: Which Node the archive says it needs
+    needs: build
+    runs-on: ubuntu-24.04
+    outputs:
+      majors: ${{ steps.read.outputs.majors }}
+    steps:
+      - name: Take the archive
+        uses: actions/download-artifact@v6
+        with:
+          name: standalone-x64
+
+      - name: Read what the build wrote
+        id: read
+        run: |
+          set -eux
+          tar -xzf ./*-minimal.tar.gz
+          dir="$(find . -maxdepth 1 -type d -name 'nextexplorer-*-minimal' | head -1)"
+          [ -s "$dir/NODE_MAJORS" ] \
+            || { echo 'the archive does not say which Node it was built for'; exit 1; }
+          cat "$dir/NODE_MAJORS"
+          majors="$(tr ' ' '\n' < "$dir/NODE_MAJORS" | grep -E '^[0-9]+$' | jq -R . | jq -sc .)"
+          [ "$majors" != '[]' ] || { echo 'NODE_MAJORS holds no major'; exit 1; }
+          echo "majors=$majors" >> "$GITHUB_OUTPUT"
+
   # The other half of what the page offers: somebody who would rather keep one
   # Node for the machine deletes the runtime and points at their own. It only
   # works on the major the native modules were built for, and that is the whole
-  # reason this job exists.
+  # reason this job exists — once per major the archive claims, so the claim is
+  # the thing being tested rather than a number written beside it.
   system-node:
-    name: With the machine's own Node 24
-    needs: build
+    name: With the machine's own Node ${{ matrix.major }}
+    needs: [build, declared-nodes]
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        major: ${{ fromJSON(needs.declared-nodes.outputs.majors) }}
     steps:
       - name: A Node of the machine's own
         uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'
+          node-version: ${{ matrix.major }}
 
       - name: Take the archive
         uses: actions/download-artifact@v6

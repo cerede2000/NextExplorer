@@ -133,20 +133,27 @@ esac
 # machine's own has to do. Either way the answer is settled here and written
 # into the unit, so nothing is decided again at start-up.
 #
-# The major matters and nothing else does: two of the three native modules in
-# this tree are prebuilt per ABI, and a major none of them has a prebuild for
-# refuses them with NODE_MODULE_VERSION a few seconds after the service
-# starts, which is the failure nobody reads. Better to say so here.
+# The major matters and nothing else does: the SQLite driver in this tree is
+# one binary built for one ABI, and any other major refuses it with
+# NODE_MODULE_VERSION a few seconds after the service starts, which is the
+# failure nobody reads. Better to say so here.
 #
-# A list and not a single number, because it is not one ABI any more. The
-# image processor is N-API and takes any major; the SQLite driver publishes
-# 137, 141 and 147; the terminal publishes the same three since 0.14. What is
-# left is the majors all three agree on, minus the ones that are no longer
-# supported upstream — 25 reached end of life on 31 March 2026.
+# Read from the archive rather than stated here, because stating it here is how
+# it went wrong: this list said "24 or 26" on the strength of what the modules
+# publish on npm, while `npm ci` had put a single binary in the tree for the
+# major that ran it. What a package publishes and what an archive carries are
+# different questions, and only the build knows the second (#9).
 #
-# The archive's own runtime is 24, the release line under long-term support.
-# This list is what an archive that brings none will accept from the machine.
-NODE_MAJORS_SUPPORTED="24 26"
+# The fallback is for an archive from before that file existed, where the
+# answer was 24.
+NODE_MAJORS_SUPPORTED="$(
+  if [ -r "$SELF_DIR/NODE_MAJORS" ]; then
+    tr '\n' ' ' < "$SELF_DIR/NODE_MAJORS" | sed 's/  */ /g; s/^ //; s/ $//'
+  else
+    printf '24'
+  fi
+)"
+[ -n "$NODE_MAJORS_SUPPORTED" ] || NODE_MAJORS_SUPPORTED="24"
 
 supported_node_major() {
   case " $NODE_MAJORS_SUPPORTED " in
@@ -155,7 +162,7 @@ supported_node_major() {
   esac
 }
 
-# "24 or 26", for a sentence rather than for a test.
+# "24", or "24 or 26" one day: for a sentence rather than for a test.
 node_majors_phrase="$(printf '%s' "$NODE_MAJORS_SUPPORTED" | sed 's/ / or /g')"
 
 if [ -x "$SELF_DIR/runtime/bin/node" ]; then
@@ -175,7 +182,7 @@ else
     || die "this archive brings no Node runtime and there is none on PATH. Install Node ${node_majors_phrase} and name it with --node, or take the archive without -minimal in its name."
   node_major="$("$system_node" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo unknown)"
   supported_node_major "$node_major" \
-    || die "this tree's native modules have prebuilds for Node ${node_majors_phrase}, and $system_node is $node_major. Install one of those, or take the archive without -minimal in its name."
+    || die "this archive's native modules were built for Node ${node_majors_phrase}, and $system_node is $node_major. Install one of those, or take the archive without -minimal in its name."
   node_for_unit="$system_node"
   node_note="$system_node"
 fi

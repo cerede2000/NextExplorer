@@ -43,7 +43,12 @@ const machineArch = () => {
  * for the Node runtime: what is being tested is the installing, not the
  * program.
  */
-const buildRelease = ({ version = '9.9.9', arch = machineArch(), minimal = false } = {}) => {
+const buildRelease = ({
+  version = '9.9.9',
+  arch = machineArch(),
+  minimal = false,
+  nodeMajors = '24',
+} = {}) => {
   // From nothing every time: a tree built over another one keeps whatever the
   // first put there, and a leftover runtime is precisely what the minimal
   // archive is the absence of.
@@ -67,6 +72,11 @@ const buildRelease = ({ version = '9.9.9', arch = machineArch(), minimal = false
 
   fs.writeFileSync(path.join(release, 'VERSION'), `${version}\n`);
   fs.writeFileSync(path.join(release, 'ARCH'), `${arch}\n`);
+  // What `npm ci` built the native modules for, written by assemble.sh. The
+  // installer reads it rather than carrying a list of its own.
+  if (nodeMajors !== null) {
+    fs.writeFileSync(path.join(release, 'NODE_MAJORS'), `${nodeMajors}\n`);
+  }
 
   for (const name of [
     'install.sh',
@@ -340,17 +350,32 @@ describe('installing the minimal archive', () => {
 
     const output = install([], { expectFailure: true, env: nodeSaying('22') });
 
-    expect(output).toMatch(/prebuilds for Node 24 or 26/i);
+    expect(output).toMatch(/built for Node 24/i);
     expect(output).toContain('22');
     expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
   });
 
-  it('takes a Node that is not the one the archive would have carried', () => {
-    // 26 rather than 24: what ships is one major, because the archive carries
-    // one runtime, but an archive that carries none accepts every major the
-    // native modules have prebuilds for. Refusing 26 would be refusing a
-    // runtime that works.
-    buildRelease({ minimal: true });
+  it('refuses a major the archive was not built for, current or not', () => {
+    // The one that shipped broken. The installer offered Node 24 or 26 on the
+    // strength of what the native modules publish on npm, while `npm ci` had
+    // put a single SQLite binary in the tree for the major that ran it. An
+    // archive installed on the other one started and died on
+    // NODE_MODULE_VERSION, which is the failure nobody reads (#9).
+    buildRelease({ minimal: true, nodeMajors: '24' });
+
+    const output = install([], { expectFailure: true, env: nodeSaying('26') });
+
+    expect(output).toMatch(/built for Node 24/i);
+    expect(output).toContain('26');
+    expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
+  });
+
+  it('takes whatever that archive says it was built for', () => {
+    // The same script, the same Node, the opposite answer — so what decides is
+    // the file the build wrote and not a list living in here. The day the
+    // SQLite driver ships in the tree for two ABIs, assemble.sh writes two
+    // majors and this passes without the installer changing.
+    buildRelease({ minimal: true, nodeMajors: '24 26' });
 
     install([], { env: nodeSaying('26') });
 
@@ -360,15 +385,22 @@ describe('installing the minimal archive', () => {
     expect(exists('opt', 'nextexplorer', 'app', 'src', 'server.js')).toBe(true);
   });
 
+  it('falls back to 24 for an archive from before the build said so', () => {
+    buildRelease({ minimal: true, nodeMajors: null });
+
+    install([], { env: nodeSaying('24') });
+    expect(exists('opt', 'nextexplorer', 'app', 'src', 'server.js')).toBe(true);
+  });
+
   it('refuses the major that is no longer supported upstream, whatever its ABI', () => {
     // Node 25 has an ABI the terminal and the SQLite driver both publish, so
-    // nothing would fail at load. It reached end of life on 31 March 2026,
-    // and a list that accepts it is an invitation to install it.
+    // this refusal is not about what could load — it is that the archive was
+    // not built for it. The line reached end of life on 31 March 2026 anyway.
     buildRelease({ minimal: true });
 
     const output = install([], { expectFailure: true, env: nodeSaying('25') });
 
-    expect(output).toMatch(/prebuilds for Node 24 or 26/i);
+    expect(output).toMatch(/built for Node 24/i);
     expect(exists('opt', 'nextexplorer', 'app')).toBe(false);
   });
 

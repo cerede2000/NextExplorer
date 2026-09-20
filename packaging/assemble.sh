@@ -179,6 +179,22 @@ install -m 0644 "$here/README.md" "$stage/README.md"
 printf '%s\n' "$version" > "$stage/VERSION"
 printf '%s\n' "$arch" > "$stage/ARCH"
 
+# --- Which Node this tree can actually be run by -----------------------------
+# Written from the build rather than believed by the installer, because the
+# installer was wrong about it: it offered Node 24 or 26 while `npm ci` had put
+# a single better-sqlite3 binary in the tree, built for whichever ABI ran it.
+# An archive installed on the other major started and died on
+# NODE_MODULE_VERSION (#9).
+#
+# One major, and this is why: of the three native modules the image processor is
+# N-API and takes any, the terminal ships every ABI it knows, and the SQLite
+# driver ships exactly the one `npm ci` resolved. So the answer is the major
+# that ran it, and it belongs beside VERSION and ARCH where install.sh can read
+# it — an archive that is rebuilt on a newer Node then says so by itself.
+node_majors="$(node -p 'process.versions.node.split(".")[0]')"
+printf '%s\n' "$node_majors" > "$stage/NODE_MAJORS"
+echo "==> Native modules built for Node $node_majors"
+
 # --- The archive ------------------------------------------------------------
 echo "==> Archive"
 tar -czf "$out_dir/$name.tar.gz" -C "$out_dir" "$name"

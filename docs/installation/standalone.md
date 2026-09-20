@@ -181,13 +181,19 @@ If you would rather keep one Node for the whole machine, delete `runtime/` —
 ExecStart=/usr/bin/node src/server.js
 ```
 
-One condition: **Node 24 or Node 26**, and the installer checks before it
-installs anything. Of the three native modules in the tree, the image
-processor is N-API and takes any major, while the SQLite driver and the
-terminal publish prebuilds per ABI — 137, 141 and 147, which are Node 24, 25
-and 26. Node 25 is left out because it reached end of life on 31 March 2026,
-not because it would fail to load. Any other major refuses to load them with
-`NODE_MODULE_VERSION`.
+One condition: **Node 24**, and the installer checks before it installs
+anything. Of the three native modules in the tree, the image processor is
+N-API and takes any major and the terminal carries every ABI it knows, but the
+SQLite driver is a single binary: `npm ci` resolves one prebuild, for the major
+that ran it, and any other refuses to load with `NODE_MODULE_VERSION` a few
+seconds after the service starts.
+
+Which major that is, is not stated here twice. The build writes it into the
+archive as `NODE_MAJORS`, beside `VERSION` and `ARCH`, and the installer reads
+it from there — so an archive rebuilt on another line says so by itself rather
+than waiting for this page to be corrected. v3.9.3 offered 24 or 26 on the
+strength of what the modules publish on npm, which is a different question from
+what one archive carries, and installing it on 26 crashed at start.
 
 Most distributions package an older one: Debian 13 has 20.19, Ubuntu 24.04 has
 18.19, Fedora 42's default is 22.21 — though Fedora also carries a `nodejs24`
@@ -200,11 +206,11 @@ accept from the machine.
 
 ### What else can be thrown away
 
-|                                         |                                                                        |
-| --------------------------------------- | ---------------------------------------------------------------------- |
-| `runtime/`                              | 121 MB — only if you provide Node 24 or 26 yourself, as above          |
-| `app/node_modules/exiftool-vendored.pl` | 21 MB — only if you set `EXIFTOOL_PATH`, or accept losing RAW metadata |
-| `bin/7zz`                               | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                     |
+|                                         |                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `runtime/`                              | 121 MB — only if you provide Node 24 or 26 yourself, as above                              |
+| `app/node_modules/exiftool-vendored.pl` | 21 MB — only if this machine has an ExifTool of its own, or you accept losing RAW metadata |
+| `bin/7zz`                               | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                                         |
 
 The rest is load-bearing: the image processor and its libvips are 19 MB, the
 SQLite driver 12 MB, and the built interface 5 MB. Those three stay — see
@@ -257,9 +263,10 @@ MB to download instead of 74**. It is for a machine that already has a Node
 the installer accepts — or for packaging this for a distribution, where every
 megabyte is one the package manager could have supplied.
 
-Nothing is given up for good: `apt install libimage-exiftool-perl` and
-`EXIFTOOL_PATH=/usr/bin/exiftool` bring RAW metadata back, and `7zip` with
-`SEVEN_ZIP_PATH=/usr/bin/7z` brings archive browsing back. What this archive
+Nothing is given up for good: `apt install libimage-exiftool-perl` brings RAW
+metadata back with nothing to configure — the application looks where a
+distribution puts it — and `7zip` with `SEVEN_ZIP_PATH=/usr/bin/7z` brings
+archive browsing back. What this archive
 leaves out is the 21 MB of Perl and the 3.6 MB of 7-Zip, not the code that runs
 them — which is why those two variables have something to drive.
 
@@ -297,12 +304,15 @@ nothing else. On Debian 13 the package is `7zip`, and its own description says
 the unRAR code was dropped to stay within the DFSG — `7zip-rar`, in non-free,
 is what puts RAR back. `unrar` is a different program and is not used here.
 
-**ExifTool.** `EXIFTOOL_PATH` names the one to run, and
-`app/node_modules/exiftool-vendored.pl` — 21 MB of Perl — can then go. On Debian
-the package is `libimage-exiftool-perl`. Take the `.pl` and not the directory
-beside it: `exiftool-vendored` is the Node package that spawns the program and
-pools the processes, and without it `EXIFTOOL_PATH` names something nothing can
-run. The minimal archive already comes this way.
+**ExifTool.** Install the one your distribution packages — `libimage-exiftool-perl`
+on Debian — and `app/node_modules/exiftool-vendored.pl`, 21 MB of Perl, can go.
+Nothing to configure: with the bundled copy absent, `/usr/bin/exiftool`,
+`/usr/local/bin/exiftool` and `/opt/homebrew/bin/exiftool` are tried in that
+order, and `EXIFTOOL_PATH` is there for one kept somewhere else.
+
+Take the `.pl` and not the directory beside it: `exiftool-vendored` is the Node
+package that spawns the program and pools the processes, and without it there is
+nothing left to run what was found. The minimal archive already comes this way.
 
 **And two that cannot.** The SQLite driver and the image processor are native
 Node modules rather than libraries: `apt install sqlite3` or `libvips` does

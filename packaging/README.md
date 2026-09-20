@@ -11,15 +11,16 @@ sudo ./install.sh
 
 **If this is the `-minimal` archive**, it brings no Node runtime, no 7-Zip and
 no bundled ExifTool: 76 MB unpacked instead of 221, for a machine that already
-has Node 24 or Node 26. Name that Node, because under `sudo` the PATH is root's
-and not yours:
+has Node 24. Name that Node, because under `sudo` the PATH is root's and not
+yours:
 
 ```sh
 sudo ./install.sh --node "$(command -v node)"
 ```
 
-Anything other than those two is refused here rather than three seconds after
-the service starts: the native modules in this tree are prebuilt per ABI.
+Anything else is refused here rather than three seconds after the service
+starts: the SQLite driver in this tree is one binary built for one ABI, and the
+installer reads which from the archive rather than guessing.
 
 Two of the three things it leaves out come back from your distribution, and the
 archive still carries what drives them:
@@ -28,8 +29,10 @@ archive still carries what drives them:
 sudo apt install 7zip libimage-exiftool-perl
 # in /etc/nextexplorer/nextexplorer.env
 SEVEN_ZIP_PATH=/usr/bin/7z
-EXIFTOOL_PATH=/usr/bin/exiftool
 ```
+
+ExifTool needs no line of its own: with the bundled copy absent, the one your
+distribution installed is found where it puts it.
 
 Everything below applies to both archives.
 

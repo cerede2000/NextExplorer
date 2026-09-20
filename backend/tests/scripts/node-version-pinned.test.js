@@ -74,32 +74,41 @@ describe('the Node major this is built and shipped on', () => {
     expect(pinned[1]).toBe(MAJOR);
   });
 
-  it('is among the majors the installer accepts when the archive brings none', () => {
-    // A list here rather than the single number the rest of this file holds,
-    // and the difference is deliberate. What ships is one major, because the
-    // archive carries one runtime and the image is built on one. What an
-    // archive without a runtime will accept from the machine is every major
-    // all three native modules have prebuilds for — the image processor takes
-    // any, and the other two publish the same set since node-pty 0.14.
+  it('is written into the archive by the build and read back by the installer', () => {
+    // The wiring the answer now travels on, and the reason it does. The
+    // installer used to state the majors itself — "24 or 26", from what the
+    // native modules publish on npm — while `npm ci` had put a single SQLite
+    // binary in the tree for the major that ran it. What a package publishes
+    // and what an archive carries are different questions (#9), so the build
+    // writes the answer and the installer reads it.
     //
-    // The two cannot drift apart in the direction that matters: whatever is
-    // shipped has to be accepted, or the full archive would install a runtime
-    // its own installer refuses.
+    // A typo in either file name would be silent: the installer would fall
+    // back and go on refusing correctly for one release, then wrongly for the
+    // next. So the two names are compared.
+    const assemble = read('packaging/assemble.sh');
     const installer = read('packaging/install.sh');
-    const supported = installer.match(/NODE_MAJORS_SUPPORTED="([^"]+)"/);
-    expect(supported, 'install.sh no longer checks the major').not.toBeNull();
 
-    const majors = supported[1].trim().split(/\s+/);
-    expect(majors).toContain(MAJOR);
-    // Every one of them is a major somebody could actually be running: a list
-    // that names an end-of-life line is an invitation to install it.
-    expect(majors).not.toContain('25');
+    const written = assemble
+      .match(/> "\$stage\/([A-Z_]+)"/g)
+      ?.map((m) => m.match(/\/([A-Z_]+)"/)[1]);
+    expect(written, 'assemble.sh writes nothing beside the archive').toBeTruthy();
+    expect(written, 'assemble.sh no longer records the major it built for').toContain(
+      'NODE_MAJORS'
+    );
+
+    expect(installer, 'install.sh does not read it back').toContain('$SELF_DIR/NODE_MAJORS');
+    // And takes it from there rather than from a literal, which is the thing
+    // that went stale. The bare fallback below it is for an archive built
+    // before the file existed.
+    expect(installer, 'install.sh states the majors itself again').toMatch(
+      /NODE_MAJORS_SUPPORTED="\$\(/
+    );
   });
 
-  it('accepts exactly the majors the terminal has prebuilds for', () => {
-    // The one native module that decides it. The SQLite driver publishes the
-    // same set and the image processor is N-API, so this is the whole of the
-    // constraint — and when it moves, this test says the list may move too.
+  it('is a major the terminal has a prebuild for', () => {
+    // The SQLite driver ships one binary and the image processor is N-API, so
+    // the terminal is the only one that could refuse the major this builds on
+    // while the other two stayed quiet.
     const prebuilds = path.join(
       ROOT,
       'node_modules/@homebridge/node-pty-prebuilt-multiarch/prebuilds/linux-x64'
@@ -113,14 +122,8 @@ describe('the Node major this is built and shipped on', () => {
 
     // Node's own registry: 24 is ABI 137, 25 is 141, 26 is 147.
     const ABI_OF = { 24: '137', 25: '141', 26: '147' };
-    const accepted = read('packaging/install.sh')
-      .match(/NODE_MAJORS_SUPPORTED="([^"]+)"/)[1]
-      .trim()
-      .split(/\s+/);
-
-    for (const major of accepted) {
-      expect(abis, `Node ${major} has no terminal prebuild`).toContain(ABI_OF[major]);
-    }
+    expect(ABI_OF[MAJOR], `no ABI recorded for Node ${MAJOR}`).toBeTruthy();
+    expect(abis, `Node ${MAJOR} has no terminal prebuild`).toContain(ABI_OF[MAJOR]);
   });
 
   it('is what every workflow sets up', () => {
@@ -148,14 +151,11 @@ describe('the Node major this is built and shipped on', () => {
   it('is what the documentation tells somebody to install', () => {
     // The standalone page is where a reader is sent to find a Node, and the
     // sentence stating the condition is the one they will act on. Checked
-    // against the installer's own list rather than against a number, and
+    // against the major this is built on rather than against a number, and
     // only that sentence: elsewhere the page names an unsupported major on
     // purpose, to say why it is unsupported.
     const page = read('docs/installation/standalone.md');
-    const accepted = read('packaging/install.sh')
-      .match(/NODE_MAJORS_SUPPORTED="([^"]+)"/)[1]
-      .trim()
-      .split(/\s+/);
+    const accepted = [MAJOR];
 
     const condition = page.split('\n').find((line) => line.startsWith('One condition'));
     expect(condition, 'the page no longer states the condition').toBeTruthy();
@@ -176,14 +176,11 @@ describe('the Node major this is built and shipped on', () => {
   it('is what the README inside the archive tells somebody to have', () => {
     // The page above is the guide somebody is sent to. This one travels in the
     // archive and is the first thing they read after unpacking it, which is
-    // exactly why it drifted: it went on naming one major for a release after
-    // the installer had started accepting two. So every major it names is
-    // checked, in both directions.
+    // exactly why it drifted twice: once naming one major after the installer
+    // had started offering two, and once naming two after the archive turned
+    // out to carry one. So every major it names is checked, in both directions.
     const readme = read('packaging/README.md');
-    const accepted = read('packaging/install.sh')
-      .match(/NODE_MAJORS_SUPPORTED="([^"]+)"/)[1]
-      .trim()
-      .split(/\s+/);
+    const accepted = [MAJOR];
 
     const named = [...new Set([...readme.matchAll(/\bNode (\d+)\b/g)].map(([, major]) => major))];
     expect(named.length, 'the README names no Node at all').toBeGreaterThan(0);
