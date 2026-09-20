@@ -89,7 +89,18 @@ const show = async (path = 'Docs/report.docx') => {
   return wrapper;
 };
 
+/**
+ * Whether the browser honoured the close. A tab that really closed is gone, so
+ * `window.closed` is the only thing the page can ask afterwards — and it is
+ * what decides whether the fallback runs.
+ */
+let closed = true;
+
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.spyOn(window, 'close').mockImplementation(() => {});
+  Object.defineProperty(window, 'closed', { configurable: true, get: () => closed });
+  closed = true;
   replace.mockClear();
   open.mockClear();
   open.mockReturnValue(true);
@@ -105,6 +116,8 @@ beforeEach(() => {
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('opening a document at its own address', () => {
@@ -171,19 +184,53 @@ describe('opening a document at its own address', () => {
     expect(wrapper.find('[data-test="document-unopenable"]').exists()).toBe(false);
   });
 
-  it('goes back to the folder, on the document, when the document is closed', async () => {
+  /**
+   * The close button belongs to the document, and a document with a tab to
+   * itself is closed by closing the tab. It used to send the tab to the folder
+   * listing instead, which left two identical explorer tabs open and nothing
+   * to tell them apart (nxzai#303).
+   */
+  it('closes the tab when the document is closed', async () => {
     previewManager.isOpen = true;
     const wrapper = await show('Docs/Reports/report.docx');
 
     previewManager.isOpen = false;
     await flushPromises();
 
-    // Where closing the panel over a folder leaves you, which is the point:
-    // closing a document must land somewhere, not on a blank tab.
+    expect(window.close).toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  // Where the browser refuses — an address pasted into a tab that has already
+  // been somewhere — closing must still land the reader somewhere rather than
+  // leaving them in front of a document they have just shut.
+  it('falls back to the folder when the browser refuses to close', async () => {
+    closed = false;
+    previewManager.isOpen = true;
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    previewManager.isOpen = false;
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(200);
+
     expect(replace).toHaveBeenCalledWith({
       path: '/browse/Docs/Reports',
       query: { select: 'report.docx' },
     });
+    wrapper.unmount();
+  });
+
+  it('does not go to the folder when the tab really closed', async () => {
+    closed = true;
+    previewManager.isOpen = true;
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    previewManager.isOpen = false;
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(replace).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

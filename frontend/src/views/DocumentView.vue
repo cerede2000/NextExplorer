@@ -65,6 +65,35 @@ const leave = () => {
 };
 
 /**
+ * Closing a document that has a tab to itself.
+ *
+ * The close button belongs to the document, and in a tab of its own the thing
+ * it should close is the tab. It used to send this tab to the folder listing
+ * instead, which left whoever pressed it looking at two identical explorer
+ * tabs and wondering which was which (nxzai#303).
+ *
+ * `window.close()` is allowed here, which is easy to doubt because the tab is
+ * opened with `noopener`. That flag severs the opener and the browsing context
+ * group; it does not touch what closing depends on. From the standard: a
+ * navigable is script-closable if it "is created by web content", or if its
+ * session history holds a single entry — the first is true of a tab opened by
+ * `window.open`, and the second of any tab opened for one document, including
+ * one a middle-click made.
+ *
+ * Where neither holds — an `/open/` address pasted into a tab that has already
+ * been somewhere — the browser refuses and nothing happens, so the folder is
+ * still the answer. Closing is asynchronous by specification, so the fallback
+ * waits a moment rather than racing it.
+ */
+const CLOSE_REFUSED_AFTER_MS = 150;
+const closeTabOrLeave = () => {
+  window.close();
+  setTimeout(() => {
+    if (!window.closed) leave();
+  }, CLOSE_REFUSED_AFTER_MS);
+};
+
+/**
  * The item a plugin is matched against.
  *
  * A path is all this page is given, and a path is all a plugin needs: the
@@ -114,7 +143,7 @@ const openDocument = async () => {
 watch(
   () => previewManager.isOpen,
   (open, wasOpen) => {
-    if (wasOpen && !open) leave();
+    if (wasOpen && !open) closeTabOrLeave();
   }
 );
 
