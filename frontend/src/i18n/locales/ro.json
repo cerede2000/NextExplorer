@@ -268,7 +268,9 @@
     "line": "linie",
     "matchedByName": "nume",
     "matchedByContent": "conținut",
-    "matchedByBoth": "nume și conținut"
+    "matchedByBoth": "nume și conținut",
+    "stoppedEarly": "Oprită la limita de timp — acestea sunt rezultatele găsite până acum.",
+    "firstOnly": "Primele {count} rezultate. Restrânge căutarea pentru a vedea mai multe."
   },
   "user": {
     "account": "Cont",

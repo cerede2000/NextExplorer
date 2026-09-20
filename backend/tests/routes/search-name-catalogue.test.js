@@ -364,3 +364,47 @@ describe('what a result says it was found by', () => {
     }
   });
 });
+
+describe('the order names come back in', () => {
+  const names = async (term) => {
+    const response = await request(buildApp()).get('/api/search').query({ q: term });
+    expect(response.status).toBe(200);
+    return (response.body.items || []).map((item) => item.name);
+  };
+
+  // Neither source has an order anybody asked for: the catalogue hands back
+  // rows in the order the pass met them, a walk in the order the storage lists
+  // them. Whichever answered, the closest name comes first.
+  it('puts the whole name first, then what begins with it', async () => {
+    const docs = await seed();
+    await fs.mkdir(docs, { recursive: true });
+    for (const name of [
+      'vieux-rapport-2019-annexe.pdf',
+      'rapport-2026.pdf',
+      'rapport',
+      'un-rapport-quelconque.txt',
+      'rapport-de-visite.pdf',
+    ]) {
+      await fs.writeFile(path.join(docs, name), 'x');
+    }
+    await buildIndex();
+
+    expect(await names('rapport')).toEqual([
+      'rapport',
+      'rapport-2026.pdf',
+      'rapport-de-visite.pdf',
+      'un-rapport-quelconque.txt',
+      'vieux-rapport-2019-annexe.pdf',
+    ]);
+  });
+
+  it('orders the same way when the catalogue is not the one answering', async () => {
+    const docs = await seed({ SEARCH_INDEX: 'false' });
+    await fs.mkdir(docs, { recursive: true });
+    for (const name of ['vieux-rapport.pdf', 'rapport-2026.pdf', 'rapport']) {
+      await fs.writeFile(path.join(docs, name), 'x');
+    }
+
+    expect(await names('rapport')).toEqual(['rapport', 'rapport-2026.pdf', 'vieux-rapport.pdf']);
+  });
+});

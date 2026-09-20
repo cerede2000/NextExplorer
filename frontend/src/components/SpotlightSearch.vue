@@ -56,6 +56,9 @@ const pending = ref(false);
 let currentRequest = 0;
 let inFlight = null;
 
+/** Why the answer is short of everything, or null when it is not. */
+const shortfall = ref(null);
+
 const performSearch = useDebounceFn(async () => {
   const term = query.value.trim();
   const request = (currentRequest += 1);
@@ -68,6 +71,7 @@ const performSearch = useDebounceFn(async () => {
 
   if (!term) {
     results.value = [];
+    shortfall.value = null;
     pending.value = false;
     return;
   }
@@ -76,19 +80,30 @@ const performSearch = useDebounceFn(async () => {
   inFlight = controller;
   loading.value = true;
   try {
-    const { items = [] } = await searchApi(basePath.value, term, undefined, {
-      signal: controller.signal,
-    });
+    const {
+      items = [],
+      truncated = false,
+      complete = true,
+      limit,
+    } = await searchApi(basePath.value, term, undefined, { signal: controller.signal });
     if (request !== currentRequest) return;
     // Limit results to prevent performance issues with massive lists
     const limitedItems = Array.isArray(items) ? items : [];
     results.value = Object.freeze(limitedItems);
+    // Why the list may be shorter than the truth, said rather than left to
+    // look like the whole answer.
+    shortfall.value = truncated
+      ? { kind: 'stopped' }
+      : complete
+        ? null
+        : { kind: 'first', count: Number.isFinite(limit) ? limit : limitedItems.length };
   } catch (e) {
     // A search this one replaced has nothing to say, and an abort is not a
     // failure to report: it is this function having moved on.
     if (request !== currentRequest) return;
     errorMsg.value = e?.message || t('errors.searchFailed');
     results.value = [];
+    shortfall.value = null;
   } finally {
     if (request === currentRequest) {
       inFlight = null;
@@ -353,6 +368,18 @@ onKeyStroke(
                 </div>
               </div>
             </button>
+
+            <p
+              v-if="shortfall"
+              data-test="search-shortfall"
+              class="px-3 py-2 text-xs text-amber-700 dark:text-amber-400/90"
+            >
+              {{
+                shortfall.kind === 'stopped'
+                  ? t('search.stoppedEarly')
+                  : t('search.firstOnly', { count: shortfall.count })
+              }}
+            </p>
           </div>
         </div>
       </div>

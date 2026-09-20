@@ -12,6 +12,8 @@ const { t } = useI18n();
 const router = useRouter();
 
 const items = ref([]);
+/** Why the answer is short of everything, or null when it is not. */
+const shortfall = ref(null);
 const loading = ref(false);
 const errorMsg = ref('');
 /**
@@ -39,6 +41,7 @@ async function load() {
   const request = (currentRequest += 1);
 
   items.value = [];
+  shortfall.value = null;
   errorMsg.value = '';
   searched.value = false;
 
@@ -49,9 +52,21 @@ async function load() {
 
   loading.value = true;
   try {
-    const { items: list = [] } = await searchApi(basePath.value, term);
+    const {
+      items: list = [],
+      truncated = false,
+      complete = true,
+      limit,
+    } = await searchApi(basePath.value, term);
     if (request !== currentRequest) return;
     items.value = Array.isArray(list) ? list : [];
+    // Why the list may be shorter than the truth, said rather than left to
+    // look like the whole answer.
+    shortfall.value = truncated
+      ? { kind: 'stopped' }
+      : complete
+        ? null
+        : { kind: 'first', count: Number.isFinite(limit) ? limit : items.value.length };
     searched.value = true;
   } catch (e) {
     if (request !== currentRequest) return;
@@ -172,6 +187,18 @@ function toIconItem(it) {
           </button>
         </div>
       </div>
+
+      <p
+        v-if="shortfall"
+        data-test="search-shortfall"
+        class="p-3 text-xs text-amber-700 dark:text-amber-400/90 bg-white dark:bg-zinc-800/50"
+      >
+        {{
+          shortfall.kind === 'stopped'
+            ? t('search.stoppedEarly')
+            : t('search.firstOnly', { count: shortfall.count })
+        }}
+      </p>
     </div>
   </div>
 </template>

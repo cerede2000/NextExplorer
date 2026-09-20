@@ -268,7 +268,9 @@
     "line": "Zeile",
     "matchedByName": "Name",
     "matchedByContent": "Inhalt",
-    "matchedByBoth": "Name und Inhalt"
+    "matchedByBoth": "Name und Inhalt",
+    "stoppedEarly": "Beim Zeitlimit abgebrochen — das ist, was bisher gefunden wurde.",
+    "firstOnly": "Die ersten {count} Ergebnisse. Grenzen Sie die Suche ein, um mehr zu sehen."
   },
   "user": {
     "account": "Konto",

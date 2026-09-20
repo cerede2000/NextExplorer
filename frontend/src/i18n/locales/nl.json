@@ -268,7 +268,9 @@
     "line": "regel",
     "matchedByName": "naam",
     "matchedByContent": "inhoud",
-    "matchedByBoth": "naam en inhoud"
+    "matchedByBoth": "naam en inhoud",
+    "stoppedEarly": "Gestopt bij de tijdslimiet — dit is wat tot nu toe is gevonden.",
+    "firstOnly": "De eerste {count} resultaten. Verfijn de zoekopdracht voor meer."
   },
   "user": {
     "account": "Account",

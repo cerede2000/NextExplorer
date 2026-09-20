@@ -268,7 +268,9 @@
     "line": "rad",
     "matchedByName": "namn",
     "matchedByContent": "innehåll",
-    "matchedByBoth": "namn och innehåll"
+    "matchedByBoth": "namn och innehåll",
+    "stoppedEarly": "Avbröts vid tidsgränsen — det här hittades.",
+    "firstOnly": "De första {count} träffarna. Avgränsa sökningen för att se fler."
   },
   "user": {
     "account": "Konto",

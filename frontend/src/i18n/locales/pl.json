@@ -268,7 +268,9 @@
     "line": "wiersz",
     "matchedByName": "nazwa",
     "matchedByContent": "treść",
-    "matchedByBoth": "nazwa i treść"
+    "matchedByBoth": "nazwa i treść",
+    "stoppedEarly": "Przerwano po upływie limitu czasu — oto, co udało się znaleźć.",
+    "firstOnly": "Pierwsze {count} wyników. Zawęź wyszukiwanie, aby zobaczyć więcej."
   },
   "user": {
     "account": "Konto",

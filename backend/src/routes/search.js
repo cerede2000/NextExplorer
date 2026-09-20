@@ -992,9 +992,26 @@ router.get(
       }
     })();
 
-    const insideVolume = baseAbs.startsWith(directories.volume);
-    const useIndex = indexState.content && insideVolume;
-    const useNameIndex = indexState.names && insideVolume;
+    // The index speaks volume paths, and only those.
+    //
+    // A share resolves to a folder inside the volume and is described by a
+    // different name — `share/<token>/…` — which is the name every result and
+    // every permission check uses. Asking the index about it returns rows
+    // whose paths start with `Docs/`, none of which match that base, so a
+    // search inside a share answered with nothing at all: the index had
+    // replaced the live scan and then filtered its own answer away. The same
+    // holds for a personal folder or an assigned volume.
+    //
+    // So the test is not "does this land inside the volume" but "is this base
+    // named the way the index names things". When it is not, the storage
+    // answers, as it did before there was an index.
+    const volumeRelative = path.relative(directories.volume, baseAbs);
+    const insideVolume = !volumeRelative.startsWith('..') && !path.isAbsolute(volumeRelative);
+    const indexKnowsThisBase =
+      insideVolume && normalizeRelativePath(volumeRelative || '') === relBase;
+
+    const useIndex = indexState.content && indexKnowsThisBase;
+    const useNameIndex = indexState.names && indexKnowsThisBase;
 
     // Nothing can produce a content match once every content source has
     // finished, and that is the moment a reserve stops being worth waiting for.
@@ -1092,6 +1109,22 @@ router.get(
       return;
     }
 
+    // Closest first, which the sources cannot do for themselves: the
+    // catalogue hands back rows in the order the indexing pass met them, and a
+    // walk in the order the storage lists them. Neither is an order anybody
+    // asked for. Sorting what was collected rather than everything that could
+    // match is the honest bound — a page is a page — and it is the difference
+    // between `rapport.pdf` first and `vieux-rapport-2019-annexe.pdf` first.
+    const matcher = parseSearchTerm(q);
+    items.sort((a, b) => {
+      const byRank = matcher.rank(a.name) - matcher.rank(b.name);
+      if (byRank) return byRank;
+      // Shorter names carry less that was not asked for. Then by name, so the
+      // same question is answered the same way twice.
+      const byLength = a.name.length - b.name.length;
+      return byLength || a.name.localeCompare(b.name);
+    });
+
     const combined = buildPage({ names: items, contents: contentItems, limit });
 
     // Which half of the search answered, said rather than left to be inferred.
@@ -1105,7 +1138,6 @@ router.get(
     // contents half claims only what is being shown: a file listed for its
     // name is not read to find out whether its text would have matched too —
     // that reading is the cost the index exists to avoid.
-    const matcher = parseSearchTerm(q);
     const answered = combined.map((item) => {
       const rel = item.path ? `${item.path}/${item.name}` : item.name;
       const byName =
@@ -1123,7 +1155,13 @@ router.get(
       );
     }
 
-    res.json({ items: answered, truncated });
+    // Two different ways an answer can be short of the whole truth, and a
+    // reader cannot act on either without being told which: a search the
+    // budget ended has not looked everywhere, and a full page has looked but
+    // is only showing the first hundred. Both were known here and neither left
+    // the building — which is how a search that ran out of time read as a file
+    // that does not exist (#11).
+    res.json({ items: answered, truncated, limit, complete: answered.length < limit });
     await cleanup;
   })
 );

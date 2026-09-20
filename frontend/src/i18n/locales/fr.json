@@ -268,7 +268,9 @@
     "line": "ligne",
     "matchedByName": "nom",
     "matchedByContent": "contenu",
-    "matchedByBoth": "nom et contenu"
+    "matchedByBoth": "nom et contenu",
+    "stoppedEarly": "Interrompue au bout du délai — voici ce qui a été trouvé.",
+    "firstOnly": "Les {count} premiers résultats. Affinez la recherche pour en voir plus."
   },
   "user": {
     "account": "Compte",

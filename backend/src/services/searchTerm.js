@@ -73,6 +73,16 @@ const textTerm = (text) => {
     text,
     needle,
     matchesName: contains,
+    // How well a name answers, for putting the closest first: the whole name,
+    // then a name that begins with it, then one that merely holds it
+    // somewhere. `rapport` should not offer `vieux-rapport-2019-annexe.pdf`
+    // ahead of `rapport.pdf`.
+    rank: (name) => {
+      const folded = same(name).toLowerCase();
+      if (folded === needle) return 0;
+      if (folded.startsWith(needle)) return 1;
+      return 2;
+    },
     // A path is matched on its last segment: this is the behaviour a plain
     // term has always had, and widening it would make every file under a
     // matching folder a result of its own.
@@ -96,6 +106,8 @@ const globTerm = (text) => {
     // is never a match for it — `Stacks/*.log` describes files under Stacks,
     // not a folder called that.
     matchesName: (name) => (wholePath ? false : pattern.test(same(name))),
+    // A pattern is answered or it is not; there is no closer or further away.
+    rank: () => 0,
     matchesRelativePath: (rel) => pattern.test(same(wholePath ? rel : path.posix.basename(rel))),
   };
 };
@@ -103,7 +115,7 @@ const globTerm = (text) => {
 /**
  * @param {string} raw what the user typed
  * @returns {{isGlob: boolean, readsFileContents: boolean, text: string, needle: string,
- *   literal: string,
+ *   literal: string, rank: (name: string) => number,
  *   matchesName: (name: string) => boolean,
  *   matchesRelativePath: (rel: string) => boolean}}
  */

@@ -50,6 +50,8 @@ const i18n = createI18n({
         matchedByName: 'name',
         matchedByContent: 'contents',
         matchedByBoth: 'name and contents',
+        stoppedEarly: 'Stopped at its time limit',
+        firstOnly: 'First {count} results',
       },
       spotlight: { hintWithin: 'Search within', placeholder: 'Search', close: 'Close' },
       common: { in: 'in' },
@@ -252,5 +254,51 @@ describe('what each result was found by', () => {
     const wrapper = await openWithResults([{ name: 'ancien.txt', path: 'Docs', kind: 'file' }]);
 
     expect(wrapper.findAll('[data-test="match-kind"]')).toHaveLength(0);
+  });
+});
+
+/**
+ * Why a list may be shorter than the truth.
+ *
+ * Both were known on the server and neither left the building, which is how a
+ * search that ran out of time read as a file that does not exist.
+ */
+describe('an answer that is not the whole answer', () => {
+  const openWith = async (body) => {
+    search.mockResolvedValue(body);
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('pangolin');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    return wrapper;
+  };
+
+  const one = { name: 'a.txt', path: 'Docs', kind: 'file', matchedName: true };
+
+  it('says when the budget ended the search', async () => {
+    const wrapper = await openWith({ items: [one], truncated: true, complete: false, limit: 100 });
+
+    expect(wrapper.find('[data-test="search-shortfall"]').text()).toContain(
+      'Stopped at its time limit'
+    );
+  });
+
+  it('says when a full page is only the first of them', async () => {
+    const wrapper = await openWith({
+      items: Array.from({ length: 100 }, (_, i) => ({ ...one, name: `a-${i}.txt` })),
+      truncated: false,
+      complete: false,
+      limit: 100,
+    });
+
+    expect(wrapper.find('[data-test="search-shortfall"]').text()).toContain('First 100 results');
+  });
+
+  it('says nothing when the answer is the whole answer', async () => {
+    const wrapper = await openWith({ items: [one], truncated: false, complete: true, limit: 100 });
+
+    expect(wrapper.find('[data-test="search-shortfall"]').exists()).toBe(false);
   });
 });

@@ -268,7 +268,9 @@
     "line": "riga",
     "matchedByName": "nome",
     "matchedByContent": "contenuto",
-    "matchedByBoth": "nome e contenuto"
+    "matchedByBoth": "nome e contenuto",
+    "stoppedEarly": "Interrotta al limite di tempo: ecco ciò che è stato trovato finora.",
+    "firstOnly": "I primi {count} risultati. Restringi la ricerca per vederne altri."
   },
   "user": {
     "account": "Account",
