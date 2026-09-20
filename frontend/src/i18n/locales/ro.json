@@ -265,7 +265,10 @@
     "searching": "Se caută…",
     "noMatches": "Nu a fost găsit niciun rezultat",
     "openFolder": "Deschide dosarul",
-    "line": "linie"
+    "line": "linie",
+    "matchedByName": "nume",
+    "matchedByContent": "conținut",
+    "matchedByBoth": "nume și conținut"
   },
   "user": {
     "account": "Cont",

@@ -265,7 +265,10 @@
     "searching": "Ricerca in corso…",
     "noMatches": "Nessun risultato trovato",
     "openFolder": "Apri cartella",
-    "line": "riga"
+    "line": "riga",
+    "matchedByName": "nome",
+    "matchedByContent": "contenuto",
+    "matchedByBoth": "nome e contenuto"
   },
   "user": {
     "account": "Account",

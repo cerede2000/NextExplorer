@@ -43,7 +43,14 @@ const i18n = createI18n({
   locale: 'en',
   messages: {
     en: {
-      search: { searching: 'Searching…', noMatches: 'No matches found' },
+      search: {
+        searching: 'Searching…',
+        noMatches: 'No matches found',
+        line: 'line',
+        matchedByName: 'name',
+        matchedByContent: 'contents',
+        matchedByBoth: 'name and contents',
+      },
       spotlight: { hintWithin: 'Search within', placeholder: 'Search', close: 'Close' },
       common: { in: 'in' },
       errors: { searchFailed: 'Search failed' },
@@ -193,5 +200,57 @@ describe('changing the search while one is running', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('Search failed');
+  });
+});
+
+/**
+ * Which half of the search answered, on the result itself.
+ *
+ * It could only be read as an absence before: a result with a matched line
+ * came from the contents, one without it from the name, and telling them apart
+ * meant having two results side by side to compare.
+ */
+describe('what each result was found by', () => {
+  const openWithResults = async (items) => {
+    search.mockResolvedValue({ items });
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('pangolin');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('marks the name, the contents and the one that is both', async () => {
+    const wrapper = await openWithResults([
+      { name: 'pangolin.jpg', path: 'Docs', kind: 'file', matchedName: true },
+      {
+        name: 'notes.md',
+        path: 'Docs',
+        kind: 'file',
+        matchLine: 'le mot pangolin',
+        matchLineNumber: 3,
+        matchedContent: true,
+      },
+      {
+        name: 'pangolin-notes.md',
+        path: 'Docs',
+        kind: 'file',
+        matchLine: 'le mot pangolin',
+        matchLineNumber: 1,
+        matchedName: true,
+        matchedContent: true,
+      },
+    ]);
+
+    const marks = wrapper.findAll('[data-test="match-kind"]').map((node) => node.text());
+    expect(marks).toEqual(['name', 'contents', 'name and contents']);
+  });
+
+  it('says nothing rather than guessing, for an answer that does not say', async () => {
+    const wrapper = await openWithResults([{ name: 'ancien.txt', path: 'Docs', kind: 'file' }]);
+
+    expect(wrapper.findAll('[data-test="match-kind"]')).toHaveLength(0);
   });
 });

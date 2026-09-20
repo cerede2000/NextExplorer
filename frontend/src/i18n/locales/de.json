@@ -265,7 +265,10 @@
     "searching": "Suche läuft…",
     "noMatches": "Keine Treffer gefunden",
     "openFolder": "Ordner öffnen",
-    "line": "Zeile"
+    "line": "Zeile",
+    "matchedByName": "Name",
+    "matchedByContent": "Inhalt",
+    "matchedByBoth": "Name und Inhalt"
   },
   "user": {
     "account": "Konto",

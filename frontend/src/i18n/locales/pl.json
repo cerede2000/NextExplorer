@@ -265,7 +265,10 @@
     "searching": "Wyszukiwanie…",
     "noMatches": "Nie znaleziono wyników",
     "openFolder": "Otwórz folder",
-    "line": "wiersz"
+    "line": "wiersz",
+    "matchedByName": "nazwa",
+    "matchedByContent": "treść",
+    "matchedByBoth": "nazwa i treść"
   },
   "user": {
     "account": "Konto",

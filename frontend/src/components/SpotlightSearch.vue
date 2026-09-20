@@ -1,4 +1,5 @@
 <script setup>
+import { matchLabelKey } from '@/utils/searchMatch';
 import { ref, computed, watch, nextTick, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn, onKeyStroke } from '@vueuse/core';
@@ -321,8 +322,17 @@ onKeyStroke(
                   class="w-8 h-8 shrink-0"
                 />
                 <div class="min-w-0">
-                  <div class="text-[15px] text-neutral-900 dark:text-neutral-100 truncate">
-                    {{ item.name }}
+                  <div class="flex items-baseline gap-2 min-w-0">
+                    <div class="text-[15px] text-neutral-900 dark:text-neutral-100 truncate">
+                      {{ item.name }}
+                    </div>
+                    <span
+                      v-if="matchLabelKey(item)"
+                      data-test="match-kind"
+                      class="shrink-0 rounded-full px-1.5 text-[0.65rem] font-medium leading-4 text-neutral-500 ring-1 ring-neutral-300 dark:text-neutral-400 dark:ring-neutral-600"
+                    >
+                      {{ t(matchLabelKey(item)) }}
+                    </span>
                   </div>
                   <div
                     class="text-[12px] text-neutral-500 dark:text-neutral-400 font-mono truncate"

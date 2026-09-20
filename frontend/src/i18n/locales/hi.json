@@ -265,7 +265,10 @@
     "searching": "खोज हो रही है…",
     "noMatches": "कोई परिणाम नहीं मिला",
     "openFolder": "फ़ोल्डर खोलें",
-    "line": "पंक्ति"
+    "line": "पंक्ति",
+    "matchedByName": "नाम",
+    "matchedByContent": "सामग्री",
+    "matchedByBoth": "नाम और सामग्री"
   },
   "user": {
     "account": "खाता",

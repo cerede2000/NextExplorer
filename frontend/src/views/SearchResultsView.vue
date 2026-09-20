@@ -1,4 +1,5 @@
 <script setup>
+import { matchLabelKey } from '@/utils/searchMatch';
 import { ref, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -141,7 +142,16 @@ function toIconItem(it) {
         <div class="flex items-center gap-3 min-w-0">
           <FileIcon :item="toIconItem(it)" class="w-12 h-12 shrink-0" />
           <div class="min-w-0">
-            <div class="font-medium truncate">{{ it.name }}</div>
+            <div class="flex items-baseline gap-2 min-w-0">
+              <div class="font-medium truncate">{{ it.name }}</div>
+              <span
+                v-if="matchLabelKey(it)"
+                data-test="match-kind"
+                class="shrink-0 rounded-full px-1.5 text-[0.65rem] font-medium leading-4 text-neutral-500 ring-1 ring-neutral-300 dark:text-neutral-400 dark:ring-neutral-600"
+              >
+                {{ $t(matchLabelKey(it)) }}
+              </span>
+            </div>
             <div class="text-xs text-neutral-500 font-mono truncate">/{{ it.path }}</div>
             <div
               v-if="it.matchLine"

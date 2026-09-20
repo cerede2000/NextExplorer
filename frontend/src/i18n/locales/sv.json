@@ -265,7 +265,10 @@
     "searching": "Söker…",
     "noMatches": "Inga träffar hittades",
     "openFolder": "Öppna mapp",
-    "line": "rad"
+    "line": "rad",
+    "matchedByName": "namn",
+    "matchedByContent": "innehåll",
+    "matchedByBoth": "namn och innehåll"
   },
   "user": {
     "account": "Konto",

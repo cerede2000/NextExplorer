@@ -265,7 +265,10 @@
     "searching": "Поиск…",
     "noMatches": "Совпадений не найдено",
     "openFolder": "Открыть папку",
-    "line": "строка"
+    "line": "строка",
+    "matchedByName": "имя",
+    "matchedByContent": "содержимое",
+    "matchedByBoth": "имя и содержимое"
   },
   "user": {
     "account": "Аккаунт",

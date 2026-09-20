@@ -265,7 +265,10 @@
     "searching": "Zoeken…",
     "noMatches": "Geen overeenkomst gevonden",
     "openFolder": "Map openen",
-    "line": "regel"
+    "line": "regel",
+    "matchedByName": "naam",
+    "matchedByContent": "inhoud",
+    "matchedByBoth": "naam en inhoud"
   },
   "user": {
     "account": "Account",

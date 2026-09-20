@@ -265,7 +265,10 @@
     "searching": "Searching…",
     "noMatches": "No matches found",
     "openFolder": "Open folder",
-    "line": "line"
+    "line": "line",
+    "matchedByName": "name",
+    "matchedByContent": "contents",
+    "matchedByBoth": "name and contents"
   },
   "user": {
     "account": "Account",

@@ -306,3 +306,61 @@ describe('with no ripgrep on the machine', () => {
     expect(await search('pangolin')).toContain('Docs/compte-rendu.md');
   });
 });
+
+describe('what a result says it was found by', () => {
+  /** The whole response, not just the paths. */
+  const results = async (term) => {
+    const response = await request(buildApp()).get('/api/search').query({ q: term });
+    expect(response.status).toBe(200);
+    return response.body.items || [];
+  };
+
+  const seedThree = async (env) => {
+    const docs = await seed(env);
+    await fs.mkdir(docs, { recursive: true });
+    // Its name carries the word and its text does not.
+    await fs.writeFile(path.join(docs, 'pangolin-photo.jpg'), 'rien de lisible');
+    // Its text carries the word and its name does not.
+    await fs.writeFile(path.join(docs, 'notes.md'), 'le mot pangolin est ici');
+    // Both.
+    await fs.writeFile(path.join(docs, 'pangolin-notes.md'), 'le mot pangolin est ici aussi');
+    return docs;
+  };
+
+  it('says of every result whether its name matched', async () => {
+    await seedThree();
+    await buildIndex();
+
+    const found = Object.fromEntries((await results('pangolin')).map((i) => [i.name, i]));
+
+    expect(found['pangolin-photo.jpg'].matchedName).toBe(true);
+    expect(found['notes.md'].matchedName).toBe(false);
+    expect(found['pangolin-notes.md'].matchedName).toBe(true);
+  });
+
+  // The name half must not depend on which pass reserved the path first — that
+  // is the thing that made one file look different from one search to the next.
+  it('says the same about a name with the catalogue and without it', async () => {
+    await seedThree({ SEARCH_INDEX: 'false' });
+
+    const found = Object.fromEntries((await results('pangolin')).map((i) => [i.name, i]));
+
+    expect(found['pangolin-photo.jpg'].matchedName).toBe(true);
+    expect(found['notes.md'].matchedName).toBe(false);
+    expect(found['pangolin-notes.md'].matchedName).toBe(true);
+  });
+
+  // And the contents half claims exactly what it shows. A file listed for its
+  // name is not opened to find out whether its text matched as well; reading it
+  // is the cost the index is there to avoid.
+  it('claims contents only where it shows a line', async () => {
+    await seedThree();
+    await buildIndex();
+
+    const items = await results('pangolin');
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.matchedContent).toBe(Boolean(item.matchLine));
+    }
+  });
+});

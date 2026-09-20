@@ -265,7 +265,10 @@
     "searching": "正在搜尋…",
     "noMatches": "未找到吻合的結果",
     "openFolder": "打開檔案夾",
-    "line": "行"
+    "line": "行",
+    "matchedByName": "檔名",
+    "matchedByContent": "內容",
+    "matchedByBoth": "檔名和內容"
   },
   "user": {
     "account": "帳號",

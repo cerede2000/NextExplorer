@@ -265,7 +265,10 @@
     "searching": "正在搜索…",
     "noMatches": "未找到匹配结果",
     "openFolder": "打开文件夹",
-    "line": "行"
+    "line": "行",
+    "matchedByName": "文件名",
+    "matchedByContent": "内容",
+    "matchedByBoth": "文件名和内容"
   },
   "user": {
     "account": "账户",

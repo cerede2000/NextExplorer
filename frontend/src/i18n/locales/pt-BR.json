@@ -265,7 +265,10 @@
     "searching": "Pesquisando…",
     "noMatches": "Nenhum resultado encontrado",
     "openFolder": "Abrir pasta",
-    "line": "linha"
+    "line": "linha",
+    "matchedByName": "nome",
+    "matchedByContent": "conteúdo",
+    "matchedByBoth": "nome e conteúdo"
   },
   "user": {
     "account": "Conta",

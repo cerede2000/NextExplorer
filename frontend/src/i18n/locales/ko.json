@@ -265,7 +265,10 @@
     "searching": "검색 중…",
     "noMatches": "검색 결과 없음",
     "openFolder": "폴더 열기",
-    "line": "라인"
+    "line": "라인",
+    "matchedByName": "이름",
+    "matchedByContent": "내용",
+    "matchedByBoth": "이름과 내용"
   },
   "user": {
     "account": "계정",

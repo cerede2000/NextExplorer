@@ -265,7 +265,10 @@
     "searching": "Recherche…",
     "noMatches": "Aucune correspondance trouvée",
     "openFolder": "Ouvrir le dossier",
-    "line": "ligne"
+    "line": "ligne",
+    "matchedByName": "nom",
+    "matchedByContent": "contenu",
+    "matchedByBoth": "nom et contenu"
   },
   "user": {
     "account": "Compte",

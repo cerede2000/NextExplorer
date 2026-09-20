@@ -1094,6 +1094,25 @@ router.get(
 
     const combined = buildPage({ names: items, contents: contentItems, limit });
 
+    // Which half of the search answered, said rather than left to be inferred.
+    //
+    // A result carrying a matched line was found by its contents, and one
+    // without it by its name — which a reader could only tell by noticing that
+    // something was missing, and only by comparing two results with each other.
+    //
+    // The name is asked of the matcher, here, for every result alike, so the
+    // answer does not depend on which pass reserved the path first. The
+    // contents half claims only what is being shown: a file listed for its
+    // name is not read to find out whether its text would have matched too —
+    // that reading is the cost the index exists to avoid.
+    const matcher = parseSearchTerm(q);
+    const answered = combined.map((item) => {
+      const rel = item.path ? `${item.path}/${item.name}` : item.name;
+      const byName =
+        item.kind === 'dir' ? matcher.matchesName(item.name) : matcher.matchesRelativePath(rel);
+      return { ...item, matchedName: byName, matchedContent: Boolean(item.matchLine) };
+    });
+
     // Said out loud rather than left to look like a complete answer: a search
     // the budget ended has not seen everything, and whoever is reading the
     // results deserves to know which of the two they are looking at.
@@ -1104,7 +1123,7 @@ router.get(
       );
     }
 
-    res.json({ items: combined, truncated });
+    res.json({ items: answered, truncated });
     await cleanup;
   })
 );
