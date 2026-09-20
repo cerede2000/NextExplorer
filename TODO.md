@@ -603,12 +603,19 @@ takes any major; `better-sqlite3` 12.11.1 publishes `node-v137`, `v141` and
 `v147`; `node-pty` published 141 and 147 in 0.14.1, on 23 July 2026, for
 glibc and musl both. Node 26 is ABI 147, so all three are there.
 
-`install.sh` accepts 24 or 26 since then — that part is done, and it is what
-an archive without a runtime takes from the machine. **What is left is what
-ships**: the image, the archive's bundled runtime, the workflows and the
-manifests are still 24, and they should stay there until 26 is actually LTS
-in October 2026. Nothing forces the move before that; Node 24 is supported
-until 2028.
+What an archive accepts is no longer a sentence in `install.sh`. v3.9.3
+widened it to "24 or 26" from what the modules publish on npm, which is a
+different question from what one archive carries: `npm ci` resolves a single
+SQLite prebuild, for the major that ran it, and the other major refuses it
+with `NODE_MODULE_VERSION` seconds after the service starts. Reported from a
+VM in [#9](https://github.com/cerede2000/NextExplorer/issues/9). The build
+writes `NODE_MAJORS` into the archive now and the installer reads it, so the
+promise and the bytes cannot disagree.
+
+**What is left is what ships**: the image, the archive's bundled runtime, the
+workflows and the manifests are still 24, and they should stay there until 26
+is actually LTS in October 2026. Nothing forces the move before that; Node 24
+is supported until 2028.
 
 **When October comes**, it is one commit, and the test names what it misses:
 `backend/tests/scripts/node-version-pinned.test.js` takes the major from the
@@ -627,6 +634,60 @@ Two things to check rather than assume on the way:
   written when this repository was worked on from a machine running it. Node
   26's behaviour there is worth looking at before assuming the shim is still
   needed — or still enough.
+
+## What the search work of 20 September 2026 did, and what it left
+
+Reported in [#11](https://github.com/cerede2000/NextExplorer/issues/11) as a
+search that returns by timing out, from an instance with a hundred thousand
+documents indexed on an SMB mount and a file it could not find by typing its
+name.
+
+**The index answered contents and never names.** Filename search enumerated the
+whole tree on every request, which is invisible on a local disk — fifty
+thousand files answer in 143 ms — and is the entire cost on a network share,
+one round trip per directory. Every file and folder has a row now, and a name
+search reads it: at half a million rows a name that matches nothing takes about
+40 ms. Measured on twenty thousand files, the pass costs 2% more wall time,
+239 bytes of index per row and 6 MB of peak memory, and the pacing is
+untouched.
+
+Settled on the way, each with its own tests:
+
+- four folder names an editor skips — `.git`, `node_modules`, `dist`, `build` —
+  were hard-coded in the search _and_ in the indexer, so a folder somebody
+  called `build` was unsearchable by name and by content;
+- names are compared composed and lowercased, so `Résumé` finds a file a Mac
+  wrote decomposed;
+- a search inside a shared link answered nothing whenever the index was on: a
+  share resolves inside the volume under another name, and the index was asked
+  about a base it had never heard of — true for contents since the index
+  existed;
+- results are ordered: names by how close they are, contents by BM25 and then
+  by path, which is what makes a folder's files arrive together;
+- the answer says whether it was cut short and whether a full page is only the
+  first of them, both of which the server had always known and never sent;
+- three characters minimum, and the term is a prefix, so `azul` finds `azules`
+  where it used to find nothing at all.
+
+### Left open, with what decided it
+
+- **Reaching the middle of a word through the index.** `ules` finds `azules`
+  when the files are read and never when the index answers. Closing it means
+  indexing every three-letter sequence instead of every word: measured at
+  **11.3× the index and 4.5× the write** on three thousand documents. Not for
+  this.
+- **A share and a personal folder still walk the storage.** They resolve inside
+  the volume under a name the index does not use, so the fix that made them
+  correct sent them back to reading the tree — which is the cost this whole
+  section removed everywhere else. Translating the base and rewriting the paths
+  back is the shape of it, and it is where a leak would hide.
+- **Nothing reaches past five hundred results.** Three steps ask for more; past
+  that the answer is to narrow the search. A cursor would need a stable total
+  order, which now exists, and a generator held open between requests, which is
+  what was refused.
+- **A one-row-per-folder catalogue is not a file listing.** Excluded folders,
+  dot-folders and `_users` are not in it by design, so a reader who has asked
+  to see hidden files is served by the walk.
 
 ## Open, not scheduled
 
