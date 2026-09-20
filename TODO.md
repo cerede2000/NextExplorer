@@ -630,6 +630,19 @@ Two things to check rather than assume on the way:
 
 ## Open, not scheduled
 
+- **Serve HTTPS from a certificate somebody already has** — `TLS_CERT` and
+  `TLS_KEY`, two paths, the way Quantum takes `tlsCert`/`tlsKey` and filebrowser
+  takes `--cert`/`--key`. Asked for in [#13](https://github.com/cerede2000/NextExplorer/issues/13),
+  where what was wanted was a certificate this application generates for itself;
+  that part is refused and the issue is closed. Nextcloud does not terminate TLS
+  at all, and neither of the two above generates anything, so accepting a pair of
+  paths is the whole of what the neighbours do.
+  The catch to answer before writing it: a Let's Encrypt certificate is renewed
+  every sixty days, and a process that read the file at boot goes on serving the
+  old one until it restarts — Quantum and filebrowser both have that defect. So
+  it is either watching the two files, or a reverse proxy, which is what the
+  documentation says today and what handles redirection from port 80, HTTP/2 and
+  renewal anyway.
 - **The weekly image cleanup deletes nothing until `d42ff55` is on `main`.**
   `PACKAGE_CLEANUP_TOKEN` is set since 15 September 2026, and a dry run lists
   1,355 of 1,387 versions to remove, keeping the two latest releases. But a
