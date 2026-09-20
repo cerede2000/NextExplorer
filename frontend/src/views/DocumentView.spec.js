@@ -95,12 +95,19 @@ const show = async (path = 'Docs/report.docx') => {
  * what decides whether the fallback runs.
  */
 let closed = true;
+/** How many entries this tab's history holds; one means it is dedicated. */
+let historyLength = 1;
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(window, 'close').mockImplementation(() => {});
   Object.defineProperty(window, 'closed', { configurable: true, get: () => closed });
+  Object.defineProperty(window.history, 'length', {
+    configurable: true,
+    get: () => historyLength,
+  });
   closed = true;
+  historyLength = 1;
   replace.mockClear();
   open.mockClear();
   open.mockReturnValue(true);
@@ -231,6 +238,26 @@ describe('opening a document at its own address', () => {
     await vi.advanceTimersByTimeAsync(200);
 
     expect(replace).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  // The tab somebody opened the whole application in is also "created by web
+  // content". Closing it because they shut a document would take the rest of
+  // their session with it, so a tab that has been anywhere else is navigated
+  // rather than closed.
+  it('goes to the folder when the tab has been somewhere else', async () => {
+    historyLength = 4;
+    previewManager.isOpen = true;
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    previewManager.isOpen = false;
+    await flushPromises();
+
+    expect(window.close).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalledWith({
+      path: '/browse/Docs/Reports',
+      query: { select: 'report.docx' },
+    });
     wrapper.unmount();
   });
 

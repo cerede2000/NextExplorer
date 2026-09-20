@@ -86,7 +86,25 @@ const leave = () => {
  * waits a moment rather than racing it.
  */
 const CLOSE_REFUSED_AFTER_MS = 150;
+
+/**
+ * Whether this tab has only ever shown this document.
+ *
+ * The guard matters more than it looks. "Created by web content" is also true
+ * of the tab somebody opened the whole application in by following a link, and
+ * closing that one because they shut a document would take the rest of their
+ * session with it. A single history entry says the tab was opened for this and
+ * nothing else — which is exactly the case the button is being fixed for, and
+ * is the other condition the standard gives for closing.
+ */
+const tabIsThisDocument = () => window.history.length === 1;
+
 const closeTabOrLeave = () => {
+  if (!tabIsThisDocument()) {
+    leave();
+    return;
+  }
+
   window.close();
   setTimeout(() => {
     if (!window.closed) leave();

@@ -148,7 +148,23 @@ const type = async (view, text) => {
   await flushPromises();
 };
 
+/**
+ * How many entries this tab's history holds.
+ *
+ * One means the tab was opened for this file and nothing else, which is when
+ * closing it is the right way out. Everything below reaches the editor from
+ * somewhere else in the application, so the default here is a tab that has
+ * been around.
+ */
+let historyLength = 3;
+
 beforeEach(() => {
+  Object.defineProperty(window.history, 'length', {
+    configurable: true,
+    get: () => historyLength,
+  });
+  historyLength = 3;
+  vi.spyOn(window, 'close').mockImplementation(() => {});
   localStorage.clear();
   surface.view = { dispatch: vi.fn() };
   surface.current = null;
@@ -176,6 +192,9 @@ beforeEach(() => {
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  // Without this the spy on `window.close` wraps the previous one and keeps
+  // its calls, so a test that must not close sees the call of the one before.
+  vi.restoreAllMocks();
 });
 
 describe('opening a file', () => {
@@ -405,6 +424,33 @@ describe('saving', () => {
 });
 
 describe('leaving the editor', () => {
+  /**
+   * The preference that opens documents in their own tab sends editable files
+   * here too, and leaving used to turn that tab into a second explorer — two
+   * identical tabs and nothing to tell them apart (nxzai#303).
+   */
+  it('closes a tab that was opened for this file alone', async () => {
+    historyLength = 1;
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(window.close).toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  // The tab somebody opened the whole application in is also "created by web
+  // content"; closing it because they shut one file would take their session
+  // with it.
+  it('does not close a tab that has been somewhere else', async () => {
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(window.close).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
+  });
+
   it('goes back to the folder the file lives in', async () => {
     const view = await mountEditor();
 

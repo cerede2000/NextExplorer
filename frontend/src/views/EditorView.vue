@@ -485,6 +485,30 @@ const requestClose = () => {
   )
     return;
 
+  // A tab opened for this file alone is closed rather than sent somewhere: the
+  // preference that opens documents in their own tab sends editable files here
+  // too, and leaving used to turn the tab into a second explorer (nxzai#303).
+  //
+  // A single history entry is what says the tab was opened for this and
+  // nothing else — the tab somebody opened the whole application in is also
+  // "created by web content", and closing that because they shut a file would
+  // take the rest of their session with it. Closing is asynchronous, so the
+  // ordinary way out still runs if the browser refuses.
+  if (window.history.length === 1) {
+    window.close();
+    setTimeout(() => {
+      if (!window.closed) leaveTheOrdinaryWay();
+    }, CLOSE_REFUSED_AFTER_MS);
+    return;
+  }
+
+  leaveTheOrdinaryWay();
+};
+
+const CLOSE_REFUSED_AFTER_MS = 150;
+
+/** Where closing lands when this tab has somewhere to go back to. */
+const leaveTheOrdinaryWay = () => {
   if (isSharedEditor.value) {
     router.replace(`/share/${encodeURIComponent(sharedToken.value)}`);
     return;
