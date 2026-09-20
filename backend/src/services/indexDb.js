@@ -5,7 +5,7 @@ const Database = require('better-sqlite3');
 const { directories } = require('../config');
 const logger = require('../utils/logger');
 const databaseMaintenance = require('./databaseMaintenance');
-const { SEARCH_INDEX_DDL } = require('./searchIndexStore');
+const { SEARCH_INDEX_DDL, ensureNameColumn } = require('./searchIndexStore');
 
 /**
  * The indexes, in a database of their own under the cache directory.
@@ -106,6 +106,10 @@ const createIndexSchema = (db) => {
   const { FOLDER_SIZE_INDEX_DDL } = require('./db');
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)');
   db.exec(SEARCH_INDEX_DDL);
+  // An index written before names were kept gets the column and has it filled
+  // from the paths it already holds. No file is reopened for it, and the rows
+  // it never had are what the next pass is for.
+  ensureNameColumn(db);
   db.exec(FOLDER_SIZE_INDEX_DDL);
 };
 

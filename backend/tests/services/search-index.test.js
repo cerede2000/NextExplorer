@@ -223,7 +223,10 @@ describe('what it leaves out', () => {
     await indexAll();
 
     expect(store.search(db, 'pangolin')).toEqual(['Docs/text.txt']);
+    // No words taken from it, and a row all the same: the catalogue is what
+    // lets somebody find `blob.dat` by typing its name.
     expect(store.stats(db).documents).toBe(1);
+    expect(store.stats(db).files).toBe(2);
   });
 });
 

@@ -273,6 +273,128 @@ async function* streamFileListMatches(
   }
 }
 
+/**
+ * The folder in front of the reader, read from the storage.
+ *
+ * The catalogue is as fresh as the last pass, and a file somebody dropped on a
+ * share a minute ago is not in it yet. It is also, almost always, in the
+ * folder they are looking at — so that one directory is read directly, which
+ * is a single round trip even over SMB, and the rest comes from the
+ * catalogue. Without this, searching for what you just put down would answer
+ * nothing until the next reconcile.
+ */
+async function* streamShallowNameMatches(
+  baseAbsPath,
+  relBasePath,
+  matcher,
+  seenPaths,
+  shouldInclude,
+  includeHiddenFiles
+) {
+  let entries;
+  try {
+    entries = await fs.readdir(baseAbsPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (shouldIgnore(entry.name, includeHiddenFiles)) continue;
+
+    const rel = relBasePath ? `${relBasePath}/${entry.name}` : entry.name;
+    // Asked the way the walk asks it: a folder answers for its own name, a
+    // file for its path, which is the difference a pattern spanning folders
+    // depends on.
+    const isDirectory = entry.isDirectory();
+    if (!(isDirectory ? matcher.matchesName(entry.name) : matcher.matchesRelativePath(rel))) {
+      continue;
+    }
+
+    if (seenPaths.has(rel)) continue;
+    seenPaths.add(rel);
+    if (await shouldInclude(rel)) {
+      yield formatResult(rel, isDirectory ? 'dir' : 'file');
+    }
+  }
+}
+
+/**
+ * Names, from the catalogue instead of from a walk.
+ *
+ * This is the half of search the index never answered. Content stopped being
+ * read from the storage the day the index arrived; names went on enumerating
+ * the whole tree on every keystroke, which is free on a local disk and is the
+ * entire cost on a network share — one round trip per directory, a budget
+ * spent before the answer.
+ *
+ * Two queries rather than one, because a folder called `build` is a match for
+ * `build` while nothing inside it is, and the rows for its files would narrow
+ * it away.
+ *
+ * Neither loop keeps the statement open across a permission check: the rows
+ * are read to the end first, bounded by what a page could possibly need, and
+ * only then handed out. Holding a read open across an await is how a scan
+ * keeps a checkpoint waiting.
+ */
+async function* streamIndexNameMatches(
+  baseAbsPath,
+  relBasePath,
+  matcher,
+  seenPaths,
+  dirSet,
+  shouldInclude,
+  includeHiddenFiles,
+  limit
+) {
+  yield* streamShallowNameMatches(
+    baseAbsPath,
+    relBasePath,
+    matcher,
+    seenPaths,
+    shouldInclude,
+    includeHiddenFiles
+  );
+
+  let db;
+  try {
+    db = await getIndexDb();
+  } catch (error) {
+    logger.debug({ err: error }, 'Name catalogue unavailable; nothing more to add');
+    return;
+  }
+
+  // Over-fetch, as the content side does: the catalogue does not know who may
+  // read what, so permissions take some of this away afterwards.
+  const ceiling = Math.max(limit * 3, 50);
+  const literal = matcher.literal || '';
+
+  const folders = [];
+  for (const dir of searchIndexStore.iterateDirCandidates(db, { base: relBasePath, literal })) {
+    for (const dirPath of extractDirMatches(`${dir}/.`, matcher, includeHiddenFiles)) {
+      if (dirSet.has(dirPath) || seenPaths.has(dirPath)) continue;
+      dirSet.add(dirPath);
+      seenPaths.add(dirPath);
+      folders.push(dirPath);
+    }
+    if (folders.length >= ceiling) break;
+  }
+  for (const dirPath of folders) {
+    if (await shouldInclude(dirPath)) yield formatResult(dirPath, 'dir');
+  }
+
+  const files = [];
+  for (const rel of searchIndexStore.iterateNameCandidates(db, { base: relBasePath, literal })) {
+    if (seenPaths.has(rel)) continue;
+    if (!matcher.matchesRelativePath(rel)) continue;
+    seenPaths.add(rel);
+    files.push(rel);
+    if (files.length >= ceiling) break;
+  }
+  for (const rel of files) {
+    if (await shouldInclude(rel)) yield formatResult(rel, 'file');
+  }
+}
+
 // Optimized: Stream content matches with JSON output (Optimization #1 & #2)
 async function* streamContentMatches(
   baseAbsPath,
@@ -573,35 +695,47 @@ async function* generateRipgrepResults(
   shouldInclude,
   deep = true,
   includeHiddenFiles = false,
-  { useIndex = false, limit = 100, onContentSources, onContentSourceDone } = {}
+  {
+    useIndex = false,
+    useNameIndex = false,
+    limit = 100,
+    onContentSources,
+    onContentSourceDone,
+  } = {}
 ) {
   const matcher = parseSearchTerm(term);
   const seenPaths = new Set();
   const dirSet = new Set();
 
+  const names = () =>
+    useNameIndex
+      ? streamIndexNameMatches(
+          baseAbsPath,
+          relBasePath,
+          matcher,
+          seenPaths,
+          dirSet,
+          shouldInclude,
+          includeHiddenFiles,
+          limit
+        )
+      : streamFileListMatches(
+          baseAbsPath,
+          relBasePath,
+          matcher,
+          seenPaths,
+          dirSet,
+          shouldInclude,
+          includeHiddenFiles
+        );
+
   if (!deep) {
     // If no deep search, only run file list matches
-    yield* streamFileListMatches(
-      baseAbsPath,
-      relBasePath,
-      matcher,
-      seenPaths,
-      dirSet,
-      shouldInclude,
-      includeHiddenFiles
-    );
+    yield* names();
     return;
   }
 
-  const fileListGen = streamFileListMatches(
-    baseAbsPath,
-    relBasePath,
-    matcher,
-    seenPaths,
-    dirSet,
-    shouldInclude,
-    includeHiddenFiles
-  );
+  const fileListGen = names();
   // With an index in place the live content scan is not run at all: doing both
   // would be exactly the cost an index exists to remove.
   const contentGen = useIndex
@@ -659,9 +793,10 @@ async function* generateFallbackResults(
   shouldInclude,
   deep = true,
   includeHiddenFiles = false,
-  { useIndex = false, limit = 100 } = {}
+  { useIndex = false, useNameIndex = false, limit = 100 } = {}
 ) {
   const seenPaths = new Set();
+  const dirSet = new Set();
   const matcher = parseSearchTerm(term);
   const needle = matcher.needle;
   const readsFileContents = deep && matcher.readsFileContents;
@@ -730,15 +865,34 @@ async function* generateFallbackResults(
 
   // With an index in place the walk stops reading files: it looks at names,
   // and the index answers for what is inside them.
+  // Where the walk would only be reading names — because contents come from
+  // the index, or because a pattern describes names and nothing else — the
+  // catalogue answers instead and the storage is left alone. Where contents
+  // have to be read the tree is walked anyway, so names ride along with it as
+  // they always have.
+  const names = () =>
+    useNameIndex && !readsFileContents
+      ? streamIndexNameMatches(
+          baseAbsPath,
+          relBasePath,
+          matcher,
+          seenPaths,
+          dirSet,
+          shouldInclude,
+          includeHiddenFiles,
+          limit
+        )
+      : walk(baseAbsPath, relBasePath);
+
   if (useIndex && !matcher.isGlob) {
     yield* mergeResults(
-      walk(baseAbsPath, relBasePath),
+      names(),
       streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit)
     );
     return;
   }
 
-  yield* walk(baseAbsPath, relBasePath);
+  yield* names();
 }
 
 router.get(
@@ -816,16 +970,31 @@ router.get(
     // answers with the part of the volume it happens to have read — a term
     // found yesterday goes missing today, with nothing in the answer to say
     // why. Reading the tree meanwhile is slower and right.
-    const indexReady = await (async () => {
-      if (!(deepEnabled && searchConfig?.index?.enabled === true)) return false;
+    //
+    // Content and names are asked separately, because they are not the same
+    // question. Reading inside files is what `SEARCH_DEEP` turns off, and a
+    // name search has never been deep — so the catalogue answers names whether
+    // that setting is on or not. Hidden entries are the one thing it cannot
+    // answer for: the pass does not walk into dot-folders, so a reader who has
+    // asked to see hidden files is served by the walk, as before.
+    const indexState = await (async () => {
+      const off = { content: false, names: false };
+      if (searchConfig?.index?.enabled !== true) return off;
       try {
-        return searchIndexStore.isReady(await getIndexDb());
+        const db = await getIndexDb();
+        if (!searchIndexStore.isReady(db)) return off;
+        return {
+          content: deepEnabled,
+          names: searchIndexStore.hasNameCatalogue(db) && !includeHiddenFiles,
+        };
       } catch {
-        return false;
+        return off;
       }
     })();
 
-    const useIndex = indexReady && baseAbs.startsWith(directories.volume);
+    const insideVolume = baseAbs.startsWith(directories.volume);
+    const useIndex = indexState.content && insideVolume;
+    const useNameIndex = indexState.names && insideVolume;
 
     // Nothing can produce a content match once every content source has
     // finished, and that is the moment a reserve stops being worth waiting for.
@@ -841,6 +1010,7 @@ router.get(
           includeHiddenFiles,
           {
             useIndex,
+            useNameIndex,
             limit,
             onContentSources: (count) => {
               contentSourcesLeft = count;
@@ -859,7 +1029,7 @@ router.get(
           shouldInclude,
           deepEnabled && !useIndex,
           includeHiddenFiles,
-          { useIndex, limit }
+          { useIndex, useNameIndex, limit }
         );
 
     // Counted apart and only put together at the end: sharing one running

@@ -44,12 +44,30 @@ const toRegExp = (pattern) =>
     'i'
   );
 
+/**
+ * The longest stretch of a pattern that is ordinary characters.
+ *
+ * It is what an index can narrow on before the matcher decides: no name
+ * matching `*.log` can fail to contain `.log`. Taken from the last segment
+ * only, because that is the one compared against a file's own name — a
+ * literal picked from `Stacks/*` would be looked for in a name that never
+ * holds it.
+ */
+const literalOf = (pattern) => {
+  const lastSegment = pattern.slice(pattern.lastIndexOf('/') + 1);
+  const runs = lastSegment.split(/[*?]/).filter(Boolean);
+  const longest = runs.reduce((best, run) => (run.length > best.length ? run : best), '');
+  return same(longest).toLowerCase();
+};
+
 const textTerm = (text) => {
   const needle = same(text).toLowerCase();
   const contains = (value) => same(value).toLowerCase().includes(needle);
 
   return {
     isGlob: false,
+    // A typed word narrows on itself, whole.
+    literal: needle,
     // Text is looked for inside files as well as in their names.
     readsFileContents: true,
     text,
@@ -68,6 +86,7 @@ const globTerm = (text) => {
 
   return {
     isGlob: true,
+    literal: literalOf(text),
     // A pattern is a shape for names; there is nothing to look for inside a
     // file, and looking is what cost the whole budget.
     readsFileContents: false,
@@ -84,6 +103,7 @@ const globTerm = (text) => {
 /**
  * @param {string} raw what the user typed
  * @returns {{isGlob: boolean, readsFileContents: boolean, text: string, needle: string,
+ *   literal: string,
  *   matchesName: (name: string) => boolean,
  *   matchesRelativePath: (rel: string) => boolean}}
  */

@@ -31,7 +31,19 @@ const { containerMemoryLimitBytes } = require('../utils/containerMemory');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.cache']);
+/**
+ * Folders the pass does not walk into.
+ *
+ * Dot-folders only, and for one reason each: the application keeps its trash
+ * and its file versions in one of them, and the rest are somebody's hidden
+ * things, which the search refuses to show unless they asked. `.git`,
+ * `node_modules`, `dist` and `build` used to be here too — an editor's habits
+ * in a file server, where those are ordinary folder names somebody may have a
+ * year of work in, and nothing that decides what is not worth finding belongs
+ * in the source (#11). The administrator's exclusion list is where that is
+ * said.
+ */
+const isSkippedDirectoryName = (name) => name.startsWith('.');
 
 /**
  * How much of one document is worth indexing, and how much may be held at once.
@@ -423,7 +435,7 @@ const indexTree = async ({
     for (const entry of entries) {
       throwIfAborted();
 
-      if (entry.name.startsWith('.') || IGNORED_DIRECTORIES.has(entry.name)) continue;
+      if (isSkippedDirectoryName(entry.name)) continue;
 
       const absolutePath = path.join(dirAbs, entry.name);
       const relativePath = dirRel ? `${dirRel}/${entry.name}` : entry.name;
@@ -438,7 +450,6 @@ const indexTree = async ({
 
       const stats = await fs.stat(absolutePath).catch(() => null);
       if (!stats) continue;
-      if (maxFileSizeBytes && stats.size > maxFileSizeBytes) continue;
 
       seenHere.add(relativePath);
 
@@ -481,17 +492,22 @@ const indexTree = async ({
         }
       }
 
-      const text = await readIndexableText(absolutePath, stats.size, scratch);
-      if (text === null || !text.trim()) continue;
+      // The size bound is on reading a file, not on knowing it is there. A
+      // two-gigabyte recording has no words worth keeping and a name somebody
+      // will look for, and the row costs what the stat above already paid.
+      const tooLargeToRead = maxFileSizeBytes && stats.size > maxFileSizeBytes;
+      const text = tooLargeToRead
+        ? null
+        : await readIndexableText(absolutePath, stats.size, scratch);
+      const indexable = text === null || !text.trim() ? null : capText(text);
 
-      const indexable = capText(text);
       pending.push({
         path: relativePath,
         mtimeMs: stats.mtimeMs,
         size: stats.size,
         text: indexable,
       });
-      pendingBytes += indexable.length;
+      pendingBytes += indexable ? indexable.length : 0;
 
       // Whichever ceiling is reached first. The byte one is what keeps a
       // handful of large documents from being held together.
@@ -564,29 +580,22 @@ const indexFile = async (db, relativePath, absolutePath) => {
     return { removed: true };
   }
 
-  const maxBytes = searchConfig?.maxFileSizeBytes ?? 0;
-  if (maxBytes && stats.size > maxBytes) {
-    store.removeDocument(db, relativePath);
-    return { skipped: true };
-  }
-
   if (store.isUpToDate(store.getIndexedDocument(db, relativePath), stats)) {
     return { unchanged: true };
   }
 
-  const text = await readIndexableText(absolutePath, stats.size);
-  if (text === null || !text.trim()) {
-    store.removeDocument(db, relativePath);
-    return { skipped: true };
-  }
+  const maxBytes = searchConfig?.maxFileSizeBytes ?? 0;
+  const text =
+    maxBytes && stats.size > maxBytes ? null : await readIndexableText(absolutePath, stats.size);
+  const indexable = text === null || !text.trim() ? null : capText(text);
 
   store.upsertDocument(db, {
     path: relativePath,
     mtimeMs: stats.mtimeMs,
     size: stats.size,
-    text: capText(text),
+    text: indexable,
   });
-  return { indexed: true };
+  return indexable ? { indexed: true } : { catalogued: true };
 };
 
 module.exports = { indexTree, indexFile, readIndexableText };

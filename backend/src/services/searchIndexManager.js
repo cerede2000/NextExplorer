@@ -187,7 +187,7 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
         excluded: exclusions.effectivePaths(),
         reason,
         ms: Date.now() - startedAt,
-        documents: store.stats(db).documents,
+        ...store.stats(db),
         ready: store.isReady(db),
       },
       'Search index updated'
@@ -369,7 +369,7 @@ const status = async () => {
       ...store.stats(db),
     };
   } catch {
-    return { enabled: true, running, pending: pending.length, dropped, documents: 0 };
+    return { enabled: true, running, pending: pending.length, dropped, files: 0, documents: 0 };
   }
 };
 
