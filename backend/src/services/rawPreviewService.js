@@ -1,6 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { directories } = require('../config/index');
@@ -18,13 +19,73 @@ let exiftoolSingleton = null;
 let exiftoolCleanupRegistered = false;
 
 /**
+ * Where the machine keeps an ExifTool it installed itself.
+ *
+ * Absolute paths and not `PATH`, for the reason `ffmpegRunner` gives about its
+ * own two: the PATH a service inherits is whatever started it, and a file
+ * manager running as root should not be picking its tools out of that. These
+ * are where `apt`, `dnf` and Homebrew put it.
+ */
+const EXIFTOOL_CANDIDATES = [
+  '/usr/bin/exiftool',
+  '/usr/local/bin/exiftool',
+  '/opt/homebrew/bin/exiftool',
+];
+
+/** Whether a path is there and can be run. */
+const canRun = (candidate) => {
+  try {
+    fsSync.accessSync(candidate, fsSync.constants.X_OK);
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+/** Whether the 21 MB of Perl travelled with this copy of the application. */
+const hasVendoredExiftool = () => {
+  try {
+    require.resolve('exiftool-vendored.pl');
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+/**
+ * Which ExifTool to run, or the empty string for the one the package brought.
+ *
+ * Separated from the probing so the decision can be read and tested on its
+ * own: it is three rules and the order between them is the whole of it.
+ *
+ * @param {object} options
+ * @param {string} options.named       what `EXIFTOOL_PATH` says, trimmed
+ * @param {boolean} options.vendored   whether the bundled Perl is installed
+ * @param {string[]} options.candidates where a distribution would have put one
+ * @param {(path: string) => boolean} options.runnable
+ * @returns {string} a path, or '' to mean "the one in the package"
+ */
+const chooseExiftoolPath = ({ named, vendored, candidates, runnable }) => {
+  if (named) return named;
+  // The bundled copy is the tested one, so it wins whenever it is there.
+  if (vendored) return '';
+  return candidates.find((candidate) => runnable(candidate)) || '';
+};
+
+/**
  * ExifTool, from the archive or from the machine.
  *
  * `exiftool-vendored` brings its own copy, which is the right default: it is
  * one dependency less to explain, and the version is the one this was tested
- * against. It is also 23 MB of Perl, and somebody running the program outside
+ * against. It is also 21 MB of Perl, and somebody running the program outside
  * a container may well have ExifTool already and would rather not carry a
- * second one (#9). `EXIFTOOL_PATH` points at theirs.
+ * second one (#9). The minimal archive leaves it out for exactly that reason.
+ *
+ * So three answers, in order: `EXIFTOOL_PATH` when it is set, the vendored copy
+ * when it travelled, and otherwise the one this machine installed. That last
+ * step is what an archive without the Perl needs, and it means `apt install
+ * libimage-exiftool-perl` is the whole of the configuration rather than a
+ * package plus a variable nobody was told about.
  *
  * Nothing else changes: the same library drives it, and a path that turns out
  * not to be ExifTool fails the way a missing one does — no RAW metadata, and
@@ -34,10 +95,20 @@ const loadExiftool = () => {
   if (exiftoolSingleton) return exiftoolSingleton;
   try {
     const vendored = require('exiftool-vendored');
-    const chosen = typeof env.EXIFTOOL_PATH === 'string' ? env.EXIFTOOL_PATH.trim() : '';
+    const named = typeof env.EXIFTOOL_PATH === 'string' ? env.EXIFTOOL_PATH.trim() : '';
+    const chosen = chooseExiftoolPath({
+      named,
+      vendored: hasVendoredExiftool(),
+      candidates: EXIFTOOL_CANDIDATES,
+      runnable: canRun,
+    });
+
     if (chosen) {
       exiftoolSingleton = new vendored.ExifTool({ exiftoolPath: chosen });
-      logger.info({ exiftoolPath: chosen }, 'Using the ExifTool this machine provides');
+      logger.info(
+        { exiftoolPath: chosen, named: Boolean(named) },
+        'Using the ExifTool this machine provides'
+      );
     } else {
       exiftoolSingleton = vendored.exiftool;
     }
@@ -329,4 +400,8 @@ module.exports = {
   // Exported for the tests: the cleanup is otherwise reached only through its timer.
   cleanupRawPreviewCache,
   stopRawPreviewWork,
+  // And this one because it is a decision rather than an effect: three rules
+  // and the order between them, worth reading on its own.
+  chooseExiftoolPath,
+  EXIFTOOL_CANDIDATES,
 };

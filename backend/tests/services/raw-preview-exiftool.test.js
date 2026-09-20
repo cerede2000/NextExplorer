@@ -3,7 +3,14 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { createRequire } from 'node:module';
 import { substituteModule } from '../helpers/substitute-module.js';
+
+// The decision below is a pure function on the service; requiring it here
+// rather than through the env harness keeps these cases free of a filesystem.
+const { chooseExiftoolPath, EXIFTOOL_CANDIDATES } = createRequire(import.meta.url)(
+  '../../src/services/rawPreviewService.js'
+);
 
 /**
  * Which ExifTool reads a RAW file.
@@ -110,5 +117,59 @@ describe('which ExifTool reads a RAW file', () => {
     // choose, not somebody who chose the empty path.
     expect(fake.built).toEqual([]);
     expect(fake.asked).toContain('bundled');
+  });
+});
+
+/**
+ * And which one it settles on when nobody said.
+ *
+ * The minimal archive leaves the 21 MB of Perl behind so a distribution can
+ * supply it, and until now that meant `apt install libimage-exiftool-perl`
+ * plus a variable nobody was told about (#9). The rule is read here on its
+ * own, because the probing around it is filesystem and the order is the part
+ * that can be wrong.
+ */
+describe('choosing an ExifTool when nothing named one', () => {
+  const choose = ({ named = '', vendored = false, present = [] } = {}) =>
+    chooseExiftoolPath({
+      named,
+      vendored,
+      candidates: EXIFTOOL_CANDIDATES,
+      runnable: (candidate) => present.includes(candidate),
+    });
+
+  it('takes what EXIFTOOL_PATH names, before anything else', () => {
+    expect(
+      choose({ named: '/opt/mine/exiftool', vendored: true, present: ['/usr/bin/exiftool'] })
+    ).toBe('/opt/mine/exiftool');
+  });
+
+  it('keeps the bundled one when it travelled', () => {
+    // The tested version, and the one the full archive carries: a machine that
+    // also has its own does not get quietly switched to it.
+    expect(choose({ vendored: true, present: ['/usr/bin/exiftool'] })).toBe('');
+  });
+
+  it("falls to the machine's own when the bundled one is not there", () => {
+    expect(choose({ vendored: false, present: ['/usr/bin/exiftool'] })).toBe('/usr/bin/exiftool');
+  });
+
+  it('prefers the first candidate over a later one', () => {
+    expect(
+      choose({ vendored: false, present: ['/usr/local/bin/exiftool', '/usr/bin/exiftool'] })
+    ).toBe('/usr/bin/exiftool');
+  });
+
+  it('says nothing rather than something wrong when there is none', () => {
+    // The caller then has no ExifTool, which is a supported state: no RAW
+    // metadata, and everything else carries on.
+    expect(choose({ vendored: false, present: [] })).toBe('');
+  });
+
+  it('looks where a distribution puts it, and not on PATH', () => {
+    // The PATH a service inherits is whatever started it, and this one may be
+    // running as root — the same reason ffmpegRunner resolves absolute paths.
+    expect(EXIFTOOL_CANDIDATES.every((candidate) => candidate.startsWith('/'))).toBe(true);
+    expect(EXIFTOOL_CANDIDATES).toContain('/usr/bin/exiftool');
   });
 });
