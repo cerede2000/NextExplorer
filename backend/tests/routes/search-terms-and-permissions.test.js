@@ -160,3 +160,56 @@ describe('what the catalogue may not reveal', () => {
     expect(await search('Prive')).toEqual([]);
   });
 });
+
+describe('a term too short to be worth answering', () => {
+  // One or two characters describe most of a volume. The catalogue would
+  // answer — a scan is a scan — with the first hundred rows that happen to
+  // hold the letter, which is not something anybody asked for; the walk reads
+  // the whole storage to say the same.
+  it('refuses fewer than three characters', async () => {
+    await seed();
+
+    for (const term of ['a', 'ab']) {
+      const response = await request(buildApp()).get('/api/search').query({ q: term });
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it('answers three', async () => {
+    const volume = await seed();
+    await fs.mkdir(path.join(volume, 'Docs'), { recursive: true });
+    await fs.writeFile(path.join(volume, 'Docs', 'abc-rapport.txt'), 'x');
+    await buildIndex();
+
+    expect(await search('abc')).toEqual(['Docs/abc-rapport.txt']);
+  });
+});
+
+describe('a word the reader has only begun to type', () => {
+  /**
+   * FTS5 matches whole words. Searching `azul` found nothing at all while
+   * `azules` found the document holding it — the index and the live scan
+   * answering two different questions from the same box, and the shorter term
+   * being the one that failed, which reads as the search being broken.
+   */
+  const withSpanish = async (env) => {
+    const volume = await seed(env);
+    await fs.mkdir(path.join(volume, 'Docs'), { recursive: true });
+    await fs.writeFile(path.join(volume, 'Docs', 'film.json'), '{"Title":"Los azules del mar"}');
+    return volume;
+  };
+
+  it('finds the word from its beginning, through the index', async () => {
+    await withSpanish();
+    await buildIndex();
+
+    expect(await search('azul')).toEqual(['Docs/film.json']);
+    expect(await search('azules')).toEqual(['Docs/film.json']);
+  });
+
+  it('finds it the same way without the index', async () => {
+    await withSpanish({ SEARCH_INDEX: 'false' });
+
+    expect(await search('azul')).toEqual(['Docs/film.json']);
+  });
+});

@@ -14,6 +14,9 @@ const router = useRouter();
 const items = ref([]);
 /** Why the answer is short of everything, or null when it is not. */
 const shortfall = ref(null);
+/** Whether what was asked for is too short to be worth sending. */
+const tooShort = ref(false);
+const MIN_TERM_LENGTH = 3;
 const loading = ref(false);
 const errorMsg = ref('');
 /**
@@ -45,10 +48,15 @@ async function load() {
   errorMsg.value = '';
   searched.value = false;
 
-  if (!term) {
+  // The server refuses fewer than three characters; said here rather than sent
+  // and bounced back as an error.
+  if (term.length < MIN_TERM_LENGTH) {
+    tooShort.value = term.length > 0;
     loading.value = false;
+    searched.value = term.length === 0 ? false : true;
     return;
   }
+  tooShort.value = false;
 
   loading.value = true;
   try {
@@ -138,6 +146,9 @@ function toIconItem(it) {
       {{ $t('search.searching') }}
     </div>
     <div v-else-if="errorMsg" class="text-sm text-red-600">{{ errorMsg }}</div>
+    <div v-else-if="tooShort" data-test="search-too-short" class="p-6 text-sm text-neutral-500">
+      {{ $t('search.tooShort', { count: MIN_TERM_LENGTH }) }}
+    </div>
     <div
       v-else-if="searched && items.length === 0"
       class="text-sm text-neutral-500 dark:text-neutral-400"

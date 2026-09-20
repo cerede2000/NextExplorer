@@ -237,7 +237,19 @@ const movePath = (db, fromPath, toPath) => {
  * expression.
  */
 const searchRanked = (db, term, limit = 100) => {
-  const quoted = `"${String(term).replace(/"/g, '""')}"`;
+  // Quoted, because somebody searching `NOT` or `a-b` is looking for those
+  // characters and not writing an expression. And with a trailing `*`, because
+  // FTS5 matches whole words and a reader types the beginning of one: a search
+  // for `azul` found nothing at all while `azules` found the document holding
+  // it, which is not a rule anybody could guess and reads as the search being
+  // broken. The star makes the last word of the term a prefix, which is what
+  // typing is.
+  //
+  // It does not reach the middle of a word — `ules` still will not find
+  // `azules` through the index, where a live scan would. Closing that means an
+  // index of every three-letter sequence instead of every word, which is a far
+  // larger thing and a decision of its own.
+  const quoted = `"${String(term).replace(/"/g, '""')}"*`;
   try {
     return prep(
       db,

@@ -270,7 +270,8 @@
     "matchedByContent": "contents",
     "matchedByBoth": "name and contents",
     "stoppedEarly": "Stopped at its time limit — this is what was found so far.",
-    "firstOnly": "First {count} results. Narrow the search to see more."
+    "firstOnly": "First {count} results. Narrow the search to see more.",
+    "tooShort": "Type at least {count} characters."
   },
   "user": {
     "account": "Account",

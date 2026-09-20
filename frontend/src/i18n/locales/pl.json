@@ -270,7 +270,8 @@
     "matchedByContent": "treść",
     "matchedByBoth": "nazwa i treść",
     "stoppedEarly": "Przerwano po upływie limitu czasu — oto, co udało się znaleźć.",
-    "firstOnly": "Pierwsze {count} wyników. Zawęź wyszukiwanie, aby zobaczyć więcej."
+    "firstOnly": "Pierwsze {count} wyników. Zawęź wyszukiwanie, aby zobaczyć więcej.",
+    "tooShort": "Wpisz co najmniej {count} znaki."
   },
   "user": {
     "account": "Konto",

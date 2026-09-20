@@ -58,6 +58,9 @@ let inFlight = null;
 
 /** Why the answer is short of everything, or null when it is not. */
 const shortfall = ref(null);
+/** Whether what was typed is too short to be worth sending. */
+const tooShort = ref(false);
+const MIN_TERM_LENGTH = 3;
 
 const performSearch = useDebounceFn(async () => {
   const term = query.value.trim();
@@ -69,12 +72,16 @@ const performSearch = useDebounceFn(async () => {
   errorMsg.value = '';
   activeIndex.value = -1;
 
-  if (!term) {
+  // Below this the server refuses, and rightly: one or two characters describe
+  // most of a volume. Said here rather than sent and bounced back.
+  if (term.length < MIN_TERM_LENGTH) {
     results.value = [];
     shortfall.value = null;
     pending.value = false;
+    tooShort.value = term.length > 0;
     return;
   }
+  tooShort.value = false;
 
   const controller = new AbortController();
   inFlight = controller;
@@ -308,6 +315,13 @@ onKeyStroke(
             <p class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
               {{ t('spotlight.hintPattern') }}
             </p>
+          </div>
+          <div
+            v-else-if="tooShort"
+            data-test="search-too-short"
+            class="px-4 py-6 text-sm text-neutral-500 dark:text-neutral-400"
+          >
+            {{ t('search.tooShort', { count: MIN_TERM_LENGTH }) }}
           </div>
           <div
             v-else-if="results.length === 0"

@@ -270,7 +270,8 @@
     "matchedByContent": "內容",
     "matchedByBoth": "檔名和內容",
     "stoppedEarly": "已達時間上限而停止 — 以下是已找到的內容。",
-    "firstOnly": "前 {count} 筆結果。縮小搜尋範圍可查看更多。"
+    "firstOnly": "前 {count} 筆結果。縮小搜尋範圍可查看更多。",
+    "tooShort": "請至少輸入 {count} 個字元。"
   },
   "user": {
     "account": "帳號",

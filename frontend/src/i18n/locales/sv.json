@@ -270,7 +270,8 @@
     "matchedByContent": "innehåll",
     "matchedByBoth": "namn och innehåll",
     "stoppedEarly": "Avbröts vid tidsgränsen — det här hittades.",
-    "firstOnly": "De första {count} träffarna. Avgränsa sökningen för att se fler."
+    "firstOnly": "De första {count} träffarna. Avgränsa sökningen för att se fler.",
+    "tooShort": "Skriv minst {count} tecken."
   },
   "user": {
     "account": "Konto",

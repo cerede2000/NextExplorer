@@ -36,6 +36,7 @@ const router = express.Router();
 
 // Constants
 const DEFAULT_LIMIT = 100;
+const MIN_TERM_LENGTH = 3;
 const MAX_LIMIT = 500;
 // Filenames lead — they are what someone looking for a file expects first —
 // but they cannot take the whole page from what is inside the documents.
@@ -902,6 +903,13 @@ router.get(
     const q = (req.query.q || '').trim();
     if (!q) {
       throw new ValidationError('Search term (q) is required.');
+    }
+    // One or two characters describe most of a volume. The catalogue answers
+    // them — a scan is a scan — but the answer is the first hundred rows that
+    // happen to hold the letter, which is not something anybody asked. The
+    // walk is worse: it reads the whole storage to say the same.
+    if (q.length < MIN_TERM_LENGTH) {
+      throw new ValidationError(`Search term must be at least ${MIN_TERM_LENGTH} characters.`);
     }
 
     const relBaseInput = normalizeRelativePath(req.query.path || '');

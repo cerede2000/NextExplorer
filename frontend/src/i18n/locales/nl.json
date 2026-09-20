@@ -270,7 +270,8 @@
     "matchedByContent": "inhoud",
     "matchedByBoth": "naam en inhoud",
     "stoppedEarly": "Gestopt bij de tijdslimiet — dit is wat tot nu toe is gevonden.",
-    "firstOnly": "De eerste {count} resultaten. Verfijn de zoekopdracht voor meer."
+    "firstOnly": "De eerste {count} resultaten. Verfijn de zoekopdracht voor meer.",
+    "tooShort": "Typ minstens {count} tekens."
   },
   "user": {
     "account": "Account",
