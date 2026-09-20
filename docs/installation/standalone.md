@@ -402,3 +402,32 @@ not a matter of effort.
 
 What the request was actually about — not being made to install Docker — is
 what this delivers, in one command, with the runtime included.
+
+## Which architectures, and why only those
+
+x86_64 and arm64, for the archives and for both images. Asked for regularly —
+armv6, armv7, riscv64 — and the answer is the same three native modules as
+above rather than a decision.
+
+An architecture needs four things to exist before a build can: an official Node
+release for it, and a published prebuild from each of the SQLite driver, the
+image processor and the terminal. Compiling them on the target is the one thing
+this archive promises never to do. Where that stood when this was last checked:
+
+|           | Node                       | SQLite driver | image processor  | terminal |
+| --------- | -------------------------- | ------------- | ---------------- | -------- |
+| `x86_64`  | yes                        | yes           | yes              | yes      |
+| `arm64`   | yes                        | yes           | yes              | yes      |
+| `armv7`   | **no, dropped in 24.0.0**  | yes           | glibc only       | yes      |
+| `armv6`   | **no**                     | **no**        | **no**           | **no**   |
+| `riscv64` | **unofficial builds only** | **no**        | yes, glibc 2.41+ | **no**   |
+
+Node published `linux-armv7l` up to and including 23.11.1 and stopped at 24.0.0,
+so the last line carrying it is 22 — which the installer refuses. The images add
+a condition of their own: they are built on Alpine, and the image processor
+publishes musl binaries for x64 and arm64 only, so 32-bit ARM could not be
+containerised even if Node returned.
+
+None of that is ours to fix, and all of it is checkable. If the four boxes fill
+for an architecture, say so on the issue tracker: the build already runs one job
+per architecture, so adding a row is the small part.
