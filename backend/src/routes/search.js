@@ -572,7 +572,7 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
     const db = await getIndexDb();
     // Over-fetch: permissions are applied after the query, since the index
     // does not know who may read what.
-    paths = searchIndexStore.search(db, term, Math.max(limit * 3, 50));
+    paths = searchIndexStore.searchRanked(db, term, Math.max(limit * 3, 50));
   } catch (error) {
     logger.debug({ err: error }, 'Search index query failed; falling back to reading as we go');
     return;
@@ -581,7 +581,7 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
   const needle = term.toLowerCase();
   const prefix = relBasePath ? `${relBasePath}/` : '';
 
-  for (const rel of paths) {
+  for (const { path: rel, score } of paths) {
     if (prefix && !rel.startsWith(prefix) && rel !== relBasePath) continue;
     if (seenPaths.has(rel)) continue;
 
@@ -609,7 +609,8 @@ async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, 
 
     seenPaths.add(rel);
     if (await shouldInclude(rel)) {
-      yield formatResult(rel, 'file', line, lineNumber);
+      // Carried so the page can be ordered, and dropped before it is sent.
+      yield { ...formatResult(rel, 'file', line, lineNumber), score };
     }
   }
 }
@@ -1116,13 +1117,35 @@ router.get(
     // match is the honest bound — a page is a page — and it is the difference
     // between `rapport.pdf` first and `vieux-rapport-2019-annexe.pdf` first.
     const matcher = parseSearchTerm(q);
+    const fullPath = (item) => (item.path ? `${item.path}/${item.name}` : item.name);
+
     items.sort((a, b) => {
       const byRank = matcher.rank(a.name) - matcher.rank(b.name);
       if (byRank) return byRank;
-      // Shorter names carry less that was not asked for. Then by name, so the
-      // same question is answered the same way twice.
+      // Shorter names carry less that was not asked for, then the name itself —
+      // and the path last, because two copies of one document in two folders
+      // are equal on every earlier test and would otherwise land in whatever
+      // order the catalogue happened to hold them.
       const byLength = a.name.length - b.name.length;
-      return byLength || a.name.localeCompare(b.name);
+      return byLength || a.name.localeCompare(b.name) || fullPath(a).localeCompare(fullPath(b));
+    });
+
+    // The same ladder for what was found by its contents, with relevance at the
+    // top of it instead of the name.
+    //
+    // FTS5 scores by BM25, which separates a document that really is about the
+    // term from one that mentions it — and says nothing at all about a folder
+    // of exports sharing one boilerplate line, where every score is identical
+    // to the last digit. That was most of what a search returned, ordered by
+    // whatever the index felt like. Equal scores are now separated by the path,
+    // so a folder's files arrive together and the same question is answered the
+    // same way twice. Where there is no score — ripgrep and the walk do not
+    // produce one — the path is the whole order, which is what those two were
+    // already roughly doing.
+    contentItems.sort((a, b) => {
+      const scored = typeof a.score === 'number' && typeof b.score === 'number';
+      if (scored && a.score !== b.score) return a.score - b.score;
+      return fullPath(a).localeCompare(fullPath(b));
     });
 
     const combined = buildPage({ names: items, contents: contentItems, limit });
@@ -1138,8 +1161,13 @@ router.get(
     // contents half claims only what is being shown: a file listed for its
     // name is not read to find out whether its text would have matched too —
     // that reading is the cost the index exists to avoid.
-    const answered = combined.map((item) => {
-      const rel = item.path ? `${item.path}/${item.name}` : item.name;
+    const answered = combined.map((entry) => {
+      // The relevance score ordered the page and has no business leaving the
+      // building: it is an FTS5 internal, and it means nothing without the
+      // query that produced it.
+      const { score, ...item } = entry;
+      void score;
+      const rel = fullPath(item);
       const byName =
         item.kind === 'dir' ? matcher.matchesName(item.name) : matcher.matchesRelativePath(rel);
       return { ...item, matchedName: byName, matchedContent: Boolean(item.matchLine) };

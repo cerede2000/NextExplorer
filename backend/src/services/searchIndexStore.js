@@ -222,32 +222,40 @@ const movePath = (db, fromPath, toPath) => {
 };
 
 /**
- * Paths whose words match, best first.
+ * Paths whose words match, best first, with the score that put them there.
+ *
+ * FTS5 answers with a negative number and smaller is better, which is why
+ * `ORDER BY rank` reads the right way round. The score comes back because a
+ * caller has to be able to tell a document that genuinely answers better from
+ * one that merely came first: on a folder of exports sharing a boilerplate
+ * line, every score is the same and the order was whatever the index felt
+ * like.
  *
  * The query is what FTS5 understands, so a bare word is a prefix-free term
  * match. Callers pass a term the user typed, so it is quoted: someone
  * searching `NOT` or `a-b` is looking for those characters, not writing an
  * expression.
  */
-const search = (db, term, limit = 100) => {
+const searchRanked = (db, term, limit = 100) => {
   const quoted = `"${String(term).replace(/"/g, '""')}"`;
   try {
     return prep(
       db,
-      `SELECT d.path AS path
+      `SELECT d.path AS path, rank AS score
          FROM search_terms t
          JOIN search_documents d ON d.id = t.rowid
          WHERE search_terms MATCH ?
          ORDER BY rank
          LIMIT ?`
-    )
-      .all(quoted, limit)
-      .map((row) => row.path);
+    ).all(quoted, limit);
   } catch (error) {
     logger.debug({ err: error, term }, 'Full-text query failed');
     return [];
   }
 };
+
+/** The same, when only the paths are wanted. */
+const search = (db, term, limit = 100) => searchRanked(db, term, limit).map((row) => row.path);
 
 /**
  * Candidate paths for a name search, streamed rather than collected.
@@ -432,6 +440,7 @@ module.exports = {
   removeUnder,
   movePath,
   search,
+  searchRanked,
   stats,
   clear,
   listDirectoryPaths,

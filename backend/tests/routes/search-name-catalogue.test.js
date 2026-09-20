@@ -408,3 +408,99 @@ describe('the order names come back in', () => {
     expect(await names('rapport')).toEqual(['rapport', 'rapport-2026.pdf', 'vieux-rapport.pdf']);
   });
 });
+
+describe('the order contents come back in', () => {
+  const paths = async (term) => {
+    const response = await request(buildApp()).get('/api/search').query({ q: term });
+    expect(response.status).toBe(200);
+    return (response.body.items || []).map((item) => `${item.path}/${item.name}`);
+  };
+
+  /**
+   * A folder of exports sharing one boilerplate line, which is the shape that
+   * showed the problem: BM25 gives every one of them the same score to the last
+   * digit, so the index hands them back in the order it happens to hold them —
+   * which is the order the pass wrote them — and the reader sees no order at
+   * all.
+   *
+   * The rows are written here rather than walked, and deliberately backwards,
+   * because that natural order is the whole point: a fixture the pass happened
+   * to meet alphabetically would pass with no sorting at all.
+   */
+  const HEADER = 'ligne un\nligne deux\nSubject: Exported From Confluence\n';
+  const BACKWARDS = [
+    'temp/zeta.txt',
+    'clients/yankee.txt',
+    'clients/xray.txt',
+    'clients/alpha.txt',
+  ];
+
+  const seedExports = async (extra = []) => {
+    const docs = await seed();
+    await fs.mkdir(path.join(docs, 'clients'), { recursive: true });
+    await fs.mkdir(path.join(docs, 'temp'), { recursive: true });
+
+    const db = await envContext.requireFresh('src/services/indexDb').getIndexDb();
+    const store = envContext.requireFresh('src/services/searchIndexStore');
+    for (const [rel, text] of [...BACKWARDS.map((r) => [r, HEADER]), ...extra]) {
+      await fs.writeFile(path.join(docs, rel), text);
+      store.upsertDocument(db, {
+        path: `Docs/${rel}`,
+        mtimeMs: Date.now(),
+        size: text.length,
+        text,
+      });
+    }
+    store.markPassComplete(db);
+
+    // Stated, because everything below is about putting it right: left alone,
+    // the index answers in the order it was written. Only where every score is
+    // equal — a document that answers better is ordered by that, and rightly.
+    if (!extra.length) {
+      expect(store.search(db, 'confluence', 10)).toEqual(BACKWARDS.map((rel) => `Docs/${rel}`));
+    }
+    return docs;
+  };
+
+  it('separates equal scores by the path, so a folder arrives together', async () => {
+    await seedExports();
+
+    expect(await paths('confluence')).toEqual([
+      'Docs/clients/alpha.txt',
+      'Docs/clients/xray.txt',
+      'Docs/clients/yankee.txt',
+      'Docs/temp/zeta.txt',
+    ]);
+  });
+
+  it('still puts a document that really answers above them', async () => {
+    await seedExports([['clients/zzz-vraiment.txt', 'confluence confluence confluence\n']]);
+
+    expect((await paths('confluence'))[0]).toBe('Docs/clients/zzz-vraiment.txt');
+  });
+
+  it('orders by path when nothing scores, which is the walk', async () => {
+    const docs = await seed({ SEARCH_INDEX: 'false' });
+    await fs.mkdir(path.join(docs, 'b'), { recursive: true });
+    await fs.mkdir(path.join(docs, 'a'), { recursive: true });
+    await fs.writeFile(path.join(docs, 'b', 'note.txt'), 'le mot pangolin');
+    await fs.writeFile(path.join(docs, 'a', 'note.txt'), 'le mot pangolin');
+
+    expect(await paths('pangolin')).toEqual(['Docs/a/note.txt', 'Docs/b/note.txt']);
+  });
+
+  // Two copies of one document, which is what read as a duplicate.
+  it('puts two identical names in a stable order', async () => {
+    const docs = await seed();
+    await fs.mkdir(path.join(docs, 'zzz'), { recursive: true });
+    await fs.mkdir(path.join(docs, 'aaa'), { recursive: true });
+    await fs.writeFile(path.join(docs, 'zzz', 'confluence.pdf'), 'x');
+    await fs.writeFile(path.join(docs, 'aaa', 'confluence.pdf'), 'x');
+    await buildIndex();
+
+    expect(await paths('confluence')).toEqual([
+      'Docs/aaa/confluence.pdf',
+      'Docs/zzz/confluence.pdf',
+    ]);
+  });
+});
