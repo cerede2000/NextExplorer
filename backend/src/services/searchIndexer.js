@@ -223,6 +223,7 @@ const indexTree = async ({
   let pendingBytes = 0;
   let indexed = 0;
   let skipped = 0;
+  let folders = 0;
   let batches = 0;
   let interrupted = false;
 
@@ -392,7 +393,14 @@ const indexTree = async ({
     const batch = pending.splice(0, pending.length);
     pendingBytes = 0;
     writeBatch(batch);
-    indexed += batch.length;
+    // Counted apart: `indexed` has always meant files this pass had to read,
+    // and a folder row is written without opening anything. Folding the two
+    // together would make a volume of empty folders look like a volume that
+    // changes constantly.
+    for (const document of batch) {
+      if (document.isDirectory) folders += 1;
+      else indexed += 1;
+    }
     batches += 1;
 
     if (typeof onProgress === 'function' && Date.now() - lastReport >= progressMs) {
@@ -443,6 +451,21 @@ const indexTree = async ({
       if (isExcluded(relativePath)) continue;
 
       if (entry.isDirectory()) {
+        // A row of its own, so a folder nobody has put anything in yet can be
+        // found by its name. Its own timestamps say nothing useful — a folder's
+        // mtime moves when its children do — so the row is written once and
+        // left alone.
+        seenHere.add(relativePath);
+        if (!store.getIndexedDocument(db, relativePath)) {
+          pending.push({
+            path: relativePath,
+            mtimeMs: 0,
+            size: 0,
+            text: null,
+            isDirectory: true,
+          });
+          if (pending.length >= batchSize) flush();
+        }
         await walk(absolutePath, relativePath);
         continue;
       }
@@ -558,6 +581,7 @@ const indexTree = async ({
   return {
     indexed,
     skipped,
+    folders,
     removed,
     batches,
     pauses,

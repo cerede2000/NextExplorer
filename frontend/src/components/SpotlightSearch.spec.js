@@ -52,6 +52,8 @@ const i18n = createI18n({
         matchedByBoth: 'name and contents',
         stoppedEarly: 'Stopped at its time limit',
         firstOnly: 'First {count} results',
+        showMore: 'Show more',
+        tooShort: 'Type at least {count} characters',
       },
       spotlight: { hintWithin: 'Search within', placeholder: 'Search', close: 'Close' },
       common: { in: 'in' },
@@ -300,5 +302,95 @@ describe('an answer that is not the whole answer', () => {
     const wrapper = await openWith({ items: [one], truncated: false, complete: true, limit: 100 });
 
     expect(wrapper.find('[data-test="search-shortfall"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * Asking for the rest.
+ *
+ * A page is a hundred; somebody who wants more asks again with a larger limit
+ * rather than being handed a cursor, because holding a search open between
+ * requests would mean keeping its generator, its subprocesses and its database
+ * cursor alive per person and per term.
+ */
+describe('asking for more than a page', () => {
+  const full = (limit) => ({
+    items: Array.from({ length: limit }, (_, i) => ({
+      name: `a-${i}.txt`,
+      path: 'Docs',
+      kind: 'file',
+      matchedName: true,
+    })),
+    truncated: false,
+    complete: false,
+    limit,
+  });
+
+  const open = async () => {
+    search.mockResolvedValue(full(100));
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('pangolin');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('asks for three hundred, then five', async () => {
+    const wrapper = await open();
+    expect(search).toHaveBeenLastCalledWith('', 'pangolin', 100, expect.anything());
+
+    search.mockResolvedValue(full(300));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+    expect(search).toHaveBeenLastCalledWith('', 'pangolin', 300, expect.anything());
+
+    search.mockResolvedValue(full(500));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+    expect(search).toHaveBeenLastCalledWith('', 'pangolin', 500, expect.anything());
+  });
+
+  it('stops offering it once there is no more to ask for', async () => {
+    const wrapper = await open();
+    search.mockResolvedValue(full(300));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+    search.mockResolvedValue(full(500));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="search-show-more"]').exists()).toBe(false);
+    // And the notice stays, because the answer is still not the whole of it.
+    expect(wrapper.find('[data-test="search-shortfall"]').exists()).toBe(true);
+  });
+
+  it('goes back to a page when the term changes', async () => {
+    const wrapper = await open();
+    search.mockResolvedValue(full(300));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+
+    search.mockResolvedValue(full(100));
+    await wrapper.find('input').setValue('autre-chose');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+
+    expect(search).toHaveBeenLastCalledWith('', 'autre-chose', 100, expect.anything());
+  });
+
+  it('says nothing was typed enough of', async () => {
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('ab');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="search-too-short"]').text()).toContain(
+      'Type at least 3 characters'
+    );
+    expect(search).not.toHaveBeenCalled();
   });
 });

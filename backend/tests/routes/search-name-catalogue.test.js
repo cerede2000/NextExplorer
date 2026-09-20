@@ -262,7 +262,9 @@ describe('an index built before names were kept', () => {
     await manager.reconcile({ reason: 'test' });
 
     expect(store.hasNameCatalogue(db)).toBe(true);
-    expect(store.stats(db).files).toBe(2);
+    // The two files and the three folders above them: a folder is a row now,
+    // which is what lets one nobody has filled yet be found at all.
+    expect(store.stats(db).files).toBe(5);
     expect(await search('bapteme')).toContain('Docs/photos/2019/bapteme-louise.jpg');
   });
 
@@ -276,7 +278,7 @@ describe('an index built before names were kept', () => {
     // the paths already stored is what the schema step does, and without it a
     // finished pass would answer nothing for a file it has held all along.
     db.prepare("UPDATE search_documents SET name_fold = ''").run();
-    store.ensureNameColumn(db);
+    store.ensureCatalogueColumns(db);
 
     expect(db.prepare('SELECT name_fold FROM search_documents').pluck().get()).toBe(
       'proces-verbal.md'
@@ -350,12 +352,26 @@ describe('what a result says it was found by', () => {
     expect(found['pangolin-notes.md'].matchedName).toBe(true);
   });
 
-  // And the contents half claims exactly what it shows. A file listed for its
-  // name is not opened to find out whether its text matched as well; reading it
-  // is the cost the index is there to avoid.
-  it('claims contents only where it shows a line', async () => {
+  // The file whose name and text both match is listed once, by the name pass,
+  // and shows no line — so the label could not be earned from what was on
+  // screen. The index is asked instead, which costs one query and no reading.
+  it('says both of a file whose name and text match', async () => {
     await seedThree();
     await buildIndex();
+
+    const found = Object.fromEntries((await results('pangolin')).map((i) => [i.name, i]));
+
+    expect(found['pangolin-notes.md']).toMatchObject({
+      matchedName: true,
+      matchedContent: true,
+    });
+    expect(found['pangolin-notes.md'].matchLine).toBeUndefined();
+  });
+
+  // Without an index there is nothing cheap to ask, and a name match is not
+  // opened to find out. The label says what it knows.
+  it('claims contents only where it shows a line, with no index to ask', async () => {
+    await seedThree({ SEARCH_INDEX: 'false' });
 
     const items = await results('pangolin');
     expect(items.length).toBeGreaterThan(0);
@@ -502,5 +518,45 @@ describe('the order contents come back in', () => {
       'Docs/aaa/confluence.pdf',
       'Docs/zzz/confluence.pdf',
     ]);
+  });
+});
+
+describe('a folder', () => {
+  it('is found by name even with nothing in it', async () => {
+    const docs = await seed();
+    await fs.mkdir(path.join(docs, 'chantier-nord-2026'), { recursive: true });
+    await buildIndex();
+
+    expect(await search('chantier')).toContain('Docs/chantier-nord-2026');
+  });
+
+  // The person who has just made a folder is the one about to look for it.
+  // Before this it stayed invisible until the next pass, up to an hour later.
+  it('is found the moment the application makes one', async () => {
+    const docs = await seed();
+    await fs.mkdir(docs, { recursive: true });
+    await buildIndex();
+
+    const manager = envContext.requireFresh('src/services/searchIndexManager');
+    const made = path.join(docs, 'dossier-tout-neuf');
+    await fs.mkdir(made);
+    await manager.onFolderAdded(made);
+
+    expect(await search('tout-neuf')).toEqual(['Docs/dossier-tout-neuf']);
+  });
+
+  it('goes away with what the application removed', async () => {
+    const docs = await seed();
+    const doomed = path.join(docs, 'a-supprimer');
+    await fs.mkdir(doomed, { recursive: true });
+    await fs.writeFile(path.join(doomed, 'dedans.txt'), 'x');
+    await buildIndex();
+    expect(await search('a-supprimer')).toContain('Docs/a-supprimer');
+
+    const manager = envContext.requireFresh('src/services/searchIndexManager');
+    await fs.rm(doomed, { recursive: true });
+    await manager.onPathRemoved(doomed);
+
+    expect(await search('a-supprimer')).toEqual([]);
   });
 });

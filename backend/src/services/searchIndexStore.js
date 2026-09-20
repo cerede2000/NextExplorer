@@ -25,6 +25,11 @@ const SEARCH_INDEX_DDL = `
     -- rather than derived because neither folding nor composition exists in
     -- SQL, and they are what make the two spellings of an accent one word.
     name_fold TEXT NOT NULL DEFAULT '',
+    -- Folders get a row of their own, so that one nobody has put anything in
+    -- yet can still be found by its name. They were only ever derived from the
+    -- paths of the files inside them, which made an empty folder invisible and
+    -- a folder created a moment ago invisible until something was put in it.
+    is_dir INTEGER NOT NULL DEFAULT 0,
     mtime_ms INTEGER NOT NULL,
     size INTEGER NOT NULL,
     indexed_at TEXT NOT NULL
@@ -84,10 +89,14 @@ const foldName = (documentPath) => {
  * is opened, because a name is the one thing a path already tells us. Rows
  * arriving later are filled as they are written.
  */
-const ensureNameColumn = (db) => {
+const ensureCatalogueColumns = (db) => {
   const columns = db.prepare('PRAGMA table_info(search_documents)').all();
-  if (!columns.some((column) => column.name === 'name_fold')) {
+  const has = (name) => columns.some((column) => column.name === name);
+  if (!has('name_fold')) {
     db.exec("ALTER TABLE search_documents ADD COLUMN name_fold TEXT NOT NULL DEFAULT ''");
+  }
+  if (!has('is_dir')) {
+    db.exec('ALTER TABLE search_documents ADD COLUMN is_dir INTEGER NOT NULL DEFAULT 0');
   }
 
   const pending = db.prepare("SELECT id, path FROM search_documents WHERE name_fold = ''");
@@ -124,7 +133,7 @@ const parentOf = (documentPath) => {
   return at === -1 ? '' : documentPath.slice(0, at);
 };
 
-const upsertDocument = (db, { path, mtimeMs, size, text }) => {
+const upsertDocument = (db, { path, mtimeMs, size, text, isDirectory = false }) => {
   const now = new Date().toISOString();
   const existing = getIndexedDocument(db, path);
   // A row is the file; terms are what it happens to say. A photograph has a
@@ -138,9 +147,17 @@ const upsertDocument = (db, { path, mtimeMs, size, text }) => {
     prep(
       db,
       `UPDATE search_documents
-          SET dir = ?, name_fold = ?, mtime_ms = ?, size = ?, indexed_at = ?
+          SET dir = ?, name_fold = ?, is_dir = ?, mtime_ms = ?, size = ?, indexed_at = ?
         WHERE id = ?`
-    ).run(parentOf(path), foldName(path), Math.floor(mtimeMs), size, now, existing.id);
+    ).run(
+      parentOf(path),
+      foldName(path),
+      isDirectory ? 1 : 0,
+      Math.floor(mtimeMs),
+      size,
+      now,
+      existing.id
+    );
     if (hasText) {
       prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(existing.id, text);
     }
@@ -149,9 +166,9 @@ const upsertDocument = (db, { path, mtimeMs, size, text }) => {
 
   const result = prep(
     db,
-    `INSERT INTO search_documents (path, dir, name_fold, mtime_ms, size, indexed_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(path, parentOf(path), foldName(path), Math.floor(mtimeMs), size, now);
+    `INSERT INTO search_documents (path, dir, name_fold, is_dir, mtime_ms, size, indexed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(path, parentOf(path), foldName(path), isDirectory ? 1 : 0, Math.floor(mtimeMs), size, now);
   if (hasText) {
     prep(db, 'INSERT INTO search_terms(rowid, text) VALUES (?, ?)').run(
       result.lastInsertRowid,
@@ -288,9 +305,9 @@ const search = (db, term, limit = 100) => searchRanked(db, term, limit).map((row
  * Streamed because a common word matches tens of thousands of rows and the
  * caller wants a hundred: materialising the rest is work nobody asked for.
  */
-const iterateNameCandidates = (db, { base = '', literal = '' } = {}) => {
-  const where = [];
-  const params = [];
+const iterateNameCandidates = (db, { base = '', literal = '', folders = false } = {}) => {
+  const where = ['is_dir = ?'];
+  const params = [folders ? 1 : 0];
 
   if (base) {
     // The folder and everything under it, through the dir index: '/' is 0x2F
@@ -380,7 +397,7 @@ const READY_KEY = 'search_index_complete_at';
  * again without throwing away the terms.
  */
 const CATALOGUE_KEY = 'search_index_catalogue_version';
-const CATALOGUE_VERSION = '1';
+const CATALOGUE_VERSION = '2';
 
 const markPassComplete = (db, at = new Date().toISOString()) => {
   const write = prep(db, 'INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)');
@@ -441,7 +458,7 @@ const stats = (db) => {
 module.exports = {
   SEARCH_INDEX_DDL,
   foldName,
-  ensureNameColumn,
+  ensureCatalogueColumns,
   iterateNameCandidates,
   iterateDirCandidates,
   hasNameCatalogue,

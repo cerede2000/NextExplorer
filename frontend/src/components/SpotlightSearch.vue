@@ -60,9 +60,28 @@ let inFlight = null;
 const shortfall = ref(null);
 /** Whether what was typed is too short to be worth sending. */
 const tooShort = ref(false);
+let lastAsked = null;
 const MIN_TERM_LENGTH = 3;
+/**
+ * How many results this search has asked for.
+ *
+ * A page is a hundred, and somebody who wants the rest asks again for more
+ * rather than being handed a cursor: holding a search open between requests
+ * would mean keeping its generator, its subprocesses and its database cursor
+ * alive per person and per term, which is a great deal of machinery to avoid
+ * repeating a query the index answers in milliseconds.
+ */
+const LIMIT_STEPS = [100, 300, 500];
+const askedLimit = ref(LIMIT_STEPS[0]);
+const canShowMore = computed(
+  () => shortfall.value?.kind === 'first' && askedLimit.value < LIMIT_STEPS[LIMIT_STEPS.length - 1]
+);
+const showMore = () => {
+  askedLimit.value = LIMIT_STEPS.find((step) => step > askedLimit.value) ?? askedLimit.value;
+  runSearch();
+};
 
-const performSearch = useDebounceFn(async () => {
+const runSearch = async () => {
   const term = query.value.trim();
   const request = (currentRequest += 1);
 
@@ -71,6 +90,10 @@ const performSearch = useDebounceFn(async () => {
 
   errorMsg.value = '';
   activeIndex.value = -1;
+  if (term !== lastAsked) {
+    lastAsked = term;
+    askedLimit.value = LIMIT_STEPS[0];
+  }
 
   // Below this the server refuses, and rightly: one or two characters describe
   // most of a volume. Said here rather than sent and bounced back.
@@ -92,7 +115,7 @@ const performSearch = useDebounceFn(async () => {
       truncated = false,
       complete = true,
       limit,
-    } = await searchApi(basePath.value, term, undefined, { signal: controller.signal });
+    } = await searchApi(basePath.value, term, askedLimit.value, { signal: controller.signal });
     if (request !== currentRequest) return;
     // Limit results to prevent performance issues with massive lists
     const limitedItems = Array.isArray(items) ? items : [];
@@ -121,7 +144,10 @@ const performSearch = useDebounceFn(async () => {
   // A second was long enough that the panel felt slower than the search: the
   // wait before asking was most of what people were waiting for. Short enough
   // now to feel immediate, long enough that typing a word is still one query.
-}, 350);
+};
+
+// Typing waits; asking for more does not — the decision was just made.
+const performSearch = useDebounceFn(runSearch, 350);
 
 function scrollToActiveItem() {
   if (activeIndex.value < 0 || activeIndex.value >= results.value.length) return;
@@ -393,6 +419,15 @@ onKeyStroke(
                   ? t('search.stoppedEarly')
                   : t('search.firstOnly', { count: shortfall.count })
               }}
+              <button
+                v-if="canShowMore"
+                data-test="search-show-more"
+                type="button"
+                class="ml-2 underline underline-offset-2 hover:no-underline"
+                @click="showMore"
+              >
+                {{ t('search.showMore') }}
+              </button>
             </p>
           </div>
         </div>

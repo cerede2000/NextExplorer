@@ -283,6 +283,32 @@ const onFileChanged = async (absolutePath) => {
   });
 };
 
+/**
+ * A folder the application just made.
+ *
+ * It holds nothing, so there is nothing to read and nothing to say about its
+ * contents — but it has a name, and somebody who has just created it is
+ * exactly the person about to look for it. Without this it stayed invisible
+ * until the next pass came round, which is up to an hour.
+ */
+const onFolderAdded = async (absolutePath) => {
+  if (!enabled()) return;
+
+  const relative = relativeToVolume(absolutePath);
+  if (!relative) return;
+
+  await enqueue(async () => {
+    const db = await getIndexDb();
+    store.upsertDocument(db, {
+      path: relative,
+      mtimeMs: 0,
+      size: 0,
+      text: null,
+      isDirectory: true,
+    });
+  });
+};
+
 /** A file or folder the application removed. */
 const onPathRemoved = async (absolutePath) => {
   if (!enabled()) return;
@@ -379,6 +405,7 @@ module.exports = {
   stop,
   reconcile,
   onFileChanged,
+  onFolderAdded,
   onPathRemoved,
   onPathMoved,
   onTreeAdded,

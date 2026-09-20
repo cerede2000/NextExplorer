@@ -271,7 +271,8 @@
     "matchedByBoth": "नाम और सामग्री",
     "stoppedEarly": "समय सीमा पर रुक गई — अब तक यही मिला है।",
     "firstOnly": "पहले {count} परिणाम। और देखने के लिए खोज सीमित करें।",
-    "tooShort": "कम से कम {count} अक्षर लिखें।"
+    "tooShort": "कम से कम {count} अक्षर लिखें।",
+    "showMore": "और दिखाएँ"
   },
   "user": {
     "account": "खाता",

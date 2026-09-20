@@ -271,7 +271,8 @@
     "matchedByBoth": "nume și conținut",
     "stoppedEarly": "Oprită la limita de timp — acestea sunt rezultatele găsite până acum.",
     "firstOnly": "Primele {count} rezultate. Restrânge căutarea pentru a vedea mai multe.",
-    "tooShort": "Scrie cel puțin {count} caractere."
+    "tooShort": "Scrie cel puțin {count} caractere.",
+    "showMore": "Arată mai multe"
   },
   "user": {
     "account": "Cont",

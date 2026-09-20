@@ -369,14 +369,21 @@ async function* streamIndexNameMatches(
   const ceiling = Math.max(limit * 3, 50);
   const literal = matcher.literal || '';
 
+  // Folders have rows of their own, so this is the same question as the one
+  // below rather than an inference from the paths of the files inside them —
+  // which is what made a folder nobody had filled yet impossible to find.
   const folders = [];
-  for (const dir of searchIndexStore.iterateDirCandidates(db, { base: relBasePath, literal })) {
-    for (const dirPath of extractDirMatches(`${dir}/.`, matcher, includeHiddenFiles)) {
-      if (dirSet.has(dirPath) || seenPaths.has(dirPath)) continue;
-      dirSet.add(dirPath);
-      seenPaths.add(dirPath);
-      folders.push(dirPath);
-    }
+  for (const rel of searchIndexStore.iterateNameCandidates(db, {
+    base: relBasePath,
+    literal,
+    folders: true,
+  })) {
+    if (seenPaths.has(rel) || dirSet.has(rel)) continue;
+    if (!matcher.matchesName(rel.slice(rel.lastIndexOf('/') + 1))) continue;
+    if (shouldIgnore(rel.slice(rel.lastIndexOf('/') + 1), includeHiddenFiles)) continue;
+    dirSet.add(rel);
+    seenPaths.add(rel);
+    folders.push(rel);
     if (folders.length >= ceiling) break;
   }
   for (const dirPath of folders) {
@@ -1169,6 +1176,26 @@ router.get(
     // contents half claims only what is being shown: a file listed for its
     // name is not read to find out whether its text would have matched too —
     // that reading is the cost the index exists to avoid.
+    // Which documents hold the term, so that a file listed for its name can
+    // say its text matches as well.
+    //
+    // A file is listed once, by whichever pass reserved the path first, and the
+    // name pass almost always wins — so `nom et contenu` was a label nothing
+    // could earn. Opening the file to find out is the cost the index exists to
+    // avoid; asking the index is one query and it already knows.
+    const alsoInContents = new Set();
+    if (useIndex) {
+      try {
+        const db = await getIndexDb();
+        for (const row of searchIndexStore.searchRanked(db, q, Math.max(limit * 3, 50))) {
+          alsoInContents.add(row.path);
+        }
+      } catch (error) {
+        // A label is a courtesy; the answer above stands without it.
+        logger.debug({ err: error }, 'Could not ask the index what else holds the term');
+      }
+    }
+
     const answered = combined.map((entry) => {
       // The relevance score ordered the page and has no business leaving the
       // building: it is an FTS5 internal, and it means nothing without the
@@ -1178,7 +1205,11 @@ router.get(
       const rel = fullPath(item);
       const byName =
         item.kind === 'dir' ? matcher.matchesName(item.name) : matcher.matchesRelativePath(rel);
-      return { ...item, matchedName: byName, matchedContent: Boolean(item.matchLine) };
+      return {
+        ...item,
+        matchedName: byName,
+        matchedContent: Boolean(item.matchLine) || alsoInContents.has(rel),
+      };
     });
 
     // Said out loud rather than left to look like a complete answer: a search

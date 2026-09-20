@@ -17,6 +17,17 @@ const shortfall = ref(null);
 /** Whether what was asked for is too short to be worth sending. */
 const tooShort = ref(false);
 const MIN_TERM_LENGTH = 3;
+/** A page is a hundred; the rest is asked for rather than held open. */
+const LIMIT_STEPS = [100, 300, 500];
+const askedLimit = ref(LIMIT_STEPS[0]);
+const canShowMore = computed(
+  () => shortfall.value?.kind === 'first' && askedLimit.value < LIMIT_STEPS[LIMIT_STEPS.length - 1]
+);
+const showMore = () => {
+  askedLimit.value = LIMIT_STEPS.find((step) => step > askedLimit.value) ?? askedLimit.value;
+  load();
+};
+let lastAsked = null;
 const loading = ref(false);
 const errorMsg = ref('');
 /**
@@ -43,6 +54,10 @@ async function load() {
   const term = q.value.trim();
   const request = (currentRequest += 1);
 
+  if (term !== lastAsked) {
+    lastAsked = term;
+    askedLimit.value = LIMIT_STEPS[0];
+  }
   items.value = [];
   shortfall.value = null;
   errorMsg.value = '';
@@ -65,7 +80,7 @@ async function load() {
       truncated = false,
       complete = true,
       limit,
-    } = await searchApi(basePath.value, term);
+    } = await searchApi(basePath.value, term, askedLimit.value);
     if (request !== currentRequest) return;
     items.value = Array.isArray(list) ? list : [];
     // Why the list may be shorter than the truth, said rather than left to
@@ -209,6 +224,15 @@ function toIconItem(it) {
             ? t('search.stoppedEarly')
             : t('search.firstOnly', { count: shortfall.count })
         }}
+        <button
+          v-if="canShowMore"
+          data-test="search-show-more"
+          type="button"
+          class="ml-2 underline underline-offset-2 hover:no-underline"
+          @click="showMore"
+        >
+          {{ t('search.showMore') }}
+        </button>
       </p>
     </div>
   </div>

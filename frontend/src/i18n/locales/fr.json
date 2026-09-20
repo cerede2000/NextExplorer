@@ -271,7 +271,8 @@
     "matchedByBoth": "nom et contenu",
     "stoppedEarly": "Interrompue au bout du délai — voici ce qui a été trouvé.",
     "firstOnly": "Les {count} premiers résultats. Affinez la recherche pour en voir plus.",
-    "tooShort": "Tapez au moins {count} caractères."
+    "tooShort": "Tapez au moins {count} caractères.",
+    "showMore": "Voir plus"
   },
   "user": {
     "account": "Compte",

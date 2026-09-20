@@ -271,7 +271,8 @@
     "matchedByBoth": "文件名和内容",
     "stoppedEarly": "已达时间上限而停止 — 以下是已找到的内容。",
     "firstOnly": "前 {count} 条结果。缩小搜索范围可查看更多。",
-    "tooShort": "请至少输入 {count} 个字符。"
+    "tooShort": "请至少输入 {count} 个字符。",
+    "showMore": "显示更多"
   },
   "user": {
     "account": "账户",

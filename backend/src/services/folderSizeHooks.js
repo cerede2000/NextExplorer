@@ -83,8 +83,9 @@ const onFileReplaced = (absolutePath, previousSize, size) => {
 };
 
 /** An empty folder has been created at `absolutePath`. */
-const onFolderCreated = (absolutePath) =>
-  withIndex((db, scope) => {
+const onFolderCreated = (absolutePath) => {
+  notifySearchIndex('onFolderAdded', absolutePath);
+  return withIndex((db, scope) => {
     if (exclusions.isExcluded(absolutePath, scope)) return;
     folderSizeIndex.upsertScanEntry(db, scope, {
       absolutePath,
@@ -94,6 +95,7 @@ const onFolderCreated = (absolutePath) =>
     });
     folderSizeIndex.applyDelta(db, scope, path.dirname(absolutePath), 0, { entryDelta: 1 });
   });
+};
 
 /**
  * A complete directory tree was created by an application operation. The

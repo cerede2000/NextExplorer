@@ -271,7 +271,8 @@
     "matchedByBoth": "이름과 내용",
     "stoppedEarly": "제한 시간에 도달해 중단되었습니다 — 지금까지 찾은 결과입니다.",
     "firstOnly": "처음 {count}개의 결과입니다. 더 보려면 검색을 좁히세요.",
-    "tooShort": "{count}자 이상 입력하세요."
+    "tooShort": "{count}자 이상 입력하세요.",
+    "showMore": "더 보기"
   },
   "user": {
     "account": "계정",

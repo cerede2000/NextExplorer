@@ -226,7 +226,9 @@ describe('what it leaves out', () => {
     // No words taken from it, and a row all the same: the catalogue is what
     // lets somebody find `blob.dat` by typing its name.
     expect(store.stats(db).documents).toBe(1);
-    expect(store.stats(db).files).toBe(2);
+    // The two files and the folder holding them: a folder is a row too, so one
+    // nobody has filled yet can still be found by its name.
+    expect(store.stats(db).files).toBe(3);
   });
 });
 
@@ -561,7 +563,8 @@ describe('forgetting what is gone', () => {
 
     const result = await indexAll();
 
-    expect(result.removed).toBe(2);
+    // The two files and the folder's own row.
+    expect(result.removed).toBe(3);
     expect(store.search(db, 'pangolin')).toEqual(['Docs/kept.txt']);
   });
 
