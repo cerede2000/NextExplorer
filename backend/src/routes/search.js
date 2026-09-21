@@ -611,64 +611,126 @@ async function* mergeResults(...generators) {
   }
 }
 
+/** How many files are read at once for the lines under content results. */
+const LINE_READERS = 4;
+
+/**
+ * How long those lines may be waited for: half the search's own budget, and
+ * never more than two seconds. A line is a courtesy; the result is the answer.
+ */
+const lineBudgetMs = () => Math.min(2000, Math.floor((searchConfig?.timeoutMs ?? 5000) / 2));
+
+const OUT_OF_TIME = Symbol('out of time');
+
 /**
  * Matches the index already knows about.
  *
- * It stores terms and not text, so the line to show is read back from the file
- * — which costs one read per result rather than one per document, and only for
- * the handful actually returned. That is the whole bargain of a contentless
- * index, and it is a good one.
+ * It stores terms and not text, so the line to show is read back from the
+ * file. That was meant to be one read per result returned, and it was one read
+ * per candidate, one after the other, for up to three pages of them — the
+ * over-fetch is there for permissions, and every row of it was opened before
+ * permissions were asked. A PDF is read whole and converted again for its
+ * line. On a local disk a hundred of them took three seconds; on a network
+ * share every search ran to the end of its budget (#11), while the index had
+ * answered in milliseconds.
+ *
+ * So permissions come first, reading stops at what a page can show, a few
+ * files are read at once, and past a deadline the rest are given without their
+ * line: the index says they hold the term, which is what was asked, and the
+ * page says so beside each one. A file whose line was read and does not hold
+ * the term changed since it was indexed, and is left out as before. One whose
+ * line was not read is as fresh as the index — as a name from the catalogue is.
  *
  * It covers whatever the view places in the volume — a share, a personal
  * folder or an assigned volume as much as the volume itself — and nothing it
  * cannot: the route reads the storage there instead.
  */
-async function* streamIndexMatches(view, term, seenPaths, shouldInclude, limit) {
-  let paths;
+async function* streamIndexMatches(
+  view,
+  term,
+  seenPaths,
+  shouldInclude,
+  limit,
+  { lineBudget = lineBudgetMs(), readers = LINE_READERS } = {}
+) {
+  let rows;
   try {
     const db = await getIndexDb();
     // Over-fetch: permissions are applied after the query, since the index
     // does not know who may read what.
-    paths = searchIndexStore.searchRanked(db, term, Math.max(limit * 3, 50), { base: view.base });
+    rows = searchIndexStore.searchRanked(db, term, Math.max(limit * 3, 50), { base: view.base });
   } catch (error) {
     logger.debug({ err: error }, 'Search index query failed; falling back to reading as we go');
     return;
   }
 
   const needle = term.toLowerCase();
+  const readLine = (absolutePath) =>
+    (isSearchableDocument(absolutePath)
+      ? findDocumentTextMatch(absolutePath, needle)
+      : findPlainTextMatch(absolutePath, needle)
+    ).catch(() => null);
 
-  for (const { path: row, score } of paths) {
-    const rel = view.toLogical(row);
-    if (!rel) continue;
-    if (seenPaths.has(rel)) continue;
+  let timer = null;
+  let expired = false;
+  const outOfTime = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      expired = true;
+      resolve(OUT_OF_TIME);
+    }, lineBudget);
+    timer.unref?.();
+  });
 
-    const absolutePath = view.toAbsolute(row);
-    let line = '';
-    let lineNumber = null;
+  // Candidates in the order the index ranked them, each with its line being
+  // read; results leave in that same order, whichever read finishes first.
+  const reading = [];
+  let nextRow = 0;
+  let given = 0;
 
-    if (isSearchableDocument(absolutePath)) {
-      const match = await findDocumentTextMatch(absolutePath, needle);
-      if (match) {
-        line = match.line;
-        lineNumber = match.lineNumber;
-      }
-    } else {
-      const match = await findPlainTextMatch(absolutePath, needle);
-      if (match) {
-        line = match.line;
-        lineNumber = match.lineNumber;
-      }
+  const refill = async () => {
+    while (reading.length < readers && nextRow < rows.length) {
+      const { path: row, score } = rows[nextRow];
+      nextRow += 1;
+      const rel = view.toLogical(row);
+      if (!rel || seenPaths.has(rel)) continue;
+      // Asked before anything is opened: a file this reader may not see is
+      // not worth reading across a network to find out what it says.
+      if (!(await shouldInclude(rel))) continue;
+      const line = expired
+        ? Promise.resolve(OUT_OF_TIME)
+        : Promise.race([readLine(view.toAbsolute(row)), outOfTime]);
+      reading.push({ rel, score, line });
     }
+  };
 
-    // The file changed since it was indexed and no longer says this. The next
-    // pass will notice; this one simply does not offer it.
-    if (!lineNumber) continue;
+  try {
+    while (given < limit) {
+      await refill();
+      if (reading.length === 0) return;
+      const { rel, score, line } = reading.shift();
+      const match = await line;
+      // Found by its name in the meantime, and already given.
+      if (seenPaths.has(rel)) continue;
 
-    seenPaths.add(rel);
-    if (await shouldInclude(rel)) {
-      // Carried so the page can be ordered, and dropped before it is sent.
-      yield { ...formatResult(rel, 'file', line, lineNumber), score };
+      if (match === OUT_OF_TIME) {
+        seenPaths.add(rel);
+        given += 1;
+        // `inContents` and the score are carried so the page can place it,
+        // and dropped before it is sent.
+        yield { ...formatResult(rel, 'file'), score, inContents: true };
+        continue;
+      }
+
+      // The file changed since it was indexed and no longer says this. The
+      // next pass will notice; this one simply does not offer it.
+      if (!match?.lineNumber) continue;
+
+      seenPaths.add(rel);
+      given += 1;
+      yield { ...formatResult(rel, 'file', match.line, match.lineNumber), score };
     }
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -1268,7 +1330,9 @@ router.get(
       // The relevance score ordered the page and has no business leaving the
       // building: it is an FTS5 internal, and it means nothing without the
       // query that produced it.
-      const { score, ...item } = entry;
+      // Nor does the mark of a content match given without its line: the
+      // label below says the same thing in the words the page uses.
+      const { score, inContents, ...item } = entry;
       void score;
       const rel = fullPath(item);
       const byName =
@@ -1276,7 +1340,7 @@ router.get(
       return {
         ...item,
         matchedName: byName,
-        matchedContent: Boolean(item.matchLine) || alsoInContents.has(rel),
+        matchedContent: Boolean(item.matchLine) || inContents === true || alsoInContents.has(rel),
       };
     });
 

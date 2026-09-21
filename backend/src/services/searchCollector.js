@@ -40,7 +40,9 @@ const collectResults = async ({
   const contentReserve = Math.max(1, limit - Math.floor(limit * NAME_SHARE));
 
   for await (const item of results) {
-    (item.matchLine ? contents : names).push(item);
+    // A content match the index vouched for without its line being read in
+    // time is still a content match, and is counted as one.
+    (item.matchLine || item.inContents ? contents : names).push(item);
 
     if (names.length < nameCap) continue;
     if (contents.length >= contentReserve) break;

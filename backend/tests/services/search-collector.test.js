@@ -85,6 +85,35 @@ describe('collecting a page of results', () => {
   });
 });
 
+/**
+ * A document the index found by its contents but whose line was not read in
+ * time comes without one (#11). It is still a content match: counted as a name,
+ * it would go to the back of the names and leave the reserve empty, and the
+ * page would keep waiting for content it already had.
+ */
+describe('a content match given without its line', () => {
+  const vouched = (n) => ({ name: `scan-${n}.pdf`, path: 'Docs', inContents: true });
+
+  it('is counted as content, not as a name', async () => {
+    const items = [
+      ...Array.from({ length: 300 }, (unused, i) => name(i)),
+      ...Array.from({ length: 25 }, (unused, i) => vouched(i)),
+      // Anything after the reserve is met is not waited for.
+      ...Array.from({ length: 50 }, (unused, i) => name(1000 + i)),
+    ];
+
+    const { names, contents } = await collectResults({
+      results: stream(items),
+      limit: 100,
+      contentExhausted: () => false,
+    });
+
+    expect(contents).toHaveLength(25);
+    expect(contents.every((item) => item.inContents)).toBe(true);
+    expect(names).toHaveLength(300);
+  });
+});
+
 describe('building the page', () => {
   it('gives content its share and lets names lead', () => {
     const page = buildPage({
