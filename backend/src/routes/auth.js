@@ -387,7 +387,12 @@ router.post(
       );
     }
 
-    if (req.session) req.session.localUserId = result.userId;
+    // The same call every other way in makes a session with, and for the same
+    // reason: it rotates the session id. Assigning the user onto the session
+    // already in hand leaves whoever knew that id before signing in knowing a
+    // signed-in one.
+    await startAuthenticatedSession(req, result.userId);
+
     const user = await getRequestUser(req);
     if (!user) {
       if (req.session) delete req.session.localUserId;
