@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStorage } from '@vueuse/core';
 
 // Icon mapping for notification types
@@ -90,20 +90,50 @@ export const useNotificationsStore = defineStore('notifications', () => {
     return notifications.value.filter((n) => filters.value[n.type]);
   });
 
+  // When a toast stops being young enough to show.
+  const expiresAt = (n) =>
+    new Date(n.timestamp).getTime() + (n.durationMs || DEFAULT_DURATION[n.type]);
+
+  // Bumped when the next toast is due to go. The clock is not reactive, so
+  // without it the age below was read only when the list changed, and a toast
+  // stayed on screen until another one arrived.
+  const expiryTick = ref(0);
+  let expiryTimer = null;
+
   const activeToasts = computed(() => {
     // Show only recent unread notifications as toasts
+    void expiryTick.value;
     const now = Date.now();
     return notifications.value
       .filter((n) => {
         // Show toasts that are less than their duration old and match filters
         if (!filters.value[n.type]) return false;
         if (n.toastDismissed) return false;
-        const age = now - new Date(n.timestamp).getTime();
-        const duration = n.durationMs || DEFAULT_DURATION[n.type];
-        return age < duration;
+        return now < expiresAt(n);
       })
       .slice(-5); // Max 5 toasts at once
   });
+
+  // One timer, for the next toast due to go, and none while nothing is shown.
+  // Immediate, because a page can load with toasts already showing: the list
+  // is kept in storage, and one written a moment before a reload is still
+  // young enough.
+  watch(
+    activeToasts,
+    (toasts) => {
+      clearTimeout(expiryTimer);
+      expiryTimer = null;
+      if (toasts.length === 0) return;
+      const next = Math.min(...toasts.map(expiresAt));
+      // Capped: past 2^31 - 1 ms a timer fires at once, and would loop.
+      const delay = Math.min(Math.max(0, next - Date.now()), 2 ** 31 - 1);
+      expiryTimer = setTimeout(() => {
+        expiryTimer = null;
+        expiryTick.value += 1;
+      }, delay);
+    },
+    { immediate: true }
+  );
 
   // Generate unique ID
   function generateId() {
@@ -153,7 +183,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
 
     // Note: We don't auto-remove notifications - they persist in the panel
-    // The activeToasts computed handles showing/hiding toasts based on age
+    // The activeToasts computed handles showing/hiding toasts based on age,
+    // woken by the timer above when the next one is due to go
 
     return id;
   }

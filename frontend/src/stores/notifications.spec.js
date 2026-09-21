@@ -1,9 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
+
+/** What a page finds in storage when it loads, when a test says so. */
+const storage = vi.hoisted(() => ({ stored: null }));
 
 vi.mock('@vueuse/core', () => ({
-  useStorage: (_key, initial) => ref(JSON.parse(JSON.stringify(initial))),
+  useStorage: (key, initial) =>
+    ref(
+      JSON.parse(
+        JSON.stringify(
+          key === 'nextexplorer:notifications' && storage.stored ? storage.stored : initial
+        )
+      )
+    ),
 }));
 
 import { useNotificationsStore } from './notifications';
@@ -39,6 +49,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
+  storage.stored = null;
 });
 
 describe('adding one', () => {
@@ -140,6 +152,81 @@ describe('the toasts that show', () => {
 
     expect(store.activeToasts).toHaveLength(5);
     expect(store.activeToasts.at(-1).heading).toBe('n8');
+  });
+});
+
+/**
+ * The tests above age a toast by rewriting its timestamp, which changes the
+ * list — and a change to the list was the only thing that ever made the age be
+ * read again. Time passing alone did nothing: a toast stayed on screen until
+ * the next notification arrived, however long that took. In a browser that is
+ * a stack of them over the corner of the page, on top of whatever button is
+ * there, for as long as the page stays open.
+ */
+describe('toasts leaving on time', () => {
+  it('takes one off once its duration has passed, with nothing else happening', async () => {
+    vi.useFakeTimers();
+    store.addNotification({ type: 'success', heading: 'Saved', durationMs: 3_000 });
+    await nextTick();
+    expect(store.activeToasts.map((n) => n.heading)).toEqual(['Saved']);
+
+    vi.advanceTimersByTime(2_999);
+    expect(store.activeToasts.map((n) => n.heading)).toEqual(['Saved']);
+    vi.advanceTimersByTime(1);
+    expect(store.activeToasts).toHaveLength(0);
+  });
+
+  it('takes each off at its own time, not all with the first', async () => {
+    vi.useFakeTimers();
+    store.addNotification({ type: 'success', heading: 'Short', durationMs: 3_000 });
+    store.addNotification({ type: 'error', heading: 'Long', durationMs: 5_000 });
+    await nextTick();
+
+    vi.advanceTimersByTime(3_000);
+    expect(store.activeToasts.map((n) => n.heading)).toEqual(['Long']);
+    await nextTick();
+    vi.advanceTimersByTime(2_000);
+    expect(store.activeToasts).toHaveLength(0);
+  });
+
+  /**
+   * The list is kept across page loads, so a page opened a moment after a
+   * restore shows that restore's toast. Nothing had added it on this page, and
+   * it stayed for good — which is how five of them came to sit over the
+   * Settings page in the browser tests, when those ran fast.
+   */
+  it('takes one off at its own time when the page found it already there', async () => {
+    vi.useFakeTimers();
+    storage.stored = [
+      {
+        id: 'from-before',
+        type: 'success',
+        heading: 'Restored',
+        timestamp: new Date(Date.now() - 1_000).toISOString(),
+        durationMs: 6_000,
+        read: false,
+        toastDismissed: false,
+      },
+    ];
+    setActivePinia(createPinia());
+    store = useNotificationsStore();
+    await nextTick();
+    expect(store.activeToasts.map((n) => n.heading)).toEqual(['Restored']);
+
+    vi.advanceTimersByTime(5_000);
+    expect(store.activeToasts).toHaveLength(0);
+  });
+
+  /** A timer only while something is on screen: no clock ticking for nothing. */
+  it('leaves no timer behind once nothing is shown', async () => {
+    vi.useFakeTimers();
+    store.addNotification({ type: 'info', heading: 'Brief', durationMs: 4_000 });
+    await nextTick();
+
+    vi.advanceTimersByTime(4_000);
+    await nextTick();
+    expect(store.activeToasts).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
