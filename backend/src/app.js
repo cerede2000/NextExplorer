@@ -9,6 +9,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const { configureTrustProxy } = require('./middleware/trustProxy');
+const { configureSecurityHeaders } = require('./middleware/securityHeaders');
 const { configureHttpLogging } = require('./middleware/logging');
 const { configureCors } = require('./middleware/cors');
 const { configureOidc } = require('./middleware/oidc');
@@ -44,6 +45,7 @@ const createApp = async (options = {}) => {
   const app = express();
 
   configureTrustProxy(app);
+  configureSecurityHeaders(app);
   configureHttpLogging(app);
 
   configureCors(app);
