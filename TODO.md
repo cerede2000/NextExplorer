@@ -713,19 +713,16 @@ Settled on the way, each with its own tests:
 
 ## Open, not scheduled
 
-- **Serve HTTPS from a certificate somebody already has** — `TLS_CERT` and
-  `TLS_KEY`, two paths, the way Quantum takes `tlsCert`/`tlsKey` and filebrowser
-  takes `--cert`/`--key`. Asked for in [#13](https://github.com/cerede2000/NextExplorer/issues/13),
-  where what was wanted was a certificate this application generates for itself;
-  that part is refused and the issue is closed. Nextcloud does not terminate TLS
-  at all, and neither of the two above generates anything, so accepting a pair of
-  paths is the whole of what the neighbours do.
-  The catch to answer before writing it: a Let's Encrypt certificate is renewed
-  every sixty days, and a process that read the file at boot goes on serving the
-  old one until it restarts — Quantum and filebrowser both have that defect. So
-  it is either watching the two files, or a reverse proxy, which is what the
-  documentation says today and what handles redirection from port 80, HTTP/2 and
-  renewal anyway.
+- **Serve HTTPS from a certificate somebody already has — decided, 21 September
+  2026: a reverse proxy, not the application.** Asked for in
+  [#13](https://github.com/cerede2000/NextExplorer/issues/13). A certificate
+  read once at start goes stale at the first renewal — Quantum and filebrowser,
+  which take `tlsCert`/`--cert`, both have that defect — and watching the files
+  would be rebuilding what a proxy already does, along with the port 80
+  redirect and HTTP/2. `docs/installation/reverse-proxy.md` shows it with
+  Traefik and with Caddy, Let's Encrypt included, and what each has to be told:
+  Traefik cuts a request at 60 seconds unless `readTimeout` is raised, which
+  would stop a large upload half-way.
 - The repository is still marked as a fork of `nxzai/NextExplorer`; detaching it
   is a request to GitHub support.
 - `demo/content/` holds 28 KB across seven files, so the gallery and thumbnails —

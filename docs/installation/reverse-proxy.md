@@ -11,6 +11,154 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 | `TRUST_PROXY`                        | Controls Express’s trust level; accepts `false`, a number (hops), or lists such as `loopback,uniquelocal`. If unset and `PUBLIC_URL` exists, defaults to `loopback,uniquelocal`. (`backend/config/trustProxy.js` documents this mapping.) |
 | `CORS_ORIGIN(S)` / `ALLOWED_ORIGINS` | Explicit CORS origins when they differ from `PUBLIC_URL`. Defaults to the origin of `PUBLIC_URL` when provided.                                                                                                                           |
 
+## HTTPS with a Let's Encrypt certificate
+
+NextExplorer does not terminate TLS itself, and does not read a certificate
+from disk. A Let's Encrypt certificate lasts a few months at most and has to be
+renewed before it runs out, and a server that reads the file once at start goes
+on serving the old one until somebody restarts it. A reverse proxy asks for the
+certificate, renews it on time, redirects port 80 to 443 and speaks HTTP/2 —
+all of it without the application knowing — so that is the way to serve it over
+HTTPS.
+
+Two proxies that do all of this on their own are shown below: Traefik, which
+reads its routes from Docker labels, and Caddy, which needs two lines. Both
+assume:
+
+- a DNS record for `files.example.com` pointing at the machine;
+- ports **80** and **443** reachable from the internet — Let's Encrypt checks
+  that you own the name through them, at every renewal;
+- `PUBLIC_URL=https://files.example.com` on NextExplorer, which is what makes
+  its cookies `Secure` and its links point at the right place.
+
+NextExplorer is not published on a port of its own in either example: the
+proxy reaches it over the Compose network, and nothing else should. With
+`PUBLIC_URL` set, `TRUST_PROXY` defaults to `loopback,uniquelocal`, which
+believes a proxy on a Docker network and nobody on the internet — nothing to
+set for the addresses in the [activity log](#the-address-that-gets-recorded)
+to be the visitors' own.
+
+### Traefik
+
+```yaml
+services:
+  traefik:
+    image: traefik:v3.7
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.websecure.address=:443
+      # Traefik gives a request 60 seconds to arrive, body included, and then
+      # cuts it: a large file sent in one request is refused half-way. 0 is no
+      # limit, which is what NextExplorer itself applies (HTTP_TIMEOUT).
+      - --entryPoints.websecure.transport.respondingTimeouts.readTimeout=0
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=you@example.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  nextexplorer:
+    image: ghcr.io/cerede2000/explorer:latest
+    restart: unless-stopped
+    environment:
+      - PUBLIC_URL=https://files.example.com
+    volumes:
+      - /srv/nextexplorer/config:/config
+      - /srv/nextexplorer/cache:/cache
+      - /srv/data/Projects:/mnt/Projects
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nextexplorer.rule=Host(`files.example.com`)
+      - traefik.http.routers.nextexplorer.entrypoints=websecure
+      - traefik.http.routers.nextexplorer.tls.certresolver=letsencrypt
+      - traefik.http.services.nextexplorer.loadbalancer.server.port=3000
+```
+
+`./letsencrypt/acme.json` holds the account and the certificates; keep it, or
+every restart asks Let's Encrypt again and runs into its rate limits. While
+trying things out, add
+`--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory`
+to use the staging service, whose certificates browsers do not trust but whose
+limits are far wider — and remove it, with `acme.json`, once it works.
+
+### Caddy
+
+```yaml
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  nextexplorer:
+    image: ghcr.io/cerede2000/explorer:latest
+    restart: unless-stopped
+    environment:
+      - PUBLIC_URL=https://files.example.com
+    volumes:
+      - /srv/nextexplorer/config:/config
+      - /srv/nextexplorer/cache:/cache
+      - /srv/data/Projects:/mnt/Projects
+
+volumes:
+  caddy_data:
+  caddy_config:
+```
+
+With this `Caddyfile` beside it:
+
+```
+{
+	email you@example.com
+}
+
+files.example.com {
+	reverse_proxy nextexplorer:3000
+}
+```
+
+A site address with a domain name is all Caddy needs to ask Let's Encrypt for
+the certificate, renew it and redirect port 80 to 443. `caddy_data` holds the
+certificates and must outlive the container, for the same reason as Traefik's
+`acme.json`.
+
+### What NextExplorer asks of the proxy, and where each stands
+
+| What                                                         | Traefik                                              | Caddy                                                             |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------- |
+| Large uploads in one request                                 | cut at 60 s unless `readTimeout` is raised, as above | no limit on reading a body, and no size limit                     |
+| Progress of a copy, a move, a deletion — streamed as it goes | sent as it comes                                     | sent as it comes: a response of unknown length is flushed at once |
+| The terminal, over a WebSocket at `/api/terminal`            | nothing to set                                       | nothing to set                                                    |
+| `X-Forwarded-For`, `-Proto`, `-Host`                         | sent                                                 | sent                                                              |
+
+A proxy that does limit the size of a request — Cloudflare's, at 100 MB on the
+free plan — is what chunked uploads are for: turn them on in **Settings →
+Uploads**, or let the automatic fallback find a size that passes
+(`UPLOAD_CHUNKED_AUTO_FALLBACK`, see [the environment
+reference](/configuration/environment)).
+
+To check the result: `https://files.example.com/healthz` answers
+`{"status":"ok"}` through the proxy, the browser shows the certificate as
+issued by Let's Encrypt, and `http://files.example.com` lands on the `https`
+address.
+
 ## Sample Nginx Proxy Manager block
 
 - Point `files.example.com` to the container’s internal `3000` port.
