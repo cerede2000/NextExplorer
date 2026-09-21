@@ -194,7 +194,15 @@ const buildCorsConfig = () => {
     };
   }
   if (knownOrigins.length) return { allowAll: false, origins: [...knownOrigins] };
-  return { allowAll: true, origins: [] }; // Backwards compatibility
+  // Nothing configured: allow no cross-origin caller rather than reflecting
+  // whatever origin asks, which combined with credentials:true let any page
+  // on the same site — another port of the same host, a sibling subdomain,
+  // where the SameSite=Lax session cookie still goes — read authenticated
+  // responses. Same-origin requests carry no Origin (or are permitted by the
+  // browser's own policy), so the normal setup — frontend and API on one host
+  // — is unaffected. Declare CORS_ORIGINS, PUBLIC_URL or INTERNAL_URL to allow
+  // a real cross-origin client, or CORS_ORIGINS=* to reflect any origin.
+  return { allowAll: false, origins: [] };
 };
 
 const corsConfig = buildCorsConfig();
