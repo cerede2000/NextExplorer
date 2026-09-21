@@ -712,6 +712,49 @@ test('a file with versions is marked in the listing, and an administrator can cl
 });
 
 /**
+ * Two background workers switched on from Settings rather than from the
+ * environment, and the report of which optional tools are here (#9).
+ *
+ * Held in the real build against the real server because the parts are in
+ * four places — the page, the store, the settings route and the feature
+ * switches that start the workers — and each has its own tests; this is the
+ * one that crosses all of them, including the reload that proves the server
+ * kept the choice rather than the page remembering it.
+ */
+test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
+  await page.goto('/settings/search-index');
+  const indexSwitch = page.locator('[data-testid="search-index-switch"]');
+  // Off, and movable: this installation's environment says nothing about it.
+  await expect(indexSwitch).toHaveAttribute('aria-checked', 'false');
+  await expect(indexSwitch).toBeEnabled();
+  await expect(page.locator('[data-testid="feature-off-notice"]')).toContainText('switch above');
+
+  await indexSwitch.click();
+  await expect(indexSwitch).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('[data-testid="feature-off-notice"]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('[data-testid="search-index-switch"]')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+
+  await page.goto('/settings/folder-size');
+  const mode = page.locator('[data-testid="folder-size-mode"]');
+  await expect(mode).toHaveValue('off');
+  await mode.selectOption('full');
+  await expect(page.locator('[data-testid="feature-off-notice"]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('[data-testid="folder-size-mode"]')).toHaveValue('full');
+
+  await page.goto('/settings/about');
+  const tools = page.locator('[data-testid="about-tools"]');
+  await expect(tools).toBeVisible();
+  // Every one, whatever this machine happens to have installed.
+  await expect(tools.locator('li')).toHaveCount(7);
+  await expect(page.locator('[data-testid="about-tool-status-ffmpeg"]')).toBeVisible();
+});
+
+/**
  * No screen may hide content where nothing can scroll.
  *
  * This is the last test on purpose: it fills the installation with more than
