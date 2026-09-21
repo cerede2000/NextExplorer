@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import fss from 'node:fs';
 import express from 'express';
 import request from 'supertest';
 import AdmZip from 'adm-zip';
@@ -25,6 +26,39 @@ beforeAll(async () => {
 afterAll(async () => {
   await envContext.cleanup();
 });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * Put something under `target` just before the first filesystem call that
+ * would take that name — a rename, a link, an exclusive create, a mkdir —:
+ * after the name was seen free, before anything is put there.
+ */
+const arriveBeforeTaking = (target, arrive) => {
+  let arrived = false;
+  const at = (method, targetOf) => {
+    const original = fs[method].bind(fs);
+    vi.spyOn(fs, method).mockImplementation(async (...args) => {
+      if (!arrived && path.resolve(String(targetOf(args))) === path.resolve(target)) {
+        arrived = true;
+        await arrive();
+      }
+      return original(...args);
+    });
+  };
+  at('rename', (args) => args[1]);
+  at('link', (args) => args[1]);
+  at('open', (args) => args[0]);
+  at('mkdir', (args) => args[0]);
+  return () => arrived;
+};
+
+const journalRecords = () => {
+  const journal = path.join(envContext.cacheDir, 'in-flight');
+  return fss.existsSync(journal) ? fss.readdirSync(journal).filter((n) => n.endsWith('.json')) : [];
+};
 
 const buildApp = ({ user } = {}) => {
   if (!envContext) throw new Error('Test environment not initialized');
@@ -133,6 +167,92 @@ describe('Archive extraction', () => {
     expect(done.item?.name).toBe('report (1).txt');
     expect(await fs.readFile(path.join(workDir, 'report.txt'), 'utf8')).toBe('existing file');
     expect(await fs.readFile(path.join(workDir, 'report (1).txt'), 'utf8')).toBe('archive file');
+  });
+
+  /**
+   * What an extraction puts in a folder takes its names by the step that puts
+   * it there. A name seen free and renamed into afterwards lost whatever
+   * arrived under it in between — a file saved over SMB, a folder someone just
+   * created —, which rename(2) replaces without a word.
+   */
+  it('never replaces a file that arrives under an entry’s name just before it is moved in', async () => {
+    const workDir = path.join(envContext.volumeDir, 'arrive-file');
+    await fs.mkdir(workDir, { recursive: true });
+    const zip = new AdmZip();
+    zip.addFile('report.txt', Buffer.from('archive file'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+    const target = path.join(workDir, 'report.txt');
+    const theirs = Buffer.from('saved over SMB meanwhile\n');
+    const arrived = arriveBeforeTaking(target, () => fs.writeFile(target, theirs));
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'arrive-file/sample.zip', destination: 'current' });
+
+    expect(arrived()).toBe(true);
+    const done = parseNdjson(response.text).at(-1);
+    expect(done).toMatchObject({ type: 'done', item: { name: 'report (1).txt' } });
+    expect(await fs.readFile(target)).toEqual(theirs);
+    expect(await fs.readFile(path.join(workDir, 'report (1).txt'), 'utf8')).toBe('archive file');
+    expect((await fs.readdir(workDir)).sort()).toEqual([
+      'report (1).txt',
+      'report.txt',
+      'sample.zip',
+    ]);
+  });
+
+  it('never fills an empty folder that appears under an entry’s name just before it is moved in', async () => {
+    const workDir = path.join(envContext.volumeDir, 'arrive-empty-folder');
+    await fs.mkdir(workDir, { recursive: true });
+    const zip = new AdmZip();
+    zip.addFile('nested/deep.txt', Buffer.from('nested content'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+    const target = path.join(workDir, 'nested');
+    const arrived = arriveBeforeTaking(target, () => fs.mkdir(target));
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'arrive-empty-folder/sample.zip', destination: 'current' });
+
+    expect(arrived()).toBe(true);
+    const done = parseNdjson(response.text).at(-1);
+    expect(done).toMatchObject({ type: 'done', item: { name: 'nested (1)', kind: 'directory' } });
+    expect(await fs.readdir(target)).toEqual([]);
+    expect(await fs.readFile(path.join(workDir, 'nested (1)', 'deep.txt'), 'utf8')).toBe(
+      'nested content'
+    );
+    expect((await fs.readdir(workDir)).sort()).toEqual(['nested', 'nested (1)', 'sample.zip']);
+  });
+
+  it('never merges into a folder that appears under the new folder’s name, nor records it', async () => {
+    const workDir = path.join(envContext.volumeDir, 'arrive-folder');
+    await fs.mkdir(workDir, { recursive: true });
+    const zip = new AdmZip();
+    zip.addFile('inside.txt', Buffer.from('inside'));
+    zip.writeZip(path.join(workDir, 'sample.zip'));
+    const target = path.join(workDir, 'sample');
+    const theirs = Buffer.from('put here by someone else\n');
+    const arrived = arriveBeforeTaking(target, async () => {
+      await fs.mkdir(target);
+      await fs.writeFile(path.join(target, 'theirs.txt'), theirs);
+    });
+
+    const response = await request(buildApp({ user: adminUser }))
+      .post('/api/files/zip/extract')
+      .send({ path: 'arrive-folder/sample.zip' });
+
+    expect(arrived()).toBe(true);
+    expect(response.status).toBe(200);
+    const events = parseNdjson(response.text);
+    expect(events.at(-1)).toMatchObject({ type: 'done', item: { name: 'sample 2' } });
+    expect(await fs.readdir(target)).toEqual(['theirs.txt']);
+    expect(await fs.readFile(path.join(target, 'theirs.txt'))).toEqual(theirs);
+    expect(await fs.readFile(path.join(workDir, 'sample 2', 'inside.txt'), 'utf8')).toBe('inside');
+
+    // No record names their folder, so the next start leaves it where it is.
+    expect(journalRecords()).toEqual([]);
+    envContext.requireFresh('src/services/inFlightFiles').sweepInterrupted();
+    expect(await fs.readFile(path.join(target, 'theirs.txt'))).toEqual(theirs);
   });
 
   it('rejects formats the local build does not support', async () => {
