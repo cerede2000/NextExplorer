@@ -179,8 +179,10 @@ RUN chmod +x /usr/local/bin/verify-ffmpeg.sh \
 # this or Alpine's, so the weekly rebuild goes back to Alpine's package the
 # day it catches up, without anybody having to remember to.
 #
-# The recipe is fetched by commit and its hash checked; the patches it lists
-# are checked by abuild against the sums inside it; the tarball is checked
+# The recipe is fetched by commit and its hash checked — from Alpine's mirror
+# on GitHub, because their GitLab answers a build runner with a 418 meant for
+# robots; the commit and the bytes are the same. The patches it lists are
+# checked by abuild against the sums inside it; the tarball is checked
 # against FFMPEG_SHA256 before its sha512 is written into the recipe. `abuild
 # -r` installs the build dependencies and takes them away again, so what is
 # left of this stage is the packages.
@@ -196,7 +198,7 @@ RUN set -eu; \
     SUDO= abuild-keygen -a -i -n; \
     mkdir -p /recipe/community/ffmpeg /var/cache/distfiles; \
     cd /recipe/community/ffmpeg; \
-    aports="https://gitlab.alpinelinux.org/alpine/aports/-/raw/${APORTS_COMMIT}/community/ffmpeg"; \
+    aports="https://raw.githubusercontent.com/alpinelinux/aports/${APORTS_COMMIT}/community/ffmpeg"; \
     for file in APKBUILD add-av_stream_get_first_dts-for-chromium.patch posix-ioctl.patch; do \
       curl -fsSL -o "$file" "$aports/$file"; \
     done; \
