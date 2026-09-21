@@ -193,10 +193,17 @@ hard each is.
 - **Space quotas.** Needed the moment personal folders are opened to people who
   are not administrators. The recursive folder-size index already does the
   counting; a quota is that count, a limit, and a refusal in the right place.
-- **An OpenAPI description.** The API reference is written by hand and every
-  example in it was run, which reads better than a generated one and consumes
-  worse: no generated client, nothing to explore. A description alongside the
-  page would give both.
+- **An OpenAPI description — done, 21 September 2026.** `backend/src/openapi`,
+  164 operations, served by an instance at `/api/openapi.json` and published at
+  `docs/public/openapi.json` with an explorer page. Written by hand and held by
+  tests: every mounted route described and nothing else, `x-access` against
+  `ensureAdmin` and the token gate, and a walk through all 164 whose answers
+  must fit the schemas, objects closed. Adding a route now means describing it
+  and walking it, or the build fails; `npm run openapi` in `backend/` rewrites
+  the published copy. Writing it turned up two defects: the reference listed
+  `/api/healthz` (it is `/healthz`), and a `read` API token could not download
+  a selection — the gate allowed `/api/files/download`, which was never
+  mounted.
 - **Tags.** The one I doubt. Both others have them and the FTS5 index could
   carry them for nothing, but a tag is only worth what people put into it, and
   in a tool whose files arrive by rsync or a network share, nobody puts any.
@@ -304,36 +311,23 @@ changes that needed one underneath — has been followed to the end:
 
 ### Worth doing, not blocking
 
-- **Load Uppy when a file is chosen, not when a page opens.** The last large
-  thing in the main chunk, now that the preview plugins and the terminal load on
-  demand: 2.33 MB and 655 kB gzipped, of which Uppy is a few hundred kilobytes
-  carried by every page — the folder view, the settings, the shares — because
-  `BrowserLayout` calls `useFileUploader()` on mount and the composable runs
-  `new Uppy()` at the top.
+- **Load Uppy when a file is chosen — done, 21 September 2026.** Uppy is in
+  `composables/uploadEngine.js`, fetched when the picker opens or a file is
+  dragged over the page; files are handed over only once it is there. The
+  main chunk went from 918 kB to 879 kB gzipped — 38 kB, not the 150–200 the
+  note here promised: the engine chunk is what Uppy weighs. The browser tests
+  cover a file by the picker, a folder by the picker and a file dropped before
+  the engine exists. **A folder dragged from the desktop cannot be automated**
+  — a script cannot build a drop that carries a directory — so it is covered
+  against the browser's entry interface in `fileUploader.spec.js` and wants
+  one try by hand.
 
-  It is not the one-line change the terminal was, and it is worth writing down
-  why before somebody starts it:
-
-  - **Three entry points share one instance.** `BrowserLayout` holds the global
-    one, `CreateNew.vue` opens the file dialog, `FolderView.vue` binds the drop
-    target. All three have to land on the same Uppy, whichever runs first.
-  - **Construction is not passive.** It installs the `files-added` handler, a
-    pre-processor that reserves a folder's destination _before_ any bytes are
-    sent, the choice between XHR and tus, and a progress watchdog. Deferring
-    construction defers all of that, and nothing may reach the network before it
-    is back.
-  - **Drag-and-drop is the hard case.** When a file lands on the window there is
-    no acceptable moment to fetch a library. It wants preloading on
-    `dragenter`, or the first drop is slow.
-
-  The tests it needed first exist now: `composables/fileUploader.spec.js`
-  covers the failure paths, the XHR/tus fallback and the folder reservation.
-  What is left is the change itself — defer the construction, then try it in a
-  browser with real files: a drop, and a whole folder.
-
-  The prize is 150–200 kB gzipped on first load, once. It is the highest risk
-  left on this list: a mistake here does not make a page ugly, it loses
-  somebody's files or sends them to the wrong folder.
+  Found on the way, and kept: the uploader was what loaded the settings on a
+  page reached through a share. The router hands over to the share check
+  before it gets to them (`router/index.js`, the `isGuestRoute` branch), so
+  without the uploader's call a document inside a share ignored the "open in
+  a tab" preference. The call stays in `useFileUploader` with a test; the
+  right home for it is the router, for an account that is signed in.
 
 - **The last two complex functions in the frontend.** The audit's worst was 72
   and everything it named is done; these two are what is left above thirty.
@@ -350,9 +344,15 @@ changes that needed one underneath — has been followed to the end:
 
   The covering came first, as everything else this audit touched, and it is
   done: the context menu has its spec, and `fileStore` has seven — listing,
-  navigation, deletion, editing, archives, failures, the thumbnail queue. What
-  is left is the split, and it has grown: `fileStore.js` is 1,181 lines now and
-  the context menu 912.
+  navigation, deletion, editing, archives, failures, the thumbnail queue.
+
+  **`fileStore.js` — split, 21 September 2026.** 1,191 lines became the
+  listing and 221 lines of wiring, with the rest in `stores/files/`: sorting,
+  the merge into the listing, the thumbnail queue, selection, rename, the
+  clipboard and transfers, deleting and making, the ONLYOFFICE badges. Moved,
+  not rewritten; the seven specs and the browser tests pass untouched, and the
+  parts that needed the whole store to be reached are tested on their own.
+  **The context menu (912 lines, 34) is what is left.**
 
 ### Rules this audit set, for whoever picks the work up
 
@@ -678,18 +678,38 @@ Settled on the way, each with its own tests:
   indexing every three-letter sequence instead of every word: measured at
   **11.3× the index and 4.5× the write** on three thousand documents. Not for
   this.
-- **A share and a personal folder still walk the storage.** They resolve inside
-  the volume under a name the index does not use, so the fix that made them
-  correct sent them back to reading the tree — which is the cost this whole
-  section removed everywhere else. Translating the base and rewriting the paths
-  back is the shape of it, and it is where a leak would hide.
+- **A share and a personal folder still walked the storage — answered from
+  the index since 21 September 2026.** `services/searchIndexView.js` asks
+  the index about the folder where it really sits and hands each row back
+  under the reader's name, or not at all; the contents query is narrowed to
+  the folder in SQL, where it used to take the best few hundred across the
+  volume and could leave a share with nothing. Looking for where a leak would
+  hide found two that were already there:
+
+  - **other accounts' personal folders were offered by the search** — by name
+    and by the line that matched — to anybody searching the volume, through
+    ripgrep (which the image ships) and through the index. The access check
+    never asked whose folder a path was; only resolving did. Released since
+    ripgrep search existed, and with `USER_ROOT` inside the volume under
+    another name, through the JavaScript walk too. Closed at the access check,
+    for the volume, an assigned volume that holds `_users`, and a share of
+    either;
+  - searching an account's name turned up a folder of that name at the root
+    that does not exist — `_users/bob` rebuilt as `bob` by stepping over the
+    segment it should have stopped at.
+
+  Both are on `integration` only. A patch on `main` would need its own port:
+  the search there predates the catalogue.
+
 - **Nothing reaches past five hundred results.** Three steps ask for more; past
   that the answer is to narrow the search. A cursor would need a stable total
   order, which now exists, and a generator held open between requests, which is
   what was refused.
-- **A one-row-per-folder catalogue is not a file listing.** Excluded folders,
-  dot-folders and `_users` are not in it by design, so a reader who has asked
-  to see hidden files is served by the walk.
+- **A one-row-per-folder catalogue is not a file listing.** Excluded folders
+  and dot-folders are not in it by design, so a reader who has asked to see
+  hidden files is served by the walk. `_users` is: that is what lets a
+  personal folder be searched from the index, and the access check and the
+  view keep it from anybody else.
 
 ## Open, not scheduled
 
