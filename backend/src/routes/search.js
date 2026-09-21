@@ -152,6 +152,22 @@ const excludedSearchPaths = () => {
   }
 };
 
+/**
+ * Whether a path lies in a folder the administrator excluded from search,
+ * below where the search started — standing inside an excluded folder and
+ * searching there is asking to look, as `ripgrepIgnoreGlobs` says.
+ */
+const isUnderExcludedFolder = (rel, relBasePath = '') => {
+  const base = relBasePath ? `${relBasePath}/` : '';
+  return excludedSearchPaths().some(
+    (excluded) =>
+      excluded &&
+      excluded.startsWith(base) &&
+      excluded !== relBasePath &&
+      rel.startsWith(`${excluded}/`)
+  );
+};
+
 const normalizePath = (p, relBasePath) => {
   const normalized = p.replace(/\\/g, '/');
   return relBasePath ? path.posix.join(relBasePath, normalized) : normalized;
@@ -174,16 +190,40 @@ const normalizePath = (p, relBasePath) => {
 const shouldIgnore = (name, includeHiddenFiles = false) =>
   excludedFiles.includes(name) || (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
 
-const extractDirMatches = (fullPath, matcher, includeHiddenFiles = false) => {
+/**
+ * Whether a path, taken from where the search started, runs through a folder
+ * this search never enters.
+ *
+ * The walk does not go into those folders at all. ripgrep and the index do,
+ * and every path either of them hands back has to be asked. The last segment
+ * is the entry itself, which `shouldInclude` already judges by its name.
+ */
+const passesThroughIgnoredFolder = (relFromBase, includeHiddenFiles = false) => {
+  const parts = relFromBase.split('/');
+  parts.pop();
+  return parts.some((part) => part && shouldIgnore(part, includeHiddenFiles));
+};
+
+/**
+ * The folders on the way to a file that answer the term themselves.
+ *
+ * Only the folders below where the search started: the base and whatever is
+ * above it are where the reader already is, and a search inside `Docs/2026`
+ * for `docs` offered `Docs` back. And it stops at the first folder the search
+ * does not enter, rather than stepping over its name — stepping over
+ * `_users` turned `_users/bob` into a folder called `bob` at the root, which
+ * does not exist and named somebody's private folder.
+ */
+const extractDirMatches = (relFromBase, relBasePath, matcher, includeHiddenFiles = false) => {
   const dirs = new Set();
-  const dirPath = path.posix.dirname(fullPath);
+  const dirPath = path.posix.dirname(relFromBase);
 
   if (dirPath && dirPath !== '.') {
-    const parts = dirPath.split('/');
-    let acc = '';
+    let acc = relBasePath || '';
 
-    for (const part of parts) {
-      if (!part || shouldIgnore(part, includeHiddenFiles)) continue;
+    for (const part of dirPath.split('/')) {
+      if (!part) continue;
+      if (shouldIgnore(part, includeHiddenFiles)) break;
       acc = acc ? `${acc}/${part}` : part;
       if (matcher.matchesName(part)) dirs.add(acc);
     }
@@ -243,10 +283,11 @@ async function* streamFileListMatches(
       if (!trimmed) continue;
       if (!includeHiddenFiles && hiddenFiles.isHiddenPath(trimmed)) continue;
 
+      const fromBase = trimmed.replace(/\\/g, '/');
       const fullRel = normalizePath(trimmed, relBasePath);
 
       // Extract and yield directory matches immediately
-      for (const dirPath of extractDirMatches(fullRel, matcher, includeHiddenFiles)) {
+      for (const dirPath of extractDirMatches(fromBase, relBasePath, matcher, includeHiddenFiles)) {
         if (!dirSet.has(dirPath) && !seenPaths.has(dirPath)) {
           dirSet.add(dirPath);
           seenPaths.add(dirPath);
@@ -257,6 +298,7 @@ async function* streamFileListMatches(
       }
 
       // Check filename match and yield immediately
+      if (passesThroughIgnoredFolder(fromBase, includeHiddenFiles)) continue;
       if (matcher.matchesRelativePath(fullRel) && !seenPaths.has(fullRel)) {
         seenPaths.add(fullRel);
         if (await shouldInclude(fullRel)) {
@@ -461,6 +503,9 @@ async function* streamContentMatches(
       // `--pre=...` even though the arguments were safely protected by `--`.
       const normalizedFilePath = filePath.replace(/^(?:\.\/|\.\\)+/, '');
       if (!includeHiddenFiles && hiddenFiles.isHiddenPath(normalizedFilePath)) continue;
+      if (passesThroughIgnoredFolder(normalizedFilePath.replace(/\\/g, '/'), includeHiddenFiles)) {
+        continue;
+      }
 
       const lineNum = data.data?.line_number;
       const lineText = data.data?.lines?.text;
@@ -674,9 +719,14 @@ async function* streamDocumentMatches(
       ? path.posix.join(parent.split(path.sep).join('/'), entry.name)
       : entry.name;
     if (!includeHiddenFiles && hiddenFiles.isHiddenPath(relFromBase)) continue;
+    // A recursive listing enters every folder, including the ones the other
+    // passes are kept out of — personal folders among them, and the folders
+    // the administrator excluded from search.
+    if (passesThroughIgnoredFolder(relFromBase, includeHiddenFiles)) continue;
 
     const rel = normalizePath(relFromBase, relBasePath);
     if (seenPaths.has(rel)) continue;
+    if (isUnderExcludedFolder(rel, relBasePath)) continue;
 
     const absolutePath = path.join(baseAbsPath, relFromBase);
     // The same bound `generateFallbackResults` applies through
