@@ -24,7 +24,18 @@ const PATH_TABLES = [
   { table: 'shares', column: 'source_path' },
 ];
 
-const escapeLikePattern = (value = '') => String(value).replace(/[\\%_]/g, '\\$&');
+/**
+ * Everything under a path, as bounds on the column: every path that begins
+ * with `prefix/` sorts at or after it and before `prefix0`, `0` being the
+ * character right after `/`.
+ *
+ * `LIKE 'prefix/%'` said the same thing and ignored case besides — for ASCII
+ * SQLite's LIKE always does. Deleting `Docs` dropped the favorites and the
+ * share links of `docs/…`, and renaming it re-pointed them at `Papers/…`: on a
+ * Linux volume another folder, and for a share, possibly another file than the
+ * one that was shared. The bounds compare bytes, and use the column's index.
+ */
+const childRange = (prefix) => [`${prefix}/`, `${prefix}0`];
 
 /**
  * Forget what pointed at a path that no longer exists.
@@ -42,15 +53,13 @@ const forgetPath = async (relativePath, { includeChildren = false } = {}) => {
   let removed = 0;
   try {
     const db = await getDb();
-    const childPattern = `${escapeLikePattern(normalized)}/%`;
-
     db.transaction(() => {
       for (const { table, column } of PATH_TABLES) {
         const result = includeChildren
           ? prepared(
               db,
-              `DELETE FROM ${table} WHERE ${column} = ? OR ${column} LIKE ? ESCAPE '\\'`
-            ).run(normalized, childPattern)
+              `DELETE FROM ${table} WHERE ${column} = ? OR (${column} >= ? AND ${column} < ?)`
+            ).run(normalized, ...childRange(normalized))
           : prepared(db, `DELETE FROM ${table} WHERE ${column} = ?`).run(normalized);
         removed += result.changes;
       }
@@ -81,7 +90,6 @@ const movePath = async (fromPath, toPath, { includeChildren = true } = {}) => {
   let moved = 0;
   try {
     const db = await getDb();
-    const childPattern = `${escapeLikePattern(from)}/%`;
     const childOffset = from.length + 2; // SQLite substr is 1-based, past the '/'
 
     db.transaction(() => {
@@ -97,8 +105,8 @@ const movePath = async (fromPath, toPath, { includeChildren = true } = {}) => {
           db,
           `UPDATE OR REPLACE ${table}
               SET ${column} = ? || substr(${column}, ?)
-            WHERE ${column} LIKE ? ESCAPE '\\'`
-        ).run(`${to}/`, childOffset, childPattern).changes;
+            WHERE ${column} >= ? AND ${column} < ?`
+        ).run(`${to}/`, childOffset, ...childRange(from)).changes;
       }
     })();
   } catch (error) {

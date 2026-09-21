@@ -29,11 +29,18 @@ const operations = require('./operations');
 const { thinVersions } = require('./policy');
 const store = require('./store');
 
-const escapeLike = (value) => String(value).replace(/[\\%_]/g, '\\$&');
-
-/** `column` is `prefix`, or something inside it. */
-const under = (column) => `(${column} = ? OR ${column} LIKE ? ESCAPE '\\')`;
-const underValues = (prefix) => [prefix, `${escapeLike(prefix)}/%`];
+/**
+ * `column` is `prefix`, or something inside it: every path that begins with
+ * `prefix/` sorts at or after it and before `prefix0`, `0` being the character
+ * right after `/`.
+ *
+ * It was `LIKE 'prefix/%'`, which ignores case for ASCII as SQLite's LIKE
+ * always does. Moving `Docs` reassigned the histories of `docs/…` to files
+ * under the new name, and deleting it for good purged them — another folder,
+ * on a Linux volume, and its versions gone with the wrong one.
+ */
+const under = (column) => `(${column} = ? OR (${column} >= ? AND ${column} < ?))`;
+const underValues = (prefix) => [prefix, `${prefix}/`, `${prefix}0`];
 
 /** What is left of `full` inside `prefix`: '' for the prefix itself. */
 const inside = (full, prefix) => (full === prefix ? '' : full.slice(prefix.length + 1));

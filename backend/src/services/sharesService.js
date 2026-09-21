@@ -479,7 +479,18 @@ const normalizeShareSourcePath = (sourcePath = '') =>
     .replace(/^\/+/, '')
     .replace(/\/+$/, '');
 
-const escapeLikePattern = (value = '') => String(value).replace(/[\\%_]/g, '\\$&');
+/**
+ * The shares inside a folder, found by bounds on the path: every path that
+ * begins with `prefix/` sorts at or after it and before `prefix0`, `0` being
+ * the character right after `/`.
+ *
+ * `LIKE 'prefix/%'` ignored case, as SQLite's LIKE always does for ASCII:
+ * deleting `Docs` counted, and then deleted, the share links of `docs/…` —
+ * another folder on a Linux volume, and somebody else's links as often as not.
+ */
+const CHILD_SHARES_SQL =
+  'SELECT * FROM shares WHERE source_space = ? AND source_path >= ? AND source_path < ?';
+const childRange = (prefix) => [`${prefix}/`, `${prefix}0`];
 
 /**
  * Shares affected by each target, in one pass.
@@ -506,10 +517,7 @@ const getSharesBySourceTarget = async (targets = []) => {
     db,
     'SELECT * FROM shares WHERE source_space = ? AND source_path = ?'
   );
-  const childQuery = prepared(
-    db,
-    "SELECT * FROM shares WHERE source_space = ? AND source_path LIKE ? ESCAPE '\\'"
-  );
+  const childQuery = prepared(db, CHILD_SHARES_SQL);
 
   for (const target of normalized) {
     if (byTarget.has(target.key)) continue;
@@ -517,7 +525,7 @@ const getSharesBySourceTarget = async (targets = []) => {
     exactQuery.all(target.sourceSpace, target.sourcePath).forEach((row) => rows.set(row.id, row));
     if (target.includeChildren) {
       childQuery
-        .all(target.sourceSpace, `${escapeLikePattern(target.sourcePath)}/%`)
+        .all(target.sourceSpace, ...childRange(target.sourcePath))
         .forEach((row) => rows.set(row.id, row));
     }
     byTarget.set(target.key, Array.from(rows.values()).map(toClientShare));
@@ -549,20 +557,14 @@ const getSharesForSourceTargets = async (targets = []) => {
     db,
     'SELECT * FROM shares WHERE source_space = ? AND source_path = ?'
   );
-  const childQuery = prepared(
-    db,
-    "SELECT * FROM shares WHERE source_space = ? AND source_path LIKE ? ESCAPE '\\'"
-  );
+  const childQuery = prepared(db, CHILD_SHARES_SQL);
 
   for (const target of normalizedTargets) {
     const exactRows = exactQuery.all(target.sourceSpace, target.sourcePath);
     exactRows.forEach((row) => sharesById.set(row.id, row));
 
     if (target.includeChildren) {
-      const childRows = childQuery.all(
-        target.sourceSpace,
-        `${escapeLikePattern(target.sourcePath)}/%`
-      );
+      const childRows = childQuery.all(target.sourceSpace, ...childRange(target.sourcePath));
       childRows.forEach((row) => sharesById.set(row.id, row));
     }
   }
