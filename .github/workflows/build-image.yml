@@ -223,6 +223,27 @@ jobs:
           fi
           echo "Red on the left, blue on the right."
 
+      # Both images carry at least the ffmpeg the Dockerfile pins: the lean one
+      # compiles it, the full one builds Alpine's package at that version for
+      # as long as Alpine's own is older. A build that quietly installed the
+      # older package — a comparison that went the wrong way, a glob that
+      # matched nothing — would pass every check above, since 8.1.2 decodes a
+      # HEIC as well as 8.1.3 does. Only the version tells them apart.
+      - name: Check the image's ffmpeg is at least the pinned one
+        if: ${{ inputs.push }}
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          pinned="$(sed -n 's/^ARG FFMPEG_VERSION=//p' Dockerfile)"
+          carried="$(docker run --rm --entrypoint sh "$IMAGE" -c 'ffmpeg -version | head -n 1' | awk '{ print $3 }')"
+          echo "The Dockerfile pins $pinned; the image carries $carried"
+          lowest="$(printf '%s\n%s\n' "$pinned" "$carried" | sort -V | head -n 1)"
+          if [ -z "$pinned" ] || [ -z "$carried" ] || [ "$lowest" != "$pinned" ]; then
+            echo "::error::The image's ffmpeg ($carried) is older than the one the Dockerfile pins ($pinned)"
+            exit 1
+          fi
+          echo "At least the pinned version."
+
       # A refresh that nobody can read is a ritual. This says what the image it
       # just published actually carries, so the weekly run answers the question
       # it exists for without anyone pulling the image to find out.

@@ -5,6 +5,14 @@
 # FROM lines and to nothing else.
 ARG FFMPEG_VARIANT=apk
 
+# The ffmpeg both images carry, pinned once. The lean image compiles it (the
+# ffmpeg_build stage); the full one builds Alpine's package at this version
+# whenever Alpine's own is older (the ffmpeg_recipe stage). Each stage that
+# needs them repeats the two names without a value, which is what brings a
+# global ARG into a stage.
+ARG FFMPEG_VERSION=8.1.3
+ARG FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3
+
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
@@ -101,8 +109,8 @@ RUN apk add --no-cache curl libarchive-tools \
 # wants to go further than pinning the bytes.
 # ---------------------------------------------------------------------------
 FROM alpine:3.24 AS ffmpeg_build
-ARG FFMPEG_VERSION=8.1.3
-ARG FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3
+ARG FFMPEG_VERSION
+ARG FFMPEG_SHA256
 
 # `ffmpeg` here is a build dependency and never ships: the verification below
 # uses it to synthesise a clip per format, which the binary we build then has
@@ -155,6 +163,74 @@ RUN chmod +x /usr/local/bin/verify-ffmpeg.sh \
 
 
 # ---------------------------------------------------------------------------
+# ffmpeg for the full image: Alpine's own build, at the version pinned above
+#
+# The full image takes ffmpeg from Alpine for everything that build carries —
+# VA-API, VDPAU, Vulkan, QSV on amd64, and every external decoder — and Alpine
+# can be days or weeks behind a security release. 8.1.3 closed three CVEs in
+# decoders this image hands uploads to (CVE-2026-66038, CVE-2026-70629,
+# CVE-2026-70631) on 21 September 2026, and the 3.24 branch was still on
+# 8.1.2-r0; it took Alpine ten days to take 8.1.2 onto the stable branch.
+#
+# So this builds Alpine's package itself, from its recipe at a pinned aports
+# commit, and changes one thing: the version. Same configure line, same
+# patches, same libraries, split into the same packages — what Alpine would
+# publish, a release earlier. The runtime stage installs whichever is newer,
+# this or Alpine's, so the weekly rebuild goes back to Alpine's package the
+# day it catches up, without anybody having to remember to.
+#
+# The recipe is fetched by commit and its hash checked; the patches it lists
+# are checked by abuild against the sums inside it; the tarball is checked
+# against FFMPEG_SHA256 before its sha512 is written into the recipe. `abuild
+# -r` installs the build dependencies and takes them away again, so what is
+# left of this stage is the packages.
+# ---------------------------------------------------------------------------
+FROM alpine:3.24 AS ffmpeg_recipe
+ARG FFMPEG_VERSION
+ARG FFMPEG_SHA256
+ARG APORTS_COMMIT=d2c3ca384892f415fc1b92abd87f78c1d5d0cbba
+ARG APKBUILD_SHA256=76c1c842c47b25fbb8133a86979f642a86545f7e505f46b13d46aa13764a9a1d
+
+RUN set -eu; \
+    apk add --no-cache alpine-sdk curl; \
+    SUDO= abuild-keygen -a -i -n; \
+    mkdir -p /recipe/community/ffmpeg /var/cache/distfiles; \
+    cd /recipe/community/ffmpeg; \
+    aports="https://gitlab.alpinelinux.org/alpine/aports/-/raw/${APORTS_COMMIT}/community/ffmpeg"; \
+    for file in APKBUILD add-av_stream_get_first_dts-for-chromium.patch posix-ioctl.patch; do \
+      curl -fsSL -o "$file" "$aports/$file"; \
+    done; \
+    echo "${APKBUILD_SHA256}  APKBUILD" | sha256sum -c -; \
+    tarball="/var/cache/distfiles/ffmpeg-${FFMPEG_VERSION}.tar.xz"; \
+    curl -fsSL -o "$tarball" "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"; \
+    echo "${FFMPEG_SHA256}  $tarball" | sha256sum -c -; \
+    sha512="$(sha512sum "$tarball" | cut -d ' ' -f 1)"; \
+    sed -i \
+      -e "s/^pkgver=.*/pkgver=${FFMPEG_VERSION}/" \
+      -e "s/^pkgrel=.*/pkgrel=0/" \
+      -e "s/^[0-9a-f]\{128\}  ffmpeg-[0-9.]*\.tar\.xz\$/${sha512}  ffmpeg-${FFMPEG_VERSION}.tar.xz/" \
+      APKBUILD; \
+    grep -qx "pkgver=${FFMPEG_VERSION}" APKBUILD; \
+    grep -qx "${sha512}  ffmpeg-${FFMPEG_VERSION}.tar.xz" APKBUILD; \
+    apk update --quiet; \
+    abuild -F -r -P /out; \
+    ls /out/community/*/ffmpeg-"${FFMPEG_VERSION}"-r0.apk; \
+    rm -rf /recipe /var/cache/distfiles/* /var/cache/apk/*
+
+# Every format the explorer previews has to decode with what was just built,
+# as it does for the lean image — installed here and nowhere else, to check.
+COPY docker/verify-ffmpeg.sh /usr/local/bin/verify-ffmpeg.sh
+RUN set -eu; \
+    dir="$(dirname "$(ls /out/community/*/ffmpeg-"${FFMPEG_VERSION}"-r0.apk)")"; \
+    apk add --no-cache --allow-untrusted "$dir/ffmpeg-${FFMPEG_VERSION}-r0.apk" \
+      "$dir"/ffmpeg-libav*-"${FFMPEG_VERSION}"-r0.apk \
+      "$dir"/ffmpeg-libsw*-"${FFMPEG_VERSION}"-r0.apk; \
+    ffmpeg -version | head -n 1 | grep -q "^ffmpeg version ${FFMPEG_VERSION} "; \
+    chmod +x /usr/local/bin/verify-ffmpeg.sh; \
+    /usr/local/bin/verify-ffmpeg.sh "$(command -v ffmpeg)" "$(command -v ffprobe)"
+
+
+# ---------------------------------------------------------------------------
 # Which ffmpeg the runtime gets, decided before anything is built
 #
 # The runtime mounts a stage rather than copying from it, so no bytes of the
@@ -167,10 +243,12 @@ RUN chmod +x /usr/local/bin/verify-ffmpeg.sh \
 # image discards, and was cut off at its hour limit having published nothing.
 #
 # Selecting the stage here means the compile happens only for the variant that
-# asked for it. `apk` resolves to an empty scratch image, which costs nothing
-# and gives the mount something to point at.
+# asked for it: `source` is the lean image's build, `apk` the packages built
+# from Alpine's recipe — just the packages, so the mount carries nothing of
+# the stage that made them.
 # ---------------------------------------------------------------------------
 FROM scratch AS ffmpeg_apk
+COPY --from=ffmpeg_recipe /out /out
 
 FROM ffmpeg_build AS ffmpeg_source
 
@@ -251,11 +329,18 @@ RUN apk add --no-cache \
   && rm -rf /tmp/* /var/cache/apk/*
 
 # ffmpeg, from one source or the other. The build stage is mounted rather than
-# copied, so an `apk` build carries none of its bytes into any layer.
+# copied, so none of its bytes reach a layer they are not installed into.
 #
-# The runtime libraries have to come with it: this build links against the
-# Alpine ones rather than being static, which keeps it small and keeps the
-# security updates coming from apk rather than from a rebuild.
+# The runtime libraries have to come with it: both builds link against the
+# Alpine ones rather than being static, which keeps them small and keeps the
+# security updates of those libraries coming from apk rather than from a
+# rebuild.
+#
+# For `apk`, the newer of two wins: Alpine's own package, or the one built
+# from its recipe at FFMPEG_VERSION. Alpine's wins as soon as it is at least as
+# new, which is what lets the weekly rebuild — this stage is never taken from
+# the cache there — move on without an edit. A version apk cannot read fails
+# the build rather than choosing by accident.
 RUN --mount=from=ffmpeg_selected,target=/ffmpeg-built \
     set -eu; \
     if [ "$FFMPEG_VARIANT" = "source" ]; then \
@@ -266,7 +351,21 @@ RUN --mount=from=ffmpeg_selected,target=/ffmpeg-built \
       apk add --no-cache dav1d libbz2; \
       install -m 0755 /ffmpeg-built/out/bin/ffmpeg /ffmpeg-built/out/bin/ffprobe /usr/local/bin/; \
     else \
-      apk add --no-cache ffmpeg; \
+      built="$(ls /ffmpeg-built/out/community/*/ffmpeg-[0-9]*.apk)"; \
+      dir="$(dirname "$built")"; \
+      ours="$(basename "$built" .apk)"; \
+      ours="${ours#ffmpeg-}"; \
+      apk update --quiet; \
+      theirs="$(apk search -x ffmpeg | sed -n 's/^ffmpeg-//p')"; \
+      apk version -c "$ours" "$theirs"; \
+      if [ "$(apk version -t "$theirs" "$ours")" = "<" ]; then \
+        apk add --no-cache --allow-untrusted "$built" \
+          "$dir"/ffmpeg-libav*-"$ours".apk "$dir"/ffmpeg-libsw*-"$ours".apk; \
+        echo "ffmpeg $ours, built from Alpine's recipe; Alpine has $theirs"; \
+      else \
+        apk add --no-cache ffmpeg; \
+        echo "ffmpeg $theirs, Alpine's own; the recipe build is $ours"; \
+      fi; \
     fi; \
     rm -rf /var/cache/apk/*; \
     ffmpeg -version >/dev/null; \

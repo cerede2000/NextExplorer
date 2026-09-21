@@ -255,8 +255,8 @@ jobs:
   # The HEIC suites need an ffmpeg that reads HEIF, which the runner's 6.1
   # cannot: there they skip. Here they run on the base the image is built from,
   # read from the Dockerfile so the two cannot drift, with Alpine's ffmpeg —
-  # the one the full image installs — and HEIF is required, so a skip cannot
-  # hide in this job. Until this existed, the HEIC decode assertions had never
+  # the recipe the full image installs, built at a newer version when Alpine's
+  # package lags — and HEIF is required, so a skip cannot hide in this job. Until this existed, the HEIC decode assertions had never
   # run on any CI machine, while reporting green on every one.
   media:
     name: Media suites, with the image's ffmpeg
