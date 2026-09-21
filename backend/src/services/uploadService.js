@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
 const fss = require('fs');
@@ -6,9 +7,11 @@ const multer = require('multer');
 
 const { uploads } = require('../config/index');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
-const { normalizeRelativePath, findAvailableName } = require('../utils/pathUtils');
+const { normalizeRelativePath } = require('../utils/pathUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
+const { track: trackInFlight } = require('./inFlightFiles');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 
@@ -70,10 +73,17 @@ function CustomStorage() {
   // Custom multer storage engine for handling file uploads with:
   // - Access control checks
   // - Atomic-like writes via temporary files
-  // - Automatic file name conflict resolution
+  // - A name that never replaces a file already holding it
 }
 
 CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
+  // Recorded while the bytes arrive, released however the upload ends: a stop
+  // half-way leaves the record, and the next start removes the hidden file.
+  let inFlight = null;
+  const finish = (...args) => {
+    inFlight?.release();
+    cb(...args);
+  };
   (async () => {
     try {
       const { destinationPath, destinationDir, logicalRelativePath } = await resolveUploadPaths(
@@ -93,14 +103,21 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
 
       await ensureDir(destinationDir);
 
-      let finalPath = destinationPath;
-      if (await pathExists(finalPath)) {
-        const desiredName = path.basename(destinationPath);
-        const availableName = await findAvailableName(destinationDir, desiredName);
-        finalPath = path.join(destinationDir, availableName);
-      }
-
-      const temporaryPath = `${finalPath}.uploading`;
+      // The bytes go to a hidden name of their own beside the destination, and
+      // the real name is only taken once they are all there. Choosing that name
+      // first, as this did, left it free for the whole transfer: whatever
+      // arrived under it meanwhile — another upload, a copy, a file saved over
+      // SMB — was replaced by the rename at the end, and two uploads of the same
+      // name wrote into the same temporary file. The temporary name is random,
+      // so it never collides and never derives from a name that could exceed
+      // the filesystem's limit, and it starts with a dot, which the listing
+      // hides unless hidden files are shown.
+      const desiredName = path.basename(destinationPath);
+      const temporaryPath = path.join(
+        destinationDir,
+        `.upload-${crypto.randomBytes(8).toString('hex')}.uploading`
+      );
+      inFlight = trackInFlight(temporaryPath, 'partial-upload');
 
       const cleanupTemporary = async () => {
         let lastError = null;
@@ -159,7 +176,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         destroyStream(outStream, error);
         await waitForClosed(outStream);
         await cleanupTemporary();
-        cb(error);
+        finish(error);
         return;
       } finally {
         req.off('aborted', handleAbort);
@@ -167,20 +184,23 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       }
 
       try {
-        await fs.rename(temporaryPath, finalPath);
-        cb(null, {
-          path: finalPath,
+        // Taken by an operation that fails when the name is held, moving on to
+        // "name (1).ext" and so on: nothing already there is ever replaced. What
+        // was taken is what the response reports.
+        const placed = await placeWithoutOverwrite(temporaryPath, destinationDir, desiredName);
+        finish(null, {
+          path: placed.path,
           size: outStream.bytesWritten,
-          filename: path.basename(finalPath),
-          logicalPath: logicalRelativePath,
+          filename: placed.name,
+          logicalPath: normalizeRelativePath(path.join(relDestDir, placed.name)),
         });
-      } catch (renameErr) {
+      } catch (placeErr) {
         await waitForClosed(outStream);
         await cleanupTemporary();
-        cb(renameErr);
+        finish(placeErr);
       }
     } catch (uploadError) {
-      cb(uploadError);
+      finish(uploadError);
     }
   })();
 };
