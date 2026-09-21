@@ -10,11 +10,15 @@ const { printStartupBanner } = require('./utils/startupBanner');
 const terminalService = require('./services/terminalService');
 const searchIndexManager = require('./services/searchIndexManager');
 const folderSizeManager = require('./services/folderSizeManager');
+const { sweepInterrupted } = require('./services/inFlightFiles');
 
 let server = null;
 
 const startServer = async () => {
   logger.debug('Server initialization started');
+
+  // Before anything writes: what operations a stop interrupted left behind.
+  sweepInterrupted();
 
   const app = await createApp();
 

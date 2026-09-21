@@ -17,6 +17,7 @@ const {
 } = require('../utils/pathUtils');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const { track: trackInFlight } = require('../services/inFlightFiles');
 const {
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
@@ -197,6 +198,13 @@ router.post(
         ? path.join(parentAbsolutePath, folderName)
         : await fs.mkdtemp(path.join(parentAbsolutePath, '.nextexplorer-extract-'));
     const movedPaths = [];
+    // Recorded before anything more is written, released however the extraction
+    // ends: a stop half-way leaves the record, and the next start removes what
+    // it names.
+    const inFlight = trackInFlight(
+      destinationFolderAbsolutePath,
+      destination === 'folder' ? 'partial-folder' : 'staging-directory'
+    );
 
     if (destination === 'folder') {
       await fs.mkdir(destinationFolderAbsolutePath);
@@ -287,6 +295,7 @@ router.post(
         code: error.code || 'EXTRACT_FAILED',
       });
     } finally {
+      inFlight.release();
       req.off('aborted', abort);
       res.off('close', onClose);
       res.end();
@@ -366,6 +375,7 @@ router.post(
 
     const zipFileName = await findAvailableName(destinationAbsolutePath, requestedName);
     const zipAbsolutePath = path.join(destinationAbsolutePath, zipFileName);
+    const inFlight = trackInFlight(zipAbsolutePath, 'partial-archive');
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
@@ -427,6 +437,7 @@ router.post(
         code: error.code || 'COMPRESS_FAILED',
       });
     } finally {
+      inFlight.release();
       req.off('aborted', abort);
       res.off('close', onClose);
       res.end();
