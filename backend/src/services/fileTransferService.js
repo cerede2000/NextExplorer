@@ -6,6 +6,7 @@ const {
   normalizeRelativePath,
   combineRelativePath,
   findAvailableName,
+  ensureValidName,
 } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
@@ -116,7 +117,16 @@ const transferItems = async (items, destination, operation, options = {}) => {
       continue;
     }
 
-    const desiredName = item.newName || item.name;
+    // The name the item lands under is joined onto the destination, which is
+    // the only directory authorized above. Taken from the request as it came,
+    // `../x` or `../../x` wrote beside or above it — out of a read-only parent,
+    // out of a share into the volume. A new name has to be a name; without
+    // one, the item keeps the name it has on disk, not the one the request
+    // spelled.
+    const desiredName =
+      item.newName === undefined || item.newName === null || item.newName === ''
+        ? path.basename(sourceAbsolute)
+        : ensureValidName(item.newName);
     const availableName = await findAvailableName(destinationAbsolute, desiredName);
     const targetAbsolute = path.join(destinationAbsolute, availableName);
     const targetRelative = combineRelativePath(destinationRelative, availableName);

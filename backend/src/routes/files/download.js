@@ -4,6 +4,7 @@ const archiver = require('archiver');
 const { normalizeRelativePath } = require('../../utils/pathUtils');
 const { resolvePathWithAccess } = require('../../services/accessManager');
 const asyncHandler = require('../../utils/asyncHandler');
+const { collectArchiveEntries, appendEntries } = require('../../services/archiveTree');
 const { ValidationError, ForbiddenError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
 const { collectInputPaths, encodeContentDisposition, stripBasePath, toPosix } = require('./utils');
@@ -120,22 +121,21 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   archive.pipe(res);
 
-  targets.forEach(({ relativePath, absolutePath, stats }) => {
-    const entryNameRaw = isShareRootPath(relativePath)
-      ? getDownloadBaseName({ relativePath, absolutePath })
-      : stripBasePath(relativePath, baseNormalized);
-    const entryName = entryNameRaw
-      ? entryNameRaw.replace(/\\/g, '/').replace(/^\/+/, '')
-      : path.basename(absolutePath);
-
-    if (stats.isDirectory()) {
-      archive.directory(absolutePath, entryName);
-    } else {
-      archive.file(absolutePath, {
-        name: entryName || path.basename(absolutePath),
-      });
-    }
-  });
+  // Only what a listing of those folders would show: never the trash zone, a
+  // personal root inside the volume, or a path an access rule hides.
+  const { entries } = await collectArchiveEntries(
+    context,
+    targets.map(({ relativePath, absolutePath, stats }) => {
+      const entryNameRaw = isShareRootPath(relativePath)
+        ? getDownloadBaseName({ relativePath, absolutePath })
+        : stripBasePath(relativePath, baseNormalized);
+      const entryName = entryNameRaw
+        ? entryNameRaw.replace(/\\/g, '/').replace(/^\/+/, '')
+        : path.basename(absolutePath);
+      return { absolutePath, logicalPath: relativePath, entryName, stats };
+    })
+  );
+  appendEntries(archive, entries);
 
   await archive.finalize();
 };
