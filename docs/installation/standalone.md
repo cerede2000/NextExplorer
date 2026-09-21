@@ -264,7 +264,7 @@ quietly lose a format.
 
 Every release also carries a second archive, `-minimal` in its name, without
 the three things a distribution can provide: the Node runtime, ExifTool and
-7-Zip. Measured on v3.9.3, linux-x64: **76 MB unpacked instead of 221, and 24
+7-Zip. Measured on v3.10.0, linux-x64: **76 MB unpacked instead of 221, and 24
 MB to download instead of 74**. It is for a machine that already has a Node
 the installer accepts — or for packaging this for a distribution, where every
 megabyte is one the package manager could have supplied.

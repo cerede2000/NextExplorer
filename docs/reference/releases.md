@@ -6,6 +6,167 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.10.0 (2026-09-21)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.10.0)
+
+### Other people's personal folders, offered by the search
+
+Personal folders sit in `<volume>/_users` unless `USER_ROOT` says otherwise,
+inside the tree everybody browses. Since 3.5.0 opening `_users/bob` through the
+volume has been refused; asking whether it may be read still said yes, because
+the volume's rules had no reason to wonder whose folder it was.
+
+The search asks exactly that of paths it never opens. ripgrep, which the image
+ships, lists every file under the volume, and the search index reads all of it
+too — so an ordinary account searching the volume was offered other accounts'
+files, by name and by the line that matched. The JavaScript walk stepped over
+`_users` by name, which is why a machine without ripgrep never showed it; with
+`USER_ROOT` inside the volume under any other name, the walk did the same.
+
+The access check now gives the answer that opening the path gives, and so does
+every other way into the same folder: an assigned volume that holds it, and a
+share of a folder that holds it. **Present since 3.5.0 in the default layout.**
+Update if people who are not administrators have accounts on your instance.
+
+On the way: searching for an account's name offered a folder of that name at
+the root that does not exist — `_users/bob/notes.txt` read as `bob`, by stepping
+over the segment the search should have stopped at.
+
+### A search that does not walk a network share
+
+Reported in [#11](https://github.com/cerede2000/NextExplorer/issues/11): an
+instance with a hundred thousand documents on an SMB mount, a search that came
+back by timing out, and a file that could not be found by typing its name.
+
+The index answered contents and never names. A name search enumerated the whole
+tree on every request — invisible on a local disk, where fifty thousand files
+answer in 143 ms, and the entire cost on a network share, one round trip per
+folder. Every file and folder has a row in the index now, and a name search
+reads it: at half a million rows, a name that matches nothing takes about
+40 ms. Measured on twenty thousand files, the pass costs 2 % more time, 239
+bytes of index per row and 6 MB of peak memory.
+
+A share, a personal folder and an assigned volume are answered from the index
+too, where they were read from the storage on every keystroke — and a search
+inside a share answered nothing at all whenever the index was on, which had
+been true of contents since the index existed.
+
+What a reader sees:
+
+- **Three characters, and the beginning of a word.** One or two letters
+  describe most of a volume and get an answer rather than a search. Through the
+  index `azul` now finds `azules`, where it found nothing; the middle of a word
+  — `ules` — is still only found by reading the files.
+- **Ranked.** The whole name first, then a name that begins with the term, then
+  one that holds it; contents by relevance, and by folder when that ties, so a
+  folder's files arrive together.
+- **Each result says why it is there** — its name, its contents, or both.
+- **A short answer says so.** A search stopped by its time budget looked exactly
+  like one that had seen everything. A full page says it is the first hundred,
+  and more can be asked for — three hundred, then five hundred.
+- **`.git`, `node_modules`, `dist` and `build` are searched.** They were skipped
+  by name, an editor's habit, on a file server where they are folder names like
+  any other. What search leaves alone is the administrator's list,
+  `SEARCH_INDEX_EXCLUDE`.
+- **An accent is an accent**, however the machine that wrote the name encoded
+  it: a `Résumé.pdf` that arrived from a Mac is found by typing its name.
+
+An installation whose index is already built goes on answering names by walking
+until its next pass has been all the way round — the hourly one — and then
+stops. Nothing has to be rebuilt.
+
+### Two switches in Settings, and what is missing where you can see it
+
+Both asked for in [#9](https://github.com/cerede2000/NextExplorer/issues/9).
+
+- **The search index and folder sizes** each have a switch on their own
+  Settings page, and start or stop at once. `SEARCH_INDEX` and
+  `FOLDER_SIZE_MODE`, when they are set, still decide: the page shows the value
+  in force and names the variable. Nothing else moved out of the environment,
+  on purpose — the terminal, the paths, the secrets and proxy trust widen what
+  an administrator's session can do, and a stolen one should not be able to
+  widen them.
+- **Missing tools are named at start.** One line lists the optional tools the
+  server found, then one per missing tool says what its absence costs and which
+  package brings it back — not always the tool's own name. 7-Zip says which
+  formats it cannot open. The same list is on **Settings → About** for an
+  administrator.
+- **The machine's own ExifTool is found** without `EXIFTOOL_PATH`, when the
+  archive's is not there.
+
+### ffmpeg 8.1.3, in both images
+
+8.1.3 came out the day of this release, and three of its fixes close CVEs the
+8.1 branch had not had until then, in decoders an uploaded video reaches when
+its thumbnail is made: CVE-2026-66038 (a heap disclosure in LCL),
+CVE-2026-70629 (uninitialised data out of RSCC) and CVE-2026-70631 (a TIFF
+strip inflated short).
+
+- The **lean** image compiles it, as it compiled 8.1.2.
+- The **full** image takes ffmpeg from Alpine, which is still on 8.1.2. Rather
+  than wait, it builds Alpine's own package from Alpine's recipe and changes
+  only the version: the same options, patches and libraries, so VA-API, VDPAU,
+  Vulkan, QSV and every external decoder are what they were. It installs
+  whichever is newer, that build or Alpine's, so the weekly rebuild returns to
+  Alpine's package by itself once Alpine catches up.
+
+The image build now checks that both carry at least the version pinned. ffmpeg
+9 is not in this, deliberately: every fix in 9.0.1 and 9.0.2 that touches code
+8.1 has is in 8.1.3, and 9 adds nothing this application uses.
+
+### The minimal archive, back to the Node it can run on
+
+v3.9.3's installer accepted Node 24 or 26, from what the three native modules
+publish on npm. An archive carries one prebuild of the SQLite driver, for the
+Node that built it, and under the other major the service stopped a few seconds
+after starting, on `NODE_MODULE_VERSION`. Reported from a VM in
+[#9](https://github.com/cerede2000/NextExplorer/issues/9).
+
+The archive now records the major it was built on, in `NODE_MAJORS`, and the
+installer accepts that one and nothing else. **The `-minimal` archive takes
+Node 24.** The day it is built on two, it will say so itself.
+
+### The API, described
+
+A running instance serves an OpenAPI 3.1 description at `/api/openapi.json`,
+and [a page of this documentation](/reference/api-explorer) lists every
+operation: all 164, written by hand and held to the code by tests — every
+mounted route described and nothing else, the access each one needs checked
+against the guard that enforces it, and a walk through all of them whose
+answers must fit the schemas it states.
+
+Writing it found two defects. A `read` API token could not download a
+selection, because the gate allowed it at an address nothing is mounted at; and
+the reference gave the health check as `/api/healthz`, where it has always been
+`/healthz`.
+
+### HTTPS with Let's Encrypt, in front
+
+[Reverse proxy](/installation/reverse-proxy) now shows it end to end with
+Traefik and with Caddy — the certificate, its renewal, the redirect from port
+80 — and what each has to be told: Traefik cuts any request at 60 seconds
+unless `readTimeout` is raised, which stops a large upload half-way. The
+application does not serve TLS itself, as asked in
+[#13](https://github.com/cerede2000/NextExplorer/issues/13): a certificate read
+once at start goes stale at its first renewal, and a proxy already solves that.
+
+The standalone page also says which architectures exist and what decides them
+([#12](https://github.com/cerede2000/NextExplorer/issues/12)).
+
+### Smaller
+
+- A document or a file opened in a tab of its own closes that tab from its
+  close button, instead of turning it into a second explorer — and only when
+  the tab was opened for it, so a tab somebody opened the whole application in
+  is never closed under them.
+- A notification leaves the screen when its time is up. It stayed until the
+  next one arrived.
+- The warning that a document about to be deleted is open in ONLYOFFICE was
+  written in French, whatever the language. It is in all fifteen now.
+- The upload engine loads when an upload is about to start rather than with
+  every page: the first load is 39 kB smaller, gzipped.
+
 ## v3.9.3 (2026-09-19)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.9.3)
