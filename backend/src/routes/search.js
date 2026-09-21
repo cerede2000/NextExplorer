@@ -6,12 +6,7 @@ const readline = require('readline');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
-const {
-  excludedFiles,
-  hiddenFiles,
-  search: searchConfig,
-  directories,
-} = require('../config/index');
+const { excludedFiles, hiddenFiles, search: searchConfig } = require('../config/index');
 const { resolvePathWithAccess, getAccessInfo } = require('../services/accessManager');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
@@ -29,6 +24,7 @@ const { ripgrepIgnoreGlobs, isIgnoredDirectory } = require('../services/searchIg
 const { whenClientDisconnects } = require('../utils/clientDisconnect');
 const searchIndexExclusions = require('../services/searchIndexExclusions');
 const { getIndexDb } = require('../services/indexDb');
+const { indexViewFor } = require('../services/searchIndexView');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 
@@ -345,7 +341,8 @@ async function* streamIndexNameMatches(
   dirSet,
   shouldInclude,
   includeHiddenFiles,
-  limit
+  limit,
+  view
 ) {
   yield* streamShallowNameMatches(
     baseAbsPath,
@@ -372,12 +369,17 @@ async function* streamIndexNameMatches(
   // Folders have rows of their own, so this is the same question as the one
   // below rather than an inference from the paths of the files inside them —
   // which is what made a folder nobody had filled yet impossible to find.
+  //
+  // Asked about the folder where it sits in the volume, and answered in the
+  // reader's words: see `searchIndexView`.
   const folders = [];
-  for (const rel of searchIndexStore.iterateNameCandidates(db, {
-    base: relBasePath,
+  for (const row of searchIndexStore.iterateNameCandidates(db, {
+    base: view.base,
     literal,
     folders: true,
   })) {
+    const rel = view.toLogical(row);
+    if (!rel) continue;
     if (seenPaths.has(rel) || dirSet.has(rel)) continue;
     if (!matcher.matchesName(rel.slice(rel.lastIndexOf('/') + 1))) continue;
     if (shouldIgnore(rel.slice(rel.lastIndexOf('/') + 1), includeHiddenFiles)) continue;
@@ -391,7 +393,9 @@ async function* streamIndexNameMatches(
   }
 
   const files = [];
-  for (const rel of searchIndexStore.iterateNameCandidates(db, { base: relBasePath, literal })) {
+  for (const row of searchIndexStore.iterateNameCandidates(db, { base: view.base, literal })) {
+    const rel = view.toLogical(row);
+    if (!rel) continue;
     if (seenPaths.has(rel)) continue;
     if (!matcher.matchesRelativePath(rel)) continue;
     seenPaths.add(rel);
@@ -570,30 +574,30 @@ async function* mergeResults(...generators) {
  * the handful actually returned. That is the whole bargain of a contentless
  * index, and it is a good one.
  *
- * It covers the volume root. A search based anywhere else — a personal folder,
- * an assigned volume — falls back to reading as it goes, because the index
- * does not hold those.
+ * It covers whatever the view places in the volume — a share, a personal
+ * folder or an assigned volume as much as the volume itself — and nothing it
+ * cannot: the route reads the storage there instead.
  */
-async function* streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit) {
+async function* streamIndexMatches(view, term, seenPaths, shouldInclude, limit) {
   let paths;
   try {
     const db = await getIndexDb();
     // Over-fetch: permissions are applied after the query, since the index
     // does not know who may read what.
-    paths = searchIndexStore.searchRanked(db, term, Math.max(limit * 3, 50));
+    paths = searchIndexStore.searchRanked(db, term, Math.max(limit * 3, 50), { base: view.base });
   } catch (error) {
     logger.debug({ err: error }, 'Search index query failed; falling back to reading as we go');
     return;
   }
 
   const needle = term.toLowerCase();
-  const prefix = relBasePath ? `${relBasePath}/` : '';
 
-  for (const { path: rel, score } of paths) {
-    if (prefix && !rel.startsWith(prefix) && rel !== relBasePath) continue;
+  for (const { path: row, score } of paths) {
+    const rel = view.toLogical(row);
+    if (!rel) continue;
     if (seenPaths.has(rel)) continue;
 
-    const absolutePath = path.join(directories.volume, rel);
+    const absolutePath = view.toAbsolute(row);
     let line = '';
     let lineNumber = null;
 
@@ -707,6 +711,7 @@ async function* generateRipgrepResults(
   {
     useIndex = false,
     useNameIndex = false,
+    indexView = null,
     limit = 100,
     onContentSources,
     onContentSourceDone,
@@ -726,7 +731,8 @@ async function* generateRipgrepResults(
           dirSet,
           shouldInclude,
           includeHiddenFiles,
-          limit
+          limit,
+          indexView
         )
       : streamFileListMatches(
           baseAbsPath,
@@ -748,7 +754,7 @@ async function* generateRipgrepResults(
   // With an index in place the live content scan is not run at all: doing both
   // would be exactly the cost an index exists to remove.
   const contentGen = useIndex
-    ? streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit)
+    ? streamIndexMatches(indexView, term, seenPaths, shouldInclude, limit)
     : streamContentMatches(
         baseAbsPath,
         relBasePath,
@@ -802,7 +808,7 @@ async function* generateFallbackResults(
   shouldInclude,
   deep = true,
   includeHiddenFiles = false,
-  { useIndex = false, useNameIndex = false, limit = 100 } = {}
+  { useIndex = false, useNameIndex = false, indexView = null, limit = 100 } = {}
 ) {
   const seenPaths = new Set();
   const dirSet = new Set();
@@ -889,14 +895,15 @@ async function* generateFallbackResults(
           dirSet,
           shouldInclude,
           includeHiddenFiles,
-          limit
+          limit,
+          indexView
         )
       : walk(baseAbsPath, relBasePath);
 
   if (useIndex && !matcher.isGlob) {
     yield* mergeResults(
       names(),
-      streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit)
+      streamIndexMatches(indexView, term, seenPaths, shouldInclude, limit)
     );
     return;
   }
@@ -977,11 +984,7 @@ router.get(
       return ok;
     };
 
-    // The index holds the volume root. A search based anywhere else — a
-    // personal folder, an assigned volume — reads as it goes, because the
-    // index does not hold those.
-    //
-    // And it is only used once a pass has finished. The index replaces the live
+    // The index is only used once a pass has finished. The index replaces the live
     // content scan rather than adding to it, so an index still being built
     // answers with the part of the volume it happens to have read — a term
     // found yesterday goes missing today, with nothing in the answer to say
@@ -1008,26 +1011,36 @@ router.get(
       }
     })();
 
-    // The index speaks volume paths, and only those.
+    // The index speaks volume paths; a search speaks the reader's.
     //
     // A share resolves to a folder inside the volume and is described by a
     // different name — `share/<token>/…` — which is the name every result and
-    // every permission check uses. Asking the index about it returns rows
-    // whose paths start with `Docs/`, none of which match that base, so a
-    // search inside a share answered with nothing at all: the index had
-    // replaced the live scan and then filtered its own answer away. The same
-    // holds for a personal folder or an assigned volume.
+    // every permission check uses. The same holds for a personal folder and an
+    // assigned volume. Asking the index in those words matched nothing, and
+    // for a while a search inside a share answered with nothing at all; then
+    // those bases were sent back to reading the storage, which is the cost the
+    // index exists to remove. The view asks about the folder where it really
+    // sits and hands each row back under the reader's name, or not at all.
     //
-    // So the test is not "does this land inside the volume" but "is this base
-    // named the way the index names things". When it is not, the storage
-    // answers, as it did before there was an index.
-    const volumeRelative = path.relative(directories.volume, baseAbs);
-    const insideVolume = !volumeRelative.startsWith('..') && !path.isAbsolute(volumeRelative);
-    const indexKnowsThisBase =
-      insideVolume && normalizeRelativePath(volumeRelative || '') === relBase;
+    // Where the index cannot answer — outside the volume, a folder it has no
+    // row for — the storage answers, as it did before there was an index.
+    const indexView = await (async () => {
+      if (!indexState.content && !indexState.names) return null;
+      try {
+        return await indexViewFor({
+          db: await getIndexDb(),
+          baseAbs,
+          logicalBase: relBase,
+          isIgnoredName: (name) => shouldIgnore(name, includeHiddenFiles),
+        });
+      } catch (error) {
+        logger.debug({ err: error }, 'Could not place the search base in the index');
+        return null;
+      }
+    })();
 
-    const useIndex = indexState.content && indexKnowsThisBase;
-    const useNameIndex = indexState.names && indexKnowsThisBase;
+    const useIndex = indexState.content && Boolean(indexView);
+    const useNameIndex = indexState.names && Boolean(indexView);
 
     // Nothing can produce a content match once every content source has
     // finished, and that is the moment a reserve stops being worth waiting for.
@@ -1044,6 +1057,7 @@ router.get(
           {
             useIndex,
             useNameIndex,
+            indexView,
             limit,
             onContentSources: (count) => {
               contentSourcesLeft = count;
@@ -1062,7 +1076,7 @@ router.get(
           shouldInclude,
           deepEnabled && !useIndex,
           includeHiddenFiles,
-          { useIndex, useNameIndex, limit }
+          { useIndex, useNameIndex, indexView, limit }
         );
 
     // Counted apart and only put together at the end: sharing one running
@@ -1187,8 +1201,12 @@ router.get(
     if (useIndex) {
       try {
         const db = await getIndexDb();
-        for (const row of searchIndexStore.searchRanked(db, q, Math.max(limit * 3, 50))) {
-          alsoInContents.add(row.path);
+        const rows = searchIndexStore.searchRanked(db, q, Math.max(limit * 3, 50), {
+          base: indexView.base,
+        });
+        for (const row of rows) {
+          const rel = indexView.toLogical(row.path);
+          if (rel) alsoInContents.add(rel);
         }
       } catch (error) {
         // A label is a courtesy; the answer above stands without it.

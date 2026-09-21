@@ -253,7 +253,7 @@ const movePath = (db, fromPath, toPath) => {
  * searching `NOT` or `a-b` is looking for those characters, not writing an
  * expression.
  */
-const searchRanked = (db, term, limit = 100) => {
+const searchRanked = (db, term, limit = 100, { base = '' } = {}) => {
   // Quoted, because somebody searching `NOT` or `a-b` is looking for those
   // characters and not writing an expression. And with a trailing `*`, because
   // FTS5 matches whole words and a reader types the beginning of one: a search
@@ -266,17 +266,23 @@ const searchRanked = (db, term, limit = 100) => {
   // `azules` through the index, where a live scan would. Closing that means an
   // index of every three-letter sequence instead of every word, which is a far
   // larger thing and a decision of its own.
+  //
+  // Narrowed to the folder in SQL, and not afterwards. The best few hundred
+  // across the volume, filtered down to one folder, is often nothing at all:
+  // a common word in a share was answered by every other folder first.
   const quoted = `"${String(term).replace(/"/g, '""')}"*`;
+  const inFolder = base ? 'AND (d.dir = ? OR (d.dir > ? AND d.dir < ?))' : '';
+  const params = base ? [quoted, base, `${base}/`, `${base}0`, limit] : [quoted, limit];
   try {
     return prep(
       db,
       `SELECT d.path AS path, rank AS score
          FROM search_terms t
          JOIN search_documents d ON d.id = t.rowid
-         WHERE search_terms MATCH ?
+         WHERE search_terms MATCH ? ${inFolder}
          ORDER BY rank
          LIMIT ?`
-    ).all(quoted, limit);
+    ).all(...params);
   } catch (error) {
     logger.debug({ err: error, term }, 'Full-text query failed');
     return [];
@@ -366,6 +372,12 @@ const iterateDirCandidates = (db, { base = '', literal = '' } = {}) => {
  */
 const listDirectoryPaths = (db, dir) =>
   prep(db, 'SELECT path FROM search_documents WHERE dir = ?').pluck().all(dir);
+
+/** Whether the index has a row for this folder, which is what covering it means. */
+const hasFolder = (db, folderPath) =>
+  Boolean(
+    prep(db, 'SELECT 1 FROM search_documents WHERE path = ? AND is_dir = 1').pluck().get(folderPath)
+  );
 
 /** Every folder the index has something in. Streamed, never materialised. */
 const iterateIndexedDirectories = (db) =>
@@ -462,6 +474,7 @@ module.exports = {
   iterateNameCandidates,
   iterateDirCandidates,
   hasNameCatalogue,
+  hasFolder,
   getIndexedDocument,
   isUpToDate,
   upsertDocument,
