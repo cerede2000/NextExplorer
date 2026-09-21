@@ -22,7 +22,7 @@ Customize the appearance and branding of your nextExplorer instance:
 ## Search index
 
 - **Keep a search index:** Reads the volume in the background — the name of every file and folder, and the words inside documents — so that a search answers from the index instead of walking the storage. It starts or stops as soon as the switch moves, and the choice survives a restart.
-- **Exclusions:** Folders the index and a name search leave alone. Those set by `SEARCH_INDEX_EXCLUDE` are listed and cannot be removed here; the second list is yours to edit.
+- **Exclusions:** Folders the index and a name search leave alone. Those set by `SEARCH_INDEX_EXCLUDE` are listed and cannot be removed here; the second list is yours to edit. A folder added here is forgotten by the index straight away, in batches that leave the server answering meanwhile.
 - **The environment decides when it speaks:** with `SEARCH_INDEX` set, the page shows the value in force, names the variable, and the switch cannot move it. Left unset, the switch decides — so an installation configured by file behaves as it always did.
 
 ## Folder sizes

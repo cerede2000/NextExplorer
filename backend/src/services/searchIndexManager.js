@@ -108,7 +108,7 @@ const setAdminExclusions = async (paths) => {
   await enqueue(async () => {
     const db = await getIndexDb();
     let removed = 0;
-    for (const relativePath of changed.added) removed += store.removeUnder(db, relativePath);
+    for (const relativePath of changed.added) removed += await store.removeUnder(db, relativePath);
     if (removed > 0) {
       logger.info({ paths: changed.added, removed }, 'Search index forgot newly excluded folders');
     }
@@ -331,7 +331,7 @@ const onPathRemoved = async (absolutePath) => {
 
   await enqueue(async () => {
     const db = await getIndexDb();
-    store.removeUnder(db, relative);
+    await store.removeUnder(db, relative);
   });
 };
 
@@ -350,7 +350,7 @@ const onPathMoved = async (fromAbsolutePath, toAbsolutePath) => {
       return;
     }
     // Out of scope on one side: forget what left, read what arrived.
-    if (from) store.removeUnder(db, from);
+    if (from) await store.removeUnder(db, from);
     if (to) await indexFile(db, to, toAbsolutePath);
   });
 };
