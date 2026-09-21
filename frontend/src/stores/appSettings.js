@@ -303,6 +303,15 @@ export const useAppSettings = defineStore('appSettings', () => {
           ...updated.folderSize,
         };
       }
+      // Copied here as `load` copies it. It was not, so a saved exclusion list
+      // left the store holding the old one and the page still "unsaved".
+      if (updated?.searchIndex) {
+        systemSettings.value.searchIndex = {
+          excludedPaths: [],
+          environmentExcludedPaths: [],
+          ...updated.searchIndex,
+        };
+      }
 
       if (updated?.uploads) {
         systemSettings.value.uploads = {

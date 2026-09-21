@@ -16,6 +16,7 @@ import { useAuthStore } from './auth';
 vi.mock('@/api', () => ({
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
+  patchSettings: vi.fn(),
 }));
 
 const api = await import('@/api');
@@ -66,5 +67,51 @@ describe('system settings that come back from the server', () => {
       excludedPaths: [],
       environmentExcludedPaths: [],
     });
+  });
+});
+
+/**
+ * The same omission, on the way back from a save.
+ *
+ * `load` learned to copy `searchIndex`; `save` did not. So after saving the
+ * search index exclusions the store kept the list from before, the page
+ * compared what it held with that stale list, and the "unsaved changes" bar
+ * stayed up over a change the server had already taken. The folder sizes page
+ * beside it did not do this, because `save` copied its section and not this one.
+ */
+describe('system settings that come back from a save', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    useAuthStore().currentUser = { id: 'user-1' };
+  });
+
+  it('keeps the search index as the server answered it', async () => {
+    api.getSettings.mockResolvedValue({
+      searchIndex: { excludedPaths: [], environmentExcludedPaths: [] },
+    });
+    api.patchSettings.mockResolvedValue({
+      searchIndex: { excludedPaths: ['Photos/RAW'], environmentExcludedPaths: [], enabled: true },
+    });
+
+    const appSettings = useAppSettings();
+    await appSettings.load('user-1');
+    await appSettings.save({ searchIndex: { excludedPaths: ['Photos/RAW'] } });
+
+    expect(appSettings.systemSettings.searchIndex.excludedPaths).toEqual(['Photos/RAW']);
+    expect(appSettings.systemSettings.searchIndex.enabled).toBe(true);
+  });
+
+  it('keeps the folder sizes as the server answered them, switch included', async () => {
+    api.getSettings.mockResolvedValue({});
+    api.patchSettings.mockResolvedValue({
+      folderSize: { excludedPaths: [], environmentExcludedPaths: [], mode: 'full' },
+    });
+
+    const appSettings = useAppSettings();
+    await appSettings.load('user-1');
+    await appSettings.save({ folderSize: { mode: 'full' } });
+
+    expect(appSettings.systemSettings.folderSize.mode).toBe('full');
   });
 });
