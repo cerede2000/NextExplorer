@@ -42,4 +42,5 @@ Administrators control users, folders, and security policies through Settings. T
 
 - `/config` houses `app.db`, `app-config.json`, and extension packages. Back these files up before upgrades or migrations.
 - `/cache` contains generated thumbnails and search indexes that can be deleted if needed; the app recreates them as you browse.
+- An upload, a copy, an extraction or a compression stopped half-way by a restart leaves a hidden temporary file, folder or archive in the volume: what is still being written never sits under the name it is meant to take. Each is recorded in `/cache/in-flight` while it runs, and the next start removes what an interrupted one left, and only that. A `/cache` cleared in between loses the record, and the leftover stays for you to delete.
 - When upgrading, run `docker compose pull` followed by `docker compose up -d`; the entrypoint preserves `CONFIG_DIR` while migrating legacy `/cache` configs.

@@ -41,4 +41,5 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 
 - **Resizeable sidebar:** The sidebar can be dragged to different widths for wide or narrow monitors.
 - **Notifications & uploads:** A floating footer panel tracks uploads, providing pause/resume/cancel controls plus multi-file progress.
+- **Nothing is ever replaced:** A copy, a move, an upload, an extraction, a new archive or a new folder takes the name it asks for only when nothing holds it — even something that arrives while it runs — and otherwise takes “name (1)”, or “name 2” for a new folder. It never replaces a file and never pours into a folder that is already there.
 - **Keyboard shortcuts:** ⌘/Ctrl+C/X/V for clipboard actions, plus quick navigation via breadcrumbs and toolbar icons.

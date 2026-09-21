@@ -10,17 +10,17 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 
 ## File & folder operations
 
-- **Create a folder/file:** Use the `Create` menu, context menu (right-click background → New Folder/File), or press the `+` toolbar button.
+- **Create a folder/file:** Use the `Create` menu, context menu (right-click background → New Folder/File), or press the `+` toolbar button. A new folder takes “Untitled Folder 2” when the name is taken, even by one created at the same moment.
 - **Rename:** Right-click an item and choose Rename or use F2 key to rename.
 - **Move (desktop drag-and-drop):** Select one or more items (Ctrl/⌘-click, Shift-click, or drag a selection rectangle), then drag any selected item onto a destination folder and drop to move everything selected.
 - **Move (touch devices):** Drag-to-move is disabled on touch devices; use the context menu Cut → Paste instead.
 - **Delete:** The context menu’s Delete option (or toolbar action) prompts for confirmation and supports multi-select deletions.
-- **Clipboard shortcuts:** ⌘/Ctrl+C/X/V work just like desktop file managers and respect Access Control rules (read-only folders can’t be written).
+- **Clipboard shortcuts:** ⌘/Ctrl+C/X/V work just like desktop file managers and respect Access Control rules (read-only folders can’t be written). What is pasted or moved never replaces a file or merges into a folder already at the destination, including one that appears during the transfer: it takes “name (1)”.
 - **Mobile multi-select (checkboxes):** Tap **Select** in the toolbar to enter selection mode, then tap items to toggle selection without opening them; tap **Done** to exit (selection clears on exit). Long-press opens the item menu.
 
 ## Uploads & downloads
 
-- **Drag-and-drop upload:** Drop files/folders from your device onto the main pane to upload; the floating footer upload panel shows per-file and total progress.
+- **Drag-and-drop upload:** Drop files/folders from your device onto the main pane to upload; the floating footer upload panel shows per-file and total progress. An upload never replaces a file already there, even one that arrives while it is sent: it takes “name (1)”.
 - **Create menu upload:** Select Upload files/folders from the Create menu if you prefer a dialog.
 - **Download:** Select one or more items and hit the Download button; multiple items or folders produce a ZIP archive.
 - **Transfer control:** Pause, resume, or cancel uploads directly from the footer panel.
