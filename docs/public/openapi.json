@@ -9303,6 +9303,10 @@
                           "available": {
                             "type": "boolean"
                           },
+                          "version": {
+                            "type": ["string", "null"],
+                            "description": "What the tool says its version is, as it prints it; null when it is missing or its answer does not say."
+                          },
                           "enables": {
                             "type": "string"
                           },
@@ -9311,7 +9315,8 @@
                             "description": "The package that provides it."
                           },
                           "source": {
-                            "type": "string"
+                            "type": ["string", "null"],
+                            "description": "Where ExifTool comes from; null when there is none."
                           },
                           "used": {
                             "type": "boolean"
@@ -9321,6 +9326,10 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "installMissing": {
+                            "type": "string",
+                            "description": "The package that adds the formats it lacks."
                           }
                         },
                         "required": ["name", "available"]

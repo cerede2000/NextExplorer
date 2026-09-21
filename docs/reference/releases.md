@@ -87,11 +87,12 @@ Both asked for in [#9](https://github.com/cerede2000/NextExplorer/issues/9).
   on purpose — the terminal, the paths, the secrets and proxy trust widen what
   an administrator's session can do, and a stolen one should not be able to
   widen them.
-- **Missing tools are named at start.** One line lists the optional tools the
-  server found, then one per missing tool says what its absence costs and which
-  package brings it back — not always the tool's own name. 7-Zip says which
-  formats it cannot open. The same list is on **Settings → About** for an
-  administrator.
+- **The optional tools, with their versions, at start.** One line lists the
+  tools the server found, each with the version it reports — `ffmpeg 8.1.3`,
+  asked of the binary the application runs. Then one line per missing tool says
+  what its absence costs and which package brings it back, not always the
+  tool's own name, and 7-Zip says which formats it cannot open. The same list,
+  versions included, is on **Settings → About** for an administrator.
 - **The machine's own ExifTool is found** without `EXIFTOOL_PATH`, when the
   archive's is not there.
 

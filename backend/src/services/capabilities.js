@@ -32,6 +32,75 @@ const probe = (command, args, { anyExit = false } = {}) =>
     child.on('exit', (code) => resolve(anyExit || code === 0));
   });
 
+/** Output worth reading for a version: the banner is at the top of it. */
+const OUTPUT_LIMIT_BYTES = 64 * 1024;
+const VERSION_TIMEOUT_MS = 5_000;
+
+/**
+ * What a program prints when asked its version, stdout and stderr together —
+ * pdftotext answers on stderr — or the empty string when it cannot be asked.
+ * Bounded in size and in time, and it never rejects: a version is something
+ * to show, never a reason for the report to fail.
+ */
+const readOutput = (command, args) =>
+  new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch {
+      resolve('');
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    const keep = (chunk) => {
+      if (size >= OUTPUT_LIMIT_BYTES) return;
+      chunks.push(chunk);
+      size += chunk.length;
+    };
+    child.stdout.on('data', keep);
+    child.stderr.on('data', keep);
+    const timer = setTimeout(() => child.kill('SIGKILL'), VERSION_TIMEOUT_MS);
+    child.on('error', () => {
+      clearTimeout(timer);
+      resolve('');
+    });
+    child.on('close', () => {
+      clearTimeout(timer);
+      resolve(Buffer.concat(chunks).toString('utf8'));
+    });
+  });
+
+/**
+ * Where each tool says its version, one pattern per tool.
+ *
+ * Anchored on the line the tool writes about itself, because a number found
+ * anywhere else — a copyright year, a protocol number, a compatibility claim —
+ * would be a wrong answer, and no answer is better than a wrong one. Taken
+ * from each tool's own source and output, variants included: a
+ * distribution's suffix (`7.1.1-1+b1`), a git build (`ripgrep 14.1.0 (rev
+ * e50df40a19)`), 7-Zip's editions (`7-Zip (z)`, `(a)`, p7zip's `[64]`), and
+ * openrsync, which calls itself "rsync version 2.6.9 compatible" and is not
+ * rsync 2.6.9.
+ */
+const VERSION_PATTERNS = {
+  ffmpeg: /^ffmpeg version (\S+)/m,
+  ffprobe: /^ffprobe version (\S+)/m,
+  ripgrep: /^ripgrep (\S+)/m,
+  pdftotext: /^pdftotext version (\S+)/m,
+  exiftool: /^(\d+(?:\.\d+)+)\s*$/m,
+  rsync: /^rsync\s+version\s+(\S+)\s+protocol version/m,
+  '7-Zip': /^7-Zip(?: \([a-z]\))?(?: \[\d+\])? (\d+\.\d+)/m,
+};
+
+/** The version a tool printed, or null when its output does not say one. */
+const parseVersion = (name, output) => {
+  const pattern = VERSION_PATTERNS[name];
+  if (!pattern || typeof output !== 'string') return null;
+  const match = output.match(pattern);
+  return match ? match[1] : null;
+};
+
 /**
  * Where RAW previews would come from, or null when there is no ExifTool to run.
  *
@@ -44,6 +113,17 @@ const exiftoolSource = async () => {
   if (named) return raw.canRun(named) ? 'environment' : null;
   if (raw.hasVendoredExiftool()) return (await probe('perl', ['-v'])) ? 'bundled' : null;
   return raw.EXIFTOOL_CANDIDATES.some((candidate) => raw.canRun(candidate)) ? 'machine' : null;
+};
+
+/** How to ask the ExifTool that `source` names for its version. */
+const exiftoolVersionCommand = (source) => {
+  const raw = require('./rawPreviewService');
+  if (source === 'environment') return [env.EXIFTOOL_PATH.trim(), ['-ver']];
+  if (source === 'bundled') return ['perl', [require('exiftool-vendored.pl'), '-ver']];
+  if (source === 'machine') {
+    return [raw.EXIFTOOL_CANDIDATES.find((candidate) => raw.canRun(candidate)), ['-ver']];
+  }
+  return null;
 };
 
 /**
@@ -69,9 +149,32 @@ const probeMachine = async () => {
     archives.getMissingArchiveExtensions(),
   ]);
 
+  const ffmpeg = ffmpegRunner.hasFfmpeg();
+  const ffprobe = ffmpegRunner.hasFfprobe();
+
+  // Asked only of the tools that are there, each the way the service that
+  // uses it runs it — the same binary, not whichever one PATH finds first.
+  const asked = {
+    ffmpeg: ffmpeg && [ffmpegRunner.ffmpegPath, ['-version']],
+    ffprobe: ffprobe && [ffmpegRunner.ffprobePath, ['-version']],
+    ripgrep: ripgrep && ['rg', ['--version']],
+    pdftotext: pdftotext && ['pdftotext', ['-v']],
+    exiftool: exiftool && exiftoolVersionCommand(exiftool),
+    rsync: rsync && ['rsync', ['--version']],
+    '7-Zip': sevenZip && [archives.SEVEN_ZIP_BIN, ['i']],
+  };
+  const versions = Object.fromEntries(
+    await Promise.all(
+      Object.entries(asked).map(async ([name, command]) => [
+        name,
+        command && command[0] ? parseVersion(name, await readOutput(...command)) : null,
+      ])
+    )
+  );
+
   return {
-    ffmpeg: ffmpegRunner.hasFfmpeg(),
-    ffprobe: ffmpegRunner.hasFfprobe(),
+    ffmpeg,
+    ffprobe,
     ripgrep,
     rsync,
     pdftotext,
@@ -79,6 +182,7 @@ const probeMachine = async () => {
     sevenZip,
     missingFormats,
     nativeTransfers: nativeTransferEnabled(),
+    versions,
   };
 };
 
@@ -97,12 +201,18 @@ const describe = async (found) => {
     sevenZip,
     missingFormats,
     nativeTransfers,
+    versions = {},
   } = found || (await probeMachine());
+
+  // What each tool said its version was; null where it is missing, or said
+  // nothing a pattern could read.
+  const versionOf = (name, available) => (available && versions[name]) || null;
 
   return [
     {
       name: 'ffmpeg',
       available: ffmpeg,
+      version: versionOf('ffmpeg', ffmpeg),
       enables: 'videoThumbnails',
       lost: 'video thumbnails and stills from HEIC photos',
       install: 'ffmpeg',
@@ -110,6 +220,7 @@ const describe = async (found) => {
     {
       name: 'ffprobe',
       available: ffprobe,
+      version: versionOf('ffprobe', ffprobe),
       enables: 'mediaDetails',
       lost: 'media durations and track lists',
       install: 'ffmpeg',
@@ -117,6 +228,7 @@ const describe = async (found) => {
     {
       name: 'ripgrep',
       available: ripgrep,
+      version: versionOf('ripgrep', ripgrep),
       enables: 'fastSearch',
       lost: 'fast search inside files; a slower scan is used instead',
       install: 'ripgrep',
@@ -124,6 +236,7 @@ const describe = async (found) => {
     {
       name: 'pdftotext',
       available: pdftotext,
+      version: versionOf('pdftotext', pdftotext),
       enables: 'pdfSearch',
       lost: 'the text of PDFs in search',
       install: 'poppler-utils',
@@ -131,6 +244,7 @@ const describe = async (found) => {
     {
       name: 'exiftool',
       available: Boolean(exiftool),
+      version: versionOf('exiftool', Boolean(exiftool)),
       source: exiftool || null,
       enables: 'rawPreviews',
       lost: 'previews of RAW photos',
@@ -142,6 +256,7 @@ const describe = async (found) => {
       // absence costs nothing and saying otherwise would send somebody to
       // install a tool for nothing.
       available: rsync,
+      version: versionOf('rsync', rsync),
       used: nativeTransfers,
       enables: 'copyProgress',
       lost: 'progress reporting on large copies and moves',
@@ -150,6 +265,7 @@ const describe = async (found) => {
     {
       name: '7-Zip',
       available: sevenZip,
+      version: versionOf('7-Zip', sevenZip),
       enables: 'archives',
       lost: 'browsing and extracting any archive but .zip',
       install: '7zip',
@@ -172,8 +288,14 @@ const report = async (found) => {
   }
 
   const relevant = capabilities.filter((capability) => capability.used !== false);
-  const present = relevant.filter((capability) => capability.available).map((c) => c.name);
-  logger.info({ available: present }, `Optional tools found: ${present.join(', ') || 'none'}`);
+  const installed = relevant.filter((capability) => capability.available);
+  const present = installed.map((c) => c.name);
+  const versions = Object.fromEntries(installed.map((c) => [c.name, c.version]));
+  const named = installed.map((c) => (c.version ? `${c.name} ${c.version}` : c.name));
+  logger.info(
+    { available: present, versions },
+    `Optional tools found: ${named.join(', ') || 'none'}`
+  );
 
   for (const capability of relevant) {
     if (!capability.available) {
@@ -197,4 +319,4 @@ const report = async (found) => {
   return capabilities;
 };
 
-module.exports = { describe, report };
+module.exports = { describe, report, parseVersion };

@@ -159,11 +159,17 @@ module.exports = {
                   {
                     name: str(),
                     available: bool(),
+                    version: nullable(
+                      str(
+                        'What the tool says its version is, as it prints it; null when it is missing or its answer does not say.'
+                      )
+                    ),
                     enables: str(),
                     install: str('The package that provides it.'),
-                    source: str(),
+                    source: nullable(str('Where ExifTool comes from; null when there is none.')),
                     used: bool(),
                     missingFormats: arrayOf(str()),
+                    installMissing: str('The package that adds the formats it lacks.'),
                   },
                   ['name', 'available']
                 )

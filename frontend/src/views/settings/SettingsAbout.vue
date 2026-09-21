@@ -14,10 +14,11 @@ const isAdmin = computed(
 );
 
 /**
- * The optional tools this installation has, for an administrator who does not
- * read logs — the same report the server writes when it starts (#9). Loaded
- * for administrators only: the route refuses everybody else, and a section
- * that could only ever fail has no business on their page.
+ * The optional tools this instance has, and the version each one says it is,
+ * for an administrator who does not read logs — the same report the server
+ * writes when it starts (#9). Loaded for administrators only: the route
+ * refuses everybody else, and a section that could only ever fail has no
+ * business on their page.
  */
 const tools = ref([]);
 
@@ -163,6 +164,12 @@ onMounted(async () => {
             <div class="min-w-0">
               <div class="font-mono text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {{ tool.name }}
+                <span
+                  v-if="tool.version"
+                  class="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400"
+                  :data-testid="`about-tool-version-${tool.name}`"
+                  >{{ tool.version }}</span
+                >
               </div>
               <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 {{ t(`settings.about.tools.gives.${tool.enables}`) }}

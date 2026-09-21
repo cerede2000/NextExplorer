@@ -577,6 +577,7 @@ const extractArchive = async (
 };
 
 module.exports = {
+  SEVEN_ZIP_BIN,
   TAR_WRAPPER_EXTENSIONS,
   extractArchiveEntries,
   getSupportedArchiveExtensions,

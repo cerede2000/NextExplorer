@@ -87,6 +87,44 @@ describe('the optional tools on the About page', () => {
     expect(wrapper.find('[data-testid="about-tool-ffmpeg"]').text()).not.toContain('Package');
   });
 
+  it('shows the version each tool says it is, and none it did not say', async () => {
+    useAuthStore().currentUser = { id: 'a', roles: ['admin'] };
+    fetchCapabilities.mockResolvedValue({
+      capabilities: [
+        {
+          name: 'ffmpeg',
+          available: true,
+          version: '8.1.3',
+          enables: 'videoThumbnails',
+          install: 'ffmpeg',
+        },
+        // There, and its answer did not say a version: shown without one
+        // rather than as a guess.
+        {
+          name: 'rsync',
+          available: true,
+          version: null,
+          enables: 'copyProgress',
+          install: 'rsync',
+        },
+        {
+          name: 'ripgrep',
+          available: false,
+          version: null,
+          enables: 'fastSearch',
+          install: 'ripgrep',
+        },
+      ],
+    });
+
+    const wrapper = await mountPage();
+
+    expect(wrapper.find('[data-testid="about-tool-version-ffmpeg"]').text()).toBe('8.1.3');
+    expect(wrapper.find('[data-testid="about-tool-ffmpeg"]').text()).toContain('ffmpeg 8.1.3');
+    expect(wrapper.find('[data-testid="about-tool-version-rsync"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="about-tool-version-ripgrep"]').exists()).toBe(false);
+  });
+
   it('says which archive formats are missing, and the package that brings them', async () => {
     useAuthStore().currentUser = { id: 'a', roles: ['admin'] };
     fetchCapabilities.mockResolvedValue({
@@ -109,7 +147,7 @@ describe('the optional tools on the About page', () => {
     expect(missing.text()).toContain('7zip-rar');
   });
 
-  it('tells a tool the installation does not use apart from one it lacks', async () => {
+  it('tells a tool the instance does not use apart from one it lacks', async () => {
     useAuthStore().currentUser = { id: 'a', roles: ['admin'] };
     fetchCapabilities.mockResolvedValue({
       capabilities: [

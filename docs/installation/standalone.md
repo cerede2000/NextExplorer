@@ -251,8 +251,9 @@ not carry costs that one line and not the whole set. Install them later and
 they are picked up on the next start — nothing needs reconfiguring.
 
 The server says the same at every start: one line naming the tools it found,
-and one per missing tool with what its absence costs and the package that
-brings it back. A 7-Zip that cannot open a format — RAR, from Debian's `7zip` —
+each with the version it reports — `ffmpeg 8.1.3, ripgrep 14.1.1, …` — and one
+per missing tool with what its absence costs and the package that brings it
+back. A 7-Zip that cannot open a format — RAR, from Debian's `7zip` —
 is said the same way. **Settings → About** shows that list to an administrator,
 for whoever does not read the log.
 

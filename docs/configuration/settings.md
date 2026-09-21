@@ -36,7 +36,12 @@ These two are the only background workers a page can start. Both read volumes th
 ## About
 
 - **Version, commit and branch** of the build that is running.
-- **Optional tools** _(administrators only)_: which of ffmpeg, ffprobe, ripgrep, pdftotext, ExifTool, rsync and 7-Zip this installation has, what each missing one would add, and the package that brings it back — which is not always the tool's own name. The formats 7-Zip cannot open here are named too. The server writes the same list to its log at every start.
+- **Optional tools** _(administrators only)_: ffmpeg, ffprobe, ripgrep, pdftotext, ExifTool, rsync and 7-Zip, and for each one:
+  - whether this instance has it, and the version it reports. The version is asked of the very binary the application runs, and left out rather than guessed when the tool's answer does not state one;
+  - what it gives, and for a missing one the package that brings it back, which is not always the tool's own name;
+  - for 7-Zip, the formats it cannot open here.
+
+  The server writes the same list, versions included, to its log at every start.
 
 ## Security & Authentication
 
