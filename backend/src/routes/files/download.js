@@ -121,8 +121,8 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   archive.pipe(res);
 
-  // Only what a listing of those folders would show: never the trash zone, a
-  // personal root inside the volume, or a path an access rule hides.
+  // Only what a listing of those folders would show: never a personal root
+  // inside the volume, a name listings leave out, or a path an access rule hides.
   const { entries } = await collectArchiveEntries(
     context,
     targets.map(({ relativePath, absolutePath, stats }) => {

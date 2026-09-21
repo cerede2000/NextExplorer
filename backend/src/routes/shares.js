@@ -273,8 +273,8 @@ const streamResolvedDirectoryZip = async ({
   });
 
   archive.pipe(res);
-  // What the share lets its visitor see, not everything below its folder: the
-  // trash zone, a personal root and the paths an access rule hides stay out.
+  // What the share lets its visitor see, not everything below its folder: a
+  // personal root and the paths an access rule hides stay out.
   const stats = await fs.stat(absolutePath);
   const { entries } = await collectArchiveEntries(context, [
     {
