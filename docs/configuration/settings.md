@@ -19,6 +19,25 @@ Customize the appearance and branding of your nextExplorer instance:
 - A value outside these bounds, or an emptied field, is shown as invalid and cannot be saved.
 - **Video previews:** Require FFmpeg/ffprobe; binaries are included but you can override paths via environment variables.
 
+## Search index
+
+- **Keep a search index:** Reads the volume in the background — the name of every file and folder, and the words inside documents — so that a search answers from the index instead of walking the storage. It starts or stops as soon as the switch moves, and the choice survives a restart.
+- **Exclusions:** Folders the index and a name search leave alone. Those set by `SEARCH_INDEX_EXCLUDE` are listed and cannot be removed here; the second list is yours to edit.
+- **The environment decides when it speaks:** with `SEARCH_INDEX` set, the page shows the value in force, names the variable, and the switch cannot move it. Left unset, the switch decides — so an installation configured by file behaves as it always did.
+
+## Folder sizes
+
+- **Measure folder sizes:** _Off_, _Their own files only_, or _Everything inside them_. Changing between the two measuring modes measures again from scratch.
+- **Exclusions:** as for the search index — the ones from `FOLDER_SIZE_EXCLUDE_PATHS` are fixed, the second list is editable.
+- **The environment decides when it speaks:** `FOLDER_SIZE_MODE`, set, holds the switch the same way.
+
+These two are the only background workers a page can start. Both read volumes the server already reads and grant nothing over the host; the terminal, the paths, the secrets, proxy trust and whether non-administrators see every volume stay in the environment, because they widen what an administrator's session can do — and a stolen one should not be able to widen them.
+
+## About
+
+- **Version, commit and branch** of the build that is running.
+- **Optional tools** _(administrators only)_: which of ffmpeg, ffprobe, ripgrep, pdftotext, ExifTool, rsync and 7-Zip this installation has, what each missing one would add, and the package that brings it back — which is not always the tool's own name. The formats 7-Zip cannot open here are named too. The server writes the same list to its log at every start.
+
 ## Security & Authentication
 
 - **Authentication toggle:** Turn on/off authentication for trusted, internal networks (not recommended for public deployments).

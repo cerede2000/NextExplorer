@@ -342,7 +342,7 @@ services:
       # SEARCH_DEEP: "false" # Enables deep content search (ripgrep used when `SEARCH_RIPGREP=true`).
       # SEARCH_RIPGREP: "true" # Prefer ripgrep for fast searches; fallback search used when unavailable.
       # SEARCH_MAX_FILESIZE: "" # Skip files larger than this when searching contents (e.g., `5MB`, `5M`).
-      # SEARCH_INDEX: "false" # Answer content searches from a full-text index instead of reading the volume every time.
+      # SEARCH_INDEX: "false" # Answer name and content searches from an index instead of reading the volume every time. Also a switch in Settings → Search index; set here, it wins.
       # SEARCH_INDEX_CPU_PERCENT: "25" # Share of one core the background indexing pass may take.
       # SEARCH_INDEX_EXCLUDE: "" # Folders search leaves alone, comma separated, relative to the volume root.
       # SHOW_VOLUME_USAGE: "false" # Show volume usage badges in the sidebar.

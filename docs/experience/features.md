@@ -19,7 +19,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 - **Context menus:** Right-click the background or individual items for quick shortcuts (New Folder/File, Paste, Move to, Rename, Get Info, download, delete).
 - **Quick actions:** An optional inline menu puts the actions you choose on each row, without opening the context menu. Off by default; configure it in Settings → User preferences.
 - **Per-folder sorting:** A folder reopens sorted the way you left it.
-- **Folder sizes:** With `FOLDER_SIZE_MODE`, folders show their recursive size, computed in the background and kept up to date as files move.
+- **Folder sizes:** Switched on from **Settings → Folder sizes** (or `FOLDER_SIZE_MODE`), folders show their recursive size — or only the size of their own files — computed in the background and kept up to date as files move.
 - **Keyboard navigation:** Move through a folder with the up and down arrows, open with Enter or the right arrow, and go up a level with Backspace or the left arrow.
 
 ## Editing, sharing & document workflows
@@ -39,7 +39,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 
 ## Search & metadata
 
-- **Smart search:** The search bar uses ripgrep under the hood (enable or disable via `SEARCH_RIPGREP`, `SEARCH_DEEP`, and `SEARCH_MAX_FILESIZE`) to find filenames and contents inside the current folder and its children.
+- **Smart search:** The search bar finds names and contents inside the current folder and its children, from three characters on. With the search index switched on (**Settings → Search index**, or `SEARCH_INDEX`), both are answered from the index, so a search on a network share costs a query rather than a walk of the storage; without it, ripgrep reads the files (`SEARCH_RIPGREP`, `SEARCH_DEEP`, `SEARCH_MAX_FILESIZE`). Each result says whether its name or its contents matched. Names are ranked — the whole name, then a name that begins with the term, then one that holds it — and contents by relevance when the index answers, by folder otherwise, so that a folder's files arrive together. A search that ran out of time says so, rather than passing a short list off as the whole answer, and an accented name is found however the machine that wrote it encoded the accent.
 - **Filename patterns:** `*` and `?` in a search term match filenames rather than text — `*.ps1` finds the scripts, `conf?g.json` finds either spelling, and `Stacks/*/logs/*.log` reaches across folders. A pattern names a shape, so nothing is read inside files for it, which is also what makes it immediate.
 - **Inside documents:** Word, Excel and PowerPoint files are archives of XML and PDFs keep their words in compressed streams, so a plain content search finds nothing in either. Their text is read and searched — including a word an author emphasised halfway through, which Word stores in pieces. A scanned PDF is a picture of a page and stays unsearchable: that would need OCR.
 - **Metadata overlays:** List view shows size, kind, modified date, owner, and volume stats (volume usage visibility flips on with `SHOW_VOLUME_USAGE`).
