@@ -60,19 +60,6 @@ vi.mock('@uppy/tus', () => {
   return { default: Plugin };
 });
 
-vi.mock('@uppy/drop-target', () => ({
-  default: class DropTarget {
-    constructor(uppy, opts = {}) {
-      this.uppy = uppy;
-      this.opts = opts;
-      this.id = 'DropTarget';
-      this.type = 'acquirer';
-    }
-    install() {}
-    uninstall() {}
-  },
-}));
-
 const api = vi.hoisted(() => ({
   reserveFolderUploadTarget: vi.fn(async (_to, sourceRoot) => ({
     targetRoot: `${sourceRoot} (1)`,
@@ -101,8 +88,13 @@ vi.mock('@/stores/volumeUsage', () => ({ useVolumeUsageStore: () => stores.volum
 vi.mock('@/stores/folderSize', () => ({ useFolderSizeStore: () => stores.folder }));
 vi.mock('@/stores/operationTasks', () => ({ useOperationTasksStore: () => stores.tasks }));
 
-const { useFileUploader, useUppyDropTarget, getUploadFallbackMiB, resetUploadFallback } =
-  await import('./fileUploader');
+const {
+  useFileUploader,
+  useUppyDropTarget,
+  loadUploadEngine,
+  getUploadFallbackMiB,
+  resetUploadFallback,
+} = await import('./fileUploader');
 const { useUppyStore } = await import('@/stores/uppyStore');
 
 const MiB = 1024 * 1024;
@@ -112,7 +104,13 @@ let wrapper = null;
 
 let uploader = null;
 
-/** Mounted the way the app mounts it, and handing back Uppy to drive. */
+/**
+ * Mounted the way the app mounts it, and handing back Uppy to drive.
+ *
+ * Uppy is not built on mounting any more; it is loaded the first time an
+ * upload is about to happen. These tests are about what it does once it is
+ * there, so they ask for it the way the picker and the drop target do.
+ */
 const mountUploader = async () => {
   wrapper = mount(
     defineComponent({
@@ -124,6 +122,7 @@ const mountUploader = async () => {
     })
   );
   await vi.advanceTimersByTimeAsync(0);
+  await loadUploadEngine();
   return useUppyStore().uppy;
 };
 
@@ -899,14 +898,137 @@ describe('dropping files onto a part of the page', () => {
       })
     );
 
-  it('teaches that element to receive them', async () => {
+  /** What a browser hands over for a dropped file: an entry to read it from. */
+  const fileEntry = (file) => ({
+    isFile: true,
+    isDirectory: false,
+    name: file.name,
+    file: (ok) => ok(file),
+  });
+
+  /** And for a dropped folder: an entry whose reader lists what is inside, once. */
+  const folderEntry = (name, children) => {
+    let listed = false;
+    return {
+      isFile: false,
+      isDirectory: true,
+      name,
+      createReader: () => ({
+        readEntries: (ok) => {
+          const batch = listed ? [] : children;
+          listed = true;
+          ok(batch);
+        },
+      }),
+    };
+  };
+
+  /**
+   * A drag event as a browser sends one. `entries` are what the drop carries;
+   * none makes it a drag of something other than files, as moving an entry
+   * within the explorer is.
+   */
+  const dragEvent = (type, entries = []) => {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'dataTransfer', {
+      value: {
+        types: entries.length ? ['Files'] : ['text/plain'],
+        files: [],
+        items: entries.map((entry) => ({
+          kind: 'file',
+          webkitGetAsEntry: () => entry,
+          getAsFile: () => null,
+        })),
+        dropEffect: 'none',
+      },
+    });
+    return event;
+  };
+
+  it('receives files dropped on it, into the folder on screen', async () => {
     const uppy = await mountUploader();
     const element = document.createElement('div');
-
     const target = mountDropTarget(element);
     await settle();
 
-    expect(uppy.getPlugin('DropTarget')).toBeTruthy();
+    const drop = dragEvent('drop', [fileEntry(new File(['hello'], 'note.txt'))]);
+    element.dispatchEvent(drop);
+    await settle();
+
+    expect(drop.defaultPrevented).toBe(true);
+    expect(uppy.getFiles().map((file) => [file.name, file.meta.uploadTo])).toEqual([
+      ['note.txt', 'Docs'],
+    ]);
+    target.unmount();
+  });
+
+  // A dropped folder bypasses the picker, and its name has to be reserved
+  // before a single byte is sent, as the picker's is.
+  it("reserves a dropped folder's name before sending anything", async () => {
+    const uppy = await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+
+    element.dispatchEvent(
+      dragEvent('drop', [
+        folderEntry('Photos', [
+          fileEntry(new File(['a'], 'a.jpg')),
+          folderEntry('2026', [fileEntry(new File(['b'], 'b.jpg'))]),
+        ]),
+      ])
+    );
+    // Uppy starts an upload a few milliseconds after files arrive, and the
+    // reservation runs as it starts.
+    await settle(50);
+    await settle();
+
+    expect(uppy.getFiles().map((file) => file.meta.relativePath)).toEqual([
+      'Photos/a.jpg',
+      'Photos/2026/b.jpg',
+    ]);
+    expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
+    expect(api.reserveFolderUploadTarget).toHaveBeenCalledWith('Docs', 'Photos');
+    expect(uppy.getFiles().map((file) => file.meta.resolvedRelativePath)).toEqual([
+      'Photos (1)/a.jpg',
+      'Photos (1)/2026/b.jpg',
+    ]);
+    target.unmount();
+  });
+
+  it('says it will take them while they are dragged over, and stops saying so when they leave', async () => {
+    await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+
+    const over = dragEvent('dragover', [fileEntry(new File(['x'], 'a.txt'))]);
+    element.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(true);
+    expect(over.dataTransfer.dropEffect).toBe('copy');
+    expect(element.classList.contains('uppy-is-drag-over')).toBe(true);
+
+    element.dispatchEvent(dragEvent('dragleave', [fileEntry(new File(['x'], 'a.txt'))]));
+    expect(element.classList.contains('uppy-is-drag-over')).toBe(false);
+    target.unmount();
+  });
+
+  // Moving entries within the explorer is a drag too, and not this one's.
+  it('lets a drag that carries no files pass through', async () => {
+    const uppy = await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+
+    const over = dragEvent('dragover');
+    const drop = dragEvent('drop');
+    element.dispatchEvent(over);
+    element.dispatchEvent(drop);
+    await settle();
+
+    expect(over.defaultPrevented).toBe(false);
+    expect(drop.defaultPrevented).toBe(false);
+    expect(uppy.getFiles()).toHaveLength(0);
     target.unmount();
   });
 
@@ -919,7 +1041,12 @@ describe('dropping files onto a part of the page', () => {
     target.unmount();
     await settle();
 
-    expect(uppy.getPlugin('DropTarget')).toBeFalsy();
+    const drop = dragEvent('drop', [fileEntry(new File(['hello'], 'note.txt'))]);
+    element.dispatchEvent(drop);
+    await settle();
+
+    expect(drop.defaultPrevented).toBe(false);
+    expect(uppy.getFiles()).toHaveLength(0);
   });
 
   it('does nothing at all when there is no element to drop onto', async () => {
@@ -928,7 +1055,7 @@ describe('dropping files onto a part of the page', () => {
     const target = mountDropTarget(null);
     await settle();
 
-    expect(uppy.getPlugin('DropTarget')).toBeFalsy();
+    expect(uppy.getFiles()).toHaveLength(0);
     target.unmount();
   });
 });

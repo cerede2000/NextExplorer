@@ -25,8 +25,13 @@ const volume = path.join(process.env.E2E_ROOT, 'volumes', 'Projects');
 
 let page;
 
+// Every script the page asked for, so a test can say what was loaded when.
+const requested = [];
+const loadedUploader = () => requested.some((url) => /\/assets\/uploadEngine-[^/]*\.js$/.test(url));
+
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
+  page.on('request', (request) => requested.push(request.url()));
 });
 
 test.afterAll(async () => {
@@ -96,6 +101,10 @@ test('a volume opens by its address and lists what is in it', async () => {
 test('an uploaded file reaches the disk and the listing', async () => {
   const content = 'uploaded through the browser\n';
 
+  // Uppy comes with the first upload, not with the page: signing in and
+  // opening a folder have not asked for it.
+  expect(loadedUploader()).toBe(false);
+
   await page.getByRole('button', { name: 'New' }).click();
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
@@ -118,6 +127,71 @@ test('an uploaded file reaches the disk and the listing', async () => {
       return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
     })
     .toBe(content);
+  expect(loadedUploader()).toBe(true);
+});
+
+/** What a file holds on the disk, or null while it is not there. */
+const onDisk = (...parts) => {
+  const file = path.join(volume, ...parts);
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+};
+
+test('a whole folder chosen in the picker arrives with its tree', async () => {
+  const source = path.join(process.env.E2E_ROOT, 'to-upload', 'Carnets');
+  fs.mkdirSync(path.join(source, 'sous'), { recursive: true });
+  fs.writeFileSync(path.join(source, 'a.txt'), 'premier\n');
+  fs.writeFileSync(path.join(source, 'sous', 'b.txt'), 'second\n');
+
+  await page.getByRole('button', { name: 'New' }).click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: 'Upload Folder' }).click(),
+  ]);
+  await chooser.setFiles(source);
+
+  await expect.poll(() => onDisk('Carnets', 'a.txt'), { timeout: 15_000 }).toBe('premier\n');
+  await expect.poll(() => onDisk('Carnets', 'sous', 'b.txt')).toBe('second\n');
+  await expect(page.getByRole('button', { name: 'Select Carnets' })).toBeVisible();
+});
+
+/**
+ * Dropped from the desktop, onto a page that has not loaded the uploader yet.
+ *
+ * The drop arrives before Uppy does; the page has to keep the browser from
+ * opening the file in its place, read what was dropped while it still can,
+ * and hand it over once the uploader has come. A fresh tab, so nothing earlier
+ * has loaded it.
+ */
+test('a file dropped before the uploader has loaded reaches the disk', async () => {
+  // Loaded afresh: whatever the earlier uploads loaded is gone with the page.
+  const from = requested.length;
+  const engineSince = () =>
+    requested.slice(from).some((url) => /\/assets\/uploadEngine-[^/]*\.js$/.test(url));
+  await page.goto('/browse/Projects');
+  await expect(page.getByRole('button', { name: 'Select notes.txt' })).toBeVisible();
+  expect(engineSince()).toBe(false);
+
+  const outcome = await page.evaluate(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(['dropped from the desktop\n'], 'dropped.txt', { type: 'text/plain' })
+    );
+    const target = document.querySelector('.upload-drop-target');
+    target.dispatchEvent(
+      new DragEvent('dragover', { dataTransfer: transfer, bubbles: true, cancelable: true })
+    );
+    const drop = new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true });
+    target.dispatchEvent(drop);
+    return { prevented: drop.defaultPrevented };
+  });
+
+  // Not opened by the browser in place of the page.
+  expect(outcome.prevented).toBe(true);
+  await expect
+    .poll(() => onDisk('dropped.txt'), { timeout: 15_000 })
+    .toBe('dropped from the desktop\n');
+  expect(engineSince()).toBe(true);
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
 });
 
 test('a shared link opens for someone with no account, and opens nothing else', async ({
