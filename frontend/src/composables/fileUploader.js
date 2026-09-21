@@ -199,13 +199,6 @@ export function useFileUploader() {
     input.className = 'hidden';
     document.body.appendChild(input);
     inputRef.value = input;
-
-    // Not for the uploader, which asks again when it loads: this is what has
-    // always loaded the settings on a page reached through a share, where the
-    // router hands over to the share check before it gets to them. Without
-    // it, a document inside a share opened in place even for somebody who
-    // had asked for documents in a tab of their own.
-    appSettings.ensureLoaded().catch(() => {});
   });
 
   onBeforeUnmount(() => {

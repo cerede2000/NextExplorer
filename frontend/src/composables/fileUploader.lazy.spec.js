@@ -88,18 +88,6 @@ describe('the page that loads first', () => {
     expect(engine.create).not.toHaveBeenCalled();
   });
 
-  // Found by the browser tests, not by these: the uploader was what loaded
-  // the settings on a page reached through a share, and a document there
-  // opened in place for somebody who had asked for a tab of its own.
-  it('still loads the settings, which a page reached through a share relies on', async () => {
-    gatedEngine();
-    mountWith(() => useFileUploader());
-    await settle();
-
-    expect(stores.settings.ensureLoaded).toHaveBeenCalled();
-    expect(engine.create).not.toHaveBeenCalled();
-  });
-
   it('carries no part of Uppy that uploads', async () => {
     const source = (await import('./fileUploader.js?raw')).default;
     for (const name of ['@uppy/core', '@uppy/tus', '@uppy/xhr-upload', '@uppy/drop-target']) {

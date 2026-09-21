@@ -36,6 +36,7 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { getVolumes } from '@/api';
 import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
+import { loadAccountSettings } from '@/router/settingsGuard';
 import { authRedirect } from '@/router/authRedirect';
 import { skipHomeDestination } from '@/router/skipHome';
 
@@ -310,7 +311,16 @@ router.beforeEach(async (to, from) => {
       await auth.initialize();
     }
 
-    return await resolveShareAccess({ shareToken, fullPath: to.fullPath, auth, guestSession });
+    const decision = await resolveShareAccess({
+      shareToken,
+      fullPath: to.fullPath,
+      auth,
+      guestSession,
+    });
+    // Handed over here rather than at the end of the guard, so the settings
+    // are asked for here too — see settingsGuard.js.
+    if (decision === true) await loadAccountSettings({ auth, appSettings });
+    return decision;
   }
 
   // Initialize auth store
@@ -328,13 +338,7 @@ router.beforeEach(async (to, from) => {
   // Ensure app settings are loaded for authenticated sessions.
   // This prevents deep-link refreshes (e.g. /browse/some/path) from leaving `appSettings.loaded`
   // false forever, which blocks thumbnail requests and other settings-gated UI.
-  if (!isAuthRoute && auth.isAuthenticated) {
-    try {
-      await appSettings.ensureLoaded();
-    } catch (_) {
-      // Non-fatal; the UI will behave conservatively if settings aren't available.
-    }
-  }
+  if (!isAuthRoute) await loadAccountSettings({ auth, appSettings });
 
   // Optional UX: when configured, skip the home dashboard and
   // jump straight into the only available volume (single-volume setups).
