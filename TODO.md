@@ -621,15 +621,17 @@ is supported until 2028.
 `backend/tests/scripts/node-version-pinned.test.js` takes the major from the
 root `package.json` and holds the rest to it — the image, the archive's
 runtime, six workflows, three manifests, `.nvmrc` and the standalone page.
-Move the range in the root manifest, run it, fix what it lists. The
-installer's own list is checked separately, against the ABIs `node-pty`
-actually carries, so it cannot claim a major nothing has a prebuild for.
+Move the range in the root manifest, run it, fix what it lists. The list an
+archive accepts is not edited by hand any more: the build writes the major it
+ran on into `NODE_MAJORS`, the installer reads it, and the test holds the two
+file names together so a typo in either cannot go quietly wrong.
 
 Two things to check rather than assume on the way:
 
-- `NODE_MAJORS_SUPPORTED` in `install.sh` drops 24 only when nothing ships on
-  it any more, not when 26 arrives: an installation on 24 has to keep
-  updating;
+- an installation already running on 24 has to keep updating after the move,
+  so the first archive built on 26 is the one that stops accepting 24 — which
+  now follows from what `NODE_MAJORS` says rather than from a line somebody
+  remembers to change;
 - `frontend/vitest.setup.js` carries a shim for Node 25's own `localStorage`,
   written when this repository was worked on from a machine running it. Node
   26's behaviour there is worth looking at before assuming the shim is still
@@ -704,11 +706,6 @@ Settled on the way, each with its own tests:
   it is either watching the two files, or a reverse proxy, which is what the
   documentation says today and what handles redirection from port 80, HTTP/2 and
   renewal anyway.
-- **The weekly image cleanup deletes nothing until `d42ff55` is on `main`.**
-  `PACKAGE_CLEANUP_TOKEN` is set since 15 September 2026, and a dry run lists
-  1,355 of 1,387 versions to remove, keeping the two latest releases. But a
-  schedule runs the workflow from `main`, where the step still passes `--apply`
-  only for a manual run with the box ticked.
 - The repository is still marked as a fork of `nxzai/NextExplorer`; detaching it
   is a request to GitHub support.
 - `demo/content/` holds 28 KB across seven files, so the gallery and thumbnails —
