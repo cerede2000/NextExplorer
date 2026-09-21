@@ -254,6 +254,18 @@ const isInsidePersonalRoot = (absolutePath) => {
   return false;
 };
 
+/**
+ * Whether reaching `target` from `root` would step into somebody's personal
+ * folder that `root` itself is not part of.
+ *
+ * The volume is one such root; an assigned volume or its share is another,
+ * since an administrator may assign a folder that holds `_users`. A root that
+ * is already inside a personal folder — an account's own, or a share of it —
+ * is not stepping in anywhere, and is left alone.
+ */
+const reachesIntoPersonalRoot = (rootAbs, targetAbs) =>
+  isInsidePersonalRoot(targetAbs) && !isInsidePersonalRoot(rootAbs);
+
 const resolveVolumePath = async (relativePath = '') => {
   const safeRelativePath = normalizeRelativePath(relativePath);
   assertOutsideZone(safeRelativePath);
@@ -585,6 +597,12 @@ const resolveLogicalPath = async (
 
     await assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
 
+    if (reachesIntoPersonalRoot(userVolume.path, absolutePath)) {
+      throw new ForbiddenError(
+        'Personal folders are reached through the personal space, not an assigned volume.'
+      );
+    }
+
     return {
       space: 'volume',
       relativePath: rel,
@@ -708,6 +726,12 @@ const resolveSharePath = async (
     }
 
     await assertRealPathWithinRoot(absolutePath, userVolume.path, 'the assigned volume');
+
+    if (reachesIntoPersonalRoot(userVolume.path, absolutePath)) {
+      throw new ForbiddenError(
+        'Personal folders are reached through the personal space, not an assigned volume.'
+      );
+    }
   } else {
     const combinedPath =
       isDirShare && innerPath ? combineRelativePath(share.sourcePath, innerPath) : share.sourcePath;
@@ -754,4 +778,5 @@ module.exports = {
   getUserFolderNameCandidates,
   resolveItemPaths,
   isInsidePersonalRoot,
+  reachesIntoPersonalRoot,
 };
