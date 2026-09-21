@@ -3,6 +3,19 @@ const { ForbiddenError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
 const { nowIso, toClientUser, generateId, normalizeEmail } = require('./utils');
 
+const GROUP_CLAIMS = ['groups', 'roles', 'entitlements'];
+
+/**
+ * Whether the provider said anything at all about this user's groups.
+ *
+ * A claim that is absent is not a claim that is empty. A `groups` scope missing
+ * from the client configuration looks exactly like a user who belongs to
+ * nothing — and the documented symptom of that mistake is "not an admin after
+ * login". Acting on silence would turn a configuration error into a demotion.
+ */
+const hasGroupClaim = (claims = {}) =>
+  GROUP_CLAIMS.some((claim) => claims?.[claim] !== undefined && claims?.[claim] !== null);
+
 // Map provider claims/groups to an app roles array
 const deriveRolesFromClaims = (claims = {}, adminGroups = []) => {
   try {
@@ -28,6 +41,40 @@ const deriveRolesFromClaims = (claims = {}, adminGroups = []) => {
 };
 
 // Get or create user from OIDC claims (with auto-linking via email)
+/**
+ * Whether the provider's answer about groups may overwrite the roles already
+ * stored for a returning user.
+ *
+ * Two conditions, both necessary. Without `OIDC_ADMIN_GROUPS` every login
+ * derives `['user']`, so re-applying it would strip the admin rights of anyone
+ * promoted through the interface — the bootstrap account included — at their
+ * next sign-in, leaving nobody able to administer the instance. And a group
+ * claim that is absent is not a claim that is empty: a missing `groups` scope
+ * looks exactly like a user who belongs to nothing, and its documented symptom
+ * is "not an admin after login". Acting on silence turns a misconfiguration
+ * into a demotion.
+ */
+/**
+ * Say so when the provider's groups change what someone may do here. A silent
+ * promotion or demotion is exactly the kind of thing an administrator needs to
+ * be able to find afterwards.
+ */
+const logRoleChange = (db, userId, nextRolesJson) => {
+  try {
+    const current = db.prepare('SELECT roles FROM users WHERE id = ?').get(userId);
+    if (!current || current.roles === nextRolesJson) return;
+    logger.info(
+      { userId, from: current.roles, to: nextRolesJson },
+      "OIDC group membership changed this user's roles"
+    );
+  } catch (_) {
+    /* logging must never break a login */
+  }
+};
+
+const rolesFromClaimsAreAuthoritative = (claims, adminGroups) =>
+  Array.isArray(adminGroups) && adminGroups.length > 0 && hasGroupClaim(claims);
+
 const getOrCreateOidcUser = async ({
   issuer,
   sub,
@@ -36,19 +83,22 @@ const getOrCreateOidcUser = async ({
   username,
   displayName,
   roles,
+  // Only then may `roles` overwrite what a returning user already has.
+  rolesAreAuthoritative = false,
   requireEmailVerified = false,
   autoCreateUsers = true,
 }) => {
   const db = await getDb();
   const normEmail = normalizeEmail(email);
+  const rolesJson = JSON.stringify(Array.isArray(roles) ? roles : ['user']);
 
   if (!normEmail) {
-    throw new Error('Email is required from OIDC provider');
+    throw new ForbiddenError('Email is required from OIDC provider.');
   }
 
-  // For security, only auto-link if email is verified (when required)
+  // This policy applies to every OIDC login when explicitly enabled.
   if (requireEmailVerified && !emailVerified) {
-    throw new Error('Email must be verified by identity provider');
+    throw new ForbiddenError('Email must be verified by identity provider.');
   }
 
   // Check if this OIDC identity already exists
@@ -74,11 +124,22 @@ const getOrCreateOidcUser = async ({
       UPDATE users
       SET display_name = COALESCE(?, display_name),
           username = COALESCE(?, username),
-          email_verified = 1,
+          email_verified = CASE WHEN ? THEN 1 ELSE email_verified END,
+          roles = CASE WHEN ? THEN ? ELSE roles END,
           updated_at = ?
       WHERE id = ?
     `
-    ).run(displayName, username, nowIso(), authMethod.user_id);
+    ).run(
+      displayName,
+      username,
+      emailVerified ? 1 : 0,
+      rolesAreAuthoritative ? 1 : 0,
+      rolesJson,
+      nowIso(),
+      authMethod.user_id
+    );
+
+    if (rolesAreAuthoritative) logRoleChange(db, authMethod.user_id, rolesJson);
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(authMethod.user_id);
     return toClientUser(user);
@@ -88,8 +149,14 @@ const getOrCreateOidcUser = async ({
   let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normEmail);
 
   if (user) {
+    // An unverified email claim must never attach a new OIDC identity to an
+    // existing account, regardless of the provisioning configuration.
+    if (!emailVerified) {
+      throw new ForbiddenError('Email must be verified before linking an existing account.');
+    }
+
     // Auto-link: User exists, add OIDC as new auth method
-    logger.info({ email: user.email }, '[Auth] Auto-linking OIDC to existing user');
+    logger.info('[Auth] Auto-linking OIDC to existing user');
 
     const authId = generateId();
     db.prepare(
@@ -105,11 +172,22 @@ const getOrCreateOidcUser = async ({
       UPDATE users
       SET display_name = COALESCE(?, display_name),
           username = COALESCE(?, username),
-          email_verified = 1,
+          email_verified = CASE WHEN ? THEN 1 ELSE email_verified END,
+          roles = CASE WHEN ? THEN ? ELSE roles END,
           updated_at = ?
       WHERE id = ?
     `
-    ).run(displayName, username, nowIso(), user.id);
+    ).run(
+      displayName,
+      username,
+      emailVerified ? 1 : 0,
+      rolesAreAuthoritative ? 1 : 0,
+      rolesJson,
+      nowIso(),
+      user.id
+    );
+
+    if (rolesAreAuthoritative) logRoleChange(db, user.id, rolesJson);
 
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
     return toClientUser(user);
@@ -120,19 +198,18 @@ const getOrCreateOidcUser = async ({
     throw new ForbiddenError('Profile does not exist.');
   }
 
-  logger.info({ email: normEmail }, '[Auth] Creating new user from OIDC');
+  logger.info('[Auth] Creating new user from OIDC');
 
   const userId = generateId();
   const now = nowIso();
-  const rolesJson = JSON.stringify(Array.isArray(roles) ? roles : ['user']);
 
   // Create user
   db.prepare(
     `
     INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
-    VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `
-  ).run(userId, normEmail, username, displayName, rolesJson, now, now);
+  ).run(userId, normEmail, emailVerified ? 1 : 0, username, displayName, rolesJson, now, now);
 
   // Create OIDC auth method
   const authId = generateId();
@@ -149,5 +226,6 @@ const getOrCreateOidcUser = async ({
 
 module.exports = {
   deriveRolesFromClaims,
+  rolesFromClaimsAreAuthoritative,
   getOrCreateOidcUser,
 };

@@ -2,10 +2,52 @@ const crypto = require('crypto');
 const { auth: eocAuth } = require('express-openid-connect');
 
 const { auth: envAuthConfig, public: publicConfig } = require('../config/index');
-const { getOrCreateOidcUser, deriveRolesFromClaims } = require('../services/users');
+const {
+  getOrCreateOidcUser,
+  deriveRolesFromClaims,
+  rolesFromClaimsAreAuthoritative,
+} = require('../services/users');
 const { fetchUserInfoClaims } = require('../services/oidcService');
 const { oidcStore } = require('../utils/sessionStore');
+const { UnauthorizedError } = require('../errors/AppError');
 const logger = require('../utils/logger');
+
+/**
+ * The address a sign-out ends on, from what the request asked for.
+ *
+ * Only a path on this site: the value comes from the query string, and it is
+ * where the browser is sent once the provider has signed the person out — or
+ * straight away, when building the provider's address fails. Anything that is
+ * not a plain same-site path becomes the sign-in page.
+ */
+const sameSiteReturnTo = (candidate, baseURL) => {
+  const fallback = '/auth/login';
+  let pathOnSite = fallback;
+  if (typeof candidate === 'string') {
+    const value = candidate.trim();
+    if (value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')) {
+      pathOnSite = value;
+    }
+  }
+  return baseURL ? `${baseURL}${pathOnSite}` : pathOnSite;
+};
+
+/**
+ * The claims inside an id token, read without checking its signature — the
+ * library has already verified it, nonce included, before the after-callback
+ * handler is handed the session. Anything that is not a JWT reads as none.
+ */
+const claimsFromIdToken = (idToken) => {
+  if (typeof idToken !== 'string') return null;
+  const payload = idToken.split('.')[1];
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Derives baseURL from callbackUrl or PUBLIC_URL
@@ -73,8 +115,7 @@ const createLogoutHandler = ({ logoutURL, baseURL, cookieSecure }) => {
 
   return async (req, res) => {
     // Calculate returnTo early for use in both success and error paths
-    const defaultReturnTo = baseURL ? `${baseURL}/auth/login` : '/auth/login';
-    const returnTo = req.query.returnTo || defaultReturnTo;
+    const returnTo = sameSiteReturnTo(req.query.returnTo, baseURL);
 
     try {
       // Clear local session (promisified for proper sequencing)
@@ -140,16 +181,13 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         'OIDC user login state'
       );
 
-      let claims = {};
-
-      // Prefer already-decoded user claims if available on req.oidc.user
-      const hasReqUser = Boolean(req?.oidc?.user && req.oidc.user.sub);
-      logger.debug({ hasReqUser }, 'afterCallback: req.oidc.user presence');
-
-      if (hasReqUser) {
-        claims = req.oidc.user;
-        logger.debug('afterCallback: using req.oidc.user');
-      }
+      // Who this sign-in is, as the provider's id token says — verified by the
+      // library by the time this runs. `req.oidc.user` is not it: during the
+      // callback it is still the user of the session the browser arrived with,
+      // if it had one.
+      const idTokenClaims =
+        claimsFromIdToken(session?.id_token) || session?.id_token_claims || session?.claims || null;
+      let claims = idTokenClaims || {};
 
       // Fetch from userinfo endpoint if access token is available
       if (accessToken && persistIssuer) {
@@ -161,20 +199,20 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         });
 
         if (directClaims && directClaims.sub) {
+          // OpenID Connect Core 5.3.2: the userinfo response describes the
+          // subject of the id token, or it must not be used at all.
+          if (idTokenClaims?.sub && directClaims.sub !== idTokenClaims.sub) {
+            throw new UnauthorizedError(
+              'OIDC userinfo subject does not match the authenticated user.'
+            );
+          }
           claims = directClaims;
           logger.debug('afterCallback: direct userinfo fetch succeeded');
+        } else if (idTokenClaims?.sub) {
+          // A provider whose userinfo is briefly unavailable: the id token
+          // already names the person, so the sign-in goes ahead on it.
+          logger.debug('afterCallback: userinfo unavailable, using the id token claims');
         }
-      }
-
-      // Fallback to id_token_claims or session.claims
-      if ((!claims || !claims.sub) && session?.id_token_claims) {
-        logger.debug('afterCallback: falling back to id_token_claims');
-        claims = session.id_token_claims;
-        logger.debug(claims, 'afterCallback: id_token_claims content');
-      } else if ((!claims || !claims.sub) && session?.claims) {
-        logger.debug('afterCallback: falling back to session.claims');
-        claims = session.claims;
-        logger.debug(claims, 'afterCallback: session.claims content');
       }
 
       const sub = claims && claims.sub ? claims.sub : null;
@@ -185,10 +223,18 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
 
       // Derive user information from claims
       const email = claims.email || null;
-      const emailVerified = claims.email_verified || false;
+      // Only a boolean true is a verified address. `"false"` is a non-empty
+      // string, and read as truthy it attached a sign-in to whichever account
+      // already held that address.
+      const emailVerified = claims.email_verified === true;
       const preferredUsername = claims.preferred_username || claims.username || email || sub;
       const displayName = claims.name || preferredUsername || null;
-      const roles = deriveRolesFromClaims(claims, envAuthConfig?.oidc?.adminGroups);
+      const adminGroups = envAuthConfig?.oidc?.adminGroups;
+      const roles = deriveRolesFromClaims(claims, adminGroups);
+      // The provider only gets to decide who is an administrator here where an
+      // admin group was configured and the provider actually said something
+      // about groups. Otherwise the roles already stored are left alone.
+      const rolesAreAuthoritative = rolesFromClaimsAreAuthoritative(claims, adminGroups);
 
       logger.debug(
         {
@@ -211,6 +257,7 @@ const createAfterCallbackHandler = (oidc, envAuthConfig) => {
         email,
         emailVerified,
         roles,
+        rolesAreAuthoritative,
         requireEmailVerified: envAuthConfig?.oidc?.requireEmailVerified || false,
         autoCreateUsers: envAuthConfig?.oidc?.autoCreateUsers ?? true,
       });
