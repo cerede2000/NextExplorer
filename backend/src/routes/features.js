@@ -14,6 +14,7 @@ const {
 const terminalService = require('../services/terminalService');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
 const { getSupportedArchiveExtensions } = require('../services/archiveService');
+const featureSwitches = require('../services/featureSwitches');
 const { getTrashSettings } = require('../services/trash/settings');
 const { getVersionSettings } = require('../services/versions/settings');
 const packageJson = require('../../package.json');
@@ -24,6 +25,7 @@ const router = express.Router();
 router.get('/features', async (_req, res) => {
   // Probed once at startup, then cached — this await is effectively free.
   const archiveExtensions = await getSupportedArchiveExtensions().catch(() => ['zip']);
+  const switches = featureSwitches.snapshot();
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -54,9 +56,12 @@ router.get('/features', async (_req, res) => {
       maxRenderBytes: preview?.maxRenderBytes ?? null,
     },
     search: {
-      // Whether the full-text index is on. The exclusions page is otherwise a
-      // form for a feature that is not running, which nothing on it would say.
-      index: { enabled: search?.index?.enabled === true },
+      // Whether the full-text index is on, and whether Settings may change
+      // that — `lockedBy` names the variable when the environment decided.
+      index: {
+        enabled: search?.index?.enabled === true,
+        lockedBy: switches.searchIndex.lockedBy,
+      },
     },
     hiddenFiles: {
       patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
@@ -88,6 +93,7 @@ router.get('/features', async (_req, res) => {
     folderSize: {
       mode: features?.folderSizeMode || 'off',
       enabled: (features?.folderSizeMode || 'off') !== 'off',
+      lockedBy: switches.folderSize.lockedBy,
     },
     personal: {
       enabled: Boolean(features?.personalFolders),

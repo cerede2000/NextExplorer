@@ -16,6 +16,9 @@ export const useFeaturesStore = defineStore('features', () => {
   const editorMaxFileSizeBytes = ref(null);
   const previewMaxRenderBytes = ref(16 * 1024 * 1024);
   const searchIndexEnabled = ref(false);
+  // The environment variable that decided whether the index runs, when one
+  // did; null means Settings may switch it.
+  const searchIndexLockedBy = ref(null);
   const hiddenFilePatterns = ref(['.', 'regex:\\.download$']);
   // Archive extraction formats supported by the server (7-Zip probe).
   const archiveExtensions = ref(['zip']);
@@ -28,6 +31,7 @@ export const useFeaturesStore = defineStore('features', () => {
   const collaboraExtensions = ref([]);
   const volumeUsageEnabled = ref(false);
   const folderSizeMode = ref('off');
+  const folderSizeLockedBy = ref(null);
   const folderSizeEnabled = ref(false);
   const personalEnabled = ref(false);
   const userVolumesEnabled = ref(false);
@@ -78,6 +82,10 @@ export const useFeaturesStore = defineStore('features', () => {
           ? features.editor.maxFileSizeBytes
           : null;
         searchIndexEnabled.value = features?.search?.index?.enabled === true;
+        searchIndexLockedBy.value =
+          typeof features?.search?.index?.lockedBy === 'string'
+            ? features.search.index.lockedBy
+            : null;
         previewMaxRenderBytes.value = Number.isFinite(features?.preview?.maxRenderBytes)
           ? features.preview.maxRenderBytes
           : 16 * 1024 * 1024;
@@ -119,6 +127,8 @@ export const useFeaturesStore = defineStore('features', () => {
         folderSizeMode.value =
           typeof features?.folderSize?.mode === 'string' ? features.folderSize.mode : 'off';
         folderSizeEnabled.value = Boolean(features?.folderSize?.enabled);
+        folderSizeLockedBy.value =
+          typeof features?.folderSize?.lockedBy === 'string' ? features.folderSize.lockedBy : null;
 
         // Personal folders
         personalEnabled.value = Boolean(features?.personal?.enabled);
@@ -202,6 +212,7 @@ export const useFeaturesStore = defineStore('features', () => {
     editorMaxFileSizeBytes,
     previewMaxRenderBytes,
     searchIndexEnabled,
+    searchIndexLockedBy,
     hiddenFilePatterns,
     archiveExtensions,
     demoLogin,
@@ -212,6 +223,7 @@ export const useFeaturesStore = defineStore('features', () => {
     volumeUsageEnabled,
     folderSizeMode,
     folderSizeEnabled,
+    folderSizeLockedBy,
     personalEnabled,
     userVolumesEnabled,
     skipHome,

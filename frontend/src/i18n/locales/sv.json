@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "Mappstorlekar",
       "subtitle": "Undanta sökvägar från beräkning och indexering av mappstorlekar.",
+      "running": "Mät mappstorlekar",
+      "runningHelp": "Mäter mappar i bakgrunden, så att deras storlek visas i listan.",
+      "modeOff": "Av",
+      "modeShallow": "Bara deras egna filer",
+      "modeFull": "Allt de innehåller",
       "environment": "Undantag definierade av miljön",
       "additional": "Ytterligare undantag",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "Sökindex",
       "subtitle": "Uteslut sökvägar från innehållsindexering.",
+      "running": "Håll ett sökindex",
+      "runningHelp": "Läser volymens dokument i bakgrunden, så att en sökning i innehållet svarar direkt.",
       "environment": "Uteslutningar från miljön",
       "additional": "Ytterligare uteslutningar",
       "none": "Ingen sökväg konfigurerad",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "Funktionen är inte aktiverad",
       "howTo": "Aktivera den genom att sätta {setting} och starta om containern.",
-      "kept": "Det du ställer in här sparas och gäller så snart funktionen aktiveras."
+      "kept": "Det du ställer in här sparas och gäller så snart funktionen aktiveras.",
+      "useSwitch": "Slå på den med reglaget ovan.",
+      "locked": "Satt av {variable} i miljön – det avgörs där, inte här."
     },
     "trash": {
       "title": "Papperskorg och versioner",

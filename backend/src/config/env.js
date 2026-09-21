@@ -136,6 +136,11 @@ module.exports = {
   SEARCH_MAX_FILESIZE: process.env.SEARCH_MAX_FILESIZE?.trim() || null,
   SEARCH_TIMEOUT_MS: Number(process.env.SEARCH_TIMEOUT_MS) || null,
   SEARCH_INDEX: normalizeBoolean(process.env.SEARCH_INDEX) ?? false,
+  // Whether the environment decided, as against falling to the default. When
+  // it did, the switch in Settings shows the variable and cannot be moved;
+  // when it did not, Settings decides. A value that is not a boolean decided
+  // nothing, the same way a blank one does.
+  SEARCH_INDEX_SET: normalizeBoolean(process.env.SEARCH_INDEX) !== null,
   SEARCH_INDEX_BATCH: Number(process.env.SEARCH_INDEX_BATCH) || null,
   SEARCH_INDEX_CPU_PERCENT: Number(process.env.SEARCH_INDEX_CPU_PERCENT) || null,
   SEARCH_INDEX_MEMORY_MB: Number(process.env.SEARCH_INDEX_MEMORY_MB) || null,
@@ -205,6 +210,10 @@ module.exports = {
   // Mode: 'off' (default, feature disabled), 'shallow' (size of a folder's
   // direct entries only) or 'full' (recursive size of the whole subtree).
   FOLDER_SIZE_MODE: process.env.FOLDER_SIZE_MODE?.trim().toLowerCase() || 'off',
+  // As SEARCH_INDEX_SET: only one of the three modes counts as a decision.
+  FOLDER_SIZE_MODE_SET: ['off', 'shallow', 'full'].includes(
+    process.env.FOLDER_SIZE_MODE?.trim().toLowerCase()
+  ),
   // Comma or newline separated paths, relative to VOLUME_ROOT, that must never
   // be traversed by the folder-size indexer.
   FOLDER_SIZE_EXCLUDE_PATHS: process.env.FOLDER_SIZE_EXCLUDE_PATHS || '',

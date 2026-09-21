@@ -20,6 +20,7 @@ const { ValidationError } = require('../errors/AppError');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
+const featureSwitches = require('../services/featureSwitches');
 
 const router = express.Router();
 
@@ -282,19 +283,67 @@ const accessSection = {
 };
 
 /**
- * A list of folders a background worker is told to leave alone.
+ * A background worker: the folders it leaves alone, and whether it runs.
  *
- * Stored and then handed to the worker, which answers with the list it is
- * actually applying — the stored one plus whatever the environment set, which
- * an administrator cannot remove from here.
+ * The list is stored and handed to the worker, which answers with the list it
+ * is actually applying — the stored one plus whatever the environment set,
+ * which an administrator cannot remove from here.
+ *
+ * The switch follows the same rule. When the environment set it, it is refused
+ * rather than quietly stored: an administrator who flips a switch and sees
+ * nothing happen deserves to be told which variable is in the way, and a page
+ * that shows the switch locked will not send it in the first place.
+ *
+ * @param {string} key          the settings section
+ * @param {object} manager      the worker, for its exclusions
+ * @param {string} field        `enabled` or `mode`
+ * @param {(value: *) => *} valid  the value to store, or undefined to refuse it
+ * @param {(value: *) => Promise} apply  switch the worker to it
+ * @param {string} variable     the environment variable that would lock it
  */
-const excluding = (key, manager) => ({
-  check: (section) =>
-    Array.isArray(section.excludedPaths) ? { excludedPaths: section.excludedPaths } : null,
+const background = ({ key, manager, field, valid, apply, variable }) => ({
+  check: (section) => {
+    const update = {};
+    if (Array.isArray(section.excludedPaths)) update.excludedPaths = section.excludedPaths;
+
+    if (Object.prototype.hasOwnProperty.call(section, field)) {
+      if (featureSwitches.snapshot()[key].lockedBy) {
+        throw new ValidationError(
+          `${variable} is set in the environment, so this is decided there and not here.`
+        );
+      }
+      const value = valid(section[field]);
+      if (value === undefined) throw new ValidationError(`${field} is not a value ${key} takes.`);
+      update[field] = value;
+    }
+
+    return Object.keys(update).length ? update : null;
+  },
   write: async (update) => {
     const saved = await mergeSection('system', key, update);
-    await manager.setAdminExclusions(saved.excludedPaths);
+    if (!saved) return false;
+    if (update.excludedPaths) await manager.setAdminExclusions(saved.excludedPaths);
+    if (Object.prototype.hasOwnProperty.call(update, field)) await apply(saved[field]);
+    return true;
   },
+});
+
+const searchIndexSection = background({
+  key: 'searchIndex',
+  manager: searchIndexManager,
+  field: 'enabled',
+  valid: (value) => (typeof value === 'boolean' ? value : undefined),
+  apply: (value) => featureSwitches.setSearchIndex(value),
+  variable: 'SEARCH_INDEX',
+});
+
+const folderSizeSection = background({
+  key: 'folderSize',
+  manager: folderSizeManager,
+  field: 'mode',
+  valid: (value) => (featureSwitches.FOLDER_SIZE_MODES.includes(value) ? value : undefined),
+  apply: (value) => featureSwitches.setFolderSizeMode(value),
+  variable: 'FOLDER_SIZE_MODE',
 });
 
 /** Every section only an administrator may write, and what writes it. */
@@ -306,8 +355,8 @@ const SYSTEM_SECTIONS = {
   versions: versionsSection,
   activity: activitySection,
   branding: brandingSection,
-  folderSize: excluding('folderSize', folderSizeManager),
-  searchIndex: excluding('searchIndex', searchIndexManager),
+  folderSize: folderSizeSection,
+  searchIndex: searchIndexSection,
 };
 
 router.patch(

@@ -243,7 +243,20 @@ const start = () => {
 
   // Deliberately not awaited: a server does not wait for its index to be
   // ready, it answers from the live search until it is.
-  reconcile({ reason: 'startup' });
+  //
+  // A pass still unwinding from a stop — switched off and on again in
+  // Settings — makes `reconcile` decline, and the next attempt would otherwise
+  // be the interval's, an hour later by default. So the first pass waits for
+  // the last one to let go, and gives up if the index is stopped meanwhile.
+  const firstPass = () => {
+    if (stopped) return;
+    if (running) {
+      setTimeout(firstPass, 1000).unref?.();
+      return;
+    }
+    reconcile({ reason: 'startup' });
+  };
+  firstPass();
 
   timer = setInterval(() => {
     reconcile({ reason: 'scheduled' });

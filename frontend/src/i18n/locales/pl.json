@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "Rozmiary folderów",
       "subtitle": "Wyklucz ścieżki z obliczania i indeksowania rozmiaru folderów.",
+      "running": "Mierz rozmiar folderów",
+      "runningHelp": "Mierzy foldery w tle, aby ich rozmiar pojawiał się na liście.",
+      "modeOff": "Wyłączone",
+      "modeShallow": "Tylko ich własne pliki",
+      "modeFull": "Wszystko, co zawierają",
       "environment": "Wykluczenia zdefiniowane w środowisku",
       "additional": "Dodatkowe wykluczenia",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "Indeks wyszukiwania",
       "subtitle": "Wyklucz ścieżki z indeksowania treści.",
+      "running": "Prowadź indeks wyszukiwania",
+      "runningHelp": "Czyta dokumenty woluminu w tle, aby wyszukiwanie w ich treści odpowiadało od razu.",
       "environment": "Wykluczenia zdefiniowane przez środowisko",
       "additional": "Dodatkowe wykluczenia",
       "none": "Nie skonfigurowano ścieżki",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "Ta funkcja nie jest włączona",
       "howTo": "Aby ją włączyć, ustaw {setting} i uruchom ponownie kontener.",
-      "kept": "To, co tu skonfigurujesz, zostanie zapisane i zadziała po włączeniu."
+      "kept": "To, co tu skonfigurujesz, zostanie zapisane i zadziała po włączeniu.",
+      "useSwitch": "Włącz ją przełącznikiem powyżej.",
+      "locked": "Ustawione przez {variable} w środowisku — decyduje się o tym tam, a nie tutaj."
     },
     "trash": {
       "title": "Kosz i wersje",

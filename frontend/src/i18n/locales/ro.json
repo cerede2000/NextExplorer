@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "Dimensiunea dosarelor",
       "subtitle": "Exclude căi din calculul și indexarea dimensiunii dosarelor.",
+      "running": "Măsoară dimensiunea dosarelor",
+      "runningHelp": "Măsoară dosarele în fundal, astfel încât dimensiunea lor să apară în listă.",
+      "modeOff": "Dezactivat",
+      "modeShallow": "Doar fișierele proprii",
+      "modeFull": "Tot ce conțin",
       "environment": "Excluderi definite de mediu",
       "additional": "Excluderi suplimentare",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "Index de căutare",
       "subtitle": "Excludeți căi din indexarea conținutului.",
+      "running": "Păstrează un index de căutare",
+      "runningHelp": "Citește documentele volumului în fundal, astfel încât o căutare în conținutul lor să răspundă imediat.",
       "environment": "Excluderi definite de mediu",
       "additional": "Excluderi suplimentare",
       "none": "Nicio cale configurată",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "Această funcție nu este activată",
       "howTo": "Pentru a o activa, setați {setting} și reporniți containerul.",
-      "kept": "Ce configurați aici este salvat și se aplică imediat ce este activată."
+      "kept": "Ce configurați aici este salvat și se aplică imediat ce este activată.",
+      "useSwitch": "Activați-o cu comutatorul de mai sus.",
+      "locked": "Setat de {variable} în mediu: se decide acolo, nu aici."
     },
     "trash": {
       "title": "Coș de gunoi și versiuni",

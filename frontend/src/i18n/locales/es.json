@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "Tamaño de carpetas",
       "subtitle": "Excluye rutas del cálculo y la indexación del tamaño de las carpetas.",
+      "running": "Medir el tamaño de las carpetas",
+      "runningHelp": "Mide las carpetas en segundo plano, para que su tamaño aparezca en la lista.",
+      "modeOff": "Desactivado",
+      "modeShallow": "Solo sus propios archivos",
+      "modeFull": "Todo lo que contienen",
       "environment": "Exclusiones definidas por el entorno",
       "additional": "Exclusiones adicionales",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "Índice de búsqueda",
       "subtitle": "Excluir rutas de la indexación de contenido.",
+      "running": "Mantener un índice de búsqueda",
+      "runningHelp": "Lee los documentos del volumen en segundo plano, para que una búsqueda en su contenido responda al instante.",
       "environment": "Exclusiones definidas por el entorno",
       "additional": "Exclusiones adicionales",
       "none": "Ninguna ruta configurada",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "Esta función no está activada",
       "howTo": "Para activarla, defina {setting} y reinicie el contenedor.",
-      "kept": "Lo que configure aquí se guarda y se aplicará en cuanto se active."
+      "kept": "Lo que configure aquí se guarda y se aplicará en cuanto se active.",
+      "useSwitch": "Actívela con el interruptor de arriba.",
+      "locked": "Definido por {variable} en el entorno: se decide allí, no aquí."
     },
     "trash": {
       "title": "Papelera y versiones",

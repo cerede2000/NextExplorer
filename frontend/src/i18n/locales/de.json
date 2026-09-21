@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "Ordnergrößen",
       "subtitle": "Pfade von der Berechnung und Indizierung der Ordnergrößen ausschließen.",
+      "running": "Ordnergrößen messen",
+      "runningHelp": "Misst Ordner im Hintergrund, damit ihre Größe in der Liste erscheint.",
+      "modeOff": "Aus",
+      "modeShallow": "Nur ihre eigenen Dateien",
+      "modeFull": "Alles darin",
       "environment": "Von der Umgebung definierte Ausschlüsse",
       "additional": "Zusätzliche Ausschlüsse",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "Suchindex",
       "subtitle": "Pfade von der Inhaltsindizierung ausschließen.",
+      "running": "Suchindex führen",
+      "runningHelp": "Liest die Dokumente des Volumes im Hintergrund, damit eine Suche in ihrem Inhalt sofort antwortet.",
       "environment": "Über die Umgebung definierte Ausschlüsse",
       "additional": "Zusätzliche Ausschlüsse",
       "none": "Kein Pfad konfiguriert",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "Diese Funktion ist nicht aktiviert",
       "howTo": "Setzen Sie {setting} und starten Sie den Container neu, um sie zu aktivieren.",
-      "kept": "Was Sie hier einstellen, wird gespeichert und gilt, sobald die Funktion aktiv ist."
+      "kept": "Was Sie hier einstellen, wird gespeichert und gilt, sobald die Funktion aktiv ist.",
+      "useSwitch": "Schalten Sie sie mit dem Schalter oben ein.",
+      "locked": "Durch {variable} in der Umgebung festgelegt – das wird dort entschieden, nicht hier."
     },
     "trash": {
       "title": "Papierkorb und Versionen",

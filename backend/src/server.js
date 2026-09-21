@@ -24,6 +24,7 @@ const { purgeExpiredDocumentKeys } = require('./services/onlyofficeDocumentKeySe
 const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
 const searchIndexManager = require('./services/searchIndexManager');
+const featureSwitches = require('./services/featureSwitches');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
 const { reportLegacyCache } = require('./services/legacyCacheCheck');
@@ -74,7 +75,12 @@ const startServer = async () => {
     logger.warn('Terminal disabled at runtime');
   }
 
-  // Start the folder size indexer worker (no-op unless FOLDER_SIZE_MODE is set).
+  // Whether the two background workers run is the environment's to say when it
+  // said it, and Settings' otherwise — read before either of them starts, so
+  // one switched on from the page comes back on after a restart.
+  await featureSwitches.load();
+
+  // Start the folder size indexer worker (no-op unless its mode is not off).
   // It runs off the Express event loop and keeps the folder_size_index fresh.
   folderSizeManager.start();
   searchIndexManager.start();

@@ -620,6 +620,11 @@
     "folderSize": {
       "title": "Folder sizes",
       "subtitle": "Exclude paths from folder-size calculation and indexing.",
+      "running": "Measure folder sizes",
+      "runningHelp": "Measures folders in the background, so their size shows in the list.",
+      "modeOff": "Off",
+      "modeShallow": "Their own files only",
+      "modeFull": "Everything inside them",
       "environment": "Environment-defined exclusions",
       "additional": "Additional exclusions",
       "placeholder": "Stacks/docker/overlay2",
@@ -720,6 +725,8 @@
     "searchIndex": {
       "title": "Search index",
       "subtitle": "Exclude paths from content indexing.",
+      "running": "Keep a search index",
+      "runningHelp": "Reads the documents in the volume in the background, so a search inside them answers at once.",
       "environment": "Environment-defined exclusions",
       "additional": "Additional exclusions",
       "none": "No path configured",
@@ -728,7 +735,9 @@
     "featureOff": {
       "title": "This feature is not enabled",
       "howTo": "To turn it on, set {setting} and restart the container.",
-      "kept": "What you configure here is saved and applies as soon as it is enabled."
+      "kept": "What you configure here is saved and applies as soon as it is enabled.",
+      "useSwitch": "Turn it on with the switch above.",
+      "locked": "Set by {variable} in the environment, so it is decided there and not here."
     },
     "trash": {
       "title": "Trash and versions",

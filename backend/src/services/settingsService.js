@@ -146,12 +146,21 @@ const sanitizeThumbnails = (thumbnails = {}) => {
   };
 };
 
+const FOLDER_SIZE_MODES = ['off', 'shallow', 'full'];
+
+/**
+ * What an administrator chose for the two background workers. Only a choice:
+ * when the environment set the same thing, the environment is what runs, and
+ * this is kept for the day the variable is taken away.
+ */
 const sanitizeFolderSize = (folderSize = {}) => ({
   excludedPaths: folderSizeExclusions.sanitizePaths(folderSize.excludedPaths || []),
+  mode: FOLDER_SIZE_MODES.includes(folderSize.mode) ? folderSize.mode : 'off',
 });
 
 const sanitizeSearchIndex = (searchIndex = {}) => ({
   excludedPaths: searchIndexExclusions.sanitizePaths(searchIndex.excludedPaths || []),
+  enabled: searchIndex.enabled === true,
 });
 
 const ACCESS_PERMISSIONS = ['rw', 'ro', 'hidden'];

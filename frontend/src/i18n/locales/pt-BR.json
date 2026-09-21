@@ -620,6 +620,11 @@
     "folderSize": {
       "title": "Tamanho das pastas",
       "subtitle": "Exclua caminhos do cálculo e da indexação do tamanho das pastas.",
+      "running": "Medir o tamanho das pastas",
+      "runningHelp": "Mede as pastas em segundo plano, para que o tamanho delas apareça na lista.",
+      "modeOff": "Desativado",
+      "modeShallow": "Apenas os próprios arquivos",
+      "modeFull": "Tudo o que contêm",
       "environment": "Exclusões definidas pelo ambiente",
       "additional": "Exclusões adicionais",
       "placeholder": "Stacks/docker/overlay2",
@@ -720,6 +725,8 @@
     "searchIndex": {
       "title": "Índice de busca",
       "subtitle": "Exclua caminhos da indexação de conteúdo.",
+      "running": "Manter um índice de busca",
+      "runningHelp": "Lê os documentos do volume em segundo plano, para que uma busca no conteúdo deles responda na hora.",
       "environment": "Exclusões definidas pelo ambiente",
       "additional": "Exclusões adicionais",
       "none": "Nenhum caminho configurado",
@@ -728,7 +735,9 @@
     "featureOff": {
       "title": "Este recurso não está ativado",
       "howTo": "Para ativá-lo, defina {setting} e reinicie o contêiner.",
-      "kept": "O que você configurar aqui é salvo e passa a valer assim que o recurso for ativado."
+      "kept": "O que você configurar aqui é salvo e passa a valer assim que o recurso for ativado.",
+      "useSwitch": "Ative-a com o interruptor acima.",
+      "locked": "Definido por {variable} no ambiente: isso é decidido lá, não aqui."
     },
     "trash": {
       "title": "Lixeira e versões",

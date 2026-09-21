@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useSlots, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useI18n } from 'vue-i18n';
 import FeatureOffNotice from '@/components/settings/FeatureOffNotice.vue';
@@ -29,7 +29,15 @@ const props = defineProps({
   value: { type: String, required: true },
   /** Where this page's own strings live, e.g. `settings.searchIndex`. */
   translationPrefix: { type: String, required: true },
+  /**
+   * The environment variable that decided whether the feature runs, or null
+   * when the switch in the `control` slot may move it.
+   */
+  lockedBy: { type: String, default: null },
 });
+
+const slots = useSlots();
+const hasSwitch = computed(() => Boolean(slots.control));
 
 const appSettings = useAppSettings();
 const { t } = useI18n();
@@ -101,7 +109,42 @@ const reset = () => {
       </div>
     </div>
 
-    <FeatureOffNotice v-if="!active" :variable="variable" :value="value" />
+    <section
+      v-if="hasSwitch"
+      class="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+      data-testid="background-switch"
+    >
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h3 class="font-medium text-zinc-900 dark:text-zinc-100">{{ label('running') }}</h3>
+          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{{ label('runningHelp') }}</p>
+          <p
+            v-if="lockedBy"
+            class="mt-2 text-sm text-zinc-600 dark:text-zinc-300"
+            data-testid="background-switch-locked"
+          >
+            <i18n-t keypath="settings.featureOff.locked" tag="span" scope="global">
+              <template #variable>
+                <code
+                  class="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs dark:bg-zinc-800"
+                  >{{ lockedBy }}</code
+                >
+              </template>
+            </i18n-t>
+          </p>
+        </div>
+        <div class="shrink-0">
+          <slot name="control" />
+        </div>
+      </div>
+    </section>
+
+    <FeatureOffNotice
+      v-if="!active"
+      :variable="variable"
+      :value="value"
+      :switchable="hasSwitch && !lockedBy"
+    />
 
     <div>
       <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">

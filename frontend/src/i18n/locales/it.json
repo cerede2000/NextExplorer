@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "Dimensioni cartelle",
       "subtitle": "Escludi percorsi dal calcolo e dall'indicizzazione delle dimensioni delle cartelle.",
+      "running": "Misura la dimensione delle cartelle",
+      "runningHelp": "Misura le cartelle in background, così la loro dimensione compare nell'elenco.",
+      "modeOff": "Disattivato",
+      "modeShallow": "Solo i loro file",
+      "modeFull": "Tutto ciò che contengono",
       "environment": "Esclusioni definite dall'ambiente",
       "additional": "Esclusioni aggiuntive",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "Indice di ricerca",
       "subtitle": "Escludere percorsi dall'indicizzazione dei contenuti.",
+      "running": "Mantieni un indice di ricerca",
+      "runningHelp": "Legge i documenti del volume in background, così una ricerca nel loro contenuto risponde subito.",
       "environment": "Esclusioni definite dall'ambiente",
       "additional": "Esclusioni aggiuntive",
       "none": "Nessun percorso configurato",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "Questa funzione non è attiva",
       "howTo": "Per attivarla, imposta {setting} e riavvia il contenitore.",
-      "kept": "Ciò che configuri qui viene salvato e si applica non appena è attiva."
+      "kept": "Ciò che configuri qui viene salvato e si applica non appena è attiva.",
+      "useSwitch": "Attivala con l'interruttore qui sopra.",
+      "locked": "Impostato da {variable} nell'ambiente: si decide lì, non qui."
     },
     "trash": {
       "title": "Cestino e versioni",

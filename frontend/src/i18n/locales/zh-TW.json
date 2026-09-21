@@ -709,6 +709,11 @@
     "folderSize": {
       "title": "檔案夾大小",
       "subtitle": "將路徑排除在檔案夾大小計算與索引之外。",
+      "running": "測量資料夾大小",
+      "runningHelp": "在背景測量資料夾，讓其大小顯示在清單中。",
+      "modeOff": "關閉",
+      "modeShallow": "僅其自身的檔案",
+      "modeFull": "其中的所有內容",
       "environment": "由環境定義的排除項目",
       "additional": "額外的排除項目",
       "placeholder": "Stacks/docker/overlay2",
@@ -717,6 +722,8 @@
     "searchIndex": {
       "title": "搜尋索引",
       "subtitle": "將路徑排除在內容索引之外。",
+      "running": "維護搜尋索引",
+      "runningHelp": "在背景讀取磁碟區中的文件，讓對其內容的搜尋能立即回應。",
       "environment": "由環境定義的排除項",
       "additional": "額外的排除項",
       "none": "未設定任何路徑",
@@ -725,7 +732,9 @@
     "featureOff": {
       "title": "此功能未啟用",
       "howTo": "要啟用它，請設定 {setting} 並重新啟動容器。",
-      "kept": "此處的設定會被儲存，啟用後立即生效。"
+      "kept": "此處的設定會被儲存，啟用後立即生效。",
+      "useSwitch": "使用上方的開關將其開啟。",
+      "locked": "由環境中的 {variable} 設定，因此在那裡決定，而不是在這裡。"
     },
     "trash": {
       "title": "資源回收筒和版本",

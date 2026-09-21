@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
@@ -32,11 +32,15 @@ const i18n = createI18n({
           additional: 'Additional',
           none: 'No path configured',
           placeholder: 'Backups/2024',
+          running: 'Keep a search index',
+          runningHelp: 'Reads the documents in the background.',
         },
         featureOff: {
           title: 'This feature is not enabled',
           howTo: 'To turn it on, set {setting} and restart the container.',
           kept: 'What you configure here is saved.',
+          useSwitch: 'Turn it on with the switch above.',
+          locked: 'Set by {variable} in the environment.',
         },
       },
     },
@@ -83,21 +87,78 @@ describe('the search index settings page', () => {
     expect(wrapper.text()).toContain('No path configured');
   });
 
-  it('says the feature is off, and how to turn it on', () => {
+  it('says the feature is off, and points at the switch that turns it on', () => {
+    // The variable used to be the only way in, so the notice named it. With a
+    // switch on the page, a file to edit is the long way round (#9).
     useFeaturesStore().searchIndexEnabled = false;
     const wrapper = mountTab();
 
     expect(wrapper.find('[data-testid="feature-off-notice"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('SEARCH_INDEX=true');
+    expect(wrapper.text()).toContain('Turn it on with the switch above.');
+    expect(wrapper.text()).not.toContain('SEARCH_INDEX=true');
   });
 
-  it('blocks the form while the feature is off', () => {
+  it('names the variable when the environment switched it off', () => {
+    const features = useFeaturesStore();
+    features.searchIndexEnabled = false;
+    features.searchIndexLockedBy = 'SEARCH_INDEX';
+    const wrapper = mountTab();
+
+    expect(wrapper.text()).toContain('SEARCH_INDEX=true');
+    expect(wrapper.find('[data-testid="background-switch-locked"]').text()).toContain(
+      'SEARCH_INDEX'
+    );
+    expect(
+      wrapper.find('[data-testid="search-index-switch"]').attributes('disabled')
+    ).toBeDefined();
+  });
+
+  it('blocks the list while the feature is off, and not the switch', () => {
+    // The switch is how it gets turned on, so it is the one control that must
+    // stay live on a page for something that is not running.
     useFeaturesStore().searchIndexEnabled = false;
     const wrapper = mountTab();
 
     expect(wrapper.find('input').attributes('disabled')).toBeDefined();
-    expect(wrapper.findAll('button').every((b) => b.attributes('disabled') !== undefined)).toBe(
-      true
+    const others = wrapper
+      .findAll('button')
+      .filter((b) => b.attributes('data-testid') !== 'search-index-switch');
+    expect(others.every((b) => b.attributes('disabled') !== undefined)).toBe(true);
+    expect(
+      wrapper.find('[data-testid="search-index-switch"]').attributes('disabled')
+    ).toBeUndefined();
+  });
+
+  it('turns the index on from the switch, and the list comes alive', async () => {
+    const appSettings = useAppSettings();
+    const save = vi.spyOn(appSettings, 'save').mockResolvedValue({});
+    useFeaturesStore().searchIndexEnabled = false;
+    const wrapper = mountTab();
+
+    await wrapper.find('[data-testid="search-index-switch"]').trigger('click');
+    await vi.waitFor(() => expect(save).toHaveBeenCalled());
+
+    expect(save).toHaveBeenCalledWith({ searchIndex: { enabled: true } });
+    await vi.waitFor(() => expect(wrapper.find('input').attributes('disabled')).toBeUndefined());
+    expect(wrapper.find('[data-testid="feature-off-notice"]').exists()).toBe(false);
+  });
+
+  it('leaves the switch where it was when the save is refused', async () => {
+    const appSettings = useAppSettings();
+    vi.spyOn(appSettings, 'save').mockRejectedValue(new Error('refused'));
+    useFeaturesStore().searchIndexEnabled = false;
+    const wrapper = mountTab();
+
+    await wrapper.find('[data-testid="search-index-switch"]').trigger('click');
+    await vi.waitFor(() =>
+      expect(
+        wrapper.find('[data-testid="search-index-switch"]').attributes('disabled')
+      ).toBeUndefined()
+    );
+
+    expect(useFeaturesStore().searchIndexEnabled).toBe(false);
+    expect(wrapper.find('[data-testid="search-index-switch"]').attributes('aria-checked')).toBe(
+      'false'
     );
   });
 

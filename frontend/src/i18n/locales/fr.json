@@ -620,6 +620,11 @@
     "folderSize": {
       "title": "Taille des dossiers",
       "subtitle": "Exclure des chemins du calcul et de l’indexation des tailles.",
+      "running": "Mesurer la taille des dossiers",
+      "runningHelp": "Mesure les dossiers en arrière-plan, pour que leur taille s'affiche dans la liste.",
+      "modeOff": "Désactivé",
+      "modeShallow": "Leurs propres fichiers seulement",
+      "modeFull": "Tout ce qu'ils contiennent",
       "environment": "Exclusions définies par l’environnement",
       "additional": "Exclusions supplémentaires",
       "placeholder": "Stacks/docker/overlay2",
@@ -720,6 +725,8 @@
     "searchIndex": {
       "title": "Index de recherche",
       "subtitle": "Exclure des chemins de l'indexation du contenu.",
+      "running": "Tenir un index de recherche",
+      "runningHelp": "Lit les documents du volume en arrière-plan, pour qu'une recherche dans leur contenu réponde aussitôt.",
       "environment": "Exclusions définies par l'environnement",
       "additional": "Exclusions supplémentaires",
       "none": "Aucun chemin configuré",
@@ -728,7 +735,9 @@
     "featureOff": {
       "title": "Cette fonction n'est pas active",
       "howTo": "Pour l'activer, positionnez {setting} puis redémarrez le conteneur.",
-      "kept": "Ce que vous configurez ici est enregistré et s'appliquera dès l'activation."
+      "kept": "Ce que vous configurez ici est enregistré et s'appliquera dès l'activation.",
+      "useSwitch": "Activez-la avec l'interrupteur ci-dessus.",
+      "locked": "Défini par {variable} dans l'environnement : c'est là que cela se décide, pas ici."
     },
     "trash": {
       "title": "Corbeille et versions",

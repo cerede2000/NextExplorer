@@ -14,6 +14,12 @@ import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 defineProps({
   variable: { type: String, required: true },
   value: { type: String, required: true },
+  /**
+   * When the page carries its own switch, that is the way to turn it on and
+   * the variable is not: naming a file to edit beside a switch that does the
+   * same thing would send somebody the long way round.
+   */
+  switchable: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -27,7 +33,8 @@ const { t } = useI18n();
     <ExclamationTriangleIcon class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
     <div class="min-w-0 space-y-1">
       <p class="text-sm font-medium">{{ t('settings.featureOff.title') }}</p>
-      <p class="text-sm">
+      <p v-if="switchable" class="text-sm">{{ t('settings.featureOff.useSwitch') }}</p>
+      <p v-else class="text-sm">
         <i18n-t keypath="settings.featureOff.howTo" tag="span" scope="global">
           <template #setting>
             <code class="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-xs"

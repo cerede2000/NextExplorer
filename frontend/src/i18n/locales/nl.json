@@ -620,6 +620,11 @@
     "folderSize": {
       "title": "Mapgroottes",
       "subtitle": "Paden uitsluiten van het berekenen en indexeren van mapgroottes.",
+      "running": "Mapgroottes meten",
+      "runningHelp": "Meet mappen op de achtergrond, zodat hun grootte in de lijst verschijnt.",
+      "modeOff": "Uit",
+      "modeShallow": "Alleen hun eigen bestanden",
+      "modeFull": "Alles wat erin zit",
       "environment": "Uitsluitingen uit de omgevingsvariabelen",
       "additional": "Extra uitsluitingen",
       "placeholder": "Stacks/docker/overlay2",
@@ -720,6 +725,8 @@
     "searchIndex": {
       "title": "Zoekindex",
       "subtitle": "Paden uitsluiten van het indexeren van inhoud.",
+      "running": "Een zoekindex bijhouden",
+      "runningHelp": "Leest de documenten van het volume op de achtergrond, zodat zoeken in hun inhoud meteen antwoordt.",
       "environment": "Uitsluitingen uit de omgevingsvariabelen",
       "additional": "Extra uitsluitingen",
       "none": "Geen pad ingesteld",
@@ -728,7 +735,9 @@
     "featureOff": {
       "title": "Deze functie is niet ingeschakeld",
       "howTo": "Stel {setting} in en herstart de container om hem in te schakelen.",
-      "kept": "Wat u hier instelt, wordt opgeslagen en geldt zodra de functie is ingeschakeld."
+      "kept": "Wat u hier instelt, wordt opgeslagen en geldt zodra de functie is ingeschakeld.",
+      "useSwitch": "Zet het aan met de schakelaar hierboven.",
+      "locked": "Ingesteld door {variable} in de omgeving: dat wordt daar beslist, niet hier."
     },
     "trash": {
       "title": "Prullenbak en versies",
