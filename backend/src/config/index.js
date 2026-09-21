@@ -277,15 +277,42 @@ const searchMaxFileSizeBytes = (() => {
 })();
 
 // --- OnlyOffice ---
+/**
+ * A secret for one purpose, derived from the session secret.
+ *
+ * The session secret signs every session cookie, so it is never handed to
+ * anything else; a purpose-specific value derived from it can be, and knowing
+ * it tells nothing about the one it came from.
+ */
+const deriveSecret = (purpose) =>
+  crypto.createHmac('sha256', auth.sessionSecret).update(`nextexplorer:${purpose}`).digest('hex');
+
 const onlyoffice = {
   serverUrl: env.ONLYOFFICE_URL?.replace(/\/$/, '') || null,
-  secret: env.ONLYOFFICE_SECRET || env.SESSION_SECRET || auth.sessionSecret,
+  // Never hand the session signing secret to an external service. When no
+  // dedicated secret is configured, derive a distinct one so the value shared
+  // with the Document Server cannot be used to forge session cookies.
+  //
+  // This used to fall back to SESSION_SECRET verbatim, so a deployment that set
+  // the Document Server's JWT secret to that value worked without ever setting
+  // ONLYOFFICE_SECRET. It no longer matches — see the warning emitted below.
+  secret: env.ONLYOFFICE_SECRET || deriveSecret('onlyoffice'),
   lang: env.ONLYOFFICE_LANG,
   forceSave: env.ONLYOFFICE_FORCE_SAVE,
   extensions: env.ONLYOFFICE_FILE_EXTENSIONS.split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 };
+
+// Silent JWT mismatches surface to the user as "Document security token is not
+// correctly configured", with nothing in the logs pointing at the cause.
+if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
+  console.warn(
+    '[Config] ONLYOFFICE_URL is set without ONLYOFFICE_SECRET. A derived secret is used, ' +
+      'which will not match the Document Server unless its JWT secret is set to the same ' +
+      'value. Set ONLYOFFICE_SECRET on both sides.'
+  );
+}
 
 // --- Collabora (WOPI) ---
 const collaboraBaseUrl = env.COLLABORA_URL?.replace(/\/$/, '') || null;

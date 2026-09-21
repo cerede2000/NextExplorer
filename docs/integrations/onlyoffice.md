@@ -13,6 +13,10 @@ Use ONLYOFFICE Document Server to edit office files (DOCX, XLSX, PPTX, ODT, ODS,
 | `ONLYOFFICE_FORCE_SAVE`      | No                | When true, users must use the editor’s Save button rather than relying on autosave.       |
 | `ONLYOFFICE_FILE_EXTENSIONS` | No                | Comma-separated list of extensions you want to surface beyond the defaults.               |
 
+Without `ONLYOFFICE_SECRET`, a secret derived from the session secret is used —
+never the session secret itself, which signs every session cookie — and the log
+says so at start. Set `ONLYOFFICE_SECRET` on both sides.
+
 ## How it works
 
 1. Opening a compatible file triggers a call to `/api/onlyoffice/config`, which returns editor configuration and a signed `config.token` when `ONLYOFFICE_SECRET` is set.

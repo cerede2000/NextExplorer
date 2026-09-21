@@ -4,7 +4,7 @@ import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
- * What another origin is handed by default.
+ * What another origin, and another service, are handed by default.
  *
  * With none of CORS_ORIGINS, PUBLIC_URL or INTERNAL_URL set, the server
  * reflected whatever Origin asked, with credentials. The session cookie is
@@ -12,6 +12,11 @@ import { setupTestEnv } from '../helpers/env-test-utils.js';
  * site — another port of the same host, a sibling subdomain — so any of those
  * could read an authenticated user's files. Nothing cross-origin is allowed
  * by default now.
+ *
+ * ONLYOFFICE, given no secret of its own, was handed the session secret — the
+ * value that signs every session cookie — so whoever administers the Document
+ * Server could forge anybody's session here. It is given a secret derived
+ * from it instead.
  */
 
 let envContext;
@@ -75,5 +80,47 @@ describe('a request from another origin', () => {
 
     const response = await request(app).get('/api/probe');
     expect(response.status).toBe(200);
+  });
+});
+
+describe('the secret ONLYOFFICE is given', () => {
+  const configWith = async (env) => {
+    envContext = await setupTestEnv({
+      tag: 'onlyoffice-secret-',
+      env: { SESSION_SECRET: 'the-session-secret', ...env },
+    });
+    return envContext.requireFresh('src/config/index');
+  };
+
+  it('is never the session secret', async () => {
+    const config = await configWith({
+      ONLYOFFICE_URL: 'http://docs.example',
+      ONLYOFFICE_SECRET: '',
+    });
+
+    expect(config.onlyoffice.secret).toBeTruthy();
+    expect(config.onlyoffice.secret).not.toBe('the-session-secret');
+  });
+
+  it('is the same from one start to the next, so documents open after a restart', async () => {
+    const first = (await configWith({ ONLYOFFICE_SECRET: '' })).onlyoffice.secret;
+    await envContext.cleanup();
+    const second = (await configWith({ ONLYOFFICE_SECRET: '' })).onlyoffice.secret;
+
+    expect(second).toBe(first);
+  });
+
+  it('is the one configured, when there is one', async () => {
+    const config = await configWith({ ONLYOFFICE_SECRET: 'shared-with-docs' });
+
+    expect(config.onlyoffice.secret).toBe('shared-with-docs');
+  });
+
+  it('is said at start to need setting, when ONLYOFFICE is used without one', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await configWith({ ONLYOFFICE_URL: 'http://docs.example', ONLYOFFICE_SECRET: '' });
+
+    expect(warn.mock.calls.some(([line]) => /ONLYOFFICE_SECRET/.test(String(line)))).toBe(true);
   });
 });
