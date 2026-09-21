@@ -258,3 +258,86 @@ describe('reserving a name', () => {
     expect(fs.statSync(reserved.path).isDirectory()).toBe(true);
   });
 });
+
+describe('a filesystem that refuses to rename over an existing entry', () => {
+  /**
+   * Some FUSE mounts and SMB shares refuse a rename over anything already
+   * there, even the empty placeholder the move created itself. Every name then
+   * looked taken, and a placement walked "(1)", "(2)"… ten thousand times
+   * before giving up. Once its own empty placeholder is removed, a plain rename
+   * is the move there: it cannot replace anything on such a filesystem.
+   */
+  const refusingRenameOverEntries = () => {
+    const rename = fsp.rename.bind(fsp);
+    const calls = [];
+    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
+      calls.push(to);
+      if (fs.existsSync(to)) {
+        throw Object.assign(new Error('file already exists'), { code: 'EEXIST' });
+      }
+      return rename(from, to);
+    });
+    return calls;
+  };
+
+  it('places a folder under its own name', async () => {
+    const calls = refusingRenameOverEntries();
+    const source = path.join(root, '.staging');
+    file('.staging/mine.jpg', 'mine');
+
+    const placed = await place.placeWithoutOverwrite(source, root, 'Photos');
+
+    expect(placed.name).toBe('Photos');
+    expect(names('Photos')).toEqual(['mine.jpg']);
+    expect(calls.every((to) => to === path.join(root, 'Photos'))).toBe(true);
+  });
+
+  it('places a file under its own name where there are no hard links', async () => {
+    withoutHardLinks();
+    refusingRenameOverEntries();
+    const source = file('.upload-1.uploading', 'new');
+
+    const placed = await place.placeWithoutOverwrite(source, root, 'report.pdf');
+
+    expect(placed.name).toBe('report.pdf');
+    expect(read('report.pdf')).toBe('new');
+    expect(names()).toEqual(['report.pdf']);
+  });
+
+  it('still moves past a folder someone filled between its creation and the move', async () => {
+    refusingRenameOverEntries();
+    const source = path.join(root, '.staging');
+    file('.staging/mine.jpg', 'mine');
+    const mkdir = fsp.mkdir.bind(fsp);
+    vi.spyOn(fsp, 'mkdir').mockImplementationOnce(async (target, options) => {
+      await mkdir(target, options);
+      fs.writeFileSync(path.join(target, 'theirs.jpg'), 'theirs');
+    });
+
+    const placed = await place.placeWithoutOverwrite(source, root, 'Photos');
+
+    expect(names('Photos')).toEqual(['theirs.jpg']);
+    expect(placed.name).toBe('Photos (1)');
+    expect(names('Photos (1)')).toEqual(['mine.jpg']);
+  });
+});
+
+describe('moving a symbolic link', () => {
+  it('makes the link again under a free name, with no empty file ever holding the name', async () => {
+    const target = file('elsewhere.txt', 'pointed at');
+    const source = path.join(root, 'staged-link');
+    fs.symlinkSync('elsewhere.txt', source);
+    file('link', 'already here');
+    const open = vi.spyOn(fsp, 'open');
+
+    const placed = await place.placeWithoutOverwrite(source, root, 'link');
+
+    expect(placed.name).toBe('link (1)');
+    expect(fs.readlinkSync(path.join(root, 'link (1)'))).toBe('elsewhere.txt');
+    expect(fs.readFileSync(path.join(root, 'link (1)'), 'utf8')).toBe('pointed at');
+    expect(read('link')).toBe('already here');
+    expect(fs.lstatSync(source, { throwIfNoEntry: false })).toBeUndefined();
+    expect(open).not.toHaveBeenCalled();
+    expect(fs.readFileSync(target, 'utf8')).toBe('pointed at');
+  });
+});
