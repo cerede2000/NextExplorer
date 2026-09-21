@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "Ta zawartość ma linki udostępniania ({count}). Nie działają, dopóki zawartość jest w koszu, i można je przywrócić razem z nią.",
     "deleteLinkedSharesPermanent": "Ta zawartość ma linki udostępniania ({count}), które zostaną trwale usunięte razem z nią.",
+    "deleteOnlyofficeOpen": "{names} jest otwarty w OnlyOffice. Nadal można go usunąć, ale niezapisane zmiany mogą zostać utracone. | {names} są otwarte w OnlyOffice. Nadal można je usunąć, ale niezapisane zmiany mogą zostać utracone. | {names} jest otwartych w OnlyOffice. Nadal można je usunąć, ale niezapisane zmiany mogą zostać utracone.",
     "deleteVersionsNotice": "Usunięta zostanie też {count} wcześniejsza wersja ({size}); nigdzie nie ma jej kopii. | Usunięte zostaną też {count} wcześniejsze wersje ({size}); nigdzie nie ma ich kopii. | Usuniętych zostanie też {count} wcześniejszych wersji ({size}); nigdzie nie ma ich kopii."
   },
   "folder": {

@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "이 콘텐츠에는 공유 링크 {count}개가 있습니다. 콘텐츠가 휴지통에 있는 동안에는 작동하지 않으며, 복원할 때 되살릴 수 있습니다.",
     "deleteLinkedSharesPermanent": "이 콘텐츠에는 공유 링크 {count}개가 있으며, 함께 영구적으로 삭제됩니다.",
+    "deleteOnlyofficeOpen": "{names} 파일이(가) OnlyOffice에서 열려 있습니다. 삭제는 계속할 수 있지만 저장되지 않은 변경 사항은 사라질 수 있습니다. | {names} 파일이(가) OnlyOffice에서 열려 있습니다. 삭제는 계속할 수 있지만 저장되지 않은 변경 사항은 사라질 수 있습니다.",
     "deleteVersionsNotice": "이전 버전 {count}개도 함께 삭제됩니다({size}). 사본은 어디에도 남지 않습니다."
   },
   "folder": {

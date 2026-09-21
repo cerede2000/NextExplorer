@@ -859,8 +859,9 @@ describe('what the delete confirmation says', () => {
 
     await clickLabel('common.delete');
 
-    expect(view.deleteOnlyOfficeActivityMessage).toContain('report.docx');
-    expect(view.deleteOnlyOfficeActivityMessage).toContain('est ouvert');
+    expect(view.deleteOnlyOfficeActivityMessage).toBe(
+      'context.deleteOnlyofficeOpen {"names":"report.docx"}'
+    );
   });
 
   it('names the first two and counts the rest', async () => {
@@ -876,10 +877,11 @@ describe('what the delete confirmation says', () => {
 
     await clickLabel('common.delete');
 
-    expect(view.deleteOnlyOfficeActivityMessage).toContain('a.docx, b.docx');
-    expect(view.deleteOnlyOfficeActivityMessage).not.toContain('c.docx');
-    expect(view.deleteOnlyOfficeActivityMessage).toContain('2 autre(s)');
-    expect(view.deleteOnlyOfficeActivityMessage).toContain('sont ouverts');
+    const message = view.deleteOnlyOfficeActivityMessage;
+    expect(message.startsWith('context.deleteOnlyofficeOpen')).toBe(true);
+    expect(message).toContain('a.docx, b.docx onlyoffice.andOthers');
+    expect(message).toContain('\\"count\\":2');
+    expect(message).not.toContain('c.docx');
   });
 
   it('says nothing when none of them is open', async () => {

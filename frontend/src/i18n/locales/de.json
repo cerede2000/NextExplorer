@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "Für diesen Inhalt gibt es {count} Freigabelink. Er funktioniert nicht, solange der Inhalt im Papierkorb liegt, und kann beim Wiederherstellen zurückgeholt werden. | Für diesen Inhalt gibt es {count} Freigabelinks. Sie funktionieren nicht, solange der Inhalt im Papierkorb liegt, und können beim Wiederherstellen zurückgeholt werden.",
     "deleteLinkedSharesPermanent": "Für diesen Inhalt gibt es {count} Freigabelink, der mit ihm endgültig gelöscht wird. | Für diesen Inhalt gibt es {count} Freigabelinks, die mit ihm endgültig gelöscht werden.",
+    "deleteOnlyofficeOpen": "{names} ist in OnlyOffice geöffnet. Löschen ist weiterhin möglich, aber noch nicht gespeicherte Änderungen können verloren gehen. | {names} sind in OnlyOffice geöffnet. Löschen ist weiterhin möglich, aber noch nicht gespeicherte Änderungen können verloren gehen.",
     "deleteVersionsNotice": "{count} frühere Version geht ebenfalls ({size}); davon wird nirgends eine Kopie aufbewahrt. | {count} frühere Versionen gehen ebenfalls ({size}); davon wird nirgends eine Kopie aufbewahrt."
   },
   "folder": {

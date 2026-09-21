@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "Innehållet har {count} delningslänk. Den fungerar inte medan innehållet ligger i papperskorgen och kan återställas tillsammans med det. | Innehållet har {count} delningslänkar. De fungerar inte medan innehållet ligger i papperskorgen och kan återställas tillsammans med det.",
     "deleteLinkedSharesPermanent": "Innehållet har {count} delningslänk, som tas bort permanent tillsammans med det. | Innehållet har {count} delningslänkar, som tas bort permanent tillsammans med det.",
+    "deleteOnlyofficeOpen": "{names} är öppen i OnlyOffice. Den kan fortfarande tas bort, men ändringar som inte har sparats kan gå förlorade. | {names} är öppna i OnlyOffice. De kan fortfarande tas bort, men ändringar som inte har sparats kan gå förlorade.",
     "deleteVersionsNotice": "Även {count} tidigare version tas bort ({size}); ingen kopia av den finns kvar. | Även {count} tidigare versioner tas bort ({size}); inga kopior av dem finns kvar."
   },
   "folder": {

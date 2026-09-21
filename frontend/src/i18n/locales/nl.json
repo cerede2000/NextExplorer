@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "Deze inhoud heeft {count} deellink. Die werkt niet meer zolang de inhoud in de prullenbak ligt, en kan bij het terugzetten worden hersteld. | Deze inhoud heeft {count} deellinks. Die werken niet meer zolang de inhoud in de prullenbak ligt, en kunnen bij het terugzetten worden hersteld.",
     "deleteLinkedSharesPermanent": "Deze inhoud heeft {count} deellink, die er definitief mee wordt verwijderd. | Deze inhoud heeft {count} deellinks, die er definitief mee worden verwijderd.",
+    "deleteOnlyofficeOpen": "{names} is geopend in OnlyOffice. Verwijderen kan nog steeds, maar niet-opgeslagen wijzigingen kunnen verloren gaan. | {names} zijn geopend in OnlyOffice. Verwijderen kan nog steeds, maar niet-opgeslagen wijzigingen kunnen verloren gaan.",
     "deleteVersionsNotice": "Ook {count} eerdere versie wordt verwijderd ({size}); daarvan wordt nergens een kopie bewaard. | Ook {count} eerdere versies worden verwijderd ({size}); daarvan wordt nergens een kopie bewaard."
   },
   "folder": {

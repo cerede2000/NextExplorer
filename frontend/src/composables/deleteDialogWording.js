@@ -154,6 +154,11 @@ export const useDeleteDialogWording = ({ t, featuresStore, confirm }) => {
       .join(' ');
   });
 
+  /**
+   * Somebody may have unsaved work in it, open in the editor right now. Named
+   * for the first two and counted for the rest, in the reader's language — it
+   * was written in French whatever the language of the page.
+   */
   const deleteOnlyOfficeActivityMessage = computed(() => {
     const activeItems = pendingDeleteItems.value.filter((item) => item?.onlyofficeActivity?.active);
     if (activeItems.length === 0) return '';
@@ -162,8 +167,10 @@ export const useDeleteDialogWording = ({ t, featuresStore, confirm }) => {
       .map((item) => item.name)
       .join(', ');
     const remaining = activeItems.length - Math.min(activeItems.length, 2);
-    const subject = `${names}${remaining > 0 ? ` et ${remaining} autre(s)` : ''}`;
-    return `${subject} ${activeItems.length > 1 ? 'sont ouverts' : 'est ouvert'} dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue.`;
+    const subject =
+      remaining > 0 ? `${names} ${t('onlyoffice.andOthers', { count: remaining })}` : names;
+    // vue-i18n takes the plural choice as the third argument, not a named one.
+    return t('context.deleteOnlyofficeOpen', { names: subject }, activeItems.length);
   });
 
   return {

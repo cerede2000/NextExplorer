@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "Acest conținut are {count} link de partajare. Nu funcționează cât timp conținutul este în coșul de gunoi și poate fi readus la restaurare. | Acest conținut are {count} linkuri de partajare. Nu funcționează cât timp conținutul este în coșul de gunoi și pot fi readuse la restaurare.",
     "deleteLinkedSharesPermanent": "Acest conținut are {count} link de partajare, care va fi șters definitiv împreună cu el. | Acest conținut are {count} linkuri de partajare, care vor fi șterse definitiv împreună cu el.",
+    "deleteOnlyofficeOpen": "{names} este deschis în OnlyOffice. Ștergerea este încă posibilă, dar modificările nesalvate se pot pierde. | {names} sunt deschise în OnlyOffice. Ștergerea este încă posibilă, dar modificările nesalvate se pot pierde.",
     "deleteVersionsNotice": "Se șterge și {count} versiune anterioară ({size}); nicăieri nu se păstrează o copie. | Se șterg și {count} versiuni anterioare ({size}); nicăieri nu se păstrează o copie."
   },
   "folder": {

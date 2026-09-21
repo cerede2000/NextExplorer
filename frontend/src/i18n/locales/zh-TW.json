@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "此內容有 {count} 個分享連結。內容在資源回收筒中時連結失效，還原時可以恢復。",
     "deleteLinkedSharesPermanent": "此內容有 {count} 個分享連結，將隨之永久刪除。",
+    "deleteOnlyofficeOpen": "{names} 已在 OnlyOffice 中開啟。仍可刪除，但尚未儲存的變更可能會遺失。 | {names} 已在 OnlyOffice 中開啟。仍可刪除，但尚未儲存的變更可能會遺失。",
     "deleteVersionsNotice": "另有 {count} 個舊版本一併刪除（{size}），任何地方都不會保留副本。"
   },
   "folder": {

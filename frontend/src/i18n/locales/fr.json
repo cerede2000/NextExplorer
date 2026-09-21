@@ -333,6 +333,7 @@
     },
     "deleteLinkedSharesTrash": "Ce contenu possède {count} lien de partage. Il ne fonctionnera plus tant que le contenu est dans la corbeille, et pourra être rétabli à la restauration. | Ce contenu possède {count} liens de partage. Ils ne fonctionneront plus tant que le contenu est dans la corbeille, et pourront être rétablis à la restauration.",
     "deleteLinkedSharesPermanent": "Ce contenu possède {count} lien de partage, qui sera supprimé définitivement avec lui. | Ce contenu possède {count} liens de partage, qui seront supprimés définitivement avec lui.",
+    "deleteOnlyofficeOpen": "{names} est ouvert dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue. | {names} sont ouverts dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue.",
     "deleteVersionsNotice": "{count} version antérieure part également ({size}) ; rien n’en garde de copie. | {count} versions antérieures partent également ({size}) ; rien n’en garde de copie."
   },
   "folder": {
