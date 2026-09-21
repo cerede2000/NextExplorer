@@ -188,7 +188,6 @@ const removeDocument = (db, path) => {
   return true;
 };
 
-/** Forget a folder and everything under it. Answers how many went. */
 /**
  * How many rows go per transaction when a folder is forgotten, and what the
  * server gets to do between two of them.
@@ -247,35 +246,73 @@ const removeUnder = async (db, prefix, { batchSize = REMOVE_BATCH, pause = giveW
  * the whole reason a move is cheap and a rewrite is not.
  */
 const movePath = (db, fromPath, toPath) => {
-  const like = `${fromPath.replace(/[\\%_]/g, '\\$&')}/%`;
-  const moved = prep(
+  if (!fromPath || !toPath) return 0;
+
+  // Everything under the moved node, found by a range on the path as
+  // `removeUnder` finds it. `LIKE` ignores case for ASCII, so moving `Docs`
+  // carried the rows of `docs/…` along — another folder on a Linux volume,
+  // listed afterwards under a path that does not exist — and it scanned the
+  // whole table to do it.
+  //
+  // A row under the node has a parent that is the node or under it, so its new
+  // parent is the new prefix and whatever followed the old one. The expression
+  // this replaces cut the name off the new path and left the slash before it:
+  // `Papers/` for a file in `Papers`. A search from that folder then missed
+  // the files directly in it, and the next pass, which had walked `Papers` and
+  // never `Papers/`, took that for a folder that was gone and forgot all of
+  // it — to read every file of it again on the pass after.
+  const under = prep(
     db,
     `UPDATE search_documents
        SET path = ? || substr(path, ?),
-           dir = rtrim(? || substr(path, ?), replace(? || substr(path, ?), rtrim(? || substr(path, ?), replace(? || substr(path, ?), '/', '')), ''))
-       WHERE path LIKE ? ESCAPE '\\'`
-  ).run(
-    toPath,
-    fromPath.length + 1,
-    toPath,
-    fromPath.length + 1,
-    toPath,
-    fromPath.length + 1,
-    toPath,
-    fromPath.length + 1,
-    toPath,
-    fromPath.length + 1,
-    like
+           dir = ? || substr(dir, ?)
+     WHERE path >= ? AND path < ?`
   );
 
   // Only the moved node can have been renamed: everything under it keeps the
   // name it had, and only its prefix moved.
-  const movedSelf = prep(
+  const self = prep(
     db,
     'UPDATE search_documents SET path = ?, dir = ?, name_fold = ? WHERE path = ?'
-  ).run(toPath, parentOf(toPath), foldName(toPath), fromPath);
+  );
 
-  return moved.changes + movedSelf.changes;
+  const cut = fromPath.length + 1;
+  return db.transaction(() => {
+    const moved = under.run(toPath, cut, toPath, cut, `${fromPath}/`, `${fromPath}0`);
+    const movedSelf = self.run(toPath, parentOf(toPath), foldName(toPath), fromPath);
+    return moved.changes + movedSelf.changes;
+  })();
+};
+
+/**
+ * Put right the folders a move wrote wrongly.
+ *
+ * `movePath` gave every row under a moved folder a parent ending in a slash,
+ * which no parent does, and a pass that meets one forgets the rows and reads
+ * them all again an hour later. An index that went through such a move is
+ * mended here, when it is opened, rather than by rereading a folder from a
+ * network share.
+ *
+ * Once, and then written down: finding them is a scan of the whole table —
+ * 120 ms for three hundred thousand rows on a fast machine — and nothing
+ * writes such a parent any more.
+ *
+ * @returns {number} how many rows were mended
+ */
+const DIRS_REPAIRED_KEY = 'search_index_moved_dirs_repaired';
+
+const repairMovedDirs = (db) => {
+  const done = db.prepare('SELECT value FROM meta WHERE key = ?').pluck().get(DIRS_REPAIRED_KEY);
+  if (done) return 0;
+  return db.transaction(() => {
+    const mended = db
+      .prepare(
+        "UPDATE search_documents SET dir = substr(dir, 1, length(dir) - 1) WHERE dir LIKE '%/'"
+      )
+      .run().changes;
+    db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(DIRS_REPAIRED_KEY, '1');
+    return mended;
+  })();
 };
 
 /**
@@ -511,6 +548,7 @@ module.exports = {
   SEARCH_INDEX_DDL,
   foldName,
   ensureCatalogueColumns,
+  repairMovedDirs,
   iterateNameCandidates,
   iterateDirCandidates,
   hasNameCatalogue,

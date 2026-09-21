@@ -5,7 +5,7 @@ const Database = require('better-sqlite3');
 const { directories } = require('../config');
 const logger = require('../utils/logger');
 const databaseMaintenance = require('./databaseMaintenance');
-const { SEARCH_INDEX_DDL, ensureCatalogueColumns } = require('./searchIndexStore');
+const { SEARCH_INDEX_DDL, ensureCatalogueColumns, repairMovedDirs } = require('./searchIndexStore');
 
 /**
  * The indexes, in a database of their own under the cache directory.
@@ -110,6 +110,9 @@ const createIndexSchema = (db) => {
   // from the paths it already holds. No file is reopened for it, and the rows
   // it never had are what the next pass is for.
   ensureCatalogueColumns(db);
+  // And one a move wrote wrongly gets its folders put right, which spares a
+  // pass forgetting the moved files and reading them all again.
+  repairMovedDirs(db);
   db.exec(FOLDER_SIZE_INDEX_DDL);
 };
 
