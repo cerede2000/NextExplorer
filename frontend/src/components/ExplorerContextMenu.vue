@@ -4,6 +4,8 @@ import { offset, flip, shift, useFloating, autoUpdate } from '@floating-ui/vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { explorerContextMenuSymbol } from '@/composables/contextMenu';
+import { buildMenuSections, quickActionAvailable } from '@/composables/contextMenuSections';
+import { useDeleteDialogWording } from '@/composables/deleteDialogWording';
 import { useFileStore } from '@/stores/fileStore';
 import { useSelection } from '@/composables/itemSelection';
 import { useFileActions } from '@/composables/fileActions';
@@ -11,40 +13,25 @@ import { useInfoPanelStore } from '@/stores/infoPanel';
 import { normalizePath } from '@/api';
 import { modKeyLabel, deleteKeyLabel } from '@/utils/keyboard';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
-import { formatBytes } from '@/utils';
 import ModalDialog from '@/components/ModalDialog.vue';
 import ArchivePasswordDialog from '@/components/ArchivePasswordDialog.vue';
 import ShareDialog from '@/components/ShareDialog.vue';
 import { useFavoritesStore } from '@/stores/favorites';
-import {
-  StarIcon as StarOutline,
-  DocumentTextIcon,
-  CommandLineIcon,
-  ArrowDownTrayIcon,
-  ShareIcon,
-  ArchiveBoxArrowDownIcon,
-  ArrowUpOnSquareIcon,
-  ClockIcon,
-} from '@heroicons/vue/24/outline';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
-import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
 import { useFeaturesStore } from '@/stores/features';
 import { isTerminalExtension } from '@/config/terminal';
-// Icons
-import {
-  CreateNewFolderRound,
-  InsertDriveFileRound,
-  ContentCutRound,
-  ContentCopyRound,
-  ContentPasteRound,
-  DriveFileRenameOutlineRound,
-  DriveFileMoveRound,
-  FolderCopyRound,
-  InfoRound,
-  DeleteRound,
-} from '@vicons/material';
+import { itemExtension, terminalInputFor } from '@/utils/terminalInput';
+
+/**
+ * The right-click menu of the explorer, and the dialogs it opens.
+ *
+ * What it offers is decided in `contextMenuSections.js` and what the delete
+ * confirmation says in `deleteDialogWording.js`, both from plain descriptions
+ * of the situation. What is left here is opening at the cursor, what each
+ * entry does, and the dialogs.
+ */
 
 const fileStore = useFileStore();
 const infoPanel = useInfoPanelStore();
@@ -95,14 +82,8 @@ const { t } = useI18n();
 const hasSelection = actions.hasSelection;
 const primaryItem = actions.primaryItem;
 const isSingleItemSelected = actions.isSingleItemSelected;
-const canRename = actions.canRename;
 const locationCanWrite = actions.locationCanWrite;
-const locationCanCreateFolder = actions.locationCanCreateFolder;
-const locationCanCreateFile = actions.locationCanCreateFile;
 const locationCanDelete = actions.locationCanDelete;
-const canAcceptPasteHere = computed(
-  () => locationCanCreateFolder.value || locationCanCreateFile.value
-);
 const isShareDialogOpen = ref(false);
 const itemToShare = ref(null);
 const archivePasswordRequest = ref(null);
@@ -120,83 +101,25 @@ const isShareView = computed(() => {
 
 const locationCanShare = computed(() => fileStore.currentPathData?.canShare ?? true);
 
+/** Sharing is offered here at all: not the volumes, not inside a share. */
+const canShareHere = computed(
+  () => !isVolumesView.value && !isShareView.value && locationCanShare.value
+);
+
 const canShare = computed(
   () =>
-    !isVolumesView.value &&
-    !isShareView.value &&
-    locationCanShare.value &&
+    canShareHere.value &&
     isSingleItemSelected.value &&
     Boolean(primaryItem.value) &&
     primaryItem.value?.kind !== 'volume'
 );
 
-const deleteDialogTitle = computed(() => {
-  const count = pendingDeleteItems.value.length;
-  if (count === 1 && pendingDeleteItems.value[0]) {
-    return t('context.deleteTitle.single', { name: pendingDeleteItems.value[0].name });
-  }
-  if (count > 1) {
-    return t('context.deleteTitle.multiple', { count });
-  }
-  return t('context.deleteTitle.generic');
-});
-
-const TRASH_REASON_KEYS = {
-  'other-device': 'otherDevice',
-  'too-large': 'tooLarge',
-  'zone-root': 'zoneRoot',
-  'zone-unwritable': 'zoneUnwritable',
-  'no-zone': 'noZone',
-  'inside-zone': 'noZone',
-  disabled: 'disabled',
-};
-const trashReasonKey = (reason) => TRASH_REASON_KEYS[reason] || 'noZone';
-
-/**
- * While the server has not said yet what the trash will do, the dialog must not
- * call a deletion irreversible when the trash is on: it would be wrong for
- * nearly every item. The trash wording stands until the answer arrives, and
- * the notice and buttons follow the answer as soon as it does. A click before
- * then sends a plain request, which the server sends to the trash or keeps.
- */
-const provisionalTrash = computed(
-  () => !trashPlan.value && isLoadingDeleteImpact.value && featuresStore.trashEnabled === true
-);
-
-const deleteDialogMessage = computed(() => {
-  const count = pendingDeleteItems.value.length;
-  const plan = provisionalTrash.value
-    ? { enabled: true, permanent: [], retentionDays: featuresStore.trashRetentionDays }
-    : trashPlan.value;
-  // Everything goes to the trash: say so, and for how long it is kept.
-  if (plan?.enabled && count > 0 && plan.permanent.length === 0) {
-    const days = plan.retentionDays ?? 0;
-    if (count === 1 && pendingDeleteItems.value[0]) {
-      return t(
-        'context.deleteMessage.trashSingle',
-        { name: pendingDeleteItems.value[0].name, count: days },
-        days
-      );
-    }
-    return t('context.deleteMessage.trashMultiple', { items: count, count: days }, days);
-  }
-  if (count === 1 && pendingDeleteItems.value[0]) {
-    return t('context.deleteMessage.single', { name: pendingDeleteItems.value[0].name });
-  }
-  if (count > 1) {
-    return t('context.deleteMessage.multiple', { count });
-  }
-  return t('context.deleteMessage.generic');
-});
-
+const deleteConfirm = useDeleteConfirm();
 const {
   isDeleteConfirmOpen,
   isDeleting,
   isLoadingDeleteImpact,
-  deleteImpact,
   deleteImpactError,
-  pendingDeleteItems,
-  trashPlan,
   keptItems,
   isKeptConfirmOpen,
   requestDelete,
@@ -204,91 +127,19 @@ const {
   confirmKept,
   closeKeptConfirm,
   closeDeleteConfirm,
-} = useDeleteConfirm();
+} = deleteConfirm;
 
-/** Which items will be gone for good although the trash is on, and why. */
-const deletePermanentNotice = computed(() => {
-  const plan = trashPlan.value;
-  if (!plan?.enabled || plan.permanent.length === 0) return '';
-  const count = plan.permanent.length;
-  const reasons = plan.reasons.map((reason) => t(`context.trashReasons.${trashReasonKey(reason)}`));
-  return [t('context.deleteSomePermanent', { count }, count), ...reasons].join(' ');
-});
-
-/**
- * The part of a deletion that nothing on screen shows.
- *
- * A file is one line in the folder and its earlier versions are none, so
- * "delete" reads as one thing going when it can be ten. Only for what is not
- * coming back: into the trash a file keeps its history and gets it back.
- */
-const deleteVersionsNotice = computed(() => {
-  const plan = trashPlan.value;
-  const count = Number(plan?.versions) || 0;
-  if (count === 0) return '';
-  return t(
-    'context.deleteVersionsNotice',
-    { count, size: formatBytes(plan.versionBytes || 0) },
-    count
-  );
-});
-
-const goesToTrash = computed(() =>
-  Boolean(
-    provisionalTrash.value || (trashPlan.value?.enabled && trashPlan.value.toTrash.length > 0)
-  )
-);
-
-const keptDialogMessage = computed(() =>
-  t('context.keptMessage', { count: keptItems.value.length }, keptItems.value.length)
-);
-
-const keptItemReason = (item) => {
-  const key = trashReasonKey(item.reason);
-  if (key === 'tooLarge' && Number.isFinite(item.size) && Number.isFinite(item.budgetBytes)) {
-    return t('context.keptReasons.tooLarge', {
-      size: formatBytes(item.size),
-      budget: formatBytes(item.budgetBytes),
-    });
-  }
-  return t(`context.trashReasons.${key}`);
-};
-
-/**
- * What becomes of the share links of what is about to go. Into the trash they
- * stop working but can come back with a restore; deleted for good, they go for
- * good. The server says, per item, which it will be and how many links it has.
- */
-const deleteShareImpactMessage = computed(() => {
-  const count = Number(deleteImpact.value?.shareCount || 0);
-  if (count <= 0) return '';
-  const planned = deleteImpact.value?.trash?.items;
-  const linksGoing = (toTrash) =>
-    (Array.isArray(planned) ? planned : [])
-      .filter((entry) => (entry?.disposition === 'trash') === toTrash)
-      .reduce((total, entry) => total + (Number(entry?.shareCount) || 0), 0);
-  const suspended = linksGoing(true);
-  const removed = linksGoing(false);
-  if (suspended + removed === 0) return t('context.deleteLinkedShares', { count });
-  return [
-    suspended > 0 ? t('context.deleteLinkedSharesTrash', { count: suspended }, suspended) : '',
-    removed > 0 ? t('context.deleteLinkedSharesPermanent', { count: removed }, removed) : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-});
-
-const deleteOnlyOfficeActivityMessage = computed(() => {
-  const activeItems = pendingDeleteItems.value.filter((item) => item?.onlyofficeActivity?.active);
-  if (activeItems.length === 0) return '';
-  const names = activeItems
-    .slice(0, 2)
-    .map((item) => item.name)
-    .join(', ');
-  const remaining = activeItems.length - Math.min(activeItems.length, 2);
-  const subject = `${names}${remaining > 0 ? ` et ${remaining} autre(s)` : ''}`;
-  return `${subject} ${activeItems.length > 1 ? 'sont ouverts' : 'est ouvert'} dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue.`;
-});
+const {
+  deleteDialogTitle,
+  deleteDialogMessage,
+  deletePermanentNotice,
+  deleteVersionsNotice,
+  goesToTrash,
+  keptDialogMessage,
+  keptItemReason,
+  deleteShareImpactMessage,
+  deleteOnlyOfficeActivityMessage,
+} = useDeleteDialogWording({ t, featuresStore, confirm: deleteConfirm });
 
 const closeMenu = () => {
   isOpen.value = false;
@@ -352,8 +203,6 @@ const resolveItemPath = (item) => {
 
 const runCut = () => actions.runCut();
 const runCopy = () => actions.runCopy();
-const runMoveTo = () => actions.runMoveTo();
-const runCopyTo = () => actions.runCopyTo();
 const runPasteIntoDirectory = async () => {
   if (!actions.canPaste.value) return;
   const destination = resolveItemPath(targetItem.value);
@@ -363,14 +212,6 @@ const runPasteIntoDirectory = async () => {
 const runPasteIntoCurrent = async () => {
   if (!actions.canPaste.value) return;
   await actions.runPasteIntoCurrent();
-};
-
-const runCreateFile = async () => {
-  await fileStore.createFile();
-};
-
-const runCreateFolder = async () => {
-  await fileStore.createFolder();
 };
 
 const runRename = () => actions.runRename();
@@ -462,43 +303,23 @@ const runOpenWithEditor = () => {
   router.push({ path: `/editor/${encodedPath}` });
 };
 
-const getItemExtension = (item) => {
-  const name = String(item?.name || '');
-  const lastDot = name.lastIndexOf('.');
-  if (lastDot > 0 && lastDot < name.length - 1) {
-    return name.slice(lastDot + 1).toLowerCase();
-  }
-
-  const kind = String(item?.kind || '').toLowerCase();
-  return kind && kind !== 'file' && kind !== 'directory' && kind !== 'volume' ? kind : '';
-};
-
-const shellEscape = (value) => String(value).replace(/([^A-Za-z0-9_@%+=:,./-])/g, '\\$1');
-
-const buildTerminalInputForItem = (item) => {
-  const name = String(item?.name || '').trim();
-  if (!name) return '';
-
-  return shellEscape(`./${name}`);
-};
-
 const canOpenWithTerminal = computed(() => {
   if (!featuresStore.terminalEnabled || contextKind.value !== 'file' || !primaryItem.value) {
     return false;
   }
 
-  return isTerminalExtension(getItemExtension(primaryItem.value));
+  return isTerminalExtension(itemExtension(primaryItem.value));
 });
 
 const runOpenWithTerminal = () => {
   if (!canOpenWithTerminal.value || !primaryItem.value) return;
   const item = primaryItem.value;
   const parentPath = normalizePath(item.path || fileStore.getCurrentPath || '');
-  const initialInput = buildTerminalInputForItem(item);
-  terminalStore.open(parentPath, initialInput);
+  terminalStore.open(parentPath, terminalInputFor(item));
 };
 
-// Favorites support
+// Favorites: the folder right-clicked, or from the background the folder on
+// screen — and from the quick actions, the folder they were opened on.
 const selectedDirectoryPath = computed(() => {
   if (contextKind.value !== 'directory') return null;
   const item = targetItem.value;
@@ -506,71 +327,16 @@ const selectedDirectoryPath = computed(() => {
   return normalizePath(actions.resolveItemPath(item));
 });
 
-const isFavoriteDirectory = computed(() => {
-  const path = selectedDirectoryPath.value;
-  if (!path) return false;
-  return favoritesStore.isFavorite(path);
-});
-
 const currentDirectoryPath = computed(() => normalizePath(fileStore.getCurrentPath || ''));
-const isFavoriteCurrentDirectory = computed(() => {
-  const path = currentDirectoryPath.value;
-  if (!path) return false;
-  return favoritesStore.isFavorite(path);
-});
 
-const runToggleFavoriteForDirectory = async () => {
-  const path = selectedDirectoryPath.value;
+/** The folder the favourite entry of the open menu is about. */
+const menuFavoritePath = computed(() =>
+  contextKind.value === 'background' ? currentDirectoryPath.value : selectedDirectoryPath.value
+);
+
+/** Add a folder to the favourites, or take it off: one at a time. */
+const toggleFavoriteAt = async (path) => {
   if (!path || isMutatingFavorite.value) return;
-  isMutatingFavorite.value = true;
-  try {
-    if (isFavoriteDirectory.value) {
-      await favoritesStore.removeFavorite(path);
-    } else {
-      const favorite = await favoritesStore.addFavorite({ path });
-      if (favorite) {
-        openEditorForFavorite(favorite);
-      }
-    }
-  } finally {
-    isMutatingFavorite.value = false;
-  }
-};
-
-const runToggleFavoriteForCurrent = async () => {
-  const path = currentDirectoryPath.value;
-  if (!path || isMutatingFavorite.value) return;
-  isMutatingFavorite.value = true;
-  try {
-    if (isFavoriteCurrentDirectory.value) {
-      await favoritesStore.removeFavorite(path);
-    } else {
-      const favorite = await favoritesStore.addFavorite({ path });
-      if (favorite) {
-        openEditorForFavorite(favorite);
-      }
-    }
-  } finally {
-    isMutatingFavorite.value = false;
-  }
-};
-
-// Inline quick-actions menu: run a single action against a specific item without
-// opening the full right-click menu. Reuses this component's action machinery
-// (share/delete dialogs, favorites) so there is a single implementation. The item
-// is selected first so the selection-based run functions target it.
-const copyTextToClipboard = async (text) => {
-  try {
-    await navigator.clipboard?.writeText?.(String(text || ''));
-  } catch {
-    // Clipboard unavailable (insecure context / denied) — ignore.
-  }
-};
-
-const toggleFavoriteForItem = async (item) => {
-  if (!item || item.kind !== 'directory' || isMutatingFavorite.value) return;
-  const path = normalizePath(actions.resolveItemPath(item));
-  if (!path) return;
   isMutatingFavorite.value = true;
   try {
     if (favoritesStore.isFavorite(path)) {
@@ -584,33 +350,27 @@ const toggleFavoriteForItem = async (item) => {
   }
 };
 
-const quickActionAvailable = (item, id) => {
-  if (!item) return false;
-  if (item.kind === 'volume') return id === 'info' || id === 'copyName';
-  const isDir = item.kind === 'directory';
-  switch (id) {
-    case 'info':
-    case 'copyName':
-    case 'copyPath':
-    case 'copy':
-    case 'download':
-      return true;
-    case 'cut':
-      return locationCanWrite.value && locationCanDelete.value;
-    case 'rename':
-      return locationCanWrite.value;
-    case 'share':
-      return !isVolumesView.value && !isShareView.value && locationCanShare.value;
-    case 'compress':
-      return locationCanWrite.value;
-    case 'favorite':
-      return isDir;
-    case 'delete':
-      return locationCanDelete.value;
-    default:
-      return false;
+const runToggleFavoriteForDirectory = () => toggleFavoriteAt(selectedDirectoryPath.value);
+const runToggleFavoriteForCurrent = () => toggleFavoriteAt(currentDirectoryPath.value);
+
+// Inline quick-actions menu: run a single action against a specific item without
+// opening the full right-click menu. Reuses this component's action machinery
+// (share/delete dialogs, favorites) so there is a single implementation. The item
+// is selected first so the selection-based run functions target it.
+const copyTextToClipboard = async (text) => {
+  try {
+    await navigator.clipboard?.writeText?.(String(text || ''));
+  } catch {
+    // Clipboard unavailable (insecure context / denied) — ignore.
   }
 };
+
+const isQuickActionAvailable = (item, id) =>
+  quickActionAvailable(item, id, {
+    locationCanWrite: locationCanWrite.value,
+    locationCanDelete: locationCanDelete.value,
+    canShareHere: canShareHere.value,
+  });
 
 const runQuickAction = async (item, id) => {
   if (!item) return;
@@ -644,7 +404,8 @@ const runQuickAction = async (item, id) => {
       runCompressToZip();
       break;
     case 'favorite':
-      await toggleFavoriteForItem(item);
+      if (item.kind === 'directory')
+        await toggleFavoriteAt(normalizePath(actions.resolveItemPath(item)));
       break;
     case 'delete':
       requestDelete();
@@ -654,234 +415,64 @@ const runQuickAction = async (item, id) => {
   }
 };
 
-// Build grouped, themed menu sections with icons + shortcuts
 const menuSections = computed(() => {
   if (!isOpen.value) return [];
 
-  const mk = (id, label, icon, run, opts = {}) => ({
-    id,
-    label,
-    icon,
-    run,
-    disabled: Boolean(opts.disabled),
-    shortcut: opts.shortcut || '',
-    danger: Boolean(opts.danger),
-  });
-
-  if (contextKind.value === 'background') {
-    const sections = [];
-    sections.push([
-      mk('get-info', t('context.getInfo'), InfoRound, runGetInfo, {
-        disabled: !primaryItem.value,
-      }),
-    ]);
-    sections.push([
-      mk(
-        'fav-current',
-        isFavoriteCurrentDirectory.value
-          ? t('context.removeFromFavorites')
-          : t('context.addToFavorites'),
-        isFavoriteCurrentDirectory.value ? StarSolid : StarOutline,
-        runToggleFavoriteForCurrent,
-        { disabled: !currentDirectoryPath.value || isMutatingFavorite.value }
-      ),
-    ]);
-
-    const createItems = [];
-    if (locationCanCreateFolder.value) {
-      createItems.push(
-        mk('new-folder', t('actions.newFolder'), CreateNewFolderRound, runCreateFolder)
-      );
-    }
-    if (locationCanCreateFile.value) {
-      createItems.push(mk('new-file', t('actions.newFile'), InsertDriveFileRound, runCreateFile));
-    }
-    if (createItems.length > 0) {
-      sections.push(createItems);
-    }
-
-    if (canAcceptPasteHere.value) {
-      sections.push([
-        mk('paste', t('actions.paste'), ContentPasteRound, runPasteIntoCurrent, {
-          disabled: !actions.canPaste.value,
-          shortcut: `${modKeyLabel}V`,
-        }),
-      ]);
-    }
-
-    return sections;
-  }
-
-  const sections = [];
-  const infoSection = [
-    mk('get-info', t('context.getInfo'), InfoRound, runGetInfo, {
-      disabled: !primaryItem.value,
-    }),
-  ];
-  if (canShowVersions.value) {
-    infoSection.push(mk('versions', t('versions.menu'), ClockIcon, runShowVersions));
-  }
-  sections.push(infoSection);
-
-  // Add "Open with Editor" for files only
-  if (contextKind.value === 'file') {
-    const openSection = [
-      mk('open-with-editor', t('context.openWithEditor'), DocumentTextIcon, runOpenWithEditor, {
-        disabled: !primaryItem.value,
-      }),
-    ];
-
-    if (canOpenWithTerminal.value) {
-      openSection.push(
-        mk(
-          'open-with-terminal',
-          t('context.openWithTerminal'),
-          CommandLineIcon,
-          runOpenWithTerminal,
-          {
-            disabled: !primaryItem.value,
-          }
-        )
-      );
-    }
-
-    sections.push(openSection);
-  }
-
-  // Add download option
-  sections.push([
-    mk('download', t('actions.download'), ArrowDownTrayIcon, runDownload, {
-      disabled: !hasSelection.value,
-    }),
-  ]);
-
-  // Add archive actions
-  if (!isVolumesView.value) {
-    const archiveSection = [];
-
-    if (actions.primaryItem.value && contextKind.value === 'file') {
-      // Formats come from the server probe (zip, 7z, iso, rar, tar.gz…).
-      if (actions.isArchiveSelected.value) {
-        archiveSection.push(
-          mk(
-            'extract-archive',
-            t('actions.extractArchive'),
-            ArrowUpOnSquareIcon,
-            runExtractArchive,
-            {
-              disabled: !actions.canExtractArchive.value,
-            }
-          )
-        );
-        archiveSection.push(
-          mk(
-            'extract-archive-current-folder',
-            t('actions.extractArchiveIntoCurrentFolder'),
-            ArrowUpOnSquareIcon,
-            runExtractArchiveIntoCurrentFolder,
-            {
-              disabled: !actions.canExtractArchive.value,
-            }
-          )
-        );
-      }
-    }
-
-    if (hasSelection.value) {
-      archiveSection.push(
-        mk('compress-zip', t('actions.compressToZip'), ArchiveBoxArrowDownIcon, runCompressToZip, {
-          disabled: !actions.canCompressToZip.value,
-        })
-      );
-    }
-
-    if (archiveSection.length) {
-      sections.push(archiveSection);
-    }
-  }
-
-  // Add share option (same availability rules as toolbar)
-  if (!isVolumesView.value && !isShareView.value && locationCanShare.value) {
-    sections.push([
-      mk('share', t('share.shareSelectedItem'), ShareIcon, runShare, {
-        disabled: !canShare.value,
-      }),
-    ]);
-  }
-
-  const clipboardSection = [];
-  if (locationCanWrite.value && locationCanDelete.value) {
-    clipboardSection.push(
-      mk('cut', t('actions.cut'), ContentCutRound, runCut, {
-        disabled: !actions.canCut.value,
-        shortcut: `${modKeyLabel}X`,
-      })
-    );
-  }
-  clipboardSection.push(
-    mk('copy', t('actions.copy'), ContentCopyRound, runCopy, {
-      disabled: !actions.canCopy.value,
-      shortcut: `${modKeyLabel}C`,
-    })
+  const favoritePath = menuFavoritePath.value;
+  return buildMenuSections(
+    {
+      kind: contextKind.value,
+      hasPrimary: Boolean(primaryItem.value),
+      hasSelection: hasSelection.value,
+      isVolumesView: isVolumesView.value,
+      isShareView: isShareView.value,
+      locationCanShare: locationCanShare.value,
+      locationCanWrite: locationCanWrite.value,
+      locationCanDelete: locationCanDelete.value,
+      locationCanCreateFolder: actions.locationCanCreateFolder.value,
+      locationCanCreateFile: actions.locationCanCreateFile.value,
+      canShare: canShare.value,
+      canCut: actions.canCut.value,
+      canCopy: actions.canCopy.value,
+      canPaste: actions.canPaste.value,
+      canRename: actions.canRename.value,
+      canDelete: actions.canDelete.value,
+      canShowVersions: canShowVersions.value,
+      canOpenWithTerminal: canOpenWithTerminal.value,
+      isArchiveSelected: actions.isArchiveSelected.value,
+      canExtractArchive: actions.canExtractArchive.value,
+      canCompressToZip: actions.canCompressToZip.value,
+      isFavorite: Boolean(favoritePath) && favoritesStore.isFavorite(favoritePath),
+      hasFavoritePath: Boolean(favoritePath),
+      isMutatingFavorite: isMutatingFavorite.value,
+    },
+    {
+      getInfo: runGetInfo,
+      showVersions: runShowVersions,
+      openWithEditor: runOpenWithEditor,
+      openWithTerminal: runOpenWithTerminal,
+      download: runDownload,
+      extract: runExtractArchive,
+      extractHere: runExtractArchiveIntoCurrentFolder,
+      compress: runCompressToZip,
+      share: runShare,
+      cut: runCut,
+      copy: runCopy,
+      moveTo: () => actions.runMoveTo(),
+      copyTo: () => actions.runCopyTo(),
+      pasteIntoDirectory: runPasteIntoDirectory,
+      pasteIntoCurrent: runPasteIntoCurrent,
+      rename: runRename,
+      toggleFavorite:
+        contextKind.value === 'background'
+          ? runToggleFavoriteForCurrent
+          : runToggleFavoriteForDirectory,
+      delete: requestDelete,
+      newFolder: () => fileStore.createFolder(),
+      newFile: () => fileStore.createFile(),
+    },
+    { t, modKeyLabel, deleteKeyLabel }
   );
-  if (locationCanWrite.value && locationCanDelete.value) {
-    clipboardSection.push(
-      mk('moveTo', t('destinationPicker.moveTitle'), DriveFileMoveRound, runMoveTo, {
-        disabled: !actions.canCut.value,
-      })
-    );
-  }
-  clipboardSection.push(
-    mk('copyTo', t('destinationPicker.copyTitle'), FolderCopyRound, runCopyTo, {
-      disabled: !actions.canCopy.value,
-    })
-  );
-  if (contextKind.value === 'directory') {
-    if (canAcceptPasteHere.value) {
-      clipboardSection.push(
-        mk('paste', t('actions.paste'), ContentPasteRound, runPasteIntoDirectory, {
-          disabled: !actions.canPaste.value,
-          shortcut: `${modKeyLabel}V`,
-        })
-      );
-    }
-  }
-  if (clipboardSection.length) {
-    sections.push(clipboardSection);
-  }
-
-  if (locationCanWrite.value) {
-    sections.push([
-      mk('rename', t('actions.rename'), DriveFileRenameOutlineRound, runRename, {
-        disabled: !canRename.value,
-        shortcut: 'F2',
-      }),
-    ]);
-  }
-
-  if (contextKind.value === 'directory') {
-    sections.push([
-      mk(
-        'fav',
-        isFavoriteDirectory.value ? t('context.removeFromFavorites') : t('context.addToFavorites'),
-        isFavoriteDirectory.value ? StarSolid : StarOutline,
-        runToggleFavoriteForDirectory,
-        { disabled: !selectedDirectoryPath.value || isMutatingFavorite.value }
-      ),
-    ]);
-  }
-
-  if (locationCanDelete.value) {
-    sections.push([
-      mk('delete', t('common.delete'), DeleteRound, requestDelete, {
-        disabled: !actions.canDelete.value,
-        danger: true,
-        shortcut: deleteKeyLabel,
-      }),
-    ]);
-  }
-
-  return sections;
 });
 
 const runAction = async (action) => {
@@ -938,7 +529,7 @@ provide(explorerContextMenuSymbol, {
   closeMenu,
   clearSelection,
   runQuickAction,
-  quickActionAvailable,
+  quickActionAvailable: isQuickActionAvailable,
 });
 </script>
 
