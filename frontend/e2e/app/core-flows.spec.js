@@ -752,6 +752,28 @@ test('the search index and folder sizes switch on from Settings, and the About p
   // Every one, whatever this machine happens to have installed.
   await expect(tools.locator('li')).toHaveCount(7);
   await expect(page.locator('[data-testid="about-tool-status-ffmpeg"]')).toBeVisible();
+
+  // And off again the same way, which is the other half of a switch — and
+  // leaves the tests after this one the installation they were written for.
+  // Left on, the index answers names from its catalogue, which learns of files
+  // written straight to the disk at its next pass, not at once: the search
+  // below for three hundred files planted a moment before found none.
+  await page.goto('/settings/search-index');
+  await page.locator('[data-testid="search-index-switch"]').click();
+  await expect(page.locator('[data-testid="search-index-switch"]')).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
+  await page.goto('/settings/folder-size');
+  await page.locator('[data-testid="folder-size-mode"]').selectOption('off');
+  await expect(page.locator('[data-testid="feature-off-notice"]')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('[data-testid="folder-size-mode"]')).toHaveValue('off');
+  await page.goto('/settings/search-index');
+  await expect(page.locator('[data-testid="search-index-switch"]')).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
 });
 
 /**
