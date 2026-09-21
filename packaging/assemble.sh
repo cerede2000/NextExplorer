@@ -35,7 +35,8 @@ Usage: assemble.sh [--out DIR] [--keep-tree] [--minimal]
   --keep-tree   leave the assembled directory in place beside the archive
   --minimal     leave out everything a distribution can provide: the Node
                 runtime, the bundled ExifTool and 7-Zip. For a machine that
-                already has Node 24 or 26 and would rather install the rest
+                already has the Node major this was built on — the one
+                written to NODE_MAJORS — and would rather install the rest
                 itself.
 USAGE
 }

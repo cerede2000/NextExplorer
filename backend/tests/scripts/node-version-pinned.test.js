@@ -33,6 +33,19 @@ const readJson = (relative) => JSON.parse(read(relative));
 const declared = readJson('package.json').engines.node;
 const MAJOR = declared.match(/>=(\d+)/)[1];
 
+/**
+ * Every major a text offers, lists included: "Node 24 or 26" is two of them.
+ * Reading only the number after "Node" is what let "Node 24 or 26" through
+ * after the archive had gone back to carrying one.
+ */
+const majorsNamed = (text) => {
+  const majors = new Set();
+  for (const [list] of text.matchAll(/\bNode \d+(?:(?:\s*,\s*|\s+or\s+|\s+and\s+)\d+)*/g)) {
+    for (const [major] of list.matchAll(/\d+/g)) majors.add(major);
+  }
+  return [...majors];
+};
+
 describe('the Node major this is built and shipped on', () => {
   it('is declared as one major and not a range across two', () => {
     // `>=24 <25` and not `>=24`: the native modules are built for one ABI, so
@@ -160,14 +173,16 @@ describe('the Node major this is built and shipped on', () => {
     const condition = page.split('\n').find((line) => line.startsWith('One condition'));
     expect(condition, 'the page no longer states the condition').toBeTruthy();
 
-    for (const major of accepted) {
-      expect(condition, `the condition leaves out Node ${major}`).toContain(`Node ${major}`);
-    }
-    // And says nothing there about a major that would be refused.
-    const refused = ['20', '22', '25', '27'].filter((major) => !accepted.includes(major));
-    for (const major of refused) {
-      expect(condition, `the condition offers Node ${major}`).not.toContain(`Node ${major}`);
-    }
+    // Exactly the accepted majors: none left out, and nothing there about a
+    // major that would be refused — 26 included, which a fixed list of
+    // refusals written before it was ever offered did not name.
+    expect(majorsNamed(condition).sort()).toEqual([...accepted].sort());
+
+    // The table of what can be thrown away says it again, of the runtime, and
+    // is where "24 or 26" survived the condition being corrected.
+    const runtimeRow = page.split('\n').find((line) => line.startsWith('| `runtime/`'));
+    expect(runtimeRow, 'the page no longer lists the runtime as removable').toBeTruthy();
+    expect(majorsNamed(runtimeRow).sort()).toEqual([...accepted].sort());
     // The major that actually ships has to be one of them, or the full
     // archive would carry a runtime its own installer refuses.
     expect(accepted).toContain(MAJOR);
@@ -182,7 +197,7 @@ describe('the Node major this is built and shipped on', () => {
     const readme = read('packaging/README.md');
     const accepted = [MAJOR];
 
-    const named = [...new Set([...readme.matchAll(/\bNode (\d+)\b/g)].map(([, major]) => major))];
+    const named = majorsNamed(readme);
     expect(named.length, 'the README names no Node at all').toBeGreaterThan(0);
 
     for (const major of named) {
@@ -192,6 +207,20 @@ describe('the Node major this is built and shipped on', () => {
     }
     for (const major of accepted) {
       expect(named, `the README leaves out Node ${major}`).toContain(major);
+    }
+  });
+});
+
+describe('the Node the repository README offers for the minimal archive', () => {
+  it('is the one the installer accepts', () => {
+    // The front page of the repository and of Docker Hub, and the sentence on
+    // it about the archive without a runtime is the one somebody acts on.
+    const named = majorsNamed(read('README.md'));
+    expect(named.length, 'the README names no Node at all').toBeGreaterThan(0);
+    for (const major of named) {
+      expect([MAJOR], `the README offers Node ${major}, which the installer refuses`).toContain(
+        major
+      );
     }
   });
 });

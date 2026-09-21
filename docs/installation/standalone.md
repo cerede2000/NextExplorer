@@ -201,14 +201,14 @@ package, which is the one to install there. Elsewhere that means NodeSource or
 the tarball from nodejs.org.
 
 The archive's own runtime is 24, the line under long-term support until 2028.
-That is what ships; the pair above is what an archive without a runtime will
-accept from the machine.
+That is what ships, and the major the archive was built on is the one an
+archive without a runtime accepts from the machine.
 
 ### What else can be thrown away
 
 |                                         |                                                                                            |
 | --------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `runtime/`                              | 121 MB — only if you provide Node 24 or 26 yourself, as above                              |
+| `runtime/`                              | 121 MB — only if you provide Node 24 yourself, as above                                    |
 | `app/node_modules/exiftool-vendored.pl` | 21 MB — only if this machine has an ExifTool of its own, or you accept losing RAW metadata |
 | `bin/7zz`                               | 3.6 MB — only if you set `SEVEN_ZIP_PATH` at yours                                         |
 

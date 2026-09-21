@@ -238,7 +238,7 @@ does the same.
 Every release also carries a second archive, `-minimal` in its name, without
 the three things a distribution can supply: the Node runtime, 7-Zip and the
 bundled ExifTool. 76 MB unpacked instead of 221, for a machine that already has
-Node 24 or 26 — `sudo ./install.sh --node "$(command -v node)"` — or for
+Node 24 — `sudo ./install.sh --node "$(command -v node)"` — or for
 packaging this for a distribution. Both install the same way and update the
 same way, and an update keeps the one it was installed with.
 
