@@ -106,7 +106,13 @@ describe('an archive operation', () => {
       .post('/api/files/zip/extract')
       .send({ path: 'Work/sample.zip' });
     expect(lastEvent(intoFolder)).toMatchObject({ type: 'done' });
-    expect(recorded).toMatchObject([{ path: path.join(work, 'sample'), kind: 'partial-folder' }]);
+    // The hidden folder the archive is extracted into, never the name the new
+    // folder takes once whole.
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].kind).toBe('staging-directory');
+    expect(path.dirname(recorded[0].path)).toBe(work);
+    expect(path.basename(recorded[0].path)).toMatch(/^\.nextexplorer-extract-/);
+    expect(fs.readFileSync(path.join(work, 'sample', 'inside.txt'), 'utf8')).toBe('inside');
     expect(records(journal)).toEqual([]);
 
     const here = await request(app)
