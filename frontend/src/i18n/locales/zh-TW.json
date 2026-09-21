@@ -526,7 +526,25 @@
       "gitCommit": "Git 提交",
       "gitCommitHelp": "構建時提交的原始碼修訂版本。",
       "branch": "分支",
-      "branchHelp": "構建時的 Git 分支。"
+      "branchHelp": "構建時的 Git 分支。",
+      "tools": {
+        "title": "選用工具",
+        "subtitle": "此安裝能做什麼，以及安裝缺少的工具會增加什麼。伺服器啟動時也會在記錄中說明這些。",
+        "installed": "已安裝",
+        "missing": "未安裝",
+        "unused": "此處未使用",
+        "package": "套件",
+        "cannotOpen": "無法開啟：{formats}",
+        "gives": {
+          "videoThumbnails": "影片縮圖，以及 HEIC 相片的靜態影像",
+          "mediaDetails": "音訊與影片的長度與音軌",
+          "fastSearch": "快速搜尋檔案內容",
+          "pdfSearch": "在搜尋中包含 PDF 文字",
+          "rawPreviews": "RAW 相片預覽",
+          "copyProgress": "大型複製與移動的進度",
+          "archives": "瀏覽並解壓縮 .zip 以外的壓縮檔"
+        }
+      }
     },
     "branding": {
       "subtitle": "自訂在使用者界面中顯示的應用名稱和圖示。",

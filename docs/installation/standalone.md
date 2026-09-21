@@ -250,6 +250,12 @@ The script finds which are missing and offers to install them through `apt`,
 not carry costs that one line and not the whole set. Install them later and
 they are picked up on the next start — nothing needs reconfiguring.
 
+The server says the same at every start: one line naming the tools it found,
+and one per missing tool with what its absence costs and the package that
+brings it back. A 7-Zip that cannot open a format — RAR, from Debian's `7zip` —
+is said the same way. **Settings → About** shows that list to an administrator,
+for whoever does not read the log.
+
 7-Zip is the exception and comes with the archive: the builds Debian and Alpine
 package have no RAR codec, and browsing archives is the feature that would
 quietly lose a format.

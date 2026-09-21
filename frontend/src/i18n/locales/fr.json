@@ -529,7 +529,25 @@
       "gitCommit": "Commit Git",
       "gitCommitHelp": "Révision du code source intégrée au moment de la build.",
       "branch": "Branche",
-      "branchHelp": "Branche Git au moment de la build."
+      "branchHelp": "Branche Git au moment de la build.",
+      "tools": {
+        "title": "Outils optionnels",
+        "subtitle": "Ce que cette installation sait faire, et ce qu'apporterait un outil manquant. Le serveur dit la même chose dans son journal au démarrage.",
+        "installed": "Installé",
+        "missing": "Non installé",
+        "unused": "Non utilisé ici",
+        "package": "Paquet",
+        "cannotOpen": "Ne sait pas ouvrir : {formats}",
+        "gives": {
+          "videoThumbnails": "Vignettes des vidéos et images des photos HEIC",
+          "mediaDetails": "Durées et pistes de l'audio et de la vidéo",
+          "fastSearch": "Recherche rapide dans le contenu des fichiers",
+          "pdfSearch": "Le texte des PDF dans la recherche",
+          "rawPreviews": "Aperçus des photos RAW",
+          "copyProgress": "Progression des grosses copies et déplacements",
+          "archives": "Parcourir et extraire les archives autres que .zip"
+        }
+      }
     },
     "branding": {
       "subtitle": "Personnalisez le nom de l’application et le logo affichés dans toute l’interface.",

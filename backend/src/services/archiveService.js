@@ -65,6 +65,18 @@ const getSupportedArchiveExtensions = () => {
   return supportedExtensionsPromise;
 };
 
+/**
+ * The formats this build could open and does not.
+ *
+ * The list of what is supported says nothing about what is missing, and what
+ * is missing is the one thing worth knowing: a 7-Zip packaged without the RAR
+ * codec lists a dozen formats and never mentions the one it dropped (#9).
+ */
+const getMissingArchiveExtensions = async () => {
+  const supported = new Set(await getSupportedArchiveExtensions());
+  return CANDIDATE_EXTENSIONS.filter((extension) => !supported.has(extension));
+};
+
 const isSevenZipAvailable = async () => {
   const extensions = await getSupportedArchiveExtensions();
   // The zip-only fallback list means the probe failed.
@@ -568,6 +580,7 @@ module.exports = {
   TAR_WRAPPER_EXTENSIONS,
   extractArchiveEntries,
   getSupportedArchiveExtensions,
+  getMissingArchiveExtensions,
   isSevenZipAvailable,
   readArchiveFootprint,
   extractArchive,

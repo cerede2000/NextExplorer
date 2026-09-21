@@ -526,7 +526,25 @@
       "gitCommit": "Git 提交",
       "gitCommitHelp": "构建时嵌入的源代码修订版本。",
       "branch": "分支",
-      "branchHelp": "构建时的 Git 分支。"
+      "branchHelp": "构建时的 Git 分支。",
+      "tools": {
+        "title": "可选工具",
+        "subtitle": "此安装能做什么，以及安装缺少的工具会增加什么。服务器启动时也会在日志中说明这些。",
+        "installed": "已安装",
+        "missing": "未安装",
+        "unused": "此处未使用",
+        "package": "软件包",
+        "cannotOpen": "无法打开：{formats}",
+        "gives": {
+          "videoThumbnails": "视频缩略图，以及 HEIC 照片的静态图像",
+          "mediaDetails": "音频和视频的时长与轨道",
+          "fastSearch": "快速搜索文件内容",
+          "pdfSearch": "在搜索中包含 PDF 文本",
+          "rawPreviews": "RAW 照片预览",
+          "copyProgress": "大型复制和移动的进度",
+          "archives": "浏览和解压 .zip 以外的压缩包"
+        }
+      }
     },
     "branding": {
       "subtitle": "自定义在界面中显示的应用名称和标志。",

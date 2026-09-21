@@ -404,4 +404,7 @@ module.exports = {
   // and the order between them, worth reading on its own.
   chooseExiftoolPath,
   EXIFTOOL_CANDIDATES,
+  // For the report of what is installed, which asks without starting anything.
+  hasVendoredExiftool,
+  canRun,
 };

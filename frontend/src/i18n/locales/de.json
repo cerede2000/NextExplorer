@@ -526,7 +526,25 @@
       "gitCommit": "Git-Commit",
       "gitCommitHelp": "Quell-Revision, die zur Build-Zeit eingebettet wurde.",
       "branch": "Branch",
-      "branchHelp": "Git-Branch zur Build-Zeit."
+      "branchHelp": "Git-Branch zur Build-Zeit.",
+      "tools": {
+        "title": "Optionale Werkzeuge",
+        "subtitle": "Was diese Installation kann und was ein fehlendes Werkzeug hinzufügen würde. Der Server sagt dasselbe beim Start in seinem Protokoll.",
+        "installed": "Installiert",
+        "missing": "Nicht installiert",
+        "unused": "Hier nicht verwendet",
+        "package": "Paket",
+        "cannotOpen": "Kann nicht öffnen: {formats}",
+        "gives": {
+          "videoThumbnails": "Vorschaubilder für Videos und Standbilder aus HEIC-Fotos",
+          "mediaDetails": "Dauer und Spuren von Audio und Video",
+          "fastSearch": "Schnelle Suche im Inhalt von Dateien",
+          "pdfSearch": "Der Text von PDFs in der Suche",
+          "rawPreviews": "Vorschauen von RAW-Fotos",
+          "copyProgress": "Fortschritt bei großen Kopier- und Verschiebevorgängen",
+          "archives": "Archive jenseits von .zip durchsuchen und entpacken"
+        }
+      }
     },
     "branding": {
       "subtitle": "Passen Sie den in der Oberfläche angezeigten Anwendungsnamen und das Logo an.",

@@ -25,6 +25,7 @@ const terminalService = require('./services/terminalService');
 const folderSizeManager = require('./services/folderSizeManager');
 const searchIndexManager = require('./services/searchIndexManager');
 const featureSwitches = require('./services/featureSwitches');
+const capabilities = require('./services/capabilities');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
 const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
 const { reportLegacyCache } = require('./services/legacyCacheCheck');
@@ -84,6 +85,9 @@ const startServer = async () => {
   // It runs off the Express event loop and keeps the folder_size_index fresh.
   folderSizeManager.start();
   searchIndexManager.start();
+  // Which optional tools are here and which are not, said once. Not awaited: a
+  // server does not wait on `--version` to answer its first request.
+  capabilities.report();
   performanceDiagnostics.start();
   // Finishes what a crash interrupted before anything else touches a zone,
   // then keeps each zone within its retention and budget.

@@ -529,7 +529,25 @@
       "gitCommit": "Git commit",
       "gitCommitHelp": "Source revision embedded at build time.",
       "branch": "Branch",
-      "branchHelp": "Git branch at build time."
+      "branchHelp": "Git branch at build time.",
+      "tools": {
+        "title": "Optional tools",
+        "subtitle": "What this installation can do, and what installing a missing tool would add. The server says the same in its log when it starts.",
+        "installed": "Installed",
+        "missing": "Not installed",
+        "unused": "Not used here",
+        "package": "Package",
+        "cannotOpen": "Cannot open: {formats}",
+        "gives": {
+          "videoThumbnails": "Video thumbnails, and stills from HEIC photos",
+          "mediaDetails": "Durations and tracks of audio and video",
+          "fastSearch": "Fast search inside files",
+          "pdfSearch": "The text of PDFs in search",
+          "rawPreviews": "Previews of RAW photos",
+          "copyProgress": "Progress on large copies and moves",
+          "archives": "Browsing and extracting archives beyond .zip"
+        }
+      }
     },
     "branding": {
       "subtitle": "Customize the application name and logo displayed throughout the interface.",

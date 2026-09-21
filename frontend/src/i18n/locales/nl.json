@@ -529,7 +529,25 @@
       "gitCommit": "Git commit",
       "gitCommitHelp": "Bronrevisie die tijdens het bouwen is vastgelegd.",
       "branch": "Branch",
-      "branchHelp": "Git-branch tijdens het bouwen."
+      "branchHelp": "Git-branch tijdens het bouwen.",
+      "tools": {
+        "title": "Optionele hulpmiddelen",
+        "subtitle": "Wat deze installatie kan en wat een ontbrekend hulpmiddel zou toevoegen. De server zegt hetzelfde in zijn log bij het starten.",
+        "installed": "Geïnstalleerd",
+        "missing": "Niet geïnstalleerd",
+        "unused": "Hier niet gebruikt",
+        "package": "Pakket",
+        "cannotOpen": "Kan niet openen: {formats}",
+        "gives": {
+          "videoThumbnails": "Miniaturen van video's en stilstaande beelden uit HEIC-foto's",
+          "mediaDetails": "Duur en sporen van audio en video",
+          "fastSearch": "Snel zoeken in de inhoud van bestanden",
+          "pdfSearch": "De tekst van pdf's in de zoekfunctie",
+          "rawPreviews": "Voorbeelden van RAW-foto's",
+          "copyProgress": "Voortgang bij grote kopieer- en verplaatsacties",
+          "archives": "Archieven buiten .zip bekijken en uitpakken"
+        }
+      }
     },
     "branding": {
       "subtitle": "Pas de naam en het logo van de applicatie aan die door de hele interface worden weergegeven.",

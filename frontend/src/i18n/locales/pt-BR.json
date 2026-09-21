@@ -529,7 +529,25 @@
       "gitCommit": "Commit Git",
       "gitCommitHelp": "Revisão do código-fonte embutida na compilação.",
       "branch": "Ramo",
-      "branchHelp": "Branch Git na compilação."
+      "branchHelp": "Branch Git na compilação.",
+      "tools": {
+        "title": "Ferramentas opcionais",
+        "subtitle": "O que esta instalação sabe fazer e o que uma ferramenta ausente acrescentaria. O servidor diz o mesmo no seu log ao iniciar.",
+        "installed": "Instalada",
+        "missing": "Não instalada",
+        "unused": "Não usada aqui",
+        "package": "Pacote",
+        "cannotOpen": "Não abre: {formats}",
+        "gives": {
+          "videoThumbnails": "Miniaturas de vídeos e imagens de fotos HEIC",
+          "mediaDetails": "Duração e faixas de áudio e vídeo",
+          "fastSearch": "Busca rápida dentro dos arquivos",
+          "pdfSearch": "O texto dos PDFs na busca",
+          "rawPreviews": "Pré-visualizações de fotos RAW",
+          "copyProgress": "Progresso em cópias e movimentações grandes",
+          "archives": "Navegar e extrair arquivos compactados além de .zip"
+        }
+      }
     },
     "branding": {
       "subtitle": "Personalize o nome e o logotipo do aplicativo exibidos em toda a interface.",

@@ -526,7 +526,25 @@
       "gitCommit": "Commit git",
       "gitCommitHelp": "Revizia sursei integrată la momentul build-ului.",
       "branch": "Ramură",
-      "branchHelp": "Branch-ul git la momentul build-ului."
+      "branchHelp": "Branch-ul git la momentul build-ului.",
+      "tools": {
+        "title": "Instrumente opționale",
+        "subtitle": "Ce poate face această instalare și ce ar adăuga un instrument lipsă. Serverul spune același lucru în jurnal la pornire.",
+        "installed": "Instalat",
+        "missing": "Neinstalat",
+        "unused": "Nefolosit aici",
+        "package": "Pachet",
+        "cannotOpen": "Nu poate deschide: {formats}",
+        "gives": {
+          "videoThumbnails": "Miniaturi video și imagini din fotografiile HEIC",
+          "mediaDetails": "Durata și pistele audio și video",
+          "fastSearch": "Căutare rapidă în conținutul fișierelor",
+          "pdfSearch": "Textul PDF-urilor în căutare",
+          "rawPreviews": "Previzualizări ale fotografiilor RAW",
+          "copyProgress": "Progresul copierilor și mutărilor mari",
+          "archives": "Răsfoirea și extragerea arhivelor dincolo de .zip"
+        }
+      }
     },
     "branding": {
       "subtitle": "Personalizează numele aplicației și sigla afișate în întreaga interfață.",
