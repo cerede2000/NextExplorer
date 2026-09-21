@@ -461,20 +461,24 @@ mesa-va-gallium 25.2.7 to 26.1.6.
 
 ### Smaller, same audit
 
-- **ffmpeg 8.1.3 in the lean image — done, 21 September 2026.** Released that
-  morning, 268 commits after 8.1.2, most of them bounds and overflow checks in
-  decoders and demuxers. Three CVEs the security page lists as fixed in 9.0
-  reach the 8.1 branch only here: CVE-2026-66038 (a heap disclosure in
-  `lcldec`), CVE-2026-70629 (uninitialised data out of `rscc`) and
-  CVE-2026-70631 (a TIFF strip inflated short). The lean build disables
-  encoders, not decoders, so all three are compiled in, and an AVI or a MOV
-  can carry any of them to the thumbnailer. The tarball's signature was
-  checked against FFmpeg's release key (`FCF986EA…D67658D8`) before its hash
-  was pinned. The full image takes the distribution's ffmpeg, and Alpine 3.24
-  is still on 8.1.2-r0 (edge on 8.1.2-r1). It took Alpine three days on edge
-  and ten on the stable branch to take 8.1.2; the weekly rebuild brings 8.1.3
-  in when it lands, and nothing short of compiling the full image's ffmpeg —
-  which would cost it hardware acceleration — makes it sooner.
+- **ffmpeg 8.1.3 in both images — done, 21 September 2026, in 3.10.0.**
+  Released that morning, 268 commits after 8.1.2, most of them bounds and
+  overflow checks in decoders and demuxers. Three CVEs the security page lists
+  as fixed in 9.0 reach the 8.1 branch only here: CVE-2026-66038 (a heap
+  disclosure in `lcldec`), CVE-2026-70629 (uninitialised data out of `rscc`)
+  and CVE-2026-70631 (a TIFF strip inflated short). Both builds keep every
+  decoder, so all three were in both images, and an AVI or a MOV can carry any
+  of them to the thumbnailer. The tarball's signature was checked against
+  FFmpeg's release key (`FCF986EA…D67658D8`) before its hash was pinned, once,
+  as a global `ARG` both stages read. The lean image compiles it. The full one
+  took Alpine's package, and Alpine 3.24 was still on 8.1.2-r0 — ten days
+  behind on the stable branch the last time — so the `ffmpeg_recipe` stage
+  builds Alpine's own package from its APKBUILD at a pinned aports commit,
+  changing only the version, and the runtime installs whichever is newer. The
+  recipe comes from Alpine's GitHub mirror: their GitLab answers a build runner
+  with a 418. **When Alpine reaches 8.1.3**, the weekly rebuild takes its
+  package by itself; the stage can then go, or stay for the next time Alpine is
+  late — it only builds for the full image, and the cache keeps it.
 - **ffmpeg 9 — not now, and not for security.** Every fix in 9.0.1 and 9.0.2
   that touches code 8.1 has is in 8.1.3, checked entry by entry against the
   two changelogs; what is left is code 9.0 introduced (the animated WebP
