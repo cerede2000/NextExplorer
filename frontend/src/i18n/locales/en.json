@@ -533,7 +533,7 @@
       "branchHelp": "Git branch at build time.",
       "tools": {
         "title": "Optional tools",
-        "subtitle": "What this installation can do, and what installing a missing tool would add. The server says the same in its log when it starts.",
+        "subtitle": "What this instance can do, and what installing a missing tool would add. The server says the same in its log when it starts.",
         "installed": "Installed",
         "missing": "Not installed",
         "unused": "Not used here",

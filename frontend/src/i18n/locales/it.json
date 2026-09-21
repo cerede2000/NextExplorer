@@ -530,7 +530,7 @@
       "branchHelp": "Branch git al momento della build.",
       "tools": {
         "title": "Strumenti opzionali",
-        "subtitle": "Cosa sa fare questa installazione e cosa aggiungerebbe uno strumento mancante. Il server dice lo stesso nel suo log all'avvio.",
+        "subtitle": "Cosa sa fare questa istanza e cosa aggiungerebbe uno strumento mancante. Il server dice lo stesso nel suo log all'avvio.",
         "installed": "Installato",
         "missing": "Non installato",
         "unused": "Non usato qui",

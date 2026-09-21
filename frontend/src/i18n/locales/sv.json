@@ -530,7 +530,7 @@
       "branchHelp": "Git-gren vid byggtid.",
       "tools": {
         "title": "Valfria verktyg",
-        "subtitle": "Vad den här installationen kan och vad ett saknat verktyg skulle tillföra. Servern säger samma sak i sin logg vid start.",
+        "subtitle": "Vad den här instansen kan och vad ett saknat verktyg skulle tillföra. Servern säger samma sak i sin logg vid start.",
         "installed": "Installerat",
         "missing": "Inte installerat",
         "unused": "Används inte här",

@@ -533,7 +533,7 @@
       "branchHelp": "Git-branch tijdens het bouwen.",
       "tools": {
         "title": "Optionele hulpmiddelen",
-        "subtitle": "Wat deze installatie kan en wat een ontbrekend hulpmiddel zou toevoegen. De server zegt hetzelfde in zijn log bij het starten.",
+        "subtitle": "Wat deze instantie kan en wat een ontbrekend hulpmiddel zou toevoegen. De server zegt hetzelfde in zijn log bij het starten.",
         "installed": "Geïnstalleerd",
         "missing": "Niet geïnstalleerd",
         "unused": "Hier niet gebruikt",

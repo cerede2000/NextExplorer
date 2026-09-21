@@ -530,7 +530,7 @@
       "branchHelp": "Gałąź Git w czasie kompilacji.",
       "tools": {
         "title": "Narzędzia opcjonalne",
-        "subtitle": "Co potrafi ta instalacja i co dodałoby brakujące narzędzie. Serwer mówi to samo w swoim dzienniku przy starcie.",
+        "subtitle": "Co potrafi ta instancja i co dodałoby brakujące narzędzie. Serwer mówi to samo w swoim dzienniku przy starcie.",
         "installed": "Zainstalowane",
         "missing": "Niezainstalowane",
         "unused": "Nieużywane tutaj",

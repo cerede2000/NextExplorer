@@ -530,7 +530,7 @@
       "branchHelp": "Git-Branch zur Build-Zeit.",
       "tools": {
         "title": "Optionale Werkzeuge",
-        "subtitle": "Was diese Installation kann und was ein fehlendes Werkzeug hinzufügen würde. Der Server sagt dasselbe beim Start in seinem Protokoll.",
+        "subtitle": "Was diese Instanz kann und was ein fehlendes Werkzeug hinzufügen würde. Der Server sagt dasselbe beim Start in seinem Protokoll.",
         "installed": "Installiert",
         "missing": "Nicht installiert",
         "unused": "Hier nicht verwendet",

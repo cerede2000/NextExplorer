@@ -530,7 +530,7 @@
       "branchHelp": "Rama de Git en el momento de la compilación.",
       "tools": {
         "title": "Herramientas opcionales",
-        "subtitle": "Lo que esta instalación puede hacer y lo que añadiría una herramienta que falta. El servidor dice lo mismo en su registro al arrancar.",
+        "subtitle": "Lo que esta instancia puede hacer y lo que añadiría una herramienta que falta. El servidor dice lo mismo en su registro al arrancar.",
         "installed": "Instalada",
         "missing": "No instalada",
         "unused": "No se usa aquí",

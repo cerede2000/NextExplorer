@@ -533,7 +533,7 @@
       "branchHelp": "Branch Git na compilação.",
       "tools": {
         "title": "Ferramentas opcionais",
-        "subtitle": "O que esta instalação sabe fazer e o que uma ferramenta ausente acrescentaria. O servidor diz o mesmo no seu log ao iniciar.",
+        "subtitle": "O que esta instância sabe fazer e o que uma ferramenta ausente acrescentaria. O servidor diz o mesmo no seu log ao iniciar.",
         "installed": "Instalada",
         "missing": "Não instalada",
         "unused": "Não usada aqui",

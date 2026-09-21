@@ -533,7 +533,7 @@
       "branchHelp": "Branche Git au moment de la build.",
       "tools": {
         "title": "Outils optionnels",
-        "subtitle": "Ce que cette installation sait faire, et ce qu'apporterait un outil manquant. Le serveur dit la même chose dans son journal au démarrage.",
+        "subtitle": "Ce que cette instance sait faire, et ce qu'apporterait un outil manquant. Le serveur dit la même chose dans son journal au démarrage.",
         "installed": "Installé",
         "missing": "Non installé",
         "unused": "Non utilisé ici",

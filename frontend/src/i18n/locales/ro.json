@@ -530,7 +530,7 @@
       "branchHelp": "Branch-ul git la momentul build-ului.",
       "tools": {
         "title": "Instrumente opționale",
-        "subtitle": "Ce poate face această instalare și ce ar adăuga un instrument lipsă. Serverul spune același lucru în jurnal la pornire.",
+        "subtitle": "Ce poate face această instanță și ce ar adăuga un instrument lipsă. Serverul spune același lucru în jurnal la pornire.",
         "installed": "Instalat",
         "missing": "Neinstalat",
         "unused": "Nefolosit aici",
