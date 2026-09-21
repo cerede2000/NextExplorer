@@ -21,6 +21,7 @@
  * looks exactly like an emptied one from here, and only the marker tells them
  * apart.
  */
+const crypto = require('crypto');
 const fsp = require('fs/promises');
 const path = require('path');
 
@@ -40,6 +41,9 @@ const trashDirectory = (root) => path.join(root, ZONE_DIRECTORY_NAME, TRASH_DIRE
 /** Earlier contents of files, one file per version, named by the version's id. */
 const versionsDirectory = (root) => path.join(root, ZONE_DIRECTORY_NAME, VERSIONS_DIRECTORY);
 const markerPath = (root) => path.join(root, ZONE_DIRECTORY_NAME, MARKER_FILE);
+
+// link(2) is refused this way where the filesystem has no hard links.
+const LINK_UNSUPPORTED = new Set(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EMLINK', 'EINVAL']);
 
 const isWithin = (parent, candidate) =>
   candidate === parent ||
@@ -134,16 +138,43 @@ const ensureZone = async (root) => {
   let marker = await readMarker(root);
   if (!marker) {
     const created = { id: generateId(), createdAt: clock.nowIso() };
+    // Written to a private temporary first and linked into place: link is
+    // atomic and fails when the marker already exists, so two deletions racing
+    // to create the zone agree on one id, and a racer only ever reads a whole
+    // marker — never the half-written file a plain `wx` create is briefly seen
+    // as under load.
+    const temporary = path.join(
+      zoneDirectory(root),
+      `.marker-${crypto.randomBytes(8).toString('hex')}.tmp`
+    );
     try {
-      // Exclusive: two deletions racing to create the zone agree on one id.
-      await fsp.writeFile(markerPath(root), `${JSON.stringify(created)}\n`, {
-        flag: 'wx',
-        mode: 0o600,
-      });
-      marker = created;
-    } catch (error) {
-      if (error?.code !== 'EEXIST') throw error;
-      marker = await readMarker(root);
+      await fsp.writeFile(temporary, `${JSON.stringify(created)}\n`, { mode: 0o600 });
+      try {
+        await fsp.link(temporary, markerPath(root));
+        marker = created;
+      } catch (error) {
+        if (error?.code === 'EEXIST') {
+          marker = await readMarker(root);
+        } else if (LINK_UNSUPPORTED.has(error?.code)) {
+          // No hard links here (FAT, exFAT, some SMB shares): fall back to an
+          // exclusive create, whose brief half-written window is rare and no
+          // worse than before.
+          try {
+            await fsp.writeFile(markerPath(root), `${JSON.stringify(created)}\n`, {
+              flag: 'wx',
+              mode: 0o600,
+            });
+            marker = created;
+          } catch (fallbackError) {
+            if (fallbackError?.code !== 'EEXIST') throw fallbackError;
+            marker = await readMarker(root);
+          }
+        } else {
+          throw error;
+        }
+      }
+    } finally {
+      await fsp.rm(temporary, { force: true });
     }
   }
   if (!marker || marker.corrupt) {
