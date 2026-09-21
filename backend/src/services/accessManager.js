@@ -1,8 +1,17 @@
-const { parsePathSpace, resolveLogicalPath, combineRelativePath } = require('../utils/pathUtils');
+const path = require('path');
+
+const {
+  parsePathSpace,
+  resolveLogicalPath,
+  combineRelativePath,
+  reachesIntoPersonalRoot,
+} = require('../utils/pathUtils');
 const { getPermissionForPath } = require('./accessControlService');
 const { getShareByToken, hasUserPermission, isShareExpired } = require('./sharesService');
 const { getUserVolumeForPath, getVolumeById } = require('./userVolumesService');
-const { features } = require('../config/index');
+const { features, directories } = require('../config/index');
+
+const PERSONAL_SIDEWAYS = 'Personal folders are reached through the personal space';
 
 /**
  * Get comprehensive access information for a path
@@ -60,6 +69,12 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
       return createDeniedAccess('You do not have access to this volume');
     }
 
+    // The same rule as below, from the folder this account was assigned.
+    const innerPath = relativePath.split('/').filter(Boolean).slice(1).join('/');
+    if (reachesIntoPersonalRoot(userVolume.path, path.resolve(userVolume.path, innerPath))) {
+      return createDeniedAccess(PERSONAL_SIDEWAYS);
+    }
+
     // Use the volume's access mode
     const isReadOnly = userVolume.accessMode === 'readonly';
 
@@ -89,6 +104,23 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
   }
 
   // Standard access for admins or when USER_VOLUMES is disabled
+  //
+  // Somebody's personal folder is not part of the volume, even where it sits
+  // inside it — `<volume>/_users` by default. Resolving such a path already
+  // refuses; this is the same answer for a caller who asks about a path it
+  // never resolves. The search is one: ripgrep and the index read the whole
+  // volume and ask only this whether each path may be shown, so an ordinary
+  // account searching the volume was offered another account's private
+  // files, by name and by the line that matched.
+  if (
+    reachesIntoPersonalRoot(
+      directories.volume,
+      path.resolve(directories.volume, relativePath || '')
+    )
+  ) {
+    return createDeniedAccess(PERSONAL_SIDEWAYS);
+  }
+
   // Check access control rules
   const permission = await getPerm(relativePath);
   if (permission === 'hidden') {
@@ -220,6 +252,13 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
       isDirShare && safeInnerPath
         ? combineRelativePath(share.sourcePath, safeInnerPath)
         : share.sourcePath;
+    // Somebody's personal folder is not handed out by a share of a folder that
+    // holds it, any more than by the volume itself.
+    if (
+      reachesIntoPersonalRoot(directories.volume, path.resolve(directories.volume, combined || ''))
+    ) {
+      return createDeniedAccess(PERSONAL_SIDEWAYS);
+    }
     underlyingPermission = await getPerm(combined);
     if (underlyingPermission === 'hidden') {
       return createDeniedAccess('Path is hidden');
@@ -249,6 +288,14 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
       isDirShare && safeInnerPath
         ? combineRelativePath(baseWithinVolume, safeInnerPath)
         : baseWithinVolume;
+    if (
+      reachesIntoPersonalRoot(
+        userVolume.path,
+        path.resolve(userVolume.path, combinedWithinVolume || '')
+      )
+    ) {
+      return createDeniedAccess(PERSONAL_SIDEWAYS);
+    }
     const logicalForRules = `${userVolume.label}${combinedWithinVolume ? `/${combinedWithinVolume}` : ''}`;
     underlyingPermission = await getPerm(logicalForRules);
     if (underlyingPermission === 'hidden') {
