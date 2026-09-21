@@ -58,7 +58,7 @@ const ALWAYS_OPEN = new Set(['/api/auth/me']);
  * read-only token would be refusing a read — and an allowlist of one is easier
  * to keep honest than a rule about which POSTs are really reads.
  */
-const READ_ONLY_POSTS = new Set(['/api/files/download']);
+const READ_ONLY_POSTS = new Set(['/api/download']);
 
 /**
  * Every way this path could be read, reduced to one spelling each.

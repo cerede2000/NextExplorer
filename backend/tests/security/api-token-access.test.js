@@ -3,6 +3,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { mountedRoutes, INTEGRATIONS_CONFIGURED } from '../helpers/mounted-routes.js';
 
 /**
  * What an API token opens, and the two doors it does not.
@@ -56,7 +57,7 @@ const build = async (env = {}) => {
   // filesystem to say anything; what is being held here is the gate in front
   // of them, so these say only that the gate let the request through.
   app.get('/api/files/list', answered);
-  app.post('/api/files/download', answered);
+  app.post('/api/download', answered);
   app.post('/api/files/delete', answered);
   app.put('/api/files/save', answered);
   app.patch('/api/files/rename', answered);
@@ -152,7 +153,7 @@ describe('what an API token opens', () => {
 
     // The one read that arrives as a POST, because a hundred file names do not
     // fit in a URL. Refusing it would be refusing a read.
-    const response = await withToken(app, secret).post('/api/files/download').send({ items: [] });
+    const response = await withToken(app, secret).post('/api/download').send({ items: [] });
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ reached: true, viaToken: true });
   });
@@ -166,6 +167,39 @@ describe('what an API token opens', () => {
     expect((await token.post('/api/files/delete')).status).toBe(200);
     expect((await token.put('/api/files/save')).status).toBe(200);
     expect((await token.delete('/api/files/trash')).status).toBe(200);
+  });
+});
+
+/**
+ * The gate names paths as strings, and the stand-ins above take whatever path
+ * they are given — which is how the one read that arrives as a POST was
+ * allowed at `/api/files/download` for as long as tokens existed, while the
+ * download the interface makes is `/api/download`. A read-only token was
+ * refused every selection it asked for, and this file said it was not.
+ */
+describe('the paths the gate names', () => {
+  const routesOf = async () => {
+    currentEnv = await setupTestEnv({ tag: 'api-token-paths-', env: INTEGRATIONS_CONFIGURED });
+    return mountedRoutes(currentEnv.requireFresh);
+  };
+
+  it('are paths the application mounts', async () => {
+    const routes = await routesOf();
+    const { READ_ONLY_POSTS, ALWAYS_OPEN, CLOSED_PREFIXES } = currentEnv.requireFresh(
+      'src/middleware/apiTokenAuth'
+    );
+
+    for (const readOnlyPost of READ_ONLY_POSTS) {
+      expect(routes).toContainEqual(
+        expect.objectContaining({ method: 'POST', path: readOnlyPost })
+      );
+    }
+    for (const open of ALWAYS_OPEN) {
+      expect(routes).toContainEqual(expect.objectContaining({ method: 'GET', path: open }));
+    }
+    for (const prefix of CLOSED_PREFIXES) {
+      expect(routes.some((route) => route.path.startsWith(`${prefix}/`))).toBe(true);
+    }
   });
 });
 

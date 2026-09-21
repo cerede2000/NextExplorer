@@ -30,10 +30,10 @@ browser attaches to requests another site made.
 
 **What a token may do** is its scope, chosen when it is issued:
 
-| Scope   | What it reaches                                                                                                                                               |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `read`  | `GET` and `HEAD`, plus `POST /api/files/download` — downloading a selection is a read that arrives as a POST because a hundred file names do not fit in a URL |
-| `write` | everything the account itself can do with files: upload, move, rename, delete                                                                                 |
+| Scope   | What it reaches                                                                                                                                         |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `read`  | `GET` and `HEAD`, plus `POST /api/download` — downloading a selection is a read that arrives as a POST because a hundred file names do not fit in a URL |
+| `write` | everything the account itself can do with files: upload, move, rename, delete                                                                           |
 
 **What no token ever reaches**, whatever its scope and whoever owns it:
 
