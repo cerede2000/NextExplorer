@@ -322,12 +322,12 @@ changes that needed one underneath — has been followed to the end:
   against the browser's entry interface in `fileUploader.spec.js` and wants
   one try by hand.
 
-  Found on the way, and kept: the uploader was what loaded the settings on a
-  page reached through a share. The router hands over to the share check
-  before it gets to them (`router/index.js`, the `isGuestRoute` branch), so
-  without the uploader's call a document inside a share ignored the "open in
-  a tab" preference. The call stays in `useFileUploader` with a test; the
-  right home for it is the router, for an account that is signed in.
+  Found on the way: the uploader was what loaded the settings on a page
+  reached through a share, where the router hands over to the share check
+  before it gets to them — so a document inside a share ignored the "open in a
+  tab" preference once Uppy stopped loading with the page. The router loads
+  them now, for a signed-in account, in both places (`router/settingsGuard.js`);
+  the browser test that opens a document from inside a share fails without it.
 
 - **The last two complex functions in the frontend.** The audit's worst was 72
   and everything it named is done; these two are what is left above thirty.
@@ -352,7 +352,14 @@ changes that needed one underneath — has been followed to the end:
   clipboard and transfers, deleting and making, the ONLYOFFICE badges. Moved,
   not rewritten; the seven specs and the browser tests pass untouched, and the
   parts that needed the whole store to be reached are tested on their own.
-  **The context menu (912 lines, 34) is what is left.**
+  **The context menu — split, 21 September 2026.** What it offers is decided in
+  `composables/contextMenuSections.js` from a plain description of the
+  situation (largest function at 16, from 34), the delete dialog's wording in
+  `deleteDialogWording.js`; the component is 696 lines from 1,105, and its 93
+  tests pass untouched. The direct tests caught one thing the mounted ones
+  could not see — a move offered where deleting is refused — and the split
+  turned up a warning written in French whatever the page's language, now in
+  the fifteen catalogues. Nothing above thirty is left from the audit.
 
 ### Rules this audit set, for whoever picks the work up
 
