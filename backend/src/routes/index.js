@@ -26,6 +26,7 @@ const versionsRoutes = require('./versions');
 const versionsAdminRoutes = require('./versionsAdmin');
 const activityRoutes = require('./activity');
 const capabilitiesRoutes = require('./capabilities');
+const openapiRoutes = require('./openapi');
 const { onlyoffice, collabora } = require('../config/index');
 
 const registerRoutes = (app) => {
@@ -62,6 +63,8 @@ const registerRoutes = (app) => {
   app.use('/api/share', sharesRoutes);
   // Public features endpoint (always available)
   app.use('/api', featuresRoutes);
+  // The API's own description, also answered to anybody
+  app.use('/api', openapiRoutes);
   // Admin-only terminal session endpoint
   app.use('/api', terminalRoutes);
   // Mount ONLYOFFICE routes only when configured

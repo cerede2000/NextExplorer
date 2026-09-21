@@ -8,6 +8,7 @@
   },
   "scripts": {
     "download_samples": "node src/scripts/downloadSamples.js",
+    "openapi": "node src/scripts/writeOpenApi.js",
     "dev": "node --watch src/server.js",
     "format": "prettier --config ../prettier.config.cjs --write .",
     "format:check": "prettier --config ../prettier.config.cjs --check .",

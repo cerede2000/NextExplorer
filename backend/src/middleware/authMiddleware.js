@@ -66,6 +66,8 @@ const needsNoIdentity = (req, requestPath) => {
   // its branding before anyone has signed in. Neither carries anything private.
   if (requestPath.startsWith('/api/features')) return true;
   if (requestPath === '/api/branding') return true;
+  // The API's description says what the published documentation says.
+  if (requestPath === '/api/openapi.json') return true;
   return isConfiguredIntegrationCallback(requestPath);
 };
 

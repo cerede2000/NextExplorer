@@ -7,10 +7,11 @@
  * so the caller configures them before loading the routes, to see all of it.
  *
  * @param {(path: string) => any} requireFresh  the test environment's loader
- * @returns {Array<{ method: string, path: string, router: string }>}
+ * @returns {Array<{ method: string, path: string, router: string, guards: string[] }>}
  *   `method` is upper case, or `ALL`; `path` is as Express spells it
  *   (`/api/browse/{*splat}`, `/api/shares/:id`); `router` names the mount it
- *   came through, so a router mounted twice can be recognised as one.
+ *   came through, so a router mounted twice can be recognised as one;
+ *   `guards` names the functions the route runs before its handler.
  */
 const mountedRoutes = (requireFresh) => {
   const routes = [];
@@ -25,9 +26,13 @@ const mountedRoutes = (requireFresh) => {
               .filter((method) => declared[method])
               .map((method) => method.toUpperCase());
         const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
+        const handlers = (layer.route.stack || []).map(
+          (entry) => entry.name || entry.handle?.name || ''
+        );
+        const guards = handlers.slice(0, -1).filter(Boolean);
         for (const routePath of paths) {
           for (const method of methods) {
-            routes.push({ method, path: `${prefix}${routePath}`, router: label });
+            routes.push({ method, path: `${prefix}${routePath}`, router: label, guards });
           }
         }
       } else if (layer.handle && Array.isArray(layer.handle.stack)) {
