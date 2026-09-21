@@ -461,9 +461,18 @@ mesa-va-gallium 25.2.7 to 26.1.6.
 
 ### Smaller, same audit
 
-- **ffmpeg 9.0.1 is out**, and the source pin is on 8.1.2 — the newest patch of
-  its own branch, so this is currency rather than a fix. Moving a major means
-  re-running `docker/verify-ffmpeg.sh` for real, which is the point of it.
+- **ffmpeg 8.1.3 is out, and the pin is on 8.1.2.** Released on 21 September
+  2026, 268 commits after 8.1.2, most of them bounds and overflow checks in
+  decoders and demuxers — an out-of-array access in a filter, a heap disclosure
+  in `lcldec`, overflows in the W64 and MOV readers — which is the ground a
+  thumbnail of somebody's upload walks on. The security page did not list it
+  yet on the day. The lean image compiles from source, so it is one line in
+  the `Dockerfile` (`FFMPEG_VERSION`) and a real run of
+  `docker/verify-ffmpeg.sh`. The full image takes the distribution's, and
+  Alpine 3.24 is still on 8.1.2-r0 (edge on 8.1.2-r1): the weekly rebuild
+  brings it in when Alpine moves, and nothing here can make it sooner. 9.0.2
+  is out as well (18 September); a major is a separate decision, and the same
+  script is what makes it one.
 - **The published images are rebuilt weekly**, by `refresh-images.yml`: apk
   resolves against the branch head at build time, so an image says what was
   current on the day it was built and nothing more. It publishes the floating
@@ -512,10 +521,13 @@ it answers nothing.
   underneath it would put two untested majors under a tool that drives vite's
   own SSR API. 2.0.0 is at `alpha.20`. The reach is `npm run docs:dev` on a
   contributor's machine; the published site is built output.
-- **The browser baseline is now a decision, not a default.** Vite 7 would have
-  raised it from Safari 14 to Safari 16 and Chrome 87 to Chrome 107 on its own.
-  `build.target` in `frontend/vite.config.js` holds the old one until somebody
-  decides who is still being served.
+- ~~**The browser baseline is now a decision, not a default.**~~ Decided on 16
+  September 2026: Safari 15.4, Chrome and Edge 93, Firefox 92 — the floor the
+  bundle already had, because it calls `Object.hasOwn` and `Array.prototype.at`
+  and a build target fills in no missing API. Built there, the output is
+  byte-for-byte Vite's own default, and the phones that stop at iOS 15.8 keep
+  working. `build.target` in `frontend/vite.config.js` says why; moving it is
+  a decision about who is still served.
 - **`no-await-in-loop` is not enabled.** The 206 disable comments that referred
   to it were removed with the rest of the dead ones. Turning it on for real
   would mean 168 new exceptions for sequential work that is deliberate.
@@ -720,8 +732,8 @@ Settled on the way, each with its own tests:
 
 ## Open, not scheduled
 
-- **Serve HTTPS from a certificate somebody already has — decided, 21 September
-  2026: a reverse proxy, not the application.** Asked for in
+- ~~**Serve HTTPS from a certificate somebody already has.**~~ Decided, 21
+  September 2026: a reverse proxy, not the application. Asked for in
   [#13](https://github.com/cerede2000/NextExplorer/issues/13). A certificate
   read once at start goes stale at the first renewal — Quantum and filebrowser,
   which take `tlsCert`/`--cert`, both have that defect — and watching the files
