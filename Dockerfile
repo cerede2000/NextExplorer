@@ -101,8 +101,8 @@ RUN apk add --no-cache curl libarchive-tools \
 # wants to go further than pinning the bytes.
 # ---------------------------------------------------------------------------
 FROM alpine:3.24 AS ffmpeg_build
-ARG FFMPEG_VERSION=8.1.2
-ARG FFMPEG_SHA256=464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
+ARG FFMPEG_VERSION=8.1.3
+ARG FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3
 
 # `ffmpeg` here is a build dependency and never ships: the verification below
 # uses it to synthesise a clip per format, which the binary we build then has

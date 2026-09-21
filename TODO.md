@@ -449,7 +449,7 @@ Alpine 3.23 was still on ffmpeg 8.0.1-r1, with none of the three CVEs upstream
 fixed in 8.0.2 and 8.0.3 backported. The worst, CVE-2026-8461, is an
 out-of-bounds write in the MagicYUV decoder scored 8.8, and MagicYUV travels in
 Matroska and AVI — files this application hands to ffmpeg itself, to make a
-thumbnail of whatever somebody uploaded. The lean image compiles 8.1.2 and was
+thumbnail of whatever somebody uploaded. The lean image compiled 8.1.2 and was
 never affected; the full image takes ffmpeg from the distribution.
 
 The whole image moved to Alpine 3.24, whose community branch carries ffmpeg
@@ -461,18 +461,33 @@ mesa-va-gallium 25.2.7 to 26.1.6.
 
 ### Smaller, same audit
 
-- **ffmpeg 8.1.3 is out, and the pin is on 8.1.2.** Released on 21 September
-  2026, 268 commits after 8.1.2, most of them bounds and overflow checks in
-  decoders and demuxers — an out-of-array access in a filter, a heap disclosure
-  in `lcldec`, overflows in the W64 and MOV readers — which is the ground a
-  thumbnail of somebody's upload walks on. The security page did not list it
-  yet on the day. The lean image compiles from source, so it is one line in
-  the `Dockerfile` (`FFMPEG_VERSION`) and a real run of
-  `docker/verify-ffmpeg.sh`. The full image takes the distribution's, and
-  Alpine 3.24 is still on 8.1.2-r0 (edge on 8.1.2-r1): the weekly rebuild
-  brings it in when Alpine moves, and nothing here can make it sooner. 9.0.2
-  is out as well (18 September); a major is a separate decision, and the same
-  script is what makes it one.
+- **ffmpeg 8.1.3 in the lean image — done, 21 September 2026.** Released that
+  morning, 268 commits after 8.1.2, most of them bounds and overflow checks in
+  decoders and demuxers. Three CVEs the security page lists as fixed in 9.0
+  reach the 8.1 branch only here: CVE-2026-66038 (a heap disclosure in
+  `lcldec`), CVE-2026-70629 (uninitialised data out of `rscc`) and
+  CVE-2026-70631 (a TIFF strip inflated short). The lean build disables
+  encoders, not decoders, so all three are compiled in, and an AVI or a MOV
+  can carry any of them to the thumbnailer. The tarball's signature was
+  checked against FFmpeg's release key (`FCF986EA…D67658D8`) before its hash
+  was pinned. The full image takes the distribution's ffmpeg, and Alpine 3.24
+  is still on 8.1.2-r0 (edge on 8.1.2-r1). It took Alpine three days on edge
+  and ten on the stable branch to take 8.1.2; the weekly rebuild brings 8.1.3
+  in when it lands, and nothing short of compiling the full image's ffmpeg —
+  which would cost it hardware acceleration — makes it sooner.
+- **ffmpeg 9 — not now, and not for security.** Every fix in 9.0.1 and 9.0.2
+  that touches code 8.1 has is in 8.1.3, checked entry by entry against the
+  two changelogs; what is left is code 9.0 introduced (the animated WebP
+  reader, Vulkan FFV1, the new scaler's dispatch) or components the lean build
+  does not compile. Of the six CVEs listed under 9.0 and not under 8.1, two
+  were already fixed in 8.1.1 and 8.1.2 under other headings, one is a tool
+  nothing builds (`zmqsend`), and three are the ones 8.1.3 brings. What 9.0
+  adds is nothing this application uses — an animated WebP decoder, where
+  images go through sharp; DAB+ audio; hardware filters — and the options the
+  thumbnailer and ffprobe pass are all still there. The 8.1 branch is
+  maintained, and 7.1 still had a release in June 2026. Move when Alpine
+  does, so the two images change major together and `docker/verify-ffmpeg.sh`
+  decides it for both.
 - **The published images are rebuilt weekly**, by `refresh-images.yml`: apk
   resolves against the branch head at build time, so an image says what was
   current on the day it was built and nothing more. It publishes the floating
