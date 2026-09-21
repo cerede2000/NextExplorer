@@ -148,6 +148,11 @@ export default [
     files: ['frontend/**/*.{js,vue}'],
     languageOptions: { globals: { ...globals.browser } },
   },
+  // The documentation site's own components, which run in the reader's browser.
+  {
+    files: ['docs/.vitepress/theme/**/*.{js,vue}'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
 
   // What builds and tests the frontend runs under Node, not in a browser — and
   // the end-to-end suite drives a browser from Node, so it refers to both.
