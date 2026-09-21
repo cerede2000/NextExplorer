@@ -24,6 +24,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
 import { getVolumes } from '@/api';
+import { signedInMayOpenShare } from './shareGuard';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -196,13 +197,27 @@ router.beforeEach(async (to) => {
       await auth.initialize();
     }
 
-    // Allow if user is authenticated OR has guest session
-    if (auth.isAuthenticated || guestSessionId) {
+    const shareToken = pathParam.split('/')[1];
+
+    // A guest session is the proof the visitor went through the share's page.
+    if (guestSessionId) {
       return true;
     }
 
+    // Being signed in is enough, unless the link has a password this account
+    // has not given: the server asks everybody but the owner for it.
+    if (auth.isAuthenticated) {
+      if (!shareToken || (await signedInMayOpenShare(shareToken, auth.currentUser?.id))) {
+        return true;
+      }
+      return {
+        name: 'ShareLogin',
+        params: { token: shareToken },
+        query: { redirect: to.fullPath },
+      };
+    }
+
     // No guest session and not authenticated - redirect to share login
-    const shareToken = pathParam.split('/')[1];
     if (shareToken) {
       return { name: 'ShareLogin', params: { token: shareToken } };
     }

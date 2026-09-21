@@ -9,7 +9,24 @@ const {
 const { getPermissionForPath } = require('./accessControlService');
 const { getShareByToken, hasUserPermission, isShareExpired } = require('./sharesService');
 const { getUserVolumeForPath, getVolumeById } = require('./userVolumesService');
-const { features, directories } = require('../config/index');
+const { auth, features, directories } = require('../config/index');
+
+/**
+ * Whether a share password still means anything for this caller.
+ *
+ * The owner is exempt: it is their own share. With authentication disabled
+ * everyone is the same synthetic admin who already browses the whole
+ * filesystem, so the prompt would only lock the share without protecting it.
+ *
+ * Everyone else is subject to it, and that includes a signed-in account: being
+ * authenticated is not knowing the password. The check used to be "is there a
+ * user or a guest session", so any account on the instance opening a protected
+ * link walked straight past the prompt its owner set up.
+ */
+const sharePasswordApplies = (share, user) =>
+  Boolean(share.hasPassword) &&
+  auth.enabled !== false &&
+  !(user && String(user.id) === String(share.ownerId));
 
 const PERSONAL_SIDEWAYS = 'Personal folders are reached through the personal space';
 
@@ -235,6 +252,16 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
     if (guestSession && !user && guestSession.shareId !== share.id) {
       return createDeniedAccess('Invalid guest session for this share');
     }
+
+    // A guest session for this share is the proof the password was typed.
+    if (sharePasswordApplies(share, user)) {
+      const verified = guestSession && guestSession.shareId === share.id;
+      if (!verified) return createDeniedAccess('Password verification required');
+    }
+  } else {
+    // Neither of the two types this knows: fail closed rather than fall
+    // through to the grant below.
+    return createDeniedAccess('Unknown sharing type');
   }
 
   const isOwner = user && user.id === share.ownerId;
@@ -425,6 +452,7 @@ module.exports = {
   getAccessInfo,
   getVolumeAccess,
   getPersonalAccess,
+  sharePasswordApplies,
   getShareAccess,
   canAccess,
   canWrite,

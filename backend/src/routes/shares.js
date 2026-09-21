@@ -27,7 +27,7 @@ const {
 const { createGuestSession } = require('../services/guestSessionService');
 const { normalizeRelativePath, parsePathSpace } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
-const { resolvePathWithAccess } = require('../services/accessManager');
+const { resolvePathWithAccess, sharePasswordApplies } = require('../services/accessManager');
 const { extensions, mimeTypes } = require('../config/index');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
@@ -543,6 +543,11 @@ router.get(
       label: share.label,
       isDirectory: share.isDirectory,
       hasPassword: share.hasPassword,
+      // Whether this caller has to type it: its owner does not, and neither
+      // does anybody when authentication is off. The interface asks for the
+      // password on this, rather than on hasPassword, so the owner is not sent
+      // to a prompt the server would have let them skip.
+      requiresPassword: sharePasswordApplies(share, req.user),
       sharingType: share.sharingType,
       expiresAt: share.expiresAt,
       isExpired: isShareExpired(share),
@@ -666,9 +671,37 @@ router.get(
         throw new ForbiddenError('Access denied');
       }
     } else {
+      // A password protects the link from everyone but its owner. Being signed
+      // in is not knowing it, so an authenticated visitor is sent through the
+      // same prompt unless they already verified it (guest session) or own it.
+      if (sharePasswordApplies(share, req.user)) {
+        const verified = req.guestSession && req.guestSession.shareId === share.id;
+        if (!verified) {
+          throw new UnauthorizedError('Password verification required');
+        }
+      }
+
       // Anyone share - always create a new guest session for this share
       // This ensures switching between shares in the same browser works correctly
       if (!req.user) {
+        // Unless there already is one for this share. Reloading the page calls
+        // here again, and a visitor who has just typed the password holds a
+        // session that says so — the check above has already accepted it. Not
+        // looking made the branch below ask for the password a second time,
+        // for a share it had just been given.
+        if (req.guestSession && req.guestSession.shareId === share.id) {
+          return res.json({
+            share: {
+              shareToken: share.shareToken,
+              label: share.label,
+              sourcePath: `share/${share.shareToken}`,
+              accessMode: share.accessMode,
+              isDirectory: share.isDirectory,
+            },
+            guestSessionId: req.guestSession.id,
+          });
+        }
+
         // Create guest session if no password required
         if (!share.hasPassword) {
           const session = await createGuestSession({
