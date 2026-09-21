@@ -1,10 +1,6 @@
-const path = require('path');
 const fs = require('fs/promises');
-const {
-  normalizeRelativePath,
-  findAvailableFolderName,
-  ensureValidName,
-} = require('../../utils/pathUtils');
+const { normalizeRelativePath, ensureValidName } = require('../../utils/pathUtils');
+const { reserveAvailableName } = require('../../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('../../services/authorizationService');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../errors/AppError');
@@ -58,10 +54,15 @@ router.post(
         ? ensureValidName(requestedName)
         : 'Untitled Folder';
 
-    const finalName = await findAvailableFolderName(parentAbsolute, baseName);
-    const folderAbsolute = path.join(parentAbsolute, finalName);
-
-    await fs.mkdir(folderAbsolute);
+    // The name is taken by the mkdir itself, which fails when it is held rather
+    // than looking first: a folder made under it meanwhile — by another request,
+    // or over SMB — moves this one on to "Untitled Folder 2" instead of failing
+    // the request, and nothing already there is ever merged into.
+    const { name: finalName, path: folderAbsolute } = await reserveAvailableName(
+      parentAbsolute,
+      baseName,
+      { isDirectory: true, style: 'folder' }
+    );
 
     const item = await buildItemMetadata(folderAbsolute, parentRelative, finalName);
     res.status(201).json({ success: true, item });
