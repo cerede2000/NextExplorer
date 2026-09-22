@@ -23,9 +23,10 @@ const { getSettings } = require('./settingsService');
  * a zip streamed to the browser and a zip written next to the folder.
  */
 
-const readRules = async () => {
+/** The access section as stored: the rules, and who they hold. */
+const readAccess = async () => {
   const settings = await getSettings();
-  return Array.isArray(settings?.access?.rules) ? settings.access.rules : [];
+  return settings?.access && typeof settings.access === 'object' ? settings.access : { rules: [] };
 };
 
 /**
@@ -36,9 +37,10 @@ const readRules = async () => {
  * many were left out, and the bytes of the files kept.
  */
 const collectArchiveEntries = async (context, sources) => {
-  const rules = await readRules();
+  const access = await readAccess();
+  const rules = Array.isArray(access.rules) ? access.rules : [];
   const accessOptions = {
-    permissionResolver: rules.length ? createPermissionResolver(rules) : undefined,
+    permissionResolver: rules.length ? createPermissionResolver(access) : undefined,
     shareCache: new Map(),
     userVolumeCache: new Map(),
   };

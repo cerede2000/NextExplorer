@@ -674,7 +674,11 @@
       "pathMissing": "Aucun dossier à ce chemin. Une règle utilise le chemin tel que NextExplorer l'affiche, en commençant par le nom du volume.",
       "pathInvalid": "Ce chemin n'est dans aucun volume : la règle ne s'appliquera jamais.",
       "useSuggestion": "Utiliser {path}",
-      "adminNote": "Les règles « Lecture seule » ne limitent pas les administrateurs. Les règles « Masqué » s'appliquent à tout le monde, administrateurs compris."
+      "adminNote": "Chaque règle indique si elle s’applique aux administrateurs. Sans cela, une règle « Lecture seule » les laisse écrire et une règle « Masqué » leur cache aussi le dossier.",
+      "appliesToAdmins": "S’applique aux administrateurs",
+      "appliesToAdminsHint": "Soumettre aussi les administrateurs à cette règle.",
+      "applyToAdmins": "Appliquer toutes les règles aux administrateurs",
+      "applyToAdminsHint": "Activé, aucune règle ne laisse passer un administrateur — la case de chaque règle est ignorée."
     },
     "comingSoon": {
       "subtitle": "Cette section de paramètres est en cours de développement. Restez à l'écoute !"

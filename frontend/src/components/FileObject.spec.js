@@ -584,3 +584,29 @@ describe('the versions mark', () => {
     expect(selection.handleSelection).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The lock beside an entry a rule holds to reading.
+ *
+ * A rule was invisible until somebody tried to write in the folder it covers
+ * (nxzai/NextExplorer#407). The server says which entries it holds, and the row
+ * carries the same lock a volume held to reading already carries.
+ */
+describe('a folder a rule holds to reading', () => {
+  const lock = () => wrapper.find('[data-testid="volume-read-only"]');
+
+  // Four views list a folder by name, and the grid is the one people open on:
+  // a lock drawn in the list alone would be missing where it is most looked at.
+  it.each(['list', 'grid', 'tab'])('carries the lock in the %s view', (view) => {
+    mountRow({ ...FOLDER, readOnly: 'access' }, view);
+
+    expect(lock().exists()).toBe(true);
+    expect(lock().attributes('data-reason')).toBe('access');
+  });
+
+  it('carries none when the server did not mark it', () => {
+    mountRow(FOLDER);
+
+    expect(lock().exists()).toBe(false);
+  });
+});

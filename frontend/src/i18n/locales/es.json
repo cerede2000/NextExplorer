@@ -645,7 +645,11 @@
       "pathMissing": "No hay ninguna carpeta en esta ruta. Una regla usa la ruta tal como la muestra NextExplorer, empezando por el nombre del volumen.",
       "pathInvalid": "Esta ruta no está dentro de ningún volumen, así que la regla nunca se aplicará.",
       "useSuggestion": "Usar {path}",
-      "adminNote": "Las reglas «Solo lectura» no restringen a los administradores. Las reglas «Oculta» se aplican a todos, administradores incluidos."
+      "adminNote": "Cada regla indica si se aplica a los administradores. Sin eso, una regla «Solo lectura» les deja escribir y una regla «Oculto» también les oculta la carpeta.",
+      "appliesToAdmins": "Se aplica a los administradores",
+      "appliesToAdminsHint": "Someter también a los administradores a esta regla.",
+      "applyToAdmins": "Aplicar todas las reglas a los administradores",
+      "applyToAdminsHint": "Activado, ninguna regla deja pasar a un administrador: se ignora la casilla de cada regla."
     },
     "comingSoon": {
       "subtitle": "Esta sección de configuración está en desarrollo. ¡Permanece atento!"

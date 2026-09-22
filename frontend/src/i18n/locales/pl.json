@@ -645,7 +645,11 @@
       "pathMissing": "Pod tą ścieżką nie ma folderu. Reguła używa ścieżki tak, jak pokazuje ją NextExplorer, zaczynając od nazwy woluminu.",
       "pathInvalid": "Ta ścieżka nie leży w żadnym woluminie, więc reguła nigdy nie zadziała.",
       "useSuggestion": "Użyj {path}",
-      "adminNote": "Reguły „Tylko odczyt” nie ograniczają administratorów. Reguły „Ukryte” dotyczą wszystkich, także administratorów."
+      "adminNote": "Każda reguła mówi, czy dotyczy administratorów. Bez tego reguła „Tylko do odczytu” pozwala im pisać, a reguła „Ukryte” ukrywa folder również przed nimi.",
+      "appliesToAdmins": "Dotyczy administratorów",
+      "appliesToAdminsHint": "Objąć tą regułą także administratorów.",
+      "applyToAdmins": "Zastosuj wszystkie reguły do administratorów",
+      "applyToAdminsHint": "Włączone — żadna reguła nie przepuszcza administratora; pole każdej reguły jest pomijane."
     },
     "comingSoon": {
       "subtitle": "Ta sekcja ustawień jest w przygotowaniu. Bądź na bieżąco!"

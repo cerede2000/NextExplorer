@@ -645,7 +645,11 @@
       "pathMissing": "Nu există niciun dosar la această cale. O regulă folosește calea așa cum o arată NextExplorer, începând cu numele volumului.",
       "pathInvalid": "Această cale nu se află în niciun volum, așa că regula nu se va aplica niciodată.",
       "useSuggestion": "Folosiți {path}",
-      "adminNote": "Regulile „Doar citire” nu îi restricționează pe administratori. Regulile „Ascuns” se aplică tuturor, inclusiv administratorilor."
+      "adminNote": "Fiecare regulă spune dacă se aplică administratorilor. Fără asta, o regulă „Doar citire” îi lasă să scrie, iar o regulă „Ascuns” le ascunde și lor dosarul.",
+      "appliesToAdmins": "Se aplică administratorilor",
+      "appliesToAdminsHint": "Supune acestei reguli și administratorii.",
+      "applyToAdmins": "Aplică toate regulile administratorilor",
+      "applyToAdminsHint": "Activat, nicio regulă nu lasă un administrator să treacă — caseta fiecărei reguli este ignorată."
     },
     "comingSoon": {
       "subtitle": "Această secțiune de setări este în lucru. Revino în curând!"

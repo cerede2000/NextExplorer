@@ -645,7 +645,11 @@
       "pathMissing": "Nessuna cartella a questo percorso. Una regola usa il percorso come lo mostra NextExplorer, a partire dal nome del volume.",
       "pathInvalid": "Questo percorso non è in nessun volume, quindi la regola non si applicherà mai.",
       "useSuggestion": "Usa {path}",
-      "adminNote": "Le regole «Sola lettura» non limitano gli amministratori. Le regole «Nascosta» valgono per tutti, amministratori compresi."
+      "adminNote": "Ogni regola dice se si applica agli amministratori. Senza, una regola «Sola lettura» li lascia scrivere e una regola «Nascosto» nasconde la cartella anche a loro.",
+      "appliesToAdmins": "Si applica agli amministratori",
+      "appliesToAdminsHint": "Vincolare a questa regola anche gli amministratori.",
+      "applyToAdmins": "Applica tutte le regole agli amministratori",
+      "applyToAdminsHint": "Attivo, nessuna regola lascia passare un amministratore: la casella della singola regola viene ignorata."
     },
     "comingSoon": {
       "subtitle": "Questa sezione delle impostazioni è in costruzione. Resta sintonizzato!"

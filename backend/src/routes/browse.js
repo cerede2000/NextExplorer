@@ -90,7 +90,7 @@ router.get(
       context,
       thumbsEnabled,
       includeHiddenFiles,
-      permissionRules: settings?.access?.rules || [],
+      access: settings?.access || null,
       itemExtras: await versionMarks(directoryPath, userSettings),
     });
 

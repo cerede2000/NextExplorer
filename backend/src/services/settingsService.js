@@ -7,6 +7,7 @@ const folderSizeExclusions = require('./folderSizeExclusions');
 const searchIndexExclusions = require('./searchIndexExclusions');
 const { generateId } = require('../utils/ids');
 const { ValidationError } = require('../errors/AppError');
+const { ruleAppliesToAdmins } = require('../utils/accessRules');
 
 const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
 const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
@@ -227,14 +228,42 @@ const sanitizeAccessRules = (rules = [], { strict = false } = {}) => {
         return refuse(`"${rule.recursive}" does not say whether the rule covers what is inside.`);
       }
 
+      if (rule.appliesToAdmins !== undefined && typeof rule.appliesToAdmins !== 'boolean') {
+        return refuse(
+          `"${rule.appliesToAdmins}" does not say whether the rule holds administrators too.`
+        );
+      }
+
       return {
         id: rule.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         path: normalizedPath,
         recursive: Boolean(rule.recursive),
         permissions,
+        // Stored as a plain yes or no, so the page shows a definite box and
+        // nothing has to guess again. What a rule written before this switch
+        // existed means is decided in one place, utils/accessRules.
+        appliesToAdmins: ruleAppliesToAdmins({ ...rule, permissions }),
       };
     })
     .filter(Boolean);
+};
+
+/**
+ * The access section: the rules, and whether every one of them also holds
+ * administrators. The setting is the blunt one — on, no rule lets an
+ * administrator through; off, each rule says for itself.
+ */
+const sanitizeAccess = (access = {}, { strict = false } = {}) => {
+  const source = access && typeof access === 'object' && !Array.isArray(access) ? access : {};
+  if (source.applyToAdmins !== undefined && typeof source.applyToAdmins !== 'boolean' && strict) {
+    throw new ValidationError(
+      'Whether the rules hold administrators too has to be sent as true or false.'
+    );
+  }
+  return {
+    rules: sanitizeAccessRules(source.rules || [], { strict }),
+    applyToAdmins: source.applyToAdmins === true,
+  };
 };
 
 /**
@@ -468,10 +497,7 @@ const getSystemSettings = async () => {
       if (row.key === 'thumbnails') {
         Object.assign(thumbnails, JSON.parse(row.value));
       } else if (row.key === 'access') {
-        const accessData = JSON.parse(row.value);
-        if (accessData.rules) {
-          access.rules = accessData.rules;
-        }
+        Object.assign(access, JSON.parse(row.value));
       } else if (row.key === 'uploads') {
         uploads = { ...uploads, ...JSON.parse(row.value) };
       } else if (row.key === 'folderSize') {
@@ -492,9 +518,7 @@ const getSystemSettings = async () => {
 
   return {
     thumbnails: sanitizeThumbnails(thumbnails),
-    access: {
-      rules: sanitizeAccessRules(access.rules),
-    },
+    access: sanitizeAccess(access),
     uploads: sanitizeUploads(uploads),
     trash: sanitizeTrash(trash),
     versions: sanitizeVersions(versions),
@@ -761,7 +785,7 @@ const sanitizeSystemSetting = (key, value) => {
   if (key === 'thumbnails') return sanitizeThumbnails(value);
   // Strict: what is being stored was just written by somebody, and a rule that
   // cannot be stored as they wrote it is answered rather than dropped.
-  if (key === 'access') return { rules: sanitizeAccessRules(value.rules || [], { strict: true }) };
+  if (key === 'access') return sanitizeAccess(value, { strict: true });
   if (key === 'uploads') return sanitizeUploads(value);
   if (key === 'branding') return sanitizeBranding(value);
   if (key === 'folderSize') return sanitizeFolderSize(value);
@@ -926,8 +950,14 @@ const setSettings = async (partial) => {
   // Deep merge
   const merged = {
     thumbnails: { ...current.thumbnails, ...(partial.thumbnails || {}) },
+    // Each half of the section stands on its own: saving the rules alone must
+    // not quietly switch off whether they hold administrators, and vice versa.
     access: {
       rules: partial.access?.rules !== undefined ? partial.access.rules : current.access.rules,
+      applyToAdmins:
+        partial.access?.applyToAdmins !== undefined
+          ? partial.access.applyToAdmins
+          : current.access.applyToAdmins,
     },
     uploads: { ...current.uploads, ...(partial.uploads || {}) },
     trash: { ...current.trash, ...(partial.trash || {}) },

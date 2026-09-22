@@ -645,7 +645,11 @@
       "pathMissing": "Det finns ingen mapp på den här sökvägen. En regel använder sökvägen så som NextExplorer visar den, med volymens namn först.",
       "pathInvalid": "Den här sökvägen ligger inte i någon volym, så regeln kommer aldrig att gälla.",
       "useSuggestion": "Använd {path}",
-      "adminNote": "Regler ”Skrivskyddad” begränsar inte administratörer. Regler ”Dold” gäller alla, även administratörer."
+      "adminNote": "Varje regel säger om den gäller administratörer. Utan det låter en regel ”Skrivskyddad” dem skriva, och en regel ”Dold” döljer mappen även för dem.",
+      "appliesToAdmins": "Gäller administratörer",
+      "appliesToAdminsHint": "Låt regeln gälla även administratörer.",
+      "applyToAdmins": "Tillämpa alla regler på administratörer",
+      "applyToAdminsHint": "På släpper ingen regel igenom en administratör – varje regels egen ruta ignoreras."
     },
     "comingSoon": {
       "subtitle": "Denna inställningssektion håller på att byggas. Vänta och se!"

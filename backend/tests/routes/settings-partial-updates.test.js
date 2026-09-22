@@ -518,3 +518,70 @@ describe('what a rule and an exclusion list are held to', () => {
     expect(stored.excludedPaths).toEqual((await readAsAdmin()).searchIndex.excludedPaths);
   });
 });
+
+/**
+ * The access section is saved from two controls: the list of rules, and the one
+ * switch above them that holds administrators to every rule.
+ *
+ * The route used to forward the rules alone. Saving them switched the setting
+ * back off — silently widening what administrators could reach — and a request
+ * that carried only the switch stored nothing at all, so turning it on did
+ * nothing whatever the page showed. The service was right either way, which is
+ * why only a test that goes through the route catches it.
+ */
+describe('the access section, saved half at a time', () => {
+  const RULE = { path: 'Team', recursive: true, permissions: 'ro', appliesToAdmins: true };
+
+  const storeBoth = () =>
+    patch(['admin'], { access: { rules: [RULE], applyToAdmins: true } }).expect(200);
+
+  it('keeps the switch when only the rules are sent', async () => {
+    await seed();
+    await storeBoth();
+
+    await patch(['admin'], {
+      access: { rules: [{ ...RULE, path: 'Finance' }] },
+    }).expect(200);
+
+    const { access } = await readAsAdmin();
+    expect(access.applyToAdmins).toBe(true);
+    expect(access.rules.map((rule) => rule.path)).toEqual(['Finance']);
+  });
+
+  it('keeps the rules when only the switch is sent', async () => {
+    await seed();
+    await storeBoth();
+
+    await patch(['admin'], { access: { applyToAdmins: false } }).expect(200);
+
+    const { access } = await readAsAdmin();
+    expect(access.applyToAdmins).toBe(false);
+    expect(access.rules.map((rule) => rule.path)).toEqual(['Team']);
+  });
+
+  it('stores what each rule says about administrators', async () => {
+    await seed();
+
+    await patch(['admin'], {
+      access: {
+        rules: [
+          { path: 'Team', recursive: true, permissions: 'ro', appliesToAdmins: true },
+          { path: 'Vault', recursive: true, permissions: 'hidden', appliesToAdmins: false },
+        ],
+      },
+    }).expect(200);
+
+    const { access } = await readAsAdmin();
+    expect(access.rules.map((rule) => rule.appliesToAdmins)).toEqual([true, false]);
+  });
+
+  it('refuses a switch that is not a yes or a no, and stores nothing', async () => {
+    await seed();
+    await storeBoth();
+
+    await patch(['admin'], { access: { applyToAdmins: 'yes' } }).expect(400);
+
+    const { access } = await readAsAdmin();
+    expect(access.applyToAdmins).toBe(true);
+  });
+});

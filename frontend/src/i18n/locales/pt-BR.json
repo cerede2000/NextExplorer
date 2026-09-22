@@ -674,7 +674,11 @@
       "pathMissing": "Não há pasta neste caminho. Uma regra usa o caminho como o NextExplorer o mostra, começando pelo nome do volume.",
       "pathInvalid": "Este caminho não está dentro de nenhum volume, então a regra nunca será aplicada.",
       "useSuggestion": "Usar {path}",
-      "adminNote": "Regras “Somente Leitura” não restringem administradores. Regras “Oculto” valem para todos, inclusive administradores."
+      "adminNote": "Cada regra diz se se aplica aos administradores. Sem isso, uma regra “Somente leitura” os deixa escrever e uma regra “Oculto” também esconde a pasta deles.",
+      "appliesToAdmins": "Aplica-se aos administradores",
+      "appliesToAdminsHint": "Sujeitar também os administradores a esta regra.",
+      "applyToAdmins": "Aplicar todas as regras aos administradores",
+      "applyToAdminsHint": "Ligado, nenhuma regra deixa um administrador passar — a caixa de cada regra é ignorada."
     },
     "comingSoon": {
       "subtitle": "Esta seção de configurações está em construção. Aguarde!"

@@ -8728,10 +8728,18 @@
                               "permissions": {
                                 "type": "string",
                                 "enum": ["rw", "ro", "hidden"]
+                              },
+                              "appliesToAdmins": {
+                                "type": "boolean",
+                                "description": "Whether this rule holds administrators too. Left unsaid, a rule stored before this existed keeps what it did: a hidden one held them, a read-only one did not."
                               }
                             },
                             "additionalProperties": true
                           }
+                        },
+                        "applyToAdmins": {
+                          "type": "boolean",
+                          "description": "Hold administrators to every rule, whatever each rule says."
                         }
                       }
                     },
@@ -8852,10 +8860,18 @@
                             "permissions": {
                               "type": "string",
                               "enum": ["rw", "ro", "hidden"]
+                            },
+                            "appliesToAdmins": {
+                              "type": "boolean",
+                              "description": "Whether this rule holds administrators too. Left unsaid, a rule stored before this existed keeps what it did: a hidden one held them, a read-only one did not."
                             }
                           },
                           "additionalProperties": true
                         }
+                      },
+                      "applyToAdmins": {
+                        "type": "boolean",
+                        "description": "Hold administrators to every rule, whatever each rule says."
                       }
                     }
                   },
@@ -8958,10 +8974,18 @@
                               "permissions": {
                                 "type": "string",
                                 "enum": ["rw", "ro", "hidden"]
+                              },
+                              "appliesToAdmins": {
+                                "type": "boolean",
+                                "description": "Whether this rule holds administrators too. Left unsaid, a rule stored before this existed keeps what it did: a hidden one held them, a read-only one did not."
                               }
                             },
                             "additionalProperties": true
                           }
+                        },
+                        "applyToAdmins": {
+                          "type": "boolean",
+                          "description": "Hold administrators to every rule, whatever each rule says."
                         }
                       }
                     },
@@ -9111,10 +9135,18 @@
                                   "permissions": {
                                     "type": "string",
                                     "enum": ["rw", "ro", "hidden"]
+                                  },
+                                  "appliesToAdmins": {
+                                    "type": "boolean",
+                                    "description": "Whether this rule holds administrators too. Left unsaid, a rule stored before this existed keeps what it did: a hidden one held them, a read-only one did not."
                                   }
                                 },
                                 "additionalProperties": true
                               }
+                            },
+                            "applyToAdmins": {
+                              "type": "boolean",
+                              "description": "Hold administrators to every rule, whatever each rule says."
                             }
                           }
                         },

@@ -645,7 +645,11 @@
       "pathMissing": "Unter diesem Pfad gibt es keinen Ordner. Eine Regel verwendet den Pfad so, wie NextExplorer ihn anzeigt, beginnend mit dem Namen des Volumes.",
       "pathInvalid": "Dieser Pfad liegt in keinem Volume, daher greift die Regel nie.",
       "useSuggestion": "{path} verwenden",
-      "adminNote": "Regeln „Nur Lesen“ schränken Administratoren nicht ein. Regeln „Ausgeblendet“ gelten für alle, auch für Administratoren."
+      "adminNote": "Jede Regel sagt, ob sie für Administratoren gilt. Ohne das lässt eine Regel „Nur Lesen“ sie schreiben, und eine Regel „Versteckt“ verbirgt den Ordner auch vor ihnen.",
+      "appliesToAdmins": "Gilt für Administratoren",
+      "appliesToAdminsHint": "Auch Administratoren an diese Regel binden.",
+      "applyToAdmins": "Alle Regeln auf Administratoren anwenden",
+      "applyToAdminsHint": "Eingeschaltet lässt keine Regel einen Administrator durch – das Kästchen der einzelnen Regel wird ignoriert."
     },
     "comingSoon": {
       "subtitle": "Dieser Einstellungsbereich wird derzeit entwickelt. Bleiben Sie dran!"

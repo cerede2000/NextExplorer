@@ -674,7 +674,11 @@
       "pathMissing": "No folder at this path. A rule uses the path as NextExplorer shows it, starting with the volume name.",
       "pathInvalid": "This path is not inside a volume, so the rule will never apply.",
       "useSuggestion": "Use {path}",
-      "adminNote": "“Read Only” rules do not restrict administrators. “Hidden” rules apply to everyone, administrators included."
+      "adminNote": "Each rule says whether it holds administrators. Without it, a “Read Only” rule leaves them free to write and a “Hidden” rule hides the folder from them too.",
+      "appliesToAdmins": "Applies to administrators",
+      "appliesToAdminsHint": "Hold administrators to this rule as well.",
+      "applyToAdmins": "Apply every rule to administrators",
+      "applyToAdminsHint": "With this on, no rule lets an administrator through — each rule's own box is ignored."
     },
     "comingSoon": {
       "subtitle": "This settings section is being built. Stay tuned!"

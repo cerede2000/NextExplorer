@@ -35,11 +35,15 @@ const settings = obj(
             path: str(),
             recursive: bool(),
             permissions: str(null, { enum: ['rw', 'ro', 'hidden'] }),
+            appliesToAdmins: bool(
+              'Whether this rule holds administrators too. Left unsaid, a rule stored before this existed keeps what it did: a hidden one held them, a read-only one did not.'
+            ),
           },
           [],
           { additionalProperties: true }
         )
       ),
+      applyToAdmins: bool('Hold administrators to every rule, whatever each rule says.'),
     }),
     folderSize: section(
       'Mode and excluded folders — those from the environment cannot be changed here.'

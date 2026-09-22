@@ -64,8 +64,10 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
   const { user, guestSession } = context;
   const permissionResolver =
     typeof options.permissionResolver === 'function' ? options.permissionResolver : null;
-  const getPerm = async (p) =>
-    permissionResolver ? permissionResolver(p) : await getPermissionForPath(p);
+  // Who is asking travels with the path: a rule holds an administrator only
+  // when it says so, or when the setting above the rules says so for all.
+  const getPerm = async (p, who) =>
+    permissionResolver ? permissionResolver(p, who) : await getPermissionForPath(p, who);
 
   // Guests cannot access volumes directly (only through shares).
   // If an authenticated user is present, prefer the user context over any stale guest session.
@@ -97,7 +99,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     const isReadOnly = userVolume.accessMode === 'readonly';
 
     // Also check path-level access control rules
-    const permission = await getPerm(relativePath);
+    const permission = await getPerm(relativePath, { isAdmin: false });
     if (permission === 'hidden') {
       return createDeniedAccess('Path is hidden');
     }
@@ -140,8 +142,10 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     return createDeniedAccess('Personal folders are reached through the personal space');
   }
 
-  // Check access control rules
-  const permission = await getPerm(relativePath);
+  // Check access control rules. A rule that does not hold administrators was
+  // already passed over while resolving, so what comes back is what binds this
+  // caller: an administrator is no longer excused from it here.
+  const permission = await getPerm(relativePath, { isAdmin });
   if (permission === 'hidden') {
     return createDeniedAccess('Path is hidden');
   }
@@ -151,11 +155,11 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
   return {
     canAccess: true,
     canRead: true,
-    canWrite: !isReadOnly || isAdmin,
-    canDelete: !isReadOnly || isAdmin,
-    canUpload: !isReadOnly || isAdmin,
-    canCreateFolder: !isReadOnly || isAdmin,
-    canCreateFile: !isReadOnly || isAdmin,
+    canWrite: !isReadOnly,
+    canDelete: !isReadOnly,
+    canUpload: !isReadOnly,
+    canCreateFolder: !isReadOnly,
+    canCreateFile: !isReadOnly,
     canShare: true,
     canDownload: true,
     isShared: false,
@@ -277,7 +281,10 @@ const readSourceLimits = async (share, innerPath, { getPerm, userVolumeCache }) 
   if (share.sourceSpace === 'volume') {
     const refused = personalRootDenial(directories.volume, under(share.sourcePath));
     if (refused) return refused;
-    const permission = await getPerm(under(share.sourcePath));
+    // What a share opens is bound by the rules whoever follows the link is:
+    // the link is the lens, not the account behind it, so no rule is waived
+    // here for an administrator.
+    const permission = await getPerm(under(share.sourcePath), { isAdmin: false });
     if (permission === 'hidden') return { denial: createDeniedAccess('Path is hidden') };
     return { readOnly: permission === 'ro' };
   }
@@ -305,7 +312,7 @@ const readSourceLimits = async (share, innerPath, { getPerm, userVolumeCache }) 
     if (refused) return refused;
 
     const logicalForRules = `${userVolume.label}${under(rest.join('/')) ? `/${under(rest.join('/'))}` : ''}`;
-    const permission = await getPerm(logicalForRules);
+    const permission = await getPerm(logicalForRules, { isAdmin: false });
     if (permission === 'hidden') return { denial: createDeniedAccess('Path is hidden') };
     return { readOnly: userVolume.accessMode === 'readonly' || permission === 'ro' };
   }
@@ -365,7 +372,8 @@ const readOptions = (options = {}) => {
     typeof options.permissionResolver === 'function' ? options.permissionResolver : null;
 
   return {
-    getPerm: async (p) => (permissionResolver ? permissionResolver(p) : getPermissionForPath(p)),
+    getPerm: async (p, who) =>
+      permissionResolver ? permissionResolver(p, who) : getPermissionForPath(p, who),
     shareCache: options.shareCache instanceof Map ? options.shareCache : null,
     userVolumeCache: options.userVolumeCache instanceof Map ? options.userVolumeCache : null,
   };

@@ -1073,7 +1073,7 @@ router.get(
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const permissionRules = Array.isArray(settings?.access?.rules) ? settings.access.rules : [];
     const permissionResolver = permissionRules.length
-      ? createPermissionResolver(permissionRules)
+      ? createPermissionResolver(settings.access)
       : null;
     const shareCache = new Map();
     const userVolumeCache = new Map();

@@ -16,6 +16,7 @@ import { isPreviewableImage, isPreviewableVideo } from '@/config/media';
 import { useSettingsStore } from '@/stores/settings';
 import { DragSelectOption } from '@coleqiu/vue-drag-select';
 import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
+import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
 import { CheckIcon } from '@heroicons/vue/20/solid';
@@ -407,7 +408,11 @@ if (isTouchDevice.value) {
         </template>
         <template v-else>
           {{ ellipses(item.name, (maxl = 15))
-          }}<button
+          }}<ReadOnlyMark
+            v-if="item.readOnly"
+            :reason="item.readOnly"
+            class="ml-1 align-middle"
+          /><button
             v-if="versionCount"
             type="button"
             :title="versionsLabel"
@@ -479,6 +484,7 @@ if (isTouchDevice.value) {
           </template>
           <template v-else>
             {{ ellipses(item.name, (maxl = 50)) }}
+            <ReadOnlyMark v-if="item.readOnly" :reason="item.readOnly" />
             <span
               v-if="onlyofficeActivity?.active"
               :title="onlyofficeActivityLabel"
@@ -582,6 +588,9 @@ if (isTouchDevice.value) {
                long to leave room. The name never shifts, so browsing isn't jumpy. -->
           <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
             <MiddleEllipsis :text="item.name" :end-chars="10" />
+            <!-- A rule holds this entry to reading: the same lock a volume held
+                 to reading carries, drawn where the restriction begins. -->
+            <ReadOnlyMark v-if="item.readOnly" :reason="item.readOnly" />
             <span
               v-if="onlyofficeActivity?.active"
               :title="onlyofficeActivityLabel"

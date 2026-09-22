@@ -9,17 +9,32 @@ import StoragePickerDialog from '@/components/StoragePickerDialog.vue';
 const appSettings = useAppSettings();
 const { t } = useI18n();
 
-const local = reactive({ rules: [] });
-const original = computed(() => appSettings.state.access.rules);
-const dirty = computed(() => JSON.stringify(local.rules) !== JSON.stringify(original.value));
+const local = reactive({ rules: [], applyToAdmins: false });
+const original = computed(() => ({
+  rules: appSettings.state.access.rules,
+  applyToAdmins: appSettings.state.access.applyToAdmins === true,
+}));
+const dirty = computed(
+  () =>
+    JSON.stringify(local.rules) !== JSON.stringify(original.value.rules) ||
+    local.applyToAdmins !== original.value.applyToAdmins
+);
 
 watch(
-  () => appSettings.state.access.rules,
-  (rules) => {
-    local.rules = rules.map((r) => ({ ...r }));
+  () => appSettings.state.access,
+  (access) => {
+    local.rules = (access?.rules || []).map((r) => ({ ...r }));
+    local.applyToAdmins = access?.applyToAdmins === true;
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
+
+/**
+ * With the setting on, every rule holds administrators whatever its own box
+ * says, so each box is shown ticked and turned off rather than leaving a rule
+ * looking as though it spared them.
+ */
+const holdsAdmins = (rule) => local.applyToAdmins || rule.appliesToAdmins === true;
 
 /**
  * What each typed path names on the disk, asked of the server as the rules
@@ -88,6 +103,9 @@ const addRule = () => {
     path: '',
     recursive: true,
     permissions: 'ro',
+    // Administrators keep their hands free unless somebody says otherwise,
+    // which is what a read-only rule has always done.
+    appliesToAdmins: false,
   });
 };
 
@@ -95,7 +113,8 @@ const removeRule = (idx) => {
   local.rules.splice(idx, 1);
 };
 const reset = () => {
-  local.rules = original.value.map((r) => ({ ...r }));
+  local.rules = original.value.rules.map((r) => ({ ...r }));
+  local.applyToAdmins = original.value.applyToAdmins;
 };
 // Why the last save was refused. Without it, a refusal left nothing but the
 // unsaved-changes bar, and an administrator could believe a folder was hidden.
@@ -114,12 +133,13 @@ const save = async () => {
   }));
   saveError.value = '';
   try {
-    await appSettings.save({ access: { rules: cleaned } });
+    await appSettings.save({ access: { rules: cleaned, applyToAdmins: local.applyToAdmins } });
   } catch (error) {
     saveError.value = error?.message || t('settings.trash.saveFailed');
     return;
   }
   local.rules = appSettings.state.access.rules.map((r) => ({ ...r }));
+  local.applyToAdmins = appSettings.state.access.applyToAdmins === true;
 };
 </script>
 
@@ -174,6 +194,26 @@ const save = async () => {
       </button>
     </div>
 
+    <!-- One switch above the rules: on, no rule lets an administrator through. -->
+    <label
+      class="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <input
+        type="checkbox"
+        v-model="local.applyToAdmins"
+        data-test="access-apply-to-admins"
+        class="mt-0.5 h-4 w-4 rounded-sm border-zinc-300 text-zinc-600 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800"
+      />
+      <span class="text-sm">
+        <span class="font-medium text-zinc-900 dark:text-zinc-100">
+          {{ t('settings.access.applyToAdmins') }}
+        </span>
+        <span class="mt-1 block text-zinc-500 dark:text-zinc-400">
+          {{ t('settings.access.applyToAdminsHint') }}
+        </span>
+      </span>
+    </label>
+
     <!-- Content -->
     <div
       v-if="local.rules.length === 0"
@@ -199,6 +239,7 @@ const save = async () => {
             <tr>
               <th class="px-6 py-3">{{ t('common.path') }}</th>
               <th class="px-6 py-3">{{ t('settings.access.recursive') }}</th>
+              <th class="px-6 py-3">{{ t('settings.access.appliesToAdmins') }}</th>
               <th class="px-6 py-3">{{ t('common.permissions') }}</th>
               <th class="px-6 py-3 w-24"></th>
             </tr>
@@ -261,6 +302,22 @@ const save = async () => {
                     type="checkbox"
                     v-model="rule.recursive"
                     class="h-4 w-4 rounded-sm border-zinc-300 text-zinc-600 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800"
+                  />
+                </label>
+              </td>
+              <td class="px-6 py-4 align-top">
+                <label
+                  class="inline-flex items-center pt-2"
+                  :class="local.applyToAdmins ? 'cursor-not-allowed' : 'cursor-pointer'"
+                  :title="local.applyToAdmins ? t('settings.access.applyToAdminsHint') : ''"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="holdsAdmins(rule)"
+                    :disabled="local.applyToAdmins"
+                    :data-test="`rule-applies-to-admins-${idx}`"
+                    class="h-4 w-4 rounded-sm border-zinc-300 text-zinc-600 focus:ring-zinc-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800"
+                    @change="rule.appliesToAdmins = $event.target.checked"
                   />
                 </label>
               </td>

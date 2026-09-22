@@ -645,7 +645,11 @@
       "pathMissing": "此路径下没有文件夹。规则使用 NextExplorer 显示的路径，以卷名开头。",
       "pathInvalid": "此路径不在任何卷内，因此该规则永远不会生效。",
       "useSuggestion": "使用 {path}",
-      "adminNote": "“只读”规则不限制管理员。“隐藏”规则适用于所有人，包括管理员。"
+      "adminNote": "每条规则都会说明是否适用于管理员。否则，“只读”规则仍允许他们写入，而“隐藏”规则也会对他们隐藏该文件夹。",
+      "appliesToAdmins": "同样适用于管理员",
+      "appliesToAdminsHint": "让该规则同样约束管理员。",
+      "applyToAdmins": "将所有规则应用于管理员",
+      "applyToAdminsHint": "开启后，任何规则都不会放过管理员——每条规则自己的勾选将被忽略。"
     },
     "comingSoon": {
       "subtitle": "此设置部分正在构建中，敬请期待！"

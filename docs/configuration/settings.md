@@ -54,7 +54,10 @@ These two are the only background workers a page can start. Both read volumes th
 - **Rule editor:** Define per-folder rules with `path`, `type` (`rw`, `ro`, `hidden`), and recursion options.
 - **The path is the one NextExplorer shows:** the volume first, then its folders — `torrents/films`, not the host's `/volume3/downloads/torrents` nor the container's `/mnt/torrents`. Type it, or choose it with the folder button beside the field. A path that names no folder is flagged, with the folder probably meant one click away; it is a warning and not a refusal, since a rule may be written for a folder that does not exist yet.
 - **First-match wins:** Rules are evaluated top to bottom; the first matching path governs browser behavior.
-- **Who a rule restricts:** `ro` restricts every account except administrators, who can still write there. `hidden` applies to everyone, administrators included. The page says so under its title.
+- **Who a rule restricts:** every rule restricts every ordinary account. Whether it also restricts administrators is the rule's own switch, **Applies to administrators**, the same whatever the rule grants — so a `ro` rule can hold them to reading, and a `hidden` rule can leave a folder in plain sight for them while hiding it from everybody else.
+- **Apply every rule to administrators:** one switch above the list. With it on, no rule lets an administrator through and each rule's own box is ignored; with it off, each rule decides for itself.
+- **Rules written before this existed** keep doing what they did — a `ro` rule left administrators free to write, a `hidden` rule hid the folder from them too — until the box on the rule is changed. Nothing moves on an upgrade.
+- **A folder a rule holds you to reading carries a small lock** in the listing, where the restriction begins, so a rule is visible before anything is attempted.
 - **Hidden folders:** `hidden` keeps a folder out of listings and search, and refuses it by its address as well.
 
 ## Admin Users

@@ -5,7 +5,6 @@ const {
   setUserSetting,
   setUserFolderSort,
   setUserFolderView,
-  setSystemSetting,
   checkSystemSection,
   mergeSystemSection,
   replaceBranding,
@@ -298,11 +297,26 @@ const brandingSection = {
  * Which is why it is checked here, before any other section is written — a
  * list sent as something that is not a list is still dropped, as it always
  * was, because then there is nothing to store.
+ *
+ * The switch that holds administrators to every rule is saved from a control of
+ * its own, so each half is taken only when it was sent and merged over what is
+ * stored: saving the rules must not switch it off, and switching it must not
+ * empty the rules.
  */
 const accessSection = {
-  check: (section) =>
-    Array.isArray(section.rules) ? checkSystemSection('access', { rules: section.rules }) : null,
-  write: (update) => setSystemSetting('system', 'access', update),
+  check: (section) => {
+    const update = {};
+    if (Array.isArray(section.rules)) {
+      update.rules = checkSystemSection('access', { rules: section.rules }).rules;
+    }
+    if (section.applyToAdmins !== undefined) {
+      update.applyToAdmins = checkSystemSection('access', {
+        applyToAdmins: section.applyToAdmins,
+      }).applyToAdmins;
+    }
+    return Object.keys(update).length > 0 ? update : null;
+  },
+  write: (update) => mergeSystemSection('system', 'access', update),
 };
 
 /**

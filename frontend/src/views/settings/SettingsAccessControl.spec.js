@@ -55,11 +55,14 @@ let handlerErrors;
 /** Replaces the stored list with what the server kept, as the real store does. */
 const serverKeeps = (rules) => rules.map((rule) => ({ ...rule }));
 
-const open = async (rules = RULES) => {
+const open = async (rules = RULES, { applyToAdmins = false } = {}) => {
   appSettings = reactive({
-    state: { access: { rules: rules.map((rule) => ({ ...rule })) } },
+    state: { access: { rules: rules.map((rule) => ({ ...rule })), applyToAdmins } },
     save: vi.fn(async (partial) => {
       appSettings.state.access.rules = serverKeeps(partial.access.rules);
+      if (partial.access.applyToAdmins !== undefined) {
+        appSettings.state.access.applyToAdmins = partial.access.applyToAdmins;
+      }
     }),
   });
   handlerErrors = [];
@@ -139,6 +142,7 @@ describe('adding a rule', () => {
     expect(appSettings.save).toHaveBeenCalledTimes(1);
     expect(sent()).toEqual({
       access: {
+        applyToAdmins: false,
         rules: [
           ...RULES,
           {
@@ -146,6 +150,8 @@ describe('adding a rule', () => {
             path: 'Legal/Contracts',
             recursive: true,
             permissions: 'hidden',
+            // A new rule leaves administrators alone until somebody says otherwise.
+            appliesToAdmins: false,
           },
         ],
       },
@@ -238,7 +244,7 @@ describe('removing a rule', () => {
     await removeOf(row(0)).trigger('click');
     await save();
 
-    expect(sent()).toEqual({ access: { rules: [] } });
+    expect(sent()).toEqual({ access: { rules: [], applyToAdmins: false } });
   });
 });
 
@@ -433,7 +439,7 @@ describe('a path that names no folder', () => {
     expect(row(0).find('[data-test="access-rule-path-warning"]').exists()).toBe(false);
     await removeOf(row(0)).trigger('click');
     await save();
-    expect(sent()).toEqual({ access: { rules: [] } });
+    expect(sent()).toEqual({ access: { rules: [], applyToAdmins: false } });
   });
 });
 
@@ -475,5 +481,77 @@ describe('who the rules restrict', () => {
   it('is said on the page', async () => {
     await open();
     expect(wrapper.get('[data-test="access-admin-note"]').text()).toBe('settings.access.adminNote');
+  });
+});
+
+/**
+ * Whom a rule holds.
+ *
+ * A read-only rule used to leave administrators free to write and a hidden one
+ * used to hide the folder from them too, neither of which was said anywhere
+ * (nxzai/NextExplorer#407). Each rule now carries the same box, and one switch
+ * above them all holds administrators to every rule at once.
+ */
+describe('whether a rule holds administrators', () => {
+  const adminBox = (index) => row(index).get('[data-test^="rule-applies-to-admins"]');
+  const globalBox = () => wrapper.get('[data-test="access-apply-to-admins"]');
+
+  it('shows a rule holding them ticked and one sparing them empty', async () => {
+    await open([
+      { ...RULES[0], appliesToAdmins: true },
+      { ...RULES[1], appliesToAdmins: false },
+    ]);
+
+    expect(adminBox(0).element.checked).toBe(true);
+    expect(adminBox(1).element.checked).toBe(false);
+  });
+
+  it('sends the box as it was ticked, rule by rule', async () => {
+    await open([{ ...RULES[0], appliesToAdmins: false }]);
+
+    await adminBox(0).setValue(true);
+    await save();
+
+    expect(sent().access.rules[0]).toMatchObject({ id: 'r1', appliesToAdmins: true });
+  });
+
+  it('sends the switch above the rules, and keeps the rules with it', async () => {
+    await open();
+
+    await globalBox().setValue(true);
+    await save();
+
+    expect(sent().access.applyToAdmins).toBe(true);
+    expect(sent().access.rules).toHaveLength(3);
+  });
+
+  /**
+   * With the switch on, a rule sparing administrators would read as a promise
+   * the server does not keep, so every box shows ticked and cannot be changed.
+   */
+  it('shows every rule as holding them, and lets none be unticked, while the switch is on', async () => {
+    await open([{ ...RULES[0], appliesToAdmins: false }], { applyToAdmins: true });
+
+    expect(globalBox().element.checked).toBe(true);
+    expect(adminBox(0).element.checked).toBe(true);
+    expect(adminBox(0).attributes('disabled')).toBeDefined();
+  });
+
+  it('is a change worth saving on its own', async () => {
+    await open();
+    expect(wrapper.text()).not.toContain('common.unsavedChanges');
+
+    await globalBox().setValue(true);
+
+    expect(wrapper.text()).toContain('common.unsavedChanges');
+  });
+
+  it('puts the switch back where it was when the change is discarded', async () => {
+    await open();
+
+    await globalBox().setValue(true);
+    await button('common.discard').trigger('click');
+
+    expect(globalBox().element.checked).toBe(false);
   });
 });

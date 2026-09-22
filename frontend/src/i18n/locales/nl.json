@@ -674,7 +674,11 @@
       "pathMissing": "Er is geen map op dit pad. Een regel gebruikt het pad zoals NextExplorer het toont, beginnend met de naam van het volume.",
       "pathInvalid": "Dit pad ligt niet in een volume, dus de regel wordt nooit toegepast.",
       "useSuggestion": "{path} gebruiken",
-      "adminNote": "Regels „Alleen-lezen” beperken beheerders niet. Regels „Verborgen” gelden voor iedereen, ook voor beheerders."
+      "adminNote": "Elke regel zegt of die voor beheerders geldt. Zonder dat laat een regel ‘Alleen lezen’ hen schrijven en verbergt een regel ‘Verborgen’ de map ook voor hen.",
+      "appliesToAdmins": "Geldt voor beheerders",
+      "appliesToAdminsHint": "Ook beheerders aan deze regel houden.",
+      "applyToAdmins": "Alle regels op beheerders toepassen",
+      "applyToAdminsHint": "Aan laat geen enkele regel een beheerder door — het vinkje van elke regel wordt genegeerd."
     },
     "comingSoon": {
       "subtitle": "Deze sectie Instellingen wordt momenteel gebouwd. Blijf op de hoogte!"

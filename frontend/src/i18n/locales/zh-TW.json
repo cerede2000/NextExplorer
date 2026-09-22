@@ -645,7 +645,11 @@
       "pathMissing": "此路徑下沒有資料夾。規則使用 NextExplorer 顯示的路徑，以磁碟區名稱開頭。",
       "pathInvalid": "此路徑不在任何磁碟區內，因此該規則永遠不會生效。",
       "useSuggestion": "使用 {path}",
-      "adminNote": "「只讀」規則不限制管理員。「隱藏」規則適用於所有人，包括管理員。"
+      "adminNote": "每條規則都會說明是否適用於管理員。否則，「唯讀」規則仍允許他們寫入，而「隱藏」規則也會對他們隱藏該資料夾。",
+      "appliesToAdmins": "同樣適用於管理員",
+      "appliesToAdminsHint": "讓該規則同樣約束管理員。",
+      "applyToAdmins": "將所有規則套用於管理員",
+      "applyToAdminsHint": "開啟後，任何規則都不會放過管理員——每條規則自己的勾選將被忽略。"
     },
     "comingSoon": {
       "subtitle": "此設置部分正在建置中，敬請期待！"

@@ -3,18 +3,50 @@ const path = require('path');
 
 const { directories } = require('../config/index');
 const { normalizeRelativePath, isInsidePersonalRoot } = require('../utils/pathUtils');
+const { ruleAppliesToAdmins } = require('../utils/accessRules');
 const { getSettings, setSettings } = require('../services/settingsService');
 
-const createPermissionResolver = (rules = []) => {
-  const normalizedRules = Array.isArray(rules) ? rules : [];
+/**
+ * Whether a rule is one of the rules this caller is held to.
+ *
+ * An administrator used to be outside read-only rules and inside hidden ones,
+ * which is neither and was written nowhere: a read-only rule left the Create
+ * button there for them (nxzai/NextExplorer#407), while a hidden rule took the
+ * folder away from the one account meant to manage it. Each rule now says it,
+ * with one switch whatever it grants, and the setting above it applies them all
+ * to administrators at once.
+ *
+ * A rule an administrator is not held to is not a rule that lets them through:
+ * it is skipped, so a later rule still has its say.
+ */
+const heldTo = (rule, { isAdmin, applyToAdmins }) => {
+  if (!isAdmin) return true;
+  if (applyToAdmins) return true;
+  return ruleAppliesToAdmins(rule);
+};
 
-  return (relativePath) => {
+/**
+ * Resolve a path against the access rules, for one caller.
+ *
+ * @param {{rules?: Array<object>, applyToAdmins?: boolean}} access the rules in
+ *   force and whether every one of them also holds administrators. An object
+ *   rather than the bare list, so a caller cannot pass the rules and quietly
+ *   lose the setting that decides who they bind.
+ * @returns {(relativePath: string, who?: {isAdmin?: boolean}) => 'rw'|'ro'|'hidden'}
+ */
+const createPermissionResolver = (access = {}) => {
+  const normalizedRules = Array.isArray(access?.rules) ? access.rules : [];
+  const applyToAdmins = access?.applyToAdmins === true;
+
+  return (relativePath, who = {}) => {
     const rel = normalizeRelativePath(relativePath || '');
+    const isAdmin = who?.isAdmin === true;
 
     // first match wins
     for (const rule of normalizedRules) {
       const rulePath = normalizeRelativePath(rule.path || '');
       if (!rulePath) continue;
+      if (!heldTo(rule, { isAdmin, applyToAdmins })) continue;
 
       const matches = rule.recursive
         ? rel === rulePath || rel.startsWith(`${rulePath}/`)
@@ -27,10 +59,9 @@ const createPermissionResolver = (rules = []) => {
 };
 
 // Determine permission for a given relative path: 'rw' | 'ro' | 'hidden'
-const getPermissionForPath = async (relativePath) => {
+const getPermissionForPath = async (relativePath, who = {}) => {
   const settings = await getSettings();
-  const rules = Array.isArray(settings?.access?.rules) ? settings.access.rules : [];
-  return createPermissionResolver(rules)(relativePath);
+  return createPermissionResolver(settings?.access)(relativePath, who);
 };
 
 const getRules = async () => {

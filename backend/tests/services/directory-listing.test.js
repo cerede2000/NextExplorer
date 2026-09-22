@@ -19,6 +19,86 @@ const createContext = async (env = {}) => {
   return { envContext, listDirectoryItems };
 };
 
+/**
+ * The mark that says a rule holds this entry to reading.
+ *
+ * A rule was invisible until somebody tried to write in the folder it covers,
+ * and on an account it did not hold it was never refused at all
+ * (nxzai/NextExplorer#407). The listing says it up front — where the
+ * restriction begins, and only to the accounts the rule actually holds.
+ */
+describe('the read-only mark on a listed entry', () => {
+  let env;
+
+  afterEach(async () => {
+    if (env) {
+      await env.cleanup();
+      env = null;
+    }
+  });
+
+  const listWith = async ({ rules, applyToAdmins = false, roles = ['admin'], dir = '' }) => {
+    const created = await createContext();
+    env = created.envContext;
+    await fs.mkdir(path.join(env.volumeDir, 'Team', 'Sub'), { recursive: true });
+    await fs.mkdir(path.join(env.volumeDir, 'Open'), { recursive: true });
+    await fs.writeFile(path.join(env.volumeDir, 'Team', 'note.txt'), 'note');
+
+    return created.listDirectoryItems({
+      absoluteDir: path.join(env.volumeDir, dir),
+      parentLogicalPath: dir,
+      context: { user: { id: 'u1', roles } },
+      thumbsEnabled: false,
+      access: { rules, applyToAdmins },
+    });
+  };
+
+  const marks = (items) =>
+    Object.fromEntries(items.map((item) => [item.name, item.readOnly ?? null]));
+
+  const READ_ONLY_TEAM = [
+    { path: 'Team', recursive: true, permissions: 'ro', appliesToAdmins: true },
+  ];
+
+  it('marks the folder a rule holds, and leaves the others alone', async () => {
+    expect(marks(await listWith({ rules: READ_ONLY_TEAM }))).toEqual({
+      Team: 'access',
+      Open: null,
+    });
+  });
+
+  /** Inside it everything is read-only; a lock on every row would say nothing. */
+  it('draws nothing inside that folder, where the restriction already holds', async () => {
+    expect(marks(await listWith({ rules: READ_ONLY_TEAM, dir: 'Team' }))).toEqual({
+      Sub: null,
+      'note.txt': null,
+    });
+  });
+
+  it('draws nothing for an account the rule does not hold', async () => {
+    const rules = [{ path: 'Team', recursive: true, permissions: 'ro', appliesToAdmins: false }];
+
+    expect(marks(await listWith({ rules }))).toEqual({ Team: null, Open: null });
+    expect(marks(await listWith({ rules, roles: ['user'] }))).toEqual({
+      Team: 'access',
+      Open: null,
+    });
+  });
+
+  it('draws it for an administrator once the setting holds them to every rule', async () => {
+    const rules = [{ path: 'Team', recursive: true, permissions: 'ro', appliesToAdmins: false }];
+
+    expect(marks(await listWith({ rules, applyToAdmins: true }))).toEqual({
+      Team: 'access',
+      Open: null,
+    });
+  });
+
+  it('draws nothing when no rule is in force', async () => {
+    expect(marks(await listWith({ rules: [] }))).toEqual({ Team: null, Open: null });
+  });
+});
+
 describe('Directory listing service', () => {
   let currentEnv;
 

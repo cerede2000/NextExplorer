@@ -1160,7 +1160,7 @@ router.get(
         context,
         thumbsEnabled,
         includeHiddenFiles,
-        permissionRules: settings?.access?.rules || [],
+        access: settings?.access || null,
         shareCache,
         userVolumeCache,
         itemExtras: ({ name, stats, access }) => ({

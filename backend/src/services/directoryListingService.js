@@ -81,20 +81,39 @@ const listDirectoryItems = async ({
   thumbsEnabled,
   includeHiddenFiles = false,
   itemExtras = null,
-  permissionRules = null,
+  access = null,
   shareCache = null,
   userVolumeCache = null,
 }) => {
+  // The whole section, never the bare list: a caller handing over the rules
+  // alone would silently drop the setting that says whom they hold.
   const permissionResolver =
-    Array.isArray(permissionRules) && permissionRules.length
-      ? createPermissionResolver(permissionRules)
-      : null;
+    Array.isArray(access?.rules) && access.rules.length ? createPermissionResolver(access) : null;
 
   const accessOptions = {
     ...(permissionResolver ? { permissionResolver } : null),
     ...(shareCache instanceof Map ? { shareCache } : null),
     ...(userVolumeCache instanceof Map ? { userVolumeCache } : null),
   };
+
+  /**
+   * Which entries carry the read-only mark: the ones a rule holds this caller
+   * to, and only where that starts.
+   *
+   * A rule was invisible until something was attempted in the folder it covers,
+   * and on an account no rule held it was never refused at all
+   * (nxzai/NextExplorer#407). The mark says it up front — but a recursive rule
+   * covers everything below it, and a lock on every row inside a folder that is
+   * already read-only says nothing the row above did not. So it is drawn where
+   * the restriction begins: on the entry whose folder is not itself read-only.
+   *
+   * Asked of the rules alone, not of the whole access decision: this mark is
+   * about a rule, and a volume read-only for another reason carries its own.
+   */
+  const isAdmin = Boolean(context?.user?.roles?.includes?.('admin'));
+  const ruleSays = (logicalPath) =>
+    permissionResolver ? permissionResolver(logicalPath || '', { isAdmin }) : 'rw';
+  const insideReadOnly = ruleSays(parentLogicalPath) === 'ro';
 
   const entries = await fs.readdir(absoluteDir);
 
@@ -163,6 +182,9 @@ const listDirectoryItems = async ({
     if (thumbsEnabled && stats.isFile() && kind !== 'pdf' && previewable.has(kind.toLowerCase())) {
       item.supportsThumbnail = true;
     }
+
+    // `access`, as a volume held to reading says it: the same lock, the same reason.
+    if (!insideReadOnly && ruleSays(logicalChildPath) === 'ro') item.readOnly = 'access';
 
     if (typeof itemExtras === 'function') {
       Object.assign(item, itemExtras({ name, stats, kind, access: childAccess }) || {});
