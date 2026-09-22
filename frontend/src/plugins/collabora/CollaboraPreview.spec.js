@@ -14,6 +14,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 const fetchCollaboraConfig = vi.fn();
 const searchUsersForMention = vi.fn();
+const closePreview = vi.fn();
 const panel = vi.hoisted(() => ({ store: null }));
 
 vi.mock('@/api', () => ({
@@ -26,6 +27,9 @@ vi.mock('@/stores/versionsPanel', async () => {
   panel.store = reactive({ restored: 0, relativePath: '', openPath: vi.fn() });
   return { useVersionsPanelStore: () => panel.store };
 });
+vi.mock('@/plugins/preview/manager', () => ({
+  usePreviewManager: () => ({ close: (...args) => closePreview(...args) }),
+}));
 vi.mock('@/utils/logger', () => ({
   default: { debug: vi.fn(), error: vi.fn(), warn: vi.fn(), warning: vi.fn() },
 }));
@@ -38,10 +42,21 @@ const URL_SRC = `${EDITOR_ORIGIN}/browser/dist/cool.html?WOPISrc=x`;
 const REPORT = { name: 'report.docx', path: 'Docs' };
 
 let wrapper = null;
+// The preview manager's, and read by the preview host: what the page draws
+// around this frame is decided through it.
+let previewState = {};
 
 const mountOn = async (item = REPORT) => {
+  previewState = {};
   wrapper = mount(CollaboraPreview, {
-    props: { item, extension: 'docx', filePath: 'Docs/report.docx', previewUrl: '', api: {} },
+    props: {
+      item,
+      extension: 'docx',
+      filePath: 'Docs/report.docx',
+      previewUrl: '',
+      previewState,
+      api: {},
+    },
     attachTo: document.body,
   });
   await flushPromises();
@@ -72,6 +87,7 @@ beforeEach(() => {
   fetchCollaboraConfig.mockResolvedValue({ urlSrc: URL_SRC });
   searchUsersForMention.mockReset();
   searchUsersForMention.mockResolvedValue([]);
+  closePreview.mockReset();
   for (const log of Object.values(logger)) log.mockClear();
   if (panel.store) {
     Object.assign(panel.store, { restored: 0, relativePath: '' });
@@ -179,6 +195,77 @@ describe('talking to the editor frame', () => {
         targetOrigin: EDITOR_ORIGIN,
       }),
     ]);
+  });
+});
+
+/**
+ * Leaving the document.
+ *
+ * The editor fills the screen, so until it says it is up the page floats a
+ * close button over it — for the document that never opens, which would
+ * otherwise leave no way out at all. Once the editor draws its own, in its own
+ * toolbar, the floating one has to go, and pressing the editor's has to leave
+ * the same way the page's own button does (nxzai/NextExplorer#303).
+ */
+describe('leaving the document', () => {
+  it('takes the page’s close button away once the editor draws its own', async () => {
+    await mountOn();
+    expect(previewState.hasNativeClose).toBe(false);
+
+    await post(
+      { MessageId: 'App_LoadingStatus', Values: { Status: 'Document_Loaded' } },
+      frameWindow()
+    );
+
+    expect(previewState.hasNativeClose).toBe(true);
+  });
+
+  it('keeps it while the frame is up but the document is not', async () => {
+    await mountOn();
+
+    await post(
+      { MessageId: 'App_LoadingStatus', Values: { Status: 'Frame_Ready' } },
+      frameWindow()
+    );
+
+    expect(previewState.hasNativeClose).toBe(false);
+  });
+
+  it('believes no other window of the page saying a document has loaded', async () => {
+    await mountOn();
+
+    await post({ MessageId: 'App_LoadingStatus', Values: { Status: 'Document_Loaded' } }, window);
+
+    expect(previewState.hasNativeClose).toBe(false);
+  });
+
+  it('puts it back when the frame goes to another document', async () => {
+    await mountOn();
+    await post(
+      { MessageId: 'App_LoadingStatus', Values: { Status: 'Document_Loaded' } },
+      frameWindow()
+    );
+
+    await wrapper.setProps({ filePath: 'Docs/other.docx' });
+    await flushPromises();
+
+    expect(previewState.hasNativeClose).toBe(false);
+  });
+
+  it('closes the document when the editor’s own button is pressed', async () => {
+    await mountOn();
+
+    await post({ MessageId: 'UI_Close', Values: { EverModified: true } }, frameWindow());
+
+    expect(closePreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not closed by any other window of the page saying so', async () => {
+    await mountOn();
+
+    await post({ MessageId: 'UI_Close', Values: {} }, window);
+
+    expect(closePreview).not.toHaveBeenCalled();
   });
 });
 

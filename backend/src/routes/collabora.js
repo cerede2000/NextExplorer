@@ -227,6 +227,12 @@ router.post(
     if (offerHistory) {
       iframeUrl.searchParams.set('revisionhistory', '1');
     }
+    // Draws the editor's own close button, which posts UI_Close to the page
+    // rather than closing anything itself. Without it the only way out of a
+    // full-screen editor was a button the page floated over the toolbar, which
+    // sat there looking like something Collabora had not quite finished drawing
+    // (nxzai/NextExplorer#303). ONLYOFFICE is asked the same thing.
+    iframeUrl.searchParams.set('closebutton', '1');
 
     res.json({
       urlSrc: iframeUrl.toString(),

@@ -28,6 +28,7 @@
 import { ref, watch, computed } from 'vue';
 import { useEventListener } from '@vueuse/core';
 import { fetchCollaboraConfig, normalizePath, searchUsersForMention } from '@/api';
+import { usePreviewManager } from '@/plugins/preview/manager';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import logger from '@/utils/logger';
 
@@ -36,14 +37,20 @@ const props = defineProps({
   extension: { type: String, required: true },
   filePath: { type: String, required: true },
   previewUrl: { type: String, required: true },
+  previewState: { type: Object, default: () => ({}) },
   api: { type: Object, required: true },
 });
+
+// previewState belongs to the preview manager; what is written on it here is
+// read by the preview host, which draws the page's own chrome around this frame.
+const previewState = props.previewState;
 
 const urlSrc = ref(null);
 const error = ref(null);
 const iframeRef = ref(null);
 const collaboraOrigin = ref(null);
 const versionsPanel = useVersionsPanelStore();
+const previewManager = usePreviewManager();
 
 const title = computed(() => props?.item?.name || 'Collabora');
 
@@ -71,6 +78,14 @@ const sendToCollabora = (messageId, values = {}) => {
   logger.debug('[Collabora] Sending', message);
   iframe.contentWindow.postMessage(JSON.stringify(message), collaboraOrigin.value || '*');
 };
+
+/**
+ * Whether a message came from the document being shown.
+ *
+ * Any window of the page can post one, and two of these messages act on the
+ * document — opening its history, closing it.
+ */
+const fromTheEditor = (event) => event.source === iframeRef.value?.contentWindow;
 
 /**
  * Handle PostMessage events from Collabora iframe
@@ -104,14 +119,30 @@ const handlePostMessage = async (event) => {
     sendToCollabora('Host_PostmessageReady');
   }
 
+  // The document is up, and the editor now draws its own close button in its
+  // toolbar. The page floats one over that toolbar until this point, for the
+  // documents that never get here — a frame that fails to load leaves no editor
+  // chrome, and with it no way out. Once the editor has one, the floating
+  // button steps aside rather than sitting next to it (nxzai/NextExplorer#303).
+  if (
+    data.MessageId === 'App_LoadingStatus' &&
+    data.Values?.Status === 'Document_Loaded' &&
+    fromTheEditor(event)
+  ) {
+    previewState.hasNativeClose = true;
+  }
+
+  // The editor's own close button. Routed through the preview manager, so that
+  // leaving this way ends exactly as leaving by the page's button does — the
+  // panel closes, and a document in a tab of its own closes the tab.
+  if (data.MessageId === 'UI_Close' && fromTheEditor(event)) {
+    void previewManager.close();
+  }
+
   // File > Revision history. NextExplorer keeps the history, so the entry opens
   // the Versions panel on this document — only when the editor itself asks, not
   // any other window of the page.
-  if (
-    data.MessageId === 'UI_FileVersions' &&
-    !versionId.value &&
-    event.source === iframeRef.value?.contentWindow
-  ) {
+  if (data.MessageId === 'UI_FileVersions' && !versionId.value && fromTheEditor(event)) {
     versionsPanel.openPath(props.filePath);
   }
 
@@ -149,6 +180,9 @@ const load = async () => {
   error.value = null;
   urlSrc.value = null;
   collaboraOrigin.value = null;
+  // Another document, or the same one opened again: whatever is drawn is drawn
+  // by the frame that is being replaced.
+  previewState.hasNativeClose = false;
 
   try {
     const filePath = props.filePath;
