@@ -40,6 +40,11 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 const auth = vi.hoisted(() => ({ store: null }));
 const initialize = vi.hoisted(() => vi.fn(async () => {}));
 
+// The instance's name, for the tab's title, as Settings → Branding set it.
+vi.mock('@/stores/appSettings', () => ({
+  useAppSettings: () => ({ state: { branding: { appName: 'Chez Benjy' } } }),
+}));
+
 vi.mock('@/stores/auth', async () => {
   const { reactive } = await import('vue');
   auth.store = reactive({

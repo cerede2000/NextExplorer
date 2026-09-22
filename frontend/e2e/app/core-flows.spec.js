@@ -46,8 +46,9 @@ test('the first visit sets up an administrator and signs them in', async () => {
   await page.locator('#setup-password-confirm').fill(admin.password);
   await page.locator('button[type="submit"]').click();
 
-  // Signed in straight away, on the list of volumes.
-  await expect(page).toHaveTitle('Volumes');
+  // Signed in straight away, on the list of volumes — the tab says so, and
+  // says which instance: the name Settings → Branding gives it.
+  await expect(page).toHaveTitle('Volumes | Explorer');
   await expect(page.getByText(admin.email)).toBeVisible();
 });
 
@@ -86,7 +87,7 @@ test('signing out returns to the sign-in screen, and the username signs back in'
   await page.locator('#login-password').fill(admin.password);
   await page.locator('button[type="submit"]').click();
 
-  await expect(page).toHaveTitle('Volumes');
+  await expect(page).toHaveTitle('Volumes | Explorer');
 });
 
 test('a volume opens by its address and lists what is in it', async () => {
@@ -96,6 +97,7 @@ test('a volume opens by its address and lists what is in it', async () => {
   await page.goto('/browse/Projects');
 
   await expect(page.getByRole('button', { name: 'Select notes.txt' })).toBeVisible();
+  await expect(page).toHaveTitle('Projects | Explorer');
 });
 
 test('an uploaded file reaches the disk and the listing', async () => {
@@ -214,6 +216,9 @@ test('a shared link opens for someone with no account, and opens nothing else', 
     const strangerPage = await stranger.newPage();
     await strangerPage.goto(link);
     await expect(strangerPage.getByRole('button', { name: 'Select notes.txt' })).toBeVisible();
+    // The tab names what was shared, and the instance, for somebody with no
+    // account — not the token, which is all the address holds at this level.
+    await expect(strangerPage).toHaveTitle('notes.txt | Explorer');
 
     // The file itself, through the address the dialog hands out for it.
     const response = await stranger.request.get(link.replace('/share/', '/api/share/'));
@@ -547,7 +552,7 @@ test('a document opens in a tab of its own, and the folder stays where it was', 
   await expect(document.locator('[data-test="preview-surface"]')).toBeVisible();
   await expect(document.getByText('tabbed.md')).toBeVisible();
   // Four tabs all reading "Explorer" would be four tabs nobody can tell apart.
-  await expect(document).toHaveTitle('tabbed.md');
+  await expect(document).toHaveTitle('tabbed.md | Explorer');
 
   // The folder it was opened from never moved: that is the whole point of
   // opening elsewhere.
@@ -894,8 +899,10 @@ test('a volume nothing can be written in is marked, and a rule’s folder is cho
     fs.chmodSync(locked, 0o755);
   }
 
-  // The rule's folder, chosen rather than typed.
+  // The rule's folder, chosen rather than typed. The tab names the section, where
+  // every page of the settings used to read "Volumes".
   await page.goto('/settings/access-control');
+  await expect(page).toHaveTitle('Access Control | Explorer');
   await page.getByRole('button', { name: 'Add rule' }).click();
   const pathField = page.locator('[data-test="access-rule-path"]').last();
   await page.locator('[data-test="access-rule-browse"]').last().click();

@@ -14,11 +14,14 @@ import {
 } from '@heroicons/vue/24/outline';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import logger from '@/utils/logger';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { folderRoute } from '@/utils/folderRoute';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+// The instance's name in the tab, as on its own sign-in page.
+usePageTitle('');
 const auth = useAuthStore();
 
 const shareToken = computed(() => route.params.token || '');

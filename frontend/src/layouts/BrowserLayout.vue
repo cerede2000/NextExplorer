@@ -11,7 +11,7 @@ import UserMenu from '@/components/UserMenu.vue';
 import NotificationToastContainer from '@/components/NotificationToastContainer.vue';
 import NotificationPanel from '@/components/NotificationPanel.vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
-import { useTitle, useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
+import { useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
 
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import ExplorerContextMenu from '@/components/ExplorerContextMenu.vue';
@@ -24,6 +24,8 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
 import { pageTitleFor } from '@/utils/pageTitle';
+import { usePageTitle } from '@/composables/usePageTitle';
+import { useFileStore } from '@/stores/fileStore';
 import InfoPanel from '@/components/InfoPanel.vue';
 import VersionsPanel from '@/components/VersionsPanel.vue';
 import { useFileUploader } from '@/composables/fileUploader';
@@ -111,9 +113,14 @@ useEventListener(window, 'keydown', (e) => {
   }
 });
 
-const { t: translate } = useI18n();
-const currentPathName = computed(() => pageTitleFor(route, translate));
-useTitle(currentPathName);
+const { t: translate, te } = useI18n();
+const fileStore = useFileStore();
+// At the top of a share its address holds only the token; the share has a name.
+const shareName = computed(() => {
+  const info = fileStore.currentPathData?.shareInfo;
+  return info?.label || info?.sourceFolderName || '';
+});
+usePageTitle(computed(() => pageTitleFor(route, translate, { te, shareName: shareName.value })));
 
 const showBrowseToolbar = computed(() => String(route.path || '').startsWith('/browse'));
 const showSidebarFavorites = computed(

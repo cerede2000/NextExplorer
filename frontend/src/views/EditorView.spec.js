@@ -62,6 +62,11 @@ vi.mock('vue-router', async () => {
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 
 const folderScroll = vi.hoisted(() => ({ permitExplicitRestore: vi.fn() }));
+// The instance's name, for the tab's title, as Settings → Branding set it.
+vi.mock('@/stores/appSettings', () => ({
+  useAppSettings: () => ({ state: { branding: { appName: 'Chez Benjy' } } }),
+}));
+
 vi.mock('@/stores/folderScroll', () => ({ useFolderScrollStore: () => folderScroll }));
 
 const versionsPanel = vi.hoisted(() => ({ openPath: vi.fn() }));
@@ -211,6 +216,14 @@ describe('opening a file', () => {
     expect(view.hasUnsavedChanges).toBe(false);
   });
 
+  // It had no title of its own: opened directly the tab read "Explorer", and
+  // opened from a folder it kept that folder's name.
+  it('names the browser tab after the file, and the instance', async () => {
+    await mountEditor();
+
+    expect(window.document.title).toBe('notes.md | Chez Benjy');
+  });
+
   it('says why it could not', async () => {
     api.fetchFileContent.mockRejectedValue(new Error('File not found'));
 
@@ -285,6 +298,12 @@ describe('opening a file through a share', () => {
     const view = await mountEditor();
 
     expect(view.displayPath).toBe('notes.md');
+  });
+
+  it('names the browser tab after the shared file', async () => {
+    await mountEditor();
+
+    expect(window.document.title).toBe('notes.md | Chez Benjy');
   });
 
   /** What the share allows is the share"s to say, not the editor"s to assume. */

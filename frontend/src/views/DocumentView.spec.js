@@ -62,6 +62,11 @@ vi.mock('@/plugins/preview/PreviewHost.vue', () => ({
   default: { name: 'PreviewHost', template: '<div data-test="preview-host" />' },
 }));
 
+// The instance's name, for the tab's title, as Settings → Branding set it.
+vi.mock('@/stores/appSettings', () => ({
+  useAppSettings: () => ({ state: { branding: { appName: 'Chez Benjy' } } }),
+}));
+
 vi.mock('@/stores/fileStore', () => ({
   useFileStore: () => ({ fetchPathItems: (...args) => fetchPathItems(...args) }),
 }));
@@ -134,12 +139,12 @@ describe('opening a document at its own address', () => {
     expect(open).toHaveBeenCalledWith({ name: 'report.docx', path: 'Docs/Reports' });
   });
 
-  it('names its browser tab after the document', async () => {
+  it('names its browser tab after the document, and the instance', async () => {
     await show('Docs/Reports/report.docx');
 
     // Several of these are open at once by design; tabs that all read
     // "Explorer" are tabs nobody can tell apart.
-    expect(window.document.title).toBe('report.docx');
+    expect(window.document.title).toBe('report.docx | Chez Benjy');
   });
 
   it('loads the folder behind it, so the arrows still move between files', async () => {
