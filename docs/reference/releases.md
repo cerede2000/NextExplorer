@@ -6,6 +6,152 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v3.11.0 (2026-09-22)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.11.0)
+
+### `Docs` and `docs` are two folders
+
+On a Linux volume they are, and six places disagreed. Each found "a path and
+everything under it" with `LIKE 'prefix/%'`, which SQLite matches without regard
+to case for ASCII, so an operation on one folder reached its neighbour with the
+other spelling.
+
+The worst of it is the shares. Renaming `Docs` re-pointed the share links of
+`docs/…` at the new name: a link to `docs/report.pdf` afterwards opened
+`Papers/report.pdf`, which is `Docs/report.pdf` — **another file than the one
+its owner shared**, handed to whoever held the link. Deleting `Docs` counted
+those links in the confirmation and then deleted them. Moving it reassigned the
+version histories of `docs/…` to files under the new name, and deleting it for
+good purged them. Favorites, recent destinations and folder preferences went the
+same way.
+
+The search index had the same fault twice: excluding or deleting `Archive`
+forgot `archive` with it, and moving a folder carried the other one's rows along
+to a path that does not exist. Moving also wrote the wrong parent on every row
+it moved — the expression kept the slash, so a file in `Papers` had `Papers/`
+for a folder. A search started from `Papers` missed every file directly in it,
+and the next pass took that for a folder that was gone, forgot all of it, and
+read every file again, text extraction included. An index a move already wrote
+wrongly is mended once, when it is opened.
+
+Every one of them now selects by bounds on the path — `= prefix`, or
+`>= 'prefix/'` and `< 'prefix0'`, `0` being the character after `/` — comparing
+bytes, which is what the disk does. Where the column has an index, the query
+uses it instead of scanning the table.
+
+### A search that gives the server back
+
+Two more answers to [#11](https://github.com/cerede2000/NextExplorer/issues/11),
+the instance with a hundred thousand documents on an SMB mount.
+
+**Excluding a folder** from Settings removes its entries from the index straight
+away, which is right: until then the index goes on answering from a folder
+somebody said not to read. It did it one row at a time, each its own
+transaction, on the only thread the server has — two seconds of silence for
+fifty thousand files, and the application looked hung. Now a thousand rows per
+transaction with the event loop given back between two: fifty thousand rows in
+160 ms, never blocking for more than 4 ms; three hundred thousand in 1.1 s,
+never more than 34 ms at a stretch. Deleting a large folder, or moving one out
+of the volume, took the same path.
+
+**The line under a content match** is read back from the file, since the index
+keeps words and not text. That was meant to be one read per result shown. It was
+one per candidate, one after the other, for up to three pages of them and before
+permissions were asked — each PDF read whole and converted again. Two hundred of
+them now answer in 442 ms where they took 2.8 s. Permissions come first, reading
+stops at what the page can hold, four files are read at once, and past half the
+search budget the rest are given without their line, labelled as found by their
+contents.
+
+### Who an access rule holds
+
+An administrator sat outside read-only rules and inside hidden ones. That is
+neither, and it was written nowhere: a read-only rule left the Create button on
+the folder, and an administrator who pressed it wrote where an ordinary account
+could not ([nxzai#407](https://github.com/nxzai/NextExplorer/issues/407)), while
+a hidden rule took a folder away from the very account meant to manage it.
+
+It is one switch now, the same whatever the rule grants: **a rule says whether
+it holds administrators**, and one setting above the list holds them to every
+rule at once. A rule they are not held to is passed over rather than obeyed, so
+a later rule still has its say. What a rule stored before the switch existed
+means is what it did then — hidden held them, read-only did not — so an upgrade
+moves nothing until somebody ticks a box.
+
+A folder a rule holds you to reading now **carries a lock in the listing**,
+drawn where the restriction begins and only for the accounts the rule actually
+holds. Saving the rules used to switch the setting above them back off, and a
+request carrying only the setting stored nothing at all; each half is taken now
+only when it was sent.
+
+### A volume that cannot be written in says so
+
+A volume bound `:ro` in a compose file, or owned by a user the container does not
+run as, looked like any other: New, Upload and Delete were offered, and each
+ended in `EROFS: read-only file system` as a 500 once it had been chosen. The
+server asks the system now, with one `access(2)` call, whether it may write where
+it is asked to list, and says which it was — `storage` for a read-only mount,
+`permission` for a folder its user may not write in. Either takes every write off
+the listing, for everyone. The home page and the sidebar show a small lock beside
+such a volume, and a write that still reaches a read-only mount is answered 403
+in words rather than 500.
+
+### Choosing the folder a rule protects
+
+A rule is matched against the path as NextExplorer shows it, volume first.
+Nothing said so, and the field took anything: `mnt/torrents`, typed from the
+container's side of the mount, was saved without a word and protected nothing.
+There is a button beside each path now that opens the storage picker, the page
+asks the server what a typed path names once the typing stops, and it warns —
+with the folder probably meant one click away — when one names nothing or lies
+outside the volumes. A warning and not a refusal, since a rule may be written for
+a folder about to be created. The page also says plainly who the rules restrict,
+which the guide and the troubleshooting page had both been getting wrong.
+
+### A row forgets what the server has stopped saying
+
+A new listing was folded into the one on screen with `Object.assign`, which can
+only add and overwrite, so a field the server stopped sending stayed on the row
+and each one that went quiet needed its own line to be noticed: the badge on a
+document no longer being edited, the count on a file whose last version had been
+deleted, and then the new lock, which stayed after its rule was lifted until the
+page itself was reloaded. One defect, answered once: the client puts exactly two
+things on a row the server knows nothing about — a thumbnail it fetched, and the
+note that there is none — and everything else the new answer does not carry is
+taken off.
+
+### The document's own close button
+
+Collabora draws no close button unless it is asked for one, so the page floated
+its own over the editor's toolbar, where it read as something the editor had not
+finished drawing ([nxzai#303](https://github.com/nxzai/NextExplorer/issues/303)).
+It is asked now, and pressing it closes the document the same way the page's own
+button did — a document in a tab of its own closes the tab. The floating button
+stays until the editor says the document is up, which is the case it exists for:
+a document that never opens draws no toolbar, and with it no way out.
+ONLYOFFICE has been asked the same thing all along.
+
+### Every tab says which page, and which instance
+
+The tab held the page alone, and "the page" was the last segment of the path
+whatever the page was, so every settings section, the search and both lists of
+shares read "Volumes", in English; the editor set no title at all, and the top of
+a share read the token. Every tab now reads the page, then the name set in
+Settings → Branding: `Projects | Chez Benjy`. Suggested in
+[nxzai discussion #395](https://github.com/nxzai/NextExplorer/discussions/395).
+
+### The space a name was cut on
+
+A name in the listing is drawn in two halves so its end stays readable when the
+row is narrow. Both halves dropped the white space at their edges, so a split
+landing on a space ate it: `02. Test messagerie` was listed as
+`02. Testmessagerie`, while the rename box showed the real name. Only the space
+on the cut disappeared, which is what made it look arbitrary
+([#14](https://github.com/cerede2000/NextExplorer/issues/14)). Nothing in jsdom
+could have caught it — the space is in the DOM either way and it is the layout
+that drops it — so the guard is a browser fixture on the real stylesheet.
+
 ## v3.10.0 (2026-09-21)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.10.0)
