@@ -8,6 +8,7 @@ import * as OutlineIcons from '@heroicons/vue/24/outline';
 import * as SolidIcons from '@heroicons/vue/24/solid';
 import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 import VolumeUsageBar from '@/components/VolumeUsageBar.vue';
+import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 import IconDrive from '@/icons/IconDrive.vue';
 
 const favoritesStore = useFavoritesStore();
@@ -130,12 +131,13 @@ const openPersonal = () => {
             <div
               :class="
                 showVolumeUsage
-                  ? 'w-full truncate !text-left text-sm font-medium text-neutral-900 dark:text-white'
-                  : 'truncate text-sm font-medium text-neutral-900 dark:text-white'
+                  ? 'flex w-full min-w-0 items-center gap-1.5 !text-left text-sm font-medium text-neutral-900 dark:text-white'
+                  : 'flex min-w-0 items-center gap-1.5 text-sm font-medium text-neutral-900 dark:text-white'
               "
               style="text-align: left"
             >
-              {{ vol.name }}
+              <span class="truncate">{{ vol.name }}</span>
+              <ReadOnlyMark :reason="vol.readOnly" />
             </div>
             <VolumeUsageBar
               v-if="showVolumeUsage"

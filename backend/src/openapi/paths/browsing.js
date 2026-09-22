@@ -6,6 +6,7 @@ const {
   num,
   int,
   bool,
+  nullable,
   dateTime,
   json,
   stream,
@@ -20,7 +21,17 @@ const {
 const TAG = 'Browsing';
 
 const volume = obj(
-  { name: str(), path: str(), kind: str(null, { enum: ['volume', 'personal'] }) },
+  {
+    name: str(),
+    path: str(),
+    kind: str(null, { enum: ['volume', 'personal'] }),
+    readOnly: nullable(
+      str(
+        'Why nothing can be written in it, for the mark beside its name: `storage` for a read-only mount, `permission` for a folder the server may not write in, `access` when a rule or its assignment keeps this account to reading. Null when something can be written.',
+        { enum: ['storage', 'permission', 'access', null] }
+      )
+    ),
+  },
   ['name', 'path', 'kind']
 );
 

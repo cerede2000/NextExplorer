@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Acesso rápido",
-    "quickAccessEmpty": "Fixe pastas como favoritas para acessá-las rapidamente aqui."
+    "quickAccessEmpty": "Fixe pastas como favoritas para acessá-las rapidamente aqui.",
+    "readOnly": {
+      "label": "Somente leitura",
+      "storage": "Armazenamento somente leitura: este volume está montado como somente leitura, então nada pode ser gravado nele.",
+      "permission": "Não gravável: o servidor não tem permissão para gravar neste volume. Verifique a quem ele pertence no host.",
+      "access": "Somente leitura para a sua conta."
+    }
   },
   "drives": {
     "personal": "Pessoal",

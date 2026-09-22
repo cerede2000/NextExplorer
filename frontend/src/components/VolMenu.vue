@@ -8,6 +8,7 @@ import { useFeaturesStore } from '@/stores/features';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { FolderIcon } from '@heroicons/vue/24/outline';
 import VolumeUsageBar from '@/components/VolumeUsageBar.vue';
+import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 
 const { t } = useI18n();
 const { openItem, openBreadcrumb } = useNavigation();
@@ -120,12 +121,13 @@ const openPersonal = () => {
               <span
                 :class="
                   showVolumeUsage
-                    ? 'w-full min-w-0 truncate !text-left leading-none'
-                    : 'block min-w-0 truncate'
+                    ? 'flex w-full min-w-0 items-center gap-1.5 !text-left leading-none'
+                    : 'flex min-w-0 items-center gap-1.5'
                 "
                 style="text-align: left"
               >
-                {{ volume.name }}
+                <span class="min-w-0 truncate">{{ volume.name }}</span>
+                <ReadOnlyMark :reason="volume.readOnly" />
               </span>
               <VolumeUsageBar
                 v-if="showVolumeUsage"

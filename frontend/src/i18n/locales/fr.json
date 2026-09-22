@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Accès rapide",
-    "quickAccessEmpty": "Épinglez des dossiers en favoris pour y accéder rapidement ici."
+    "quickAccessEmpty": "Épinglez des dossiers en favoris pour y accéder rapidement ici.",
+    "readOnly": {
+      "label": "Lecture seule",
+      "storage": "Stockage en lecture seule : ce volume est monté en lecture seule, rien ne peut y être écrit.",
+      "permission": "Écriture impossible : le serveur n'a pas le droit d'écrire dans ce volume. Vérifiez à qui il appartient sur l'hôte.",
+      "access": "En lecture seule pour votre compte."
+    }
   },
   "drives": {
     "personal": "Personnel",

@@ -43,6 +43,12 @@ const Access = obj(
     canShare: bool(),
     canDownload: bool(),
     canSeeVersions: bool(),
+    readOnly: nullable(
+      str(
+        'Why nothing can be written here when the storage itself refuses it, for everyone: `storage` for a read-only mount, `permission` for a folder the server may not write in. The write permissions above are then all false.',
+        { enum: ['storage', 'permission', null] }
+      )
+    ),
   },
   [],
   {

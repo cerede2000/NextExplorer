@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
-    "quickAccessEmpty": "Pinnen Sie Ordner als Favoriten an, um hier schnell darauf zuzugreifen."
+    "quickAccessEmpty": "Pinnen Sie Ordner als Favoriten an, um hier schnell darauf zuzugreifen.",
+    "readOnly": {
+      "label": "Schreibgeschützt",
+      "storage": "Schreibgeschützter Speicher: Dieses Volume ist schreibgeschützt eingehängt, daher kann nichts hineingeschrieben werden.",
+      "permission": "Nicht beschreibbar: Der Server darf in diesem Volume nicht schreiben. Prüfen Sie, wem es auf dem Host gehört.",
+      "access": "Für Ihr Konto schreibgeschützt."
+    }
   },
   "drives": {
     "personal": "Persönlich",

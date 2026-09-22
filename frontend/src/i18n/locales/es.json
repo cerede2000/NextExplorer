@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Acceso rápido",
-    "quickAccessEmpty": "Ancla carpetas como favoritas para acceder rápidamente aquí."
+    "quickAccessEmpty": "Ancla carpetas como favoritas para acceder rápidamente aquí.",
+    "readOnly": {
+      "label": "Solo lectura",
+      "storage": "Almacenamiento de solo lectura: este volumen está montado en solo lectura, así que no se puede escribir nada en él.",
+      "permission": "No se puede escribir: el servidor no tiene permiso para escribir en este volumen. Compruebe a quién pertenece en el host.",
+      "access": "Solo lectura para su cuenta."
+    }
   },
   "drives": {
     "personal": "Personal",

@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "快速访问",
-    "quickAccessEmpty": "将文件夹固定为收藏夹，以便在此快速访问。"
+    "quickAccessEmpty": "将文件夹固定为收藏夹，以便在此快速访问。",
+    "readOnly": {
+      "label": "只读",
+      "storage": "只读存储：此卷以只读方式挂载，无法写入任何内容。",
+      "permission": "不可写入：服务器没有在此卷中写入的权限。请在主机上检查其所有者。",
+      "access": "对您的账户只读。"
+    }
   },
   "drives": {
     "personal": "个人",

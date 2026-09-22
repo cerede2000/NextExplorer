@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Quick access",
-    "quickAccessEmpty": "Pin folders as favorites to access them quickly here."
+    "quickAccessEmpty": "Pin folders as favorites to access them quickly here.",
+    "readOnly": {
+      "label": "Read-only",
+      "storage": "Read-only storage: this volume is mounted read-only, so nothing can be written in it.",
+      "permission": "Not writable: the server has no permission to write in this volume. Check who owns it on the host.",
+      "access": "Read-only for your account."
+    }
   },
   "drives": {
     "personal": "Personal",

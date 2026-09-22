@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
-    "quickAccessEmpty": "Fäst mappar som favoriter för att snabbt komma åt dem här."
+    "quickAccessEmpty": "Fäst mappar som favoriter för att snabbt komma åt dem här.",
+    "readOnly": {
+      "label": "Skrivskyddad",
+      "storage": "Skrivskyddad lagring: den här volymen är monterad skrivskyddad, så inget kan skrivas i den.",
+      "permission": "Inte skrivbar: servern saknar behörighet att skriva i den här volymen. Kontrollera vem som äger den på värden.",
+      "access": "Skrivskyddad för ditt konto."
+    }
   },
   "drives": {
     "personal": "Personligt",

@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Acces rapid",
-    "quickAccessEmpty": "Fixează dosare ca favorite pentru a le accesa rapid aici."
+    "quickAccessEmpty": "Fixează dosare ca favorite pentru a le accesa rapid aici.",
+    "readOnly": {
+      "label": "Doar citire",
+      "storage": "Stocare doar pentru citire: acest volum este montat doar pentru citire, așa că nu se poate scrie nimic în el.",
+      "permission": "Nu se poate scrie: serverul nu are permisiunea de a scrie în acest volum. Verificați cui îi aparține pe gazdă.",
+      "access": "Doar citire pentru contul dumneavoastră."
+    }
   },
   "drives": {
     "personal": "Personal",

@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Szybki dostęp",
-    "quickAccessEmpty": "Przypnij foldery jako ulubione, aby szybko uzyskać do nich dostęp tutaj."
+    "quickAccessEmpty": "Przypnij foldery jako ulubione, aby szybko uzyskać do nich dostęp tutaj.",
+    "readOnly": {
+      "label": "Tylko do odczytu",
+      "storage": "Magazyn tylko do odczytu: ten wolumin jest zamontowany tylko do odczytu, więc nie można w nim nic zapisać.",
+      "permission": "Brak możliwości zapisu: serwer nie ma uprawnień do zapisu w tym woluminie. Sprawdź, do kogo należy na hoście.",
+      "access": "Tylko do odczytu dla Twojego konta."
+    }
   },
   "drives": {
     "personal": "Osobiste",

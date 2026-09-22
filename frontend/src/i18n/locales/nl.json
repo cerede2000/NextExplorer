@@ -350,7 +350,13 @@
   },
   "volumes": {
     "quickAccess": "Snelle toegang",
-    "quickAccessEmpty": "Markeer mappen als favorieten voor snelle toegang."
+    "quickAccessEmpty": "Markeer mappen als favorieten voor snelle toegang.",
+    "readOnly": {
+      "label": "Alleen-lezen",
+      "storage": "Alleen-lezen opslag: dit volume is alleen-lezen gekoppeld, dus er kan niets in worden geschreven.",
+      "permission": "Niet beschrijfbaar: de server heeft geen toestemming om in dit volume te schrijven. Controleer op de host van wie het is.",
+      "access": "Alleen-lezen voor uw account."
+    }
   },
   "drives": {
     "personal": "Persoonlijk",

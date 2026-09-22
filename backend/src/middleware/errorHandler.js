@@ -111,6 +111,19 @@ const MULTIPART_REFUSALS = {
   MISSING_FIELD_NAME: [400, 'A form field was sent without a name.'],
 };
 
+/**
+ * A write the storage itself refused because it is mounted read-only.
+ *
+ * It surfaced as a 500 carrying the system's own words — `EROFS: read-only
+ * file system, mkdir` — for what is neither a fault of the server nor
+ * something a retry would change. The listing now says beforehand that such a
+ * folder cannot be written in; this is the answer for whatever still tries.
+ */
+const storageRefusal = (err) =>
+  err?.code === 'EROFS'
+    ? { statusCode: 403, message: 'This storage is read-only: nothing can be written here.' }
+    : null;
+
 const multipartRefusal = (err) => {
   if (!(err instanceof multer.MulterError)) return null;
   const [statusCode, sentence] = MULTIPART_REFUSALS[err.code] || [400, err.message];
@@ -118,7 +131,7 @@ const multipartRefusal = (err) => {
 };
 
 const describeError = (err) => {
-  const refusal = multipartRefusal(err);
+  const refusal = multipartRefusal(err) || storageRefusal(err);
   if (refusal) return refusal.message;
 
   if (err?.type === 'entity.too.large') {
@@ -141,7 +154,12 @@ const errorHandler = (err, req, res, next) => {
 
   // Determine if this is an operational error (expected) or programmer error (unexpected)
   const isOperational = err.isOperational || false;
-  const statusCode = multipartRefusal(err)?.statusCode || err.statusCode || err.status || 500;
+  const statusCode =
+    multipartRefusal(err)?.statusCode ||
+    storageRefusal(err)?.statusCode ||
+    err.statusCode ||
+    err.status ||
+    500;
   const message = describeError(err);
 
   // For OIDC callback navigations, redirect back into the SPA so the login screen can show the error.
