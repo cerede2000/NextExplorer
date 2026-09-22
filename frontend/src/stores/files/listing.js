@@ -1,6 +1,13 @@
 import { itemKey } from './items';
 
 /**
+ * What the client puts on a row itself, and the server knows nothing about: a
+ * thumbnail it fetched, and the note that there is none to fetch. Everything
+ * else on a row is the server's to say — and to stop saying.
+ */
+const CLIENT_OWNED = new Set(['thumbnail', 'thumbnailUnavailable']);
+
+/**
  * A new listing, folded into the one on screen.
  *
  * Merge new items into existing list by stable key so that unchanged entries
@@ -29,29 +36,22 @@ export const mergeListing = (previousItems, items) => {
     const existing = existingByKey.get(key);
 
     if (existing) {
-      // Preserve any locally-added thumbnail if the backend
-      // does not send one, but refresh all other metadata.
+      // The server's answer is the whole truth about a row, so a field it has
+      // stopped sending is taken off rather than left behind. `Object.assign`
+      // can only add and overwrite, and each field that went quiet needed its
+      // own `delete` to be noticed: the badge for a document no longer being
+      // edited, the count on a file whose last version was deleted, the mark
+      // on a folder a rule no longer holds. Each of them stayed on screen
+      // until the folder was left and come back to. They are all the same
+      // defect, so it is answered once, here.
       const prevThumbnail = existing.thumbnail;
+      for (const key of Object.keys(existing)) {
+        if (!CLIENT_OWNED.has(key) && !Object.hasOwn(incoming, key)) delete existing[key];
+      }
       Object.assign(existing, incoming);
-      // A missing property is meaningful for transient state such as the
-      // OnlyOffice activity badge: remove the old value immediately when
-      // the server reports that the document is no longer active.
-      if (!Object.hasOwn(incoming, 'onlyofficeActivity')) {
-        delete existing.onlyofficeActivity;
-      }
-      // The same, for the mark that says a file has earlier versions:
-      // delete the last one and the server stops sending the count, which
-      // `Object.assign` would otherwise have left on the row until the
-      // folder was left and come back to.
-      if (!Object.hasOwn(incoming, 'versions')) {
-        delete existing.versions;
-      }
       if (!incoming.thumbnail && prevThumbnail) {
         existing.thumbnail = prevThumbnail;
       }
-      // `supportsThumbnail` can be toggled by system settings; if the backend does not
-      // include it for an item, treat it as false so we don't keep stale truthy values.
-      existing.supportsThumbnail = Boolean(incoming.supportsThumbnail);
       merged.push(existing);
     } else {
       merged.push(incoming);

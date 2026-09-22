@@ -21,19 +21,43 @@ describe('a new listing over the old one', () => {
     expect(kept.thumbnail).toBe('/t/a.jpg');
   });
 
-  // Absent means gone for these: nothing else would ever take them off the row.
-  it('drops the editing badge, the version mark and thumbnail support when the server stops sending them', () => {
+  /**
+   * Whatever the server stops saying about a row goes, without the row having
+   * to be named here: each field that went quiet used to need its own line in
+   * the merge, and a new one arrived stale — the lock on a folder whose rule no
+   * longer holds you stayed until the page was reloaded, while the rule itself
+   * was already applied.
+   */
+  it('drops every field the server has stopped sending', () => {
     const kept = {
       name: 'a.docx',
       path: 'Docs',
       onlyofficeActivity: { active: true },
       versions: { count: 2 },
       supportsThumbnail: true,
+      readOnly: 'access',
+      somethingAddedLater: 'stale',
     };
+
     mergeListing([kept], [{ name: 'a.docx', path: 'Docs' }]);
-    expect(kept).not.toHaveProperty('onlyofficeActivity');
-    expect(kept).not.toHaveProperty('versions');
-    expect(kept.supportsThumbnail).toBe(false);
+
+    expect(kept).toEqual({ name: 'a.docx', path: 'Docs' });
+  });
+
+  it('keeps the thumbnail the client fetched, which the server never sends', () => {
+    const kept = {
+      name: 'a.jpg',
+      path: 'Docs',
+      thumbnail: 'blob:kept',
+      thumbnailUnavailable: true,
+      readOnly: 'access',
+    };
+
+    mergeListing([kept], [{ name: 'a.jpg', path: 'Docs' }]);
+
+    expect(kept.thumbnail).toBe('blob:kept');
+    expect(kept.thumbnailUnavailable).toBe(true);
+    expect(kept).not.toHaveProperty('readOnly');
   });
 
   it('adds what is new and forgets what is gone', () => {
