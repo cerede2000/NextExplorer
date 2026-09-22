@@ -16,6 +16,12 @@ import { useStorageBrowser } from '@/composables/useStorageBrowser';
  * Folders are always shown so a nested file remains reachable; files are shown
  * only when they are of a kind the caller asked for, because picking one that
  * cannot be used is a failure the caller can only report after the fact.
+ *
+ * With `chooseFolder` the answer is a folder instead — the one being looked at,
+ * chosen with the button below the list — and files are not shown at all. An
+ * access rule is written for a folder, and typing its path was the only way to
+ * give one: typed from the host's side of a mount, it named nothing
+ * (nxzai/NextExplorer#407).
  */
 
 const props = defineProps({
@@ -26,6 +32,8 @@ const props = defineProps({
   /** Folder to open on, usually the one holding the document being edited. */
   initialPath: { type: String, default: '' },
   elevated: Boolean,
+  /** Answer with the folder being looked at rather than with a file. */
+  chooseFolder: Boolean,
 });
 
 const emit = defineEmits(['update:modelValue', 'select']);
@@ -36,17 +44,29 @@ const isOpen = computed({
   set: (value) => emit('update:modelValue', value),
 });
 
-const { items, isLoading, error, crumbs, navigate, fullPath } = useStorageBrowser();
+const { items, isLoading, error, crumbs, navigate, fullPath, currentPath } = useStorageBrowser();
 
 const accepted = computed(() => new Set(props.extensions.map((ext) => String(ext).toLowerCase())));
 
 const entries = computed(() =>
   items.value.filter((item) => {
     if (item.kind === 'directory') return true;
+    if (props.chooseFolder) return false;
     if (accepted.value.size === 0) return true;
     return accepted.value.has(String(item.kind || '').toLowerCase());
   })
 );
+
+/** The top of the list holds the volumes, and is not a folder of its own. */
+const canChooseHere = computed(
+  () => !isLoading.value && !error.value && Boolean(currentPath.value)
+);
+
+const chooseCurrentFolder = () => {
+  if (!canChooseHere.value) return;
+  emit('select', currentPath.value);
+  isOpen.value = false;
+};
 
 const choose = (item) => {
   if (item.kind === 'directory') {
@@ -131,13 +151,23 @@ watch(
     </div>
 
     <template #footer>
-      <div class="flex justify-end">
+      <div class="flex justify-end gap-2">
         <button
           type="button"
           class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-zinc-800"
           @click="isOpen = false"
         >
           {{ t('common.cancel') }}
+        </button>
+        <button
+          v-if="chooseFolder"
+          type="button"
+          data-testid="storage-picker-choose-folder"
+          class="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          :disabled="!canChooseHere"
+          @click="chooseCurrentFolder"
+        >
+          {{ t('storagePicker.chooseFolder') }}
         </button>
       </div>
     </template>

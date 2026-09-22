@@ -639,7 +639,13 @@
       "readWrite": "Lettura e scrittura",
       "readOnly": "Sola lettura",
       "hidden": "Nascosta",
-      "title": "Accesso"
+      "title": "Accesso",
+      "browse": "Scegli una cartella",
+      "pickFolderTitle": "Cartella per questa regola",
+      "pathMissing": "Nessuna cartella a questo percorso. Una regola usa il percorso come lo mostra NextExplorer, a partire dal nome del volume.",
+      "pathInvalid": "Questo percorso non è in nessun volume, quindi la regola non si applicherà mai.",
+      "useSuggestion": "Usa {path}",
+      "adminNote": "Le regole «Sola lettura» non limitano gli amministratori. Le regole «Nascosta» valgono per tutti, amministratori compresi."
     },
     "comingSoon": {
       "subtitle": "Questa sezione delle impostazioni è in costruzione. Resta sintonizzato!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Archiviazione",
     "empty": "Non c'è nulla da scegliere qui",
-    "breadcrumb": "Percorso della cartella"
+    "breadcrumb": "Percorso della cartella",
+    "chooseFolder": "Scegli questa cartella"
   },
   "destinationPicker": {
     "moveTitle": "Sposta in",

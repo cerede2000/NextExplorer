@@ -639,7 +639,13 @@
       "readWrite": "Läs-skriv",
       "readOnly": "Skrivskyddad",
       "hidden": "Dold",
-      "title": "Åtkomst"
+      "title": "Åtkomst",
+      "browse": "Välj en mapp",
+      "pickFolderTitle": "Mapp för den här regeln",
+      "pathMissing": "Det finns ingen mapp på den här sökvägen. En regel använder sökvägen så som NextExplorer visar den, med volymens namn först.",
+      "pathInvalid": "Den här sökvägen ligger inte i någon volym, så regeln kommer aldrig att gälla.",
+      "useSuggestion": "Använd {path}",
+      "adminNote": "Regler ”Skrivskyddad” begränsar inte administratörer. Regler ”Dold” gäller alla, även administratörer."
     },
     "comingSoon": {
       "subtitle": "Denna inställningssektion håller på att byggas. Vänta och se!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Lagring",
     "empty": "Det finns inget att välja här",
-    "breadcrumb": "Mappsökväg"
+    "breadcrumb": "Mappsökväg",
+    "chooseFolder": "Välj den här mappen"
   },
   "destinationPicker": {
     "moveTitle": "Flytta till",

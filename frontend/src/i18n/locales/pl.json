@@ -639,7 +639,13 @@
       "readWrite": "Odczyt i zapis",
       "readOnly": "Tylko odczyt",
       "hidden": "Ukryte",
-      "title": "Dostęp"
+      "title": "Dostęp",
+      "browse": "Wybierz folder",
+      "pickFolderTitle": "Folder dla tej reguły",
+      "pathMissing": "Pod tą ścieżką nie ma folderu. Reguła używa ścieżki tak, jak pokazuje ją NextExplorer, zaczynając od nazwy woluminu.",
+      "pathInvalid": "Ta ścieżka nie leży w żadnym woluminie, więc reguła nigdy nie zadziała.",
+      "useSuggestion": "Użyj {path}",
+      "adminNote": "Reguły „Tylko odczyt” nie ograniczają administratorów. Reguły „Ukryte” dotyczą wszystkich, także administratorów."
     },
     "comingSoon": {
       "subtitle": "Ta sekcja ustawień jest w przygotowaniu. Bądź na bieżąco!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Magazyn",
     "empty": "Nie ma tu nic do wyboru",
-    "breadcrumb": "Ścieżka folderu"
+    "breadcrumb": "Ścieżka folderu",
+    "chooseFolder": "Wybierz ten folder"
   },
   "destinationPicker": {
     "moveTitle": "Przenieś do",

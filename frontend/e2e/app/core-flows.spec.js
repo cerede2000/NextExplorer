@@ -851,6 +851,75 @@ test('the search index and folder sizes switch on from Settings, and the About p
 });
 
 /**
+ * A volume nothing can be written in, and a rule written for a folder.
+ *
+ * A volume bound `:ro`, or one the server's user may not write in, looked like
+ * any other until something was attempted in it — offered New and Upload, to an
+ * administrator above all — and a rule typed from the host's side of a mount
+ * was saved and matched nothing (nxzai/NextExplorer#407). A read-only mount
+ * cannot be made here; a folder the server may not write in can, and it is the
+ * same question to the system. Root writes through any mode, so this is only
+ * asked of a server that does not run as root.
+ */
+test('a volume nothing can be written in is marked, and a rule’s folder is chosen or corrected', async () => {
+  const locked = path.join(process.env.E2E_ROOT, 'volumes', 'Locked');
+  fs.mkdirSync(locked, { recursive: true });
+  fs.writeFileSync(path.join(locked, 'readme.txt'), 'read me');
+  const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+  fs.chmodSync(locked, 0o555);
+  try {
+    await page.goto('/browse/');
+    await page.reload();
+    const lockedMarks = page
+      .locator('button', { hasText: 'Locked' })
+      .locator('[data-testid="volume-read-only"]');
+    if (asRoot) {
+      await expect(lockedMarks).toHaveCount(0);
+    } else {
+      // On the home page and in the sidebar alike, and on that volume only.
+      await expect(lockedMarks).toHaveCount(2);
+      await expect(lockedMarks.first()).toHaveAttribute('data-reason', 'permission');
+      await expect(
+        page.locator('button', { hasText: 'Projects' }).locator('[data-testid="volume-read-only"]')
+      ).toHaveCount(0);
+
+      // Inside it, what can be read still is, and nothing offers to write.
+      await page.goto('/browse/Locked');
+      await expect(page.getByText('readme.txt')).toBeVisible();
+      await expect(page.locator('button[title="New"]')).toHaveCount(0);
+      await page.goto('/browse/Projects');
+      await expect(page.locator('button[title="New"]')).toBeVisible();
+    }
+  } finally {
+    fs.chmodSync(locked, 0o755);
+  }
+
+  // The rule's folder, chosen rather than typed.
+  await page.goto('/settings/access-control');
+  await page.getByRole('button', { name: 'Add rule' }).click();
+  const pathField = page.locator('[data-test="access-rule-path"]').last();
+  await page.locator('[data-test="access-rule-browse"]').last().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('option', { name: 'Projects' }).click();
+  await dialog.locator('[data-testid="storage-picker-choose-folder"]').click();
+  await expect(pathField).toHaveValue('Projects');
+  await expect(page.locator('[data-test="access-rule-path-warning"]')).toHaveCount(0);
+
+  // Typed from the container's side of the mount, it names nothing — and the
+  // folder meant is offered.
+  await pathField.fill('mnt/Projects');
+  const warning = page.locator('[data-test="access-rule-path-warning"]');
+  await expect(warning).toBeVisible();
+  await warning.locator('[data-test="access-rule-path-suggestion"]').click();
+  await expect(pathField).toHaveValue('Projects');
+  await expect(warning).toHaveCount(0);
+
+  // Nothing of this is kept: the tests after this one expect no rules.
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await expect(page.locator('[data-test="access-rule-path"]')).toHaveCount(0);
+});
+
+/**
  * No screen may hide content where nothing can scroll.
  *
  * This is the last test on purpose: it fills the installation with more than

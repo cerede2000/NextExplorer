@@ -52,8 +52,10 @@ These two are the only background workers a page can start. Both read volumes th
 ## Access Control
 
 - **Rule editor:** Define per-folder rules with `path`, `type` (`rw`, `ro`, `hidden`), and recursion options.
+- **The path is the one NextExplorer shows:** the volume first, then its folders — `torrents/films`, not the host's `/volume3/downloads/torrents` nor the container's `/mnt/torrents`. Type it, or choose it with the folder button beside the field. A path that names no folder is flagged, with the folder probably meant one click away; it is a warning and not a refusal, since a rule may be written for a folder that does not exist yet.
 - **First-match wins:** Rules are evaluated top to bottom; the first matching path governs browser behavior.
-- **Hidden folders:** Use `hidden` to keep folders out of listings while still accessible via direct URLs.
+- **Who a rule restricts:** `ro` restricts every account except administrators, who can still write there. `hidden` applies to everyone, administrators included. The page says so under its title.
+- **Hidden folders:** `hidden` keeps a folder out of listings and search, and refuses it by its address as well.
 
 ## Admin Users
 

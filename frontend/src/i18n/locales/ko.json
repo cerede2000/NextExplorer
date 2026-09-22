@@ -639,7 +639,13 @@
       "readWrite": "읽기/쓰기",
       "readOnly": "읽기 전용",
       "hidden": "숨김",
-      "title": "접근"
+      "title": "접근",
+      "browse": "폴더 선택",
+      "pickFolderTitle": "이 규칙의 폴더",
+      "pathMissing": "이 경로에 폴더가 없습니다. 규칙은 볼륨 이름부터 시작하여 NextExplorer에 표시되는 경로를 사용합니다.",
+      "pathInvalid": "이 경로는 어떤 볼륨에도 속하지 않으므로 규칙이 적용되지 않습니다.",
+      "useSuggestion": "{path} 사용",
+      "adminNote": "“읽기 전용” 규칙은 관리자를 제한하지 않습니다. “숨김” 규칙은 관리자를 포함한 모든 사용자에게 적용됩니다."
     },
     "comingSoon": {
       "subtitle": "이 설정 항목은 현재 개발 중입니다. 기대해주세요!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "저장소",
     "empty": "선택할 항목이 없습니다",
-    "breadcrumb": "폴더 경로"
+    "breadcrumb": "폴더 경로",
+    "chooseFolder": "이 폴더 선택"
   },
   "destinationPicker": {
     "moveTitle": "이동 위치",

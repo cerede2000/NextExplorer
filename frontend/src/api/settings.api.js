@@ -27,3 +27,15 @@ export async function uploadLogo(file, branding) {
   form.append('logo', file);
   return requestJson('/api/settings/upload-logo', { method: 'POST', body: form });
 }
+
+/**
+ * What each path of an access rule names on the disk, so the rule editor can
+ * warn about one that names nothing and offer the folder probably meant.
+ * Answers `{ paths: [{ path, status, suggestion }] }`, in the order sent.
+ */
+export async function checkAccessRulePaths(paths) {
+  return requestJson('/api/settings/access/check-paths', {
+    method: 'POST',
+    body: JSON.stringify({ paths: Array.isArray(paths) ? paths : [] }),
+  });
+}

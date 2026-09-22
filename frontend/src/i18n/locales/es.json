@@ -639,7 +639,13 @@
       "readWrite": "Lectura y escritura",
       "readOnly": "Solo lectura",
       "hidden": "Oculta",
-      "title": "Acceso"
+      "title": "Acceso",
+      "browse": "Elegir una carpeta",
+      "pickFolderTitle": "Carpeta de esta regla",
+      "pathMissing": "No hay ninguna carpeta en esta ruta. Una regla usa la ruta tal como la muestra NextExplorer, empezando por el nombre del volumen.",
+      "pathInvalid": "Esta ruta no está dentro de ningún volumen, así que la regla nunca se aplicará.",
+      "useSuggestion": "Usar {path}",
+      "adminNote": "Las reglas «Solo lectura» no restringen a los administradores. Las reglas «Oculta» se aplican a todos, administradores incluidos."
     },
     "comingSoon": {
       "subtitle": "Esta sección de configuración está en desarrollo. ¡Permanece atento!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Almacenamiento",
     "empty": "No hay nada que elegir aquí",
-    "breadcrumb": "Ruta de la carpeta"
+    "breadcrumb": "Ruta de la carpeta",
+    "chooseFolder": "Elegir esta carpeta"
   },
   "destinationPicker": {
     "moveTitle": "Mover a",

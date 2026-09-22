@@ -668,7 +668,13 @@
       "recursive": "Récursif",
       "readWrite": "Lecture et écriture",
       "readOnly": "Lecture seule",
-      "hidden": "Masqué"
+      "hidden": "Masqué",
+      "browse": "Choisir un dossier",
+      "pickFolderTitle": "Dossier de cette règle",
+      "pathMissing": "Aucun dossier à ce chemin. Une règle utilise le chemin tel que NextExplorer l'affiche, en commençant par le nom du volume.",
+      "pathInvalid": "Ce chemin n'est dans aucun volume : la règle ne s'appliquera jamais.",
+      "useSuggestion": "Utiliser {path}",
+      "adminNote": "Les règles « Lecture seule » ne limitent pas les administrateurs. Les règles « Masqué » s'appliquent à tout le monde, administrateurs compris."
     },
     "comingSoon": {
       "subtitle": "Cette section de paramètres est en cours de développement. Restez à l'écoute !"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Stockage",
     "empty": "Rien à choisir ici",
-    "breadcrumb": "Chemin du dossier"
+    "breadcrumb": "Chemin du dossier",
+    "chooseFolder": "Choisir ce dossier"
   },
   "destinationPicker": {
     "moveTitle": "Déplacer vers",

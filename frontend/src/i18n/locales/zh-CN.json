@@ -639,7 +639,13 @@
       "readWrite": "读写",
       "readOnly": "只读",
       "hidden": "隐藏",
-      "title": "访问"
+      "title": "访问",
+      "browse": "选择文件夹",
+      "pickFolderTitle": "此规则的文件夹",
+      "pathMissing": "此路径下没有文件夹。规则使用 NextExplorer 显示的路径，以卷名开头。",
+      "pathInvalid": "此路径不在任何卷内，因此该规则永远不会生效。",
+      "useSuggestion": "使用 {path}",
+      "adminNote": "“只读”规则不限制管理员。“隐藏”规则适用于所有人，包括管理员。"
     },
     "comingSoon": {
       "subtitle": "此设置部分正在构建中，敬请期待！"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "存储",
     "empty": "这里没有可选项",
-    "breadcrumb": "文件夹路径"
+    "breadcrumb": "文件夹路径",
+    "chooseFolder": "选择此文件夹"
   },
   "destinationPicker": {
     "moveTitle": "移动到",

@@ -50,9 +50,10 @@ Administrators control users, folders, and security policies through Settings. T
 
 - **Settings → Access Control** lets you define rules with the following types:
   - `rw` – Read/write access (default). Applies when no rule matches.
-  - `ro` – Read-only access; uploads and edits are disabled.
-  - `hidden` – Keeps the volume/folder out of listings; only accessible via direct path.
-- Rules use the logical root (e.g., `Projects/Team`) and evaluate in defined order, so place more specific rules above general ones.
+  - `ro` – Read-only access; uploads and edits are disabled for every account except administrators.
+  - `hidden` – Keeps the volume/folder out of listings and search, and refuses it by its address too — for everyone, administrators included.
+- Rules use the logical root (e.g., `Projects/Team`), the path NextExplorer shows with the volume first — not the path of the mount on the host or in the container. The folder button beside the field chooses it for you, and a path that names no folder is flagged with the one probably meant.
+- Rules evaluate in defined order, so place more specific rules above general ones.
 - Recursive rules apply to subfolders when the recursion checkbox is enabled.
 
 ## Sharing & guest access

@@ -639,7 +639,13 @@
       "readWrite": "Citire și scriere",
       "readOnly": "Doar citire",
       "hidden": "Ascuns",
-      "title": "Acces"
+      "title": "Acces",
+      "browse": "Alegeți un dosar",
+      "pickFolderTitle": "Dosarul acestei reguli",
+      "pathMissing": "Nu există niciun dosar la această cale. O regulă folosește calea așa cum o arată NextExplorer, începând cu numele volumului.",
+      "pathInvalid": "Această cale nu se află în niciun volum, așa că regula nu se va aplica niciodată.",
+      "useSuggestion": "Folosiți {path}",
+      "adminNote": "Regulile „Doar citire” nu îi restricționează pe administratori. Regulile „Ascuns” se aplică tuturor, inclusiv administratorilor."
     },
     "comingSoon": {
       "subtitle": "Această secțiune de setări este în lucru. Revino în curând!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Stocare",
     "empty": "Nu este nimic de ales aici",
-    "breadcrumb": "Calea folderului"
+    "breadcrumb": "Calea folderului",
+    "chooseFolder": "Alegeți acest dosar"
   },
   "destinationPicker": {
     "moveTitle": "Mută în",

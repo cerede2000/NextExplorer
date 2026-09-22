@@ -668,7 +668,13 @@
       "recursive": "Recursief",
       "readWrite": "Lezen & Schrijven",
       "readOnly": "Alleen-lezen",
-      "hidden": "Verborgen"
+      "hidden": "Verborgen",
+      "browse": "Map kiezen",
+      "pickFolderTitle": "Map voor deze regel",
+      "pathMissing": "Er is geen map op dit pad. Een regel gebruikt het pad zoals NextExplorer het toont, beginnend met de naam van het volume.",
+      "pathInvalid": "Dit pad ligt niet in een volume, dus de regel wordt nooit toegepast.",
+      "useSuggestion": "{path} gebruiken",
+      "adminNote": "Regels „Alleen-lezen” beperken beheerders niet. Regels „Verborgen” gelden voor iedereen, ook voor beheerders."
     },
     "comingSoon": {
       "subtitle": "Deze sectie Instellingen wordt momenteel gebouwd. Blijf op de hoogte!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Opslag",
     "empty": "Hier is niets om te kiezen",
-    "breadcrumb": "Pad van de map"
+    "breadcrumb": "Pad van de map",
+    "chooseFolder": "Deze map kiezen"
   },
   "destinationPicker": {
     "moveTitle": "Verplaatsen naar",

@@ -21,6 +21,7 @@ const { describeBytes, explainMultipartRefusals } = require('../middleware/multi
 const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
 const featureSwitches = require('../services/featureSwitches');
+const { checkRulePath } = require('../services/accessControlService');
 
 const router = express.Router();
 
@@ -112,6 +113,28 @@ router.post(
 
     const settings = await getSettingsForUser(req.user);
     res.json({ ...settings, logoUrl });
+  })
+);
+
+/**
+ * POST /api/settings/access/check-paths
+ *
+ * What each path of a rule names on the disk (admin only), for the rule editor
+ * to warn about one that names nothing and offer the folder that was probably
+ * meant. Nothing is stored or refused here: see `checkRulePath`.
+ */
+const MAX_CHECKED_PATHS = 200;
+
+router.post(
+  '/settings/access/check-paths',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const paths = req.body?.paths;
+    if (!Array.isArray(paths)) throw new ValidationError('paths must be a list.');
+    if (paths.length > MAX_CHECKED_PATHS) {
+      throw new ValidationError(`At most ${MAX_CHECKED_PATHS} paths are checked at once.`);
+    }
+    res.json({ paths: await Promise.all(paths.map((entry) => checkRulePath(entry))) });
   })
 );
 

@@ -9185,6 +9185,86 @@
         }
       }
     },
+    "/api/settings/access/check-paths": {
+      "post": {
+        "operationId": "checkAccessRulePaths",
+        "summary": "What the paths of access rules name on the disk",
+        "description": "For the rule editor, which warns about a path that names nothing. A rule is matched against the path NextExplorer shows, volume first; one typed from the host’s side of a mount (`mnt/torrents`) names nothing, and the folder probably meant comes back as `suggestion`. Nothing is stored or refused.",
+        "tags": ["Settings"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "At most 200, answered in the same order."
+                  }
+                },
+                "required": ["paths"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "paths": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "As it was sent."
+                          },
+                          "status": {
+                            "type": "string",
+                            "description": "`folder` or `file` when it names one, `missing` when it names nothing, `invalid` when it lies outside the volumes, `empty` for no path.",
+                            "enum": ["folder", "file", "missing", "invalid", "empty"]
+                          },
+                          "suggestion": {
+                            "type": ["string", "null"],
+                            "description": "The folder probably meant, for a `missing` path."
+                          }
+                        },
+                        "required": ["path", "status", "suggestion"]
+                      }
+                    }
+                  },
+                  "required": ["paths"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      }
+    },
     "/api/branding": {
       "get": {
         "operationId": "getBranding",

@@ -107,6 +107,45 @@ module.exports = {
       },
     }),
   },
+  '/api/settings/access/check-paths': {
+    post: op({
+      id: 'checkAccessRulePaths',
+      summary: 'What the paths of access rules name on the disk',
+      description:
+        'For the rule editor, which warns about a path that names nothing. A rule is matched against the path NextExplorer shows, volume first; one typed from the host’s side of a mount (`mnt/torrents`) names nothing, and the folder probably meant comes back as `suggestion`. Nothing is stored or refused.',
+      tag: 'Settings',
+      access: 'admin',
+      body: body(
+        obj(
+          { paths: arrayOf(str(), { description: 'At most 200, answered in the same order.' }) },
+          ['paths']
+        )
+      ),
+      responses: {
+        200: json(
+          obj(
+            {
+              paths: arrayOf(
+                obj(
+                  {
+                    path: str('As it was sent.'),
+                    status: str(
+                      '`folder` or `file` when it names one, `missing` when it names nothing, `invalid` when it lies outside the volumes, `empty` for no path.',
+                      { enum: ['folder', 'file', 'missing', 'invalid', 'empty'] }
+                    ),
+                    suggestion: nullable(str('The folder probably meant, for a `missing` path.')),
+                  },
+                  ['path', 'status', 'suggestion']
+                )
+              ),
+            },
+            ['paths']
+          )
+        ),
+        ...errors(400, 401, 403),
+      },
+    }),
+  },
   '/api/branding': {
     get: op({
       id: 'getBranding',

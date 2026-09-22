@@ -668,7 +668,13 @@
       "recursive": "Recursivo",
       "readWrite": "Leitura e Escrita",
       "readOnly": "Somente Leitura",
-      "hidden": "Oculto"
+      "hidden": "Oculto",
+      "browse": "Escolher uma pasta",
+      "pickFolderTitle": "Pasta desta regra",
+      "pathMissing": "Não há pasta neste caminho. Uma regra usa o caminho como o NextExplorer o mostra, começando pelo nome do volume.",
+      "pathInvalid": "Este caminho não está dentro de nenhum volume, então a regra nunca será aplicada.",
+      "useSuggestion": "Usar {path}",
+      "adminNote": "Regras “Somente Leitura” não restringem administradores. Regras “Oculto” valem para todos, inclusive administradores."
     },
     "comingSoon": {
       "subtitle": "Esta seção de configurações está em construção. Aguarde!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Armazenamento",
     "empty": "Nada para escolher aqui",
-    "breadcrumb": "Caminho da pasta"
+    "breadcrumb": "Caminho da pasta",
+    "chooseFolder": "Escolher esta pasta"
   },
   "destinationPicker": {
     "moveTitle": "Mover para",

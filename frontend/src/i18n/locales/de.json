@@ -639,7 +639,13 @@
       "readWrite": "Lesen & Schreiben",
       "readOnly": "Nur Lesen",
       "hidden": "Ausgeblendet",
-      "title": "Zugriff"
+      "title": "Zugriff",
+      "browse": "Ordner auswählen",
+      "pickFolderTitle": "Ordner für diese Regel",
+      "pathMissing": "Unter diesem Pfad gibt es keinen Ordner. Eine Regel verwendet den Pfad so, wie NextExplorer ihn anzeigt, beginnend mit dem Namen des Volumes.",
+      "pathInvalid": "Dieser Pfad liegt in keinem Volume, daher greift die Regel nie.",
+      "useSuggestion": "{path} verwenden",
+      "adminNote": "Regeln „Nur Lesen“ schränken Administratoren nicht ein. Regeln „Ausgeblendet“ gelten für alle, auch für Administratoren."
     },
     "comingSoon": {
       "subtitle": "Dieser Einstellungsbereich wird derzeit entwickelt. Bleiben Sie dran!"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "Speicher",
     "empty": "Hier gibt es nichts auszuwählen",
-    "breadcrumb": "Ordnerpfad"
+    "breadcrumb": "Ordnerpfad",
+    "chooseFolder": "Diesen Ordner wählen"
   },
   "destinationPicker": {
     "moveTitle": "Verschieben nach",

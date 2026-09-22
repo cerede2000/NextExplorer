@@ -639,7 +639,13 @@
       "readWrite": "讀寫",
       "readOnly": "只讀",
       "hidden": "隱藏",
-      "title": "存取"
+      "title": "存取",
+      "browse": "選擇資料夾",
+      "pickFolderTitle": "此規則的資料夾",
+      "pathMissing": "此路徑下沒有資料夾。規則使用 NextExplorer 顯示的路徑，以磁碟區名稱開頭。",
+      "pathInvalid": "此路徑不在任何磁碟區內，因此該規則永遠不會生效。",
+      "useSuggestion": "使用 {path}",
+      "adminNote": "「只讀」規則不限制管理員。「隱藏」規則適用於所有人，包括管理員。"
     },
     "comingSoon": {
       "subtitle": "此設置部分正在建置中，敬請期待！"
@@ -1153,7 +1159,8 @@
   "storagePicker": {
     "root": "儲存空間",
     "empty": "這裡沒有可選項目",
-    "breadcrumb": "資料夾路徑"
+    "breadcrumb": "資料夾路徑",
+    "chooseFolder": "選擇此資料夾"
   },
   "destinationPicker": {
     "moveTitle": "移動到",

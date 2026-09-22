@@ -20,7 +20,12 @@ const i18n = createI18n({
   messages: {
     en: {
       common: { close: 'Close', cancel: 'Cancel', loadingEllipsis: 'Loading…' },
-      storagePicker: { root: 'Storage', empty: 'Nothing here to pick', breadcrumb: 'Folder path' },
+      storagePicker: {
+        root: 'Storage',
+        empty: 'Nothing here to pick',
+        breadcrumb: 'Folder path',
+        chooseFolder: 'Choose this folder',
+      },
     },
   },
 });
@@ -113,6 +118,82 @@ describe('StoragePickerDialog', () => {
 
     expect(document.body.textContent).toContain('Nothing here to pick');
 
+    wrapper.unmount();
+  });
+});
+
+/**
+ * The same walk, answered with a folder: the one being looked at, chosen with
+ * the button under the list. Built for the access rules, whose path was only
+ * ever typed — and typed from the host's side of a mount, named nothing
+ * (nxzai/NextExplorer#407).
+ */
+describe('StoragePickerDialog choosing a folder', () => {
+  const chooseButton = () => document.querySelector('[data-testid="storage-picker-choose-folder"]');
+
+  it('shows folders only, and answers with the folder it was opened on', async () => {
+    browse.mockResolvedValue(
+      listing(
+        [
+          { name: 'films', kind: 'directory', path: 'torrents' },
+          { name: 'liste.txt', kind: 'txt', path: 'torrents' },
+        ],
+        'torrents'
+      )
+    );
+
+    const wrapper = mountPicker({ chooseFolder: true, extensions: [], initialPath: 'torrents' });
+    await flushPromises();
+
+    expect(browse).toHaveBeenCalledWith('torrents');
+    expect(optionLabels()).toEqual(['films']);
+
+    chooseButton().click();
+    await flushPromises();
+
+    expect(wrapper.emitted('select')).toEqual([['torrents']]);
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]]);
+    wrapper.unmount();
+  });
+
+  it('answers with a folder reached by walking into it', async () => {
+    browse.mockImplementation(async (target) =>
+      target === 'torrents/films'
+        ? listing([], 'torrents/films')
+        : listing([{ name: 'films', kind: 'directory', path: 'torrents' }], 'torrents')
+    );
+
+    const wrapper = mountPicker({ chooseFolder: true, extensions: [], initialPath: 'torrents' });
+    await flushPromises();
+    document.querySelector('[role="option"]').click();
+    await flushPromises();
+    chooseButton().click();
+    await flushPromises();
+
+    expect(wrapper.emitted('select')).toEqual([['torrents/films']]);
+    wrapper.unmount();
+  });
+
+  it('cannot choose the top of the list, which holds the volumes and is no folder', async () => {
+    browse.mockResolvedValue(listing([{ name: 'torrents', kind: 'directory', path: '' }], ''));
+
+    const wrapper = mountPicker({ chooseFolder: true, extensions: [] });
+    await flushPromises();
+
+    expect(chooseButton().disabled).toBe(true);
+    chooseButton().click();
+    await flushPromises();
+    expect(wrapper.emitted('select')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('offers no such button when a file is what is wanted', async () => {
+    browse.mockResolvedValue(listing([], 'torrents'));
+
+    const wrapper = mountPicker({ initialPath: 'torrents' });
+    await flushPromises();
+
+    expect(chooseButton()).toBeNull();
     wrapper.unmount();
   });
 });

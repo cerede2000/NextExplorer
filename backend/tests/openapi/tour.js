@@ -484,6 +484,10 @@ const tour = async (app, { volume, requireFresh }) => {
     'POST /api/settings/upload-logo',
     admin.post('/api/settings/upload-logo').attach('logo', PNG, 'logo.png')
   );
+  await call(
+    'POST /api/settings/access/check-paths',
+    admin.post('/api/settings/access/check-paths').send({ paths: ['Documents', 'mnt/Documents'] })
+  );
   await call('GET /api/activity', admin.get('/api/activity'));
   await call('GET /api/activity/address', admin.get('/api/activity/address'));
   await call('DELETE /api/activity', admin.delete('/api/activity'));

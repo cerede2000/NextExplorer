@@ -12,7 +12,8 @@ Keep this page handy when deployment, authentication, or UI behaviors need quick
 
 ## Access & permissions
 
-- **Path marked read-only or hidden:** Check Settings → Access Control for matching rules; `hidden` and `ro` rules block writes even if user has permission.
+- **Path marked read-only or hidden:** Check Settings → Access Control for matching rules. A `hidden` rule applies to everyone, administrators included; an `ro` rule restricts every account except administrators, so test one with an ordinary account.
+- **A rule seems to do nothing:** Its path must be the one NextExplorer shows, volume first (`torrents`, not `mnt/torrents`). The rule editor flags a path that names no folder and offers the folder probably meant.
 - **A lock beside a volume:** Nothing can be written in it, and New, Upload and Delete are not offered there — to administrators either. Hover the lock for the reason: the volume is mounted read-only (`:ro` in the Compose file), the server's user may not write in it (match `PUID`/`PGID` to the owner on the host), or a rule or the volume's assignment keeps your account to reading.
 - **Missing volume entries:** Confirm your `docker-compose` mounts include `/mnt/Label` entries and the container has read access.
 - **Path not found after remounting:** Restart the container whenever you change volume mounts in your Compose file so the app rescans volumes.
