@@ -1,11 +1,15 @@
 <script setup>
 import { computed } from 'vue';
 import { RouterView } from 'vue-router';
+import { useAccountLanguage } from '@/composables/useAccountLanguage';
 import { useConfigErrorGate } from '@/composables/useConfigErrorGate';
 import ConfigErrorScreen from '@/components/ConfigErrorScreen.vue';
 import ConfigWarningNotice from '@/components/ConfigWarningNotice.vue';
 
 const { configError, dismissConfigWarning } = useConfigErrorGate();
+
+// The account's language, applied for as long as the application is on screen.
+useAccountLanguage();
 
 const blockingConfigError = computed(() => configError.value?.mode === 'error');
 const configWarning = computed(() =>

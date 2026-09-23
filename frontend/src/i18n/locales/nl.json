@@ -257,7 +257,8 @@
     "locations": "Locaties"
   },
   "i18n": {
-    "language": "Taal"
+    "language": "Taal",
+    "followBrowser": "De browser volgen"
   },
   "search": {
     "openShortcutTitle": "Zoekopdracht openen (⌘/Ctrl + K)",
@@ -615,7 +616,8 @@
       "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
       "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
       "showVersionMarks": "Bestanden met versies markeren",
-      "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen."
+      "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen.",
+      "languageHelp": "Wordt bij uw account bewaard, in elke browser waarmee u zich aanmeldt."
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",

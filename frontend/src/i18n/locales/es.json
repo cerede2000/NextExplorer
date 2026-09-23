@@ -257,7 +257,8 @@
     "locations": "Ubicaciones"
   },
   "i18n": {
-    "language": "Idioma"
+    "language": "Idioma",
+    "followBrowser": "Seguir el navegador"
   },
   "search": {
     "openShortcutTitle": "Abrir búsqueda (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "Abrir los documentos en una pestaña nueva",
       "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora.",
       "showVersionMarks": "Marcar los archivos con versiones",
-      "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial."
+      "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial.",
+      "languageHelp": "Se guarda con su cuenta, en cualquier navegador desde el que inicie sesión."
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",

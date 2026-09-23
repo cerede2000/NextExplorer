@@ -39,6 +39,9 @@ export const useAppSettings = defineStore('appSettings', () => {
     // uses. It is read as `!== false` on the server, so this default and that
     // one cannot drift apart.
     showVersionMarks: true,
+    // The language this account is read in. null follows the browser, which is
+    // what everybody got before there was anywhere to say otherwise.
+    locale: null,
   });
 
   const createDefaultTrashSettings = () => ({

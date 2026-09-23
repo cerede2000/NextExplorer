@@ -257,7 +257,8 @@
     "locations": "Locații"
   },
   "i18n": {
-    "language": "Limbă"
+    "language": "Limbă",
+    "followBrowser": "Urmează browserul"
   },
   "search": {
     "openShortcutTitle": "Deschide căutarea (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "Deschide documentele într-o filă nouă",
       "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
       "showVersionMarks": "Marchează fișierele care au versiuni",
-      "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul."
+      "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul.",
+      "languageHelp": "Se păstrează în contul dumneavoastră, în orice browser din care vă conectați."
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",

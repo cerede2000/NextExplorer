@@ -257,7 +257,8 @@
     "locations": "위치"
   },
   "i18n": {
-    "language": "언어"
+    "language": "언어",
+    "followBrowser": "브라우저 설정 따르기"
   },
   "search": {
     "openShortcutTitle": "검색창 열기 (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "문서를 새 탭에서 열기",
       "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다.",
       "showVersionMarks": "버전이 있는 파일 표시",
-      "showVersionMarksHelp": "이전 버전이 있는 파일에 개수와 함께 목록에서 작은 표시를 붙입니다. 누르면 기록이 열립니다."
+      "showVersionMarksHelp": "이전 버전이 있는 파일에 개수와 함께 목록에서 작은 표시를 붙입니다. 누르면 기록이 열립니다.",
+      "languageHelp": "계정에 저장되어 로그인하는 모든 브라우저에 적용됩니다."
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",

@@ -614,6 +614,28 @@ const asViewMode = (value) => {
 };
 
 /**
+ * A language tag, or null to follow the browser.
+ *
+ * Checked for its shape and not against a list of the languages that exist:
+ * the translations are the interface's, and a second list here would be a
+ * second truth to keep — one locale added there and forgotten here would be
+ * refused for no reason anybody could see. A tag naming a translation nobody
+ * ships is stored and then falls back to the browser, which is what a reader
+ * whose language is gone should get anyway.
+ *
+ * Anything that is not a tag at all is refused rather than turned into null,
+ * as a view mode is: a typo would otherwise read as "follow the browser" and
+ * the choice would put itself back where it was.
+ */
+const LANGUAGE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+const asLocale = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const tag = value.trim();
+  return LANGUAGE_TAG.test(tag) ? tag : undefined;
+};
+
+/**
  * Every preference a user may set, each with the coercion that belongs to it.
  *
  * One line per preference, in one place, because this used to be spread over
@@ -638,6 +660,7 @@ const USER_SETTINGS = {
   defaultShareExpiration: asShareExpiration,
   skipHome: asNullableBoolean,
   defaultView: asViewMode,
+  locale: asLocale,
 };
 
 /**

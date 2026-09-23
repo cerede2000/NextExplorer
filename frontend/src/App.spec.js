@@ -25,6 +25,14 @@ vi.mock('@/components/ConfigWarningNotice.vue', () => ({
   },
 }));
 
+// The account's language is the settings store's business, and this spec is
+// about the configuration gate: what belongs here is that the shell asks for
+// it at all, which the test at the bottom checks.
+const accountLanguage = vi.fn();
+vi.mock('@/composables/useAccountLanguage', () => ({
+  useAccountLanguage: () => accountLanguage(),
+}));
+
 vi.mock('@/components/ConfigErrorScreen.vue', () => ({
   default: {
     props: ['mode', 'expectedOrigin', 'requestOrigin'],
@@ -38,6 +46,18 @@ describe('App config error handling', () => {
   beforeEach(() => {
     configError.value = null;
     dismissConfigWarning.mockClear();
+    accountLanguage.mockClear();
+  });
+
+  /**
+   * Asked for by the shell and nowhere else, so it holds for every screen —
+   * a folder, a document, the editor — and outlives the route changes between
+   * them (nxzai/NextExplorer discussion #408).
+   */
+  it('puts the account’s language on screen', () => {
+    mount(App, { global: { stubs: { RouterView: true } } });
+
+    expect(accountLanguage).toHaveBeenCalledTimes(1);
   });
 
   it('shows a dismissible warning for PUBLIC_URL mismatches without blocking the router', async () => {

@@ -23,6 +23,12 @@ vi.mock('@/stores/quickActions', () => ({ useQuickActionsStore: () => quickActio
 const translate = (key, params) =>
   params && typeof params === 'object' ? `${key} ${JSON.stringify(params)}` : key;
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: translate }) }));
+// A fixed set, so the list on the page does not change with the translations
+// that happen to be shipped.
+vi.mock('@/i18n', () => ({
+  supportedLocaleOptions: [{ code: 'en' }, { code: 'fr' }, { code: 'nl' }],
+  languageLabel: (code) => ({ en: 'English', fr: 'Français', nl: 'Nederlands' })[code] || code,
+}));
 
 import SettingsUserPreferences from './SettingsUserPreferences.vue';
 
@@ -97,9 +103,11 @@ const open = async (user = STORED) => {
 
 const toggle = (name) => wrapper.findAll('[role="switch"]')[SWITCHES.indexOf(name)];
 const expiryField = () => wrapper.get('input[type="number"]');
-const unitSelect = () => wrapper.findAll('select')[0];
-const viewSelect = () => wrapper.findAll('select')[1];
-const startSelect = () => wrapper.findAll('select')[2];
+const select = (name) => wrapper.get(`[data-test="preferences-${name}"]`);
+const unitSelect = () => select('expiry-unit');
+const viewSelect = () => select('default-view');
+const startSelect = () => select('start');
+const languageSelect = () => select('language');
 const selected = (select) =>
   select.element.options[select.element.selectedIndex].textContent.trim();
 const choose = (select, label) =>
@@ -172,6 +180,7 @@ describe('the preferences', () => {
         markdownOpensInEditor: true,
         documentsOpenInNewTab: true,
         showVersionMarks: true,
+        locale: null,
       },
     });
     expect(sentUser()).not.toHaveProperty('folderSorts');
@@ -270,6 +279,48 @@ describe('the preferences', () => {
     expect(selected(viewSelect())).toBe('settings.userPreferences.viewList');
     expect(button('common.save')).toBeUndefined();
     expect(appSettings.save).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The language this account reads in.
+ *
+ * The only other way to choose one is the picker on the sign-in page, which
+ * writes into the browser and is never seen again once somebody is signed in —
+ * so it could not be found at all (nxzai/NextExplorer discussion #408). This
+ * one belongs to the account and travels with it.
+ */
+describe('the language', () => {
+  it('follows the browser until somebody chooses', async () => {
+    await open(DEFAULTS);
+
+    expect(selected(languageSelect())).toBe('i18n.followBrowser');
+    expect(button('common.save')).toBeUndefined();
+  });
+
+  it('shows the chosen one named in itself, not in the language of the page', async () => {
+    await open({ ...STORED, locale: 'nl' });
+
+    expect(selected(languageSelect())).toBe('Nederlands');
+    expect(button('common.save')).toBeUndefined();
+  });
+
+  it('is saved with the other preferences', async () => {
+    await open();
+
+    await choose(languageSelect(), 'Français');
+    await save();
+
+    expect(sentUser().locale).toBe('fr');
+  });
+
+  it('is handed back as nothing when the browser is followed again', async () => {
+    await open({ ...STORED, locale: 'fr' });
+
+    await choose(languageSelect(), 'i18n.followBrowser');
+    await save();
+
+    expect(sentUser().locale).toBeNull();
   });
 });
 

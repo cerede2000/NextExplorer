@@ -257,7 +257,8 @@
     "locations": "Posizioni"
   },
   "i18n": {
-    "language": "Lingua"
+    "language": "Lingua",
+    "followBrowser": "Segui il browser"
   },
   "search": {
     "openShortcutTitle": "Apri ricerca (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "Aprire i documenti in una nuova scheda",
       "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi.",
       "showVersionMarks": "Segnalare i file con versioni",
-      "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia."
+      "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia.",
+      "languageHelp": "Salvata con il tuo account, su ogni browser da cui accedi."
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",

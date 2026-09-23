@@ -61,6 +61,8 @@ const NON_DEFAULT = {
   defaultShareExpiration: { value: 3, unit: 'days' },
   skipHome: true,
   defaultView: 'list',
+  // Null by default, which means "follow the browser".
+  locale: 'nl',
 };
 
 describe('PATCH /api/settings — user preferences', () => {
@@ -245,6 +247,63 @@ describe('PATCH /api/settings — user preferences', () => {
     } finally {
       await envContext.cleanup();
     }
+  });
+
+  /**
+   * The language an account reads in, which is the account's and not the
+   * browser's: the only other way to choose one is the picker on the sign-in
+   * page, which writes into the browser and is never seen again once somebody
+   * is signed in (nxzai/NextExplorer discussion #408).
+   */
+  describe('the language', () => {
+    it('follows the browser until an account says otherwise', async () => {
+      const { envContext, app } = await buildContext();
+      try {
+        const fresh = await request(app).get('/api/settings').expect(200);
+        expect(fresh.body.user.locale ?? null).toBeNull();
+
+        const saved = await request(app)
+          .patch('/api/settings')
+          .send({ user: { locale: 'pt-BR' } })
+          .expect(200);
+        expect(saved.body.user.locale).toBe('pt-BR');
+
+        const back = await request(app)
+          .patch('/api/settings')
+          .send({ user: { locale: null } })
+          .expect(200);
+        expect(back.body.user.locale).toBeNull();
+      } finally {
+        await envContext.cleanup();
+      }
+    });
+
+    /**
+     * Refused rather than read as "follow the browser": a value that is not a
+     * language tag is a mistake, and turning it into the default would put the
+     * choice back where it was with nothing to show for it.
+     */
+    it.each([['not a language'], ['en_US!'], [42], [{ code: 'fr' }], [['fr']]])(
+      'leaves the language as it was when sent %j',
+      async (sent) => {
+        const { envContext, app } = await buildContext();
+        try {
+          await request(app)
+            .patch('/api/settings')
+            .send({ user: { locale: 'nl' } })
+            .expect(200);
+
+          const saved = await request(app)
+            .patch('/api/settings')
+            .send({ user: { locale: sent } })
+            .expect(200);
+
+          expect(saved.body.user.locale).toBe('nl');
+        } finally {
+          await envContext.cleanup();
+        }
+      }
+    );
   });
 
   it('ignores a key that is not a user preference', async () => {

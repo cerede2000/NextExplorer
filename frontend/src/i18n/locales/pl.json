@@ -257,7 +257,8 @@
     "locations": "Lokalizacje"
   },
   "i18n": {
-    "language": "Język"
+    "language": "Język",
+    "followBrowser": "Zgodnie z przeglądarką"
   },
   "search": {
     "openShortcutTitle": "Otwórz wyszukiwanie (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
       "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
       "showVersionMarks": "Oznaczaj pliki, które mają wersje",
-      "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię."
+      "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię.",
+      "languageHelp": "Zapisywany przy koncie, w każdej przeglądarce, w której się logujesz."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",

@@ -57,6 +57,7 @@ nextExplorer mixes a modern browser experience with secure access controls and f
 
 ## Operational helpers
 
+- **The language you read in:** The interface follows the browser, which is right for most people and wrong for anybody whose browser is not in their language — a shared machine, a company image, a second account. Settings → Preferences → **Language** chooses one for the account, so it travels with you to whichever browser you sign in from; left on _Follow the browser_, nothing changes. The globe on the sign-in page still chooses a language for that browser, which is the one thing an account cannot do before anybody has signed in.
 - **Resizeable sidebar:** The sidebar can be dragged to different widths for wide or narrow monitors.
 - **Notifications & transfers:** A floating panel tracks uploads, copies, moves and archive work, with pause, resume and cancel, the transfer rate, and per-file detail when several run at once.
 - **Chunked uploads:** Large files can be uploaded in resumable chunks (`UPLOAD_CHUNKED_ENABLED`), which survives a dropped connection and gets past reverse proxies that refuse large bodies — a fallback switches to chunks automatically when one does. Once the transfer ends, the server may still be writing the file into place; that phase is reported separately rather than appearing to stall at 100%, and a file that arrived but could not be put in its folder is reported as a failure, with the reason, never as done.

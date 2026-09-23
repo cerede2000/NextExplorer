@@ -257,7 +257,8 @@
     "locations": "位置"
   },
   "i18n": {
-    "language": "語言"
+    "language": "語言",
+    "followBrowser": "跟隨瀏覽器"
   },
   "search": {
     "openShortcutTitle": "打開搜尋 (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "在新分頁中開啟文件",
       "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
       "showVersionMarks": "標示有版本的檔案",
-      "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。"
+      "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。",
+      "languageHelp": "儲存在您的帳戶中，在您登入的每個瀏覽器上生效。"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",

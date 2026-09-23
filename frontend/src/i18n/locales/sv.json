@@ -257,7 +257,8 @@
     "locations": "Platser"
   },
   "i18n": {
-    "language": "Språk"
+    "language": "Språk",
+    "followBrowser": "Följ webbläsaren"
   },
   "search": {
     "openShortcutTitle": "Öppna sökning (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "Öppna dokument i en ny flik",
       "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag.",
       "showVersionMarks": "Märk filer som har versioner",
-      "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken."
+      "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken.",
+      "languageHelp": "Sparas med ditt konto, i varje webbläsare du loggar in från."
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",

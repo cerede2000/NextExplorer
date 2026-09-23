@@ -257,7 +257,8 @@
     "locations": "Emplacements"
   },
   "i18n": {
-    "language": "Langue"
+    "language": "Langue",
+    "followBrowser": "Suivre le navigateur"
   },
   "search": {
     "openShortcutTitle": "Ouvrir la recherche (⌘/Ctrl + K)",
@@ -615,7 +616,8 @@
       "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
       "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
       "showVersionMarks": "Signaler les fichiers qui ont des versions",
-      "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique."
+      "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique.",
+      "languageHelp": "Conservée avec votre compte, sur chaque navigateur où vous vous connectez."
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",

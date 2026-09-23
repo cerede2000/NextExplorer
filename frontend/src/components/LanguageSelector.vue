@@ -3,28 +3,15 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside } from '@vueuse/core';
 import { ChevronUpDownIcon } from '@heroicons/vue/24/outline';
-import { supportedLocaleOptions } from '@/i18n';
+import { languageLabel, supportedLocaleOptions } from '@/i18n';
 import { EarthSharp } from '@vicons/ionicons5';
 
 const { t, locale } = useI18n();
 
-function formatLanguageLabel(code) {
-  const upper = code ? code.toUpperCase() : '';
-  try {
-    const autonym = new Intl.DisplayNames([code], {
-      type: 'language',
-      languageDisplay: 'standard',
-    }).of(code);
-    return autonym ? `${autonym}` : upper;
-  } catch {
-    return upper || code;
-  }
-}
-
 const languages = computed(() =>
   supportedLocaleOptions.map(({ code }) => ({
     code,
-    label: formatLanguageLabel(code),
+    label: languageLabel(code),
   }))
 );
 
@@ -32,7 +19,7 @@ const currentLanguage = computed(() => {
   const list = languages.value;
   return (
     list.find((lang) => lang.code === locale.value) ||
-    list[0] || { code: locale.value, label: formatLanguageLabel(locale.value) }
+    list[0] || { code: locale.value, label: languageLabel(locale.value) }
   );
 });
 

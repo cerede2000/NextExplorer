@@ -257,7 +257,8 @@
     "locations": "位置"
   },
   "i18n": {
-    "language": "语言"
+    "language": "语言",
+    "followBrowser": "跟随浏览器"
   },
   "search": {
     "openShortcutTitle": "打开搜索 (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "在新标签页中打开文档",
       "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。",
       "showVersionMarks": "标记有版本的文件",
-      "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。"
+      "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。",
+      "languageHelp": "保存在您的账户中，在您登录的每个浏览器上生效。"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",

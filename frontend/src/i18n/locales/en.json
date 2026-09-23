@@ -257,7 +257,8 @@
     "locations": "Locations"
   },
   "i18n": {
-    "language": "Language"
+    "language": "Language",
+    "followBrowser": "Follow the browser"
   },
   "search": {
     "openShortcutTitle": "Open Search (⌘/Ctrl + K)",
@@ -615,7 +616,8 @@
       "documentsOpenInNewTab": "Open documents in a new tab",
       "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today.",
       "showVersionMarks": "Mark files that have versions",
-      "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history."
+      "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history.",
+      "languageHelp": "Kept with your account, on every browser you sign in from."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",

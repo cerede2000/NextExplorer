@@ -103,4 +103,45 @@ const i18n = createI18n({
   },
 });
 
+/**
+ * The language an account asked for, or the browser's when it asked for none.
+ *
+ * Kept apart from the picker on the sign-in page, which writes a language into
+ * this browser: that one is answered before anybody is known, and this one
+ * belongs to the account, so it follows a reader from one browser to the next.
+ * The account's choice therefore wins while somebody is signed in, and letting
+ * it go — choosing "follow the browser" again — falls back to exactly what
+ * would have been shown before they ever chose: this browser's language, and
+ * failing that the browser's own.
+ *
+ * A tag naming a translation we do not ship is not one: it falls back rather
+ * than leaving the interface empty, which is what the server stores it for.
+ */
+/**
+ * A language named in itself — Deutsch, Français — since the person reading it
+ * is looking for their own and may not read the one the page is in.
+ */
+export function languageLabel(code) {
+  if (!code) return '';
+  try {
+    const autonym = new Intl.DisplayNames([code], {
+      type: 'language',
+      languageDisplay: 'standard',
+    }).of(code);
+    return autonym || code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
+}
+
+export function applyUserLocale(preference) {
+  const chosen = preference ? matchLocale(supportedLocales, preference) : null;
+  const next = chosen || detectLocale(supportedLocales);
+  i18n.global.locale.value = next;
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('lang', next);
+  }
+  return next;
+}
+
 export default i18n;

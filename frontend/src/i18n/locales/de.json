@@ -257,7 +257,8 @@
     "locations": "Standorte"
   },
   "i18n": {
-    "language": "Sprache"
+    "language": "Sprache",
+    "followBrowser": "Dem Browser folgen"
   },
   "search": {
     "openShortcutTitle": "Suche öffnen (⌘/Ctrl + K)",
@@ -612,7 +613,8 @@
       "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
       "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner.",
       "showVersionMarks": "Dateien mit Versionen kennzeichnen",
-      "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf."
+      "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf.",
+      "languageHelp": "Wird bei Ihrem Konto gespeichert, in jedem Browser, in dem Sie sich anmelden."
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
