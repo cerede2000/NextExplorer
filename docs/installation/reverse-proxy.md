@@ -27,6 +27,7 @@ When exposing nextExplorer on a custom domain, a reverse proxy keeps the UI secu
 - Set `CORS_ORIGINS`/`ALLOWED_ORIGINS` when the app is accessed from multiple domains.
 - For a full walkthrough (including `PUBLIC_URL` and origin mismatch behavior), see [Fixing CORS errors](/reference/cors).
 - Ensure the proxy forwards `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For` so the backend derives the correct `PUBLIC_URL` origin and TLS state.
+- The application sets its own baseline response headers — `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: same-origin`, a `Permissions-Policy` and `X-Robots-Tag: noindex` — and does not advertise Express. It does not set `Strict-Transport-Security`: whether every hostname is HTTPS-only is the proxy's decision, so set HSTS there if you want it.
 
 ## Networking health checklist
 
