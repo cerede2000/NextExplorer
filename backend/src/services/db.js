@@ -5,6 +5,7 @@ const Database = require('better-sqlite3');
 const { directories, files, favorites } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
+const { TRASH_DDL } = require('./trash/schema');
 
 let dbInstance = null;
 
@@ -36,7 +37,6 @@ const FOLDER_SIZE_INDEX_DDL = `
   CREATE INDEX IF NOT EXISTS idx_folder_size_volume ON folder_size_index(volume);
 `;
 
-
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -60,7 +60,7 @@ const migrate = (db) => {
     );
   `);
 
-const getVersion = db.prepare('SELECT value FROM meta WHERE key = ?').pluck();
+  const getVersion = db.prepare('SELECT value FROM meta WHERE key = ?').pluck();
   let version = Number(getVersion.get('schema_version') || 0);
 
   db.transaction(() => {
@@ -419,6 +419,16 @@ const getVersion = db.prepare('SELECT value FROM meta WHERE key = ?').pluck();
       );
       version = 11;
     }
+
+    if (version < 12) {
+      logger.info('[DB Migration] Migrating to v12: trash...');
+      db.exec(TRASH_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(12)
+      );
+      version = 12;
+    }
   })();
 };
 
@@ -568,10 +578,7 @@ const migrateFavoritesFromJson = (db) => {
       }
     }
 
-    logger.info(
-      { migratedCount, targetUserId },
-      '[DB Migration] Migrated favorites to user'
-    );
+    logger.info({ migratedCount, targetUserId }, '[DB Migration] Migrated favorites to user');
 
     // Clear favorites from app-config.json
     configData.favorites = [];
@@ -648,6 +655,13 @@ const getDb = async () => {
     db.exec(FOLDER_SIZE_INDEX_DDL);
   } catch (err) {
     logger.warn({ err }, '[DB] Failed to ensure folder_size_index table');
+  }
+  // Applied on every open too: a database created by another build sharing this
+  // /config may be past v12 without the trash tables.
+  try {
+    db.exec(TRASH_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure trash tables');
   }
   ensureAnonymousUser(db);
   dbInstance = db;

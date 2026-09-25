@@ -209,6 +209,32 @@ router.patch(
         }
       }
 
+      // Trash settings: only the fields that arrived in a usable shape are
+      // merged over what is stored; setSystemSetting sanitizes and clamps them.
+      if (payload.trash && typeof payload.trash === 'object') {
+        const trashUpdate = {};
+        if (typeof payload.trash.enabled === 'boolean') {
+          trashUpdate.enabled = payload.trash.enabled;
+        }
+        if (Number.isFinite(payload.trash.retentionDays)) {
+          trashUpdate.retentionDays = payload.trash.retentionDays;
+        }
+        if (Number.isFinite(payload.trash.maxPercent)) {
+          trashUpdate.maxPercent = payload.trash.maxPercent;
+        }
+        if (payload.trash.maxBytes === null || Number.isFinite(payload.trash.maxBytes)) {
+          trashUpdate.maxBytes = payload.trash.maxBytes;
+        }
+        if (Object.keys(trashUpdate).length > 0) {
+          const current = await getSettings();
+          const merged = await setSystemSetting('system', 'trash', {
+            ...current.trash,
+            ...trashUpdate,
+          });
+          systemUpdates.trash = merged;
+        }
+      }
+
       // Branding settings
       if (payload.branding && typeof payload.branding === 'object') {
         const brandingUpdate = {};

@@ -78,6 +78,36 @@ const sanitizeBranding = (branding = {}) => {
 };
 
 /**
+ * The trash settings in force: on or off, how many days an item is kept, and
+ * how much of a volume the trash may hold — a share of it, capped by a size
+ * when one is set. An explicit `maxBytes: null` removes the cap; a field left
+ * out keeps the default the environment gave.
+ */
+const sanitizeTrash = (trash = {}) => {
+  // eslint-disable-next-line global-require
+  const { trash: defaults } = require('../config/index');
+  // eslint-disable-next-line global-require
+  const { parseByteSize } = require('../utils/env');
+  const source = trash && typeof trash === 'object' ? trash : {};
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const integerIn = (value, min, max, fallback) =>
+    Number.isFinite(value) ? clamp(Math.round(value), min, max) : fallback;
+  const rawMaxBytes =
+    typeof source.maxBytes === 'string' ? parseByteSize(source.maxBytes) : source.maxBytes;
+
+  let maxBytes = defaults.maxBytes;
+  if (source.maxBytes === null) maxBytes = null;
+  else if (Number.isFinite(rawMaxBytes) && rawMaxBytes > 0) maxBytes = Math.floor(rawMaxBytes);
+
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    retentionDays: integerIn(source.retentionDays, 1, 3650, defaults.retentionDays),
+    maxPercent: integerIn(source.maxPercent, 1, 90, defaults.maxPercent),
+    maxBytes,
+  };
+};
+
+/**
  * Get public settings (branding only, no auth required)
  */
 const getPublicSettings = async () => {
@@ -149,6 +179,7 @@ const getSystemSettings = async () => {
 
     const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
     const access = { rules: [] };
+    let trash = {};
 
     for (const row of rows) {
       try {
@@ -159,6 +190,8 @@ const getSystemSettings = async () => {
           if (accessData.rules) {
             access.rules = accessData.rules;
           }
+        } else if (row.key === 'trash') {
+          trash = JSON.parse(row.value);
         }
       } catch (err) {
         // Skip invalid JSON
@@ -170,6 +203,7 @@ const getSystemSettings = async () => {
       access: {
         rules: sanitizeAccessRules(access.rules),
       },
+      trash: sanitizeTrash(trash),
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -181,12 +215,14 @@ const getSystemSettings = async () => {
         access: {
           rules: sanitizeAccessRules(settings.access?.rules || []),
         },
+        trash: sanitizeTrash(settings.trash),
       };
     } catch (err2) {
       // Return defaults
       return {
         thumbnails: sanitizeThumbnails({}),
         access: { rules: [] },
+        trash: sanitizeTrash({}),
       };
     }
   }
@@ -213,6 +249,7 @@ const getSettingsForUser = async (user) => {
       const systemSettings = await getSystemSettings();
       result.thumbnails = systemSettings.thumbnails;
       result.access = systemSettings.access;
+      result.trash = systemSettings.trash;
     }
   }
 
@@ -303,6 +340,8 @@ const setSystemSetting = async (category, key, value) => {
     };
   } else if (key === 'branding') {
     sanitizedValue = sanitizeBranding(value);
+  } else if (key === 'trash') {
+    sanitizedValue = sanitizeTrash(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -394,6 +433,7 @@ const updateSettings = async (updater) => {
 
 module.exports = {
   getPublicSettings,
+  sanitizeTrash,
   getUserSettings,
   getSystemSettings,
   getSettingsForUser,

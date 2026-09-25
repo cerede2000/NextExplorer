@@ -111,6 +111,13 @@ module.exports = {
 
   // Features
   SHOW_VOLUME_USAGE: normalizeBoolean(process.env.SHOW_VOLUME_USAGE) || false,
+
+  // Trash: a deletion is a rename into a reserved space at the root of each
+  // volume. These are the defaults; an administrator changes them in Settings.
+  TRASH_ENABLED: normalizeBoolean(process.env.TRASH_ENABLED) ?? true,
+  TRASH_RETENTION_DAYS: process.env.TRASH_RETENTION_DAYS?.trim() || '30',
+  TRASH_MAX_PERCENT: process.env.TRASH_MAX_PERCENT?.trim() || '10',
+  TRASH_MAX_SIZE: process.env.TRASH_MAX_SIZE?.trim() || null,
   USER_DIR_ENABLED: normalizeBoolean(process.env.USER_DIR_ENABLED) || false,
   USER_VOLUMES: normalizeBoolean(process.env.USER_VOLUMES) || false,
   SKIP_HOME: normalizeBoolean(process.env.SKIP_HOME) || false,
@@ -119,6 +126,7 @@ module.exports = {
 
   // Uploads (direct, non-chunked)
   MAX_DIRECT_UPLOAD_SIZE: process.env.MAX_DIRECT_UPLOAD_SIZE?.trim() || null,
+  UPLOAD_STORAGE_RESERVE: process.env.UPLOAD_STORAGE_RESERVE?.trim() || '64M',
   MAX_FILES_PER_UPLOAD: Number(process.env.MAX_FILES_PER_UPLOAD) || 50,
 
   // Editor

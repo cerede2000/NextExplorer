@@ -11,6 +11,7 @@ const terminalService = require('./services/terminalService');
 const searchIndexManager = require('./services/searchIndexManager');
 const folderSizeManager = require('./services/folderSizeManager');
 const { sweepInterrupted } = require('./services/inFlightFiles');
+const trashMaintenance = require('./services/trash/maintenance');
 
 let server = null;
 
@@ -55,12 +56,16 @@ const startServer = async () => {
   // ready, it answers from the live search until it is.
   folderSizeManager.start();
   searchIndexManager.start();
+  // Finishes what a crash interrupted before anything else touches a zone,
+  // then keeps each zone within its retention and budget.
+  trashMaintenance.start();
 
   // Cleanup on process termination
   const cleanup = () => {
     logger.info('Shutting down server...');
     terminalService.cleanup();
     folderSizeManager.stop();
+    trashMaintenance.stop();
     searchIndexManager.stop();
     server.close(() => {
       logger.info('Server closed');
