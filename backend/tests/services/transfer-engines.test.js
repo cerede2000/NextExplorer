@@ -48,7 +48,13 @@ const setup = async (engine) => {
      VALUES ('admin', 'admin@example.com', 1, 'admin', 'Admin', '["admin"]', ?, ?)`
   ).run(now, now);
 
-  return { service, volume: currentEnv.volumeDir, user: { id: 'admin', roles: ['admin'] } };
+  // Inside a volume, not in the list of volumes: a folder at the top is a
+  // volume, and the application refuses to rename, move or delete one
+  // (nxzai/NextExplorer#409).
+  const volume = path.join(currentEnv.volumeDir, 'Nvm');
+  await fs.mkdir(volume, { recursive: true });
+
+  return { service, volume, user: { id: 'admin', roles: ['admin'] } };
 };
 
 /** A folder with something in it, and something in a folder inside it. */
@@ -95,7 +101,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     const root = await seedTree(volume, 'Doomed');
 
-    await service.deleteItems([{ path: '', name: 'Doomed' }], { user, permanent: true });
+    await service.deleteItems([{ path: 'Nvm', name: 'Doomed' }], { user, permanent: true });
 
     expect(await exists(root)).toBe(false);
   });
@@ -104,7 +110,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     await fs.writeFile(path.join(volume, 'note.txt'), 'gone soon');
 
-    await service.deleteItems([{ path: '', name: 'note.txt' }], { user, permanent: true });
+    await service.deleteItems([{ path: 'Nvm', name: 'note.txt' }], { user, permanent: true });
 
     expect(await exists(path.join(volume, 'note.txt'))).toBe(false);
   });
@@ -114,7 +120,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Doomed');
     await seedTree(volume, 'Spared');
 
-    await service.deleteItems([{ path: '', name: 'Doomed' }], { user, permanent: true });
+    await service.deleteItems([{ path: 'Nvm', name: 'Doomed' }], { user, permanent: true });
 
     expect(await exists(path.join(volume, 'Spared', 'nested', 'deep.txt'))).toBe(true);
   });
@@ -123,7 +129,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     await seedTree(volume, 'Doomed');
 
-    const results = await service.deleteItems([{ path: '', name: 'Doomed' }], {
+    const results = await service.deleteItems([{ path: 'Nvm', name: 'Doomed' }], {
       user,
       permanent: true,
     });
@@ -140,7 +146,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     const { service, volume, user } = await setup(engine);
     const root = await seedTree(volume, '-rf-trap');
 
-    await service.deleteItems([{ path: '', name: '-rf-trap' }], { user, permanent: true });
+    await service.deleteItems([{ path: 'Nvm', name: '-rf-trap' }], { user, permanent: true });
 
     expect(await exists(root)).toBe(false);
   });
@@ -150,9 +156,14 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Source');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer([{ path: '', name: 'Source' }], 'Target', 'copy', {
-      user,
-    });
+    const prep = await service.prepareTransfer(
+      [{ path: 'Nvm', name: 'Source' }],
+      'Nvm/Target',
+      'copy',
+      {
+        user,
+      }
+    );
     await service.executeTransfer(prep, 'copy', undefined, { user });
 
     expect(await exists(path.join(volume, 'Target', 'Source', 'nested', 'deep.txt'))).toBe(true);
@@ -163,9 +174,14 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Source');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer([{ path: '', name: 'Source' }], 'Target', 'copy', {
-      user,
-    });
+    const prep = await service.prepareTransfer(
+      [{ path: 'Nvm', name: 'Source' }],
+      'Nvm/Target',
+      'copy',
+      {
+        user,
+      }
+    );
     await service.executeTransfer(prep, 'copy', undefined, { user });
 
     expect(await exists(path.join(volume, 'Source', 'top.txt'))).toBe(true);
@@ -176,9 +192,14 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await fs.writeFile(path.join(volume, 'note.txt'), 'the actual bytes');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer([{ path: '', name: 'note.txt' }], 'Target', 'copy', {
-      user,
-    });
+    const prep = await service.prepareTransfer(
+      [{ path: 'Nvm', name: 'note.txt' }],
+      'Nvm/Target',
+      'copy',
+      {
+        user,
+      }
+    );
     await service.executeTransfer(prep, 'copy', undefined, { user });
 
     expect(await fs.readFile(path.join(volume, 'Target', 'note.txt'), 'utf8')).toBe(
@@ -191,9 +212,14 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     await seedTree(volume, 'Source');
     await fs.mkdir(path.join(volume, 'Target'), { recursive: true });
 
-    const prep = await service.prepareTransfer([{ path: '', name: 'Source' }], 'Target', 'move', {
-      user,
-    });
+    const prep = await service.prepareTransfer(
+      [{ path: 'Nvm', name: 'Source' }],
+      'Nvm/Target',
+      'move',
+      {
+        user,
+      }
+    );
     await service.executeTransfer(prep, 'move', undefined, { user });
 
     expect(await exists(path.join(volume, 'Target', 'Source', 'top.txt'))).toBe(true);
@@ -204,7 +230,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
   it('refuses a transfer with no items', async () => {
     const { service, user } = await setup(engine);
 
-    await expect(service.prepareTransfer([], 'Target', 'copy', { user })).rejects.toThrow(
+    await expect(service.prepareTransfer([], 'Nvm/Target', 'copy', { user })).rejects.toThrow(
       /at least one item/i
     );
   });
@@ -216,7 +242,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     controller.abort();
 
     await expect(
-      service.deleteItems([{ path: '', name: 'Doomed' }], { user, signal: controller.signal })
+      service.deleteItems([{ path: 'Nvm', name: 'Doomed' }], { user, signal: controller.signal })
     ).rejects.toThrow();
   });
 
@@ -227,7 +253,7 @@ describe.each(ENGINES)('the %s engine', (engine) => {
     controller.abort();
 
     await service
-      .deleteItems([{ path: '', name: 'Doomed' }], { user, signal: controller.signal })
+      .deleteItems([{ path: 'Nvm', name: 'Doomed' }], { user, signal: controller.signal })
       .catch(() => {});
 
     expect(await exists(root)).toBe(true);

@@ -9,6 +9,8 @@ const env = require('../config/env');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
 const {
+  assertNotTopLevelEntry,
+  isTopLevelEntry,
   normalizeRelativePath,
   combineRelativePath,
   ensureValidName,
@@ -781,6 +783,10 @@ const prepareTransfer = async (items, destination, operation, options = {}) => {
 
     const stats = await fs.stat(sourceAbsolute);
     const isDirectory = stats.isDirectory();
+    // The destination cannot be the top level, and neither can what is carried
+    // from it: a volume is a mount, and moving one out of the list is the same
+    // loss as deleting it (nxzai/NextExplorer#409).
+    assertNotTopLevelEntry(item.path || '', operation === 'move' ? 'moved' : 'copied', isDirectory);
     const sourceParent = normalizeRelativePath(path.dirname(sourceRelative));
 
     if (
@@ -1127,6 +1133,15 @@ const resolveDeleteTargets = async (items = [], context, options = {}) => {
     }
     const exists = includeStats ? stats !== null : null;
     const isDirectory = stats ? stats.isDirectory() : item?.kind === 'directory';
+
+    // A volume is a mount, not a folder in it: deleting one from here would
+    // take the whole of somebody's data with it (nxzai/NextExplorer#409).
+    // Asked of the disk rather than of the caller, which says what it likes —
+    // and only at the top, where the extra look costs nothing.
+    if (isTopLevelEntry(item.path || '')) {
+      const onDisk = stats || (await fs.stat(absolutePath).catch(() => null));
+      assertNotTopLevelEntry(item.path || '', 'deleted', onDisk?.isDirectory() === true);
+    }
 
     targets[index] = {
       item,

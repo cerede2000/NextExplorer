@@ -9,7 +9,7 @@ const { FileStore } = require('@tus/file-store');
 
 const { upload: uploadConfig } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
-const { normalizeRelativePath } = require('../utils/pathUtils');
+const { isTopLevelEntry, normalizeRelativePath } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const activityLog = require('./activityLog');
@@ -340,7 +340,9 @@ const resolveTusUploadTarget = async (nodeReq, metadata = {}) => {
   const logicalRelativePath = normalizeRelativePath(path.join(logicalBase, relativePath));
   const relDestDir = normalizeRelativePath(path.dirname(logicalRelativePath));
 
-  if (!relDestDir || relDestDir.trim() === '') {
+  // As the direct upload: neither the file nor a folder of its relative path
+  // may land at the top, where a folder is a mount (nxzai/NextExplorer#409).
+  if (!relDestDir || relDestDir.trim() === '' || isTopLevelEntry(logicalBase)) {
     throw tusError(
       400,
       'Cannot upload files to the root path. Please select a specific volume or folder first.'

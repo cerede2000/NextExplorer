@@ -221,6 +221,48 @@ describe('TUS upload route', () => {
     }
   });
 
+  /**
+   * A chunked upload cannot make a volume either.
+   *
+   * A folder at the top of the storage is a mount, not something the
+   * application creates — `POST /api/files/folder` has always refused one
+   * there. Started from the list of volumes, an uploaded folder tree made one
+   * (nxzai/NextExplorer#409), and the large files go through this route.
+   */
+  it('refuses one that would make a folder at the top of the storage', async () => {
+    const settingsService = envContext.requireFresh('src/services/settingsService');
+    await settingsService.setSystemSetting('system', 'uploads', {
+      chunkedEnabled: true,
+      chunkSizeBytes: 1024 * 1024,
+    });
+
+    const server = buildApp();
+    const baseUrl = await startServer(server);
+    const cookie = await establishSession(baseUrl);
+
+    try {
+      const response = await request(baseUrl)
+        .post('/api/upload/tus')
+        .set('Cookie', cookie)
+        .set('Tus-Resumable', '1.0.0')
+        .set('Upload-Length', '7')
+        .set(
+          'Upload-Metadata',
+          encodeMetadata({
+            filename: 'planted.txt',
+            relativePath: 'NouveauVolume/planted.txt',
+            uploadTo: '',
+          })
+        );
+
+      expect(response.status).toBe(400);
+      expect(String(response.text)).toMatch(/root path/i);
+      expect(await fs.readdir(envContext.volumeDir)).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   // The gate reads `chunkedEnabled || chunkedAutoFallback`, and the fallback
   // half had no test. Getting it wrong once already rejected every fallback
   // upload with a 403 that reached the client as "network error".

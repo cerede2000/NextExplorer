@@ -115,10 +115,11 @@ describe('path bindings', () => {
     await setup();
     await givenBothUsersCareAbout('Projects/reports/q1');
 
-    // A whole volume cannot go into its own trash: removing one is permanent.
+    // The folder holding it, not the volume: a volume is a mount, and the
+    // application refuses to delete one (nxzai/NextExplorer#409).
     await request(appFor({ id: 'alice', roles: ['admin'] }))
       .delete('/api/files')
-      .send({ items: [{ name: 'Projects', path: '' }], permanent: true });
+      .send({ items: [{ name: 'reports', path: 'Projects' }], permanent: true });
 
     expect(await countFor('favorites', 'path', 'Projects/reports/q1')).toBe(0);
     expect(await countFor('folder_preferences', 'path', 'Projects/reports/q1')).toBe(0);

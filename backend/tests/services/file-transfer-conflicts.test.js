@@ -115,30 +115,30 @@ describe('choosing a name at the destination', () => {
 describe('a folder that would contain itself', () => {
   it('refuses to copy a folder into one of its own subfolders, and says why', async () => {
     const { service, volume, user } = await setup();
-    await fs.mkdir(path.join(volume, 'Tree', 'inner'), { recursive: true });
+    await fs.mkdir(path.join(volume, 'Nvm', 'Tree', 'inner'), { recursive: true });
 
     await expect(
-      service.prepareTransfer([{ path: '', name: 'Tree' }], 'Tree/inner', 'copy', { user })
+      service.prepareTransfer([{ path: 'Nvm', name: 'Tree' }], 'Nvm/Tree/inner', 'copy', { user })
     ).rejects.toThrow(/into itself/i);
   });
 
   it('refuses to move a folder into one of its own subfolders', async () => {
     const { service, volume, user } = await setup();
-    await fs.mkdir(path.join(volume, 'Tree', 'inner'), { recursive: true });
+    await fs.mkdir(path.join(volume, 'Nvm', 'Tree', 'inner'), { recursive: true });
 
     await expect(
-      service.prepareTransfer([{ path: '', name: 'Tree' }], 'Tree/inner', 'move', { user })
+      service.prepareTransfer([{ path: 'Nvm', name: 'Tree' }], 'Nvm/Tree/inner', 'move', { user })
     ).rejects.toThrow(/into itself/i);
     // Nothing was moved: the folder and its subfolder are both still there.
-    expect(await exists(path.join(volume, 'Tree', 'inner'))).toBe(true);
+    expect(await exists(path.join(volume, 'Nvm', 'Tree', 'inner'))).toBe(true);
   });
 
   it('refuses when the destination is the folder itself', async () => {
     const { service, volume, user } = await setup();
-    await fs.mkdir(path.join(volume, 'Solo'), { recursive: true });
+    await fs.mkdir(path.join(volume, 'Nvm', 'Solo'), { recursive: true });
 
     await expect(
-      service.prepareTransfer([{ path: '', name: 'Solo' }], 'Solo', 'copy', { user })
+      service.prepareTransfer([{ path: 'Nvm', name: 'Solo' }], 'Nvm/Solo', 'copy', { user })
     ).rejects.toThrow(/into itself/i);
   });
 });
@@ -243,16 +243,18 @@ describe('a move across devices', () => {
 describe('copying the contents of a folder with the in-application engine', () => {
   it('copies a symbolic link inside a folder as a link, not as the file it points at', async () => {
     const { service, volume, user } = await setup();
-    await fs.mkdir(path.join(volume, 'Linked'), { recursive: true });
-    await fs.mkdir(path.join(volume, 'Dest'), { recursive: true });
-    await fs.writeFile(path.join(volume, 'Linked', 'target.txt'), 'real contents');
-    await fs.symlink('target.txt', path.join(volume, 'Linked', 'alias.txt'));
+    await fs.mkdir(path.join(volume, 'Nvm', 'Linked'), { recursive: true });
+    await fs.mkdir(path.join(volume, 'Nvm', 'Dest'), { recursive: true });
+    await fs.writeFile(path.join(volume, 'Nvm', 'Linked', 'target.txt'), 'real contents');
+    await fs.symlink('target.txt', path.join(volume, 'Nvm', 'Linked', 'alias.txt'));
 
-    await runTransfer(service, [{ path: '', name: 'Linked' }], 'Dest', 'copy', { user });
+    await runTransfer(service, [{ path: 'Nvm', name: 'Linked' }], 'Nvm/Dest', 'copy', { user });
 
-    const copiedAlias = await fs.lstat(path.join(volume, 'Dest', 'Linked', 'alias.txt'));
+    const copiedAlias = await fs.lstat(path.join(volume, 'Nvm', 'Dest', 'Linked', 'alias.txt'));
     expect(copiedAlias.isSymbolicLink()).toBe(true);
-    expect(await fs.readlink(path.join(volume, 'Dest', 'Linked', 'alias.txt'))).toBe('target.txt');
+    expect(await fs.readlink(path.join(volume, 'Nvm', 'Dest', 'Linked', 'alias.txt'))).toBe(
+      'target.txt'
+    );
   });
 
   it('preserves the mode of a copied file', async () => {
@@ -272,16 +274,16 @@ describe('copying the contents of a folder with the in-application engine', () =
 describe('reporting how much has been copied', () => {
   it('reports a byte count that climbs to the size of the whole tree', async () => {
     const { service, volume, user } = await setup();
-    await fs.mkdir(path.join(volume, 'Payload', 'nested'), { recursive: true });
-    await fs.mkdir(path.join(volume, 'Dest'), { recursive: true });
+    await fs.mkdir(path.join(volume, 'Nvm', 'Payload', 'nested'), { recursive: true });
+    await fs.mkdir(path.join(volume, 'Nvm', 'Dest'), { recursive: true });
     const first = Buffer.alloc(3 * 1024 * 1024, 1);
     const second = Buffer.alloc(2 * 1024 * 1024, 2);
-    await fs.writeFile(path.join(volume, 'Payload', 'a.bin'), first);
-    await fs.writeFile(path.join(volume, 'Payload', 'nested', 'b.bin'), second);
+    await fs.writeFile(path.join(volume, 'Nvm', 'Payload', 'a.bin'), first);
+    await fs.writeFile(path.join(volume, 'Nvm', 'Payload', 'nested', 'b.bin'), second);
     const treeBytes = first.length + second.length;
 
     const observed = [];
-    await runTransfer(service, [{ path: '', name: 'Payload' }], 'Dest', 'copy', {
+    await runTransfer(service, [{ path: 'Nvm', name: 'Payload' }], 'Nvm/Dest', 'copy', {
       user,
       onProgress: ({ copiedBytes }) => observed.push(copiedBytes),
     });

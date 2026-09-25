@@ -85,8 +85,8 @@ describe('Transfer cancellation', () => {
       password: 'secret123',
       roles: ['admin'],
     });
-    const sourceDir = path.join(envContext.volumeDir, 'source');
-    const destinationDir = path.join(envContext.volumeDir, 'destination');
+    const sourceDir = path.join(envContext.volumeDir, 'Nvm', 'source');
+    const destinationDir = path.join(envContext.volumeDir, 'Nvm', 'destination');
     const sourcePath = path.join(sourceDir, 'active');
     const destinationPath = path.join(destinationDir, 'active');
 
@@ -102,13 +102,13 @@ describe('Transfer cancellation', () => {
     );
 
     const prep = {
-      destinationRelative: 'destination',
+      destinationRelative: 'Nvm/destination',
       destinationAbsolute: destinationDir,
       totalBytes: 32 * 1024 * 1024,
       plans: [
         {
           sourceAbsolute: sourcePath,
-          sourceRelative: 'source/active',
+          sourceRelative: 'Nvm/source/active',
           isDirectory: true,
           size: 32 * 1024 * 1024,
           desiredName: 'active',
@@ -121,7 +121,7 @@ describe('Transfer cancellation', () => {
       if (copiedBytes > 0 && !deletion) {
         seenWhileWriting = fsSync.readdirSync(destinationDir);
         // For good: what is under test is the wait for the writer, not the trash.
-        deletion = deleteItems([{ path: '', name: 'destination', kind: 'directory' }], {
+        deletion = deleteItems([{ path: 'Nvm', name: 'destination', kind: 'directory' }], {
           user,
           permanent: true,
         });
@@ -129,7 +129,7 @@ describe('Transfer cancellation', () => {
     });
 
     await expect(transfer).rejects.toMatchObject({ code: 'OPERATION_CANCELLED' });
-    await expect(deletion).resolves.toMatchObject([{ path: 'destination', status: 'deleted' }]);
+    await expect(deletion).resolves.toMatchObject([{ path: 'Nvm/destination', status: 'deleted' }]);
     expect(seenWhileWriting).toHaveLength(1);
     expect(seenWhileWriting[0]).toMatch(/^\.nextexplorer-copying-/);
     await expect(fs.stat(sourcePath)).resolves.toMatchObject({ isDirectory: expect.any(Function) });
