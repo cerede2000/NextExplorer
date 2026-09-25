@@ -391,7 +391,8 @@
       "filesThumbnails": "Pliki i miniatury",
       "security": "Bezpieczeństwo",
       "accessControl": "Kontrola dostępu",
-      "adminUsers": "Zarządzanie użytkownikami"
+      "adminUsers": "Zarządzanie użytkownikami",
+      "trash": "Kosz i wersje"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Kosz i wersje",
+      "subtitle": "Usunięte elementy i wcześniejsze wersje plików są przechowywane w zarezerwowanej przestrzeni na ich własnym woluminie i usuwane po okresie przechowywania lub gdy ta przestrzeń jest potrzebna.",
+      "enabled": "Przenoś usunięte elementy do kosza",
+      "enabledHelp": "Po wyłączeniu usuwanie jest trwałe. Elementy już w koszu nadal wygasają.",
+      "retentionDays": "Przechowywanie (dni)",
+      "retentionHelp": "Od 1 do 3650 dni.",
+      "maxPercent": "Udział każdego woluminu (%)",
+      "maxPercentHelp": "Najwięcej, ile kosz może zająć na woluminie, od 1 do 90 %.",
+      "maxSize": "Limit rozmiaru na wolumin (GiB)",
+      "maxSizeHelp": "Opcjonalnie. Obowiązuje mniejsza z wartości: udział lub limit.",
+      "maxSizeNone": "Bez limitu",
+      "invalid": "Sprawdź wartości: przechowywanie od 1 do 3650 dni, udział od 1 do 90 %, dodatni rozmiar lub brak.",
+      "saveFailed": "Nie udało się zapisać ustawień.",
+      "environmentNote": "Wartości domyślne pochodzą z TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT i TRASH_MAX_SIZE.",
+      "zonesTitle": "Kosz według woluminu",
+      "zonesSubtitle": "Każdy wolumin trzyma swój kosz w ukrytym folderze .nextexplorer w katalogu głównym, więc usuwanie nigdy niczego nie kopiuje.",
+      "zonesEmpty": "Nic jeszcze nie trafiło do kosza.",
+      "zonesFailed": "Nie udało się wczytać kosza woluminów.",
+      "verifyFailed": "Nie udało się uruchomić sprawdzania.",
+      "maintenanceFailed": "Nie udało się uruchomić konserwacji.",
+      "zoneKind": {
+        "personal": "Folder osobisty użytkownika {name}",
+        "userVolume": "Przydzielony wolumin {name}"
+      },
+      "available": "Dostępny",
+      "unavailable": {
+        "missing": "Niezamontowany lub usunięty",
+        "replaced": "Inny dysk w jego miejscu",
+        "unreadable": "Nieczytelny"
+      },
+      "usage": "{used} z {budget}",
+      "zoneSummary": "{count} element, {used} z {budget} | {count} elementy, {used} z {budget} | {count} elementów, {used} z {budget}",
+      "noBudget": "bez limitu",
+      "lastPass": "Ostatnia konserwacja:",
+      "lastPassPurged": "usunięto {count} | usunięto {count} | usunięto {count}",
+      "never": "jeszcze nie",
+      "verify": "Sprawdź",
+      "verifying": "Sprawdzanie…",
+      "verifyOk": "Kosz każdego woluminu jest spójny.",
+      "verifyIssues": "Znaleziono {count} problem | Znaleziono {count} problemy | Znaleziono {count} problemów",
+      "runMaintenance": "Uruchom konserwację teraz",
+      "running": "W toku…",
+      "events": {
+        "title": "Dziennik",
+        "evicted": "\"{name}\" usunięto przed końcem przechowywania, aby zwolnić miejsce",
+        "adopted": "\"{name}\" odzyskano po przerwaniu",
+        "lost": "Brakowało zawartości \"{name}\"",
+        "failed": "Nie udało się usunąć \"{name}\"",
+        "breaker": "Zbyt wiele elementów zniknęło naraz: niczego nie zmieniono",
+        "forgotten": "\"{name}\" zapomniany przez administratora",
+        "versionEvicted": "Usunięto wersję „{name}”, aby zwolnić miejsce",
+        "versionFailed": "Nie udało się usunąć wersji",
+        "versionLost": "Brakowało zawartości wersji",
+        "versionTooLarge": "„{name}” jest większy niż cała przestrzeń: to, co zastąpił, nie zostało zachowane",
+        "versionsBreaker": "Brakuje naraz zbyt wielu wersji: nic nie zmieniono"
+      },
+      "zoneVersions": "{count} wersja, {size} | {count} wersje, {size} | {count} wersji, {size}",
+      "versions": {
+        "title": "Wersje plików",
+        "subtitle": "Każdy zapis zachowuje to, co zastępuje, bez kopiowania, w tej samej zarezerwowanej przestrzeni co kosz. Starsze wersje są z czasem przerzedzane.",
+        "enabled": "Zachowuj wcześniejsze wersje plików",
+        "enabledHelp": "Niezależne od kosza. Po wyłączeniu zapisy nie zachowują nic nowego; istniejące wersje pozostają do wygaśnięcia lub usunięcia.",
+        "keepAllHours": "Zachowuj wszystkie wersje (godziny)",
+        "hourlyDays": "Potem jedna na godzinę (dni)",
+        "dailyDays": "Potem jedna na dzień (dni)",
+        "maxPerFile": "Maksimum wersji na plik",
+        "sessionCheckpointMinutes": "Punkt kontrolny biurowy (minuty)",
+        "tiersHelp": "Po tych progach zachowywana jest jedna wersja na tydzień. Sesja edycji biurowej zostawia jedną wersję i najwyżej jeden punkt kontrolny w tym odstępie. Przypięte wersje nie podlegają przerzedzaniu ani limitowi na plik.",
+        "invalid": "Sprawdź wartości: 1–720 godzin, 1–365 dni godzinowych, 1–3650 dni dziennych, 1–1000 wersji na plik, punkt kontrolny 1–1440 minut.",
+        "sharedSpace": "Wersje i kosz dzielą zarezerwowaną przestrzeń każdego woluminu. Gdy jej brakuje, najpierw znikają starsze wersje, potem elementy kosza, potem ostatnia wersja każdego pliku, a na końcu przypięte wersje.",
+        "environmentNote": "Wartości domyślne pochodzą z VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE i VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "Usunąć udostępnienie?",
     "deleteShareMessage": "Osoby z tym linkiem nie będą już mogły uzyskać dostępu do udostępnionego elementu."
+  },
+  "trash": {
+    "title": "Kosz",
+    "menu": "Kosz",
+    "subtitle": "Elementy są trwale usuwane {count} dzień po usunięciu. | Elementy są trwale usuwane {count} dni po usunięciu. | Elementy są trwale usuwane {count} dni po usunięciu.",
+    "empty": "Kosz jest pusty.",
+    "disabled": "Kosz jest wyłączony: usuwanie jest trwałe. To, co nadal tu jest, można przywrócić.",
+    "unavailable": "Wolumin niedostępny",
+    "expiresToday": "Dzisiaj",
+    "expiresIn": "Za {count} dzień | Za {count} dni | Za {count} dni",
+    "columns": {
+      "originalLocation": "Pierwotna lokalizacja",
+      "deletedBy": "Usunięte przez",
+      "deletedAt": "Data usunięcia",
+      "expires": "Trwałe usunięcie",
+      "modified": "Data modyfikacji"
+    },
+    "location": {
+      "personal": "Folder osobisty",
+      "unknown": "Nieznana"
+    },
+    "deletedBy": {
+      "you": "Ty",
+      "shareLink": "Link udostępniania",
+      "unknown": "Nieznany"
+    },
+    "actions": {
+      "restore": "Przywróć",
+      "deletePermanently": "Usuń trwale",
+      "empty": "Opróżnij kosz",
+      "openLocation": "Otwórz pierwotną lokalizację",
+      "selectAll": "Zaznacz wszystko",
+      "select": "Zaznacz {name}",
+      "open": "Otwórz {name}",
+      "restoreFolder": "Przywróć cały folder",
+      "restoreTo": "Przywróć do…"
+    },
+    "confirm": {
+      "deleteTitle": "Usunąć trwale?",
+      "deleteMessage": "Ten element zostanie usunięty trwale. Tej operacji nie można cofnąć. | Te {count} elementy zostaną usunięte trwale. Tej operacji nie można cofnąć. | Tych {count} elementów zostanie usuniętych trwale. Tej operacji nie można cofnąć.",
+      "emptyTitle": "Opróżnić kosz?",
+      "emptyMessage": "Wszystko w Twoim koszu zostanie usunięte trwale. Tej operacji nie można cofnąć."
+    },
+    "results": {
+      "restored": "Przywrócono {count} element | Przywrócono {count} elementy | Przywrócono {count} elementów",
+      "restoredTo": "Przywrócono do {path}",
+      "renamed": "\"{name}\" przywrócono jako \"{newName}\": nazwa była zajęta.",
+      "notRestored": "Nie udało się przywrócić {count} elementu | Nie udało się przywrócić {count} elementów | Nie udało się przywrócić {count} elementów",
+      "deleted": "Trwale usunięto {count} element | Trwale usunięto {count} elementy | Trwale usunięto {count} elementów",
+      "notDeleted": "Nie udało się usunąć {count} elementu | Nie udało się usunąć {count} elementów | Nie udało się usunąć {count} elementów",
+      "emptied": "Kosz opróżniony: usunięto {count} element | Kosz opróżniony: usunięto {count} elementy | Kosz opróżniony: usunięto {count} elementów",
+      "leftBehind": "Nie udało się usunąć {count} elementu i nadal tam jest. | Nie udało się usunąć {count} elementów i nadal tam są. | Nie udało się usunąć {count} elementów i nadal tam są."
+    },
+    "reasons": {
+      "forbidden": "nie możesz już zapisywać w miejscu, w którym się znajdował.",
+      "blocked": "w miejscu jego folderu jest teraz coś innego.",
+      "unavailable": "jego wolumin jest niedostępny.",
+      "busy": "jest już przetwarzany.",
+      "lost": "jego zawartość zniknęła.",
+      "notFound": "nie ma go już w koszu.",
+      "unknown": "nie udało się go przetworzyć.",
+      "destinationForbidden": "nie możesz tworzyć elementów w tym folderze.",
+      "invalidDestination": "ten folder nie może go przyjąć."
+    },
+    "errors": {
+      "load": "Nie udało się wczytać kosza.",
+      "action": "Kosz nie mógł tego wykonać.",
+      "loadFolder": "Nie udało się otworzyć tego folderu."
+    },
+    "browse": {
+      "breadcrumb": "Położenie w koszu",
+      "deletedFrom": "Usunięto z {location} dnia {date}",
+      "hint": "Przywracanie odkłada każdy zaznaczony element na jego miejsce w tym folderze. Reszta pozostaje w koszu.",
+      "empty": "Ten folder jest pusty.",
+      "back": "Wróć do kosza"
+    },
+    "contextMenu": {
+      "label": "Działania dla {name}",
+      "labelMany": "Działania dla elementów: {count}",
+      "open": "Otwórz",
+      "preview": "Podgląd"
+    },
+    "shares": {
+      "badge": "Udostępnione",
+      "badgeTitle": "Linki udostępniania ({count}), wyłączone na czas pobytu w koszu",
+      "chooseTitle": "Co zrobić z linkami udostępniania?",
+      "chooseMessage": "Do tego, co przywracasz, należały linki udostępniania ({count}). Od usunięcia nie działają.",
+      "chooseElsewhere": "Po przywróceniu będą wskazywać nowe położenie.",
+      "keep": "Przywróć linki udostępniania",
+      "drop": "Usuń linki udostępniania",
+      "deleteNotice": "Ich linki udostępniania również zostaną trwale usunięte.",
+      "restored": "Przywrócone linki udostępniania: {count}",
+      "dropped": "Usunięte linki udostępniania: {count}"
+    }
   }
 }

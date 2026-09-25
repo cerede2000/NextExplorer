@@ -391,7 +391,8 @@
       "filesThumbnails": "Bestanden & miniaturen",
       "security": "Beveiliging",
       "accessControl": "Toegangscontrole",
-      "adminUsers": "Gebruikersbeheer"
+      "adminUsers": "Gebruikersbeheer",
+      "trash": "Prullenbak en versies"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Gekoppeld profiel",
       "noOidcProfileMessage": "Geen OIDC-profielen gekoppeld aan dit account."
+    },
+    "trash": {
+      "title": "Prullenbak en versies",
+      "subtitle": "Verwijderde items en eerdere versies van bestanden worden bewaard in een gereserveerde ruimte op hun eigen volume, en gewist na hun bewaartermijn of wanneer die ruimte nodig is.",
+      "enabled": "Verwijderde items naar de prullenbak sturen",
+      "enabledHelp": "Indien uitgeschakeld, wist verwijderen items definitief. Items die al in de prullenbak liggen, verlopen nog steeds.",
+      "retentionDays": "Bewaartermijn (dagen)",
+      "retentionHelp": "Van 1 tot 3650 dagen.",
+      "maxPercent": "Aandeel van elk volume (%)",
+      "maxPercentHelp": "Het maximum dat de prullenbak op een volume mag innemen, van 1 tot 90%.",
+      "maxSize": "Maximale grootte per volume (GiB)",
+      "maxSizeHelp": "Optioneel. De kleinste van het aandeel en het maximum geldt.",
+      "maxSizeNone": "Geen maximum",
+      "invalid": "Controleer de waarden: bewaartermijn van 1 tot 3650 dagen, aandeel van 1 tot 90%, een positieve grootte of geen.",
+      "saveFailed": "De instellingen konden niet worden opgeslagen.",
+      "environmentNote": "Standaardwaarden komen uit TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT en TRASH_MAX_SIZE.",
+      "zonesTitle": "Prullenbak per volume",
+      "zonesSubtitle": "Elk volume bewaart zijn prullenbak in een verborgen .nextexplorer-map in de hoofdmap, zodat verwijderen nooit iets kopieert.",
+      "zonesEmpty": "Er is nog niets naar een prullenbak verwijderd.",
+      "zonesFailed": "De prullenbakken van de volumes konden niet worden geladen.",
+      "verifyFailed": "De controle kon niet worden uitgevoerd.",
+      "maintenanceFailed": "Het onderhoud kon niet worden uitgevoerd.",
+      "zoneKind": {
+        "personal": "Persoonlijke map van {name}",
+        "userVolume": "Toegewezen volume {name}"
+      },
+      "available": "Beschikbaar",
+      "unavailable": {
+        "missing": "Niet gekoppeld of verwijderd",
+        "replaced": "Een andere schijf op die plek",
+        "unreadable": "Onleesbaar"
+      },
+      "usage": "{used} van {budget}",
+      "zoneSummary": "{count} item, {used} van {budget} | {count} items, {used} van {budget}",
+      "noBudget": "geen limiet",
+      "lastPass": "Laatste onderhoud:",
+      "lastPassPurged": "{count} gewist | {count} gewist",
+      "never": "nog niet",
+      "verify": "Controleren",
+      "verifying": "Bezig met controleren…",
+      "verifyOk": "De prullenbak van elk volume is consistent.",
+      "verifyIssues": "{count} probleem gevonden | {count} problemen gevonden",
+      "runMaintenance": "Onderhoud nu uitvoeren",
+      "running": "Bezig…",
+      "events": {
+        "title": "Logboek",
+        "evicted": "\"{name}\" vóór het einde van de bewaartermijn gewist om ruimte vrij te maken",
+        "adopted": "\"{name}\" hersteld na een onderbreking",
+        "lost": "Van \"{name}\" ontbrak de inhoud",
+        "failed": "\"{name}\" kon niet worden gewist",
+        "breaker": "Te veel items tegelijk verdwenen: er is niets gewijzigd",
+        "forgotten": "\"{name}\" vergeten door een beheerder",
+        "versionEvicted": "Een versie van \"{name}\" gewist om ruimte vrij te maken",
+        "versionFailed": "Een versie kon niet worden gewist",
+        "versionLost": "Van een versie ontbrak de inhoud",
+        "versionTooLarge": "\"{name}\" is groter dan de volledige ruimte: wat het verving, is niet bewaard",
+        "versionsBreaker": "Te veel versies tegelijk verdwenen: er is niets gewijzigd"
+      },
+      "zoneVersions": "{count} versie, {size} | {count} versies, {size}",
+      "versions": {
+        "title": "Bestandsversies",
+        "subtitle": "Elke opslag bewaart wat hij vervangt, zonder het te kopiëren, in dezelfde gereserveerde ruimte als de prullenbak. Oudere versies worden in de loop van de tijd uitgedund.",
+        "enabled": "Eerdere versies van bestanden bewaren",
+        "enabledHelp": "Los van de prullenbak. Indien uitgeschakeld, bewaart opslaan niets nieuws; bestaande versies blijven tot ze verlopen of worden verwijderd.",
+        "keepAllHours": "Elke versie bewaren (uren)",
+        "hourlyDays": "Daarna één per uur (dagen)",
+        "dailyDays": "Daarna één per dag (dagen)",
+        "maxPerFile": "Maximaal aantal versies per bestand",
+        "sessionCheckpointMinutes": "Office-tussenstand (minuten)",
+        "tiersHelp": "Na deze stappen wordt één versie per week bewaard. Een Office-bewerksessie laat één versie achter, plus hooguit zo vaak een tussenstand. Vastgezette versies ontsnappen aan het uitdunnen en aan de limiet per bestand.",
+        "invalid": "Controleer de waarden: 1 tot 720 uur, 1 tot 365 dagen per uur, 1 tot 3650 dagen per dag, 1 tot 1000 versies per bestand, een tussenstand van 1 tot 1440 minuten.",
+        "sharedSpace": "Versies en de prullenbak delen de gereserveerde ruimte van elk volume. Wordt die krap, dan gaan eerst oudere versies, daarna items uit de prullenbak, dan de laatste versie van elk bestand en als laatste vastgezette versies.",
+        "environmentNote": "Standaardwaarden komen uit VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE en VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "share": {
@@ -632,5 +707,99 @@
     "rotateRight": "Naar rechts draaien",
     "zoomIn": "Inzoomen",
     "zoomOut": "Uitzoomen"
+  },
+  "trash": {
+    "title": "Prullenbak",
+    "menu": "Prullenbak",
+    "subtitle": "Items worden {count} dag na het verwijderen definitief gewist. | Items worden {count} dagen na het verwijderen definitief gewist.",
+    "empty": "De prullenbak is leeg.",
+    "disabled": "De prullenbak is uitgeschakeld: verwijderen wist items definitief. Wat hier nog staat, kan worden teruggezet.",
+    "unavailable": "Volume niet beschikbaar",
+    "expiresToday": "Vandaag",
+    "expiresIn": "Over {count} dag | Over {count} dagen",
+    "columns": {
+      "originalLocation": "Oorspronkelijke locatie",
+      "deletedBy": "Verwijderd door",
+      "deletedAt": "Verwijderd op",
+      "expires": "Gewist",
+      "modified": "Gewijzigd"
+    },
+    "location": {
+      "personal": "Persoonlijke map",
+      "unknown": "Onbekend"
+    },
+    "deletedBy": {
+      "you": "U",
+      "shareLink": "Deellink",
+      "unknown": "Onbekend"
+    },
+    "actions": {
+      "restore": "Terugzetten",
+      "deletePermanently": "Definitief verwijderen",
+      "empty": "Prullenbak leegmaken",
+      "openLocation": "Oorspronkelijke locatie openen",
+      "selectAll": "Alles selecteren",
+      "select": "{name} selecteren",
+      "open": "{name} openen",
+      "restoreFolder": "Hele map terugzetten",
+      "restoreTo": "Terugzetten naar…"
+    },
+    "confirm": {
+      "deleteTitle": "Definitief verwijderen?",
+      "deleteMessage": "Dit item wordt definitief gewist. Dit kan niet ongedaan worden gemaakt. | Deze {count} items worden definitief gewist. Dit kan niet ongedaan worden gemaakt.",
+      "emptyTitle": "Prullenbak leegmaken?",
+      "emptyMessage": "Alles in uw prullenbak wordt definitief gewist. Dit kan niet ongedaan worden gemaakt."
+    },
+    "results": {
+      "restored": "{count} item teruggezet | {count} items teruggezet",
+      "restoredTo": "Teruggezet naar {path}",
+      "renamed": "\"{name}\" is teruggezet als \"{newName}\": de naam was al in gebruik.",
+      "notRestored": "{count} item kon niet worden teruggezet | {count} items konden niet worden teruggezet",
+      "deleted": "{count} item definitief verwijderd | {count} items definitief verwijderd",
+      "notDeleted": "{count} item kon niet worden verwijderd | {count} items konden niet worden verwijderd",
+      "emptied": "Prullenbak leeggemaakt: {count} item gewist | Prullenbak leeggemaakt: {count} items gewist",
+      "leftBehind": "{count} item kon niet worden gewist en staat er nog. | {count} items konden niet worden gewist en staan er nog."
+    },
+    "reasons": {
+      "forbidden": "u kunt niet meer schrijven op de plek waar het stond.",
+      "blocked": "er staat nu iets anders op de plek van de map.",
+      "unavailable": "het volume is niet beschikbaar.",
+      "busy": "het wordt al verwerkt.",
+      "lost": "de inhoud was verdwenen.",
+      "notFound": "het staat niet meer in de prullenbak.",
+      "unknown": "het kon niet worden verwerkt.",
+      "destinationForbidden": "u kunt in die map geen items aanmaken.",
+      "invalidDestination": "die map kan het niet ontvangen."
+    },
+    "errors": {
+      "load": "De prullenbak kon niet worden geladen.",
+      "action": "De prullenbak kon dit niet uitvoeren.",
+      "loadFolder": "Deze map kon niet worden geopend."
+    },
+    "browse": {
+      "breadcrumb": "Locatie in de prullenbak",
+      "deletedFrom": "Verwijderd uit {location} op {date}",
+      "hint": "Terugzetten zet elk geselecteerd item terug op zijn plek in deze map. De rest blijft in de prullenbak.",
+      "empty": "Deze map is leeg.",
+      "back": "Terug naar de prullenbak"
+    },
+    "contextMenu": {
+      "label": "Acties voor {name}",
+      "labelMany": "Acties voor {count} items",
+      "open": "Openen",
+      "preview": "Voorbeeld"
+    },
+    "shares": {
+      "badge": "Gedeeld",
+      "badgeTitle": "{count} deellink, uitgeschakeld zolang het in de prullenbak ligt | {count} deellinks, uitgeschakeld zolang het in de prullenbak ligt",
+      "chooseTitle": "Wat gebeurt er met de deellinks?",
+      "chooseMessage": "{count} deellink hoorde bij wat u terugzet. Die werkt niet meer sinds het verwijderen. | {count} deellinks hoorden bij wat u terugzet. Die werken niet meer sinds het verwijderen.",
+      "chooseElsewhere": "Als ze terugkomen, wijzen ze naar de nieuwe locatie.",
+      "keep": "Deellinks herstellen",
+      "drop": "Deellinks verwijderen",
+      "deleteNotice": "Hun deellinks worden ook definitief verwijderd.",
+      "restored": "{count} deellink hersteld | {count} deellinks hersteld",
+      "dropped": "{count} deellink verwijderd | {count} deellinks verwijderd"
+    }
   }
 }

@@ -391,7 +391,8 @@
       "filesThumbnails": "文件和缩略图",
       "security": "安全",
       "accessControl": "访问控制",
-      "adminUsers": "用户管理"
+      "adminUsers": "用户管理",
+      "trash": "回收站和版本"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "回收站和版本",
+      "subtitle": "已删除的项目和文件的历史版本保存在其所在卷的预留空间中，在保留期结束或需要该空间时移除。",
+      "enabled": "将删除的项目移至回收站",
+      "enabledHelp": "关闭后，删除将永久移除项目。回收站中已有的项目仍会到期。",
+      "retentionDays": "保留期（天）",
+      "retentionHelp": "1 至 3650 天。",
+      "maxPercent": "每个卷的占比（%）",
+      "maxPercentHelp": "回收站在一个卷上最多可占用的比例，1 至 90%。",
+      "maxSize": "每个卷的大小上限（GiB）",
+      "maxSizeHelp": "可选。占比与上限取较小者。",
+      "maxSizeNone": "无上限",
+      "invalid": "请检查数值：保留期 1 至 3650 天，占比 1 至 90%，正数大小或留空。",
+      "saveFailed": "无法保存设置。",
+      "environmentNote": "默认值来自 TRASH_ENABLED、TRASH_RETENTION_DAYS、TRASH_MAX_PERCENT 和 TRASH_MAX_SIZE。",
+      "zonesTitle": "各卷的回收站",
+      "zonesSubtitle": "每个卷把回收站放在其根目录的隐藏文件夹 .nextexplorer 中，因此删除从不复制任何内容。",
+      "zonesEmpty": "还没有任何内容被删除到回收站。",
+      "zonesFailed": "无法加载各卷的回收站。",
+      "verifyFailed": "无法运行检查。",
+      "maintenanceFailed": "无法运行维护。",
+      "zoneKind": {
+        "personal": "{name} 的个人文件夹",
+        "userVolume": "分配的卷 {name}"
+      },
+      "available": "可用",
+      "unavailable": {
+        "missing": "未挂载或已移除",
+        "replaced": "已被另一块磁盘替代",
+        "unreadable": "无法读取"
+      },
+      "usage": "{used} / {budget}",
+      "zoneSummary": "{count} 项，{used} / {budget}",
+      "noBudget": "无上限",
+      "lastPass": "上次维护：",
+      "lastPassPurged": "删除 {count} 项",
+      "never": "尚未进行",
+      "verify": "检查",
+      "verifying": "正在检查…",
+      "verifyOk": "每个卷的回收站均一致。",
+      "verifyIssues": "发现 {count} 个问题",
+      "runMaintenance": "立即运行维护",
+      "running": "正在运行…",
+      "events": {
+        "title": "日志",
+        "evicted": "为释放空间，\"{name}\" 在保留期结束前被删除",
+        "adopted": "中断后恢复了 \"{name}\"",
+        "lost": "\"{name}\" 的内容缺失",
+        "failed": "无法删除 \"{name}\"",
+        "breaker": "同时缺失的项目过多：未做任何更改",
+        "forgotten": "管理员忘记了 \"{name}\"",
+        "versionEvicted": "为释放空间移除了“{name}”的一个版本",
+        "versionFailed": "无法移除一个版本",
+        "versionLost": "一个版本的内容缺失",
+        "versionTooLarge": "“{name}”大于整个空间：被替换的内容未保留",
+        "versionsBreaker": "同时缺失的版本过多：未做任何更改"
+      },
+      "zoneVersions": "{count} 个版本，{size}",
+      "versions": {
+        "title": "文件版本",
+        "subtitle": "每次保存都会保留被替换的内容，不复制，存放在与回收站相同的预留空间中。旧版本会随时间逐步稀疏。",
+        "enabled": "保留文件的历史版本",
+        "enabledHelp": "独立于回收站。关闭后保存不再保留新内容；已有版本保留到过期或被删除。",
+        "keepAllHours": "保留所有版本（小时）",
+        "hourlyDays": "然后每小时一个（天）",
+        "dailyDays": "然后每天一个（天）",
+        "maxPerFile": "每个文件最多版本数",
+        "sessionCheckpointMinutes": "办公文档检查点（分钟）",
+        "tiersHelp": "超过这些阶段后，每周保留一个版本。一次办公文档编辑会话保留一个版本，检查点不会比此间隔更频繁。已固定的版本不受稀疏和每文件上限影响。",
+        "invalid": "请检查数值：1–720 小时，每小时 1–365 天，每天 1–3650 天，每个文件 1–1000 个版本，检查点 1–1440 分钟。",
+        "sharedSpace": "版本与回收站共用每个卷的预留空间。空间不足时，依次移除旧版本、回收站项目、每个文件的最新版本，最后才是已固定的版本。",
+        "environmentNote": "默认值来自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "移除共享？",
     "deleteShareMessage": "拥有此链接的人员将无法再访问共享项目。"
+  },
+  "trash": {
+    "title": "回收站",
+    "menu": "回收站",
+    "subtitle": "项目在删除 {count} 天后将被永久删除。",
+    "empty": "回收站为空。",
+    "disabled": "回收站已关闭：删除会永久移除项目。这里仍有的项目可以还原。",
+    "unavailable": "卷不可用",
+    "expiresToday": "今天",
+    "expiresIn": "{count} 天后",
+    "columns": {
+      "originalLocation": "原位置",
+      "deletedBy": "删除者",
+      "deletedAt": "删除时间",
+      "expires": "永久删除",
+      "modified": "修改时间"
+    },
+    "location": {
+      "personal": "个人文件夹",
+      "unknown": "未知"
+    },
+    "deletedBy": {
+      "you": "你",
+      "shareLink": "共享链接",
+      "unknown": "未知"
+    },
+    "actions": {
+      "restore": "还原",
+      "deletePermanently": "永久删除",
+      "empty": "清空回收站",
+      "openLocation": "打开原位置",
+      "selectAll": "全选",
+      "select": "选择 {name}",
+      "open": "打开 {name}",
+      "restoreFolder": "还原整个文件夹",
+      "restoreTo": "还原到…"
+    },
+    "confirm": {
+      "deleteTitle": "永久删除？",
+      "deleteMessage": "{count} 项将被永久删除。此操作无法撤销。",
+      "emptyTitle": "清空回收站？",
+      "emptyMessage": "回收站中的所有内容都将被永久删除。此操作无法撤销。"
+    },
+    "results": {
+      "restored": "已还原 {count} 项",
+      "restoredTo": "已还原到 {path}",
+      "renamed": "\"{name}\" 已还原为 \"{newName}\"：原名称已被占用。",
+      "notRestored": "{count} 项无法还原",
+      "deleted": "已永久删除 {count} 项",
+      "notDeleted": "{count} 项无法删除",
+      "emptied": "回收站已清空：删除了 {count} 项",
+      "leftBehind": "{count} 项无法删除，仍在回收站中。"
+    },
+    "reasons": {
+      "forbidden": "你已无法写入其原位置。",
+      "blocked": "其文件夹的位置现在已被其他内容占用。",
+      "unavailable": "其所在卷不可用。",
+      "busy": "它正在处理中。",
+      "lost": "其内容已消失。",
+      "notFound": "它已不在回收站中。",
+      "unknown": "无法处理。",
+      "destinationForbidden": "你无法在该文件夹中创建项目。",
+      "invalidDestination": "该文件夹无法接收它。"
+    },
+    "errors": {
+      "load": "无法加载回收站。",
+      "action": "回收站无法执行此操作。",
+      "loadFolder": "无法打开此文件夹。"
+    },
+    "browse": {
+      "breadcrumb": "回收站中的位置",
+      "deletedFrom": "于 {date} 从 {location} 删除",
+      "hint": "还原会将每个选中的项目放回此文件夹中的原位置，其余内容仍留在回收站。",
+      "empty": "此文件夹为空。",
+      "back": "返回回收站"
+    },
+    "contextMenu": {
+      "label": "{name} 的操作",
+      "labelMany": "{count} 个项目的操作",
+      "open": "打开",
+      "preview": "预览"
+    },
+    "shares": {
+      "badge": "已共享",
+      "badgeTitle": "{count} 个共享链接，在回收站中时已停用",
+      "chooseTitle": "如何处理共享链接？",
+      "chooseMessage": "你要还原的内容有 {count} 个共享链接，自删除起已失效。",
+      "chooseElsewhere": "恢复后，链接将指向新位置。",
+      "keep": "恢复共享链接",
+      "drop": "删除共享链接",
+      "deleteNotice": "它们的共享链接也将被永久删除。",
+      "restored": "已恢复 {count} 个共享链接",
+      "dropped": "已删除 {count} 个共享链接"
+    }
   }
 }

@@ -391,7 +391,8 @@
       "filesThumbnails": "Fichiers et vignettes",
       "security": "Sécurité",
       "accessControl": "Contrôle d'accès",
-      "adminUsers": "Gestion des utilisateurs"
+      "adminUsers": "Gestion des utilisateurs",
+      "trash": "Corbeille et versions"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Corbeille et versions",
+      "subtitle": "Les éléments supprimés et les versions antérieures des fichiers sont conservés dans un espace réservé sur leur propre volume, puis supprimés à la fin de leur rétention ou lorsque cet espace est nécessaire.",
+      "enabled": "Envoyer les éléments supprimés à la corbeille",
+      "enabledHelp": "Désactivée, la suppression efface définitivement. Les éléments déjà dans la corbeille expirent toujours.",
+      "retentionDays": "Rétention (jours)",
+      "retentionHelp": "De 1 à 3650 jours.",
+      "maxPercent": "Part de chaque volume (%)",
+      "maxPercentHelp": "Le maximum que la corbeille peut occuper sur un volume, de 1 à 90 %.",
+      "maxSize": "Taille maximale par volume (Gio)",
+      "maxSizeHelp": "Facultatif. La plus petite des deux limites s'applique.",
+      "maxSizeNone": "Aucune limite",
+      "invalid": "Vérifiez les valeurs : rétention de 1 à 3650 jours, part de 1 à 90 %, une taille positive ou aucune.",
+      "saveFailed": "Les réglages n'ont pas pu être enregistrés.",
+      "environmentNote": "Les valeurs par défaut viennent de TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT et TRASH_MAX_SIZE.",
+      "zonesTitle": "Corbeille par volume",
+      "zonesSubtitle": "Chaque volume garde sa corbeille dans un dossier caché .nextexplorer à sa racine : supprimer ne copie jamais rien.",
+      "zonesEmpty": "Rien n'a encore été supprimé vers une corbeille.",
+      "zonesFailed": "La corbeille des volumes n'a pas pu être chargée.",
+      "verifyFailed": "La vérification n'a pas pu s'exécuter.",
+      "maintenanceFailed": "L'entretien n'a pas pu s'exécuter.",
+      "zoneKind": {
+        "personal": "Dossier personnel de {name}",
+        "userVolume": "Volume attribué {name}"
+      },
+      "available": "Disponible",
+      "unavailable": {
+        "missing": "Non monté ou supprimé",
+        "replaced": "Un autre disque à sa place",
+        "unreadable": "Illisible"
+      },
+      "usage": "{used} sur {budget}",
+      "zoneSummary": "{count} élément, {used} sur {budget} | {count} éléments, {used} sur {budget}",
+      "noBudget": "sans limite",
+      "lastPass": "Dernier entretien :",
+      "lastPassPurged": "{count} supprimé | {count} supprimés",
+      "never": "pas encore",
+      "verify": "Vérifier",
+      "verifying": "Vérification…",
+      "verifyOk": "La corbeille de chaque volume est cohérente.",
+      "verifyIssues": "{count} problème trouvé | {count} problèmes trouvés",
+      "runMaintenance": "Lancer l'entretien maintenant",
+      "running": "En cours…",
+      "events": {
+        "title": "Journal",
+        "evicted": "\"{name}\" supprimé avant la fin de sa rétention pour libérer de l'espace",
+        "adopted": "\"{name}\" récupéré après une interruption",
+        "lost": "Le contenu de \"{name}\" avait disparu",
+        "failed": "\"{name}\" n'a pas pu être supprimé",
+        "breaker": "Trop d'éléments manquants d'un coup : rien n'a été modifié",
+        "forgotten": "\"{name}\" oublié par un administrateur",
+        "versionEvicted": "Une version de « {name} » supprimée pour libérer de l'espace",
+        "versionFailed": "Une version n'a pas pu être supprimée",
+        "versionLost": "Le contenu d'une version était introuvable",
+        "versionTooLarge": "« {name} » dépasse tout l'espace : ce qu'il remplaçait n'a pas été gardé",
+        "versionsBreaker": "Trop de versions introuvables d'un coup : rien n'a été modifié"
+      },
+      "zoneVersions": "{count} version, {size} | {count} versions, {size}",
+      "versions": {
+        "title": "Versions de fichiers",
+        "subtitle": "Chaque enregistrement garde ce qu'il remplace, sans le copier, dans le même espace réservé que la corbeille. Les versions anciennes sont espacées avec le temps.",
+        "enabled": "Garder les versions antérieures des fichiers",
+        "enabledHelp": "Indépendant de la corbeille. Désactivé, les enregistrements ne gardent plus rien ; les versions existantes restent jusqu'à leur expiration ou leur suppression.",
+        "keepAllHours": "Garder toutes les versions (heures)",
+        "hourlyDays": "Puis une par heure (jours)",
+        "dailyDays": "Puis une par jour (jours)",
+        "maxPerFile": "Versions par fichier au plus",
+        "sessionCheckpointMinutes": "Point d'étape bureautique (minutes)",
+        "tiersHelp": "Au-delà de ces paliers, une version par semaine est gardée. Une session d'édition bureautique laisse une version, plus un point d'étape au plus à cette fréquence. Les versions épinglées échappent à l'espacement et à la limite par fichier.",
+        "invalid": "Vérifiez les valeurs : 1 à 720 heures, 1 à 365 jours par heure, 1 à 3650 jours par jour, 1 à 1000 versions par fichier, un point d'étape de 1 à 1440 minutes.",
+        "sharedSpace": "Les versions et la corbeille partagent l'espace réservé de chaque volume. Quand il manque, les versions anciennes partent d'abord, puis les éléments de la corbeille, puis la dernière version de chaque fichier, et les versions épinglées en dernier.",
+        "environmentNote": "Les valeurs par défaut viennent de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE et VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     "sharedWithAnyone": "Tout le monde",
     "sharedWithUsers": "{count} utilisateur | {count} utilisateurs",
     "expiresNever": "Jamais"
+  },
+  "trash": {
+    "title": "Corbeille",
+    "menu": "Corbeille",
+    "subtitle": "Les éléments sont supprimés définitivement {count} jour après leur suppression. | Les éléments sont supprimés définitivement {count} jours après leur suppression.",
+    "empty": "La corbeille est vide.",
+    "disabled": "La corbeille est désactivée : supprimer efface définitivement. Ce qui s'y trouve encore peut être restauré.",
+    "unavailable": "Volume indisponible",
+    "expiresToday": "Aujourd'hui",
+    "expiresIn": "Dans {count} jour | Dans {count} jours",
+    "columns": {
+      "originalLocation": "Emplacement d'origine",
+      "deletedBy": "Supprimé par",
+      "deletedAt": "Supprimé le",
+      "expires": "Suppression",
+      "modified": "Modifié le"
+    },
+    "location": {
+      "personal": "Dossier personnel",
+      "unknown": "Inconnu"
+    },
+    "deletedBy": {
+      "you": "Vous",
+      "shareLink": "Lien de partage",
+      "unknown": "Inconnu"
+    },
+    "actions": {
+      "restore": "Restaurer",
+      "deletePermanently": "Supprimer définitivement",
+      "empty": "Vider la corbeille",
+      "openLocation": "Ouvrir l'emplacement d'origine",
+      "selectAll": "Tout sélectionner",
+      "select": "Sélectionner {name}",
+      "open": "Ouvrir {name}",
+      "restoreFolder": "Restaurer tout le dossier",
+      "restoreTo": "Restaurer vers…"
+    },
+    "confirm": {
+      "deleteTitle": "Supprimer définitivement ?",
+      "deleteMessage": "Cet élément sera supprimé définitivement. Cette action est irréversible. | Ces {count} éléments seront supprimés définitivement. Cette action est irréversible.",
+      "emptyTitle": "Vider la corbeille ?",
+      "emptyMessage": "Tout ce que contient votre corbeille sera supprimé définitivement. Cette action est irréversible."
+    },
+    "results": {
+      "restored": "{count} élément restauré | {count} éléments restaurés",
+      "restoredTo": "Restauré dans {path}",
+      "renamed": "\"{name}\" a été restauré sous le nom \"{newName}\" : son nom était pris.",
+      "notRestored": "{count} élément n'a pas pu être restauré | {count} éléments n'ont pas pu être restaurés",
+      "deleted": "{count} élément supprimé définitivement | {count} éléments supprimés définitivement",
+      "notDeleted": "{count} élément n'a pas pu être supprimé | {count} éléments n'ont pas pu être supprimés",
+      "emptied": "Corbeille vidée : {count} élément supprimé | Corbeille vidée : {count} éléments supprimés",
+      "leftBehind": "{count} élément n'a pas pu être supprimé et y est toujours. | {count} éléments n'ont pas pu être supprimés et y sont toujours."
+    },
+    "reasons": {
+      "forbidden": "vous ne pouvez plus écrire à son emplacement d'origine.",
+      "blocked": "quelque chose occupe désormais la place de son dossier.",
+      "unavailable": "son volume n'est pas disponible.",
+      "busy": "il est déjà en cours de traitement.",
+      "lost": "son contenu avait disparu.",
+      "notFound": "il n'est plus dans la corbeille.",
+      "unknown": "il n'a pas pu être traité.",
+      "destinationForbidden": "vous ne pouvez pas créer d'éléments dans ce dossier.",
+      "invalidDestination": "ce dossier ne peut pas le recevoir."
+    },
+    "errors": {
+      "load": "La corbeille n'a pas pu être chargée.",
+      "action": "La corbeille n'a pas pu effectuer cette action.",
+      "loadFolder": "Ce dossier n'a pas pu être ouvert."
+    },
+    "browse": {
+      "breadcrumb": "Emplacement dans la corbeille",
+      "deletedFrom": "Supprimé de {location} le {date}",
+      "hint": "Restaurer remet chaque élément sélectionné à sa place dans ce dossier. Le reste demeure dans la corbeille.",
+      "empty": "Ce dossier est vide.",
+      "back": "Retour à la corbeille"
+    },
+    "contextMenu": {
+      "label": "Actions pour {name}",
+      "labelMany": "Actions pour {count} éléments",
+      "open": "Ouvrir",
+      "preview": "Aperçu"
+    },
+    "shares": {
+      "badge": "Partagé",
+      "badgeTitle": "{count} lien de partage, désactivé tant qu'il est dans la corbeille | {count} liens de partage, désactivés tant qu'ils sont dans la corbeille",
+      "chooseTitle": "Que faire des liens de partage ?",
+      "chooseMessage": "{count} lien de partage appartenait à ce que vous restaurez. Il ne fonctionne plus depuis la suppression. | {count} liens de partage appartenaient à ce que vous restaurez. Ils ne fonctionnent plus depuis la suppression.",
+      "chooseElsewhere": "Rétablis, ils pointeront vers le nouvel emplacement.",
+      "keep": "Rétablir les liens de partage",
+      "drop": "Supprimer les liens de partage",
+      "deleteNotice": "Leurs liens de partage seront eux aussi supprimés définitivement.",
+      "restored": "{count} lien de partage rétabli | {count} liens de partage rétablis",
+      "dropped": "{count} lien de partage supprimé | {count} liens de partage supprimés"
+    }
   }
 }
