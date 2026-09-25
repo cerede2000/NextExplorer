@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const crypto = require('crypto');
+const { pipeline } = require('stream/promises');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 
@@ -10,6 +11,7 @@ const { onlyoffice, public: publicConfig, mimeTypes } = require('../config/index
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
+const versions = require('../services/versions/operations');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, UnauthorizedError, ForbiddenError } = require('../errors/AppError');
@@ -32,6 +34,40 @@ const getDocumentType = (ext) => {
 };
 
 const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
+
+/**
+ * Pull the saved document into a file of its own, next to the document.
+ *
+ * Never into the document itself: it used to be truncated to nothing before
+ * the Document Server had answered, so a slow network, a restart or a refused
+ * download left an empty file where the work had been. The versions place the
+ * temporary file over the document once it is whole.
+ */
+const fetchDocumentInto = async (downloadUrl, temporaryPath, mode) => {
+  const response = await axios.get(downloadUrl, { responseType: 'stream', timeout: 30000 });
+  await pipeline(response.data, fs.createWriteStream(temporaryPath, { flags: 'wx', mode }));
+  // The write stream's mode is subject to the umask; this is not.
+  await fsp.chmod(temporaryPath, mode);
+};
+
+/**
+ * Who a callback is saving for.
+ *
+ * The Document Server names the people whose changes are in this save; the
+ * last of them is the one to credit. It says nothing when a save carries no
+ * history — the first one of a session — and then the account the editing
+ * session was opened for is the answer. Somebody who came through a share link
+ * is credited as the link: there is no account to name.
+ */
+const authorFromCallback = (body, backendCtx) => {
+  const changes = Array.isArray(body?.history?.changes) ? body.history.changes : [];
+  const user = changes.length ? changes[changes.length - 1]?.user : null;
+  const id = user?.id ? String(user.id) : backendCtx?.userId || null;
+  if ((id && id.startsWith('guest_')) || (!id && backendCtx?.guestSessionId)) {
+    return { id: null, label: 'share-link' };
+  }
+  return { id, label: user?.name ? String(user.name) : null };
+};
 
 const getDsJwtFromReq = (req) => {
   const auth = (req.headers['authorization'] || req.headers['authorizationjwt'] || '').toString();
@@ -308,16 +344,41 @@ router.post(
           abs = resolved.absolutePath;
         }
         await ensureDir(path.dirname(abs));
-        // Download updated file from Document Server
-        const response = await axios.get(body.url, { responseType: 'stream' });
-        await fsp.writeFile(abs, Buffer.from([])); // ensure file exists / truncate
-        const writeStream = fs.createWriteStream(abs);
-        await new Promise((resolve, reject) => {
-          response.data.pipe(writeStream);
-          writeStream.on('finish', resolve);
-          writeStream.on('error', reject);
-        });
-        logger.debug({ path: relativePath }, 'ONLYOFFICE file updated');
+
+        // Keep the permissions the document already had; one the editor is
+        // creating starts private.
+        let mode = 0o600;
+        try {
+          const previous = await fsp.stat(abs);
+          if (previous.isFile()) mode = previous.mode & 0o777;
+        } catch {
+          // A document that is not there yet has nothing to keep.
+        }
+
+        // A save on purpose — the editor's own Save, or the last one made once
+        // everybody has left the document — is a state worth keeping. The
+        // automatic saves in between are not, beyond the checkpoint the
+        // versions take of a session that runs long.
+        const explicit = status === 2 || Number(body.forcesavetype) === 1;
+
+        await versions.saveFile(
+          abs,
+          (temporaryPath) => fetchDocumentInto(body.url, temporaryPath, mode),
+          {
+            purpose: 'onlyoffice',
+            author: authorFromCallback(body, backendCtx),
+            source: 'onlyoffice',
+            session: {
+              // Everybody editing together shares the document key: it is the
+              // session, and its saves belong to it rather than each standing
+              // as a state of its own.
+              key: typeof body.key === 'string' && body.key ? body.key : null,
+              startedAt: Number.isFinite(backendCtx?.iat) ? backendCtx.iat * 1000 : null,
+            },
+            explicit,
+          }
+        );
+        logger.debug({ path: relativePath, status }, 'ONLYOFFICE file updated');
         // MUST return {error:0} according to ONLYOFFICE spec
         return res.json({ error: 0 });
       }
