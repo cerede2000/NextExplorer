@@ -4,7 +4,13 @@ const { ForbiddenError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 
 const authMiddleware = async (req, res, next) => {
-  const requestPath = req.path || '';
+  // Express matches routes without regard to case, so `/API/volumes` reaches
+  // the same handler as `/api/volumes`. Every decision below compares the path
+  // with a lower-case prefix, and a path compared as it arrived was answered
+  // "not an API route" and waved through with no identity at all. Folded once,
+  // here, rather than at each comparison, because the one that gets forgotten
+  // is the one that matters.
+  const requestPath = (req.path || '').toLowerCase();
   const apiRoute = requestPath.startsWith('/api');
   const isAuthRoute = requestPath.startsWith('/api/auth');
   // Allow public share access routes (single share with token: /api/share/:token/*)

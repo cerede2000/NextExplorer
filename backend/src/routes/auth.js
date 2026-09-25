@@ -13,11 +13,13 @@ const {
 const { issueCode, redeemCode, isValidChallenge } = require('../services/oidcMobileBridge');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
+const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 const {
   ValidationError,
   UnauthorizedError,
   RateLimitError,
   NotFoundError,
+  ForbiddenError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
 
@@ -53,6 +55,34 @@ const passwordLimiter = rateLimit({
 });
 
 const router = express.Router();
+
+/**
+ * Whether accounts may be created and signed in with a password here.
+ *
+ * `/status` already told the interface a password sign-in was not on offer when
+ * AUTH_MODE is `oidc`, but the routes behind it answered anyway: on an
+ * installation nobody had signed in to yet, anyone who could reach the API
+ * could run the setup and become its administrator with a password.
+ */
+const passwordSignInEnabled = () => ['local', 'both'].includes(auth.mode || 'both');
+
+const refuseWithoutPasswordSignIn = () => {
+  if (!passwordSignInEnabled()) {
+    throw new ForbiddenError('Password sign-in is not enabled on this server.');
+  }
+};
+
+/**
+ * Run setups one at a time. Between counting the accounts and creating the
+ * first one there is a password hash, long enough for two setups sent together
+ * to both find none and both make an administrator.
+ */
+let setupQueue = Promise.resolve();
+const oneSetupAtATime = (task) => {
+  const run = setupQueue.then(task, task);
+  setupQueue = run.catch(() => {});
+  return run;
+};
 
 const respondWithUser = async (req, res) => {
   const user = await getRequestUser(req);
@@ -96,18 +126,21 @@ router.post(
   '/setup',
   setupLimiter,
   asyncHandler(async (req, res) => {
-    if ((await countUsers()) > 0) {
-      throw new ValidationError('Aoolication Already configured. Skkipping Setup.');
-    }
+    refuseWithoutPasswordSignIn();
     const { email, password, username } = req.body || {};
-    const user = await createLocalUser({
-      email,
-      password,
-      username: username || email?.split('@')[0],
-      displayName: username || email?.split('@')[0],
-      roles: ['admin'],
+    const user = await oneSetupAtATime(async () => {
+      if ((await countUsers()) > 0) {
+        throw new ValidationError('Application already configured. Skipping setup.');
+      }
+      return createLocalUser({
+        email,
+        password,
+        username: username || email?.split('@')[0],
+        displayName: username || email?.split('@')[0],
+        roles: ['admin'],
+      });
     });
-    if (req.session) req.session.localUserId = user.id;
+    await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user sets up account
     res.clearCookie('guestSession', { path: '/api' });
@@ -121,6 +154,7 @@ router.post(
   '/login',
   loginLimiter,
   asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
     const { email, password, username } = req.body || {};
     // Support both email and username (backward compatibility)
     const emailOrUsername = email || username;
@@ -137,7 +171,7 @@ router.post(
     if (!user) {
       throw new UnauthorizedError('Invalid credentials.', ErrorCodes.AUTH_INVALID_CREDENTIALS);
     }
-    if (req.session) req.session.localUserId = user.id;
+    await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user logs in
     res.clearCookie('guestSession', { path: '/api' });
@@ -353,7 +387,12 @@ router.post(
       );
     }
 
-    if (req.session) req.session.localUserId = result.userId;
+    // The same call every other way in makes a session with, and for the same
+    // reason: it rotates the session id. Assigning the user onto the session
+    // already in hand leaves whoever knew that id before signing in knowing a
+    // signed-in one.
+    await startAuthenticatedSession(req, result.userId);
+
     const user = await getRequestUser(req);
     if (!user) {
       if (req.session) delete req.session.localUserId;

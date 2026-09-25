@@ -20,6 +20,14 @@ let admin;
 const b64url = (buf) =>
   buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+/** The session id a response hands back, or null when it sets none. */
+const sessionId = (response) => {
+  const cookie = []
+    .concat(response.headers['set-cookie'] || [])
+    .find((entry) => entry.startsWith('connect.sid='));
+  return cookie ? cookie.split(';')[0].slice('connect.sid='.length) : null;
+};
+
 const makePkce = () => {
   const verifier = b64url(crypto.randomBytes(32));
   const challenge = b64url(crypto.createHash('sha256').update(verifier).digest());
@@ -135,6 +143,38 @@ describe('OIDC mobile bridge routes', () => {
       expect(second.status).toBe(401);
     });
 
+    /**
+     * The session id has to change when the session becomes signed in.
+     *
+     * Otherwise anyone who knew the id beforehand — planted it, read it from a
+     * log, watched it go by — knows a signed-in one afterwards. Every other way
+     * into this application goes through `startAuthenticatedSession` for this
+     * reason; the exchange assigned the user onto the session in hand instead.
+     */
+    it('gives the caller a different session than the one it arrived with', async () => {
+      const { verifier, challenge } = makePkce();
+      const agent = request.agent(loginApp);
+
+      // Step one writes the PKCE challenge to the session, which is what makes
+      // express-session issue a cookie at all — so the caller reaches the
+      // exchange already holding a session id, exactly as the app does.
+      const started = await agent.get(
+        `/api/auth/oidc/mobile/login?code_challenge=${challenge}&code_challenge_method=S256`
+      );
+      expect(started.status).toBe(302);
+      const before = sessionId(started);
+      expect(before).toBeTruthy();
+
+      const code = bridge.issueCode({ userId: admin.id, codeChallenge: challenge });
+      const after = await agent
+        .post('/api/auth/oidc/exchange')
+        .send({ code, code_verifier: verifier });
+
+      expect(after.status).toBe(200);
+      expect(sessionId(after)).toBeTruthy();
+      expect(sessionId(after)).not.toBe(before);
+    });
+
     it('rejects an unknown code with 401', async () => {
       const res = await request(app)
         .post('/api/auth/oidc/exchange')
@@ -147,6 +187,21 @@ describe('OIDC mobile bridge routes', () => {
     it('returns 400 for a missing or invalid PKCE challenge', async () => {
       const res = await request(loginApp).get('/api/auth/oidc/mobile/login');
       expect(res.status).toBe(400);
+    });
+
+    /**
+     * `plain` means the challenge is the verifier, sent in the clear — the mode
+     * PKCE exists to replace. Refused where it is asked for rather than three
+     * requests later, where the app has already sent the user to the provider.
+     */
+    it('returns 400 for a challenge method other than S256', async () => {
+      const { challenge } = makePkce();
+
+      const response = await request(loginApp).get(
+        `/api/auth/oidc/mobile/login?code_challenge=${challenge}&code_challenge_method=plain`
+      );
+
+      expect(response.status).toBe(400);
     });
 
     it('returns 400 for an unrecognized redirect_uri', async () => {
