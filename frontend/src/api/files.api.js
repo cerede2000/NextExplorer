@@ -1,4 +1,11 @@
-import { requestJson, requestRaw, normalizePath, encodePath, buildUrl } from './http';
+import {
+  requestJson,
+  requestRaw,
+  requestStream,
+  normalizePath,
+  encodePath,
+  buildUrl,
+} from './http';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -200,7 +207,9 @@ async function extractZip(relativePath) {
   if (!normalizedPath) {
     throw new Error('A zip file path is required.');
   }
-  return requestJson('/api/files/zip/extract', {
+  // The endpoint streams NDJSON progress events (start/progress/done/error);
+  // this resolves with the done event.
+  return requestStream('/api/files/zip/extract', {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath }),
   });
@@ -215,7 +224,9 @@ async function compressToZip(items, destination = '', name) {
     payload.name = name.trim();
   }
 
-  return requestJson('/api/files/zip/compress', {
+  // The endpoint streams NDJSON progress events (start/progress/done/error);
+  // this resolves with the done event.
+  return requestStream('/api/files/zip/compress', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

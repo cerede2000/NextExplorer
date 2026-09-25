@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const fs = require('fs/promises');
@@ -12,11 +13,12 @@ const {
   normalizeRelativePath,
   combineRelativePath,
   ensureValidName,
-  findAvailableFolderName,
-  findAvailableName,
 } = require('../utils/pathUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
+const { takeInventory, removeInventoried } = require('../utils/ownedTree');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const { track: trackInFlight } = require('../services/inFlightFiles');
 const {
   getSupportedArchiveExtensions,
   isSevenZipAvailable,
@@ -90,12 +92,19 @@ const extractIntoCurrentFolder = async ({
 
   for (const entry of stagedEntries) {
     const entryName = ensureValidName(entry.name);
-    const destinationName = await findAvailableName(destinationDirectory, entryName);
     const sourcePath = path.join(stagingDirectory, entryName);
-    const destinationPath = path.join(destinationDirectory, destinationName);
-
-    await fs.rename(sourcePath, destinationPath);
-    movedPaths.push(destinationPath);
+    // Taken stock of before it moves: undoing the extraction removes exactly
+    // this, and not what someone puts in a placed folder afterwards.
+    const inventory = await takeInventory(sourcePath);
+    // The name is taken by the move itself, never looked at first and renamed
+    // into later: a file, or an empty folder, that appears under it meanwhile
+    // stays as it is, and the entry goes to "name (1)".
+    const { name: destinationName, path: destinationPath } = await placeWithoutOverwrite(
+      sourcePath,
+      destinationDirectory,
+      entryName
+    );
+    movedPaths.push({ path: destinationPath, inventory });
 
     items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
   }
@@ -188,19 +197,19 @@ router.post(
       }
     })();
 
-    const folderName =
-      destination === 'folder'
-        ? await findAvailableFolderName(parentAbsolutePath, baseFolderName)
-        : baseFolderName;
-    const destinationFolderAbsolutePath =
-      destination === 'folder'
-        ? path.join(parentAbsolutePath, folderName)
-        : await fs.mkdtemp(path.join(parentAbsolutePath, '.nextexplorer-extract-'));
+    // Always extracted into a hidden folder of its own first. Into a new folder,
+    // the whole folder is then put under the first name nothing holds, "sample
+    // 2" when "sample" is taken, by a move that never replaces or merges into
+    // anything. It used to be created under its name before the extraction:
+    // what someone put in it meanwhile was then removed with it when the
+    // extraction failed, or at the next start after a crash.
+    const stagingAbsolutePath = await fs.mkdtemp(
+      path.join(parentAbsolutePath, '.nextexplorer-extract-')
+    );
     const movedPaths = [];
-
-    if (destination === 'folder') {
-      await fs.mkdir(destinationFolderAbsolutePath);
-    }
+    // Released however the extraction ends: a stop half-way leaves the record,
+    // and the next start removes the hidden folder it names, and only that.
+    const inFlight = trackInFlight(stagingAbsolutePath, 'staging-directory');
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
@@ -211,7 +220,8 @@ router.post(
     //   {type:'error',    message, code}
     const writeEvent = startNdjsonStream(res);
 
-    writeEvent({ type: 'start', name: folderName });
+    // The name asked for: the one taken, "sample 2" when held, is in `done`.
+    writeEvent({ type: 'start', name: baseFolderName });
 
     const onPercent = throttlePercent(writeEvent);
 
@@ -225,7 +235,7 @@ router.post(
         // 7-Zip streams to disk, so large archives don't get buffered in RAM.
         // ...and a running guard for everything else: encrypted archives,
         // listings too large to parse, and the second pass of tarballs.
-        await extractArchive(zipAbsolutePath, destinationFolderAbsolutePath, onPercent, {
+        await extractArchive(zipAbsolutePath, stagingAbsolutePath, onPercent, {
           signal: controller.signal,
           password: archivePassword,
           maxBytes: archives.maxExtractedBytes,
@@ -233,7 +243,7 @@ router.post(
       } else {
         const fallbackZip = new AdmZip(zipAbsolutePath);
         ensureArchiveWithinLimits(admZipFootprint(fallbackZip.getEntries()));
-        fallbackZip.extractAllTo(destinationFolderAbsolutePath, true);
+        fallbackZip.extractAllTo(stagingAbsolutePath, true);
         if (controller.signal.aborted) {
           const error = new Error('Operation cancelled.');
           error.code = 'OPERATION_CANCELLED';
@@ -242,23 +252,28 @@ router.post(
       }
 
       if (destination === 'folder') {
-        const item = await buildItemMetadata(
-          destinationFolderAbsolutePath,
-          parentRelativePath,
-          folderName
+        // Whole: the hidden folder becomes the new one, under a name nothing
+        // holds, named as a new folder is.
+        const placed = await placeWithoutOverwrite(
+          stagingAbsolutePath,
+          parentAbsolutePath,
+          baseFolderName,
+          { style: 'folder' }
         );
+
+        const item = await buildItemMetadata(placed.path, parentRelativePath, placed.name);
         writeEvent({ type: 'done', success: true, item, items: [item] });
       } else {
         // Extract to a private sibling first, then move each root entry into the
         // current folder. This avoids partial writes and lets us apply the same
         // collision rule used everywhere else: name, name (1), name (2), ...
         const items = await extractIntoCurrentFolder({
-          stagingDirectory: destinationFolderAbsolutePath,
+          stagingDirectory: stagingAbsolutePath,
           destinationDirectory: parentAbsolutePath,
           relativeParentPath: parentRelativePath,
           movedPaths,
         });
-        await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
+        await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
         writeEvent({
           type: 'done',
           success: true,
@@ -277,9 +292,13 @@ router.post(
           'Archive extract failed; cleaning up destination'
         );
       }
-      await fs.rm(destinationFolderAbsolutePath, { recursive: true, force: true });
-      await mapWithConcurrency(movedPaths, (movedPath) =>
-        fs.rm(movedPath, { recursive: true, force: true })
+      // The hidden folder only: a new folder is put under its name once whole,
+      // so a failure never has one of its own to remove.
+      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+      // What the extraction placed, and only that: a file someone saved into a
+      // placed folder meanwhile stays, with the folders holding it.
+      await mapWithConcurrency(movedPaths, (moved) =>
+        removeInventoried(moved.path, moved.inventory)
       );
       writeEvent({
         type: 'error',
@@ -287,6 +306,7 @@ router.post(
         code: error.code || 'EXTRACT_FAILED',
       });
     } finally {
+      inFlight.release();
       req.off('aborted', abort);
       res.off('close', onClose);
       res.end();
@@ -364,19 +384,28 @@ router.post(
       return defaultZipNameForItems(items);
     })();
 
-    const zipFileName = await findAvailableName(destinationAbsolutePath, requestedName);
-    const zipAbsolutePath = path.join(destinationAbsolutePath, zipFileName);
+    // The archive is written under a hidden name of its own, and only put under
+    // the name it is meant to have once it is whole, by a move that never
+    // replaces anything. Writing under that name from the start meant a file
+    // arriving there during a long compression was overwritten — or, 7-Zip
+    // adding to a zip it finds, changed —, and removed if the compression then
+    // failed. The name ends in ".zip" so 7-Zip takes it as given.
+    const temporaryPath = path.join(
+      destinationAbsolutePath,
+      `.nextexplorer-zip-${crypto.randomUUID()}.zip`
+    );
+    const inFlight = trackInFlight(temporaryPath, 'partial-archive');
 
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
     // NDJSON progress events, mirroring the extract endpoint:
-    //   {type:'start',    name}
-    //   {type:'progress', percent}    (throttled)
-    //   {type:'done',     success, item}
+    //   {type:'start',    name}          the name asked for
+    //   {type:'progress', percent}       (throttled)
+    //   {type:'done',     success, item} the name taken, "Archive (1).zip" when held
     //   {type:'error',    message, code}
     const writeEvent = startNdjsonStream(res);
 
-    writeEvent({ type: 'start', name: zipFileName });
+    writeEvent({ type: 'start', name: requestedName });
 
     const onPercent = throttlePercent(writeEvent);
 
@@ -404,29 +433,38 @@ router.post(
           hasCommonParent
             ? sourceTargets.map(({ name }) => name)
             : sourceTargets.map(({ absolutePath }) => absolutePath),
-          zipAbsolutePath,
+          temporaryPath,
           onPercent,
           { signal: controller.signal, cwd: hasCommonParent ? sourceParent : undefined }
         );
       } else {
-        await writeZipFile(entries, zipAbsolutePath, {
+        await writeZipFile(entries, temporaryPath, {
           totalBytes,
           onPercent,
           signal: controller.signal,
         });
       }
 
-      const item = await buildItemMetadata(zipAbsolutePath, normalizedDestination, zipFileName);
+      const placed = await placeWithoutOverwrite(
+        temporaryPath,
+        destinationAbsolutePath,
+        requestedName
+      );
+
+      const item = await buildItemMetadata(placed.path, normalizedDestination, placed.name);
       writeEvent({ type: 'done', success: true, item });
     } catch (error) {
-      logger.warn({ zipAbsolutePath, err: error }, 'Archive creation failed; cleaning up file');
-      await fs.rm(zipAbsolutePath, { force: true });
+      logger.warn({ temporaryPath, err: error }, 'Archive creation failed; cleaning up file');
+      // Only the hidden archive this compression wrote: whatever holds the name
+      // it was meant to take belongs to someone else.
+      await fs.rm(temporaryPath, { force: true });
       writeEvent({
         type: 'error',
         message: error.message || 'Archive creation failed.',
         code: error.code || 'COMPRESS_FAILED',
       });
     } finally {
+      inFlight.release();
       req.off('aborted', abort);
       res.off('close', onClose);
       res.end();

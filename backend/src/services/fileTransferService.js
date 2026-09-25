@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
 
@@ -5,11 +6,12 @@ const { ensureDir, pathExists } = require('../utils/fsUtils');
 const {
   normalizeRelativePath,
   combineRelativePath,
-  findAvailableName,
   ensureValidName,
 } = require('../utils/pathUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const { getSharesForSourceTargets, deleteSharesByIds } = require('./sharesService');
+const { track: trackInFlight } = require('./inFlightFiles');
 
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
@@ -34,17 +36,50 @@ const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   }
 };
 
-const moveEntry = async (sourcePath, destinationPath, isDirectory) => {
+/*
+ * A copy or a move looked for a free name, "note (1).txt", and wrote under it
+ * afterwards. Whatever arrived under that name in between — another copy, a
+ * file saved over SMB — was replaced by the copied file or by the rename of a
+ * move, or poured into by a copied folder, and a copy lasting minutes held that
+ * gap open for minutes. The name is now taken by the step that puts the entry
+ * there, through placeWithoutOverwrite, which never replaces nor merges into
+ * anything and moves on to "note (1).txt" when the name is held.
+ */
+
+/**
+ * Copy `sourcePath` into a hidden entry of its own beside the destination, and
+ * put it under `desiredName`, or the first free name after it, once whole. A
+ * copy that fails removes only that hidden entry; one cut short by a stop is
+ * removed at the next start, through the in-flight journal.
+ */
+const copyIntoPlace = async (sourcePath, directory, desiredName, isDirectory) => {
+  const stagingPath = path.join(directory, `.nextexplorer-copy-${crypto.randomUUID()}`);
+  const inFlight = trackInFlight(stagingPath, 'partial-copy');
   try {
-    await fs.rename(sourcePath, destinationPath);
+    await copyEntry(sourcePath, stagingPath, isDirectory);
+    return await placeWithoutOverwrite(stagingPath, directory, desiredName);
   } catch (error) {
-    if (error.code === 'EXDEV') {
-      await copyEntry(sourcePath, destinationPath, isDirectory);
-      await fs.rm(sourcePath, { recursive: isDirectory, force: true });
-    } else {
-      throw error;
-    }
+    await fs.rm(stagingPath, { recursive: true, force: true });
+    throw error;
+  } finally {
+    inFlight.release();
   }
+};
+
+/**
+ * Move `sourcePath` under `desiredName` in `directory`, or the first free name
+ * after it. To another disk, the entry is copied whole first, and the source
+ * removed only once that copy is in place.
+ */
+const moveIntoPlace = async (sourcePath, directory, desiredName, isDirectory) => {
+  try {
+    return await placeWithoutOverwrite(sourcePath, directory, desiredName);
+  } catch (error) {
+    if (error.code !== 'EXDEV') throw error;
+  }
+  const placed = await copyIntoPlace(sourcePath, directory, desiredName, isDirectory);
+  await fs.rm(sourcePath, { recursive: isDirectory, force: true });
+  return placed;
 };
 
 const transferItems = async (items, destination, operation, options = {}) => {
@@ -127,19 +162,31 @@ const transferItems = async (items, destination, operation, options = {}) => {
       item.newName === undefined || item.newName === null || item.newName === ''
         ? path.basename(sourceAbsolute)
         : ensureValidName(item.newName);
-    const availableName = await findAvailableName(destinationAbsolute, desiredName);
-    const targetAbsolute = path.join(destinationAbsolute, availableName);
-    const targetRelative = combineRelativePath(destinationRelative, availableName);
 
+    let placed;
     if (operation === 'copy') {
-      await copyEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
+      placed = await copyIntoPlace(
+        sourceAbsolute,
+        destinationAbsolute,
+        desiredName,
+        stats.isDirectory()
+      );
     } else if (operation === 'move') {
-      await moveEntry(sourceAbsolute, targetAbsolute, stats.isDirectory());
+      placed = await moveIntoPlace(
+        sourceAbsolute,
+        destinationAbsolute,
+        desiredName,
+        stats.isDirectory()
+      );
     } else {
       throw new Error(`Unsupported operation: ${operation}`);
     }
 
-    results.push({ from: sourceRelative, to: targetRelative });
+    // The name actually taken: "note (1).txt" when "note.txt" was held.
+    results.push({
+      from: sourceRelative,
+      to: combineRelativePath(destinationRelative, placed.name),
+    });
   }
 
   return { destination: destinationRelative, items: results };
