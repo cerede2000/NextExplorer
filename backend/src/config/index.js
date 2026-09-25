@@ -164,7 +164,7 @@ if (env.PUBLIC_URL) {
 // They are considered valid so accessing the app that way doesn't raise the
 // public-URL mismatch warning, and they're accepted by CORS. PUBLIC_URL remains
 // the canonical URL used to build absolute links (shares, OIDC callbacks, WOPI).
-const parseOriginList = (value) =>
+const parseOriginList = (value, variableName = 'INTERNAL_URL') =>
   (typeof value === 'string' ? value.split(',') : [])
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -172,7 +172,7 @@ const parseOriginList = (value) =>
       try {
         return new URL(entry).origin;
       } catch (err) {
-        console.warn(`[Config] Invalid INTERNAL_URL entry: ${entry}`);
+        console.warn(`[Config] Invalid ${variableName} entry: ${entry}`);
         return null;
       }
     })
@@ -323,6 +323,10 @@ const onlyoffice = {
   extensions: env.ONLYOFFICE_FILE_EXTENSIONS.split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
+  // Where a saved document may be fetched from, beyond the Document Server's
+  // own address: it sometimes reports itself under another host than the one it
+  // is called on, behind a proxy or inside a container network.
+  downloadOrigins: parseOriginList(env.ONLYOFFICE_DOWNLOAD_ORIGINS, 'ONLYOFFICE_DOWNLOAD_ORIGINS'),
 };
 
 // Silent JWT mismatches surface to the user as "Document security token is not

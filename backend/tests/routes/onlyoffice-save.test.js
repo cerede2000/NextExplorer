@@ -32,6 +32,12 @@ let app;
 let alice;
 let documentServer;
 let serverUrl;
+/** The same server under another address, as one behind a proxy reports itself. */
+let mirror;
+let mirrorUrl;
+/** Somewhere else entirely, answering perfectly well: what must not be fetched. */
+let stranger;
+let strangerUrl;
 /** What the fake Document Server hands out, and how badly it fails to. */
 let saved;
 
@@ -63,12 +69,27 @@ beforeEach(async () => {
   await new Promise((resolve) => documentServer.listen(0, '127.0.0.1', resolve));
   serverUrl = `http://127.0.0.1:${documentServer.address().port}`;
 
+  stranger = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.end('stolen');
+  });
+  await new Promise((resolve) => stranger.listen(0, '127.0.0.1', resolve));
+  strangerUrl = `http://127.0.0.1:${stranger.address().port}`;
+
+  mirror = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.end(saved.content);
+  });
+  await new Promise((resolve) => mirror.listen(0, '127.0.0.1', resolve));
+  mirrorUrl = `http://127.0.0.1:${mirror.address().port}`;
+
   env = await setupTestEnv({
     tag: 'onlyoffice-save-',
     env: {
       PUBLIC_URL: 'https://files.example.com',
       ONLYOFFICE_URL: serverUrl,
       ONLYOFFICE_SECRET: SECRET,
+      ONLYOFFICE_DOWNLOAD_ORIGINS: mirrorUrl,
     },
   });
 
@@ -96,6 +117,8 @@ beforeEach(async () => {
 afterEach(async () => {
   load('src/services/trash/maintenance').stop();
   await new Promise((resolve) => documentServer.close(resolve));
+  await new Promise((resolve) => mirror.close(resolve));
+  await new Promise((resolve) => stranger.close(resolve));
   await env.cleanup();
 });
 
@@ -219,6 +242,28 @@ describe('the document the Document Server hands back', () => {
     expect(response.body).toEqual({ error: 0 });
     expect(await fs.readFile(absolute(), 'utf8')).toBe('forced');
     expect(await versionsKept()).toHaveLength(1);
+  });
+
+  /**
+   * The callback says where the document is, and the server used to fetch
+   * whatever it was told to — an address on the machine itself, or one inside
+   * the container's network, reached by anybody who can reach the callback.
+   */
+  it('fetches nothing from a server that is not the Document Server', async () => {
+    // Answering, and answering well: a refusal here cannot be the network.
+    const response = await callback({ status: 2, url: `${strangerUrl}/saved.docx` });
+
+    expect(response.body).toEqual({ error: 1 });
+    expect(await fs.readFile(absolute(), 'utf8')).toBe('first');
+    expect(await versionsKept()).toHaveLength(0);
+  });
+
+  /** A Document Server behind a proxy reports itself under the declared host. */
+  it('fetches from an address declared beside the Document Server', async () => {
+    const response = await callback({ status: 2, url: `${mirrorUrl}/saved.docx` });
+
+    expect(response.body).toEqual({ error: 0 });
+    expect(await fs.readFile(absolute(), 'utf8')).toBe('second');
   });
 
   it('acknowledges a status that saves nothing, and writes nothing', async () => {

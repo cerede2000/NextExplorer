@@ -36,6 +36,55 @@ const getDocumentType = (ext) => {
 const resolveMime = (ext) => mimeTypes[ext] || 'application/octet-stream';
 
 /**
+ * The addresses a saved document may be fetched from.
+ *
+ * The Document Server's own, and any declared beside it: behind a proxy or
+ * inside a container network it sometimes reports itself under a host other
+ * than the one it is called on.
+ */
+const buildAllowedDownloadOrigins = () => {
+  const origins = new Set();
+  const add = (value) => {
+    if (!value) return;
+    try {
+      origins.add(new URL(value).origin);
+    } catch {
+      // Ignore malformed configuration entries.
+    }
+  };
+  add(onlyoffice.serverUrl);
+  (onlyoffice.downloadOrigins || []).forEach(add);
+  return origins;
+};
+
+/**
+ * The callback says where to fetch the saved document from, and the server
+ * fetched whatever it was told to: an address on the machine itself, or inside
+ * the network the container sits in, reached by anyone who can reach the
+ * callback. It has to come from the Document Server we sent the document to.
+ */
+const ensureAllowedDownloadUrl = (rawUrl) => {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl));
+  } catch {
+    throw new ValidationError('The document URL is not a valid URL.');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError('The document URL must use HTTP or HTTPS.');
+  }
+  const allowed = buildAllowedDownloadOrigins();
+  if (!allowed.has(parsed.origin)) {
+    logger.warn(
+      { origin: parsed.origin, allowed: Array.from(allowed) },
+      'ONLYOFFICE callback rejected: document URL origin is not allowed. Add it to ONLYOFFICE_DOWNLOAD_ORIGINS if the Document Server reports a different host.'
+    );
+    throw new ForbiddenError('The document URL does not come from the configured Document Server.');
+  }
+  return parsed.toString();
+};
+
+/**
  * Pull the saved document into a file of its own, next to the document.
  *
  * Never into the document itself: it used to be truncated to nothing before
@@ -330,6 +379,8 @@ router.post(
       const status = Number(body.status);
       // See ONLYOFFICE callback statuses: 2 - Save, 6 - Force Save
       if ((status === 2 || status === 6) && body.url) {
+        // Only the Document Server we handed the document to may be fetched from.
+        const downloadUrl = ensureAllowedDownloadUrl(body.url);
         let abs = null;
         if (backendCtx && typeof backendCtx.absolutePath === 'string' && backendCtx.absolutePath) {
           abs = backendCtx.absolutePath;
@@ -363,7 +414,7 @@ router.post(
 
         await versions.saveFile(
           abs,
-          (temporaryPath) => fetchDocumentInto(body.url, temporaryPath, mode),
+          (temporaryPath) => fetchDocumentInto(downloadUrl, temporaryPath, mode),
           {
             purpose: 'onlyoffice',
             author: authorFromCallback(body, backendCtx),
