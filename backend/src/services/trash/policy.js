@@ -92,4 +92,100 @@ const planMaintenance = ({
   return { purge, usedAfter: used, freeAfter: free };
 };
 
-module.exports = { DAY_MS, budgetFor, admission, planMaintenance };
+const byModified = (left, right) =>
+  left.modifiedAt - right.modifiedAt || String(left.id).localeCompare(String(right.id));
+
+/**
+ * The plan for a whole zone, where the trash and earlier versions of files
+ * share one budget.
+ *
+ * What has to go goes first, whatever the space: trash items past their
+ * retention, and versions the caller marked expired — thinned out, over the
+ * per-file limit, or left by a file that is gone for good. Then, while the zone
+ * is over its budget or the volume under its floor, in this order, oldest first
+ * within each step:
+ *
+ *   1. versions that are not the latest of their file;
+ *   2. trash items — what someone deleted yesterday is what they look for first;
+ *   3. the latest version of each file;
+ *   4. pinned versions, which nothing else ever removes.
+ *
+ * Every eviction is marked early, so it can be shown rather than happen silently.
+ *
+ * @param {object} input  as for planMaintenance, plus
+ * @param {{ id: string, size: number, modifiedAt: number, fileId: string,
+ *   pinned?: boolean, expired?: 'thinned'|'limit'|'orphaned'|false }[]} input.versions
+ * @returns {{ purge: object[], purgeVersions: { id: string, reason: string, early: boolean }[],
+ *   usedAfter: number, freeAfter: number }}
+ */
+const planZone = ({
+  items = [],
+  versions = [],
+  now,
+  retentionDays,
+  budgetBytes = Infinity,
+  freeBytes = null,
+  floorBytes = 0,
+}) => {
+  const retentionMs = retentionDays * DAY_MS;
+  const purge = [];
+  const purgeVersions = [];
+  let free = Number.isFinite(freeBytes) ? freeBytes : Infinity;
+
+  const remainingItems = [];
+  for (const entry of [...items].sort(byAge)) {
+    if (entry.deletedAt + retentionMs <= now) {
+      purge.push({ id: entry.id, reason: 'expired', early: false });
+      free += entry.size;
+    } else {
+      remainingItems.push(entry);
+    }
+  }
+
+  const remainingVersions = [];
+  for (const version of [...versions].sort(byModified)) {
+    if (version.expired) {
+      purgeVersions.push({ id: version.id, reason: version.expired, early: false });
+      free += version.size;
+    } else {
+      remainingVersions.push(version);
+    }
+  }
+
+  const latestOf = new Map();
+  for (const version of remainingVersions) {
+    if (version.pinned) continue;
+    const latest = latestOf.get(version.fileId);
+    if (!latest || byModified(latest, version) < 0) latestOf.set(version.fileId, version);
+  }
+  const isLatest = (version) => latestOf.get(version.fileId) === version;
+
+  const candidates = [
+    ...remainingVersions
+      .filter((version) => !version.pinned && !isLatest(version))
+      .map((entry) => ({ kind: 'version', entry })),
+    ...remainingItems.map((entry) => ({ kind: 'item', entry })),
+    ...remainingVersions.filter(isLatest).map((entry) => ({ kind: 'version', entry })),
+    ...remainingVersions
+      .filter((version) => version.pinned)
+      .map((entry) => ({ kind: 'version', entry })),
+  ];
+
+  let used =
+    remainingItems.reduce((total, entry) => total + entry.size, 0) +
+    remainingVersions.reduce((total, entry) => total + entry.size, 0);
+  let next = 0;
+  while (next < candidates.length && (used > budgetBytes || free < floorBytes)) {
+    const { kind, entry } = candidates[next];
+    next += 1;
+    const decision = { id: entry.id, reason: used > budgetBytes ? 'budget' : 'space', early: true };
+    if (kind === 'item') purge.push(decision);
+    else purgeVersions.push(decision);
+    used -= entry.size;
+    free += entry.size;
+  }
+
+  return { purge, purgeVersions, usedAfter: used, freeAfter: free };
+};
+
+module.exports = { DAY_MS, budgetFor, admission, planMaintenance, planZone };

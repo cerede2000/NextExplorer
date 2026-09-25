@@ -91,6 +91,9 @@ router.post(
     }
 
     await fs.rename(currentAbsolute, targetAbsolute);
+    // The history follows the file, or everything in the folder, to its new name.
+    // eslint-disable-next-line global-require
+    await require('../../services/versions/lifecycle').onMoved(currentAbsolute, targetAbsolute);
 
     const item = await buildItemMetadata(targetAbsolute, parentRelative, validatedNewName);
     res.json({ success: true, item });

@@ -461,6 +461,33 @@ const trash = (() => {
     maxBytes: Number.isFinite(maxBytes) && maxBytes > 0 ? Math.floor(maxBytes) : null,
   };
 })();
+
+// --- File versions ---
+// Defaults only, like the trash's: the values in force are the system settings.
+const VERSION_BOUNDS = {
+  keepAllHours: [1, 720, 24],
+  hourlyDays: [1, 365, 7],
+  dailyDays: [1, 3650, 30],
+  maxPerFile: [1, 1000, 50],
+  sessionCheckpointMinutes: [1, 1440, 10],
+};
+const versions = (() => {
+  const integer = (raw, [min, max, fallback]) => {
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= min ? Math.min(max, Math.round(value)) : fallback;
+  };
+  return {
+    enabled: env.VERSIONS_ENABLED !== false,
+    keepAllHours: integer(env.VERSIONS_KEEP_ALL_HOURS, VERSION_BOUNDS.keepAllHours),
+    hourlyDays: integer(env.VERSIONS_HOURLY_DAYS, VERSION_BOUNDS.hourlyDays),
+    dailyDays: integer(env.VERSIONS_DAILY_DAYS, VERSION_BOUNDS.dailyDays),
+    maxPerFile: integer(env.VERSIONS_MAX_PER_FILE, VERSION_BOUNDS.maxPerFile),
+    sessionCheckpointMinutes: integer(
+      env.VERSIONS_SESSION_CHECKPOINT_MINUTES,
+      VERSION_BOUNDS.sessionCheckpointMinutes
+    ),
+  };
+})();
 // --- Folder size index ---
 const VALID_FOLDER_SIZE_MODES = new Set(['off', 'shallow', 'full']);
 const folderSizeMode = VALID_FOLDER_SIZE_MODES.has(env.FOLDER_SIZE_MODE)
@@ -615,6 +642,8 @@ module.exports = {
   shares,
   hiddenFiles,
   trash,
+  versions,
+  VERSION_BOUNDS,
 
   features: {
     volumeUsage: env.SHOW_VOLUME_USAGE,

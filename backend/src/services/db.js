@@ -6,6 +6,7 @@ const { directories, files, favorites } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
 const { TRASH_DDL } = require('./trash/schema');
+const { VERSIONS_DDL } = require('./versions/schema');
 
 let dbInstance = null;
 
@@ -429,6 +430,16 @@ const migrate = (db) => {
       );
       version = 12;
     }
+
+    if (version < 13) {
+      logger.info('[DB Migration] Migrating to v13: file versions...');
+      db.exec(VERSIONS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(13)
+      );
+      version = 13;
+    }
   })();
 };
 
@@ -662,6 +673,12 @@ const getDb = async () => {
     db.exec(TRASH_DDL);
   } catch (err) {
     logger.warn({ err }, '[DB] Failed to ensure trash tables');
+  }
+  // After the trash: the versions trigger names trash_items.
+  try {
+    db.exec(VERSIONS_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure versions tables');
   }
   ensureAnonymousUser(db);
   dbInstance = db;

@@ -30,7 +30,9 @@ const { ZONE_DIRECTORY_NAME } = require('../../config/constants');
 const { generateId } = require('../../utils/ids');
 const { findAvailableName } = require('../../utils/pathUtils');
 const logger = require('../../utils/logger');
+const { moveNoReplace } = require('../../utils/placeWithoutOverwrite');
 const { getDb } = require('../db');
+const versionLifecycle = require('../versions/lifecycle');
 const clock = require('./clock');
 const failpoints = require('./failpoints');
 const { admission } = require('./policy');
@@ -146,6 +148,106 @@ const lstatOrNull = async (absolutePath) => {
     if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return null;
     throw error;
   }
+};
+
+/**
+ * Whether two names are one regular file, linked under both.
+ *
+ * Content leaves the trash under a name nothing else holds (`moveNoReplace`):
+ * a file is linked under its new name, then its old name removed. A crash in
+ * between leaves the file under both names, which is told apart here from
+ * anything else holding the destination — someone's file, or the empty file or
+ * folder the move holds a name with where it cannot link — by the device and
+ * inode both names share, and a link count that says so. Anything short of
+ * that is not ours, and answers false.
+ */
+const linkedUnderBoth = async (first, second) => {
+  const stat = (target) => fsp.lstat(target, { bigint: true }).catch(() => null);
+  const [a, b] = await Promise.all([stat(first), stat(second)]);
+  return Boolean(
+    a?.isFile() &&
+    b?.isFile() &&
+    a.ino !== 0n &&
+    a.dev === b.dev &&
+    a.ino === b.ino &&
+    a.nlink >= 2n
+  );
+};
+
+/**
+ * Whether two names are one symbolic link, made again under the second.
+ *
+ * `moveNoReplace` moves a link by making it again under its new name, which
+ * fails when the name is held, and then removing the old one. A crash in
+ * between leaves both, holding the same text. The recovery passes the moment
+ * the operation recorded its intent: a link with that text made before it is
+ * someone else's. A restore still running made the second one a moment ago.
+ */
+const sameLinkUnderBoth = async (first, second, sinceIso = null) => {
+  const [a, b] = await Promise.all([lstatOrNull(first), lstatOrNull(second)]);
+  if (!a?.isSymbolicLink() || !b?.isSymbolicLink()) return false;
+  if (sinceIso !== null) {
+    const since = Date.parse(sinceIso);
+    if (!Number.isFinite(since) || b.ctimeMs < since - PLACEHOLDER_CLOCK_MARGIN_MS) return false;
+  }
+  try {
+    const [textA, textB] = await Promise.all([fsp.readlink(first), fsp.readlink(second)]);
+    return textA === textB;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The old name of a file just placed, when it stayed: `moveNoReplace` lets the
+ * removal after the link fail quietly. Here that name is the trash's own
+ * content, or its copy, which would otherwise be adopted as a second item or
+ * left beside the destination. A failure now is thrown, with the operation
+ * still in its passing state for the recovery to finish.
+ */
+const dropOldName = async (source, target) => {
+  if ((await linkedUnderBoth(source, target)) || (await sameLinkUnderBoth(source, target))) {
+    await fsp.unlink(source);
+  }
+};
+
+// Filesystems keep times to the second at worst, and the record's clock and the
+// filesystem's are the same one.
+const PLACEHOLDER_CLOCK_MARGIN_MS = 2000;
+
+/**
+ * The empty file or folder a move held its destination with, when a crash
+ * stopped it before the rename.
+ *
+ * For a folder, and for a file where there are no hard links, `moveNoReplace`
+ * creates the destination empty and renames the content over it. A crash in
+ * between leaves that empty entry beside content still in the trash, under the
+ * name the restore was going to take. Only something empty, and changed no
+ * earlier than the operation recorded its intent, is taken for it: a file or
+ * folder with anything in it is never touched, and an empty one someone made
+ * in that same instant holds nothing to lose.
+ */
+const removePlaceholderLeftByCrash = async (target, sinceIso) => {
+  if (!target) return false;
+  const since = Date.parse(sinceIso);
+  const stats = await lstatOrNull(target);
+  if (!stats || !Number.isFinite(since) || stats.ctimeMs < since - PLACEHOLDER_CLOCK_MARGIN_MS) {
+    return false;
+  }
+  try {
+    if (stats.isDirectory()) {
+      // rmdir refuses a folder that is not empty.
+      await fsp.rmdir(target);
+      return true;
+    }
+    if (stats.isFile() && stats.size === 0) {
+      await fsp.unlink(target);
+      return true;
+    }
+  } catch {
+    /* no longer empty, or already gone */
+  }
+  return false;
 };
 
 /** The longest path inside a deleted folder accepted, in characters. */
@@ -273,6 +375,49 @@ const copyTree = (source, destination, isDirectory, onBytes, signal) =>
     signal
   );
 
+/** Far past any real race for one name; a bound so a filesystem answering EEXIST to everything ends in an error. */
+const MAX_NAMING_ATTEMPTS = 100;
+
+/**
+ * Move a whole copy from its hidden name to where it goes, never replacing
+ * what holds that name: one taken since the copy started, or at the last
+ * moment, gets the next free one. Each name is recorded before the copy is
+ * moved under it, so a crash leaves the recovery looking at the right one.
+ *
+ * Answers the path the copy took.
+ */
+const nameCopy = async ({ db, item, staging, entryPath, restorePath, stoppedSince = null }) => {
+  const directory = path.dirname(restorePath);
+  const desired = path.basename(restorePath);
+  let target = restorePath;
+  for (let attempt = 1; attempt <= MAX_NAMING_ATTEMPTS; attempt += 1) {
+    // A crash between the link and the removal of the hidden name left the
+    // copy under both: it is already named.
+    // eslint-disable-next-line no-await-in-loop
+    const alreadyNamed =
+      (await linkedUnderBoth(staging, target)) ||
+      (stoppedSince !== null && (await sameLinkUnderBoth(staging, target, stoppedSince)));
+    if (!alreadyNamed) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await moveNoReplace(staging, target);
+      } catch (error) {
+        if (error?.code !== 'EEXIST') throw error;
+        // eslint-disable-next-line no-await-in-loop
+        target = path.join(directory, await findAvailableName(directory, desired));
+        store.setItemState(db, item.id, 'copied', { restorePath: target, restoreEntry: entryPath });
+        continue;
+      }
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await dropOldName(staging, target);
+    return target;
+  }
+  throw Object.assign(new Error(`No free name for a restored copy in ${directory}`), {
+    code: 'EEXIST',
+  });
+};
+
 /**
  * The end of a restore across disks, once its copy is whole: named where it
  * goes, the trash's copy removed, the record finished. Called by the restore
@@ -282,23 +427,23 @@ const copyTree = (source, destination, isDirectory, onBytes, signal) =>
  * replaced. And when neither the copy nor anything at its destination is there
  * any more, the trash's copy is kept.
  */
-const finishCopy = async ({ db, item, payload, sidecar, entryPath, restorePath }) => {
+const finishCopy = async ({
+  db,
+  item,
+  payload,
+  sidecar,
+  entryPath,
+  restorePath,
+  stoppedSince = null,
+}) => {
   const staging = stagingPathFor(restorePath, item.id);
   let finalPath = restorePath;
 
   if (await exists(staging)) {
-    if (await exists(finalPath)) {
-      const directory = path.dirname(restorePath);
-      finalPath = path.join(
-        directory,
-        await findAvailableName(directory, path.basename(restorePath))
-      );
-      store.setItemState(db, item.id, 'copied', {
-        restorePath: finalPath,
-        restoreEntry: entryPath,
-      });
-    }
-    await fsp.rename(staging, finalPath);
+    // Resumed after a crash: the name may still be held by the empty entry the
+    // interrupted move took it with.
+    if (stoppedSince) await removePlaceholderLeftByCrash(restorePath, stoppedSince);
+    finalPath = await nameCopy({ db, item, staging, entryPath, restorePath, stoppedSince });
   } else if (!(await exists(finalPath))) {
     store.setItemState(db, item.id, 'trashed');
     return { status: 'lost-copy' };
@@ -313,12 +458,32 @@ const finishCopy = async ({ db, item, payload, sidecar, entryPath, restorePath }
   }
   await failpoints.hit('copy:after-remove', { id: item.id });
 
+  const versionTarget = await versionLifecycle.targetForRestore(db, {
+    itemId: item.id,
+    entryPath: entryPath || null,
+    zone: store.getZone(db, item.zoneId),
+    restorePath: finalPath,
+  });
+  const relink = () =>
+    versionLifecycle.relinkRestored(db, {
+      itemId: item.id,
+      entryPath: entryPath || null,
+      target: versionTarget,
+      restorePath: finalPath,
+    });
   if (entryPath) {
     const stillThere = await exists(payload);
-    store.setItemSize(db, item.id, stillThere ? (await measure(payload)).bytes : 0);
-    store.setItemState(db, item.id, 'trashed');
+    const remaining = stillThere ? (await measure(payload)).bytes : 0;
+    db.transaction(() => {
+      relink();
+      store.setItemSize(db, item.id, remaining);
+      store.setItemState(db, item.id, 'trashed');
+    })();
   } else {
-    store.deleteItem(db, item.id);
+    db.transaction(() => {
+      relink();
+      store.deleteItem(db, item.id);
+    })();
     await fsp.rm(sidecar, { force: true });
   }
   return { status: 'restored', restorePath: finalPath };
@@ -480,7 +645,11 @@ const moveToTrash = async (input, { budgetFor } = {}) => {
     }
     await failpoints.hit('trash:after-rename', { id });
 
-    store.setItemState(db, id, 'trashed');
+    // The item and the histories of what it holds reach the trash together.
+    db.transaction(() => {
+      store.setItemState(db, id, 'trashed');
+      versionLifecycle.relinkTrashed(db, record);
+    })();
     return { status: 'trashed', item: store.getItem(db, id) };
   } finally {
     inflight.delete(id);
@@ -542,16 +711,22 @@ const restoreItem = async (itemId, { destinationDirectory = null, onBytes, signa
     };
     if (destinationDirectory && !(await zones.sameDevice(payload, parent))) return copyAcross();
 
+    const versionTarget = await versionLifecycle.targetForRestore(db, {
+      itemId: item.id,
+      zone,
+      restorePath,
+    });
     store.setItemState(db, item.id, 'restoring', { restorePath });
     await failpoints.hit('restore:after-intent', { id: item.id });
 
     try {
-      // Checked again at the last moment: rename(2) replaces a file silently.
-      if (await exists(restorePath)) {
-        throw Object.assign(new Error('The destination was taken meanwhile.'), { code: 'EEXIST' });
-      }
-      await fsp.rename(payload, restorePath);
+      // Not rename(2), which replaces a file, or an empty folder, that took the
+      // name since it was chosen: the name is taken by an operation that fails
+      // when it is held.
+      await moveNoReplace(payload, restorePath);
     } catch (error) {
+      // A crash stops here as a process that died would: nothing undone.
+      if (error?.simulatedCrash) throw error;
       store.setItemState(db, item.id, 'trashed');
       if (error?.code === 'EEXIST') return { status: 'busy' };
       // Two mount points of one filesystem share a device and refuse a rename
@@ -559,9 +734,20 @@ const restoreItem = async (itemId, { destinationDirectory = null, onBytes, signa
       if (error?.code === 'EXDEV' && destinationDirectory) return copyAcross();
       throw error;
     }
+    // Outside the undo above: the content is at its destination already.
+    await dropOldName(payload, restorePath);
     await failpoints.hit('restore:after-rename', { id: item.id });
 
-    store.deleteItem(db, item.id);
+    // Back to life first: the item's row takes whatever histories are still
+    // linked to it when it goes.
+    db.transaction(() => {
+      versionLifecycle.relinkRestored(db, {
+        itemId: item.id,
+        target: versionTarget,
+        restorePath,
+      });
+      store.deleteItem(db, item.id);
+    })();
     await fsp.rm(sidecar, { force: true });
     return { status: 'restored', item, restorePath, renamed: name !== item.name };
   } finally {
@@ -708,25 +894,41 @@ const restoreEntry = async (
       return copyAcross();
     }
 
-    store.setItemState(db, item.id, 'extracting', { restorePath });
+    const entry = segments.join('/');
+    const versionTarget = await versionLifecycle.targetForRestore(db, {
+      itemId: item.id,
+      entryPath: entry,
+      zone,
+      restorePath,
+    });
+    // Which entry, too: the recovery needs it to bring that entry's histories back.
+    store.setItemState(db, item.id, 'extracting', { restorePath, restoreEntry: entry });
     await failpoints.hit('extract:after-intent', { id: item.id });
 
     try {
-      // Checked again at the last moment: rename(2) replaces a file silently.
-      if (await exists(restorePath)) {
-        throw Object.assign(new Error('The destination was taken meanwhile.'), { code: 'EEXIST' });
-      }
-      await fsp.rename(found.absolutePath, restorePath);
+      // Never replacing what took the name since it was chosen, as for a whole item.
+      await moveNoReplace(found.absolutePath, restorePath);
     } catch (error) {
+      if (error?.simulatedCrash) throw error;
       store.setItemState(db, item.id, 'trashed');
       if (error?.code === 'EEXIST') return { status: 'busy' };
       if (error?.code === 'EXDEV' && destinationDirectory) return copyAcross();
       throw error;
     }
+    await dropOldName(found.absolutePath, restorePath);
     await failpoints.hit('extract:after-rename', { id: item.id });
 
-    store.setItemSize(db, item.id, (await measure(payload)).bytes);
-    store.setItemState(db, item.id, 'trashed');
+    const remaining = (await measure(payload)).bytes;
+    db.transaction(() => {
+      versionLifecycle.relinkRestored(db, {
+        itemId: item.id,
+        entryPath: entry,
+        target: versionTarget,
+        restorePath,
+      });
+      store.setItemSize(db, item.id, remaining);
+      store.setItemState(db, item.id, 'trashed');
+    })();
     return {
       status: 'restored',
       item: store.getItem(db, item.id),
@@ -783,8 +985,12 @@ const purgeItem = async (itemId) => {
     await fsp.rm(payload, { recursive: true, force: true });
     await failpoints.hit('purge:after-remove', { id: item.id });
 
+    // The row takes the histories with it; their versions go now, so the space
+    // comes back with the item's.
+    const released = versionLifecycle.filesInTrashItem(db, item.id);
     store.deleteItem(db, item.id);
     await fsp.rm(sidecar, { force: true });
+    await versionLifecycle.purgeFiles(released);
     return { status: 'purged', item };
   } finally {
     inflight.delete(itemId);
@@ -884,7 +1090,10 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
     if (row.state === 'entering') {
       if (hasPayload) {
         if (!onDisk.has(`${row.id}.json`)) await writeSidecar(paths.sidecar, row, 'w');
-        store.setItemState(db, row.id, 'trashed');
+        db.transaction(() => {
+          store.setItemState(db, row.id, 'trashed');
+          versionLifecycle.relinkTrashed(db, row);
+        })();
         report.finished += 1;
       } else if (await exists(row.originalPath)) {
         await drop(row, paths.sidecar);
@@ -894,10 +1103,32 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
         report.lost += 1;
       }
     } else if (row.state === 'restoring') {
-      if (hasPayload) {
+      // A file linked under its destination's name and not yet removed from
+      // the zone had reached its place: the restore finishes. Anything else at
+      // the destination while the content is still here is not the restore:
+      // the empty file or folder the move held the name with goes, and what
+      // someone else put there stays.
+      const linked =
+        hasPayload &&
+        row.restorePath &&
+        ((await linkedUnderBoth(paths.payload, row.restorePath)) ||
+          (await sameLinkUnderBoth(paths.payload, row.restorePath, row.updatedAt)));
+      if (linked) await fsp.unlink(paths.payload);
+      if (hasPayload && !linked) {
+        await removePlaceholderLeftByCrash(row.restorePath, row.updatedAt);
         store.setItemState(db, row.id, 'trashed');
         report.undone += 1;
       } else if (row.restorePath && (await exists(row.restorePath))) {
+        const versionTarget = await versionLifecycle.targetForRestore(db, {
+          itemId: row.id,
+          zone,
+          restorePath: row.restorePath,
+        });
+        versionLifecycle.relinkRestored(db, {
+          itemId: row.id,
+          target: versionTarget,
+          restorePath: row.restorePath,
+        });
         await drop(row, paths.sidecar);
         report.finished += 1;
       } else {
@@ -908,6 +1139,44 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
       // Whether the entry left or not, what is still in the folder is what the
       // record must say: measured, and back in the trash.
       if (hasPayload) {
+        // The entry left if it is at its destination and no longer in the folder:
+        // its histories follow it out.
+        const entrySegmentsLeft = row.restoreEntry ? entrySegments(row.restoreEntry) : null;
+        // Linked under its destination's name and still in the folder: it had
+        // reached its place, and only its name in the folder goes.
+        if (entrySegmentsLeft?.length && row.restorePath) {
+          const inside = await walkInside(paths.payload, entrySegmentsLeft);
+          if (
+            inside &&
+            ((await linkedUnderBoth(inside.absolutePath, row.restorePath)) ||
+              (await sameLinkUnderBoth(inside.absolutePath, row.restorePath, row.updatedAt)))
+          ) {
+            await fsp.unlink(inside.absolutePath);
+          } else if (inside) {
+            // Still in the folder: its destination holds at most the empty
+            // entry the move took the name with.
+            await removePlaceholderLeftByCrash(row.restorePath, row.updatedAt);
+          }
+        }
+        if (
+          entrySegmentsLeft?.length &&
+          row.restorePath &&
+          (await exists(row.restorePath)) &&
+          !(await walkInside(paths.payload, entrySegmentsLeft))
+        ) {
+          const versionTarget = await versionLifecycle.targetForRestore(db, {
+            itemId: row.id,
+            entryPath: row.restoreEntry,
+            zone,
+            restorePath: row.restorePath,
+          });
+          versionLifecycle.relinkRestored(db, {
+            itemId: row.id,
+            entryPath: row.restoreEntry,
+            target: versionTarget,
+            restorePath: row.restorePath,
+          });
+        }
         store.setItemSize(db, row.id, (await measure(paths.payload)).bytes);
         store.setItemState(db, row.id, 'trashed');
         report.finished += 1;
@@ -937,6 +1206,7 @@ const recoverZone = async (zone, { breakerRatio = 0.2, breakerMinimum = 5 } = {}
             sidecar: paths.sidecar,
             entryPath: row.restoreEntry,
             restorePath: row.restorePath,
+            stoppedSince: row.updatedAt,
           })
         : null;
       if (outcome?.status === 'restored') {

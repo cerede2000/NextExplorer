@@ -118,6 +118,17 @@ module.exports = {
   TRASH_RETENTION_DAYS: process.env.TRASH_RETENTION_DAYS?.trim() || '30',
   TRASH_MAX_PERCENT: process.env.TRASH_MAX_PERCENT?.trim() || '10',
   TRASH_MAX_SIZE: process.env.TRASH_MAX_SIZE?.trim() || null,
+
+  // File versions: the content a save replaces is kept in the same reserved
+  // space as the trash, within the same budget. Defaults again; an
+  // administrator changes them in Settings.
+  VERSIONS_ENABLED: normalizeBoolean(process.env.VERSIONS_ENABLED) ?? true,
+  VERSIONS_KEEP_ALL_HOURS: process.env.VERSIONS_KEEP_ALL_HOURS?.trim() || '24',
+  VERSIONS_HOURLY_DAYS: process.env.VERSIONS_HOURLY_DAYS?.trim() || '7',
+  VERSIONS_DAILY_DAYS: process.env.VERSIONS_DAILY_DAYS?.trim() || '30',
+  VERSIONS_MAX_PER_FILE: process.env.VERSIONS_MAX_PER_FILE?.trim() || '50',
+  VERSIONS_SESSION_CHECKPOINT_MINUTES:
+    process.env.VERSIONS_SESSION_CHECKPOINT_MINUTES?.trim() || '10',
   USER_DIR_ENABLED: normalizeBoolean(process.env.USER_DIR_ENABLED) || false,
   USER_VOLUMES: normalizeBoolean(process.env.USER_VOLUMES) || false,
   SKIP_HOME: normalizeBoolean(process.env.SKIP_HOME) || false,
