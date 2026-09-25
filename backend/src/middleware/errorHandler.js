@@ -1,5 +1,26 @@
+const multer = require('multer');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+
+/**
+ * What an upload that met one of multer's limits is told.
+ *
+ * These are refusals of what the client sent, not failures of the server: a
+ * file over the size ceiling, more files than one request may carry. Without
+ * this they reached the client as a 500.
+ */
+const MULTIPART_REFUSALS = {
+  LIMIT_FILE_SIZE: [413, 'The file is larger than this server accepts.'],
+  LIMIT_FILE_COUNT: [413, 'The request carries more files than this server accepts at once.'],
+  LIMIT_PART_COUNT: [413, 'The request carries more parts than this server accepts at once.'],
+  LIMIT_FIELD_COUNT: [400, 'The request carries more form fields than this server reads.'],
+  LIMIT_FIELD_KEY: [400, 'A form field name is longer than this server reads.'],
+  LIMIT_FIELD_VALUE: [400, 'A form field is longer than this server reads.'],
+  LIMIT_UNEXPECTED_FILE: [400, 'A file was sent in a field this request does not take.'],
+};
+
+const multipartRefusal = (err) =>
+  err instanceof multer.MulterError ? MULTIPART_REFUSALS[err.code] || [400, err.message] : null;
 
 const isOidcDocumentRequest = (req) => {
   const path = req?.path || '';
@@ -49,9 +70,10 @@ const errorHandler = (err, req, res, next) => {
   const requestId = uuidv4();
 
   // Determine if this is an operational error (expected) or programmer error (unexpected)
-  const isOperational = err.isOperational || false;
-  const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'An unexpected error occurred';
+  const refusal = multipartRefusal(err);
+  const isOperational = Boolean(refusal) || err.isOperational || false;
+  const statusCode = refusal ? refusal[0] : err.statusCode || err.status || 500;
+  const message = refusal ? refusal[1] : err.message || 'An unexpected error occurred';
 
   // For OIDC callback navigations, redirect back into the SPA so the login screen can show the error.
   // Otherwise, the browser will render the JSON payload as a standalone error page.

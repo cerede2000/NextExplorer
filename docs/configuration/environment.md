@@ -108,6 +108,15 @@ Folder-size indexing is off by default. It calculates recursive byte totals and 
 | `FOLDER_SIZE_RECONCILE_MS` | `0` | Optional fixed reconciliation interval; `0` uses adaptive scheduling. |
 | `FOLDER_SIZE_REBUILD` | `false` | When `true`, rebuilds the derived folder-size index at startup. |
 
+## Upload limits
+
+Safety ceilings rather than tuning knobs: they exist so a single request cannot fill the volume, and the defaults are high enough for normal use.
+
+| Variable                 | Default | Description                                         |
+| ------------------------ | ------- | --------------------------------------------------- |
+| `MAX_DIRECT_UPLOAD_SIZE` | `64GB`  | Largest single file an upload accepts, e.g. `10GB`. |
+| `MAX_FILES_PER_UPLOAD`   | `50`    | Maximum number of files in one upload request.      |
+
 ## Feature toggles
 
 | Variable                   | Default | Description |

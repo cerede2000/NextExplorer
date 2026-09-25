@@ -3,13 +3,16 @@ const fs = require('fs/promises');
 const fss = require('fs');
 const path = require('path');
 const archiver = require('archiver');
+const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
 const {
   ValidationError,
   UnauthorizedError,
   NotFoundError,
   ForbiddenError,
+  RateLimitError,
 } = require('../errors/AppError');
+const { ErrorCodes } = require('../errors/errorCodes');
 const {
   createShare,
   getShareById,
@@ -36,6 +39,39 @@ const { collectArchiveEntries, appendEntries } = require('../services/archiveTre
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
+// Verifying a share password runs bcrypt, so an unlimited endpoint is both a
+// brute-force surface and a way to keep the event loop busy. Share links are
+// public, so this is the only barrier in front of that hash.
+const sharePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
+    next(
+      new RateLimitError(
+        'Too many attempts. Please wait before trying this link again.',
+        retryAfterSeconds,
+        ErrorCodes.RATE_LIMIT_EXCEEDED
+      )
+    );
+  },
+});
+
+/**
+ * Guest session cookies follow the same rules as the login session cookie:
+ * secure whenever the request reached us over HTTPS (directly or through a
+ * trusted proxy), so the cookie is not replayed in clear text.
+ */
+const guestSessionCookieOptions = (req) => ({
+  httpOnly: true,
+  maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  sameSite: 'lax',
+  secure: req.secure === true,
+  path: '/api', // Ensure cookie is sent for all /api/* requests
+});
 
 const buildPublicBaseUrl = (req) => {
   const { public: publicConfig } = require('../config/index');
@@ -578,6 +614,7 @@ router.get(
  */
 router.post(
   '/:token/verify',
+  sharePasswordLimiter,
   asyncHandler(async (req, res) => {
     const { password } = req.body;
 
@@ -602,12 +639,7 @@ router.post(
         });
 
         // Set guest session cookie
-        res.cookie('guestSession', session.id, {
-          httpOnly: true,
-          maxAge: 24 * 60 * 60 * 1000, // 24 hours
-          sameSite: 'lax',
-          path: '/api', // Ensure cookie is sent for all /api/* requests
-        });
+        res.cookie('guestSession', session.id, guestSessionCookieOptions(req));
 
         res.json({
           success: true,
@@ -636,12 +668,7 @@ router.post(
       });
 
       // Set guest session cookie
-      res.cookie('guestSession', session.id, {
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'lax',
-        path: '/api', // Ensure cookie is sent for all /api/* requests
-      });
+      res.cookie('guestSession', session.id, guestSessionCookieOptions(req));
 
       res.json({
         success: true,
@@ -729,12 +756,7 @@ router.get(
           });
 
           // Set guest session cookie (overwrites any existing session)
-          res.cookie('guestSession', session.id, {
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000, // 24 hours
-            sameSite: 'lax',
-            path: '/api', // Ensure cookie is sent for all /api/* requests
-          });
+          res.cookie('guestSession', session.id, guestSessionCookieOptions(req));
 
           return res.json({
             share: {
