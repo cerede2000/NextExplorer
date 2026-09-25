@@ -117,6 +117,12 @@ Safety ceilings rather than tuning knobs: they exist so a single request cannot 
 | `MAX_DIRECT_UPLOAD_SIZE` | `64GB`  | Largest single file an upload accepts, e.g. `10GB`. |
 | `MAX_FILES_PER_UPLOAD`   | `50`    | Maximum number of files in one upload request.      |
 
+## Copying & moving
+
+| Variable                | Default                         | Description                                                                                                                                                                                                             |
+| ----------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FILE_TRANSFER_ENGINE`  | `native` on Linux, else `stream` | Which engine copies a folder: `native` hands the tree to `rsync`, which does the work in one process off the event loop; `stream` copies it in JavaScript. The image carries rsync; without it the JavaScript path runs anyway. |
+
 ## Feature toggles
 
 | Variable                   | Default | Description |

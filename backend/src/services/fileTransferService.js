@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
+const { spawn } = require('child_process');
 
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const {
@@ -16,13 +17,90 @@ const trash = require('./trash');
 const { getTrashSettings } = require('./trash/settings');
 const favoritesService = require('./favoritesService');
 
+/**
+ * Which engine copies a folder, asked at the moment it matters.
+ *
+ * Copying a tree in JavaScript walks it one entry at a time on the only thread
+ * the server has: a folder of a hundred thousand files is a hundred thousand
+ * trips through the event loop, and everything else the server was doing waits
+ * its turn behind them. `rsync` does the same work in one process, off that
+ * thread entirely.
+ *
+ * It is a question rather than a constant, because a choice frozen at load time
+ * from the platform is a choice no test can reach: the native path would never
+ * run on a developer's machine, and the JavaScript path would never run in the
+ * container. `FILE_TRANSFER_ENGINE=native` or `=stream` names either one, and
+ * the default is unchanged — native where the image runs, JavaScript elsewhere.
+ */
+const nativeCopyEnabled = () => {
+  const configured = process.env.FILE_TRANSFER_ENGINE;
+  if (configured === 'stream') return false;
+  if (configured === 'native') return true;
+  return process.platform === 'linux';
+};
+
+/**
+ * Whether rsync is installed, asked once per PATH.
+ *
+ * Asked before anything is written, so that an image without it copies in
+ * JavaScript from the start rather than discovering it halfway through a tree.
+ */
+let rsyncLookup = null;
+const rsyncAvailable = () => {
+  if (rsyncLookup && rsyncLookup.path === process.env.PATH) return rsyncLookup.answer;
+  const answer = new Promise((resolve) => {
+    const child = spawn('rsync', ['--version'], { stdio: 'ignore' });
+    child.on('error', () => resolve(false));
+    child.on('close', (code) => resolve(code === 0));
+  });
+  rsyncLookup = { path: process.env.PATH, answer };
+  return answer;
+};
+
+/**
+ * Copy a folder with rsync.
+ *
+ * `-rlt` and not `-a`: the recursion, the symbolic links and the times are what
+ * the JavaScript path gives, and asking for the permissions as well makes rsync
+ * fail outright on a filesystem that refuses to set them — an SMB or FUSE
+ * mount, where the copy used to succeed. Owner and group are left to the
+ * destination for the same reason.
+ */
+const runRsyncCopy = (sourcePath, destinationPath) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(
+      'rsync',
+      ['-rlt', '--no-perms', '--no-owner', '--no-group', '--', `${sourcePath}/`, destinationPath],
+      { env: { ...process.env, LC_ALL: 'C' }, stdio: ['ignore', 'ignore', 'pipe'] }
+    );
+    let errorOutput = '';
+    child.stderr.on('data', (chunk) => {
+      errorOutput += chunk.toString();
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`rsync failed (${code}): ${errorOutput.trim().slice(0, 500)}`));
+    });
+  });
+
 const copyEntry = async (sourcePath, destinationPath, isDirectory) => {
   if (isDirectory) {
+    if (nativeCopyEnabled() && (await rsyncAvailable())) {
+      await ensureDir(destinationPath);
+      await runRsyncCopy(sourcePath, destinationPath);
+      return;
+    }
     if (typeof fs.cp === 'function') {
       await fs.cp(sourcePath, destinationPath, {
         recursive: true,
         force: false,
         errorOnExist: true,
+        // A relative link inside the tree was resolved and written out as an
+        // absolute path into the *source* tree: the copy then pointed back at
+        // the original, and lost its way entirely once that was moved or
+        // deleted. Kept verbatim, a link says what it said.
+        verbatimSymlinks: true,
       });
     } else {
       await ensureDir(destinationPath);
@@ -452,4 +530,7 @@ module.exports = {
   // The trash restores across disks with a copy that reports progress, copies a
   // link as a link and is cancellable.
   copyEntryWithProgress,
+  // The two engines it chooses between are what a test has to be able to name:
+  // whichever one the platform would pick, the other would never run.
+  copyEntry,
 };
