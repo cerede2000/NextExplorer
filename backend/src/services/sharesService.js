@@ -41,6 +41,7 @@ const toClientShare = (row) => {
     hasPassword: Boolean(row.password_hash),
     expiresAt: row.expires_at || null,
     label: row.label || null,
+    accessCount: row.access_count || 0,
     downloadCount: row.download_count || 0,
     lastAccessedAt: row.last_accessed_at || null,
     createdAt: row.created_at,
@@ -524,17 +525,38 @@ const isShareExpired = (share) => {
 };
 
 /**
- * Update share access tracking
+ * Somebody opened the share.
+ *
+ * Opening it is not downloading from it: this used to raise the download
+ * counter, so the number an owner was shown counted page loads, reloads and
+ * every folder they browsed inside the share. A link opened twenty times and
+ * never downloaded from read as twenty downloads.
  */
-const trackShareAccess = async (shareId) => {
+const trackShareAccess = async (shareId, { ipAddress = null } = {}) => {
   const db = await getDb();
   db.prepare(
     `
     UPDATE shares
-    SET last_accessed_at = ?, download_count = download_count + 1
+    SET access_count = COALESCE(access_count, 0) + 1,
+        last_accessed_at = ?,
+        last_access_ip = ?
     WHERE id = ?
   `
-  ).run(nowIso(), shareId);
+  ).run(nowIso(), ipAddress, shareId);
+};
+
+/** Something was actually sent: a file left through the link. */
+const trackShareDownload = async (shareId, { ipAddress = null } = {}) => {
+  const db = await getDb();
+  db.prepare(
+    `
+    UPDATE shares
+    SET download_count = COALESCE(download_count, 0) + 1,
+        last_accessed_at = ?,
+        last_access_ip = ?
+    WHERE id = ?
+  `
+  ).run(nowIso(), ipAddress, shareId);
 };
 
 /**
@@ -555,6 +577,7 @@ const getShareStats = async (shareId) => {
     .get(shareId);
 
   return {
+    accessCount: share.access_count || 0,
     downloadCount: share.download_count || 0,
     lastAccessedAt: share.last_accessed_at || null,
     guestSessionCount: guestSessions?.count || 0,
@@ -591,6 +614,7 @@ module.exports = {
   hasUserPermission,
   isShareExpired,
   trackShareAccess,
+  trackShareDownload,
   getShareStats,
   cleanupExpiredShares,
 };

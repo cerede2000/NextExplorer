@@ -25,6 +25,7 @@ const {
   hasUserPermission,
   isShareExpired,
   trackShareAccess,
+  trackShareDownload,
   getShareStats,
 } = require('../services/sharesService');
 const { createGuestSession } = require('../services/guestSessionService');
@@ -701,7 +702,7 @@ router.get(
     }
 
     // Track access
-    await trackShareAccess(share.id);
+    await trackShareAccess(share.id, { ipAddress: req.ip });
 
     // Check if user has permission
     if (share.sharingType === 'users') {
@@ -860,7 +861,8 @@ const handleDirectFileRequest = async (req, res) => {
 
   const stats = await fs.stat(resolved.absolutePath);
   if (stats.isDirectory()) {
-    await trackShareAccess(share.id);
+    // A folder leaving as a zip is a download like any other.
+    await trackShareDownload(share.id, { ipAddress: req.ip });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
       logicalPath: resolved.relativePath,
@@ -875,7 +877,7 @@ const handleDirectFileRequest = async (req, res) => {
     return;
   }
 
-  await trackShareAccess(share.id);
+  await trackShareDownload(share.id, { ipAddress: req.ip });
   await streamResolvedFile({ absolutePath: resolved.absolutePath, stats, mode, req, res });
 };
 
