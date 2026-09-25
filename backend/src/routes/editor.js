@@ -6,6 +6,7 @@ const config = require('../config');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const versions = require('../services/versions/operations');
 const asyncHandler = require('../utils/asyncHandler');
 const {
   ValidationError,
@@ -119,6 +120,12 @@ router.put(
     if (typeof relative !== 'string' || !relative) {
       throw new ValidationError('A valid file path is required.');
     }
+    // Answered rather than thrown at the write: `null` used to reach the file
+    // itself, where it failed as a server error after the document had already
+    // been opened for writing.
+    if (typeof content !== 'string') {
+      throw new ValidationError('The content to save must be text.');
+    }
 
     const relativePath = normalizeRelativePath(relative);
 
@@ -154,7 +161,22 @@ router.put(
     const { absolutePath } = resolved;
 
     await ensureDir(path.dirname(absolutePath));
-    await fs.writeFile(absolutePath, content, { encoding: 'utf-8' });
+
+    // Written beside the file and put in place once whole, with what it
+    // replaces kept as a version: a save used to go straight over the file, so
+    // a stop halfway through left it truncated and the state it replaced was
+    // gone. Somebody pressed Save, so it is a state worth keeping — there is no
+    // session here to group it with, as there is in the office editors.
+    await versions.saveFile(
+      absolutePath,
+      (temporaryPath) => fs.writeFile(temporaryPath, content, { encoding: 'utf-8', flag: 'wx' }),
+      {
+        purpose: 'editor',
+        author: versions.authorOf({ user: req.user, guestSession: req.guestSession }),
+        source: 'editor',
+        explicit: true,
+      }
+    );
     res.send({ success: true });
   })
 );
