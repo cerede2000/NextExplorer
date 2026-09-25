@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('./db');
+const logger = require('../utils/logger');
 
 const nowIso = () => new Date().toISOString();
 
@@ -102,7 +103,7 @@ const createShare = async ({
   const shareId = generateId();
   const shareToken = generateShareToken(10);
   const now = nowIso();
-  const passwordHash = password ? bcrypt.hashSync(password, 10) : null;
+  const passwordHash = password ? await bcrypt.hash(password, 10) : null;
 
   // Create share
   db.prepare(
@@ -298,10 +299,20 @@ const updateShare = async (shareId, updates = {}) => {
     values.push(updates.sharingType);
   }
 
+  // Setting a password is what an owner does when a link has leaked, so it has
+  // to end the access that leaked with it. Guest sessions are the proof someone
+  // typed the old password — or that there was none — and they last a day, so
+  // without this the change accomplishes nothing until they expire on their own.
+  //
+  // Only when a password is set, never when one is removed: taking it off makes
+  // the share more open, and cutting off the people already reading it would be
+  // a surprise rather than a protection.
+  let revokeGuestSessions = false;
   if ('password' in updates) {
-    const passwordHash = updates.password ? bcrypt.hashSync(updates.password, 10) : null;
+    const passwordHash = updates.password ? await bcrypt.hash(updates.password, 10) : null;
     fields.push('password_hash = ?');
     values.push(passwordHash);
+    revokeGuestSessions = Boolean(passwordHash);
   }
 
   if ('expiresAt' in updates) {
@@ -348,6 +359,16 @@ const updateShare = async (shareId, updates = {}) => {
           }
         }
       }
+    }
+  }
+
+  if (revokeGuestSessions) {
+    const revoked = db.prepare('DELETE FROM guest_sessions WHERE share_id = ?').run(shareId);
+    if (revoked.changes > 0) {
+      logger.info(
+        { shareId, sessions: revoked.changes },
+        'Share password changed; existing guest sessions revoked'
+      );
     }
   }
 
@@ -447,7 +468,10 @@ const verifySharePassword = async (shareId, password) => {
     return false;
   }
 
-  return bcrypt.compareSync(password, row.password_hash);
+  // The asynchronous form: this is reachable without an account, and the
+  // synchronous one stops the server doing anything else for the length of
+  // the hash.
+  return bcrypt.compare(password, row.password_hash);
 };
 
 /**

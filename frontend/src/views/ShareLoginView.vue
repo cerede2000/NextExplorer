@@ -32,8 +32,12 @@ const verificationError = ref('');
 
 // Computed
 const isExpired = computed(() => shareInfo.value?.isExpired || false);
-const requiresPassword = computed(() =>
-  Boolean(shareInfo.value?.hasPassword && shareInfo.value?.sharingType === 'anyone')
+// requiresPassword comes from the server and already accounts for the viewer:
+// the owner of a share is not asked for its password. An older server that
+// does not send it leaves hasPassword to decide, as before.
+const needsPassword = (info) => Boolean(info?.requiresPassword ?? info?.hasPassword);
+const requiresPassword = computed(
+  () => needsPassword(shareInfo.value) && shareInfo.value?.sharingType === 'anyone'
 );
 const redirectTarget = computed(() => {
   const value = route.query.redirect;
@@ -64,7 +68,7 @@ async function loadShareInfo() {
     shareInfo.value = info;
 
     // If share doesn't require password and is public, auto-access
-    if (!info.hasPassword && info.sharingType === 'anyone' && !info.isExpired) {
+    if (!needsPassword(info) && info.sharingType === 'anyone' && !info.isExpired) {
       logger.debug('Auto-accessing share (no password required)');
       await handleAutoAccess();
     }

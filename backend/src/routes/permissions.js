@@ -104,9 +104,8 @@ router.post(
     if (!req.user || !req.user.id) {
       throw new UnauthorizedError('Authentication required');
     }
-    if (req.guestSession) {
-      throw new ForbiddenError('Guests cannot change permissions.');
-    }
+    // Guests never reach this point: they have no req.user. Carrying a guest
+    // session on top of a real account does not make the account a guest.
 
     const relativePath = normalizeRelativePath(rawPath);
     const context = { user: req.user, guestSession: req.guestSession };
@@ -185,9 +184,7 @@ router.post(
     if (!req.user || !req.user.id) {
       throw new UnauthorizedError('Authentication required');
     }
-    if (req.guestSession) {
-      throw new ForbiddenError('Guests cannot change ownership.');
-    }
+    // As above: a guest session beside an account is not a guest.
 
     const relativePath = normalizeRelativePath(rawPath);
     const context = { user: req.user, guestSession: req.guestSession };
