@@ -32,6 +32,7 @@ const { extensions, mimeTypes } = require('../config/index');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
+const { collectArchiveEntries, appendEntries } = require('../services/archiveTree');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -244,7 +245,13 @@ const streamResolvedFile = async ({ absolutePath, stats, mode, req, res }) => {
   streamFile();
 };
 
-const streamResolvedDirectoryZip = async ({ absolutePath, archiveName, res }) => {
+const streamResolvedDirectoryZip = async ({
+  absolutePath,
+  logicalPath,
+  context,
+  archiveName,
+  res,
+}) => {
   const safeArchiveName = archiveName && archiveName.trim() ? archiveName.trim() : 'download';
   const filename = safeArchiveName.toLowerCase().endsWith('.zip')
     ? safeArchiveName
@@ -266,7 +273,18 @@ const streamResolvedDirectoryZip = async ({ absolutePath, archiveName, res }) =>
   });
 
   archive.pipe(res);
-  archive.directory(absolutePath, path.basename(absolutePath) || safeArchiveName);
+  // What the share lets its visitor see, not everything below its folder: a
+  // personal root and the paths an access rule hides stay out.
+  const stats = await fs.stat(absolutePath);
+  const { entries } = await collectArchiveEntries(context, [
+    {
+      absolutePath,
+      logicalPath,
+      entryName: path.basename(absolutePath) || safeArchiveName,
+      stats,
+    },
+  ]);
+  appendEntries(archive, entries);
   await archive.finalize();
 };
 
@@ -823,6 +841,8 @@ const handleDirectFileRequest = async (req, res) => {
     await trackShareAccess(share.id);
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
+      logicalPath: resolved.relativePath,
+      context,
       archiveName:
         path.basename(resolved.absolutePath) ||
         share.label ||
