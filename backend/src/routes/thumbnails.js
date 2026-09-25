@@ -6,6 +6,7 @@ const { normalizeRelativePath } = require('../utils/pathUtils');
 const { extensions } = require('../config/index');
 const { getThumbnail } = require('../services/thumbnailService');
 const { resolvePathWithAccess } = require('../services/accessManager');
+const { withThumbnailToken } = require('../utils/thumbnailTokens');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError } = require('../errors/AppError');
@@ -77,6 +78,9 @@ router.get(
       throw new ValidationError('Thumbnails are not available for this file type.');
     }
 
+    // The check above is the only one this thumbnail will get: the picture
+    // itself is served from /static, outside the authentication middleware. The
+    // token carries that decision to the handler there.
     let thumbnail = '';
     try {
       thumbnail = await getThumbnail(absolutePath);
@@ -96,7 +100,7 @@ router.get(
       return res.json({ thumbnail: previewUrl });
     }
 
-    res.json({ thumbnail: thumbnail || '' });
+    res.json({ thumbnail: withThumbnailToken(thumbnail || '') });
   })
 );
 

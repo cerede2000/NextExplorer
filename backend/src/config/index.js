@@ -339,6 +339,16 @@ if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
   );
 }
 
+// --- Thumbnail access ---
+// Thumbnails are served from /static, outside the authentication middleware, so
+// the URL has to carry its own proof that somebody was cleared to see it.
+// Derived from the session secret, so it lasts as long as that does; when even
+// that could not be stored, a restart only means already-loaded pages fetch
+// their thumbnails again through the API, which re-runs the access check.
+const thumbnailAccess = {
+  secret: deriveSecret('thumbnails'),
+};
+
 // --- Collabora (WOPI) ---
 const collaboraBaseUrl = env.COLLABORA_URL?.replace(/\/$/, '') || null;
 const collaboraDiscoveryUrl =
@@ -637,6 +647,7 @@ module.exports = {
   },
 
   thumbnails: { size: 200, quality: 70 },
+  thumbnailAccess,
   uploads,
   onlyoffice,
   collabora,
