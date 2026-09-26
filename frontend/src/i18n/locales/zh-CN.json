@@ -72,7 +72,8 @@
     "readwrite": "读/写",
     "add": "添加",
     "back": "后退",
-    "logoAlt": "{name} 的徽标"
+    "logoAlt": "{name} 的徽标",
+    "toggleSection": "展开或折叠此部分"
   },
   "editor": {
     "editing": "Editing",

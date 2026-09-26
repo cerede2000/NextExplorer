@@ -72,7 +72,8 @@
     "readwrite": "Citire/Scriere",
     "add": "Adaugă",
     "back": "Înapoi",
-    "logoAlt": "Sigla {name}"
+    "logoAlt": "Sigla {name}",
+    "toggleSection": "Afișează sau ascunde secțiunea"
   },
   "editor": {
     "editing": "Editing",

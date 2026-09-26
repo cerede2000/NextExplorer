@@ -72,7 +72,8 @@
     "readwrite": "Lesen/Schreiben",
     "add": "Hinzufügen",
     "back": "Zurück",
-    "logoAlt": "Logo von {name}"
+    "logoAlt": "Logo von {name}",
+    "toggleSection": "Abschnitt ein-/ausklappen"
   },
   "editor": {
     "editing": "Editing",

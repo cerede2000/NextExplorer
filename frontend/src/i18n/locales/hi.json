@@ -72,7 +72,8 @@
     "readwrite": "पढ़ना/लिखना",
     "add": "जोड़ें",
     "back": "पीछे",
-    "logoAlt": "{name} का लोगो"
+    "logoAlt": "{name} का लोगो",
+    "toggleSection": "अनुभाग दिखाएँ या छिपाएँ"
   },
   "editor": {
     "editing": "Editing",
