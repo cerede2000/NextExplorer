@@ -56,25 +56,39 @@ const listFiles = (ref, ...pathspecs) =>
     .filter(Boolean);
 
 const findings = [];
-const report = (axis, id, detail) => findings.push({ axis, id, detail });
+/**
+ * Every finding, and every file it speaks for.
+ *
+ * The second part is what makes the coverage check at the end possible: a file
+ * that differs between the two trees and that no axis spoke for is itself a
+ * finding. Without that, an axis nobody thought to write is an axis nobody
+ * notices is missing — which is how 190 files, the lockfile and the Dockerfile
+ * among them, sat outside the first version of this.
+ */
+const covered = new Set();
+const report = (axis, id, detail, file = null) => {
+  findings.push({ axis, id, detail });
+  if (file) covered.add(file);
+};
 
 const IS_TEST = (file) => /\.(spec|test)\.[jt]s$/.test(file) || /(^|\/)tests?\//.test(file);
 
 // ── 1. files ────────────────────────────────────────────────────────────────
 const ours = new Set(listFiles(OURS));
 const theirs = new Set(listFiles(UPSTREAM));
-for (const file of ours) if (!theirs.has(file)) report('file', file, 'only here');
-for (const file of theirs) if (!ours.has(file)) report('file-upstream', file, 'only upstream');
+for (const file of ours) if (!theirs.has(file)) report('file', file, 'only here', file);
+for (const file of theirs)
+  if (!ours.has(file)) report('file-upstream', file, 'only upstream', file);
 
 // ── 2. routes ───────────────────────────────────────────────────────────────
 const ROUTE = /\browter\.(get|post|put|patch|delete|all)\(\s*[`'"]([^`'"]+)/gs;
 const routesOf = (ref) => {
-  const found = new Set();
+  const found = new Map();
   for (const file of listFiles(ref, 'backend/src/routes')) {
     if (!file.endsWith('.js')) continue;
     const source = show(ref, file) || '';
     for (const [, verb, route] of source.matchAll(ROUTE)) {
-      found.add(`${verb.toUpperCase()} ${route}`);
+      found.set(`${verb.toUpperCase()} ${route}`, file);
     }
   }
   return found;
@@ -82,8 +96,12 @@ const routesOf = (ref) => {
 {
   const mine = routesOf(OURS);
   const yours = routesOf(UPSTREAM);
-  for (const route of mine) if (!yours.has(route)) report('route', route, 'only here');
-  for (const route of yours) if (!mine.has(route)) report('route-upstream', route, 'only upstream');
+  for (const [route, file] of mine) {
+    if (!yours.has(route)) report('route', route, 'only here', file);
+  }
+  for (const [route, file] of yours) {
+    if (!mine.has(route)) report('route-upstream', route, 'only upstream', file);
+  }
 }
 
 // ── 3. symbols in files both trees have ─────────────────────────────────────
@@ -99,14 +117,17 @@ for (const file of ours) {
   if (mine === null || yours === null || mine === yours) continue;
   const theirSymbols = symbolsOf(yours);
   for (const name of symbolsOf(mine)) {
-    if (!theirSymbols.has(name)) report('symbol', `${file}:${name}`, 'only here');
+    if (!theirSymbols.has(name)) report('symbol', `${file}:${name}`, 'only here', file);
   }
 }
 
 // ── 4. drift: same symbols, different body ──────────────────────────────────
-// A symbol set can match while the code under it does not. Anything past the
-// threshold is reported so somebody reads it; small edits are prose.
-const DRIFT_LINES = 30;
+// A symbol set can match while the code under it does not, so every file that
+// differs at all is reported. There was a threshold of thirty lines here, on the
+// grounds that smaller edits are prose — and 93 files sat under it, unseen. A
+// threshold is a guess about which differences matter, and this instrument exists
+// because guesses about that were wrong.
+const DRIFT_LINES = 1;
 {
   const numstat = git('diff', '--numstat', UPSTREAM, OURS).split('\n').filter(Boolean);
   for (const line of numstat) {
@@ -119,8 +140,9 @@ const DRIFT_LINES = 30;
     if (!isCode && !isDoc) continue;
     if (!theirs.has(file) || !ours.has(file)) continue;
     const changed = Number(added) + Number(removed);
-    if (changed >= DRIFT_LINES)
-      report(isDoc ? 'doc-drift' : 'drift', file, `${changed} lines differ`);
+    if (changed >= DRIFT_LINES) {
+      report(isDoc ? 'doc-drift' : 'drift', file, `${changed} lines differ`, file);
+    }
   }
 }
 
@@ -129,15 +151,34 @@ const KEY_PATHS = (node, prefix = '') =>
   Object.entries(node).flatMap(([key, value]) =>
     value && typeof value === 'object' ? KEY_PATHS(value, `${prefix}${key}.`) : [`${prefix}${key}`]
   );
+// Every catalogue, not only English: a string this fork translated and upstream
+// never received is a reader seeing the wrong language, and the English file alone
+// says nothing about it. One finding per key, naming the catalogues that lack it,
+// because fifteen findings for one key is fifteen times the noise and no more
+// information.
 {
-  const EN = 'frontend/src/i18n/locales/en.json';
-  const mine = show(OURS, EN);
-  const yours = show(UPSTREAM, EN);
-  if (mine && yours) {
+  const lacking = new Map();
+  for (const file of listFiles(OURS, 'frontend/src/i18n/locales')) {
+    if (!file.endsWith('.json')) continue;
+    const mine = show(OURS, file);
+    const yours = show(UPSTREAM, file);
+    if (!mine) continue;
+    const locale = path.basename(file, '.json');
+    covered.add(file);
+    if (!yours) {
+      report('i18n', `the ${locale} catalogue`, 'only here', file);
+      continue;
+    }
     const theirKeys = new Set(KEY_PATHS(JSON.parse(yours)));
     for (const key of KEY_PATHS(JSON.parse(mine))) {
-      if (!theirKeys.has(key)) report('i18n', key, 'only here');
+      if (!theirKeys.has(key)) {
+        if (!lacking.has(key)) lacking.set(key, []);
+        lacking.get(key).push(locale);
+      }
     }
+  }
+  for (const [key, locales] of lacking) {
+    report('i18n', key, `missing from ${locales.length} catalogue(s): ${locales.join(', ')}`);
   }
 }
 
@@ -175,6 +216,73 @@ const migrationsOf = (ref) => {
   for (const version of mine) {
     if (version > highestTheirs) report('migration', `v${version}`, 'only here');
   }
+}
+
+// ── 8. dependencies ────────────────────────────────────────────────────────
+// A package this fork installs and upstream does not is a feature that cannot run
+// there, and nothing above would have said so.
+for (const manifestFile of ['package.json', 'backend/package.json', 'frontend/package.json']) {
+  const mine = show(OURS, manifestFile);
+  const yours = show(UPSTREAM, manifestFile);
+  if (!mine) continue;
+  if (!yours) {
+    report('deps', manifestFile, 'only here', manifestFile);
+    continue;
+  }
+  const readDeps = (raw) => {
+    const parsed = JSON.parse(raw);
+    return { ...(parsed.dependencies || {}), ...(parsed.devDependencies || {}) };
+  };
+  const ourDeps = readDeps(mine);
+  const theirDeps = readDeps(yours);
+  for (const [name, range] of Object.entries(ourDeps)) {
+    if (!(name in theirDeps)) {
+      report('deps', `${manifestFile}: ${name}`, `only here (${range})`, manifestFile);
+    } else if (theirDeps[name] !== range) {
+      report(
+        'deps',
+        `${manifestFile}: ${name}`,
+        `${theirDeps[name]} upstream, ${range} here`,
+        manifestFile
+      );
+    }
+  }
+}
+// The lockfile is not read package by package: it follows whatever the manifests
+// above resolve to, and a batch that changes a dependency regenerates it.
+covered.add('package-lock.json');
+covered.add('backend/package-lock.json');
+covered.add('frontend/package-lock.json');
+
+// ── 9. how the image is built ──────────────────────────────────────────────
+// Everything a batch may need installed, and nothing above looks at any of it.
+const IMAGE_FILES = [
+  'Dockerfile',
+  'Dockerfile.dev',
+  '.dockerignore',
+  'docker-compose.yml',
+  'docker-compose.dev.yml',
+  'docker/entrypoint.sh',
+];
+for (const file of IMAGE_FILES) {
+  const mine = show(OURS, file);
+  const yours = show(UPSTREAM, file);
+  if (!mine) continue;
+  if (!yours) {
+    report('image', file, 'only here', file);
+  } else if (mine !== yours) {
+    const mineLines = mine.split('\n').length;
+    const yoursLines = yours.split('\n').length;
+    report('image', file, `differs (${yoursLines} lines upstream, ${mineLines} here)`, file);
+  }
+}
+
+// ── 10. the coverage of everything above ───────────────────────────────────
+// The axis that makes a missing axis visible. Anything that differs and that no
+// finding spoke for is reported as such, and has to be classified like the rest —
+// so the honest answer to "is that everything?" is this number being zero.
+for (const file of git('diff', '--name-only', UPSTREAM, OURS).split('\n').filter(Boolean)) {
+  if (!covered.has(file)) report('uncovered', file, 'differs, and no other axis speaks for it');
 }
 
 // ── the manifest decides ────────────────────────────────────────────────────

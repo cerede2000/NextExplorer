@@ -667,6 +667,207 @@
       "verdict": "PORT",
       "batch": "P3-35",
       "note": "strings whose screens are covered by the batches above"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/oidcService\\.js|backend/src/services/oidcMobileBridge\\.js|backend/src/api/auth\\.api\\.js|frontend/src/api/auth\\.api\\.js|docs/integrations/authelia\\.md|backend/src/utils/authenticatedSession\\.js|frontend/src/views/settings/SettingsPassword\\.vue|frontend/src/layouts/AuthLayout\\.vue|frontend/src/views/ShareLoginView\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-08",
+      "note": "OIDC behind a proxy, and which of two failures it was"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/documentText\\.js|backend/src/services/pdfTextExtract\\.js|backend/src/services/capabilities\\.js|frontend/src/config/media\\.js|frontend/src/plugins/preview/useMediaTracks\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-11",
+      "note": "EXIF without a parser nobody maintains"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/folderSize\\.js|backend/src/services/folderSizeIndexer\\.js|frontend/src/stores/folderSize\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-12",
+      "note": "the size index kept current by the write, not by the sweep"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/search\\.js|backend/src/services/searchCollector\\.js|backend/src/services/indexDb\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-05",
+      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/archive\\.js|backend/src/services/archiveCacheService\\.js|frontend/src/plugins/archive/ArchiveEntryReader\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-17",
+      "note": "bounds on browsing inside an archive"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/uploadService\\.js|backend/src/services/uploadStorageGuard\\.js|frontend/src/utils/uploads\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-19",
+      "note": "the chunked fallback, and the switch that governs it"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/middleware/session\\.js|backend/src/utils/bootstrap\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-16",
+      "note": "one database handle, and its prepared statements"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/files/delete\\.js|backend/src/routes/files/utils\\.js|backend/src/utils/placeWithoutOverwrite\\.js|backend/src/services/inFlightFiles\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-21",
+      "note": "the destination dialog, and the folders somebody actually files into"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/components/SharesMenu\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-25",
+      "note": "the list of shares, seen"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/userSearchService\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-26",
+      "note": "finding a name in a folder nobody can scroll"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/versions\\.js|backend/src/routes/versionsAdmin\\.js|backend/src/services/versions/settings\\.js|backend/src/services/versions/verify\\.js|backend/src/services/trash/maintenance\\.js|backend/src/services/trash/settings\\.js|backend/src/services/trash/verify\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-27",
+      "note": "the trash and the versions panel, their remainder"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/authorizationService\\.js|backend/src/utils/ownedTree\\.js|backend/src/routes/userVolumes\\.js|backend/src/services/userVolumesService\\.js|docs/admin/user\\-volumes\\.md|frontend/src/views/settings/components/VolumeAssignModal\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-28",
+      "note": "access rules and what they hold"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/users/index\\.js|backend/src/services/users/management\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-29",
+      "note": "the accounts screens"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/collaboraDiscoveryService\\.js|backend/src/services/wopiLockService\\.js|frontend/src/api/collabora\\.api\\.js|frontend/src/plugins/collabora/collaboraPreview\\.js|frontend/src/config/editor\\.js|frontend/src/plugins/preview/manager\\.js|frontend/src/plugins/preview/PreviewHost\\.vue|frontend/src/plugins/index\\.js|backend/src/openapi/paths/integrations\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-30",
+      "note": "ONLYOFFICE and Collabora, their remainder"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/composables/keyboardShortcuts\\.js|frontend/src/utils/keyboard\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-31",
+      "note": "the context menu, and saying what a deletion will do"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/composables/useFavoriteEditor\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-32",
+      "note": "what a file looks like in the list"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/errors/errorCodes\\.js|backend/src/middleware/logging\\.js|backend/src/utils/logSanitizer\\.js|backend/src/utils/fsUtils\\.js|backend/src/utils/mapWithConcurrency\\.js|backend/src/services/storageWritability\\.js|frontend/src/App\\.vue|frontend/src/main\\.js|frontend/src/api/index\\.js|frontend/src/components/NotificationItem\\.vue|frontend/src/components/NotificationToast\\.vue|frontend/src/components/LanguageSelector\\.vue|frontend/src/components/TerminalMenu\\.vue|frontend/src/assets/base\\.css|backend/src/routes/index\\.js|backend/src/errors/README\\.md|docs/quick\\-launch/overview\\.md|docs/reference/troubleshooting\\.md|docs/reference/cors\\.md)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-35",
+      "note": "strings whose screens are covered by the batches above"
+    },
+    {
+      "axis": "*",
+      "match": "^(docs/reference/api\\.md|docs/public/openapi\\.json|docs/\\.vitepress/config\\.mjs|docs/\\.vitepress/theme/HomePage\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-36",
+      "note": "the OpenAPI description follows every route these batches add; it goes last, when there is nothing left to describe"
+    },
+    {
+      "axis": "deps",
+      "match": "exif-reader",
+      "verdict": "PORT",
+      "batch": "P3-11",
+      "note": "EXIF without a parser nobody maintains"
+    },
+    {
+      "axis": "deps",
+      "match": "(eslint|globals|@eslint)",
+      "verdict": "PORT",
+      "batch": "P3-42",
+      "note": "the lint configuration and the packages it needs"
+    },
+    {
+      "axis": "deps",
+      "match": "(vitest|@vitest)",
+      "verdict": "PORT",
+      "batch": "P3-41",
+      "note": "our suites, and the runner they need"
+    },
+    {
+      "axis": "deps",
+      "match": ".",
+      "verdict": "PORT",
+      "batch": "P3-43",
+      "note": "the dependency versions this fork runs. Mostly patch and minor; vue-i18n 9 to 11 and vite 5 to 7 are major and carry their own risk, so this batch is last but one and its pull request says what each bump changes"
+    },
+    {
+      "axis": "image",
+      "match": ".",
+      "verdict": "PORT",
+      "batch": "P3-44",
+      "note": "the image as this fork builds it \u2014 446 lines against 143, plus the entrypoint. It is last: every package a batch above needs must already be asked for before the image that installs them is rewritten"
+    },
+    {
+      "axis": "uncovered",
+      "match": "^backend/tests/",
+      "verdict": "PORT",
+      "batch": "with its subject",
+      "note": "upstream runs the backend suite, so a test of ours is portable. Each travels with the batch that brings what it tests"
+    },
+    {
+      "axis": "uncovered",
+      "match": "^(backend|frontend)/Dockerfile$|^docker/healthcheck\\.js$",
+      "verdict": "PORT",
+      "batch": "P3-44",
+      "note": "the image as this fork builds it"
+    },
+    {
+      "axis": "uncovered",
+      "match": "^frontend/(vite|vitest|playwright)\\.config\\.js$",
+      "verdict": "PORT",
+      "batch": "P3-41",
+      "note": "our suites, and the runner they need"
+    },
+    {
+      "axis": "uncovered",
+      "match": "^(\\.gitignore|\\.prettierignore)$",
+      "verdict": "OURS",
+      "note": "ignore lists covering our own build outputs and tooling"
+    },
+    {
+      "axis": "uncovered",
+      "match": "^\\.github/workflows/(docker-publish|docs)\\.yml$",
+      "verdict": "OURS",
+      "note": "our publishing workflows"
+    },
+    {
+      "axis": "uncovered",
+      "match": ".",
+      "verdict": "PORT",
+      "batch": "P3-35",
+      "note": "strings whose screens are covered by the batches above"
     }
   ]
 }
