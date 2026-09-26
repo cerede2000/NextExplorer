@@ -26,9 +26,16 @@
     {
       "axis": "i18n",
       "match": "^destinationPicker\\.",
-      "verdict": "PORT",
-      "batch": "P3-36",
-      "note": "strings for the destination dialog, which travels with the layout that opens it"
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 strings for the destination dialog"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/recentDestinationsService\\.js)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 the folders a transfer lands in, recorded by the transfer itself"
     },
     {
       "axis": "*",
@@ -40,16 +47,16 @@
     {
       "axis": "*",
       "match": "^(frontend/src/composables/useDestinationPicker\\.js)(:|$)",
-      "verdict": "PORT",
-      "batch": "P3-18",
-      "note": "asking where to put something: with the first screen that asks, which is the archive preview"
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 asking where to put something"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/DestinationPickerDialog\\.vue)(:|$)",
-      "verdict": "PORT",
-      "batch": "P3-36",
-      "note": "the destination dialog, with the layout that opens it"
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 the destination dialog, mounted once with the layout"
     },
     {
       "axis": "*",
@@ -513,9 +520,9 @@
     {
       "axis": "i18n",
       "match": "^destinationPicker\\.",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-17",
-      "note": "the destination dialog, and the folders somebody actually files into"
+      "note": "nxzai#448 \u2014 strings for the destination dialog"
     },
     {
       "axis": "*",
@@ -779,9 +786,9 @@
     {
       "axis": "migration",
       "match": "^recent_destinations$",
-      "verdict": "PORT",
-      "batch": "P3-27",
-      "note": "the folders somebody files into, with the transfer that records them"
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 the folders somebody files into"
     },
     {
       "axis": "migration",
