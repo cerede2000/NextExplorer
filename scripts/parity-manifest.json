@@ -590,8 +590,8 @@
       "axis": "env",
       "match": "^BULK_DELETE_CONCURRENCY$",
       "verdict": "PORT",
-      "batch": "P3-15",
-      "note": "two ceilings nobody could raise"
+      "batch": "P3-27",
+      "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23. BULK_DELETE_CONCURRENCY is read by the transfer service, so it travels with it"
     },
     {
       "axis": "env",
