@@ -2,10 +2,10 @@ const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
 const sharp = require('sharp');
-const ffmpeg = require('fluent-ffmpeg');
-let exifr = null;
+const ffmpegRunner = require('../services/ffmpegRunner');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
+const { readExifDetails } = require('../utils/exifDetails');
 const { extensions } = require('../config/index');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
@@ -14,38 +14,16 @@ const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/Ap
 
 const router = express.Router();
 
-// Optional: try to require exifr only when route is hit
-const loadExifr = () => {
-  if (exifr) return exifr;
-  try {
-    // eslint-disable-next-line global-require
-    exifr = require('exifr');
-  } catch (e) {
-    exifr = null;
-  }
-  return exifr;
+const probeVideo = async (filePath) => {
+  const data = await ffmpegRunner.probe(filePath);
+  if (!data) return null;
+  const stream = (data.streams || []).find((s) => s.width && s.height) || {};
+  return {
+    width: Number(stream.width) || null,
+    height: Number(stream.height) || null,
+    duration: Number(data.format?.duration) || null,
+  };
 };
-
-const probeVideo = (filePath) =>
-  new Promise((resolve) => {
-    ffmpeg.ffprobe(filePath, (error, data) => {
-      if (error || !data) {
-        resolve(null);
-        return;
-      }
-      try {
-        const stream = (data.streams || []).find((s) => s.width && s.height) || {};
-        const duration = Number(data.format?.duration) || null;
-        resolve({
-          width: Number(stream.width) || null,
-          height: Number(stream.height) || null,
-          duration,
-        });
-      } catch (_) {
-        resolve(null);
-      }
-    });
-  });
 
 const sumDirectory = async (dirPath, limit = 200000) => {
   const stack = [dirPath];
@@ -81,6 +59,69 @@ const sumDirectory = async (dirPath, limit = 200000) => {
   return { totalSize, fileCount, dirCount, truncated: visited > limit };
 };
 
+/**
+ * What a picture says about itself.
+ *
+ * Two readings, asked separately and both allowed to fail: a file that cannot
+ * be read as an image still has a name, a size and a date, which is what
+ * somebody looking at a damaged file most needs. Losing the whole answer over
+ * a broken header would be the wrong trade.
+ *
+ * One read of the file covers both, because sharp hands back the EXIF block
+ * along with the dimensions it was opened for.
+ */
+const readImageDetails = async (absolutePath, extension) => {
+  const details = {};
+  let metadata = null;
+
+  try {
+    metadata = await sharp(absolutePath).metadata();
+    details.width = metadata.width || null;
+    details.height = metadata.height || null;
+    details.orientation = metadata.orientation || null;
+  } catch (e) {
+    logger.debug({ err: e }, 'sharp.metadata failed');
+  }
+
+  try {
+    const exif = await readExifDetails(absolutePath, metadata, extension);
+    if (exif) Object.assign(details, exif);
+  } catch (e) {
+    logger.debug({ err: e }, 'EXIF parse failed');
+  }
+
+  return Object.keys(details).length > 0 ? details : null;
+};
+
+/** What the filesystem alone knows about a path. */
+const describeEntry = (logicalPath, stats) => {
+  const extension = path.extname(logicalPath).slice(1).toLowerCase();
+
+  return {
+    path: logicalPath,
+    name: path.basename(logicalPath),
+    kind: stats.isDirectory() ? 'directory' : extension || 'unknown',
+    size: stats.size,
+    dateModified: stats.mtime,
+    dateCreated: stats.birthtime,
+  };
+};
+
+/** The file's own details, when its kind has any to give. */
+const readKindDetails = async (absolutePath, extension) => {
+  if (extensions.images.includes(extension)) {
+    const image = await readImageDetails(absolutePath, extension);
+    return image ? { image } : {};
+  }
+
+  if (extensions.videos.includes(extension)) {
+    const video = await probeVideo(absolutePath);
+    return video ? { video } : {};
+  }
+
+  return {};
+};
+
 router.get(
   '/metadata/{*splat}',
   asyncHandler(async (req, res) => {
@@ -95,7 +136,7 @@ router.get(
     let resolved;
     try {
       ({ accessInfo, resolved } = await resolvePathWithAccess(context, relativePath));
-    } catch (error) {
+    } catch (_) {
       throw new NotFoundError('Path not found.');
     }
 
@@ -104,82 +145,29 @@ router.get(
       throw new ForbiddenError(accessInfo?.denialReason || 'Path is not accessible.');
     }
 
-    const absolutePath = resolved.absolutePath;
-    const logicalPath = resolved.relativePath;
-    const stats = await fs.stat(absolutePath);
-    const name = path.basename(logicalPath);
-    const ext = path.extname(logicalPath).slice(1).toLowerCase();
+    const { absolutePath, relativePath: logicalPath } = resolved;
 
-    const base = {
-      path: logicalPath,
-      name,
-      kind: stats.isDirectory() ? 'directory' : ext || 'unknown',
-      size: stats.size,
-      dateModified: stats.mtime,
-      dateCreated: stats.birthtime,
-    };
-
-    const payload = { ...base };
-
-    if (stats.isDirectory()) {
-      payload.directory = await sumDirectory(absolutePath);
-      return res.json(payload);
-    }
-
-    // File-specific metadata
-    if (extensions.images.includes(ext)) {
-      try {
-        const meta = await sharp(absolutePath).metadata();
-        payload.image = {
-          width: meta.width || null,
-          height: meta.height || null,
-          orientation: meta.orientation || null,
-        };
-      } catch (e) {
-        logger.debug({ err: e }, 'sharp.metadata failed');
-      }
-
-      try {
-        const ex = loadExifr()
-          ? await exifr.parse(absolutePath, {
-              tiff: true,
-              ifd0: true,
-              exif: true,
-              gps: true,
-              iptc: true,
-            })
-          : null;
-        if (ex) {
-          payload.image = Object.assign(payload.image || {}, {
-            cameraMake: ex.Make || ex.make || null,
-            cameraModel: ex.Model || ex.model || null,
-            lensModel: ex.LensModel || ex.lensModel || null,
-            software: ex.Software || null,
-            dateTaken: ex.DateTimeOriginal || ex.CreateDate || ex.ModifyDate || null,
-            gps:
-              ex.latitude && ex.longitude
-                ? { lat: ex.latitude, lon: ex.longitude }
-                : ex.GPSLatitude && ex.GPSLongitude
-                  ? { lat: ex.GPSLatitude, lon: ex.GPSLongitude }
-                  : null,
-          });
-        }
-      } catch (e) {
-        logger.debug({ err: e }, 'EXIF parse failed');
-      }
-    } else if (extensions.videos.includes(ext)) {
-      const v = await probeVideo(absolutePath);
-      if (v) payload.video = v;
-    }
-
+    // Resolving a path does not require it to exist, so this is where a file
+    // that has just been deleted is discovered. Left unhandled it left the
+    // details panel answering 500 for the ordinary case of asking about
+    // something that is gone.
+    let stats;
     try {
-      return res.json(payload);
+      stats = await fs.stat(absolutePath);
     } catch (error) {
       if (error.code === 'ENOENT') {
         throw new NotFoundError('Path not found.');
       }
       throw error;
     }
+
+    const base = describeEntry(logicalPath, stats);
+
+    if (stats.isDirectory()) {
+      return res.json({ ...base, directory: await sumDirectory(absolutePath) });
+    }
+
+    return res.json({ ...base, ...(await readKindDetails(absolutePath, base.kind)) });
   })
 );
 
