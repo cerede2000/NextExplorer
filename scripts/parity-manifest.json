@@ -211,16 +211,16 @@
     {
       "axis": "*",
       "match": "^(backend/src/utils/oidcRedirect\\.js|backend/src/utils/oidcAvailability\\.js|backend/src/middleware/oidc\\.js|backend/src/routes/auth\\.js|docs/integrations/oidc\\.md)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-06",
-      "note": "OIDC behind a proxy, and which of two failures it was"
+      "note": "nxzai#438 \u2014 OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "i18n",
       "match": "^auth\\.",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-06",
-      "note": "OIDC behind a proxy, and which of two failures it was"
+      "note": "nxzai#438 \u2014 OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "*",
@@ -699,9 +699,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/oidcService\\.js|backend/src/services/oidcMobileBridge\\.js|backend/src/api/auth\\.api\\.js|frontend/src/api/auth\\.api\\.js|docs/integrations/authelia\\.md|backend/src/utils/authenticatedSession\\.js|frontend/src/views/settings/SettingsPassword\\.vue|frontend/src/layouts/AuthLayout\\.vue|frontend/src/views/ShareLoginView\\.vue)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-06",
-      "note": "OIDC behind a proxy, and which of two failures it was"
+      "note": "nxzai#438 \u2014 OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "*",
