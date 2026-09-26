@@ -245,6 +245,13 @@
     },
     {
       "axis": "*",
+      "match": "^(backend/src/services/capabilities\\.js|backend/src/services/documentText\\.js|backend/src/services/pdfTextExtract\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-35",
+      "note": "the errors an answer carries, the notifications that show them, and the strings the screens above ask for. Probing the optional tools and reading a document's text are their own ground; bringing them with the EXIF reader turned three of main's tests red"
+    },
+    {
+      "axis": "*",
       "match": "^(backend/src/utils/exifDetails\\.js|backend/src/routes/metadata\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-10",
