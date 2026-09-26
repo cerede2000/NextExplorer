@@ -24,6 +24,10 @@ export const useFeaturesStore = defineStore('features', () => {
   // read it, so the way into the trash could not be shown or hidden.
   const trashEnabled = ref(false);
   const trashRetentionDays = ref(null);
+  // Whether a save keeps what it replaces as a version. The server already
+  // said so; nothing read it, so a file's history could not be offered or
+  // hidden.
+  const versionsEnabled = ref(false);
   const terminalExtensions = ref([]);
   const version = ref('');
   const gitCommit = ref('');
@@ -88,6 +92,7 @@ export const useFeaturesStore = defineStore('features', () => {
         personalEnabled.value = Boolean(features?.personal?.enabled);
         trashEnabled.value = Boolean(features?.trash?.enabled);
         trashRetentionDays.value = features?.trash?.retentionDays ?? null;
+        versionsEnabled.value = Boolean(features?.versions?.enabled);
 
         // User volumes (per-user volume assignments)
         userVolumesEnabled.value = Boolean(features?.userVolumes?.enabled);
@@ -162,6 +167,7 @@ export const useFeaturesStore = defineStore('features', () => {
     terminalEnabled,
     trashEnabled,
     trashRetentionDays,
+    versionsEnabled,
     terminalExtensions,
     version,
     gitCommit,

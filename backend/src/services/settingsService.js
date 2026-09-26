@@ -308,6 +308,7 @@ const setUserSetting = async (userId, key, value) => {
   if (
     key === 'showHiddenFiles' ||
     key === 'showThumbnails' ||
+    key === 'showVersionMarks' ||
     key === 'showSidebarFavorites' ||
     key === 'showSidebarShares' ||
     key === 'showSidebarTools'

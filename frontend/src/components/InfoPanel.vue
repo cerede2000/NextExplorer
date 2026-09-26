@@ -2,6 +2,9 @@
 import { computed, onMounted, onBeforeUnmount, watch, ref } from 'vue';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useInfoPanelStore } from '@/stores/infoPanel';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
+import { useFeaturesStore } from '@/stores/features';
+import { useFileStore } from '@/stores/fileStore';
 import { formatBytes, formatDate } from '@/utils';
 import { getKindLabel } from '@/utils/fileKinds';
 import FileIcon from '@/icons/FileIcon.vue';
@@ -17,6 +20,24 @@ const item = computed(() => store.item);
 const relativePath = computed(() => store.relativePath);
 
 const { t } = useI18n();
+const featuresStore = useFeaturesStore();
+const versionsPanel = useVersionsPanelStore();
+const fileStore = useFileStore();
+// Through a share whose owner keeps the history hidden, the listing says so.
+const canShowVersions = computed(
+  () =>
+    featuresStore.versionsEnabled &&
+    Boolean(item.value) &&
+    !['directory', 'volume'].includes(item.value.kind) &&
+    fileStore.currentPathData?.canSeeVersions !== false
+);
+const openVersions = () => {
+  const target = item.value;
+  if (!target) return;
+  store.close();
+  versionsPanel.open(target);
+};
+
 const title = computed(() => item.value?.name || t('common.details'));
 const kindLabel = computed(() => (item.value ? getKindLabel(item.value) : ''));
 
@@ -266,6 +287,16 @@ onBeforeUnmount(() => {
                 {{ locationLabel }}
               </p>
             </div>
+
+            <button
+              v-if="canShowVersions"
+              type="button"
+              class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-zinc-800"
+              data-test="info-versions"
+              @click="openVersions"
+            >
+              {{ t('info.versions') }}
+            </button>
 
             <!-- Folder specific metadata -->
             <div

@@ -10,6 +10,42 @@ const { NotFoundError } = require('../errors/AppError');
 const router = express.Router();
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { listDirectoryItems } = require('../services/directoryListingService');
+const versions = require('../services/versions');
+const { rightsFrom: versionRights } = versions;
+
+/**
+ * The mark that says a file has earlier versions, for a whole listing.
+ *
+ * Counted once for the folder rather than once per row, and only when somebody
+ * asked to see it — the preference is on by default, and turning it off takes
+ * the query away as well as the icon, so it costs nothing to somebody who does
+ * not want it.
+ *
+ * The right to see a history is the row's own and not the folder's: a share
+ * hands out histories only when its owner said so, and that is decided here
+ * from each child's access rather than from the folder's.
+ */
+const versionMarks = async (directoryPath, userSettings) => {
+  if (userSettings?.showVersionMarks === false) return null;
+
+  let marks;
+  try {
+    marks = await versions.marksForFolder(directoryPath);
+  } catch (error) {
+    // A listing is not worth failing over a count. Nothing is marked, and the
+    // history is still one right-click away.
+    logger.warn({ err: error, directoryPath }, 'File versions were not counted for a listing');
+    return null;
+  }
+  if (!marks || marks.size === 0) return null;
+
+  return ({ name, stats, access }) => {
+    if (!stats?.isFile()) return null;
+    const mark = marks.get(name);
+    if (!mark || !versionRights(access).see) return null;
+    return { versions: { count: mark.versions, bytes: mark.bytes, newest: mark.newest } };
+  };
+};
 
 router.get(
   '/browse/{*splat}',
@@ -49,6 +85,7 @@ router.get(
       excludeDownloadArtifacts: true,
       includeHiddenFiles,
       permissionRules: settings?.access?.rules || [],
+      itemExtras: await versionMarks(directoryPath, userSettings),
     });
 
     const response = {
@@ -60,6 +97,9 @@ router.get(
         canDelete: accessInfo.canDelete,
         canShare: accessInfo.canShare,
         canDownload: accessInfo.canDownload,
+        // Whether the files here show their history, which a share hands out
+        // only when its owner said so.
+        canSeeVersions: versionRights(accessInfo).see,
       },
       current: {
         isDirectory: true,

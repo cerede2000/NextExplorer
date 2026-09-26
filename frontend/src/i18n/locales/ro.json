@@ -77,7 +77,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?"
+    "confirmCloseWithoutSaving": "Ai modificări nesalvate. Închide fără să salvezi?",
+    "trashReadOnly": "În coșul de gunoi · doar citire",
+    "versionReadOnly": "Versiune anterioară, doar citire"
   },
   "status": {
     "updated": "Actualizat cu succes",
@@ -319,7 +321,8 @@
     "dateTaken": "Data realizării: {date}",
     "camera": "Cameră: {makeModel}",
     "lens": "Obiectiv: {lens}",
-    "duration": "Durată: {seconds}s"
+    "duration": "Durată: {seconds}s",
+    "versions": "Versiuni"
   },
   "auth": {
     "preparing": "Se pregătește explorerul…",
@@ -392,7 +395,8 @@
       "security": "Securitate",
       "accessControl": "Control acces",
       "adminUsers": "Gestionare utilizatori",
-      "trash": "Coș de gunoi și versiuni"
+      "trash": "Coș de gunoi și versiuni",
+      "fileVersions": "Versiuni de fișiere"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -442,7 +446,9 @@
       "months": "Luni",
       "skipHome": "Sari peste pagina principală",
       "skipHomeHelp": "Redirectează automat către primul volum la deschiderea paginii principale. Dacă nu este setat, se folosește configurația serverului.",
-      "useEnvSetting": "Folosește setarea serverului"
+      "useEnvSetting": "Folosește setarea serverului",
+      "showVersionMarks": "Marchează fișierele care au versiuni",
+      "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul."
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -615,6 +621,53 @@
         "sharedSpace": "Versiunile și coșul de gunoi împart spațiul rezervat al fiecărui volum. Când nu ajunge, pleacă întâi versiunile vechi, apoi elementele din coș, apoi ultima versiune a fiecărui fișier și, la final, versiunile fixate.",
         "environmentNote": "Valorile implicite provin din VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE și VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "fileVersions": {
+      "title": "Versiuni de fișiere",
+      "intro": "Toate fișierele care au versiuni anterioare, oriunde s-ar afla, și spațiul pe care îl ocupă. Aici apar căi din toate spațiile, inclusiv din dosarele personale — de aceea pagina este rezervată administratorilor.",
+      "search": "Calea conține",
+      "searchPlaceholder": "O parte dintr-un nume sau dosar",
+      "zone": "Spațiu",
+      "anyZone": "Toate spațiile",
+      "state": "Stare",
+      "anyState": "Toate",
+      "sort": "Sortează după",
+      "sortBytes": "Spațiu ocupat",
+      "sortCount": "Numărul de versiuni",
+      "sortNewest": "Cea mai recentă versiune",
+      "sortPath": "Cale",
+      "summary": "{files} fișiere, {versions} versiuni, {size}",
+      "file": "Fișier",
+      "count": "Versiuni",
+      "size": "Dimensiune",
+      "newest": "Cea mai recentă",
+      "states": {
+        "live": "Prezent",
+        "trashed": "La coșul de gunoi",
+        "orphaned": "Dispărut"
+      },
+      "zoneKinds": {
+        "volume": "Volumul {name}",
+        "personal": "Dosar personal {name}",
+        "user-volume": "Volum atribuit {name}"
+      },
+      "zoneUnknown": "Spațiu necunoscut",
+      "pinned": "Fixată",
+      "unavailable": "Volum indisponibil",
+      "deleteAll": "Șterge istoricul",
+      "deleteSelected": "Șterge {count} versiune | Șterge {count} versiuni",
+      "deleteForGood": "Șterge definitiv",
+      "confirmAllTitle": "Ștergeți toate versiunile lui {name}?",
+      "confirmSomeTitle": "Ștergeți {count} versiune? | Ștergeți {count} versiuni?",
+      "confirmMessage": "Acest conținut este șters de pe disc. Fișierul în sine nu este atins, iar nimic din toate acestea nu poate fi anulat.",
+      "none": "Niciun fișier nu are versiuni anterioare.",
+      "loadFailed": "Lista nu a putut fi citită.",
+      "detailFailed": "Acest istoric nu a putut fi citit.",
+      "deleteFailed": "Versiunile nu au putut fi șterse.",
+      "previous": "Anterior",
+      "next": "Următor",
+      "range": "De la {from} la {to} din {total}",
+      "deleteSelectedNone": "Șterge versiunile bifate"
     }
   },
   "mediaPreview": {
@@ -801,5 +854,69 @@
       "restored": "{count} link de partajare readus | {count} linkuri de partajare readuse",
       "dropped": "{count} link de partajare șters | {count} linkuri de partajare șterse"
     }
+  },
+  "versions": {
+    "title": "Versiuni",
+    "menu": "Versiuni",
+    "aria": "Versiunile fișierului",
+    "current": "Versiunea actuală",
+    "empty": "Nicio versiune anterioară deocamdată. Fiecare salvare păstrează ce înlocuiește.",
+    "disabled": "Versiunile fișierelor sunt dezactivate: salvările nu mai păstrează altele noi. Cele de mai jos rămân până expiră.",
+    "loadFailed": "Versiunile nu au putut fi încărcate.",
+    "notShared": "Istoricul acestui fișier nu este partajat cu dvs.",
+    "unavailable": "Conținutul ei lipsește de pe disc.",
+    "unknownAuthor": "Autor necunoscut",
+    "shareLink": "Cineva cu linkul",
+    "pinned": "Fixată",
+    "aside": "Pusă deoparte",
+    "asideHelp": "Salvată de un editor deschis înainte de o restaurare: păstrată aici în loc să anuleze restaurarea.",
+    "total": "{count} versiune, {size} | {count} versiuni, {size}",
+    "source": {
+      "editor": "Editor de text",
+      "shareEditor": "Editor printr-o partajare",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versiune restaurată",
+      "external": "Modificat în afara aplicației"
+    },
+    "actions": {
+      "menu": "Acțiuni pentru versiune",
+      "select": "Selectați această versiune",
+      "selectAll": "Selectați tot",
+      "deleteSelected": "Ștergeți selecția ({count})",
+      "deleteAll": "Ștergeți tot",
+      "preview": "Deschideți doar în citire",
+      "download": "Descărcați",
+      "restore": "Restaurați",
+      "rename": "Denumiți…",
+      "pin": "Fixați",
+      "unpin": "Anulați fixarea",
+      "delete": "Ștergeți"
+    },
+    "confirm": {
+      "restoreTitle": "Restaurați această versiune?",
+      "restoreMessage": "„{name}” revine la conținutul din {date}. Conținutul actual este păstrat ca versiune.",
+      "deleteTitle": "Ștergeți această versiune? | Ștergeți {count} versiuni?",
+      "deleteMessage": "Această versiune este ștearsă definitiv. | Aceste {count} versiuni sunt șterse definitiv.",
+      "deleteAllTitle": "Ștergeți toate versiunile?",
+      "deleteAllMessage": "Toate versiunile anterioare ale „{name}” sunt șterse definitiv, inclusiv cele fixate. Fișierul în sine rămâne."
+    },
+    "rename": {
+      "title": "Denumiți această versiune",
+      "placeholder": "De exemplu: trimisă clientului",
+      "help": "Un nume face o versiune ușor de găsit. Fixați-o pentru a o feri de curățarea automată."
+    },
+    "results": {
+      "restored": "Versiune restaurată",
+      "unchanged": "Fișierul are deja acest conținut",
+      "deleted": "{count} versiune ștearsă | {count} versiuni șterse",
+      "renamed": "Versiune denumită",
+      "pinned": "Versiune fixată: curățarea automată o păstrează",
+      "unpinned": "Fixarea versiunii a fost anulată"
+    },
+    "errors": {
+      "action": "Acțiunea asupra acestei versiuni a eșuat"
+    },
+    "mark": "{count} versiune anterioară | {count} versiuni anterioare"
   }
 }

@@ -77,7 +77,9 @@
     "theme": "Tema",
     "editorSettings": "Configurações do editor",
     "wrapLines": "Quebrar linhas",
-    "confirmCloseWithoutSaving": "Você tem alterações não salvas. Fechar sem salvar?"
+    "confirmCloseWithoutSaving": "Você tem alterações não salvas. Fechar sem salvar?",
+    "trashReadOnly": "Na lixeira · somente leitura",
+    "versionReadOnly": "Versão anterior, somente leitura"
   },
   "status": {
     "updated": "Atualizado com sucesso",
@@ -319,7 +321,8 @@
     "dateTaken": "Data da Foto: {date}",
     "camera": "Câmera: {makeModel}",
     "lens": "Lente: {lens}",
-    "duration": "Duração: {seconds}s"
+    "duration": "Duração: {seconds}s",
+    "versions": "Versões"
   },
   "auth": {
     "preparing": "Preparando seu explorador…",
@@ -392,7 +395,8 @@
       "security": "Segurança",
       "accessControl": "Controle de Acesso",
       "adminUsers": "Gerenciamento de Usuários",
-      "trash": "Lixeira e versões"
+      "trash": "Lixeira e versões",
+      "fileVersions": "Versões de arquivos"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -442,7 +446,9 @@
       "months": "Meses",
       "skipHome": "Pular página inicial",
       "skipHomeHelp": "Redirecionar automaticamente para o primeiro volume ao visitar a página inicial. Se não definido, segue a configuração do servidor.",
-      "useEnvSetting": "Usar configuração do servidor"
+      "useEnvSetting": "Usar configuração do servidor",
+      "showVersionMarks": "Marcar arquivos que têm versões",
+      "showVersionMarksHelp": "Uma pequena marca na lista nos arquivos com versões anteriores, com a quantidade. Clique nela para abrir o histórico."
     },
     "thumbs": {
       "subtitle": "Personalize as pré-visualizações em miniatura de imagens e vídeos.",
@@ -615,6 +621,53 @@
         "sharedSpace": "Versões e lixeira dividem o espaço reservado de cada volume. Quando falta espaço, saem primeiro as versões antigas, depois os itens da lixeira, depois a última versão de cada arquivo e, por fim, as versões fixadas.",
         "environmentNote": "Os padrões vêm de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "fileVersions": {
+      "title": "Versões de arquivos",
+      "intro": "Todos os arquivos com versões anteriores, onde quer que estejam, e o espaço que ocupam. Aparecem aqui caminhos de todos os espaços, inclusive pastas pessoais — por isso esta página é só para administradores.",
+      "search": "O caminho contém",
+      "searchPlaceholder": "Parte de um nome ou de uma pasta",
+      "zone": "Espaço",
+      "anyZone": "Todos os espaços",
+      "state": "Situação",
+      "anyState": "Todos",
+      "sort": "Ordenar por",
+      "sortBytes": "Espaço ocupado",
+      "sortCount": "Número de versões",
+      "sortNewest": "Versão mais recente",
+      "sortPath": "Caminho",
+      "summary": "{files} arquivos, {versions} versões, {size}",
+      "file": "Arquivo",
+      "count": "Versões",
+      "size": "Tamanho",
+      "newest": "Mais recente",
+      "states": {
+        "live": "Presente",
+        "trashed": "Na lixeira",
+        "orphaned": "Desaparecido"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Pasta pessoal {name}",
+        "user-volume": "Volume atribuído {name}"
+      },
+      "zoneUnknown": "Espaço desconhecido",
+      "pinned": "Fixada",
+      "unavailable": "Volume indisponível",
+      "deleteAll": "Excluir o histórico",
+      "deleteSelected": "Excluir {count} versão | Excluir {count} versões",
+      "deleteForGood": "Excluir definitivamente",
+      "confirmAllTitle": "Excluir todas as versões de {name}?",
+      "confirmSomeTitle": "Excluir {count} versão? | Excluir {count} versões?",
+      "confirmMessage": "Esse conteúdo é removido do disco. O arquivo em si não é tocado, e nada disso pode ser desfeito.",
+      "none": "Nenhum arquivo tem versões anteriores.",
+      "loadFailed": "Não foi possível ler a lista.",
+      "detailFailed": "Não foi possível ler este histórico.",
+      "deleteFailed": "Não foi possível excluir as versões.",
+      "previous": "Anterior",
+      "next": "Próximo",
+      "range": "{from} a {to} de {total}",
+      "deleteSelectedNone": "Excluir as versões marcadas"
     }
   },
   "mediaPreview": {
@@ -801,5 +854,69 @@
       "restored": "{count} link de compartilhamento recuperado | {count} links de compartilhamento recuperados",
       "dropped": "{count} link de compartilhamento excluído | {count} links de compartilhamento excluídos"
     }
+  },
+  "versions": {
+    "title": "Versões",
+    "menu": "Versões",
+    "aria": "Versões do arquivo",
+    "current": "Versão atual",
+    "empty": "Ainda não há versões anteriores. Cada salvamento guarda o que substitui.",
+    "disabled": "As versões de arquivos estão desativadas: os salvamentos não guardam mais novas. As abaixo permanecem até expirarem.",
+    "loadFailed": "Não foi possível carregar as versões.",
+    "notShared": "O histórico deste arquivo não está compartilhado com você.",
+    "unavailable": "O conteúdo dela está faltando no disco.",
+    "unknownAuthor": "Autor desconhecido",
+    "shareLink": "Alguém com o link",
+    "pinned": "Fixada",
+    "aside": "Posta de lado",
+    "asideHelp": "Salva por um editor aberto antes de uma restauração: guardada aqui em vez de desfazer a restauração.",
+    "total": "{count} versão, {size} | {count} versões, {size}",
+    "source": {
+      "editor": "Editor de texto",
+      "shareEditor": "Editor por um compartilhamento",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versão restaurada",
+      "external": "Alterado fora do aplicativo"
+    },
+    "actions": {
+      "menu": "Ações da versão",
+      "select": "Selecionar esta versão",
+      "selectAll": "Selecionar tudo",
+      "deleteSelected": "Excluir seleção ({count})",
+      "deleteAll": "Excluir tudo",
+      "preview": "Abrir somente leitura",
+      "download": "Baixar",
+      "restore": "Restaurar",
+      "rename": "Nomear…",
+      "pin": "Fixar",
+      "unpin": "Desafixar",
+      "delete": "Excluir"
+    },
+    "confirm": {
+      "restoreTitle": "Restaurar esta versão?",
+      "restoreMessage": "\"{name}\" volta ao conteúdo de {date}. O conteúdo atual é guardado como versão.",
+      "deleteTitle": "Excluir esta versão? | Excluir {count} versões?",
+      "deleteMessage": "Esta versão é excluída definitivamente. | Estas {count} versões são excluídas definitivamente.",
+      "deleteAllTitle": "Excluir todas as versões?",
+      "deleteAllMessage": "Todas as versões anteriores de \"{name}\" são excluídas definitivamente, inclusive as fixadas. O arquivo em si permanece."
+    },
+    "rename": {
+      "title": "Nomear esta versão",
+      "placeholder": "Por exemplo: enviada ao cliente",
+      "help": "Um nome facilita encontrar uma versão. Fixe-a para mantê-la fora da limpeza automática."
+    },
+    "results": {
+      "restored": "Versão restaurada",
+      "unchanged": "O arquivo já tem este conteúdo",
+      "deleted": "{count} versão excluída | {count} versões excluídas",
+      "renamed": "Versão nomeada",
+      "pinned": "Versão fixada: a limpeza automática a mantém",
+      "unpinned": "Versão desafixada"
+    },
+    "errors": {
+      "action": "A ação nesta versão falhou"
+    },
+    "mark": "{count} versão anterior | {count} versões anteriores"
   }
 }

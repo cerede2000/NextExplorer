@@ -4,6 +4,8 @@ const env = require('./env');
 const constants = require('./constants');
 const loggingConfig = require('./logging');
 const { parseByteSize } = require('../utils/env');
+// logger reads config/logging, never this file — requiring it here makes no cycle.
+const logger = require('../utils/logger');
 
 const parseCommaOrSpaceList = (raw) => {
   if (!raw) return [];
@@ -277,11 +279,75 @@ const searchMaxFileSizeBytes = (() => {
 })();
 
 // --- Uploads ---
+// --- Editor ---
+/**
+ * What the inline text editor opens, and what a JSON request body may weigh.
+ *
+ * They are one decision rather than two. The editor sends a file back through a
+ * JSON body when it saves it, so a body limit under the size the editor opens
+ * produces a file that opens and cannot be saved — answered with "request
+ * entity too large", which names neither setting. Express's own default is
+ * 100 kB, against an editor that opens two megabytes.
+ *
+ * Escaping is why the body has to be worth more than the file: in the worst
+ * case every character of the content is a quote, a backslash or a newline and
+ * becomes two, and the path travels in the same body. A file whose bytes would
+ * expand further than that is one the editor refuses to open anyway, as binary.
+ */
+const JSON_ESCAPE_WORST_CASE = 2;
+const JSON_BODY_OVERHEAD_BYTES = 64 * 1024;
+const DEFAULT_JSON_BODY_BYTES = 8 * 1024 * 1024;
+
+const bodyNeededFor = (fileBytes) => fileBytes * JSON_ESCAPE_WORST_CASE + JSON_BODY_OVERHEAD_BYTES;
+const fileAllowedBy = (bodyBytes) =>
+  Math.max(0, Math.floor((bodyBytes - JSON_BODY_OVERHEAD_BYTES) / JSON_ESCAPE_WORST_CASE));
+
+const { editorMaxFileSizeBytes, maxJsonBodyBytes } = (() => {
+  const parsedEditor = parseByteSize(env.EDITOR_MAX_FILESIZE);
+  // Default: 2 MiB if not configured or invalid
+  const editorAsked =
+    Number.isFinite(parsedEditor) && parsedEditor > 0 ? parsedEditor : 2 * 1024 * 1024;
+
+  const parsedBody = parseByteSize(env.MAX_JSON_BODY_SIZE);
+  const bodyWasChosen = Number.isFinite(parsedBody) && parsedBody > 0;
+
+  // A body limit someone set is a ceiling they meant — it is a guard, not a
+  // detail — so it is never raised from here. The editor is what gives way, and
+  // it gives way by refusing to open what it could not save back.
+  if (bodyWasChosen) {
+    const allowed = fileAllowedBy(parsedBody);
+    if (editorAsked > allowed) {
+      logger.warn(
+        { editorAsked, loweredTo: allowed, maxJsonBodyBytes: parsedBody },
+        'EDITOR_MAX_FILESIZE is larger than MAX_JSON_BODY_SIZE can carry back and has been ' +
+          'lowered to match; the editor would otherwise open files it could not save'
+      );
+    }
+    return { editorMaxFileSizeBytes: Math.min(editorAsked, allowed), maxJsonBodyBytes: parsedBody };
+  }
+
+  // Nobody chose the body limit, so the editor's size is the only wish there is
+  // to honour: the default body limit rises to carry it.
+  const needed = bodyNeededFor(editorAsked);
+  if (needed > DEFAULT_JSON_BODY_BYTES) {
+    logger.info(
+      { editorMaxFileSizeBytes: editorAsked, maxJsonBodyBytes: needed },
+      'Raised the JSON body limit above its default so the text editor can save what it opens'
+    );
+  }
+
+  return {
+    editorMaxFileSizeBytes: editorAsked,
+    maxJsonBodyBytes: Math.max(DEFAULT_JSON_BODY_BYTES, needed),
+  };
+})();
+
 // Ceilings for direct (non-chunked) uploads. They exist so a single request
 // cannot stream until the disk is full; they are generous on purpose, since
 // large files are a normal use of a file manager. Chunked uploads have their
 // own storage guard in the TUS service.
 const uploads = {
+  maxJsonBodyBytes,
   maxDirectUploadBytes: (() => {
     const parsed = parseByteSize(env.MAX_DIRECT_UPLOAD_SIZE);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;
@@ -364,13 +430,6 @@ const collabora = {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 };
-
-// --- Editor ---
-const editorMaxFileSizeBytes = (() => {
-  const parsed = parseByteSize(env.EDITOR_MAX_FILESIZE);
-  // Default: 2 MiB if not configured or invalid
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 2 * 1024 * 1024;
-})();
 
 const editor = {
   extensions: parseExtensionList(env.EDITOR_EXTENSIONS),

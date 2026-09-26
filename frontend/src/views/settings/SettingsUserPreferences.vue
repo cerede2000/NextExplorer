@@ -12,6 +12,7 @@ const { t } = useI18n();
 const local = reactive({
   showHiddenFiles: false,
   showThumbnails: true,
+  showVersionMarks: true,
   showSidebarFavorites: true,
   showSidebarShares: true,
   showSidebarTools: true,
@@ -31,6 +32,7 @@ const dirty = computed(() => {
   return (
     local.showHiddenFiles !== orig.showHiddenFiles ||
     local.showThumbnails !== orig.showThumbnails ||
+    local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
     local.showSidebarFavorites !== (orig.showSidebarFavorites ?? true) ||
     local.showSidebarShares !== (orig.showSidebarShares ?? true) ||
     local.showSidebarTools !== (orig.showSidebarTools ?? true) ||
@@ -71,6 +73,7 @@ watch(
   (userSettings) => {
     local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
     local.showThumbnails = userSettings.showThumbnails ?? true;
+    local.showVersionMarks = userSettings.showVersionMarks ?? true;
     local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
     local.showSidebarShares = userSettings.showSidebarShares ?? true;
     local.showSidebarTools = userSettings.showSidebarTools ?? true;
@@ -93,6 +96,7 @@ const reset = () => {
   const userSettings = appSettings.userSettings;
   local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
   local.showThumbnails = userSettings.showThumbnails ?? true;
+  local.showVersionMarks = userSettings.showVersionMarks ?? true;
   local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
   local.showSidebarShares = userSettings.showSidebarShares ?? true;
   local.showSidebarTools = userSettings.showSidebarTools ?? true;
@@ -118,6 +122,7 @@ const save = async () => {
     user: {
       showHiddenFiles: local.showHiddenFiles,
       showThumbnails: local.showThumbnails,
+      showVersionMarks: local.showVersionMarks,
       showSidebarFavorites: local.showSidebarFavorites,
       showSidebarShares: local.showSidebarShares,
       showSidebarTools: local.showSidebarTools,
@@ -166,7 +171,9 @@ const save = async () => {
       class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6"
     >
       <div class="space-y-6">
-        <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
               {{ t('settings.userPreferences.showHiddenFiles') }}
@@ -182,7 +189,9 @@ const save = async () => {
           <ToggleSwitch v-model="local.showHiddenFiles" />
         </div>
 
-        <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
               {{ t('settings.userPreferences.showThumbnails') }}
@@ -192,6 +201,20 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.showThumbnails" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.showVersionMarks') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.showVersionMarksHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch v-model="local.showVersionMarks" data-test="show-version-marks" />
         </div>
 
         <div
@@ -210,7 +233,9 @@ const save = async () => {
           <ToggleSwitch v-model="local[row.key]" />
         </div>
 
-        <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
               {{ t('settings.userPreferences.defaultShareExpiration') }}
@@ -241,7 +266,13 @@ const save = async () => {
               class="p-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               :title="t('common.clear')"
             >
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

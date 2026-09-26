@@ -197,6 +197,165 @@ const setVersionDetails = (db, id, { label, pinned }) => {
 const deleteVersion = (db, id) =>
   db.prepare('DELETE FROM file_versions WHERE id = ?').run(id).changes;
 
+/**
+ * Paths, as a LIKE pattern matches them.
+ *
+ * A folder called `100%_done` is a wildcard to LIKE, and would have matched
+ * every sibling. Escaped here rather than at each call site, because there is
+ * no reading of a query that makes this optional.
+ */
+const likeLiteral = (value) => String(value).replace(/[\\%_]/g, (character) => `\\${character}`);
+
+/**
+ * How many kept versions each file directly inside a folder has.
+ *
+ * One query for a whole listing, not one per row: a folder of three hundred
+ * files costs the same as a folder of three.
+ *
+ * The range does the work — `relative_path` is the second column of
+ * `idx_version_files_path`, and a folder's children all begin with its path
+ * and a slash. The bound above it is that same path with `0`, the character
+ * after `/`, so nothing outside the folder is read at all. What the range
+ * still lets through is the folder's descendants; the `NOT LIKE` drops
+ * anything with a further slash, which leaves the direct children.
+ *
+ * `zoneIds` rather than one zone: a root that has been registered twice over
+ * the installation's life has two rows, and a file's history may sit under
+ * either.
+ */
+const countKeptInFolder = (db, zoneIds, folderPath) => {
+  const zones = [...new Set((zoneIds || []).filter(Boolean))];
+  if (zones.length === 0) return [];
+
+  const prefix = folderPath ? `${folderPath}/` : '';
+  const clauses = [
+    `vf.zone_id IN (${zones.map(() => '?').join(', ')})`,
+    "vf.state = 'live'",
+    "vf.relative_path NOT LIKE ? ESCAPE '\\'",
+  ];
+  const values = [...zones, `${likeLiteral(prefix)}%/%`];
+  if (prefix) {
+    // `dir/` … `dir0`: '/' is 0x2F and '0' is 0x30, so the pair is exactly the
+    // folder's subtree and nothing adjacent to it.
+    clauses.push('vf.relative_path >= ?', 'vf.relative_path < ?');
+    values.push(prefix, `${folderPath}0`);
+  }
+
+  return db
+    .prepare(
+      `SELECT vf.relative_path AS relativePath,
+              COUNT(v.id) AS versions,
+              SUM(v.size_bytes) AS bytes,
+              MAX(v.modified_at) AS newest
+         FROM version_files vf
+         JOIN file_versions v ON v.file_id = vf.id AND v.state = 'kept'
+        WHERE ${clauses.join(' AND ')}
+        GROUP BY vf.id`
+    )
+    .all(...values)
+    .map((row) => ({
+      relativePath: row.relativePath,
+      versions: Number(row.versions) || 0,
+      bytes: Number(row.bytes) || 0,
+      newest: row.newest || null,
+    }));
+};
+
+/** The states a history can be listed in, and the order they are offered in. */
+const FILE_STATES = ['live', 'trashed', 'orphaned'];
+
+const ADMIN_SORTS = {
+  bytes: 'bytes DESC, vf.relative_path ASC',
+  versions: 'versions DESC, bytes DESC, vf.relative_path ASC',
+  newest: 'newest DESC, vf.relative_path ASC',
+  path: 'vf.relative_path ASC, vf.id ASC',
+};
+
+/** What narrows an administrator's list of histories, said once for both queries. */
+const adminFilter = ({ zoneId = null, state = null, query = '' } = {}) => {
+  const clauses = [];
+  const values = [];
+  if (zoneId) {
+    clauses.push('vf.zone_id = ?');
+    values.push(zoneId);
+  }
+  if (state) {
+    clauses.push('vf.state = ?');
+    values.push(state);
+  } else {
+    clauses.push(`vf.state IN (${FILE_STATES.map(() => '?').join(', ')})`);
+    values.push(...FILE_STATES);
+  }
+  const wanted = String(query || '').trim();
+  if (wanted) {
+    // `instr` and not LIKE: somebody looking for `report_2026` means that
+    // underscore, and LIKE would have taken it for any character at all.
+    clauses.push('instr(lower(vf.relative_path), lower(?)) > 0');
+    values.push(wanted);
+  }
+  return { where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', values };
+};
+
+/**
+ * Every file that has a history, for an administrator.
+ *
+ * Grouped in the database rather than counted in the application: the answer
+ * is one page, and the alternative is reading every version of every file in
+ * the installation to show twenty-five rows.
+ */
+const listFilesWithVersions = (
+  db,
+  { zoneId = null, state = null, query = '', sort = 'bytes', limit = 25, offset = 0 } = {}
+) => {
+  const { where, values } = adminFilter({ zoneId, state, query });
+  const order = ADMIN_SORTS[sort] || ADMIN_SORTS.bytes;
+  return db
+    .prepare(
+      `SELECT vf.id AS id, vf.zone_id AS zoneId, vf.relative_path AS relativePath,
+              vf.state AS state,
+              COUNT(v.id) AS versions,
+              SUM(v.size_bytes) AS bytes,
+              MAX(v.modified_at) AS newest
+         FROM version_files vf
+         JOIN file_versions v ON v.file_id = vf.id AND v.state = 'kept'
+         ${where}
+        GROUP BY vf.id
+        ORDER BY ${order}
+        LIMIT ? OFFSET ?`
+    )
+    .all(...values, Math.max(1, limit), Math.max(0, offset))
+    .map((row) => ({
+      id: row.id,
+      zoneId: row.zoneId,
+      relativePath: row.relativePath,
+      state: row.state,
+      versions: Number(row.versions) || 0,
+      bytes: Number(row.bytes) || 0,
+      newest: row.newest || null,
+    }));
+};
+
+/** How many files the same filter matches, and what they hold altogether. */
+const summariseFilesWithVersions = (db, { zoneId = null, state = null, query = '' } = {}) => {
+  const { where, values } = adminFilter({ zoneId, state, query });
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS files, COALESCE(SUM(bytes), 0) AS bytes,
+              COALESCE(SUM(versions), 0) AS versions
+         FROM (SELECT vf.id, SUM(v.size_bytes) AS bytes, COUNT(v.id) AS versions
+                 FROM version_files vf
+                 JOIN file_versions v ON v.file_id = vf.id AND v.state = 'kept'
+                 ${where}
+                GROUP BY vf.id)`
+    )
+    .get(...values);
+  return {
+    files: Number(row?.files) || 0,
+    bytes: Number(row?.bytes) || 0,
+    versions: Number(row?.versions) || 0,
+  };
+};
+
 module.exports = {
   mapFile,
   mapVersion,
@@ -215,4 +374,9 @@ module.exports = {
   setVersionState,
   setVersionDetails,
   deleteVersion,
+  countKeptInFolder,
+  listFilesWithVersions,
+  summariseFilesWithVersions,
+  FILE_STATES,
+  ADMIN_SORTS,
 };

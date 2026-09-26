@@ -2,6 +2,7 @@ const express = require('express');
 
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendCompressible } = require('../utils/compressedResponse');
 const { startNdjsonStream } = require('../utils/ndjsonStream');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const trash = require('../services/trash');
@@ -45,6 +46,21 @@ router.post(
         shares: req.body?.shares,
       })
     );
+  })
+);
+
+/**
+ * GET /api/trash/items/:id/text?path= - the text of a file in the trash, to read
+ * before deciding what to do with it: the item itself, or a file inside a
+ * deleted folder. Read only — there is no route that writes into the trash —
+ * with the editor's limits on size and binary content, and never cached.
+ */
+router.get(
+  '/trash/items/:id/text',
+  asyncHandler(async (req, res) => {
+    const text = await trash.readTrashText(req.params.id, req.query.path ?? '', contextOf(req));
+    res.set('Cache-Control', 'private, no-store');
+    await sendCompressible(req, res, text);
   })
 );
 

@@ -3,6 +3,7 @@ const fs = require('fs');
 
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
+const { sendCompressible } = require('../utils/compressedResponse');
 const { mimeTypes } = require('../config/index');
 const versions = require('../services/versions');
 const { encodeContentDisposition } = require('./files/utils');
@@ -46,6 +47,19 @@ router.get(
       res.destroy(error);
     });
     stream.pipe(res);
+  })
+);
+
+/**
+ * The text of a version, for the editor to show read only. Never cached: what a
+ * version holds does not change, but what this person may read does.
+ */
+router.get(
+  '/versions/:id/text',
+  asyncHandler(async (req, res) => {
+    const text = await versions.readVersionText(contextOf(req), req.query?.path, req.params.id);
+    res.set('Cache-Control', 'private, no-store');
+    await sendCompressible(req, res, text);
   })
 );
 

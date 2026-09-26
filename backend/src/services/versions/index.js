@@ -30,6 +30,7 @@ const logger = require('../../utils/logger');
 const { ensureValidName, normalizeRelativePath } = require('../../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('../authorizationService');
 const { getDb } = require('../db');
+const { readTextFile } = require('../textEditorService');
 const clock = require('../trash/clock');
 const trashStore = require('../trash/store');
 const zones = require('../trash/zones');
@@ -270,6 +271,18 @@ const locateVersion = async (context, relativePath, versionId, { download }) => 
 const downloadVersion = async (context, relativePath, versionId) => {
   const located = await locateVersion(context, relativePath, versionId, { download: true });
   return { ...located, downloadName: nameForCopy(located.name, located.version) };
+};
+
+/** The text of a version, to read before deciding what to do with it. Nothing is written. */
+const readVersionText = async (context, relativePath, versionId) => {
+  const located = await locateVersion(context, relativePath, versionId, { download: false });
+  const { text } = await readTextFile(located.absolutePath);
+  return {
+    name: located.name,
+    size: located.size,
+    modifiedAt: located.version.modifiedAt,
+    content: text,
+  };
 };
 
 /**
@@ -662,6 +675,7 @@ module.exports = {
   listVersions,
   locateVersion,
   downloadVersion,
+  readVersionText,
   restoreVersion,
   copyVersionTo,
   replaceWithVersion,
