@@ -71,7 +71,8 @@
     "readonly": "Schreibgeschützt",
     "readwrite": "Lesen/Schreiben",
     "add": "Hinzufügen",
-    "back": "Zurück"
+    "back": "Zurück",
+    "logoAlt": "Logo von {name}"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "Vorschau",
       "showPoweredBy": "Attributionslink anzeigen",
       "showPoweredByHelp": "Zeigt in der Fußzeile einen Link 'Powered by nextExplorer', um das Projekt zu unterstützen",
-      "defaultLogoSelected": "Standardlogo ausgewählt. Zum Anwenden auf Speichern klicken."
+      "defaultLogoSelected": "Standardlogo ausgewählt. Zum Anwenden auf Speichern klicken.",
+      "appNameRequired": "Der Anwendungsname darf nicht leer sein.",
+      "chooseLogo": "Logo auswählen",
+      "chooseAnotherLogo": "Andere Datei auswählen",
+      "logoSelected": "Neues Logo ausgewählt. Zum Anwenden auf Speichern klicken.",
+      "saved": "Erscheinungsbild gespeichert.",
+      "saveFailed": "Das Erscheinungsbild konnte nicht gespeichert werden: {reason}"
     },
     "userPreferences": {
       "title": "Benutzereinstellungen",

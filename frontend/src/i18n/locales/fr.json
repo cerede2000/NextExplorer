@@ -71,7 +71,8 @@
     "readonly": "Lecture seule",
     "readwrite": "Lecture/Écriture",
     "add": "Ajouter",
-    "back": "Retour"
+    "back": "Retour",
+    "logoAlt": "Logo de {name}"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "Aperçu",
       "showPoweredBy": "Afficher le lien d’attribution",
       "showPoweredByHelp": "Afficher un lien « Powered by nextExplorer » dans le pied de page pour aider à soutenir le projet",
-      "defaultLogoSelected": "Logo par défaut sélectionné. Cliquez sur Enregistrer pour appliquer."
+      "defaultLogoSelected": "Logo par défaut sélectionné. Cliquez sur Enregistrer pour appliquer.",
+      "appNameRequired": "Le nom de l’application ne peut pas être vide.",
+      "chooseLogo": "Choisir un logo",
+      "chooseAnotherLogo": "Choisir un autre fichier",
+      "logoSelected": "Nouveau logo sélectionné. Cliquez sur Enregistrer pour l’appliquer.",
+      "saved": "Identité visuelle enregistrée.",
+      "saveFailed": "Impossible d’enregistrer l’identité visuelle : {reason}"
     },
     "userPreferences": {
       "title": "Préférences utilisateur",

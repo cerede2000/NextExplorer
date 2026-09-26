@@ -71,7 +71,8 @@
     "readonly": "Alleen-lezen",
     "readwrite": "Lezen/schrijven",
     "add": "Toevoegen",
-    "back": "Terug"
+    "back": "Terug",
+    "logoAlt": "Logo van {name}"
   },
   "editor": {
     "editing": "Bewerken",
@@ -486,7 +487,13 @@
       "uploadSuccess": "Logo succesvol geüpload",
       "uploadError": "Logo uploaden mislukt",
       "fileTooLargeForDataUri": "Bestand is te groot. Gebruik een kleinere afbeelding (voor het beste resultaat minder dan 500 KB).",
-      "defaultLogoSelected": "Standaardlogo geselecteerd. Klik op Opslaan om het toe te passen."
+      "defaultLogoSelected": "Standaardlogo geselecteerd. Klik op Opslaan om het toe te passen.",
+      "appNameRequired": "De naam van de toepassing mag niet leeg zijn.",
+      "chooseLogo": "Logo kiezen",
+      "chooseAnotherLogo": "Ander bestand kiezen",
+      "logoSelected": "Nieuw logo geselecteerd. Klik op Opslaan om het toe te passen.",
+      "saved": "Merkvoering opgeslagen.",
+      "saveFailed": "De merkvoering kon niet worden opgeslagen: {reason}"
     },
     "userPreferences": {
       "title": "Gebruikersvoorkeuren",

@@ -71,7 +71,8 @@
     "readonly": "Read Only",
     "readwrite": "Read/Write",
     "add": "Add",
-    "back": "Back"
+    "back": "Back",
+    "logoAlt": "{name} logo"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "Preview",
       "showPoweredBy": "Display attribution link",
       "showPoweredByHelp": "Show a 'Powered by nextExplorer' link in the footer to help support the project",
-      "defaultLogoSelected": "Default logo selected. Click Save to apply."
+      "defaultLogoSelected": "Default logo selected. Click Save to apply.",
+      "appNameRequired": "The application name cannot be empty.",
+      "chooseLogo": "Choose a logo",
+      "chooseAnotherLogo": "Choose another file",
+      "logoSelected": "New logo selected. Click Save to apply.",
+      "saved": "Branding saved.",
+      "saveFailed": "Could not save the branding: {reason}"
     },
     "userPreferences": {
       "title": "User Preferences",

@@ -147,7 +147,12 @@ describe('an upload', () => {
       .attach('filedata', Buffer.alloc(4096, 1), 'big.bin');
 
     expect(response.status).toBe(413);
-    expect(response.body.error.message).toMatch(/larger than this server accepts/);
+    // The upload route's own sentence, which names the ceiling and the variable
+    // that raises it. It sets that sentence through `explainMultipartRefusals` and
+    // the error handler was discarding it, so this used to read the generic
+    // "larger than this server accepts" — green, for the wrong reason.
+    expect(response.body.error.message).toMatch(/larger than the .* a direct upload accepts/);
+    expect(response.body.error.message).toMatch(/MAX_DIRECT_UPLOAD_SIZE/);
     expect(await fs.readdir(path.join(envContext.volumeDir, 'Drop'))).toEqual([]);
   });
 

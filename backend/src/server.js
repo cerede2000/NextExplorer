@@ -20,6 +20,7 @@ const editorSessions = require('./services/onlyofficeEditorSessionService');
 const { sweepActivity } = require('./services/activityLog');
 const capabilities = require('./services/capabilities');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
+const { sweepUnreferencedLogos } = require('./services/brandingLogo');
 
 let server = null;
 
@@ -106,6 +107,13 @@ const startServer = async () => {
   // Never keep the process alive just for the sweep.
   expirySweep.unref?.();
   void sweepExpiredRecords();
+
+  // A logo left behind by a stop in the middle of a branding change, or by a
+  // removal that failed, is 2 MB nothing can reach. Here, where nothing is being
+  // placed, so a file under one of our names is a finished one.
+  sweepUnreferencedLogos().catch((error) => {
+    logger.warn({ err: error }, 'Sweeping logos no longer in use failed');
+  });
 
   // Cleanup on process termination
   const cleanup = () => {

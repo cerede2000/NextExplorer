@@ -71,7 +71,8 @@
     "readonly": "Tylko do odczytu",
     "readwrite": "Odczyt/Zapis",
     "add": "Dodaj",
-    "back": "Wstecz"
+    "back": "Wstecz",
+    "logoAlt": "Logo {name}"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "Podgląd",
       "showPoweredBy": "Wyświetl link z atrybucją",
       "showPoweredByHelp": "Pokaż w stopce link „Powered by nextExplorer”, aby wesprzeć projekt",
-      "defaultLogoSelected": "Wybrano domyślne logo. Kliknij Zapisz, aby zastosować."
+      "defaultLogoSelected": "Wybrano domyślne logo. Kliknij Zapisz, aby zastosować.",
+      "appNameRequired": "Nazwa aplikacji nie może być pusta.",
+      "chooseLogo": "Wybierz logo",
+      "chooseAnotherLogo": "Wybierz inny plik",
+      "logoSelected": "Wybrano nowe logo. Kliknij Zapisz, aby zastosować.",
+      "saved": "Zapisano wygląd marki.",
+      "saveFailed": "Nie udało się zapisać wyglądu marki: {reason}"
     },
     "userPreferences": {
       "title": "Preferencje użytkownika",
