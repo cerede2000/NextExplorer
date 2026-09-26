@@ -918,5 +918,10 @@
       "action": "इस संस्करण पर क्रिया विफल रही"
     },
     "mark": "{count} पुराना संस्करण | {count} पुराने संस्करण"
+  },
+  "onlyoffice": {
+    "renamedHeading": "नाम बदला गया",
+    "renamedBody": "दस्तावेज़ का नाम अब {name} है।",
+    "renameFailed": "{name} में नाम नहीं बदला जा सका"
   }
 }

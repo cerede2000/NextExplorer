@@ -918,5 +918,10 @@
       "action": "對此版本的動作失敗"
     },
     "mark": "{count} 個舊版本"
+  },
+  "onlyoffice": {
+    "renamedHeading": "已重新命名",
+    "renamedBody": "文件現在名為 {name}。",
+    "renameFailed": "無法重新命名為 {name}"
   }
 }

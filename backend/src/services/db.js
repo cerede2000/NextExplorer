@@ -38,6 +38,38 @@ const FOLDER_SIZE_INDEX_DDL = `
   CREATE INDEX IF NOT EXISTS idx_folder_size_volume ON folder_size_index(volume);
 `;
 
+// The identity the Document Server files an open document under. Shared by
+// everyone who has it open, which is what lets them edit together; see
+// onlyofficeDocumentKeyService for why it has to outlive their saves.
+//
+// Same idempotent treatment as the index above: a /config directory shared with
+// a different build may already record a later schema version.
+const ONLYOFFICE_DOCUMENT_KEYS_DDL = `
+  CREATE TABLE IF NOT EXISTS onlyoffice_document_keys (
+    relative_path TEXT PRIMARY KEY,
+    document_key  TEXT NOT NULL,
+    signature     TEXT NOT NULL,
+    created_at    DATETIME,
+    expires_at    DATETIME
+  );
+`;
+
+// Where a document is while an editor has it open. Outlives the process on
+// purpose: a restart mid-edit used to lose a rename, and the next save then
+// recreated the old name beside the new one.
+const ONLYOFFICE_EDITOR_SESSIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS onlyoffice_editor_sessions (
+    id               TEXT PRIMARY KEY,
+    document_key     TEXT NOT NULL,
+    relative_path    TEXT NOT NULL,
+    absolute_path    TEXT NOT NULL,
+    user_id          TEXT,
+    guest_session_id TEXT,
+    expires_at       DATETIME NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_onlyoffice_sessions_expiry ON onlyoffice_editor_sessions(expires_at);
+`;
+
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -450,6 +482,16 @@ const migrate = (db) => {
       );
       version = 14;
     }
+    if (version < 15) {
+      logger.info('[DB Migration] Migrating to v15: an open document keeps its identity...');
+      db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
+      db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(15)
+      );
+      version = 15;
+    }
   })();
 };
 
@@ -689,6 +731,18 @@ const getDb = async () => {
     db.exec(VERSIONS_DDL);
   } catch (err) {
     logger.warn({ err }, '[DB] Failed to ensure versions tables');
+  }
+  // Same reason again: a /config shared with another build may already record a
+  // later schema version without carrying these tables.
+  try {
+    db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure the ONLYOFFICE document key table');
+  }
+  try {
+    db.exec(ONLYOFFICE_EDITOR_SESSIONS_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure the ONLYOFFICE editor session table');
   }
   ensureAnonymousUser(db);
   dbInstance = db;

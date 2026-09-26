@@ -918,5 +918,10 @@
       "action": "Acțiunea asupra acestei versiuni a eșuat"
     },
     "mark": "{count} versiune anterioară | {count} versiuni anterioare"
+  },
+  "onlyoffice": {
+    "renamedHeading": "Redenumit",
+    "renamedBody": "Documentul se numește acum {name}.",
+    "renameFailed": "Nu s-a putut redenumi în {name}"
   }
 }

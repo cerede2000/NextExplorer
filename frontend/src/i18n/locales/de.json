@@ -918,5 +918,10 @@
       "action": "Die Aktion für diese Version ist fehlgeschlagen"
     },
     "mark": "{count} frühere Version | {count} frühere Versionen"
+  },
+  "onlyoffice": {
+    "renamedHeading": "Umbenannt",
+    "renamedBody": "Das Dokument heißt jetzt {name}.",
+    "renameFailed": "Umbenennen in {name} nicht möglich"
   }
 }

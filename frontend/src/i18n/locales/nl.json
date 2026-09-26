@@ -918,5 +918,10 @@
       "action": "De actie op deze versie is mislukt"
     },
     "mark": "{count} eerdere versie | {count} eerdere versies"
+  },
+  "onlyoffice": {
+    "renamedHeading": "Hernoemd",
+    "renamedBody": "Het document heet nu {name}.",
+    "renameFailed": "Hernoemen naar {name} is mislukt"
   }
 }

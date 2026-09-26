@@ -287,14 +287,20 @@ const readVersionText = async (context, relativePath, versionId) => {
 
 /**
  * After a restore, an editor still open on the file holds the content it
- * replaced. Marking the file says so: that editor's next save is set aside as a
- * version of its own rather than written over what was just restored.
+ * replaced. Its next save is set aside as a version of its own rather than
+ * written over what was just restored, and the document is given a fresh
+ * identity so whoever opens it next gets what was restored rather than the
+ * Document Server's cached copy of what it replaced.
  */
-const markRestored = async (absolutePath) => {
+const markRestored = async (absolutePath, relative) => {
   try {
     const db = await getDb();
     const file = await historyOf(db, absolutePath);
     if (file) store.setRestoredAt(db, file.id, clock.nowIso());
+    // Required here rather than at the top: the key service is part of the
+    // office integration, which reaches back into the versions.
+    // eslint-disable-next-line global-require
+    await require('../onlyofficeDocumentKeyService').releaseDocumentKey(relative);
   } catch (error) {
     logger.warn({ err: error, absolutePath }, 'A restore could not be announced to open editors');
   }
@@ -322,7 +328,7 @@ const restoreVersion = async (context, relativePath, versionId) => {
   if (!located.target.rights.restore) throw new ForbiddenError('This file cannot be changed.');
   const result = await writeVersionInto(located, located.target.absolutePath, context);
   if (result.status !== 'unchanged') {
-    await markRestored(located.target.absolutePath);
+    await markRestored(located.target.absolutePath, located.target.relative);
   }
   return { status: result.status, path: located.target.relative };
 };
@@ -385,7 +391,7 @@ const replaceWithVersion = async (context, relativePath, versionId, { target } =
   if (!stats?.isFile()) throw new ValidationError('The file to replace must be an existing file.');
 
   const result = await writeVersionInto(located, resolved.absolutePath, context);
-  if (result.status !== 'unchanged') await markRestored(resolved.absolutePath);
+  if (result.status !== 'unchanged') await markRestored(resolved.absolutePath, other);
   return { status: result.status, path: other };
 };
 
