@@ -409,7 +409,8 @@
       "uploads": "업로드",
       "accountTwoFactor": "2단계 인증",
       "accountPasskeys": "패스키",
-      "activity": "활동 로그"
+      "activity": "활동 로그",
+      "accountApiTokens": "API 토큰"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -799,8 +800,48 @@
         "file-delete": "휴지통으로 이동",
         "file-restore": "복원",
         "file-purge": "영구 삭제",
-        "versions-purge": "버전 삭제됨"
+        "versions-purge": "버전 삭제됨",
+        "account-token": "API 토큰 변경"
       }
+    },
+    "apiTokens": {
+      "title": "API 토큰",
+      "intro": "토큰을 쓰면 스크립트가 비밀번호나 브라우저 없이 사용자를 대신해 이 서버를 이용할 수 있습니다. 토큰은 하나씩 따로 취소할 수 있고, 어떤 토큰도 계정을 바꾸거나 서버를 관리할 수 없습니다.",
+      "none": "이 계정에는 토큰이 없습니다.",
+      "newToken": "새 토큰",
+      "nameLabel": "이름",
+      "namePlaceholder": "백업 스크립트",
+      "scopeLabel": "허용 범위",
+      "scopeRead": "읽기 전용",
+      "scopeWrite": "읽기 및 쓰기",
+      "scopeReadHelp": "목록 보기, 검색, 내려받기를 할 수 있습니다. 아무것도 바꿀 수 없습니다.",
+      "scopeWriteHelp": "파일에 대해 사용자가 할 수 있는 일을 합니다: 올리기, 옮기기, 이름 바꾸기, 삭제.",
+      "expiryLabel": "유효 기간",
+      "expiryNever": "취소할 때까지",
+      "expiryDays": "{days}일",
+      "confirmPassword": "비밀번호",
+      "create": "토큰 발급",
+      "rename": "이름 바꾸기",
+      "revoke": "취소",
+      "renamePrompt": "이 토큰의 새 이름",
+      "renamed": "토큰 이름을 바꿨습니다.",
+      "revoked": "{name}을(를) 취소했으며 지금부터 작동하지 않습니다.",
+      "revokeConfirm": "{name}을(를) 취소할까요? 이 토큰을 쓰는 모든 것이 즉시 멈춥니다.",
+      "shownOnce": "토큰입니다. 한 번만 표시되며 다시 볼 수 없습니다 — 지금 복사하세요.",
+      "copy": "복사",
+      "copied": "복사됨",
+      "useIt": "모든 요청에 이 헤더로 보내세요.",
+      "createdOn": "{when} 발급",
+      "lastUsed": "마지막 사용 {when}, {from}",
+      "neverUsed": "사용한 적 없음",
+      "unknownAddress": "알 수 없는 주소",
+      "expiresOn": "{when} 만료",
+      "neverExpires": "만료 없음",
+      "limits": "토큰은 소속된 계정보다 결코 더 많은 권한을 갖지 않으며 언제나 더 적습니다: 비밀번호 변경, 패스키 추가, 다른 토큰 발급, 서버 관리, 터미널 열기를 할 수 없습니다. 계정당 최대 50개입니다.",
+      "loadFailed": "토큰을 불러오지 못했습니다.",
+      "createFailed": "토큰을 발급하지 못했습니다.",
+      "renameFailed": "토큰 이름을 바꾸지 못했습니다.",
+      "revokeFailed": "토큰을 취소하지 못했습니다."
     }
   },
   "mediaPreview": {

@@ -409,7 +409,8 @@
       "uploads": "Envios",
       "accountTwoFactor": "Dois fatores",
       "accountPasskeys": "Chaves de acesso",
-      "activity": "Registro de atividades"
+      "activity": "Registro de atividades",
+      "accountApiTokens": "Tokens de API"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -799,8 +800,48 @@
         "file-delete": "Movido para a lixeira",
         "file-restore": "Restaurado",
         "file-purge": "Excluído definitivamente",
-        "versions-purge": "Versões excluídas"
+        "versions-purge": "Versões excluídas",
+        "account-token": "Token de API alterado"
       }
+    },
+    "apiTokens": {
+      "title": "Tokens de API",
+      "intro": "Um token permite que um script use este servidor em seu nome, sem a sua senha e sem navegador. Cada um é revogado separadamente, e nenhum pode alterar a sua conta nem administrar o servidor.",
+      "none": "Nenhum token nesta conta.",
+      "newToken": "Novo token",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Script de backup",
+      "scopeLabel": "O que ele pode fazer",
+      "scopeRead": "Somente leitura",
+      "scopeWrite": "Leitura e escrita",
+      "scopeReadHelp": "Pode listar, pesquisar e baixar. Não pode alterar nada.",
+      "scopeWriteHelp": "Pode fazer com os arquivos o que você faz: enviar, mover, renomear, excluir.",
+      "expiryLabel": "Quanto tempo dura",
+      "expiryNever": "Até ser revogado",
+      "expiryDays": "{days} dias",
+      "confirmPassword": "Sua senha",
+      "create": "Emitir token",
+      "rename": "Renomear",
+      "revoke": "Revogar",
+      "renamePrompt": "Um novo nome para este token",
+      "renamed": "O token foi renomeado.",
+      "revoked": "{name} foi revogado e para de funcionar agora.",
+      "revokeConfirm": "Revogar {name}? Tudo que o usa para de funcionar imediatamente.",
+      "shownOnce": "Este é o token. Ele é mostrado uma vez e não poderá ser lido de novo — copie agora.",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "useIt": "Envie-o como este cabeçalho em cada requisição.",
+      "createdOn": "Emitido em {when}",
+      "lastUsed": "último uso em {when} a partir de {from}",
+      "neverUsed": "nunca usado",
+      "unknownAddress": "um endereço desconhecido",
+      "expiresOn": "expira em {when}",
+      "neverExpires": "sem expiração",
+      "limits": "Um token nunca vale mais que a conta a que pertence, e sempre menos: não pode alterar sua senha, adicionar uma chave de acesso, emitir outro token, administrar o servidor nem abrir um terminal. Até 50 tokens por conta.",
+      "loadFailed": "Não foi possível carregar os tokens.",
+      "createFailed": "Não foi possível emitir o token.",
+      "renameFailed": "Não foi possível renomear o token.",
+      "revokeFailed": "Não foi possível revogar o token."
     }
   },
   "mediaPreview": {

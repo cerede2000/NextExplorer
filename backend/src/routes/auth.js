@@ -26,6 +26,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 const passkeys = require('../services/users/passkeys');
 const activityLog = require('../services/activityLog');
+const apiTokens = require('../services/apiTokens');
 const { WebAuthnError } = require('../utils/webauthn');
 const {
   ValidationError,
@@ -825,11 +826,148 @@ router.post('/logout', async (req, res) => {
   res.status(204).end();
 });
 
+/**
+ * API tokens: a credential for a script, issued from the account it belongs to.
+ *
+ * Everything here is reached with a session and never with a token — the door
+ * in middleware/apiTokenAuth.js shuts `/api/auth` to tokens, and each route
+ * below says so again, because a credential that can mint credentials is one
+ * revocation that revokes nothing.
+ *
+ * Minting asks for the account's password when the account has one. It is the
+ * same reason removing a passkey asks: a browser left unlocked on somebody's
+ * desk should not be enough to walk away with a credential that outlives the
+ * session, works from anywhere, and does not show up as a sign-in.
+ */
+const refuseTokenAuthenticatedCaller = (req) => {
+  if (req.apiToken) {
+    throw new ForbiddenError('An API token cannot manage API tokens.');
+  }
+};
+
+/** Tokens name an account, so an installation with no accounts has none. */
+const refuseWithoutAccounts = () => {
+  if (auth.enabled === false) {
+    throw new ForbiddenError('This installation runs without accounts, so it issues no tokens.');
+  }
+};
+
+const tokenHolder = async (req) => {
+  refuseWithoutAccounts();
+  refuseTokenAuthenticatedCaller(req);
+  const me = await getRequestUser(req);
+  if (!me) throw new UnauthorizedError('Authentication required.');
+  return me;
+};
+
+router.get(
+  '/tokens',
+  asyncHandler(async (req, res) => {
+    const me = await tokenHolder(req);
+    res.json({ tokens: await apiTokens.listTokens(me.id) });
+  })
+);
+
+/**
+ * Make one.
+ *
+ * The only reply that carries the value. It is not stored in readable form and
+ * no route answers with it again — losing it costs a new token, which is the
+ * property that makes a stolen database worth nothing here.
+ */
+router.post(
+  '/tokens',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await tokenHolder(req);
+
+    if (await passkeys.hasPassword(me.id)) {
+      if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
+        throw new UnauthorizedError(
+          'That password is not right.',
+          ErrorCodes.AUTH_PASSWORD_INCORRECT
+        );
+      }
+    }
+
+    const outcome = await apiTokens.mintToken({
+      userId: me.id,
+      name: req.body?.name,
+      scope: req.body?.scope || apiTokens.DEFAULT_SCOPE,
+      expiresInDays: req.body?.expiresInDays ?? null,
+    });
+
+    if (outcome.error === 'scope') {
+      throw new ValidationError('A token reads, or it reads and writes. Nothing else.');
+    }
+    if (outcome.error === 'expiry') {
+      throw new ValidationError(
+        `A token lasts for a number of days, up to ${apiTokens.MAX_EXPIRY_DAYS}, or for ever.`
+      );
+    }
+    if (outcome.error === 'too-many') {
+      throw new ValidationError(
+        `This account already holds ${apiTokens.MAX_TOKENS_PER_USER} tokens. Revoke one before issuing another.`
+      );
+    }
+
+    await activityLog.record({
+      action: 'account.token',
+      user: me,
+      target: outcome.token.name,
+      detail: { issued: true, scope: outcome.token.scope, expiresAt: outcome.token.expiresAt },
+      req,
+    });
+
+    res.status(201).json({ token: outcome.token, secret: outcome.secret });
+  })
+);
+
+/** A new name for one, so two tokens on a server can be told apart. */
+router.patch(
+  '/tokens/:id',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await tokenHolder(req);
+    const token = await apiTokens.renameToken({
+      userId: me.id,
+      id: req.params.id,
+      name: req.body?.name,
+    });
+    if (!token) throw new NotFoundError('There is no such token on this account.');
+    res.json({ token });
+  })
+);
+
+/**
+ * Take one away.
+ *
+ * No password: revoking is the safe direction. Asking for one would mean that
+ * somebody who has just realised a token leaked has to find their password
+ * before they can stop it, and a credential nobody can revoke in a hurry is
+ * most of the way to a credential that cannot be revoked.
+ */
+router.delete(
+  '/tokens/:id',
+  asyncHandler(async (req, res) => {
+    const me = await tokenHolder(req);
+    const outcome = await apiTokens.revokeToken({ userId: me.id, id: req.params.id });
+    if (!outcome.revoked) throw new NotFoundError('There is no such token on this account.');
+
+    await activityLog.record({
+      action: 'account.token',
+      user: me,
+      target: outcome.token.name,
+      detail: { issued: false },
+      req,
+    });
+    res.status(204).end();
+  })
+);
+
 router.get('/me', async (req, res) => {
   await respondWithUser(req, res);
 });
-
-router.post('/token', (req, res) => res.status(400).json({ error: 'Token minting is disabled.' }));
 
 router.get(
   '/oidc/login',

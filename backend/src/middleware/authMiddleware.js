@@ -1,7 +1,86 @@
 const { getRequestUser } = require('../services/users');
 const { auth } = require('../config/index');
-const { ForbiddenError } = require('../errors/AppError');
+const { ForbiddenError, UnauthorizedError } = require('../errors/AppError');
 const logger = require('../utils/logger');
+const { applyApiToken } = require('./apiTokenAuth');
+const apiTokens = require('../services/apiTokens');
+
+/**
+ * Say, once in a while, that a token this server knows was refused.
+ *
+ * Only tokens it knows: gibberish in an Authorization header is noise anybody
+ * can produce, and writing a line for each of those would turn the audit trail
+ * into a way to fill a disk. A revoked token still being presented, or one
+ * reaching for a door it may not open, is the opposite — it is the thing
+ * somebody would want to have been told.
+ */
+const reportRefusal = async (req, refused) => {
+  if (!refused?.tokenId) return;
+  if (!apiTokens.shouldReportRefusal(refused.tokenId)) return;
+  try {
+    // eslint-disable-next-line global-require
+    const activityLog = require('../services/activityLog');
+    await activityLog.record({
+      action: 'sign-in',
+      outcome: 'refused',
+      actor: refused.name ? `token: ${refused.name}` : 'token',
+      target: req.path,
+      detail: { via: 'api-token', reason: refused.reason, token: refused.tokenId },
+      req,
+    });
+  } catch (error) {
+    logger.debug({ err: error }, 'Could not record a refused API token');
+  }
+};
+
+/** The one refusal every unusable token gets, whichever way it is unusable. */
+const notAValidToken = () =>
+  new UnauthorizedError('That API token is not valid.', 'AUTH_TOKEN_INVALID');
+
+/**
+ * Authenticate with the API token this request presented, if it presented one.
+ *
+ * @returns {{authenticated: boolean, error?: Error}} whether the caller is now
+ *   known, and what to refuse them with if they are not.
+ */
+const authenticateWithToken = async (req) => {
+  let outcome;
+  try {
+    outcome = await applyApiToken(req);
+  } catch (error) {
+    // A token that cannot be checked is not a token that is believed.
+    logger.warn({ err: error }, 'An API token could not be checked');
+    return { authenticated: false, error: notAValidToken() };
+  }
+
+  if (!outcome) return { authenticated: false };
+
+  if (!outcome.ok) {
+    await reportRefusal(req, outcome.refused);
+    return {
+      authenticated: false,
+      error:
+        outcome.status === 403 ? new ForbiddenError(outcome.error, outcome.code) : notAValidToken(),
+    };
+  }
+
+  req.apiToken = {
+    id: outcome.token.tokenId,
+    name: outcome.token.name,
+    scope: outcome.token.scope,
+    userId: outcome.token.userId,
+  };
+
+  const user = await getRequestUser(req);
+  if (!user) {
+    // The token is good and the account it named is gone. Refused as an
+    // invalid token, because from the caller's side that is what it is.
+    return { authenticated: false, error: notAValidToken() };
+  }
+
+  req.user = user;
+  return { authenticated: true };
+};
 
 const authMiddleware = async (req, res, next) => {
   // Express matches routes without regard to case, so `/API/volumes` reaches
@@ -50,6 +129,13 @@ const authMiddleware = async (req, res, next) => {
     return;
   }
 
+  // The API's description says what the published documentation says, and
+  // carries nothing private: a client reads it before it has a token.
+  if (requestPath === '/api/openapi.json') {
+    next();
+    return;
+  }
+
   // Allow public branding endpoint (no sensitive data, used on login page)
   if (requestPath === '/api/branding') {
     next();
@@ -88,6 +174,19 @@ const authMiddleware = async (req, res, next) => {
   }
 
   if (isCollaboraGuest) {
+    next();
+    return;
+  }
+
+  // A token, if one was presented. Asked before the session, because a script
+  // sending one is saying which credential it wants judged: a stale cookie in
+  // the same jar must not be what answers for it.
+  const byToken = await authenticateWithToken(req);
+  if (byToken.error) {
+    next(byToken.error);
+    return;
+  }
+  if (byToken.authenticated) {
     next();
     return;
   }
