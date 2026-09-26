@@ -443,6 +443,16 @@ if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
 // Derived from the session secret, so it lasts as long as that does; when even
 // that could not be stored, a restart only means already-loaded pages fetch
 // their thumbnails again through the API, which re-runs the access check.
+// --- Passkeys (WebAuthn) ---
+// The relying party: the name a browser shows when it asks for a passkey, and
+// the domain the key is bound to. The domain is left unset by default and taken
+// from the request's own origin — a deployment reached by several names would
+// otherwise bind every key to one of them.
+const webauthn = {
+  rpId: env.WEBAUTHN_RP_ID,
+  rpName: env.WEBAUTHN_RP_NAME || 'NextExplorer',
+};
+
 const thumbnailAccess = {
   secret: deriveSecret('thumbnails'),
 };
@@ -638,6 +648,7 @@ const folderSize = {
 
 module.exports = {
   folderSize,
+  webauthn,
   archives,
   port: env.PORT,
   address: env.ADDRESS,

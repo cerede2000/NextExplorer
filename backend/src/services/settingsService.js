@@ -378,7 +378,27 @@ const USER_BOOLEAN_SETTINGS = new Set([
   'showSidebarTools',
 ]);
 
-const USER_SETTING_KEYS = new Set([...USER_BOOLEAN_SETTINGS, 'defaultShareExpiration', 'skipHome']);
+/**
+ * A language tag, or null for "follow the browser".
+ *
+ * Checked for shape rather than against the list of translations: the list
+ * changes with a release, and a stored tag we no longer ship should fall back
+ * on screen, not be refused on the way in.
+ */
+const LANGUAGE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+const asLocale = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const tag = value.trim();
+  return LANGUAGE_TAG.test(tag) ? tag : undefined;
+};
+
+const USER_SETTING_KEYS = new Set([
+  ...USER_BOOLEAN_SETTINGS,
+  'defaultShareExpiration',
+  'skipHome',
+  'locale',
+]);
 
 /**
  * Set a user setting
@@ -395,6 +415,12 @@ const setUserSetting = async (userId, key, value) => {
   let sanitizedValue = value;
   if (USER_BOOLEAN_SETTINGS.has(key)) {
     sanitizedValue = Boolean(value);
+  } else if (key === 'locale') {
+    const tag = asLocale(value);
+    // `undefined` means "not a language tag": the stored value is left alone
+    // rather than replaced by something the interface cannot read.
+    if (tag === undefined) return (await getUserSettings(userId))[key];
+    sanitizedValue = tag;
   } else if (key === 'defaultShareExpiration') {
     // Validate expiration object: { value: number, unit: 'days'|'weeks'|'months' } or null
     if (value === null || value === undefined) {

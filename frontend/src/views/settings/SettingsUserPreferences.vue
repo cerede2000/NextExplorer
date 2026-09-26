@@ -4,6 +4,14 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
 import ToggleSwitch from '@/components/ToggleSwitch.vue';
+import { languageLabel, supportedLocaleOptions } from '@/i18n';
+
+// Each language named in itself — Deutsch, Français — since whoever is looking
+// for theirs may not read the one the page is in.
+const languages = supportedLocaleOptions.map(({ code }) => ({
+  code,
+  label: languageLabel(code),
+}));
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
@@ -14,6 +22,7 @@ const local = reactive({
   showThumbnails: true,
   showVersionMarks: true,
   documentsOpenInNewTab: false,
+  locale: null,
   showSidebarFavorites: true,
   showSidebarShares: true,
   showSidebarTools: true,
@@ -35,6 +44,7 @@ const dirty = computed(() => {
     local.showThumbnails !== orig.showThumbnails ||
     local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
     local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
+    local.locale !== (orig.locale ?? null) ||
     local.showSidebarFavorites !== (orig.showSidebarFavorites ?? true) ||
     local.showSidebarShares !== (orig.showSidebarShares ?? true) ||
     local.showSidebarTools !== (orig.showSidebarTools ?? true) ||
@@ -77,6 +87,8 @@ watch(
     local.showThumbnails = userSettings.showThumbnails ?? true;
     local.showVersionMarks = userSettings.showVersionMarks ?? true;
     local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
+    local.locale = userSettings.locale ?? null;
+    local.locale = userSettings.locale ?? null;
     local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
     local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
     local.showSidebarShares = userSettings.showSidebarShares ?? true;
@@ -128,6 +140,7 @@ const save = async () => {
       showThumbnails: local.showThumbnails,
       showVersionMarks: local.showVersionMarks,
       documentsOpenInNewTab: local.documentsOpenInNewTab,
+      locale: local.locale,
       showSidebarFavorites: local.showSidebarFavorites,
       showSidebarShares: local.showSidebarShares,
       showSidebarTools: local.showSidebarTools,
@@ -234,6 +247,29 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.documentsOpenInNewTab" data-test="documents-in-new-tab" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('i18n.language') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.languageHelp') }}
+            </div>
+          </div>
+          <select
+            v-model="local.locale"
+            data-test="preferences-language"
+            class="rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            <option :value="null">{{ t('i18n.followBrowser') }}</option>
+            <option v-for="language in languages" :key="language.code" :value="language.code">
+              {{ language.label }}
+            </option>
+          </select>
         </div>
 
         <div

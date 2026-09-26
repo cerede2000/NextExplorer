@@ -194,7 +194,8 @@
     "locations": "Standorte"
   },
   "i18n": {
-    "language": "Sprache"
+    "language": "Sprache",
+    "followBrowser": "Dem Browser folgen"
   },
   "search": {
     "openShortcutTitle": "Suche öffnen (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Passwort bestätigen",
     "sso": {
       "continue": "Mit Single Sign-On fortfahren"
+    },
+    "passkey": {
+      "signIn": "Mit einem Passkey anmelden"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Papierkorb und Versionen",
       "fileVersions": "Dateiversionen",
       "uploads": "Uploads",
-      "accountTwoFactor": "Zwei-Faktor"
+      "accountTwoFactor": "Zwei-Faktor",
+      "accountPasskeys": "Passkeys"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Dateien mit Versionen kennzeichnen",
       "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf.",
       "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
-      "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner."
+      "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner.",
+      "languageHelp": "Wird bei Ihrem Konto gespeichert, in jedem Browser, in dem Sie sich anmelden."
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
@@ -716,6 +722,34 @@
       "codesFailed": "Es konnten keine neuen Wiederherstellungscodes erzeugt werden.",
       "disableFailed": "Die Zwei-Faktor-Authentifizierung konnte nicht ausgeschaltet werden.",
       "wrongPassword": "Dieses Passwort stimmt nicht."
+    },
+    "passkeys": {
+      "title": "Passkeys",
+      "intro": "Melden Sie sich mit Fingerabdruck, Gesicht oder der PIN Ihres Geräts an, statt mit einem Passwort.",
+      "notLocalUser": "Dieses Konto meldet sich über einen Identitätsanbieter an; dort gehören auch seine Passkeys hin.",
+      "unavailable": "Passkeys brauchen eine sichere Seite.",
+      "unavailableHelp": "Diese Seite wird nicht über https ausgeliefert, also hat der Browser nichts, woran er einen Passkey binden könnte. Rufen Sie den Server über https oder localhost auf, um einen hinzuzufügen.",
+      "none": "Noch keine Passkeys für dieses Konto.",
+      "nameLabel": "Passkey hinzufügen",
+      "namePlaceholder": "Geben Sie ihm einen Namen, um ihn später zu erkennen",
+      "add": "Passkey hinzufügen",
+      "added": "{name} hinzugefügt.",
+      "addedOn": "Hinzugefügt am {when}",
+      "lastUsed": "zuletzt verwendet am {when}",
+      "neverUsed": "nie verwendet",
+      "synced": "über Ihre Geräte synchronisiert",
+      "rename": "Umbenennen",
+      "renamePrompt": "Ein Name für diesen Passkey",
+      "renamed": "Umbenannt.",
+      "renameFailed": "Dieser Passkey konnte nicht umbenannt werden.",
+      "remove": "Entfernen",
+      "removed": "{name} entfernt.",
+      "removeFailed": "Dieser Passkey konnte nicht entfernt werden.",
+      "confirmPassword": "Ihr Passwort, um die Anmeldeart zu ändern",
+      "loadFailed": "Die Passkeys dieses Kontos konnten nicht gelesen werden.",
+      "addFailed": "Dieser Passkey konnte nicht hinzugefügt werden.",
+      "cancelled": "Nichts wurde hinzugefügt: Der Browser wurde geschlossen oder es hat zu lange gedauert.",
+      "alreadyHere": "Dieses Gerät hat bereits einen Passkey für dieses Konto."
     }
   },
   "mediaPreview": {

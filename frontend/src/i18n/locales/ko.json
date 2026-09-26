@@ -194,7 +194,8 @@
     "locations": "위치"
   },
   "i18n": {
-    "language": "언어"
+    "language": "언어",
+    "followBrowser": "브라우저 설정 따르기"
   },
   "search": {
     "openShortcutTitle": "검색창 열기 (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "비밀번호 확인",
     "sso": {
       "continue": "SSO(Single Sign-On)로 계속"
+    },
+    "passkey": {
+      "signIn": "패스키로 로그인"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "휴지통 및 버전",
       "fileVersions": "파일 버전",
       "uploads": "업로드",
-      "accountTwoFactor": "2단계 인증"
+      "accountTwoFactor": "2단계 인증",
+      "accountPasskeys": "패스키"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "버전이 있는 파일 표시",
       "showVersionMarksHelp": "이전 버전이 있는 파일에 개수와 함께 목록에서 작은 표시를 붙입니다. 누르면 기록이 열립니다.",
       "documentsOpenInNewTab": "문서를 새 탭에서 열기",
-      "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다."
+      "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다.",
+      "languageHelp": "계정에 저장되어 로그인하는 모든 브라우저에 적용됩니다."
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",
@@ -716,6 +722,34 @@
       "codesFailed": "새 복구 코드를 만들지 못했습니다.",
       "disableFailed": "2단계 인증을 끄지 못했습니다.",
       "wrongPassword": "비밀번호가 올바르지 않습니다."
+    },
+    "passkeys": {
+      "title": "패스키",
+      "intro": "비밀번호 대신 지문, 얼굴 또는 기기 PIN으로 로그인합니다.",
+      "notLocalUser": "이 계정은 ID 공급자를 통해 로그인하며, 패스키도 그곳에 있습니다.",
+      "unavailable": "패스키에는 보안 페이지가 필요합니다.",
+      "unavailableHelp": "이 페이지는 https로 제공되지 않아 브라우저가 패스키를 묶을 대상이 없습니다. https 또는 localhost로 서버에 접속한 뒤 추가하세요.",
+      "none": "이 계정에는 아직 패스키가 없습니다.",
+      "nameLabel": "패스키 추가",
+      "namePlaceholder": "나중에 구분할 수 있도록 이름을 지정하세요",
+      "add": "패스키 추가",
+      "added": "{name}을(를) 추가했습니다.",
+      "addedOn": "{when}에 추가됨",
+      "lastUsed": "마지막 사용 {when}",
+      "neverUsed": "사용한 적 없음",
+      "synced": "기기 간 동기화됨",
+      "rename": "이름 변경",
+      "renamePrompt": "이 패스키의 이름",
+      "renamed": "이름을 변경했습니다.",
+      "renameFailed": "이 패스키의 이름을 변경하지 못했습니다.",
+      "remove": "삭제",
+      "removed": "{name}을(를) 삭제했습니다.",
+      "removeFailed": "이 패스키를 삭제하지 못했습니다.",
+      "confirmPassword": "로그인 방식을 바꾸려면 비밀번호를 입력하세요",
+      "loadFailed": "이 계정의 패스키를 읽지 못했습니다.",
+      "addFailed": "이 패스키를 추가하지 못했습니다.",
+      "cancelled": "아무것도 추가되지 않았습니다: 브라우저가 닫혔거나 시간이 초과되었습니다.",
+      "alreadyHere": "이 기기에는 이미 이 계정의 패스키가 있습니다."
     }
   },
   "mediaPreview": {

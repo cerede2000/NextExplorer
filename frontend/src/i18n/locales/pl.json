@@ -194,7 +194,8 @@
     "locations": "Lokalizacje"
   },
   "i18n": {
-    "language": "Język"
+    "language": "Język",
+    "followBrowser": "Zgodnie z przeglądarką"
   },
   "search": {
     "openShortcutTitle": "Otwórz wyszukiwanie (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Potwierdź hasło",
     "sso": {
       "continue": "Kontynuuj z logowaniem jednokrotnym"
+    },
+    "passkey": {
+      "signIn": "Zaloguj się kluczem dostępu"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Kosz i wersje",
       "fileVersions": "Wersje plików",
       "uploads": "Przesyłanie",
-      "accountTwoFactor": "Dwa składniki"
+      "accountTwoFactor": "Dwa składniki",
+      "accountPasskeys": "Klucze dostępu"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Oznaczaj pliki, które mają wersje",
       "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię.",
       "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
-      "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś."
+      "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
+      "languageHelp": "Zapisywany przy koncie, w każdej przeglądarce, w której się logujesz."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -716,6 +722,34 @@
       "codesFailed": "Nie udało się wygenerować nowych kodów zapasowych.",
       "disableFailed": "Nie udało się wyłączyć uwierzytelniania dwuskładnikowego.",
       "wrongPassword": "To hasło jest nieprawidłowe."
+    },
+    "passkeys": {
+      "title": "Klucze dostępu",
+      "intro": "Zaloguj się odciskiem palca, twarzą lub kodem PIN urządzenia zamiast hasłem.",
+      "notLocalUser": "To konto loguje się przez dostawcę tożsamości i tam też należą jego klucze dostępu.",
+      "unavailable": "Klucze dostępu wymagają bezpiecznej strony.",
+      "unavailableHelp": "Ta strona nie jest serwowana przez https, więc przeglądarka nie ma do czego przypiąć klucza. Połącz się z serwerem przez https lub przez localhost, aby dodać klucz.",
+      "none": "Na tym koncie nie ma jeszcze kluczy dostępu.",
+      "nameLabel": "Dodaj klucz dostępu",
+      "namePlaceholder": "Nadaj mu nazwę, aby później go rozpoznać",
+      "add": "Dodaj klucz dostępu",
+      "added": "Dodano {name}.",
+      "addedOn": "Dodano {when}",
+      "lastUsed": "ostatnio użyty {when}",
+      "neverUsed": "nigdy nieużywany",
+      "synced": "synchronizowany między urządzeniami",
+      "rename": "Zmień nazwę",
+      "renamePrompt": "Nazwa tego klucza dostępu",
+      "renamed": "Nazwa zmieniona.",
+      "renameFailed": "Nie udało się zmienić nazwy klucza.",
+      "remove": "Usuń",
+      "removed": "Usunięto {name}.",
+      "removeFailed": "Nie udało się usunąć tego klucza dostępu.",
+      "confirmPassword": "Twoje hasło, aby zmienić sposób logowania",
+      "loadFailed": "Nie udało się odczytać kluczy dostępu tego konta.",
+      "addFailed": "Nie udało się dodać tego klucza dostępu.",
+      "cancelled": "Nic nie dodano: przeglądarka została zamknięta lub minęło zbyt dużo czasu.",
+      "alreadyHere": "To urządzenie ma już klucz dostępu do tego konta."
     }
   },
   "mediaPreview": {

@@ -194,7 +194,8 @@
     "locations": "Locations"
   },
   "i18n": {
-    "language": "Language"
+    "language": "Language",
+    "followBrowser": "Follow the browser"
   },
   "search": {
     "openShortcutTitle": "Open Search (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Confirm password",
     "sso": {
       "continue": "Continue with Single Sign-On"
+    },
+    "passkey": {
+      "signIn": "Sign in with a passkey"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Trash and versions",
       "fileVersions": "File versions",
       "uploads": "Uploads",
-      "accountTwoFactor": "Two-factor"
+      "accountTwoFactor": "Two-factor",
+      "accountPasskeys": "Passkeys"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Mark files that have versions",
       "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history.",
       "documentsOpenInNewTab": "Open documents in a new tab",
-      "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today."
+      "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today.",
+      "languageHelp": "Kept with your account, on every browser you sign in from."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
@@ -716,6 +722,34 @@
       "codesFailed": "Could not draw new recovery codes.",
       "disableFailed": "Could not turn two-factor authentication off.",
       "wrongPassword": "That password is not right."
+    },
+    "passkeys": {
+      "title": "Passkeys",
+      "intro": "Sign in with your fingerprint, your face or your device PIN, instead of a password.",
+      "notLocalUser": "This account signs in through an identity provider, which is where its passkeys belong.",
+      "unavailable": "Passkeys need a secure page.",
+      "unavailableHelp": "This page is not served over https, so the browser has nothing to bind a passkey to. Reach this server over https, or through localhost, to add one.",
+      "none": "No passkeys on this account yet.",
+      "nameLabel": "Add a passkey",
+      "namePlaceholder": "Name it, so you can tell it apart later",
+      "add": "Add a passkey",
+      "added": "Added {name}.",
+      "addedOn": "Added {when}",
+      "lastUsed": "last used {when}",
+      "neverUsed": "never used",
+      "synced": "synced across your devices",
+      "rename": "Rename",
+      "renamePrompt": "A name for this passkey",
+      "renamed": "Renamed.",
+      "renameFailed": "Could not rename this passkey.",
+      "remove": "Remove",
+      "removed": "Removed {name}.",
+      "removeFailed": "Could not remove this passkey.",
+      "confirmPassword": "Your password, to change how you sign in",
+      "loadFailed": "Could not read the passkeys on this account.",
+      "addFailed": "Could not add this passkey.",
+      "cancelled": "Nothing was added: the browser was closed or it took too long.",
+      "alreadyHere": "This device already holds a passkey for this account."
     }
   },
   "mediaPreview": {

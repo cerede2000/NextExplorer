@@ -71,7 +71,12 @@ describe('a preference the screen offers', () => {
     const { USER_SETTING_KEYS } = load('src/services/settingsService');
 
     for (const key of USER_SETTING_KEYS) {
-      const value = key === 'defaultShareExpiration' || key === 'skipHome' ? null : true;
+      const value =
+        key === 'defaultShareExpiration' || key === 'skipHome'
+          ? null
+          : key === 'locale'
+            ? 'fr'
+            : true;
       const response = await save({ [key]: value });
       expect(response.body.user, `${key} was dropped`).toHaveProperty(key);
     }
