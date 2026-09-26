@@ -253,9 +253,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/utils/exifDetails\\.js|backend/src/routes/metadata\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-10",
-      "note": "EXIF without a parser nobody maintains"
+      "note": "nxzai#442 \u2014 EXIF without a parser nobody maintains"
     },
     {
       "axis": "*",
@@ -727,9 +727,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/documentText\\.js|backend/src/services/pdfTextExtract\\.js|backend/src/services/capabilities\\.js|frontend/src/config/media\\.js|frontend/src/plugins/preview/useMediaTracks\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-10",
-      "note": "EXIF without a parser nobody maintains"
+      "note": "nxzai#442 \u2014 EXIF without a parser nobody maintains"
     },
     {
       "axis": "*",
@@ -846,9 +846,9 @@
     {
       "axis": "deps",
       "match": "exif-reader",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-10",
-      "note": "EXIF without a parser nobody maintains"
+      "note": "nxzai#442 \u2014 EXIF without a parser nobody maintains"
     },
     {
       "axis": "deps",
