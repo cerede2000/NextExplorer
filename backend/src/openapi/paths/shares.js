@@ -45,6 +45,17 @@ const shareSettings = {
   label: nullable(str()),
 };
 
+const editorText = obj(
+  {
+    name: str(),
+    path: str(),
+    content: str(),
+    canDownload: bool(),
+    canWrite: bool(),
+  },
+  ['name', 'content', 'canWrite']
+);
+
 const guestHeader = header('X-Guest-Session', 'The guest session the link earned.');
 
 module.exports = {
@@ -274,6 +285,60 @@ module.exports = {
         200: stream('application/octet-stream', 'The file.'),
         206: stream('application/octet-stream', 'The part asked for.'),
         ...errors(401, 403, 404),
+      },
+    }),
+  },
+  '/api/share/{token}/editor': {
+    get: op({
+      id: 'readSharedText',
+      summary: 'The text of a file a link shares',
+      description: 'Its `ETag` also changes when what the link allows does.',
+      tag: LINK,
+      access: 'share',
+      params: [token, guestHeader, header('If-None-Match', 'The ETag of the copy held.')],
+      responses: {
+        200: json(editorText),
+        304: { description: 'Unchanged.' },
+        ...errors(401, 403, 404, 415),
+      },
+    }),
+    put: op({
+      id: 'saveSharedText',
+      summary: 'Save the text of a file a link shares',
+      description: 'Only through a writable link.',
+      tag: LINK,
+      access: 'share',
+      params: [token, guestHeader],
+      body: body(obj({ content: str() }, ['content'])),
+      responses: {
+        200: json(obj({ success: bool() }, ['success'])),
+        ...errors(400, 401, 403, 404, 413),
+      },
+    }),
+  },
+  '/api/share/{token}/editor/{path}': {
+    get: op({
+      id: 'readTextInLink',
+      summary: 'The text of a file inside a shared folder',
+      tag: LINK,
+      access: 'share',
+      params: [token, splatParam('The file, inside the shared folder.'), guestHeader],
+      responses: {
+        200: json(editorText),
+        304: { description: 'Unchanged.' },
+        ...errors(401, 403, 404, 415),
+      },
+    }),
+    put: op({
+      id: 'saveTextInLink',
+      summary: 'Save a text file inside a shared folder',
+      tag: LINK,
+      access: 'share',
+      params: [token, splatParam('The file, inside the shared folder.'), guestHeader],
+      body: body(obj({ content: str() }, ['content'])),
+      responses: {
+        200: json(obj({ success: bool() }, ['success'])),
+        ...errors(400, 401, 403, 404, 413),
       },
     }),
   },

@@ -1,4 +1,5 @@
 const express = require('express');
+const fileRoutes = require('./file');
 const folderRoutes = require('./folder');
 const renameRoutes = require('./rename');
 const transferRoutes = require('./transfer');
@@ -9,6 +10,7 @@ const mediaRoutes = require('./media');
 
 const router = express.Router();
 
+router.use(fileRoutes);
 router.use(folderRoutes);
 router.use(renameRoutes);
 router.use(transferRoutes);

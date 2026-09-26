@@ -7,9 +7,9 @@ import {
   moveItems,
   deleteItems,
   normalizePath,
+  createFile as createFileApi,
   createFolder as createFolderApi,
   renameItem as renameItemApi,
-  saveFileContent as saveFileContentApi,
   fetchThumbnail as fetchThumbnailApi,
   extractZip as extractZipApi,
   compressToZip as compressToZipApi,
@@ -193,31 +193,15 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const createFile = async (baseName) => {
     const destination = normalizePath(currentPath.value || '');
-
-    // Determine a default base name and extension
     const defaultName =
       typeof baseName === 'string' && baseName.trim() ? baseName.trim() : 'Untitled.txt';
 
-    // Split name into stem + extension (preserve provided extension if present)
-    const lastDot = defaultName.lastIndexOf('.');
-    const stem = lastDot > 0 ? defaultName.slice(0, lastDot) : defaultName;
-    const ext = lastDot > 0 ? defaultName.slice(lastDot) : '';
-
-    // Ensure the name is unique in current listing
-    const existingNames = new Set(
-      (currentPathItems.value || []).map((it) => it?.name).filter(Boolean)
-    );
-    let candidate = `${stem}${ext}`;
-    let counter = 2;
-    while (existingNames.has(candidate)) {
-      candidate = `${stem} ${counter}${ext}`;
-      counter += 1;
-    }
-
-    const relativePath = destination ? `${destination}/${candidate}` : candidate;
-
-    // Create empty file
-    await saveFileContentApi(relativePath, '');
+    // The server picks the free name, as it does for a folder. Choosing one
+    // here from the listing was a guess about a directory somebody else may be
+    // writing in — and writing the file through the editor's save meant an
+    // empty file could land on top of one that arrived meanwhile.
+    const created = await createFileApi(destination, defaultName);
+    const candidate = created?.name || defaultName;
 
     // Refresh and start rename for the created item
     await fetchPathItems(destination);

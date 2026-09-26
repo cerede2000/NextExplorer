@@ -113,6 +113,47 @@ async function getDeleteImpact(items) {
   };
 }
 
+/**
+ * Create an empty file, under the name asked for or the first free one after
+ * it. The server picks the name, as it does for a folder: a name chosen from
+ * the listing is a guess about a directory somebody else may be writing in.
+ */
+async function createFile(destination, name) {
+  const normalizedDestination = normalizePath(destination || '');
+  const payload = { path: normalizedDestination };
+
+  if (typeof name === 'string' && name.trim()) {
+    payload.name = name;
+  }
+
+  return requestJson('/api/files/file', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Create a blank Word, Excel or PowerPoint document.
+ *
+ * `format` is the extension the document will carry ('docx', 'xlsx', 'pptx');
+ * the server owns it, so a name that lacks it gains it. Separate from
+ * createFile because an empty file with an office extension is not a document
+ * any editor will open.
+ */
+async function createOfficeDocument(destination, { format, name } = {}) {
+  const normalizedDestination = normalizePath(destination || '');
+  const payload = { path: normalizedDestination, format };
+
+  if (typeof name === 'string' && name.trim()) {
+    payload.name = name.trim();
+  }
+
+  return requestJson('/api/files/office-document', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 async function createFolder(destination, name) {
   const normalizedDestination = normalizePath(destination || '');
   const payload = { path: normalizedDestination };
@@ -347,7 +388,9 @@ export {
   moveItems,
   deleteItems,
   getDeleteImpact,
+  createFile,
   createFolder,
+  createOfficeDocument,
   renameItem,
   fetchFileContent,
   saveFileContent,

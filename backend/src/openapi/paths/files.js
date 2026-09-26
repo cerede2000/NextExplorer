@@ -535,4 +535,43 @@ module.exports = {
       responses: { 204: noContent('Abandoned.'), ...errors(401, 404) },
     }),
   },
+  '/api/files/file': {
+    post: op({
+      id: 'createFile',
+      summary: 'Create an empty file',
+      description: 'Under `name (1)` when the name is taken; nothing is ever written over.',
+      tag: TAG,
+      access: 'account',
+      body: body(
+        obj(
+          {
+            path: str('The folder.'),
+            destination: str('Older name for `path`.', { deprecated: true }),
+            name: str(),
+          },
+          ['name']
+        )
+      ),
+      responses: { 201: json(created, 'Created.'), ...errors(400, 401, 403, 404, 409) },
+    }),
+  },
+  '/api/files/office-document': {
+    post: op({
+      id: 'createOfficeDocument',
+      summary: 'Create a new document from a template',
+      tag: TAG,
+      access: 'account',
+      body: body(
+        obj(
+          {
+            path: str('The folder.'),
+            format: str(null, { enum: ['docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv'] }),
+            name: str('What to call it; a name is chosen when absent.'),
+          },
+          ['format']
+        )
+      ),
+      responses: { 201: json(created, 'Created.'), ...errors(400, 401, 403, 404) },
+    }),
+  },
 };

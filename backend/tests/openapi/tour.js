@@ -324,6 +324,16 @@ const tour = async (app, { volume, requireFresh }) => {
     admin.post('/api/files/folder').send({ path: 'Documents', name: 'Dossier' })
   );
   await call(
+    'POST /api/files/file',
+    admin.post('/api/files/file').send({ path: 'Documents', name: 'sans-nom.txt' })
+  );
+  await call(
+    'POST /api/files/office-document',
+    admin
+      .post('/api/files/office-document')
+      .send({ path: 'Documents', format: 'docx', name: 'Rapport 2' })
+  );
+  await call(
     'POST /api/files/rename',
     admin
       .post('/api/files/rename')
@@ -608,6 +618,29 @@ const tour = async (app, { volume, requireFresh }) => {
     'GET /api/share/{token}',
     fileVisitor.get(`/api/share/${fileToken}`).set('X-Guest-Session', fileGuest)
   );
+  // The editor, through the link: read, and written back when it may be.
+  await call(
+    'GET /api/share/{token}/editor',
+    fileVisitor.get(`/api/share/${fileToken}/editor`).set('X-Guest-Session', fileGuest)
+  );
+  await call(
+    'PUT /api/share/{token}/editor',
+    fileVisitor
+      .put(`/api/share/${fileToken}/editor`)
+      .set('X-Guest-Session', fileGuest)
+      .send({ content: 'réécrit par le lien' })
+  );
+  await call(
+    'GET /api/share/{token}/editor/{path}',
+    visitor.get(`/api/share/${token}/editor/lisez-moi.txt`).set('X-Guest-Session', guest || '')
+  );
+  await call(
+    'PUT /api/share/{token}/editor/{path}',
+    fileVisitor
+      .put(`/api/share/${fileToken}/editor/lisez-moi.txt`)
+      .set('X-Guest-Session', fileGuest)
+      .send({ content: 'encore' })
+  );
   await call('DELETE /api/shares/{id}', admin.delete(`/api/shares/${fileShare.body.id}`));
 
   // Uploads.
@@ -672,6 +705,11 @@ const tour = async (app, { volume, requireFresh }) => {
   );
   await call('OPTIONS /api/upload/tus', admin.options('/api/upload/tus'));
   await call('GET /api/upload/finalizations', admin.get('/api/upload/finalizations'));
+
+  await call(
+    'POST /api/onlyoffice/storage-file',
+    admin.post('/api/onlyoffice/storage-file').send({ path: 'Documents/notes.md' })
+  );
 
   // An editor integration, where one is configured.
   const office = await call(

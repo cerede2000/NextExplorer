@@ -17,6 +17,11 @@ Customize the appearance and branding of your nextExplorer instance:
 - **Max dimension:** Longest side in pixels (default 200) for generated thumbnails.
 - **Video previews:** Require FFmpeg/ffprobe; binaries are included but you can override paths via environment variables.
 
+## Making a file
+
+- **New file** creates an empty one, and **New document** a blank Word, Excel or PowerPoint file from ONLYOFFICE's own templates — a hand-assembled OOXML package is only nearly valid, and the editors disagree about which near-misses they will repair. A PDF comes from a real template too.
+- **Nothing is ever replaced.** The name is taken by an exclusive create rather than by looking first and writing after, so two people making `Report.docx` at the same moment get `Report.docx` and `Report 2.docx` — never one file.
+
 ## Search index
 
 - **Exclusions:** Folders the index and a name search leave alone. Those set by `SEARCH_INDEX_EXCLUDE` are listed and cannot be removed here; the second list is yours to edit. A folder added here is forgotten by the index straight away, in batches that leave the server answering meanwhile.

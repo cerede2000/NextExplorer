@@ -281,6 +281,12 @@ send. A browser does all of this on its own. `PUT /api/editor` answers with
 the ETag the next read will carry, when the file it wrote is still the one in
 place.
 
+The shared editor, `GET /api/share/:token/editor`, answers the same way, and
+its ETag also changes when what the link allows does — `canWrite`,
+`canDownload` — so a visitor's copy never outlives a permission change. `PUT`
+to the same address saves it back, when the link was made writable; what a
+visitor replaces is kept as a version for the owner.
+
 Responses that carry a whole text file are compressed when they are over
 32 KB and the request's `Accept-Encoding` allows it: brotli when it is offered,
 which browsers do only over HTTPS, otherwise gzip. That covers the reads

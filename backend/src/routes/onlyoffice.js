@@ -895,6 +895,59 @@ router.post(
 );
 
 /**
+ * A file from the storage, handed to the editor.
+ *
+ * The editor inserts an image, merges a spreadsheet or compares against
+ * another document by asking its host for one — it never reaches the storage
+ * itself. So the host answers with a URL the Document Server may fetch once,
+ * signed, read-only and short-lived, for a file this caller may already read.
+ * Nothing is ever written back through it.
+ */
+router.post(
+  '/onlyoffice/storage-file',
+  asyncHandler(async (req, res) => {
+    requirePublicUrl();
+    if (!onlyoffice.secret) {
+      throw new ValidationError('ONLYOFFICE_SECRET is required to hand files to the editor.');
+    }
+
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) {
+      throw new ValidationError('A valid file path is required.');
+    }
+    // What the editor is asking for, carried back untouched in the answer it
+    // recognises. Bounded because it is the caller's own string.
+    const command = typeof req.body?.c === 'string' ? req.body.c.slice(0, 64) : undefined;
+
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo.canRead) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+    }
+
+    const stat = await fsp.stat(resolved.absolutePath);
+    if (stat.isDirectory()) {
+      throw new ValidationError('A file is required.');
+    }
+
+    const payload = {
+      ...(command === undefined ? {} : { c: command }),
+      fileType: toExt(path.basename(resolved.absolutePath)),
+      url: readOnlyFileUrl(
+        req,
+        relativePath,
+        resolved.absolutePath,
+        STORAGE_FILE_TOKEN_TTL_SECONDS
+      ),
+    };
+    payload.token = jwt.sign(payload, onlyoffice.secret, { algorithm: 'HS256' });
+
+    res.set('Cache-Control', 'no-store');
+    res.json(payload);
+  })
+);
+
+/**
  * "Save as" from inside the editor.
  *
  * ONLYOFFICE does not write anything itself: it converts the document, then
