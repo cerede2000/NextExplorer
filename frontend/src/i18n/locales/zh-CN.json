@@ -448,7 +448,9 @@
       "skipHomeHelp": "访问首页时自动重定向到第一个卷。未设置时遵循服务器配置。",
       "useEnvSetting": "使用服务器设置",
       "showVersionMarks": "标记有版本的文件",
-      "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。"
+      "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。",
+      "documentsOpenInNewTab": "在新标签页中打开文档",
+      "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -933,5 +935,9 @@
     "savedAsHeading": "已保存到此文件夹",
     "savedAsBody": "{name} 已添加到原文件旁边。",
     "saveAsFailed": "无法保存 {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "这里没有什么能打开 {name}。",
+    "backToFolder": "返回文件夹"
   }
 }

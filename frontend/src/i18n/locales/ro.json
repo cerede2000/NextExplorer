@@ -448,7 +448,9 @@
       "skipHomeHelp": "Redirectează automat către primul volum la deschiderea paginii principale. Dacă nu este setat, se folosește configurația serverului.",
       "useEnvSetting": "Folosește setarea serverului",
       "showVersionMarks": "Marchează fișierele care au versiuni",
-      "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul."
+      "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul.",
+      "documentsOpenInNewTab": "Deschide documentele într-o filă nouă",
+      "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum."
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Salvat în acest folder",
     "savedAsBody": "{name} a fost adăugat lângă original.",
     "saveAsFailed": "{name} nu a putut fi salvat"
+  },
+  "preview": {
+    "nothingOpensIt": "Nimic de aici nu poate deschide {name}.",
+    "backToFolder": "Înapoi la dosar"
   }
 }

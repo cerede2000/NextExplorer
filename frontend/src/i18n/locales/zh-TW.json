@@ -448,7 +448,9 @@
       "skipHomeHelp": "進入首頁時自動導向到第一個儲存卷。未設定時會使用伺服器預設。",
       "useEnvSetting": "使用伺服器預設",
       "showVersionMarks": "標示有版本的檔案",
-      "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。"
+      "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。",
+      "documentsOpenInNewTab": "在新分頁中開啟文件",
+      "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -933,5 +935,9 @@
     "savedAsHeading": "已儲存到此資料夾",
     "savedAsBody": "{name} 已新增至原檔案旁。",
     "saveAsFailed": "無法儲存 {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",
+    "backToFolder": "返回資料夾"
   }
 }

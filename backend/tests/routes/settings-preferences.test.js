@@ -49,16 +49,19 @@ const save = (user) => request(app).patch('/api/settings').send({ user });
 const stored = async () => load('src/services/settingsService').getUserSettings(alice.id);
 
 describe('a preference the screen offers', () => {
-  it.each(['showHiddenFiles', 'showThumbnails', 'showVersionMarks', 'showSidebarFavorites'])(
-    'is written when %s is saved',
-    async (key) => {
-      const response = await save({ [key]: true });
+  it.each([
+    'showHiddenFiles',
+    'showThumbnails',
+    'showVersionMarks',
+    'documentsOpenInNewTab',
+    'showSidebarFavorites',
+  ])('is written when %s is saved', async (key) => {
+    const response = await save({ [key]: true });
 
-      expect(response.status).toBe(200);
-      expect(response.body.user[key]).toBe(true);
-      expect((await stored())[key]).toBe(true);
-    }
-  );
+    expect(response.status).toBe(200);
+    expect(response.body.user[key]).toBe(true);
+    expect((await stored())[key]).toBe(true);
+  });
 
   /**
    * Every key the service knows how to sanitise is a key this route accepts:

@@ -181,6 +181,8 @@ import {
 import { Save20Regular, Color20Regular } from '@vicons/fluent';
 import { onClickOutside, onKeyStroke, useLocalStorage } from '@vueuse/core';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
+import { usePageTitle } from '@/composables/usePageTitle';
+import { fileTitleFor } from '@/utils/pageTitle';
 
 const route = useRoute();
 const router = useRouter();
@@ -298,6 +300,10 @@ const displayPath = computed(() => {
   if (isVersionViewer.value) return viewerFileName.value || normalizedPath.value;
   return normalizedPath.value;
 });
+
+// The file's name in the tab, as a folder's is. It had none: opened directly
+// the tab read "Explorer", and opened from a folder it kept that folder's name.
+usePageTitle(computed(() => fileTitleFor(displayPath.value)));
 
 const hasUnsavedChanges = computed(
   () => !isViewerOnly.value && fileContent.value !== originalContent.value

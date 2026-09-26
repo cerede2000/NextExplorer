@@ -448,7 +448,9 @@
       "skipHomeHelp": "Automatisch doorsturen naar het eerste volume bij het bezoeken van de startpagina. Als dit niet is ingesteld, wordt de serverconfiguratie gevolgd.",
       "useEnvSetting": "Serverconfiguratie gebruiken",
       "showVersionMarks": "Bestanden met versies markeren",
-      "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen."
+      "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen.",
+      "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
+      "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu."
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Opgeslagen in deze map",
     "savedAsBody": "{name} is naast het origineel toegevoegd.",
     "saveAsFailed": "{name} kon niet worden opgeslagen"
+  },
+  "preview": {
+    "nothingOpensIt": "Hier kan niets {name} openen.",
+    "backToFolder": "Terug naar de map"
   }
 }

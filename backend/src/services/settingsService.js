@@ -305,6 +305,7 @@ const USER_BOOLEAN_SETTINGS = new Set([
   'showHiddenFiles',
   'showThumbnails',
   'showVersionMarks',
+  'documentsOpenInNewTab',
   'showSidebarFavorites',
   'showSidebarShares',
   'showSidebarTools',

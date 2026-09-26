@@ -448,7 +448,9 @@
       "skipHomeHelp": "Redirige automatiquement vers le premier volume depuis l’accueil. Si non défini, utilise la configuration serveur.",
       "useEnvSetting": "Utiliser la configuration serveur",
       "showVersionMarks": "Signaler les fichiers qui ont des versions",
-      "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique."
+      "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique.",
+      "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
+      "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui."
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Enregistré dans ce dossier",
     "savedAsBody": "{name} a été ajouté à côté de l’original.",
     "saveAsFailed": "Impossible d’enregistrer {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",
+    "backToFolder": "Retour au dossier"
   }
 }

@@ -448,7 +448,9 @@
       "skipHomeHelp": "Omdirigerar automatiskt till den första volymen när startsidan öppnas. Om inget anges används serverinställningen.",
       "useEnvSetting": "Använd serverinställning",
       "showVersionMarks": "Märk filer som har versioner",
-      "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken."
+      "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken.",
+      "documentsOpenInNewTab": "Öppna dokument i en ny flik",
+      "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag."
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Sparad i den här mappen",
     "savedAsBody": "{name} lades till bredvid originalet.",
     "saveAsFailed": "Det gick inte att spara {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "Inget här kan öppna {name}.",
+    "backToFolder": "Tillbaka till mappen"
   }
 }

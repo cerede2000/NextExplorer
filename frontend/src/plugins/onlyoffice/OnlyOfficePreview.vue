@@ -54,7 +54,15 @@ const props = defineProps({
   filePath: { type: String, required: true },
   previewUrl: { type: String, required: true },
   api: { type: Object, required: true },
+  // Shared with the plugin's own close hook, which runs after this component
+  // has gone — including the one synchronous moment a closing tab gives.
+  previewState: { type: Object, default: () => ({}) },
 });
+
+// The object the manager created for this preview and hands to the plugin's
+// own hooks, which run after this component is gone. Writing into it is the
+// point of it: it is shared state, not this component's own.
+const shared = props.previewState;
 
 const { t } = useI18n();
 const fileStore = useFileStore();
@@ -142,6 +150,7 @@ const endSession = ({ beacon = false } = {}) => {
   const current = sessionId.value;
   if (!current || !documentPath.value) return;
   sessionId.value = null;
+  shared.editorSessionId = null;
   void endOnlyOfficeSession(documentPath.value, { sessionId: current, beacon }).catch(() => {});
 };
 
@@ -172,6 +181,9 @@ const renameDocument = async (data) => {
       newName,
     });
     documentPath.value = renamed?.path || documentPath.value;
+    // The plugin's close hook names the file it is closing, and after a rename
+    // the context it was opened with is the wrong name.
+    shared.documentPath = documentPath.value;
     notifications.addNotification({
       type: 'success',
       heading: t('onlyoffice.renamedHeading'),
@@ -350,6 +362,10 @@ const load = async () => {
     sessionId.value = editorSessionId || null;
     autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     hasUnsavedChanges = false;
+    // Told to the plugin, which is what closes the session when this component
+    // is already gone — a tab on its way out, for instance.
+    shared.editorSessionId = sessionId.value;
+    shared.documentPath = documentPath.value;
     serverUrl.value = documentServerUrl;
     logger.debug('ONLYOFFICE config', cfg);
     cfg.events = {

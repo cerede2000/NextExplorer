@@ -12,7 +12,7 @@ import UserMenu from '@/components/UserMenu.vue';
 import NotificationToastContainer from '@/components/NotificationToastContainer.vue';
 import NotificationPanel from '@/components/NotificationPanel.vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
-import { useTitle, useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
+import { useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
 
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import ExplorerContextMenu from '@/components/ExplorerContextMenu.vue';
@@ -20,6 +20,10 @@ import TerminalPanel from '@/components/TerminalPanel.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
+import { useFileStore } from '@/stores/fileStore';
+import { useI18n } from 'vue-i18n';
+import { pageTitleFor } from '@/utils/pageTitle';
+import { usePageTitle } from '@/composables/usePageTitle';
 import InfoPanel from '@/components/InfoPanel.vue';
 import VersionsPanel from '@/components/VersionsPanel.vue';
 import OnlyOfficeTransferConfirm from '@/components/OnlyOfficeTransferConfirm.vue';
@@ -36,6 +40,8 @@ import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
 
 const route = useRoute();
 const router = useRouter();
+const fileStore = useFileStore();
+const { t: translate, te } = useI18n();
 const auth = useAuthStore();
 const appSettings = useAppSettings();
 const featuresStore = useFeaturesStore();
@@ -106,12 +112,13 @@ useEventListener(window, 'keydown', (e) => {
   }
 });
 
-const currentPathName = computed(() => {
-  const p = route.params.path;
-  const s = Array.isArray(p) ? p.join('/') : p || '';
-  return s.split('/').filter(Boolean).pop() || 'Volumes';
+// What a share being browsed is called: at its top the address holds only its
+// token, which names nothing.
+const shareName = computed(() => {
+  const info = fileStore.currentPathData?.shareInfo;
+  return info?.label || info?.sourceFolderName || '';
 });
-useTitle(currentPathName);
+usePageTitle(computed(() => pageTitleFor(route, translate, { te, shareName: shareName.value })));
 
 const showBrowseToolbar = computed(() => String(route.path || '').startsWith('/browse'));
 const showSidebarFavorites = computed(

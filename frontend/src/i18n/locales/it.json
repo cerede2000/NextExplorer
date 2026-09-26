@@ -448,7 +448,9 @@
       "skipHomeHelp": "Reindirizza automaticamente al primo volume quando si visita la home. Se non impostato, usa la configurazione del server.",
       "useEnvSetting": "Usa impostazione del server",
       "showVersionMarks": "Segnalare i file con versioni",
-      "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia."
+      "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia.",
+      "documentsOpenInNewTab": "Aprire i documenti in una nuova scheda",
+      "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi."
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Salvato in questa cartella",
     "savedAsBody": "{name} è stato aggiunto accanto all’originale.",
     "saveAsFailed": "Impossibile salvare {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "Qui niente sa aprire {name}.",
+    "backToFolder": "Torna alla cartella"
   }
 }

@@ -448,7 +448,9 @@
       "skipHomeHelp": "Automatically redirect to the first volume when visiting the home page. If not set, follows the server configuration.",
       "useEnvSetting": "Use server setting",
       "showVersionMarks": "Mark files that have versions",
-      "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history."
+      "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history.",
+      "documentsOpenInNewTab": "Open documents in a new tab",
+      "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Saved to this folder",
     "savedAsBody": "{name} was added next to the original.",
     "saveAsFailed": "Could not save {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "Nothing here can open {name}.",
+    "backToFolder": "Back to the folder"
   }
 }
