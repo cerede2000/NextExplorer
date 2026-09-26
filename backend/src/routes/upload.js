@@ -3,18 +3,90 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { createUploadMiddleware } = require('../services/uploadService');
+const { handleTusUpload, listFinalizations } = require('../services/tusUploadService');
+const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
+const { responseEndCompat } = require('../middleware/responseEndCompat');
+const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const { uploads } = require('../config/index');
 const { normalizeRelativePath } = require('../utils/pathUtils');
+const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
-const { ValidationError } = require('../errors/AppError');
+const { ForbiddenError, ValidationError } = require('../errors/AppError');
 
 const router = express.Router();
 const upload = createUploadMiddleware();
 
+const acceptFiles = explainMultipartRefusals(
+  upload.fields([{ name: 'filedata', maxCount: uploads.maxFilesPerRequest }]),
+  {
+    LIMIT_FILE_SIZE: `This file is larger than the ${describeBytes(uploads.maxDirectUploadBytes)} a direct upload accepts. Use chunked uploads, or raise MAX_DIRECT_UPLOAD_SIZE.`,
+    LIMIT_FILE_COUNT: `One upload request takes at most ${uploads.maxFilesPerRequest} files. Send the others in another, or raise MAX_FILES_PER_UPLOAD.`,
+  }
+);
+
+// responseEndCompat first: @tus/server finishes its responses with
+// `res.end(callback)`, which express-session's own res.end mistakes for a body
+// and passes to res.write(). That throws where nothing catches it, and the
+// process exits mid-upload.
+router.all('/upload/tus{*splat}', responseEndCompat, handleTusUpload);
+
+/**
+ * Files whose transfer is over but which are still being written where they
+ * belong. The client asks about these while its own progress bar has nothing
+ * left to report, so a long copy across filesystems does not look like a frozen
+ * hundred per cent.
+ *
+ * Answers only for what the caller uploaded, and says nothing when there is
+ * nothing to say — the usual case, where the move is a rename and returns
+ * before anybody could ask.
+ */
+router.get(
+  '/upload/finalizations',
+  asyncHandler(async (req, res) => {
+    res.json({ items: listFinalizations(req) });
+  })
+);
+
+/**
+ * The folder a whole uploaded tree lands in, decided once.
+ *
+ * Every file of a picked folder carries the same relative path prefix, and each
+ * one arriving on its own would otherwise take its own "(1)" when the name is
+ * held — scattering one folder across several.
+ */
+router.post(
+  '/upload/folder-session',
+  asyncHandler(async (req, res) => {
+    const uploadTo = normalizeRelativePath(req.body?.uploadTo || '');
+    const sourceRoot = req.body?.sourceRoot;
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { allowed, accessInfo, resolved } = await authorizeAndResolve(
+      context,
+      uploadTo,
+      ACTIONS.upload
+    );
+
+    if (!allowed || !resolved) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Cannot upload files to this path.');
+    }
+
+    // The destination is authorized above; the folder the session is about to
+    // create inside it is a path of its own, and is authorized before the mkdir
+    // rather than when the first file arrives.
+    const targetRoot = await reserveFolderUploadTarget({
+      destinationRoot: resolved.absolutePath,
+      logicalBase: resolved.relativePath,
+      sourceRoot,
+      context,
+    });
+    res.status(201).json({ targetRoot });
+  })
+);
+
 router.post(
   '/upload',
-  upload.fields([{ name: 'filedata', maxCount: uploads.maxFilesPerRequest }]),
+  acceptFiles,
   asyncHandler(async (req, res) => {
     if (!req.files || !Array.isArray(req.files.filedata) || req.files.filedata.length === 0) {
       throw new ValidationError('No files were provided.');

@@ -147,6 +147,13 @@ module.exports = {
   // Uploads (direct, non-chunked)
   MAX_DIRECT_UPLOAD_SIZE: process.env.MAX_DIRECT_UPLOAD_SIZE?.trim() || null,
   UPLOAD_STORAGE_RESERVE: process.env.UPLOAD_STORAGE_RESERVE?.trim() || '64M',
+  UPLOAD_CHUNK_SIZE: process.env.UPLOAD_CHUNK_SIZE,
+  UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED),
+  MAX_CHUNK_SIZE_MIB: process.env.MAX_CHUNK_SIZE_MIB,
+  UPLOAD_INACTIVITY_TIMEOUT: process.env.UPLOAD_INACTIVITY_TIMEOUT,
+  TUS_UPLOAD_DIR: process.env.TUS_UPLOAD_DIR?.trim() || null,
+  TUS_INCOMPLETE_UPLOAD_TTL_MS: process.env.TUS_INCOMPLETE_UPLOAD_TTL_MS,
+  TUS_CLEANUP_INTERVAL_MS: process.env.TUS_CLEANUP_INTERVAL_MS,
   MAX_FILES_PER_UPLOAD: Number(process.env.MAX_FILES_PER_UPLOAD) || 50,
 
   // Editor

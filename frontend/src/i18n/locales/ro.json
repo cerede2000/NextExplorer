@@ -396,7 +396,8 @@
       "accessControl": "Control acces",
       "adminUsers": "Gestionare utilizatori",
       "trash": "Coș de gunoi și versiuni",
-      "fileVersions": "Versiuni de fișiere"
+      "fileVersions": "Versiuni de fișiere",
+      "uploads": "Încărcări"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -670,6 +671,15 @@
       "next": "Următor",
       "range": "De la {from} la {to} din {total}",
       "deleteSelectedNone": "Șterge versiunile bifate"
+    },
+    "uploads": {
+      "title": "Încărcări",
+      "chunkSize": "Dimensiunea fragmentelor",
+      "chunkSizeHelp": "Dimensiunea maximă a fiecărei cereri de încărcare. Menține-o sub limita reverse proxy-ului. Fragmentele mai mici (8–32 MiB) oferă o progresie mai fluidă; fragmentele foarte mari afișează paliere vizibile (serverul scrie fiecare fragment înainte de următorul).",
+      "subtitle": "Configurează modul în care fișierele sunt trimise către server.",
+      "chunkedEnable": "Activează încărcările fragmentate",
+      "chunkedEnableHelp": "Folosește TUS pentru a trimite fișierele mari prin mai multe cereri mai mici.",
+      "chunkSizeInvalid": "Introduceți o dimensiune a fragmentelor între 1 și {max} MiB."
     }
   },
   "mediaPreview": {

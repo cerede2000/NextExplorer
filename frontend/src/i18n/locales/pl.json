@@ -396,7 +396,8 @@
       "accessControl": "Kontrola dostępu",
       "adminUsers": "Zarządzanie użytkownikami",
       "trash": "Kosz i wersje",
-      "fileVersions": "Wersje plików"
+      "fileVersions": "Wersje plików",
+      "uploads": "Przesyłanie"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -670,6 +671,15 @@
       "next": "Następne",
       "range": "Od {from} do {to} z {total}",
       "deleteSelectedNone": "Usuń zaznaczone wersje"
+    },
+    "uploads": {
+      "title": "Przesyłanie",
+      "chunkSize": "Rozmiar fragmentu",
+      "chunkSizeHelp": "Maksymalny rozmiar każdego żądania przesyłania. Utrzymuj go poniżej limitu Twojego reverse proxy. Mniejsze fragmenty (8–32 MiB) zapewniają płynniejszy postęp; bardzo duże fragmenty powodują widoczne skoki (serwer zapisuje każdy fragment przed kolejnym).",
+      "subtitle": "Skonfiguruj sposób wysyłania plików na serwer.",
+      "chunkedEnable": "Włącz przesyłanie fragmentaryczne",
+      "chunkedEnableHelp": "Wykorzystuje protokół TUS, aby wysyłać duże pliki w wielu mniejszych żądaniach.",
+      "chunkSizeInvalid": "Podaj rozmiar fragmentu od 1 do {max} MiB."
     }
   },
   "mediaPreview": {

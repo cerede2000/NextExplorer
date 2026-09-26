@@ -396,7 +396,8 @@
       "accessControl": "Zugriffskontrolle",
       "adminUsers": "Benutzerverwaltung",
       "trash": "Papierkorb und Versionen",
-      "fileVersions": "Dateiversionen"
+      "fileVersions": "Dateiversionen",
+      "uploads": "Uploads"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -670,6 +671,15 @@
       "next": "Weiter",
       "range": "{from} bis {to} von {total}",
       "deleteSelectedNone": "Angehakte Versionen löschen"
+    },
+    "uploads": {
+      "title": "Uploads",
+      "chunkSize": "Segmentgröße",
+      "chunkSizeHelp": "Maximale Größe jeder Upload-Anfrage. Halten Sie diese unter dem Limit Ihres Reverse-Proxys. Kleinere Segmente (8–32 MiB) sorgen für einen flüssigeren Fortschritt; sehr große Segmente zeigen sichtbare Sprünge (der Server schreibt jedes Segment vor dem nächsten).",
+      "subtitle": "Konfigurieren Sie, wie Dateien an den Server gesendet werden.",
+      "chunkedEnable": "Segmentierte Uploads aktivieren",
+      "chunkedEnableHelp": "Verwendet TUS, um große Dateien über mehrere kleinere Anfragen zu senden.",
+      "chunkSizeInvalid": "Geben Sie eine Segmentgröße von 1 bis {max} MiB ein."
     }
   },
   "mediaPreview": {

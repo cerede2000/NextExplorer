@@ -396,7 +396,8 @@
       "accessControl": "访问控制",
       "adminUsers": "用户管理",
       "trash": "回收站和版本",
-      "fileVersions": "文件版本"
+      "fileVersions": "文件版本",
+      "uploads": "上传"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -670,6 +671,15 @@
       "next": "下一页",
       "range": "第 {from}–{to} 项，共 {total} 项",
       "deleteSelectedNone": "删除勾选的版本"
+    },
+    "uploads": {
+      "title": "上传",
+      "chunkSize": "分块大小",
+      "chunkSizeHelp": "每个上传请求的最大大小。请将其保持在反向代理限制以下。较小的分块（8–32 MiB）进度更平滑；非常大的分块会出现明显的阶段（服务器会先写入每个分块，再处理下一个）。",
+      "subtitle": "配置文件发送到服务器的方式。",
+      "chunkedEnable": "启用分块上传",
+      "chunkedEnableHelp": "使用 TUS 通过多个较小的请求发送大文件。",
+      "chunkSizeInvalid": "请输入 1 至 {max} MiB 之间的分块大小。"
     }
   },
   "mediaPreview": {

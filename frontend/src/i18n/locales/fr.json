@@ -396,7 +396,8 @@
       "accessControl": "Contrôle d'accès",
       "adminUsers": "Gestion des utilisateurs",
       "trash": "Corbeille et versions",
-      "fileVersions": "Versions de fichiers"
+      "fileVersions": "Versions de fichiers",
+      "uploads": "Téléversements"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -670,6 +671,15 @@
       "next": "Suivant",
       "range": "{from} à {to} sur {total}",
       "deleteSelectedNone": "Supprimer les versions cochées"
+    },
+    "uploads": {
+      "title": "Téléversements",
+      "chunkSize": "Taille des chunks",
+      "chunkSizeHelp": "Taille maximale de chaque requête d’upload. Gardez-la sous la limite de votre reverse proxy. Des chunks plus petits (8–32 Mio) donnent une progression plus fluide ; de très gros chunks font apparaître des paliers (le serveur écrit chaque chunk avant le suivant).",
+      "subtitle": "Configurez le transport utilisé pour envoyer les fichiers vers le serveur.",
+      "chunkedEnable": "Activer les téléversements par chunks",
+      "chunkedEnableHelp": "Utilise TUS pour envoyer les gros fichiers en plusieurs requêtes plus petites.",
+      "chunkSizeInvalid": "Indiquez une taille de chunk comprise entre 1 et {max} Mio."
     }
   },
   "mediaPreview": {

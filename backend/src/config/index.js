@@ -346,6 +346,32 @@ const { editorMaxFileSizeBytes, maxJsonBodyBytes } = (() => {
 // cannot stream until the disk is full; they are generous on purpose, since
 // large files are a normal use of a file manager. Chunked uploads have their
 // own storage guard in the TUS service.
+// How long a direct upload may go without a byte arriving before it is given
+// up on. A client that goes away mid-body otherwise holds the request, and the
+// half-written file with it, until the socket itself times out.
+const uploadInactivityTimeoutMs = (() => {
+  const value = Number(env.UPLOAD_INACTIVITY_TIMEOUT);
+  return Number.isFinite(value) && value >= 0 ? value : 120000;
+})();
+
+// Where a chunked upload's parts live until the whole file is there, and how
+// long an unfinished one is kept. Under the cache rather than beside the
+// destination: a part file is not a file anybody asked for, and a volume should
+// never show one.
+const tusUploadDir = env.TUS_UPLOAD_DIR
+  ? path.resolve(env.TUS_UPLOAD_DIR)
+  : path.join(cacheDir, 'tus-uploads');
+
+const tusIncompleteUploadTtlMs = (() => {
+  const value = Number(env.TUS_INCOMPLETE_UPLOAD_TTL_MS);
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 60 * 60 * 1000;
+})();
+
+const tusCleanupIntervalMs = (() => {
+  const value = Number(env.TUS_CLEANUP_INTERVAL_MS);
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 10 * 60 * 1000;
+})();
+
 const uploads = {
   maxJsonBodyBytes,
   maxDirectUploadBytes: (() => {
@@ -353,6 +379,10 @@ const uploads = {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;
   })(),
   maxFilesPerRequest: env.MAX_FILES_PER_UPLOAD,
+  inactivityTimeoutMs: uploadInactivityTimeoutMs,
+  tusUploadDir,
+  tusIncompleteUploadTtlMs,
+  tusCleanupIntervalMs,
   // Free space kept in reserve when accepting writes, so a full volume never
   // takes the database down with it. The trash gives space back before this
   // floor is crossed.

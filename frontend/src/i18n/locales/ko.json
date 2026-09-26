@@ -396,7 +396,8 @@
       "accessControl": "접근 제어",
       "adminUsers": "유저 관리",
       "trash": "휴지통 및 버전",
-      "fileVersions": "파일 버전"
+      "fileVersions": "파일 버전",
+      "uploads": "업로드"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -670,6 +671,15 @@
       "next": "다음",
       "range": "{total}개 중 {from}–{to}",
       "deleteSelectedNone": "선택한 버전 삭제"
+    },
+    "uploads": {
+      "title": "업로드",
+      "chunkSize": "청크 크기",
+      "chunkSizeHelp": "각 업로드 요청의 최대 크기입니다. 리버스 프록시 제한보다 낮게 유지하세요. 청크가 작을수록(8–32 MiB) 진행률이 더 부드럽게 표시되고, 청크가 매우 크면 눈에 띄는 단계가 나타납니다(서버가 다음 청크를 처리하기 전에 각 청크를 기록합니다).",
+      "subtitle": "파일을 서버로 전송하는 방식을 설정합니다.",
+      "chunkedEnable": "청크 업로드 활성화",
+      "chunkedEnableHelp": "TUS를 사용하여 대용량 파일을 여러 개의 작은 요청으로 나누어 전송합니다.",
+      "chunkSizeInvalid": "청크 크기를 1~{max} MiB 사이로 입력하세요."
     }
   },
   "mediaPreview": {

@@ -396,7 +396,8 @@
       "accessControl": "Control de acceso",
       "adminUsers": "Gestión de usuarios",
       "trash": "Papelera y versiones",
-      "fileVersions": "Versiones de archivos"
+      "fileVersions": "Versiones de archivos",
+      "uploads": "Subidas"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -670,6 +671,15 @@
       "next": "Siguiente",
       "range": "{from} a {to} de {total}",
       "deleteSelectedNone": "Eliminar las versiones marcadas"
+    },
+    "uploads": {
+      "title": "Subidas",
+      "chunkSize": "Tamaño de fragmento",
+      "chunkSizeHelp": "Tamaño máximo de cada solicitud de subida. Mantenlo por debajo del límite de tu proxy inverso. Los fragmentos más pequeños (8–32 MiB) ofrecen un progreso más fluido; los fragmentos muy grandes muestran saltos visibles (el servidor escribe cada fragmento antes del siguiente).",
+      "subtitle": "Configura cómo se envían los archivos al servidor.",
+      "chunkedEnable": "Activar subidas por fragmentos",
+      "chunkedEnableHelp": "Usa TUS para enviar archivos grandes en varias solicitudes más pequeñas.",
+      "chunkSizeInvalid": "Introduce un tamaño de fragmento de 1 a {max} MiB."
     }
   },
   "mediaPreview": {

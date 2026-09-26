@@ -396,7 +396,8 @@
       "accessControl": "Åtkomstkontroll",
       "adminUsers": "Användarhantering",
       "trash": "Papperskorg och versioner",
-      "fileVersions": "Filversioner"
+      "fileVersions": "Filversioner",
+      "uploads": "Uppladdningar"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -670,6 +671,15 @@
       "next": "Nästa",
       "range": "{from} till {to} av {total}",
       "deleteSelectedNone": "Ta bort de markerade versionerna"
+    },
+    "uploads": {
+      "title": "Uppladdningar",
+      "chunkSize": "Delstorlek",
+      "chunkSizeHelp": "Maximal storlek för varje uppladdningsförfrågan. Håll den under gränsen för din omvända proxy. Mindre delar (8–32 MiB) ger jämnare förlopp; mycket stora delar ger synliga hopp (servern skriver varje del innan nästa).",
+      "subtitle": "Konfigurera hur filer skickas till servern.",
+      "chunkedEnable": "Aktivera uppladdning i delar",
+      "chunkedEnableHelp": "Använd TUS för att skicka stora filer via flera mindre förfrågningar.",
+      "chunkSizeInvalid": "Ange en delstorlek från 1 till {max} MiB."
     }
   },
   "mediaPreview": {
