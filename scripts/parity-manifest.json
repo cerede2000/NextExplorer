@@ -316,9 +316,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/performanceDiagnostics\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-13",
-      "note": "the periodic performance record"
+      "note": "nxzai#444 \u2014 the periodic performance record"
     },
     {
       "axis": "symbol",
@@ -624,9 +624,9 @@
     {
       "axis": "env",
       "match": "^PERFORMANCE_DIAGNOSTICS_",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-13",
-      "note": "the periodic performance record"
+      "note": "nxzai#444 \u2014 the periodic performance record"
     },
     {
       "axis": "migration",
