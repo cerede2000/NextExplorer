@@ -3,17 +3,20 @@ const {
   onlyoffice,
   collabora,
   editor,
+  preview,
+  search,
   terminal,
   features,
   hiddenFiles,
   public: publicConfig,
-  search: searchConfig,
+  demoLogin,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
-const { getTrashSettings } = require('../services/trash/settings');
-const { getVersionSettings } = require('../services/versions/settings');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
 const { getSupportedArchiveExtensions } = require('../services/archiveService');
+const featureSwitches = require('../services/featureSwitches');
+const { getTrashSettings } = require('../services/trash/settings');
+const { getVersionSettings } = require('../services/versions/settings');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
@@ -22,6 +25,7 @@ const router = express.Router();
 router.get('/features', async (_req, res) => {
   // Probed once at startup, then cached — this await is effectively free.
   const archiveExtensions = await getSupportedArchiveExtensions().catch(() => ['zip']);
+  const switches = featureSwitches.snapshot();
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -29,6 +33,10 @@ router.get('/features', async (_req, res) => {
       // All origins the app may legitimately be reached from (public + internal).
       origins: Array.isArray(publicConfig?.origins) ? publicConfig.origins : [],
     },
+    // Null unless demo mode is on and demo credentials were set for it. The
+    // config layer is the single place that decides; there is no second rule
+    // here to drift from it.
+    demoLogin: demoLogin ? { email: demoLogin.email, password: demoLogin.password } : null,
     onlyoffice: {
       enabled: Boolean(onlyoffice && onlyoffice.serverUrl),
       extensions: Array.isArray(onlyoffice?.extensions) ? onlyoffice.extensions : [],
@@ -39,9 +47,32 @@ router.get('/features', async (_req, res) => {
     },
     editor: {
       extensions: Array.isArray(editor?.extensions) ? editor.extensions : [],
+      // What the editor will open. The preview has a limit of its own, and a
+      // refusal that names both is the difference between an explanation and
+      // a dead end.
+      maxFileSizeBytes: editor?.maxFileSizeBytes ?? null,
+    },
+    preview: {
+      maxRenderBytes: preview?.maxRenderBytes ?? null,
+    },
+    search: {
+      // Whether the full-text index is on, and whether Settings may change
+      // that — `lockedBy` names the variable when the environment decided.
+      index: {
+        enabled: search?.index?.enabled === true,
+        lockedBy: switches.searchIndex.lockedBy,
+      },
     },
     hiddenFiles: {
       patterns: Array.isArray(hiddenFiles?.patterns) ? hiddenFiles.patterns : [],
+    },
+    uploads: {
+      // Admin-configurable upper bound for the chunk size (env MAX_CHUNK_SIZE_MIB).
+      maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
+    },
+    archives: {
+      // Extraction formats the server-side 7-Zip build actually supports.
+      extensions: archiveExtensions,
     },
     volumeUsage: {
       enabled: Boolean(features?.volumeUsage),
@@ -59,16 +90,10 @@ router.get('/features', async (_req, res) => {
       (settings) => ({ enabled: settings.enabled }),
       () => ({ enabled: false })
     ),
-    archives: {
-      // What the 7-Zip build on this machine can actually open, rather than a
-      // list kept in the browser that a different image would make wrong.
-      extensions: archiveExtensions,
-    },
-    uploads: {
-      // The ceiling an administrator may raise the chunk size to
-      // (MAX_CHUNK_SIZE_MIB), so the screen can say what it is rather than
-      // refusing a number without explaining.
-      maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
+    folderSize: {
+      mode: features?.folderSizeMode || 'off',
+      enabled: (features?.folderSizeMode || 'off') !== 'off',
+      lockedBy: switches.folderSize.lockedBy,
     },
     personal: {
       enabled: Boolean(features?.personalFolders),
@@ -78,22 +103,6 @@ router.get('/features', async (_req, res) => {
     },
     navigation: {
       skipHome: Boolean(features?.skipHome),
-    },
-    folderSize: {
-      mode: features?.folderSizeMode || 'off',
-      enabled: (features?.folderSizeMode || 'off') !== 'off',
-      // Which environment variable decided, so the settings page can say the
-      // switch is not its to move.
-      lockedBy: 'FOLDER_SIZE_MODE',
-    },
-    search: {
-      // The content index: off unless somebody asked for it, and asked for in
-      // the environment. The page that lists the folders it leaves alone has
-      // to know whether it is running at all.
-      index: {
-        enabled: Boolean(searchConfig?.index?.enabled),
-        lockedBy: 'SEARCH_INDEX',
-      },
     },
     terminal: {
       enabled: Boolean(features?.terminal) && terminalService.isAvailable(),

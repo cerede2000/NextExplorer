@@ -6,31 +6,32 @@ In-app settings expose many server-side toggles you'll also find in the environm
 
 Customize the appearance and branding of your nextExplorer instance:
 
-- **Application name:** Display a custom name in the header, login page, and browser title (e.g., "SPRINTR" instead of "Explorer").
-- **Logo upload:** Upload a custom logo (SVG, PNG, or JPG; max 2MB). Perfect size is 200×200px. Displays in the header and login page.
+- **Application name:** Display a custom name in the header, login page, and browser title (e.g., "SPRINTR" instead of "Explorer"). Every tab reads the page, then this name — `Projects | SPRINTR`, `Access Control | SPRINTR`, `report.docx | SPRINTR` — the sign-in page the name alone, and a share's visitors see it too; a new name reaches the open tabs without a reload. It cannot be empty: the page refuses to save a name of nothing or of spaces, and the server keeps the stored name when sent one.
+- **Logo upload:** Upload a custom logo (SVG, PNG, or JPG; max 2MB). Perfect size is 200×200px. Displays in the header and login page. A chosen logo is only previewed on the page: nothing is sent until **Save**, which stores it together with the name and the attribution link, or nothing at all, and **Discard** brings back the logo in use. Each logo is written to `/config/logos` under a name of its own, so its address changes and no browser keeps showing the previous one; the logo it replaced is removed once the new one is in place.
 - **Attribution link:** Toggle the optional "Powered by nextExplorer" footer link. When enabled, users see a link crediting the original project.
 
 ## Files & Thumbnails
 
 - **Enable thumbnails:** Toggle thumbnail generation (uses Sharp/FFmpeg). Disable to reduce CPU usage when browsing large volumes.
 - **Thumbnail quality:** 1–100 (default 70) to control JPEG compression level.
-- **Max dimension:** Longest side in pixels (default 200) for generated thumbnails.
+- **Max dimension:** Longest side in pixels, 64–1024 (default 200), for generated thumbnails.
+- **Parallel generation:** How many thumbnails are made at once, 1–50 (default 10).
+- A value outside these bounds, or an emptied field, is shown as invalid and cannot be saved.
 - **Video previews:** Require FFmpeg/ffprobe; binaries are included but you can override paths via environment variables.
-
-## Making a file
-
-- **New file** creates an empty one, and **New document** a blank Word, Excel or PowerPoint file from ONLYOFFICE's own templates — a hand-assembled OOXML package is only nearly valid, and the editors disagree about which near-misses they will repair. A PDF comes from a real template too.
-- **Nothing is ever replaced.** The name is taken by an exclusive create rather than by looking first and writing after, so two people making `Report.docx` at the same moment get `Report.docx` and `Report 2.docx` — never one file.
 
 ## Search index
 
+- **Keep a search index:** Reads the volume in the background — the name of every file and folder, and the words inside documents — so that a search answers from the index instead of walking the storage. It starts or stops as soon as the switch moves, and the choice survives a restart.
 - **Exclusions:** Folders the index and a name search leave alone. Those set by `SEARCH_INDEX_EXCLUDE` are listed and cannot be removed here; the second list is yours to edit. A folder added here is forgotten by the index straight away, in batches that leave the server answering meanwhile.
-- **Whether it runs at all** is `SEARCH_INDEX`, in the environment. The page names the variable and shows the state in force, rather than offering a switch that would change nothing.
+- **The environment decides when it speaks:** with `SEARCH_INDEX` set, the page shows the value in force, names the variable, and the switch cannot move it. Left unset, the switch decides — so an installation configured by file behaves as it always did.
 
 ## Folder sizes
 
-- **Exclusions:** as for the search index — the ones from `FOLDER_SIZE_EXCLUDE_PATHS` are fixed, the second list is editable. A Docker overlay tree or a snapshot directory is hundreds of thousands of entries whose total nobody wants, and walking it is the whole cost of the index.
-- **Which of the three modes is in force** — off, a folder's own files, or everything inside it — is `FOLDER_SIZE_MODE`, in the environment, and the page says so.
+- **Measure folder sizes:** _Off_, _Their own files only_, or _Everything inside them_. Changing between the two measuring modes measures again from scratch.
+- **Exclusions:** as for the search index — the ones from `FOLDER_SIZE_EXCLUDE_PATHS` are fixed, the second list is editable.
+- **The environment decides when it speaks:** `FOLDER_SIZE_MODE`, set, holds the switch the same way.
+
+These two are the only background workers a page can start. Both read volumes the server already reads and grant nothing over the host; the terminal, the paths, the secrets, proxy trust and whether non-administrators see every volume stay in the environment, because they widen what an administrator's session can do — and a stolen one should not be able to widen them.
 
 ## About
 
@@ -52,20 +53,12 @@ Customize the appearance and branding of your nextExplorer instance:
 
 - **Rule editor:** Define per-folder rules with `path`, `type` (`rw`, `ro`, `hidden`), and recursion options.
 - **The path is the one NextExplorer shows:** the volume first, then its folders — `torrents/films`, not the host's `/volume3/downloads/torrents` nor the container's `/mnt/torrents`. Type it, or choose it with the folder button beside the field. A path that names no folder is flagged, with the folder probably meant one click away; it is a warning and not a refusal, since a rule may be written for a folder that does not exist yet.
-- **A folder nothing can be written in says so:** a volume bound `:ro`, or one the server's user may not write in, offers no New folder, Upload or Delete to anybody — an administrator included — and a write that still reaches it is answered in words rather than as a server fault.
-- **First-match wins:** Rules are evaluated top to bottom; the first matching path governs browser behavior. A rule that does not hold the account asking is passed over rather than matched, so a later rule still gets its say.
+- **First-match wins:** Rules are evaluated top to bottom; the first matching path governs browser behavior.
 - **Who a rule restricts:** every rule restricts every ordinary account. Whether it also restricts administrators is the rule's own switch, **Applies to administrators**, the same whatever the rule grants — so a `ro` rule can hold them to reading, and a `hidden` rule can leave a folder in plain sight for them while hiding it from everybody else.
 - **Apply every rule to administrators:** one switch above the list. With it on, no rule lets an administrator through and each rule's own box is ignored; with it off, each rule decides for itself.
 - **Rules written before this existed** keep doing what they did — a `ro` rule left administrators free to write, a `hidden` rule hid the folder from them too — until the box on the rule is changed. Nothing moves on an upgrade.
+- **A folder a rule holds you to reading carries a small lock** in the listing, where the restriction begins, so a rule is visible before anything is attempted.
 - **Hidden folders:** `hidden` keeps a folder out of listings and search, and refuses it by its address as well.
-
-## Activity log
-
-- **Off unless you ask for it.** On a machine one person uses, a record of what that person did all day is weight with no reader; on a server several people share, it is the first thing anybody asks for the day a file is gone. So it is a switch, under **Settings → Activity log**, and nothing is written until it is on.
-- **What it writes down:** sign-ins, including the ones that were refused and the name that was tried, and sign-outs; files downloaded, uploaded, sent to the trash, restored and removed for good; earlier versions of a file removed, whether from the panel or with the file itself; what left through a share link and what arrived through one; shares created and deleted; account changes, whether somebody's own (password, second factor, passkey) or an administrator's; and which settings were changed — the sections, not the values.
-- **Each line carries** who, what, when, what it was about, whether it worked, and the address the request came from. Behind a reverse proxy, or in a container reached from its own host, that address is only the person's if `TRUST_PROXY` says the proxy may be believed; **Settings → Activity log** says which address this server would record and why.
-- **Only administrators read it**, and an administrator can empty it. The line saying they did is written after the deletion, so it is the one that survives it.
-- **How long a line is kept** is the retention, swept hourly whether the log is on or off: switching it off lets the disk go back rather than freezing what was written the day before.
 
 ## Admin Users
 
@@ -75,5 +68,5 @@ Customize the appearance and branding of your nextExplorer instance:
 
 ## Additional hints
 
-- Most settings persist in `/config/app-config.json`. Back up `/config` before making sweeping changes.
+- Settings persist in `app.db` under `/config`, and the logo uploaded in Branding in `/config/logos`. Back up `/config` before making sweeping changes.
 - Favorites and access control settings sync with the sidebar, so once you pin a favorite it surfaces immediately for all sessions.
