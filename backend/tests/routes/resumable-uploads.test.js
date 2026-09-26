@@ -156,6 +156,31 @@ describe('a chunked upload', () => {
   });
 
   /**
+   * A chunked upload cannot make a volume either.
+   *
+   * A folder at the top of the storage is a mount, not something the
+   * application creates — `POST /api/files/folder` has always refused one
+   * there. Started from the list of volumes, an uploaded folder tree made one
+   * (nxzai/NextExplorer#409), and the large files go through this route.
+   */
+  it('refuses one that would make a folder at the top of the storage', async () => {
+    const before = await fs.readdir(env.volumeDir);
+
+    const created = await request(app)
+      .post('/api/upload/tus')
+      .set('Tus-Resumable', '1.0.0')
+      .set('Upload-Length', '7')
+      .set(
+        'Upload-Metadata',
+        metadata({ uploadTo: '', relativePath: 'NouveauVolume/planted.txt' })
+      );
+
+    expect(created.status).toBe(400);
+    // And nothing was made on the way to refusing it.
+    expect(await fs.readdir(env.volumeDir)).toEqual(before);
+  });
+
+  /**
    * Uppy stringifies every field it is told to send, so one that only folder
    * uploads carry arrives as the literal "undefined" everywhere else. Taken at
    * face value it became the name the file was stored under.

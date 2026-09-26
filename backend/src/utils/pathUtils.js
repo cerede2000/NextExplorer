@@ -5,7 +5,7 @@ const { directories, features, personal } = require('../config/index');
 const { pathExists } = require('./fsUtils');
 const { cachedForRequest, hasRequestContext } = require('./requestContext');
 const logger = require('./logger');
-const { ForbiddenError } = require('../errors/AppError');
+const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const { ZONE_DIRECTORY_NAME } = require('../config/constants');
 
 const NAME_INVALID_PATTERN = /[\\/]/;
@@ -29,6 +29,47 @@ const assertOutsideZone = (relativePath) => {
   }
 };
 const PERSONAL_ENABLED = Boolean(features && features.personalFolders);
+
+/**
+ * Whether a folder at this place is one of the spaces themselves: a volume,
+ * the personal folder, an assigned volume.
+ *
+ * Those are not folders inside the storage, they are how the server was set
+ * up — a bind mount of somebody's data, usually shared with other programs.
+ * Creating one from the application was refused; renaming and deleting one
+ * were not, so a single API call renamed a mount, or removed it and everything
+ * under it (nxzai/NextExplorer#409). The interface offers neither, which is why
+ * it went unnoticed: only a direct call reached them.
+ *
+ * @param {string} parentRelativePath the folder the entry sits in
+ */
+const isTopLevelEntry = (parentRelativePath = '') => {
+  try {
+    return normalizeRelativePath(parentRelativePath) === '';
+  } catch {
+    // A path that does not even normalize is refused elsewhere, and is
+    // certainly not the top level.
+    return false;
+  }
+};
+
+/**
+ * Refuse an operation on such an entry, in the same words wherever it is asked.
+ *
+ * A file there is neither: the top level lists the spaces and nothing else,
+ * so one is not even shown, and refusing to touch it would protect nothing.
+ *
+ * @param {string} parentRelativePath
+ * @param {string} action  renamed, deleted, moved, copied
+ * @param {boolean} [isDirectory]  what the disk says the entry is
+ */
+const assertNotTopLevelEntry = (parentRelativePath, action, isDirectory = true) => {
+  if (!isDirectory || !isTopLevelEntry(parentRelativePath)) return;
+  throw new ValidationError(
+    `What the top level holds — a volume, the personal folder — is how this server was set up, ` +
+      `not a folder inside it: it cannot be ${action} here.`
+  );
+};
 
 const normalizeRelativePath = (relativePath = '') => {
   if (!relativePath || relativePath === '/') {
@@ -769,6 +810,8 @@ module.exports = {
   resolvePersonalPath,
   resolveLogicalPath,
   combineRelativePath,
+  isTopLevelEntry,
+  assertNotTopLevelEntry,
   splitName,
   findAvailableName,
   findAvailableFolderName,
