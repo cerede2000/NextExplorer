@@ -358,4 +358,14 @@ module.exports = {
       },
     }),
   },
+  '/api/onlyoffice/storage-file': {
+    post: op({
+      id: 'pickFileForOnlyoffice',
+      summary: 'A file the editor inserts or compares, signed for it',
+      tag: OO,
+      access: 'session',
+      body: body(obj({ path, c: str('The editor’s command.') }, ['path'])),
+      responses: { 200: json(loose()), ...errors(400, 401, 403, 404) },
+    }),
+  },
 };

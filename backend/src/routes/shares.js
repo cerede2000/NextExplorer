@@ -40,6 +40,14 @@ const { collectArchiveEntries, appendEntries } = require('../services/archiveTre
 const logger = require('../utils/logger');
 
 const activityLog = require('../services/activityLog');
+const versions = require('../services/versions/operations');
+const { sendTextFile } = require('../utils/textFileResponse');
+const { clientAddress } = require('../utils/clientAddress');
+const {
+  readTextFileHead,
+  encodeText,
+  MAX_EDITOR_FILE_SIZE,
+} = require('../services/textEditorService');
 
 const router = express.Router();
 
@@ -825,15 +833,30 @@ const recordShareDownload = ({ share, resolved, req }) =>
     req,
   });
 
-const handleDirectFileRequest = async (req, res) => {
+/**
+ * The file a share link points at, and what this caller may do with it.
+ *
+ * Everything a request through a link has to get past before the file is
+ * touched: the link itself, who is following it, and what the location
+ * underneath still allows. Written once because three routes ask it — the
+ * direct file, and the two the editor uses — and each asks for something
+ * slightly different, which is what the options are.
+ *
+ * @returns the target, or null when the caller was redirected to the share's
+ *   own door and there is nothing more for the route to do.
+ */
+const resolveSharedFileTarget = async (
+  req,
+  res,
+  { requireDownload = false, requireWrite = false, allowSharedFileName = false } = {}
+) => {
   const shareToken = req.params.token;
   const rawInnerPath = (req.params.splat || []).join('/');
-  const mode = normalizeDirectFileMode(req.query?.mode);
-  let innerPath = '';
+  let innerPath;
 
   try {
     innerPath = rawInnerPath ? normalizeRelativePath(rawInnerPath) : '';
-  } catch (error) {
+  } catch (_) {
     throw new ValidationError('Invalid file path.');
   }
 
@@ -847,13 +870,19 @@ const handleDirectFileRequest = async (req, res) => {
   }
 
   if (!share.isDirectory && innerPath) {
-    throw new NotFoundError('Path not found');
+    // File shares already identify their target. Permit only its exact name so
+    // friendly editor URLs work without opening arbitrary descendant paths.
+    const targetName = path.basename(share.sourcePath || '');
+    if (!allowSharedFileName || innerPath !== targetName) {
+      throw new NotFoundError('Path not found');
+    }
+    innerPath = '';
   }
 
   if (share.sharingType === 'users') {
     if (!req.user || !req.user.id) {
       redirectToShareAccess(req, res, shareToken);
-      return;
+      return null;
     }
 
     const permitted = await hasUserPermission(share.id, req.user.id);
@@ -868,7 +897,7 @@ const handleDirectFileRequest = async (req, res) => {
     if (share.hasPassword) {
       if (!guestSession || guestSession.shareId !== share.id) {
         redirectToShareAccess(req, res, shareToken);
-        return;
+        return null;
       }
     } else {
       // Public direct file links should work without first visiting the Web UI.
@@ -884,7 +913,8 @@ const handleDirectFileRequest = async (req, res) => {
     !accessInfo ||
     !accessInfo.canAccess ||
     !accessInfo.canRead ||
-    !accessInfo.canDownload ||
+    (requireDownload && !accessInfo.canDownload) ||
+    (requireWrite && !accessInfo.canWrite) ||
     !resolved
   ) {
     throw new ForbiddenError(accessInfo?.denialReason || 'File access not allowed.');
@@ -895,6 +925,15 @@ const handleDirectFileRequest = async (req, res) => {
   }
 
   const stats = await fs.stat(resolved.absolutePath);
+  return { share, innerPath, accessInfo, resolved, stats, context };
+};
+
+const handleDirectFileRequest = async (req, res) => {
+  const mode = normalizeDirectFileMode(req.query?.mode);
+  const target = await resolveSharedFileTarget(req, res, { requireDownload: true });
+  if (!target) return;
+
+  const { share, resolved, stats, context } = target;
   if (stats.isDirectory()) {
     // A folder leaving as a zip is a download like any other.
     await trackShareDownload(share.id, { ipAddress: req.ip });
@@ -926,6 +965,84 @@ const handleDirectFileRequest = async (req, res) => {
  */
 router.get('/:token/file', asyncHandler(handleDirectFileRequest));
 router.get('/:token/file/{*splat}', asyncHandler(handleDirectFileRequest));
+
+/**
+ * GET /api/share/:token/editor/* — read a shared text file, to edit it.
+ *
+ * The same rules as the direct file, and the same answer the editor gets
+ * inside the application: the text, what it is called, and what this visitor
+ * may do with it.
+ */
+const handleSharedEditorRequest = async (req, res) => {
+  const target = await resolveSharedFileTarget(req, res, { allowSharedFileName: true });
+  if (!target) return;
+
+  const { share, innerPath, accessInfo, resolved } = target;
+  const name = path.basename(resolved.absolutePath);
+  const canDownload = Boolean(accessInfo.canDownload);
+  const canWrite = Boolean(accessInfo.canWrite);
+
+  await sendTextFile(req, res, {
+    absolutePath: resolved.absolutePath,
+    // What the answer says besides the text is part of its identity: a share
+    // turned read-only must never be answered 304 to an editor that still
+    // offers to save, nor a renamed file under its old name.
+    describe: { name, path: innerPath, canDownload, canWrite },
+    headers: { 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' },
+    // A revalidation is still somebody opening the file.
+    onAnswer: () => trackShareAccess(share.id, { ipAddress: clientAddress(req) }),
+    render: ({ text }) => ({ name, path: innerPath, content: text, canDownload, canWrite }),
+  });
+};
+
+router.get('/:token/editor', asyncHandler(handleSharedEditorRequest));
+router.get('/:token/editor/{*splat}', asyncHandler(handleSharedEditorRequest));
+
+/**
+ * PUT /api/share/:token/editor/* — save it back, when the link allows writing.
+ */
+const handleSharedEditorSaveRequest = async (req, res) => {
+  const target = await resolveSharedFileTarget(req, res, {
+    requireWrite: true,
+    allowSharedFileName: true,
+  });
+  if (!target) return;
+
+  const { share, resolved } = target;
+  const { content } = req.body || {};
+  if (typeof content !== 'string') {
+    throw new ValidationError('Text editor content must be a string.');
+  }
+  // The editor's own text validation before anything is written, so a writable
+  // share cannot be used to modify a directory, a binary or an oversized file.
+  // It also says what the file is written in, so the save keeps that.
+  const { encoding } = await readTextFileHead(resolved.absolutePath);
+  const payload = encodeText(content, encoding);
+  if (payload.length > MAX_EDITOR_FILE_SIZE) {
+    throw new ValidationError('This file is too large to save in the text editor.');
+  }
+
+  // Written beside the file and renamed over it, like every other save, so what
+  // a visitor replaces is kept as a version for the owner.
+  await versions.saveFile(
+    resolved.absolutePath,
+    (temporaryPath) => fs.writeFile(temporaryPath, payload, { flag: 'wx' }),
+    {
+      author: versions.authorOf({ user: req.user, guestSession: req.guestSession || {} }),
+      source: 'share-editor',
+    }
+  );
+
+  await trackShareAccess(share.id);
+  res.set({
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.json({ success: true });
+};
+
+router.put('/:token/editor', asyncHandler(handleSharedEditorSaveRequest));
+router.put('/:token/editor/{*splat}', asyncHandler(handleSharedEditorSaveRequest));
 
 /**
  * GET /api/share/:token/browse/* - Browse share contents

@@ -4913,6 +4913,158 @@
         }
       }
     },
+    "/api/files/file": {
+      "post": {
+        "operationId": "createFile",
+        "summary": "Create an empty file",
+        "description": "Under `name (1)` when the name is taken; nothing is ever written over.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "The folder."
+                  },
+                  "destination": {
+                    "type": "string",
+                    "description": "Older name for `path`.",
+                    "deprecated": true
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "item": {
+                      "$ref": "#/components/schemas/Item"
+                    }
+                  },
+                  "required": ["success", "item"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        }
+      }
+    },
+    "/api/files/office-document": {
+      "post": {
+        "operationId": "createOfficeDocument",
+        "summary": "Create a new document from a template",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "The folder."
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": ["docx", "xlsx", "pptx", "pdf", "txt", "md", "csv"]
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "What to call it; a name is chosen when absent."
+                  }
+                },
+                "required": ["format"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "item": {
+                      "$ref": "#/components/schemas/Item"
+                    }
+                  },
+                  "required": ["success", "item"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
     "/api/shares": {
       "get": {
         "operationId": "listShares",
@@ -5852,6 +6004,337 @@
           },
           "404": {
             "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/api/share/{token}/editor": {
+      "get": {
+        "operationId": "readSharedText",
+        "summary": "The text of a file a link shares",
+        "description": "Its `ETag` also changes when what the link allows does.",
+        "tags": ["Shared links"],
+        "security": [{}],
+        "x-access": "share",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "What the link carries.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Guest-Session",
+            "in": "header",
+            "required": false,
+            "description": "The guest session the link earned.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "The ETag of the copy held.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "canDownload": {
+                      "type": "boolean"
+                    },
+                    "canWrite": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name", "content", "canWrite"]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Unchanged."
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveSharedText",
+        "summary": "Save the text of a file a link shares",
+        "description": "Only through a writable link.",
+        "tags": ["Shared links"],
+        "security": [{}],
+        "x-access": "share",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "What the link carries.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Guest-Session",
+            "in": "header",
+            "required": false,
+            "description": "The guest session the link earned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": ["content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          }
+        }
+      }
+    },
+    "/api/share/{token}/editor/{path}": {
+      "get": {
+        "operationId": "readTextInLink",
+        "summary": "The text of a file inside a shared folder",
+        "tags": ["Shared links"],
+        "security": [{}],
+        "x-access": "share",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "What the link carries.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "description": "The file, inside the shared folder.",
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": true
+          },
+          {
+            "name": "X-Guest-Session",
+            "in": "header",
+            "required": false,
+            "description": "The guest session the link earned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "canDownload": {
+                      "type": "boolean"
+                    },
+                    "canWrite": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name", "content", "canWrite"]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Unchanged."
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveTextInLink",
+        "summary": "Save a text file inside a shared folder",
+        "tags": ["Shared links"],
+        "security": [{}],
+        "x-access": "share",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "What the link carries.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "description": "The file, inside the shared folder.",
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": true
+          },
+          {
+            "name": "X-Guest-Session",
+            "in": "header",
+            "required": false,
+            "description": "The guest session the link earned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": ["content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
           }
         }
       }
@@ -11237,6 +11720,66 @@
           },
           "413": {
             "$ref": "#/components/responses/E413"
+          }
+        }
+      }
+    },
+    "/api/onlyoffice/storage-file": {
+      "post": {
+        "operationId": "pickFileForOnlyoffice",
+        "summary": "A file the editor inserts or compares, signed for it",
+        "tags": ["ONLYOFFICE"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "The document."
+                  },
+                  "c": {
+                    "type": "string",
+                    "description": "The editor’s command."
+                  }
+                },
+                "required": ["path"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
           }
         }
       }
