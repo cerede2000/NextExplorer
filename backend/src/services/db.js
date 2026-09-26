@@ -440,6 +440,16 @@ const migrate = (db) => {
       );
       version = 13;
     }
+    if (version < 14) {
+      logger.info('[DB Migration] Migrating to v14: a share counts opens apart from downloads...');
+      addColumnIfMissing(db, 'shares', 'access_count', 'access_count INTEGER DEFAULT 0');
+      addColumnIfMissing(db, 'shares', 'last_access_ip', 'last_access_ip TEXT');
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(14)
+      );
+      version = 14;
+    }
   })();
 };
 
