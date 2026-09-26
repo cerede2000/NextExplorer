@@ -7,7 +7,6 @@ const {
   setSystemSetting,
   getSettings,
 } = require('../services/settingsService');
-const logger = require('../utils/logger');
 const activityLog = require('../services/activityLog');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const { checkRulePath } = require('../services/accessControlService');
@@ -15,9 +14,9 @@ const { ValidationError } = require('../errors/AppError');
 const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
 const asyncHandler = require('../utils/asyncHandler');
-const path = require('path');
-const fs = require('fs').promises;
 const multer = require('multer');
+const { explainMultipartRefusals, describeBytes } = require('../middleware/multipartRefusals');
+const { replaceLogo, forgetReplacedLogo } = require('../services/brandingLogo');
 
 /**
  * A number somebody chose.
@@ -36,42 +35,42 @@ const chosenNumber = (value) => Number.isFinite(value) && value > 0;
 
 const router = express.Router();
 
-const DEFAULT_LOGO_URL = '/logo.svg';
-
-const deleteCustomLogoFiles = async () => {
-  const configDir = process.env.CONFIG_DIR || '/config';
-  const logoDir = path.join(configDir, 'logos');
-  const candidates = ['custom-logo.svg', 'custom-logo.png', 'custom-logo.jpg'];
-
-  await Promise.all(
-    candidates.map(async (filename) => {
-      const filePath = path.join(logoDir, filename);
-      try {
-        await fs.unlink(filePath);
-        logger.info('Deleted custom logo file', { filename });
-      } catch (error) {
-        if (error && error.code === 'ENOENT') return;
-        logger.warn('Failed to delete custom logo file', { filename, error: error?.message });
-      }
-    })
-  );
+// Middleware to check if user is admin
+const keepValid = (section, fields) => {
+  const update = {};
+  for (const [name, isAcceptable] of Object.entries(fields)) {
+    if (isAcceptable(section[name])) update[name] = section[name];
+  }
+  return update;
 };
 
-// Middleware to check if user is admin
+const isBoolean = (value) => typeof value === 'boolean';
+
+// An application name of spaces is no name: the header and the sign-in page showed
+// nothing where it belonged.
+const isName = (value) => typeof value === 'string' && value.trim() !== '';
+
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+
 // Configure multer for logo uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: LOGO_MAX_BYTES },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/svg+xml', 'image/png', 'image/jpeg'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only SVG, PNG, and JPG are allowed.'));
+      // A ValidationError and not a plain Error: the wrong kind of file is the
+      // request's fault, and a plain Error reached the client as a 500.
+      cb(new ValidationError('Invalid file type. Only SVG, PNG, and JPG are allowed.'));
     }
   },
 });
 
+const acceptLogo = explainMultipartRefusals(upload.single('logo'), {
+  LIMIT_FILE_SIZE: `A logo can be at most ${describeBytes(LOGO_MAX_BYTES)}.`,
+});
 /**
  * GET /api/branding
  * Returns public branding settings (no auth required)
@@ -101,53 +100,43 @@ router.get(
 );
 
 /**
+ * The rest of the branding, sent in the same form as a logo so that both are
+ * saved together. Held to the rules a PATCH holds it to; the logo address is
+ * the uploaded file's, whatever was sent.
+ */
+const brandingSentWithLogo = (field) => {
+  if (field === undefined) return {};
+  let section;
+  try {
+    section = JSON.parse(field);
+  } catch {
+    section = null;
+  }
+  if (!section || typeof section !== 'object' || Array.isArray(section)) {
+    throw new ValidationError('The branding sent with the logo is not JSON.');
+  }
+  return keepValid(section, { appName: isName, showPoweredBy: isBoolean });
+};
+
+/**
  * POST /api/settings/upload-logo
- * Upload a custom logo file (admin only)
+ *
+ * Make an image the logo (admin only), with any other branding sent in the
+ * `branding` field. The upload is the save: the logo in use is replaced only
+ * once the new one is written and stored, and a failure leaves it as it was.
+ * Answers the settings, as a PATCH does, and the new logo's address.
  */
 router.post(
   '/settings/upload-logo',
   ensureAdmin,
-  upload.single('logo'),
+  acceptLogo,
   asyncHandler(async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    if (!req.file) throw new ValidationError('No file uploaded');
 
-    try {
-      const configDir = process.env.CONFIG_DIR || '/config';
-      const logoDir = path.join(configDir, 'logos');
+    const { logoUrl } = await replaceLogo(req.file, brandingSentWithLogo(req.body?.branding));
 
-      // Create logos directory if it doesn't exist
-      await fs.mkdir(logoDir, { recursive: true });
-
-      // Generate filename based on MIME type
-      let filename = 'custom-logo';
-      if (req.file.mimetype === 'image/svg+xml') {
-        filename += '.svg';
-      } else if (req.file.mimetype === 'image/png') {
-        filename += '.png';
-      } else if (req.file.mimetype === 'image/jpeg') {
-        filename += '.jpg';
-      }
-
-      const logoPath = path.join(logoDir, filename);
-
-      // Write file to disk
-      await fs.writeFile(logoPath, req.file.buffer);
-
-      logger.info('Logo uploaded successfully', {
-        filename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-      });
-
-      // Return the URL path for the uploaded logo
-      const logoUrl = `/static/logos/${filename}`;
-      res.json({ logoUrl });
-    } catch (error) {
-      logger.error('Logo upload error', { error: error.message });
-      res.status(500).json({ error: 'Failed to save logo' });
-    }
+    const settings = await getSettingsForUser(req.user);
+    res.json({ ...settings, logoUrl });
   })
 );
 
@@ -363,6 +352,7 @@ router.patch(
       }
 
       // Branding settings
+      let previousLogoUrl;
       if (payload.branding && typeof payload.branding === 'object') {
         const brandingUpdate = {};
         if (typeof payload.branding.appName === 'string') {
@@ -376,6 +366,7 @@ router.patch(
         }
         if (Object.keys(brandingUpdate).length > 0) {
           const current = await getSettings();
+          previousLogoUrl = current.branding?.appLogoUrl ?? null;
           await setSystemSetting('branding', 'branding', {
             ...current.branding,
             ...brandingUpdate,
@@ -396,16 +387,13 @@ router.patch(
         });
       }
 
-      // Handle logo deletion if resetting to default
-      const requestedLogoUrl =
-        typeof payload.branding?.appLogoUrl === 'string'
-          ? payload.branding.appLogoUrl.trim()
-          : null;
-      const resetToDefault =
-        requestedLogoUrl != null &&
-        (requestedLogoUrl === '' || requestedLogoUrl === DEFAULT_LOGO_URL);
-      if (resetToDefault) {
-        await deleteCustomLogoFiles();
+      // The logo that was replaced is forgotten, and only once nothing points at it
+      // any more. Removing the files under a fixed name meant a logo could not be
+      // changed back, and a branding change that failed halfway took the logo in use
+      // with it.
+      if (previousLogoUrl !== undefined) {
+        const settingsNow = await getSettings();
+        await forgetReplacedLogo(previousLogoUrl, settingsNow.branding?.appLogoUrl);
       }
     } else if (payload.thumbnails || payload.access || payload.branding) {
       // Non-admin trying to update system settings

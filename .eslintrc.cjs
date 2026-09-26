@@ -49,7 +49,10 @@ module.exports = {
         'backend/src/services/uploadRemnants.js',
         'backend/src/services/uploadService.js',
         'backend/src/routes/onlyoffice.js',
-        'backend/src/routes/settings.js',
+        // Its own logos, under the config directory: named by the content they
+        // hold, removed only once nothing points at one, and made again by
+        // uploading it. The settings route no longer removes them itself.
+        'backend/src/services/brandingLogo.js',
         'backend/src/routes/zip.js',
         'backend/src/scripts/**',
       ],
