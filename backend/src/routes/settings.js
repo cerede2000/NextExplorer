@@ -15,6 +15,7 @@ const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
 const asyncHandler = require('../utils/asyncHandler');
 const multer = require('multer');
+const featureSwitches = require('../services/featureSwitches');
 const { explainMultipartRefusals, describeBytes } = require('../middleware/multipartRefusals');
 const { replaceLogo, forgetReplacedLogo } = require('../services/brandingLogo');
 
@@ -341,6 +342,44 @@ router.patch(
       ]) {
         const section = payload[key];
         if (!section || typeof section !== 'object') continue;
+
+        // Whether the worker runs at all, which was decided by SEARCH_INDEX and
+        // FOLDER_SIZE_MODE alone: turning either on meant editing a file on the host
+        // and restarting, while every other setting beside them was a click (#9).
+        //
+        // The environment stays the floor. A variable somebody set decides, and a
+        // switch sent for it is refused in words naming the variable, rather than
+        // accepted and quietly ignored — "false" is a decision too, so an
+        // installation that turned the index off in its file has not left it to
+        // whoever next opens the page.
+        const field = key === 'searchIndex' ? 'enabled' : 'mode';
+        if (Object.prototype.hasOwnProperty.call(section, field)) {
+          const variable = key === 'searchIndex' ? 'SEARCH_INDEX' : 'FOLDER_SIZE_MODE';
+          if (featureSwitches.snapshot()[key].lockedBy) {
+            throw new ValidationError(
+              `${variable} is set in the environment, so this is decided there and not here.`
+            );
+          }
+          const requested =
+            key === 'searchIndex'
+              ? typeof section.enabled === 'boolean'
+                ? section.enabled
+                : undefined
+              : featureSwitches.FOLDER_SIZE_MODES.includes(section.mode)
+                ? section.mode
+                : undefined;
+          if (requested === undefined) {
+            throw new ValidationError(`${field} is not a value ${key} takes.`);
+          }
+          const current = await getSettings();
+          systemUpdates[key] = await setSystemSetting('system', key, {
+            ...current[key],
+            [field]: requested,
+          });
+          if (key === 'searchIndex') await featureSwitches.setSearchIndex(requested);
+          else await featureSwitches.setFolderSizeMode(requested);
+        }
+
         if (!Array.isArray(section.excludedPaths)) continue;
         const current = await getSettings();
         const merged = await setSystemSetting('system', key, {
