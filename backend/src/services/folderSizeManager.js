@@ -30,6 +30,7 @@ const folderSizeIndex = require('./folderSizeIndex');
 const transferState = require('./folderSizeTransferState');
 const exclusions = require('./folderSizeExclusions');
 const { getDb } = require('./db');
+const { getIndexDb } = require('./indexDb');
 
 let db = null;
 let scope = null;
@@ -138,7 +139,6 @@ const flush = async () => {
     for (const abs of dirs) {
       let agg;
       try {
-        // eslint-disable-next-line no-await-in-loop
         agg = await indexer.aggregateDirectory(db, scope, abs, {
           mode: config.folderSize.mode,
           shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
@@ -191,7 +191,6 @@ const touch = async (absDirs = []) => {
     if (transferState.isRelatedToActiveTransfer(abs)) continue;
     let stat;
     try {
-      // eslint-disable-next-line no-await-in-loop
       stat = await indexer.withIoTimeout('stat', abs, () => fsp.stat(abs));
     } catch (err) {
       if (isFolderSizeIoSafetyError(err)) {
@@ -282,8 +281,17 @@ const baselineIfNeeded = async () => {
   const existing = folderSizeIndex.countByVolume(db, scope.label);
   const storedVersion = folderSizeIndex.getIndexVersion(db, scope);
   const needsVersionUpgrade = existing > 0 && storedVersion < folderSizeIndex.CURRENT_INDEX_VERSION;
-  const rebuild = config.folderSize.rebuild || needsVersionUpgrade;
+  // Sizes measured in the other mode are wrong rather than stale, so they go.
+  // An index from before the mode was recorded is taken to be in the current
+  // one, as it always was: throwing a working index away on upgrade to learn
+  // something already true would cost a whole walk for nothing.
+  const storedMode = folderSizeIndex.getIndexMode(db, scope);
+  const modeChanged = existing > 0 && storedMode !== null && storedMode !== config.folderSize.mode;
+  const rebuild = config.folderSize.rebuild || needsVersionUpgrade || modeChanged;
   if (existing > 0 && !rebuild) {
+    // Recorded here too, so an index built before the mode was kept learns it
+    // on the first start that has nothing to rebuild.
+    if (storedMode === null) folderSizeIndex.setIndexMode(db, scope, config.folderSize.mode);
     log('info', 'Baseline skipped (volume already indexed)', {
       folders: existing,
       indexVersion: storedVersion,
@@ -294,7 +302,12 @@ const baselineIfNeeded = async () => {
     folderSizeIndex.removeSubtree(db, scope, scope.root);
     log('info', 'Rebuild requested — cleared existing index', {
       folders: existing,
-      reason: config.folderSize.rebuild ? 'manual' : 'index-version-upgrade',
+      reason: config.folderSize.rebuild
+        ? 'manual'
+        : modeChanged
+          ? 'mode-changed'
+          : 'index-version-upgrade',
+      ...(modeChanged ? { fromMode: storedMode, toMode: config.folderSize.mode } : {}),
       fromVersion: storedVersion,
       toVersion: folderSizeIndex.CURRENT_INDEX_VERSION,
     });
@@ -306,6 +319,7 @@ const baselineIfNeeded = async () => {
     shouldExclude: (absDir) => exclusions.isExcluded(absDir, scope),
   });
   folderSizeIndex.setIndexVersion(db, scope);
+  folderSizeIndex.setIndexMode(db, scope, config.folderSize.mode);
   log('info', 'Baseline walk complete', { ...result, ms: Date.now() - started });
 };
 
@@ -321,9 +335,10 @@ const pruneExcludedIndexEntries = (relativePaths = exclusions.effectivePaths()) 
 };
 
 const init = async () => {
-  db = await getDb();
+  db = await getIndexDb();
   scope = indexer.getVolumeScope();
-  exclusions.loadFromDatabase(db);
+  // The folders not to measure are a setting, and settings stay in app.db.
+  exclusions.loadFromDatabase(await getDb());
   pruneExcludedIndexEntries();
 
   // Baseline once (or on explicit rebuild). Async + cooperative yields, so it

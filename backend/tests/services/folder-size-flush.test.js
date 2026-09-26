@@ -45,7 +45,7 @@ const setup = async (extraEnv = {}) => {
   const transferState = currentEnv.requireFresh('src/services/folderSizeTransferState');
   const folderSizeIndex = currentEnv.requireFresh('src/services/folderSizeIndex');
   manager = currentEnv.requireFresh('src/services/folderSizeManager');
-  const db = await currentEnv.requireFresh('src/services/db').getDb();
+  const db = await currentEnv.requireFresh('src/services/indexDb').getIndexDb();
 
   await manager.start();
 

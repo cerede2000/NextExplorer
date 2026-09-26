@@ -6,6 +6,7 @@ const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const versions = require('../services/versions/operations');
+const folderSizeHooks = require('../services/folderSizeHooks');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendTextFile } = require('../utils/textFileResponse');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
@@ -133,10 +134,11 @@ router.put(
     const { absolutePath } = resolved;
 
     await ensureDir(path.dirname(absolutePath));
-    const existed = await fs
-      .stat(absolutePath)
-      .then((stats) => stats.isFile())
-      .catch(() => false);
+    // What the file weighed before, for the index: a save replaces content, so the
+    // folder it sits in gains the difference rather than the whole of the new file.
+    const before = await fs.stat(absolutePath).catch(() => null);
+    const existed = Boolean(before?.isFile());
+    const previousSize = existed ? before.size : 0;
 
     // Written back in the encoding it already had: a UTF-16 file saved as UTF-8
     // reads perfectly well here and breaks whatever wrote it.
@@ -165,6 +167,17 @@ router.put(
         explicit: true,
       }
     );
+    // The index takes the difference the save made, from the size it can already
+    // see, instead of waiting for the periodic sweep to walk the folder again.
+    const updated = await fs.stat(absolutePath).catch(() => null);
+    if (updated) {
+      if (existed) {
+        await folderSizeHooks.onFileReplaced(absolutePath, previousSize, updated.size);
+      } else {
+        await folderSizeHooks.onFileWritten(absolutePath, updated.size);
+      }
+    }
+
     res.send({ success: true });
   })
 );

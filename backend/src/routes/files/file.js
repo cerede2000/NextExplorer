@@ -3,6 +3,7 @@ const fs = require('fs/promises');
 
 const { normalizeRelativePath, ensureValidName, splitName } = require('../../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../../services/authorizationService');
+const folderSizeHooks = require('../../services/folderSizeHooks');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../errors/AppError');
 const { buildItemMetadata } = require('./utils');
@@ -184,6 +185,7 @@ router.post(
       baseName,
       contents
     );
+    if (contents) await folderSizeHooks.onFileWritten(absolutePath, contents.length);
 
     const item = await buildItemMetadata(absolutePath, parentRelative, finalName);
     res.status(201).json({ success: true, item });
