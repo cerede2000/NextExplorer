@@ -918,5 +918,10 @@
       "action": "Åtgärden på den här versionen misslyckades"
     },
     "mark": "{count} tidigare version | {count} tidigare versioner"
+  },
+  "onlyoffice": {
+    "renamedHeading": "Namnet ändrat",
+    "renamedBody": "Dokumentet heter nu {name}.",
+    "renameFailed": "Det gick inte att byta namn till {name}"
   }
 }

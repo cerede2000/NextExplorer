@@ -918,5 +918,10 @@
       "action": "이 버전에 대한 작업이 실패했습니다"
     },
     "mark": "이전 버전 {count}개"
+  },
+  "onlyoffice": {
+    "renamedHeading": "이름 변경됨",
+    "renamedBody": "문서 이름이 {name}(으)로 바뀌었습니다.",
+    "renameFailed": "{name}(으)로 이름을 바꾸지 못했습니다"
   }
 }

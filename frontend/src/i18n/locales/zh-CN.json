@@ -918,5 +918,10 @@
       "action": "对此版本的操作失败"
     },
     "mark": "{count} 个历史版本"
+  },
+  "onlyoffice": {
+    "renamedHeading": "已重命名",
+    "renamedBody": "文档现在名为 {name}。",
+    "renameFailed": "无法重命名为 {name}"
   }
 }
