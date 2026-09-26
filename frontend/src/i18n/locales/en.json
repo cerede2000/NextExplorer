@@ -125,7 +125,8 @@
     "path": "e.g. Pictures/Holidays",
     "search": "Search files and folders…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "name{'@'}company.com or name"
   },
   "loading": {
     "default": "Loading…",
@@ -166,12 +167,14 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "totpCodeRequired": "Enter the code."
+    "totpCodeRequired": "Enter the code.",
+    "identifierRequired": "An email address or username is required"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentication required",
     "AUTH_INVALID_CREDENTIALS": "Invalid email or password",
     "AUTH_ACCOUNT_LOCKED": "Account is temporarily locked due to failed login attempts",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account locked after too many failed sign-in attempts. Try again in {minutes} minute | Account locked after too many failed sign-in attempts. Try again in {minutes} minutes",
     "AUTH_PASSWORD_INCORRECT": "Current password is incorrect",
     "VALIDATION_EMAIL_REQUIRED": "Email is required",
     "VALIDATION_PASSWORD_REQUIRED": "Password is required",
@@ -375,7 +378,9 @@
       },
       "totpCode": "Code",
       "totpExplain": "Your password was accepted. Enter the code from your authenticator app, or one of your recovery codes.",
-      "totpSubmit": "Sign in"
+      "totpSubmit": "Sign in",
+      "sessionExpired": "Your session has ended. Sign in again to carry on where you left off.",
+      "totpBack": "Start again"
     },
     "setup": {
       "headline": "Let's get set up",
@@ -397,7 +402,8 @@
     },
     "passkey": {
       "signIn": "Sign in with a passkey"
-    }
+    },
+    "emailOrUsername": "Email address or username"
   },
   "breadcrumb": {
     "volumes": "Volumes",
@@ -556,7 +562,8 @@
       "confirm": "Confirm new password",
       "update": "Update Password",
       "success": "Password updated successfully.",
-      "validation": "Please fill all fields; new password must be at least 6 characters and match confirmation."
+      "validation": "Please fill all fields; new password must be at least 6 characters and match confirmation.",
+      "successOtherSessionsEnded": "Password updated. Every other session of this account has been signed out."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",

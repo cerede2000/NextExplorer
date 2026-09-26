@@ -125,7 +125,8 @@
     "path": "ex.: Fotos/Férias",
     "search": "Pesquisar arquivos e pastas…",
     "volumeLabel": "ex.: Documentos, Projetos, Mídia",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "nome{'@'}empresa.com ou nome"
   },
   "loading": {
     "default": "Carregando…",
@@ -166,12 +167,14 @@
     "pathRequired": "O caminho é obrigatório",
     "saveVolume": "Falha ao salvar volume",
     "removeVolume": "Falha ao remover volume",
-    "totpCodeRequired": "Digite o código."
+    "totpCodeRequired": "Digite o código.",
+    "identifierRequired": "É necessário um e-mail ou nome de usuário"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticação necessária",
     "AUTH_INVALID_CREDENTIALS": "E-mail ou senha inválidos",
     "AUTH_ACCOUNT_LOCKED": "A conta está temporariamente bloqueada devido a tentativas de login com falha",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minuto | Conta bloqueada após muitas tentativas de login com falha. Tente novamente em {minutes} minutos",
     "AUTH_PASSWORD_INCORRECT": "A senha atual está incorreta",
     "VALIDATION_EMAIL_REQUIRED": "O e-mail é obrigatório",
     "VALIDATION_PASSWORD_REQUIRED": "A senha é obrigatória",
@@ -375,7 +378,9 @@
       },
       "totpCode": "Código",
       "totpExplain": "Sua senha foi aceita. Digite o código do seu aplicativo autenticador, ou um dos seus códigos de recuperação.",
-      "totpSubmit": "Entrar"
+      "totpSubmit": "Entrar",
+      "sessionExpired": "Sua sessão expirou. Entre novamente para continuar de onde parou.",
+      "totpBack": "Começar de novo"
     },
     "setup": {
       "headline": "Vamos configurar",
@@ -397,7 +402,8 @@
     },
     "passkey": {
       "signIn": "Entrar com uma chave de acesso"
-    }
+    },
+    "emailOrUsername": "E-mail ou nome de usuário"
   },
   "breadcrumb": {
     "volumes": "Volumes",
@@ -556,7 +562,8 @@
       "confirm": "Confirmar nova senha",
       "update": "Atualizar Senha",
       "success": "Senha atualizada com sucesso.",
-      "validation": "Preencha todos os campos; a nova senha deve ter pelo menos 6 caracteres e coincidir com a confirmação."
+      "validation": "Preencha todos os campos; a nova senha deve ter pelo menos 6 caracteres e coincidir com a confirmação.",
+      "successOtherSessionsEnded": "Senha atualizada. Todas as outras sessões desta conta foram encerradas."
     },
     "users": {
       "subtitle": "Gerencie usuários, funções e credenciais de acesso.",

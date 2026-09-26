@@ -5,8 +5,8 @@ import {
   fetchAuthStatus,
   setupAccount as setupAccountApi,
   login as loginApi,
-  submitTotpCode as submitTotpCodeApi,
   signInWithPasskey as signInWithPasskeyApi,
+  submitTotpCode as submitTotpCodeApi,
   logout as logoutApi,
   fetchCurrentUser,
 } from '@/api';
@@ -18,16 +18,22 @@ export const useAuthStore = defineStore('auth', () => {
   const strategies = ref({
     local: true,
     oidc: false,
+    passkey: false,
   });
+  // What the server's configuration pass concluded about single sign-on:
+  // 'ready', 'not-configured' or 'unavailable'. The sign-in screen shows the
+  // last two rather than sending somebody to a provider that cannot answer.
+  const oidcStatus = ref('ready');
   const currentUser = ref(null);
-  const isLoading = ref(false);
   /**
-   * Whether a sign-in is waiting for a code from an authenticator.
+   * The password was right, and the account asks for a code as well.
    *
-   * The password was right; nothing about who they are is known here, and the
-   * server is holding that.
+   * Read back from the server on every start, not only set when a sign-in
+   * happens here: a reload in the middle of one lands back on the code rather
+   * than on a password screen that would start the whole thing again.
    */
-  const totpRequired = ref(false);
+  const totpPending = ref(false);
+  const isLoading = ref(false);
   const hasStatus = ref(false);
   const lastError = ref(null);
   let initPromise = null;
@@ -60,11 +66,10 @@ export const useAuthStore = defineStore('auth', () => {
         requiresSetup.value = enabled ? Boolean(status.requiresSetup) : false;
         authEnabled.value = enabled;
         authMode.value = typeof status?.authMode === 'string' ? status.authMode : 'local';
-        strategies.value = status?.strategies || { local: true, oidc: false };
+        strategies.value = status?.strategies || { local: true, oidc: false, passkey: false };
+        oidcStatus.value = status?.oidc?.status || 'ready';
         currentUser.value = status?.user || null;
-        // A reload in the middle of signing in lands back on the code rather
-        // than on a password screen that would start the whole thing again.
-        totpRequired.value = Boolean(status?.totpPending);
+        totpPending.value = Boolean(status?.totpPending);
 
         // Clear guest session if user is now authenticated
         if (currentUser.value) {
@@ -96,15 +101,20 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem('guestSessionId');
   };
 
-  const login = async ({ email, password }) => {
+  const login = async ({ identifier, password }) => {
     lastError.value = null;
-    const response = await loginApi({ email, password });
+    const response = await loginApi({ identifier, password });
+    hasStatus.value = true;
+
+    // Halfway: the password was right and a code is wanted as well. Nobody is
+    // signed in until it arrives, so nothing here says anybody is.
     if (response?.totpRequired) {
-      totpRequired.value = true;
+      totpPending.value = true;
+      currentUser.value = null;
       return { totpRequired: true };
     }
-    totpRequired.value = false;
-    hasStatus.value = true;
+
+    totpPending.value = false;
     currentUser.value = response?.user || null;
 
     // Clear guest session when user logs in
@@ -113,10 +123,11 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   /**
-   * Signing in with a passkey.
+   * Sign in with a passkey, which names nobody.
    *
-   * Nobody is named: the authenticator offers what it holds for this site, and
-   * the server works out whose key it is from the key itself.
+   * The same two endings as a password: signed in, or waiting for a code. A
+   * passkey that was unlocked — a fingerprint, a face, a PIN — is already the
+   * second factor, so only one that was not lands here waiting.
    */
   const signInWithPasskey = async () => {
     lastError.value = null;
@@ -124,26 +135,48 @@ export const useAuthStore = defineStore('auth', () => {
     hasStatus.value = true;
 
     if (response?.totpRequired) {
-      totpRequired.value = true;
+      totpPending.value = true;
       currentUser.value = null;
       return { totpRequired: true };
     }
 
-    totpRequired.value = false;
+    totpPending.value = false;
     currentUser.value = response?.user || null;
     sessionStorage.removeItem('guestSessionId');
     return { totpRequired: false };
   };
 
-  /** The second step. Which account this is remains the server's to know. */
+  /**
+   * Finish a sign-in with the code from the phone, or one off the paper.
+   *
+   * @returns {Promise<{usedRecoveryCode: boolean, recoveryCodesLeft: number|null}>}
+   */
   const submitTotpCode = async (code) => {
     lastError.value = null;
     const response = await submitTotpCodeApi(code);
-    totpRequired.value = false;
-    hasStatus.value = true;
+    totpPending.value = false;
     currentUser.value = response?.user || null;
     sessionStorage.removeItem('guestSessionId');
-    return response;
+    return {
+      usedRecoveryCode: Boolean(response?.usedRecoveryCode),
+      recoveryCodesLeft: response?.recoveryCodesLeft ?? null,
+    };
+  };
+
+  /**
+   * Back to the password, when somebody gives up on finding their phone.
+   *
+   * The server is told, rather than only the screen: it is the one holding the
+   * half-open sign-in, and a page reload would otherwise come back to the code
+   * for a step this person has already walked away from.
+   */
+  const cancelTotp = async () => {
+    totpPending.value = false;
+    try {
+      await logoutApi();
+    } catch (_) {
+      // Nothing was signed in; a server that cannot be reached changes that.
+    }
   };
 
   const logout = async () => {
@@ -155,6 +188,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
     hasStatus.value = true;
     currentUser.value = null;
+    totpPending.value = false;
+  };
+
+  /**
+   * Drop the session locally, without telling the server.
+   *
+   * For a session that has already expired: there is nothing left to end, and
+   * asking the server to end it would be one more request answered 401 — or,
+   * where an identity provider is involved, a redirect to it that a fetch
+   * cannot follow. `hasStatus` stays true so the navigation guard sends the
+   * person to the login screen rather than pausing to ask the server who they
+   * are, which is the question that just failed.
+   */
+  const forgetSession = () => {
+    currentUser.value = null;
+    // A session that is over is not one halfway through: whatever was waiting
+    // for a code is gone with it, and the screen starts at the password.
+    totpPending.value = false;
+    hasStatus.value = true;
+    lastError.value = null;
   };
 
   const clearError = () => {
@@ -181,16 +234,19 @@ export const useAuthStore = defineStore('auth', () => {
     authEnabled,
     authMode,
     strategies,
+    oidcStatus,
     currentUser,
+    totpPending,
     lastError,
     initialize,
     ensureStatus: initialize,
     setupAccount,
     login,
-    totpRequired,
-    submitTotpCode,
     signInWithPasskey,
+    submitTotpCode,
+    cancelTotp,
     logout,
+    forgetSession,
     clearError,
     refreshCurrentUser,
   };

@@ -125,7 +125,8 @@
     "path": "p. ej. Imágenes/Vacaciones",
     "search": "Buscar archivos y carpetas…",
     "volumeLabel": "",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "nombre{'@'}empresa.com o nombre"
   },
   "loading": {
     "default": "Cargando…",
@@ -166,12 +167,14 @@
     "pathRequired": "",
     "saveVolume": "",
     "removeVolume": "",
-    "totpCodeRequired": "Introduzca el código."
+    "totpCodeRequired": "Introduzca el código.",
+    "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Se requiere autenticación",
     "AUTH_INVALID_CREDENTIALS": "Correo electrónico o contraseña no válidos",
     "AUTH_ACCOUNT_LOCKED": "La cuenta está bloqueada temporalmente debido a intentos fallidos de inicio de sesión",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Cuenta bloqueada tras demasiados intentos fallidos de inicio de sesión. Inténtalo de nuevo en {minutes} minuto | Cuenta bloqueada tras demasiados intentos fallidos de inicio de sesión. Inténtalo de nuevo en {minutes} minutos",
     "AUTH_PASSWORD_INCORRECT": "La contraseña actual es incorrecta",
     "VALIDATION_EMAIL_REQUIRED": "El correo electrónico es obligatorio",
     "VALIDATION_PASSWORD_REQUIRED": "La contraseña es obligatoria",
@@ -375,7 +378,9 @@
       },
       "totpCode": "Código",
       "totpExplain": "Su contraseña se ha aceptado. Introduzca el código de su aplicación de autenticación o uno de sus códigos de recuperación.",
-      "totpSubmit": "Iniciar sesión"
+      "totpSubmit": "Iniciar sesión",
+      "sessionExpired": "Su sesión ha caducado. Vuelva a iniciar sesión para continuar donde lo dejó.",
+      "totpBack": "Empezar de nuevo"
     },
     "setup": {
       "headline": "Vamos a configurarlo",
@@ -397,7 +402,8 @@
     },
     "passkey": {
       "signIn": "Iniciar sesión con una clave de acceso"
-    }
+    },
+    "emailOrUsername": "Correo electrónico o nombre de usuario"
   },
   "breadcrumb": {
     "volumes": "Volúmenes",
@@ -556,7 +562,8 @@
       "confirm": "Confirmar nueva contraseña",
       "update": "Actualizar contraseña",
       "success": "Contraseña actualizada correctamente.",
-      "validation": "Rellena todos los campos; la nueva contraseña debe tener al menos 6 caracteres y coincidir con la confirmación."
+      "validation": "Rellena todos los campos; la nueva contraseña debe tener al menos 6 caracteres y coincidir con la confirmación.",
+      "successOtherSessionsEnded": "Contraseña actualizada. Se han cerrado todas las demás sesiones de esta cuenta."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",
