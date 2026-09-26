@@ -1,7 +1,10 @@
 <script setup>
-import { reactive, computed, watch } from 'vue';
+import { reactive, computed, ref, watch, onBeforeUnmount } from 'vue';
+import { FolderOpenIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import { useAppSettings } from '@/stores/appSettings';
 import { useI18n } from 'vue-i18n';
+import { checkAccessRulePaths } from '@/api';
+import StoragePickerDialog from '@/components/StoragePickerDialog.vue';
 
 const appSettings = useAppSettings();
 const { t } = useI18n();
@@ -32,6 +35,67 @@ watch(
  * looking as though it spared them.
  */
 const holdsAdmins = (rule) => local.applyToAdmins || rule.appliesToAdmins === true;
+
+/**
+ * What each typed path names on the disk, asked of the server as the rules
+ * change.
+ *
+ * A rule is matched against the path as NextExplorer shows it, volume first,
+ * and nothing said so when one was typed another way: `mnt/torrents`, from the
+ * compose file's side of the mount, was saved and matched nothing — a
+ * read-only rule protecting no folder (nxzai/NextExplorer#407). A warning, not
+ * a refusal: a rule may be written for a folder that does not exist yet.
+ */
+const checks = ref({});
+let checkTimer = null;
+let checkRound = 0;
+
+const runChecks = async () => {
+  const paths = [...new Set(local.rules.map((rule) => String(rule.path || '').trim()))].filter(
+    Boolean
+  );
+  const round = (checkRound += 1);
+  if (paths.length === 0) {
+    checks.value = {};
+    return;
+  }
+  try {
+    const answer = await checkAccessRulePaths(paths);
+    // A later edit has asked again; this answer is about paths no longer on screen.
+    if (round !== checkRound) return;
+    checks.value = Object.fromEntries((answer?.paths || []).map((entry) => [entry.path, entry]));
+  } catch {
+    // A warning is a courtesy: without an answer the editor works as before.
+    if (round === checkRound) checks.value = {};
+  }
+};
+
+watch(
+  () => local.rules.map((rule) => rule.path),
+  () => {
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(runChecks, 300);
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => clearTimeout(checkTimer));
+
+const checkOf = (rule) => checks.value[String(rule.path || '').trim()] || null;
+
+/** Choosing a folder instead of typing it, for the rule being edited. */
+const pickerOpen = ref(false);
+const pickerRule = ref(null);
+
+const browseFor = (rule) => {
+  pickerRule.value = rule;
+  pickerOpen.value = true;
+};
+
+const chosen = (folderPath) => {
+  if (pickerRule.value) pickerRule.value.path = folderPath;
+  pickerRule.value = null;
+};
 
 const addRule = () => {
   local.rules.push({
@@ -169,12 +233,51 @@ const save = async () => {
               :key="rule.id"
               class="hover:bg-zinc-50 dark:hover:bg-zinc-950/30 transition-colors"
             >
-              <td class="px-6 py-4">
-                <input
-                  v-model="rule.path"
-                  :placeholder="t('placeholders.path')"
-                  class="block w-full rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
-                />
+              <td class="px-6 py-4 align-top">
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model="rule.path"
+                    :placeholder="t('placeholders.path')"
+                    data-test="access-rule-path"
+                    class="block w-full rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
+                  />
+                  <button
+                    type="button"
+                    data-test="access-rule-browse"
+                    class="inline-flex shrink-0 items-center rounded-md border border-zinc-300 p-2 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    :title="t('settings.access.browse')"
+                    @click="browseFor(rule)"
+                  >
+                    <FolderOpenIcon class="h-4 w-4" aria-hidden="true" />
+                    <span class="sr-only">{{ t('settings.access.browse') }}</span>
+                  </button>
+                </div>
+                <div
+                  v-if="checkOf(rule)?.status === 'missing' || checkOf(rule)?.status === 'invalid'"
+                  class="mt-2 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300"
+                  data-test="access-rule-path-warning"
+                  role="status"
+                >
+                  <ExclamationTriangleIcon class="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+                  <div class="space-y-1">
+                    <p>
+                      {{
+                        checkOf(rule).status === 'invalid'
+                          ? t('settings.access.pathInvalid')
+                          : t('settings.access.pathMissing')
+                      }}
+                    </p>
+                    <button
+                      v-if="checkOf(rule).suggestion"
+                      type="button"
+                      data-test="access-rule-path-suggestion"
+                      class="font-medium underline hover:no-underline"
+                      @click="rule.path = checkOf(rule).suggestion"
+                    >
+                      {{ t('settings.access.useSuggestion', { path: checkOf(rule).suggestion }) }}
+                    </button>
+                  </div>
+                </div>
               </td>
               <td class="px-6 py-4">
                 <label class="inline-flex cursor-pointer items-center">
@@ -230,5 +333,12 @@ const save = async () => {
         </table>
       </div>
     </div>
+
+    <StoragePickerDialog
+      v-model="pickerOpen"
+      choose-folder
+      :title="t('settings.access.browse')"
+      @select="chosen"
+    />
   </div>
 </template>

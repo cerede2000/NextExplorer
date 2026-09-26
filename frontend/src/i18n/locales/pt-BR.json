@@ -69,7 +69,8 @@
     "shares": "Compartilhamentos",
     "unsavedChanges": "Você tem alterações não salvas",
     "readonly": "Somente leitura",
-    "readwrite": "Leitura/Escrita"
+    "readwrite": "Leitura/Escrita",
+    "add": "Adicionar"
   },
   "editor": {
     "editing": "Editando",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Acesso rápido",
-    "quickAccessEmpty": "Fixe pastas como favoritas para acessá-las rapidamente aqui."
+    "quickAccessEmpty": "Fixe pastas como favoritas para acessá-las rapidamente aqui.",
+    "readOnly": {
+      "label": "Somente leitura",
+      "storage": "Armazenamento somente leitura: este volume está montado como somente leitura, então nada pode ser gravado nele.",
+      "permission": "Não gravável: o servidor não tem permissão para gravar neste volume. Verifique a quem ele pertence no host.",
+      "access": "Somente leitura para a sua conta."
+    }
   },
   "drives": {
     "personal": "Pessoal",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Dois fatores",
       "accountPasskeys": "Chaves de acesso",
       "activity": "Registro de atividades",
-      "accountApiTokens": "Tokens de API"
+      "accountApiTokens": "Tokens de API",
+      "folderSize": "Tamanho das pastas",
+      "searchIndex": "Índice de busca"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -495,7 +504,11 @@
       "adminNote": "Cada regra diz se se aplica aos administradores. Sem isso, uma regra “Somente leitura” os deixa escrever e uma regra “Oculto” também esconde a pasta deles.",
       "applyToAdmins": "Aplicar todas as regras aos administradores",
       "applyToAdminsHint": "Ligado, nenhuma regra deixa um administrador passar — a caixa de cada regra é ignorada.",
-      "appliesToAdmins": "Aplica-se aos administradores"
+      "appliesToAdmins": "Aplica-se aos administradores",
+      "browse": "Escolher uma pasta",
+      "pathInvalid": "Este caminho não está dentro de nenhum volume, então a regra nunca será aplicada.",
+      "pathMissing": "Não há pasta neste caminho. Uma regra usa o caminho como o NextExplorer o mostra, começando pelo nome do volume.",
+      "useSuggestion": "Usar {path}"
     },
     "comingSoon": {
       "subtitle": "Esta seção de configurações está em construção. Aguarde!"
@@ -842,6 +855,36 @@
       "createFailed": "Não foi possível emitir o token.",
       "renameFailed": "Não foi possível renomear o token.",
       "revokeFailed": "Não foi possível revogar o token."
+    },
+    "folderSize": {
+      "title": "Tamanho das pastas",
+      "subtitle": "Exclua caminhos do cálculo e da indexação do tamanho das pastas.",
+      "running": "Medir o tamanho das pastas",
+      "runningHelp": "Mede as pastas em segundo plano, para que o tamanho delas apareça na lista.",
+      "modeOff": "Desativado",
+      "modeShallow": "Apenas os próprios arquivos",
+      "modeFull": "Tudo o que contêm",
+      "environment": "Exclusões definidas pelo ambiente",
+      "additional": "Exclusões adicionais",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Nenhum caminho configurado"
+    },
+    "searchIndex": {
+      "title": "Índice de busca",
+      "subtitle": "Exclua caminhos da indexação de conteúdo.",
+      "running": "Manter um índice de busca",
+      "runningHelp": "Lê os documentos do volume em segundo plano, para que uma busca no conteúdo deles responda na hora.",
+      "environment": "Exclusões definidas pelo ambiente",
+      "additional": "Exclusões adicionais",
+      "none": "Nenhum caminho configurado",
+      "placeholder": "Backups/2024"
+    },
+    "featureOff": {
+      "title": "Este recurso não está ativado",
+      "howTo": "Para ativá-lo, defina {setting} e reinicie o contêiner.",
+      "kept": "O que você configurar aqui é salvo e passa a valer assim que o recurso for ativado.",
+      "useSwitch": "Ative-a com o interruptor acima.",
+      "locked": "Definido por {variable} no ambiente: isso é decidido lá, não aqui."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Nada saiu dele.",
     "extractFailed": "Não foi possível extrair isto.",
     "count": "Uma entrada neste arquivo | {count} entradas neste arquivo"
+  },
+  "storagePicker": {
+    "root": "Armazenamento",
+    "empty": "Nada para escolher aqui",
+    "breadcrumb": "Caminho da pasta",
+    "chooseFolder": "Escolher esta pasta"
   }
 }

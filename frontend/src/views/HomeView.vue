@@ -8,6 +8,7 @@ import * as OutlineIcons from '@heroicons/vue/24/outline';
 import * as SolidIcons from '@heroicons/vue/24/solid';
 const ProgressBar = defineAsyncComponent(() => import('@/components/ProgressBar.vue'));
 import IconDrive from '@/icons/IconDrive.vue';
+import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 import { formatBytes } from '@/utils';
 const volumes = ref([]);
 const loading = ref(true);
@@ -142,8 +143,11 @@ const openPersonal = () => {
         >
           <IconDrive class="h-16 shrink-0" />
           <div>
-            <div class="mb-1 truncate text-sm font-medium text-neutral-900 dark:text-white">
+            <div
+              class="mb-1 flex items-center gap-1.5 truncate text-sm font-medium text-neutral-900 dark:text-white"
+            >
               {{ vol.name }}
+              <ReadOnlyMark :reason="vol.readOnly" />
             </div>
             <template v-if="showVolumeUsage">
               <template v-if="usage[vol.path]">

@@ -3,6 +3,8 @@ const env = require('../config/env');
 const { parseByteSize } = require('../utils/env');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ruleAppliesToAdmins } = require('../utils/accessRules');
+const folderSizeExclusions = require('./folderSizeExclusions');
+const searchIndexExclusions = require('./searchIndexExclusions');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 
 const generateId = () => {
@@ -157,6 +159,23 @@ const sanitizeVersions = (versions = {}) => {
   };
 };
 
+const FOLDER_SIZE_MODES = ['off', 'shallow', 'full'];
+
+/**
+ * What an administrator chose for the two background workers. Only a choice:
+ * when the environment set the same thing, the environment is what runs, and
+ * this is kept for the day the variable is taken away.
+ */
+const sanitizeFolderSize = (folderSize = {}) => ({
+  excludedPaths: folderSizeExclusions.sanitizePaths(folderSize.excludedPaths || []),
+  mode: FOLDER_SIZE_MODES.includes(folderSize.mode) ? folderSize.mode : 'off',
+});
+
+const sanitizeSearchIndex = (searchIndex = {}) => ({
+  excludedPaths: searchIndexExclusions.sanitizePaths(searchIndex.excludedPaths || []),
+  enabled: searchIndex.enabled === true,
+});
+
 /**
  * The activity log settings in force: on or off, and how long a line is kept.
  *
@@ -310,6 +329,8 @@ const getSystemSettings = async () => {
     let versions = {};
     let uploads = {};
     let activity = {};
+    let folderSize = {};
+    let searchIndex = {};
 
     for (const row of rows) {
       try {
@@ -325,6 +346,10 @@ const getSystemSettings = async () => {
           uploads = JSON.parse(row.value);
         } else if (row.key === 'activity') {
           activity = JSON.parse(row.value);
+        } else if (row.key === 'folderSize') {
+          folderSize = JSON.parse(row.value);
+        } else if (row.key === 'searchIndex') {
+          searchIndex = JSON.parse(row.value);
         }
       } catch (err) {
         // Skip invalid JSON
@@ -338,6 +363,14 @@ const getSystemSettings = async () => {
       versions: sanitizeVersions(versions),
       uploads: sanitizeUploads(uploads),
       activity: sanitizeActivity(activity),
+      folderSize: {
+        ...sanitizeFolderSize(folderSize),
+        environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+      },
+      searchIndex: {
+        ...sanitizeSearchIndex(searchIndex),
+        environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
+      },
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -351,6 +384,8 @@ const getSystemSettings = async () => {
         versions: sanitizeVersions(settings.versions),
         uploads: sanitizeUploads(settings.uploads),
         activity: sanitizeActivity(settings.activity),
+        folderSize: sanitizeFolderSize(settings.folderSize),
+        searchIndex: sanitizeSearchIndex(settings.searchIndex),
       };
     } catch (err2) {
       // Return defaults
@@ -361,6 +396,8 @@ const getSystemSettings = async () => {
         versions: sanitizeVersions({}),
         uploads: sanitizeUploads({}),
         activity: sanitizeActivity({}),
+        folderSize: sanitizeFolderSize({}),
+        searchIndex: sanitizeSearchIndex({}),
       };
     }
   }
@@ -391,6 +428,8 @@ const getSettingsForUser = async (user) => {
       result.versions = systemSettings.versions;
       result.uploads = systemSettings.uploads;
       result.activity = systemSettings.activity;
+      result.folderSize = systemSettings.folderSize;
+      result.searchIndex = systemSettings.searchIndex;
     }
   }
 
@@ -528,6 +567,14 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeUploads(value);
   } else if (key === 'activity') {
     sanitizedValue = sanitizeActivity(value);
+  } else if (key === 'folderSize') {
+    sanitizedValue = sanitizeFolderSize(value);
+  } else if (key === 'searchIndex') {
+    // The search index had no case here, so what was stored for it was the
+    // merge as it came: paths with spaces around them, empty entries, the same
+    // folder twice. The worker was handed a sanitised copy and behaved, so only
+    // the stored value was wrong — and it is the one the next merge starts from.
+    sanitizedValue = sanitizeSearchIndex(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -631,6 +678,8 @@ module.exports = {
   sanitizeTrash,
   sanitizeVersions,
   sanitizeActivity,
+  sanitizeFolderSize,
+  sanitizeSearchIndex,
   getUserSettings,
   getSystemSettings,
   getSettingsForUser,

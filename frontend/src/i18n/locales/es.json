@@ -69,7 +69,8 @@
     "shares": "Compartidos",
     "unsavedChanges": "Tienes cambios sin guardar",
     "readonly": "Solo lectura",
-    "readwrite": "Lectura/Escritura"
+    "readwrite": "Lectura/Escritura",
+    "add": "Añadir"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Acceso rápido",
-    "quickAccessEmpty": "Ancla carpetas como favoritas para acceder rápidamente aquí."
+    "quickAccessEmpty": "Ancla carpetas como favoritas para acceder rápidamente aquí.",
+    "readOnly": {
+      "label": "Solo lectura",
+      "storage": "Almacenamiento de solo lectura: este volumen está montado en solo lectura, así que no se puede escribir nada en él.",
+      "permission": "No se puede escribir: el servidor no tiene permiso para escribir en este volumen. Compruebe a quién pertenece en el host.",
+      "access": "Solo lectura para su cuenta."
+    }
   },
   "drives": {
     "personal": "Personal",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Doble factor",
       "accountPasskeys": "Claves de acceso",
       "activity": "Registro de actividad",
-      "accountApiTokens": "Tokens de API"
+      "accountApiTokens": "Tokens de API",
+      "folderSize": "Tamaño de carpetas",
+      "searchIndex": "Índice de búsqueda"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -495,7 +504,11 @@
       "adminNote": "Cada regla indica si se aplica a los administradores. Sin eso, una regla «Solo lectura» les deja escribir y una regla «Oculto» también les oculta la carpeta.",
       "applyToAdmins": "Aplicar todas las reglas a los administradores",
       "applyToAdminsHint": "Activado, ninguna regla deja pasar a un administrador: se ignora la casilla de cada regla.",
-      "appliesToAdmins": "Se aplica a los administradores"
+      "appliesToAdmins": "Se aplica a los administradores",
+      "browse": "Elegir una carpeta",
+      "pathInvalid": "Esta ruta no está dentro de ningún volumen, así que la regla nunca se aplicará.",
+      "pathMissing": "No hay ninguna carpeta en esta ruta. Una regla usa la ruta tal como la muestra NextExplorer, empezando por el nombre del volumen.",
+      "useSuggestion": "Usar {path}"
     },
     "comingSoon": {
       "subtitle": "Esta sección de configuración está en desarrollo. ¡Permanece atento!"
@@ -842,6 +855,36 @@
       "createFailed": "No se ha podido emitir el token.",
       "renameFailed": "No se ha podido renombrar el token.",
       "revokeFailed": "No se ha podido revocar el token."
+    },
+    "folderSize": {
+      "title": "Tamaño de carpetas",
+      "subtitle": "Excluye rutas del cálculo y la indexación del tamaño de las carpetas.",
+      "running": "Medir el tamaño de las carpetas",
+      "runningHelp": "Mide las carpetas en segundo plano, para que su tamaño aparezca en la lista.",
+      "modeOff": "Desactivado",
+      "modeShallow": "Solo sus propios archivos",
+      "modeFull": "Todo lo que contienen",
+      "environment": "Exclusiones definidas por el entorno",
+      "additional": "Exclusiones adicionales",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "No hay rutas configuradas"
+    },
+    "searchIndex": {
+      "title": "Índice de búsqueda",
+      "subtitle": "Excluir rutas de la indexación de contenido.",
+      "running": "Mantener un índice de búsqueda",
+      "runningHelp": "Lee los documentos del volumen en segundo plano, para que una búsqueda en su contenido responda al instante.",
+      "environment": "Exclusiones definidas por el entorno",
+      "additional": "Exclusiones adicionales",
+      "none": "Ninguna ruta configurada",
+      "placeholder": "Copias/2024"
+    },
+    "featureOff": {
+      "title": "Esta función no está activada",
+      "howTo": "Para activarla, defina {setting} y reinicie el contenedor.",
+      "kept": "Lo que configure aquí se guarda y se aplicará en cuanto se active.",
+      "useSwitch": "Actívela con el interruptor de arriba.",
+      "locked": "Definido por {variable} en el entorno: se decide allí, no aquí."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "No ha salido nada.",
     "extractFailed": "No se ha podido extraer esto.",
     "count": "Una entrada en este archivo comprimido | {count} entradas en este archivo comprimido"
+  },
+  "storagePicker": {
+    "root": "Almacenamiento",
+    "empty": "No hay nada que elegir aquí",
+    "breadcrumb": "Ruta de la carpeta",
+    "chooseFolder": "Elegir esta carpeta"
   }
 }

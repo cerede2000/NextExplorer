@@ -69,7 +69,8 @@
     "shares": "共享",
     "unsavedChanges": "您有未保存的更改",
     "readonly": "只读",
-    "readwrite": "读/写"
+    "readwrite": "读/写",
+    "add": "添加"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "快速访问",
-    "quickAccessEmpty": "将文件夹固定为收藏夹，以便在此快速访问。"
+    "quickAccessEmpty": "将文件夹固定为收藏夹，以便在此快速访问。",
+    "readOnly": {
+      "label": "只读",
+      "storage": "只读存储：此卷以只读方式挂载，无法写入任何内容。",
+      "permission": "不可写入：服务器没有在此卷中写入的权限。请在主机上检查其所有者。",
+      "access": "对您的账户只读。"
+    }
   },
   "drives": {
     "personal": "个人",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "两步验证",
       "accountPasskeys": "通行密钥",
       "activity": "活动日志",
-      "accountApiTokens": "API 令牌"
+      "accountApiTokens": "API 令牌",
+      "folderSize": "文件夹大小",
+      "searchIndex": "搜索索引"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -495,7 +504,11 @@
       "adminNote": "每条规则都会说明是否适用于管理员。否则，“只读”规则仍允许他们写入，而“隐藏”规则也会对他们隐藏该文件夹。",
       "applyToAdmins": "将所有规则应用于管理员",
       "applyToAdminsHint": "开启后，任何规则都不会放过管理员——每条规则自己的勾选将被忽略。",
-      "appliesToAdmins": "同样适用于管理员"
+      "appliesToAdmins": "同样适用于管理员",
+      "browse": "选择文件夹",
+      "pathInvalid": "此路径不在任何卷内，因此该规则永远不会生效。",
+      "pathMissing": "此路径下没有文件夹。规则使用 NextExplorer 显示的路径，以卷名开头。",
+      "useSuggestion": "使用 {path}"
     },
     "comingSoon": {
       "subtitle": "此设置部分正在构建中，敬请期待！"
@@ -842,6 +855,36 @@
       "createFailed": "无法签发令牌。",
       "renameFailed": "无法重命名令牌。",
       "revokeFailed": "无法吊销令牌。"
+    },
+    "folderSize": {
+      "title": "文件夹大小",
+      "subtitle": "将路径排除在文件夹大小计算和索引之外。",
+      "running": "测量文件夹大小",
+      "runningHelp": "在后台测量文件夹，使其大小显示在列表中。",
+      "modeOff": "关闭",
+      "modeShallow": "仅其自身的文件",
+      "modeFull": "其中的所有内容",
+      "environment": "由环境定义的排除项",
+      "additional": "额外的排除项",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "未配置任何路径"
+    },
+    "searchIndex": {
+      "title": "搜索索引",
+      "subtitle": "将路径排除在内容索引之外。",
+      "running": "维护搜索索引",
+      "runningHelp": "在后台读取卷中的文档，使对其内容的搜索能立即响应。",
+      "environment": "由环境定义的排除项",
+      "additional": "额外的排除项",
+      "none": "未配置任何路径",
+      "placeholder": "备份/2024"
+    },
+    "featureOff": {
+      "title": "此功能未启用",
+      "howTo": "要启用它，请设置 {setting} 并重启容器。",
+      "kept": "此处的配置会被保存，启用后立即生效。",
+      "useSwitch": "使用上方的开关将其开启。",
+      "locked": "由环境中的 {variable} 设置，因此在那里决定，而不是在这里。"
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "没有解压出任何内容。",
     "extractFailed": "无法解压此项。",
     "count": "此压缩包中有 {count} 个条目"
+  },
+  "storagePicker": {
+    "root": "存储",
+    "empty": "这里没有可选项",
+    "breadcrumb": "文件夹路径",
+    "chooseFolder": "选择此文件夹"
   }
 }

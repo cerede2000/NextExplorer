@@ -17,6 +17,26 @@ Customize the appearance and branding of your nextExplorer instance:
 - **Max dimension:** Longest side in pixels (default 200) for generated thumbnails.
 - **Video previews:** Require FFmpeg/ffprobe; binaries are included but you can override paths via environment variables.
 
+## Search index
+
+- **Exclusions:** Folders the index and a name search leave alone. Those set by `SEARCH_INDEX_EXCLUDE` are listed and cannot be removed here; the second list is yours to edit. A folder added here is forgotten by the index straight away, in batches that leave the server answering meanwhile.
+- **Whether it runs at all** is `SEARCH_INDEX`, in the environment. The page names the variable and shows the state in force, rather than offering a switch that would change nothing.
+
+## Folder sizes
+
+- **Exclusions:** as for the search index — the ones from `FOLDER_SIZE_EXCLUDE_PATHS` are fixed, the second list is editable. A Docker overlay tree or a snapshot directory is hundreds of thousands of entries whose total nobody wants, and walking it is the whole cost of the index.
+- **Which of the three modes is in force** — off, a folder's own files, or everything inside it — is `FOLDER_SIZE_MODE`, in the environment, and the page says so.
+
+## About
+
+- **Version, commit and branch** of the build that is running.
+- **Optional tools** _(administrators only)_: ffmpeg, ffprobe, ripgrep, pdftotext, ExifTool, rsync and 7-Zip, and for each one:
+  - whether this instance has it, and the version it reports. The version is asked of the very binary the application runs, and left out rather than guessed when the tool's answer does not state one;
+  - what it gives, and for a missing one the package that brings it back, which is not always the tool's own name;
+  - for 7-Zip, the formats it cannot open here.
+
+  The server writes the same list, versions included, to its log at every start.
+
 ## Security & Authentication
 
 - **Authentication toggle:** Turn on/off authentication for trusted, internal networks (not recommended for public deployments).
@@ -26,6 +46,8 @@ Customize the appearance and branding of your nextExplorer instance:
 ## Access Control
 
 - **Rule editor:** Define per-folder rules with `path`, `type` (`rw`, `ro`, `hidden`), and recursion options.
+- **The path is the one NextExplorer shows:** the volume first, then its folders — `torrents/films`, not the host's `/volume3/downloads/torrents` nor the container's `/mnt/torrents`. Type it, or choose it with the folder button beside the field. A path that names no folder is flagged, with the folder probably meant one click away; it is a warning and not a refusal, since a rule may be written for a folder that does not exist yet.
+- **A folder nothing can be written in says so:** a volume bound `:ro`, or one the server's user may not write in, offers no New folder, Upload or Delete to anybody — an administrator included — and a write that still reaches it is answered in words rather than as a server fault.
 - **First-match wins:** Rules are evaluated top to bottom; the first matching path governs browser behavior. A rule that does not hold the account asking is passed over rather than matched, so a later rule still gets its say.
 - **Who a rule restricts:** every rule restricts every ordinary account. Whether it also restricts administrators is the rule's own switch, **Applies to administrators**, the same whatever the rule grants — so a `ro` rule can hold them to reading, and a `hidden` rule can leave a folder in plain sight for them while hiding it from everybody else.
 - **Apply every rule to administrators:** one switch above the list. With it on, no rule lets an administrator through and each rule's own box is ignored; with it off, each rule decides for itself.

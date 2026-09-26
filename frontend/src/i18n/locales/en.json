@@ -69,7 +69,8 @@
     "shares": "Shares",
     "unsavedChanges": "You have unsaved changes",
     "readonly": "Read Only",
-    "readwrite": "Read/Write"
+    "readwrite": "Read/Write",
+    "add": "Add"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Quick access",
-    "quickAccessEmpty": "Pin folders as favorites to access them quickly here."
+    "quickAccessEmpty": "Pin folders as favorites to access them quickly here.",
+    "readOnly": {
+      "label": "Read-only",
+      "storage": "Read-only storage: this volume is mounted read-only, so nothing can be written in it.",
+      "permission": "Not writable: the server has no permission to write in this volume. Check who owns it on the host.",
+      "access": "Read-only for your account."
+    }
   },
   "drives": {
     "personal": "Personal",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Two-factor",
       "accountPasskeys": "Passkeys",
       "activity": "Activity log",
-      "accountApiTokens": "API tokens"
+      "accountApiTokens": "API tokens",
+      "folderSize": "Folder sizes",
+      "searchIndex": "Search index"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -495,7 +504,11 @@
       "adminNote": "Each rule says whether it holds administrators. Without it, a “Read Only” rule leaves them free to write and a “Hidden” rule hides the folder from them too.",
       "applyToAdmins": "Apply every rule to administrators",
       "applyToAdminsHint": "With this on, no rule lets an administrator through — each rule's own box is ignored.",
-      "appliesToAdmins": "Applies to administrators"
+      "appliesToAdmins": "Applies to administrators",
+      "browse": "Choose a folder",
+      "pathInvalid": "This path is not inside a volume, so the rule will never apply.",
+      "pathMissing": "No folder at this path. A rule uses the path as NextExplorer shows it, starting with the volume name.",
+      "useSuggestion": "Use {path}"
     },
     "comingSoon": {
       "subtitle": "This settings section is being built. Stay tuned!"
@@ -842,6 +855,36 @@
       "createFailed": "The token could not be issued.",
       "renameFailed": "The token could not be renamed.",
       "revokeFailed": "The token could not be revoked."
+    },
+    "folderSize": {
+      "title": "Folder sizes",
+      "subtitle": "Exclude paths from folder-size calculation and indexing.",
+      "running": "Measure folder sizes",
+      "runningHelp": "Measures folders in the background, so their size shows in the list.",
+      "modeOff": "Off",
+      "modeShallow": "Their own files only",
+      "modeFull": "Everything inside them",
+      "environment": "Environment-defined exclusions",
+      "additional": "Additional exclusions",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "No paths configured"
+    },
+    "searchIndex": {
+      "title": "Search index",
+      "subtitle": "Exclude paths from content indexing.",
+      "running": "Keep a search index",
+      "runningHelp": "Reads the documents in the volume in the background, so a search inside them answers at once.",
+      "environment": "Environment-defined exclusions",
+      "additional": "Additional exclusions",
+      "none": "No path configured",
+      "placeholder": "Backups/2024"
+    },
+    "featureOff": {
+      "title": "This feature is not enabled",
+      "howTo": "To turn it on, set {setting} and restart the container.",
+      "kept": "What you configure here is saved and applies as soon as it is enabled.",
+      "useSwitch": "Turn it on with the switch above.",
+      "locked": "Set by {variable} in the environment, so it is decided there and not here."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Nothing came out of it.",
     "extractFailed": "This could not be extracted.",
     "count": "One entry in this archive | {count} entries in this archive"
+  },
+  "storagePicker": {
+    "root": "Storage",
+    "empty": "Nothing here to pick",
+    "breadcrumb": "Folder path",
+    "chooseFolder": "Choose this folder"
   }
 }

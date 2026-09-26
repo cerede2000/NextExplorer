@@ -481,6 +481,11 @@ const tour = async (app, { volume, requireFresh }) => {
   // Settings.
   await call('GET /api/settings', admin.get('/api/settings'));
   await call(
+    'POST /api/settings/access/check-paths',
+    admin.post('/api/settings/access/check-paths').send({ paths: ['Documents', 'mnt/Documents'] })
+  );
+  await call('GET /api/capabilities', admin.get('/api/capabilities'));
+  await call(
     'PATCH /api/settings',
     admin.patch('/api/settings').send({ activity: { enabled: true, retentionDays: 90 } })
   );
@@ -759,6 +764,12 @@ const tour = async (app, { volume, requireFresh }) => {
   );
 
   // Somebody else, and then nobody.
+  await call('DELETE /api/users/{id}/lock', admin.delete(`/api/users/${alice.id}/lock`));
+  await call(
+    'DELETE /api/users/{id}/two-factor',
+    admin.delete(`/api/users/${alice.id}/two-factor`)
+  );
+  await call('DELETE /api/users/{id}/passkeys', admin.delete(`/api/users/${alice.id}/passkeys`));
   await call('DELETE /api/users/{id}', admin.delete(`/api/users/${alice.id}`));
   await call('GET /api/auth/me', request(app).get('/api/auth/me'));
   await call('GET /api/volumes', request(app).get('/api/volumes'));

@@ -1,5 +1,6 @@
 <script setup>
 import { ServerIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
+import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 import { getVolumes } from '@/api';
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -101,7 +102,9 @@ const openPersonal = () => {
               isActiveVolume(volume.name) ? 'dark:text-white' : 'dark:text-neutral-300/90',
             ]"
           >
-            <ServerIcon class="h-[1.38rem]" /> {{ volume.name }}
+            <ServerIcon class="h-[1.38rem]" />
+            <span class="truncate">{{ volume.name }}</span>
+            <ReadOnlyMark :reason="volume.readOnly" />
           </button>
         </div>
       </transition>

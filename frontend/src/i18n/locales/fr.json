@@ -69,7 +69,8 @@
     "shares": "Partages",
     "unsavedChanges": "Vous avez des modifications non enregistrées",
     "readonly": "Lecture seule",
-    "readwrite": "Lecture/Écriture"
+    "readwrite": "Lecture/Écriture",
+    "add": "Ajouter"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Accès rapide",
-    "quickAccessEmpty": "Épinglez des dossiers en favoris pour y accéder rapidement ici."
+    "quickAccessEmpty": "Épinglez des dossiers en favoris pour y accéder rapidement ici.",
+    "readOnly": {
+      "label": "Lecture seule",
+      "storage": "Stockage en lecture seule : ce volume est monté en lecture seule, rien ne peut y être écrit.",
+      "permission": "Écriture impossible : le serveur n'a pas le droit d'écrire dans ce volume. Vérifiez à qui il appartient sur l'hôte.",
+      "access": "En lecture seule pour votre compte."
+    }
   },
   "drives": {
     "personal": "Personnel",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Double facteur",
       "accountPasskeys": "Clés d’accès",
       "activity": "Journal d’activité",
-      "accountApiTokens": "Jetons d’API"
+      "accountApiTokens": "Jetons d’API",
+      "folderSize": "Taille des dossiers",
+      "searchIndex": "Index de recherche"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -495,7 +504,11 @@
       "adminNote": "Chaque règle indique si elle s’applique aux administrateurs. Sans cela, une règle « Lecture seule » les laisse écrire et une règle « Masqué » leur cache aussi le dossier.",
       "applyToAdmins": "Appliquer toutes les règles aux administrateurs",
       "applyToAdminsHint": "Activé, aucune règle ne laisse passer un administrateur — la case de chaque règle est ignorée.",
-      "appliesToAdmins": "S’applique aux administrateurs"
+      "appliesToAdmins": "S’applique aux administrateurs",
+      "browse": "Choisir un dossier",
+      "pathInvalid": "Ce chemin n'est dans aucun volume : la règle ne s'appliquera jamais.",
+      "pathMissing": "Aucun dossier à ce chemin. Une règle utilise le chemin tel que NextExplorer l'affiche, en commençant par le nom du volume.",
+      "useSuggestion": "Utiliser {path}"
     },
     "comingSoon": {
       "subtitle": "Cette section de paramètres est en cours de développement. Restez à l'écoute !"
@@ -842,6 +855,36 @@
       "createFailed": "Le jeton n’a pas pu être émis.",
       "renameFailed": "Le jeton n’a pas pu être renommé.",
       "revokeFailed": "Le jeton n’a pas pu être révoqué."
+    },
+    "folderSize": {
+      "title": "Taille des dossiers",
+      "subtitle": "Exclure des chemins du calcul et de l’indexation des tailles.",
+      "running": "Mesurer la taille des dossiers",
+      "runningHelp": "Mesure les dossiers en arrière-plan, pour que leur taille s'affiche dans la liste.",
+      "modeOff": "Désactivé",
+      "modeShallow": "Leurs propres fichiers seulement",
+      "modeFull": "Tout ce qu'ils contiennent",
+      "environment": "Exclusions définies par l’environnement",
+      "additional": "Exclusions supplémentaires",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Aucun chemin configuré"
+    },
+    "searchIndex": {
+      "title": "Index de recherche",
+      "subtitle": "Exclure des chemins de l'indexation du contenu.",
+      "running": "Tenir un index de recherche",
+      "runningHelp": "Lit les documents du volume en arrière-plan, pour qu'une recherche dans leur contenu réponde aussitôt.",
+      "environment": "Exclusions définies par l'environnement",
+      "additional": "Exclusions supplémentaires",
+      "none": "Aucun chemin configuré",
+      "placeholder": "Sauvegardes/2024"
+    },
+    "featureOff": {
+      "title": "Cette fonction n'est pas active",
+      "howTo": "Pour l'activer, positionnez {setting} puis redémarrez le conteneur.",
+      "kept": "Ce que vous configurez ici est enregistré et s'appliquera dès l'activation.",
+      "useSwitch": "Activez-la avec l'interrupteur ci-dessus.",
+      "locked": "Défini par {variable} dans l'environnement : c'est là que cela se décide, pas ici."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Rien n'en est sorti.",
     "extractFailed": "Impossible d'extraire ceci.",
     "count": "Une entrée dans cette archive | {count} entrées dans cette archive"
+  },
+  "storagePicker": {
+    "root": "Stockage",
+    "empty": "Rien à choisir ici",
+    "breadcrumb": "Chemin du dossier",
+    "chooseFolder": "Choisir ce dossier"
   }
 }

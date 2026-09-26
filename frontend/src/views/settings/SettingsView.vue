@@ -18,6 +18,8 @@ import {
   FingerPrintIcon,
   ListBulletIcon,
   CommandLineIcon,
+  CircleStackIcon,
+  MagnifyingGlassIcon,
   UsersIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline';
@@ -119,6 +121,18 @@ const adminCategories = [
     i18nKey: 'uploads',
     name: 'Uploads',
     icon: ArrowUpTrayIcon,
+  },
+  {
+    key: 'folder-size',
+    i18nKey: 'folderSize',
+    name: 'Folder size',
+    icon: CircleStackIcon,
+  },
+  {
+    key: 'search-index',
+    i18nKey: 'searchIndex',
+    name: 'Search index',
+    icon: MagnifyingGlassIcon,
   },
   {
     key: 'activity',

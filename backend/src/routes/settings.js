@@ -10,6 +10,10 @@ const {
 const logger = require('../utils/logger');
 const activityLog = require('../services/activityLog');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
+const { checkRulePath } = require('../services/accessControlService');
+const { ValidationError } = require('../errors/AppError');
+const folderSizeManager = require('../services/folderSizeManager');
+const searchIndexManager = require('../services/searchIndexManager');
 const asyncHandler = require('../utils/asyncHandler');
 const path = require('path');
 const fs = require('fs').promises;
@@ -144,6 +148,28 @@ router.post(
       logger.error('Logo upload error', { error: error.message });
       res.status(500).json({ error: 'Failed to save logo' });
     }
+  })
+);
+
+/**
+ * POST /api/settings/access/check-paths
+ *
+ * What each path of a rule names on the disk (admin only), for the rule editor
+ * to warn about one that names nothing and offer the folder that was probably
+ * meant. Nothing is stored or refused here: see `checkRulePath`.
+ */
+const MAX_CHECKED_PATHS = 200;
+
+router.post(
+  '/settings/access/check-paths',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const paths = req.body?.paths;
+    if (!Array.isArray(paths)) throw new ValidationError('paths must be a list.');
+    if (paths.length > MAX_CHECKED_PATHS) {
+      throw new ValidationError(`At most ${MAX_CHECKED_PATHS} paths are checked at once.`);
+    }
+    res.json({ paths: await Promise.all(paths.map((entry) => checkRulePath(entry))) });
   })
 );
 
@@ -314,6 +340,26 @@ router.patch(
           });
           systemUpdates.activity = merged;
         }
+      }
+
+      // The folders each background worker leaves alone. The list is stored
+      // and handed to the worker, which answers with the list it is really
+      // applying — the stored one plus whatever the environment set, which an
+      // administrator cannot take away from here.
+      for (const [key, manager] of [
+        ['folderSize', folderSizeManager],
+        ['searchIndex', searchIndexManager],
+      ]) {
+        const section = payload[key];
+        if (!section || typeof section !== 'object') continue;
+        if (!Array.isArray(section.excludedPaths)) continue;
+        const current = await getSettings();
+        const merged = await setSystemSetting('system', key, {
+          ...current[key],
+          excludedPaths: section.excludedPaths,
+        });
+        await manager.setAdminExclusions(merged.excludedPaths);
+        systemUpdates[key] = merged;
       }
 
       // Branding settings

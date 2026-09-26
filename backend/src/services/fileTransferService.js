@@ -540,4 +540,6 @@ module.exports = {
   // The two engines it chooses between are what a test has to be able to name:
   // whichever one the platform would pick, the other would never run.
   copyEntry,
+  // Which of the two is in force, for the report of what this machine can do.
+  nativeCopyEnabled,
 };

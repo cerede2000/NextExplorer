@@ -18,6 +18,7 @@ const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const { purgeExpiredDocumentKeys } = require('./services/onlyofficeDocumentKeyService');
 const editorSessions = require('./services/onlyofficeEditorSessionService');
 const { sweepActivity } = require('./services/activityLog');
+const capabilities = require('./services/capabilities');
 
 let server = null;
 
@@ -62,6 +63,9 @@ const startServer = async () => {
   // ready, it answers from the live search until it is.
   folderSizeManager.start();
   searchIndexManager.start();
+  // Which optional tools are here and which are not, said once. Not awaited: a
+  // server does not wait on `--version` to answer its first request.
+  capabilities.report();
   // Finishes what a crash interrupted before anything else touches a zone,
   // then keeps each zone within its retention and budget.
   trashMaintenance.start();

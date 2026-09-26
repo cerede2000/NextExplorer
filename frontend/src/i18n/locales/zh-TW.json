@@ -69,7 +69,8 @@
     "shares": "分享",
     "unsavedChanges": "您有未儲存的變更",
     "readonly": "讀取",
-    "readwrite": "讀寫"
+    "readwrite": "讀寫",
+    "add": "新增"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "快速訪問",
-    "quickAccessEmpty": "將檔案夾固定為最愛，以便在此快速訪問。"
+    "quickAccessEmpty": "將檔案夾固定為最愛，以便在此快速訪問。",
+    "readOnly": {
+      "label": "唯讀",
+      "storage": "唯讀儲存空間：此磁碟區以唯讀方式掛載，無法寫入任何內容。",
+      "permission": "無法寫入：伺服器沒有在此磁碟區寫入的權限。請在主機上檢查其擁有者。",
+      "access": "對您的帳戶唯讀。"
+    }
   },
   "drives": {
     "personal": "個人",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "兩步驗證",
       "accountPasskeys": "通行金鑰",
       "activity": "活動記錄",
-      "accountApiTokens": "API 權杖"
+      "accountApiTokens": "API 權杖",
+      "folderSize": "檔案夾大小",
+      "searchIndex": "搜尋索引"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -495,7 +504,11 @@
       "adminNote": "每條規則都會說明是否適用於管理員。否則，「唯讀」規則仍允許他們寫入，而「隱藏」規則也會對他們隱藏該資料夾。",
       "applyToAdmins": "將所有規則套用於管理員",
       "applyToAdminsHint": "開啟後，任何規則都不會放過管理員——每條規則自己的勾選將被忽略。",
-      "appliesToAdmins": "同樣適用於管理員"
+      "appliesToAdmins": "同樣適用於管理員",
+      "browse": "選擇資料夾",
+      "pathInvalid": "此路徑不在任何磁碟區內，因此該規則永遠不會生效。",
+      "pathMissing": "此路徑下沒有資料夾。規則使用 NextExplorer 顯示的路徑，以磁碟區名稱開頭。",
+      "useSuggestion": "使用 {path}"
     },
     "comingSoon": {
       "subtitle": "此設置部分正在建置中，敬請期待！"
@@ -842,6 +855,36 @@
       "createFailed": "無法簽發權杖。",
       "renameFailed": "無法重新命名權杖。",
       "revokeFailed": "無法撤銷權杖。"
+    },
+    "folderSize": {
+      "title": "檔案夾大小",
+      "subtitle": "將路徑排除在檔案夾大小計算與索引之外。",
+      "running": "測量資料夾大小",
+      "runningHelp": "在背景測量資料夾，讓其大小顯示在清單中。",
+      "modeOff": "關閉",
+      "modeShallow": "僅其自身的檔案",
+      "modeFull": "其中的所有內容",
+      "environment": "由環境定義的排除項目",
+      "additional": "額外的排除項目",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "未設定任何路徑"
+    },
+    "searchIndex": {
+      "title": "搜尋索引",
+      "subtitle": "將路徑排除在內容索引之外。",
+      "running": "維護搜尋索引",
+      "runningHelp": "在背景讀取磁碟區中的文件，讓對其內容的搜尋能立即回應。",
+      "environment": "由環境定義的排除項",
+      "additional": "額外的排除項",
+      "none": "未設定任何路徑",
+      "placeholder": "備份/2024"
+    },
+    "featureOff": {
+      "title": "此功能未啟用",
+      "howTo": "要啟用它，請設定 {setting} 並重新啟動容器。",
+      "kept": "此處的設定會被儲存，啟用後立即生效。",
+      "useSwitch": "使用上方的開關將其開啟。",
+      "locked": "由環境中的 {variable} 設定，因此在那裡決定，而不是在這裡。"
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "沒有解壓縮出任何內容。",
     "extractFailed": "無法解壓縮此項。",
     "count": "此壓縮檔中有 {count} 個項目"
+  },
+  "storagePicker": {
+    "root": "儲存空間",
+    "empty": "這裡沒有可選項目",
+    "breadcrumb": "資料夾路徑",
+    "chooseFolder": "選擇此資料夾"
   }
 }

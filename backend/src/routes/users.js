@@ -9,10 +9,14 @@ const {
   deleteUser,
   getById,
   countAdmins,
+  disableTwoFactor,
 } = require('../services/users');
 const activityLog = require('../services/activityLog');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
+const { clearLock } = require('../services/users/lockout');
+const { deleteAllPasskeys } = require('../services/users/passkeys');
 const asyncHandler = require('../utils/asyncHandler');
+const logger = require('../utils/logger');
 const { searchLocalUsers } = require('../services/userSearchService');
 const { NotFoundError, ValidationError, UnauthorizedError } = require('../errors/AppError');
 
@@ -141,6 +145,96 @@ router.post(
       user: req.user,
       target: id,
       detail: { passwordReset: true },
+      req,
+    });
+    res.status(204).end();
+  })
+);
+
+// DELETE /api/users/:id/lock - release an account locked by failed sign-ins (admin only)
+router.delete(
+  '/users/:id/lock',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params || {};
+    const existing = await getById(id);
+    if (!existing) {
+      throw new NotFoundError('User not found.');
+    }
+    // The count as well as the deadline. Left on the books, the failures would
+    // let the next typo lock the account straight back.
+    await clearLock(id);
+    logger.info({ adminId: req.user?.id, userId: id }, 'Sign-in lock released by an administrator');
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: existing.username || existing.email || id,
+      detail: { lockReleased: true },
+      req,
+    });
+    res.status(204).end();
+  })
+);
+
+/**
+ * DELETE /api/users/:id/two-factor — take somebody's second factor off.
+ *
+ * The lost phone with the recovery codes in the same bag. Without this the
+ * answer is an administrator editing the database by hand, which is worse in
+ * every way: this one is a deliberate act by somebody who can already reset
+ * the account's password, and it says so in the log.
+ */
+router.delete(
+  '/users/:id/two-factor',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params || {};
+    const user = await getById(id);
+    if (!user) throw new NotFoundError('User not found.');
+
+    const removed = await disableTwoFactor(id);
+    logger.warn(
+      { userId: id, by: req.user?.id || null, removed },
+      'An administrator turned two-factor authentication off for an account'
+    );
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: user.username || user.email || id,
+      detail: { twoFactorRemoved: true },
+      req,
+    });
+    res.status(204).end();
+  })
+);
+
+/**
+ * DELETE /api/users/:id/passkeys — take somebody's passkeys off.
+ *
+ * The laptop that was the passkey, gone with the passkey on it. The same
+ * deliberate act by the same person who could already reset the account's
+ * password, for the same reason: the alternative is editing the database by
+ * hand. What is left is an account that signs in with its password, and adds a
+ * passkey again from whatever device is in front of it.
+ */
+router.delete(
+  '/users/:id/passkeys',
+  ensureAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params || {};
+    const user = await getById(id);
+    if (!user) throw new NotFoundError('User not found.');
+
+    const removed = await deleteAllPasskeys(id);
+    logger.warn(
+      { userId: id, by: req.user?.id || null, removed },
+      'An administrator removed the passkeys of an account'
+    );
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: user.username || user.email || id,
+      detail: { passkeysRemoved: removed },
       req,
     });
     res.status(204).end();

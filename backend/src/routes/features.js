@@ -7,6 +7,7 @@ const {
   features,
   hiddenFiles,
   public: publicConfig,
+  search: searchConfig,
 } = require('../config/index');
 const terminalService = require('../services/terminalService');
 const { getTrashSettings } = require('../services/trash/settings');
@@ -81,6 +82,18 @@ router.get('/features', async (_req, res) => {
     folderSize: {
       mode: features?.folderSizeMode || 'off',
       enabled: (features?.folderSizeMode || 'off') !== 'off',
+      // Which environment variable decided, so the settings page can say the
+      // switch is not its to move.
+      lockedBy: 'FOLDER_SIZE_MODE',
+    },
+    search: {
+      // The content index: off unless somebody asked for it, and asked for in
+      // the environment. The page that lists the folders it leaves alone has
+      // to know whether it is running at all.
+      index: {
+        enabled: Boolean(searchConfig?.index?.enabled),
+        lockedBy: 'SEARCH_INDEX',
+      },
     },
     terminal: {
       enabled: Boolean(features?.terminal) && terminalService.isAvailable(),
