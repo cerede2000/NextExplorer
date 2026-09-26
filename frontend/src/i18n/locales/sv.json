@@ -115,7 +115,8 @@
     "label": "Mina utdelade filer",
     "path": "t.ex. Bilder/Semestrar",
     "search": "Sök efter filer och mappar…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Läser in…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "Ange koden."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Lägg till {suffix} till ditt användarnamn",
         "bulletPasswordSame": "Ditt lösenord är det samma.",
         "bulletUpdateUsers": "Du kan uppdatera befintliga användare från Adminmenyn"
-      }
+      },
+      "totpCode": "Kod",
+      "totpExplain": "Ditt lösenord godtogs. Ange koden från din autentiseringsapp, eller en av dina återställningskoder.",
+      "totpSubmit": "Logga in"
     },
     "setup": {
       "headline": "Låt oss komma igång",
@@ -397,7 +402,8 @@
       "adminUsers": "Användarhantering",
       "trash": "Papperskorg och versioner",
       "fileVersions": "Filversioner",
-      "uploads": "Uppladdningar"
+      "uploads": "Uppladdningar",
+      "accountTwoFactor": "Tvåfaktor"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Aktivera uppladdning i delar",
       "chunkedEnableHelp": "Använd TUS för att skicka stora filer via flera mindre förfrågningar.",
       "chunkSizeInvalid": "Ange en delstorlek från 1 till {max} MiB."
+    },
+    "twoFactor": {
+      "title": "Tvåfaktorsautentisering",
+      "intro": "En kod från telefonen, utöver lösenordet.",
+      "notLocalUser": "Det här kontot loggar in via en identitetsleverantör, och där hör den andra faktorn hemma.",
+      "off": "Tvåfaktorsautentisering är av för det här kontot.",
+      "on": "Tvåfaktorsautentisering är på.",
+      "turnOn": "Slå på",
+      "turnOff": "Stäng av",
+      "scan": "Skanna det här med din autentiseringsapp.",
+      "orType": "Eller skriv in den här hemligheten i appen:",
+      "qrLabel": "QR-kod för din autentiseringsapp",
+      "codeLabel": "Kod från appen",
+      "confirm": "Bekräfta",
+      "confirmPassword": "Ditt lösenord",
+      "codesTitle": "Återställningskoder",
+      "codesExplain": "Spara dem någon annanstans än på telefonen. Varje kod loggar in dig en gång, för dagen då telefonen inte finns till hands. De visas nu och aldrig igen.",
+      "copyCodes": "Kopiera",
+      "copied": "Kopierat.",
+      "codesLeft": "En återställningskod kvar | {count} återställningskoder kvar",
+      "newCodesButton": "Skapa nya koder",
+      "newCodes": "Nya återställningskoder skapade. De tidigare fungerar inte längre.",
+      "turnedOn": "Tvåfaktorsautentisering är på.",
+      "turnedOff": "Tvåfaktorsautentisering är av.",
+      "loadFailed": "Kontots tvåfaktorsinställningar kunde inte läsas.",
+      "startFailed": "Det gick inte att börja ställa in en andra faktor.",
+      "confirmFailed": "Den koden stämmer inte.",
+      "codesFailed": "Det gick inte att skapa nya återställningskoder.",
+      "disableFailed": "Det gick inte att stänga av tvåfaktorsautentisering.",
+      "wrongPassword": "Det lösenordet stämmer inte."
     }
   },
   "mediaPreview": {

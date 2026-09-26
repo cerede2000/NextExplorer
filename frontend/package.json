@@ -46,6 +46,7 @@
     "marked": "^12.0.2",
     "nanoid": "^5.0.7",
     "pinia": "^2.1.7",
+    "qrcode-generator": "^2.0.4",
     "tippy.js": "^6.3.7",
     "vue": "^3.4.21",
     "vue-codemirror": "^6.1.1",

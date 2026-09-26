@@ -115,7 +115,8 @@
     "label": "Mes fichiers partagés",
     "path": "ex. Images/Vacances",
     "search": "Rechercher des fichiers et des dossiers…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Chargement…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "Saisissez le code."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Ajoutez {suffix} à votre nom d'utilisateur",
         "bulletPasswordSame": "Votre mot de passe reste inchangé.",
         "bulletUpdateUsers": "Vous pouvez mettre à jour les utilisateurs existants depuis le menu d'administration"
-      }
+      },
+      "totpCode": "Code",
+      "totpExplain": "Votre mot de passe a été accepté. Saisissez le code de votre application d'authentification, ou l'un de vos codes de secours.",
+      "totpSubmit": "Se connecter"
     },
     "setup": {
       "headline": "Procédons à la configuration",
@@ -397,7 +402,8 @@
       "adminUsers": "Gestion des utilisateurs",
       "trash": "Corbeille et versions",
       "fileVersions": "Versions de fichiers",
-      "uploads": "Téléversements"
+      "uploads": "Téléversements",
+      "accountTwoFactor": "Double facteur"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Activer les téléversements par chunks",
       "chunkedEnableHelp": "Utilise TUS pour envoyer les gros fichiers en plusieurs requêtes plus petites.",
       "chunkSizeInvalid": "Indiquez une taille de chunk comprise entre 1 et {max} Mio."
+    },
+    "twoFactor": {
+      "title": "Authentification à double facteur",
+      "intro": "Un code depuis votre téléphone, en plus de votre mot de passe.",
+      "notLocalUser": "Ce compte se connecte via un fournisseur d'identité, et c'est là que son second facteur se règle.",
+      "off": "Le double facteur est désactivé sur ce compte.",
+      "on": "Le double facteur est activé.",
+      "turnOn": "Activer",
+      "turnOff": "Désactiver",
+      "scan": "Scannez ceci avec votre application d'authentification.",
+      "orType": "Ou saisissez ce secret dans l'application :",
+      "qrLabel": "QR code pour votre application d'authentification",
+      "codeLabel": "Code de l'application",
+      "confirm": "Confirmer",
+      "confirmPassword": "Votre mot de passe",
+      "codesTitle": "Codes de secours",
+      "codesExplain": "Conservez-les ailleurs que sur votre téléphone. Chacun vous connecte une fois, pour le jour où le téléphone n'est pas là. Ils sont affichés maintenant et plus jamais.",
+      "copyCodes": "Copier",
+      "copied": "Copié.",
+      "codesLeft": "Un code de secours restant | {count} codes de secours restants",
+      "newCodesButton": "Générer de nouveaux codes",
+      "newCodes": "Nouveaux codes de secours générés. Les précédents ne fonctionnent plus.",
+      "turnedOn": "Le double facteur est activé.",
+      "turnedOff": "Le double facteur est désactivé.",
+      "loadFailed": "Impossible de lire les réglages de double facteur de ce compte.",
+      "startFailed": "Impossible de démarrer la configuration du second facteur.",
+      "confirmFailed": "Ce code n'est pas le bon.",
+      "codesFailed": "Impossible de générer de nouveaux codes de secours.",
+      "disableFailed": "Impossible de désactiver le double facteur.",
+      "wrongPassword": "Ce mot de passe n'est pas le bon."
     }
   },
   "mediaPreview": {

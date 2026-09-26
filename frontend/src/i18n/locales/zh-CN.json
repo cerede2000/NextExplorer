@@ -115,7 +115,8 @@
     "label": "我的共享文件",
     "path": "例如：Pictures/Holidays",
     "search": "搜索文件和文件夹…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "加载中…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "请输入验证码。"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "在用户名后添加 {suffix}",
         "bulletPasswordSame": "您的密码保持不变。",
         "bulletUpdateUsers": "您可以在管理菜单中更新现有用户"
-      }
+      },
+      "totpCode": "验证码",
+      "totpExplain": "密码已通过。请输入验证器应用中的验证码，或一个恢复码。",
+      "totpSubmit": "登录"
     },
     "setup": {
       "headline": "开始设置",
@@ -397,7 +402,8 @@
       "adminUsers": "用户管理",
       "trash": "回收站和版本",
       "fileVersions": "文件版本",
-      "uploads": "上传"
+      "uploads": "上传",
+      "accountTwoFactor": "两步验证"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -680,6 +686,36 @@
       "chunkedEnable": "启用分块上传",
       "chunkedEnableHelp": "使用 TUS 通过多个较小的请求发送大文件。",
       "chunkSizeInvalid": "请输入 1 至 {max} MiB 之间的分块大小。"
+    },
+    "twoFactor": {
+      "title": "两步验证",
+      "intro": "在密码之外，再加一个手机上的验证码。",
+      "notLocalUser": "此账号通过身份提供方登录，第二重验证应在那里设置。",
+      "off": "此账号的两步验证已关闭。",
+      "on": "两步验证已开启。",
+      "turnOn": "开启",
+      "turnOff": "关闭",
+      "scan": "用验证器应用扫描此二维码。",
+      "orType": "或在应用中输入此密钥：",
+      "qrLabel": "用于验证器应用的二维码",
+      "codeLabel": "应用中的验证码",
+      "confirm": "确认",
+      "confirmPassword": "您的密码",
+      "codesTitle": "恢复码",
+      "codesExplain": "请保存在手机之外的地方。每个恢复码只能登录一次，用于手机不在身边的那天。它们只显示这一次。",
+      "copyCodes": "复制",
+      "copied": "已复制。",
+      "codesLeft": "还剩 1 个恢复码 | 还剩 {count} 个恢复码",
+      "newCodesButton": "生成新的恢复码",
+      "newCodes": "已生成新的恢复码，之前的不再有效。",
+      "turnedOn": "两步验证已开启。",
+      "turnedOff": "两步验证已关闭。",
+      "loadFailed": "无法读取此账号的两步验证设置。",
+      "startFailed": "无法开始设置第二重验证。",
+      "confirmFailed": "验证码不正确。",
+      "codesFailed": "无法生成新的恢复码。",
+      "disableFailed": "无法关闭两步验证。",
+      "wrongPassword": "密码不正确。"
     }
   },
   "mediaPreview": {

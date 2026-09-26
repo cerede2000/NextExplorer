@@ -115,7 +115,8 @@
     "label": "Meine freigegebenen Dateien",
     "path": "z. B. Bilder/Urlaub",
     "search": "Dateien und Ordner durchsuchen…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Wird geladen…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "Geben Sie den Code ein."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Fügen Sie {suffix} zu Ihrem Benutzernamen hinzu",
         "bulletPasswordSame": "Ihr Passwort bleibt gleich.",
         "bulletUpdateUsers": "Sie können bestehende Benutzer im Admin-Menü aktualisieren"
-      }
+      },
+      "totpCode": "Code",
+      "totpExplain": "Ihr Passwort wurde akzeptiert. Geben Sie den Code aus Ihrer Authenticator-App ein oder einen Ihrer Wiederherstellungscodes.",
+      "totpSubmit": "Anmelden"
     },
     "setup": {
       "headline": "Lassen Sie uns loslegen",
@@ -397,7 +402,8 @@
       "adminUsers": "Benutzerverwaltung",
       "trash": "Papierkorb und Versionen",
       "fileVersions": "Dateiversionen",
-      "uploads": "Uploads"
+      "uploads": "Uploads",
+      "accountTwoFactor": "Zwei-Faktor"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Segmentierte Uploads aktivieren",
       "chunkedEnableHelp": "Verwendet TUS, um große Dateien über mehrere kleinere Anfragen zu senden.",
       "chunkSizeInvalid": "Geben Sie eine Segmentgröße von 1 bis {max} MiB ein."
+    },
+    "twoFactor": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "intro": "Ein Code von Ihrem Telefon, zusätzlich zum Passwort.",
+      "notLocalUser": "Dieses Konto meldet sich über einen Identitätsanbieter an; dort gehört sein zweiter Faktor hin.",
+      "off": "Die Zwei-Faktor-Authentifizierung ist für dieses Konto aus.",
+      "on": "Die Zwei-Faktor-Authentifizierung ist an.",
+      "turnOn": "Einschalten",
+      "turnOff": "Ausschalten",
+      "scan": "Scannen Sie dies mit Ihrer Authenticator-App.",
+      "orType": "Oder geben Sie dieses Geheimnis in der App ein:",
+      "qrLabel": "QR-Code für Ihre Authenticator-App",
+      "codeLabel": "Code aus der App",
+      "confirm": "Bestätigen",
+      "confirmPassword": "Ihr Passwort",
+      "codesTitle": "Wiederherstellungscodes",
+      "codesExplain": "Bewahren Sie diese woanders als auf dem Telefon auf. Jeder meldet Sie einmal an, für den Tag, an dem das Telefon fehlt. Sie werden jetzt gezeigt und nie wieder.",
+      "copyCodes": "Kopieren",
+      "copied": "Kopiert.",
+      "codesLeft": "Ein Wiederherstellungscode übrig | {count} Wiederherstellungscodes übrig",
+      "newCodesButton": "Neue Codes erzeugen",
+      "newCodes": "Neue Wiederherstellungscodes erzeugt. Die vorherigen funktionieren nicht mehr.",
+      "turnedOn": "Die Zwei-Faktor-Authentifizierung ist an.",
+      "turnedOff": "Die Zwei-Faktor-Authentifizierung ist aus.",
+      "loadFailed": "Die Zwei-Faktor-Einstellungen dieses Kontos konnten nicht gelesen werden.",
+      "startFailed": "Die Einrichtung des zweiten Faktors konnte nicht gestartet werden.",
+      "confirmFailed": "Dieser Code stimmt nicht.",
+      "codesFailed": "Es konnten keine neuen Wiederherstellungscodes erzeugt werden.",
+      "disableFailed": "Die Zwei-Faktor-Authentifizierung konnte nicht ausgeschaltet werden.",
+      "wrongPassword": "Dieses Passwort stimmt nicht."
     }
   },
   "mediaPreview": {

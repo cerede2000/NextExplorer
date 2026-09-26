@@ -13,6 +13,7 @@ import SettingsAccessControl from '@/views/settings/SettingsAccessControl.vue';
 import SettingsComingSoon from '@/views/settings/SettingsComingSoon.vue';
 import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
+import SettingsTwoFactor from '@/views/settings/SettingsTwoFactor.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsTrash from '@/views/settings/SettingsTrash.vue';
 import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
@@ -59,6 +60,7 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             { path: 'account-password', component: SettingsPassword },
+            { path: 'account-two-factor', component: SettingsTwoFactor },
             { path: 'user-preferences', component: SettingsUserPreferences },
             {
               path: 'access-control',

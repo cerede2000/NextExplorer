@@ -20,6 +20,8 @@ const route = useRoute();
 const loginEmailValue = ref('');
 const loginPasswordValue = ref('');
 const loginError = ref('');
+const totpCodeValue = ref('');
+const isSubmittingTotp = ref(false);
 const isSubmittingLogin = ref(false);
 
 const statusError = computed(() => auth.lastError || '');
@@ -131,17 +133,46 @@ const handleLoginSubmit = async () => {
   isSubmittingLogin.value = true;
 
   try {
-    await auth.login({
+    const outcome = await auth.login({
       email: loginEmailValue.value.trim(),
       password: loginPasswordValue.value,
     });
-    loginEmailValue.value = '';
     loginPasswordValue.value = '';
+    // The account wants a code as well: the form above takes over, and nothing
+    // is signed in until it is answered.
+    if (outcome?.totpRequired) return;
+    loginEmailValue.value = '';
     redirectToDestination();
   } catch (error) {
     loginError.value = error instanceof Error ? error.message : t('errors.signIn');
   } finally {
     isSubmittingLogin.value = false;
+  }
+};
+
+/**
+ * The second step.
+ *
+ * A code, or one off the paper: the server takes either, and which account this
+ * is has been its to know since the password was right.
+ */
+const handleTotpSubmit = async () => {
+  resetErrors();
+  const code = totpCodeValue.value.trim();
+  if (!code) {
+    loginError.value = t('errors.totpCodeRequired');
+    return;
+  }
+
+  isSubmittingTotp.value = true;
+  try {
+    await auth.submitTotpCode(code);
+    totpCodeValue.value = '';
+    redirectToDestination();
+  } catch (error) {
+    loginError.value = error instanceof Error ? error.message : t('errors.signIn');
+  } finally {
+    isSubmittingTotp.value = false;
   }
 };
 
@@ -173,7 +204,37 @@ const handleOidcLogin = () => {
       </p>
     </template>
 
-    <form v-if="supportsLocal" class="space-y-5" @submit.prevent="handleLoginSubmit">
+    <!-- The account asks for a code as well. The password step is behind this
+         one on purpose: going back to it would start the sign-in again. -->
+    <form v-if="auth.totpRequired" class="space-y-5" @submit.prevent="handleTotpSubmit">
+      <label class="block">
+        <span class="block text-sm font-medium text-white/80">{{ $t('auth.login.totpCode') }}</span>
+        <input
+          id="login-totp"
+          v-model="totpCodeValue"
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          :class="inputBaseClasses"
+          :placeholder="$t('placeholders.totpCode')"
+          :disabled="isSubmittingTotp"
+        />
+        <span class="mt-2 block text-xs text-white/60">{{ $t('auth.login.totpExplain') }}</span>
+      </label>
+
+      <p v-if="loginError" :class="helperTextClasses">{{ loginError }}</p>
+
+      <button
+        type="submit"
+        class="w-full h-12 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-100/90 active:bg-neutral-100/70 font-semibold text-neutral-900 disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="isSubmittingTotp"
+      >
+        <span v-if="isSubmittingTotp">{{ $t('common.verifying') }}</span>
+        <span v-else>{{ $t('auth.login.totpSubmit') }}</span>
+      </button>
+    </form>
+
+    <form v-else-if="supportsLocal" class="space-y-5" @submit.prevent="handleLoginSubmit">
       <label class="block">
         <span class="block text-sm font-medium text-white/80">{{ $t('auth.emailAddress') }}</span>
         <input

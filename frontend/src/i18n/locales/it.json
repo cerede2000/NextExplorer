@@ -115,7 +115,8 @@
     "label": "I miei file condivisi",
     "path": "es. Immagini/Vacanze",
     "search": "Cerca file e cartelle…",
-    "volumeLabel": "es. Documenti, Progetti, Media"
+    "volumeLabel": "es. Documenti, Progetti, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Caricamento…",
@@ -155,7 +156,8 @@
     "labelRequired": "L'etichetta è obbligatoria",
     "pathRequired": "Il percorso è obbligatorio",
     "saveVolume": "Impossibile salvare il volume",
-    "removeVolume": "Impossibile rimuovere il volume"
+    "removeVolume": "Impossibile rimuovere il volume",
+    "totpCodeRequired": "Inserisci il codice."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Aggiungi {suffix} al tuo nome utente",
         "bulletPasswordSame": "La tua password resta la stessa.",
         "bulletUpdateUsers": "Puoi aggiornare gli utenti esistenti dal menu Admin"
-      }
+      },
+      "totpCode": "Codice",
+      "totpExplain": "La password è stata accettata. Inserisci il codice della tua app di autenticazione, o uno dei codici di recupero.",
+      "totpSubmit": "Accedi"
     },
     "setup": {
       "headline": "Configuriamo tutto",
@@ -397,7 +402,8 @@
       "adminUsers": "Gestione utenti",
       "trash": "Cestino e versioni",
       "fileVersions": "Versioni dei file",
-      "uploads": "Caricamenti"
+      "uploads": "Caricamenti",
+      "accountTwoFactor": "Due fattori"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Abilita caricamenti a blocchi",
       "chunkedEnableHelp": "Usa TUS per inviare file di grandi dimensioni tramite più richieste più piccole.",
       "chunkSizeInvalid": "Inserisci una dimensione dei blocchi da 1 a {max} MiB."
+    },
+    "twoFactor": {
+      "title": "Autenticazione a due fattori",
+      "intro": "Un codice dal telefono, oltre alla password.",
+      "notLocalUser": "Questo account accede tramite un fornitore di identità, ed è lì che va impostato il secondo fattore.",
+      "off": "L'autenticazione a due fattori è disattivata su questo account.",
+      "on": "L'autenticazione a due fattori è attiva.",
+      "turnOn": "Attiva",
+      "turnOff": "Disattiva",
+      "scan": "Inquadra questo con la tua app di autenticazione.",
+      "orType": "Oppure digita questo segreto nell'app:",
+      "qrLabel": "Codice QR per la tua app di autenticazione",
+      "codeLabel": "Codice dall'app",
+      "confirm": "Conferma",
+      "confirmPassword": "La tua password",
+      "codesTitle": "Codici di recupero",
+      "codesExplain": "Conservali altrove che sul telefono. Ognuno vale per un accesso, per il giorno in cui il telefono non c'è. Sono mostrati ora e mai più.",
+      "copyCodes": "Copia",
+      "copied": "Copiato.",
+      "codesLeft": "Resta un codice di recupero | Restano {count} codici di recupero",
+      "newCodesButton": "Genera nuovi codici",
+      "newCodes": "Nuovi codici di recupero generati. I precedenti non funzionano più.",
+      "turnedOn": "L'autenticazione a due fattori è attiva.",
+      "turnedOff": "L'autenticazione a due fattori è disattivata.",
+      "loadFailed": "Non è stato possibile leggere le impostazioni a due fattori di questo account.",
+      "startFailed": "Non è stato possibile avviare la configurazione del secondo fattore.",
+      "confirmFailed": "Questo codice non è corretto.",
+      "codesFailed": "Non è stato possibile generare nuovi codici di recupero.",
+      "disableFailed": "Non è stato possibile disattivare l'autenticazione a due fattori.",
+      "wrongPassword": "Questa password non è corretta."
     }
   },
   "mediaPreview": {

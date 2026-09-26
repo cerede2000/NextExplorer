@@ -115,7 +115,8 @@
     "label": "Meus Arquivos Compartilhados",
     "path": "ex.: Fotos/Férias",
     "search": "Pesquisar arquivos e pastas…",
-    "volumeLabel": "ex.: Documentos, Projetos, Mídia"
+    "volumeLabel": "ex.: Documentos, Projetos, Mídia",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Carregando…",
@@ -155,7 +156,8 @@
     "labelRequired": "O rótulo é obrigatório",
     "pathRequired": "O caminho é obrigatório",
     "saveVolume": "Falha ao salvar volume",
-    "removeVolume": "Falha ao remover volume"
+    "removeVolume": "Falha ao remover volume",
+    "totpCodeRequired": "Digite o código."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticação necessária",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Adicione {suffix} ao seu nome de usuário",
         "bulletPasswordSame": "Sua senha permanece a mesma.",
         "bulletUpdateUsers": "Você pode atualizar usuários existentes no menu de Administração"
-      }
+      },
+      "totpCode": "Código",
+      "totpExplain": "Sua senha foi aceita. Digite o código do seu aplicativo autenticador, ou um dos seus códigos de recuperação.",
+      "totpSubmit": "Entrar"
     },
     "setup": {
       "headline": "Vamos configurar",
@@ -397,7 +402,8 @@
       "adminUsers": "Gerenciamento de Usuários",
       "trash": "Lixeira e versões",
       "fileVersions": "Versões de arquivos",
-      "uploads": "Envios"
+      "uploads": "Envios",
+      "accountTwoFactor": "Dois fatores"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Ativar envio em partes",
       "chunkedEnableHelp": "Usar o TUS para enviar arquivos grandes por meio de várias requisições menores.",
       "chunkSizeInvalid": "Informe um tamanho de parte de 1 a {max} MiB."
+    },
+    "twoFactor": {
+      "title": "Autenticação em dois fatores",
+      "intro": "Um código do seu celular, além da sua senha.",
+      "notLocalUser": "Esta conta entra por um provedor de identidade, que é onde o segundo fator deve ser configurado.",
+      "off": "A autenticação em dois fatores está desligada nesta conta.",
+      "on": "A autenticação em dois fatores está ligada.",
+      "turnOn": "Ligar",
+      "turnOff": "Desligar",
+      "scan": "Escaneie isto com o seu aplicativo autenticador.",
+      "orType": "Ou digite este segredo no aplicativo:",
+      "qrLabel": "QR code para o seu aplicativo autenticador",
+      "codeLabel": "Código do aplicativo",
+      "confirm": "Confirmar",
+      "confirmPassword": "Sua senha",
+      "codesTitle": "Códigos de recuperação",
+      "codesExplain": "Guarde-os em outro lugar que não o celular. Cada um serve para uma entrada, para o dia em que o celular não estiver por perto. Eles aparecem agora e nunca mais.",
+      "copyCodes": "Copiar",
+      "copied": "Copiado.",
+      "codesLeft": "Resta um código de recuperação | Restam {count} códigos de recuperação",
+      "newCodesButton": "Gerar novos códigos",
+      "newCodes": "Novos códigos de recuperação gerados. Os anteriores não funcionam mais.",
+      "turnedOn": "A autenticação em dois fatores está ligada.",
+      "turnedOff": "A autenticação em dois fatores está desligada.",
+      "loadFailed": "Não foi possível ler as configurações de dois fatores desta conta.",
+      "startFailed": "Não foi possível começar a configurar o segundo fator.",
+      "confirmFailed": "Esse código não está certo.",
+      "codesFailed": "Não foi possível gerar novos códigos de recuperação.",
+      "disableFailed": "Não foi possível desligar a autenticação em dois fatores.",
+      "wrongPassword": "Essa senha não está certa."
     }
   },
   "mediaPreview": {
