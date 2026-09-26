@@ -293,6 +293,26 @@ const getSettingsForUser = async (user) => {
 };
 
 /**
+ * The preferences an account may set, in one place.
+ *
+ * There used to be two lists: this one, which decides how a value is
+ * sanitised, and another inside the settings route, which decides whether the
+ * key is written at all. Adding a preference to one and not the other produced
+ * a toggle that moved on screen, answered success, and stored nothing — so the
+ * two are the same list now, and the route asks here.
+ */
+const USER_BOOLEAN_SETTINGS = new Set([
+  'showHiddenFiles',
+  'showThumbnails',
+  'showVersionMarks',
+  'showSidebarFavorites',
+  'showSidebarShares',
+  'showSidebarTools',
+]);
+
+const USER_SETTING_KEYS = new Set([...USER_BOOLEAN_SETTINGS, 'defaultShareExpiration', 'skipHome']);
+
+/**
  * Set a user setting
  */
 const setUserSetting = async (userId, key, value) => {
@@ -305,14 +325,7 @@ const setUserSetting = async (userId, key, value) => {
 
   // Validate and sanitize value based on key
   let sanitizedValue = value;
-  if (
-    key === 'showHiddenFiles' ||
-    key === 'showThumbnails' ||
-    key === 'showVersionMarks' ||
-    key === 'showSidebarFavorites' ||
-    key === 'showSidebarShares' ||
-    key === 'showSidebarTools'
-  ) {
+  if (USER_BOOLEAN_SETTINGS.has(key)) {
     sanitizedValue = Boolean(value);
   } else if (key === 'defaultShareExpiration') {
     // Validate expiration object: { value: number, unit: 'days'|'weeks'|'months' } or null
@@ -471,6 +484,7 @@ const updateSettings = async (updater) => {
 };
 
 module.exports = {
+  USER_SETTING_KEYS,
   getPublicSettings,
   sanitizeTrash,
   sanitizeVersions,
