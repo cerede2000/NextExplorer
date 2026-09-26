@@ -1,7 +1,12 @@
 const path = require('path');
 const fs = require('fs/promises');
 
-const { combineRelativePath, ensureValidName } = require('../utils/pathUtils');
+const {
+  assertNotTopLevelEntry,
+  combineRelativePath,
+  ensureValidName,
+  isTopLevelEntry,
+} = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('./authorizationService');
 const {
@@ -51,6 +56,13 @@ const renameEntry = async ({ context, parentRelative, currentName, newName }) =>
   const currentAbsolute = currentResolved.absolutePath;
   if (!(await pathExists(currentAbsolute))) {
     throw new NotFoundError('Item not found.');
+  }
+
+  // A folder at the top level is a volume: a mount, not a folder in one
+  // (nxzai/NextExplorer#409).
+  if (isTopLevelEntry(parentRelative)) {
+    const onDisk = await fs.stat(currentAbsolute).catch(() => null);
+    assertNotTopLevelEntry(parentRelative, 'renamed', onDisk?.isDirectory() === true);
   }
 
   if (typeof newName !== 'string' || !newName) {

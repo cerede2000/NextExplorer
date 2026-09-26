@@ -5,6 +5,8 @@ const { spawn } = require('child_process');
 
 const { ensureDir, pathExists } = require('../utils/fsUtils');
 const {
+  assertNotTopLevelEntry,
+  isTopLevelEntry,
   normalizeRelativePath,
   combineRelativePath,
   ensureValidName,
@@ -259,6 +261,14 @@ const transferItems = async (items, destination, operation, options = {}) => {
     }
 
     const stats = await fs.stat(sourceAbsolute);
+    // What is carried cannot be one of the spaces themselves: a volume is a
+    // mount, and moving one out of the list is the same loss as deleting it
+    // (nxzai/NextExplorer#409). The destination was already refused above.
+    assertNotTopLevelEntry(
+      item.path || '',
+      operation === 'move' ? 'moved' : 'copied',
+      stats.isDirectory()
+    );
     const sourceParent = normalizeRelativePath(path.dirname(sourceRelative));
 
     if (operation === 'move' && destinationRelative === sourceParent) {
@@ -355,6 +365,15 @@ const resolveDeleteTargets = async (items = [], context) => {
     const exists = await pathExists(absolutePath);
     const stats = exists ? await fs.stat(absolutePath) : null;
     const isDirectory = stats ? stats.isDirectory() : item?.kind === 'directory';
+
+    // A volume is a mount, not a folder in it: deleting one from here would
+    // take the whole of somebody's data with it (nxzai/NextExplorer#409).
+    // Asked of the disk rather than of the caller, which says what it likes —
+    // and only at the top, where the extra look costs nothing.
+    if (isTopLevelEntry(item.path || '')) {
+      const onDisk = stats || (await fs.stat(absolutePath).catch(() => null));
+      assertNotTopLevelEntry(item.path || '', 'deleted', onDisk?.isDirectory() === true);
+    }
 
     targets.push({
       item,

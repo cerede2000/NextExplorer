@@ -7,7 +7,7 @@ const multer = require('multer');
 
 const { uploads } = require('../config/index');
 const { ensureDir, pathExists } = require('../utils/fsUtils');
-const { normalizeRelativePath } = require('../utils/pathUtils');
+const { isTopLevelEntry, normalizeRelativePath } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
@@ -210,8 +210,11 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       const relDestDir = normalizeRelativePath(path.dirname(logicalRelativePath));
 
       // Prevent uploading directly to the root path (no space / volume
-      // selected).
-      if (!relDestDir || relDestDir.trim() === '') {
+      // selected) — and a folder in the file's own relative path must not
+      // become one either: started from the list of volumes, an uploaded
+      // folder tree made a volume of its own, which creating a folder there
+      // has always refused (nxzai/NextExplorer#409).
+      if (!relDestDir || relDestDir.trim() === '' || isTopLevelEntry(logicalBase)) {
         throw new ValidationError(
           'Cannot upload files to the root path. Please select a specific volume or folder first.'
         );
