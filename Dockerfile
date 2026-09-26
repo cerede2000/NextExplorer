@@ -81,6 +81,7 @@ RUN apk add --no-cache \
       ffmpeg \
       gosu \
       ripgrep \
+      rsync \
       p7zip \
       poppler-utils \
       imagemagick \
