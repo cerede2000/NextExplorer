@@ -7,6 +7,8 @@ export const useFeaturesStore = defineStore('features', () => {
   const publicOrigin = ref('');
   // Every origin the app may legitimately be reached from (public + internal).
   const publicOrigins = ref([]);
+  // The ceiling an administrator may raise the upload chunk size to.
+  const maxUploadChunkSizeBytes = ref(0);
   const editorExtensions = ref([]);
   const hiddenFilePatterns = ref(['.']);
   const onlyofficeEnabled = ref(false);
@@ -93,6 +95,9 @@ export const useFeaturesStore = defineStore('features', () => {
         trashEnabled.value = Boolean(features?.trash?.enabled);
         trashRetentionDays.value = features?.trash?.retentionDays ?? null;
         versionsEnabled.value = Boolean(features?.versions?.enabled);
+        maxUploadChunkSizeBytes.value = Number.isFinite(features?.uploads?.maxChunkSizeBytes)
+          ? features.uploads.maxChunkSizeBytes
+          : 0;
 
         // User volumes (per-user volume assignments)
         userVolumesEnabled.value = Boolean(features?.userVolumes?.enabled);
@@ -168,6 +173,7 @@ export const useFeaturesStore = defineStore('features', () => {
     trashEnabled,
     trashRetentionDays,
     versionsEnabled,
+    maxUploadChunkSizeBytes,
     terminalExtensions,
     version,
     gitCommit,

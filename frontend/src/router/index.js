@@ -16,6 +16,7 @@ import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsTrash from '@/views/settings/SettingsTrash.vue';
 import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
+import SettingsUploads from '@/views/settings/SettingsUploads.vue';
 import TrashView from '@/views/TrashView.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
 import AboutView from '@/views/AboutView.vue';
@@ -73,6 +74,11 @@ const router = createRouter({
             {
               path: 'file-versions',
               component: SettingsFileVersions,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'uploads',
+              component: SettingsUploads,
               meta: { requiresAdmin: true },
             },
             {

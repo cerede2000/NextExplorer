@@ -396,7 +396,8 @@
       "accessControl": "Controllo accessi",
       "adminUsers": "Gestione utenti",
       "trash": "Cestino e versioni",
-      "fileVersions": "Versioni dei file"
+      "fileVersions": "Versioni dei file",
+      "uploads": "Caricamenti"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -670,6 +671,15 @@
       "next": "Successivo",
       "range": "Da {from} a {to} di {total}",
       "deleteSelectedNone": "Eliminare le versioni selezionate"
+    },
+    "uploads": {
+      "title": "Caricamenti",
+      "chunkSize": "Dimensione dei blocchi",
+      "chunkSizeHelp": "Dimensione massima di ogni richiesta di caricamento. Mantienila sotto il limite del tuo reverse proxy. Blocchi più piccoli (8–32 MiB) offrono un avanzamento più fluido; blocchi molto grandi mostrano scatti visibili (il server scrive ogni blocco prima del successivo).",
+      "subtitle": "Configura come i file vengono inviati al server.",
+      "chunkedEnable": "Abilita caricamenti a blocchi",
+      "chunkedEnableHelp": "Usa TUS per inviare file di grandi dimensioni tramite più richieste più piccole.",
+      "chunkSizeInvalid": "Inserisci una dimensione dei blocchi da 1 a {max} MiB."
     }
   },
   "mediaPreview": {

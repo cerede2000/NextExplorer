@@ -1,4 +1,6 @@
 const { getDb } = require('./db');
+const env = require('../config/env');
+const { parseByteSize } = require('../utils/env');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 
@@ -174,6 +176,64 @@ const getPublicSettings = async () => {
 /**
  * Get user-specific settings
  */
+const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
+const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
+const DEFAULT_UPLOAD_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
+
+// The administrator's ceiling (MAX_CHUNK_SIZE_MIB), itself capped: a chunk is
+// held whole in memory at each end, so an unbounded one is a way to run a
+// server out of it.
+const resolveMaxChunkSizeBytes = () => {
+  const raw = Number(env.MAX_CHUNK_SIZE_MIB);
+  const mib =
+    Number.isFinite(raw) && raw > 0
+      ? Math.min(Math.floor(raw), HARD_MAX_UPLOAD_CHUNK_SIZE_MIB)
+      : HARD_MAX_UPLOAD_CHUNK_SIZE_MIB;
+  return Math.max(MIN_UPLOAD_CHUNK_SIZE_BYTES, mib * 1024 * 1024);
+};
+const MAX_UPLOAD_CHUNK_SIZE_BYTES = resolveMaxChunkSizeBytes();
+
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const defaultUploadSettings = () => {
+  const configuredChunkSize = parseByteSize(env.UPLOAD_CHUNK_SIZE);
+  const chunkSizeBytes =
+    Number.isFinite(configuredChunkSize) && configuredChunkSize > 0
+      ? configuredChunkSize
+      : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES;
+
+  return {
+    chunkedEnabled: env.UPLOAD_CHUNKED_ENABLED ?? false,
+    chunkSizeBytes: clampNumber(
+      Math.floor(chunkSizeBytes),
+      MIN_UPLOAD_CHUNK_SIZE_BYTES,
+      MAX_UPLOAD_CHUNK_SIZE_BYTES
+    ),
+  };
+};
+
+const sanitizeUploads = (uploads = {}) => {
+  const defaults = defaultUploadSettings();
+  const rawChunkSize =
+    typeof uploads.chunkSizeBytes === 'string'
+      ? parseByteSize(uploads.chunkSizeBytes)
+      : uploads.chunkSizeBytes;
+
+  return {
+    chunkedEnabled:
+      typeof uploads.chunkedEnabled === 'boolean'
+        ? uploads.chunkedEnabled
+        : defaults.chunkedEnabled,
+    chunkSizeBytes: Number.isFinite(rawChunkSize)
+      ? clampNumber(
+          Math.floor(rawChunkSize),
+          MIN_UPLOAD_CHUNK_SIZE_BYTES,
+          MAX_UPLOAD_CHUNK_SIZE_BYTES
+        )
+      : defaults.chunkSizeBytes,
+  };
+};
+
 const getUserSettings = async (userId) => {
   if (!userId) return {};
 
@@ -210,6 +270,7 @@ const getSystemSettings = async () => {
     const access = { rules: [] };
     let trash = {};
     let versions = {};
+    let uploads = {};
 
     for (const row of rows) {
       try {
@@ -224,6 +285,8 @@ const getSystemSettings = async () => {
           trash = JSON.parse(row.value);
         } else if (row.key === 'versions') {
           versions = JSON.parse(row.value);
+        } else if (row.key === 'uploads') {
+          uploads = JSON.parse(row.value);
         }
       } catch (err) {
         // Skip invalid JSON
@@ -237,6 +300,7 @@ const getSystemSettings = async () => {
       },
       trash: sanitizeTrash(trash),
       versions: sanitizeVersions(versions),
+      uploads: sanitizeUploads(uploads),
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -250,6 +314,7 @@ const getSystemSettings = async () => {
         },
         trash: sanitizeTrash(settings.trash),
         versions: sanitizeVersions(settings.versions),
+        uploads: sanitizeUploads(settings.uploads),
       };
     } catch (err2) {
       // Return defaults
@@ -258,6 +323,7 @@ const getSystemSettings = async () => {
         access: { rules: [] },
         trash: sanitizeTrash({}),
         versions: sanitizeVersions({}),
+        uploads: sanitizeUploads({}),
       };
     }
   }
@@ -286,6 +352,7 @@ const getSettingsForUser = async (user) => {
       result.access = systemSettings.access;
       result.trash = systemSettings.trash;
       result.versions = systemSettings.versions;
+      result.uploads = systemSettings.uploads;
     }
   }
 
@@ -395,6 +462,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeTrash(value);
   } else if (key === 'versions') {
     sanitizedValue = sanitizeVersions(value);
+  } else if (key === 'uploads') {
+    sanitizedValue = sanitizeUploads(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -486,6 +555,7 @@ const updateSettings = async (updater) => {
 
 module.exports = {
   USER_SETTING_KEYS,
+  MAX_UPLOAD_CHUNK_SIZE_BYTES,
   getPublicSettings,
   sanitizeTrash,
   sanitizeVersions,

@@ -396,7 +396,8 @@
       "accessControl": "Toegangscontrole",
       "adminUsers": "Gebruikersbeheer",
       "trash": "Prullenbak en versies",
-      "fileVersions": "Bestandsversies"
+      "fileVersions": "Bestandsversies",
+      "uploads": "Uploads"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -670,6 +671,15 @@
       "next": "Volgende",
       "range": "{from} tot {to} van {total}",
       "deleteSelectedNone": "Aangevinkte versies verwijderen"
+    },
+    "uploads": {
+      "title": "Uploads",
+      "chunkSize": "Deelgrootte",
+      "chunkSizeHelp": "Maximale grootte van elk uploadverzoek. Houd dit onder de limiet van uw reverse proxy. Kleinere delen (8–32 MiB) geven een vloeiendere voortgang; zeer grote delen tonen zichtbare stappen (de server schrijft elk deel weg voor het volgende).",
+      "subtitle": "Stel in hoe bestanden naar de server worden verzonden.",
+      "chunkedEnable": "Uploads in delen inschakelen",
+      "chunkedEnableHelp": "Gebruik TUS om grote bestanden in meerdere kleinere verzoeken te verzenden.",
+      "chunkSizeInvalid": "Vul een deelgrootte van 1 tot {max} MiB in."
     }
   },
   "share": {

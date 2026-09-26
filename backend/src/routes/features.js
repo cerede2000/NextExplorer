@@ -11,6 +11,7 @@ const {
 const terminalService = require('../services/terminalService');
 const { getTrashSettings } = require('../services/trash/settings');
 const { getVersionSettings } = require('../services/versions/settings');
+const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
@@ -54,6 +55,12 @@ router.get('/features', async (_req, res) => {
       (settings) => ({ enabled: settings.enabled }),
       () => ({ enabled: false })
     ),
+    uploads: {
+      // The ceiling an administrator may raise the chunk size to
+      // (MAX_CHUNK_SIZE_MIB), so the screen can say what it is rather than
+      // refusing a number without explaining.
+      maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
+    },
     personal: {
       enabled: Boolean(features?.personalFolders),
     },

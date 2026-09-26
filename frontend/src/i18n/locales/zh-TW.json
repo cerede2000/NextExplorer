@@ -396,7 +396,8 @@
       "accessControl": "權限控制",
       "adminUsers": "使用者管理",
       "trash": "資源回收筒和版本",
-      "fileVersions": "檔案版本"
+      "fileVersions": "檔案版本",
+      "uploads": "上傳"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -670,6 +671,15 @@
       "next": "下一頁",
       "range": "第 {from}–{to} 項，共 {total} 項",
       "deleteSelectedNone": "刪除勾選的版本"
+    },
+    "uploads": {
+      "title": "上傳",
+      "chunkSize": "分塊大小",
+      "chunkSizeHelp": "每個上傳請求的最大大小。請保持在反向代理的限制以下。較小的分塊（8–32 MiB）能提供更流暢的進度；非常大的分塊會顯示明顯的階段變化（伺服器會在寫入下一個分塊之前先寫入每個分塊）。",
+      "subtitle": "設定檔案傳送到伺服器的方式。",
+      "chunkedEnable": "啓用分塊上傳",
+      "chunkedEnableHelp": "使用 TUS 透過多個較小的請求傳送大型檔案。",
+      "chunkSizeInvalid": "請輸入 1 至 {max} MiB 之間的分塊大小。"
     }
   },
   "mediaPreview": {

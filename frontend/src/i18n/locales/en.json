@@ -396,7 +396,8 @@
       "accessControl": "Access Control",
       "adminUsers": "User Management",
       "trash": "Trash and versions",
-      "fileVersions": "File versions"
+      "fileVersions": "File versions",
+      "uploads": "Uploads"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -670,6 +671,15 @@
       "next": "Next",
       "range": "{from} to {to} of {total}",
       "deleteSelectedNone": "Delete the versions you tick"
+    },
+    "uploads": {
+      "title": "Uploads",
+      "chunkSize": "Chunk size",
+      "chunkSizeHelp": "Maximum size of each upload request. Keep this below your reverse proxy limit. Smaller chunks (8–32 MiB) give smoother progress; very large chunks show visible steps (the server writes each chunk before the next).",
+      "subtitle": "Configure how files are sent to the server.",
+      "chunkedEnable": "Enable chunked uploads",
+      "chunkedEnableHelp": "Use TUS to send large files through multiple smaller requests.",
+      "chunkSizeInvalid": "Enter a chunk size from 1 to {max} MiB."
     }
   },
   "mediaPreview": {

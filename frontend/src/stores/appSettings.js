@@ -36,6 +36,7 @@ export const useAppSettings = defineStore('appSettings', () => {
     // is the one that decides what a value may be.
     trash: null,
     versions: null,
+    uploads: null,
   });
 
   // Computed state that combines all settings (for backward compatibility)
@@ -46,6 +47,7 @@ export const useAppSettings = defineStore('appSettings', () => {
     access: systemSettings.value.access,
     trash: systemSettings.value.trash,
     versions: systemSettings.value.versions,
+    uploads: systemSettings.value.uploads,
   }));
 
   // Whether thumbnails should be shown/requested for the current session.
@@ -128,6 +130,7 @@ export const useAppSettings = defineStore('appSettings', () => {
       }
       if (s?.trash) systemSettings.value.trash = { ...s.trash };
       if (s?.versions) systemSettings.value.versions = { ...s.versions };
+      if (s?.uploads) systemSettings.value.uploads = { ...s.uploads };
       if (s?.access) {
         systemSettings.value.access = {
           rules: Array.isArray(s.access.rules) ? s.access.rules : [],
@@ -188,6 +191,7 @@ export const useAppSettings = defineStore('appSettings', () => {
 
       if (updated?.trash) systemSettings.value.trash = { ...updated.trash };
       if (updated?.versions) systemSettings.value.versions = { ...updated.versions };
+      if (updated?.uploads) systemSettings.value.uploads = { ...updated.uploads };
       if (updated?.thumbnails) {
         systemSettings.value.thumbnails = {
           enabled: true,

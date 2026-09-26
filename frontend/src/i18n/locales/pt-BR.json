@@ -396,7 +396,8 @@
       "accessControl": "Controle de Acesso",
       "adminUsers": "Gerenciamento de Usuários",
       "trash": "Lixeira e versões",
-      "fileVersions": "Versões de arquivos"
+      "fileVersions": "Versões de arquivos",
+      "uploads": "Envios"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -670,6 +671,15 @@
       "next": "Próximo",
       "range": "{from} a {to} de {total}",
       "deleteSelectedNone": "Excluir as versões marcadas"
+    },
+    "uploads": {
+      "title": "Envios",
+      "chunkSize": "Tamanho das partes",
+      "chunkSizeHelp": "Tamanho máximo de cada requisição de envio. Mantenha-o abaixo do limite do seu proxy reverso. Partes menores (8–32 MiB) dão um progresso mais fluido; partes muito grandes avançam aos saltos (o servidor grava cada parte antes da seguinte).",
+      "subtitle": "Configure como os arquivos são enviados ao servidor.",
+      "chunkedEnable": "Ativar envio em partes",
+      "chunkedEnableHelp": "Usar o TUS para enviar arquivos grandes por meio de várias requisições menores.",
+      "chunkSizeInvalid": "Informe um tamanho de parte de 1 a {max} MiB."
     }
   },
   "mediaPreview": {

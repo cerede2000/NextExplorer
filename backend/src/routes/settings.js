@@ -231,6 +231,25 @@ router.patch(
         }
       }
 
+      // Upload settings: whether uploads go out in chunks, and how big one is.
+      if (payload.uploads && typeof payload.uploads === 'object') {
+        const uploadsUpdate = {};
+        if (typeof payload.uploads.chunkedEnabled === 'boolean') {
+          uploadsUpdate.chunkedEnabled = payload.uploads.chunkedEnabled;
+        }
+        if (Number.isFinite(payload.uploads.chunkSizeBytes)) {
+          uploadsUpdate.chunkSizeBytes = payload.uploads.chunkSizeBytes;
+        }
+        if (Object.keys(uploadsUpdate).length > 0) {
+          const current = await getSettings();
+          const merged = await setSystemSetting('system', 'uploads', {
+            ...current.uploads,
+            ...uploadsUpdate,
+          });
+          systemUpdates.uploads = merged;
+        }
+      }
+
       // File-version settings: only the fields that arrived usable are merged;
       // setSystemSetting sanitizes and keeps them consistent.
       if (payload.versions && typeof payload.versions === 'object') {

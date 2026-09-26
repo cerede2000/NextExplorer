@@ -12,6 +12,7 @@ const searchIndexManager = require('./services/searchIndexManager');
 const folderSizeManager = require('./services/folderSizeManager');
 const { sweepInterrupted } = require('./services/inFlightFiles');
 const trashMaintenance = require('./services/trash/maintenance');
+const tusUploads = require('./services/tusUploadService');
 const { cleanupExpiredShares } = require('./services/sharesService');
 const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const { purgeExpiredDocumentKeys } = require('./services/onlyofficeDocumentKeyService');
@@ -63,6 +64,9 @@ const startServer = async () => {
   // Finishes what a crash interrupted before anything else touches a zone,
   // then keeps each zone within its retention and budget.
   trashMaintenance.start();
+  // Chunked uploads abandoned, or finished and never moved into place, leave
+  // the upload cache once past TUS_INCOMPLETE_UPLOAD_TTL_MS.
+  tusUploads.startCacheSweep();
 
   // Rows that expire and were never swept. The ONLYOFFICE key of a document
   // whose browser was closed is one: only a terminal callback released a key,
@@ -99,6 +103,7 @@ const startServer = async () => {
     logger.info('Shutting down server...');
     terminalService.cleanup();
     clearInterval(expirySweep);
+    tusUploads.stopCacheSweep();
     folderSizeManager.stop();
     trashMaintenance.stop();
     searchIndexManager.stop();

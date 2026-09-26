@@ -1,7 +1,10 @@
 import { ref, onMounted, onBeforeUnmount, markRaw } from 'vue';
 import Uppy from '@uppy/core';
 import XHRUpload from '@uppy/xhr-upload';
+import Tus from '@uppy/tus';
 import { useUppyStore } from '@/stores/uppyStore';
+import { useAppSettings } from '@/stores/appSettings';
+import { resolveUploadMode } from '@/utils/uploadMode';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
 import { apiBase, normalizePath } from '@/api';
@@ -11,6 +14,7 @@ import DropTarget from '@uppy/drop-target';
 export function useFileUploader() {
   // Filtering is centralized in utils/uploads
   const uppyStore = useUppyStore();
+  const appSettings = useAppSettings();
   const fileStore = useFileStore();
   const notificationsStore = useNotificationsStore();
   const inputRef = ref(null);
@@ -58,17 +62,49 @@ export function useFileUploader() {
       store: uppyStore,
     });
 
-    uppy.use(XHRUpload, {
-      endpoint: `${apiBase}/api/upload`,
-      formData: true,
-      fieldName: 'filedata',
-      bundle: false,
-      responseType: 'json',
-      // Uppy v5 expects `allowedMetaFields` to be `true` (all) or an explicit list.
-      // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
-      allowedMetaFields: true,
-      withCredentials: true,
-    });
+    /**
+     * How the next upload goes out.
+     *
+     * A direct upload is one request and much faster, and it is what an upload
+     * has always been here. It is also what a reverse proxy refuses outright
+     * once the body passes whatever limit it enforces — and what a dropped
+     * connection loses entirely, however far it had got. Chunked uploads answer
+     * both: each part is small enough to pass, and one that fails is retried
+     * without the parts already there being sent again.
+     *
+     * Which one is used is the administrator's to decide; the default is
+     * unchanged, so nothing about an upload moves until somebody asks.
+     */
+    const { chunkedEnabled, chunkSizeBytes } = resolveUploadMode(appSettings.state?.uploads || {});
+
+    if (chunkedEnabled) {
+      uppy.use(Tus, {
+        endpoint: `${apiBase}/api/upload/tus`,
+        chunkSize: chunkSizeBytes,
+        withCredentials: true,
+        // The routing fields the server reads from the upload's metadata. Named
+        // rather than `true`: Uppy stringifies every field it is told to send,
+        // so a field only folder uploads carry would arrive as the literal
+        // "undefined" on every other upload.
+        allowedMetaFields: ['uploadTo', 'relativePath', 'resolvedRelativePath', 'uploadBatchId'],
+        // One retry ladder for the whole transfer rather than per request: a
+        // proxy restarting costs a pause, not the upload.
+        retryDelays: [0, 1000, 3000, 5000, 10000],
+        removeFingerprintOnSuccess: true,
+      });
+    } else {
+      uppy.use(XHRUpload, {
+        endpoint: `${apiBase}/api/upload`,
+        formData: true,
+        fieldName: 'filedata',
+        bundle: false,
+        responseType: 'json',
+        // Uppy v5 expects `allowedMetaFields` to be `true` (all) or an explicit list.
+        // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
+        allowedMetaFields: true,
+        withCredentials: true,
+      });
+    }
 
     // Cookies carry auth; no token headers
     uppy.on('file-added', (file) => {
@@ -112,8 +148,7 @@ export function useFileUploader() {
       const current = normalizePath(fileStore.currentPath || '');
       const files = Array.isArray(batchFiles) ? batchFiles : [];
       const targetsCurrentPath =
-        files.length > 0 &&
-        files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
+        files.length > 0 && files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
 
       if (!targetsCurrentPath) return;
       if (canUploadToCurrentPath()) return;
