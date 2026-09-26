@@ -198,23 +198,34 @@ const envOf = (ref) => {
   for (const name of mine) if (!yours.has(name)) report('env', name, 'only here');
 }
 
-// ── 7. database migrations ──────────────────────────────────────────────────
-const MIGRATION = /(?:version|userVersion)\s*(?:<|===|<=)\s*(\d+)|to\s+version\s+(\d+)/gi;
-const migrationsOf = (ref) => {
-  const source = show(ref, 'backend/src/services/db.js') || '';
-  const seen = new Set();
-  for (const match of source.matchAll(MIGRATION)) {
-    const n = Number(match[1] ?? match[2]);
-    if (Number.isFinite(n)) seen.add(n);
+// ── 7. the schema itself, not the number stamped on it ──────────────────────
+// Version numbers diverged long ago: this fork is at 24 where upstream is at 19, and
+// the same feature carries a different number in each. Comparing numbers said five
+// migrations were missing that upstream has had for months under other names —
+// two-factor as `totp_credentials`, the activity log as `activity_events` — and said
+// nothing about the one table that really was missing. So what is compared is what a
+// migration leaves behind: the tables, and the columns added to a table that exists.
+const TABLE = /CREATE TABLE IF NOT EXISTS\s+([a-z_]+)/gi;
+const ADDED_COLUMN = /addColumnIfMissing\(\s*db\s*,\s*'([a-z_]+)'\s*,\s*'([a-z_]+)/gi;
+const schemaOf = (ref) => {
+  // Every file that holds DDL, not db.js alone: the index and the search store keep
+  // their own tables, and a table defined there is a table the schema has.
+  const found = new Set();
+  for (const file of listFiles(ref, 'backend/src')) {
+    if (!file.endsWith('.js')) continue;
+    const source = show(ref, file) || '';
+    for (const [, name] of source.matchAll(TABLE)) found.add(name);
+    for (const [, table, column] of source.matchAll(ADDED_COLUMN)) found.add(`${table}.${column}`);
   }
-  return seen;
+  return found;
 };
 {
-  const mine = migrationsOf(OURS);
-  const yours = migrationsOf(UPSTREAM);
-  const highestTheirs = Math.max(0, ...yours);
-  for (const version of mine) {
-    if (version > highestTheirs) report('migration', `v${version}`, 'only here');
+  const mine = schemaOf(OURS);
+  const yours = schemaOf(UPSTREAM);
+  for (const name of [...mine].sort()) {
+    if (!yours.has(name)) {
+      report('migration', name, name.includes('.') ? 'column only here' : 'table only here');
+    }
   }
 }
 
@@ -482,11 +493,92 @@ for (const finding of stranded) {
   byVerdict[rule.verdict].push({ ...finding, note: rule.note, batch: rule.batch ?? finding.batch });
 }
 
+/**
+ * A file that arrives before anything can call it.
+ *
+ * The check above reads each batch's imports: nothing it needs may come later. This
+ * one reads the other direction — a new file that only files from *later* batches
+ * import is dead the day it lands. Green, and nobody can reach it.
+ *
+ * It was found on P3-17: the destination picker's service, dialog and composable
+ * were a batch of their own, while the route that records a destination (P3-27),
+ * the client that asks for the list (P3-35) and the trash and versions that note
+ * theirs (P3-30) all came after. Three files upstream would have had no way to use.
+ *
+ * Only files this fork alone has, and only the ones a batch brings: a file upstream
+ * already has is already reachable, whatever changes.
+ */
+const importersOf = new Map();
+for (const file of ours) {
+  if (!CODE.test(file)) continue;
+  const source = show(OURS, file);
+  if (!source) continue;
+  for (const match of source.matchAll(IMPORT)) {
+    const target = resolveImport(file, match[1] || match[2]);
+    if (!target || !onlyHere.has(target)) continue;
+    if (!importersOf.has(target)) importersOf.set(target, new Set());
+    importersOf.get(target).add(file);
+  }
+}
+
+/** Whether upstream's own copy of `importer` already pulls in `target`. */
+const importsAlready = (importer, target) => {
+  const source = show(UPSTREAM, importer);
+  if (!source) return false;
+  for (const match of source.matchAll(IMPORT)) {
+    if (resolveImport(importer, match[1] || match[2]) === target) return true;
+  }
+  return false;
+};
+
+const unreachable = [];
+for (const [file, batch] of ownerOf) {
+  if (batch === 'P3-00') continue;
+  if (!CODE.test(file) || !onlyHere.has(file)) continue;
+  // A test, a route mounted by name, a Vue view the router names: reached without
+  // an import. Only a module something has to require can be judged this way.
+  if (/\.(spec|test)\.[jt]s$/.test(file) || file.startsWith('backend/tests/')) continue;
+  const importers = [...(importersOf.get(file) || [])];
+  if (!importers.length) continue; // nothing imports it at all — the axes above speak for that
+  const reachable = importers.some((importer) => {
+    // Upstream having the importing file is not enough: it is the import line that
+    // has to be there. `routes/files/transfer.js` exists upstream and does not
+    // require the destination service, so it cannot call it until the batch that
+    // adds that line lands.
+    if (theirs.has(importer) && importsAlready(importer, file)) return true;
+    const from = ownerOf.get(importer);
+    return from && Number(from.slice(3)) <= Number(batch.slice(3));
+  });
+  if (!reachable) {
+    const soonest = importers
+      .map((i) => ownerOf.get(i))
+      .filter(Boolean)
+      .sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)))[0];
+    unreachable.push({
+      axis: 'unreachable',
+      id: file,
+      batch,
+      detail: `nothing upstream can call it until ${soonest || 'a later batch'}`,
+    });
+  }
+}
+
+for (const finding of unreachable) {
+  const rule = compiled.find((r) => r.test(finding.axis, finding.id));
+  if (!rule || !VERDICTS.includes(rule.verdict)) {
+    strandedUnclassified.push(finding);
+    continue;
+  }
+  counts[rule.verdict] += 1;
+  byVerdict[rule.verdict].push({ ...finding, note: rule.note, batch: rule.batch ?? finding.batch });
+}
+
 if (AS_JSON) {
   console.log(
     JSON.stringify(
       {
         counts,
+        unreachable,
         unclassified,
         byVerdict,
         completeness,
@@ -545,6 +637,12 @@ if (AS_JSON) {
   for (const line of outOfOrder.slice(0, 20)) console.log(`  ${line}`);
   if (outOfOrder.length) console.log('');
   console.log(
+    `arrives too early    ${unreachable.length ? `${unreachable.length} file(s) nothing upstream can call yet` : 'every file a batch brings has a caller'}\n`
+  );
+  for (const line of unreachable.slice(0, 20))
+    console.log(`  ${line.batch}  ${line.id} — ${line.detail}`);
+  if (unreachable.length) console.log('');
+  console.log(
     `files that stay ours  ${stranded.length ? `imported by ${stranded.length} file(s) a batch ports` : 'imported by nothing a batch ports'}\n`
   );
   for (const line of stranded.slice(0, 20)) console.log(`  ${line.batch}  ${line.id}`);
@@ -567,7 +665,7 @@ if (outOfOrder.length) {
 }
 if (strandedUnclassified.length) {
   console.error(
-    `${strandedUnclassified.length} import(s) of a file staying in this fork, by a file a ` +
+    `${strandedUnclassified.length} finding(s) about what a batch can and cannot reach. ` +
       'batch ports. Upstream has no such file, so the batch does not build there unless that ' +
       'part is left out. Say which in scripts/parity-manifest.json, on the `stranded` axis:\n  ' +
       strandedUnclassified.map((f) => f.id).join('\n  ')

@@ -24,6 +24,76 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": "^destinationPicker\\.",
+      "verdict": "PORT",
+      "batch": "P3-36",
+      "note": "strings for the destination dialog, which travels with the layout that opens it"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/recentDestinationsService\\.js|backend/src/routes/files/delete\\.js|backend/src/routes/files/utils\\.js|backend/src/services/inFlightFiles\\.js|backend/src/utils/placeWithoutOverwrite\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-27",
+      "note": "the destination a transfer lands in, recorded by the transfer itself \u2014 with the route that records it"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/composables/useDestinationPicker\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-18",
+      "note": "asking where to put something: with the first screen that asks, which is the archive preview"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/components/DestinationPickerDialog\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-36",
+      "note": "the destination dialog, with the layout that opens it"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/api/sessionExpiry\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-35",
+      "note": "the session that ends while nobody is navigating, with the client that notices"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/components/editor/CodeSurface\\.js|frontend/src/components/editor/CodeSurface\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-39",
+      "note": "the editor's code surface, with the editor that mounts it"
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/stores/files/[a-zA-Z]+\\.js(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-35",
+      "note": "the file store as nine modules, with the store that assembles them"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/utils/folderKeyboard\\.js|frontend/src/utils/revealOffset\\.js|frontend/src/utils/virtualWindow\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-36",
+      "note": "keyboard, reveal and windowing for the folder list, with the list that uses them"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/utils/terminalInput\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-33",
+      "note": "what the terminal does with what is typed, with the terminal"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/utils/textBlocks\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-39",
+      "note": "the text-block helpers, with the editor that calls them"
+    },
+    {
       "axis": "*",
       "match": "^frontend/src/(components/InlineQuickActions|composables/useFolderQuickActions|stores/quickActions|config/quickActions)\\.spec\\.js$",
       "verdict": "OURS",
@@ -694,10 +764,45 @@
     },
     {
       "axis": "migration",
+      "match": "^folder_preferences$",
+      "verdict": "DONE",
+      "batch": "P3-16",
+      "note": "nxzai#447 \u2014 a folder's remembered sort and view, as rows"
+    },
+    {
+      "axis": "migration",
+      "match": "^personal_folder_reservations$",
+      "verdict": "PORT",
+      "batch": "P3-23",
+      "note": "one personal folder per account, with the service that reserves the name"
+    },
+    {
+      "axis": "migration",
+      "match": "^recent_destinations$",
+      "verdict": "PORT",
+      "batch": "P3-27",
+      "note": "the folders somebody files into, with the transfer that records them"
+    },
+    {
+      "axis": "migration",
+      "match": "^shares\\.",
+      "verdict": "PORT",
+      "batch": "P3-21",
+      "note": "what a share permits and when it was last used, with the shares service"
+    },
+    {
+      "axis": "migration",
+      "match": "^trash_items\\.",
+      "verdict": "PORT",
+      "batch": "P3-30",
+      "note": "which entry a restore is taking out, with the trash"
+    },
+    {
+      "axis": "migration",
       "match": ".",
       "verdict": "PORT",
-      "batch": "P3-26 / P3-16 / P3-17",
-      "note": "the schema the batches below add; each migration travels with the feature that needs it"
+      "batch": "P3-26",
+      "note": "any table or column not named above: the schema a batch below adds, travelling with the feature that needs it"
     },
     {
       "axis": "*",
