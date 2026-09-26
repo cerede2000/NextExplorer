@@ -90,7 +90,7 @@ const seed = async (engine) => {
   await writeDocx(path.join(volume, 'Docs', '_users', 'autre-contrat.docx'), 'le mot pangolin');
 
   if (engine.index) {
-    const db = await envContext.requireFresh('src/services/db').getDb();
+    const db = await envContext.requireFresh('src/services/indexDb').getIndexDb();
     const { indexTree } = envContext.requireFresh('src/services/searchIndexer');
     const store = envContext.requireFresh('src/services/searchIndexStore');
     await indexTree({ db, rootAbs: volume, cpuPercent: 100 });
@@ -200,7 +200,7 @@ const seedWithHomes = async (engine) => {
   await fs.writeFile(path.join(volume, 'Public', 'ouvert-rapport.txt'), 'le mot pangolin');
 
   if (engine.index) {
-    const db = await envContext.requireFresh('src/services/db').getDb();
+    const db = await envContext.requireFresh('src/services/indexDb').getIndexDb();
     const { indexTree } = envContext.requireFresh('src/services/searchIndexer');
     const store = envContext.requireFresh('src/services/searchIndexStore');
     await indexTree({ db, rootAbs: volume, cpuPercent: 100 });

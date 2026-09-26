@@ -35,6 +35,7 @@ const seed = async (env = {}) => {
     tag: 'search-content-',
     env: { SEARCH_DEEP: 'true', SEARCH_RIPGREP: 'true', ...env },
   });
+  // The account goes in app.db; the index has a database of its own.
   const dbService = envContext.requireFresh('src/services/db');
   const db = await dbService.getDb();
   const now = new Date().toISOString();
@@ -290,8 +291,8 @@ describe('searching through the index', () => {
   // A pass, and the mark that says it reached the end — which is what the
   // manager records, and what lets search stop reading the tree for itself.
   const buildIndex = async ({ complete = true } = {}) => {
-    const dbService = envContext.requireFresh('src/services/db');
-    const db = await dbService.getDb();
+    const dbService = envContext.requireFresh('src/services/indexDb');
+    const db = await dbService.getIndexDb();
     const { indexTree } = envContext.requireFresh('src/services/searchIndexer');
     const store = envContext.requireFresh('src/services/searchIndexStore');
     const result = await indexTree({ db, rootAbs: envContext.volumeDir, cpuPercent: 100 });
@@ -359,9 +360,9 @@ describe('searching through the index', () => {
     // 'the index returned too much' when the cause is 'the index was not used':
     // an index that is not ready sends the search back to reading the tree,
     // which finds the later file for an entirely different reason.
-    const dbService = envContext.requireFresh('src/services/db');
+    const dbService = envContext.requireFresh('src/services/indexDb');
     const store = envContext.requireFresh('src/services/searchIndexStore');
-    expect(store.isReady(await dbService.getDb())).toBe(true);
+    expect(store.isReady(await dbService.getIndexDb())).toBe(true);
 
     const names = (await search('pangolin')).map((item) => item.name);
 

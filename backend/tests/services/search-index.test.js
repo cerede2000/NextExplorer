@@ -19,8 +19,8 @@ const volumePath = (...parts) => path.join(envContext.volumeDir, ...parts);
 
 const build = async (env = {}) => {
   envContext = await setupTestEnv({ tag: 'search-index-', env });
-  const dbService = envContext.requireFresh('src/services/db');
-  db = await dbService.getDb();
+  const dbService = envContext.requireFresh('src/services/indexDb');
+  db = await dbService.getIndexDb();
   store = envContext.requireFresh('src/services/searchIndexStore');
   indexer = envContext.requireFresh('src/services/searchIndexer');
 };
@@ -141,7 +141,12 @@ describe('being interruptible', () => {
 
   it('stops when asked and says so', async () => {
     const controller = new AbortController();
-    const running = indexAll({ signal: controller.signal, batchSize: 5, cpuPercent: 1, workSliceMs: 1 });
+    const running = indexAll({
+      signal: controller.signal,
+      batchSize: 5,
+      cpuPercent: 1,
+      workSliceMs: 1,
+    });
     // Long enough to have started, far short of sixty files.
     await new Promise((resolve) => setTimeout(resolve, 30));
     controller.abort();
@@ -155,7 +160,12 @@ describe('being interruptible', () => {
   // What it did get through is kept: the next run has that much less to do.
   it('keeps the work it had already done', async () => {
     const controller = new AbortController();
-    const running = indexAll({ signal: controller.signal, batchSize: 5, cpuPercent: 1, workSliceMs: 1 });
+    const running = indexAll({
+      signal: controller.signal,
+      batchSize: 5,
+      cpuPercent: 1,
+      workSliceMs: 1,
+    });
     await new Promise((resolve) => setTimeout(resolve, 30));
     controller.abort();
     const first = await running;
