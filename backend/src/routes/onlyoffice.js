@@ -31,6 +31,13 @@ const router = express.Router();
 const BACKEND_TOKEN_TYPE = 'nextexplorer-backend';
 const BACKEND_TOKEN_TTL_SECONDS = 12 * 60 * 60;
 
+// In-flight force-save requests only: these are meaningless once the process
+// that issued them is gone, unlike the sessions they refer to.
+const pendingForceSaves = new Map();
+const pendingForceSavesBySession = new Map();
+
+const FORCE_SAVE_RETRY_DELAYS_MS = [250, 750, 1500, 2500];
+
 // Helpers
 const toExt = (filename = '') => String(filename).split('.').pop().toLowerCase();
 
@@ -172,6 +179,119 @@ const describeSessionUser = (req) => {
     id: owner.userId || (owner.guestSessionId ? `guest_${owner.guestSessionId}` : null),
     name: req.user?.displayName || req.user?.username || (owner.guestSessionId ? 'Guest' : 'User'),
   };
+};
+
+const getCommandServiceUrl = (key, legacy = false) => {
+  const commandUrl = new URL(
+    legacy ? 'coauthoring/CommandService.ashx' : 'command',
+    `${onlyoffice.serverUrl.replace(/\/+$/, '')}/`
+  );
+  if (!legacy) commandUrl.searchParams.set('shardkey', key);
+  return commandUrl.toString();
+};
+
+/**
+ * Ask the Document Server to write what the editor holds, now.
+ *
+ * Closing the preview used to rely on the status-2 callback the Document Server
+ * sends when it decides the document is finished with, which arrives seconds
+ * later — long enough for the folder to be listed again with the old content,
+ * and for the tab to be gone before anything was written.
+ */
+const enqueueForceSave = ({ sessionId, key, relativePath, reason }) => {
+  const requestId = `nextexplorer-force-save:${crypto.randomUUID()}`;
+  const timeout = setTimeout(
+    () => finishForceSave(requestId, { saved: false, timedOut: true }),
+    onlyoffice.forceSaveTimeoutMs
+  );
+  timeout.unref?.();
+  pendingForceSaves.set(requestId, {
+    sessionId,
+    key,
+    relativePath,
+    reason,
+    requestedAt: Date.now(),
+    timeout,
+    retryTimer: null,
+    followUpReason: null,
+  });
+  pendingForceSavesBySession.set(sessionId, requestId);
+
+  setImmediate(() => {
+    void dispatchForceSave({ requestId, key, relativePath, reason });
+  });
+  return requestId;
+};
+
+const finishForceSave = (requestId, result) => {
+  if (!requestId) return;
+  const pending = pendingForceSaves.get(requestId);
+  if (!pending) return;
+  pendingForceSaves.delete(requestId);
+  if (pendingForceSavesBySession.get(pending.sessionId) === requestId) {
+    pendingForceSavesBySession.delete(pending.sessionId);
+  }
+  clearTimeout(pending.timeout);
+  if (pending.retryTimer) clearTimeout(pending.retryTimer);
+  logger.debug(
+    { requestId, reason: pending.reason, elapsedMs: Date.now() - pending.requestedAt, ...result },
+    'ONLYOFFICE force-save finished'
+  );
+
+  // A close may arrive while an automatic save is still assembling an earlier
+  // version. Queue one final command so the most recent edits do not depend on
+  // the delayed callback.
+  if (pending.followUpReason) {
+    const { sessionId, key, relativePath, followUpReason } = pending;
+    enqueueForceSave({ sessionId, key, relativePath, reason: followUpReason });
+  }
+};
+
+const dispatchForceSave = async ({ requestId, key, relativePath, reason, attempt = 0 }) => {
+  try {
+    const command = { c: 'forcesave', key, userdata: requestId };
+    command.token = jwt.sign(command, onlyoffice.secret, { algorithm: 'HS256' });
+
+    let response = await axios.post(getCommandServiceUrl(key), command, {
+      timeout: 8000,
+      validateStatus: () => true,
+    });
+    // ONLYOFFICE Docs 8.2 introduced /command. Keep older Document Server
+    // installations working when they explicitly report the new route absent.
+    if (response.status === 404) {
+      response = await axios.post(getCommandServiceUrl(key, true), command, {
+        timeout: 8000,
+        validateStatus: () => true,
+      });
+    }
+
+    const code = Number(response.data?.error ?? 0);
+    if (response.status >= 200 && response.status < 300 && code === 0) return;
+
+    // Code 4 means the editor has not yet sent its last changes to the Document
+    // Server. Retried here so that closing the preview stays instant.
+    if (code === 4 && attempt < FORCE_SAVE_RETRY_DELAYS_MS.length) {
+      const pending = pendingForceSaves.get(requestId);
+      if (!pending) return;
+      pending.retryTimer = setTimeout(() => {
+        void dispatchForceSave({ requestId, key, relativePath, reason, attempt: attempt + 1 });
+      }, FORCE_SAVE_RETRY_DELAYS_MS[attempt]);
+      pending.retryTimer.unref?.();
+      return;
+    }
+
+    logger.debug(
+      { path: relativePath, reason, status: response.status, code, requestId, attempt },
+      'ONLYOFFICE force-save was not queued'
+    );
+    finishForceSave(requestId, { saved: false, code });
+  } catch (err) {
+    logger.warn(
+      { err, path: relativePath, reason, requestId, attempt },
+      'ONLYOFFICE force-save request failed'
+    );
+    finishForceSave(requestId, { saved: false });
+  }
 };
 
 /**
@@ -375,6 +495,10 @@ router.post(
         callbackUrl: callbackUrl.toString(),
         customization: {
           anonymous: { request: false },
+          // Expose ONLYOFFICE's own Save action as a force-save when it has
+          // been asked for. Closing the document is flushed by the route
+          // above, whether or not this is on.
+          forcesave: Boolean(onlyoffice.forceSave && canEdit),
         },
         lang: onlyoffice.lang || 'en',
         // Optionally attach current user info if available
@@ -410,6 +534,7 @@ router.post(
       documentServerUrl: onlyoffice.serverUrl,
       config,
       editorSessionId,
+      autoSaveIntervalMs: canEdit ? onlyoffice.autoSaveIntervalMs : 0,
     });
   })
 );
@@ -458,11 +583,22 @@ router.post(
     const context = { user: req.user, guestSession: req.guestSession };
     const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
-    await getEditorSession(req, sessionId, relativePath);
+    const session = await getEditorSession(req, sessionId, relativePath);
+
+    // Somebody who was only reading has nothing to flush, and an integration
+    // with no Document Server has nowhere to ask. Neither is a reason to refuse
+    // the close — the session still has to end, or the document goes on being
+    // reported as open by somebody who has left.
+    let requestId = null;
+    if (onlyoffice.serverUrl && accessInfo.canWrite) {
+      requestId =
+        pendingForceSavesBySession.get(sessionId) ||
+        enqueueForceSave({ sessionId, key: session.key, relativePath, reason: 'close' });
+    }
 
     onlyofficeActivity.close({ absolutePath: resolved.absolutePath, sessionId });
     await editorSessions.remove(sessionId);
-    res.json({ ended: true });
+    res.json({ ended: true, flushed: Boolean(requestId), requestId });
   })
 );
 
@@ -516,6 +652,96 @@ router.post(
     }
 
     res.json({ path: renamed.relativePath, name: renamed.name });
+  })
+);
+
+/**
+ * How an open folder learns that somebody joined or left a document.
+ *
+ * Held open for up to twenty-five seconds on purpose, rather than asked for
+ * every second: presence changes rarely, and a poll that costs nothing while
+ * nothing happens is what makes it affordable to show at all.
+ */
+router.get(
+  '/onlyoffice/activity-version',
+  asyncHandler(async (req, res) => {
+    const parsedSince = Number(req.query?.since);
+    const since = Number.isInteger(parsedSince) ? parsedSince : null;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    req.once('aborted', abort);
+    req.once('close', abort);
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const result = await onlyofficeActivity.waitForChange(since, 25_000, controller.signal);
+      if (!res.writableEnded && !res.destroyed) res.json(result);
+    } finally {
+      req.off('aborted', abort);
+      req.off('close', abort);
+    }
+  })
+);
+
+/**
+ * Write what the editor is holding, now.
+ *
+ * Answers as soon as the command is queued: the Document Server writes the
+ * document through the ordinary callback, asynchronously. Two requests for the
+ * same session are coalesced — a close arriving while an automatic save is
+ * still assembling queues one final command behind it rather than a second one
+ * beside it.
+ */
+router.post(
+  '/onlyoffice/force-save',
+  asyncHandler(async (req, res) => {
+    if (!onlyoffice.serverUrl) {
+      throw new ValidationError('ONLYOFFICE_URL is not configured on the server.');
+    }
+
+    const relativeRaw = req.body?.path || '';
+    const sessionId = req.body?.sessionId || '';
+    const reason = req.body?.reason === 'auto' ? 'auto' : 'close';
+    if (typeof relativeRaw !== 'string' || !relativeRaw.trim()) {
+      throw new ValidationError('A valid file path is required.');
+    }
+    if (typeof sessionId !== 'string' || !sessionId) {
+      throw new ValidationError('A valid ONLYOFFICE editing session is required.');
+    }
+
+    const relativePath = normalizeRelativePath(relativeRaw);
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+
+    if (!accessInfo || !accessInfo.canAccess || !accessInfo.canWrite) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+    }
+
+    const stat = await fsp.stat(resolved.absolutePath);
+    if (stat.isDirectory()) {
+      throw new ValidationError('Cannot force-save a directory.');
+    }
+
+    const session = await getEditorSession(req, sessionId, relativePath);
+    const existingRequestId = pendingForceSavesBySession.get(sessionId);
+    const pending = existingRequestId ? pendingForceSaves.get(existingRequestId) : null;
+    if (pending) {
+      const followUp = reason === 'close' && pending.reason === 'auto';
+      if (followUp) pending.followUpReason = 'close';
+      return res.status(202).json({
+        queued: true,
+        requestId: existingRequestId,
+        coalesced: true,
+        followUp,
+      });
+    }
+
+    const requestId = enqueueForceSave({
+      sessionId,
+      key: session.key,
+      relativePath,
+      reason,
+    });
+    res.status(202).json({ queued: true, requestId });
   })
 );
 
@@ -598,6 +824,7 @@ router.get(
 router.post(
   '/onlyoffice/callback',
   asyncHandler(async (req, res) => {
+    let forceSaveRequestId = null;
     try {
       const relativeRaw = req.query?.path || '';
       if (typeof relativeRaw !== 'string' || !relativeRaw.trim()) {
@@ -622,6 +849,7 @@ router.post(
 
       const body = req.body || {};
       const status = Number(body.status);
+      forceSaveRequestId = typeof body.userdata === 'string' ? body.userdata : null;
       const activityPath = backendCtx?.absolutePath;
 
       // Status 1 reports the users currently connected to the document. It is
@@ -689,7 +917,10 @@ router.post(
         // everybody has left the document — is a state worth keeping. The
         // automatic saves in between are not, beyond the checkpoint the
         // versions take of a session that runs long.
-        const explicit = status === 2 || Number(body.forcesavetype) === 1;
+        const explicit =
+          status === 2 ||
+          Number(body.forcesavetype) === 1 ||
+          pendingForceSaves.get(forceSaveRequestId)?.reason === 'close';
 
         await versions.saveFile(
           abs,
@@ -708,14 +939,23 @@ router.post(
             explicit,
           }
         );
+        finishForceSave(forceSaveRequestId, { saved: status === 6 });
         logger.debug({ path: relativePath, status }, 'ONLYOFFICE file updated');
         // MUST return {error:0} according to ONLYOFFICE spec
         return res.json({ error: 0 });
       }
 
+      // Status 7 is the Document Server saying the force-save failed; status 6
+      // without a URL is the same shape. Either way whoever is waiting on that
+      // request must be told, or the close hangs until it times out.
+      if (status === 6 || status === 7) {
+        finishForceSave(forceSaveRequestId, { saved: false, failed: true });
+      }
+
       // For other statuses, acknowledge
       return res.json({ error: 0 });
     } catch (err) {
+      finishForceSave(forceSaveRequestId, { saved: false, failed: true });
       logger.error({ err }, 'ONLYOFFICE callback failed');
       // Per spec, non-zero error indicates retry; use 1
       return res.status(200).json({ error: 1 });

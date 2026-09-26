@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Переименовано",
     "renamedBody": "Документ теперь называется {name}.",
-    "renameFailed": "Не удалось переименовать в {name}"
+    "renameFailed": "Не удалось переименовать в {name}",
+    "andOthers": "и еще {count}",
+    "transferHeading": "Файл редактируется",
+    "transferBody": "Этот файл открыт в OnlyOffice. Продолжение может нарушить текущее сохранение. Хотите продолжить?",
+    "transferCancel": "Отмена",
+    "transferConfirm": "Продолжить",
+    "editingBy": "Редактируется в ONLYOFFICE: {names}",
+    "editingNow": "Редактируется в ONLYOFFICE"
   }
 }

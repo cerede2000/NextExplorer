@@ -6,6 +6,7 @@ const { combineRelativePath } = require('../utils/pathUtils');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const logger = require('../utils/logger');
+const onlyofficeActivity = require('./onlyofficeActivityService');
 
 const LIST_DIRECTORY_CONCURRENCY = 64;
 
@@ -106,6 +107,13 @@ const listDirectoryItems = async ({
       size: stats.size,
       kind,
     };
+
+    // Advisory only, and never a lock: who has this document open in an
+    // editor, so the row can say so and a move can ask first.
+    if (stats.isFile()) {
+      const activity = onlyofficeActivity.get(filePath);
+      if (activity?.active) item.onlyofficeActivity = activity;
+    }
 
     if (thumbsEnabled && stats.isFile() && kind !== 'pdf' && previewable.has(kind.toLowerCase())) {
       item.supportsThumbnail = true;

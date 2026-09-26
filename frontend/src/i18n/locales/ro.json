@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Redenumit",
     "renamedBody": "Documentul se numește acum {name}.",
-    "renameFailed": "Nu s-a putut redenumi în {name}"
+    "renameFailed": "Nu s-a putut redenumi în {name}",
+    "andOthers": "și încă {count}",
+    "transferHeading": "Fișierul este în curs de editare",
+    "transferBody": "Acest fișier este deschis în OnlyOffice. Continuarea poate perturba o salvare în curs. Vrei să continui?",
+    "transferCancel": "Anulează",
+    "transferConfirm": "Continuă",
+    "editingBy": "Se editează în ONLYOFFICE de către {names}",
+    "editingNow": "Se editează în ONLYOFFICE"
   }
 }

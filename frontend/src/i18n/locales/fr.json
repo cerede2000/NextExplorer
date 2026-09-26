@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Renommé",
     "renamedBody": "Le document s’appelle maintenant {name}.",
-    "renameFailed": "Impossible de renommer en {name}"
+    "renameFailed": "Impossible de renommer en {name}",
+    "andOthers": "et {count} autre(s)",
+    "transferHeading": "Fichier en cours d’édition",
+    "transferBody": "Ce fichier est ouvert dans OnlyOffice. Continuer peut perturber une sauvegarde en cours. Voulez-vous continuer ?",
+    "transferCancel": "Annuler",
+    "transferConfirm": "Continuer",
+    "editingBy": "Édition en cours dans ONLYOFFICE : {names}",
+    "editingNow": "Édition en cours dans ONLYOFFICE"
   }
 }

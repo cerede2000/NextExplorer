@@ -433,6 +433,10 @@ export const useFileStore = defineStore('fileStore', () => {
     currentPath.value = normalizePath(path);
   }
 
+  // Fields this store puts on an item itself, which no listing ever sends and
+  // which must survive a refresh.
+  const LOCAL_ONLY_ITEM_FIELDS = new Set(['thumbnail']);
+
   async function fetchPathItems(path) {
     const previousItems = Array.isArray(currentPathItems.value) ? currentPathItems.value : [];
 
@@ -478,6 +482,15 @@ export const useFileStore = defineStore('fileStore', () => {
           // Preserve any locally-added thumbnail if the backend
           // does not send one, but refresh all other metadata.
           const prevThumbnail = existing.thumbnail;
+          // A field the listing has stopped sending has to go, not merely be
+          // overwritten: `Object.assign` cannot remove anything, so a mark the
+          // row no longer carries — a document nobody has open any more, a
+          // history that was just emptied — stayed for as long as the folder
+          // was on screen. `supportsThumbnail` was patched for exactly this,
+          // one field at a time; this is the same rule for all of them.
+          for (const key of Object.keys(existing)) {
+            if (!(key in incoming) && !LOCAL_ONLY_ITEM_FIELDS.has(key)) delete existing[key];
+          }
           Object.assign(existing, incoming);
           if (!incoming.thumbnail && prevThumbnail) {
             existing.thumbnail = prevThumbnail;

@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Namnet ändrat",
     "renamedBody": "Dokumentet heter nu {name}.",
-    "renameFailed": "Det gick inte att byta namn till {name}"
+    "renameFailed": "Det gick inte att byta namn till {name}",
+    "andOthers": "och {count} till",
+    "transferHeading": "Filen redigeras",
+    "transferBody": "Den här filen är öppen i OnlyOffice. Om du fortsätter kan en pågående sparning störas. Vill du fortsätta?",
+    "transferCancel": "Avbryt",
+    "transferConfirm": "Fortsätt",
+    "editingBy": "Redigeras i ONLYOFFICE av {names}",
+    "editingNow": "Redigeras i ONLYOFFICE"
   }
 }

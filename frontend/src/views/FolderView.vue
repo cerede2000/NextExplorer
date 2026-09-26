@@ -7,6 +7,7 @@ import FileObject from '@/components/FileObject.vue';
 import { useFileStore } from '@/stores/fileStore';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useFeaturesStore } from '@/stores/features';
+import { useOnlyOfficeActivity } from '@/composables/useOnlyOfficeActivity';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { useSelection } from '@/composables/itemSelection';
 import { useExplorerContextMenu } from '@/composables/contextMenu';
@@ -261,7 +262,17 @@ const refreshFolderSizes = () => {
 
 watch(() => fileStore.getCurrentPathItems, refreshFolderSizes, { immediate: true });
 
-onMounted(loadFiles);
+// Whoever has a document open in an editor, kept current while this folder is
+// on screen: the server holds the request until somebody joins or leaves.
+const onlyofficeActivity = useOnlyOfficeActivity({
+  featuresStore,
+  refresh: () => fileStore.fetchPathItems(fileStore.currentPath).catch(() => {}),
+});
+
+onMounted(() => {
+  void loadFiles();
+  void onlyofficeActivity.start();
+});
 
 watch(hasMoreItems, () => {
   setupLoadMoreObserver();
@@ -393,6 +404,10 @@ useEventListener(window, 'pointerup', stopResize);
 useEventListener(window, 'pointercancel', stopResize);
 useEventListener(window, 'resize', updateScrollState);
 useEventListener(window, 'scroll', updateScrollState, { passive: true });
+
+onBeforeUnmount(() => {
+  onlyofficeActivity.stop();
+});
 
 onBeforeUnmount(() => {
   stopResize();

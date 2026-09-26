@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Hernoemd",
     "renamedBody": "Het document heet nu {name}.",
-    "renameFailed": "Hernoemen naar {name} is mislukt"
+    "renameFailed": "Hernoemen naar {name} is mislukt",
+    "andOthers": "en {count} andere",
+    "transferHeading": "Bestand wordt bewerkt",
+    "transferBody": "Dit bestand is geopend in OnlyOffice. Doorgaan kan een lopende opslag verstoren. Wilt u doorgaan?",
+    "transferCancel": "Annuleren",
+    "transferConfirm": "Doorgaan",
+    "editingBy": "Wordt bewerkt in ONLYOFFICE door {names}",
+    "editingNow": "Wordt bewerkt in ONLYOFFICE"
   }
 }
