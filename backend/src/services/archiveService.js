@@ -65,6 +65,18 @@ const getSupportedArchiveExtensions = () => {
   return supportedExtensionsPromise;
 };
 
+/**
+ * The formats this build could open and does not.
+ *
+ * The list of what is supported says nothing about what is missing, and what
+ * is missing is the one thing worth knowing: a 7-Zip packaged without the RAR
+ * codec lists a dozen formats and never mentions the one it dropped (#9).
+ */
+const getMissingArchiveExtensions = async () => {
+  const supported = new Set(await getSupportedArchiveExtensions());
+  return CANDIDATE_EXTENSIONS.filter((extension) => !supported.has(extension));
+};
+
 const isSevenZipAvailable = async () => {
   const extensions = await getSupportedArchiveExtensions();
   // The zip-only fallback list means the probe failed.
@@ -125,7 +137,9 @@ const isArchivePasswordError = (error) =>
 
 const createArchivePasswordError = (passwordProvided) => {
   const error = new Error(
-    passwordProvided ? 'Incorrect archive password or corrupted archive.' : 'Archive password required.'
+    passwordProvided
+      ? 'Incorrect archive password or corrupted archive.'
+      : 'Archive password required.'
   );
   error.code = passwordProvided ? 'ARCHIVE_INVALID_PASSWORD' : 'ARCHIVE_PASSWORD_REQUIRED';
   return error;
@@ -303,6 +317,63 @@ const runSevenZipExtract = (
   );
 
 /**
+ * Extract only the entries named, and nothing else.
+ *
+ * The names come from the archive's own listing and are checked against it
+ * before they get here, so what is asked for is what the archive holds. Two
+ * switches do the rest of the work:
+ *
+ * `-spd` stops 7-Zip reading a name as a pattern, so an entry genuinely called
+ * `report*.txt` extracts that file rather than every report beside it.
+ *
+ * `-snl-` keeps 7-Zip from restoring symbolic links, as the whole-archive
+ * extraction does: path confinement is a string comparison, and a link like
+ * `evil -> /` inside a tar would make every later access step outside the
+ * volume while still looking valid.
+ *
+ * The names are sent in batches, because a folder of ten thousand files is a
+ * command line no system will take.
+ */
+const EXTRACT_BATCH_SIZE = 400;
+
+const extractArchiveEntries = async (
+  archiveAbsolutePath,
+  destinationAbsolutePath,
+  entryPaths,
+  onPercent,
+  options = {}
+) => {
+  const batches = [];
+  for (let at = 0; at < entryPaths.length; at += EXTRACT_BATCH_SIZE) {
+    batches.push(entryPaths.slice(at, at + EXTRACT_BATCH_SIZE));
+  }
+
+  let done = 0;
+  for (const batch of batches) {
+    throwIfCancelled(options.signal);
+    await runSevenZip(
+      [
+        'x',
+        '-y',
+        '-bsp1',
+        '-snl-',
+        '-spd',
+        `-o${destinationAbsolutePath}`,
+        '--',
+        archiveAbsolutePath,
+        ...batch,
+      ],
+      // Each batch reports 0-100 of itself; what the caller is told is how far
+      // through all of them it is.
+      (percent) =>
+        onPercent?.(Math.round(((done + Math.min(100, percent) / 100) / batches.length) * 100)),
+      options
+    );
+    done += 1;
+  }
+};
+
+/**
  * Create a .zip archive from the given absolute paths, reporting progress
  * through `onPercent(0-100)`. 7-Zip stores each entry under its base name,
  * matching the behaviour of the previous in-memory implementation — but the
@@ -353,7 +424,7 @@ const readArchiveFootprint = async (archiveAbsolutePath) => {
       }
     }
     return entryCount ? { totalBytes, entryCount } : null;
-  } catch (error) {
+  } catch (_) {
     return null;
   }
 };
@@ -412,7 +483,6 @@ const watchExtractionSize = (destinationAbsolutePath, maxBytes, onExceeded) => {
     clearInterval(timer);
   };
 };
-
 
 /**
  * Reject an extraction that produced a symbolic link.
@@ -507,7 +577,11 @@ const extractArchive = async (
 };
 
 module.exports = {
+  SEVEN_ZIP_BIN,
+  TAR_WRAPPER_EXTENSIONS,
+  extractArchiveEntries,
   getSupportedArchiveExtensions,
+  getMissingArchiveExtensions,
   isSevenZipAvailable,
   readArchiveFootprint,
   extractArchive,

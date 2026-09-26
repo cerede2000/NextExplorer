@@ -9,6 +9,8 @@ export const useFeaturesStore = defineStore('features', () => {
   const publicOrigins = ref([]);
   // The ceiling an administrator may raise the upload chunk size to.
   const maxUploadChunkSizeBytes = ref(0);
+  // Archive formats the server-side 7-Zip build actually supports.
+  const archiveExtensions = ref(['zip']);
   const editorExtensions = ref([]);
   const hiddenFilePatterns = ref(['.']);
   const onlyofficeEnabled = ref(false);
@@ -95,6 +97,9 @@ export const useFeaturesStore = defineStore('features', () => {
         trashEnabled.value = Boolean(features?.trash?.enabled);
         trashRetentionDays.value = features?.trash?.retentionDays ?? null;
         versionsEnabled.value = Boolean(features?.versions?.enabled);
+        archiveExtensions.value = Array.isArray(features?.archives?.extensions)
+          ? features.archives.extensions
+          : ['zip'];
         maxUploadChunkSizeBytes.value = Number.isFinite(features?.uploads?.maxChunkSizeBytes)
           ? features.uploads.maxChunkSizeBytes
           : 0;
@@ -173,6 +178,7 @@ export const useFeaturesStore = defineStore('features', () => {
     trashEnabled,
     trashRetentionDays,
     versionsEnabled,
+    archiveExtensions,
     maxUploadChunkSizeBytes,
     terminalExtensions,
     version,

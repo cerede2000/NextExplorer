@@ -18,6 +18,7 @@ const terminalRoutes = require('./terminal');
 const permissionsRoutes = require('./permissions');
 const sharesRoutes = require('./shares');
 const zipRoutes = require('./zip');
+const archiveRoutes = require('./archive');
 const healthRoutes = require('./health');
 const userVolumesRoutes = require('./userVolumes');
 const folderSizeRoutes = require('./folderSize');
@@ -45,6 +46,7 @@ const registerRoutes = (app) => {
   app.use('/api', metadataRoutes);
   app.use('/api', permissionsRoutes);
   app.use('/api', zipRoutes);
+  app.use('/api', archiveRoutes);
   app.use('/api', folderSizeRoutes);
   app.use('/api', trashRoutes);
   app.use('/api', versionsRoutes);

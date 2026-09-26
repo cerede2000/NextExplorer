@@ -187,4 +187,8 @@ const notFoundHandler = (req, res, next) => {
 module.exports = {
   errorHandler,
   notFoundHandler,
+  // Used by the routes that stream their progress: an NDJSON stream has already
+  // answered 200 by the time something fails, so it says why in a line of its
+  // own rather than through the error handler — and says it the same way.
+  sanitizeClientMessage,
 };

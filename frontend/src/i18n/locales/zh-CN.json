@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "这里没有什么能打开 {name}。",
     "backToFolder": "返回文件夹"
+  },
+  "archive": {
+    "password": {
+      "title": "需要密码",
+      "description": "此压缩包受密码保护。请输入密码以解压。",
+      "label": "压缩包密码",
+      "invalid": "密码不正确，或压缩包已损坏。",
+      "submit": "解压",
+      "extracting": "正在解压..."
+    },
+    "breadcrumb": "压缩包内",
+    "empty": "此文件夹为空。",
+    "download": "下载",
+    "downloadNamed": "下载 {name}",
+    "outside": "有 {count} 个条目未显示：它们的名称指向压缩包之外。",
+    "unreadable": "无法读取此压缩包。",
+    "readFailed": "无法读取该文件。",
+    "notReadable": "此类文件无法在此显示。",
+    "tooBigToRead": "太大，无法在此显示：{size}，上限为 {ceiling}。请下载或解压后打开。",
+    "extract": "解压到此处",
+    "extractNamed": "将 {name} 解压到此处",
+    "selectAll": "全选当前层级",
+    "selectNamed": "选择 {name}",
+    "selected": "已选 1 项 | 已选 {count} 项",
+    "extracted": "已解压：{name}",
+    "extractedNothing": "没有解压出任何内容。",
+    "extractFailed": "无法解压此项。",
+    "count": "此压缩包中有 {count} 个条目"
   }
 }

@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",
     "backToFolder": "返回資料夾"
+  },
+  "archive": {
+    "password": {
+      "title": "需要密碼",
+      "description": "此壓縮檔受密碼保護。請輸入密碼以解壓縮。",
+      "label": "壓縮檔密碼",
+      "invalid": "密碼不正確，或壓縮檔已損毀。",
+      "submit": "解壓縮",
+      "extracting": "正在解壓縮..."
+    },
+    "breadcrumb": "壓縮檔內",
+    "empty": "此資料夾是空的。",
+    "download": "下載",
+    "downloadNamed": "下載 {name}",
+    "outside": "有 {count} 個項目未顯示：它們的名稱指向壓縮檔之外。",
+    "unreadable": "無法讀取此壓縮檔。",
+    "readFailed": "無法讀取這個檔案。",
+    "notReadable": "這類檔案無法在此顯示。",
+    "tooBigToRead": "太大，無法在此顯示：{size}，上限為 {ceiling}。請下載或解壓縮後開啟。",
+    "extract": "解壓縮到此處",
+    "extractNamed": "將 {name} 解壓縮到此處",
+    "selectAll": "全選目前層級",
+    "selectNamed": "選擇 {name}",
+    "selected": "已選 1 項 | 已選 {count} 項",
+    "extracted": "已解壓縮：{name}",
+    "extractedNothing": "沒有解壓縮出任何內容。",
+    "extractFailed": "無法解壓縮此項。",
+    "count": "此壓縮檔中有 {count} 個項目"
   }
 }

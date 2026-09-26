@@ -14,9 +14,10 @@ const {
   combineRelativePath,
   ensureValidName,
 } = require('../utils/pathUtils');
-const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
-const { takeInventory, removeInventoried } = require('../utils/ownedTree');
+const { placeWithoutOverwrite, predictAvailableName } = require('../utils/placeWithoutOverwrite');
+const { removeInventoried } = require('../utils/ownedTree');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
+const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const { track: trackInFlight } = require('../services/inFlightFiles');
 const {
@@ -28,45 +29,21 @@ const {
   archiveBaseName,
   normalizeArchivePassword,
 } = require('../services/archiveService');
+const {
+  ensureArchiveWithinLimits,
+  buildItemMetadata,
+  extractIntoCurrentFolder,
+} = require('../services/archiveExtraction');
 const { collectArchiveEntries, writeZipFile } = require('../services/archiveTree');
 const { archives } = require('../config/index');
 
 const router = express.Router();
-
-/**
- * Refuse archives that would expand far beyond their own size.
- *
- * Extraction is otherwise unbounded: a few kilobytes of nested, highly
- * compressible entries can fill the volume ("zip bomb"). The declared sizes
- * come from the archive itself, so this is a cheap pre-flight check, not a
- * guarantee — it stops the accidental and the trivially malicious case.
- */
-const ensureArchiveWithinLimits = ({ entryCount = 0, totalBytes = 0 }) => {
-  if (entryCount > archives.maxEntries) {
-    throw new ValidationError(
-      `This archive holds more than ${archives.maxEntries} entries and was not extracted.`
-    );
-  }
-  if (totalBytes > archives.maxExtractedBytes) {
-    throw new ValidationError(
-      'This archive expands beyond the allowed size and was not extracted.'
-    );
-  }
-};
 
 /** Declared footprint of a zip read by the bundled JS extractor. */
 const admZipFootprint = (entries = []) => ({
   entryCount: entries.length,
   totalBytes: entries.reduce((total, entry) => total + (entry?.header?.size || 0), 0),
 });
-
-const buildItemMetadata = async (absolutePath, relativeParent, name) => {
-  const stats = await fs.stat(absolutePath);
-  const ext = path.extname(name).slice(1).toLowerCase();
-  const kind = stats.isDirectory() ? 'directory' : ext.length > 10 ? 'unknown' : ext || 'unknown';
-
-  return { name, path: relativeParent, kind, size: stats.size, dateModified: stats.mtime };
-};
 
 const defaultZipNameForItems = (items = []) => {
   if (!Array.isArray(items) || items.length === 0) return 'Archive.zip';
@@ -79,37 +56,6 @@ const defaultZipNameForItems = (items = []) => {
 
   const ext = path.extname(name);
   return `${ext ? name.slice(0, -ext.length) : name}.zip`;
-};
-
-const extractIntoCurrentFolder = async ({
-  stagingDirectory,
-  destinationDirectory,
-  relativeParentPath,
-  movedPaths,
-}) => {
-  const stagedEntries = await fs.readdir(stagingDirectory, { withFileTypes: true });
-  const items = [];
-
-  for (const entry of stagedEntries) {
-    const entryName = ensureValidName(entry.name);
-    const sourcePath = path.join(stagingDirectory, entryName);
-    // Taken stock of before it moves: undoing the extraction removes exactly
-    // this, and not what someone puts in a placed folder afterwards.
-    const inventory = await takeInventory(sourcePath);
-    // The name is taken by the move itself, never looked at first and renamed
-    // into later: a file, or an empty folder, that appears under it meanwhile
-    // stays as it is, and the entry goes to "name (1)".
-    const { name: destinationName, path: destinationPath } = await placeWithoutOverwrite(
-      sourcePath,
-      destinationDirectory,
-      entryName
-    );
-    movedPaths.push({ path: destinationPath, inventory });
-
-    items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
-  }
-
-  return items;
 };
 
 router.post(
@@ -177,7 +123,7 @@ router.post(
     const { allowed: filesAllowed, accessInfo: filesAccessInfo } = await authorizeAndResolve(
       context,
       parentRelativePath,
-      ACTIONS.write
+      ACTIONS.createFile
     );
     if (!filesAllowed) {
       throw new ForbiddenError(filesAccessInfo?.denialReason || 'Destination is read-only.');
@@ -260,6 +206,8 @@ router.post(
           baseFolderName,
           { style: 'folder' }
         );
+        // The archive has produced an entire new tree. Queue its index refresh,
+        // but never hold the archive operation open on background filesystem I/O.
 
         const item = await buildItemMetadata(placed.path, parentRelativePath, placed.name);
         writeEvent({ type: 'done', success: true, item, items: [item] });
@@ -302,7 +250,7 @@ router.post(
       );
       writeEvent({
         type: 'error',
-        message: error.message || 'Archive extraction failed.',
+        message: sanitizeClientMessage(error.message || 'Archive extraction failed.'),
         code: error.code || 'EXTRACT_FAILED',
       });
     } finally {
@@ -343,7 +291,7 @@ router.post(
       allowed: destAllowed,
       accessInfo: destAccess,
       resolved: destResolved,
-    } = await authorizeAndResolve(context, normalizedDestination, ACTIONS.write);
+    } = await authorizeAndResolve(context, normalizedDestination, ACTIONS.createFile);
     if (!destAllowed || !destResolved) {
       throw new ForbiddenError(destAccess?.denialReason || 'Destination is read-only.');
     }
@@ -367,6 +315,12 @@ router.post(
       if (!allowed || !resolved) {
         throw new ForbiddenError(accessInfo?.denialReason || 'Source item is not accessible.');
       }
+      // An archive written into a folder the caller can reach is a copy they
+      // can take away: a share that withholds downloads withholds this too.
+      if (!accessInfo.canDownload) {
+        throw new ForbiddenError('Downloading is not allowed for this item.');
+      }
+
       const stats = await fs.stat(resolved.absolutePath);
       return {
         name: item.name,
@@ -399,13 +353,19 @@ router.post(
     // Everything above throws BEFORE any byte is written, so validation errors
     // still surface as normal HTTP errors. From here on the response streams
     // NDJSON progress events, mirroring the extract endpoint:
-    //   {type:'start',    name}          the name asked for
+    //   {type:'start',    name}          the name expected, "Archive (1).zip" when held
     //   {type:'progress', percent}       (throttled)
-    //   {type:'done',     success, item} the name taken, "Archive (1).zip" when held
+    //   {type:'done',     success, item} the name taken
     //   {type:'error',    message, code}
     const writeEvent = startNdjsonStream(res);
 
-    writeEvent({ type: 'start', name: requestedName });
+    // The progress shows this name for as long as the compression lasts, so it
+    // is the one the archive should land at rather than the one asked for. Only
+    // a guess: the name is taken at the end, by the move, and `done` says which.
+    writeEvent({
+      type: 'start',
+      name: await predictAvailableName(destinationAbsolutePath, requestedName),
+    });
 
     const onPercent = throttlePercent(writeEvent);
 
@@ -460,7 +420,7 @@ router.post(
       await fs.rm(temporaryPath, { force: true });
       writeEvent({
         type: 'error',
-        message: error.message || 'Archive creation failed.',
+        message: sanitizeClientMessage(error.message || 'Archive creation failed.'),
         code: error.code || 'COMPRESS_FAILED',
       });
     } finally {

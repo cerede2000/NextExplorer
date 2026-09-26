@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "Nothing here can open {name}.",
     "backToFolder": "Back to the folder"
+  },
+  "archive": {
+    "password": {
+      "title": "Password required",
+      "description": "This archive is protected. Enter its password to extract it.",
+      "label": "Archive password",
+      "invalid": "Incorrect password, or the archive is damaged.",
+      "submit": "Extract",
+      "extracting": "Extracting..."
+    },
+    "breadcrumb": "Inside the archive",
+    "empty": "This folder is empty.",
+    "download": "Download",
+    "downloadNamed": "Download {name}",
+    "outside": "One entry is not shown: its name points outside the archive. | {count} entries are not shown: their names point outside the archive.",
+    "unreadable": "This archive could not be read.",
+    "readFailed": "This file could not be read.",
+    "notReadable": "This kind of file cannot be shown here.",
+    "tooBigToRead": "Too large to show here: {size}, and up to {ceiling} can be shown. Download it or extract it to open it.",
+    "extract": "Extract here",
+    "extractNamed": "Extract {name} here",
+    "selectAll": "Select everything here",
+    "selectNamed": "Select {name}",
+    "selected": "One selected | {count} selected",
+    "extracted": "Extracted: {name}",
+    "extractedNothing": "Nothing came out of it.",
+    "extractFailed": "This could not be extracted.",
+    "count": "One entry in this archive | {count} entries in this archive"
   }
 }

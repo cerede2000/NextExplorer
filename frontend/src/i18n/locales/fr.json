@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",
     "backToFolder": "Retour au dossier"
+  },
+  "archive": {
+    "password": {
+      "title": "Mot de passe requis",
+      "description": "Cette archive est protégée. Saisissez son mot de passe pour l'extraire.",
+      "label": "Mot de passe de l'archive",
+      "invalid": "Mot de passe incorrect ou archive endommagée.",
+      "submit": "Extraire",
+      "extracting": "Extraction en cours..."
+    },
+    "breadcrumb": "Dans l'archive",
+    "empty": "Ce dossier est vide.",
+    "download": "Télécharger",
+    "downloadNamed": "Télécharger {name}",
+    "outside": "Une entrée n'est pas affichée : son nom pointe hors de l'archive. | {count} entrées ne sont pas affichées : leurs noms pointent hors de l'archive.",
+    "unreadable": "Cette archive n'a pas pu être lue.",
+    "readFailed": "Ce fichier n'a pas pu être lu.",
+    "notReadable": "Ce type de fichier ne peut pas être affiché ici.",
+    "tooBigToRead": "Trop volumineux pour être affiché ici : {size}, la limite est de {ceiling}. Téléchargez-le ou extrayez-le pour l'ouvrir.",
+    "extract": "Extraire ici",
+    "extractNamed": "Extraire {name} ici",
+    "selectAll": "Tout sélectionner ici",
+    "selectNamed": "Sélectionner {name}",
+    "selected": "Un élément sélectionné | {count} éléments sélectionnés",
+    "extracted": "Extrait : {name}",
+    "extractedNothing": "Rien n'en est sorti.",
+    "extractFailed": "Impossible d'extraire ceci.",
+    "count": "Une entrée dans cette archive | {count} entrées dans cette archive"
   }
 }
