@@ -6,22 +6,18 @@ thirty-three and not at forty.
 
 ## Where this stands
 
-| Batches               | State                                                                          |
-| --------------------- | ------------------------------------------------------------------------------ |
-| 1–9                   | Merged 9 September 2026 (nxzai#374–#385).                                      |
-| 10–20                 | Merged 25 September 2026, in order (nxzai#396–#406).                           |
-| 21–25                 | Open, stacked, CI green (nxzai#410–#414). Merge in order.                      |
-| 26 first half         | Open (nxzai#415): the text save and the history API. Independent of the stack. |
-| 27                    | Open (nxzai#416): the trash screen and its settings. Independent of the stack. |
-| 26 second half, 28–33 | Below.                                                                         |
+| Batches | State                                                               |
+| ------- | ------------------------------------------------------------------- |
+| 1–9     | Merged 9 September 2026 (nxzai#374–#385).                           |
+| 10–20   | Merged 25 September 2026 (nxzai#396–#406).                          |
+| 21–27   | Merged 26 September 2026 (nxzai#410–#416).                          |
+| 28–33   | Merged 26 September 2026 (nxzai#417–#430), 33 split into 33.1–33.4. |
+| Delta   | Merged 26 September 2026 (nxzai#431, #432). See "What is left".     |
 
-Measured with everything open applied, what remains in `backend/src` and
-`frontend/src` is about 95,800 lines, of which 10,900 are the fifteen
-translation catalogues. That number is not six features' worth of work: a large
-part of it is structural — this fork split the file store into modules, rewrote
-the folder view, the context menus and the dialogs — and that divergence is not
-a subject of its own. It rides inside the batch that needs it, or it stays here.
-See "What is not in the thirty-three".
+**The plan is closed.** Every subject of nxzai#373 is on `main` upstream, and
+so are the two that followed it: the volume guard this fork had and upstream
+did not (nxzai#409), and the file routes, the shared editor and the editor's
+storage picker that closed the last of the API surface.
 
 ## How the count closes
 
@@ -48,94 +44,19 @@ One subject, one number. The rule that keeps the total honest:
 - **What is not in the list is stated as not in the list**, rather than waiting
   to become batch 34.
 
-## What remains
+## What is left
 
-Each one is a capability somebody can see, with its server side, its screens,
-its strings and its documentation. Sizes are the code still to port, catalogues
-and tests excluded, measured rather than guessed.
+Measured 26 September 2026, by reading the routers of both trees rather than by
+diffing files: **upstream mounts every route this fork does, bar one.**
 
-### 26, second half — The panel that shows a history
+`GET /api/files/recent-destinations` serves the destination dialog, which is
+below among the things this plan never claimed. It stays here with it.
 
-**≈ 2,200 lines.** `VersionsPanel`, `SettingsFileVersions`, the panel's store,
-`EditorView` and its code surface, `textEditorService`, `routes/versionsAdmin`.
-
-#415 made the histories real and readable through the API; nothing shows them.
-This is the panel on a file, the administrator's list of every file that has
-one, and the text service both want — reading a version as text, and reading a
-file that is still in the trash, which #416 left out for the same reason.
-
-Depends on #415. Nothing depends on it.
-
-### 28 — Opening a document
-
-**≈ 3,000 lines, ≈ 1,800 of tests.** The rest of ONLYOFFICE: the document key
-store so a reopened document is not served from the Document Server's cache,
-editing sessions and presence, Save as, renaming from the title bar, mentions in
-comments, the co-editing settings, the transfer confirmation; `/open/<path>` and
-the preference that sends documents to a tab of their own; and the tab titles,
-which name the page and the instance.
-
-Depends on #410. The key store is what makes a second save of the same document
-correct, so it should not wait much longer than that. It also carries the one
-thing #415 could not: telling an open document that the file was restored under
-a new key.
-
-### 29 — Uploads that resume
-
-**≈ 2,450 lines.** The tus protocol (`@tus/server`, `@tus/file-store`), the
-upload engine on the client side, the sweep of what a stopped upload leaves in
-the cache, folder uploads and their target resolution, the uploads settings
-screen and the progress panel.
-
-Deliberately kept out of #413, which ported only what tus needs underneath — the
-storage guard — because the protocol without its client proves nothing. This is
-the batch that brings both halves. It adds two backend dependencies and two on
-the client, which is worth saying plainly in the pull request.
-
-### 30 — Thumbnails, RAW and the gallery
-
-**≈ 1,700 lines.** The thumbnail queue with its priorities and its idle-only
-prefetch, the cache cleanup, RAW previews, the client-side queue, the additions
-to the thumbnails settings screen.
-
-Depends on #411, which put the access decision on the URL: the queue hands out
-the same signed URLs.
-
-### 31 — Archives
-
-**≈ 1,200 lines, ≈ 800 of tests.** Browsing inside an archive without
-extracting it, the extraction cache, the archive routes and their NDJSON
-streams, the preview and its entry reader, the password dialog.
-
-Independent of everything else. A good one to take while the others are waiting
-on review.
-
-### 32 — Signing in another way
-
-**≈ 3,200 lines.** Two-factor authentication (TOTP, recovery codes), passkeys
-(WebAuthn, written here without a dependency), the SQLite session store, the
-account screens for both; and the language an account reads in, which is an
-account preference and belongs with them.
-
-Depends on nothing but the account tables. The session store is the piece to
-land carefully: it changes where sessions live.
-
-### 33 — What an administrator sees, and what search answers
-
-**≈ 7,600 lines**, of which about 3,000 are the OpenAPI description. API tokens
-and the published description, the activity log and its screen — including the
-purge entry #415 left out — access rules that say whether they hold
-administrators and the lock a restricted folder carries, volumes that cannot be
-written in, the capabilities endpoint, the folder-size and search-index screens,
-the excluded paths; and the search work this fork did for nxzai#11: forgetting
-an excluded folder in batches rather than in one blocking pass, a content search
-that stops reading at what the page can hold, and finding a path by bounds on
-bytes rather than by `LIKE`, which ignores case and made `Docs` and `docs` the
-same folder.
-
-This is the one that will be split. Expect 33.1 (search and the path bounds),
-33.2 (activity log and access rules), 33.3 (API tokens and the description).
-Same number.
+What still differs is this fork's own shape rather than what the application
+does: the file store split into modules, the rewritten folder view, the quick
+actions, the clipboard progress panel, the destination dialog, the operations
+store — and, beside them, prose rewritten and functions restructured after each
+batch had already gone over. None of it is a capability upstream lacks.
 
 ## What is not in the thirty-three
 
@@ -157,18 +78,19 @@ Stated so the count closes:
 
 ## Left behind so far, and by whom
 
-Read this before starting a batch; it is where the deferred pieces live.
+Everything this table held has landed. What is left is the list above: the
+destination dialog and its route, and the interface architecture below.
 
-| Piece                                         | Left by    | Lands in                           |
-| --------------------------------------------- | ---------- | ---------------------------------- |
-| Reading a version as text                     | #415       | 26, second half                    |
-| Reading the text of a file still in the trash | #415, #416 | 26, second half                    |
-| The purge entry in the activity log           | #415       | 33                                 |
-| Telling an open document it was restored      | #415       | 28                                 |
-| Restoring into a chosen folder                | #416       | the file-operations batch (dialog) |
-| Progress and cancellation for a running copy  | #412       | the same                           |
-| The resumable upload protocol                 | #413       | 29                                 |
-| ONLYOFFICE keys, sessions, Save as, mentions  | #410       | 28                                 |
+| Piece                                         | Left by    | Landed in                   |
+| --------------------------------------------- | ---------- | --------------------------- |
+| Reading a version as text                     | #415       | #417                        |
+| Reading the text of a file still in the trash | #415, #416 | #417                        |
+| Telling an open document it was restored      | #415       | #418–#421                   |
+| ONLYOFFICE keys, sessions, Save as, mentions  | #410       | #418–#421                   |
+| The resumable upload protocol                 | #413       | #422                        |
+| The purge entry in the activity log           | #415       | #428                        |
+| Restoring into a chosen folder                | #416       | still here, with the dialog |
+| Progress and cancellation for a running copy  | #412       | still here, with the dialog |
 
 ## The gates every batch passes
 
