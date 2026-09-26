@@ -239,9 +239,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/utils/httpRange\\.js|backend/src/routes/files/preview\\.js|backend/src/routes/files/download\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-09",
-      "note": "one Range parser, not two that disagree"
+      "note": "nxzai#441 \u2014 one Range parser, not two that disagree"
     },
     {
       "axis": "*",
