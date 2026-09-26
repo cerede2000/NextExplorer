@@ -267,16 +267,16 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/featureSwitches\\.js|backend/src/routes/features\\.js|frontend/src/stores/features\\.js|frontend/src/views/settings/SettingsSearchIndex\\.vue|frontend/src/views/settings/SettingsFolderSize\\.vue|backend/src/services/searchIndexer\\.js|docs/configuration/settings\\.md)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-08",
-      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "i18n",
       "match": "^search\\.",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-08",
-      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "*",
@@ -323,9 +323,9 @@
     {
       "axis": "symbol",
       "match": "^backend/src/routes/settings\\.js:(featureSwitches|searchIndexSection|folderSizeSection)$",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-08",
-      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "*",
@@ -603,16 +603,16 @@
     {
       "axis": "env",
       "match": "^SEARCH_INDEX_SET$",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-08",
-      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "env",
       "match": "^FOLDER_SIZE_MODE_SET$",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-08",
-      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "env",
@@ -734,9 +734,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/routes/search\\.js|backend/src/services/searchCollector\\.js|backend/src/services/indexDb\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-08",
-      "note": "the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "*",
