@@ -195,6 +195,20 @@
       "batch": "P3-04"
     },
     {
+      "axis": "symbol",
+      "match": "^backend/src/routes/auth\\.js:(typed|lockedUntil|msLeft|retryAfter|locked|enrolment)$",
+      "verdict": "PORT",
+      "batch": "P3-24",
+      "note": "the accounts screens, and what a refused sign-in says: an account locked out, and for how long"
+    },
+    {
+      "axis": "i18n",
+      "match": "^auth\\.login\\.sessionExpired$",
+      "verdict": "PORT",
+      "batch": "P3-19",
+      "note": "a session that ends while nobody is navigating"
+    },
+    {
       "axis": "*",
       "match": "^(backend/src/utils/oidcRedirect\\.js|backend/src/utils/oidcAvailability\\.js|backend/src/middleware/oidc\\.js|backend/src/routes/auth\\.js|docs/integrations/oidc\\.md)(:|$)",
       "verdict": "PORT",
