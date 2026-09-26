@@ -1,7 +1,9 @@
+const fs = require('fs/promises');
 const path = require('path');
 
 const { search: searchConfig, directories } = require('../config/index');
 const { getDb } = require('./db');
+const { getIndexDb } = require('./indexDb');
 const store = require('./searchIndexStore');
 const exclusions = require('./searchIndexExclusions');
 const { indexTree, indexFile } = require('./searchIndexer');
@@ -53,7 +55,6 @@ const drain = async () => {
     while (pending.length > 0 && !stopped) {
       const job = pending.shift();
       try {
-        // eslint-disable-next-line no-await-in-loop
         await job();
       } catch (error) {
         logger.debug({ err: error }, 'A search index update failed');
@@ -105,9 +106,9 @@ const setAdminExclusions = async (paths) => {
   if (!enabled() || changed.added.length === 0) return { ...changed };
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     let removed = 0;
-    for (const relativePath of changed.added) removed += store.removeUnder(db, relativePath);
+    for (const relativePath of changed.added) removed += await store.removeUnder(db, relativePath);
     if (removed > 0) {
       logger.info({ paths: changed.added, removed }, 'Search index forgot newly excluded folders');
     }
@@ -128,7 +129,7 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
     // Nothing else touching the index while a pass runs: the pass is already
     // the whole budget, and a read racing it is a read nobody accounted for.
     await drain();
-    const db = await getDb();
+    const db = await getIndexDb();
     const result = await indexTree({
       db,
       rootAbs: directories.volume,
@@ -186,7 +187,7 @@ const reconcile = async ({ reason = 'scheduled' } = {}) => {
         excluded: exclusions.effectivePaths(),
         reason,
         ms: Date.now() - startedAt,
-        documents: store.stats(db).documents,
+        ...store.stats(db),
         ready: store.isReady(db),
       },
       'Search index updated'
@@ -215,6 +216,7 @@ const start = () => {
   // exclusion or a silent hole, and nothing in the log told them apart — the
   // question had to be asked and answered by hand.
   enqueue(async () => {
+    // The folders not to read are a setting, and settings stay in app.db.
     const db = await getDb();
     exclusions.loadFromDatabase(db);
     const { environmentExcludedPaths, excludedPaths } = exclusions.snapshot();
@@ -230,7 +232,7 @@ const start = () => {
     // Deliberately before the first pass, so the rebuild is the pass rather
     // than a second one after it.
     enqueue(async () => {
-      const db = await getDb();
+      const db = await getIndexDb();
       store.clear(db);
       logger.warn(
         'SEARCH_INDEX_REBUILD is set: the search index was emptied and will be read again ' +
@@ -241,7 +243,20 @@ const start = () => {
 
   // Deliberately not awaited: a server does not wait for its index to be
   // ready, it answers from the live search until it is.
-  reconcile({ reason: 'startup' });
+  //
+  // A pass still unwinding from a stop — switched off and on again in
+  // Settings — makes `reconcile` decline, and the next attempt would otherwise
+  // be the interval's, an hour later by default. So the first pass waits for
+  // the last one to let go, and gives up if the index is stopped meanwhile.
+  const firstPass = () => {
+    if (stopped) return;
+    if (running) {
+      setTimeout(firstPass, 1000).unref?.();
+      return;
+    }
+    reconcile({ reason: 'startup' });
+  };
+  firstPass();
 
   timer = setInterval(() => {
     reconcile({ reason: 'scheduled' });
@@ -276,8 +291,34 @@ const onFileChanged = async (absolutePath) => {
   if (!relative) return;
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     await indexFile(db, relative, absolutePath);
+  });
+};
+
+/**
+ * A folder the application just made.
+ *
+ * It holds nothing, so there is nothing to read and nothing to say about its
+ * contents — but it has a name, and somebody who has just created it is
+ * exactly the person about to look for it. Without this it stayed invisible
+ * until the next pass came round, which is up to an hour.
+ */
+const onFolderAdded = async (absolutePath) => {
+  if (!enabled()) return;
+
+  const relative = relativeToVolume(absolutePath);
+  if (!relative) return;
+
+  await enqueue(async () => {
+    const db = await getIndexDb();
+    store.upsertDocument(db, {
+      path: relative,
+      mtimeMs: 0,
+      size: 0,
+      text: null,
+      isDirectory: true,
+    });
   });
 };
 
@@ -289,8 +330,8 @@ const onPathRemoved = async (absolutePath) => {
   if (!relative) return;
 
   await enqueue(async () => {
-    const db = await getDb();
-    store.removeUnder(db, relative);
+    const db = await getIndexDb();
+    await store.removeUnder(db, relative);
   });
 };
 
@@ -303,14 +344,52 @@ const onPathMoved = async (fromAbsolutePath, toAbsolutePath) => {
   if (!from && !to) return;
 
   await enqueue(async () => {
-    const db = await getDb();
+    const db = await getIndexDb();
     if (from && to) {
       store.movePath(db, from, to);
       return;
     }
     // Out of scope on one side: forget what left, read what arrived.
-    if (from) store.removeUnder(db, from);
+    if (from) await store.removeUnder(db, from);
     if (to) await indexFile(db, to, toAbsolutePath);
+  });
+};
+
+/**
+ * A folder the application put down whole: restored from the trash, extracted
+ * from an archive. A move carries its documents along; these arrive with none
+ * indexed, and waiting for the next pass would leave them out of every search
+ * for up to an hour. Only the new tree is walked, and nothing outside it is
+ * forgotten.
+ */
+const onTreeAdded = async (absolutePath) => {
+  if (!enabled()) return;
+
+  const relative = relativeToVolume(absolutePath);
+  if (!relative) return;
+  // What a pass would never read, this does not read either.
+  if (relative.split('/').some((segment) => segment.startsWith('.'))) return;
+  const exclude = exclusions.effectivePaths();
+  if (exclude.some((entry) => relative === entry || relative.startsWith(`${entry}/`))) return;
+
+  await enqueue(async () => {
+    const db = await getIndexDb();
+    const stats = await fs.stat(absolutePath).catch(() => null);
+    if (!stats) return;
+    if (!stats.isDirectory()) {
+      await indexFile(db, relative, absolutePath);
+      return;
+    }
+    await indexTree({
+      db,
+      rootAbs: absolutePath,
+      rootRel: relative,
+      removeMissing: false,
+      batchSize: searchConfig.index.batch,
+      cpuPercent: searchConfig.index.cpuPercent,
+      memoryBudgetBytes: searchConfig.index.memoryBudgetBytes,
+      exclude,
+    });
   });
 };
 
@@ -319,7 +398,7 @@ const status = async () => {
   if (!enabled()) return { enabled: false };
 
   try {
-    const db = await getDb();
+    const db = await getIndexDb();
     return {
       enabled: true,
       running,
@@ -329,7 +408,7 @@ const status = async () => {
       ...store.stats(db),
     };
   } catch {
-    return { enabled: true, running, pending: pending.length, dropped, documents: 0 };
+    return { enabled: true, running, pending: pending.length, dropped, files: 0, documents: 0 };
   }
 };
 
@@ -339,7 +418,9 @@ module.exports = {
   stop,
   reconcile,
   onFileChanged,
+  onFolderAdded,
   onPathRemoved,
   onPathMoved,
+  onTreeAdded,
   status,
 };

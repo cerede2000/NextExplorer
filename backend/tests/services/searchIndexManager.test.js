@@ -33,8 +33,11 @@ const build = async (env = {}) => {
     tag: 'search-index-manager-',
     env: { SEARCH_INDEX: 'true', SEARCH_INDEX_CPU_PERCENT: '100', ...env },
   });
-  const dbService = envContext.requireFresh('src/services/db');
-  db = await dbService.getDb();
+  // The index lives in a database of its own under the cache, not in app.db:
+  // a large index used to grow the application's own database with it, and
+  // rebuilding one meant rewriting the other.
+  const indexDb = envContext.requireFresh('src/services/indexDb');
+  db = await indexDb.getIndexDb();
   store = envContext.requireFresh('src/services/searchIndexStore');
   manager = envContext.requireFresh('src/services/searchIndexManager');
 };

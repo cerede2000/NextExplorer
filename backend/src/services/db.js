@@ -851,4 +851,7 @@ const getDb = async () => {
 module.exports = {
   getDb,
   getDbPath,
+  // The index database keeps its own copy of this table, so it needs the same
+  // definition rather than a second one that can drift from it.
+  FOLDER_SIZE_INDEX_DDL,
 };

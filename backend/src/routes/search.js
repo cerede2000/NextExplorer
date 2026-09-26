@@ -6,12 +6,7 @@ const readline = require('readline');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
-const {
-  excludedFiles,
-  hiddenFiles,
-  search: searchConfig,
-  directories,
-} = require('../config/index');
+const { excludedFiles, hiddenFiles, search: searchConfig } = require('../config/index');
 const { resolvePathWithAccess, getAccessInfo } = require('../services/accessManager');
 const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors/AppError');
@@ -28,15 +23,16 @@ const { parseSearchTerm } = require('../services/searchTerm');
 const { ripgrepIgnoreGlobs, isIgnoredDirectory } = require('../services/searchIgnore');
 const { whenClientDisconnects } = require('../utils/clientDisconnect');
 const searchIndexExclusions = require('../services/searchIndexExclusions');
-const { getDb } = require('../services/db');
+const { getIndexDb } = require('../services/indexDb');
+const { indexViewFor } = require('../services/searchIndexView');
 const logger = require('../utils/logger');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 
 const router = express.Router();
 
 // Constants
-const IGNORED_DIRS = new Set(['.git', 'node_modules', 'dist', 'build']);
 const DEFAULT_LIMIT = 100;
+const MIN_TERM_LENGTH = 3;
 const MAX_LIMIT = 500;
 // Filenames lead — they are what someone looking for a file expects first —
 // but they cannot take the whole page from what is inside the documents.
@@ -135,15 +131,12 @@ const buildRipgrepArgs = (includeHiddenFiles = false, relBasePath = '') => [
   // A folder excluded from search is excluded from all of it, and not only
   // from the index: walking the Docker overlay by name is what made every
   // filename search run out its budget.
+  //
+  // That list is the only one. Four names were hard-coded beside it — `.git`,
+  // `node_modules`, `dist`, `build` — which made a folder somebody called
+  // `build` unsearchable on a file server (#11). Nothing here decides what is
+  // not worth finding.
   ...ripgrepIgnoreGlobs(relBasePath, excludedSearchPaths()),
-  '-g',
-  '!.git',
-  '-g',
-  '!node_modules',
-  '-g',
-  '!dist',
-  '-g',
-  '!build',
   ...(includeHiddenFiles ? [] : hiddenFiles.ripgrepGlobExcludes.flatMap((glob) => ['-g', glob])),
 ];
 
@@ -180,10 +173,22 @@ const normalizePath = (p, relBasePath) => {
   return relBasePath ? path.posix.join(relBasePath, normalized) : normalized;
 };
 
+/**
+ * Whether a name is one this search never returns.
+ *
+ * Only the two that are this application's own business: the files it keeps
+ * for itself, and hidden ones when the reader has not asked for them. It used
+ * to carry `.git`, `node_modules`, `dist` and `build` as well — an editor's
+ * habits in a file server, where those are ordinary folder names somebody may
+ * have put a year of work in. A folder called `build` was unsearchable, by
+ * name and by content, with nothing in the answer to say so (#11).
+ *
+ * What a folder is worth finding is not ours to decide from here. The
+ * administrator's exclusion list is where that is said, it is visible in
+ * Settings, and it already applies to filenames as well as to content.
+ */
 const shouldIgnore = (name, includeHiddenFiles = false) =>
-  IGNORED_DIRS.has(name) ||
-  excludedFiles.includes(name) ||
-  (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
+  excludedFiles.includes(name) || (!includeHiddenFiles && hiddenFiles.isHiddenName(name));
 
 /**
  * Whether a path, taken from where the search started, runs through a folder
@@ -304,6 +309,164 @@ async function* streamFileListMatches(
   } finally {
     rl.close();
     fileListProcess.kill('SIGTERM');
+  }
+}
+
+/**
+ * The folder in front of the reader, read from the storage.
+ *
+ * The catalogue is as fresh as the last pass, and a file somebody dropped on a
+ * share a minute ago is not in it yet. It is also, almost always, in the
+ * folder they are looking at — so that one directory is read directly, which
+ * is a single round trip even over SMB, and the rest comes from the
+ * catalogue. Without this, searching for what you just put down would answer
+ * nothing until the next reconcile.
+ */
+async function* streamShallowNameMatches(
+  baseAbsPath,
+  relBasePath,
+  matcher,
+  seenPaths,
+  shouldInclude,
+  includeHiddenFiles
+) {
+  let entries;
+  try {
+    entries = await fs.readdir(baseAbsPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (shouldIgnore(entry.name, includeHiddenFiles)) continue;
+
+    const rel = relBasePath ? `${relBasePath}/${entry.name}` : entry.name;
+    // Asked the way the walk asks it: a folder answers for its own name, a
+    // file for its path, which is the difference a pattern spanning folders
+    // depends on.
+    const isDirectory = entry.isDirectory();
+    if (!(isDirectory ? matcher.matchesName(entry.name) : matcher.matchesRelativePath(rel))) {
+      continue;
+    }
+
+    if (seenPaths.has(rel)) continue;
+    seenPaths.add(rel);
+    if (await shouldInclude(rel)) {
+      yield formatResult(rel, isDirectory ? 'dir' : 'file');
+    }
+  }
+}
+
+/**
+ * Names, from the catalogue instead of from a walk.
+ *
+ * This is the half of search the index never answered. Content stopped being
+ * read from the storage the day the index arrived; names went on enumerating
+ * the whole tree on every keystroke, which is free on a local disk and is the
+ * entire cost on a network share — one round trip per directory, a budget
+ * spent before the answer.
+ *
+ * Two queries rather than one, because a folder called `build` is a match for
+ * `build` while nothing inside it is, and the rows for its files would narrow
+ * it away.
+ *
+ * Neither loop keeps the statement open across a permission check: the rows
+ * are read to the end first, bounded by what a page could possibly need, and
+ * only then handed out. Holding a read open across an await is how a scan
+ * keeps a checkpoint waiting.
+ */
+/**
+ * Whether a row the catalogue offers is still a file on the disk.
+ *
+ * The catalogue is what the last pass saw. A file deleted outside the
+ * application — or moved, or on a volume that has gone — is still in it until
+ * the next one, and a search result that opens nothing is worse than a search
+ * that missed something. Asked only of what is about to be handed out, which
+ * is at most a page of results: the cost an index exists to avoid is walking
+ * the tree, not confirming the handful of rows that survived it.
+ */
+const stillThere = async (baseAbsPath, relBasePath, rel) => {
+  const inside =
+    relBasePath && rel.startsWith(`${relBasePath}/`) ? rel.slice(relBasePath.length + 1) : rel;
+  return fs.lstat(path.join(baseAbsPath, inside)).then(
+    () => true,
+    () => false
+  );
+};
+
+async function* streamIndexNameMatches(
+  baseAbsPath,
+  relBasePath,
+  matcher,
+  seenPaths,
+  dirSet,
+  shouldInclude,
+  includeHiddenFiles,
+  limit,
+  view
+) {
+  yield* streamShallowNameMatches(
+    baseAbsPath,
+    relBasePath,
+    matcher,
+    seenPaths,
+    shouldInclude,
+    includeHiddenFiles
+  );
+
+  let db;
+  try {
+    db = await getIndexDb();
+  } catch (error) {
+    logger.debug({ err: error }, 'Name catalogue unavailable; nothing more to add');
+    return;
+  }
+
+  // Over-fetch, as the content side does: the catalogue does not know who may
+  // read what, so permissions take some of this away afterwards.
+  const ceiling = Math.max(limit * 3, 50);
+  const literal = matcher.literal || '';
+
+  // Folders have rows of their own, so this is the same question as the one
+  // below rather than an inference from the paths of the files inside them —
+  // which is what made a folder nobody had filled yet impossible to find.
+  //
+  // Asked about the folder where it sits in the volume, and answered in the
+  // reader's words: see `searchIndexView`.
+  const folders = [];
+  for (const row of searchIndexStore.iterateNameCandidates(db, {
+    base: view.base,
+    literal,
+    folders: true,
+  })) {
+    const rel = view.toLogical(row);
+    if (!rel) continue;
+    if (seenPaths.has(rel) || dirSet.has(rel)) continue;
+    if (!matcher.matchesName(rel.slice(rel.lastIndexOf('/') + 1))) continue;
+    if (shouldIgnore(rel.slice(rel.lastIndexOf('/') + 1), includeHiddenFiles)) continue;
+    dirSet.add(rel);
+    seenPaths.add(rel);
+    folders.push(rel);
+    if (folders.length >= ceiling) break;
+  }
+  for (const dirPath of folders) {
+    if (!(await stillThere(baseAbsPath, relBasePath, dirPath))) continue;
+    if (await shouldInclude(dirPath)) yield formatResult(dirPath, 'dir');
+  }
+
+  const files = [];
+  for (const row of searchIndexStore.iterateNameCandidates(db, { base: view.base, literal })) {
+    const rel = view.toLogical(row);
+    if (!rel) continue;
+    if (seenPaths.has(rel)) continue;
+    if (!matcher.matchesRelativePath(rel)) continue;
+    seenPaths.add(rel);
+    files.push(rel);
+    if (files.length >= ceiling) break;
+  }
+  for (const rel of files) {
+    if (!(await stillThere(baseAbsPath, relBasePath, rel))) continue;
+    if (await shouldInclude(rel)) yield formatResult(rel, 'file');
   }
 }
 
@@ -443,7 +606,6 @@ async function* mergeResults(...generators) {
 
   try {
     while (next.size > 0) {
-      // eslint-disable-next-line no-await-in-loop
       const { generator, result } = await Promise.race(next.values());
       if (result.done) {
         next.delete(generator);
@@ -470,76 +632,126 @@ async function* mergeResults(...generators) {
   }
 }
 
+/** How many files are read at once for the lines under content results. */
+const LINE_READERS = 4;
+
+/**
+ * How long those lines may be waited for: half the search's own budget, and
+ * never more than two seconds. A line is a courtesy; the result is the answer.
+ */
+const lineBudgetMs = () => Math.min(2000, Math.floor((searchConfig?.timeoutMs ?? 5000) / 2));
+
+const OUT_OF_TIME = Symbol('out of time');
+
 /**
  * Matches the index already knows about.
  *
- * It stores terms and not text, so the line to show is read back from the file
- * — which costs one read per result rather than one per document, and only for
- * the handful actually returned. That is the whole bargain of a contentless
- * index, and it is a good one.
+ * It stores terms and not text, so the line to show is read back from the
+ * file. That was meant to be one read per result returned, and it was one read
+ * per candidate, one after the other, for up to three pages of them — the
+ * over-fetch is there for permissions, and every row of it was opened before
+ * permissions were asked. A PDF is read whole and converted again for its
+ * line. On a local disk a hundred of them took three seconds; on a network
+ * share every search ran to the end of its budget (#11), while the index had
+ * answered in milliseconds.
  *
- * It covers the volume root. A search based anywhere else — a personal folder,
- * an assigned volume — falls back to reading as it goes, because the index
- * does not hold those.
+ * So permissions come first, reading stops at what a page can show, a few
+ * files are read at once, and past a deadline the rest are given without their
+ * line: the index says they hold the term, which is what was asked, and the
+ * page says so beside each one. A file whose line was read and does not hold
+ * the term changed since it was indexed, and is left out as before. One whose
+ * line was not read is as fresh as the index — as a name from the catalogue is.
+ *
+ * It covers whatever the view places in the volume — a share, a personal
+ * folder or an assigned volume as much as the volume itself — and nothing it
+ * cannot: the route reads the storage there instead.
  */
 async function* streamIndexMatches(
-  relBasePath,
+  view,
   term,
   seenPaths,
   shouldInclude,
   limit,
-  includeHiddenFiles = false
+  { lineBudget = lineBudgetMs(), readers = LINE_READERS } = {}
 ) {
-  let paths;
+  let rows;
   try {
-    const db = await getDb();
+    const db = await getIndexDb();
     // Over-fetch: permissions are applied after the query, since the index
     // does not know who may read what.
-    paths = searchIndexStore.search(db, term, Math.max(limit * 3, 50));
+    rows = searchIndexStore.searchRanked(db, term, Math.max(limit * 3, 50), { base: view.base });
   } catch (error) {
     logger.debug({ err: error }, 'Search index query failed; falling back to reading as we go');
     return;
   }
 
   const needle = term.toLowerCase();
-  const prefix = relBasePath ? `${relBasePath}/` : '';
+  const readLine = (absolutePath) =>
+    (isSearchableDocument(absolutePath)
+      ? findDocumentTextMatch(absolutePath, needle)
+      : findPlainTextMatch(absolutePath, needle)
+    ).catch(() => null);
 
-  for (const rel of paths) {
-    if (prefix && !rel.startsWith(prefix) && rel !== relBasePath) continue;
-    if (seenPaths.has(rel)) continue;
-    // The walk never enters these folders, and ripgrep's answers are refused
-    // when they pass through one; the index read them all the same.
-    if (passesThroughIgnoredFolder(rel.slice(prefix.length), includeHiddenFiles)) continue;
+  let timer = null;
+  let expired = false;
+  const outOfTime = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      expired = true;
+      resolve(OUT_OF_TIME);
+    }, lineBudget);
+    timer.unref?.();
+  });
 
-    const absolutePath = path.join(directories.volume, rel);
-    let line = '';
-    let lineNumber = null;
+  // Candidates in the order the index ranked them, each with its line being
+  // read; results leave in that same order, whichever read finishes first.
+  const reading = [];
+  let nextRow = 0;
+  let given = 0;
 
-    if (isSearchableDocument(absolutePath)) {
-      // eslint-disable-next-line no-await-in-loop
-      const match = await findDocumentTextMatch(absolutePath, needle);
-      if (match) {
-        line = match.line;
-        lineNumber = match.lineNumber;
-      }
-    } else {
-      // eslint-disable-next-line no-await-in-loop
-      const match = await findPlainTextMatch(absolutePath, needle);
-      if (match) {
-        line = match.line;
-        lineNumber = match.lineNumber;
-      }
+  const refill = async () => {
+    while (reading.length < readers && nextRow < rows.length) {
+      const { path: row, score } = rows[nextRow];
+      nextRow += 1;
+      const rel = view.toLogical(row);
+      if (!rel || seenPaths.has(rel)) continue;
+      // Asked before anything is opened: a file this reader may not see is
+      // not worth reading across a network to find out what it says.
+      if (!(await shouldInclude(rel))) continue;
+      const line = expired
+        ? Promise.resolve(OUT_OF_TIME)
+        : Promise.race([readLine(view.toAbsolute(row)), outOfTime]);
+      reading.push({ rel, score, line });
     }
+  };
 
-    // The file changed since it was indexed and no longer says this. The next
-    // pass will notice; this one simply does not offer it.
-    if (!lineNumber) continue;
+  try {
+    while (given < limit) {
+      await refill();
+      if (reading.length === 0) return;
+      const { rel, score, line } = reading.shift();
+      const match = await line;
+      // Found by its name in the meantime, and already given.
+      if (seenPaths.has(rel)) continue;
 
-    seenPaths.add(rel);
-    // eslint-disable-next-line no-await-in-loop
-    if (await shouldInclude(rel)) {
-      yield formatResult(rel, 'file', line, lineNumber);
+      if (match === OUT_OF_TIME) {
+        seenPaths.add(rel);
+        given += 1;
+        // `inContents` and the score are carried so the page can place it,
+        // and dropped before it is sent.
+        yield { ...formatResult(rel, 'file'), score, inContents: true };
+        continue;
+      }
+
+      // The file changed since it was indexed and no longer says this. The
+      // next pass will notice; this one simply does not offer it.
+      if (!match?.lineNumber) continue;
+
+      seenPaths.add(rel);
+      given += 1;
+      yield { ...formatResult(rel, 'file', match.line, match.lineNumber), score };
     }
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -606,18 +818,15 @@ async function* streamDocumentMatches(
     // either looks harmless on a machine that does not take that path — which
     // is why the bound tests name their engine and run on both.
     if (maxBytes) {
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(absolutePath).catch(() => null);
       if (!stats || stats.size > maxBytes) continue;
     }
 
     examined += 1;
-    // eslint-disable-next-line no-await-in-loop
     const match = await findDocumentTextMatch(absolutePath, needle);
     if (!match) continue;
 
     seenPaths.add(rel);
-    // eslint-disable-next-line no-await-in-loop
     if (await shouldInclude(rel)) {
       yield formatResult(rel, 'file', match.line, match.lineNumber);
     }
@@ -632,39 +841,53 @@ async function* generateRipgrepResults(
   shouldInclude,
   deep = true,
   includeHiddenFiles = false,
-  { useIndex = false, limit = 100, onContentSources, onContentSourceDone } = {}
+  {
+    useIndex = false,
+    useNameIndex = false,
+    indexView = null,
+    limit = 100,
+    onContentSources,
+    onContentSourceDone,
+  } = {}
 ) {
   const matcher = parseSearchTerm(term);
   const seenPaths = new Set();
   const dirSet = new Set();
 
+  const names = () =>
+    useNameIndex
+      ? streamIndexNameMatches(
+          baseAbsPath,
+          relBasePath,
+          matcher,
+          seenPaths,
+          dirSet,
+          shouldInclude,
+          includeHiddenFiles,
+          limit,
+          indexView
+        )
+      : streamFileListMatches(
+          baseAbsPath,
+          relBasePath,
+          matcher,
+          seenPaths,
+          dirSet,
+          shouldInclude,
+          includeHiddenFiles
+        );
+
   if (!deep) {
     // If no deep search, only run file list matches
-    yield* streamFileListMatches(
-      baseAbsPath,
-      relBasePath,
-      matcher,
-      seenPaths,
-      dirSet,
-      shouldInclude,
-      includeHiddenFiles
-    );
+    yield* names();
     return;
   }
 
-  const fileListGen = streamFileListMatches(
-    baseAbsPath,
-    relBasePath,
-    matcher,
-    seenPaths,
-    dirSet,
-    shouldInclude,
-    includeHiddenFiles
-  );
+  const fileListGen = names();
   // With an index in place the live content scan is not run at all: doing both
   // would be exactly the cost an index exists to remove.
   const contentGen = useIndex
-    ? streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit, includeHiddenFiles)
+    ? streamIndexMatches(indexView, term, seenPaths, shouldInclude, limit)
     : streamContentMatches(
         baseAbsPath,
         relBasePath,
@@ -718,9 +941,10 @@ async function* generateFallbackResults(
   shouldInclude,
   deep = true,
   includeHiddenFiles = false,
-  { useIndex = false, limit = 100 } = {}
+  { useIndex = false, useNameIndex = false, indexView = null, limit = 100 } = {}
 ) {
   const seenPaths = new Set();
+  const dirSet = new Set();
   const matcher = parseSearchTerm(term);
   const needle = matcher.needle;
   const readsFileContents = deep && matcher.readsFileContents;
@@ -789,15 +1013,35 @@ async function* generateFallbackResults(
 
   // With an index in place the walk stops reading files: it looks at names,
   // and the index answers for what is inside them.
+  // Where the walk would only be reading names — because contents come from
+  // the index, or because a pattern describes names and nothing else — the
+  // catalogue answers instead and the storage is left alone. Where contents
+  // have to be read the tree is walked anyway, so names ride along with it as
+  // they always have.
+  const names = () =>
+    useNameIndex && !readsFileContents
+      ? streamIndexNameMatches(
+          baseAbsPath,
+          relBasePath,
+          matcher,
+          seenPaths,
+          dirSet,
+          shouldInclude,
+          includeHiddenFiles,
+          limit,
+          indexView
+        )
+      : walk(baseAbsPath, relBasePath);
+
   if (useIndex && !matcher.isGlob) {
     yield* mergeResults(
-      walk(baseAbsPath, relBasePath),
-      streamIndexMatches(relBasePath, term, seenPaths, shouldInclude, limit, includeHiddenFiles)
+      names(),
+      streamIndexMatches(indexView, term, seenPaths, shouldInclude, limit)
     );
     return;
   }
 
-  yield* walk(baseAbsPath, relBasePath);
+  yield* names();
 }
 
 router.get(
@@ -807,6 +1051,13 @@ router.get(
     if (!q) {
       throw new ValidationError('Search term (q) is required.');
     }
+    // One or two characters describe most of a volume. The catalogue answers
+    // them — a scan is a scan — but the answer is the first hundred rows that
+    // happen to hold the letter, which is not something anybody asked. The
+    // walk is worse: it reads the whole storage to say the same.
+    if (q.length < MIN_TERM_LENGTH) {
+      throw new ValidationError(`Search term must be at least ${MIN_TERM_LENGTH} characters.`);
+    }
 
     const relBaseInput = normalizeRelativePath(req.query.path || '');
 
@@ -815,7 +1066,7 @@ router.get(
     let resolvedBase;
     try {
       ({ accessInfo, resolved: resolvedBase } = await resolvePathWithAccess(context, relBaseInput));
-    } catch (error) {
+    } catch (_) {
       throw new NotFoundError('Base path not found.');
     }
 
@@ -843,7 +1094,7 @@ router.get(
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const permissionRules = Array.isArray(settings?.access?.rules) ? settings.access.rules : [];
     const permissionResolver = permissionRules.length
-      ? createPermissionResolver(permissionRules)
+      ? createPermissionResolver(settings.access)
       : null;
     const shareCache = new Map();
     const userVolumeCache = new Map();
@@ -866,25 +1117,63 @@ router.get(
       return ok;
     };
 
-    // The index holds the volume root. A search based anywhere else — a
-    // personal folder, an assigned volume — reads as it goes, because the
-    // index does not hold those.
-    //
-    // And it is only used once a pass has finished. The index replaces the live
+    // The index is only used once a pass has finished. The index replaces the live
     // content scan rather than adding to it, so an index still being built
     // answers with the part of the volume it happens to have read — a term
     // found yesterday goes missing today, with nothing in the answer to say
     // why. Reading the tree meanwhile is slower and right.
-    const indexReady = await (async () => {
-      if (!(deepEnabled && searchConfig?.index?.enabled === true)) return false;
+    //
+    // Content and names are asked separately, because they are not the same
+    // question. Reading inside files is what `SEARCH_DEEP` turns off, and a
+    // name search has never been deep — so the catalogue answers names whether
+    // that setting is on or not. Hidden entries are the one thing it cannot
+    // answer for: the pass does not walk into dot-folders, so a reader who has
+    // asked to see hidden files is served by the walk, as before.
+    const indexState = await (async () => {
+      const off = { content: false, names: false };
+      if (searchConfig?.index?.enabled !== true) return off;
       try {
-        return searchIndexStore.isReady(await getDb());
+        const db = await getIndexDb();
+        if (!searchIndexStore.isReady(db)) return off;
+        return {
+          content: deepEnabled,
+          names: searchIndexStore.hasNameCatalogue(db) && !includeHiddenFiles,
+        };
       } catch {
-        return false;
+        return off;
       }
     })();
 
-    const useIndex = indexReady && baseAbs.startsWith(directories.volume);
+    // The index speaks volume paths; a search speaks the reader's.
+    //
+    // A share resolves to a folder inside the volume and is described by a
+    // different name — `share/<token>/…` — which is the name every result and
+    // every permission check uses. The same holds for a personal folder and an
+    // assigned volume. Asking the index in those words matched nothing, and
+    // for a while a search inside a share answered with nothing at all; then
+    // those bases were sent back to reading the storage, which is the cost the
+    // index exists to remove. The view asks about the folder where it really
+    // sits and hands each row back under the reader's name, or not at all.
+    //
+    // Where the index cannot answer — outside the volume, a folder it has no
+    // row for — the storage answers, as it did before there was an index.
+    const indexView = await (async () => {
+      if (!indexState.content && !indexState.names) return null;
+      try {
+        return await indexViewFor({
+          db: await getIndexDb(),
+          baseAbs,
+          logicalBase: relBase,
+          isIgnoredName: (name) => shouldIgnore(name, includeHiddenFiles),
+        });
+      } catch (error) {
+        logger.debug({ err: error }, 'Could not place the search base in the index');
+        return null;
+      }
+    })();
+
+    const useIndex = indexState.content && Boolean(indexView);
+    const useNameIndex = indexState.names && Boolean(indexView);
 
     // Nothing can produce a content match once every content source has
     // finished, and that is the moment a reserve stops being worth waiting for.
@@ -900,6 +1189,8 @@ router.get(
           includeHiddenFiles,
           {
             useIndex,
+            useNameIndex,
+            indexView,
             limit,
             onContentSources: (count) => {
               contentSourcesLeft = count;
@@ -918,7 +1209,7 @@ router.get(
           shouldInclude,
           deepEnabled && !useIndex,
           includeHiddenFiles,
-          { useIndex, limit }
+          { useIndex, useNameIndex, indexView, limit }
         );
 
     // Counted apart and only put together at the end: sharing one running
@@ -940,8 +1231,8 @@ router.get(
       contents: contentItems,
     });
 
-    let truncated = false;
-    let abandoned = false;
+    let truncated;
+    let abandoned;
     {
       // Guaranteeing content a share means looking for it until the reserve is
       // full or the tree runs out — and on a large one that is a long time to
@@ -981,7 +1272,98 @@ router.get(
       return;
     }
 
+    // Closest first, which the sources cannot do for themselves: the
+    // catalogue hands back rows in the order the indexing pass met them, and a
+    // walk in the order the storage lists them. Neither is an order anybody
+    // asked for. Sorting what was collected rather than everything that could
+    // match is the honest bound — a page is a page — and it is the difference
+    // between `rapport.pdf` first and `vieux-rapport-2019-annexe.pdf` first.
+    const matcher = parseSearchTerm(q);
+    const fullPath = (item) => (item.path ? `${item.path}/${item.name}` : item.name);
+
+    items.sort((a, b) => {
+      const byRank = matcher.rank(a.name) - matcher.rank(b.name);
+      if (byRank) return byRank;
+      // Shorter names carry less that was not asked for, then the name itself —
+      // and the path last, because two copies of one document in two folders
+      // are equal on every earlier test and would otherwise land in whatever
+      // order the catalogue happened to hold them.
+      const byLength = a.name.length - b.name.length;
+      return byLength || a.name.localeCompare(b.name) || fullPath(a).localeCompare(fullPath(b));
+    });
+
+    // The same ladder for what was found by its contents, with relevance at the
+    // top of it instead of the name.
+    //
+    // FTS5 scores by BM25, which separates a document that really is about the
+    // term from one that mentions it — and says nothing at all about a folder
+    // of exports sharing one boilerplate line, where every score is identical
+    // to the last digit. That was most of what a search returned, ordered by
+    // whatever the index felt like. Equal scores are now separated by the path,
+    // so a folder's files arrive together and the same question is answered the
+    // same way twice. Where there is no score — ripgrep and the walk do not
+    // produce one — the path is the whole order, which is what those two were
+    // already roughly doing.
+    contentItems.sort((a, b) => {
+      const scored = typeof a.score === 'number' && typeof b.score === 'number';
+      if (scored && a.score !== b.score) return a.score - b.score;
+      return fullPath(a).localeCompare(fullPath(b));
+    });
+
     const combined = buildPage({ names: items, contents: contentItems, limit });
+
+    // Which half of the search answered, said rather than left to be inferred.
+    //
+    // A result carrying a matched line was found by its contents, and one
+    // without it by its name — which a reader could only tell by noticing that
+    // something was missing, and only by comparing two results with each other.
+    //
+    // The name is asked of the matcher, here, for every result alike, so the
+    // answer does not depend on which pass reserved the path first. The
+    // contents half claims only what is being shown: a file listed for its
+    // name is not read to find out whether its text would have matched too —
+    // that reading is the cost the index exists to avoid.
+    // Which documents hold the term, so that a file listed for its name can
+    // say its text matches as well.
+    //
+    // A file is listed once, by whichever pass reserved the path first, and the
+    // name pass almost always wins — so `nom et contenu` was a label nothing
+    // could earn. Opening the file to find out is the cost the index exists to
+    // avoid; asking the index is one query and it already knows.
+    const alsoInContents = new Set();
+    if (useIndex) {
+      try {
+        const db = await getIndexDb();
+        const rows = searchIndexStore.searchRanked(db, q, Math.max(limit * 3, 50), {
+          base: indexView.base,
+        });
+        for (const row of rows) {
+          const rel = indexView.toLogical(row.path);
+          if (rel) alsoInContents.add(rel);
+        }
+      } catch (error) {
+        // A label is a courtesy; the answer above stands without it.
+        logger.debug({ err: error }, 'Could not ask the index what else holds the term');
+      }
+    }
+
+    const answered = combined.map((entry) => {
+      // The relevance score ordered the page and has no business leaving the
+      // building: it is an FTS5 internal, and it means nothing without the
+      // query that produced it.
+      // Nor does the mark of a content match given without its line: the
+      // label below says the same thing in the words the page uses.
+      const { score, inContents, ...item } = entry;
+      void score;
+      const rel = fullPath(item);
+      const byName =
+        item.kind === 'dir' ? matcher.matchesName(item.name) : matcher.matchesRelativePath(rel);
+      return {
+        ...item,
+        matchedName: byName,
+        matchedContent: Boolean(item.matchLine) || inContents === true || alsoInContents.has(rel),
+      };
+    });
 
     // Said out loud rather than left to look like a complete answer: a search
     // the budget ended has not seen everything, and whoever is reading the
@@ -993,7 +1375,13 @@ router.get(
       );
     }
 
-    res.json({ items: combined, truncated });
+    // Two different ways an answer can be short of the whole truth, and a
+    // reader cannot act on either without being told which: a search the
+    // budget ended has not looked everywhere, and a full page has looked but
+    // is only showing the first hundred. Both were known here and neither left
+    // the building — which is how a search that ran out of time read as a file
+    // that does not exist (#11).
+    res.json({ items: answered, truncated, limit, complete: answered.length < limit });
     await cleanup;
   })
 );
