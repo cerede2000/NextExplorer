@@ -21,6 +21,7 @@ const { sweepActivity } = require('./services/activityLog');
 const capabilities = require('./services/capabilities');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
 const { sweepUnreferencedLogos } = require('./services/brandingLogo');
+const featureSwitches = require('./services/featureSwitches');
 
 let server = null;
 
@@ -63,6 +64,11 @@ const startServer = async () => {
 
   // Deliberately not awaited: a server does not wait for its index to be
   // ready, it answers from the live search until it is.
+  // Whether each worker runs: the environment's answer when somebody set the
+  // variable, and Settings' otherwise — read before either of them starts, so one
+  // switched on from the page comes back on after a restart.
+  await featureSwitches.load();
+
   folderSizeManager.start();
   searchIndexManager.start();
   // Which optional tools are here and which are not, said once. Not awaited: a

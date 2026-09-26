@@ -75,6 +75,8 @@ module.exports = {
   ARCHIVE_EXTENSIONS: process.env.ARCHIVE_EXTENSIONS || '',
   // --- Folder size index ---
   FOLDER_SIZE_MODE: process.env.FOLDER_SIZE_MODE?.trim().toLowerCase() || 'off',
+  FOLDER_SIZE_MODE_SET:
+    typeof process.env.FOLDER_SIZE_MODE === 'string' && process.env.FOLDER_SIZE_MODE.trim() !== '',
   FOLDER_SIZE_EXCLUDE_PATHS: process.env.FOLDER_SIZE_EXCLUDE_PATHS || '',
   FOLDER_SIZE_CONCURRENCY: Number(process.env.FOLDER_SIZE_CONCURRENCY) || 6,
   FOLDER_SIZE_NETWORK_CONCURRENCY: Number(process.env.FOLDER_SIZE_NETWORK_CONCURRENCY) || 2,
@@ -86,6 +88,10 @@ module.exports = {
   FOLDER_SIZE_REBUILD: normalizeBoolean(process.env.FOLDER_SIZE_REBUILD) || false,
   // --- Search index ---
   SEARCH_INDEX: normalizeBoolean(process.env.SEARCH_INDEX) ?? false,
+  // Whether the operator set it at all, as opposed to what it came out as.
+  // A switch in Settings may decide what nobody decided in the environment; it may
+  // not overrule what somebody did.
+  SEARCH_INDEX_SET: normalizeBoolean(process.env.SEARCH_INDEX) !== null,
   SEARCH_INDEX_BATCH: Number(process.env.SEARCH_INDEX_BATCH) || null,
   SEARCH_INDEX_CPU_PERCENT: Number(process.env.SEARCH_INDEX_CPU_PERCENT) || null,
   SEARCH_INDEX_MEMORY_MB: Number(process.env.SEARCH_INDEX_MEMORY_MB) || null,
