@@ -408,7 +408,8 @@
       "fileVersions": "Versions de fichiers",
       "uploads": "Téléversements",
       "accountTwoFactor": "Double facteur",
-      "accountPasskeys": "Clés d’accès"
+      "accountPasskeys": "Clés d’accès",
+      "activity": "Journal d’activité"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -489,7 +490,11 @@
       "recursive": "Récursif",
       "readWrite": "Lecture et écriture",
       "readOnly": "Lecture seule",
-      "hidden": "Masqué"
+      "hidden": "Masqué",
+      "adminNote": "Chaque règle indique si elle s’applique aux administrateurs. Sans cela, une règle « Lecture seule » les laisse écrire et une règle « Masqué » leur cache aussi le dossier.",
+      "applyToAdmins": "Appliquer toutes les règles aux administrateurs",
+      "applyToAdminsHint": "Activé, aucune règle ne laisse passer un administrateur — la case de chaque règle est ignorée.",
+      "appliesToAdmins": "S’applique aux administrateurs"
     },
     "comingSoon": {
       "subtitle": "Cette section de paramètres est en cours de développement. Restez à l'écoute !"
@@ -750,6 +755,52 @@
       "addFailed": "Impossible d’ajouter cette clé d’accès.",
       "cancelled": "Rien n’a été ajouté : le navigateur a été fermé ou le délai a expiré.",
       "alreadyHere": "Cet appareil détient déjà une clé d’accès pour ce compte."
+    },
+    "activity": {
+      "title": "Journal d’activité",
+      "intro": "Qui a fait quoi, quand, et depuis où. Désactivé tant que vous ne le demandez pas.",
+      "enabled": "Consigner l’activité",
+      "enabledHelp": "Connexions, téléchargements, envois, suppressions, restaurations, liens de partage et modifications de compte sont consignés tant que c’est actif. Rien de ce qui précède l’activation n’y figure.",
+      "retention": "Conserver (jours)",
+      "retentionInvalid": "Entre 1 et 3650 jours.",
+      "saveFailed": "Impossible d’enregistrer ces réglages.",
+      "off": "Le journal est désactivé : rien n’est enregistré.",
+      "none": "Rien d’enregistré pour l’instant.",
+      "loadFailed": "Impossible de lire le journal.",
+      "clearFailed": "Impossible de vider le journal.",
+      "filterAction": "Type",
+      "anyAction": "Tous les types",
+      "filterText": "Rechercher",
+      "filterTextPlaceholder": "Un nom ou un chemin",
+      "refresh": "Actualiser",
+      "clear": "Vider le journal",
+      "more": "Afficher plus",
+      "when": "Quand",
+      "who": "Qui",
+      "what": "Quoi",
+      "target": "Sur",
+      "from": "Depuis",
+      "refused": "refusé",
+      "actions": {
+        "sign-in": "Connexion",
+        "sign-out": "Déconnexion",
+        "account-password": "Mot de passe modifié",
+        "account-two-factor": "Double facteur modifié",
+        "account-passkey": "Clé d’accès modifiée",
+        "admin-user": "Compte modifié",
+        "admin-settings": "Réglages modifiés",
+        "admin-activity-clear": "Journal vidé",
+        "share-create": "Partage créé",
+        "share-delete": "Partage supprimé",
+        "share-download": "Téléchargé par un lien",
+        "share-upload": "Déposé par un lien",
+        "file-download": "Téléchargé",
+        "file-upload": "Envoyé",
+        "file-delete": "Mis à la corbeille",
+        "file-restore": "Restauré",
+        "file-purge": "Supprimé définitivement",
+        "versions-purge": "Versions supprimées"
+      }
     }
   },
   "mediaPreview": {

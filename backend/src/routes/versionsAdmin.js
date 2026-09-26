@@ -3,6 +3,7 @@ const express = require('express');
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const versions = require('../services/versions');
+const activityLog = require('../services/activityLog');
 
 /**
  * Every file that has a history, for an administrator.
@@ -61,16 +62,27 @@ router.get(
  * version — a DELETE per id would report forty times and fail in the middle.
  *
  * This is the one route here that destroys something, and what it destroys may
- * belong to somebody else — so it is the line an activity log would want. There
- * is no log yet; when there is one, this is where its entry goes.
+ * belong to somebody else — which is the case the log exists for. It is off by
+ * default and never fails a request.
  */
 router.post(
   '/versions/admin/files/:id/delete',
   ensureAdmin,
   asyncHandler(async (req, res) => {
+    // Read before, because a history deleted whole has no path afterwards to
+    // say what was deleted.
+    const before = await versions.readFileVersions(req.params.id);
     const outcome = await versions.deleteFileVersions(req.params.id, {
       ids: req.body?.ids,
       all: req.body?.all === true,
+    });
+
+    await activityLog.record({
+      action: 'versions.purge',
+      user: req.user,
+      target: before.file.path || `${before.file.zone?.name || '?'}/${before.file.relativePath}`,
+      detail: { versions: outcome.deleted, remaining: outcome.remaining, with: 'admin' },
+      req,
     });
 
     res.json(outcome);

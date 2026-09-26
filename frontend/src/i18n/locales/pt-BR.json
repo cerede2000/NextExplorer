@@ -408,7 +408,8 @@
       "fileVersions": "Versões de arquivos",
       "uploads": "Envios",
       "accountTwoFactor": "Dois fatores",
-      "accountPasskeys": "Chaves de acesso"
+      "accountPasskeys": "Chaves de acesso",
+      "activity": "Registro de atividades"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -489,7 +490,11 @@
       "recursive": "Recursivo",
       "readWrite": "Leitura e Escrita",
       "readOnly": "Somente Leitura",
-      "hidden": "Oculto"
+      "hidden": "Oculto",
+      "adminNote": "Cada regra diz se se aplica aos administradores. Sem isso, uma regra “Somente leitura” os deixa escrever e uma regra “Oculto” também esconde a pasta deles.",
+      "applyToAdmins": "Aplicar todas as regras aos administradores",
+      "applyToAdminsHint": "Ligado, nenhuma regra deixa um administrador passar — a caixa de cada regra é ignorada.",
+      "appliesToAdmins": "Aplica-se aos administradores"
     },
     "comingSoon": {
       "subtitle": "Esta seção de configurações está em construção. Aguarde!"
@@ -750,6 +755,52 @@
       "addFailed": "Não foi possível adicionar esta chave de acesso.",
       "cancelled": "Nada foi adicionado: o navegador foi fechado ou demorou demais.",
       "alreadyHere": "Este dispositivo já tem uma chave de acesso para esta conta."
+    },
+    "activity": {
+      "title": "Registro de atividades",
+      "intro": "Quem fez o quê, quando e de onde. Desligado até você pedir.",
+      "enabled": "Registrar atividade",
+      "enabledHelp": "Entradas, downloads, envios, exclusões, restaurações, compartilhamentos e mudanças de conta são anotados enquanto isto estiver ligado. O que veio antes não está aqui.",
+      "retention": "Guardar por (dias)",
+      "retentionInvalid": "Entre 1 e 3650 dias.",
+      "saveFailed": "Não foi possível salvar estas configurações.",
+      "off": "O registro está desligado: nada está sendo anotado.",
+      "none": "Nada registrado ainda.",
+      "loadFailed": "Não foi possível ler o registro.",
+      "clearFailed": "Não foi possível esvaziar o registro.",
+      "filterAction": "Tipo",
+      "anyAction": "Qualquer tipo",
+      "filterText": "Buscar",
+      "filterTextPlaceholder": "Um nome ou um caminho",
+      "refresh": "Atualizar",
+      "clear": "Esvaziar o registro",
+      "more": "Mostrar mais",
+      "when": "Quando",
+      "who": "Quem",
+      "what": "O quê",
+      "target": "Em",
+      "from": "De",
+      "refused": "recusado",
+      "actions": {
+        "sign-in": "Entrou",
+        "sign-out": "Saiu",
+        "account-password": "Senha alterada",
+        "account-two-factor": "Segundo fator alterado",
+        "account-passkey": "Chave de acesso alterada",
+        "admin-user": "Conta alterada",
+        "admin-settings": "Configurações alteradas",
+        "admin-activity-clear": "Registro limpo",
+        "share-create": "Compartilhamento criado",
+        "share-delete": "Compartilhamento excluído",
+        "share-download": "Baixado por um link",
+        "share-upload": "Enviado por um link",
+        "file-download": "Baixado",
+        "file-upload": "Enviado",
+        "file-delete": "Movido para a lixeira",
+        "file-restore": "Restaurado",
+        "file-purge": "Excluído definitivamente",
+        "versions-purge": "Versões excluídas"
+      }
     }
   },
   "mediaPreview": {

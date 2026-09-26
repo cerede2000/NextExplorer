@@ -22,9 +22,15 @@ const { getSettings } = require('./settingsService');
  * a zip streamed to the browser and a zip written next to the folder.
  */
 
-const readRules = async () => {
+/**
+ * The whole access section, not the rules alone: whom a rule holds is decided
+ * by the rule and by the setting above it together, and an archive that asked
+ * with half of it would answer for the wrong caller — which is a hidden folder
+ * inside a zip somebody downloaded.
+ */
+const readAccess = async () => {
   const settings = await getSettings();
-  return Array.isArray(settings?.access?.rules) ? settings.access.rules : [];
+  return settings?.access || null;
 };
 
 /**
@@ -35,9 +41,9 @@ const readRules = async () => {
  * many were left out, and the bytes of the files kept.
  */
 const collectArchiveEntries = async (context, sources) => {
-  const rules = await readRules();
+  const access = await readAccess();
   const accessOptions = {
-    permissionResolver: rules.length ? createPermissionResolver(rules) : undefined,
+    permissionResolver: access?.rules?.length ? createPermissionResolver(access) : undefined,
     shareCache: new Map(),
     userVolumeCache: new Map(),
   };
@@ -50,7 +56,7 @@ const collectArchiveEntries = async (context, sources) => {
     if (guardPersonalRoot && isInsidePersonalRoot(absolutePath)) return false;
     // With no rules, nothing below a readable folder is less readable than it:
     // every other decision was made once, for the source.
-    if (!rules.length) return true;
+    if (!access?.rules?.length) return true;
     const info = await getAccessInfo(context, logicalPath, accessOptions);
     return Boolean(info?.canAccess && info.canRead);
   };

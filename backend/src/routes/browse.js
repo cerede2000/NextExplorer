@@ -84,7 +84,7 @@ router.get(
       thumbsEnabled,
       excludeDownloadArtifacts: true,
       includeHiddenFiles,
-      permissionRules: settings?.access?.rules || [],
+      access: settings?.access || null,
       itemExtras: await versionMarks(directoryPath, userSettings),
     });
 

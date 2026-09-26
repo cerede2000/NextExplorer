@@ -8,6 +8,7 @@ const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetSer
 const { responseEndCompat } = require('../middleware/responseEndCompat');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const { uploads } = require('../config/index');
+const activityLog = require('../services/activityLog');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
@@ -113,6 +114,16 @@ router.post(
         kind: extension,
       });
     }
+
+    // A guest is somebody who came through a share link, which is a different
+    // question from "who uploaded this" — and the one an owner asks first.
+    await activityLog.record({
+      action: req.user ? 'file.upload' : 'share.upload',
+      user: req.user,
+      target: fileData[0] ? [fileData[0].path, fileData[0].name].filter(Boolean).join('/') : null,
+      detail: fileData.length > 1 ? { files: fileData.length } : null,
+      req,
+    });
 
     res.json(fileData);
   })

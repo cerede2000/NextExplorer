@@ -15,6 +15,7 @@ const { configureCors } = require('./middleware/cors');
 const { configureOidc } = require('./middleware/oidc');
 const { configureHttpsWarning } = require('./middleware/httpsWarning');
 const { requestContextMiddleware } = require('./utils/requestContext');
+const { forwardedAddressWarning } = require('./utils/clientAddress');
 const authMiddleware = require('./middleware/authMiddleware');
 const registerRoutes = require('./routes');
 const { configureStaticFiles } = require('./utils/staticServer');
@@ -46,6 +47,10 @@ const createApp = async (options = {}) => {
   const app = express();
 
   configureTrustProxy(app);
+  // Says once, on the first request that shows it, when a proxy is announcing
+  // a client this server was not told to believe: without it every recorded
+  // address is the proxy's and nothing anywhere says why.
+  app.use(forwardedAddressWarning);
   configureSecurityHeaders(app);
   configureHttpLogging(app);
 

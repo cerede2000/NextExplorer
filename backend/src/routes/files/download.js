@@ -3,6 +3,7 @@ const fs = require('fs/promises');
 const archiver = require('archiver');
 const { normalizeRelativePath } = require('../../utils/pathUtils');
 const { resolvePathWithAccess } = require('../../services/accessManager');
+const activityLog = require('../../services/activityLog');
 const asyncHandler = require('../../utils/asyncHandler');
 const { collectArchiveEntries, appendEntries } = require('../../services/archiveTree');
 const { ValidationError, ForbiddenError } = require('../../errors/AppError');
@@ -62,6 +63,16 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
       return { relativePath: logicalPath, absolutePath, stats };
     })
   );
+
+  // What left, named once for the whole request: a selection is one download
+  // to the person who asked for it, whatever it becomes on the way out.
+  await activityLog.record({
+    action: 'file.download',
+    user: req.user,
+    target: targets[0].relativePath,
+    detail: targets.length > 1 ? { items: targets.length } : null,
+    req,
+  });
 
   const hasDirectory = targets.some(({ stats }) => stats.isDirectory());
   const shouldArchive = hasDirectory || targets.length > 1;

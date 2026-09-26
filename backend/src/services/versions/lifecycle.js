@@ -235,19 +235,71 @@ const onMoved = async (fromAbsolute, toAbsolute) => {
  * A file or folder deleted for good by the application: its histories go with
  * it, now — the space comes back at once rather than at the next pass.
  */
+/**
+ * What a deletion at `absolutePath` is about to take with it.
+ *
+ * Counted before anything goes, because afterwards there is nothing left to
+ * count — and a deletion that took ten earlier copies of a file said exactly
+ * as much as one that took none. Asked for a path or a whole tree, because a
+ * folder is deleted the same way and every file under it brings its own.
+ *
+ * One query rather than one per row, so a folder with a thousand versioned
+ * files under it is a single question to the database.
+ */
+const countUnder = async (absolutePath) => {
+  const none = { files: 0, versions: 0, bytes: 0 };
+  try {
+    const db = await getDb();
+    const located = await zones.locateZoneRoot(path.resolve(absolutePath));
+    if (!located.root) return none;
+    const zoneIds = trashStore
+      .listZones(db)
+      .filter((zone) => zone.root === located.root)
+      .map((zone) => zone.id);
+    if (zoneIds.length === 0) return none;
+
+    const prefix = toRelative(located.root, path.resolve(absolutePath));
+    const row = db
+      .prepare(
+        `SELECT COUNT(DISTINCT vf.id) AS files,
+                COUNT(v.id) AS versions,
+                COALESCE(SUM(v.size_bytes), 0) AS bytes
+           FROM version_files vf
+           JOIN file_versions v ON v.file_id = vf.id AND v.state = 'kept'
+          WHERE vf.zone_id IN (${zoneIds.map(() => '?').join(', ')})
+            AND vf.state IN ('live', 'orphaned') AND ${under('vf.relative_path')}`
+      )
+      .get(...zoneIds, ...underValues(prefix));
+
+    return {
+      files: Number(row?.files) || 0,
+      versions: Number(row?.versions) || 0,
+      bytes: Number(row?.bytes) || 0,
+    };
+  } catch (error) {
+    // A count is not worth failing a deletion over: the line written down says
+    // what it knows, and the deletion itself is unchanged.
+    logger.debug({ err: error, absolutePath }, 'File versions were not counted for a deletion');
+    return none;
+  }
+};
+
 const onDeleted = async (absolutePath) => {
+  const none = { files: 0, versions: 0, bytes: 0 };
   try {
     const db = await getDb();
     const { rows } = await historiesUnder(db, absolutePath);
-    if (rows.length === 0) return 0;
+    if (rows.length === 0) return none;
+    // Counted before they go, so a deletion can say what it took.
+    const taken = await countUnder(absolutePath);
     db.transaction(() => {
       for (const row of rows) store.setFileState(db, row.id, 'purging');
     })();
     await purgeFiles(rows.map((row) => row.id));
-    return rows.length;
+    return taken;
   } catch (error) {
     logger.warn({ err: error, absolutePath }, 'File histories did not go with a deletion');
-    return 0;
+    return none;
   }
 };
 
@@ -362,6 +414,7 @@ const zoneVersions = (db, zone, { now, settings }) => {
 };
 
 module.exports = {
+  countUnder,
   relinkTrashed,
   filesInTrashItem,
   targetForRestore,

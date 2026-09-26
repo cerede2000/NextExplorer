@@ -8,10 +8,26 @@ const {
   getSettings,
 } = require('../services/settingsService');
 const logger = require('../utils/logger');
+const activityLog = require('../services/activityLog');
 const asyncHandler = require('../utils/asyncHandler');
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
+
+/**
+ * A number somebody chose.
+ *
+ * Every numeric setting here has a floor above zero, and every one of them is
+ * a field on a form: emptied, it arrives as 0. Stored, the sanitizer lifts it
+ * to the floor — so clearing the trash retention used to leave a trash that
+ * keeps one day and sweeps everything older within the hour, and clearing the
+ * share of a volume left one percent. Nothing arriving means nothing chosen,
+ * and what is stored stays.
+ *
+ * One reading for all of them rather than a condition per field, so a section
+ * added later cannot be the one that forgot.
+ */
+const chosenNumber = (value) => Number.isFinite(value) && value > 0;
 
 const router = express.Router();
 
@@ -178,13 +194,13 @@ router.patch(
         if (payload.thumbnails.enabled != null) {
           thumbnailsUpdate.enabled = Boolean(payload.thumbnails.enabled);
         }
-        if (Number.isFinite(payload.thumbnails.size)) {
+        if (chosenNumber(payload.thumbnails.size)) {
           thumbnailsUpdate.size = payload.thumbnails.size;
         }
-        if (Number.isFinite(payload.thumbnails.quality)) {
+        if (chosenNumber(payload.thumbnails.quality)) {
           thumbnailsUpdate.quality = payload.thumbnails.quality;
         }
-        if (Number.isFinite(payload.thumbnails.concurrency)) {
+        if (chosenNumber(payload.thumbnails.concurrency)) {
           thumbnailsUpdate.concurrency = payload.thumbnails.concurrency;
         }
         if (Object.keys(thumbnailsUpdate).length > 0) {
@@ -197,11 +213,23 @@ router.patch(
         }
       }
 
-      // Access control rules
+      // Access control rules, and whether they hold administrators. The two are
+      // saved apart on the settings page, so each is merged over what is stored
+      // rather than replacing the section: saving the rules used to drop the
+      // setting above them, and saving the setting used to drop the rules.
       if (payload.access && typeof payload.access === 'object') {
-        if (Array.isArray(payload.access.rules)) {
-          await setSystemSetting('system', 'access', { rules: payload.access.rules });
-          systemUpdates.access = { rules: payload.access.rules };
+        const accessUpdate = {};
+        if (Array.isArray(payload.access.rules)) accessUpdate.rules = payload.access.rules;
+        if (typeof payload.access.applyToAdmins === 'boolean') {
+          accessUpdate.applyToAdmins = payload.access.applyToAdmins;
+        }
+        if (Object.keys(accessUpdate).length > 0) {
+          const current = await getSettings();
+          const merged = await setSystemSetting('system', 'access', {
+            ...current.access,
+            ...accessUpdate,
+          });
+          systemUpdates.access = merged;
         }
       }
 
@@ -212,13 +240,13 @@ router.patch(
         if (typeof payload.trash.enabled === 'boolean') {
           trashUpdate.enabled = payload.trash.enabled;
         }
-        if (Number.isFinite(payload.trash.retentionDays)) {
+        if (chosenNumber(payload.trash.retentionDays)) {
           trashUpdate.retentionDays = payload.trash.retentionDays;
         }
-        if (Number.isFinite(payload.trash.maxPercent)) {
+        if (chosenNumber(payload.trash.maxPercent)) {
           trashUpdate.maxPercent = payload.trash.maxPercent;
         }
-        if (payload.trash.maxBytes === null || Number.isFinite(payload.trash.maxBytes)) {
+        if (payload.trash.maxBytes === null || chosenNumber(payload.trash.maxBytes)) {
           trashUpdate.maxBytes = payload.trash.maxBytes;
         }
         if (Object.keys(trashUpdate).length > 0) {
@@ -237,7 +265,7 @@ router.patch(
         if (typeof payload.uploads.chunkedEnabled === 'boolean') {
           uploadsUpdate.chunkedEnabled = payload.uploads.chunkedEnabled;
         }
-        if (Number.isFinite(payload.uploads.chunkSizeBytes)) {
+        if (chosenNumber(payload.uploads.chunkSizeBytes)) {
           uploadsUpdate.chunkSizeBytes = payload.uploads.chunkSizeBytes;
         }
         if (Object.keys(uploadsUpdate).length > 0) {
@@ -264,7 +292,7 @@ router.patch(
           'maxPerFile',
           'sessionCheckpointMinutes',
         ]) {
-          if (Number.isFinite(payload.versions[key])) versionsUpdate[key] = payload.versions[key];
+          if (chosenNumber(payload.versions[key])) versionsUpdate[key] = payload.versions[key];
         }
         if (Object.keys(versionsUpdate).length > 0) {
           const current = await getSettings();
@@ -273,6 +301,25 @@ router.patch(
             ...versionsUpdate,
           });
           systemUpdates.versions = merged;
+        }
+      }
+
+      // Activity log settings: the switch, and how long a line is kept.
+      if (payload.activity && typeof payload.activity === 'object') {
+        const activityUpdate = {};
+        if (typeof payload.activity.enabled === 'boolean') {
+          activityUpdate.enabled = payload.activity.enabled;
+        }
+        if (chosenNumber(payload.activity.retentionDays)) {
+          activityUpdate.retentionDays = payload.activity.retentionDays;
+        }
+        if (Object.keys(activityUpdate).length > 0) {
+          const current = await getSettings();
+          const merged = await setSystemSetting('system', 'activity', {
+            ...current.activity,
+            ...activityUpdate,
+          });
+          systemUpdates.activity = merged;
         }
       }
 
@@ -300,6 +347,14 @@ router.patch(
 
       if (Object.keys(systemUpdates).length > 0) {
         Object.assign(updated, systemUpdates);
+        // Which settings, not what they were set to: values belong in the
+        // settings, and some of them are somebody's business alone.
+        await activityLog.record({
+          action: 'admin.settings',
+          user,
+          detail: { sections: Object.keys(systemUpdates) },
+          req,
+        });
       }
 
       // Handle logo deletion if resetting to default

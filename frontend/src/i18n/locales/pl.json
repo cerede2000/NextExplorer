@@ -408,7 +408,8 @@
       "fileVersions": "Wersje plików",
       "uploads": "Przesyłanie",
       "accountTwoFactor": "Dwa składniki",
-      "accountPasskeys": "Klucze dostępu"
+      "accountPasskeys": "Klucze dostępu",
+      "activity": "Dziennik aktywności"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -489,7 +490,11 @@
       "recursive": "Rekursywne",
       "readWrite": "Odczyt i zapis",
       "readOnly": "Tylko odczyt",
-      "hidden": "Ukryte"
+      "hidden": "Ukryte",
+      "adminNote": "Każda reguła mówi, czy dotyczy administratorów. Bez tego reguła „Tylko do odczytu” pozwala im pisać, a reguła „Ukryte” ukrywa folder również przed nimi.",
+      "applyToAdmins": "Zastosuj wszystkie reguły do administratorów",
+      "applyToAdminsHint": "Włączone — żadna reguła nie przepuszcza administratora; pole każdej reguły jest pomijane.",
+      "appliesToAdmins": "Dotyczy administratorów"
     },
     "comingSoon": {
       "subtitle": "Ta sekcja ustawień jest w przygotowaniu. Bądź na bieżąco!"
@@ -750,6 +755,52 @@
       "addFailed": "Nie udało się dodać tego klucza dostępu.",
       "cancelled": "Nic nie dodano: przeglądarka została zamknięta lub minęło zbyt dużo czasu.",
       "alreadyHere": "To urządzenie ma już klucz dostępu do tego konta."
+    },
+    "activity": {
+      "title": "Dziennik aktywności",
+      "intro": "Kto co zrobił, kiedy i skąd. Wyłączony, dopóki go nie włączysz.",
+      "enabled": "Rejestruj aktywność",
+      "enabledHelp": "Logowania, pobrania, wysyłki, usunięcia, przywrócenia, udostępnienia i zmiany konta są zapisywane, gdy to działa. Tego, co było wcześniej, tu nie ma.",
+      "retention": "Przechowuj (dni)",
+      "retentionInvalid": "Od 1 do 3650 dni.",
+      "saveFailed": "Nie udało się zapisać tych ustawień.",
+      "off": "Dziennik jest wyłączony, nic nie jest zapisywane.",
+      "none": "Jeszcze nic nie zapisano.",
+      "loadFailed": "Nie udało się odczytać dziennika.",
+      "clearFailed": "Nie udało się wyczyścić dziennika.",
+      "filterAction": "Rodzaj",
+      "anyAction": "Dowolny rodzaj",
+      "filterText": "Szukaj",
+      "filterTextPlaceholder": "Nazwa lub ścieżka",
+      "refresh": "Odśwież",
+      "clear": "Wyczyść dziennik",
+      "more": "Pokaż więcej",
+      "when": "Kiedy",
+      "who": "Kto",
+      "what": "Co",
+      "target": "Na",
+      "from": "Skąd",
+      "refused": "odmowa",
+      "actions": {
+        "sign-in": "Zalogowano",
+        "sign-out": "Wylogowano",
+        "account-password": "Zmiana hasła",
+        "account-two-factor": "Zmiana drugiego składnika",
+        "account-passkey": "Zmiana klucza dostępu",
+        "admin-user": "Zmiana konta",
+        "admin-settings": "Zmiana ustawień",
+        "admin-activity-clear": "Wyczyszczono dziennik",
+        "share-create": "Utworzono udostępnienie",
+        "share-delete": "Usunięto udostępnienie",
+        "share-download": "Pobrano przez link",
+        "share-upload": "Wysłano przez link",
+        "file-download": "Pobrano",
+        "file-upload": "Wysłano",
+        "file-delete": "Przeniesiono do kosza",
+        "file-restore": "Przywrócono",
+        "file-purge": "Usunięto trwale",
+        "versions-purge": "Usunięto wersje"
+      }
     }
   },
   "mediaPreview": {

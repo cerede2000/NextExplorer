@@ -39,6 +39,8 @@ const { encodeContentDisposition } = require('./files/utils');
 const { collectArchiveEntries, appendEntries } = require('../services/archiveTree');
 const logger = require('../utils/logger');
 
+const activityLog = require('../services/activityLog');
+
 const router = express.Router();
 
 // Verifying a share password runs bcrypt, so an unlimited endpoint is both a
@@ -416,6 +418,14 @@ router.post(
       label,
     });
 
+    await activityLog.record({
+      action: 'share.create',
+      user: req.user,
+      target: share.sourcePath,
+      detail: { label: share.label || null, expiresAt: share.expiresAt || null },
+      req,
+    });
+
     // Generate share URL using PUBLIC_URL if configured, otherwise use request host
     const baseUrl = buildPublicBaseUrl(req);
     const shareUrl = `${baseUrl}/share/${share.shareToken}`;
@@ -575,6 +585,13 @@ router.delete(
     }
 
     await deleteShare(share.id);
+    await activityLog.record({
+      action: 'share.delete',
+      user: req.user,
+      target: share.sourcePath,
+      detail: { label: share.label || null },
+      req,
+    });
 
     res.status(204).end();
   })
@@ -790,6 +807,24 @@ router.get(
   })
 );
 
+/**
+ * A file that left through a link.
+ *
+ * The share's own counters answer "how many"; this answers "which file, when,
+ * and from where" — the question somebody actually asks the day a link turns
+ * out to have been handed around. The person on the other end has no account,
+ * so the actor is the link itself.
+ */
+const recordShareDownload = ({ share, resolved, req }) =>
+  activityLog.record({
+    action: 'share.download',
+    user: req.user,
+    actor: req.user?.username || share.label || `link ${share.shareToken?.slice(0, 8)}`,
+    target: resolved.relativePath || share.sourcePath,
+    detail: { share: share.label || null, token: share.shareToken?.slice(0, 8) || null },
+    req,
+  });
+
 const handleDirectFileRequest = async (req, res) => {
   const shareToken = req.params.token;
   const rawInnerPath = (req.params.splat || []).join('/');
@@ -863,6 +898,7 @@ const handleDirectFileRequest = async (req, res) => {
   if (stats.isDirectory()) {
     // A folder leaving as a zip is a download like any other.
     await trackShareDownload(share.id, { ipAddress: req.ip });
+    await recordShareDownload({ share, resolved, req });
     await streamResolvedDirectoryZip({
       absolutePath: resolved.absolutePath,
       logicalPath: resolved.relativePath,
@@ -878,6 +914,7 @@ const handleDirectFileRequest = async (req, res) => {
   }
 
   await trackShareDownload(share.id, { ipAddress: req.ip });
+  await recordShareDownload({ share, resolved, req });
   await streamResolvedFile({ absolutePath: resolved.absolutePath, stats, mode, req, res });
 };
 
@@ -946,7 +983,7 @@ router.get(
         thumbsEnabled,
         excludeDownloadArtifacts: false,
         includeHiddenFiles,
-        permissionRules: settings?.access?.rules || [],
+        access: settings?.access || null,
         shareCache,
         userVolumeCache,
         itemExtras: () => ({
