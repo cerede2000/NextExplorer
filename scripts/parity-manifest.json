@@ -25,6 +25,12 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^frontend/src/(components/InlineQuickActions|composables/useFolderQuickActions|stores/quickActions|config/quickActions)\\.spec\\.js$",
+      "verdict": "OURS",
+      "note": "a test of the quick-actions menu, which stays ours, stays with it"
+    },
+    {
+      "axis": "*",
       "match": "^frontend/src/.*\\.spec\\.js$",
       "verdict": "PORT",
       "batch": "P3-41",
@@ -120,6 +126,18 @@
       "match": "^docker/(check-heic\\.cjs|verify-7zip-password\\.js|verify-ffmpeg\\.sh)$",
       "verdict": "OURS",
       "note": "scripts that check our own image build"
+    },
+    {
+      "axis": "stranded",
+      "match": "-> scripts/node-major-notice\\.mjs$",
+      "verdict": "OURS",
+      "note": "the notice about the Node version stays ours; the test runner is ported without it"
+    },
+    {
+      "axis": "stranded",
+      "match": "-> frontend/src/(components/InlineQuickActions\\.vue|stores/quickActions\\.js|config/quickActions\\.js|composables/useFolderQuickActions\\.js)$",
+      "verdict": "OURS",
+      "note": "the quick-actions menu is left out of the file the batch ports, as it was in nxzai#447"
     },
     {
       "axis": "*",
@@ -336,17 +354,51 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/stores/folderPreference\\.js|frontend/src/stores/folderScroll\\.js|backend/src/services/settingsService\\.js|frontend/src/stores/settings\\.js|frontend/src/stores/appSettings\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue|frontend/src/api/settings\\.api\\.js|backend/src/routes/settings\\.js)(:|$)",
-      "verdict": "PORT",
+      "match": "^(frontend/src/stores/folderPreference\\.js|backend/src/services/settingsService\\.js|frontend/src/stores/settings\\.js|frontend/src/stores/appSettings\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue|frontend/src/api/settings\\.api\\.js|backend/src/routes/settings\\.js)(:|$)",
+      "verdict": "DONE",
       "batch": "P3-16",
-      "note": "sort and view remembered per folder"
+      "note": "nxzai#447 \u2014 sort and view remembered per folder"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.userPreferences\\.quickActions",
+      "verdict": "OURS",
+      "note": "strings for the quick-actions menu, which stays ours"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.(users|userDetails)\\.",
+      "verdict": "PORT",
+      "batch": "P3-24",
+      "note": "strings for the account list and the account panel, which that batch brings"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.access\\.",
+      "verdict": "PORT",
+      "batch": "P3-23",
+      "note": "strings for the access-rules screen, which that batch brings"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.thumbs\\.",
+      "verdict": "PORT",
+      "batch": "P3-25",
+      "note": "strings for the thumbnails screen, which that batch brings"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.uploads\\.",
+      "verdict": "PORT",
+      "batch": "P3-28",
+      "note": "strings for the uploads screen, which that batch brings"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.(?!branding\\.)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-16",
-      "note": "sort and view remembered per folder"
+      "note": "nxzai#447 \u2014 sort and view remembered per folder"
     },
     {
       "axis": "*",
@@ -432,7 +484,7 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/router/authRedirect\\.js|frontend/src/router/settingsGuard\\.js|frontend/src/router/skipHome\\.js|frontend/src/router/index\\.js|frontend/src/router/shareGuard\\.js|frontend/src/views/HomeView\\.vue|frontend/src/composables/navigation\\.js)(:|$)",
+      "match": "^(frontend/src/stores/folderScroll\\.js|frontend/src/router/authRedirect\\.js|frontend/src/router/settingsGuard\\.js|frontend/src/router/skipHome\\.js|frontend/src/router/index\\.js|frontend/src/router/shareGuard\\.js|frontend/src/views/HomeView\\.vue|frontend/src/composables/navigation\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-29",
       "note": "the navigation guards, each a function of its inputs"

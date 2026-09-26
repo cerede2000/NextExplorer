@@ -401,7 +401,38 @@ const resolveImport = (fromFile, specifier) => {
   return null;
 };
 
+/**
+ * The verdict standing over each file, so an import can be judged against it.
+ *
+ * `ownerOf` above only knows files a batch brings. A file whose verdict is OURS
+ * never travels at all, and a batch that ports a file importing one of those does
+ * not build upstream — the import resolves to nothing there, however green it is
+ * here. `SettingsUserPreferences.vue` importing the quick-actions menu, offered in
+ * nxzai#333 and closed, is where this was found: the build-order check above said
+ * the batch needed nothing.
+ */
+const verdictOfFile = new Map();
+for (const verdict of VERDICTS) {
+  for (const item of byVerdict[verdict]) {
+    const file = item.id.split(':')[0];
+    const seen = verdictOfFile.get(file);
+    // PORT and DONE win: a file a batch brings is a file that travels, whatever
+    // else a rule says about one symbol inside it.
+    if (!seen || verdict === 'PORT' || verdict === 'DONE') verdictOfFile.set(file, verdict);
+  }
+}
+
 const outOfOrder = [];
+/**
+ * A file a batch ports that imports a file staying in this fork.
+ *
+ * Reported as findings of their own, on the `stranded` axis, rather than as a gate
+ * of their own: each one is either a part the batch leaves behind — the quick-actions
+ * menu on the preferences screen — or a file whose verdict is wrong. Both are
+ * answers the manifest gives, and an answer nobody has given is what this whole
+ * script is built to refuse.
+ */
+const stranded = [];
 /** batch → the batches it needs, because a file it changes imports a file of theirs. */
 const needs = new Map();
 // Only files one batch owns outright. A file two batches share is ported in parts
@@ -418,7 +449,15 @@ for (const [file, claimants] of claimsOn) {
     const target = resolveImport(file, match[1] || match[2]);
     if (!target || !onlyHere.has(target)) continue;
     const targetBatch = ownerOf.get(target);
-    if (!targetBatch) continue;
+    if (!targetBatch) {
+      // Nobody brings it. If it is ours to keep, the importing batch cannot be
+      // sent as it stands: the part that needs it has to be left out, or the file
+      // has to be reclassified.
+      if (verdictOfFile.get(target) === 'OURS') {
+        stranded.push({ axis: 'stranded', id: `${file} -> ${target}`, batch: [...claimants][0] });
+      }
+      continue;
+    }
     for (const batch of claimants) {
       if (targetBatch === batch) continue;
       if (!needs.has(batch)) needs.set(batch, new Set());
@@ -430,6 +469,19 @@ for (const [file, claimants] of claimsOn) {
   }
 }
 
+// The second pass the stranded axis needs: it is measured from the verdicts, so it
+// cannot be measured before them.
+const strandedUnclassified = [];
+for (const finding of stranded) {
+  const rule = compiled.find((r) => r.test(finding.axis, finding.id));
+  if (!rule || !VERDICTS.includes(rule.verdict)) {
+    strandedUnclassified.push(finding);
+    continue;
+  }
+  counts[rule.verdict] += 1;
+  byVerdict[rule.verdict].push({ ...finding, note: rule.note, batch: rule.batch ?? finding.batch });
+}
+
 if (AS_JSON) {
   console.log(
     JSON.stringify(
@@ -439,6 +491,7 @@ if (AS_JSON) {
         byVerdict,
         completeness,
         outOfOrder,
+        stranded,
         shared,
         needs: Object.fromEntries([...needs].map(([k, v]) => [k, [...v]])),
       },
@@ -491,6 +544,11 @@ if (AS_JSON) {
   );
   for (const line of outOfOrder.slice(0, 20)) console.log(`  ${line}`);
   if (outOfOrder.length) console.log('');
+  console.log(
+    `files that stay ours  ${stranded.length ? `imported by ${stranded.length} file(s) a batch ports` : 'imported by nothing a batch ports'}\n`
+  );
+  for (const line of stranded.slice(0, 20)) console.log(`  ${line.batch}  ${line.id}`);
+  if (stranded.length) console.log('');
 
   if (unclassified.length) {
     console.log(`UNCLASSIFIED — every one of these must be given a verdict:\n`);
@@ -504,6 +562,15 @@ if (outOfOrder.length) {
   console.error(
     `${outOfOrder.length} batch(es) would not build where they sit: a file they change imports ` +
       'a file only this fork has that a later batch brings. Move the batch, or move the file.'
+  );
+  process.exit(1);
+}
+if (strandedUnclassified.length) {
+  console.error(
+    `${strandedUnclassified.length} import(s) of a file staying in this fork, by a file a ` +
+      'batch ports. Upstream has no such file, so the batch does not build there unless that ' +
+      'part is left out. Say which in scripts/parity-manifest.json, on the `stranded` axis:\n  ' +
+      strandedUnclassified.map((f) => f.id).join('\n  ')
   );
   process.exit(1);
 }
