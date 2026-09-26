@@ -125,7 +125,8 @@
     "path": "例如：Pictures/Holidays",
     "search": "搜尋檔案和檔案夾…",
     "volumeLabel": "例如：Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "name{'@'}company.com 或 name"
   },
   "loading": {
     "default": "載入中…",
@@ -166,7 +167,8 @@
     "pathRequired": "需要路徑",
     "saveVolume": "儲存儲存卷失敗",
     "removeVolume": "移除儲存卷失敗",
-    "totpCodeRequired": "請輸入驗證碼。"
+    "totpCodeRequired": "請輸入驗證碼。",
+    "identifierRequired": "需要電子郵件地址或使用者名稱"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份驗證",
@@ -375,7 +377,9 @@
       },
       "totpCode": "驗證碼",
       "totpExplain": "密碼已通過。請輸入驗證器應用程式中的驗證碼，或一個復原碼。",
-      "totpSubmit": "登入"
+      "totpSubmit": "登入",
+      "sessionExpired": "您的工作階段已結束。重新登入即可從上次的位置繼續。",
+      "totpBack": "重新開始"
     },
     "setup": {
       "headline": "開始設定",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "使用通行金鑰登入"
-    }
+    },
+    "emailOrUsername": "電子郵件地址或使用者名稱"
   },
   "breadcrumb": {
     "volumes": "儲存卷",
@@ -556,7 +561,8 @@
       "confirm": "確認新密碼",
       "update": "更新密碼",
       "success": "密碼更新成功。",
-      "validation": "請填寫所有字段；新密碼至少 6 個字符，並且需要與確認密碼一致。"
+      "validation": "請填寫所有字段；新密碼至少 6 個字符，並且需要與確認密碼一致。",
+      "successOtherSessionsEnded": "密碼已更新。此帳號的其他所有工作階段均已登出。"
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",
