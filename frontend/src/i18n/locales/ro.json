@@ -391,7 +391,8 @@
       "filesThumbnails": "Fișiere și miniaturi",
       "security": "Securitate",
       "accessControl": "Control acces",
-      "adminUsers": "Gestionare utilizatori"
+      "adminUsers": "Gestionare utilizatori",
+      "trash": "Coș de gunoi și versiuni"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Coș de gunoi și versiuni",
+      "subtitle": "Elementele șterse și versiunile anterioare ale fișierelor sunt păstrate într-un spațiu rezervat pe propriul volum și eliminate la finalul retenției sau când este nevoie de acel spațiu.",
+      "enabled": "Trimite elementele șterse în coșul de gunoi",
+      "enabledHelp": "Dezactivat, ștergerea elimină definitiv. Elementele aflate deja în coș expiră în continuare.",
+      "retentionDays": "Păstrare (zile)",
+      "retentionHelp": "Între 1 și 3650 de zile.",
+      "maxPercent": "Cota din fiecare volum (%)",
+      "maxPercentHelp": "Cel mult cât poate ocupa coșul de gunoi pe un volum, între 1 și 90 %.",
+      "maxSize": "Limită de dimensiune per volum (GiB)",
+      "maxSizeHelp": "Opțional. Se aplică cea mai mică dintre cotă și limită.",
+      "maxSizeNone": "Fără limită",
+      "invalid": "Verificați valorile: păstrare între 1 și 3650 de zile, cotă între 1 și 90 %, o dimensiune pozitivă sau niciuna.",
+      "saveFailed": "Setările nu au putut fi salvate.",
+      "environmentNote": "Valorile implicite provin din TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT și TRASH_MAX_SIZE.",
+      "zonesTitle": "Coș de gunoi pe volum",
+      "zonesSubtitle": "Fiecare volum își păstrează coșul de gunoi într-un folder ascuns .nextexplorer la rădăcina sa, așa că ștergerea nu copiază niciodată nimic.",
+      "zonesEmpty": "Încă nu s-a șters nimic într-un coș de gunoi.",
+      "zonesFailed": "Coșul de gunoi al volumelor nu a putut fi încărcat.",
+      "verifyFailed": "Verificarea nu a putut rula.",
+      "maintenanceFailed": "Întreținerea nu a putut rula.",
+      "zoneKind": {
+        "personal": "Folderul personal al lui {name}",
+        "userVolume": "Volum atribuit {name}"
+      },
+      "available": "Disponibil",
+      "unavailable": {
+        "missing": "Nemontat sau eliminat",
+        "replaced": "Alt disc în locul lui",
+        "unreadable": "Ilizibil"
+      },
+      "usage": "{used} din {budget}",
+      "zoneSummary": "{count} element, {used} din {budget} | {count} elemente, {used} din {budget}",
+      "noBudget": "fără limită",
+      "lastPass": "Ultima întreținere:",
+      "lastPassPurged": "{count} eliminat | {count} eliminate",
+      "never": "încă nu",
+      "verify": "Verifică",
+      "verifying": "Se verifică…",
+      "verifyOk": "Coșul de gunoi al fiecărui volum este consecvent.",
+      "verifyIssues": "{count} problemă găsită | {count} probleme găsite",
+      "runMaintenance": "Rulează întreținerea acum",
+      "running": "În curs…",
+      "events": {
+        "title": "Jurnal",
+        "evicted": "\"{name}\" eliminat înainte de sfârșitul păstrării pentru a elibera spațiu",
+        "adopted": "\"{name}\" recuperat după o întrerupere",
+        "lost": "Conținutul lui \"{name}\" lipsea",
+        "failed": "\"{name}\" nu a putut fi eliminat",
+        "breaker": "Prea multe elemente lipseau deodată: nu s-a modificat nimic",
+        "forgotten": "\"{name}\" uitat de un administrator",
+        "versionEvicted": "O versiune a „{name}” eliminată pentru a elibera spațiu",
+        "versionFailed": "O versiune nu a putut fi eliminată",
+        "versionLost": "Conținutul unei versiuni lipsea",
+        "versionTooLarge": "„{name}” depășește tot spațiul: ce înlocuia nu a fost păstrat",
+        "versionsBreaker": "Prea multe versiuni lipsesc deodată: nu s-a modificat nimic"
+      },
+      "zoneVersions": "{count} versiune, {size} | {count} versiuni, {size}",
+      "versions": {
+        "title": "Versiunile fișierelor",
+        "subtitle": "Fiecare salvare păstrează ce înlocuiește, fără a copia, în același spațiu rezervat ca și coșul de gunoi. Versiunile vechi sunt rărite în timp.",
+        "enabled": "Păstrați versiunile anterioare ale fișierelor",
+        "enabledHelp": "Independent de coșul de gunoi. Dezactivat, salvările nu mai păstrează nimic nou; versiunile existente rămân până expiră sau sunt șterse.",
+        "keepAllHours": "Păstrați toate versiunile (ore)",
+        "hourlyDays": "Apoi una pe oră (zile)",
+        "dailyDays": "Apoi una pe zi (zile)",
+        "maxPerFile": "Cel mult versiuni per fișier",
+        "sessionCheckpointMinutes": "Punct de control office (minute)",
+        "tiersHelp": "După aceste trepte se păstrează o versiune pe săptămână. O sesiune de editare office lasă o versiune, plus un punct de control cel mult la acest interval. Versiunile fixate scapă de rărire și de limita per fișier.",
+        "invalid": "Verificați valorile: 1–720 ore, 1–365 zile orare, 1–3650 zile zilnice, 1–1000 versiuni per fișier, un punct de control de 1–1440 minute.",
+        "sharedSpace": "Versiunile și coșul de gunoi împart spațiul rezervat al fiecărui volum. Când nu ajunge, pleacă întâi versiunile vechi, apoi elementele din coș, apoi ultima versiune a fiecărui fișier și, la final, versiunile fixate.",
+        "environmentNote": "Valorile implicite provin din VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE și VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "Elimini partajarea?",
     "deleteShareMessage": "Persoanele cu acest link nu vor mai putea accesa elementul partajat."
+  },
+  "trash": {
+    "title": "Coș de gunoi",
+    "menu": "Coș de gunoi",
+    "subtitle": "Elementele sunt șterse definitiv la {count} zi după ștergere. | Elementele sunt șterse definitiv la {count} zile după ștergere.",
+    "empty": "Coșul de gunoi este gol.",
+    "disabled": "Coșul de gunoi este dezactivat: ștergerea elimină definitiv. Ce se află încă aici poate fi restaurat.",
+    "unavailable": "Volum indisponibil",
+    "expiresToday": "Astăzi",
+    "expiresIn": "Peste {count} zi | Peste {count} zile",
+    "columns": {
+      "originalLocation": "Locația originală",
+      "deletedBy": "Șters de",
+      "deletedAt": "Șters la",
+      "expires": "Eliminare",
+      "modified": "Modificat"
+    },
+    "location": {
+      "personal": "Folder personal",
+      "unknown": "Necunoscut"
+    },
+    "deletedBy": {
+      "you": "Dvs.",
+      "shareLink": "Link de partajare",
+      "unknown": "Necunoscut"
+    },
+    "actions": {
+      "restore": "Restaurează",
+      "deletePermanently": "Șterge definitiv",
+      "empty": "Golește coșul de gunoi",
+      "openLocation": "Deschide locația originală",
+      "selectAll": "Selectează tot",
+      "select": "Selectează {name}",
+      "open": "Deschide {name}",
+      "restoreFolder": "Restaurează tot dosarul",
+      "restoreTo": "Restaurează în…"
+    },
+    "confirm": {
+      "deleteTitle": "Ștergeți definitiv?",
+      "deleteMessage": "Acest element va fi șters definitiv. Acțiunea nu poate fi anulată. | Aceste {count} elemente vor fi șterse definitiv. Acțiunea nu poate fi anulată.",
+      "emptyTitle": "Goliți coșul de gunoi?",
+      "emptyMessage": "Tot ce se află în coșul dvs. de gunoi va fi șters definitiv. Acțiunea nu poate fi anulată."
+    },
+    "results": {
+      "restored": "{count} element restaurat | {count} elemente restaurate",
+      "restoredTo": "Restaurat în {path}",
+      "renamed": "\"{name}\" a fost restaurat ca \"{newName}\": numele era ocupat.",
+      "notRestored": "{count} element nu a putut fi restaurat | {count} elemente nu au putut fi restaurate",
+      "deleted": "{count} element șters definitiv | {count} elemente șterse definitiv",
+      "notDeleted": "{count} element nu a putut fi șters | {count} elemente nu au putut fi șterse",
+      "emptied": "Coș de gunoi golit: {count} element eliminat | Coș de gunoi golit: {count} elemente eliminate",
+      "leftBehind": "{count} element nu a putut fi eliminat și este încă acolo. | {count} elemente nu au putut fi eliminate și sunt încă acolo."
+    },
+    "reasons": {
+      "forbidden": "nu mai puteți scrie unde se afla.",
+      "blocked": "acum altceva ocupă locul folderului său.",
+      "unavailable": "volumul său nu este disponibil.",
+      "busy": "este deja în lucru.",
+      "lost": "conținutul său dispăruse.",
+      "notFound": "nu mai este în coșul de gunoi.",
+      "unknown": "nu a putut fi procesat.",
+      "destinationForbidden": "nu puteți crea elemente în acel dosar.",
+      "invalidDestination": "acel dosar nu îl poate primi."
+    },
+    "errors": {
+      "load": "Coșul de gunoi nu a putut fi încărcat.",
+      "action": "Coșul de gunoi nu a putut face asta.",
+      "loadFolder": "Acest dosar nu a putut fi deschis."
+    },
+    "browse": {
+      "breadcrumb": "Locația în coșul de gunoi",
+      "deletedFrom": "Șters din {location} la {date}",
+      "hint": "Restaurează pune fiecare element selectat înapoi la locul lui din acest dosar. Restul rămâne în coșul de gunoi.",
+      "empty": "Acest dosar este gol.",
+      "back": "Înapoi la coșul de gunoi"
+    },
+    "contextMenu": {
+      "label": "Acțiuni pentru {name}",
+      "labelMany": "Acțiuni pentru {count} elemente",
+      "open": "Deschide",
+      "preview": "Previzualizare"
+    },
+    "shares": {
+      "badge": "Partajat",
+      "badgeTitle": "{count} link de partajare, dezactivat cât timp este în coșul de gunoi | {count} linkuri de partajare, dezactivate cât timp sunt în coșul de gunoi",
+      "chooseTitle": "Ce se întâmplă cu linkurile de partajare?",
+      "chooseMessage": "{count} link de partajare aparținea celor pe care le restaurați. Nu mai funcționează de la ștergere. | {count} linkuri de partajare aparțineau celor pe care le restaurați. Nu mai funcționează de la ștergere.",
+      "chooseElsewhere": "Readuse, vor indica noua locație.",
+      "keep": "Restaurează linkurile de partajare",
+      "drop": "Șterge linkurile de partajare",
+      "deleteNotice": "Linkurile lor de partajare vor fi și ele șterse definitiv.",
+      "restored": "{count} link de partajare readus | {count} linkuri de partajare readuse",
+      "dropped": "{count} link de partajare șters | {count} linkuri de partajare șterse"
+    }
   }
 }

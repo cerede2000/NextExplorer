@@ -31,6 +31,11 @@ export const useAppSettings = defineStore('appSettings', () => {
   const systemSettings = ref({
     thumbnails: { enabled: true, size: 200, quality: 70 },
     access: { rules: [] },
+    // What the server answers for the trash and the versions. Held as it comes:
+    // the screen that shows them sends back what it was given, and the server
+    // is the one that decides what a value may be.
+    trash: null,
+    versions: null,
   });
 
   // Computed state that combines all settings (for backward compatibility)
@@ -39,6 +44,8 @@ export const useAppSettings = defineStore('appSettings', () => {
     user: userSettings.value,
     thumbnails: systemSettings.value.thumbnails,
     access: systemSettings.value.access,
+    trash: systemSettings.value.trash,
+    versions: systemSettings.value.versions,
   }));
 
   // Whether thumbnails should be shown/requested for the current session.
@@ -119,6 +126,8 @@ export const useAppSettings = defineStore('appSettings', () => {
           ...s.thumbnails,
         };
       }
+      if (s?.trash) systemSettings.value.trash = { ...s.trash };
+      if (s?.versions) systemSettings.value.versions = { ...s.versions };
       if (s?.access) {
         systemSettings.value.access = {
           rules: Array.isArray(s.access.rules) ? s.access.rules : [],
@@ -177,6 +186,8 @@ export const useAppSettings = defineStore('appSettings', () => {
         };
       }
 
+      if (updated?.trash) systemSettings.value.trash = { ...updated.trash };
+      if (updated?.versions) systemSettings.value.versions = { ...updated.versions };
       if (updated?.thumbnails) {
         systemSettings.value.thumbnails = {
           enabled: true,

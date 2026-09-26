@@ -13,6 +13,8 @@ import SettingsComingSoon from '@/views/settings/SettingsComingSoon.vue';
 import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
+import SettingsTrash from '@/views/settings/SettingsTrash.vue';
+import TrashView from '@/views/TrashView.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
 import AboutView from '@/views/AboutView.vue';
 import AuthSetupView from '@/views/AuthSetupView.vue';
@@ -61,6 +63,11 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             // Admin-only placeholder routes
+            {
+              path: 'trash',
+              component: SettingsTrash,
+              meta: { requiresAdmin: true },
+            },
             {
               path: 'admin-overview',
               component: SettingsComingSoon,
@@ -111,6 +118,12 @@ const router = createRouter({
           meta: { allowGuest: true }, // Allow guest access for share paths
         },
       ],
+    },
+    {
+      path: '/trash',
+      component: BrowserLayout,
+      meta: { requiresAuth: true },
+      children: [{ path: '', name: 'Trash', component: TrashView }],
     },
     {
       path: '/shares',

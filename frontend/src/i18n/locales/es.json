@@ -391,7 +391,8 @@
       "filesThumbnails": "Archivos y miniaturas",
       "security": "Seguridad",
       "accessControl": "Control de acceso",
-      "adminUsers": "Gestión de usuarios"
+      "adminUsers": "Gestión de usuarios",
+      "trash": "Papelera y versiones"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Papelera y versiones",
+      "subtitle": "Los elementos eliminados y las versiones anteriores de los archivos se guardan en un espacio reservado de su propio volumen y se eliminan al terminar su retención o cuando se necesita ese espacio.",
+      "enabled": "Enviar los elementos eliminados a la papelera",
+      "enabledHelp": "Desactivada, eliminar borra definitivamente. Los elementos que ya están en la papelera siguen caducando.",
+      "retentionDays": "Retención (días)",
+      "retentionHelp": "De 1 a 3650 días.",
+      "maxPercent": "Parte de cada volumen (%)",
+      "maxPercentHelp": "Lo máximo que la papelera puede ocupar en un volumen, de 1 a 90 %.",
+      "maxSize": "Tamaño máximo por volumen (GiB)",
+      "maxSizeHelp": "Opcional. Se aplica el menor entre la parte y el límite.",
+      "maxSizeNone": "Sin límite",
+      "invalid": "Revisa los valores: retención de 1 a 3650 días, parte de 1 a 90 %, un tamaño positivo o ninguno.",
+      "saveFailed": "No se pudieron guardar los ajustes.",
+      "environmentNote": "Los valores por defecto vienen de TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT y TRASH_MAX_SIZE.",
+      "zonesTitle": "Papelera por volumen",
+      "zonesSubtitle": "Cada volumen guarda su papelera en una carpeta oculta .nextexplorer en su raíz, así que eliminar nunca copia nada.",
+      "zonesEmpty": "Todavía no se ha eliminado nada a una papelera.",
+      "zonesFailed": "No se pudo cargar la papelera de los volúmenes.",
+      "verifyFailed": "No se pudo ejecutar la verificación.",
+      "maintenanceFailed": "No se pudo ejecutar el mantenimiento.",
+      "zoneKind": {
+        "personal": "Carpeta personal de {name}",
+        "userVolume": "Volumen asignado {name}"
+      },
+      "available": "Disponible",
+      "unavailable": {
+        "missing": "No montado o eliminado",
+        "replaced": "Otro disco en su lugar",
+        "unreadable": "Ilegible"
+      },
+      "usage": "{used} de {budget}",
+      "zoneSummary": "{count} elemento, {used} de {budget} | {count} elementos, {used} de {budget}",
+      "noBudget": "sin límite",
+      "lastPass": "Último mantenimiento:",
+      "lastPassPurged": "{count} eliminado | {count} eliminados",
+      "never": "todavía no",
+      "verify": "Verificar",
+      "verifying": "Verificando…",
+      "verifyOk": "La papelera de cada volumen es coherente.",
+      "verifyIssues": "{count} problema encontrado | {count} problemas encontrados",
+      "runMaintenance": "Ejecutar mantenimiento ahora",
+      "running": "En curso…",
+      "events": {
+        "title": "Registro",
+        "evicted": "\"{name}\" eliminado antes de su retención para liberar espacio",
+        "adopted": "\"{name}\" recuperado tras una interrupción",
+        "lost": "Faltaba el contenido de \"{name}\"",
+        "failed": "\"{name}\" no se pudo eliminar",
+        "breaker": "Faltaban demasiados elementos a la vez: no se cambió nada",
+        "forgotten": "\"{name}\" olvidado por un administrador",
+        "versionEvicted": "Una versión de «{name}» eliminada para liberar espacio",
+        "versionFailed": "No se pudo eliminar una versión",
+        "versionLost": "Faltaba el contenido de una versión",
+        "versionTooLarge": "«{name}» supera todo el espacio: lo que reemplazaba no se conservó",
+        "versionsBreaker": "Demasiadas versiones faltan a la vez: no se cambió nada"
+      },
+      "zoneVersions": "{count} versión, {size} | {count} versiones, {size}",
+      "versions": {
+        "title": "Versiones de archivos",
+        "subtitle": "Cada guardado conserva lo que reemplaza, sin copiarlo, en el mismo espacio reservado que la papelera. Las versiones antiguas se espacian con el tiempo.",
+        "enabled": "Conservar las versiones anteriores de los archivos",
+        "enabledHelp": "Independiente de la papelera. Desactivado, los guardados no conservan nada nuevo; las versiones existentes permanecen hasta que caducan o se eliminan.",
+        "keepAllHours": "Conservar todas las versiones (horas)",
+        "hourlyDays": "Después una por hora (días)",
+        "dailyDays": "Después una por día (días)",
+        "maxPerFile": "Máximo de versiones por archivo",
+        "sessionCheckpointMinutes": "Punto de control de ofimática (minutos)",
+        "tiersHelp": "Tras estos niveles se conserva una versión por semana. Una sesión de edición de ofimática deja una versión, más un punto de control como mucho con esta frecuencia. Las versiones fijadas escapan al espaciado y al límite por archivo.",
+        "invalid": "Revisa los valores: de 1 a 720 horas, de 1 a 365 días por hora, de 1 a 3650 días por día, de 1 a 1000 versiones por archivo, un punto de control de 1 a 1440 minutos.",
+        "sharedSpace": "Las versiones y la papelera comparten el espacio reservado de cada volumen. Cuando falta, primero se van las versiones antiguas, luego los elementos de la papelera, luego la última versión de cada archivo y, por último, las versiones fijadas.",
+        "environmentNote": "Los valores predeterminados vienen de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE y VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "¿Eliminar enlace compartido?",
     "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido."
+  },
+  "trash": {
+    "title": "Papelera",
+    "menu": "Papelera",
+    "subtitle": "Los elementos se eliminan definitivamente {count} día después de borrarlos. | Los elementos se eliminan definitivamente {count} días después de borrarlos.",
+    "empty": "La papelera está vacía.",
+    "disabled": "La papelera está desactivada: eliminar borra definitivamente. Lo que aún está aquí se puede restaurar.",
+    "unavailable": "Volumen no disponible",
+    "expiresToday": "Hoy",
+    "expiresIn": "En {count} día | En {count} días",
+    "columns": {
+      "originalLocation": "Ubicación original",
+      "deletedBy": "Eliminado por",
+      "deletedAt": "Eliminado el",
+      "expires": "Eliminación",
+      "modified": "Modificado"
+    },
+    "location": {
+      "personal": "Carpeta personal",
+      "unknown": "Desconocida"
+    },
+    "deletedBy": {
+      "you": "Tú",
+      "shareLink": "Enlace compartido",
+      "unknown": "Desconocido"
+    },
+    "actions": {
+      "restore": "Restaurar",
+      "deletePermanently": "Eliminar definitivamente",
+      "empty": "Vaciar papelera",
+      "openLocation": "Abrir ubicación original",
+      "selectAll": "Seleccionar todo",
+      "select": "Seleccionar {name}",
+      "open": "Abrir {name}",
+      "restoreFolder": "Restaurar la carpeta entera",
+      "restoreTo": "Restaurar en…"
+    },
+    "confirm": {
+      "deleteTitle": "¿Eliminar definitivamente?",
+      "deleteMessage": "Este elemento se eliminará definitivamente. Esta acción no se puede deshacer. | Estos {count} elementos se eliminarán definitivamente. Esta acción no se puede deshacer.",
+      "emptyTitle": "¿Vaciar la papelera?",
+      "emptyMessage": "Todo lo que hay en tu papelera se eliminará definitivamente. Esta acción no se puede deshacer."
+    },
+    "results": {
+      "restored": "{count} elemento restaurado | {count} elementos restaurados",
+      "restoredTo": "Restaurado en {path}",
+      "renamed": "\"{name}\" se restauró como \"{newName}\": su nombre estaba ocupado.",
+      "notRestored": "{count} elemento no se pudo restaurar | {count} elementos no se pudieron restaurar",
+      "deleted": "{count} elemento eliminado definitivamente | {count} elementos eliminados definitivamente",
+      "notDeleted": "{count} elemento no se pudo eliminar | {count} elementos no se pudieron eliminar",
+      "emptied": "Papelera vaciada: {count} elemento eliminado | Papelera vaciada: {count} elementos eliminados",
+      "leftBehind": "{count} elemento no se pudo eliminar y sigue ahí. | {count} elementos no se pudieron eliminar y siguen ahí."
+    },
+    "reasons": {
+      "forbidden": "ya no puedes escribir donde estaba.",
+      "blocked": "ahora hay algo en el lugar de su carpeta.",
+      "unavailable": "su volumen no está disponible.",
+      "busy": "ya se está procesando.",
+      "lost": "su contenido había desaparecido.",
+      "notFound": "ya no está en la papelera.",
+      "unknown": "no se pudo procesar.",
+      "destinationForbidden": "no puede crear elementos en esa carpeta.",
+      "invalidDestination": "esa carpeta no puede recibirlo."
+    },
+    "errors": {
+      "load": "No se pudo cargar la papelera.",
+      "action": "La papelera no pudo hacer eso.",
+      "loadFolder": "No se pudo abrir esta carpeta."
+    },
+    "browse": {
+      "breadcrumb": "Ubicación en la papelera",
+      "deletedFrom": "Eliminado de {location} el {date}",
+      "hint": "Restaurar devuelve cada elemento seleccionado a su lugar dentro de esta carpeta. El resto permanece en la papelera.",
+      "empty": "Esta carpeta está vacía.",
+      "back": "Volver a la papelera"
+    },
+    "contextMenu": {
+      "label": "Acciones para {name}",
+      "labelMany": "Acciones para {count} elementos",
+      "open": "Abrir",
+      "preview": "Vista previa"
+    },
+    "shares": {
+      "badge": "Compartido",
+      "badgeTitle": "{count} enlace compartido, desactivado mientras está en la papelera | {count} enlaces compartidos, desactivados mientras están en la papelera",
+      "chooseTitle": "¿Qué hacer con los enlaces compartidos?",
+      "chooseMessage": "{count} enlace compartido pertenecía a lo que restaura. No funciona desde la eliminación. | {count} enlaces compartidos pertenecían a lo que restaura. No funcionan desde la eliminación.",
+      "chooseElsewhere": "Si se recuperan, apuntarán a la nueva ubicación.",
+      "keep": "Restaurar los enlaces compartidos",
+      "drop": "Eliminar los enlaces compartidos",
+      "deleteNotice": "Sus enlaces compartidos también se eliminarán definitivamente.",
+      "restored": "{count} enlace compartido recuperado | {count} enlaces compartidos recuperados",
+      "dropped": "{count} enlace compartido eliminado | {count} enlaces compartidos eliminados"
+    }
   }
 }

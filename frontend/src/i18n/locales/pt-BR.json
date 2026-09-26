@@ -391,7 +391,8 @@
       "filesThumbnails": "Arquivos e Miniaturas",
       "security": "Segurança",
       "accessControl": "Controle de Acesso",
-      "adminUsers": "Gerenciamento de Usuários"
+      "adminUsers": "Gerenciamento de Usuários",
+      "trash": "Lixeira e versões"
     },
     "about": {
       "subtitle": "Veja as informações de compilação deste aplicativo.",
@@ -540,6 +541,80 @@
       "oidcProvider": "Provedor OIDC",
       "oidcLinkedProfile": "Perfil Vinculado",
       "noOidcProfileMessage": "Nenhum perfil OIDC vinculado a esta conta."
+    },
+    "trash": {
+      "title": "Lixeira e versões",
+      "subtitle": "Itens excluídos e versões anteriores dos arquivos ficam em um espaço reservado no próprio volume e são removidos ao fim da retenção ou quando esse espaço é necessário.",
+      "enabled": "Enviar itens excluídos para a lixeira",
+      "enabledHelp": "Desativada, excluir apaga permanentemente. Itens que já estão na lixeira continuam expirando.",
+      "retentionDays": "Retenção (dias)",
+      "retentionHelp": "De 1 a 3650 dias.",
+      "maxPercent": "Parte de cada volume (%)",
+      "maxPercentHelp": "O máximo que a lixeira pode ocupar em um volume, de 1 a 90 %.",
+      "maxSize": "Limite de tamanho por volume (GiB)",
+      "maxSizeHelp": "Opcional. Vale o menor entre a parte e o limite.",
+      "maxSizeNone": "Sem limite",
+      "invalid": "Verifique os valores: retenção de 1 a 3650 dias, parte de 1 a 90 %, um tamanho positivo ou nenhum.",
+      "saveFailed": "Não foi possível salvar as configurações.",
+      "environmentNote": "Os valores padrão vêm de TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT e TRASH_MAX_SIZE.",
+      "zonesTitle": "Lixeira por volume",
+      "zonesSubtitle": "Cada volume guarda sua lixeira em uma pasta oculta .nextexplorer na raiz, então excluir nunca copia nada.",
+      "zonesEmpty": "Nada foi excluído para uma lixeira ainda.",
+      "zonesFailed": "Não foi possível carregar a lixeira dos volumes.",
+      "verifyFailed": "Não foi possível executar a verificação.",
+      "maintenanceFailed": "Não foi possível executar a manutenção.",
+      "zoneKind": {
+        "personal": "Pasta pessoal de {name}",
+        "userVolume": "Volume atribuído {name}"
+      },
+      "available": "Disponível",
+      "unavailable": {
+        "missing": "Não montado ou removido",
+        "replaced": "Outro disco no lugar",
+        "unreadable": "Ilegível"
+      },
+      "usage": "{used} de {budget}",
+      "zoneSummary": "{count} item, {used} de {budget} | {count} itens, {used} de {budget}",
+      "noBudget": "sem limite",
+      "lastPass": "Última manutenção:",
+      "lastPassPurged": "{count} removido | {count} removidos",
+      "never": "ainda não",
+      "verify": "Verificar",
+      "verifying": "Verificando…",
+      "verifyOk": "A lixeira de cada volume está consistente.",
+      "verifyIssues": "{count} problema encontrado | {count} problemas encontrados",
+      "runMaintenance": "Executar manutenção agora",
+      "running": "Em andamento…",
+      "events": {
+        "title": "Registro",
+        "evicted": "\"{name}\" removido antes do fim da retenção para liberar espaço",
+        "adopted": "\"{name}\" recuperado após uma interrupção",
+        "lost": "O conteúdo de \"{name}\" estava faltando",
+        "failed": "\"{name}\" não pôde ser removido",
+        "breaker": "Itens demais faltando de uma vez: nada foi alterado",
+        "forgotten": "\"{name}\" esquecido por um administrador",
+        "versionEvicted": "Uma versão de \"{name}\" removida para liberar espaço",
+        "versionFailed": "Não foi possível remover uma versão",
+        "versionLost": "O conteúdo de uma versão estava faltando",
+        "versionTooLarge": "\"{name}\" é maior que todo o espaço: o que ele substituiu não foi guardado",
+        "versionsBreaker": "Versões demais faltando de uma vez: nada foi alterado"
+      },
+      "zoneVersions": "{count} versão, {size} | {count} versões, {size}",
+      "versions": {
+        "title": "Versões de arquivos",
+        "subtitle": "Cada salvamento guarda o que substitui, sem copiar, no mesmo espaço reservado da lixeira. Versões antigas são espaçadas com o tempo.",
+        "enabled": "Guardar versões anteriores dos arquivos",
+        "enabledHelp": "Independente da lixeira. Desativado, os salvamentos não guardam nada novo; as versões existentes permanecem até expirarem ou serem excluídas.",
+        "keepAllHours": "Guardar todas as versões (horas)",
+        "hourlyDays": "Depois uma por hora (dias)",
+        "dailyDays": "Depois uma por dia (dias)",
+        "maxPerFile": "Máximo de versões por arquivo",
+        "sessionCheckpointMinutes": "Ponto de controle do Office (minutos)",
+        "tiersHelp": "Depois dessas faixas, uma versão por semana é guardada. Uma sessão de edição do Office deixa uma versão, mais um ponto de controle no máximo nesse intervalo. Versões fixadas escapam do espaçamento e do limite por arquivo.",
+        "invalid": "Verifique os valores: 1 a 720 horas, 1 a 365 dias por hora, 1 a 3650 dias por dia, 1 a 1000 versões por arquivo, um ponto de controle de 1 a 1440 minutos.",
+        "sharedSpace": "Versões e lixeira dividem o espaço reservado de cada volume. Quando falta espaço, saem primeiro as versões antigas, depois os itens da lixeira, depois a última versão de cada arquivo e, por fim, as versões fixadas.",
+        "environmentNote": "Os padrões vêm de VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     "sharedWithAnyone": "Todos",
     "sharedWithUsers": "{count} usuário | {count} usuários",
     "expiresNever": "Nunca"
+  },
+  "trash": {
+    "title": "Lixeira",
+    "menu": "Lixeira",
+    "subtitle": "Os itens são excluídos permanentemente {count} dia após serem apagados. | Os itens são excluídos permanentemente {count} dias após serem apagados.",
+    "empty": "A lixeira está vazia.",
+    "disabled": "A lixeira está desativada: excluir apaga permanentemente. O que ainda está aqui pode ser restaurado.",
+    "unavailable": "Volume indisponível",
+    "expiresToday": "Hoje",
+    "expiresIn": "Em {count} dia | Em {count} dias",
+    "columns": {
+      "originalLocation": "Local original",
+      "deletedBy": "Excluído por",
+      "deletedAt": "Excluído em",
+      "expires": "Remoção",
+      "modified": "Modificado"
+    },
+    "location": {
+      "personal": "Pasta pessoal",
+      "unknown": "Desconhecido"
+    },
+    "deletedBy": {
+      "you": "Você",
+      "shareLink": "Link de compartilhamento",
+      "unknown": "Desconhecido"
+    },
+    "actions": {
+      "restore": "Restaurar",
+      "deletePermanently": "Excluir permanentemente",
+      "empty": "Esvaziar lixeira",
+      "openLocation": "Abrir local original",
+      "selectAll": "Selecionar tudo",
+      "select": "Selecionar {name}",
+      "open": "Abrir {name}",
+      "restoreFolder": "Restaurar a pasta inteira",
+      "restoreTo": "Restaurar em…"
+    },
+    "confirm": {
+      "deleteTitle": "Excluir permanentemente?",
+      "deleteMessage": "Este item será excluído permanentemente. Esta ação não pode ser desfeita. | Estes {count} itens serão excluídos permanentemente. Esta ação não pode ser desfeita.",
+      "emptyTitle": "Esvaziar a lixeira?",
+      "emptyMessage": "Tudo o que está na sua lixeira será excluído permanentemente. Esta ação não pode ser desfeita."
+    },
+    "results": {
+      "restored": "{count} item restaurado | {count} itens restaurados",
+      "restoredTo": "Restaurado em {path}",
+      "renamed": "\"{name}\" foi restaurado como \"{newName}\": o nome já estava em uso.",
+      "notRestored": "{count} item não pôde ser restaurado | {count} itens não puderam ser restaurados",
+      "deleted": "{count} item excluído permanentemente | {count} itens excluídos permanentemente",
+      "notDeleted": "{count} item não pôde ser excluído | {count} itens não puderam ser excluídos",
+      "emptied": "Lixeira esvaziada: {count} item removido | Lixeira esvaziada: {count} itens removidos",
+      "leftBehind": "{count} item não pôde ser removido e continua lá. | {count} itens não puderam ser removidos e continuam lá."
+    },
+    "reasons": {
+      "forbidden": "você não pode mais gravar onde ele estava.",
+      "blocked": "algo agora ocupa o lugar da sua pasta.",
+      "unavailable": "seu volume não está disponível.",
+      "busy": "já está sendo processado.",
+      "lost": "seu conteúdo havia desaparecido.",
+      "notFound": "não está mais na lixeira.",
+      "unknown": "não foi possível processá-lo.",
+      "destinationForbidden": "você não pode criar itens nessa pasta.",
+      "invalidDestination": "essa pasta não pode recebê-lo."
+    },
+    "errors": {
+      "load": "Não foi possível carregar a lixeira.",
+      "action": "A lixeira não conseguiu fazer isso.",
+      "loadFolder": "Não foi possível abrir esta pasta."
+    },
+    "browse": {
+      "breadcrumb": "Local na lixeira",
+      "deletedFrom": "Excluído de {location} em {date}",
+      "hint": "Restaurar devolve cada item selecionado ao seu lugar dentro desta pasta. O restante permanece na lixeira.",
+      "empty": "Esta pasta está vazia.",
+      "back": "Voltar para a lixeira"
+    },
+    "contextMenu": {
+      "label": "Ações para {name}",
+      "labelMany": "Ações para {count} itens",
+      "open": "Abrir",
+      "preview": "Pré-visualizar"
+    },
+    "shares": {
+      "badge": "Compartilhado",
+      "badgeTitle": "{count} link de compartilhamento, desativado enquanto está na lixeira | {count} links de compartilhamento, desativados enquanto estão na lixeira",
+      "chooseTitle": "O que fazer com os links de compartilhamento?",
+      "chooseMessage": "{count} link de compartilhamento pertencia ao que você está restaurando. Ele não funciona desde a exclusão. | {count} links de compartilhamento pertenciam ao que você está restaurando. Eles não funcionam desde a exclusão.",
+      "chooseElsewhere": "Recuperados, eles apontarão para o novo local.",
+      "keep": "Restaurar os links de compartilhamento",
+      "drop": "Excluir os links de compartilhamento",
+      "deleteNotice": "Os links de compartilhamento também serão excluídos definitivamente.",
+      "restored": "{count} link de compartilhamento recuperado | {count} links de compartilhamento recuperados",
+      "dropped": "{count} link de compartilhamento excluído | {count} links de compartilhamento excluídos"
+    }
   }
 }

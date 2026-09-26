@@ -391,7 +391,8 @@
       "filesThumbnails": "文件縮圖",
       "security": "安全",
       "accessControl": "權限控制",
-      "adminUsers": "使用者管理"
+      "adminUsers": "使用者管理",
+      "trash": "資源回收筒和版本"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "資源回收筒和版本",
+      "subtitle": "已刪除的項目和檔案的先前版本保存在其所在磁碟區的保留空間中，在保留期結束或需要該空間時移除。",
+      "enabled": "將刪除的項目移至資源回收筒",
+      "enabledHelp": "關閉後，刪除會永久移除項目。資源回收筒中已有的項目仍會到期。",
+      "retentionDays": "保留期（天）",
+      "retentionHelp": "1 至 3650 天。",
+      "maxPercent": "每個磁碟區的比例（%）",
+      "maxPercentHelp": "資源回收筒在一個磁碟區上最多可佔用的比例，1 至 90%。",
+      "maxSize": "每個磁碟區的大小上限（GiB）",
+      "maxSizeHelp": "選填。比例與上限取較小者。",
+      "maxSizeNone": "無上限",
+      "invalid": "請檢查數值：保留期 1 至 3650 天，比例 1 至 90%，正數大小或留空。",
+      "saveFailed": "無法儲存設定。",
+      "environmentNote": "預設值來自 TRASH_ENABLED、TRASH_RETENTION_DAYS、TRASH_MAX_PERCENT 與 TRASH_MAX_SIZE。",
+      "zonesTitle": "各磁碟區的資源回收筒",
+      "zonesSubtitle": "每個磁碟區把資源回收筒放在根目錄的隱藏資料夾 .nextexplorer 中，因此刪除從不複製任何內容。",
+      "zonesEmpty": "尚未有任何內容被刪除到資源回收筒。",
+      "zonesFailed": "無法載入各磁碟區的資源回收筒。",
+      "verifyFailed": "無法執行檢查。",
+      "maintenanceFailed": "無法執行維護。",
+      "zoneKind": {
+        "personal": "{name} 的個人資料夾",
+        "userVolume": "指派的磁碟區 {name}"
+      },
+      "available": "可用",
+      "unavailable": {
+        "missing": "未掛載或已移除",
+        "replaced": "已被另一顆磁碟取代",
+        "unreadable": "無法讀取"
+      },
+      "usage": "{used} / {budget}",
+      "zoneSummary": "{count} 個項目，{used} / {budget}",
+      "noBudget": "無上限",
+      "lastPass": "上次維護：",
+      "lastPassPurged": "刪除 {count} 個",
+      "never": "尚未進行",
+      "verify": "檢查",
+      "verifying": "檢查中…",
+      "verifyOk": "每個磁碟區的資源回收筒皆一致。",
+      "verifyIssues": "發現 {count} 個問題",
+      "runMaintenance": "立即執行維護",
+      "running": "執行中…",
+      "events": {
+        "title": "紀錄",
+        "evicted": "為釋放空間，\"{name}\" 在保留期結束前被刪除",
+        "adopted": "中斷後已復原 \"{name}\"",
+        "lost": "\"{name}\" 的內容遺失",
+        "failed": "無法刪除 \"{name}\"",
+        "breaker": "同時遺失的項目過多：未做任何變更",
+        "forgotten": "管理員已忘記 \"{name}\"",
+        "versionEvicted": "為釋放空間移除了「{name}」的一個版本",
+        "versionFailed": "無法移除一個版本",
+        "versionLost": "一個版本的內容遺失",
+        "versionTooLarge": "「{name}」大於整個空間：被取代的內容未保留",
+        "versionsBreaker": "同時遺失的版本過多：未做任何變更"
+      },
+      "zoneVersions": "{count} 個版本，{size}",
+      "versions": {
+        "title": "檔案版本",
+        "subtitle": "每次儲存都會保留被取代的內容，不複製，存放在與資源回收筒相同的保留空間中。舊版本會隨時間逐步稀疏。",
+        "enabled": "保留檔案的先前版本",
+        "enabledHelp": "獨立於資源回收筒。關閉後儲存不再保留新內容；現有版本保留到過期或被刪除。",
+        "keepAllHours": "保留所有版本（小時）",
+        "hourlyDays": "之後每小時一個（天）",
+        "dailyDays": "之後每天一個（天）",
+        "maxPerFile": "每個檔案最多版本數",
+        "sessionCheckpointMinutes": "Office 檢查點（分鐘）",
+        "tiersHelp": "超過這些階段後，每週保留一個版本。一次 Office 編輯工作階段保留一個版本，檢查點不會比此間隔更頻繁。已釘選的版本不受稀疏與每檔案上限影響。",
+        "invalid": "請檢查數值：1–720 小時、每小時 1–365 天、每天 1–3650 天、每個檔案 1–1000 個版本、檢查點 1–1440 分鐘。",
+        "sharedSpace": "版本與資源回收筒共用每個磁碟區的保留空間。空間不足時，依序移除舊版本、資源回收筒項目、每個檔案的最新版本，最後才是已釘選的版本。",
+        "environmentNote": "預設值來自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "移除分享？",
     "deleteShareMessage": "擁有此連結的人將無法再存取分享的項目。"
+  },
+  "trash": {
+    "title": "資源回收筒",
+    "menu": "資源回收筒",
+    "subtitle": "項目會在刪除 {count} 天後被永久刪除。",
+    "empty": "資源回收筒是空的。",
+    "disabled": "資源回收筒已關閉：刪除會永久移除項目。這裡仍有的項目可以還原。",
+    "unavailable": "磁碟區無法使用",
+    "expiresToday": "今天",
+    "expiresIn": "{count} 天後",
+    "columns": {
+      "originalLocation": "原始位置",
+      "deletedBy": "刪除者",
+      "deletedAt": "刪除時間",
+      "expires": "永久刪除",
+      "modified": "修改時間"
+    },
+    "location": {
+      "personal": "個人資料夾",
+      "unknown": "未知"
+    },
+    "deletedBy": {
+      "you": "你",
+      "shareLink": "分享連結",
+      "unknown": "未知"
+    },
+    "actions": {
+      "restore": "還原",
+      "deletePermanently": "永久刪除",
+      "empty": "清空資源回收筒",
+      "openLocation": "開啟原始位置",
+      "selectAll": "全選",
+      "select": "選取 {name}",
+      "open": "開啟 {name}",
+      "restoreFolder": "還原整個資料夾",
+      "restoreTo": "還原到…"
+    },
+    "confirm": {
+      "deleteTitle": "永久刪除？",
+      "deleteMessage": "{count} 個項目將被永久刪除。此動作無法還原。",
+      "emptyTitle": "清空資源回收筒？",
+      "emptyMessage": "資源回收筒中的所有內容都將被永久刪除。此動作無法還原。"
+    },
+    "results": {
+      "restored": "已還原 {count} 個項目",
+      "restoredTo": "已還原到 {path}",
+      "renamed": "\"{name}\" 已還原為 \"{newName}\"：原名稱已被使用。",
+      "notRestored": "{count} 個項目無法還原",
+      "deleted": "已永久刪除 {count} 個項目",
+      "notDeleted": "{count} 個項目無法刪除",
+      "emptied": "資源回收筒已清空：刪除了 {count} 個項目",
+      "leftBehind": "{count} 個項目無法刪除，仍在資源回收筒中。"
+    },
+    "reasons": {
+      "forbidden": "你已無法寫入其原始位置。",
+      "blocked": "其資料夾的位置現在已被其他內容佔用。",
+      "unavailable": "其所在磁碟區無法使用。",
+      "busy": "它正在處理中。",
+      "lost": "其內容已消失。",
+      "notFound": "它已不在資源回收筒中。",
+      "unknown": "無法處理。",
+      "destinationForbidden": "你無法在該資料夾中建立項目。",
+      "invalidDestination": "該資料夾無法接收它。"
+    },
+    "errors": {
+      "load": "無法載入資源回收筒。",
+      "action": "資源回收筒無法執行此動作。",
+      "loadFolder": "無法開啟此資料夾。"
+    },
+    "browse": {
+      "breadcrumb": "資源回收筒中的位置",
+      "deletedFrom": "於 {date} 從 {location} 刪除",
+      "hint": "還原會將每個選取的項目放回此資料夾中的原位置，其餘內容仍留在資源回收筒。",
+      "empty": "此資料夾是空的。",
+      "back": "返回資源回收筒"
+    },
+    "contextMenu": {
+      "label": "{name} 的動作",
+      "labelMany": "{count} 個項目的動作",
+      "open": "開啟",
+      "preview": "預覽"
+    },
+    "shares": {
+      "badge": "已分享",
+      "badgeTitle": "{count} 個分享連結，在資源回收筒中時已停用",
+      "chooseTitle": "如何處理分享連結？",
+      "chooseMessage": "你要還原的內容有 {count} 個分享連結，自刪除起已失效。",
+      "chooseElsewhere": "恢復後，連結將指向新位置。",
+      "keep": "恢復分享連結",
+      "drop": "刪除分享連結",
+      "deleteNotice": "它們的分享連結也將永久刪除。",
+      "restored": "已恢復 {count} 個分享連結",
+      "dropped": "已刪除 {count} 個分享連結"
+    }
   }
 }

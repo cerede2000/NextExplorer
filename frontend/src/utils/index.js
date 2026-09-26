@@ -4,6 +4,14 @@ function formatDate(unixTimestamp) {
   return dayjs(unixTimestamp).format('YYYY-MM-DD HH:mm:ss');
 }
 
+/** A date and time as the reader's own machine writes them. */
+function formatLocalDateTime(dateString, fallback = '') {
+  if (!dateString) return fallback;
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+}
+
 function formatBytes(bytes, decimals) {
   if (bytes == 0) return '0 Bytes';
   var k = 1024,
@@ -23,4 +31,4 @@ function withViewTransition(func) {
   };
 }
 
-export { formatDate, formatBytes, withViewTransition };
+export { formatDate, formatLocalDateTime, formatBytes, withViewTransition };

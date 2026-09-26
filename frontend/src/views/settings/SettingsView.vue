@@ -11,6 +11,7 @@ import {
   BuildingOfficeIcon,
   PhotoIcon,
   KeyIcon,
+  TrashIcon,
   UsersIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline';
@@ -74,6 +75,12 @@ const adminCategories = [
     i18nKey: 'filesThumbnails',
     name: 'Files & Thumbnails',
     icon: PhotoIcon,
+  },
+  {
+    key: 'trash',
+    i18nKey: 'trash',
+    name: 'Trash',
+    icon: TrashIcon,
   },
   {
     key: 'access-control',

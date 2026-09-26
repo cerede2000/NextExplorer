@@ -5,6 +5,7 @@ import FavMenu from '@/components/FavMenu.vue';
 import VolMenu from '@/components/VolMenu.vue';
 import TerminalMenu from '@/components/TerminalMenu.vue';
 import SharesMenu from '@/components/SharesMenu.vue';
+import TrashMenu from '@/components/TrashMenu.vue';
 import UploadProgress from '@/components/UploadProgress.vue';
 import ClipboardProgress from '@/components/ClipboardProgress.vue';
 import UserMenu from '@/components/UserMenu.vue';
@@ -171,6 +172,7 @@ const handleGuestLogin = () => {
         <FavMenu v-if="!auth.isGuest && showSidebarFavorites" />
         <SharesMenu v-if="!auth.isGuest && showSidebarShares" />
         <VolMenu v-if="!auth.isGuest" />
+        <TrashMenu v-if="!auth.isGuest && featuresStore.trashEnabled" />
         <TerminalMenu v-if="featuresStore.terminalEnabled && showSidebarTools" />
       </div>
       <UserMenu v-if="!auth.isGuest" class="mt-auto -mx-4" />

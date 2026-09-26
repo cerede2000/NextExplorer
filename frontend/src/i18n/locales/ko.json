@@ -391,7 +391,8 @@
       "filesThumbnails": "파일/썸네일",
       "security": "보안",
       "accessControl": "접근 제어",
-      "adminUsers": "유저 관리"
+      "adminUsers": "유저 관리",
+      "trash": "휴지통 및 버전"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC 제공자",
       "oidcLinkedProfile": "연결된 프로필",
       "noOidcProfileMessage": "이 계정과 연결된 OIDC 프로필이 없습니다."
+    },
+    "trash": {
+      "title": "휴지통 및 버전",
+      "subtitle": "삭제된 항목과 파일의 이전 버전은 해당 볼륨의 예약 공간에 보관되며, 보존 기간이 끝나거나 공간이 필요할 때 제거됩니다.",
+      "enabled": "삭제한 항목을 휴지통으로 보내기",
+      "enabledHelp": "끄면 삭제 시 영구적으로 제거됩니다. 이미 휴지통에 있는 항목은 계속 만료됩니다.",
+      "retentionDays": "보관 기간(일)",
+      "retentionHelp": "1일부터 3650일까지.",
+      "maxPercent": "각 볼륨에서의 비율(%)",
+      "maxPercentHelp": "휴지통이 한 볼륨에서 차지할 수 있는 최대치, 1~90%.",
+      "maxSize": "볼륨당 크기 제한(GiB)",
+      "maxSizeHelp": "선택 사항. 비율과 제한 중 작은 값이 적용됩니다.",
+      "maxSizeNone": "제한 없음",
+      "invalid": "값을 확인하세요: 보관 기간 1~3650일, 비율 1~90%, 양수 크기 또는 비워 두기.",
+      "saveFailed": "설정을 저장할 수 없습니다.",
+      "environmentNote": "기본값은 TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT, TRASH_MAX_SIZE에서 가져옵니다.",
+      "zonesTitle": "볼륨별 휴지통",
+      "zonesSubtitle": "각 볼륨은 루트의 숨김 폴더 .nextexplorer에 휴지통을 두므로 삭제할 때 아무것도 복사하지 않습니다.",
+      "zonesEmpty": "아직 휴지통으로 삭제된 항목이 없습니다.",
+      "zonesFailed": "볼륨의 휴지통을 불러올 수 없습니다.",
+      "verifyFailed": "검사를 실행할 수 없습니다.",
+      "maintenanceFailed": "유지 관리를 실행할 수 없습니다.",
+      "zoneKind": {
+        "personal": "{name}의 개인 폴더",
+        "userVolume": "할당된 볼륨 {name}"
+      },
+      "available": "사용 가능",
+      "unavailable": {
+        "missing": "마운트되지 않았거나 제거됨",
+        "replaced": "다른 디스크로 교체됨",
+        "unreadable": "읽을 수 없음"
+      },
+      "usage": "{budget} 중 {used}",
+      "zoneSummary": "항목 {count}개, {budget} 중 {used}",
+      "noBudget": "제한 없음",
+      "lastPass": "마지막 유지 관리:",
+      "lastPassPurged": "{count}개 삭제됨",
+      "never": "아직 없음",
+      "verify": "검사",
+      "verifying": "검사 중…",
+      "verifyOk": "모든 볼륨의 휴지통이 일관됩니다.",
+      "verifyIssues": "문제 {count}개 발견",
+      "runMaintenance": "지금 유지 관리 실행",
+      "running": "실행 중…",
+      "events": {
+        "title": "기록",
+        "evicted": "공간 확보를 위해 보관 기간 전에 \"{name}\" 삭제됨",
+        "adopted": "중단 후 \"{name}\" 복구됨",
+        "lost": "\"{name}\"의 내용이 없었음",
+        "failed": "\"{name}\"을(를) 삭제할 수 없음",
+        "breaker": "한꺼번에 너무 많은 항목이 사라짐: 아무것도 변경하지 않음",
+        "forgotten": "관리자가 \"{name}\"을(를) 잊음",
+        "versionEvicted": "공간 확보를 위해 \"{name}\"의 버전을 제거했습니다",
+        "versionFailed": "버전을 제거하지 못했습니다",
+        "versionLost": "버전의 내용이 없었습니다",
+        "versionTooLarge": "\"{name}\"이(가) 전체 공간보다 커서 대체된 내용을 보관하지 않았습니다",
+        "versionsBreaker": "한꺼번에 너무 많은 버전이 사라져 아무것도 변경하지 않았습니다"
+      },
+      "zoneVersions": "버전 {count}개, {size}",
+      "versions": {
+        "title": "파일 버전",
+        "subtitle": "저장할 때마다 대체되는 내용을 복사 없이 휴지통과 같은 예약 공간에 보관합니다. 오래된 버전은 시간이 지나며 간격을 두고 정리됩니다.",
+        "enabled": "파일의 이전 버전 보관",
+        "enabledHelp": "휴지통과 별개로 동작합니다. 끄면 저장해도 새로 보관되지 않으며, 기존 버전은 만료되거나 삭제될 때까지 남습니다.",
+        "keepAllHours": "모든 버전 보관 (시간)",
+        "hourlyDays": "이후 시간당 하나 (일)",
+        "dailyDays": "이후 하루에 하나 (일)",
+        "maxPerFile": "파일당 최대 버전 수",
+        "sessionCheckpointMinutes": "오피스 체크포인트 (분)",
+        "tiersHelp": "이 단계 이후에는 주당 하나의 버전이 보관됩니다. 오피스 편집 세션은 하나의 버전을 남기며, 이 간격보다 자주 체크포인트를 만들지 않습니다. 고정된 버전은 간격 정리와 파일당 한도에서 제외됩니다.",
+        "invalid": "값을 확인하세요: 1~720시간, 시간 단위 1~365일, 일 단위 1~3650일, 파일당 1~1000개 버전, 체크포인트 1~1440분.",
+        "sharedSpace": "버전과 휴지통은 각 볼륨의 예약 공간을 함께 사용합니다. 공간이 부족하면 오래된 버전, 휴지통 항목, 각 파일의 최신 버전 순으로 제거되며 고정된 버전은 마지막에 제거됩니다.",
+        "environmentNote": "기본값은 VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE, VERSIONS_SESSION_CHECKPOINT_MINUTES에서 가져옵니다."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "공유를 제거할까요?",
     "deleteShareMessage": "이 링크가 있는 사용자는 더 이상 공유 항목에 접근할 수 없습니다."
+  },
+  "trash": {
+    "title": "휴지통",
+    "menu": "휴지통",
+    "subtitle": "항목은 삭제 후 {count}일이 지나면 영구 삭제됩니다.",
+    "empty": "휴지통이 비어 있습니다.",
+    "disabled": "휴지통이 꺼져 있습니다. 삭제하면 영구적으로 제거됩니다. 여기에 남은 항목은 복원할 수 있습니다.",
+    "unavailable": "볼륨을 사용할 수 없음",
+    "expiresToday": "오늘",
+    "expiresIn": "{count}일 후",
+    "columns": {
+      "originalLocation": "원래 위치",
+      "deletedBy": "삭제한 사람",
+      "deletedAt": "삭제한 날짜",
+      "expires": "영구 삭제",
+      "modified": "수정한 날짜"
+    },
+    "location": {
+      "personal": "개인 폴더",
+      "unknown": "알 수 없음"
+    },
+    "deletedBy": {
+      "you": "나",
+      "shareLink": "공유 링크",
+      "unknown": "알 수 없음"
+    },
+    "actions": {
+      "restore": "복원",
+      "deletePermanently": "영구 삭제",
+      "empty": "휴지통 비우기",
+      "openLocation": "원래 위치 열기",
+      "selectAll": "모두 선택",
+      "select": "{name} 선택",
+      "open": "{name} 열기",
+      "restoreFolder": "폴더 전체 복원",
+      "restoreTo": "다른 위치에 복원…"
+    },
+    "confirm": {
+      "deleteTitle": "영구 삭제하시겠습니까?",
+      "deleteMessage": "항목 {count}개가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "emptyTitle": "휴지통을 비우시겠습니까?",
+      "emptyMessage": "휴지통의 모든 항목이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
+    },
+    "results": {
+      "restored": "항목 {count}개 복원됨",
+      "restoredTo": "{path}에 복원됨",
+      "renamed": "\"{name}\"은(는) 이름이 이미 사용 중이어서 \"{newName}\"(으)로 복원되었습니다.",
+      "notRestored": "항목 {count}개를 복원할 수 없음",
+      "deleted": "항목 {count}개 영구 삭제됨",
+      "notDeleted": "항목 {count}개를 삭제할 수 없음",
+      "emptied": "휴지통을 비웠습니다: 항목 {count}개 삭제됨",
+      "leftBehind": "항목 {count}개를 삭제할 수 없어 아직 남아 있습니다."
+    },
+    "reasons": {
+      "forbidden": "원래 위치에 더 이상 쓸 수 없습니다.",
+      "blocked": "원래 폴더 자리에 이제 다른 것이 있습니다.",
+      "unavailable": "볼륨을 사용할 수 없습니다.",
+      "busy": "이미 처리 중입니다.",
+      "lost": "내용이 사라졌습니다.",
+      "notFound": "더 이상 휴지통에 없습니다.",
+      "unknown": "처리할 수 없습니다.",
+      "destinationForbidden": "그 폴더에 항목을 만들 수 없습니다.",
+      "invalidDestination": "그 폴더로는 옮길 수 없습니다."
+    },
+    "errors": {
+      "load": "휴지통을 불러올 수 없습니다.",
+      "action": "휴지통에서 해당 작업을 수행할 수 없습니다.",
+      "loadFolder": "이 폴더를 열 수 없습니다."
+    },
+    "browse": {
+      "breadcrumb": "휴지통 내 위치",
+      "deletedFrom": "{date}에 {location}에서 삭제됨",
+      "hint": "복원하면 선택한 항목이 이 폴더 안의 원래 자리로 돌아갑니다. 나머지는 휴지통에 남습니다.",
+      "empty": "이 폴더는 비어 있습니다.",
+      "back": "휴지통으로 돌아가기"
+    },
+    "contextMenu": {
+      "label": "{name} 작업",
+      "labelMany": "항목 {count}개 작업",
+      "open": "열기",
+      "preview": "미리 보기"
+    },
+    "shares": {
+      "badge": "공유됨",
+      "badgeTitle": "공유 링크 {count}개, 휴지통에 있는 동안 꺼짐",
+      "chooseTitle": "공유 링크는 어떻게 할까요?",
+      "chooseMessage": "복원하는 항목에 공유 링크 {count}개가 있었습니다. 삭제된 뒤로 작동하지 않습니다.",
+      "chooseElsewhere": "되살리면 새 위치를 가리킵니다.",
+      "keep": "공유 링크 복원",
+      "drop": "공유 링크 삭제",
+      "deleteNotice": "공유 링크도 함께 영구적으로 삭제됩니다.",
+      "restored": "공유 링크 {count}개를 되살렸습니다",
+      "dropped": "공유 링크 {count}개를 삭제했습니다"
+    }
   }
 }

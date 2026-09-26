@@ -391,7 +391,8 @@
       "filesThumbnails": "Dateien & Miniaturansichten",
       "security": "Sicherheit",
       "accessControl": "Zugriffskontrolle",
-      "adminUsers": "Benutzerverwaltung"
+      "adminUsers": "Benutzerverwaltung",
+      "trash": "Papierkorb und Versionen"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Papierkorb und Versionen",
+      "subtitle": "Gelöschte Elemente und frühere Dateiversionen werden in einem reservierten Bereich auf ihrem eigenen Volume aufbewahrt und nach ihrer Aufbewahrungsfrist oder bei Platzbedarf entfernt.",
+      "enabled": "Gelöschte Elemente in den Papierkorb verschieben",
+      "enabledHelp": "Ausgeschaltet entfernt Löschen Elemente endgültig. Elemente im Papierkorb laufen trotzdem ab.",
+      "retentionDays": "Aufbewahrung (Tage)",
+      "retentionHelp": "Von 1 bis 3650 Tage.",
+      "maxPercent": "Anteil je Volume (%)",
+      "maxPercentHelp": "Höchstens so viel darf der Papierkorb auf einem Volume belegen, von 1 bis 90 %.",
+      "maxSize": "Größenlimit je Volume (GiB)",
+      "maxSizeHelp": "Optional. Es gilt der kleinere Wert von Anteil und Limit.",
+      "maxSizeNone": "Kein Limit",
+      "invalid": "Prüfen Sie die Werte: Aufbewahrung 1 bis 3650 Tage, Anteil 1 bis 90 %, eine positive Größe oder keine.",
+      "saveFailed": "Die Einstellungen konnten nicht gespeichert werden.",
+      "environmentNote": "Die Standardwerte stammen aus TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT und TRASH_MAX_SIZE.",
+      "zonesTitle": "Papierkorb je Volume",
+      "zonesSubtitle": "Jedes Volume bewahrt seinen Papierkorb in einem versteckten Ordner .nextexplorer an seiner Wurzel auf, daher kopiert Löschen nie etwas.",
+      "zonesEmpty": "Noch wurde nichts in einen Papierkorb gelöscht.",
+      "zonesFailed": "Der Papierkorb der Volumes konnte nicht geladen werden.",
+      "verifyFailed": "Die Prüfung konnte nicht ausgeführt werden.",
+      "maintenanceFailed": "Die Wartung konnte nicht ausgeführt werden.",
+      "zoneKind": {
+        "personal": "Persönlicher Ordner von {name}",
+        "userVolume": "Zugewiesenes Volume {name}"
+      },
+      "available": "Verfügbar",
+      "unavailable": {
+        "missing": "Nicht eingehängt oder entfernt",
+        "replaced": "Ein anderer Datenträger an seiner Stelle",
+        "unreadable": "Nicht lesbar"
+      },
+      "usage": "{used} von {budget}",
+      "zoneSummary": "{count} Element, {used} von {budget} | {count} Elemente, {used} von {budget}",
+      "noBudget": "ohne Limit",
+      "lastPass": "Letzte Wartung:",
+      "lastPassPurged": "{count} entfernt | {count} entfernt",
+      "never": "noch nicht",
+      "verify": "Prüfen",
+      "verifying": "Wird geprüft…",
+      "verifyOk": "Der Papierkorb jedes Volumes ist konsistent.",
+      "verifyIssues": "{count} Problem gefunden | {count} Probleme gefunden",
+      "runMaintenance": "Wartung jetzt ausführen",
+      "running": "Läuft…",
+      "events": {
+        "title": "Protokoll",
+        "evicted": "\"{name}\" vor Ablauf der Aufbewahrung entfernt, um Platz zu schaffen",
+        "adopted": "\"{name}\" nach einer Unterbrechung wiederhergestellt",
+        "lost": "Der Inhalt von \"{name}\" fehlte",
+        "failed": "\"{name}\" konnte nicht entfernt werden",
+        "breaker": "Zu viele Elemente fehlten auf einmal: nichts wurde geändert",
+        "forgotten": "\"{name}\" von einem Administrator vergessen",
+        "versionEvicted": "Eine Version von „{name}“ entfernt, um Platz zu schaffen",
+        "versionFailed": "Eine Version konnte nicht entfernt werden",
+        "versionLost": "Einer Version fehlte ihr Inhalt",
+        "versionTooLarge": "„{name}“ ist größer als der ganze Bereich: Was es ersetzte, wurde nicht behalten",
+        "versionsBreaker": "Zu viele Versionen fehlen auf einmal: Nichts wurde geändert"
+      },
+      "zoneVersions": "{count} Version, {size} | {count} Versionen, {size}",
+      "versions": {
+        "title": "Dateiversionen",
+        "subtitle": "Jedes Speichern behält, was es ersetzt, ohne es zu kopieren, im selben reservierten Bereich wie der Papierkorb. Ältere Versionen werden mit der Zeit ausgedünnt.",
+        "enabled": "Frühere Versionen von Dateien behalten",
+        "enabledHelp": "Unabhängig vom Papierkorb. Ausgeschaltet wird beim Speichern nichts Neues behalten; vorhandene Versionen bleiben bis zu ihrem Ablauf oder ihrer Löschung.",
+        "keepAllHours": "Alle Versionen behalten (Stunden)",
+        "hourlyDays": "Dann eine pro Stunde (Tage)",
+        "dailyDays": "Dann eine pro Tag (Tage)",
+        "maxPerFile": "Höchstens Versionen pro Datei",
+        "sessionCheckpointMinutes": "Office-Zwischenstand (Minuten)",
+        "tiersHelp": "Nach diesen Stufen wird eine Version pro Woche behalten. Eine Office-Bearbeitungssitzung hinterlässt eine Version, dazu höchstens in diesem Abstand einen Zwischenstand. Angeheftete Versionen sind von der Ausdünnung und der Grenze pro Datei ausgenommen.",
+        "invalid": "Prüfen Sie die Werte: 1 bis 720 Stunden, 1 bis 365 Tage stündlich, 1 bis 3650 Tage täglich, 1 bis 1000 Versionen pro Datei, ein Zwischenstand von 1 bis 1440 Minuten.",
+        "sharedSpace": "Versionen und Papierkorb teilen sich den reservierten Bereich jedes Volumes. Wird er knapp, gehen zuerst ältere Versionen, dann Papierkorbelemente, dann die letzte Version jeder Datei und zuletzt angeheftete Versionen.",
+        "environmentNote": "Standardwerte stammen aus VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE und VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "Freigabe entfernen?",
     "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen."
+  },
+  "trash": {
+    "title": "Papierkorb",
+    "menu": "Papierkorb",
+    "subtitle": "Elemente werden {count} Tag nach dem Löschen endgültig entfernt. | Elemente werden {count} Tage nach dem Löschen endgültig entfernt.",
+    "empty": "Der Papierkorb ist leer.",
+    "disabled": "Der Papierkorb ist ausgeschaltet: Löschen entfernt Elemente endgültig. Was noch hier ist, kann wiederhergestellt werden.",
+    "unavailable": "Volume nicht verfügbar",
+    "expiresToday": "Heute",
+    "expiresIn": "In {count} Tag | In {count} Tagen",
+    "columns": {
+      "originalLocation": "Ursprünglicher Ort",
+      "deletedBy": "Gelöscht von",
+      "deletedAt": "Gelöscht am",
+      "expires": "Entfernung",
+      "modified": "Geändert"
+    },
+    "location": {
+      "personal": "Persönlicher Ordner",
+      "unknown": "Unbekannt"
+    },
+    "deletedBy": {
+      "you": "Sie",
+      "shareLink": "Freigabelink",
+      "unknown": "Unbekannt"
+    },
+    "actions": {
+      "restore": "Wiederherstellen",
+      "deletePermanently": "Endgültig löschen",
+      "empty": "Papierkorb leeren",
+      "openLocation": "Ursprünglichen Ort öffnen",
+      "selectAll": "Alle auswählen",
+      "select": "{name} auswählen",
+      "open": "{name} öffnen",
+      "restoreFolder": "Ganzen Ordner wiederherstellen",
+      "restoreTo": "Wiederherstellen nach…"
+    },
+    "confirm": {
+      "deleteTitle": "Endgültig löschen?",
+      "deleteMessage": "Dieses Element wird endgültig entfernt. Das kann nicht rückgängig gemacht werden. | Diese {count} Elemente werden endgültig entfernt. Das kann nicht rückgängig gemacht werden.",
+      "emptyTitle": "Papierkorb leeren?",
+      "emptyMessage": "Alles in Ihrem Papierkorb wird endgültig entfernt. Das kann nicht rückgängig gemacht werden."
+    },
+    "results": {
+      "restored": "{count} Element wiederhergestellt | {count} Elemente wiederhergestellt",
+      "restoredTo": "Wiederhergestellt in {path}",
+      "renamed": "\"{name}\" wurde als \"{newName}\" wiederhergestellt: Der Name war vergeben.",
+      "notRestored": "{count} Element konnte nicht wiederhergestellt werden | {count} Elemente konnten nicht wiederhergestellt werden",
+      "deleted": "{count} Element endgültig gelöscht | {count} Elemente endgültig gelöscht",
+      "notDeleted": "{count} Element konnte nicht gelöscht werden | {count} Elemente konnten nicht gelöscht werden",
+      "emptied": "Papierkorb geleert: {count} Element entfernt | Papierkorb geleert: {count} Elemente entfernt",
+      "leftBehind": "{count} Element konnte nicht entfernt werden und ist noch da. | {count} Elemente konnten nicht entfernt werden und sind noch da."
+    },
+    "reasons": {
+      "forbidden": "Sie können an seinem Ort nicht mehr schreiben.",
+      "blocked": "an der Stelle seines Ordners steht jetzt etwas anderes.",
+      "unavailable": "sein Volume ist nicht verfügbar.",
+      "busy": "es wird bereits bearbeitet.",
+      "lost": "sein Inhalt war verschwunden.",
+      "notFound": "es ist nicht mehr im Papierkorb.",
+      "unknown": "es konnte nicht bearbeitet werden.",
+      "destinationForbidden": "Sie dürfen in diesem Ordner nichts anlegen.",
+      "invalidDestination": "dieser Ordner kann es nicht aufnehmen."
+    },
+    "errors": {
+      "load": "Der Papierkorb konnte nicht geladen werden.",
+      "action": "Der Papierkorb konnte das nicht ausführen.",
+      "loadFolder": "Dieser Ordner konnte nicht geöffnet werden."
+    },
+    "browse": {
+      "breadcrumb": "Position im Papierkorb",
+      "deletedFrom": "Gelöscht aus {location} am {date}",
+      "hint": "Wiederherstellen legt jedes ausgewählte Element an seinen Platz in diesem Ordner zurück. Der Rest bleibt im Papierkorb.",
+      "empty": "Dieser Ordner ist leer.",
+      "back": "Zurück zum Papierkorb"
+    },
+    "contextMenu": {
+      "label": "Aktionen für {name}",
+      "labelMany": "Aktionen für {count} Elemente",
+      "open": "Öffnen",
+      "preview": "Vorschau"
+    },
+    "shares": {
+      "badge": "Freigegeben",
+      "badgeTitle": "{count} Freigabelink, im Papierkorb deaktiviert | {count} Freigabelinks, im Papierkorb deaktiviert",
+      "chooseTitle": "Was geschieht mit den Freigabelinks?",
+      "chooseMessage": "Zu dem, was Sie wiederherstellen, gehörte {count} Freigabelink. Er funktioniert seit dem Löschen nicht mehr. | Zu dem, was Sie wiederherstellen, gehörten {count} Freigabelinks. Sie funktionieren seit dem Löschen nicht mehr.",
+      "chooseElsewhere": "Zurückgeholt zeigen sie auf den neuen Ort.",
+      "keep": "Freigabelinks wiederherstellen",
+      "drop": "Freigabelinks löschen",
+      "deleteNotice": "Ihre Freigabelinks werden ebenfalls endgültig gelöscht.",
+      "restored": "{count} Freigabelink wiederhergestellt | {count} Freigabelinks wiederhergestellt",
+      "dropped": "{count} Freigabelink gelöscht | {count} Freigabelinks gelöscht"
+    }
   }
 }

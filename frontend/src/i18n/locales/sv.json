@@ -391,7 +391,8 @@
       "filesThumbnails": "Filer och miniatyrbilder",
       "security": "Säkerhet",
       "accessControl": "Åtkomstkontroll",
-      "adminUsers": "Användarhantering"
+      "adminUsers": "Användarhantering",
+      "trash": "Papperskorg och versioner"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Papperskorg och versioner",
+      "subtitle": "Borttagna objekt och tidigare versioner av filer sparas i ett reserverat utrymme på sin egen volym och tas bort efter lagringstiden eller när utrymmet behövs.",
+      "enabled": "Flytta raderade objekt till papperskorgen",
+      "enabledHelp": "Avstängd tar radering bort permanent. Objekt som redan ligger i papperskorgen löper fortfarande ut.",
+      "retentionDays": "Lagringstid (dagar)",
+      "retentionHelp": "Från 1 till 3650 dagar.",
+      "maxPercent": "Andel av varje volym (%)",
+      "maxPercentHelp": "Det mesta papperskorgen får ta på en volym, från 1 till 90 %.",
+      "maxSize": "Storleksgräns per volym (GiB)",
+      "maxSizeHelp": "Valfritt. Det minsta av andelen och gränsen gäller.",
+      "maxSizeNone": "Ingen gräns",
+      "invalid": "Kontrollera värdena: lagringstid 1 till 3650 dagar, andel 1 till 90 %, en positiv storlek eller ingen.",
+      "saveFailed": "Inställningarna kunde inte sparas.",
+      "environmentNote": "Standardvärdena kommer från TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT och TRASH_MAX_SIZE.",
+      "zonesTitle": "Papperskorg per volym",
+      "zonesSubtitle": "Varje volym har sin papperskorg i en dold mapp .nextexplorer i roten, så radering kopierar aldrig något.",
+      "zonesEmpty": "Inget har raderats till en papperskorg ännu.",
+      "zonesFailed": "Volymernas papperskorg kunde inte läsas in.",
+      "verifyFailed": "Kontrollen kunde inte köras.",
+      "maintenanceFailed": "Underhållet kunde inte köras.",
+      "zoneKind": {
+        "personal": "Personlig mapp för {name}",
+        "userVolume": "Tilldelad volym {name}"
+      },
+      "available": "Tillgänglig",
+      "unavailable": {
+        "missing": "Inte monterad eller borttagen",
+        "replaced": "En annan disk på dess plats",
+        "unreadable": "Oläsbar"
+      },
+      "usage": "{used} av {budget}",
+      "zoneSummary": "{count} objekt, {used} av {budget} | {count} objekt, {used} av {budget}",
+      "noBudget": "ingen gräns",
+      "lastPass": "Senaste underhåll:",
+      "lastPassPurged": "{count} borttaget | {count} borttagna",
+      "never": "inte ännu",
+      "verify": "Kontrollera",
+      "verifying": "Kontrollerar…",
+      "verifyOk": "Varje volyms papperskorg är konsekvent.",
+      "verifyIssues": "{count} problem hittat | {count} problem hittade",
+      "runMaintenance": "Kör underhåll nu",
+      "running": "Pågår…",
+      "events": {
+        "title": "Logg",
+        "evicted": "\"{name}\" togs bort före lagringstidens slut för att frigöra utrymme",
+        "adopted": "\"{name}\" återhämtades efter ett avbrott",
+        "lost": "Innehållet i \"{name}\" saknades",
+        "failed": "\"{name}\" kunde inte tas bort",
+        "breaker": "För många objekt saknades på en gång: inget ändrades",
+        "forgotten": "\"{name}\" glömdes av en administratör",
+        "versionEvicted": "En version av ”{name}” togs bort för att frigöra utrymme",
+        "versionFailed": "En version kunde inte tas bort",
+        "versionLost": "En version saknade sitt innehåll",
+        "versionTooLarge": "”{name}” är större än hela utrymmet: det den ersatte behölls inte",
+        "versionsBreaker": "För många versioner saknas samtidigt: inget ändrades"
+      },
+      "zoneVersions": "{count} version, {size} | {count} versioner, {size}",
+      "versions": {
+        "title": "Filversioner",
+        "subtitle": "Varje sparning behåller det den ersätter, utan att kopiera, i samma reserverade utrymme som papperskorgen. Äldre versioner glesas ut med tiden.",
+        "enabled": "Behåll tidigare versioner av filer",
+        "enabledHelp": "Oberoende av papperskorgen. Avstängt behåller sparningar inget nytt; befintliga versioner finns kvar tills de löper ut eller tas bort.",
+        "keepAllHours": "Behåll alla versioner (timmar)",
+        "hourlyDays": "Sedan en per timme (dagar)",
+        "dailyDays": "Sedan en per dag (dagar)",
+        "maxPerFile": "Högst antal versioner per fil",
+        "sessionCheckpointMinutes": "Kontrollpunkt för Office (minuter)",
+        "tiersHelp": "Efter dessa nivåer behålls en version per vecka. En redigeringssession i Office lämnar en version, plus högst en kontrollpunkt med detta intervall. Fästa versioner undantas från utglesningen och gränsen per fil.",
+        "invalid": "Kontrollera värdena: 1–720 timmar, 1–365 dagar per timme, 1–3650 dagar per dag, 1–1000 versioner per fil, en kontrollpunkt på 1–1440 minuter.",
+        "sharedSpace": "Versioner och papperskorgen delar varje volyms reserverade utrymme. När det inte räcker försvinner först äldre versioner, sedan objekt i papperskorgen, sedan varje fils senaste version och sist fästa versioner.",
+        "environmentNote": "Standardvärden kommer från VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE och VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "Ta bort delning?",
     "deleteShareMessage": "Personer med den här länken kommer inte längre åt det delade objektet."
+  },
+  "trash": {
+    "title": "Papperskorg",
+    "menu": "Papperskorg",
+    "subtitle": "Objekt tas bort permanent {count} dag efter att de raderats. | Objekt tas bort permanent {count} dagar efter att de raderats.",
+    "empty": "Papperskorgen är tom.",
+    "disabled": "Papperskorgen är avstängd: radering tar bort permanent. Det som fortfarande finns här kan återställas.",
+    "unavailable": "Volymen är inte tillgänglig",
+    "expiresToday": "I dag",
+    "expiresIn": "Om {count} dag | Om {count} dagar",
+    "columns": {
+      "originalLocation": "Ursprunglig plats",
+      "deletedBy": "Raderad av",
+      "deletedAt": "Raderad",
+      "expires": "Tas bort",
+      "modified": "Ändrad"
+    },
+    "location": {
+      "personal": "Personlig mapp",
+      "unknown": "Okänd"
+    },
+    "deletedBy": {
+      "you": "Du",
+      "shareLink": "Delningslänk",
+      "unknown": "Okänd"
+    },
+    "actions": {
+      "restore": "Återställ",
+      "deletePermanently": "Radera permanent",
+      "empty": "Töm papperskorgen",
+      "openLocation": "Öppna ursprunglig plats",
+      "selectAll": "Markera alla",
+      "select": "Markera {name}",
+      "open": "Öppna {name}",
+      "restoreFolder": "Återställ hela mappen",
+      "restoreTo": "Återställ till…"
+    },
+    "confirm": {
+      "deleteTitle": "Radera permanent?",
+      "deleteMessage": "Det här objektet tas bort permanent. Åtgärden går inte att ångra. | Dessa {count} objekt tas bort permanent. Åtgärden går inte att ångra.",
+      "emptyTitle": "Töm papperskorgen?",
+      "emptyMessage": "Allt i din papperskorg tas bort permanent. Åtgärden går inte att ångra."
+    },
+    "results": {
+      "restored": "{count} objekt återställt | {count} objekt återställda",
+      "restoredTo": "Återställt till {path}",
+      "renamed": "\"{name}\" återställdes som \"{newName}\": namnet var upptaget.",
+      "notRestored": "{count} objekt kunde inte återställas | {count} objekt kunde inte återställas",
+      "deleted": "{count} objekt raderat permanent | {count} objekt raderade permanent",
+      "notDeleted": "{count} objekt kunde inte raderas | {count} objekt kunde inte raderas",
+      "emptied": "Papperskorgen tömd: {count} objekt borttaget | Papperskorgen tömd: {count} objekt borttagna",
+      "leftBehind": "{count} objekt kunde inte tas bort och finns kvar. | {count} objekt kunde inte tas bort och finns kvar."
+    },
+    "reasons": {
+      "forbidden": "du kan inte längre skriva där det låg.",
+      "blocked": "något står nu där dess mapp låg.",
+      "unavailable": "dess volym är inte tillgänglig.",
+      "busy": "det hanteras redan.",
+      "lost": "dess innehåll hade försvunnit.",
+      "notFound": "det finns inte längre i papperskorgen.",
+      "unknown": "det kunde inte hanteras.",
+      "destinationForbidden": "du kan inte skapa objekt i den mappen.",
+      "invalidDestination": "den mappen kan inte ta emot det."
+    },
+    "errors": {
+      "load": "Papperskorgen kunde inte läsas in.",
+      "action": "Papperskorgen kunde inte göra det.",
+      "loadFolder": "Mappen kunde inte öppnas."
+    },
+    "browse": {
+      "breadcrumb": "Plats i papperskorgen",
+      "deletedFrom": "Raderad från {location} {date}",
+      "hint": "Återställ lägger tillbaka varje markerat objekt på sin plats i den här mappen. Resten ligger kvar i papperskorgen.",
+      "empty": "Den här mappen är tom.",
+      "back": "Tillbaka till papperskorgen"
+    },
+    "contextMenu": {
+      "label": "Åtgärder för {name}",
+      "labelMany": "Åtgärder för {count} objekt",
+      "open": "Öppna",
+      "preview": "Förhandsgranska"
+    },
+    "shares": {
+      "badge": "Delad",
+      "badgeTitle": "{count} delningslänk, avstängd medan den ligger i papperskorgen | {count} delningslänkar, avstängda medan de ligger i papperskorgen",
+      "chooseTitle": "Vad ska hända med delningslänkarna?",
+      "chooseMessage": "{count} delningslänk hörde till det du återställer. Den har inte fungerat sedan borttagningen. | {count} delningslänkar hörde till det du återställer. De har inte fungerat sedan borttagningen.",
+      "chooseElsewhere": "Återställda pekar de på den nya platsen.",
+      "keep": "Återställ delningslänkarna",
+      "drop": "Ta bort delningslänkarna",
+      "deleteNotice": "Deras delningslänkar tas också bort permanent.",
+      "restored": "{count} delningslänk återställd | {count} delningslänkar återställda",
+      "dropped": "{count} delningslänk borttagen | {count} delningslänkar borttagna"
+    }
   }
 }

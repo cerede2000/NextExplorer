@@ -391,7 +391,8 @@
       "filesThumbnails": "File e miniature",
       "security": "Sicurezza",
       "accessControl": "Controllo accessi",
-      "adminUsers": "Gestione utenti"
+      "adminUsers": "Gestione utenti",
+      "trash": "Cestino e versioni"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -540,6 +541,80 @@
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
       "noOidcProfileMessage": "No OIDC profiles linked to this account."
+    },
+    "trash": {
+      "title": "Cestino e versioni",
+      "subtitle": "Gli elementi eliminati e le versioni precedenti dei file sono conservati in uno spazio riservato sul loro volume e rimossi alla fine della conservazione o quando serve spazio.",
+      "enabled": "Sposta gli elementi eliminati nel cestino",
+      "enabledHelp": "Se disattivato, eliminare cancella definitivamente. Gli elementi già nel cestino scadono comunque.",
+      "retentionDays": "Conservazione (giorni)",
+      "retentionHelp": "Da 1 a 3650 giorni.",
+      "maxPercent": "Quota di ogni volume (%)",
+      "maxPercentHelp": "Il massimo che il cestino può occupare su un volume, da 1 a 90 %.",
+      "maxSize": "Limite di dimensione per volume (GiB)",
+      "maxSizeHelp": "Facoltativo. Si applica il minore tra quota e limite.",
+      "maxSizeNone": "Nessun limite",
+      "invalid": "Controlla i valori: conservazione da 1 a 3650 giorni, quota da 1 a 90 %, una dimensione positiva o nessuna.",
+      "saveFailed": "Impossibile salvare le impostazioni.",
+      "environmentNote": "I valori predefiniti provengono da TRASH_ENABLED, TRASH_RETENTION_DAYS, TRASH_MAX_PERCENT e TRASH_MAX_SIZE.",
+      "zonesTitle": "Cestino per volume",
+      "zonesSubtitle": "Ogni volume tiene il suo cestino in una cartella nascosta .nextexplorer nella sua radice, quindi eliminare non copia mai nulla.",
+      "zonesEmpty": "Non è ancora stato eliminato nulla in un cestino.",
+      "zonesFailed": "Impossibile caricare il cestino dei volumi.",
+      "verifyFailed": "Impossibile eseguire la verifica.",
+      "maintenanceFailed": "Impossibile eseguire la manutenzione.",
+      "zoneKind": {
+        "personal": "Cartella personale di {name}",
+        "userVolume": "Volume assegnato {name}"
+      },
+      "available": "Disponibile",
+      "unavailable": {
+        "missing": "Non montato o rimosso",
+        "replaced": "Un altro disco al suo posto",
+        "unreadable": "Illeggibile"
+      },
+      "usage": "{used} su {budget}",
+      "zoneSummary": "{count} elemento, {used} su {budget} | {count} elementi, {used} su {budget}",
+      "noBudget": "nessun limite",
+      "lastPass": "Ultima manutenzione:",
+      "lastPassPurged": "{count} eliminato | {count} eliminati",
+      "never": "non ancora",
+      "verify": "Verifica",
+      "verifying": "Verifica in corso…",
+      "verifyOk": "Il cestino di ogni volume è coerente.",
+      "verifyIssues": "{count} problema trovato | {count} problemi trovati",
+      "runMaintenance": "Esegui la manutenzione ora",
+      "running": "In corso…",
+      "events": {
+        "title": "Registro",
+        "evicted": "\"{name}\" eliminato prima della fine della conservazione per liberare spazio",
+        "adopted": "\"{name}\" recuperato dopo un'interruzione",
+        "lost": "Il contenuto di \"{name}\" mancava",
+        "failed": "\"{name}\" non è stato eliminato",
+        "breaker": "Troppi elementi mancanti in una volta: nulla è stato modificato",
+        "forgotten": "\"{name}\" dimenticato da un amministratore",
+        "versionEvicted": "Una versione di «{name}» rimossa per liberare spazio",
+        "versionFailed": "Impossibile rimuovere una versione",
+        "versionLost": "Mancava il contenuto di una versione",
+        "versionTooLarge": "«{name}» supera l'intero spazio: ciò che sostituiva non è stato conservato",
+        "versionsBreaker": "Troppe versioni mancanti insieme: non è stato modificato nulla"
+      },
+      "zoneVersions": "{count} versione, {size} | {count} versioni, {size}",
+      "versions": {
+        "title": "Versioni dei file",
+        "subtitle": "Ogni salvataggio conserva ciò che sostituisce, senza copiarlo, nello stesso spazio riservato del cestino. Le versioni più vecchie vengono diradate nel tempo.",
+        "enabled": "Conserva le versioni precedenti dei file",
+        "enabledHelp": "Indipendente dal cestino. Se disattivato, i salvataggi non conservano nulla di nuovo; le versioni esistenti restano fino alla scadenza o all'eliminazione.",
+        "keepAllHours": "Conserva tutte le versioni (ore)",
+        "hourlyDays": "Poi una all'ora (giorni)",
+        "dailyDays": "Poi una al giorno (giorni)",
+        "maxPerFile": "Versioni per file al massimo",
+        "sessionCheckpointMinutes": "Punto di controllo office (minuti)",
+        "tiersHelp": "Dopo queste fasce si conserva una versione a settimana. Una sessione di modifica office lascia una versione, più un punto di controllo al massimo con questa frequenza. Le versioni fissate sfuggono al diradamento e al limite per file.",
+        "invalid": "Controlla i valori: da 1 a 720 ore, da 1 a 365 giorni orari, da 1 a 3650 giorni giornalieri, da 1 a 1000 versioni per file, un punto di controllo da 1 a 1440 minuti.",
+        "sharedSpace": "Le versioni e il cestino condividono lo spazio riservato di ogni volume. Quando scarseggia, se ne vanno prima le versioni vecchie, poi gli elementi del cestino, poi l'ultima versione di ogni file e infine le versioni fissate.",
+        "environmentNote": "I valori predefiniti provengono da VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
+      }
     }
   },
   "mediaPreview": {
@@ -632,5 +707,99 @@
     },
     "deleteShareTitle": "Rimuovere la condivisione?",
     "deleteShareMessage": "Le persone con questo link non potranno più accedere all’elemento condiviso."
+  },
+  "trash": {
+    "title": "Cestino",
+    "menu": "Cestino",
+    "subtitle": "Gli elementi vengono eliminati definitivamente {count} giorno dopo la cancellazione. | Gli elementi vengono eliminati definitivamente {count} giorni dopo la cancellazione.",
+    "empty": "Il cestino è vuoto.",
+    "disabled": "Il cestino è disattivato: eliminare cancella definitivamente. Ciò che è ancora qui può essere ripristinato.",
+    "unavailable": "Volume non disponibile",
+    "expiresToday": "Oggi",
+    "expiresIn": "Tra {count} giorno | Tra {count} giorni",
+    "columns": {
+      "originalLocation": "Posizione originale",
+      "deletedBy": "Eliminato da",
+      "deletedAt": "Eliminato il",
+      "expires": "Rimozione",
+      "modified": "Modificato"
+    },
+    "location": {
+      "personal": "Cartella personale",
+      "unknown": "Sconosciuta"
+    },
+    "deletedBy": {
+      "you": "Tu",
+      "shareLink": "Link di condivisione",
+      "unknown": "Sconosciuto"
+    },
+    "actions": {
+      "restore": "Ripristina",
+      "deletePermanently": "Elimina definitivamente",
+      "empty": "Svuota cestino",
+      "openLocation": "Apri posizione originale",
+      "selectAll": "Seleziona tutto",
+      "select": "Seleziona {name}",
+      "open": "Apri {name}",
+      "restoreFolder": "Ripristina l'intera cartella",
+      "restoreTo": "Ripristina in…"
+    },
+    "confirm": {
+      "deleteTitle": "Eliminare definitivamente?",
+      "deleteMessage": "Questo elemento sarà eliminato definitivamente. L'azione non può essere annullata. | Questi {count} elementi saranno eliminati definitivamente. L'azione non può essere annullata.",
+      "emptyTitle": "Svuotare il cestino?",
+      "emptyMessage": "Tutto ciò che è nel tuo cestino sarà eliminato definitivamente. L'azione non può essere annullata."
+    },
+    "results": {
+      "restored": "{count} elemento ripristinato | {count} elementi ripristinati",
+      "restoredTo": "Ripristinato in {path}",
+      "renamed": "\"{name}\" è stato ripristinato come \"{newName}\": il nome era già in uso.",
+      "notRestored": "{count} elemento non è stato ripristinato | {count} elementi non sono stati ripristinati",
+      "deleted": "{count} elemento eliminato definitivamente | {count} elementi eliminati definitivamente",
+      "notDeleted": "{count} elemento non è stato eliminato | {count} elementi non sono stati eliminati",
+      "emptied": "Cestino svuotato: {count} elemento eliminato | Cestino svuotato: {count} elementi eliminati",
+      "leftBehind": "{count} elemento non è stato eliminato ed è ancora lì. | {count} elementi non sono stati eliminati e sono ancora lì."
+    },
+    "reasons": {
+      "forbidden": "non puoi più scrivere dove si trovava.",
+      "blocked": "ora c'è qualcos'altro al posto della sua cartella.",
+      "unavailable": "il suo volume non è disponibile.",
+      "busy": "è già in lavorazione.",
+      "lost": "il suo contenuto era scomparso.",
+      "notFound": "non è più nel cestino.",
+      "unknown": "non è stato possibile gestirlo.",
+      "destinationForbidden": "non puoi creare elementi in quella cartella.",
+      "invalidDestination": "quella cartella non può riceverlo."
+    },
+    "errors": {
+      "load": "Impossibile caricare il cestino.",
+      "action": "Il cestino non ha potuto eseguire l'azione.",
+      "loadFolder": "Impossibile aprire questa cartella."
+    },
+    "browse": {
+      "breadcrumb": "Posizione nel cestino",
+      "deletedFrom": "Eliminato da {location} il {date}",
+      "hint": "Ripristina rimette ogni elemento selezionato al suo posto in questa cartella. Il resto rimane nel cestino.",
+      "empty": "Questa cartella è vuota.",
+      "back": "Torna al cestino"
+    },
+    "contextMenu": {
+      "label": "Azioni per {name}",
+      "labelMany": "Azioni per {count} elementi",
+      "open": "Apri",
+      "preview": "Anteprima"
+    },
+    "shares": {
+      "badge": "Condiviso",
+      "badgeTitle": "{count} link di condivisione, disattivato finché è nel cestino | {count} link di condivisione, disattivati finché sono nel cestino",
+      "chooseTitle": "Che cosa fare dei link di condivisione?",
+      "chooseMessage": "{count} link di condivisione apparteneva a ciò che stai ripristinando. Non funziona dall'eliminazione. | {count} link di condivisione appartenevano a ciò che stai ripristinando. Non funzionano dall'eliminazione.",
+      "chooseElsewhere": "Se ripristinati, punteranno alla nuova posizione.",
+      "keep": "Ripristina i link di condivisione",
+      "drop": "Elimina i link di condivisione",
+      "deleteNotice": "Anche i loro link di condivisione verranno eliminati definitivamente.",
+      "restored": "{count} link di condivisione ripristinato | {count} link di condivisione ripristinati",
+      "dropped": "{count} link di condivisione eliminato | {count} link di condivisione eliminati"
+    }
   }
 }

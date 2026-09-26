@@ -20,6 +20,10 @@ export const useFeaturesStore = defineStore('features', () => {
   const userVolumesEnabled = ref(false);
   const skipHome = ref(false);
   const terminalEnabled = ref(false);
+  // Whether deleting goes to the trash. The server already says so; nothing
+  // read it, so the way into the trash could not be shown or hidden.
+  const trashEnabled = ref(false);
+  const trashRetentionDays = ref(null);
   const terminalExtensions = ref([]);
   const version = ref('');
   const gitCommit = ref('');
@@ -82,6 +86,8 @@ export const useFeaturesStore = defineStore('features', () => {
 
         // Personal folders
         personalEnabled.value = Boolean(features?.personal?.enabled);
+        trashEnabled.value = Boolean(features?.trash?.enabled);
+        trashRetentionDays.value = features?.trash?.retentionDays ?? null;
 
         // User volumes (per-user volume assignments)
         userVolumesEnabled.value = Boolean(features?.userVolumes?.enabled);
@@ -154,6 +160,8 @@ export const useFeaturesStore = defineStore('features', () => {
     userVolumesEnabled,
     skipHome,
     terminalEnabled,
+    trashEnabled,
+    trashRetentionDays,
     terminalExtensions,
     version,
     gitCommit,
