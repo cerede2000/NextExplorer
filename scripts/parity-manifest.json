@@ -363,9 +363,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/db\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-14",
-      "note": "one database handle, and its prepared statements"
+      "note": "nxzai#446 \u2014 one database handle, and its prepared statements"
     },
     {
       "axis": "*",
@@ -683,9 +683,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/utils/betterSqliteSessionStore\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-14",
-      "note": "one database handle, and its prepared statements"
+      "note": "nxzai#446 \u2014 one database handle, and its prepared statements"
     },
     {
       "axis": "*",
@@ -774,9 +774,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/middleware/session\\.js|backend/src/utils/bootstrap\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-14",
-      "note": "one database handle, and its prepared statements"
+      "note": "nxzai#446 \u2014 one database handle, and its prepared statements"
     },
     {
       "axis": "*",
