@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import InfoPanel from '@/components/InfoPanel.vue';
+import VersionsPanel from '@/components/VersionsPanel.vue';
 import { useFileUploader } from '@/composables/fileUploader';
 import { useKeyboardShortcuts } from '@/composables/keyboardShortcuts';
 import SpotlightSearch from '@/components/SpotlightSearch.vue';
@@ -225,6 +226,7 @@ const handleGuestLogin = () => {
     <ClipboardProgress class="z-560" />
     <PreviewHost />
     <InfoPanel />
+    <VersionsPanel />
     <SpotlightSearch />
     <FavoriteEditDialog />
     <NotificationToastContainer />

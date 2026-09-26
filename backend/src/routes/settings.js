@@ -3,6 +3,7 @@ const {
   getPublicSettings,
   getSettingsForUser,
   setUserSetting,
+  USER_SETTING_KEYS,
   setSystemSetting,
   getSettings,
 } = require('../services/settingsService');
@@ -155,15 +156,10 @@ router.patch(
     if (payload.user && typeof payload.user === 'object' && user && user.id) {
       const userUpdates = {};
       for (const [key, value] of Object.entries(payload.user)) {
-        if (
-          key === 'showHiddenFiles' ||
-          key === 'showThumbnails' ||
-          key === 'showSidebarFavorites' ||
-          key === 'showSidebarShares' ||
-          key === 'showSidebarTools' ||
-          key === 'defaultShareExpiration' ||
-          key === 'skipHome'
-        ) {
+        // Which keys are preferences is the settings service's to say: this
+        // route used to keep a second list of its own, and a preference added
+        // to one and not the other was silently dropped here.
+        if (USER_SETTING_KEYS.has(key)) {
           userUpdates[key] = await setUserSetting(user.id, key, value);
         }
       }

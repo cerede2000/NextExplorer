@@ -77,7 +77,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？"
+    "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？",
+    "trashReadOnly": "回收站中 · 只读",
+    "versionReadOnly": "历史版本，只读"
   },
   "status": {
     "updated": "更新成功",
@@ -319,7 +321,8 @@
     "dateTaken": "拍摄日期：{date}",
     "camera": "相机：{makeModel}",
     "lens": "镜头：{lens}",
-    "duration": "时长：{seconds}s"
+    "duration": "时长：{seconds}s",
+    "versions": "版本"
   },
   "auth": {
     "preparing": "正在为您准备 Explorer…",
@@ -392,7 +395,8 @@
       "security": "安全",
       "accessControl": "访问控制",
       "adminUsers": "用户管理",
-      "trash": "回收站和版本"
+      "trash": "回收站和版本",
+      "fileVersions": "文件版本"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -442,7 +446,9 @@
       "months": "月",
       "skipHome": "跳过首页",
       "skipHomeHelp": "访问首页时自动重定向到第一个卷。未设置时遵循服务器配置。",
-      "useEnvSetting": "使用服务器设置"
+      "useEnvSetting": "使用服务器设置",
+      "showVersionMarks": "标记有版本的文件",
+      "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -615,6 +621,53 @@
         "sharedSpace": "版本与回收站共用每个卷的预留空间。空间不足时，依次移除旧版本、回收站项目、每个文件的最新版本，最后才是已固定的版本。",
         "environmentNote": "默认值来自 VERSIONS_ENABLED、VERSIONS_KEEP_ALL_HOURS、VERSIONS_HOURLY_DAYS、VERSIONS_DAILY_DAYS、VERSIONS_MAX_PER_FILE 和 VERSIONS_SESSION_CHECKPOINT_MINUTES。"
       }
+    },
+    "fileVersions": {
+      "title": "文件版本",
+      "intro": "所有存在历史版本的文件，不论位于何处，以及它们占用的空间。这里会列出所有空间的路径，包括个人文件夹——因此本页面仅面向管理员。",
+      "search": "路径包含",
+      "searchPlaceholder": "名称或文件夹的一部分",
+      "zone": "空间",
+      "anyZone": "全部空间",
+      "state": "状态",
+      "anyState": "全部",
+      "sort": "排序方式",
+      "sortBytes": "占用空间",
+      "sortCount": "版本数量",
+      "sortNewest": "最新版本",
+      "sortPath": "路径",
+      "summary": "{files} 个文件，{versions} 个版本，{size}",
+      "file": "文件",
+      "count": "版本",
+      "size": "大小",
+      "newest": "最新",
+      "states": {
+        "live": "仍在",
+        "trashed": "在回收站",
+        "orphaned": "已消失"
+      },
+      "zoneKinds": {
+        "volume": "卷 {name}",
+        "personal": "个人文件夹 {name}",
+        "user-volume": "分配的卷 {name}"
+      },
+      "zoneUnknown": "未知空间",
+      "pinned": "已固定",
+      "unavailable": "卷不可用",
+      "deleteAll": "删除历史记录",
+      "deleteSelected": "删除 {count} 个版本",
+      "deleteForGood": "永久删除",
+      "confirmAllTitle": "删除 {name} 的全部版本？",
+      "confirmSomeTitle": "删除 {count} 个版本？",
+      "confirmMessage": "该内容将从磁盘上移除。文件本身不受影响，此操作无法撤销。",
+      "none": "没有文件存在历史版本。",
+      "loadFailed": "无法读取列表。",
+      "detailFailed": "无法读取此历史记录。",
+      "deleteFailed": "无法删除这些版本。",
+      "previous": "上一页",
+      "next": "下一页",
+      "range": "第 {from}–{to} 项，共 {total} 项",
+      "deleteSelectedNone": "删除勾选的版本"
     }
   },
   "mediaPreview": {
@@ -801,5 +854,69 @@
       "restored": "已恢复 {count} 个共享链接",
       "dropped": "已删除 {count} 个共享链接"
     }
+  },
+  "versions": {
+    "title": "版本",
+    "menu": "版本",
+    "aria": "文件版本",
+    "current": "当前版本",
+    "empty": "暂无历史版本。每次保存都会保留被替换的内容。",
+    "disabled": "文件版本已关闭：保存时不再保留新版本。下面的版本会保留到过期。",
+    "loadFailed": "无法加载版本。",
+    "notShared": "此文件的历史未与你共享。",
+    "unavailable": "磁盘上找不到其内容。",
+    "unknownAuthor": "未知作者",
+    "shareLink": "持有链接的人",
+    "pinned": "已固定",
+    "aside": "已搁置",
+    "asideHelp": "由恢复之前打开的编辑器保存：保留在这里，以免撤销恢复。",
+    "total": "{count} 个版本，{size}",
+    "source": {
+      "editor": "文本编辑器",
+      "shareEditor": "通过共享的编辑器",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "恢复的版本",
+      "external": "在应用外修改"
+    },
+    "actions": {
+      "menu": "版本操作",
+      "select": "选择此版本",
+      "selectAll": "全选",
+      "deleteSelected": "删除所选（{count}）",
+      "deleteAll": "全部删除",
+      "preview": "以只读方式打开",
+      "download": "下载",
+      "restore": "恢复",
+      "rename": "命名…",
+      "pin": "固定",
+      "unpin": "取消固定",
+      "delete": "删除"
+    },
+    "confirm": {
+      "restoreTitle": "恢复此版本？",
+      "restoreMessage": "“{name}”将恢复为 {date} 的内容。当前内容会保留为一个版本。",
+      "deleteTitle": "删除 {count} 个版本？",
+      "deleteMessage": "{count} 个版本将被永久删除。",
+      "deleteAllTitle": "删除所有版本？",
+      "deleteAllMessage": "“{name}”的所有历史版本都将被永久删除，包括已固定的版本。文件本身保留。"
+    },
+    "rename": {
+      "title": "为此版本命名",
+      "placeholder": "例如：已发送给客户",
+      "help": "命名后更容易找到版本。固定它可使其不被自动清理。"
+    },
+    "results": {
+      "restored": "版本已恢复",
+      "unchanged": "文件已是此内容",
+      "deleted": "已删除 {count} 个版本",
+      "renamed": "版本已命名",
+      "pinned": "版本已固定：自动清理会保留它",
+      "unpinned": "已取消固定版本"
+    },
+    "errors": {
+      "action": "对此版本的操作失败"
+    },
+    "mark": "{count} 个历史版本"
   }
 }

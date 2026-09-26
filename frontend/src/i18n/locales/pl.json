@@ -77,7 +77,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?"
+    "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?",
+    "trashReadOnly": "W koszu · tylko do odczytu",
+    "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu"
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",
@@ -319,7 +321,8 @@
     "dateTaken": "Data wykonania: {date}",
     "camera": "Aparat: {makeModel}",
     "lens": "Obiektyw: {lens}",
-    "duration": "Czas trwania: {seconds}s"
+    "duration": "Czas trwania: {seconds}s",
+    "versions": "Wersje"
   },
   "auth": {
     "preparing": "Trwa przygotowywanie eksploratora…",
@@ -392,7 +395,8 @@
       "security": "Bezpieczeństwo",
       "accessControl": "Kontrola dostępu",
       "adminUsers": "Zarządzanie użytkownikami",
-      "trash": "Kosz i wersje"
+      "trash": "Kosz i wersje",
+      "fileVersions": "Wersje plików"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -442,7 +446,9 @@
       "months": "Miesiące",
       "skipHome": "Pomiń stronę główną",
       "skipHomeHelp": "Automatycznie przekierowuje do pierwszego wolumenu przy otwieraniu strony głównej. Jeśli nie ustawiono, stosuje konfigurację serwera.",
-      "useEnvSetting": "Użyj ustawień serwera"
+      "useEnvSetting": "Użyj ustawień serwera",
+      "showVersionMarks": "Oznaczaj pliki, które mają wersje",
+      "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -615,6 +621,53 @@
         "sharedSpace": "Wersje i kosz dzielą zarezerwowaną przestrzeń każdego woluminu. Gdy jej brakuje, najpierw znikają starsze wersje, potem elementy kosza, potem ostatnia wersja każdego pliku, a na końcu przypięte wersje.",
         "environmentNote": "Wartości domyślne pochodzą z VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE i VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "fileVersions": {
+      "title": "Wersje plików",
+      "intro": "Wszystkie pliki, które mają wcześniejsze wersje, gdziekolwiek się znajdują, i ile te wersje zajmują. Widać tu ścieżki ze wszystkich przestrzeni, także z folderów osobistych — dlatego ta strona jest tylko dla administratorów.",
+      "search": "Ścieżka zawiera",
+      "searchPlaceholder": "Część nazwy lub folderu",
+      "zone": "Przestrzeń",
+      "anyZone": "Wszystkie przestrzenie",
+      "state": "Stan",
+      "anyState": "Wszystkie",
+      "sort": "Sortuj według",
+      "sortBytes": "Zajęte miejsce",
+      "sortCount": "Liczba wersji",
+      "sortNewest": "Najnowsza wersja",
+      "sortPath": "Ścieżka",
+      "summary": "Plików: {files}, wersji: {versions}, {size}",
+      "file": "Plik",
+      "count": "Wersje",
+      "size": "Rozmiar",
+      "newest": "Najnowsza",
+      "states": {
+        "live": "Obecny",
+        "trashed": "W koszu",
+        "orphaned": "Zniknął"
+      },
+      "zoneKinds": {
+        "volume": "Wolumin {name}",
+        "personal": "Folder osobisty {name}",
+        "user-volume": "Przypisany wolumin {name}"
+      },
+      "zoneUnknown": "Nieznana przestrzeń",
+      "pinned": "Przypięta",
+      "unavailable": "Wolumin niedostępny",
+      "deleteAll": "Usuń historię",
+      "deleteSelected": "Usuń {count} wersję | Usuń {count} wersje | Usuń {count} wersji",
+      "deleteForGood": "Usuń na zawsze",
+      "confirmAllTitle": "Usunąć wszystkie wersje pliku {name}?",
+      "confirmSomeTitle": "Usunąć {count} wersję? | Usunąć {count} wersje? | Usunąć {count} wersji?",
+      "confirmMessage": "Ta zawartość zostaje usunięta z dysku. Sam plik pozostaje nietknięty, a tej operacji nie można cofnąć.",
+      "none": "Żaden plik nie ma wcześniejszych wersji.",
+      "loadFailed": "Nie udało się odczytać listy.",
+      "detailFailed": "Nie udało się odczytać tej historii.",
+      "deleteFailed": "Nie udało się usunąć wersji.",
+      "previous": "Poprzednie",
+      "next": "Następne",
+      "range": "Od {from} do {to} z {total}",
+      "deleteSelectedNone": "Usuń zaznaczone wersje"
     }
   },
   "mediaPreview": {
@@ -801,5 +854,69 @@
       "restored": "Przywrócone linki udostępniania: {count}",
       "dropped": "Usunięte linki udostępniania: {count}"
     }
+  },
+  "versions": {
+    "title": "Wersje",
+    "menu": "Wersje",
+    "aria": "Wersje pliku",
+    "current": "Bieżąca wersja",
+    "empty": "Brak wcześniejszych wersji. Każdy zapis zachowuje to, co zastępuje.",
+    "disabled": "Wersje plików są wyłączone: zapisy nie zachowują już nowych. Poniższe pozostają do wygaśnięcia.",
+    "loadFailed": "Nie udało się wczytać wersji.",
+    "notShared": "Historia tego pliku nie jest Ci udostępniona.",
+    "unavailable": "Brak jej zawartości na dysku.",
+    "unknownAuthor": "Nieznany autor",
+    "shareLink": "Ktoś z linkiem",
+    "pinned": "Przypięta",
+    "aside": "Odłożona",
+    "asideHelp": "Zapisana przez edytor otwarty przed przywróceniem: zachowana tutaj zamiast cofać przywrócenie.",
+    "total": "{count} wersja, {size} | {count} wersje, {size} | {count} wersji, {size}",
+    "source": {
+      "editor": "Edytor tekstu",
+      "shareEditor": "Edytor przez udostępnienie",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Przywrócona wersja",
+      "external": "Zmieniono poza aplikacją"
+    },
+    "actions": {
+      "menu": "Działania na wersji",
+      "select": "Zaznacz tę wersję",
+      "selectAll": "Zaznacz wszystko",
+      "deleteSelected": "Usuń zaznaczone ({count})",
+      "deleteAll": "Usuń wszystkie",
+      "preview": "Otwórz tylko do odczytu",
+      "download": "Pobierz",
+      "restore": "Przywróć",
+      "rename": "Nazwij…",
+      "pin": "Przypnij",
+      "unpin": "Odepnij",
+      "delete": "Usuń"
+    },
+    "confirm": {
+      "restoreTitle": "Przywrócić tę wersję?",
+      "restoreMessage": "„{name}” wraca do zawartości z {date}. Obecna zawartość zostaje zachowana jako wersja.",
+      "deleteTitle": "Usunąć tę wersję? | Usunąć {count} wersje? | Usunąć {count} wersji?",
+      "deleteMessage": "Ta wersja zostanie trwale usunięta. | Te {count} wersje zostaną trwale usunięte. | Tych {count} wersji zostanie trwale usuniętych.",
+      "deleteAllTitle": "Usunąć wszystkie wersje?",
+      "deleteAllMessage": "Wszystkie wcześniejsze wersje „{name}” zostaną trwale usunięte, łącznie z przypiętymi. Sam plik pozostaje."
+    },
+    "rename": {
+      "title": "Nazwij tę wersję",
+      "placeholder": "Na przykład: wysłana do klienta",
+      "help": "Nazwa ułatwia odnalezienie wersji. Przypnij ją, aby wyłączyć ją z automatycznego czyszczenia."
+    },
+    "results": {
+      "restored": "Wersja przywrócona",
+      "unchanged": "Plik ma już tę zawartość",
+      "deleted": "Usunięto {count} wersję | Usunięto {count} wersje | Usunięto {count} wersji",
+      "renamed": "Wersja nazwana",
+      "pinned": "Wersja przypięta: automatyczne czyszczenie ją zachowa",
+      "unpinned": "Wersja odpięta"
+    },
+    "errors": {
+      "action": "Działanie na tej wersji nie powiodło się"
+    },
+    "mark": "{count} wcześniejsza wersja | {count} wcześniejsze wersje | {count} wcześniejszych wersji"
   }
 }

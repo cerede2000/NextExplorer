@@ -77,7 +77,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "Hai modifiche non salvate. Chiudere senza salvare?"
+    "confirmCloseWithoutSaving": "Hai modifiche non salvate. Chiudere senza salvare?",
+    "trashReadOnly": "Nel cestino · sola lettura",
+    "versionReadOnly": "Versione precedente, sola lettura"
   },
   "status": {
     "updated": "Aggiornato con successo",
@@ -319,7 +321,8 @@
     "dateTaken": "Data scatto: {date}",
     "camera": "Fotocamera: {makeModel}",
     "lens": "Obiettivo: {lens}",
-    "duration": "Durata: {seconds}s"
+    "duration": "Durata: {seconds}s",
+    "versions": "Versioni"
   },
   "auth": {
     "preparing": "Preparazione del tuo explorer…",
@@ -392,7 +395,8 @@
       "security": "Sicurezza",
       "accessControl": "Controllo accessi",
       "adminUsers": "Gestione utenti",
-      "trash": "Cestino e versioni"
+      "trash": "Cestino e versioni",
+      "fileVersions": "Versioni dei file"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -442,7 +446,9 @@
       "months": "Mesi",
       "skipHome": "Salta la home",
       "skipHomeHelp": "Reindirizza automaticamente al primo volume quando si visita la home. Se non impostato, usa la configurazione del server.",
-      "useEnvSetting": "Usa impostazione del server"
+      "useEnvSetting": "Usa impostazione del server",
+      "showVersionMarks": "Segnalare i file con versioni",
+      "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia."
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -615,6 +621,53 @@
         "sharedSpace": "Le versioni e il cestino condividono lo spazio riservato di ogni volume. Quando scarseggia, se ne vanno prima le versioni vecchie, poi gli elementi del cestino, poi l'ultima versione di ogni file e infine le versioni fissate.",
         "environmentNote": "I valori predefiniti provengono da VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE e VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "fileVersions": {
+      "title": "Versioni dei file",
+      "intro": "Tutti i file che hanno versioni precedenti, ovunque si trovino, e lo spazio che occupano. Qui compaiono percorsi di ogni spazio, cartelle personali comprese: per questo la pagina è riservata agli amministratori.",
+      "search": "Il percorso contiene",
+      "searchPlaceholder": "Parte di un nome o di una cartella",
+      "zone": "Spazio",
+      "anyZone": "Tutti gli spazi",
+      "state": "Stato",
+      "anyState": "Tutti",
+      "sort": "Ordina per",
+      "sortBytes": "Spazio occupato",
+      "sortCount": "Numero di versioni",
+      "sortNewest": "Versione più recente",
+      "sortPath": "Percorso",
+      "summary": "{files} file, {versions} versioni, {size}",
+      "file": "File",
+      "count": "Versioni",
+      "size": "Dimensione",
+      "newest": "Più recente",
+      "states": {
+        "live": "Presente",
+        "trashed": "Nel cestino",
+        "orphaned": "Scomparso"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Cartella personale {name}",
+        "user-volume": "Volume assegnato {name}"
+      },
+      "zoneUnknown": "Spazio sconosciuto",
+      "pinned": "Fissata",
+      "unavailable": "Volume non disponibile",
+      "deleteAll": "Eliminare la cronologia",
+      "deleteSelected": "Eliminare {count} versione | Eliminare {count} versioni",
+      "deleteForGood": "Eliminare definitivamente",
+      "confirmAllTitle": "Eliminare tutte le versioni di {name}?",
+      "confirmSomeTitle": "Eliminare {count} versione? | Eliminare {count} versioni?",
+      "confirmMessage": "Quel contenuto viene rimosso dal disco. Il file stesso non viene toccato e nulla di tutto ciò può essere annullato.",
+      "none": "Nessun file ha versioni precedenti.",
+      "loadFailed": "Non è stato possibile leggere l’elenco.",
+      "detailFailed": "Non è stato possibile leggere questa cronologia.",
+      "deleteFailed": "Non è stato possibile eliminare le versioni.",
+      "previous": "Precedente",
+      "next": "Successivo",
+      "range": "Da {from} a {to} di {total}",
+      "deleteSelectedNone": "Eliminare le versioni selezionate"
     }
   },
   "mediaPreview": {
@@ -801,5 +854,69 @@
       "restored": "{count} link di condivisione ripristinato | {count} link di condivisione ripristinati",
       "dropped": "{count} link di condivisione eliminato | {count} link di condivisione eliminati"
     }
+  },
+  "versions": {
+    "title": "Versioni",
+    "menu": "Versioni",
+    "aria": "Versioni del file",
+    "current": "Versione attuale",
+    "empty": "Nessuna versione precedente per ora. Ogni salvataggio conserva ciò che sostituisce.",
+    "disabled": "Le versioni dei file sono disattivate: i salvataggi non ne conservano più di nuove. Quelle qui sotto restano fino alla scadenza.",
+    "loadFailed": "Impossibile caricare le versioni.",
+    "notShared": "La cronologia di questo file non è condivisa con te.",
+    "unavailable": "Il suo contenuto manca dal disco.",
+    "unknownAuthor": "Autore sconosciuto",
+    "shareLink": "Qualcuno con il link",
+    "pinned": "Fissata",
+    "aside": "Messa da parte",
+    "asideHelp": "Salvata da un editor aperto prima di un ripristino: conservata qui invece di annullare il ripristino.",
+    "total": "{count} versione, {size} | {count} versioni, {size}",
+    "source": {
+      "editor": "Editor di testo",
+      "shareEditor": "Editor tramite una condivisione",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Versione ripristinata",
+      "external": "Modificato fuori dall'app"
+    },
+    "actions": {
+      "menu": "Azioni sulla versione",
+      "select": "Seleziona questa versione",
+      "selectAll": "Seleziona tutto",
+      "deleteSelected": "Elimina selezionate ({count})",
+      "deleteAll": "Elimina tutto",
+      "preview": "Apri in sola lettura",
+      "download": "Scarica",
+      "restore": "Ripristina",
+      "rename": "Assegna un nome…",
+      "pin": "Fissa",
+      "unpin": "Sblocca",
+      "delete": "Elimina"
+    },
+    "confirm": {
+      "restoreTitle": "Ripristinare questa versione?",
+      "restoreMessage": "«{name}» torna al contenuto del {date}. Quello attuale viene conservato come versione.",
+      "deleteTitle": "Eliminare questa versione? | Eliminare {count} versioni?",
+      "deleteMessage": "Questa versione viene eliminata definitivamente. | Queste {count} versioni vengono eliminate definitivamente.",
+      "deleteAllTitle": "Eliminare tutte le versioni?",
+      "deleteAllMessage": "Tutte le versioni precedenti di «{name}» vengono eliminate definitivamente, comprese quelle fissate. Il file resta."
+    },
+    "rename": {
+      "title": "Assegna un nome a questa versione",
+      "placeholder": "Per esempio: inviata al cliente",
+      "help": "Un nome rende facile ritrovare una versione. Fissala per escluderla dalla pulizia automatica."
+    },
+    "results": {
+      "restored": "Versione ripristinata",
+      "unchanged": "Il file ha già questo contenuto",
+      "deleted": "{count} versione eliminata | {count} versioni eliminate",
+      "renamed": "Nome assegnato alla versione",
+      "pinned": "Versione fissata: la pulizia automatica la conserva",
+      "unpinned": "Versione sbloccata"
+    },
+    "errors": {
+      "action": "L'azione su questa versione non è riuscita"
+    },
+    "mark": "{count} versione precedente | {count} versioni precedenti"
   }
 }

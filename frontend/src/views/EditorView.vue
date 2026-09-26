@@ -5,10 +5,16 @@
     >
       <div class="min-w-0">
         <p class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          {{ t('editor.editing') }}
+          {{
+            isTrashViewer
+              ? t('editor.trashReadOnly')
+              : isVersionViewer
+                ? t('editor.versionReadOnly')
+                : t('editor.editing')
+          }}
         </p>
         <h1 class="truncate text-md text-neutral-900 dark:text-white">
-          {{ normalizedPath || '—' }}
+          {{ displayPath || '—' }}
         </h1>
       </div>
       <div class="ml-auto flex items-center gap-2">
@@ -19,6 +25,7 @@
           {{ t('editor.unsavedChanges') }}
         </p>
         <button
+          v-if="!isViewerOnly"
           type="button"
           @click="openRaw"
           :disabled="isLoading || !normalizedPath"
@@ -69,6 +76,7 @@
         </div>
 
         <button
+          v-if="!isViewerOnly"
           type="button"
           @click="saveFile"
           :disabled="!canSave"
@@ -153,23 +161,31 @@ import { ref, shallowRef, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Codemirror } from 'vue-codemirror';
-import { Compartment } from '@codemirror/state';
-import { fetchFileContent, saveFileContent, getRawFileUrl, normalizePath } from '@/api';
+import { Compartment, EditorState } from '@codemirror/state';
+import {
+  fetchFileContent,
+  getRawFileUrl,
+  getTrashFileText,
+  getVersionText,
+  normalizePath,
+  saveFileContent,
+} from '@/api';
 import { EditorView, keymap } from '@codemirror/view';
 import * as themeBundle from '@fsegurai/codemirror-theme-bundle';
 import {
   XMarkIcon,
   ArrowPathIcon,
-  PaintBrushIcon,
   EllipsisVerticalIcon,
   CheckIcon,
 } from '@heroicons/vue/24/outline';
 import { Save20Regular, Color20Regular } from '@vicons/fluent';
 import { onClickOutside, onKeyStroke, useLocalStorage } from '@vueuse/core';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const versionsPanel = useVersionsPanelStore();
 
 // State
 const fileContent = ref('');
@@ -209,6 +225,7 @@ const currentThemeLabel = computed(
 const languageComp = new Compartment();
 const themeComp = new Compartment();
 const lineWrappingComp = new Compartment();
+const readOnlyComp = new Compartment();
 const customKeymap = keymap.of([
   {
     key: 'Alt-z',
@@ -223,6 +240,7 @@ const extensions = [
   languageComp.of([]),
   themeComp.of(themeBundle[themeId.value] ?? themeBundle.githubDark),
   lineWrappingComp.of([]),
+  readOnlyComp.of([]),
   customKeymap,
 ];
 
@@ -244,30 +262,85 @@ const normalizedPath = computed(() =>
     Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
   )
 );
-const hasUnsavedChanges = computed(() => fileContent.value !== originalContent.value);
+
+/**
+ * A file in the trash, opened to be read before deciding what to do with it.
+ * Never to be changed: no save, no shortcut that saves, an editor that does not
+ * take typing, and leaving goes back to the trash it came from.
+ */
+const isTrashViewer = computed(() => route.name === 'TrashFileViewer');
+/**
+ * An earlier version of a file, opened from its history: read only for the same
+ * reasons, and leaving goes back to the folder with the history open again.
+ */
+const isVersionViewer = computed(() => route.name === 'VersionFileViewer');
+const isViewerOnly = computed(() => isTrashViewer.value || isVersionViewer.value);
+
+const versionId = computed(() =>
+  typeof route.params?.versionId === 'string' ? route.params.versionId : ''
+);
+const trashItemId = computed(() =>
+  typeof route.params?.itemId === 'string' ? route.params.itemId : ''
+);
+const trashEntryPath = computed(() =>
+  normalizePath(
+    Array.isArray(route.params?.entryPath)
+      ? route.params.entryPath.join('/')
+      : route.params?.entryPath || ''
+  )
+);
+// The name the server gives a version or a trashed file: neither is at the path
+// the route names, so neither can be named from the route alone.
+const viewerFileName = ref('');
+
+const displayPath = computed(() => {
+  if (isTrashViewer.value) return viewerFileName.value || trashEntryPath.value;
+  if (isVersionViewer.value) return viewerFileName.value || normalizedPath.value;
+  return normalizedPath.value;
+});
+
+const hasUnsavedChanges = computed(
+  () => !isViewerOnly.value && fileContent.value !== originalContent.value
+);
 const canSave = computed(
-  () => hasUnsavedChanges.value && !isSaving.value && !isLoading.value && !loadError.value
+  () =>
+    !isViewerOnly.value &&
+    hasUnsavedChanges.value &&
+    !isSaving.value &&
+    !isLoading.value &&
+    !loadError.value
 );
 
 // Operations
-const loadFile = async (path) => {
-  if (!path) return (fileContent.value = '');
+const loadFile = async () => {
+  const path = normalizedPath.value;
+  // A file in the trash is named by its item, not by a path under a volume.
+  if (!path && !isTrashViewer.value) return (fileContent.value = '');
 
+  // The whole route, so a stale answer for the version read a moment ago cannot
+  // land in the editor now showing another one at the same path.
+  const requested = route.fullPath;
   isLoading.value = true;
   loadError.value = '';
   saveError.value = '';
+  viewerFileName.value = '';
 
   try {
-    const { content } = await fetchFileContent(path);
-    if (path !== normalizedPath.value) return; // Stale check
+    const response = isTrashViewer.value
+      ? await getTrashFileText(trashItemId.value, trashEntryPath.value)
+      : isVersionViewer.value
+        ? await getVersionText(path, versionId.value)
+        : await fetchFileContent(path);
+    if (requested !== route.fullPath) return; // Stale check
 
-    fileContent.value = originalContent.value = content || '';
-    applyLanguage(path);
+    viewerFileName.value = isViewerOnly.value ? response.name || '' : '';
+    fileContent.value = originalContent.value = response.content || '';
+    applyLanguage(displayPath.value);
   } catch (err) {
-    if (path !== normalizedPath.value) return;
+    if (requested !== route.fullPath) return;
     loadError.value = err.message;
   } finally {
-    if (path === normalizedPath.value) isLoading.value = false;
+    if (requested === route.fullPath) isLoading.value = false;
   }
 };
 
@@ -291,13 +364,37 @@ const openRaw = () => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
+const parentFolderPath = () => {
+  const parts = normalizedPath.value.split('/').filter(Boolean);
+  parts.pop();
+  return parts.join('/');
+};
+
 const requestClose = () => {
   if (isSaving.value) return;
   if (hasUnsavedChanges.value && !confirm(t('editor.confirmCloseWithoutSaving'))) return;
 
-  const parts = normalizedPath.value.split('/').filter(Boolean);
-  parts.pop();
-  router.replace(`/browse${parts.length ? '/' + parts.join('/') : ''}`);
+  if (isVersionViewer.value) {
+    // Back to the folder, with the file's history open where it was read from.
+    versionsPanel.openPath(normalizedPath.value);
+    const parent = parentFolderPath();
+    router.replace(`/browse${parent ? '/' + parent : ''}`);
+    return;
+  }
+
+  if (isTrashViewer.value) {
+    // Back to the trash, in the deleted folder the file was read from.
+    const segments = trashEntryPath.value.split('/').filter(Boolean);
+    segments.pop();
+    const query = {};
+    if (trashEntryPath.value) query.item = trashItemId.value;
+    if (segments.length) query.path = segments.join('/');
+    router.replace({ name: 'Trash', query });
+    return;
+  }
+
+  const parent = parentFolderPath();
+  router.replace(`/browse${parent ? '/' + parent : ''}`);
 };
 
 const applyLanguage = async (path) => {
@@ -337,8 +434,26 @@ onKeyStroke(['s', 'S'], (e) => {
   }
 });
 
-watch(normalizedPath, loadFile, { immediate: true });
-watch(view, () => applyLanguage(normalizedPath.value));
+/**
+ * A viewer that cannot be typed into. `EditorState.readOnly` refuses the
+ * changes, and `editable` also takes the caret away and tells a screen reader
+ * this is text to read — a read-only editor that still looks like one invites
+ * typing that goes nowhere.
+ */
+const updateReadOnlyMode = () => {
+  view.value?.dispatch({
+    effects: readOnlyComp.reconfigure(
+      isViewerOnly.value ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []
+    ),
+  });
+};
+
+watch([normalizedPath, trashItemId, trashEntryPath, versionId], loadFile, { immediate: true });
+watch(view, () => {
+  updateReadOnlyMode();
+  applyLanguage(displayPath.value);
+});
+watch(isViewerOnly, updateReadOnlyMode);
 watch(fileContent, () => {
   if (saveError.value) saveError.value = '';
 });

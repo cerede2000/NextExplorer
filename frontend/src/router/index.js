@@ -14,6 +14,7 @@ import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsTrash from '@/views/settings/SettingsTrash.vue';
+import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
 import TrashView from '@/views/TrashView.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
 import AboutView from '@/views/AboutView.vue';
@@ -66,6 +67,11 @@ const router = createRouter({
             {
               path: 'trash',
               component: SettingsTrash,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'file-versions',
+              component: SettingsFileVersions,
               meta: { requiresAdmin: true },
             },
             {
@@ -157,6 +163,26 @@ const router = createRouter({
           path: ':path(.*)',
           component: EditorView,
         },
+      ],
+    },
+    {
+      // A file in the trash, shown in the editor to be read: nothing there can
+      // be saved. Its own path, so no volume name can ever collide with it.
+      path: '/trash/view',
+      component: EditorLayout,
+      meta: { requiresAuth: true },
+      children: [
+        { path: ':itemId/:entryPath(.*)*', name: 'TrashFileViewer', component: EditorView },
+      ],
+    },
+    {
+      // An earlier version of a file, shown in the editor to be read. The file
+      // is named by its path, a share path for a share's visitor.
+      path: '/versions/view',
+      component: EditorLayout,
+      meta: { requiresAuth: true, allowGuest: true },
+      children: [
+        { path: ':versionId/:path(.*)', name: 'VersionFileViewer', component: EditorView },
       ],
     },
     {

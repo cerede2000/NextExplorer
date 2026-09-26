@@ -22,11 +22,13 @@ import {
   ShareIcon,
   ArchiveBoxArrowDownIcon,
   ArrowUpOnSquareIcon,
+  ClockIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
 import { useFeaturesStore } from '@/stores/features';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { isTerminalExtension } from '@/config/terminal';
 // Icons
 import {
@@ -47,6 +49,7 @@ const favoritesStore = useFavoritesStore();
 const { openEditorForFavorite } = useFavoriteEditor();
 const terminalStore = useTerminalStore();
 const featuresStore = useFeaturesStore();
+const versionsPanel = useVersionsPanelStore();
 const router = useRouter();
 
 const isOpen = ref(false);
@@ -252,6 +255,25 @@ const runGetInfo = () => {
   infoPanel.open(primaryItem.value);
 };
 
+/**
+ * A file's history, where there can be one: a single file, versions switched
+ * on, and — through a share — a share whose owner shows it.
+ */
+const canShowVersions = computed(
+  () =>
+    featuresStore.versionsEnabled &&
+    contextKind.value === 'file' &&
+    isSingleItemSelected.value &&
+    Boolean(primaryItem.value) &&
+    fileStore.currentPathData?.canSeeVersions !== false
+);
+
+const runShowVersions = () => {
+  if (!canShowVersions.value) return;
+  infoPanel.close();
+  versionsPanel.open(primaryItem.value);
+};
+
 const runOpenWithEditor = () => {
   if (!primaryItem.value) return;
   const item = primaryItem.value;
@@ -408,11 +430,15 @@ const menuSections = computed(() => {
   }
 
   const sections = [];
-  sections.push([
+  const infoSection = [
     mk('get-info', t('context.getInfo'), InfoRound, runGetInfo, {
       disabled: !primaryItem.value,
     }),
-  ]);
+  ];
+  if (canShowVersions.value) {
+    infoSection.push(mk('versions', t('versions.menu'), ClockIcon, runShowVersions));
+  }
+  sections.push(infoSection);
 
   // Add "Open with Editor" for files only
   if (contextKind.value === 'file') {

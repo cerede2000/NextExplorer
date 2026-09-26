@@ -6,6 +6,7 @@ import {
   ArrowPathIcon,
   ArrowUturnLeftIcon,
   ChevronRightIcon,
+  EyeIcon,
   FolderOpenIcon,
   MapPinIcon,
   TrashIcon,
@@ -24,6 +25,7 @@ import {
 import { useNotificationsStore } from '@/stores/notifications';
 import { formatBytes, formatLocalDateTime } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
+import { isEditableExtension } from '@/config/editor';
 
 /**
  * The trash: what this person deleted, and what came from their own folder or
@@ -514,6 +516,27 @@ const menuLabel = computed(() => {
     : t('trash.contextMenu.label', { name: target.name });
 });
 
+const extensionOf = (name = '') => {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1) : '';
+};
+
+/** A file whose text the editor can show — read only, from the trash. */
+const canPreview = (entry) =>
+  entry?.kind === 'file' && isEditableExtension(extensionOf(entry.name));
+
+const previewItem = (item) =>
+  router.push({ name: 'TrashFileViewer', params: { itemId: item.id, entryPath: [] } });
+
+const previewEntry = (entry) =>
+  router.push({
+    name: 'TrashFileViewer',
+    params: {
+      itemId: folderId.value,
+      entryPath: joinPath(folderPath.value, entry.name).split('/'),
+    },
+  });
+
 const menuSections = computed(() => {
   const { type, target } = menuState.value;
   if (!target) return [];
@@ -523,6 +546,9 @@ const menuSections = computed(() => {
   const opening = [];
   if (single && reachable && target.kind === 'directory') {
     opening.push({ id: 'open', label: t('trash.contextMenu.open'), icon: FolderOpenIcon });
+  }
+  if (single && reachable && canPreview(target)) {
+    opening.push({ id: 'preview', label: t('trash.contextMenu.preview'), icon: EyeIcon });
   }
 
   const restoring = [
@@ -561,6 +587,7 @@ const runMenuAction = (id) => {
   const onItems = type === 'item';
   const actions = {
     open: () => (onItems ? openFolder(target) : openEntry(target)),
+    preview: () => (onItems ? previewItem(target) : previewEntry(target)),
     restore: () => (onItems ? restoreSelected() : restoreSelectedEntries()),
     openLocation: () => openLocation(target),
     delete: () => askToDelete(),
@@ -568,12 +595,16 @@ const runMenuAction = (id) => {
   actions[id]?.();
 };
 
-/** A double click opens what can be opened: a deleted folder, to look inside it. */
+/** A double click opens what can be opened: a folder, or the text of a file. */
 const openRow = (type, target) => {
   if (type === 'item' && !target.available) return;
-  if (target.kind !== 'directory') return;
-  if (type === 'item') openFolder(target);
-  else openEntry(target);
+  if (target.kind === 'directory') {
+    if (type === 'item') openFolder(target);
+    else openEntry(target);
+  } else if (canPreview(target)) {
+    if (type === 'item') previewItem(target);
+    else previewEntry(target);
+  }
 };
 
 /** The menu key, or Shift+F10, on a row's checkbox opens the menu beside it. */

@@ -22,6 +22,7 @@ const { bootstrap } = require('./utils/bootstrap');
 const { configureSession } = require('./middleware/session');
 const logger = require('./utils/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { uploads } = require('./config');
 
 /**
  * Creates and configures the Express application.
@@ -49,8 +50,10 @@ const createApp = async (options = {}) => {
   configureHttpLogging(app);
 
   configureCors(app);
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // Large enough to carry back whatever the text editor was allowed to open;
+  // see the reasoning beside the two limits in the configuration.
+  app.use(express.json({ limit: uploads.maxJsonBodyBytes }));
+  app.use(express.urlencoded({ extended: true, limit: uploads.maxJsonBodyBytes }));
   app.use(cookieParser());
   app.use(requestContextMiddleware);
   logger.debug('Mounted cookie parser middleware');

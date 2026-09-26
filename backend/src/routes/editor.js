@@ -2,49 +2,29 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs/promises');
 
-const config = require('../config');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const versions = require('../services/versions/operations');
 const asyncHandler = require('../utils/asyncHandler');
+const { sendTextFile } = require('../utils/textFileResponse');
+const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
 const {
-  ValidationError,
-  ForbiddenError,
-  NotFoundError,
-  UnsupportedMediaTypeError,
-} = require('../errors/AppError');
+  readFileEncoding,
+  encodeText,
+  MAX_EDITOR_FILE_SIZE,
+} = require('../services/textEditorService');
 
 const router = express.Router();
 
-const MAX_EDITOR_FILE_SIZE = config.editor?.maxFileSizeBytes ?? 1 * 1024 * 1024;
-const VIDEO_EXTENSIONS = Array.isArray(config.extensions?.videos) ? config.extensions.videos : [];
-
-function isProbablyBinaryBuffer(buffer) {
-  const length = Math.min(buffer.length, 4096);
-  if (!length) return false;
-
-  let suspicious = 0;
-  for (let index = 0; index < length; index += 1) {
-    const byte = buffer[index];
-    if (byte === 0) {
-      return true;
-    }
-    if (byte < 7 || (byte > 13 && byte < 32)) {
-      suspicious += 1;
-    }
-  }
-
-  return suspicious / length > 0.3;
-}
-
-async function readTextFileBuffer(req, relative) {
+async function resolveReadableFile(req, relative) {
   if (typeof relative !== 'string' || !relative) {
     throw new ValidationError('A valid file path is required.');
   }
 
   const relativePath = normalizeRelativePath(relative);
   const context = { user: req.user, guestSession: req.guestSession };
+
   let accessInfo;
   let resolved;
   try {
@@ -65,51 +45,43 @@ async function readTextFileBuffer(req, relative) {
     throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
   }
 
-  const { absolutePath } = resolved;
-  const stats = await fs.stat(absolutePath);
-
-  if (stats.isDirectory()) {
-    throw new ValidationError('Cannot open a directory in the editor.');
-  }
-
-  if (typeof stats.size === 'number' && stats.size > MAX_EDITOR_FILE_SIZE) {
-    throw new ValidationError('This file is too large to open in the text editor.');
-  }
-
-  const ext = path.extname(absolutePath).slice(1).toLowerCase();
-  if (VIDEO_EXTENSIONS.includes(ext)) {
-    throw new UnsupportedMediaTypeError('This file type cannot be opened in the text editor.');
-  }
-
-  const buffer = await fs.readFile(absolutePath);
-  if (isProbablyBinaryBuffer(buffer)) {
-    throw new UnsupportedMediaTypeError(
-      'This file appears to be binary and cannot be opened in the text editor.'
-    );
-  }
-
-  return { buffer, absolutePath };
+  return resolved.absolutePath;
 }
+
+/**
+ * The editor's read. By GET, which the browser keeps and revalidates, so the
+ * editor opened from the Markdown preview does not download the file again; by
+ * POST for the clients written against it, which nothing keeps.
+ */
+const sendEditorText = async (req, res, relative) => {
+  const absolutePath = await resolveReadableFile(req, relative);
+  await sendTextFile(req, res, { absolutePath, render: ({ text }) => ({ content: text }) });
+};
+
+router.get(
+  '/editor',
+  asyncHandler(async (req, res) => {
+    await sendEditorText(req, res, req.query?.path);
+  })
+);
 
 router.post(
   '/editor',
   asyncHandler(async (req, res) => {
     const { path: relative = '' } = req.body || {};
-    const { buffer } = await readTextFileBuffer(req, relative);
-    const data = buffer.toString('utf-8');
-    res.send({ content: data });
+    await sendEditorText(req, res, relative);
   })
 );
 
 router.get(
   '/raw',
   asyncHandler(async (req, res) => {
-    const relative = req.query?.path;
-    const { buffer } = await readTextFileBuffer(req, relative);
-
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(buffer.toString('utf-8'));
+    const absolutePath = await resolveReadableFile(req, req.query?.path);
+    await sendTextFile(req, res, {
+      absolutePath,
+      headers: { 'X-Content-Type-Options': 'nosniff' },
+      render: ({ text }) => text,
+    });
   })
 );
 
@@ -161,6 +133,22 @@ router.put(
     const { absolutePath } = resolved;
 
     await ensureDir(path.dirname(absolutePath));
+    const existed = await fs
+      .stat(absolutePath)
+      .then((stats) => stats.isFile())
+      .catch(() => false);
+
+    // Written back in the encoding it already had: a UTF-16 file saved as UTF-8
+    // reads perfectly well here and breaks whatever wrote it.
+    const payload = encodeText(content, existed ? await readFileEncoding(absolutePath) : undefined);
+    // Refused for the same reason the editor refuses to open it. Without this
+    // the editor wrote whatever it was given — paste two megabytes into a small
+    // file, save, and the next attempt to open it answered that the file is too
+    // large. Measured on the bytes actually written, which is what the size
+    // limit is about.
+    if (payload.length > MAX_EDITOR_FILE_SIZE) {
+      throw new ValidationError('This file is too large to save in the text editor.');
+    }
 
     // Written beside the file and put in place once whole, with what it
     // replaces kept as a version: a save used to go straight over the file, so
@@ -169,7 +157,7 @@ router.put(
     // session here to group it with, as there is in the office editors.
     await versions.saveFile(
       absolutePath,
-      (temporaryPath) => fs.writeFile(temporaryPath, content, { encoding: 'utf-8', flag: 'wx' }),
+      (temporaryPath) => fs.writeFile(temporaryPath, payload, { flag: 'wx' }),
       {
         purpose: 'editor',
         author: versions.authorOf({ user: req.user, guestSession: req.guestSession }),

@@ -77,7 +77,9 @@
     "theme": "Theme",
     "editorSettings": "Editor settings",
     "wrapLines": "Wrap Lines",
-    "confirmCloseWithoutSaving": "You have unsaved changes. Close without saving?"
+    "confirmCloseWithoutSaving": "You have unsaved changes. Close without saving?",
+    "trashReadOnly": "In the trash · read only",
+    "versionReadOnly": "Earlier version, read-only"
   },
   "status": {
     "updated": "Updated successfully",
@@ -319,7 +321,8 @@
     "dateTaken": "Date Taken: {date}",
     "camera": "Camera: {makeModel}",
     "lens": "Lens: {lens}",
-    "duration": "Duration: {seconds}s"
+    "duration": "Duration: {seconds}s",
+    "versions": "Versions"
   },
   "auth": {
     "preparing": "Preparing your explorer…",
@@ -392,7 +395,8 @@
       "security": "Security",
       "accessControl": "Access Control",
       "adminUsers": "User Management",
-      "trash": "Trash and versions"
+      "trash": "Trash and versions",
+      "fileVersions": "File versions"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -442,7 +446,9 @@
       "months": "Months",
       "skipHome": "Skip home page",
       "skipHomeHelp": "Automatically redirect to the first volume when visiting the home page. If not set, follows the server configuration.",
-      "useEnvSetting": "Use server setting"
+      "useEnvSetting": "Use server setting",
+      "showVersionMarks": "Mark files that have versions",
+      "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
@@ -615,6 +621,53 @@
         "sharedSpace": "Versions and the trash share each volume's reserved space. When it runs short, older versions go first, then trash items, then each file's latest version, and pinned versions last.",
         "environmentNote": "Defaults come from VERSIONS_ENABLED, VERSIONS_KEEP_ALL_HOURS, VERSIONS_HOURLY_DAYS, VERSIONS_DAILY_DAYS, VERSIONS_MAX_PER_FILE and VERSIONS_SESSION_CHECKPOINT_MINUTES."
       }
+    },
+    "fileVersions": {
+      "title": "File versions",
+      "intro": "Every file that has earlier versions, wherever it is, and what they take up. Paths from every space appear here, personal folders included — which is why this page is for administrators.",
+      "search": "Path contains",
+      "searchPlaceholder": "Part of a name or folder",
+      "zone": "Space",
+      "anyZone": "Any space",
+      "state": "Status",
+      "anyState": "Any",
+      "sort": "Sort by",
+      "sortBytes": "Space used",
+      "sortCount": "Number of versions",
+      "sortNewest": "Most recent version",
+      "sortPath": "Path",
+      "summary": "{files} files, {versions} versions, {size}",
+      "file": "File",
+      "count": "Versions",
+      "size": "Size",
+      "newest": "Most recent",
+      "states": {
+        "live": "Present",
+        "trashed": "In the trash",
+        "orphaned": "Gone"
+      },
+      "zoneKinds": {
+        "volume": "Volume {name}",
+        "personal": "Personal folder {name}",
+        "user-volume": "Assigned volume {name}"
+      },
+      "zoneUnknown": "Unknown space",
+      "pinned": "Pinned",
+      "unavailable": "Volume unavailable",
+      "deleteAll": "Delete the history",
+      "deleteSelected": "Delete {count} version | Delete {count} versions",
+      "deleteForGood": "Delete for good",
+      "confirmAllTitle": "Delete every version of {name}?",
+      "confirmSomeTitle": "Delete {count} version? | Delete {count} versions?",
+      "confirmMessage": "That content is removed from the disk. The file itself is not touched, and nothing here can be undone.",
+      "none": "No file has earlier versions.",
+      "loadFailed": "The list could not be read.",
+      "detailFailed": "This history could not be read.",
+      "deleteFailed": "The versions could not be deleted.",
+      "previous": "Previous",
+      "next": "Next",
+      "range": "{from} to {to} of {total}",
+      "deleteSelectedNone": "Delete the versions you tick"
     }
   },
   "mediaPreview": {
@@ -801,5 +854,69 @@
       "restored": "{count} share link brought back | {count} share links brought back",
       "dropped": "{count} share link deleted | {count} share links deleted"
     }
+  },
+  "versions": {
+    "title": "Versions",
+    "menu": "Versions",
+    "aria": "File versions",
+    "current": "Current version",
+    "empty": "No earlier version yet. Each save keeps what it replaces.",
+    "disabled": "File versions are switched off: saves no longer keep new ones. Those below stay until they expire.",
+    "loadFailed": "The versions could not be loaded.",
+    "notShared": "The history of this file is not shared with you.",
+    "unavailable": "Its content is missing from the disk.",
+    "unknownAuthor": "Unknown author",
+    "shareLink": "Someone with the link",
+    "pinned": "Pinned",
+    "aside": "Set aside",
+    "asideHelp": "Saved by an editor opened before a restore: kept here rather than undoing the restore.",
+    "total": "{count} version, {size} | {count} versions, {size}",
+    "source": {
+      "editor": "Text editor",
+      "shareEditor": "Editor through a share",
+      "onlyoffice": "ONLYOFFICE",
+      "collabora": "Collabora",
+      "restore": "Restored version",
+      "external": "Changed outside the app"
+    },
+    "actions": {
+      "menu": "Version actions",
+      "select": "Select this version",
+      "selectAll": "Select all",
+      "deleteSelected": "Delete selected ({count})",
+      "deleteAll": "Delete all",
+      "preview": "Open read-only",
+      "download": "Download",
+      "restore": "Restore",
+      "rename": "Name…",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "delete": "Delete"
+    },
+    "confirm": {
+      "restoreTitle": "Restore this version?",
+      "restoreMessage": "\"{name}\" goes back to its content of {date}. What it holds now is kept as a version.",
+      "deleteTitle": "Delete this version? | Delete {count} versions?",
+      "deleteMessage": "This version is deleted for good. | These {count} versions are deleted for good.",
+      "deleteAllTitle": "Delete all versions?",
+      "deleteAllMessage": "Every earlier version of \"{name}\" is deleted for good, pinned ones included. The file itself stays."
+    },
+    "rename": {
+      "title": "Name this version",
+      "placeholder": "For example: sent to the client",
+      "help": "A name makes a version easy to find. Pin it to keep it out of the automatic cleanup."
+    },
+    "results": {
+      "restored": "Version restored",
+      "unchanged": "The file already has this content",
+      "deleted": "{count} version deleted | {count} versions deleted",
+      "renamed": "Version named",
+      "pinned": "Version pinned: the automatic cleanup keeps it",
+      "unpinned": "Version unpinned"
+    },
+    "errors": {
+      "action": "The action on this version failed"
+    },
+    "mark": "{count} earlier version | {count} earlier versions"
   }
 }
