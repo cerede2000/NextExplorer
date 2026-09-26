@@ -13,6 +13,7 @@ const local = reactive({
   showHiddenFiles: false,
   showThumbnails: true,
   showVersionMarks: true,
+  documentsOpenInNewTab: false,
   showSidebarFavorites: true,
   showSidebarShares: true,
   showSidebarTools: true,
@@ -33,6 +34,7 @@ const dirty = computed(() => {
     local.showHiddenFiles !== orig.showHiddenFiles ||
     local.showThumbnails !== orig.showThumbnails ||
     local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
+    local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
     local.showSidebarFavorites !== (orig.showSidebarFavorites ?? true) ||
     local.showSidebarShares !== (orig.showSidebarShares ?? true) ||
     local.showSidebarTools !== (orig.showSidebarTools ?? true) ||
@@ -74,6 +76,8 @@ watch(
     local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
     local.showThumbnails = userSettings.showThumbnails ?? true;
     local.showVersionMarks = userSettings.showVersionMarks ?? true;
+    local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
+    local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
     local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
     local.showSidebarShares = userSettings.showSidebarShares ?? true;
     local.showSidebarTools = userSettings.showSidebarTools ?? true;
@@ -123,6 +127,7 @@ const save = async () => {
       showHiddenFiles: local.showHiddenFiles,
       showThumbnails: local.showThumbnails,
       showVersionMarks: local.showVersionMarks,
+      documentsOpenInNewTab: local.documentsOpenInNewTab,
       showSidebarFavorites: local.showSidebarFavorites,
       showSidebarShares: local.showSidebarShares,
       showSidebarTools: local.showSidebarTools,
@@ -215,6 +220,20 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.showVersionMarks" data-test="show-version-marks" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.documentsOpenInNewTab') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.documentsOpenInNewTabHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch v-model="local.documentsOpenInNewTab" data-test="documents-in-new-tab" />
         </div>
 
         <div

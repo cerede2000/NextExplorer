@@ -448,7 +448,9 @@
       "skipHomeHelp": "Automatycznie przekierowuje do pierwszego wolumenu przy otwieraniu strony głównej. Jeśli nie ustawiono, stosuje konfigurację serwera.",
       "useEnvSetting": "Użyj ustawień serwera",
       "showVersionMarks": "Oznaczaj pliki, które mają wersje",
-      "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię."
+      "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię.",
+      "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
+      "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Zapisano w tym folderze",
     "savedAsBody": "{name} został dodany obok oryginału.",
     "saveAsFailed": "Nie można zapisać {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "Nic tutaj nie otworzy {name}.",
+    "backToFolder": "Powrót do folderu"
   }
 }

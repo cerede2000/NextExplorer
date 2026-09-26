@@ -448,7 +448,9 @@
       "skipHomeHelp": "Leitet beim Besuch der Startseite automatisch zur ersten Volume weiter. Wenn nicht gesetzt, wird die Serverkonfiguration verwendet.",
       "useEnvSetting": "Servereinstellung verwenden",
       "showVersionMarks": "Dateien mit Versionen kennzeichnen",
-      "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf."
+      "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf.",
+      "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
+      "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner."
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "In diesem Ordner gespeichert",
     "savedAsBody": "{name} wurde neben dem Original abgelegt.",
     "saveAsFailed": "{name} konnte nicht gespeichert werden"
+  },
+  "preview": {
+    "nothingOpensIt": "Hier kann nichts {name} öffnen.",
+    "backToFolder": "Zurück zum Ordner"
   }
 }

@@ -2,8 +2,11 @@
 import HeaderLogo from '@/components/HeaderLogo.vue';
 import LanguageSelector from '@/components/LanguageSelector.vue';
 import { useAppSettings } from '@/stores/appSettings';
+import { usePageTitle } from '@/composables/usePageTitle';
 
 const appSettings = useAppSettings();
+// Signing in, or setting the instance up: the tab says which instance.
+usePageTitle('');
 
 const props = defineProps({
   version: { type: String, required: true },

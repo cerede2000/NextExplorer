@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import FolderView from '@/views/FolderView.vue';
 import HomeView from '@/views/HomeView.vue';
 import EditorView from '@/views/EditorView.vue';
+import DocumentView from '@/views/DocumentView.vue';
 import BrowserLayout from '@/layouts/BrowserLayout.vue';
 import EditorLayout from '@/layouts/EditorLayout.vue';
 import SearchResultsView from '@/views/SearchResultsView.vue';
@@ -184,6 +185,14 @@ const router = createRouter({
       children: [
         { path: ':versionId/:path(.*)', name: 'VersionFileViewer', component: EditorView },
       ],
+    },
+    {
+      // One document, at an address of its own — see views/DocumentView.vue.
+      // Outside the browser layout on purpose: a document opened in its own tab
+      // is the document, and nothing else.
+      path: '/open/:path(.*)',
+      component: DocumentView,
+      meta: { requiresAuth: true },
     },
     {
       path: '/about',

@@ -448,7 +448,9 @@
       "skipHomeHelp": "Redirige automáticamente a la primera unidad al visitar la pantalla de inicio. Si no se establece, usa la configuración del servidor.",
       "useEnvSetting": "Usar configuración del servidor",
       "showVersionMarks": "Marcar los archivos con versiones",
-      "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial."
+      "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial.",
+      "documentsOpenInNewTab": "Abrir los documentos en una pestaña nueva",
+      "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora."
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",
@@ -933,5 +935,9 @@
     "savedAsHeading": "Guardado en esta carpeta",
     "savedAsBody": "{name} se ha añadido junto al original.",
     "saveAsFailed": "No se ha podido guardar {name}"
+  },
+  "preview": {
+    "nothingOpensIt": "Aquí nada puede abrir {name}.",
+    "backToFolder": "Volver a la carpeta"
   }
 }

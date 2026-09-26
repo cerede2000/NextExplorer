@@ -2,11 +2,14 @@ import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
+import { useAppSettings } from '@/stores/appSettings';
+import { documentRoute } from '@/utils/documentRoute';
 
 export function useNavigation() {
   const router = useRouter();
   const route = useRoute();
   const previewManager = usePreviewManager();
+  const appSettings = useAppSettings();
 
   const navigate = withViewTransition((to) => router.push(to));
   const goPrev = withViewTransition(() => router.back());
@@ -39,19 +42,45 @@ export function useNavigation() {
       return;
     }
 
+    const extensionFromKind = kind.toLowerCase();
+    const extensionFromName = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+    const editable =
+      isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);
+    const basePath = item.path ? `${item.path}/${name}` : name;
+    const fullPath = basePath.replace(/^\/+/, '');
+    const encodedPath = fullPath.split('/').map(encodeURIComponent).join('/');
+
+    // A tab of its own, when that is what this account asked for.
+    //
+    // One decision for every kind of file rather than one per plugin: a
+    // spreadsheet and a photograph open the same way, because a preference that
+    // holds for some files and not others is a preference nobody can predict.
+    // Both addresses already exist — `/open` for anything with a preview,
+    // `/editor` for anything the text editor opens — so this is the browser
+    // being handed one of them instead of this page filling itself.
+    if (appSettings.userSettings?.documentsOpenInNewTab) {
+      // Asked once: matching a plugin builds a context and walks the list.
+      const previewable = Boolean(previewManager.findPlugin(item));
+      const target = previewable
+        ? documentRoute(fullPath)
+        : editable
+          ? { path: `/editor/${encodedPath}` }
+          : null;
+
+      if (target) {
+        // `noopener` because the page opened must not be able to reach back
+        // into this one through `window.opener`.
+        window.open(router.resolve(target).href, '_blank', 'noopener');
+        return;
+      }
+    }
+
     // Files: try preview first (no view transition – avoids double animations)
     if (previewManager.open(item)) {
       return;
     }
 
-    const extensionFromKind = kind.toLowerCase();
-    const extensionFromName = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
-
-    if (isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName)) {
-      const basePath = item.path ? `${item.path}/${name}` : name;
-      const fileToEdit = basePath.replace(/^\/+/, '');
-      // Encode each segment for editor path
-      const encodedPath = fileToEdit.split('/').map(encodeURIComponent).join('/');
+    if (editable) {
       navigate({ path: `/editor/${encodedPath}` });
       return;
     }
