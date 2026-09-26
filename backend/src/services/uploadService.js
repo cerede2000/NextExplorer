@@ -11,6 +11,7 @@ const { normalizeRelativePath } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { readMetaField } = require('../utils/requestUtils');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
+const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { track: trackInFlight } = require('./inFlightFiles');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
@@ -102,6 +103,19 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       }
 
       await ensureDir(destinationDir);
+
+      // Before a byte is written: an upload that cannot fit is refused rather
+      // than filling the volume with itself. What is coming is only known from
+      // the request's own declaration, and a client that declares nothing is
+      // still held to the reserve — which is the number that matters, since a
+      // volume filled to the last byte takes the database down with it where
+      // /config sits on the same filesystem.
+      const declaredBytes = Number(req.headers?.['content-length']);
+      await ensureStorageAvailable(
+        destinationDir,
+        Number.isFinite(declaredBytes) ? declaredBytes : 0,
+        'destination storage'
+      );
 
       // The bytes go to a hidden name of their own beside the destination, and
       // the real name is only taken once they are all there. Choosing that name
