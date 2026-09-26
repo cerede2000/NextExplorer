@@ -21,6 +21,8 @@ export const onlyofficePreviewPlugin = (extensions) => ({
   priority: 50,
   // Render with minimal chrome in the overlay host
   minimalHeader: true,
+  // Can open an earlier version of a document, to be read (`item.versionId`).
+  supportsVersions: true,
 
   match: (context) => {
     const ext = String(context.extension || '').toLowerCase();

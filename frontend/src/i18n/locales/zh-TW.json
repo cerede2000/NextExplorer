@@ -929,6 +929,9 @@
     "transferCancel": "取消",
     "transferConfirm": "繼續",
     "editingBy": "正在 ONLYOFFICE 中編輯：{names}",
-    "editingNow": "正在 ONLYOFFICE 中編輯"
+    "editingNow": "正在 ONLYOFFICE 中編輯",
+    "savedAsHeading": "已儲存到此資料夾",
+    "savedAsBody": "{name} 已新增至原檔案旁。",
+    "saveAsFailed": "無法儲存 {name}"
   }
 }

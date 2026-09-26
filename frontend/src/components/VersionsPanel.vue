@@ -14,6 +14,7 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useFileStore } from '@/stores/fileStore';
 import { isEditableExtension } from '@/config/editor';
+import { usePreviewManager } from '@/plugins/preview/manager';
 import { formatBytes, formatLocalDateTime } from '@/utils';
 import {
   deleteVersions,
@@ -149,12 +150,28 @@ const extension = computed(() => {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
 });
 
+const previewManager = usePreviewManager();
+
+/**
+ * Whether an office editor opens this document, and can open one of its
+ * versions to be read. A text file goes to the text editor instead.
+ */
+const officeViewer = computed(() => {
+  if (isEditableExtension(extension.value) || !fileName.value) return null;
+  const match = previewManager.findPlugin?.({
+    name: fileName.value,
+    path: parentPath.value,
+    kind: extension.value,
+  });
+  return match?.plugin?.supportsVersions ? match.plugin : null;
+});
+
 const actionsFor = (version) => {
   const usable = version.available !== false;
   const list = [];
-  // A text file opens in the editor, read only on that version. An office
-  // document has no reader for a version yet.
-  if (usable && isEditableExtension(extension.value)) {
+  // A text file opens in the text editor, read only on that version; an office
+  // document opens in its own, the same way.
+  if (usable && (isEditableExtension(extension.value) || officeViewer.value)) {
     list.push({ id: 'preview', label: t('versions.actions.preview') });
   }
   if (usable && rights.value.download) {
@@ -235,6 +252,17 @@ const download = (version) => {
 const preview = (version) => {
   const path = filePath.value;
   close();
+  // A document opens in its office editor, read only on that version; the
+  // editor is closed like any preview, and the history reopened from there.
+  if (officeViewer.value) {
+    previewManager.open({
+      name: fileName.value,
+      path: parentPath.value,
+      kind: extension.value,
+      versionId: version.id,
+    });
+    return;
+  }
   router.push({ name: 'VersionFileViewer', params: { versionId: version.id, path } });
 };
 

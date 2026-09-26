@@ -929,6 +929,9 @@
     "transferCancel": "취소",
     "transferConfirm": "계속",
     "editingBy": "ONLYOFFICE에서 편집 중: {names}",
-    "editingNow": "ONLYOFFICE에서 편집 중"
+    "editingNow": "ONLYOFFICE에서 편집 중",
+    "savedAsHeading": "이 폴더에 저장됨",
+    "savedAsBody": "{name}이(가) 원본 옆에 추가되었습니다.",
+    "saveAsFailed": "{name}을(를) 저장하지 못했습니다"
   }
 }

@@ -929,6 +929,9 @@
     "transferCancel": "Abbrechen",
     "transferConfirm": "Fortfahren",
     "editingBy": "Wird in ONLYOFFICE bearbeitet von: {names}",
-    "editingNow": "Wird gerade in ONLYOFFICE bearbeitet"
+    "editingNow": "Wird gerade in ONLYOFFICE bearbeitet",
+    "savedAsHeading": "In diesem Ordner gespeichert",
+    "savedAsBody": "{name} wurde neben dem Original abgelegt.",
+    "saveAsFailed": "{name} konnte nicht gespeichert werden"
   }
 }

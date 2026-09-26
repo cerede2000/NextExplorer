@@ -929,6 +929,9 @@
     "transferCancel": "Annulla",
     "transferConfirm": "Continua",
     "editingBy": "In modifica in ONLYOFFICE da {names}",
-    "editingNow": "In modifica in ONLYOFFICE"
+    "editingNow": "In modifica in ONLYOFFICE",
+    "savedAsHeading": "Salvato in questa cartella",
+    "savedAsBody": "{name} è stato aggiunto accanto all’originale.",
+    "saveAsFailed": "Impossibile salvare {name}"
   }
 }

@@ -8,8 +8,14 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 
 const { onlyoffice, public: publicConfig, mimeTypes } = require('../config/index');
-const { normalizeRelativePath } = require('../utils/pathUtils');
+const {
+  combineRelativePath,
+  ensureValidName,
+  normalizeRelativePath,
+} = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
+const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
+const { track: trackInFlight } = require('../services/inFlightFiles');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { renameEntry } = require('../services/renameService');
 const versions = require('../services/versions/operations');
@@ -116,6 +122,29 @@ const fetchDocumentInto = async (downloadUrl, temporaryPath, mode) => {
  * session was opened for is the answer. Somebody who came through a share link
  * is credited as the link: there is no account to name.
  */
+/**
+ * Pull a document the Document Server prepared into a new file in `directory`.
+ *
+ * Never over anything: a name already taken, before the download or during it,
+ * gets the same "(1)" treatment as everywhere else, and the caller is told the
+ * name actually used.
+ */
+const downloadDocumentInto = async (downloadUrl, directory, desiredName, mode = 0o600) => {
+  const temporaryPath = path.join(
+    directory,
+    `.${desiredName}.onlyoffice-${crypto.randomUUID()}.tmp`
+  );
+
+  const inFlight = trackInFlight(temporaryPath, 'temporary-file');
+  try {
+    await fetchDocumentInto(downloadUrl, temporaryPath, mode);
+    return await placeWithoutOverwrite(temporaryPath, directory, desiredName);
+  } finally {
+    await fsp.unlink(temporaryPath).catch(() => {});
+    inFlight.release();
+  }
+};
+
 const authorFromCallback = (body, backendCtx) => {
   const changes = Array.isArray(body?.history?.changes) ? body.history.changes : [];
   const user = changes.length ? changes[changes.length - 1]?.user : null;
@@ -393,6 +422,15 @@ router.post(
     }
 
     const relativePath = normalizeRelativePath(relativeRaw);
+
+    // An earlier version, opened to be read: a viewer with nothing to save, and
+    // a key of its own so it never touches the one the document is open under.
+    const requestedVersion = typeof req.body?.versionId === 'string' ? req.body.versionId : '';
+    if (requestedVersion) {
+      res.json(await versionViewConfig(req, relativePath, requestedVersion, null));
+      return;
+    }
+
     const context = { user: req.user, guestSession: req.guestSession };
     const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
 
@@ -652,6 +690,342 @@ router.post(
     }
 
     res.json({ path: renamed.relativePath, name: renamed.name });
+  })
+);
+
+const versionHistory = () => require('../services/versions');
+
+const versionKeyFor = (versionId) => `version-${versionId}`;
+
+const editorUserOf = (req) =>
+  req.user && req.user.id
+    ? { id: String(req.user.id), name: req.user.displayName || req.user.username || 'User' }
+    : req.guestSession
+      ? { id: `guest_${req.guestSession.id}`, name: 'Guest User' }
+      : undefined;
+
+/** A token for `/onlyoffice/file` that serves one content, and never writes. */
+const readOnlyFileUrl = (req, relativePath, absolutePath, ttlSeconds) => {
+  const backendToken = jwt.sign(
+    {
+      typ: BACKEND_TOKEN_TYPE,
+      absolutePath,
+      logicalPath: relativePath,
+      canWrite: false,
+      sessionId: null,
+      userId: req.user?.id ? String(req.user.id) : null,
+      guestSessionId: req.guestSession?.id || null,
+      shareToken: null,
+    },
+    onlyoffice.secret,
+    { algorithm: 'HS256', expiresIn: ttlSeconds }
+  );
+  const fileUrl = new URL('/api/onlyoffice/file', publicConfig.url);
+  fileUrl.searchParams.set('path', relativePath);
+  fileUrl.searchParams.set('backend', backendToken);
+  return fileUrl.toString();
+};
+
+const requirePublicUrl = () => {
+  if (!publicConfig?.url) {
+    throw new ValidationError(
+      'PUBLIC_URL is required on the server to build absolute URLs for ONLYOFFICE.'
+    );
+  }
+};
+
+/** The key the document is open under now, as the configuration hands it out. */
+const currentKeyOf = async (req, relativePath) => {
+  const context = { user: req.user, guestSession: req.guestSession };
+  const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+  if (!accessInfo?.canAccess || !accessInfo.canRead || !resolved) {
+    throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+  }
+  const stat = await fsp.stat(resolved.absolutePath);
+  const documentType = getDocumentType(toExt(resolved.absolutePath));
+  const key = await resolveKeyForOpen({
+    absolutePath: resolved.absolutePath,
+    relativePath,
+    stat,
+    documentType,
+  });
+  return { key, absolutePath: resolved.absolutePath };
+};
+
+/**
+ * A version opened on its own, to be read: a viewer, with nothing to save.
+ *
+ * This is what lets an office document's history be looked at at all — the
+ * panel could only offer a text file until now, because nothing could put an
+ * earlier .docx in front of anybody.
+ */
+const versionViewConfig = async (req, relativePath, versionId, uiTheme) => {
+  requirePublicUrl();
+  const context = { user: req.user, guestSession: req.guestSession };
+  const located = await versionHistory().locateVersion(context, relativePath, versionId, {
+    download: false,
+  });
+  const ext = toExt(located.name);
+  const documentType = getDocumentType(ext);
+  if (!documentType) {
+    throw new ValidationError(`ONLYOFFICE has no editor for .${ext} files.`);
+  }
+  const mayCopy = located.target.rights.download;
+  const config = {
+    documentType,
+    type: 'desktop',
+    document: {
+      fileType: ext,
+      key: versionKeyFor(located.version.id),
+      title: located.name,
+      url: readOnlyFileUrl(req, relativePath, located.absolutePath, BACKEND_TOKEN_TTL_SECONDS),
+      permissions: {
+        edit: false,
+        comment: false,
+        review: false,
+        // Printing or downloading a version is taking a copy of it.
+        download: mayCopy,
+        print: mayCopy,
+      },
+    },
+    // No callback: nothing is saved from a version, and the one the document
+    // has would release the key everyone editing it now shares.
+    editorConfig: {
+      mode: 'view',
+      customization: {
+        anonymous: { request: false },
+        ...(uiTheme ? { uiTheme } : {}),
+      },
+      lang: onlyoffice.lang || 'en',
+      user: editorUserOf(req),
+    },
+  };
+  config.token = jwt.sign(config, onlyoffice.secret, { algorithm: 'HS256' });
+  return {
+    documentServerUrl: onlyoffice.serverUrl,
+    config,
+    editorSessionId: null,
+    autoSaveIntervalMs: 0,
+    version: { id: located.version.id, modifiedAt: located.version.modifiedAt },
+  };
+};
+
+/**
+ * The document's history, as the editor's own history panel reads it.
+ *
+ * The editor numbers versions from the oldest and expects the current state to
+ * be the last of them; the history this application keeps comes newest first
+ * and does not count the current state as a version, so the two are reconciled
+ * here rather than in the editor.
+ */
+router.post(
+  '/onlyoffice/history',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) throw new ValidationError('A valid file path is required.');
+    const context = { user: req.user, guestSession: req.guestSession };
+    const listed = await versionHistory().listVersions(context, relativePath);
+    const { key } = await currentKeyOf(req, relativePath);
+
+    const history = [...listed.versions].reverse().map((version, index) => ({
+      version: index + 1,
+      versionId: version.id,
+      key: versionKeyFor(version.id),
+      created: version.modifiedAt,
+      user: { id: version.author?.id || '', name: version.author?.label || '' },
+      label: version.label,
+      available: version.available !== false,
+    }));
+    history.push({
+      version: history.length + 1,
+      versionId: null,
+      key,
+      created: listed.file.modifiedAt,
+      user: { id: listed.file.author?.id || '', name: listed.file.author?.label || '' },
+      label: null,
+      available: true,
+    });
+
+    res.set('Cache-Control', 'no-store');
+    res.json({ currentVersion: history.length, history, canRestore: listed.rights.restore });
+  })
+);
+
+/** Where one entry of that history is fetched from. */
+router.post(
+  '/onlyoffice/history-data',
+  asyncHandler(async (req, res) => {
+    requirePublicUrl();
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) throw new ValidationError('A valid file path is required.');
+    const version = Number(req.body?.version);
+    if (!Number.isInteger(version) || version < 1) {
+      throw new ValidationError('A version number is required.');
+    }
+    const context = { user: req.user, guestSession: req.guestSession };
+    const versionId = typeof req.body?.versionId === 'string' ? req.body.versionId : '';
+
+    let key;
+    let absolutePath;
+    let name;
+    if (versionId) {
+      const located = await versionHistory().locateVersion(context, relativePath, versionId, {
+        download: false,
+      });
+      key = versionKeyFor(located.version.id);
+      absolutePath = located.absolutePath;
+      name = located.name;
+    } else {
+      // The current state, from inside the history: the same rights decide.
+      await versionHistory().listVersions(context, relativePath);
+      ({ key, absolutePath } = await currentKeyOf(req, relativePath));
+      name = path.basename(absolutePath);
+    }
+
+    const payload = {
+      fileType: toExt(name),
+      key,
+      url: readOnlyFileUrl(req, relativePath, absolutePath, STORAGE_FILE_TOKEN_TTL_SECONDS),
+      version,
+    };
+    payload.token = jwt.sign(payload, onlyoffice.secret, { algorithm: 'HS256' });
+    res.set('Cache-Control', 'no-store');
+    res.json(payload);
+  })
+);
+
+/**
+ * "Save as" from inside the editor.
+ *
+ * ONLYOFFICE does not write anything itself: it converts the document, then
+ * hands the integration a URL to fetch the result from. Without a route to
+ * receive it the menu entry is hidden, which left Download as the only way out
+ * — through the browser, into the person's downloads, not their volume.
+ *
+ * Deliberately not tied to an editing session: saving a copy is not a change to
+ * the original, so a reader may do it too. What it does require is the right to
+ * read the document it came from and to write into the folder it lands in,
+ * exactly as an upload would.
+ */
+router.post(
+  '/onlyoffice/save-as',
+  asyncHandler(async (req, res) => {
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) {
+      throw new ValidationError('A valid file path is required.');
+    }
+
+    // The URL comes from the editor, so it is only ever fetched when it points
+    // at the configured Document Server — the same rule as the save callback.
+    const downloadUrl = ensureAllowedDownloadUrl(req.body?.url);
+
+    let desiredName;
+    try {
+      // Refused, not trimmed down to its last segment. A title carrying a
+      // separator means the request is not what this route is for, and quietly
+      // reinterpreting it would turn "../invoice.pdf" into a silent success in
+      // a folder the caller never named.
+      desiredName = ensureValidName(String(req.body?.title || ''));
+    } catch (error) {
+      throw new ValidationError(error.message);
+    }
+
+    const context = { user: req.user, guestSession: req.guestSession };
+
+    // Reading the source is what entitles somebody to save a copy of it.
+    const { accessInfo: sourceAccess } = await resolvePathWithAccess(context, relativePath);
+    if (!sourceAccess?.canAccess || !sourceAccess.canRead) {
+      throw new ForbiddenError(sourceAccess?.denialReason || 'Access denied.');
+    }
+
+    const parentPath = path.posix.dirname(relativePath);
+    const targetFolder = parentPath === '.' ? '' : parentPath;
+    const { accessInfo: folderAccess, resolved: folder } = await resolvePathWithAccess(
+      context,
+      targetFolder
+    );
+    if (!folderAccess?.canAccess || !folderAccess.canWrite) {
+      throw new ForbiddenError(folderAccess?.denialReason || 'Access denied.');
+    }
+
+    await ensureDir(folder.absolutePath);
+    const { name, path: absolute } = await downloadDocumentInto(
+      downloadUrl,
+      folder.absolutePath,
+      desiredName
+    );
+
+    const written = await fsp.stat(absolute);
+    const savedPath = combineRelativePath(targetFolder, name);
+    logger.info(
+      { path: savedPath, size: written.size },
+      'ONLYOFFICE document saved under a new name'
+    );
+
+    res.json({ path: savedPath, name, size: written.size });
+  })
+);
+
+// How long a token naming one file for the editor is good for: long enough to
+// fetch it, short enough that the link is not worth keeping.
+const STORAGE_FILE_TOKEN_TTL_SECONDS = 15 * 60;
+
+/**
+ * Who can be mentioned in a comment.
+ *
+ * ONLYOFFICE asks for the whole list and filters it in the editor as the
+ * comment is typed, so this answers with names and addresses rather than to a
+ * query. Only signed-in people get it: a visitor editing through a share link
+ * has no business being handed the user directory.
+ */
+router.get(
+  '/onlyoffice/users',
+  asyncHandler(async (req, res) => {
+    if (!req.user?.id) {
+      throw new ForbiddenError('Mentions require a signed-in user.');
+    }
+    // Required here rather than at the top: the search service reaches into the
+    // database, which the route file does not otherwise touch.
+    // eslint-disable-next-line global-require
+    const { listUsersForMentions } = require('../services/userSearchService');
+    res.json({ users: await listUsersForMentions() });
+  })
+);
+
+/**
+ * A comment mentioning somebody was posted.
+ *
+ * ONLYOFFICE has already written the comment into the document; this is the
+ * separate "tell them about it" step, which it leaves entirely to the
+ * integration. There is no notification channel to deliver it on, so the
+ * mention is recorded and nothing is sent — said plainly, rather than leaving
+ * the editor waiting on a handler that silently does nothing.
+ */
+router.post(
+  '/onlyoffice/notify',
+  asyncHandler(async (req, res) => {
+    if (!req.user?.id) {
+      throw new ForbiddenError('Mentions require a signed-in user.');
+    }
+    const relativePath = normalizeRelativePath(req.body?.path || '');
+    if (!relativePath) {
+      throw new ValidationError('A valid file path is required.');
+    }
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { accessInfo } = await resolvePathWithAccess(context, relativePath);
+    if (!accessInfo?.canAccess || !accessInfo.canRead) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Access denied.');
+    }
+
+    const emails = Array.isArray(req.body?.emails)
+      ? req.body.emails.filter((email) => typeof email === 'string').slice(0, 50)
+      : [];
+    logger.info(
+      { path: relativePath, by: String(req.user.id), recipients: emails.length },
+      'ONLYOFFICE comment mention recorded, no notification channel configured'
+    );
+
+    res.json({ delivered: false });
   })
 );
 

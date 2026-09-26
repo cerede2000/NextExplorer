@@ -929,6 +929,9 @@
     "transferCancel": "Annuleren",
     "transferConfirm": "Doorgaan",
     "editingBy": "Wordt bewerkt in ONLYOFFICE door {names}",
-    "editingNow": "Wordt bewerkt in ONLYOFFICE"
+    "editingNow": "Wordt bewerkt in ONLYOFFICE",
+    "savedAsHeading": "Opgeslagen in deze map",
+    "savedAsBody": "{name} is naast het origineel toegevoegd.",
+    "saveAsFailed": "{name} kon niet worden opgeslagen"
   }
 }
