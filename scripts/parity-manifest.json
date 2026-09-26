@@ -309,9 +309,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/legacyCacheCheck\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-12",
-      "note": "what releases up to 1.1.7 left in the cache"
+      "note": "nxzai#444 \u2014 what releases up to 1.1.7 left in the cache"
     },
     {
       "axis": "*",
