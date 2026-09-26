@@ -66,26 +66,34 @@ describe('a preference the screen offers', () => {
   /**
    * Every key the service knows how to sanitise is a key this route accepts:
    * one list, so neither can gain a preference the other drops.
+   *
+   * A value each preference actually takes, and the value is what is asserted
+   * rather than the key being present: the answer carries the settings as they
+   * now stand, so a key stored by an earlier turn of this loop would still be
+   * there after the one that dropped it.
    */
-  it('accepts exactly what the settings service calls a preference', async () => {
-    const { USER_SETTING_KEYS } = load('src/services/settingsService');
+  const A_VALUE_IT_TAKES = {
+    defaultShareExpiration: null,
+    skipHome: null,
+    locale: 'fr',
+    defaultView: 'list',
+  };
 
-    for (const key of USER_SETTING_KEYS) {
-      const value =
-        key === 'defaultShareExpiration' || key === 'skipHome'
-          ? null
-          : key === 'locale'
-            ? 'fr'
-            : true;
+  it('accepts exactly what the settings service calls a preference', async () => {
+    const { WRITABLE_USER_SETTINGS } = load('src/services/settingsService');
+
+    for (const key of WRITABLE_USER_SETTINGS) {
+      const value = key in A_VALUE_IT_TAKES ? A_VALUE_IT_TAKES[key] : true;
       const response = await save({ [key]: value });
-      expect(response.body.user, `${key} was dropped`).toHaveProperty(key);
+      expect(response.body.user?.[key], `${key} was dropped`).toEqual(value);
+      expect((await stored())[key], `${key} was not stored`).toEqual(value);
     }
   });
 
   it('ignores a key that is not a preference', async () => {
     const response = await save({ isAdmin: true });
 
-    expect(response.body.user ?? {}).toEqual({});
+    expect(response.body.user).not.toHaveProperty('isAdmin');
     expect((await stored()).isAdmin).toBeUndefined();
   });
 });

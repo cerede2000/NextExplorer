@@ -74,8 +74,8 @@ describe('a language on the account', () => {
   });
 
   it('is a preference the settings route accepts', async () => {
-    const { USER_SETTING_KEYS } = settings();
+    const { WRITABLE_USER_SETTINGS } = settings();
 
-    expect(USER_SETTING_KEYS.has('locale')).toBe(true);
+    expect(WRITABLE_USER_SETTINGS.has('locale')).toBe(true);
   });
 });

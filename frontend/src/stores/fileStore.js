@@ -467,6 +467,10 @@ export const useFileStore = defineStore('fileStore', () => {
     const previousItems = Array.isArray(currentPathItems.value) ? currentPathItems.value : [];
 
     const normalizedPath = normalizePath(typeof path === 'string' ? path : currentPath.value);
+    // Before the path changes, so the sort and the view this folder was left in
+    // are the ones the first render uses rather than a frame of the previous
+    // folder's.
+    useSettingsStore().restoreFolderPreferences(normalizedPath);
     currentPath.value = normalizedPath;
     clearSelection();
     // When changing folders, exit selection mode (mobile UX).

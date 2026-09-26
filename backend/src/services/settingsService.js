@@ -1,161 +1,149 @@
-const { getDb } = require('./db');
-const env = require('../config/env');
-const { parseByteSize } = require('../utils/env');
+const { getDb, prepared } = require('./db');
+const { cachedForRequest } = require('../utils/requestContext');
 const { normalizeRelativePath } = require('../utils/pathUtils');
-const { ruleAppliesToAdmins } = require('../utils/accessRules');
+const { parseByteSize } = require('../utils/env');
+const env = require('../config/env');
 const folderSizeExclusions = require('./folderSizeExclusions');
 const searchIndexExclusions = require('./searchIndexExclusions');
-const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
+const { generateId } = require('../utils/ids');
+const { ValidationError } = require('../errors/AppError');
+const { ruleAppliesToAdmins } = require('../utils/accessRules');
 
-const generateId = () => {
-  const crypto = require('crypto');
-  return typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
+const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
+const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
+const DEFAULT_UPLOAD_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
+
+// Per-folder preferences are kept per user, and bounded: one entry per folder
+// ever visited would otherwise grow without limit.
+const MAX_FOLDER_PREFERENCES = 100;
+const MAX_FOLDER_PATH_LENGTH = 1024;
+const MAX_SORT_FIELD_LENGTH = 128;
+
+// Admin-configurable upper bound (env MAX_CHUNK_SIZE_MIB), capped at the hard
+// ceiling. Used to clamp both the default and any saved chunk size.
+const resolveMaxChunkSizeBytes = () => {
+  const raw = Number(env.MAX_CHUNK_SIZE_MIB);
+  const mib =
+    Number.isFinite(raw) && raw >= 1
+      ? Math.min(Math.floor(raw), HARD_MAX_UPLOAD_CHUNK_SIZE_MIB)
+      : HARD_MAX_UPLOAD_CHUNK_SIZE_MIB;
+  return Math.max(MIN_UPLOAD_CHUNK_SIZE_BYTES, mib * 1024 * 1024);
+};
+const MAX_UPLOAD_CHUNK_SIZE_BYTES = resolveMaxChunkSizeBytes();
+
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const defaultUploadSettings = () => {
+  const configuredChunkSize = parseByteSize(env.UPLOAD_CHUNK_SIZE);
+  const chunkSizeBytes =
+    Number.isFinite(configuredChunkSize) && configuredChunkSize > 0
+      ? configuredChunkSize
+      : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES;
+
+  const chunkedAutoFallback = env.UPLOAD_CHUNKED_AUTO_FALLBACK ?? false;
+  return {
+    // Auto-fallback and forced chunked uploads are mutually exclusive — auto is a
+    // direct-with-fallback mode, so it turns forced chunking off.
+    chunkedEnabled: chunkedAutoFallback ? false : (env.UPLOAD_CHUNKED_ENABLED ?? false),
+    chunkedAutoFallback,
+    chunkSizeBytes: clampNumber(
+      Math.floor(chunkSizeBytes),
+      MIN_UPLOAD_CHUNK_SIZE_BYTES,
+      MAX_UPLOAD_CHUNK_SIZE_BYTES
+    ),
+  };
+};
+
+const isValidFolderPath = (folderPath) =>
+  typeof folderPath === 'string' &&
+  folderPath.length > 0 &&
+  folderPath.length <= MAX_FOLDER_PATH_LENGTH;
+
+const sanitizeFolderSort = (sort) => {
+  if (
+    !sort ||
+    typeof sort !== 'object' ||
+    typeof sort.by !== 'string' ||
+    sort.by.trim().length === 0 ||
+    sort.by.length > MAX_SORT_FIELD_LENGTH ||
+    (sort.order !== 'asc' && sort.order !== 'desc')
+  ) {
+    return null;
+  }
+
+  return {
+    by: sort.by.trim(),
+    order: sort.order,
+    updatedAt: Number.isFinite(sort.updatedAt) ? Math.floor(sort.updatedAt) : 0,
+  };
+};
+
+const VIEW_MODES = ['grid', 'list', 'tab', 'photos'];
+
+/** A remembered view mode for one folder, or null when it is not one we have. */
+const sanitizeFolderView = (view) => {
+  const mode = typeof view === 'string' ? view : view?.mode;
+  if (!VIEW_MODES.includes(mode)) return null;
+
+  return {
+    mode,
+    updatedAt: Number.isFinite(view?.updatedAt) ? Math.floor(view.updatedAt) : 0,
+  };
+};
+
+/**
+ * A map of folder path to preference, keeping only what is valid and only the
+ * most recently used — one entry per folder ever visited would grow forever.
+ */
+const sanitizeFolderPreferences = (preferences, sanitizeEntry) => {
+  if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(preferences)
+      .map(([folderPath, entry]) => {
+        const sanitized = sanitizeEntry(entry);
+        return isValidFolderPath(folderPath) && sanitized ? [folderPath, sanitized] : null;
+      })
+      .filter(Boolean)
+      .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
+      .slice(0, MAX_FOLDER_PREFERENCES)
+  );
+};
+
+const sanitizeFolderSorts = (folderSorts) =>
+  sanitizeFolderPreferences(folderSorts, sanitizeFolderSort);
+
+const sanitizeFolderViews = (folderViews) =>
+  sanitizeFolderPreferences(folderViews, sanitizeFolderView);
+
+/**
+ * The bounds thumbnail settings are held to, and their defaults. The settings
+ * page refuses a value outside them before sending it, with the same numbers
+ * (`SettingsFilesThumbnails.vue`).
+ */
+const THUMBNAIL_BOUNDS = {
+  size: { min: 64, max: 1024, fallback: 200 },
+  quality: { min: 1, max: 100, fallback: 70 },
+  concurrency: { min: 1, max: 50, fallback: 10 },
 };
 
 /**
  * Sanitize thumbnail settings
  */
 const sanitizeThumbnails = (thumbnails = {}) => {
+  const integer = (key) => {
+    const { min, max, fallback } = THUMBNAIL_BOUNDS[key];
+    return Number.isFinite(thumbnails[key])
+      ? clampNumber(Math.floor(thumbnails[key]), min, max)
+      : fallback;
+  };
   return {
     enabled: typeof thumbnails.enabled === 'boolean' ? thumbnails.enabled : true,
-    size: Number.isFinite(thumbnails.size)
-      ? Math.max(64, Math.min(1024, Math.floor(thumbnails.size)))
-      : 200,
-    quality: Number.isFinite(thumbnails.quality)
-      ? Math.max(1, Math.min(100, Math.floor(thumbnails.quality)))
-      : 70,
-    concurrency: Number.isFinite(thumbnails.concurrency)
-      ? Math.max(1, Math.min(50, Math.floor(thumbnails.concurrency)))
-      : 10,
-  };
-};
-
-/**
- * Sanitize access control rules
- */
-const sanitizeAccessRules = (rules = []) => {
-  if (!Array.isArray(rules)) return [];
-
-  return rules
-    .map((rule) => {
-      if (!rule || typeof rule !== 'object') return null;
-
-      // Validate path
-      let normalizedPath;
-      try {
-        normalizedPath = normalizeRelativePath(rule.path || '');
-      } catch {
-        return null; // Invalid path
-      }
-
-      if (!normalizedPath) return null;
-
-      // Validate permissions
-      const permissions = ['rw', 'ro', 'hidden'].includes(rule.permissions)
-        ? rule.permissions
-        : 'rw';
-
-      return {
-        id: rule.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        path: normalizedPath,
-        recursive: Boolean(rule.recursive),
-        permissions,
-        // Stored as a plain yes or no, so the page shows a definite box and
-        // nothing downstream has to guess again. What a rule written before
-        // this switch existed means is decided in one place, utils/accessRules.
-        appliesToAdmins: ruleAppliesToAdmins({ ...rule, permissions }),
-      };
-    })
-    .filter(Boolean);
-};
-
-/**
- * The access section: the rules, and whether they hold administrators.
- *
- * Kept together because the two are read together — a rule says whether it
- * holds administrators, and this setting holds them to all of them at once.
- */
-const sanitizeAccess = (access = {}) => {
-  const source = access && typeof access === 'object' && !Array.isArray(access) ? access : {};
-  return {
-    rules: sanitizeAccessRules(source.rules || []),
-    applyToAdmins: source.applyToAdmins === true,
-  };
-};
-
-/**
- * Sanitize branding settings
- */
-const sanitizeBranding = (branding = {}) => {
-  return {
-    appName:
-      typeof branding.appName === 'string' ? branding.appName.trim().slice(0, 100) : 'Explorer',
-    appLogoUrl:
-      typeof branding.appLogoUrl === 'string'
-        ? branding.appLogoUrl.trim().slice(0, 500)
-        : '/logo.svg',
-    showPoweredBy: typeof branding.showPoweredBy === 'boolean' ? branding.showPoweredBy : false,
-  };
-};
-
-/**
- * The trash settings in force: on or off, how many days an item is kept, and
- * how much of a volume the trash may hold — a share of it, capped by a size
- * when one is set. An explicit `maxBytes: null` removes the cap; a field left
- * out keeps the default the environment gave.
- */
-const sanitizeTrash = (trash = {}) => {
-  // eslint-disable-next-line global-require
-  const { trash: defaults } = require('../config/index');
-  // eslint-disable-next-line global-require
-  const { parseByteSize } = require('../utils/env');
-  const source = trash && typeof trash === 'object' ? trash : {};
-  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-  const integerIn = (value, min, max, fallback) =>
-    Number.isFinite(value) ? clamp(Math.round(value), min, max) : fallback;
-  const rawMaxBytes =
-    typeof source.maxBytes === 'string' ? parseByteSize(source.maxBytes) : source.maxBytes;
-
-  let maxBytes = defaults.maxBytes;
-  if (source.maxBytes === null) maxBytes = null;
-  else if (Number.isFinite(rawMaxBytes) && rawMaxBytes > 0) maxBytes = Math.floor(rawMaxBytes);
-
-  return {
-    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
-    retentionDays: integerIn(source.retentionDays, 1, 3650, defaults.retentionDays),
-    maxPercent: integerIn(source.maxPercent, 1, 90, defaults.maxPercent),
-    maxBytes,
-  };
-};
-
-/**
- * The file-version settings in force: whether a save keeps what it replaces,
- * and the retention thinning (everything for a while, then hourly, then daily),
- * a per-file cap and a session-checkpoint gap. Out-of-range values are clamped,
- * and the windows are kept consistent (hourly covers keep-all, daily covers
- * hourly), so the policy never contradicts itself.
- */
-const sanitizeVersions = (versions = {}) => {
-  // eslint-disable-next-line global-require
-  const { versions: defaults, VERSION_BOUNDS } = require('../config/index');
-  const source = versions && typeof versions === 'object' ? versions : {};
-  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-  const integer = (key) => {
-    const [min, max] = VERSION_BOUNDS[key];
-    return Number.isFinite(source[key]) ? clamp(Math.round(source[key]), min, max) : defaults[key];
-  };
-  const keepAllHours = integer('keepAllHours');
-  const hourlyDays = Math.max(integer('hourlyDays'), Math.ceil(keepAllHours / 24));
-  const dailyDays = Math.max(integer('dailyDays'), hourlyDays);
-  return {
-    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
-    keepAllHours,
-    hourlyDays,
-    dailyDays,
-    maxPerFile: integer('maxPerFile'),
-    sessionCheckpointMinutes: integer('sessionCheckpointMinutes'),
+    size: integer('size'),
+    quality: integer('quality'),
+    concurrency: integer('concurrency'),
   };
 };
 
@@ -176,99 +164,129 @@ const sanitizeSearchIndex = (searchIndex = {}) => ({
   enabled: searchIndex.enabled === true,
 });
 
+const ACCESS_PERMISSIONS = ['rw', 'ro', 'hidden'];
+
 /**
- * The activity log settings in force: on or off, and how long a line is kept.
+ * Sanitize access control rules.
  *
- * Off is the default and stays the default: a log nobody asked for is a record
- * of somebody's day that nobody reads.
+ * Read back (`strict: false`), a rule that cannot stand is dropped. Anything
+ * else would make one bad row — left by an older version, or edited into
+ * app.db by hand — unreadable settings, and unreadable settings are every
+ * hidden folder visible to everybody.
+ *
+ * Saved (`strict: true`), the same rule is refused with its reason and nothing
+ * is written. Dropping it silently answered 200 with a list the page then
+ * adopted: the row for `../Secret` disappeared the moment it was saved, and an
+ * administrator was left believing a folder was hidden that never was. The
+ * permissions were worse — anything not one of the three became `rw`, so a
+ * mistyped `readonly` opened a folder for writing instead of refusing the word.
  */
-const sanitizeActivity = (activity = {}) => {
-  // eslint-disable-next-line global-require
-  const { activity: defaults } = require('../config/index');
-  const source = activity && typeof activity === 'object' ? activity : {};
-  const retentionDays = Number(source.retentionDays);
-  return {
-    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
-    retentionDays: Number.isFinite(retentionDays)
-      ? Math.max(1, Math.min(3650, Math.round(retentionDays)))
-      : defaults.retentionDays,
-  };
-};
+const sanitizeAccessRules = (rules = [], { strict = false } = {}) => {
+  if (!Array.isArray(rules)) {
+    if (strict) throw new ValidationError('The access rules have to be sent as a list.');
+    return [];
+  }
 
-/**
- * Get public settings (branding only, no auth required)
- */
-const getPublicSettings = async () => {
-  try {
-    const db = await getDb();
-    const brandingRow = db
-      .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
-      .get('branding', 'branding');
-
-    if (brandingRow) {
-      const branding = JSON.parse(brandingRow.value);
-      return {
-        branding: sanitizeBranding(branding),
+  return rules
+    .map((rule, index) => {
+      // Numbered as the page numbers them, so the reason names the row.
+      const refuse = (reason) => {
+        if (!strict) return null;
+        throw new ValidationError(`Access rule ${index + 1}: ${reason}`);
       };
-    }
-  } catch (err) {
-    // Fallback to JSON if DB read fails
-  }
 
-  // Fallback to JSON storage
-  try {
-    const data = await storage.get();
-    const branding = data.settings?.branding || {};
-    return {
-      branding: sanitizeBranding(branding),
-    };
-  } catch (err) {
-    // Return defaults if all else fails
-    return {
-      branding: sanitizeBranding({}),
-    };
-  }
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+        return refuse('this is not a rule.');
+      }
+
+      // A path of nothing but spaces normalises to itself: the rule was stored
+      // as it came and matched no folder — written by an administrator, listed
+      // on the page, and doing nothing. Refused now, and only when it is blank
+      // all through: a folder may legitimately be called "My Documents", or
+      // even " x ", so nothing here trims what somebody wrote.
+      if (!String(rule.path ?? '').trim()) return refuse('a rule needs the path of a folder.');
+
+      // Validate path
+      let normalizedPath;
+      try {
+        normalizedPath = normalizeRelativePath(rule.path || '');
+      } catch (error) {
+        return refuse(`"${rule.path}" is not a folder path. ${error.message}`);
+      }
+
+      if (!normalizedPath) return refuse('a rule needs the path of a folder.');
+
+      // Validate permissions
+      if (rule.permissions !== undefined && !ACCESS_PERMISSIONS.includes(rule.permissions)) {
+        return refuse(
+          `"${rule.permissions}" is not one of the permissions a rule gives: rw, ro or hidden.`
+        );
+      }
+      const permissions = ACCESS_PERMISSIONS.includes(rule.permissions) ? rule.permissions : 'rw';
+
+      if (rule.recursive !== undefined && typeof rule.recursive !== 'boolean') {
+        return refuse(`"${rule.recursive}" does not say whether the rule covers what is inside.`);
+      }
+
+      if (rule.appliesToAdmins !== undefined && typeof rule.appliesToAdmins !== 'boolean') {
+        return refuse(
+          `"${rule.appliesToAdmins}" does not say whether the rule holds administrators too.`
+        );
+      }
+
+      return {
+        id: rule.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        path: normalizedPath,
+        recursive: Boolean(rule.recursive),
+        permissions,
+        // Stored as a plain yes or no, so the page shows a definite box and
+        // nothing has to guess again. What a rule written before this switch
+        // existed means is decided in one place, utils/accessRules.
+        appliesToAdmins: ruleAppliesToAdmins({ ...rule, permissions }),
+      };
+    })
+    .filter(Boolean);
 };
 
 /**
- * Get user-specific settings
+ * The access section: the rules, and whether every one of them also holds
+ * administrators. The setting is the blunt one — on, no rule lets an
+ * administrator through; off, each rule says for itself.
  */
-const MIN_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024;
-const HARD_MAX_UPLOAD_CHUNK_SIZE_MIB = 512;
-const DEFAULT_UPLOAD_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
-
-// The administrator's ceiling (MAX_CHUNK_SIZE_MIB), itself capped: a chunk is
-// held whole in memory at each end, so an unbounded one is a way to run a
-// server out of it.
-const resolveMaxChunkSizeBytes = () => {
-  const raw = Number(env.MAX_CHUNK_SIZE_MIB);
-  const mib =
-    Number.isFinite(raw) && raw > 0
-      ? Math.min(Math.floor(raw), HARD_MAX_UPLOAD_CHUNK_SIZE_MIB)
-      : HARD_MAX_UPLOAD_CHUNK_SIZE_MIB;
-  return Math.max(MIN_UPLOAD_CHUNK_SIZE_BYTES, mib * 1024 * 1024);
-};
-const MAX_UPLOAD_CHUNK_SIZE_BYTES = resolveMaxChunkSizeBytes();
-
-const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
-
-const defaultUploadSettings = () => {
-  const configuredChunkSize = parseByteSize(env.UPLOAD_CHUNK_SIZE);
-  const chunkSizeBytes =
-    Number.isFinite(configuredChunkSize) && configuredChunkSize > 0
-      ? configuredChunkSize
-      : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES;
-
+const sanitizeAccess = (access = {}, { strict = false } = {}) => {
+  const source = access && typeof access === 'object' && !Array.isArray(access) ? access : {};
+  if (source.applyToAdmins !== undefined && typeof source.applyToAdmins !== 'boolean' && strict) {
+    throw new ValidationError(
+      'Whether the rules hold administrators too has to be sent as true or false.'
+    );
+  }
   return {
-    chunkedEnabled: env.UPLOAD_CHUNKED_ENABLED ?? false,
-    chunkSizeBytes: clampNumber(
-      Math.floor(chunkSizeBytes),
-      MIN_UPLOAD_CHUNK_SIZE_BYTES,
-      MAX_UPLOAD_CHUNK_SIZE_BYTES
-    ),
+    rules: sanitizeAccessRules(source.rules || [], { strict }),
+    applyToAdmins: source.applyToAdmins === true,
   };
 };
 
+/**
+ * Sanitize branding settings
+ */
+const sanitizeBranding = (branding = {}) => {
+  // A name of nothing but spaces was stored as it came, and the header and the
+  // sign-in page showed no name at all. One stored that way reads as the
+  // default, so an installation that saved one needs nothing done.
+  const appName = typeof branding.appName === 'string' ? branding.appName.trim().slice(0, 100) : '';
+  return {
+    appName: appName || 'Explorer',
+    appLogoUrl:
+      typeof branding.appLogoUrl === 'string'
+        ? branding.appLogoUrl.trim().slice(0, 500)
+        : '/logo.svg',
+    showPoweredBy: typeof branding.showPoweredBy === 'boolean' ? branding.showPoweredBy : false,
+  };
+};
+
+/**
+ * Sanitize upload settings
+ */
 const sanitizeUploads = (uploads = {}) => {
   const defaults = defaultUploadSettings();
   const rawChunkSize =
@@ -276,11 +294,19 @@ const sanitizeUploads = (uploads = {}) => {
       ? parseByteSize(uploads.chunkSizeBytes)
       : uploads.chunkSizeBytes;
 
+  const chunkedAutoFallback =
+    typeof uploads.chunkedAutoFallback === 'boolean'
+      ? uploads.chunkedAutoFallback
+      : defaults.chunkedAutoFallback;
+  const chunkedEnabled = chunkedAutoFallback
+    ? false // mutually exclusive with auto-fallback (auto wins)
+    : typeof uploads.chunkedEnabled === 'boolean'
+      ? uploads.chunkedEnabled
+      : defaults.chunkedEnabled;
+
   return {
-    chunkedEnabled:
-      typeof uploads.chunkedEnabled === 'boolean'
-        ? uploads.chunkedEnabled
-        : defaults.chunkedEnabled,
+    chunkedEnabled,
+    chunkedAutoFallback,
     chunkSizeBytes: Number.isFinite(rawChunkSize)
       ? clampNumber(
           Math.floor(rawChunkSize),
@@ -291,116 +317,221 @@ const sanitizeUploads = (uploads = {}) => {
   };
 };
 
+/**
+ * The trash settings in force: on or off, how many days an item is kept, and
+ * how much of a volume the trash may hold — a share of it, capped by a size
+ * when one is set. An explicit `maxBytes: null` removes the cap; a field left
+ * out keeps the default the environment gave.
+ */
+const sanitizeTrash = (trash = {}) => {
+  const { trash: defaults } = require('../config/index');
+  const source = trash && typeof trash === 'object' ? trash : {};
+  const integerIn = (value, min, max, fallback) =>
+    Number.isFinite(value) ? clampNumber(Math.round(value), min, max) : fallback;
+  const rawMaxBytes =
+    typeof source.maxBytes === 'string' ? parseByteSize(source.maxBytes) : source.maxBytes;
+
+  let maxBytes = defaults.maxBytes;
+  if (source.maxBytes === null) maxBytes = null;
+  else if (Number.isFinite(rawMaxBytes) && rawMaxBytes > 0) maxBytes = Math.floor(rawMaxBytes);
+
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    retentionDays: integerIn(source.retentionDays, 1, 3650, defaults.retentionDays),
+    maxPercent: integerIn(source.maxPercent, 1, 90, defaults.maxPercent),
+    maxBytes,
+  };
+};
+
+/**
+ * The activity log settings in force: on or off, and how long a line is kept.
+ *
+ * Off is the default and stays the default: a log nobody asked for is a record
+ * of somebody's day that nobody reads.
+ */
+const sanitizeActivity = (activity = {}) => {
+  const { activity: defaults } = require('../config/index');
+  const source = activity && typeof activity === 'object' ? activity : {};
+  const retentionDays = Number(source.retentionDays);
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    retentionDays: Number.isFinite(retentionDays)
+      ? clampNumber(Math.round(retentionDays), 1, 3650)
+      : defaults.retentionDays,
+  };
+};
+
+/**
+ * The file version settings in force: on or off, how long everything is kept
+ * before thinning starts, how long one an hour and one a day are kept, how many
+ * versions a file keeps at most, and how often an editing session leaves a
+ * checkpoint. The space they may take is the trash's: one budget per volume.
+ *
+ * The tiers are kept in order — a week of hourly versions cannot end before the
+ * day of keeping everything does.
+ */
+const sanitizeVersions = (versions = {}) => {
+  const { versions: defaults, VERSION_BOUNDS } = require('../config/index');
+  const source = versions && typeof versions === 'object' ? versions : {};
+  const integer = (key) => {
+    const [min, max] = VERSION_BOUNDS[key];
+    return Number.isFinite(source[key])
+      ? clampNumber(Math.round(source[key]), min, max)
+      : defaults[key];
+  };
+  const keepAllHours = integer('keepAllHours');
+  const hourlyDays = Math.max(integer('hourlyDays'), Math.ceil(keepAllHours / 24));
+  const dailyDays = Math.max(integer('dailyDays'), hourlyDays);
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    keepAllHours,
+    hourlyDays,
+    dailyDays,
+    maxPerFile: integer('maxPerFile'),
+    sessionCheckpointMinutes: integer('sessionCheckpointMinutes'),
+  };
+};
+
+/**
+ * Get public settings (branding only, no auth required)
+ */
+const getPublicSettings = async () => {
+  const db = await getDb();
+  const brandingRow = db
+    .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
+    .get('branding', 'branding');
+
+  let branding = {};
+  if (brandingRow) {
+    try {
+      branding = JSON.parse(brandingRow.value);
+    } catch {
+      // An unreadable value is the default branding, not a failure to sign in.
+    }
+  }
+  return { branding: sanitizeBranding(branding) };
+};
+
+/**
+ * Get user-specific settings
+ */
 const getUserSettings = async (userId) => {
   if (!userId) return {};
 
   try {
     const db = await getDb();
-    const rows = db.prepare('SELECT key, value FROM user_settings WHERE user_id = ?').all(userId);
+    const rows = prepared(db, 'SELECT key, value FROM user_settings WHERE user_id = ?').all(userId);
 
     const settings = {};
     for (const row of rows) {
       try {
         settings[row.key] = JSON.parse(row.value);
-      } catch (err) {
+      } catch (_) {
         // Skip invalid JSON
       }
     }
 
+    // Per-folder preferences are rows of their own now, but the client still
+    // receives them among the user's settings.
+    Object.assign(settings, await getUserFolderPreferences(userId));
+
     return settings;
-  } catch (err) {
+  } catch (_) {
     return {};
+  }
+};
+
+// Through `prepared` rather than db.prepare: these run on every preference
+// change, and recompiling the same three statements each time is waste the
+// rest of this file already avoids.
+const upsertUserSetting = (db, userId, key, value) => {
+  const now = new Date().toISOString();
+  const valueJson = JSON.stringify(value);
+  const existing = prepared(db, 'SELECT id FROM user_settings WHERE user_id = ? AND key = ?').get(
+    userId,
+    key
+  );
+
+  if (existing) {
+    prepared(
+      db,
+      'UPDATE user_settings SET value = ?, updated_at = ? WHERE user_id = ? AND key = ?'
+    ).run(valueJson, now, userId, key);
+  } else {
+    prepared(
+      db,
+      'INSERT INTO user_settings (id, user_id, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(generateId(), userId, key, valueJson, now);
   }
 };
 
 /**
  * Get system settings (admin only)
  */
+/**
+ * System settings, read from app.db and nowhere else.
+ *
+ * They used to fall back to app-config.json whenever the read failed. That file
+ * stopped following the settings long ago — the screens save to app.db alone —
+ * so a read that failed ran with whatever the file last held, often no access
+ * rules at all: a folder hidden by a rule opened for everyone for as long as the
+ * database could not be read. A read that fails now fails the request.
+ */
 const getSystemSettings = async () => {
-  try {
-    const db = await getDb();
-    const rows = db
-      .prepare('SELECT key, value FROM system_settings WHERE category = ?')
-      .all('system');
+  const db = await getDb();
+  const rows = db
+    .prepare('SELECT key, value FROM system_settings WHERE category = ?')
+    .all('system');
 
-    const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
-    const access = { rules: [] };
-    let trash = {};
-    let versions = {};
-    let uploads = {};
-    let activity = {};
-    let folderSize = {};
-    let searchIndex = {};
+  const thumbnails = { enabled: true, size: 200, quality: 70, concurrency: 10 };
+  const access = { rules: [] };
+  let uploads = defaultUploadSettings();
+  const folderSize = { excludedPaths: [] };
+  const searchIndex = { excludedPaths: [] };
+  const trash = {};
+  const versions = {};
+  const activity = {};
 
-    for (const row of rows) {
-      try {
-        if (row.key === 'thumbnails') {
-          Object.assign(thumbnails, JSON.parse(row.value));
-        } else if (row.key === 'access') {
-          Object.assign(access, JSON.parse(row.value));
-        } else if (row.key === 'trash') {
-          trash = JSON.parse(row.value);
-        } else if (row.key === 'versions') {
-          versions = JSON.parse(row.value);
-        } else if (row.key === 'uploads') {
-          uploads = JSON.parse(row.value);
-        } else if (row.key === 'activity') {
-          activity = JSON.parse(row.value);
-        } else if (row.key === 'folderSize') {
-          folderSize = JSON.parse(row.value);
-        } else if (row.key === 'searchIndex') {
-          searchIndex = JSON.parse(row.value);
-        }
-      } catch (err) {
-        // Skip invalid JSON
-      }
-    }
-
-    return {
-      thumbnails: sanitizeThumbnails(thumbnails),
-      access: sanitizeAccess(access),
-      trash: sanitizeTrash(trash),
-      versions: sanitizeVersions(versions),
-      uploads: sanitizeUploads(uploads),
-      activity: sanitizeActivity(activity),
-      folderSize: {
-        ...sanitizeFolderSize(folderSize),
-        environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
-      },
-      searchIndex: {
-        ...sanitizeSearchIndex(searchIndex),
-        environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
-      },
-    };
-  } catch (err) {
-    // Fallback to JSON storage
+  for (const row of rows) {
     try {
-      const data = await storage.get();
-      const settings = data.settings || {};
-      return {
-        thumbnails: sanitizeThumbnails(settings.thumbnails),
-        access: sanitizeAccess(settings.access),
-        trash: sanitizeTrash(settings.trash),
-        versions: sanitizeVersions(settings.versions),
-        uploads: sanitizeUploads(settings.uploads),
-        activity: sanitizeActivity(settings.activity),
-        folderSize: sanitizeFolderSize(settings.folderSize),
-        searchIndex: sanitizeSearchIndex(settings.searchIndex),
-      };
-    } catch (err2) {
-      // Return defaults
-      return {
-        thumbnails: sanitizeThumbnails({}),
-        access: sanitizeAccess({}),
-        trash: sanitizeTrash({}),
-        versions: sanitizeVersions({}),
-        uploads: sanitizeUploads({}),
-        activity: sanitizeActivity({}),
-        folderSize: sanitizeFolderSize({}),
-        searchIndex: sanitizeSearchIndex({}),
-      };
+      if (row.key === 'thumbnails') {
+        Object.assign(thumbnails, JSON.parse(row.value));
+      } else if (row.key === 'access') {
+        Object.assign(access, JSON.parse(row.value));
+      } else if (row.key === 'uploads') {
+        uploads = { ...uploads, ...JSON.parse(row.value) };
+      } else if (row.key === 'folderSize') {
+        Object.assign(folderSize, JSON.parse(row.value));
+      } else if (row.key === 'searchIndex') {
+        Object.assign(searchIndex, JSON.parse(row.value));
+      } else if (row.key === 'trash') {
+        Object.assign(trash, JSON.parse(row.value));
+      } else if (row.key === 'versions') {
+        Object.assign(versions, JSON.parse(row.value));
+      } else if (row.key === 'activity') {
+        Object.assign(activity, JSON.parse(row.value));
+      }
+    } catch (_) {
+      // Skip invalid JSON
     }
   }
+
+  return {
+    thumbnails: sanitizeThumbnails(thumbnails),
+    access: sanitizeAccess(access),
+    uploads: sanitizeUploads(uploads),
+    trash: sanitizeTrash(trash),
+    versions: sanitizeVersions(versions),
+    activity: sanitizeActivity(activity),
+    folderSize: {
+      ...sanitizeFolderSize(folderSize),
+      environmentExcludedPaths: folderSizeExclusions.snapshot().environmentExcludedPaths,
+    },
+    searchIndex: {
+      ...sanitizeSearchIndex(searchIndex),
+      environmentExcludedPaths: searchIndexExclusions.snapshot().environmentExcludedPaths,
+    },
+  };
 };
 
 /**
@@ -418,18 +549,18 @@ const getSettingsForUser = async (user) => {
   if (user && user.id) {
     const userSettings = await getUserSettings(user.id);
     result.user = userSettings;
+    const systemSettings = await getSystemSettings();
+    result.uploads = systemSettings.uploads;
 
     const isAdmin = Array.isArray(user.roles) && user.roles.includes('admin');
     if (isAdmin) {
-      const systemSettings = await getSystemSettings();
       result.thumbnails = systemSettings.thumbnails;
       result.access = systemSettings.access;
-      result.trash = systemSettings.trash;
-      result.versions = systemSettings.versions;
-      result.uploads = systemSettings.uploads;
-      result.activity = systemSettings.activity;
       result.folderSize = systemSettings.folderSize;
       result.searchIndex = systemSettings.searchIndex;
+      result.trash = systemSettings.trash;
+      result.versions = systemSettings.versions;
+      result.activity = systemSettings.activity;
     }
   }
 
@@ -437,30 +568,64 @@ const getSettingsForUser = async (user) => {
 };
 
 /**
- * The preferences an account may set, in one place.
+ * Anything that is not a boolean is not an answer, and answers undefined, so
+ * the stored value stays.
  *
- * There used to be two lists: this one, which decides how a value is
- * sanitised, and another inside the settings route, which decides whether the
- * key is written at all. Adding a preference to one and not the other produced
- * a toggle that moved on screen, answered success, and stored nothing — so the
- * two are the same list now, and the route asks here.
+ * It used to be `Boolean(value)`, which has an opinion about everything:
+ * `'false'` — what a form field, a query string or a shell client sends — was
+ * true, and `0` was false. Either way the switch was set to something nobody
+ * had chosen, and the answer said it had been saved.
  */
-const USER_BOOLEAN_SETTINGS = new Set([
-  'showHiddenFiles',
-  'showThumbnails',
-  'showVersionMarks',
-  'documentsOpenInNewTab',
-  'showSidebarFavorites',
-  'showSidebarShares',
-  'showSidebarTools',
-]);
+const asBoolean = (value) => (typeof value === 'boolean' ? value : undefined);
+
+// null means "no answer of my own": for skipHome, defer to the environment.
+const asNullableBoolean = (value) => {
+  if (value === null || value === undefined) return null;
+  return typeof value === 'boolean' ? value : undefined;
+};
 
 /**
- * A language tag, or null for "follow the browser".
+ * A default share expiry: null for none, or a whole number of at least one
+ * with its unit.
  *
- * Checked for shape rather than against the list of translations: the list
- * changes with a release, and a stored tag we no longer ship should fall back
- * on screen, not be refused on the way in.
+ * Anything else is not an expiry, and answers undefined, so the stored one
+ * stays. It used to answer null, which is a value here: a default of minus
+ * three weeks, or of three years, silently removed the default the person had.
+ */
+const asShareExpiration = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return undefined;
+  const validUnits = ['days', 'weeks', 'months'];
+  const amount = Number.isFinite(value.value) ? Math.floor(value.value) : 0;
+  if (amount < 1 || !validUnits.includes(value.unit)) return undefined;
+  return { value: amount, unit: value.unit };
+};
+
+/**
+ * The view a folder gets when it has none of its own (#360).
+ *
+ * null is a value here, and means "use the built-in default". A mode we do not
+ * have is not: it used to become null too, so one unknown word put every
+ * folder back to the built-in view instead of being refused.
+ */
+const asViewMode = (value) => {
+  if (value === null || value === undefined) return null;
+  return VIEW_MODES.includes(value) ? value : undefined;
+};
+
+/**
+ * A language tag, or null to follow the browser.
+ *
+ * Checked for its shape and not against a list of the languages that exist:
+ * the translations are the interface's, and a second list here would be a
+ * second truth to keep — one locale added there and forgotten here would be
+ * refused for no reason anybody could see. A tag naming a translation nobody
+ * ships is stored and then falls back to the browser, which is what a reader
+ * whose language is gone should get anyway.
+ *
+ * Anything that is not a tag at all is refused rather than turned into null,
+ * as a view mode is: a typo would otherwise read as "follow the browser" and
+ * the choice would put itself back where it was.
  */
 const LANGUAGE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 const asLocale = (value) => {
@@ -470,12 +635,46 @@ const asLocale = (value) => {
   return LANGUAGE_TAG.test(tag) ? tag : undefined;
 };
 
-const USER_SETTING_KEYS = new Set([
-  ...USER_BOOLEAN_SETTINGS,
-  'defaultShareExpiration',
-  'skipHome',
-  'locale',
-]);
+/**
+ * Every preference a user may set, each with the coercion that belongs to it.
+ *
+ * One line per preference, in one place, because this used to be spread over
+ * three: a list of allowed keys in the settings route, a chain of if/else
+ * sanitising here, and the defaults in the client store. A key present in one
+ * and missing from another was accepted by the API, silently dropped, and
+ * answered with its previous value — which the client then applied, so the
+ * switch flicked itself back off. `markdownOpensInEditor` did exactly that.
+ *
+ * Adding a preference is now adding a line here. Its name and its validation
+ * cannot come apart, because they are the same line.
+ */
+const USER_SETTINGS = {
+  showHiddenFiles: asBoolean,
+  showThumbnails: asBoolean,
+  showSidebarFavorites: asBoolean,
+  showSidebarShares: asBoolean,
+  showSidebarTools: asBoolean,
+  markdownOpensInEditor: asBoolean,
+  documentsOpenInNewTab: asBoolean,
+  showVersionMarks: asBoolean,
+  defaultShareExpiration: asShareExpiration,
+  skipHome: asNullableBoolean,
+  defaultView: asViewMode,
+  locale: asLocale,
+};
+
+/**
+ * Written by the application, never straight from a request: a folder
+ * preference is saved one folder at a time, so that two tabs on different
+ * folders do not overwrite each other with whole maps.
+ */
+const INTERNAL_USER_SETTINGS = {
+  folderSorts: sanitizeFolderSorts,
+  folderViews: sanitizeFolderViews,
+};
+
+/** What PATCH /api/settings accepts under `user`. */
+const WRITABLE_USER_SETTINGS = new Set(Object.keys(USER_SETTINGS));
 
 /**
  * Set a user setting
@@ -484,72 +683,239 @@ const setUserSetting = async (userId, key, value) => {
   if (!userId) {
     throw new Error('User ID is required');
   }
-
   const db = await getDb();
-  const now = new Date().toISOString();
 
-  // Validate and sanitize value based on key
-  let sanitizedValue = value;
-  if (USER_BOOLEAN_SETTINGS.has(key)) {
-    sanitizedValue = Boolean(value);
-  } else if (key === 'locale') {
-    const tag = asLocale(value);
-    // `undefined` means "not a language tag": the stored value is left alone
-    // rather than replaced by something the interface cannot read.
-    if (tag === undefined) return (await getUserSettings(userId))[key];
-    sanitizedValue = tag;
-  } else if (key === 'defaultShareExpiration') {
-    // Validate expiration object: { value: number, unit: 'days'|'weeks'|'months' } or null
-    if (value === null || value === undefined) {
-      sanitizedValue = null;
-    } else if (typeof value === 'object' && value !== null) {
-      const validUnits = ['days', 'weeks', 'months'];
-      const unit = validUnits.includes(value.unit) ? value.unit : 'weeks';
-      const numValue =
-        Number.isFinite(value.value) && value.value > 0 ? Math.floor(value.value) : null;
-      sanitizedValue = numValue ? { value: numValue, unit } : null;
-    } else {
-      sanitizedValue = null;
-    }
-  } else if (key === 'skipHome') {
-    // Can be null (use env), true, or false
-    if (value === null || value === undefined) {
-      sanitizedValue = null;
-    } else {
-      sanitizedValue = Boolean(value);
-    }
-  }
+  // An unknown key is stored as it came: callers are the application itself,
+  // and the route only ever passes what WRITABLE_USER_SETTINGS allows.
+  const sanitize = USER_SETTINGS[key] || INTERNAL_USER_SETTINGS[key];
+  const sanitizedValue = sanitize ? sanitize(value) : value;
 
-  const valueJson = JSON.stringify(sanitizedValue);
+  // What a preference cannot take is left out rather than stored as its
+  // default, as a section field of the wrong shape is: the stored value stays.
+  if (sanitizedValue === undefined) return undefined;
 
-  // Check if setting exists
-  const existing = db
-    .prepare('SELECT id FROM user_settings WHERE user_id = ? AND key = ?')
-    .get(userId, key);
-
-  if (existing) {
-    db.prepare(
-      'UPDATE user_settings SET value = ?, updated_at = ? WHERE user_id = ? AND key = ?'
-    ).run(valueJson, now, userId, key);
-  } else {
-    db.prepare(
-      'INSERT INTO user_settings (id, user_id, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(generateId(), userId, key, valueJson, now);
-  }
+  upsertUserSetting(db, userId, key, sanitizedValue);
 
   return sanitizedValue;
 };
 
 /**
+ * Remember one folder's preference, and return the whole map back.
+ *
+ * Written one folder at a time rather than by sending the map: two tabs open
+ * on different folders would otherwise overwrite each other with whichever
+ * copy was saved last. The stored map is re-read here so the entry joins what
+ * is already there.
+ */
+/** Every folder preference this user has, as the client expects them. */
+const getUserFolderPreferences = async (userId) => {
+  if (!userId) return { folderSorts: {}, folderViews: {} };
+
+  const db = await getDb();
+  const rows = prepared(
+    db,
+    'SELECT path, sort_by, sort_order, view_mode, updated_at FROM folder_preferences WHERE user_id = ?'
+  ).all(userId);
+
+  const folderSorts = {};
+  const folderViews = {};
+  for (const row of rows) {
+    const updatedAt = Date.parse(row.updated_at) || 0;
+    if (row.sort_by) {
+      folderSorts[row.path] = {
+        by: row.sort_by,
+        order: row.sort_order === 'desc' ? 'desc' : 'asc',
+        updatedAt,
+      };
+    }
+    if (row.view_mode) {
+      folderViews[row.path] = { mode: row.view_mode, updatedAt };
+    }
+  }
+
+  return { folderSorts, folderViews };
+};
+
+/**
+ * Remember one folder's sort or view.
+ *
+ * One row per folder, so a change touches only that folder: two tabs on
+ * different folders no longer overwrite each other, and there is no ceiling on
+ * how many folders can be remembered. The row carries both preferences, so
+ * setting one must not erase the other.
+ */
+const setUserFolderPreference = async (userId, folderPath, { sort, view }) => {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  const normalizedPath = normalizeRelativePath(folderPath);
+  const sanitizedSort = sort === undefined ? undefined : sanitizeFolderSort(sort);
+  const sanitizedView = view === undefined ? undefined : sanitizeFolderView(view);
+
+  if (!isValidFolderPath(normalizedPath) || (!sanitizedSort && !sanitizedView)) {
+    return null;
+  }
+
+  const db = await getDb();
+  const now = new Date().toISOString();
+
+  prepared(
+    db,
+    `INSERT INTO folder_preferences (user_id, path, sort_by, sort_order, view_mode, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, path) DO UPDATE SET
+       sort_by    = COALESCE(excluded.sort_by, folder_preferences.sort_by),
+       sort_order = COALESCE(excluded.sort_order, folder_preferences.sort_order),
+       view_mode  = COALESCE(excluded.view_mode, folder_preferences.view_mode),
+       updated_at = excluded.updated_at`
+  ).run(
+    userId,
+    normalizedPath,
+    sanitizedSort?.by ?? null,
+    sanitizedSort?.order ?? null,
+    sanitizedView?.mode ?? null,
+    now
+  );
+
+  return getUserFolderPreferences(userId);
+};
+
+const setUserFolderSort = async (userId, folderPath, sort) => {
+  const preferences = await setUserFolderPreference(userId, folderPath, { sort });
+  return preferences?.folderSorts ?? null;
+};
+
+const setUserFolderView = async (userId, folderPath, view) => {
+  const preferences = await setUserFolderPreference(userId, folderPath, { view });
+  return preferences?.folderViews ?? null;
+};
+
+const assertSystemCategory = (category) => {
+  if (category !== 'branding' && category !== 'system') {
+    throw new Error('Invalid category. Must be "branding" or "system"');
+  }
+};
+
+/**
+ * What a section is held to before it is stored, by key.
+ *
+ * The same shaping a read applies, so a section merged over the row itself
+ * comes out as it would have come out of the settings: a field nobody sent
+ * takes the sanitiser's default, which is the one a read would have given it.
+ */
+const sanitizeSystemSetting = (key, value) => {
+  if (key === 'thumbnails') return sanitizeThumbnails(value);
+  // Strict: what is being stored was just written by somebody, and a rule that
+  // cannot be stored as they wrote it is answered rather than dropped.
+  if (key === 'access') return sanitizeAccess(value, { strict: true });
+  if (key === 'uploads') return sanitizeUploads(value);
+  if (key === 'branding') return sanitizeBranding(value);
+  if (key === 'folderSize') return sanitizeFolderSize(value);
+  // The search index had no case here, so what was stored for it was the
+  // merge as it came: paths with spaces around them, empty entries, the same
+  // folder twice. The worker was handed a sanitised copy and behaved, so only
+  // the stored value was wrong — and it is the one the next merge starts from.
+  if (key === 'searchIndex') return sanitizeSearchIndex(value);
+  if (key === 'trash') return sanitizeTrash(value);
+  if (key === 'activity') return sanitizeActivity(value);
+  if (key === 'versions') return sanitizeVersions(value);
+  return value;
+};
+
+/**
+ * What a section would be stored as, without storing it.
+ *
+ * The route checks every section of a save before writing any of them, so a
+ * section that refuses what it was sent refuses before another has been
+ * stored.
+ */
+const checkSystemSection = (key, value) => sanitizeSystemSetting(key, value);
+
+/**
  * Set a system setting (admin only)
  */
+const setSystemSetting = async (category, key, value) => {
+  assertSystemCategory(category);
+
+  const db = await getDb();
+  const sanitizedValue = sanitizeSystemSetting(key, value);
+
+  writeSystemSetting(db, category, key, sanitizedValue);
+
+  return sanitizedValue;
+};
+
+/** One section as it is stored, before any default is put around it. */
+const readStoredSection = (db, category, key) => {
+  const row = db
+    .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
+    .get(category, key);
+  if (!row) return {};
+
+  try {
+    const stored = JSON.parse(row.value);
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  } catch {
+    // An unreadable value is the section's defaults, exactly as a read treats it.
+    return {};
+  }
+};
+
+/**
+ * Merge an update over one stored section and write it back, and answer the
+ * whole section as it now stands.
+ *
+ * Read and written without yielding in between — the database answers
+ * synchronously — so two saves of one section at once cannot both start from
+ * the same stored value. The route used to merge over the settings read at the
+ * start of the request, with two awaits between that read and the write: a
+ * retention of ninety days saved in one tab disappeared when the other tab
+ * saved a size cap a moment later, and the person who set it was told it was
+ * saved. Branding was taken out of this path for the same reason, where losing
+ * a save also left a logo file behind with nothing to serve or remove it.
+ */
+const mergeSystemSection = async (category, key, update) => {
+  assertSystemCategory(category);
+
+  const db = await getDb();
+  const merged = sanitizeSystemSetting(key, {
+    ...readStoredSection(db, category, key),
+    ...update,
+  });
+  writeSystemSetting(db, category, key, merged);
+  return merged;
+};
+
+/** Store one system setting as it is, in a single synchronous step. */
+const writeSystemSetting = (db, category, key, value, now = new Date().toISOString()) => {
+  const valueJson = JSON.stringify(value);
+
+  // Check if setting exists
+  const existing = db
+    .prepare('SELECT id FROM system_settings WHERE category = ? AND key = ?')
+    .get(category, key);
+
+  if (existing) {
+    prepared(
+      db,
+      'UPDATE system_settings SET value = ?, updated_at = ? WHERE category = ? AND key = ?'
+    ).run(valueJson, now, category, key);
+  } else {
+    prepared(
+      db,
+      'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(generateId(), category, key, valueJson, now);
+  }
+};
+
 /**
  * Change the branding, and answer what it was and what it is now.
  *
  * Read and written without yielding in between — the database answers
- * synchronously — so two saves at once cannot both start from the same branding:
- * the logo a save replaced is the one it was the last to see, and removing it
- * cannot take away the logo another save has just put in place.
+ * synchronously — so two saves at once cannot both start from the same
+ * branding: the logo a save replaced is the one it was the last to see, and
+ * removing it cannot take away the logo another save has just put in place.
  *
  * @returns {Promise<{previous: object, current: object}>}
  */
@@ -570,92 +936,32 @@ const replaceBranding = async (update) => {
 
   const previous = sanitizeBranding(stored);
   const current = sanitizeBranding({ ...previous, ...update });
-
-  const now = new Date().toISOString();
-  const valueJson = JSON.stringify(current);
-  const existing = db
-    .prepare('SELECT id FROM system_settings WHERE category = ? AND key = ?')
-    .get('branding', 'branding');
-  if (existing) {
-    db.prepare(
-      'UPDATE system_settings SET value = ?, updated_at = ? WHERE category = ? AND key = ?'
-    ).run(valueJson, now, 'branding', 'branding');
-  } else {
-    db.prepare(
-      'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(generateId(), 'branding', 'branding', valueJson, now);
-  }
-
+  writeSystemSetting(db, 'branding', 'branding', current);
   return { previous, current };
-};
-
-const setSystemSetting = async (category, key, value) => {
-  if (category !== 'branding' && category !== 'system') {
-    throw new Error('Invalid category. Must be "branding" or "system"');
-  }
-
-  const db = await getDb();
-  const now = new Date().toISOString();
-
-  // Sanitize based on key
-  let sanitizedValue = value;
-  if (key === 'thumbnails') {
-    sanitizedValue = sanitizeThumbnails(value);
-  } else if (key === 'access') {
-    sanitizedValue = sanitizeAccess(value);
-  } else if (key === 'branding') {
-    sanitizedValue = sanitizeBranding(value);
-  } else if (key === 'trash') {
-    sanitizedValue = sanitizeTrash(value);
-  } else if (key === 'versions') {
-    sanitizedValue = sanitizeVersions(value);
-  } else if (key === 'uploads') {
-    sanitizedValue = sanitizeUploads(value);
-  } else if (key === 'activity') {
-    sanitizedValue = sanitizeActivity(value);
-  } else if (key === 'folderSize') {
-    sanitizedValue = sanitizeFolderSize(value);
-  } else if (key === 'searchIndex') {
-    // The search index had no case here, so what was stored for it was the
-    // merge as it came: paths with spaces around them, empty entries, the same
-    // folder twice. The worker was handed a sanitised copy and behaved, so only
-    // the stored value was wrong — and it is the one the next merge starts from.
-    sanitizedValue = sanitizeSearchIndex(value);
-  }
-
-  const valueJson = JSON.stringify(sanitizedValue);
-
-  // Check if setting exists
-  const existing = db
-    .prepare('SELECT id FROM system_settings WHERE category = ? AND key = ?')
-    .get(category, key);
-
-  if (existing) {
-    db.prepare(
-      'UPDATE system_settings SET value = ?, updated_at = ? WHERE category = ? AND key = ?'
-    ).run(valueJson, now, category, key);
-  } else {
-    db.prepare(
-      'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(generateId(), category, key, valueJson, now);
-  }
-
-  return sanitizedValue;
 };
 
 /**
  * Legacy method: Get all settings (for backward compatibility)
  * Returns system settings + branding
  */
-const getSettings = async () => {
-  const systemSettings = await getSystemSettings();
-  const publicSettings = await getPublicSettings();
+/**
+ * Settings, read once per request.
+ *
+ * The access rules are consulted for every path, so a bulk operation asked for
+ * these thousands of times over — each one several queries and a JSON parse,
+ * to re-read values that cannot change while a single request is running. The
+ * promise is memoized, not the value, so concurrent callers share one read.
+ */
+const getSettings = async () =>
+  cachedForRequest('settings', 'all', async () => {
+    const systemSettings = await getSystemSettings();
+    const publicSettings = await getPublicSettings();
 
-  return {
-    ...systemSettings,
-    branding: publicSettings.branding,
-  };
-};
+    return {
+      ...systemSettings,
+      branding: publicSettings.branding,
+    };
+  });
 
 /**
  * Legacy method: Set settings (for backward compatibility)
@@ -667,14 +973,24 @@ const setSettings = async (partial) => {
   // Deep merge
   const merged = {
     thumbnails: { ...current.thumbnails, ...(partial.thumbnails || {}) },
+    // Each half of the section stands on its own: saving the rules alone must
+    // not quietly switch off whether they hold administrators, and vice versa.
     access: {
       rules: partial.access?.rules !== undefined ? partial.access.rules : current.access.rules,
-      // Saved apart from the rules on the settings page, so each has to survive
-      // the other being saved on its own.
       applyToAdmins:
         partial.access?.applyToAdmins !== undefined
           ? partial.access.applyToAdmins
           : current.access.applyToAdmins,
+    },
+    uploads: { ...current.uploads, ...(partial.uploads || {}) },
+    trash: { ...current.trash, ...(partial.trash || {}) },
+    versions: { ...current.versions, ...(partial.versions || {}) },
+    activity: { ...current.activity, ...(partial.activity || {}) },
+    folderSize: {
+      excludedPaths:
+        partial.folderSize?.excludedPaths !== undefined
+          ? partial.folderSize.excludedPaths
+          : current.folderSize.excludedPaths,
     },
     branding: { ...current.branding, ...(partial.branding || {}) },
   };
@@ -686,54 +1002,46 @@ const setSettings = async (partial) => {
   if (partial.access) {
     merged.access = await setSystemSetting('system', 'access', merged.access);
   }
+  if (partial.folderSize) {
+    merged.folderSize = await setSystemSetting('system', 'folderSize', merged.folderSize);
+  }
   if (partial.branding) {
     merged.branding = await setSystemSetting('branding', 'branding', merged.branding);
   }
-
-  // Also update JSON for backward compatibility during transition
-  try {
-    await storage.update((data) => ({
-      ...data,
-      settings: {
-        thumbnails: merged.thumbnails,
-        access: merged.access,
-        branding: merged.branding,
-      },
-    }));
-  } catch (err) {
-    // Non-fatal, continue
+  if (partial.uploads) {
+    merged.uploads = await setSystemSetting('system', 'uploads', merged.uploads);
+  }
+  if (partial.trash) {
+    merged.trash = await setSystemSetting('system', 'trash', merged.trash);
+  }
+  if (partial.versions) {
+    merged.versions = await setSystemSetting('system', 'versions', merged.versions);
+  }
+  if (partial.activity) {
+    merged.activity = await setSystemSetting('system', 'activity', merged.activity);
   }
 
   return merged;
 };
 
-/**
- * Update settings with an updater function
- */
-const updateSettings = async (updater) => {
-  const current = await getSettings();
-  const next = typeof updater === 'function' ? updater(current) : current;
-  return setSettings(next);
-};
-
 module.exports = {
-  replaceBranding,
-  USER_SETTING_KEYS,
-  MAX_UPLOAD_CHUNK_SIZE_BYTES,
+  checkSystemSection,
   getPublicSettings,
-  sanitizeAccess,
+  getUserSettings,
+  getSystemSettings,
   sanitizeTrash,
   sanitizeVersions,
   sanitizeActivity,
-  sanitizeFolderSize,
-  sanitizeSearchIndex,
-  getUserSettings,
-  getSystemSettings,
   getSettingsForUser,
   setUserSetting,
+  WRITABLE_USER_SETTINGS,
+  setUserFolderSort,
+  setUserFolderView,
   setSystemSetting,
+  mergeSystemSection,
+  replaceBranding,
+  MAX_UPLOAD_CHUNK_SIZE_BYTES,
   // Legacy methods for backward compatibility
   getSettings,
   setSettings,
-  updateSettings,
 };

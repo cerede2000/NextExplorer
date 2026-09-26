@@ -126,16 +126,14 @@ describe('changing them', () => {
     expect(response.body.trash).toMatchObject({ retentionDays: 60, maxPercent: 20 });
   });
 
-  it('is not changed by anyone but an administrator', async () => {
-    // The settings route ignores every system section a non-admin sends, trash
-    // included: the request is accepted but nothing system-wide is written.
+  it('is refused to everyone else, with nothing written', async () => {
     const app = await buildApp({ id: 'user', roles: ['user'] });
 
     const response = await request(app)
       .patch('/api/settings')
       .send({ trash: { enabled: false } });
 
-    expect(response.body.trash).toBeUndefined();
+    expect(response.status).toBe(403);
     const settingsService = envContext.requireFresh('src/services/settingsService');
     expect((await settingsService.getSystemSettings()).trash.enabled).toBe(true);
   });
