@@ -866,9 +866,7 @@ const ensureAnonymousUser = (db) => {
   }
 };
 
-const getDb = async () => {
-  if (dbInstance) return dbInstance;
-
+const openDb = async () => {
   const dbDir = directories.config;
   await ensureDir(dbDir);
   const dbPath = getDbPath();
@@ -938,11 +936,67 @@ const getDb = async () => {
     logger.warn({ err }, '[DB] Failed to ensure the ONLYOFFICE editor session table');
   }
   ensureAnonymousUser(db);
-  dbInstance = db;
-  return dbInstance;
+  return db;
+};
+
+/**
+ * The application database, opened on first use.
+ *
+ * Everything that starts with the server asks for it at once. Each caller passed the
+ * check for an open database before the first one had finished opening it, and went on
+ * to open app.db again and run the migrations over it in parallel: four connections at
+ * every start, four sets of `CREATE TABLE IF NOT EXISTS`, and whichever finished last
+ * became the one everybody used. One opening is shared instead.
+ */
+let dbOpening = null;
+const getDb = async () => {
+  if (dbInstance) return dbInstance;
+  if (!dbOpening) {
+    dbOpening = openDb()
+      .then((db) => {
+        dbInstance = db;
+        return db;
+      })
+      .finally(() => {
+        dbOpening = null;
+      });
+  }
+  return dbOpening;
+};
+
+const closeDb = () => {
+  if (!dbInstance) return;
+  dbInstance.close();
+  dbInstance = null;
+};
+
+/**
+ * A statement prepared once per database and kept.
+ *
+ * `db.prepare` compiles the SQL every time it is called, and the hot paths — a listing
+ * asking whether each of a thousand rows is a favourite — called it per row. Kept in a
+ * WeakMap so the cache goes when the connection does, which is what a test that opens a
+ * database per case needs.
+ */
+const statementCache = new WeakMap();
+
+const prepared = (db, sql) => {
+  let cache = statementCache.get(db);
+  if (!cache) {
+    cache = new Map();
+    statementCache.set(db, cache);
+  }
+  let statement = cache.get(sql);
+  if (!statement) {
+    statement = db.prepare(sql);
+    cache.set(sql, statement);
+  }
+  return statement;
 };
 
 module.exports = {
+  closeDb,
+  prepared,
   getDb,
   getDbPath,
   // The index database keeps its own copy of this table, so it needs the same
