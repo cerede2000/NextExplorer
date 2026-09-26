@@ -543,6 +543,52 @@ const setUserSetting = async (userId, key, value) => {
 /**
  * Set a system setting (admin only)
  */
+/**
+ * Change the branding, and answer what it was and what it is now.
+ *
+ * Read and written without yielding in between — the database answers
+ * synchronously — so two saves at once cannot both start from the same branding:
+ * the logo a save replaced is the one it was the last to see, and removing it
+ * cannot take away the logo another save has just put in place.
+ *
+ * @returns {Promise<{previous: object, current: object}>}
+ */
+const replaceBranding = async (update) => {
+  const db = await getDb();
+  const row = db
+    .prepare('SELECT value FROM system_settings WHERE category = ? AND key = ?')
+    .get('branding', 'branding');
+
+  let stored = {};
+  if (row) {
+    try {
+      stored = JSON.parse(row.value);
+    } catch {
+      // An unreadable value is the default branding.
+    }
+  }
+
+  const previous = sanitizeBranding(stored);
+  const current = sanitizeBranding({ ...previous, ...update });
+
+  const now = new Date().toISOString();
+  const valueJson = JSON.stringify(current);
+  const existing = db
+    .prepare('SELECT id FROM system_settings WHERE category = ? AND key = ?')
+    .get('branding', 'branding');
+  if (existing) {
+    db.prepare(
+      'UPDATE system_settings SET value = ?, updated_at = ? WHERE category = ? AND key = ?'
+    ).run(valueJson, now, 'branding', 'branding');
+  } else {
+    db.prepare(
+      'INSERT INTO system_settings (id, category, key, value, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(generateId(), 'branding', 'branding', valueJson, now);
+  }
+
+  return { previous, current };
+};
+
 const setSystemSetting = async (category, key, value) => {
   if (category !== 'branding' && category !== 'system') {
     throw new Error('Invalid category. Must be "branding" or "system"');
@@ -671,6 +717,7 @@ const updateSettings = async (updater) => {
 };
 
 module.exports = {
+  replaceBranding,
   USER_SETTING_KEYS,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,
   getPublicSettings,

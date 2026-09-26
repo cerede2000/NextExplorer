@@ -48,8 +48,15 @@ const MULTIPART_REFUSALS = {
   LIMIT_UNEXPECTED_FILE: [400, 'A file was sent in a field this request does not take.'],
 };
 
-const multipartRefusal = (err) =>
-  err instanceof multer.MulterError ? MULTIPART_REFUSALS[err.code] || [400, err.message] : null;
+const multipartRefusal = (err) => {
+  if (!(err instanceof multer.MulterError)) return null;
+  const [statusCode, sentence] = MULTIPART_REFUSALS[err.code] || [400, err.message];
+  // A route that knows its own limit says so: `explainMultipartRefusals` puts that
+  // sentence on the error, and it was being built and then thrown away — "the file
+  // is larger than this server accepts" where "a logo can be at most 2 MB" was
+  // ready to be said.
+  return [statusCode, err.clientMessage || sentence];
+};
 
 /**
  * A write the storage itself refused: the mount is read-only, or the folder

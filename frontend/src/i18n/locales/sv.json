@@ -71,7 +71,8 @@
     "readonly": "Skrivskyddad",
     "readwrite": "Läs/Skriv",
     "add": "Lägg till",
-    "back": "Bakåt"
+    "back": "Bakåt",
+    "logoAlt": "Logotyp för {name}"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "Förhandsgranskning",
       "showPoweredBy": "Visa attribueringslänk",
       "showPoweredByHelp": "Visa en \"Powered by nextExplorer\"-länk i sidfoten för att stödja projektet",
-      "defaultLogoSelected": "Standardlogotyp vald. Klicka på Spara för att tillämpa."
+      "defaultLogoSelected": "Standardlogotyp vald. Klicka på Spara för att tillämpa.",
+      "appNameRequired": "Applikationsnamnet får inte vara tomt.",
+      "chooseLogo": "Välj en logotyp",
+      "chooseAnotherLogo": "Välj en annan fil",
+      "logoSelected": "Ny logotyp vald. Klicka på Spara för att tillämpa.",
+      "saved": "Profileringen har sparats.",
+      "saveFailed": "Profileringen kunde inte sparas: {reason}"
     },
     "userPreferences": {
       "title": "Användarpreferenser",

@@ -71,7 +71,8 @@
     "readonly": "Doar citire",
     "readwrite": "Citire/Scriere",
     "add": "Adaugă",
-    "back": "Înapoi"
+    "back": "Înapoi",
+    "logoAlt": "Sigla {name}"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "Previzualizare",
       "showPoweredBy": "Afișează linkul de atribuire",
       "showPoweredByHelp": "Afișează în subsol un link „Powered by nextExplorer” pentru a ajuta la susținerea proiectului",
-      "defaultLogoSelected": "Siglă implicită selectată. Faceți clic pe Salvare pentru a aplica."
+      "defaultLogoSelected": "Siglă implicită selectată. Faceți clic pe Salvare pentru a aplica.",
+      "appNameRequired": "Numele aplicației nu poate fi gol.",
+      "chooseLogo": "Alegeți o siglă",
+      "chooseAnotherLogo": "Alegeți alt fișier",
+      "logoSelected": "Siglă nouă selectată. Faceți clic pe Salvare pentru a aplica.",
+      "saved": "Identitatea vizuală a fost salvată.",
+      "saveFailed": "Identitatea vizuală nu a putut fi salvată: {reason}"
     },
     "userPreferences": {
       "title": "Preferințe utilizator",

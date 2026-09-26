@@ -71,7 +71,8 @@
     "readonly": "읽기 전용",
     "readwrite": "읽기/쓰기",
     "add": "추가",
-    "back": "뒤로 가기"
+    "back": "뒤로 가기",
+    "logoAlt": "{name} 로고"
   },
   "editor": {
     "editing": "편집 중",
@@ -486,7 +487,13 @@
       "preview": "미리보기",
       "showPoweredBy": "기여 링크 표시",
       "showPoweredByHelp": "페이지 하단에 'Powered by nextExplorer' 링크를 표시하여 프로젝트를 지원해주세요.",
-      "defaultLogoSelected": "기본 로고가 선택되었습니다. 적용하려면 저장을 클릭하세요."
+      "defaultLogoSelected": "기본 로고가 선택되었습니다. 적용하려면 저장을 클릭하세요.",
+      "appNameRequired": "애플리케이션 이름은 비워 둘 수 없습니다.",
+      "chooseLogo": "로고 선택",
+      "chooseAnotherLogo": "다른 파일 선택",
+      "logoSelected": "새 로고가 선택되었습니다. 적용하려면 저장을 클릭하세요.",
+      "saved": "브랜딩이 저장되었습니다.",
+      "saveFailed": "브랜딩을 저장하지 못했습니다: {reason}"
     },
     "userPreferences": {
       "title": "유저 설정",

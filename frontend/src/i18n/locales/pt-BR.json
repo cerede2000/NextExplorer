@@ -71,7 +71,8 @@
     "readonly": "Somente leitura",
     "readwrite": "Leitura/Escrita",
     "add": "Adicionar",
-    "back": "Voltar"
+    "back": "Voltar",
+    "logoAlt": "Logotipo de {name}"
   },
   "editor": {
     "editing": "Editando",
@@ -486,7 +487,13 @@
       "preview": "Pré-visualização",
       "showPoweredBy": "Exibir link de atribuição",
       "showPoweredByHelp": "Exibir um link 'Desenvolvido por nextExplorer' no rodapé para apoiar o projeto",
-      "defaultLogoSelected": "Logotipo padrão selecionado. Clique em Salvar para aplicar."
+      "defaultLogoSelected": "Logotipo padrão selecionado. Clique em Salvar para aplicar.",
+      "appNameRequired": "O nome do aplicativo não pode ficar vazio.",
+      "chooseLogo": "Escolher um logotipo",
+      "chooseAnotherLogo": "Escolher outro arquivo",
+      "logoSelected": "Novo logotipo selecionado. Clique em Salvar para aplicar.",
+      "saved": "Identidade visual salva.",
+      "saveFailed": "Não foi possível salvar a identidade visual: {reason}"
     },
     "userPreferences": {
       "title": "Preferências do Usuário",

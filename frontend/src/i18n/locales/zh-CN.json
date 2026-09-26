@@ -71,7 +71,8 @@
     "readonly": "只读",
     "readwrite": "读/写",
     "add": "添加",
-    "back": "后退"
+    "back": "后退",
+    "logoAlt": "{name} 的徽标"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "预览",
       "showPoweredBy": "显示署名链接",
       "showPoweredByHelp": "在页脚显示 “Powered by nextExplorer” 链接以支持项目",
-      "defaultLogoSelected": "已选择默认徽标。点击\"保存\"以应用。"
+      "defaultLogoSelected": "已选择默认徽标。点击\"保存\"以应用。",
+      "appNameRequired": "应用名称不能为空。",
+      "chooseLogo": "选择徽标",
+      "chooseAnotherLogo": "选择其他文件",
+      "logoSelected": "已选择新徽标。点击\"保存\"以应用。",
+      "saved": "品牌设置已保存。",
+      "saveFailed": "无法保存品牌设置：{reason}"
     },
     "userPreferences": {
       "title": "用户偏好",

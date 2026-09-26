@@ -71,7 +71,8 @@
     "readonly": "केवल पढ़ने के लिए",
     "readwrite": "पढ़ना/लिखना",
     "add": "जोड़ें",
-    "back": "पीछे"
+    "back": "पीछे",
+    "logoAlt": "{name} का लोगो"
   },
   "editor": {
     "editing": "Editing",
@@ -486,7 +487,13 @@
       "preview": "पूर्वावलोकन",
       "showPoweredBy": "अट्रिब्यूशन लिंक दिखाएँ",
       "showPoweredByHelp": "प्रोजेक्ट को सपोर्ट करने के लिए फ़ुटर में 'Powered by nextExplorer' लिंक दिखाएँ",
-      "defaultLogoSelected": "डिफ़ॉल्ट लोगो चुना गया। लागू करने के लिए सहेजें पर क्लिक करें।"
+      "defaultLogoSelected": "डिफ़ॉल्ट लोगो चुना गया। लागू करने के लिए सहेजें पर क्लिक करें।",
+      "appNameRequired": "एप्लिकेशन का नाम खाली नहीं हो सकता।",
+      "chooseLogo": "लोगो चुनें",
+      "chooseAnotherLogo": "दूसरी फ़ाइल चुनें",
+      "logoSelected": "नया लोगो चुना गया। लागू करने के लिए सहेजें पर क्लिक करें।",
+      "saved": "ब्रांडिंग सहेजी गई।",
+      "saveFailed": "ब्रांडिंग सहेजी नहीं जा सकी: {reason}"
     },
     "userPreferences": {
       "title": "उपयोगकर्ता प्राथमिकताएँ",
