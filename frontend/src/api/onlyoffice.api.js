@@ -2,13 +2,17 @@
 
 import { buildUrl, requestJson, normalizePath } from './http';
 
-export async function fetchOnlyOfficeConfig(path, mode = 'edit') {
+export async function fetchOnlyOfficeConfig(path, mode = 'edit', { versionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
   return requestJson('/api/onlyoffice/config', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, mode }),
+    body: JSON.stringify({
+      path: normalizedPath,
+      mode,
+      ...(versionId ? { versionId } : {}),
+    }),
   });
 }
 
@@ -112,5 +116,75 @@ export async function waitForOnlyOfficeActivityVersion(since, options = {}) {
   return requestJson(`/api/onlyoffice/activity-version${query}`, {
     method: 'GET',
     ...options,
+  });
+}
+
+/**
+ * Save the open document under another name, into the folder it came from.
+ *
+ * ONLYOFFICE converts the document and hands over a URL to fetch the result
+ * from; the server is what writes it, so it never leaves the volume.
+ */
+export async function saveOnlyOfficeDocumentAs(path, { url, title } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !url || !title) {
+    throw new Error('Path, document URL and title are required.');
+  }
+
+  return requestJson('/api/onlyoffice/save-as', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, url, title }),
+  });
+}
+
+/** The document's history, in the shape the editor's own history panel reads. */
+export async function fetchOnlyOfficeHistory(path) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/history', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath }),
+  });
+}
+
+/** Where one entry of that history is fetched from. */
+export async function fetchOnlyOfficeHistoryData(path, { version, versionId } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/history-data', {
+    method: 'POST',
+    body: JSON.stringify({
+      path: normalizedPath,
+      version,
+      ...(versionId ? { versionId } : {}),
+    }),
+  });
+}
+
+/**
+ * The people the editor offers when a comment starts with @.
+ *
+ * ONLYOFFICE takes the whole list and filters it itself as the name is typed,
+ * so there is no search term to pass.
+ */
+export async function fetchOnlyOfficeMentionUsers() {
+  return requestJson('/api/onlyoffice/users', { method: 'GET' });
+}
+
+/**
+ * Report a comment that mentions somebody.
+ *
+ * The comment is already in the document; this is the separate notification
+ * step, which ONLYOFFICE leaves to the integration.
+ */
+export async function notifyOnlyOfficeMention(path, { emails, actionLink, comment } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/notify', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, emails, actionLink, comment }),
   });
 }

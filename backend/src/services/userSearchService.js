@@ -80,7 +80,38 @@ const searchUsersForMentions = async (query, limit = 10) => {
   return { Users: users };
 };
 
+/**
+ * Who can be mentioned in a comment.
+ *
+ * ONLYOFFICE asks for the whole list and filters it in the editor as the
+ * comment is typed, so this answers with names and addresses rather than to a
+ * query.
+ */
+const listUsersForMentions = async (limit = 100) => {
+  try {
+    const db = await getDb();
+    const rows = db
+      .prepare(
+        `SELECT id, email, username, display_name
+           FROM users
+          ORDER BY display_name ASC, email ASC
+          LIMIT ?`
+      )
+      .all(limit);
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      name: row.display_name || row.username || row.email || 'Unknown',
+      email: row.email || '',
+    }));
+  } catch (err) {
+    logger.error({ err }, '[UserSearch] Error listing users for mentions');
+    return [];
+  }
+};
+
 module.exports = {
+  listUsersForMentions,
   searchUsersForMentions,
   searchLocalUsers,
 };

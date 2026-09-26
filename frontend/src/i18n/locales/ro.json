@@ -929,6 +929,9 @@
     "transferCancel": "Anulează",
     "transferConfirm": "Continuă",
     "editingBy": "Se editează în ONLYOFFICE de către {names}",
-    "editingNow": "Se editează în ONLYOFFICE"
+    "editingNow": "Se editează în ONLYOFFICE",
+    "savedAsHeading": "Salvat în acest folder",
+    "savedAsBody": "{name} a fost adăugat lângă original.",
+    "saveAsFailed": "{name} nu a putut fi salvat"
   }
 }

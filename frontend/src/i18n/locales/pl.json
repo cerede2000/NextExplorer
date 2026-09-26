@@ -929,6 +929,9 @@
     "transferCancel": "Anuluj",
     "transferConfirm": "Kontynuuj",
     "editingBy": "Edytowane w ONLYOFFICE przez: {names}",
-    "editingNow": "Edytowane w ONLYOFFICE"
+    "editingNow": "Edytowane w ONLYOFFICE",
+    "savedAsHeading": "Zapisano w tym folderze",
+    "savedAsBody": "{name} został dodany obok oryginału.",
+    "saveAsFailed": "Nie można zapisać {name}"
   }
 }

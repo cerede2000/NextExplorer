@@ -31,10 +31,19 @@ import { DocumentEditor } from '@onlyoffice/document-editor-vue';
 import {
   endOnlyOfficeSession,
   fetchOnlyOfficeConfig,
+  fetchOnlyOfficeHistory,
+  fetchOnlyOfficeHistoryData,
+  fetchOnlyOfficeMentionUsers,
   heartbeatOnlyOfficeSession,
+  notifyOnlyOfficeMention,
   renameOnlyOfficeDocument,
   requestOnlyOfficeForceSave,
+  restoreVersion,
+  saveOnlyOfficeDocumentAs,
 } from '@/api';
+import { useFeaturesStore } from '@/stores/features';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
+import { formatLocalDateTime } from '@/utils';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
 import logger from '@/utils/logger';
@@ -50,6 +59,13 @@ const props = defineProps({
 const { t } = useI18n();
 const fileStore = useFileStore();
 const notifications = useNotificationsStore();
+const featuresStore = useFeaturesStore();
+const versionsPanel = useVersionsPanelStore();
+
+/** Opened on an earlier version: a viewer, with nothing to save and no session. */
+const viewedVersionId = computed(() =>
+  typeof props.item?.versionId === 'string' ? props.item.versionId : ''
+);
 
 const serverUrl = ref(null);
 const config = ref(null);
@@ -183,6 +199,137 @@ const editorId = computed(() => {
   );
 });
 
+/** The live editor, which is how ONLYOFFICE takes answers to what it asked. */
+const editorInstance = () => window.DocEditor?.instances?.[editorId.value];
+
+/** Which of our version ids each number in the editor's history stands for. */
+let historyVersionIds = new Map();
+
+const showHistory = async () => {
+  const editor = editorInstance();
+  if (!editor?.refreshHistory) return;
+  try {
+    const result = await fetchOnlyOfficeHistory(documentPath.value);
+    historyVersionIds = new Map(result.history.map((entry) => [entry.version, entry.versionId]));
+    editor.refreshHistory({
+      currentVersion: result.currentVersion,
+      history: result.history.map((entry) => ({
+        version: entry.version,
+        key: entry.key,
+        created: formatLocalDateTime(entry.created),
+        user: entry.user,
+      })),
+    });
+  } catch (historyError) {
+    logger.error('ONLYOFFICE history unavailable', historyError);
+    editor.refreshHistory({ error: historyError?.message || '' });
+  }
+};
+
+const showHistoryEntry = async (version) => {
+  const editor = editorInstance();
+  if (!editor?.setHistoryData) return;
+  try {
+    editor.setHistoryData(
+      await fetchOnlyOfficeHistoryData(documentPath.value, {
+        version,
+        versionId: historyVersionIds.get(version) || undefined,
+      })
+    );
+  } catch (dataError) {
+    editor.setHistoryData({ version, error: dataError?.message || t('versions.loadFailed') });
+  }
+};
+
+const restoreFromHistory = async (version) => {
+  const versionId = historyVersionIds.get(version);
+  // The current state is already the document.
+  if (!versionId) return;
+  try {
+    const result = await restoreVersion(documentPath.value, versionId);
+    const unchanged = result?.status === 'unchanged';
+    notifications.addNotification({
+      type: unchanged ? 'info' : 'success',
+      heading: unchanged ? t('versions.results.unchanged') : t('versions.results.restored'),
+      durationMs: 4000,
+    });
+    versionsPanel.markRestored();
+    await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+    // The editor is still showing the history, over what the restore replaced.
+    await load();
+  } catch (restoreError) {
+    notifications.addNotification({
+      type: 'error',
+      heading: t('versions.errors.action'),
+      body: restoreError?.message || '',
+    });
+  }
+};
+
+/**
+ * The editor's own history panel, where the document has a history to show.
+ *
+ * Left out entirely when a version is what is being read: a history inside a
+ * history is a way to lose track of which document is on screen.
+ */
+const historyEvents = (cfg) => {
+  if (viewedVersionId.value || !featuresStore.versionsEnabled) return {};
+  const events = {
+    onRequestHistory() {
+      void showHistory();
+    },
+    onRequestHistoryData(event) {
+      void showHistoryEntry(Number(event?.data));
+    },
+    onRequestHistoryClose() {
+      void load();
+    },
+  };
+  // Restore is only offered to somebody who may change the document.
+  if (cfg?.document?.permissions?.edit) {
+    events.onRequestRestore = (event) => {
+      void restoreFromHistory(Number(event?.data?.version));
+    };
+  }
+  return events;
+};
+
+/**
+ * "Save as" from the editor's menu.
+ *
+ * ONLYOFFICE converts the document and hands over a URL; the server fetches it
+ * and writes the copy beside the original. Without this the entry is hidden and
+ * Download is the only way out — through the browser, into the person's
+ * downloads rather than their volume.
+ */
+const saveDocumentAs = async (data) => {
+  const title = data?.title;
+  const url = data?.url;
+  if (!documentPath.value || !title || !url) {
+    logger.warn('ONLYOFFICE save-as request was incomplete', { title: title || null });
+    return;
+  }
+
+  try {
+    const saved = await saveOnlyOfficeDocumentAs(documentPath.value, { url, title });
+    notifications.addNotification({
+      type: 'success',
+      heading: t('onlyoffice.savedAsHeading'),
+      body: t('onlyoffice.savedAsBody', { name: saved?.name || title }),
+    });
+    // The file landed in the folder being browsed, so show it without waiting
+    // for the next navigation.
+    await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+  } catch (e) {
+    logger.error('ONLYOFFICE save-as failed', { path: documentPath.value, err: e });
+    notifications.addNotification({
+      type: 'error',
+      heading: t('onlyoffice.saveAsFailed', { name: title }),
+      body: e?.message || '',
+    });
+  }
+};
+
 const load = async () => {
   endSession();
   error.value = null;
@@ -197,7 +344,9 @@ const load = async () => {
       config: cfg,
       editorSessionId,
       autoSaveIntervalMs: configuredAutoSaveIntervalMs,
-    } = await fetchOnlyOfficeConfig(path, 'edit');
+    } = await fetchOnlyOfficeConfig(path, viewedVersionId.value ? 'view' : 'edit', {
+      ...(viewedVersionId.value ? { versionId: viewedVersionId.value } : {}),
+    });
     sessionId.value = editorSessionId || null;
     autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
     hasUnsavedChanges = false;
@@ -205,6 +354,36 @@ const load = async () => {
     logger.debug('ONLYOFFICE config', cfg);
     cfg.events = {
       ...cfg.events,
+      ...historyEvents(cfg),
+      // Saving a copy from the editor's menu, which is the only way out of the
+      // editor that lands in the volume rather than in the browser.
+      onRequestSaveAs(event) {
+        void saveDocumentAs(event?.data);
+      },
+      // A comment was started with @. The editor takes the whole list and
+      // filters it itself as the name is typed, so there is nothing to search
+      // on; it also expects an answer even when the list is empty, or the
+      // mention popup waits for ever.
+      onRequestUsers(event) {
+        const editor = editorInstance();
+        if (!editor?.setUsers) return;
+        void fetchOnlyOfficeMentionUsers()
+          .then((result) => editor.setUsers({ c: event?.data?.c, users: result?.users || [] }))
+          .catch((usersError) => {
+            logger.debug('ONLYOFFICE mention list unavailable', usersError);
+            editor.setUsers({ c: event?.data?.c, users: [] });
+          });
+      },
+      // The comment is already in the document; this is the separate "tell
+      // them" step, which ONLYOFFICE leaves to the integration.
+      onRequestSendNotify(event) {
+        const data = event?.data || {};
+        void notifyOnlyOfficeMention(documentPath.value, {
+          emails: data.emails,
+          actionLink: data.actionLink,
+          comment: data.message,
+        }).catch((notifyError) => logger.debug('ONLYOFFICE mention not sent', notifyError));
+      },
       onDocumentReady() {
         logger.debug('ONLYOFFICE document ready', { path: documentPath.value });
         startHeartbeat();

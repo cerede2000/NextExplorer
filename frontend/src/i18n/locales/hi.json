@@ -929,6 +929,9 @@
     "transferCancel": "रद्द करें",
     "transferConfirm": "जारी रखें",
     "editingBy": "ONLYOFFICE में संपादित किया जा रहा है: {names}",
-    "editingNow": "ONLYOFFICE में संपादित किया जा रहा है"
+    "editingNow": "ONLYOFFICE में संपादित किया जा रहा है",
+    "savedAsHeading": "इस फ़ोल्डर में सहेजा गया",
+    "savedAsBody": "{name} को मूल फ़ाइल के बगल में जोड़ा गया।",
+    "saveAsFailed": "{name} को सहेजा नहीं जा सका"
   }
 }

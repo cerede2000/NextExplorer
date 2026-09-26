@@ -929,6 +929,9 @@
     "transferCancel": "Avbryt",
     "transferConfirm": "Fortsätt",
     "editingBy": "Redigeras i ONLYOFFICE av {names}",
-    "editingNow": "Redigeras i ONLYOFFICE"
+    "editingNow": "Redigeras i ONLYOFFICE",
+    "savedAsHeading": "Sparad i den här mappen",
+    "savedAsBody": "{name} lades till bredvid originalet.",
+    "saveAsFailed": "Det gick inte att spara {name}"
   }
 }

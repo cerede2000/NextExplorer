@@ -929,6 +929,9 @@
     "transferCancel": "Отмена",
     "transferConfirm": "Продолжить",
     "editingBy": "Редактируется в ONLYOFFICE: {names}",
-    "editingNow": "Редактируется в ONLYOFFICE"
+    "editingNow": "Редактируется в ONLYOFFICE",
+    "savedAsHeading": "Сохранено в эту папку",
+    "savedAsBody": "{name} добавлен рядом с оригиналом.",
+    "saveAsFailed": "Не удалось сохранить {name}"
   }
 }
