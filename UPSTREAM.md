@@ -62,58 +62,89 @@ What follows is what a route count cannot reach.
 
 ## What the route count missed
 
-Measured 26 September 2026 by diffing `origin/main` against `integration` file by
-file, and by diffing the function names inside the files both trees have. 401
-files differ outside the tests: 118 only here, 22 only upstream, 261 in both.
-Sorted by what the difference is, because only the first two groups are work.
+`scripts/parity.mjs` measures it, and `scripts/parity-manifest.json` accounts for
+it. Run it:
 
-### Defects of upstream's own, that this fork does not have
+```
+node scripts/parity.mjs --upstream origin/main --ours HEAD
+```
 
-|                                | Upstream today                                                                                                                  | Reversed  |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| The session secret             | `randomBytes(32)` per start, twice over — a restart signs everyone out, and the ONLYOFFICE and thumbnail secrets change with it | nxzai#434 |
-| A rejection nobody listens to  | no `unhandledRejection` handler in `backend/src` — one missed `await` stops the server                                          | nxzai#435 |
-| Sixteen translation keys       | eight screens render their own keys, the About page's whole tools section among them                                            | nxzai#433 |
-| `createFile` in the file store | reads `created?.name` where the route returns `{ item }` — a second untitled file opens the rename box on the first             |           |
-| `createOfficeDocument`         | in the API layer with no caller: the route nxzai#432 landed cannot be reached from any screen                                   |           |
-| The OIDC return origin         | a fixed `baseURL`, so behind a proxy the post-login return points elsewhere                                                     |           |
-| OIDC availability              | nothing distinguishes "not configured" from "configured and unreachable"                                                        |           |
-| The branding logo              | written over `custom-logo.png` in place, with no way back                                                                       |           |
-| `Range` parsing                | two copies, and they do not agree on the headers                                                                                |           |
-| EXIF                           | still `exifr`, unpublished since 2022                                                                                           |           |
+Eight axes, because a route count only sees capability that arrives as a route:
+files on either side, routes, symbols inside files both trees have, files whose
+symbols match but whose bodies have drifted, documentation pages, translation
+keys, environment variables, and database migrations.
 
-### Capabilities this fork has and upstream does not
+Every finding must match a rule in the manifest — **OURS**, **SHAPE**, **PORT** or
+**DONE** — and a finding nobody has classified makes the script exit 1. It runs in
+CI on every push, so a divergence introduced from here on has to be spoken for
+before it can be merged. That is the whole mechanism, and it exists because a
+count nobody re-runs is exactly how three batches were declared delivered while
+short.
 
-Backend: switching the search index and the folder sizes on from the settings
-rather than from a variable · the size index updated by the write instead of by
-the periodic sweep · the rows that point at a volume that was removed · the
-start-up notice for what releases up to 1.1.7 left in the cache · the periodic
-performance record · recent destinations · per-folder sort and view · the
-prepared-statement cache · and the transfer engine, which is 48 functions here
-against 14 there: cancelling a running copy, its progress, native `rm`, staging,
-permissions, diagnostics.
+As measured 26 September 2026, after nxzai#432:
 
-Frontend: a session that expires while nobody is navigating · the three
-navigation guards · per-folder preference and scroll position · concurrent
-operations and their progress · volume usage · the destination dialog · inline
-quick actions · the code surface · the new-document dialog · the share list
-toolbar and its empty states · eleven utilities · six upload composables.
+| Verdict      | Findings |                                                                                                                          |
+| ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| OURS         | 447      | our workflows, packaging, demo, test wiring, planning documents, and the quick-actions menu upstream closed in nxzai#333 |
+| SHAPE        | 132      | the file store split into modules, the rewritten folder view — placed outside the plan by nxzai#373                      |
+| DONE         | 3        | reversed in nxzai#434, #435, #436                                                                                        |
+| PORT         | 1411     | the 33 batches below                                                                                                     |
+| unclassified | 0        |                                                                                                                          |
 
-### Shape, not capability
+### Three of the published thirty-three were short
 
-The file store split into nine modules, the rewritten folder view, the context
-menu — nxzai#373 placed these outside the thirty-three and they stay outside it.
-Prose rewritten and functions restructured after a batch had already gone over
-belongs here too.
+The list in nxzai#373's phase-2 comment is the one the maintainer read. Three of
+its entries were not delivered in full, and the numbering drifting from that list
+after batch 23 is how it went unnoticed — the activity log shipped as "33.2" where
+the published list has it at 28, so its tail no longer lined up with anything.
 
-### Ours, and staying ours
+| Published | Promised                                                        | Delivered                                | Missing                                    |
+| --------- | --------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------ |
+| 23        | Native copy/move **with progress and cancellation**             | nxzai#412: rsync, and links that survive | progress and cancellation — batch 49 below |
+| 31        | Search: names from the index, ranking, **switches in Settings** | nxzai#427: names from the catalogue      | the switches — batch 42 below              |
+| 33        | The locale catalogues, **with the key-parity test**             | the catalogues are at parity upstream    | the test that holds them there — nxzai#433 |
 
-The release workflows and `packaging/`, the demo and `render.yaml`, the image
-pruning scripts, this file and the two beside it.
+The deferred table further down had recorded the first of those. This file said the
+plan was closed on the same page that said the copy's progress was still here.
 
-One exception worth offering: `eslint.config.mjs`. `npm run lint` on upstream
-reports 143 errors, 141 of them the same parse error on its own test files,
-because `.eslintrc.cjs` does not declare `backend/tests/**` as modules.
+### The batches
+
+| 38 | OIDC behind a proxy, and which of two failures it was | 36 |
+| 39 | a logo that can be changed back | 18 |
+| 40 | one Range parser, not two that disagree | 10 |
+| 41 | EXIF without a parser nobody maintains | 13 |
+| 42 | the switches in Settings — the remainder of published batch 31 | 32 |
+| 43 | the size index kept current by the write, not by the sweep | 15 |
+| 44 | the rows that point at a path that is gone | 11 |
+| 44/47/50 | the schema the batches below add; each migration travels with the feature that needs it | 5 |
+| 45 | what releases up to 1.1.7 left in the cache | 1 |
+| 46 | the periodic performance record | 7 |
+| 47 | sort and view remembered per folder | 172 |
+| 48 | one database handle, and its prepared statements | 24 |
+| 49 | a copy that reports and can be stopped — the remainder of published batch 23 | 195 |
+| 50 | the destination dialog, and the folders somebody actually files into | 23 |
+| 51 | bounds on browsing inside an archive | 11 |
+| 52 | the chunked fallback, and the switch that governs it | 55 |
+| 53 | two ceilings nobody could raise | 3 |
+| 54 | a session that ends while nobody is navigating | 23 |
+| 55 | the navigation guards, each a function of its inputs | 27 |
+| 56 | how full a volume is | 16 |
+| 57 | the list of shares, seen | 91 |
+| 58 | finding a name in a folder nobody can scroll | 29 |
+| 59 | the documentation the delivered batches left behind | 11 |
+| 60 | the trash and the versions panel, their remainder | 42 |
+| 61 | access rules and what they hold | 40 |
+| 62 | the accounts screens | 18 |
+| 63 | ONLYOFFICE and Collabora, their remainder | 116 |
+| 64 | the context menu, and saying what a deletion will do | 88 |
+| 65 | what a file looks like in the list | 55 |
+| 66 | the Markdown preview | 37 |
+| 67 | what the terminal does with what is typed | 3 |
+| 68 | strings whose screens are covered by the batches above | 182 |
+| 69 | the OpenAPI description follows every route these batches add; it goes last, when there is nothing left to describe | 2 |
+
+Batch 69 goes last: the OpenAPI description follows the routes, so there is nothing
+to describe until the rest has landed.
 
 ## What is not in the thirty-three
 
@@ -133,10 +164,15 @@ Stated so the count closes:
 - **Anything found from here on.** It is fixed inside the batch that owns the
   file, or it is written down here as out.
 
-The second phase adds one rule, learned from how this list was found: **a claim
-of parity names the instrument that measured it.** "Upstream mounts every route
-this fork does" was true and was read as "upstream does everything this fork
-does", which was not. The two are a file-level diff apart.
+The second phase adds two rules, learned from how this list was found.
+
+**A claim of parity names the instrument that measured it.** "Upstream mounts
+every route this fork does" was true and was read as "upstream does everything this
+fork does", which was not.
+
+**A batch is delivered when its published description is delivered, not when its
+number is merged.** Three were closed short. The remedy is not more care: it is
+`scripts/parity.mjs`, which does not forget and does not round up.
 
 ## Left behind so far, and by whom
 

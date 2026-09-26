@@ -107,6 +107,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Everything this fork has and upstream does not, measured along eight axes
+      # and held to scripts/parity-manifest.json. A divergence nobody has
+      # classified fails here: the plan of nxzai#373 was closed on a route count
+      # while three of its batches were short, and a count nobody re-runs is how
+      # that happens. This is the count, and it re-runs.
+      - name: Parity with upstream is accounted for
+        run: |
+          git remote add upstream https://github.com/nxzai/NextExplorer.git 2>/dev/null || true
+          git fetch --quiet --depth=1 upstream main
+          node scripts/parity.mjs --upstream upstream/main --ours HEAD
+
       - name: Version consistency
         run: npm run version:check
 
