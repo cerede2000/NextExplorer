@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const fss = require('fs');
 const { normalizeRelativePath } = require('../../utils/pathUtils');
+const { parseByteRange } = require('../../utils/httpRange');
 const { resolvePathWithAccess } = require('../../services/accessManager');
 const { extensions, mimeTypes } = require('../../config/index');
 const { getRawPreviewJpegPath } = require('../../services/rawPreviewService');
@@ -9,11 +10,30 @@ const asyncHandler = require('../../utils/asyncHandler');
 const {
   ValidationError,
   ForbiddenError,
+  NotFoundError,
   UnsupportedMediaTypeError,
 } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
+const { markLongPoll } = require('../../middleware/heldRequests');
 
 const router = require('express').Router();
+
+// Formats the browser executes when opened as a top-level document. Served
+// inline they would run their own scripts on the application origin, so they
+// get a sandbox CSP — which still lets an <img> render them normally.
+const ACTIVE_CONTENT_EXTENSIONS = new Set(['svg']);
+
+const buildPreviewSecurityHeaders = (extension) => {
+  const headers = {
+    // Never let the browser second-guess the declared type.
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex',
+  };
+  if (ACTIVE_CONTENT_EXTENSIONS.has(extension)) {
+    headers['Content-Security-Policy'] = 'sandbox';
+  }
+  return headers;
+};
 
 router.get(
   '/preview',
@@ -32,7 +52,17 @@ router.get(
     }
 
     const { absolutePath } = resolved;
-    const stats = await fs.stat(absolutePath);
+    let stats;
+    try {
+      stats = await fs.stat(absolutePath);
+    } catch (error) {
+      // A file deleted or renamed since the listing was drawn: a stale view,
+      // not a fault in the server.
+      if (error.code === 'ENOENT') {
+        throw new NotFoundError('File not found.');
+      }
+      throw error;
+    }
 
     if (stats.isDirectory()) {
       throw new ValidationError('Cannot preview a directory.');
@@ -54,6 +84,7 @@ router.get(
       res.writeHead(200, {
         'Content-Type': 'image/jpeg',
         'Content-Length': jpegStats.size,
+        ...buildPreviewSecurityHeaders('jpeg'),
       });
 
       const stream = fss.createReadStream(jpegPath);
@@ -74,6 +105,7 @@ router.get(
     }
 
     const mimeType = mimeTypes[extension] || 'application/octet-stream';
+    const securityHeaders = buildPreviewSecurityHeaders(extension);
     const isSeekableMedia =
       extensions.videos.includes(extension) || (extensions.audios || []).includes(extension);
 
@@ -93,34 +125,32 @@ router.get(
     };
 
     if (isSeekableMedia) {
-      const rangeHeader = req.headers.range;
-      if (rangeHeader) {
-        const bytesPrefix = 'bytes=';
-        if (!rangeHeader.startsWith(bytesPrefix)) {
-          res.status(416).send('Malformed Range header');
-          return;
-        }
+      // Streaming a film holds the connection open for as long as the browser
+      // wants it — minutes, and longer over a slow link. That is the request
+      // doing its job, not a symptom, and the held-request instrument reports
+      // only ten before falling silent for the life of the process: a handful
+      // of videos would spend the whole budget and switch off the one tool
+      // there is for finding a genuinely stuck server.
+      markLongPoll(req);
 
-        const [startString, endString] = rangeHeader.slice(bytesPrefix.length).split('-');
-        let start = Number(startString);
-        let end = endString ? Number(endString) : stats.size - 1;
-
-        if (Number.isNaN(start)) start = 0;
-        if (Number.isNaN(end) || end >= stats.size) end = stats.size - 1;
-
-        if (start > end) {
-          res.status(416).send('Range Not Satisfiable');
-          return;
-        }
-
-        const chunkSize = end - start + 1;
+      const range = parseByteRange(req.headers.range, stats.size);
+      if (range?.malformed) {
+        res.status(416).send('Malformed Range header');
+        return;
+      }
+      if (range?.unsatisfiable) {
+        res.status(416).send('Range Not Satisfiable');
+        return;
+      }
+      if (range) {
         res.writeHead(206, {
-          'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+          'Content-Range': `bytes ${range.start}-${range.end}/${stats.size}`,
           'Accept-Ranges': 'bytes',
-          'Content-Length': chunkSize,
+          'Content-Length': range.chunkSize,
           'Content-Type': mimeType,
+          ...securityHeaders,
         });
-        streamFile({ start, end });
+        streamFile({ start: range.start, end: range.end });
         return;
       }
 
@@ -128,6 +158,7 @@ router.get(
         'Content-Type': mimeType,
         'Content-Length': stats.size,
         'Accept-Ranges': 'bytes',
+        ...securityHeaders,
       });
       streamFile();
       return;
@@ -136,6 +167,7 @@ router.get(
     res.writeHead(200, {
       'Content-Type': mimeType,
       'Content-Length': stats.size,
+      ...securityHeaders,
     });
     streamFile();
   })
