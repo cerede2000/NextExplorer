@@ -2,6 +2,7 @@ const express = require('express');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
+const { withStorage } = require('../services/storageWritability');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
@@ -88,18 +89,27 @@ router.get(
       itemExtras: await versionMarks(directoryPath, userSettings),
     });
 
+    // What the account may do here, less what the storage itself refuses: a
+    // folder on a read-only mount offers no New, Upload or Delete to anyone.
+    const access = await withStorage(accessInfo, directoryPath);
+
     const response = {
       items: fileData,
       access: {
-        canRead: accessInfo.canRead,
-        canWrite: accessInfo.canWrite,
-        canUpload: accessInfo.canUpload,
-        canDelete: accessInfo.canDelete,
-        canShare: accessInfo.canShare,
-        canDownload: accessInfo.canDownload,
+        canRead: access.canRead,
+        canWrite: access.canWrite,
+        canUpload: access.canUpload,
+        canDelete: access.canDelete,
+        canCreateFolder: access.canCreateFolder,
+        canShare: access.canShare,
+        canDownload: access.canDownload,
         // Whether the files here show their history, which a share hands out
         // only when its owner said so.
-        canSeeVersions: versionRights(accessInfo).see,
+        canSeeVersions: versionRights(access).see,
+        // Why nothing can be written here when the storage is the reason:
+        // `storage` for a read-only mount, `permission` for a folder the
+        // server may not write in.
+        readOnly: access.readOnly || null,
       },
       current: {
         isDirectory: true,

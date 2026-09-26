@@ -19,6 +19,9 @@ export const useFeaturesStore = defineStore('features', () => {
   const collaboraExtensions = ref([]);
   const volumeUsageEnabled = ref(false);
   const folderSizeMode = ref('off');
+  const folderSizeLockedBy = ref(null);
+  const searchIndexEnabled = ref(false);
+  const searchIndexLockedBy = ref(null);
   const folderSizeEnabled = ref(false);
   const personalEnabled = ref(false);
   const userVolumesEnabled = ref(false);
@@ -91,6 +94,13 @@ export const useFeaturesStore = defineStore('features', () => {
         folderSizeMode.value =
           typeof features?.folderSize?.mode === 'string' ? features.folderSize.mode : 'off';
         folderSizeEnabled.value = Boolean(features?.folderSize?.enabled);
+        folderSizeLockedBy.value =
+          typeof features?.folderSize?.lockedBy === 'string' ? features.folderSize.lockedBy : null;
+        searchIndexEnabled.value = features?.search?.index?.enabled === true;
+        searchIndexLockedBy.value =
+          typeof features?.search?.index?.lockedBy === 'string'
+            ? features.search.index.lockedBy
+            : null;
 
         // Personal folders
         personalEnabled.value = Boolean(features?.personal?.enabled);
@@ -136,6 +146,9 @@ export const useFeaturesStore = defineStore('features', () => {
         volumeUsageEnabled.value = false;
         folderSizeMode.value = 'off';
         folderSizeEnabled.value = false;
+        folderSizeLockedBy.value = null;
+        searchIndexEnabled.value = false;
+        searchIndexLockedBy.value = null;
         personalEnabled.value = false;
         userVolumesEnabled.value = false;
         skipHome.value = false;
@@ -170,6 +183,9 @@ export const useFeaturesStore = defineStore('features', () => {
     collaboraExtensions,
     volumeUsageEnabled,
     folderSizeMode,
+    folderSizeLockedBy,
+    searchIndexEnabled,
+    searchIndexLockedBy,
     folderSizeEnabled,
     personalEnabled,
     userVolumesEnabled,

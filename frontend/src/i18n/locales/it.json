@@ -69,7 +69,8 @@
     "shares": "Condivisioni",
     "unsavedChanges": "Hai modifiche non salvate",
     "readonly": "Sola lettura",
-    "readwrite": "Lettura/Scrittura"
+    "readwrite": "Lettura/Scrittura",
+    "add": "Aggiungi"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Accesso rapido",
-    "quickAccessEmpty": "Aggiungi cartelle ai preferiti per accedervi rapidamente qui."
+    "quickAccessEmpty": "Aggiungi cartelle ai preferiti per accedervi rapidamente qui.",
+    "readOnly": {
+      "label": "Sola lettura",
+      "storage": "Archiviazione in sola lettura: questo volume è montato in sola lettura, quindi non vi si può scrivere nulla.",
+      "permission": "Non scrivibile: il server non ha il permesso di scrivere in questo volume. Verifica a chi appartiene sull'host.",
+      "access": "In sola lettura per il tuo account."
+    }
   },
   "drives": {
     "personal": "Personale",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Due fattori",
       "accountPasskeys": "Passkey",
       "activity": "Registro attività",
-      "accountApiTokens": "Token API"
+      "accountApiTokens": "Token API",
+      "folderSize": "Dimensioni cartelle",
+      "searchIndex": "Indice di ricerca"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -495,7 +504,11 @@
       "adminNote": "Ogni regola dice se si applica agli amministratori. Senza, una regola «Sola lettura» li lascia scrivere e una regola «Nascosto» nasconde la cartella anche a loro.",
       "applyToAdmins": "Applica tutte le regole agli amministratori",
       "applyToAdminsHint": "Attivo, nessuna regola lascia passare un amministratore: la casella della singola regola viene ignorata.",
-      "appliesToAdmins": "Si applica agli amministratori"
+      "appliesToAdmins": "Si applica agli amministratori",
+      "browse": "Scegli una cartella",
+      "pathInvalid": "Questo percorso non è in nessun volume, quindi la regola non si applicherà mai.",
+      "pathMissing": "Nessuna cartella a questo percorso. Una regola usa il percorso come lo mostra NextExplorer, a partire dal nome del volume.",
+      "useSuggestion": "Usa {path}"
     },
     "comingSoon": {
       "subtitle": "Questa sezione delle impostazioni è in costruzione. Resta sintonizzato!"
@@ -842,6 +855,36 @@
       "createFailed": "Non è stato possibile emettere il token.",
       "renameFailed": "Non è stato possibile rinominare il token.",
       "revokeFailed": "Non è stato possibile revocare il token."
+    },
+    "folderSize": {
+      "title": "Dimensioni cartelle",
+      "subtitle": "Escludi percorsi dal calcolo e dall'indicizzazione delle dimensioni delle cartelle.",
+      "running": "Misura la dimensione delle cartelle",
+      "runningHelp": "Misura le cartelle in background, così la loro dimensione compare nell'elenco.",
+      "modeOff": "Disattivato",
+      "modeShallow": "Solo i loro file",
+      "modeFull": "Tutto ciò che contengono",
+      "environment": "Esclusioni definite dall'ambiente",
+      "additional": "Esclusioni aggiuntive",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Nessun percorso configurato"
+    },
+    "searchIndex": {
+      "title": "Indice di ricerca",
+      "subtitle": "Escludere percorsi dall'indicizzazione dei contenuti.",
+      "running": "Mantieni un indice di ricerca",
+      "runningHelp": "Legge i documenti del volume in background, così una ricerca nel loro contenuto risponde subito.",
+      "environment": "Esclusioni definite dall'ambiente",
+      "additional": "Esclusioni aggiuntive",
+      "none": "Nessun percorso configurato",
+      "placeholder": "Backup/2024"
+    },
+    "featureOff": {
+      "title": "Questa funzione non è attiva",
+      "howTo": "Per attivarla, imposta {setting} e riavvia il contenitore.",
+      "kept": "Ciò che configuri qui viene salvato e si applica non appena è attiva.",
+      "useSwitch": "Attivala con l'interruttore qui sopra.",
+      "locked": "Impostato da {variable} nell'ambiente: si decide lì, non qui."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Non ne è uscito nulla.",
     "extractFailed": "Non è stato possibile estrarre questo.",
     "count": "Una voce in questo archivio | {count} voci in questo archivio"
+  },
+  "storagePicker": {
+    "root": "Archiviazione",
+    "empty": "Non c'è nulla da scegliere qui",
+    "breadcrumb": "Percorso della cartella",
+    "chooseFolder": "Scegli questa cartella"
   }
 }

@@ -9802,6 +9802,277 @@
         }
       }
     },
+    "/api/settings/access/check-paths": {
+      "post": {
+        "operationId": "checkAccessRulePaths",
+        "summary": "What the paths of access rules name on the disk",
+        "description": "For the rule editor, which warns about a path that names nothing. A rule is matched against the path NextExplorer shows, volume first; one typed from the host’s side of a mount (`mnt/torrents`) names nothing, and the folder probably meant comes back as `suggestion`. Nothing is stored or refused.",
+        "tags": ["Settings"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "At most 200, answered in the same order."
+                  }
+                },
+                "required": ["paths"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "paths": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "As it was sent."
+                          },
+                          "status": {
+                            "type": "string",
+                            "description": "`folder` or `file` when it names one, `missing` when it names nothing, `invalid` when it lies outside the volumes, `empty` for no path.",
+                            "enum": ["folder", "file", "missing", "invalid", "empty"]
+                          },
+                          "suggestion": {
+                            "type": ["string", "null"],
+                            "description": "The folder probably meant, for a `missing` path."
+                          }
+                        },
+                        "required": ["path", "status", "suggestion"]
+                      }
+                    }
+                  },
+                  "required": ["paths"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      }
+    },
+    "/api/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "summary": "Which optional tools are installed, and what each makes possible",
+        "tags": ["Administration"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "admin",
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "available": {
+                            "type": "boolean"
+                          },
+                          "version": {
+                            "type": ["string", "null"],
+                            "description": "What the tool says its version is, as it prints it; null when it is missing or its answer does not say."
+                          },
+                          "enables": {
+                            "type": "string"
+                          },
+                          "install": {
+                            "type": "string",
+                            "description": "The package that provides it."
+                          },
+                          "source": {
+                            "type": ["string", "null"],
+                            "description": "Where ExifTool comes from; null when there is none."
+                          },
+                          "used": {
+                            "type": "boolean"
+                          },
+                          "missingFormats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "installMissing": {
+                            "type": "string",
+                            "description": "The package that adds the formats it lacks."
+                          }
+                        },
+                        "required": ["name", "available"]
+                      }
+                    }
+                  },
+                  "required": ["capabilities"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/lock": {
+      "delete": {
+        "operationId": "unlockUser",
+        "summary": "Lift the lock failed sign-ins put on an account",
+        "tags": ["Accounts (administration)"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The account.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Unlocked."
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/two-factor": {
+      "delete": {
+        "operationId": "removeUserSecondFactor",
+        "summary": "Take the second factor off an account that lost it",
+        "tags": ["Accounts (administration)"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The account.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/passkeys": {
+      "delete": {
+        "operationId": "removeUserPasskeys",
+        "summary": "Take every passkey off an account",
+        "tags": ["Accounts (administration)"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The account.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
     "/api/onlyoffice/config": {
       "post": {
         "operationId": "configureOnlyofficeEditor",

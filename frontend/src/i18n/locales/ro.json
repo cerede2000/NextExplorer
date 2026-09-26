@@ -69,7 +69,8 @@
     "shares": "Partajări",
     "unsavedChanges": "Ai modificări nesalvate",
     "readonly": "Doar citire",
-    "readwrite": "Citire/Scriere"
+    "readwrite": "Citire/Scriere",
+    "add": "Adaugă"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Acces rapid",
-    "quickAccessEmpty": "Fixează dosare ca favorite pentru a le accesa rapid aici."
+    "quickAccessEmpty": "Fixează dosare ca favorite pentru a le accesa rapid aici.",
+    "readOnly": {
+      "label": "Doar citire",
+      "storage": "Stocare doar pentru citire: acest volum este montat doar pentru citire, așa că nu se poate scrie nimic în el.",
+      "permission": "Nu se poate scrie: serverul nu are permisiunea de a scrie în acest volum. Verificați cui îi aparține pe gazdă.",
+      "access": "Doar citire pentru contul dumneavoastră."
+    }
   },
   "drives": {
     "personal": "Personal",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Doi factori",
       "accountPasskeys": "Chei de acces",
       "activity": "Jurnal de activitate",
-      "accountApiTokens": "Jetoane API"
+      "accountApiTokens": "Jetoane API",
+      "folderSize": "Dimensiunea dosarelor",
+      "searchIndex": "Index de căutare"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -495,7 +504,11 @@
       "adminNote": "Fiecare regulă spune dacă se aplică administratorilor. Fără asta, o regulă „Doar citire” îi lasă să scrie, iar o regulă „Ascuns” le ascunde și lor dosarul.",
       "applyToAdmins": "Aplică toate regulile administratorilor",
       "applyToAdminsHint": "Activat, nicio regulă nu lasă un administrator să treacă — caseta fiecărei reguli este ignorată.",
-      "appliesToAdmins": "Se aplică administratorilor"
+      "appliesToAdmins": "Se aplică administratorilor",
+      "browse": "Alegeți un dosar",
+      "pathInvalid": "Această cale nu se află în niciun volum, așa că regula nu se va aplica niciodată.",
+      "pathMissing": "Nu există niciun dosar la această cale. O regulă folosește calea așa cum o arată NextExplorer, începând cu numele volumului.",
+      "useSuggestion": "Folosiți {path}"
     },
     "comingSoon": {
       "subtitle": "Această secțiune de setări este în lucru. Revino în curând!"
@@ -842,6 +855,36 @@
       "createFailed": "Jetonul nu a putut fi emis.",
       "renameFailed": "Jetonul nu a putut fi redenumit.",
       "revokeFailed": "Jetonul nu a putut fi revocat."
+    },
+    "folderSize": {
+      "title": "Dimensiunea dosarelor",
+      "subtitle": "Exclude căi din calculul și indexarea dimensiunii dosarelor.",
+      "running": "Măsoară dimensiunea dosarelor",
+      "runningHelp": "Măsoară dosarele în fundal, astfel încât dimensiunea lor să apară în listă.",
+      "modeOff": "Dezactivat",
+      "modeShallow": "Doar fișierele proprii",
+      "modeFull": "Tot ce conțin",
+      "environment": "Excluderi definite de mediu",
+      "additional": "Excluderi suplimentare",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Nicio cale configurată"
+    },
+    "searchIndex": {
+      "title": "Index de căutare",
+      "subtitle": "Excludeți căi din indexarea conținutului.",
+      "running": "Păstrează un index de căutare",
+      "runningHelp": "Citește documentele volumului în fundal, astfel încât o căutare în conținutul lor să răspundă imediat.",
+      "environment": "Excluderi definite de mediu",
+      "additional": "Excluderi suplimentare",
+      "none": "Nicio cale configurată",
+      "placeholder": "Copii/2024"
+    },
+    "featureOff": {
+      "title": "Această funcție nu este activată",
+      "howTo": "Pentru a o activa, setați {setting} și reporniți containerul.",
+      "kept": "Ce configurați aici este salvat și se aplică imediat ce este activată.",
+      "useSwitch": "Activați-o cu comutatorul de mai sus.",
+      "locked": "Setat de {variable} în mediu: se decide acolo, nu aici."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Nu a ieșit nimic.",
     "extractFailed": "Acest lucru nu a putut fi extras.",
     "count": "O intrare în această arhivă | {count} intrări în această arhivă"
+  },
+  "storagePicker": {
+    "root": "Stocare",
+    "empty": "Nu este nimic de ales aici",
+    "breadcrumb": "Calea folderului",
+    "chooseFolder": "Alegeți acest dosar"
   }
 }

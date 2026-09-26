@@ -69,7 +69,8 @@
     "shares": "Utdelningar",
     "unsavedChanges": "Du har osparade ändringar",
     "readonly": "Skrivskyddad",
-    "readwrite": "Läs/Skriv"
+    "readwrite": "Läs/Skriv",
+    "add": "Lägg till"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
-    "quickAccessEmpty": "Fäst mappar som favoriter för att snabbt komma åt dem här."
+    "quickAccessEmpty": "Fäst mappar som favoriter för att snabbt komma åt dem här.",
+    "readOnly": {
+      "label": "Skrivskyddad",
+      "storage": "Skrivskyddad lagring: den här volymen är monterad skrivskyddad, så inget kan skrivas i den.",
+      "permission": "Inte skrivbar: servern saknar behörighet att skriva i den här volymen. Kontrollera vem som äger den på värden.",
+      "access": "Skrivskyddad för ditt konto."
+    }
   },
   "drives": {
     "personal": "Personligt",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Tvåfaktor",
       "accountPasskeys": "Lösenordsnycklar",
       "activity": "Aktivitetslogg",
-      "accountApiTokens": "API-nycklar"
+      "accountApiTokens": "API-nycklar",
+      "folderSize": "Mappstorlekar",
+      "searchIndex": "Sökindex"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -495,7 +504,11 @@
       "adminNote": "Varje regel säger om den gäller administratörer. Utan det låter en regel ”Skrivskyddad” dem skriva, och en regel ”Dold” döljer mappen även för dem.",
       "applyToAdmins": "Tillämpa alla regler på administratörer",
       "applyToAdminsHint": "På släpper ingen regel igenom en administratör – varje regels egen ruta ignoreras.",
-      "appliesToAdmins": "Gäller administratörer"
+      "appliesToAdmins": "Gäller administratörer",
+      "browse": "Välj en mapp",
+      "pathInvalid": "Den här sökvägen ligger inte i någon volym, så regeln kommer aldrig att gälla.",
+      "pathMissing": "Det finns ingen mapp på den här sökvägen. En regel använder sökvägen så som NextExplorer visar den, med volymens namn först.",
+      "useSuggestion": "Använd {path}"
     },
     "comingSoon": {
       "subtitle": "Denna inställningssektion håller på att byggas. Vänta och se!"
@@ -842,6 +855,36 @@
       "createFailed": "Nyckeln kunde inte utfärdas.",
       "renameFailed": "Nyckeln kunde inte byta namn.",
       "revokeFailed": "Nyckeln kunde inte återkallas."
+    },
+    "folderSize": {
+      "title": "Mappstorlekar",
+      "subtitle": "Undanta sökvägar från beräkning och indexering av mappstorlekar.",
+      "running": "Mät mappstorlekar",
+      "runningHelp": "Mäter mappar i bakgrunden, så att deras storlek visas i listan.",
+      "modeOff": "Av",
+      "modeShallow": "Bara deras egna filer",
+      "modeFull": "Allt de innehåller",
+      "environment": "Undantag definierade av miljön",
+      "additional": "Ytterligare undantag",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Inga sökvägar konfigurerade"
+    },
+    "searchIndex": {
+      "title": "Sökindex",
+      "subtitle": "Uteslut sökvägar från innehållsindexering.",
+      "running": "Håll ett sökindex",
+      "runningHelp": "Läser volymens dokument i bakgrunden, så att en sökning i innehållet svarar direkt.",
+      "environment": "Uteslutningar från miljön",
+      "additional": "Ytterligare uteslutningar",
+      "none": "Ingen sökväg konfigurerad",
+      "placeholder": "Säkerhetskopior/2024"
+    },
+    "featureOff": {
+      "title": "Funktionen är inte aktiverad",
+      "howTo": "Aktivera den genom att sätta {setting} och starta om containern.",
+      "kept": "Det du ställer in här sparas och gäller så snart funktionen aktiveras.",
+      "useSwitch": "Slå på den med reglaget ovan.",
+      "locked": "Satt av {variable} i miljön – det avgörs där, inte här."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Inget kom ut.",
     "extractFailed": "Det gick inte att extrahera detta.",
     "count": "En post i det här arkivet | {count} poster i det här arkivet"
+  },
+  "storagePicker": {
+    "root": "Lagring",
+    "empty": "Det finns inget att välja här",
+    "breadcrumb": "Mappsökväg",
+    "chooseFolder": "Välj den här mappen"
   }
 }

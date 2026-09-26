@@ -21,6 +21,8 @@ import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
 import SettingsUploads from '@/views/settings/SettingsUploads.vue';
 import SettingsActivity from '@/views/settings/SettingsActivity.vue';
 import SettingsApiTokens from '@/views/settings/SettingsApiTokens.vue';
+import SettingsFolderSize from '@/views/settings/SettingsFolderSize.vue';
+import SettingsSearchIndex from '@/views/settings/SettingsSearchIndex.vue';
 import TrashView from '@/views/TrashView.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
 import AboutView from '@/views/AboutView.vue';
@@ -93,6 +95,16 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             { path: 'account-api-tokens', component: SettingsApiTokens },
+            {
+              path: 'folder-size',
+              component: SettingsFolderSize,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'search-index',
+              component: SettingsSearchIndex,
+              meta: { requiresAdmin: true },
+            },
             {
               path: 'admin-overview',
               component: SettingsComingSoon,

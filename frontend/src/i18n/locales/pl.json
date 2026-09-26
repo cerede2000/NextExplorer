@@ -69,7 +69,8 @@
     "shares": "Udostępnienia",
     "unsavedChanges": "Masz niezapisane zmiany",
     "readonly": "Tylko do odczytu",
-    "readwrite": "Odczyt/Zapis"
+    "readwrite": "Odczyt/Zapis",
+    "add": "Dodaj"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Szybki dostęp",
-    "quickAccessEmpty": "Przypnij foldery jako ulubione, aby szybko uzyskać do nich dostęp tutaj."
+    "quickAccessEmpty": "Przypnij foldery jako ulubione, aby szybko uzyskać do nich dostęp tutaj.",
+    "readOnly": {
+      "label": "Tylko do odczytu",
+      "storage": "Magazyn tylko do odczytu: ten wolumin jest zamontowany tylko do odczytu, więc nie można w nim nic zapisać.",
+      "permission": "Brak możliwości zapisu: serwer nie ma uprawnień do zapisu w tym woluminie. Sprawdź, do kogo należy na hoście.",
+      "access": "Tylko do odczytu dla Twojego konta."
+    }
   },
   "drives": {
     "personal": "Osobiste",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Dwa składniki",
       "accountPasskeys": "Klucze dostępu",
       "activity": "Dziennik aktywności",
-      "accountApiTokens": "Tokeny API"
+      "accountApiTokens": "Tokeny API",
+      "folderSize": "Rozmiary folderów",
+      "searchIndex": "Indeks wyszukiwania"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -495,7 +504,11 @@
       "adminNote": "Każda reguła mówi, czy dotyczy administratorów. Bez tego reguła „Tylko do odczytu” pozwala im pisać, a reguła „Ukryte” ukrywa folder również przed nimi.",
       "applyToAdmins": "Zastosuj wszystkie reguły do administratorów",
       "applyToAdminsHint": "Włączone — żadna reguła nie przepuszcza administratora; pole każdej reguły jest pomijane.",
-      "appliesToAdmins": "Dotyczy administratorów"
+      "appliesToAdmins": "Dotyczy administratorów",
+      "browse": "Wybierz folder",
+      "pathInvalid": "Ta ścieżka nie leży w żadnym woluminie, więc reguła nigdy nie zadziała.",
+      "pathMissing": "Pod tą ścieżką nie ma folderu. Reguła używa ścieżki tak, jak pokazuje ją NextExplorer, zaczynając od nazwy woluminu.",
+      "useSuggestion": "Użyj {path}"
     },
     "comingSoon": {
       "subtitle": "Ta sekcja ustawień jest w przygotowaniu. Bądź na bieżąco!"
@@ -842,6 +855,36 @@
       "createFailed": "Nie udało się wydać tokenu.",
       "renameFailed": "Nie udało się zmienić nazwy tokenu.",
       "revokeFailed": "Nie udało się unieważnić tokenu."
+    },
+    "folderSize": {
+      "title": "Rozmiary folderów",
+      "subtitle": "Wyklucz ścieżki z obliczania i indeksowania rozmiaru folderów.",
+      "running": "Mierz rozmiar folderów",
+      "runningHelp": "Mierzy foldery w tle, aby ich rozmiar pojawiał się na liście.",
+      "modeOff": "Wyłączone",
+      "modeShallow": "Tylko ich własne pliki",
+      "modeFull": "Wszystko, co zawierają",
+      "environment": "Wykluczenia zdefiniowane w środowisku",
+      "additional": "Dodatkowe wykluczenia",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Nie skonfigurowano żadnych ścieżek"
+    },
+    "searchIndex": {
+      "title": "Indeks wyszukiwania",
+      "subtitle": "Wyklucz ścieżki z indeksowania treści.",
+      "running": "Prowadź indeks wyszukiwania",
+      "runningHelp": "Czyta dokumenty woluminu w tle, aby wyszukiwanie w ich treści odpowiadało od razu.",
+      "environment": "Wykluczenia zdefiniowane przez środowisko",
+      "additional": "Dodatkowe wykluczenia",
+      "none": "Nie skonfigurowano ścieżki",
+      "placeholder": "Kopie/2024"
+    },
+    "featureOff": {
+      "title": "Ta funkcja nie jest włączona",
+      "howTo": "Aby ją włączyć, ustaw {setting} i uruchom ponownie kontener.",
+      "kept": "To, co tu skonfigurujesz, zostanie zapisane i zadziała po włączeniu.",
+      "useSwitch": "Włącz ją przełącznikiem powyżej.",
+      "locked": "Ustawione przez {variable} w środowisku — decyduje się o tym tam, a nie tutaj."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Nic z tego nie wyszło.",
     "extractFailed": "Nie udało się tego wypakować.",
     "count": "Jeden wpis w tym archiwum | {count} wpisy w tym archiwum | {count} wpisów w tym archiwum"
+  },
+  "storagePicker": {
+    "root": "Magazyn",
+    "empty": "Nie ma tu nic do wyboru",
+    "breadcrumb": "Ścieżka folderu",
+    "chooseFolder": "Wybierz ten folder"
   }
 }

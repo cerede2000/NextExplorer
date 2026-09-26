@@ -69,7 +69,8 @@
     "shares": "Freigaben",
     "unsavedChanges": "Sie haben ungespeicherte Änderungen",
     "readonly": "Schreibgeschützt",
-    "readwrite": "Lesen/Schreiben"
+    "readwrite": "Lesen/Schreiben",
+    "add": "Hinzufügen"
   },
   "editor": {
     "editing": "Editing",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
-    "quickAccessEmpty": "Pinnen Sie Ordner als Favoriten an, um hier schnell darauf zuzugreifen."
+    "quickAccessEmpty": "Pinnen Sie Ordner als Favoriten an, um hier schnell darauf zuzugreifen.",
+    "readOnly": {
+      "label": "Schreibgeschützt",
+      "storage": "Schreibgeschützter Speicher: Dieses Volume ist schreibgeschützt eingehängt, daher kann nichts hineingeschrieben werden.",
+      "permission": "Nicht beschreibbar: Der Server darf in diesem Volume nicht schreiben. Prüfen Sie, wem es auf dem Host gehört.",
+      "access": "Für Ihr Konto schreibgeschützt."
+    }
   },
   "drives": {
     "personal": "Persönlich",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Zwei-Faktor",
       "accountPasskeys": "Passkeys",
       "activity": "Aktivitätsprotokoll",
-      "accountApiTokens": "API-Token"
+      "accountApiTokens": "API-Token",
+      "folderSize": "Ordnergrößen",
+      "searchIndex": "Suchindex"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -495,7 +504,11 @@
       "adminNote": "Jede Regel sagt, ob sie für Administratoren gilt. Ohne das lässt eine Regel „Nur Lesen“ sie schreiben, und eine Regel „Versteckt“ verbirgt den Ordner auch vor ihnen.",
       "applyToAdmins": "Alle Regeln auf Administratoren anwenden",
       "applyToAdminsHint": "Eingeschaltet lässt keine Regel einen Administrator durch – das Kästchen der einzelnen Regel wird ignoriert.",
-      "appliesToAdmins": "Gilt für Administratoren"
+      "appliesToAdmins": "Gilt für Administratoren",
+      "browse": "Ordner auswählen",
+      "pathInvalid": "Dieser Pfad liegt in keinem Volume, daher greift die Regel nie.",
+      "pathMissing": "Unter diesem Pfad gibt es keinen Ordner. Eine Regel verwendet den Pfad so, wie NextExplorer ihn anzeigt, beginnend mit dem Namen des Volumes.",
+      "useSuggestion": "{path} verwenden"
     },
     "comingSoon": {
       "subtitle": "Dieser Einstellungsbereich wird derzeit entwickelt. Bleiben Sie dran!"
@@ -842,6 +855,36 @@
       "createFailed": "Das Token konnte nicht ausgestellt werden.",
       "renameFailed": "Das Token konnte nicht umbenannt werden.",
       "revokeFailed": "Das Token konnte nicht widerrufen werden."
+    },
+    "folderSize": {
+      "title": "Ordnergrößen",
+      "subtitle": "Pfade von der Berechnung und Indizierung der Ordnergrößen ausschließen.",
+      "running": "Ordnergrößen messen",
+      "runningHelp": "Misst Ordner im Hintergrund, damit ihre Größe in der Liste erscheint.",
+      "modeOff": "Aus",
+      "modeShallow": "Nur ihre eigenen Dateien",
+      "modeFull": "Alles darin",
+      "environment": "Von der Umgebung definierte Ausschlüsse",
+      "additional": "Zusätzliche Ausschlüsse",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Keine Pfade konfiguriert"
+    },
+    "searchIndex": {
+      "title": "Suchindex",
+      "subtitle": "Pfade von der Inhaltsindizierung ausschließen.",
+      "running": "Suchindex führen",
+      "runningHelp": "Liest die Dokumente des Volumes im Hintergrund, damit eine Suche in ihrem Inhalt sofort antwortet.",
+      "environment": "Über die Umgebung definierte Ausschlüsse",
+      "additional": "Zusätzliche Ausschlüsse",
+      "none": "Kein Pfad konfiguriert",
+      "placeholder": "Backups/2024"
+    },
+    "featureOff": {
+      "title": "Diese Funktion ist nicht aktiviert",
+      "howTo": "Setzen Sie {setting} und starten Sie den Container neu, um sie zu aktivieren.",
+      "kept": "Was Sie hier einstellen, wird gespeichert und gilt, sobald die Funktion aktiv ist.",
+      "useSwitch": "Schalten Sie sie mit dem Schalter oben ein.",
+      "locked": "Durch {variable} in der Umgebung festgelegt – das wird dort entschieden, nicht hier."
     }
   },
   "mediaPreview": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Es kam nichts heraus.",
     "extractFailed": "Dies konnte nicht entpackt werden.",
     "count": "Ein Eintrag in diesem Archiv | {count} Einträge in diesem Archiv"
+  },
+  "storagePicker": {
+    "root": "Speicher",
+    "empty": "Hier gibt es nichts auszuwählen",
+    "breadcrumb": "Ordnerpfad",
+    "chooseFolder": "Diesen Ordner wählen"
   }
 }

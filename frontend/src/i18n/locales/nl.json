@@ -69,7 +69,8 @@
     "shares": "Shares",
     "unsavedChanges": "Er zijn niet-opgeslagen wijzigingen",
     "readonly": "Alleen-lezen",
-    "readwrite": "Lezen/schrijven"
+    "readwrite": "Lezen/schrijven",
+    "add": "Toevoegen"
   },
   "editor": {
     "editing": "Bewerken",
@@ -252,7 +253,13 @@
   },
   "volumes": {
     "quickAccess": "Snelle toegang",
-    "quickAccessEmpty": "Markeer mappen als favorieten voor snelle toegang."
+    "quickAccessEmpty": "Markeer mappen als favorieten voor snelle toegang.",
+    "readOnly": {
+      "label": "Alleen-lezen",
+      "storage": "Alleen-lezen opslag: dit volume is alleen-lezen gekoppeld, dus er kan niets in worden geschreven.",
+      "permission": "Niet beschrijfbaar: de server heeft geen toestemming om in dit volume te schrijven. Controleer op de host van wie het is.",
+      "access": "Alleen-lezen voor uw account."
+    }
   },
   "drives": {
     "personal": "Persoonlijk",
@@ -410,7 +417,9 @@
       "accountTwoFactor": "Tweestaps",
       "accountPasskeys": "Passkeys",
       "activity": "Activiteitenlogboek",
-      "accountApiTokens": "API-tokens"
+      "accountApiTokens": "API-tokens",
+      "folderSize": "Mapgroottes",
+      "searchIndex": "Zoekindex"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -495,7 +504,11 @@
       "adminNote": "Elke regel zegt of die voor beheerders geldt. Zonder dat laat een regel ‘Alleen lezen’ hen schrijven en verbergt een regel ‘Verborgen’ de map ook voor hen.",
       "applyToAdmins": "Alle regels op beheerders toepassen",
       "applyToAdminsHint": "Aan laat geen enkele regel een beheerder door — het vinkje van elke regel wordt genegeerd.",
-      "appliesToAdmins": "Geldt voor beheerders"
+      "appliesToAdmins": "Geldt voor beheerders",
+      "browse": "Map kiezen",
+      "pathInvalid": "Dit pad ligt niet in een volume, dus de regel wordt nooit toegepast.",
+      "pathMissing": "Er is geen map op dit pad. Een regel gebruikt het pad zoals NextExplorer het toont, beginnend met de naam van het volume.",
+      "useSuggestion": "{path} gebruiken"
     },
     "comingSoon": {
       "subtitle": "Deze sectie Instellingen wordt momenteel gebouwd. Blijf op de hoogte!"
@@ -842,6 +855,36 @@
       "createFailed": "Het token kon niet worden uitgegeven.",
       "renameFailed": "Het token kon niet worden hernoemd.",
       "revokeFailed": "Het token kon niet worden ingetrokken."
+    },
+    "folderSize": {
+      "title": "Mapgroottes",
+      "subtitle": "Paden uitsluiten van het berekenen en indexeren van mapgroottes.",
+      "running": "Mapgroottes meten",
+      "runningHelp": "Meet mappen op de achtergrond, zodat hun grootte in de lijst verschijnt.",
+      "modeOff": "Uit",
+      "modeShallow": "Alleen hun eigen bestanden",
+      "modeFull": "Alles wat erin zit",
+      "environment": "Uitsluitingen uit de omgevingsvariabelen",
+      "additional": "Extra uitsluitingen",
+      "placeholder": "Stacks/docker/overlay2",
+      "none": "Geen paden ingesteld"
+    },
+    "searchIndex": {
+      "title": "Zoekindex",
+      "subtitle": "Paden uitsluiten van het indexeren van inhoud.",
+      "running": "Een zoekindex bijhouden",
+      "runningHelp": "Leest de documenten van het volume op de achtergrond, zodat zoeken in hun inhoud meteen antwoordt.",
+      "environment": "Uitsluitingen uit de omgevingsvariabelen",
+      "additional": "Extra uitsluitingen",
+      "none": "Geen pad ingesteld",
+      "placeholder": "Back-ups/2024"
+    },
+    "featureOff": {
+      "title": "Deze functie is niet ingeschakeld",
+      "howTo": "Stel {setting} in en herstart de container om hem in te schakelen.",
+      "kept": "Wat u hier instelt, wordt opgeslagen en geldt zodra de functie is ingeschakeld.",
+      "useSwitch": "Zet het aan met de schakelaar hierboven.",
+      "locked": "Ingesteld door {variable} in de omgeving: dat wordt daar beslist, niet hier."
     }
   },
   "share": {
@@ -1139,5 +1182,11 @@
     "extractedNothing": "Er kwam niets uit.",
     "extractFailed": "Dit kon niet worden uitgepakt.",
     "count": "Eén item in dit archief | {count} items in dit archief"
+  },
+  "storagePicker": {
+    "root": "Opslag",
+    "empty": "Hier is niets om te kiezen",
+    "breadcrumb": "Pad van de map",
+    "chooseFolder": "Deze map kiezen"
   }
 }

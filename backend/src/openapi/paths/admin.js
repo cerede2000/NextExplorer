@@ -463,4 +463,111 @@ module.exports = {
       responses: { 200: json(obj({ status: { const: 'ready' } }, ['status'])) },
     }),
   },
+  '/api/settings/access/check-paths': {
+    post: op({
+      id: 'checkAccessRulePaths',
+      summary: 'What the paths of access rules name on the disk',
+      description:
+        'For the rule editor, which warns about a path that names nothing. A rule is matched against the path NextExplorer shows, volume first; one typed from the host’s side of a mount (`mnt/torrents`) names nothing, and the folder probably meant comes back as `suggestion`. Nothing is stored or refused.',
+      tag: 'Settings',
+      access: 'admin',
+      body: body(
+        obj(
+          { paths: arrayOf(str(), { description: 'At most 200, answered in the same order.' }) },
+          ['paths']
+        )
+      ),
+      responses: {
+        200: json(
+          obj(
+            {
+              paths: arrayOf(
+                obj(
+                  {
+                    path: str('As it was sent.'),
+                    status: str(
+                      '`folder` or `file` when it names one, `missing` when it names nothing, `invalid` when it lies outside the volumes, `empty` for no path.',
+                      { enum: ['folder', 'file', 'missing', 'invalid', 'empty'] }
+                    ),
+                    suggestion: nullable(str('The folder probably meant, for a `missing` path.')),
+                  },
+                  ['path', 'status', 'suggestion']
+                )
+              ),
+            },
+            ['paths']
+          )
+        ),
+        ...errors(400, 401, 403),
+      },
+    }),
+  },
+  '/api/capabilities': {
+    get: op({
+      id: 'getCapabilities',
+      summary: 'Which optional tools are installed, and what each makes possible',
+      tag: ADMIN,
+      access: 'admin',
+      responses: {
+        200: json(
+          obj(
+            {
+              capabilities: arrayOf(
+                obj(
+                  {
+                    name: str(),
+                    available: bool(),
+                    version: nullable(
+                      str(
+                        'What the tool says its version is, as it prints it; null when it is missing or its answer does not say.'
+                      )
+                    ),
+                    enables: str(),
+                    install: str('The package that provides it.'),
+                    source: nullable(str('Where ExifTool comes from; null when there is none.')),
+                    used: bool(),
+                    missingFormats: arrayOf(str()),
+                    installMissing: str('The package that adds the formats it lacks.'),
+                  },
+                  ['name', 'available']
+                )
+              ),
+            },
+            ['capabilities']
+          )
+        ),
+        ...errors(401, 403),
+      },
+    }),
+  },
+  '/api/users/{id}/lock': {
+    delete: op({
+      id: 'unlockUser',
+      summary: 'Lift the lock failed sign-ins put on an account',
+      tag: ACCOUNTS,
+      access: 'admin',
+      params: [userId],
+      responses: { 204: noContent('Unlocked.'), ...errors(401, 403, 404) },
+    }),
+  },
+  '/api/users/{id}/two-factor': {
+    delete: op({
+      id: 'removeUserSecondFactor',
+      summary: 'Take the second factor off an account that lost it',
+      tag: ACCOUNTS,
+      access: 'admin',
+      params: [userId],
+      responses: { 204: noContent('Removed.'), ...errors(401, 403, 404) },
+    }),
+  },
+  '/api/users/{id}/passkeys': {
+    delete: op({
+      id: 'removeUserPasskeys',
+      summary: 'Take every passkey off an account',
+      tag: ACCOUNTS,
+      access: 'admin',
+      params: [userId],
+      responses: { 204: noContent('Removed.'), ...errors(401, 403, 404) },
+    }),
+  },
 };
