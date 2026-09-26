@@ -125,7 +125,8 @@
     "path": "es. Immagini/Vacanze",
     "search": "Cerca file e cartelle…",
     "volumeLabel": "es. Documenti, Progetti, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "nome{'@'}azienda.it o nome"
   },
   "loading": {
     "default": "Caricamento…",
@@ -166,7 +167,8 @@
     "pathRequired": "Il percorso è obbligatorio",
     "saveVolume": "Impossibile salvare il volume",
     "removeVolume": "Impossibile rimuovere il volume",
-    "totpCodeRequired": "Inserisci il codice."
+    "totpCodeRequired": "Inserisci il codice.",
+    "identifierRequired": "È richiesto un indirizzo email o un nome utente"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
@@ -375,7 +377,9 @@
       },
       "totpCode": "Codice",
       "totpExplain": "La password è stata accettata. Inserisci il codice della tua app di autenticazione, o uno dei codici di recupero.",
-      "totpSubmit": "Accedi"
+      "totpSubmit": "Accedi",
+      "sessionExpired": "La tua sessione è scaduta. Accedi di nuovo per riprendere da dove eri arrivato.",
+      "totpBack": "Ricomincia"
     },
     "setup": {
       "headline": "Configuriamo tutto",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "Accedi con una passkey"
-    }
+    },
+    "emailOrUsername": "Indirizzo email o nome utente"
   },
   "breadcrumb": {
     "volumes": "Volumi",
@@ -556,7 +561,8 @@
       "confirm": "Conferma nuova password",
       "update": "Aggiorna password",
       "success": "Password aggiornata con successo.",
-      "validation": "Compila tutti i campi; la nuova password deve avere almeno 6 caratteri e corrispondere alla conferma."
+      "validation": "Compila tutti i campi; la nuova password deve avere almeno 6 caratteri e corrispondere alla conferma.",
+      "successOtherSessionsEnded": "Password aggiornata. Tutte le altre sessioni di questo account sono state disconnesse."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",

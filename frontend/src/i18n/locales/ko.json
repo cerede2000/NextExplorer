@@ -125,7 +125,8 @@
     "path": "예시: 사진/여행",
     "search": "파일 또는 폴더를 검색하세요…",
     "volumeLabel": "예시: 문서, 프로젝트, 영상",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "name{'@'}company.com 또는 name"
   },
   "loading": {
     "default": "로딩 중…",
@@ -166,7 +167,8 @@
     "pathRequired": "경로가 필요합니다",
     "saveVolume": "볼륨 저장 실패",
     "removeVolume": "볼륨 제거 실패",
-    "totpCodeRequired": "코드를 입력하세요."
+    "totpCodeRequired": "코드를 입력하세요.",
+    "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "인증이 필요합니다",
@@ -375,7 +377,9 @@
       },
       "totpCode": "코드",
       "totpExplain": "비밀번호가 확인되었습니다. 인증 앱의 코드나 복구 코드 중 하나를 입력하세요.",
-      "totpSubmit": "로그인"
+      "totpSubmit": "로그인",
+      "sessionExpired": "세션이 만료되었습니다. 다시 로그인하면 이어서 계속할 수 있습니다.",
+      "totpBack": "다시 시작"
     },
     "setup": {
       "headline": "초기 설정",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "패스키로 로그인"
-    }
+    },
+    "emailOrUsername": "이메일 주소 또는 사용자 이름"
   },
   "breadcrumb": {
     "volumes": "볼륨",
@@ -556,7 +561,8 @@
       "confirm": "새로운 비밀번호 확인",
       "update": "비밀번호 변경",
       "success": "비밀번호가 정상적으로 변경되었습니다.",
-      "validation": "모든 입력란을 채워주세요. 새 비밀번호는 최소 6글자 이상이어야 하며, 비밀번호 확인이 일치해야 합니다."
+      "validation": "모든 입력란을 채워주세요. 새 비밀번호는 최소 6글자 이상이어야 하며, 비밀번호 확인이 일치해야 합니다.",
+      "successOtherSessionsEnded": "비밀번호가 변경되었습니다. 이 계정의 다른 모든 세션은 로그아웃되었습니다."
     },
     "users": {
       "subtitle": "유저 정보, 역할, 접근 인증을 관리하세요.",

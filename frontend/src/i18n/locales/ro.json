@@ -125,7 +125,8 @@
     "path": "ex. Imagini/Vacanțe",
     "search": "Caută fișiere și dosare…",
     "volumeLabel": "ex. Documente, Proiecte, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "nume{'@'}companie.ro sau nume"
   },
   "loading": {
     "default": "Se încarcă…",
@@ -166,7 +167,8 @@
     "pathRequired": "Calea este obligatorie",
     "saveVolume": "Nu s-a putut salva volumul",
     "removeVolume": "Nu s-a putut elimina volumul",
-    "totpCodeRequired": "Introduceți codul."
+    "totpCodeRequired": "Introduceți codul.",
+    "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentificare necesară",
@@ -375,7 +377,9 @@
       },
       "totpCode": "Cod",
       "totpExplain": "Parola a fost acceptată. Introduceți codul din aplicația de autentificare sau unul dintre codurile de recuperare.",
-      "totpSubmit": "Conectați-vă"
+      "totpSubmit": "Conectați-vă",
+      "sessionExpired": "Sesiunea ta a expirat. Conectează-te din nou pentru a continua de unde ai rămas.",
+      "totpBack": "Reluați"
     },
     "setup": {
       "headline": "Să configurăm totul",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "Conectare cu o cheie de acces"
-    }
+    },
+    "emailOrUsername": "Adresă de e-mail sau nume de utilizator"
   },
   "breadcrumb": {
     "volumes": "Volume",
@@ -556,7 +561,8 @@
       "confirm": "Confirmă parola nouă",
       "update": "Actualizează parola",
       "success": "Parola a fost actualizată cu succes.",
-      "validation": "Completează toate câmpurile; parola nouă trebuie să aibă cel puțin 6 caractere și să se potrivească cu confirmarea."
+      "validation": "Completează toate câmpurile; parola nouă trebuie să aibă cel puțin 6 caractere și să se potrivească cu confirmarea.",
+      "successOtherSessionsEnded": "Parola a fost actualizată. Toate celelalte sesiuni ale acestui cont au fost deconectate."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",

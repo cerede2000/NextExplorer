@@ -125,7 +125,8 @@
     "path": "ex. Images/Vacances",
     "search": "Rechercher des fichiers et des dossiers…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "nom{'@'}entreprise.com ou nom"
   },
   "loading": {
     "default": "Chargement…",
@@ -166,7 +167,8 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "totpCodeRequired": "Saisissez le code."
+    "totpCodeRequired": "Saisissez le code.",
+    "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
@@ -375,7 +377,9 @@
       },
       "totpCode": "Code",
       "totpExplain": "Votre mot de passe a été accepté. Saisissez le code de votre application d'authentification, ou l'un de vos codes de secours.",
-      "totpSubmit": "Se connecter"
+      "totpSubmit": "Se connecter",
+      "sessionExpired": "Votre session a expiré. Reconnectez-vous pour reprendre où vous en étiez.",
+      "totpBack": "Recommencer"
     },
     "setup": {
       "headline": "Procédons à la configuration",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "Se connecter avec une clé d’accès"
-    }
+    },
+    "emailOrUsername": "Adresse e-mail ou nom d'utilisateur"
   },
   "breadcrumb": {
     "volumes": "Volumes",
@@ -556,7 +561,8 @@
       "confirm": "Confirmer le nouveau mot de passe",
       "update": "Mettre à jour le mot de passe",
       "success": "Mot de passe mis à jour avec succès.",
-      "validation": "Veuillez remplir tous les champs ; le nouveau mot de passe doit comporter au moins 6 caractères et correspondre à la confirmation."
+      "validation": "Veuillez remplir tous les champs ; le nouveau mot de passe doit comporter au moins 6 caractères et correspondre à la confirmation.",
+      "successOtherSessionsEnded": "Mot de passe mis à jour. Toutes les autres sessions de ce compte ont été déconnectées."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",

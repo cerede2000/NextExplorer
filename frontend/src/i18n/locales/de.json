@@ -125,7 +125,8 @@
     "path": "z. B. Bilder/Urlaub",
     "search": "Dateien und Ordner durchsuchen…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "name{'@'}firma.de oder name"
   },
   "loading": {
     "default": "Wird geladen…",
@@ -166,7 +167,8 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "totpCodeRequired": "Geben Sie den Code ein."
+    "totpCodeRequired": "Geben Sie den Code ein.",
+    "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
@@ -375,7 +377,9 @@
       },
       "totpCode": "Code",
       "totpExplain": "Ihr Passwort wurde akzeptiert. Geben Sie den Code aus Ihrer Authenticator-App ein oder einen Ihrer Wiederherstellungscodes.",
-      "totpSubmit": "Anmelden"
+      "totpSubmit": "Anmelden",
+      "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um dort weiterzumachen, wo Sie aufgehört haben.",
+      "totpBack": "Neu beginnen"
     },
     "setup": {
       "headline": "Lassen Sie uns loslegen",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "Mit einem Passkey anmelden"
-    }
+    },
+    "emailOrUsername": "E-Mail-Adresse oder Benutzername"
   },
   "breadcrumb": {
     "volumes": "Volumes",
@@ -556,7 +561,8 @@
       "confirm": "Neues Passwort bestätigen",
       "update": "Passwort aktualisieren",
       "success": "Passwort erfolgreich aktualisiert.",
-      "validation": "Bitte füllen Sie alle Felder aus; das neue Passwort muss mindestens 6 Zeichen lang sein und mit der Bestätigung übereinstimmen."
+      "validation": "Bitte füllen Sie alle Felder aus; das neue Passwort muss mindestens 6 Zeichen lang sein und mit der Bestätigung übereinstimmen.",
+      "successOtherSessionsEnded": "Passwort aktualisiert. Alle anderen Sitzungen dieses Kontos wurden abgemeldet."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",

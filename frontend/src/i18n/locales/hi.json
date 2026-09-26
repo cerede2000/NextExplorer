@@ -125,7 +125,8 @@
     "path": "उदाहरण: Pictures/Holidays",
     "search": "फ़ाइलें और फ़ोल्डर खोजें…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "naam{'@'}company.com या naam"
   },
   "loading": {
     "default": "लोड हो रहा है…",
@@ -166,7 +167,8 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "totpCodeRequired": "कोड डालें।"
+    "totpCodeRequired": "कोड डालें।",
+    "identifierRequired": "ईमेल पता या उपयोगकर्ता नाम आवश्यक है"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "प्रमाणीकरण आवश्यक है",
@@ -375,7 +377,9 @@
       },
       "totpCode": "कोड",
       "totpExplain": "आपका पासवर्ड स्वीकार हो गया। अपने प्रमाणक ऐप का कोड डालें, या अपना कोई पुनर्प्राप्ति कोड।",
-      "totpSubmit": "साइन इन करें"
+      "totpSubmit": "साइन इन करें",
+      "sessionExpired": "आपका सत्र समाप्त हो गया है। जहाँ छोड़ा था वहीं से जारी रखने के लिए फिर से साइन इन करें।",
+      "totpBack": "फिर से शुरू करें"
     },
     "setup": {
       "headline": "सेटअप शुरू करें",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "पासकी से साइन इन करें"
-    }
+    },
+    "emailOrUsername": "ईमेल पता या उपयोगकर्ता नाम"
   },
   "breadcrumb": {
     "volumes": "वॉल्यूम",
@@ -556,7 +561,8 @@
       "confirm": "नए पासवर्ड की पुष्टि करें",
       "update": "पासवर्ड अपडेट करें",
       "success": "पासवर्ड सफलतापूर्वक अपडेट किया गया।",
-      "validation": "कृपया सभी फ़ील्ड भरें; नया पासवर्ड कम से कम 6 अक्षरों का होना चाहिए और पुष्टि से मेल खाना चाहिए।"
+      "validation": "कृपया सभी फ़ील्ड भरें; नया पासवर्ड कम से कम 6 अक्षरों का होना चाहिए और पुष्टि से मेल खाना चाहिए।",
+      "successOtherSessionsEnded": "पासवर्ड अपडेट किया गया। इस खाते के अन्य सभी सत्रों से साइन आउट कर दिया गया है।"
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",

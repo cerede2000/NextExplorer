@@ -125,7 +125,8 @@
     "path": "例如：Pictures/Holidays",
     "search": "搜索文件和文件夹…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "name{'@'}company.com 或 name"
   },
   "loading": {
     "default": "加载中…",
@@ -166,7 +167,8 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "totpCodeRequired": "请输入验证码。"
+    "totpCodeRequired": "请输入验证码。",
+    "identifierRequired": "需要邮箱地址或用户名"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
@@ -375,7 +377,9 @@
       },
       "totpCode": "验证码",
       "totpExplain": "密码已通过。请输入验证器应用中的验证码，或一个恢复码。",
-      "totpSubmit": "登录"
+      "totpSubmit": "登录",
+      "sessionExpired": "您的会话已结束。重新登录即可从上次的位置继续。",
+      "totpBack": "重新开始"
     },
     "setup": {
       "headline": "开始设置",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "使用通行密钥登录"
-    }
+    },
+    "emailOrUsername": "邮箱地址或用户名"
   },
   "breadcrumb": {
     "volumes": "卷",
@@ -556,7 +561,8 @@
       "confirm": "确认新密码",
       "update": "更新密码",
       "success": "密码更新成功。",
-      "validation": "请填写所有字段；新密码至少 6 个字符，并且需要与确认密码一致。"
+      "validation": "请填写所有字段；新密码至少 6 个字符，并且需要与确认密码一致。",
+      "successOtherSessionsEnded": "密码已更新。此账户的其他所有会话均已退出登录。"
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",
