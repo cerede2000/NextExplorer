@@ -225,16 +225,16 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/brandingLogo\\.js|frontend/src/views/settings/SettingsBranding\\.vue|frontend/src/components/HeaderLogo\\.vue)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-07",
-      "note": "a logo that can be changed back"
+      "note": "nxzai#439 \u2014 a logo that can be changed back"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.branding\\.",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-07",
-      "note": "a logo that can be changed back"
+      "note": "nxzai#439 \u2014 a logo that can be changed back"
     },
     {
       "axis": "*",
@@ -302,9 +302,9 @@
     {
       "axis": "symbol",
       "match": "^backend/src/routes/settings\\.js:(LOGO_MAX_BYTES|acceptLogo|brandingSection|brandingSentWithLogo)$",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-07",
-      "note": "a logo that can be changed back. The route handler travels with it: a service nothing calls is green and useless"
+      "note": "nxzai#439 \u2014 a logo that can be changed back. The route handler travels with it: a service nothing calls is green and useless"
     },
     {
       "axis": "symbol",
