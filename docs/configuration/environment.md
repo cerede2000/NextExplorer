@@ -143,6 +143,7 @@ The sharing system (toolbar **Share** button, guest links such as `/share/:token
 | ----------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `ONLYOFFICE_URL`              | _none_             | Public URL for Document Server (must reach your app's `PUBLIC_URL`).                                                                    |
 | `ONLYOFFICE_SECRET`           | _none_             | JWT secret shared with OnlyOffice Document Server for `/api/onlyoffice` calls.                                                          |
+| `ONLYOFFICE_DOWNLOAD_ORIGINS` | _none_             | Comma-separated extra origins a saved document may be fetched from. Set it when the Document Server reports itself under another host than `ONLYOFFICE_URL`; that one is always allowed. |
 | `ONLYOFFICE_LANG`             | `en`               | Language code for the editor UI.                                                                                                        |
 | `ONLYOFFICE_FORCE_SAVE`       | `false`            | When true, OnlyOffice forces users to save via the editor UI.                                                                           |
 | `ONLYOFFICE_FILE_EXTENSIONS`  | _default list_     | Extra file extensions to surface to the Document Server.                                                                                |

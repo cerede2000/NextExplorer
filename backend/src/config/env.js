@@ -101,6 +101,7 @@ module.exports = {
   ONLYOFFICE_LANG: process.env.ONLYOFFICE_LANG?.trim() || 'en',
   ONLYOFFICE_FORCE_SAVE: normalizeBoolean(process.env.ONLYOFFICE_FORCE_SAVE) || false,
   ONLYOFFICE_FILE_EXTENSIONS: process.env.ONLYOFFICE_FILE_EXTENSIONS || '',
+  ONLYOFFICE_DOWNLOAD_ORIGINS: process.env.ONLYOFFICE_DOWNLOAD_ORIGINS || '',
 
   // Collabora (WOPI)
   COLLABORA_URL: process.env.COLLABORA_URL?.trim() || null,
