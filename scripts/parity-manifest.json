@@ -252,6 +252,20 @@
     },
     {
       "axis": "*",
+      "match": "^(backend/src/routes/search\\.js|backend/src/services/searchCollector\\.js|backend/src/services/indexDb\\.js|backend/src/services/searchIndexer\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-22",
+      "note": "finding a name in a folder nobody can scroll. The search engine and its index reader travel with the screen that reads them, not with the switch that starts them"
+    },
+    {
+      "axis": "i18n",
+      "match": "^search\\.",
+      "verdict": "PORT",
+      "batch": "P3-22",
+      "note": "finding a name in a folder nobody can scroll"
+    },
+    {
+      "axis": "*",
       "match": "^(backend/src/services/featureSwitches\\.js|backend/src/routes/features\\.js|frontend/src/stores/features\\.js|frontend/src/views/settings/SettingsSearchIndex\\.vue|frontend/src/views/settings/SettingsFolderSize\\.vue|backend/src/services/searchIndexer\\.js|docs/configuration/settings\\.md)(:|$)",
       "verdict": "PORT",
       "batch": "P3-08",
