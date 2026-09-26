@@ -62,8 +62,22 @@ afterEach(async () => {
 });
 
 describe('asking for a thumbnail', () => {
+  /**
+   * The first ask may find the thumbnail still being made, which is answered
+   * 202 and asked again — as the file browser does.
+   */
+  const askForThumbnail = async () => {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const asked = await request(app).get(`/api/thumbnails/${PICTURE}`);
+      if (asked.status === 200 && asked.body.thumbnail) return asked;
+      expect(asked.status).toBe(202);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error('the thumbnail was never made');
+  };
+
   it('hands back a URL that opens, and only with what it handed back', async () => {
-    const asked = await request(app).get(`/api/thumbnails/${PICTURE}`);
+    const asked = await askForThumbnail();
 
     expect(asked.status).toBe(200);
     const url = asked.body.thumbnail;

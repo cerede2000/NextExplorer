@@ -340,6 +340,12 @@ export const useFileStore = defineStore('fileStore', () => {
     return itemKey(item) === renameState.value.key;
   };
 
+  // How long the client waits for a thumbnail being made, and how it spaces the
+  // asking. Increasing, because the first one is usually ready straight away
+  // and the ones that are not are the slow kind.
+  const THUMBNAIL_RETRY_DELAYS_MS = [400, 900, 1800, 3000, 5000];
+  const THUMBNAIL_RETRIES = THUMBNAIL_RETRY_DELAYS_MS.length;
+
   const ensureItemThumbnail = async (item) => {
     if (!item || !item.name) {
       return null;
@@ -383,15 +389,25 @@ export const useFileStore = defineStore('fileStore', () => {
 
       pending = (async () => {
         try {
-          const response = await fetchThumbnailApi(relativePath);
-          const thumbnail = response?.thumbnail || '';
-          if (thumbnail) {
-            const target = findItemByKey(key);
-            if (target) {
-              target.thumbnail = thumbnail;
+          // The server answers at once with a thumbnail it already has, and
+          // otherwise queues one and says so. A long video on a slow disk takes
+          // seconds, so the answer is asked for again rather than the request
+          // held open — a held request costs a connection for every tile on
+          // screen, and a folder of five hundred has five hundred tiles.
+          for (let attempt = 0; attempt <= THUMBNAIL_RETRIES; attempt += 1) {
+            const response = await fetchThumbnailApi(relativePath);
+            const thumbnail = response?.thumbnail || '';
+            if (thumbnail) {
+              const target = findItemByKey(key);
+              if (target) {
+                target.thumbnail = thumbnail;
+              }
+              return thumbnail;
             }
+            if (!response?.pending || attempt === THUMBNAIL_RETRIES) return null;
+            await new Promise((resolve) => setTimeout(resolve, THUMBNAIL_RETRY_DELAYS_MS[attempt]));
           }
-          return thumbnail || null;
+          return null;
         } catch (error) {
           console.error(`Failed to fetch thumbnail for ${relativePath}`, error);
           return null;

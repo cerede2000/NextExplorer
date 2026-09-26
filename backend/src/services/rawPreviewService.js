@@ -1,19 +1,117 @@
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 
-const { ensureDir } = require('../utils/fsUtils');
+const { ensureDir, pathExists } = require('../utils/fsUtils');
 const { directories } = require('../config/index');
+const env = require('../config/env');
+const logger = require('../utils/logger');
+const {
+  CACHE_CLEANUP_BATCH_SIZE,
+  CACHE_CLEANUP_INTERVAL_MS,
+  CACHE_TTL_MS,
+  findAbandonedTempFiles,
+  statCacheEntries,
+} = require('../utils/cacheCleanup');
 
 let exiftoolSingleton = null;
 let exiftoolCleanupRegistered = false;
 
+/**
+ * Where the machine keeps an ExifTool it installed itself.
+ *
+ * Absolute paths and not `PATH`, for the reason `ffmpegRunner` gives about its
+ * own two: the PATH a service inherits is whatever started it, and a file
+ * manager running as root should not be picking its tools out of that. These
+ * are where `apt`, `dnf` and Homebrew put it.
+ */
+const EXIFTOOL_CANDIDATES = [
+  '/usr/bin/exiftool',
+  '/usr/local/bin/exiftool',
+  '/opt/homebrew/bin/exiftool',
+];
+
+/** Whether a path is there and can be run. */
+const canRun = (candidate) => {
+  try {
+    fsSync.accessSync(candidate, fsSync.constants.X_OK);
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+/** Whether the 21 MB of Perl travelled with this copy of the application. */
+const hasVendoredExiftool = () => {
+  try {
+    require.resolve('exiftool-vendored.pl');
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+/**
+ * Which ExifTool to run, or the empty string for the one the package brought.
+ *
+ * Separated from the probing so the decision can be read and tested on its
+ * own: it is three rules and the order between them is the whole of it.
+ *
+ * @param {object} options
+ * @param {string} options.named       what `EXIFTOOL_PATH` says, trimmed
+ * @param {boolean} options.vendored   whether the bundled Perl is installed
+ * @param {string[]} options.candidates where a distribution would have put one
+ * @param {(path: string) => boolean} options.runnable
+ * @returns {string} a path, or '' to mean "the one in the package"
+ */
+const chooseExiftoolPath = ({ named, vendored, candidates, runnable }) => {
+  if (named) return named;
+  // The bundled copy is the tested one, so it wins whenever it is there.
+  if (vendored) return '';
+  return candidates.find((candidate) => runnable(candidate)) || '';
+};
+
+/**
+ * ExifTool, from the archive or from the machine.
+ *
+ * `exiftool-vendored` brings its own copy, which is the right default: it is
+ * one dependency less to explain, and the version is the one this was tested
+ * against. It is also 21 MB of Perl, and somebody running the program outside
+ * a container may well have ExifTool already and would rather not carry a
+ * second one (#9). The minimal archive leaves it out for exactly that reason.
+ *
+ * So three answers, in order: `EXIFTOOL_PATH` when it is set, the vendored copy
+ * when it travelled, and otherwise the one this machine installed. That last
+ * step is what an archive without the Perl needs, and it means `apt install
+ * libimage-exiftool-perl` is the whole of the configuration rather than a
+ * package plus a variable nobody was told about.
+ *
+ * Nothing else changes: the same library drives it, and a path that turns out
+ * not to be ExifTool fails the way a missing one does — no RAW metadata, and
+ * the rest of the application carries on.
+ */
 const loadExiftool = () => {
   if (exiftoolSingleton) return exiftoolSingleton;
   try {
-    // eslint-disable-next-line global-require
-    const { exiftool } = require('exiftool-vendored');
-    exiftoolSingleton = exiftool;
+    const vendored = require('exiftool-vendored');
+    const named = typeof env.EXIFTOOL_PATH === 'string' ? env.EXIFTOOL_PATH.trim() : '';
+    const chosen = chooseExiftoolPath({
+      named,
+      vendored: hasVendoredExiftool(),
+      candidates: EXIFTOOL_CANDIDATES,
+      runnable: canRun,
+    });
+
+    if (chosen) {
+      exiftoolSingleton = new vendored.ExifTool({ exiftoolPath: chosen });
+      logger.info(
+        { exiftoolPath: chosen, named: Boolean(named) },
+        'Using the ExifTool this machine provides'
+      );
+    } else {
+      exiftoolSingleton = vendored.exiftool;
+    }
 
     if (!exiftoolCleanupRegistered) {
       exiftoolCleanupRegistered = true;
@@ -37,7 +135,7 @@ const loadExiftool = () => {
         shutdown().finally(() => process.exit(0));
       });
     }
-  } catch (error) {
+  } catch (_) {
     exiftoolSingleton = null;
   }
 
@@ -45,7 +143,22 @@ const loadExiftool = () => {
 };
 
 const RAW_PREVIEW_CACHE_VERSION = 1;
+const RAW_PREVIEW_CACHE_MAX_FILES = Number.isFinite(env.RAW_PREVIEW_CACHE_MAX_FILES)
+  ? Math.max(0, Math.floor(env.RAW_PREVIEW_CACHE_MAX_FILES))
+  : 500;
+const RAW_PREVIEW_FILE_PATTERN = /^v\d+-[a-f0-9]{40}\.jpg$/i;
+const RAW_PREVIEW_TEMP_FILE_PATTERN = /^v\d+-[a-f0-9]{40}\.jpg\.tmp-\d+-\d+$/i;
+const RAW_PREVIEW_FIRST_CLEANUP_DELAY_MS = 2 * 60 * 1000;
+const RAW_PREVIEW_CONTINUE_DELAY_MS = 30 * 1000;
+
 const inflight = new Map();
+// Temporary files an extraction in this process has created and not yet
+// renamed or removed, by name: the cleanup leaves them alone however old.
+const liveTempFiles = new Set();
+
+let cleanupPromise = null;
+let cleanupTimer = null;
+let cleanupStopped = false;
 
 const hashForFile = async (filePath) => {
   const stat = await fs.stat(filePath);
@@ -56,17 +169,10 @@ const hashForFile = async (filePath) => {
   return hash.digest('hex');
 };
 
-const pathExists = async (targetPath) => {
-  try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-};
+const rawPreviewCacheDir = () => path.join(directories.cache, 'raw-previews');
 
 const ensureRawPreviewCacheDir = async () => {
-  const dir = path.join(directories.cache, 'raw-previews');
+  const dir = rawPreviewCacheDir();
   await ensureDir(dir);
   return dir;
 };
@@ -80,6 +186,138 @@ const tryExtract = async (exiftool, method, inputPath, outputPath) => {
 
   return pathExists(outputPath);
 };
+
+/**
+ * Keep the extracted previews within bounds.
+ *
+ * Nothing used to remove anything from this directory. The cache key includes
+ * the RAW file's modification time, so every edit of a photo leaves its previous
+ * preview behind for good, and an extraction interrupted by a crash leaves its
+ * temporary file. The thumbnail cleanup's rules apply here too, with the same
+ * interval, batch size and lifetime: another version's previews and those past
+ * the lifetime go, abandoned temporary files go, and past the file limit the
+ * oldest go first. A limit of zero lifts the limit on the count and nothing
+ * else: it used to leave the directory unmanaged, previews of another version,
+ * past their lifetime and abandoned temporary files included.
+ */
+const cleanupRawPreviewCache = async () => {
+  if (cleanupPromise) {
+    return cleanupPromise;
+  }
+
+  cleanupPromise = (async () => {
+    let shouldContinue = false;
+
+    try {
+      const dir = rawPreviewCacheDir();
+      let dirents;
+      try {
+        dirents = await fs.readdir(dir, { withFileTypes: true });
+      } catch (error) {
+        // Nothing extracted yet, or the cache is gone: nothing to bound.
+        if (error.code === 'ENOENT') return;
+        throw error;
+      }
+
+      const now = Date.now();
+      const fileNames = dirents.filter((entry) => entry.isFile()).map((entry) => entry.name);
+      const previews = (
+        await statCacheEntries(
+          dir,
+          fileNames.filter((name) => RAW_PREVIEW_FILE_PATTERN.test(name))
+        )
+      ).sort((a, b) => a.mtimeMs - b.mtimeMs);
+
+      const currentVersionPrefix = `v${RAW_PREVIEW_CACHE_VERSION}-`;
+      const removableNames = new Set(
+        previews
+          .filter(
+            (entry) =>
+              !entry.name.startsWith(currentVersionPrefix) ||
+              (CACHE_TTL_MS > 0 && now - entry.mtimeMs >= CACHE_TTL_MS)
+          )
+          .map((entry) => entry.name)
+      );
+      const abandonedTempNames = await findAbandonedTempFiles(dir, fileNames, {
+        pattern: RAW_PREVIEW_TEMP_FILE_PATTERN,
+        live: liveTempFiles,
+        now,
+      });
+      const overflowCount =
+        RAW_PREVIEW_CACHE_MAX_FILES > 0
+          ? Math.max(0, previews.length - removableNames.size - RAW_PREVIEW_CACHE_MAX_FILES)
+          : 0;
+      const wantedCount = abandonedTempNames.length + removableNames.size + overflowCount;
+
+      if (wantedCount <= 0) {
+        return;
+      }
+
+      const toDelete = [
+        ...abandonedTempNames,
+        ...removableNames,
+        ...previews
+          .filter((entry) => !removableNames.has(entry.name))
+          .slice(0, overflowCount)
+          .map((entry) => entry.name),
+      ].slice(0, CACHE_CLEANUP_BATCH_SIZE);
+
+      let deleted = 0;
+      for (const name of toDelete) {
+        try {
+          await fs.rm(path.join(dir, name), { force: true });
+          deleted += 1;
+        } catch (_) {
+          // Best-effort cache cleanup.
+        }
+      }
+
+      logger.info(
+        {
+          deleted,
+          before: previews.length,
+          max: RAW_PREVIEW_CACHE_MAX_FILES,
+          batchSize: CACHE_CLEANUP_BATCH_SIZE,
+          removableCandidates: removableNames.size,
+          abandonedTempCandidates: abandonedTempNames.length,
+        },
+        'RAW preview cache cleanup batch completed'
+      );
+
+      shouldContinue = wantedCount > deleted;
+    } catch (error) {
+      logger.warn({ err: error }, 'RAW preview cache cleanup failed');
+    } finally {
+      cleanupPromise = null;
+      scheduleRawPreviewCacheCleanup(
+        shouldContinue ? RAW_PREVIEW_CONTINUE_DELAY_MS : CACHE_CLEANUP_INTERVAL_MS
+      );
+    }
+  })();
+
+  return cleanupPromise;
+};
+
+/**
+ * One timer at a time, unref'd so it never holds the process open. Unlike the
+ * thumbnails', this pass does not wait for new work to come along: a server
+ * that only ever serves RAW previews would otherwise clean up once, at start.
+ */
+function scheduleRawPreviewCacheCleanup(delayMs) {
+  if (cleanupStopped || cleanupTimer) {
+    return;
+  }
+
+  cleanupTimer = setTimeout(() => {
+    cleanupTimer = null;
+    cleanupRawPreviewCache().catch(() => {});
+  }, delayMs);
+  if (typeof cleanupTimer.unref === 'function') {
+    cleanupTimer.unref();
+  }
+}
+
+scheduleRawPreviewCacheCleanup(RAW_PREVIEW_FIRST_CLEANUP_DELAY_MS);
 
 /**
  * Extract embedded preview JPEG from a RAW file into a cached file path.
@@ -107,24 +345,31 @@ const getRawPreviewJpegPath = async (rawFilePath) => {
   if (!pending) {
     pending = (async () => {
       const tmpPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
-      await ensureDir(path.dirname(finalPath));
+      const tmpName = path.basename(tmpPath);
+      liveTempFiles.add(tmpName);
 
-      const extracted =
-        (await tryExtract(exiftool, 'extractPreview', rawFilePath, tmpPath)) ||
-        (await tryExtract(exiftool, 'extractThumbnail', rawFilePath, tmpPath)) ||
-        (await tryExtract(exiftool, 'extractJpgFromRaw', rawFilePath, tmpPath));
+      try {
+        await ensureDir(path.dirname(finalPath));
 
-      if (!extracted) {
-        try {
-          await fs.rm(tmpPath, { force: true });
-        } catch (_) {
-          // ignore
+        const extracted =
+          (await tryExtract(exiftool, 'extractPreview', rawFilePath, tmpPath)) ||
+          (await tryExtract(exiftool, 'extractThumbnail', rawFilePath, tmpPath)) ||
+          (await tryExtract(exiftool, 'extractJpgFromRaw', rawFilePath, tmpPath));
+
+        if (!extracted) {
+          try {
+            await fs.rm(tmpPath, { force: true });
+          } catch (_) {
+            // ignore
+          }
+          throw new Error('No embedded preview JPEG found');
         }
-        throw new Error('No embedded preview JPEG found');
-      }
 
-      await fs.rename(tmpPath, finalPath);
-      return finalPath;
+        await fs.rename(tmpPath, finalPath);
+        return finalPath;
+      } finally {
+        liveTempFiles.delete(tmpName);
+      }
     })().finally(() => {
       inflight.delete(finalPath);
     });
@@ -135,6 +380,31 @@ const getRawPreviewJpegPath = async (rawFilePath) => {
   return pending;
 };
 
+/**
+ * Stop the cleanup for good, and let what is running finish.
+ *
+ * For a test's temporary cache or a shutdown: an extraction or a cleanup pass
+ * still at work when its directory is removed fails the removal, and a timer
+ * left behind runs against whatever comes next.
+ */
+const stopRawPreviewWork = async () => {
+  cleanupStopped = true;
+  if (cleanupTimer) clearTimeout(cleanupTimer);
+  cleanupTimer = null;
+
+  await Promise.allSettled([...inflight.values(), cleanupPromise].filter(Boolean));
+};
+
 module.exports = {
   getRawPreviewJpegPath,
+  // Exported for the tests: the cleanup is otherwise reached only through its timer.
+  cleanupRawPreviewCache,
+  stopRawPreviewWork,
+  // And this one because it is a decision rather than an effect: three rules
+  // and the order between them, worth reading on its own.
+  chooseExiftoolPath,
+  EXIFTOOL_CANDIDATES,
+  // For the report of what is installed, which asks without starting anything.
+  hasVendoredExiftool,
+  canRun,
 };
