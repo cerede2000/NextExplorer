@@ -1,23 +1,90 @@
 {
   "about": [
     "Every finding scripts/parity.mjs makes must match a rule here, or the script fails.",
-    "Four verdicts: OURS (never goes upstream), SHAPE (same capability, different",
-    "structure \u2014 nxzai#373 placed this outside the plan), PORT (must be reversed, with",
-    "its batch), DONE (reversed, with its pull request).",
+    "Three verdicts now: OURS, PORT, DONE.",
     "",
-    "Batches are numbered P3-nn: phase 3, in the order they are to be delivered. The",
-    "thirty-three of nxzai#373 were phase 2; continuing that counter past 33 read as if",
-    "the plan had grown, which it had not \u2014 phase 3 is a different list, found by",
-    "measurement rather than written in advance. P3-01 to P3-04 are already reversed.",
+    "SHAPE is gone. It held the pieces where upstream has the same capability by another",
+    "structure \u2014 the file store, the folder view, the HTTP layer \u2014 on the grounds that",
+    "nxzai#373 placed them outside its plan. The goal is `main` upstream equal to",
+    "`integration`, not upstream merely able to do everything `integration` does, and",
+    "those are not the same statement. So they are PORT, in batches P3-37 to P3-40,",
+    "each saying in its note that it is offered rather than owed: the maintainer scoped",
+    "them out once and may do so again.",
+    "",
+    "OURS is now only what cannot go: our release workflows and packaging, the demo,",
+    "our planning documents and release notes, our own tooling, the quick-actions menu",
+    "upstream closed in nxzai#333, and the files upstream has that we do not.",
+    "",
+    "Batches are numbered P3-nn, phase 3, in delivery order. The thirty-three of",
+    "nxzai#373 were phase 2. P3-01 to P3-04 are sent and waiting on the maintainer.",
     "",
     "The first matching rule wins, so the specific ones come first. `match` is a",
-    "regular expression unless `exact` is true.",
-    "",
-    "There is deliberately no catch-all at the end. Anything new this instrument finds",
-    "is unclassified, and unclassified is a failure \u2014 which is the only reason this",
-    "file is worth having."
+    "regular expression unless `exact` is true. There is deliberately no catch-all:",
+    "anything new is unclassified, and unclassified is a failure."
   ],
   "rules": [
+    {
+      "axis": "*",
+      "match": "^frontend/src/.*\\.spec\\.js$",
+      "verdict": "PORT",
+      "batch": "P3-41",
+      "note": "our frontend suites, and the runner they need. Upstream has none today, so this batch brings vitest, the setup file and the specs together or it brings nothing"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/vitest\\.setup\\.js|frontend/e2e/|backend/vitest\\.config\\.js)",
+      "verdict": "PORT",
+      "batch": "P3-41",
+      "note": "our frontend suites, and the runner they need"
+    },
+    {
+      "axis": "*",
+      "match": "^eslint\\.config\\.mjs$",
+      "verdict": "PORT",
+      "batch": "P3-42",
+      "note": "the lint configuration: upstream's own `npm run lint` reports 141 parse errors on its own test files because .eslintrc.cjs does not declare backend/tests/** as modules"
+    },
+    {
+      "axis": "*",
+      "match": "^backend/tests/",
+      "verdict": "PORT",
+      "batch": "with its subject",
+      "note": "upstream runs the backend suite, so a test of ours is portable. Each one travels with the batch that brings what it tests \u2014 which is how every batch so far was sent. Listed so none is forgotten"
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/.*\\.spec\\.js$",
+      "verdict": "PORT",
+      "batch": "P3-41",
+      "note": "our frontend suites, and the runner they need. Upstream has none today, so this batch brings vitest, the setup file and the specs together or it brings nothing"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/vitest\\.setup\\.js|frontend/e2e/)",
+      "verdict": "PORT",
+      "batch": "P3-41",
+      "note": "our frontend suites, and the runner they need"
+    },
+    {
+      "axis": "*",
+      "match": "^backend/vitest\\.config\\.js$",
+      "verdict": "PORT",
+      "batch": "P3-42",
+      "note": "the runner and lint configuration"
+    },
+    {
+      "axis": "*",
+      "match": "^eslint\\.config\\.mjs$",
+      "verdict": "PORT",
+      "batch": "P3-42",
+      "note": "the lint configuration: upstream's own `npm run lint` reports 141 parse errors on its own test files because .eslintrc.cjs does not declare backend/tests/** as modules"
+    },
+    {
+      "axis": "*",
+      "match": "^(\\.nvmrc|\\.git-blame-ignore-revs|coverage-thresholds\\.json)$",
+      "verdict": "OURS",
+      "note": "our repository furniture"
+    },
     {
       "axis": "*",
       "match": "^\\.github/workflows/(build-image|ci|cleanup-packages|dockerhub-description|measure-solid-7z|package-integration|package-standalone|refresh-images)\\.yml$",
@@ -47,18 +114,6 @@
       "match": "^docs/(testing/|installation/(demo|standalone)\\.md|reference/releases\\.md)",
       "verdict": "OURS",
       "note": "our test notes, the installation paths only this fork offers, and our release history"
-    },
-    {
-      "axis": "*",
-      "match": "\\.(spec|test)\\.[jt]s$",
-      "verdict": "OURS",
-      "note": "our frontend suites: upstream runs no frontend test runner, so these cannot execute there. What they assert travels as a backend test where it can"
-    },
-    {
-      "axis": "*",
-      "match": "^(frontend/(vitest\\.setup\\.js|e2e/)|backend/(vitest\\.config\\.js|tests/(fixtures|helpers|setup)/)|eslint\\.config\\.mjs)",
-      "verdict": "OURS",
-      "note": "our test and lint wiring"
     },
     {
       "axis": "*",
@@ -93,26 +148,30 @@
     {
       "axis": "*",
       "match": "^frontend/src/stores/files/",
-      "verdict": "SHAPE",
-      "note": "the file store split into modules; upstream's fileStore.js holds the same capability"
+      "verdict": "PORT",
+      "note": "the file store as nine modules rather than one file. nxzai#373 placed this outside the plan, so it is offered rather than owed",
+      "batch": "P3-37"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/views/FolderView\\.vue|frontend/src/components/MiddleEllipsis\\.vue|frontend/src/components/FolderViewToolbar\\.vue|frontend/src/layouts/BrowserLayout\\.vue)(:|$)",
-      "verdict": "SHAPE",
-      "note": "the rewritten folder view and its furniture"
+      "verdict": "PORT",
+      "note": "the folder view as this fork writes it. Outside nxzai#373's plan, offered rather than owed",
+      "batch": "P3-38"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/editor/CodeSurface\\.vue)(:|$)",
-      "verdict": "SHAPE",
-      "note": "upstream's editor uses composables/useCodemirror.js for the same thing"
+      "verdict": "PORT",
+      "note": "the editor's code surface, in place of useCodemirror.js. Outside nxzai#373's plan, offered rather than owed",
+      "batch": "P3-40"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/utils/index\\.js|frontend/src/api/http\\.js)(:|$)",
-      "verdict": "SHAPE",
-      "note": "helpers regrouped; nothing upstream cannot already do"
+      "verdict": "PORT",
+      "note": "the HTTP layer and the helpers around it. Outside nxzai#373's plan, offered rather than owed",
+      "batch": "P3-39"
     },
     {
       "axis": "*",

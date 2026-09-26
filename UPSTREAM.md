@@ -109,70 +109,85 @@ plan was closed on the same page that said the copy's progress was still here.
 
 ### The batches
 
-Numbered **P3-nn**: phase 3, in the order they are to be delivered. The
-thirty-three of nxzai#373 were phase 2; continuing that counter past 33 read as if
-the plan had grown, which it had not. Phase 3 is a different list, found by
-measuring rather than written in advance.
+Numbered **P3-nn**: phase 3, in delivery order. The thirty-three of nxzai#373 were
+phase 2, delivered by 46 merged pull requests — a batch too large splits into
+several under one number, and a defect found on the way takes a fix of its own.
+Phase 3 is **42 batches**: four sent and waiting, **thirty-eight still to push**.
 
-| Batch | Subject                                                                                                             | Findings  |
-| ----- | ------------------------------------------------------------------------------------------------------------------- | --------- |
-| P3-01 | the catalogue keys, and the parity test published batch 33 promised                                                 | nxzai#433 |
-| P3-02 | the session secret, kept across a restart                                                                           | nxzai#434 |
-| P3-03 | a rejection nobody listened to, no longer fatal                                                                     | nxzai#435 |
-| P3-04 | a document made from the menu                                                                                       | nxzai#436 |
-|       | **Wave 1 — what the published thirty-three promised and did not get**                                               |           |
-| P3-05 | the switches in Settings — the remainder of published batch 31                                                      | 32        |
-| P3-06 | a copy that reports and can be stopped — the remainder of published batch 23                                        | 195       |
-| P3-07 | the documentation the delivered batches left behind                                                                 | 11        |
-|       | **Wave 2 — defects of upstream's own**                                                                              |           |
-| P3-08 | OIDC behind a proxy, and which of two failures it was                                                               | 36        |
-| P3-09 | a logo that can be changed back                                                                                     | 18        |
-| P3-10 | one Range parser, not two that disagree                                                                             | 10        |
-| P3-11 | EXIF without a parser nobody maintains                                                                              | 13        |
-|       | **Wave 3 — backend capability with no screen of its own**                                                           |           |
-| P3-12 | the size index kept current by the write, not by the sweep                                                          | 15        |
-| P3-13 | the rows that point at a path that is gone                                                                          | 11        |
-| P3-14 | what releases up to 1.1.7 left in the cache                                                                         | 1         |
-| P3-15 | the periodic performance record                                                                                     | 7         |
-| P3-16 | one database handle, and its prepared statements                                                                    | 24        |
-| P3-17 | bounds on browsing inside an archive                                                                                | 11        |
-| P3-18 | two ceilings nobody could raise                                                                                     | 3         |
-| P3-19 | the chunked fallback, and the switch that governs it                                                                | 55        |
-|       | **Wave 4 — screens, and the stores behind them**                                                                    |           |
-| P3-20 | sort and view remembered per folder                                                                                 | 172       |
-| P3-21 | the destination dialog, and the folders somebody actually files into                                                | 23        |
-| P3-22 | a session that ends while nobody is navigating                                                                      | 23        |
-| P3-23 | the navigation guards, each a function of its inputs                                                                | 27        |
-| P3-24 | how full a volume is                                                                                                | 16        |
-| P3-25 | the list of shares, seen                                                                                            | 91        |
-| P3-26 | finding a name in a folder nobody can scroll                                                                        | 29        |
-| P3-27 | the trash and the versions panel, their remainder                                                                   | 42        |
-| P3-28 | access rules and what they hold                                                                                     | 40        |
-| P3-29 | the accounts screens                                                                                                | 18        |
-| P3-30 | ONLYOFFICE and Collabora, their remainder                                                                           | 116       |
-| P3-31 | the context menu, and saying what a deletion will do                                                                | 88        |
-| P3-32 | what a file looks like in the list                                                                                  | 55        |
-| P3-33 | the Markdown preview                                                                                                | 37        |
-| P3-34 | what the terminal does with what is typed                                                                           | 3         |
-|       | **Wave 5 — last, because they follow everything above**                                                             |           |
-| P3-35 | strings whose screens are covered by the batches above                                                              | 182       |
-| P3-36 | the OpenAPI description follows every route these batches add; it goes last, when there is nothing left to describe | 2         |
+| Batch | Subject                                                                                                        | Findings        |
+| ----- | -------------------------------------------------------------------------------------------------------------- | --------------- |
+| P3-01 | the catalogue keys, and the parity test published batch 33 promised                                            | nxzai#433, open |
+| P3-02 | the session secret, kept across a restart                                                                      | nxzai#434, open |
+| P3-03 | a rejection nobody listened to, no longer fatal                                                                | nxzai#435, open |
+| P3-04 | a document made from the menu                                                                                  | nxzai#436, open |
+|       | **Wave 1 — what the published thirty-three promised and did not get**                                          |                 |
+| P3-05 | the switches in Settings                                                                                       | 32              |
+| P3-06 | a copy that reports and can be stopped                                                                         | 195             |
+| P3-07 | the documentation the delivered batches left behind                                                            | 11              |
+|       | **Wave 2 — defects of upstream's own**                                                                         |                 |
+| P3-08 | OIDC behind a proxy, and which of two failures it was                                                          | 36              |
+| P3-09 | a logo that can be changed back                                                                                | 18              |
+| P3-10 | one Range parser, not two that disagree                                                                        | 10              |
+| P3-11 | EXIF without a parser nobody maintains                                                                         | 13              |
+|       | **Wave 3 — backend capability with no screen of its own**                                                      |                 |
+| P3-12 | the size index kept current by the write, not by the sweep                                                     | 15              |
+| P3-13 | the rows that point at a path that is gone                                                                     | 11              |
+| P3-14 | what releases up to 1.1.7 left in the cache                                                                    | 1               |
+| P3-15 | the periodic performance record                                                                                | 7               |
+| P3-16 | one database handle, and its prepared statements                                                               | 24              |
+| P3-17 | bounds on browsing inside an archive                                                                           | 11              |
+| P3-18 | two ceilings nobody could raise                                                                                | 3               |
+| P3-19 | the chunked fallback, and the switch that governs it                                                           | 55              |
+|       | **Wave 4 — screens, and the stores behind them**                                                               |                 |
+| P3-20 | sort and view remembered per folder                                                                            | 172             |
+| P3-21 | the destination dialog, and the folders somebody actually files into                                           | 23              |
+| P3-22 | a session that ends while nobody is navigating                                                                 | 23              |
+| P3-23 | the navigation guards, each a function of its inputs                                                           | 27              |
+| P3-24 | how full a volume is                                                                                           | 16              |
+| P3-25 | the list of shares, seen                                                                                       | 91              |
+| P3-26 | finding a name in a folder nobody can scroll                                                                   | 29              |
+| P3-27 | the trash and the versions panel, their remainder                                                              | 42              |
+| P3-28 | access rules and what they hold                                                                                | 40              |
+| P3-29 | the accounts screens                                                                                           | 18              |
+| P3-30 | ONLYOFFICE and Collabora, their remainder                                                                      | 116             |
+| P3-31 | the context menu, and saying what a deletion will do                                                           | 88              |
+| P3-32 | what a file looks like in the list                                                                             | 55              |
+| P3-33 | the Markdown preview                                                                                           | 37              |
+| P3-34 | what the terminal does with what is typed                                                                      | 3               |
+|       | **Wave 5 — the strings, then the description that follows every route**                                        |                 |
+| P3-35 | strings whose screens are covered by the batches above                                                         | 182             |
+| P3-36 | the OpenAPI description follows every route these batches add; it goes last, when there is nothing left to des | 2               |
+|       | **Wave 6 — the shape. Outside nxzai#373's plan: offered, not owed**                                            |                 |
+| P3-37 | the file store as nine modules rather than one file                                                            | 9               |
+| P3-38 | the folder view as this fork writes it                                                                         | 101             |
+| P3-39 | the HTTP layer and the helpers around it                                                                       | 21              |
+| P3-40 | the editor's code surface, in place of useCodemirror.js                                                        | 1               |
+|       | **Wave 7 — the runner and the lint configuration**                                                             |                 |
+| P3-41 | our frontend suites, and the runner they need                                                                  | 172             |
+| P3-42 | the lint configuration: upstream's own `npm run lint` reports 141 parse errors on its own test files because . | 1               |
 
-The five migrations the instrument reports (v20–v24) are not a batch: each travels
-with the feature that needs its table — P3-13, P3-20 and P3-21.
+Two things are not batches of their own. The five migrations the instrument reports
+(v20–v24) travel with the feature that needs their table — P3-13, P3-20, P3-21. And
+196 backend test files travel with the batch that brings what they test, which is
+how every batch so far was sent; upstream runs the backend suite, so a test of ours
+is portable, and they are listed only so none is forgotten.
 
-### How this ends
+### How this ends, and what it still will not be
 
-Not at a number. It ends when `node scripts/parity.mjs` reports **0 PORT**, which
-is a condition a machine checks, not a judgement anybody makes. Every batch closes
-by moving its findings from PORT to DONE in the manifest, in the same commit that
-sends them, so the count only ever goes down and the remainder is always readable
-without asking anybody.
+It ends when `node scripts/parity.mjs` reports **0 PORT** — a condition a machine
+checks. Each batch moves its own findings from PORT to DONE in the commit that
+sends them, so the remainder is readable at any moment and only goes down.
 
-Two things will move the total on their own and are expected to: upstream merging
-its own work adds findings on the `file-upstream` and `drift` axes, and a batch
-opening the files around it usually turns up a handful of small things nobody had
-classified. Both make the script fail until they are spoken for, which is the point.
+What is left then is 80 findings, and they are not capability: our release
+workflows and packaging, the demo and `render.yaml`, our planning documents and
+release notes, our own tooling, the repository furniture, the quick-actions menu
+upstream closed in nxzai#333, and 22 files upstream has that this fork does not.
+`main` upstream will do everything `integration` does and be written the same way;
+it will not carry this fork's own scaffolding, and it should not.
+
+Two things will move the total upward on their own, and are expected to: upstream
+merging its own work, and a batch turning up small things around the files it opens.
+Both make the script fail until they are spoken for, which is the point.
 
 ## What is not in the thirty-three
 
