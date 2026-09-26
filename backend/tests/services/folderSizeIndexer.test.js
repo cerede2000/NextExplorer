@@ -19,10 +19,10 @@ const createContext = async (extraEnv = {}) => {
     modules: INDEXER_MODULES,
     env: { FOLDER_SIZE_MODE: 'full', ...extraEnv },
   });
-  const { getDb } = env.requireFresh('src/services/db');
+  const { getIndexDb } = env.requireFresh('src/services/indexDb');
   const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
   const indexer = env.requireFresh('src/services/folderSizeIndexer');
-  const db = await getDb();
+  const db = await getIndexDb();
   const scope = { root: env.volumeDir, label: 'volume' };
   return { env, db, folderSizeIndex, indexer, scope };
 };
@@ -299,7 +299,6 @@ describe('folderSizeIndexer', () => {
     await fs.mkdir(target, { recursive: true });
 
     for (let i = 0; i < 45; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(path.join(target, `file-${i}`), Buffer.alloc(1));
     }
 
@@ -405,14 +404,14 @@ describe('folderSizeIndexer', () => {
     });
     ctx = { env };
 
-    const { getDb } = env.requireFresh('src/services/db');
+    const { getIndexDb } = env.requireFresh('src/services/indexDb');
     const folderSizeIndex = env.requireFresh('src/services/folderSizeIndex');
     const scope = { root: env.volumeDir, label: 'volume' };
     const legacy = path.join(scope.root, 'Legacy');
     await fs.mkdir(path.join(legacy, 'nested'), { recursive: true });
     await fs.writeFile(path.join(legacy, 'nested', 'payload.bin'), Buffer.alloc(42));
 
-    const db = await getDb();
+    const db = await getIndexDb();
     const scannedAt = new Date().toISOString();
     folderSizeIndex.upsertScanEntry(db, scope, {
       absolutePath: scope.root,
@@ -535,7 +534,6 @@ describe('folderSizeIndexer', () => {
     let result;
     let slices = 0;
     do {
-      // eslint-disable-next-line no-await-in-loop
       result = await indexer.reconcile(db, scope, {
         mode: 'full',
         batch: 1,
@@ -567,9 +565,7 @@ describe('folderSizeIndexer', () => {
     let dir = vol;
     for (let i = 0; i < depth; i += 1) {
       dir = path.join(dir, `L${i}`);
-      // eslint-disable-next-line no-await-in-loop
       await fs.mkdir(dir, { recursive: true });
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(path.join(dir, 'f'), Buffer.alloc(10));
     }
 
@@ -630,9 +626,7 @@ describe('folderSizeIndexer', () => {
 
     // Build enough folders that the baseline yields multiple times.
     for (let i = 0; i < 60; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.mkdir(path.join(vol, `dir-${i}`, 'sub'), { recursive: true });
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(path.join(vol, `dir-${i}`, 'sub', 'f'), Buffer.alloc(8));
     }
 
@@ -640,7 +634,6 @@ describe('folderSizeIndexer', () => {
     const heartbeat = [];
     const beat = async () => {
       for (let i = 0; i < 20; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, 2));
         heartbeat.push(baselineDone);
       }

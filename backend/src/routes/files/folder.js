@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const { normalizeRelativePath, ensureValidName } = require('../../utils/pathUtils');
 const { reserveAvailableName } = require('../../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('../../services/authorizationService');
+const folderSizeHooks = require('../../services/folderSizeHooks');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../errors/AppError');
 const { buildItemMetadata } = require('./utils');
@@ -63,6 +64,8 @@ router.post(
       baseName,
       { isDirectory: true, style: 'folder' }
     );
+
+    folderSizeHooks.onFolderCreated(folderAbsolute);
 
     const item = await buildItemMetadata(folderAbsolute, parentRelative, finalName);
     res.status(201).json({ success: true, item });

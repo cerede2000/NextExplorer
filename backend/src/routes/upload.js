@@ -12,6 +12,7 @@ const activityLog = require('../services/activityLog');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
+const folderSizeHooks = require('../services/folderSizeHooks');
 const asyncHandler = require('../utils/asyncHandler');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 
@@ -99,6 +100,10 @@ router.post(
 
     for (const file of req.files.filedata) {
       const stats = await fs.stat(file.path);
+
+      // The file's exact size is already known here: the index takes a precise
+      // positive delta, with no filesystem traversal of its own.
+      folderSizeHooks.onFileWritten(file.path, stats.size);
 
       // Prefer logicalPath set by upload service; fall back to empty string
       const logicalPath = normalizeRelativePath(file.logicalPath || '');
