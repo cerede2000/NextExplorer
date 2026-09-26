@@ -25,6 +25,20 @@
   "rules": [
     {
       "axis": "i18n",
+      "match": "^common\\.toggleSection$",
+      "verdict": "DONE",
+      "batch": "P3-20",
+      "note": "nxzai#450 \u2014 the sidebar section the usage bar sits in"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/usage\\.js|frontend/src/components/VolumeUsageBar\\.vue|frontend/src/stores/volumeUsage\\.js|frontend/src/components/VolMenu\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-20",
+      "note": "nxzai#450 \u2014 how full a volume is, asked of the filesystem rather than of a shell"
+    },
+    {
+      "axis": "i18n",
       "match": "^(auth\\.login\\.sessionExpired|serverErrors\\.AUTH_ACCOUNT_LOCKED_RETRY)$",
       "verdict": "DONE",
       "batch": "P3-19",
