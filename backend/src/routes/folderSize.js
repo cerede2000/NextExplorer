@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs/promises');
 const { normalizeRelativePath, parsePathSpace, resolveVolumePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
-const { getDb } = require('../services/db');
+const { getIndexDb } = require('../services/indexDb');
 const folderSizeIndex = require('../services/folderSizeIndex');
 const { getVolumeScope } = require('../services/folderSizeIndexer');
 const folderSizeManager = require('../services/folderSizeManager');
@@ -69,9 +69,11 @@ const lookupFolderSize = async (context, inputRelRaw) => {
   // resolution so size is available even when navigation is denied.
   const absolutePath = resolved?.absolutePath ?? (await fallbackAbsolutePath(context, inputRel));
 
-  const db = await getDb();
+  const db = await getIndexDb();
   const scope = getVolumeScope();
-  const withinRoot = Boolean(absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath));
+  const withinRoot = Boolean(
+    absolutePath && folderSizeIndex.isWithinRoot(scope.root, absolutePath)
+  );
   const excluded = withinRoot && folderSizeExclusions.isExcluded(absolutePath, scope);
   const entry = withinRoot ? folderSizeIndex.getByAbsolutePath(db, absolutePath) : null;
 
@@ -191,7 +193,7 @@ router.post(
     }
 
     queueRefreshDirectory(absolutePath);
-    const db = await getDb();
+    const db = await getIndexDb();
     res.status(202).json({
       ...indexResult(db, scope, absolutePath, resolved.relativePath, true),
       refreshPending: true,
@@ -228,7 +230,6 @@ router.post(
     const touchPaths = [];
     for (const p of limited) {
       try {
-        // eslint-disable-next-line no-await-in-loop
         const { result, absolutePath } = await lookupFolderSize(
           context,
           typeof p === 'string' ? p : ''

@@ -53,18 +53,18 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
     queuedRefresh = false;
 
     if (refreshTimer) {
-      window.clearTimeout(refreshTimer);
+      globalThis.clearTimeout(refreshTimer);
       refreshTimer = null;
     }
 
     if (dirtyRefreshTimer) {
-      window.clearTimeout(dirtyRefreshTimer);
+      globalThis.clearTimeout(dirtyRefreshTimer);
       dirtyRefreshTimer = null;
     }
     dirtyRefreshDelay = DIRTY_REFRESH_INITIAL_MS;
 
     for (const timer of pendingManualRefreshes.values()) {
-      window.clearTimeout(timer);
+      globalThis.clearTimeout(timer);
     }
     pendingManualRefreshes.clear();
   };
@@ -120,14 +120,14 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
         if (!dirtyRefreshTimer) {
           const delay = dirtyRefreshDelay;
           dirtyRefreshDelay = Math.min(dirtyRefreshDelay * 2, DIRTY_REFRESH_MAX_MS);
-          dirtyRefreshTimer = window.setTimeout(() => {
+          dirtyRefreshTimer = globalThis.setTimeout(() => {
             dirtyRefreshTimer = null;
             refresh({ force: true }).catch(() => {});
           }, delay);
         }
       } else {
         if (dirtyRefreshTimer) {
-          window.clearTimeout(dirtyRefreshTimer);
+          globalThis.clearTimeout(dirtyRefreshTimer);
           dirtyRefreshTimer = null;
         }
         dirtyRefreshDelay = DIRTY_REFRESH_INITIAL_MS;
@@ -208,9 +208,9 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
     }
 
     if (refreshTimer) {
-      window.clearTimeout(refreshTimer);
+      globalThis.clearTimeout(refreshTimer);
     }
-    refreshTimer = window.setTimeout(() => {
+    refreshTimer = globalThis.setTimeout(() => {
       refreshTimer = null;
       refresh({ force }).catch(() => {});
     }, delayMs);
@@ -245,11 +245,11 @@ export const useFolderSizeStore = defineStore('folderSize', () => {
         pendingManualRefreshes.delete(path);
         return;
       }
-      const timer = window.setTimeout(poll, MANUAL_REFRESH_POLL_MS);
+      const timer = globalThis.setTimeout(poll, MANUAL_REFRESH_POLL_MS);
       pendingManualRefreshes.set(path, timer);
     };
 
-    const timer = window.setTimeout(poll, MANUAL_REFRESH_POLL_MS);
+    const timer = globalThis.setTimeout(poll, MANUAL_REFRESH_POLL_MS);
     pendingManualRefreshes.set(path, timer);
   };
 

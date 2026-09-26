@@ -5,6 +5,7 @@ const MODULES = [
   'src/config/env',
   'src/config/index',
   'src/services/folderSizeManager',
+  'src/services/folderSizeHooks',
   'src/services/folderSizeTransferState',
 ];
 
@@ -30,11 +31,14 @@ describe('Folder size disabled mode', () => {
 
       const config = env.requireFresh('src/config/index');
       const manager = env.requireFresh('src/services/folderSizeManager');
+      const hooks = env.requireFresh('src/services/folderSizeHooks');
       const transferState = env.requireFresh('src/services/folderSizeTransferState');
 
       expect(config.folderSize).toMatchObject({ mode: 'off', enabled: false });
 
       await manager.start();
+      await hooks.beginDirectoryTransfer('/tmp/folder-size-disabled-transfer');
+      hooks.refreshTransferredDirectories(['/tmp/folder-size-disabled-transfer']);
 
       expect(transferState.isRelatedToActiveTransfer('/tmp/folder-size-disabled-transfer')).toBe(
         false

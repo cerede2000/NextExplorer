@@ -168,6 +168,25 @@ const setIndexVersion = (db, scope, version = CURRENT_INDEX_VERSION) => {
   );
 };
 
+const indexModeKey = (scope) => `folder_size_index_mode:${scope.label}:${pathHash(scope.root)}`;
+
+/**
+ * The mode the sizes on record were measured in, or null before this was kept.
+ *
+ * `shallow` counts a folder's own entries and `full` everything under it, so a
+ * size measured one way is simply wrong read the other. Nothing recorded which
+ * one had been used: changing FOLDER_SIZE_MODE and restarting kept every size
+ * from before, and the baseline skipped itself because the volume was already
+ * indexed. Now that Settings can change it without a restart, it has to be
+ * written down.
+ */
+const getIndexMode = (db, scope) =>
+  prep(db, 'SELECT value FROM meta WHERE key = ?').pluck().get(indexModeKey(scope)) || null;
+
+const setIndexMode = (db, scope, mode) => {
+  prep(db, 'INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(indexModeKey(scope), mode);
+};
+
 /**
  * Apply an incremental byte delta to a folder and propagate it up every
  * ancestor to the volume root, in a single transaction. Rows that do not yet
@@ -506,6 +525,8 @@ module.exports = {
   countByVolume,
   getIndexVersion,
   setIndexVersion,
+  getIndexMode,
+  setIndexMode,
   applyDelta,
   upsertScanEntry,
   bulkUpsertScanEntries,
