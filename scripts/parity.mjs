@@ -282,8 +282,35 @@ for (const file of IMAGE_FILES) {
 // finding spoke for is reported as such, and has to be classified like the rest —
 // so the honest answer to "is that everything?" is this number being zero.
 for (const file of git('diff', '--name-only', UPSTREAM, OURS).split('\n').filter(Boolean)) {
-  if (!covered.has(file)) report('uncovered', file, 'differs, and no other axis speaks for it');
+  if (!covered.has(file)) {
+    report('uncovered', file, 'differs, and no other axis speaks for it', file);
+  }
 }
+
+// ── the completeness proof ──────────────────────────────────────────────────
+/**
+ * Every path in either tree is either identical in both, or spoken for.
+ *
+ * The axes above each answer one question, and a question nobody asked is a gap
+ * nobody sees. This asks the only question that cannot have a gap: of all the
+ * paths that exist in either tree, how many are neither identical nor named by a
+ * finding? The answer has to be zero, and it is checked rather than asserted.
+ *
+ * It is what makes "the breakdown is complete" a statement about the trees rather
+ * than about how carefully somebody looked.
+ */
+const completeness = (() => {
+  const everyPath = new Set([...ours, ...theirs]);
+  const differing = new Set(git('diff', '--name-only', UPSTREAM, OURS).split('\n').filter(Boolean));
+  const identical = [...everyPath].filter((file) => !differing.has(file));
+  const unspokenFor = [...differing].filter((file) => !covered.has(file));
+  return {
+    paths: everyPath.size,
+    identical: identical.length,
+    differing: differing.size,
+    unspokenFor,
+  };
+})();
 
 // ── the manifest decides ────────────────────────────────────────────────────
 const manifest = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { rules: [] };
@@ -310,8 +337,110 @@ for (const finding of findings) {
   byVerdict[rule.verdict].push({ ...finding, note: rule.note, batch: rule.batch });
 }
 
+/**
+ * Whether each batch can be merged on its own and still build.
+ *
+ * A batch that changes a file which imports a file only this fork has, brought by
+ * a later batch, does not build when it lands: the import resolves to nothing. That
+ * is not a thing to notice at review time — it is arithmetic over the import graph,
+ * so it is done here.
+ *
+ * Only files this fork alone has matter. A file upstream already has resolves
+ * whatever its content, so a batch may well touch it out of order.
+ */
+const ownerOf = new Map();
+for (const verdict of ['PORT', 'DONE']) {
+  for (const item of byVerdict[verdict]) {
+    const file = item.id.split(':')[0];
+    const batch = verdict === 'DONE' ? 'P3-00' : item.batch;
+    if (!batch || !/^P3-\d+$/.test(batch)) continue;
+    const previous = ownerOf.get(file);
+    // The earliest batch that claims a file is the one that brings it.
+    if (!previous || Number(batch.slice(3)) < Number(previous.slice(3))) ownerOf.set(file, batch);
+  }
+}
+
+/**
+ * Files two batches both claim.
+ *
+ * A file that holds two subjects — `routes/settings.js` holds the logo and the
+ * folder preferences — is claimed by whichever rule matched first, and the other
+ * batch then ships a service nothing calls, or a screen with no route behind it.
+ * Green, and useless. So they are reported: either the batches merge, or the
+ * findings inside the file are assigned one by one.
+ */
+const claimsOn = new Map();
+for (const item of byVerdict.PORT) {
+  const file = item.id.split(':')[0];
+  if (!item.batch || !/^P3-\d+$/.test(item.batch)) continue;
+  if (!claimsOn.has(file)) claimsOn.set(file, new Set());
+  claimsOn.get(file).add(item.batch);
+}
+const shared = [...claimsOn]
+  .filter(([, batches]) => batches.size > 1)
+  .map(([file, batches]) => `${file}: ${[...batches].sort().join(', ')}`);
+
+const onlyHere = new Set([...ours].filter((file) => !theirs.has(file)));
+const IMPORT = /(?:require\(\s*['"]([^'"]+)['"]\s*\)|from\s+['"]([^'"]+)['"])/g;
+
+/** What an import specifier points at, as a path in the tree, or null. */
+const resolveImport = (fromFile, specifier) => {
+  let base;
+  if (specifier.startsWith('@/')) base = `frontend/src/${specifier.slice(2)}`;
+  else if (specifier.startsWith('.'))
+    base = path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier));
+  else return null; // a package, not a file of ours
+  for (const candidate of [base, `${base}.js`, `${base}.vue`, `${base}.mjs`, `${base}/index.js`]) {
+    if (ours.has(candidate)) return candidate;
+  }
+  return null;
+};
+
+const outOfOrder = [];
+/** batch → the batches it needs, because a file it changes imports a file of theirs. */
+const needs = new Map();
+// Only files one batch owns outright. A file two batches share is ported in parts
+// — the logo's routes with the logo, the switches' section with the switches — so
+// each batch adds the import it needs and no cross-batch order follows. Which is a
+// discipline rather than a proof, and the shared-file list above is where it
+// applies: four files, three of them package manifests.
+for (const [file, claimants] of claimsOn) {
+  if (claimants.size > 1) continue;
+  if (!CODE.test(file)) continue;
+  const source = show(OURS, file);
+  if (!source) continue;
+  for (const match of source.matchAll(IMPORT)) {
+    const target = resolveImport(file, match[1] || match[2]);
+    if (!target || !onlyHere.has(target)) continue;
+    const targetBatch = ownerOf.get(target);
+    if (!targetBatch) continue;
+    for (const batch of claimants) {
+      if (targetBatch === batch) continue;
+      if (!needs.has(batch)) needs.set(batch, new Set());
+      needs.get(batch).add(targetBatch);
+      if (Number(targetBatch.slice(3)) > Number(batch.slice(3))) {
+        outOfOrder.push(`${batch} ${file} imports ${target}, which ${targetBatch} brings`);
+      }
+    }
+  }
+}
+
 if (AS_JSON) {
-  console.log(JSON.stringify({ counts, unclassified, byVerdict }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        counts,
+        unclassified,
+        byVerdict,
+        completeness,
+        outOfOrder,
+        shared,
+        needs: Object.fromEntries([...needs].map(([k, v]) => [k, [...v]])),
+      },
+      null,
+      2
+    )
+  );
 } else {
   const axes = {};
   for (const f of findings) axes[f.axis] = (axes[f.axis] || 0) + 1;
@@ -321,6 +450,14 @@ if (AS_JSON) {
     console.log(`  ${axis.padEnd(16)} ${String(n).padStart(5)}`);
   }
   console.log(`  ${'TOTAL'.padEnd(16)} ${String(findings.length).padStart(5)}\n`);
+  console.log('every path in either tree');
+  console.log(`  ${'identical'.padEnd(16)} ${String(completeness.identical).padStart(5)}`);
+  console.log(`  ${'differing'.padEnd(16)} ${String(completeness.differing).padStart(5)}`);
+  console.log(
+    `  ${'unspoken for'.padEnd(16)} ${String(completeness.unspokenFor.length).padStart(5)}` +
+      (completeness.unspokenFor.length ? '   ← a gap in the axes themselves' : '')
+  );
+  console.log(`  ${'TOTAL'.padEnd(16)} ${String(completeness.paths).padStart(5)}\n`);
   console.log('classified');
   for (const verdict of VERDICTS) {
     console.log(`  ${verdict.padEnd(16)} ${String(counts[verdict]).padStart(5)}`);
@@ -339,6 +476,17 @@ if (AS_JSON) {
     console.log('');
   }
 
+  console.log(
+    `shared files       ${shared.length ? `${shared.length} file(s) two batches share, each bringing its own part` : 'every file has one owner'}`
+  );
+  for (const line of shared.slice(0, 12)) console.log(`  ${line}`);
+  if (shared.length) console.log('');
+  console.log(
+    `build order        ${outOfOrder.length ? `${outOfOrder.length} batch(es) would not build in this order` : 'every batch builds where it sits'}\n`
+  );
+  for (const line of outOfOrder.slice(0, 20)) console.log(`  ${line}`);
+  if (outOfOrder.length) console.log('');
+
   if (unclassified.length) {
     console.log(`UNCLASSIFIED — every one of these must be given a verdict:\n`);
     for (const f of unclassified.slice(0, 60)) console.log(`  ${f.axis.padEnd(15)} ${f.id}`);
@@ -347,6 +495,21 @@ if (AS_JSON) {
   }
 }
 
+if (outOfOrder.length) {
+  console.error(
+    `${outOfOrder.length} batch(es) would not build where they sit: a file they change imports ` +
+      'a file only this fork has that a later batch brings. Move the batch, or move the file.'
+  );
+  process.exit(1);
+}
+if (completeness.unspokenFor.length) {
+  console.error(
+    `${completeness.unspokenFor.length} path(s) differ and no axis speaks for them, ` +
+      'which is a gap in this script rather than in the manifest:\n  ' +
+      completeness.unspokenFor.slice(0, 20).join('\n  ')
+  );
+  process.exit(1);
+}
 if (unclassified.length) {
   console.error(
     `${unclassified.length} finding(s) nobody has classified. Add a rule to ` +
