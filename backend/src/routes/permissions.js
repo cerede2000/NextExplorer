@@ -6,6 +6,7 @@ const { promisify } = require('util');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
+const { ensureAdmin } = require('../middleware/ensureAdmin');
 const asyncHandler = require('../utils/asyncHandler');
 const {
   ValidationError,
@@ -90,6 +91,11 @@ router.get(
  */
 router.post(
   '/permissions/chmod',
+  // Changing modes and ownership on a shared volume is an administration
+  // task: a plain write permission on a path is not consent to re-permission
+  // its tree. `ensureAdmin` says as much in its own comment, and these are the
+  // two routes it was written for.
+  ensureAdmin,
   asyncHandler(async (req, res) => {
     const { path: rawPath, mode, recursive } = req.body;
 
@@ -170,6 +176,11 @@ router.post(
  */
 router.post(
   '/permissions/chown',
+  // Changing modes and ownership on a shared volume is an administration
+  // task: a plain write permission on a path is not consent to re-permission
+  // its tree. `ensureAdmin` says as much in its own comment, and these are the
+  // two routes it was written for.
+  ensureAdmin,
   asyncHandler(async (req, res) => {
     const { path: rawPath, owner, group } = req.body;
 

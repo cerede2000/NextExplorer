@@ -409,7 +409,8 @@
       "uploads": "Uploads",
       "accountTwoFactor": "Zwei-Faktor",
       "accountPasskeys": "Passkeys",
-      "activity": "Aktivitätsprotokoll"
+      "activity": "Aktivitätsprotokoll",
+      "accountApiTokens": "API-Token"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -799,8 +800,48 @@
         "file-delete": "In den Papierkorb verschoben",
         "file-restore": "Wiederhergestellt",
         "file-purge": "Endgültig gelöscht",
-        "versions-purge": "Versionen gelöscht"
+        "versions-purge": "Versionen gelöscht",
+        "account-token": "API-Token geändert"
       }
+    },
+    "apiTokens": {
+      "title": "API-Token",
+      "intro": "Ein Token lässt ein Skript diesen Server in Ihrem Namen nutzen — ohne Ihr Passwort und ohne Browser. Jedes lässt sich einzeln entziehen, und keines kann Ihr Konto ändern oder den Server verwalten.",
+      "none": "Keine Token auf diesem Konto.",
+      "newToken": "Neues Token",
+      "nameLabel": "Name",
+      "namePlaceholder": "Backup-Skript",
+      "scopeLabel": "Was es darf",
+      "scopeRead": "Nur lesen",
+      "scopeWrite": "Lesen und schreiben",
+      "scopeReadHelp": "Es kann auflisten, suchen und herunterladen. Ändern kann es nichts.",
+      "scopeWriteHelp": "Es kann mit Dateien tun, was Sie tun können: hochladen, verschieben, umbenennen, löschen.",
+      "expiryLabel": "Gültigkeitsdauer",
+      "expiryNever": "Bis zum Widerruf",
+      "expiryDays": "{days} Tage",
+      "confirmPassword": "Ihr Passwort",
+      "create": "Token ausstellen",
+      "rename": "Umbenennen",
+      "revoke": "Widerrufen",
+      "renamePrompt": "Ein neuer Name für dieses Token",
+      "renamed": "Das Token wurde umbenannt.",
+      "revoked": "{name} wurde widerrufen und funktioniert ab sofort nicht mehr.",
+      "revokeConfirm": "{name} widerrufen? Alles, was es benutzt, hört sofort auf zu funktionieren.",
+      "shownOnce": "Hier ist das Token. Es wird einmal gezeigt und kann nicht erneut gelesen werden — kopieren Sie es jetzt.",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "useIt": "Senden Sie es bei jeder Anfrage als diesen Header.",
+      "createdOn": "Ausgestellt am {when}",
+      "lastUsed": "zuletzt benutzt am {when} von {from}",
+      "neverUsed": "nie benutzt",
+      "unknownAddress": "einer unbekannten Adresse",
+      "expiresOn": "läuft ab am {when}",
+      "neverExpires": "ohne Ablauf",
+      "limits": "Ein Token ist nie mehr als das Konto, zu dem es gehört, und immer weniger: es kann weder Ihr Passwort ändern noch einen Passkey hinzufügen, ein weiteres Token ausstellen, den Server verwalten oder ein Terminal öffnen. Bis zu 50 Token pro Konto.",
+      "loadFailed": "Die Token konnten nicht geladen werden.",
+      "createFailed": "Das Token konnte nicht ausgestellt werden.",
+      "renameFailed": "Das Token konnte nicht umbenannt werden.",
+      "revokeFailed": "Das Token konnte nicht widerrufen werden."
     }
   },
   "mediaPreview": {

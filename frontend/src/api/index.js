@@ -19,3 +19,4 @@ export * from './versions.api';
 export * from './archive.api';
 export * from './passkeys.api';
 export * from './activity.api';
+export * from './tokens.api';

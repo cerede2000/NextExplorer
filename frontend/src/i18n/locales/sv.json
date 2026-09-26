@@ -409,7 +409,8 @@
       "uploads": "Uppladdningar",
       "accountTwoFactor": "Tvåfaktor",
       "accountPasskeys": "Lösenordsnycklar",
-      "activity": "Aktivitetslogg"
+      "activity": "Aktivitetslogg",
+      "accountApiTokens": "API-nycklar"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -799,8 +800,48 @@
         "file-delete": "Till papperskorgen",
         "file-restore": "Återställd",
         "file-purge": "Borttagen för gott",
-        "versions-purge": "Versioner borttagna"
+        "versions-purge": "Versioner borttagna",
+        "account-token": "API-nyckel ändrad"
       }
+    },
+    "apiTokens": {
+      "title": "API-nycklar",
+      "intro": "En nyckel låter ett skript använda servern i ditt namn, utan ditt lösenord och utan webbläsare. Var och en kan återkallas för sig, och ingen kan ändra ditt konto eller administrera servern.",
+      "none": "Inga nycklar på det här kontot.",
+      "newToken": "Ny nyckel",
+      "nameLabel": "Namn",
+      "namePlaceholder": "Säkerhetskopieringsskript",
+      "scopeLabel": "Vad den får göra",
+      "scopeRead": "Endast läsa",
+      "scopeWrite": "Läsa och skriva",
+      "scopeReadHelp": "Den kan lista, söka och hämta. Den kan inte ändra något.",
+      "scopeWriteHelp": "Den kan göra med filer det du kan: ladda upp, flytta, byta namn, radera.",
+      "expiryLabel": "Hur länge den gäller",
+      "expiryNever": "Tills den återkallas",
+      "expiryDays": "{days} dagar",
+      "confirmPassword": "Ditt lösenord",
+      "create": "Utfärda nyckel",
+      "rename": "Byt namn",
+      "revoke": "Återkalla",
+      "renamePrompt": "Ett nytt namn på den här nyckeln",
+      "renamed": "Nyckeln har fått ett nytt namn.",
+      "revoked": "{name} har återkallats och slutar fungera nu.",
+      "revokeConfirm": "Återkalla {name}? Allt som använder den slutar fungera omedelbart.",
+      "shownOnce": "Här är nyckeln. Den visas en gång och kan inte läsas igen — kopiera den nu.",
+      "copy": "Kopiera",
+      "copied": "Kopierad",
+      "useIt": "Skicka den som den här rubriken i varje anrop.",
+      "createdOn": "Utfärdad {when}",
+      "lastUsed": "senast använd {when} från {from}",
+      "neverUsed": "aldrig använd",
+      "unknownAddress": "en okänd adress",
+      "expiresOn": "går ut {when}",
+      "neverExpires": "går inte ut",
+      "limits": "En nyckel är aldrig mer än kontot den tillhör, och alltid mindre: den kan inte byta ditt lösenord, lägga till en passkey, utfärda en till nyckel, administrera servern eller öppna en terminal. Upp till 50 nycklar per konto.",
+      "loadFailed": "Nycklarna kunde inte läsas in.",
+      "createFailed": "Nyckeln kunde inte utfärdas.",
+      "renameFailed": "Nyckeln kunde inte byta namn.",
+      "revokeFailed": "Nyckeln kunde inte återkallas."
     }
   },
   "mediaPreview": {

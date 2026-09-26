@@ -27,6 +27,7 @@ const ACTIONS = new Set([
   'account.password',
   'account.two-factor',
   'account.passkey',
+  'account.token',
   'admin.user',
   'admin.settings',
   'admin.activity-clear',
@@ -45,10 +46,6 @@ const ACTIONS = new Set([
   // history can go with its file left exactly where it is.
   'versions.purge',
 ]);
-
-// Kept as a closed list rather than a growing one: `account.token` joins it
-// with the API tokens it would describe, so nothing here names a kind the
-// filter offers and nothing writes.
 
 const OUTCOMES = new Set(['ok', 'refused']);
 

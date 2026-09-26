@@ -409,7 +409,8 @@
       "uploads": "Uploads",
       "accountTwoFactor": "Tweestaps",
       "accountPasskeys": "Passkeys",
-      "activity": "Activiteitenlogboek"
+      "activity": "Activiteitenlogboek",
+      "accountApiTokens": "API-tokens"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -799,8 +800,48 @@
         "file-delete": "Naar de prullenbak",
         "file-restore": "Teruggezet",
         "file-purge": "Definitief verwijderd",
-        "versions-purge": "Versies verwijderd"
+        "versions-purge": "Versies verwijderd",
+        "account-token": "API-token gewijzigd"
       }
+    },
+    "apiTokens": {
+      "title": "API-tokens",
+      "intro": "Met een token gebruikt een script deze server namens u, zonder uw wachtwoord en zonder browser. Elk token is apart in te trekken, en geen enkel token kan uw account wijzigen of de server beheren.",
+      "none": "Geen tokens op dit account.",
+      "newToken": "Nieuw token",
+      "nameLabel": "Naam",
+      "namePlaceholder": "Back-upscript",
+      "scopeLabel": "Wat het mag",
+      "scopeRead": "Alleen lezen",
+      "scopeWrite": "Lezen en schrijven",
+      "scopeReadHelp": "Het kan opsommen, zoeken en downloaden. Wijzigen kan het niet.",
+      "scopeWriteHelp": "Het kan met bestanden doen wat u kunt: uploaden, verplaatsen, hernoemen, verwijderen.",
+      "expiryLabel": "Hoe lang het geldt",
+      "expiryNever": "Tot het wordt ingetrokken",
+      "expiryDays": "{days} dagen",
+      "confirmPassword": "Uw wachtwoord",
+      "create": "Token uitgeven",
+      "rename": "Hernoemen",
+      "revoke": "Intrekken",
+      "renamePrompt": "Een nieuwe naam voor dit token",
+      "renamed": "Het token is hernoemd.",
+      "revoked": "{name} is ingetrokken en werkt vanaf nu niet meer.",
+      "revokeConfirm": "{name} intrekken? Alles wat het gebruikt stopt onmiddellijk.",
+      "shownOnce": "Dit is het token. Het wordt één keer getoond en is daarna niet meer te lezen — kopieer het nu.",
+      "copy": "Kopiëren",
+      "copied": "Gekopieerd",
+      "useIt": "Stuur het bij elk verzoek als deze header mee.",
+      "createdOn": "Uitgegeven op {when}",
+      "lastUsed": "laatst gebruikt op {when} vanaf {from}",
+      "neverUsed": "nooit gebruikt",
+      "unknownAddress": "een onbekend adres",
+      "expiresOn": "verloopt op {when}",
+      "neverExpires": "verloopt niet",
+      "limits": "Een token is nooit meer dan het account waar het bij hoort, en altijd minder: het kan uw wachtwoord niet wijzigen, geen passkey toevoegen, geen ander token uitgeven, de server niet beheren en geen terminal openen. Maximaal 50 tokens per account.",
+      "loadFailed": "De tokens konden niet worden geladen.",
+      "createFailed": "Het token kon niet worden uitgegeven.",
+      "renameFailed": "Het token kon niet worden hernoemd.",
+      "revokeFailed": "Het token kon niet worden ingetrokken."
     }
   },
   "share": {

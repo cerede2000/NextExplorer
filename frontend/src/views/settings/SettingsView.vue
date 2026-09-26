@@ -17,6 +17,7 @@ import {
   ShieldCheckIcon,
   FingerPrintIcon,
   ListBulletIcon,
+  CommandLineIcon,
   UsersIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline';
@@ -68,6 +69,12 @@ const userCategories = [
     name: 'Change Password',
     icon: Cog8ToothIcon,
     requiresLocal: true,
+  },
+  {
+    key: 'account-api-tokens',
+    i18nKey: 'accountApiTokens',
+    name: 'API tokens',
+    icon: CommandLineIcon,
   },
   {
     key: 'user-preferences',

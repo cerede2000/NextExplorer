@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "start": "node --watch src/server.js"
+    "start": "node --watch src/server.js",
+    "openapi": "node src/scripts/writeOpenApi.js"
   },
   "author": "Vikram Soni",
   "license": "ISC",

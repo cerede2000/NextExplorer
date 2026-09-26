@@ -409,7 +409,8 @@
       "uploads": "Caricamenti",
       "accountTwoFactor": "Due fattori",
       "accountPasskeys": "Passkey",
-      "activity": "Registro attività"
+      "activity": "Registro attività",
+      "accountApiTokens": "Token API"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -799,8 +800,48 @@
         "file-delete": "Spostato nel cestino",
         "file-restore": "Ripristinato",
         "file-purge": "Eliminato definitivamente",
-        "versions-purge": "Versioni eliminate"
+        "versions-purge": "Versioni eliminate",
+        "account-token": "Token API modificato"
       }
+    },
+    "apiTokens": {
+      "title": "Token API",
+      "intro": "Un token permette a uno script di usare questo server per vostro conto, senza la vostra password e senza browser. Ognuno si revoca da solo, e nessuno può modificare il vostro account o amministrare il server.",
+      "none": "Nessun token su questo account.",
+      "newToken": "Nuovo token",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Script di backup",
+      "scopeLabel": "Cosa può fare",
+      "scopeRead": "Sola lettura",
+      "scopeWrite": "Lettura e scrittura",
+      "scopeReadHelp": "Può elencare, cercare e scaricare. Non può modificare nulla.",
+      "scopeWriteHelp": "Può fare con i file quello che fate voi: caricare, spostare, rinominare, eliminare.",
+      "expiryLabel": "Quanto dura",
+      "expiryNever": "Fino alla revoca",
+      "expiryDays": "{days} giorni",
+      "confirmPassword": "La vostra password",
+      "create": "Emetti token",
+      "rename": "Rinomina",
+      "revoke": "Revoca",
+      "renamePrompt": "Un nuovo nome per questo token",
+      "renamed": "Il token è stato rinominato.",
+      "revoked": "{name} è stato revocato e smette di funzionare adesso.",
+      "revokeConfirm": "Revocare {name}? Tutto ciò che lo usa smette subito di funzionare.",
+      "shownOnce": "Ecco il token. Viene mostrato una volta sola e non sarà più leggibile: copiatelo ora.",
+      "copy": "Copia",
+      "copied": "Copiato",
+      "useIt": "Inviatelo come questa intestazione a ogni richiesta.",
+      "createdOn": "Emesso il {when}",
+      "lastUsed": "ultimo uso il {when} da {from}",
+      "neverUsed": "mai usato",
+      "unknownAddress": "un indirizzo sconosciuto",
+      "expiresOn": "scade il {when}",
+      "neverExpires": "senza scadenza",
+      "limits": "Un token non vale mai più dell’account a cui appartiene, e sempre meno: non può cambiare la vostra password, aggiungere una passkey, emettere un altro token, amministrare il server o aprire un terminale. Fino a 50 token per account.",
+      "loadFailed": "Non è stato possibile caricare i token.",
+      "createFailed": "Non è stato possibile emettere il token.",
+      "renameFailed": "Non è stato possibile rinominare il token.",
+      "revokeFailed": "Non è stato possibile revocare il token."
     }
   },
   "mediaPreview": {

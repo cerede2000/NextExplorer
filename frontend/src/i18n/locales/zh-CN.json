@@ -409,7 +409,8 @@
       "uploads": "上传",
       "accountTwoFactor": "两步验证",
       "accountPasskeys": "通行密钥",
-      "activity": "活动日志"
+      "activity": "活动日志",
+      "accountApiTokens": "API 令牌"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -799,8 +800,48 @@
         "file-delete": "移入回收站",
         "file-restore": "还原",
         "file-purge": "永久删除",
-        "versions-purge": "版本已删除"
+        "versions-purge": "版本已删除",
+        "account-token": "修改 API 令牌"
       }
+    },
+    "apiTokens": {
+      "title": "API 令牌",
+      "intro": "令牌让脚本代表你使用本服务器，不需要密码，也不需要浏览器。每个令牌都可以单独吊销，任何令牌都不能修改你的账户或管理服务器。",
+      "none": "此账户没有令牌。",
+      "newToken": "新建令牌",
+      "nameLabel": "名称",
+      "namePlaceholder": "备份脚本",
+      "scopeLabel": "可以做什么",
+      "scopeRead": "只读",
+      "scopeWrite": "读写",
+      "scopeReadHelp": "可以列出、搜索和下载，不能修改任何内容。",
+      "scopeWriteHelp": "可以像你一样操作文件：上传、移动、重命名、删除。",
+      "expiryLabel": "有效期",
+      "expiryNever": "直到被吊销",
+      "expiryDays": "{days} 天",
+      "confirmPassword": "你的密码",
+      "create": "签发令牌",
+      "rename": "重命名",
+      "revoke": "吊销",
+      "renamePrompt": "为该令牌起一个新名称",
+      "renamed": "令牌已重命名。",
+      "revoked": "{name} 已吊销，现在起停止工作。",
+      "revokeConfirm": "吊销 {name}？使用它的一切将立即停止工作。",
+      "shownOnce": "这是令牌。它只显示一次，之后无法再读取——请立即复制。",
+      "copy": "复制",
+      "copied": "已复制",
+      "useIt": "在每个请求中以该请求头发送它。",
+      "createdOn": "签发于 {when}",
+      "lastUsed": "最后使用于 {when}，来自 {from}",
+      "neverUsed": "从未使用",
+      "unknownAddress": "未知地址",
+      "expiresOn": "{when} 过期",
+      "neverExpires": "永不过期",
+      "limits": "令牌的权限从不超过它所属的账户，而且总是更少：它不能修改密码、添加通行密钥、签发另一个令牌、管理服务器或打开终端。每个账户最多 50 个令牌。",
+      "loadFailed": "无法加载令牌。",
+      "createFailed": "无法签发令牌。",
+      "renameFailed": "无法重命名令牌。",
+      "revokeFailed": "无法吊销令牌。"
     }
   },
   "mediaPreview": {

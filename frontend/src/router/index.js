@@ -20,6 +20,7 @@ import SettingsTrash from '@/views/settings/SettingsTrash.vue';
 import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
 import SettingsUploads from '@/views/settings/SettingsUploads.vue';
 import SettingsActivity from '@/views/settings/SettingsActivity.vue';
+import SettingsApiTokens from '@/views/settings/SettingsApiTokens.vue';
 import TrashView from '@/views/TrashView.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
 import AboutView from '@/views/AboutView.vue';
@@ -91,6 +92,7 @@ const router = createRouter({
               component: SettingsActivity,
               meta: { requiresAdmin: true },
             },
+            { path: 'account-api-tokens', component: SettingsApiTokens },
             {
               path: 'admin-overview',
               component: SettingsComingSoon,

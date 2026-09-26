@@ -409,7 +409,8 @@
       "uploads": "Uploads",
       "accountTwoFactor": "Two-factor",
       "accountPasskeys": "Passkeys",
-      "activity": "Activity log"
+      "activity": "Activity log",
+      "accountApiTokens": "API tokens"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -799,8 +800,48 @@
         "file-delete": "Sent to the trash",
         "file-restore": "Restored",
         "file-purge": "Removed for good",
-        "versions-purge": "Versions deleted"
+        "versions-purge": "Versions deleted",
+        "account-token": "API token changed"
       }
+    },
+    "apiTokens": {
+      "title": "API tokens",
+      "intro": "A token lets a script use this server on your behalf, without your password and without a browser. Each one can be taken away on its own, and none of them can change your account or administer the server.",
+      "none": "No tokens on this account.",
+      "newToken": "New token",
+      "nameLabel": "Name",
+      "namePlaceholder": "Backup script",
+      "scopeLabel": "What it may do",
+      "scopeRead": "Read only",
+      "scopeWrite": "Read and write",
+      "scopeReadHelp": "It can list, search and download. It cannot change anything.",
+      "scopeWriteHelp": "It can do what you can do with files: upload, move, rename, delete.",
+      "expiryLabel": "How long it lasts",
+      "expiryNever": "Until it is revoked",
+      "expiryDays": "{days} days",
+      "confirmPassword": "Your password",
+      "create": "Issue token",
+      "rename": "Rename",
+      "revoke": "Revoke",
+      "renamePrompt": "A new name for this token",
+      "renamed": "The token was renamed.",
+      "revoked": "{name} was revoked and stops working now.",
+      "revokeConfirm": "Revoke {name}? Anything using it stops working immediately.",
+      "shownOnce": "Here is the token. It is shown once and cannot be read again — copy it now.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "useIt": "Send it as this header on every request.",
+      "createdOn": "Issued {when}",
+      "lastUsed": "last used {when} from {from}",
+      "neverUsed": "never used",
+      "unknownAddress": "an unknown address",
+      "expiresOn": "expires {when}",
+      "neverExpires": "no expiry",
+      "limits": "A token is never more than the account it belongs to, and always less: it cannot change your password, add a passkey, issue another token, administer the server or open a terminal. Up to 50 tokens per account.",
+      "loadFailed": "The tokens could not be loaded.",
+      "createFailed": "The token could not be issued.",
+      "renameFailed": "The token could not be renamed.",
+      "revokeFailed": "The token could not be revoked."
     }
   },
   "mediaPreview": {
