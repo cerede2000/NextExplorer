@@ -18,7 +18,8 @@ import path from 'node:path';
  */
 
 const FRONTEND = path.join(__dirname, '..', '..', 'frontend', 'src');
-const CATALOGUE = path.join(FRONTEND, 'i18n', 'locales', 'en.json');
+const LOCALES = path.join(FRONTEND, 'i18n', 'locales');
+const CATALOGUE = path.join(LOCALES, 'en.json');
 
 /** `t('a.b')`, `$t('a.b')`, `te('a.b')` — the literal calls, which is all that can be checked. */
 const KEY_CALL = /(?<![\w$])\$?te?\(\s*'([A-Za-z][\w.-]*)'/g;
@@ -65,5 +66,87 @@ describe('the strings the interface asks for', () => {
     }
 
     expect([...missing].sort()).toEqual([]);
+  });
+});
+
+/** Every key in a catalogue, as dotted paths, so two catalogues can be compared. */
+const pathsIn = (node, prefix = '') =>
+  Object.entries(node).flatMap(([key, value]) =>
+    value && typeof value === 'object' ? pathsIn(value, `${prefix}${key}.`) : [`${prefix}${key}`]
+  );
+
+const read = (locale) => JSON.parse(fs.readFileSync(path.join(LOCALES, `${locale}.json`), 'utf8'));
+
+const at = (catalogue, key) => key.split('.').reduce((node, part) => node?.[part], catalogue);
+
+/** `{name}`, `{0}` — what vue-i18n will substitute, and what a translation must keep. */
+const placeholdersIn = (value) =>
+  new Set(typeof value === 'string' ? [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]) : []);
+
+const locales = fs
+  .readdirSync(LOCALES)
+  .filter((name) => name.endsWith('.json'))
+  .map((name) => name.replace(/\.json$/, ''))
+  .filter((locale) => locale !== 'en');
+
+/**
+ * The catalogues, held to each other.
+ *
+ * A key added in English and nowhere else falls back to English, which is a
+ * reader seeing the wrong language — quieter than a raw key and just as wrong. A
+ * key left behind in one catalogue after it was renamed in English is dead weight
+ * nobody will ever see again. And a translation that drops a placeholder loses
+ * whatever it stood for: `{count} items` translated without `{count}` says
+ * "items", with the number silently gone.
+ *
+ * Asserted here rather than in a frontend suite because this is where the runner
+ * that CI executes lives, and a test nothing runs holds nothing.
+ */
+describe('the translation catalogues', () => {
+  it('has more than one language to keep aligned', () => {
+    expect(locales.length).toBeGreaterThan(1);
+  });
+
+  it('ships every English key in every language', () => {
+    const english = pathsIn(JSON.parse(fs.readFileSync(CATALOGUE, 'utf8')));
+    const missing = [];
+
+    for (const locale of locales) {
+      const theirs = new Set(pathsIn(read(locale)));
+      for (const key of english) if (!theirs.has(key)) missing.push(`${locale}: ${key}`);
+    }
+
+    expect(missing).toEqual([]);
+  });
+
+  it('defines no key English does not', () => {
+    const english = new Set(pathsIn(JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'))));
+    const extra = [];
+
+    for (const locale of locales) {
+      for (const key of pathsIn(read(locale)))
+        if (!english.has(key)) extra.push(`${locale}: ${key}`);
+    }
+
+    expect(extra).toEqual([]);
+  });
+
+  it('keeps the placeholders the English string had', () => {
+    const english = JSON.parse(fs.readFileSync(CATALOGUE, 'utf8'));
+    const keys = pathsIn(english);
+    const lost = [];
+
+    for (const locale of locales) {
+      const theirs = read(locale);
+      for (const key of keys) {
+        const wanted = placeholdersIn(at(english, key));
+        if (!wanted.size) continue;
+        const got = placeholdersIn(at(theirs, key));
+        const dropped = [...wanted].filter((name) => !got.has(name));
+        if (dropped.length) lost.push(`${locale}: ${key} lost {${dropped.join('}, {')}}`);
+      }
+    }
+
+    expect(lost).toEqual([]);
   });
 });
