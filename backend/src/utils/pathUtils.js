@@ -83,7 +83,10 @@ const normalizeRelativePath = (relativePath = '') => {
   }
 
   if (normalized === '..' || normalized.startsWith('..' + path.sep)) {
-    throw new Error('Invalid path. Traversal outside the volume root is not allowed.');
+    // The request's fault, not the server's: a plain Error reached the browser as a
+    // 500, so a path that leaves the volume read as a server fault rather than a
+    // refusal — and a 500 is what a caller retries.
+    throw new ValidationError('Invalid path. Traversal outside the volume root is not allowed.');
   }
 
   return normalized;
