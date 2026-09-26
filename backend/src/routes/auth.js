@@ -1,5 +1,5 @@
 const express = require('express');
-const { auth } = require('../config/index');
+const { auth, public: publicConfig, webauthn: webauthnConfig } = require('../config/index');
 
 const {
   countUsers,
@@ -24,6 +24,8 @@ const { issueCode, redeemCode, isValidChallenge } = require('../services/oidcMob
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
 const { startAuthenticatedSession } = require('../utils/authenticatedSession');
+const passkeys = require('../services/users/passkeys');
+const { WebAuthnError } = require('../utils/webauthn');
 const {
   ValidationError,
   UnauthorizedError,
@@ -32,6 +34,71 @@ const {
   ForbiddenError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
+
+/** Every address this deployment answers on, without repeats or empties. */
+const uniqueOrigins = (values) => [
+  ...new Set((values || []).map((value) => String(value || '').trim()).filter(Boolean)),
+];
+
+/**
+ * The relying party: who is asking for a passkey, and where from.
+ *
+ * A key is bound to a domain, and the browser refuses to use it anywhere else.
+ * The domain is taken from the public address when one is configured and from
+ * the request otherwise, because a deployment reached by several names would
+ * otherwise bind every key to whichever one was written down.
+ */
+const relyingParty = (req) => {
+  const known = uniqueOrigins(publicConfig.origins || []);
+  const origins = known.length
+    ? known
+    : uniqueOrigins([`${req.protocol}://${req.get('host') || ''}`]);
+
+  let rpId = webauthnConfig.rpId;
+  if (!rpId) {
+    try {
+      rpId = new URL(publicConfig.url || origins[0] || '').hostname;
+    } catch (_) {
+      rpId = null;
+    }
+  }
+  if (!rpId) rpId = req.hostname;
+  return { rpId, rpName: webauthnConfig.rpName, origins };
+};
+
+/**
+ * Keep the question until the answer arrives, and spend it then.
+ *
+ * In the session, not in a table: it belongs to one browser and one moment.
+ * Spending it means taking it away — an answer is worth one sign-in, and a
+ * challenge still lying about is one somebody else can answer with a recording
+ * of the first.
+ */
+const rememberChallenge = (req, purpose, challenge) =>
+  new Promise((resolve, reject) => {
+    if (!req.session) {
+      reject(new Error('A passkey needs a session to ask its question in.'));
+      return;
+    }
+    req.session.webauthn = { purpose, challenge, at: Date.now() };
+    req.session.save((error) => (error ? reject(error) : resolve()));
+  });
+
+const spendChallenge = (req, purpose) => {
+  const held = req.session?.webauthn;
+  if (req.session) delete req.session.webauthn;
+  if (!held || held.purpose !== purpose) return null;
+  if (Date.now() - (Number(held.at) || 0) > passkeys.CEREMONY_TIMEOUT_MS) return null;
+  return held.challenge;
+};
+
+/** Every refusal reads the same from outside, and says what happened in the log. */
+const refusePasskey = (error) => {
+  if (!(error instanceof WebAuthnError)) throw error;
+  if (error.status === 409) throw new ValidationError(error.message);
+  logger.warn({ reason: error.message }, 'A passkey was refused');
+  throw new UnauthorizedError('That passkey was not accepted.', ErrorCodes.AUTH_PASSKEY_REJECTED);
+};
 
 /**
  * How long the second step stays open.
@@ -164,6 +231,10 @@ router.get('/status', async (req, res) => {
   const strategies = {
     local: authMode === 'local' || authMode === 'both',
     oidc: (authMode === 'oidc' || authMode === 'both') && Boolean(oidcEnv.enabled),
+    // A passkey is a local credential, so it follows the local strategy. The
+    // browser has the last word: the sign-in screen only offers it where the
+    // page is secure and the browser knows what a passkey is.
+    passkey: authMode === 'local' || authMode === 'both',
   };
 
   res.json({
@@ -251,6 +322,208 @@ router.post(
     res.clearCookie('guestSession', { path: '/api' });
 
     res.json({ user });
+  })
+);
+
+/** The passkeys on this account, so they can be named and taken away. */
+router.get(
+  '/passkeys',
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    res.json({ passkeys: await passkeys.listPasskeys(me.id) });
+  })
+);
+
+/**
+ * Start making one.
+ *
+ * Signed in here with this account, like the second factor: a session the
+ * identity provider opened is not one that adds a local way in.
+ */
+router.post(
+  '/passkeys/register/start',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!req.session || req.session.localUserId !== me.id) {
+      throw new ForbiddenError('Sign in with your password to add a passkey.');
+    }
+
+    const { rpId, rpName, origins } = relyingParty(req);
+    const options = await passkeys.beginRegistration({
+      userId: me.id,
+      account: me.email || me.username || me.id,
+      displayName: me.displayName || me.username || me.email || me.id,
+      rpId,
+      rpName,
+    });
+    await rememberChallenge(req, 'register', options.challenge);
+    res.json({ options, origins });
+  })
+);
+
+/** Keep it, if it answers the question this browser was just asked. */
+router.post(
+  '/passkeys/register/finish',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!req.session || req.session.localUserId !== me.id) {
+      throw new ForbiddenError('Sign in with your password to add a passkey.');
+    }
+
+    const challenge = spendChallenge(req, 'register');
+    if (!challenge) {
+      throw new ValidationError('That passkey took too long. Start again.');
+    }
+
+    const { rpId, origins } = relyingParty(req);
+    try {
+      const passkey = await passkeys.finishRegistration({
+        userId: me.id,
+        response: req.body?.response,
+        name: req.body?.name,
+        expected: { challenge, origins, rpId },
+      });
+      res.status(201).json({ passkey });
+    } catch (error) {
+      refusePasskey(error);
+    }
+  })
+);
+
+/** A new name for one, so two keys on a desk can be told apart. */
+router.patch(
+  '/passkeys/:id',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+
+    const passkey = await passkeys.renamePasskey({
+      userId: me.id,
+      id: req.params.id,
+      name: req.body?.name,
+    });
+    if (!passkey) throw new NotFoundError('There is no such passkey on this account.');
+    res.json({ passkey });
+  })
+);
+
+/**
+ * Take one away, with the password for the same reason the second factor asks
+ * for it: a browser left unlocked should not be able to change how somebody
+ * signs in. An account with no password has none to give, and is refused its
+ * last passkey instead — that one is the whole way in.
+ */
+router.delete(
+  '/passkeys/:id',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+
+    if (await passkeys.hasPassword(me.id)) {
+      if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
+        throw new UnauthorizedError(
+          'That password is not right.',
+          ErrorCodes.AUTH_PASSWORD_INCORRECT
+        );
+      }
+    }
+
+    const outcome = await passkeys.deletePasskey({ userId: me.id, id: req.params.id });
+    if (outcome.reason === 'missing') {
+      throw new NotFoundError('There is no such passkey on this account.');
+    }
+    if (outcome.reason === 'last-way-in') {
+      throw new ValidationError(
+        'This is the only way into this account. Add a password, or another passkey, before removing it.'
+      );
+    }
+    res.status(204).end();
+  })
+);
+
+/**
+ * Signing in with one: the question.
+ *
+ * Nobody is named, and nothing is asked about who might be signing in. The
+ * authenticator offers what it holds for this site, so this route answers the
+ * same thing to everybody — including to somebody with no passkey at all.
+ */
+router.post(
+  '/login/passkey/start',
+  loginLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const { rpId, origins } = relyingParty(req);
+    const options = passkeys.beginAuthentication({ rpId });
+    await rememberChallenge(req, 'login', options.challenge);
+    res.json({ options, origins });
+  })
+);
+
+/**
+ * Signing in with one: the answer.
+ *
+ * A passkey that was unlocked — a fingerprint, a face, a PIN — is already two
+ * things: the device, and whoever can open it. That is why it satisfies an
+ * account that asks for a second factor, and why one that was not unlocked does
+ * not: that proves only that the device was there.
+ */
+router.post(
+  '/login/passkey/finish',
+  loginLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const challenge = spendChallenge(req, 'login');
+    if (!challenge) {
+      throw new UnauthorizedError(
+        'That sign-in took too long. Try again.',
+        ErrorCodes.AUTH_PASSKEY_REJECTED
+      );
+    }
+
+    const { rpId, origins } = relyingParty(req);
+    let outcome;
+    try {
+      outcome = await passkeys.finishAuthentication({
+        response: req.body?.response,
+        expected: { challenge, origins, rpId },
+      });
+    } catch (error) {
+      refusePasskey(error);
+    }
+
+    if (await isLocked(outcome.userId)) {
+      throw new RateLimitError(
+        'Account is temporarily locked due to failed login attempts.',
+        null,
+        ErrorCodes.AUTH_ACCOUNT_LOCKED
+      );
+    }
+    await clearLock(outcome.userId);
+
+    if (!outcome.userVerified && (await twoFactorRequired(outcome.userId))) {
+      await startSecondStep(req, outcome.userId);
+      res.json({ totpRequired: true });
+      return;
+    }
+
+    await startAuthenticatedSession(req, outcome.userId);
+    res.clearCookie('guestSession', { path: '/api' });
+
+    logger.info(
+      { userId: outcome.userId, passkeyId: outcome.passkeyId },
+      'Signed in with a passkey'
+    );
+    res.json({ user: await getRequestUser(req) });
   })
 );
 

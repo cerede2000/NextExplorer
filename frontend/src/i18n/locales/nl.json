@@ -194,7 +194,8 @@
     "locations": "Locaties"
   },
   "i18n": {
-    "language": "Taal"
+    "language": "Taal",
+    "followBrowser": "De browser volgen"
   },
   "search": {
     "openShortcutTitle": "Zoekopdracht openen (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Wachtwoord bevestigen",
     "sso": {
       "continue": "Doorgaan met Single Sign-On"
+    },
+    "passkey": {
+      "signIn": "Aanmelden met een passkey"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Prullenbak en versies",
       "fileVersions": "Bestandsversies",
       "uploads": "Uploads",
-      "accountTwoFactor": "Tweestaps"
+      "accountTwoFactor": "Tweestaps",
+      "accountPasskeys": "Passkeys"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Bestanden met versies markeren",
       "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen.",
       "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
-      "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu."
+      "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
+      "languageHelp": "Wordt bij uw account bewaard, in elke browser waarmee u zich aanmeldt."
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",
@@ -716,6 +722,34 @@
       "codesFailed": "Er konden geen nieuwe herstelcodes worden gemaakt.",
       "disableFailed": "Tweestapsverificatie kon niet worden uitgeschakeld.",
       "wrongPassword": "Dat wachtwoord klopt niet."
+    },
+    "passkeys": {
+      "title": "Passkeys",
+      "intro": "Meld je aan met je vingerafdruk, je gezicht of de pincode van je apparaat, in plaats van met een wachtwoord.",
+      "notLocalUser": "Dit account meldt zich aan via een identiteitsprovider; daar horen ook zijn passkeys thuis.",
+      "unavailable": "Passkeys hebben een beveiligde pagina nodig.",
+      "unavailableHelp": "Deze pagina wordt niet via https geleverd, dus de browser heeft niets om een passkey aan te binden. Bereik de server via https, of via localhost, om er een toe te voegen.",
+      "none": "Nog geen passkeys op dit account.",
+      "nameLabel": "Een passkey toevoegen",
+      "namePlaceholder": "Geef hem een naam, om hem later te herkennen",
+      "add": "Passkey toevoegen",
+      "added": "{name} toegevoegd.",
+      "addedOn": "Toegevoegd op {when}",
+      "lastUsed": "laatst gebruikt op {when}",
+      "neverUsed": "nooit gebruikt",
+      "synced": "gesynchroniseerd tussen je apparaten",
+      "rename": "Naam wijzigen",
+      "renamePrompt": "Een naam voor deze passkey",
+      "renamed": "Naam gewijzigd.",
+      "renameFailed": "Kon deze passkey niet hernoemen.",
+      "remove": "Verwijderen",
+      "removed": "{name} verwijderd.",
+      "removeFailed": "Kon deze passkey niet verwijderen.",
+      "confirmPassword": "Je wachtwoord, om te wijzigen hoe je je aanmeldt",
+      "loadFailed": "Kon de passkeys van dit account niet lezen.",
+      "addFailed": "Kon deze passkey niet toevoegen.",
+      "cancelled": "Er is niets toegevoegd: de browser werd gesloten of het duurde te lang.",
+      "alreadyHere": "Dit apparaat heeft al een passkey voor dit account."
     }
   },
   "share": {

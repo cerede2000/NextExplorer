@@ -147,6 +147,8 @@ module.exports = {
   // Uploads (direct, non-chunked)
   MAX_DIRECT_UPLOAD_SIZE: process.env.MAX_DIRECT_UPLOAD_SIZE?.trim() || null,
   UPLOAD_STORAGE_RESERVE: process.env.UPLOAD_STORAGE_RESERVE?.trim() || '64M',
+  WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID?.trim() || null,
+  WEBAUTHN_RP_NAME: process.env.WEBAUTHN_RP_NAME?.trim() || null,
   UPLOAD_CHUNK_SIZE: process.env.UPLOAD_CHUNK_SIZE,
   UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED),
   MAX_CHUNK_SIZE_MIB: process.env.MAX_CHUNK_SIZE_MIB,

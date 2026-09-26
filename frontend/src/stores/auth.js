@@ -6,6 +6,7 @@ import {
   setupAccount as setupAccountApi,
   login as loginApi,
   submitTotpCode as submitTotpCodeApi,
+  signInWithPasskey as signInWithPasskeyApi,
   logout as logoutApi,
   fetchCurrentUser,
 } from '@/api';
@@ -111,6 +112,29 @@ export const useAuthStore = defineStore('auth', () => {
     return { totpRequired: false };
   };
 
+  /**
+   * Signing in with a passkey.
+   *
+   * Nobody is named: the authenticator offers what it holds for this site, and
+   * the server works out whose key it is from the key itself.
+   */
+  const signInWithPasskey = async () => {
+    lastError.value = null;
+    const response = await signInWithPasskeyApi();
+    hasStatus.value = true;
+
+    if (response?.totpRequired) {
+      totpRequired.value = true;
+      currentUser.value = null;
+      return { totpRequired: true };
+    }
+
+    totpRequired.value = false;
+    currentUser.value = response?.user || null;
+    sessionStorage.removeItem('guestSessionId');
+    return { totpRequired: false };
+  };
+
   /** The second step. Which account this is remains the server's to know. */
   const submitTotpCode = async (code) => {
     lastError.value = null;
@@ -165,6 +189,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     totpRequired,
     submitTotpCode,
+    signInWithPasskey,
     logout,
     clearError,
     refreshCurrentUser,

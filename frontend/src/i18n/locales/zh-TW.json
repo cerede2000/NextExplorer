@@ -194,7 +194,8 @@
     "locations": "位置"
   },
   "i18n": {
-    "language": "語言"
+    "language": "語言",
+    "followBrowser": "跟隨瀏覽器"
   },
   "search": {
     "openShortcutTitle": "打開搜尋 (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "確認密碼",
     "sso": {
       "continue": "使用單一登入繼續"
+    },
+    "passkey": {
+      "signIn": "使用通行金鑰登入"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "資源回收筒和版本",
       "fileVersions": "檔案版本",
       "uploads": "上傳",
-      "accountTwoFactor": "兩步驗證"
+      "accountTwoFactor": "兩步驗證",
+      "accountPasskeys": "通行金鑰"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -457,7 +462,8 @@
       "showVersionMarks": "標示有版本的檔案",
       "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。",
       "documentsOpenInNewTab": "在新分頁中開啟文件",
-      "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。"
+      "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
+      "languageHelp": "儲存在您的帳戶中，在您登入的每個瀏覽器上生效。"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -716,6 +722,34 @@
       "codesFailed": "無法產生新的復原碼。",
       "disableFailed": "無法關閉兩步驗證。",
       "wrongPassword": "密碼不正確。"
+    },
+    "passkeys": {
+      "title": "通行金鑰",
+      "intro": "用指紋、臉部或裝置 PIN 登入，不需要密碼。",
+      "notLocalUser": "此帳戶透過身分提供者登入，其通行金鑰也在那裡。",
+      "unavailable": "通行金鑰需要安全頁面。",
+      "unavailableHelp": "此頁面並非透過 https 提供，瀏覽器沒有可綁定通行金鑰的名稱。請以 https 或 localhost 連線後再新增。",
+      "none": "此帳戶尚未有通行金鑰。",
+      "nameLabel": "新增通行金鑰",
+      "namePlaceholder": "取個名字，方便日後辨識",
+      "add": "新增通行金鑰",
+      "added": "已新增 {name}。",
+      "addedOn": "新增於 {when}",
+      "lastUsed": "上次使用於 {when}",
+      "neverUsed": "從未使用",
+      "synced": "在你的裝置之間同步",
+      "rename": "重新命名",
+      "renamePrompt": "為這個通行金鑰取個名字",
+      "renamed": "已重新命名。",
+      "renameFailed": "無法重新命名此通行金鑰。",
+      "remove": "移除",
+      "removed": "已移除 {name}。",
+      "removeFailed": "無法移除此通行金鑰。",
+      "confirmPassword": "輸入密碼以變更登入方式",
+      "loadFailed": "無法讀取此帳戶的通行金鑰。",
+      "addFailed": "無法新增此通行金鑰。",
+      "cancelled": "未新增任何項目：瀏覽器已關閉或操作逾時。",
+      "alreadyHere": "此裝置已有此帳戶的通行金鑰。"
     }
   },
   "mediaPreview": {

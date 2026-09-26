@@ -194,7 +194,8 @@
     "locations": "Posizioni"
   },
   "i18n": {
-    "language": "Lingua"
+    "language": "Lingua",
+    "followBrowser": "Segui il browser"
   },
   "search": {
     "openShortcutTitle": "Apri ricerca (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Conferma password",
     "sso": {
       "continue": "Continua con Single Sign-On"
+    },
+    "passkey": {
+      "signIn": "Accedi con una passkey"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Cestino e versioni",
       "fileVersions": "Versioni dei file",
       "uploads": "Caricamenti",
-      "accountTwoFactor": "Due fattori"
+      "accountTwoFactor": "Due fattori",
+      "accountPasskeys": "Passkey"
     },
     "about": {
       "subtitle": "Visualizza le informazioni di build per questa applicazione.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Segnalare i file con versioni",
       "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia.",
       "documentsOpenInNewTab": "Aprire i documenti in una nuova scheda",
-      "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi."
+      "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi.",
+      "languageHelp": "Salvata con il tuo account, su ogni browser da cui accedi."
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -716,6 +722,34 @@
       "codesFailed": "Non è stato possibile generare nuovi codici di recupero.",
       "disableFailed": "Non è stato possibile disattivare l'autenticazione a due fattori.",
       "wrongPassword": "Questa password non è corretta."
+    },
+    "passkeys": {
+      "title": "Passkey",
+      "intro": "Accedi con la tua impronta, il tuo volto o il PIN del dispositivo, invece che con una password.",
+      "notLocalUser": "Questo account accede tramite un provider di identità, ed è lì che stanno le sue passkey.",
+      "unavailable": "Le passkey richiedono una pagina sicura.",
+      "unavailableHelp": "Questa pagina non è servita in https, quindi il browser non ha nulla a cui legare una passkey. Raggiungi il server in https, o tramite localhost, per aggiungerne una.",
+      "none": "Nessuna passkey su questo account per ora.",
+      "nameLabel": "Aggiungi una passkey",
+      "namePlaceholder": "Dalle un nome, per riconoscerla più tardi",
+      "add": "Aggiungi una passkey",
+      "added": "{name} aggiunta.",
+      "addedOn": "Aggiunta il {when}",
+      "lastUsed": "usata l’ultima volta il {when}",
+      "neverUsed": "mai usata",
+      "synced": "sincronizzata tra i tuoi dispositivi",
+      "rename": "Rinomina",
+      "renamePrompt": "Un nome per questa passkey",
+      "renamed": "Rinominata.",
+      "renameFailed": "Impossibile rinominare questa passkey.",
+      "remove": "Rimuovi",
+      "removed": "{name} rimossa.",
+      "removeFailed": "Impossibile rimuovere questa passkey.",
+      "confirmPassword": "La tua password, per cambiare il modo in cui accedi",
+      "loadFailed": "Impossibile leggere le passkey di questo account.",
+      "addFailed": "Impossibile aggiungere questa passkey.",
+      "cancelled": "Non è stato aggiunto nulla: il browser è stato chiuso o ci ha messo troppo.",
+      "alreadyHere": "Questo dispositivo ha già una passkey per questo account."
     }
   },
   "mediaPreview": {

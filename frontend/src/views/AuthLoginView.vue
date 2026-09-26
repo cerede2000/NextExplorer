@@ -3,8 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 
 import AuthLayout from '@/layouts/AuthLayout.vue';
-import { LockClosedIcon, KeyIcon } from '@heroicons/vue/24/outline';
-import { apiBase } from '@/api';
+import { LockClosedIcon, KeyIcon, FingerPrintIcon } from '@heroicons/vue/24/outline';
+import { apiBase, passkeysSupported } from '@/api';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
@@ -21,6 +21,13 @@ const loginEmailValue = ref('');
 const loginPasswordValue = ref('');
 const loginError = ref('');
 const totpCodeValue = ref('');
+/**
+ * Whether offering a passkey would reach anything.
+ *
+ * The server says whether it takes them; the browser has the last word, since
+ * a button that opens a dialog only to fail is worse than no button.
+ */
+const supportsPasskey = computed(() => Boolean(auth.strategies?.passkey) && passkeysSupported());
 const isSubmittingTotp = ref(false);
 const isSubmittingLogin = ref(false);
 
@@ -176,6 +183,25 @@ const handleTotpSubmit = async () => {
   }
 };
 
+const handlePasskeyLogin = async () => {
+  resetErrors();
+  isSubmittingLogin.value = true;
+  try {
+    const { totpRequired } = (await auth.signInWithPasskey()) ?? {};
+    // A passkey that was not unlocked proves only that the device was there,
+    // so an account asking for a code still asks for one.
+    if (totpRequired) return;
+    redirectToDestination();
+  } catch (error) {
+    // A browser that was closed, or somebody who changed their mind, both
+    // arrive as NotAllowedError; neither is a failure worth shouting about.
+    if (error?.name === 'NotAllowedError') return;
+    loginError.value = error instanceof Error ? error.message : t('errors.signIn');
+  } finally {
+    isSubmittingLogin.value = false;
+  }
+};
+
 const handleOidcLogin = () => {
   resetErrors();
   const returnTo = redirectTarget.value;
@@ -287,6 +313,19 @@ const handleOidcLogin = () => {
         </span>
       </button>
     </form>
+
+    <div v-if="supportsPasskey && !auth.totpRequired" class="mt-3">
+      <button
+        class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-700/50 px-4 text-sm font-medium text-white ring-1 ring-inset ring-white/10 enabled:hover:bg-neutral-700/70 enabled:active:bg-neutral-700/90 disabled:cursor-not-allowed disabled:opacity-50"
+        type="button"
+        :disabled="isSubmittingLogin"
+        data-test="passkey-sign-in"
+        @click="handlePasskeyLogin"
+      >
+        <FingerPrintIcon class="h-5 w-5" />
+        <span class="truncate">{{ $t('auth.passkey.signIn') }}</span>
+      </button>
+    </div>
 
     <div v-if="supportsLocal && supportsOidc" class="my-4 flex items-center gap-4">
       <div class="h-px w-full bg-white/10"></div>

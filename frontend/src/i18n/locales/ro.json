@@ -194,7 +194,8 @@
     "locations": "Locații"
   },
   "i18n": {
-    "language": "Limbă"
+    "language": "Limbă",
+    "followBrowser": "Urmează browserul"
   },
   "search": {
     "openShortcutTitle": "Deschide căutarea (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Confirmă parola",
     "sso": {
       "continue": "Continuă cu Single Sign-On"
+    },
+    "passkey": {
+      "signIn": "Conectare cu o cheie de acces"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Coș de gunoi și versiuni",
       "fileVersions": "Versiuni de fișiere",
       "uploads": "Încărcări",
-      "accountTwoFactor": "Doi factori"
+      "accountTwoFactor": "Doi factori",
+      "accountPasskeys": "Chei de acces"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Marchează fișierele care au versiuni",
       "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul.",
       "documentsOpenInNewTab": "Deschide documentele într-o filă nouă",
-      "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum."
+      "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
+      "languageHelp": "Se păstrează în contul dumneavoastră, în orice browser din care vă conectați."
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -716,6 +722,34 @@
       "codesFailed": "Nu au putut fi generate coduri de recuperare noi.",
       "disableFailed": "Autentificarea în doi factori nu a putut fi dezactivată.",
       "wrongPassword": "Această parolă nu este corectă."
+    },
+    "passkeys": {
+      "title": "Chei de acces",
+      "intro": "Conectați-vă cu amprenta, chipul sau codul PIN al dispozitivului, în locul unei parole.",
+      "notLocalUser": "Acest cont se conectează printr-un furnizor de identitate, acolo unde îi stau și cheile de acces.",
+      "unavailable": "Cheile de acces au nevoie de o pagină securizată.",
+      "unavailableHelp": "Această pagină nu este servită prin https, deci browserul nu are de ce să lege o cheie. Accesați serverul prin https sau prin localhost pentru a adăuga una.",
+      "none": "Încă nu există chei de acces pe acest cont.",
+      "nameLabel": "Adăugați o cheie de acces",
+      "namePlaceholder": "Dați-i un nume, ca s-o recunoașteți mai târziu",
+      "add": "Adăugați o cheie de acces",
+      "added": "{name} a fost adăugată.",
+      "addedOn": "Adăugată la {when}",
+      "lastUsed": "folosită ultima dată la {when}",
+      "neverUsed": "nefolosită niciodată",
+      "synced": "sincronizată între dispozitivele dumneavoastră",
+      "rename": "Redenumiți",
+      "renamePrompt": "Un nume pentru această cheie de acces",
+      "renamed": "Redenumită.",
+      "renameFailed": "Cheia de acces nu a putut fi redenumită.",
+      "remove": "Eliminați",
+      "removed": "{name} a fost eliminată.",
+      "removeFailed": "Cheia de acces nu a putut fi eliminată.",
+      "confirmPassword": "Parola dumneavoastră, pentru a schimba modul de conectare",
+      "loadFailed": "Cheile de acces ale acestui cont nu au putut fi citite.",
+      "addFailed": "Cheia de acces nu a putut fi adăugată.",
+      "cancelled": "Nu s-a adăugat nimic: browserul a fost închis sau a durat prea mult.",
+      "alreadyHere": "Acest dispozitiv are deja o cheie de acces pentru acest cont."
     }
   },
   "mediaPreview": {

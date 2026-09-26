@@ -194,7 +194,8 @@
     "locations": "位置"
   },
   "i18n": {
-    "language": "语言"
+    "language": "语言",
+    "followBrowser": "跟随浏览器"
   },
   "search": {
     "openShortcutTitle": "打开搜索 (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "确认密码",
     "sso": {
       "continue": "使用单点登录继续"
+    },
+    "passkey": {
+      "signIn": "使用通行密钥登录"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "回收站和版本",
       "fileVersions": "文件版本",
       "uploads": "上传",
-      "accountTwoFactor": "两步验证"
+      "accountTwoFactor": "两步验证",
+      "accountPasskeys": "通行密钥"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -457,7 +462,8 @@
       "showVersionMarks": "标记有版本的文件",
       "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。",
       "documentsOpenInNewTab": "在新标签页中打开文档",
-      "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。"
+      "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。",
+      "languageHelp": "保存在您的账户中，在您登录的每个浏览器上生效。"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -716,6 +722,34 @@
       "codesFailed": "无法生成新的恢复码。",
       "disableFailed": "无法关闭两步验证。",
       "wrongPassword": "密码不正确。"
+    },
+    "passkeys": {
+      "title": "通行密钥",
+      "intro": "用指纹、面容或设备 PIN 登录，无需密码。",
+      "notLocalUser": "此账户通过身份提供方登录，其通行密钥也在那里。",
+      "unavailable": "通行密钥需要安全页面。",
+      "unavailableHelp": "此页面不是通过 https 提供的，浏览器没有可绑定通行密钥的名称。请通过 https 或 localhost 访问服务器后再添加。",
+      "none": "此账户还没有通行密钥。",
+      "nameLabel": "添加通行密钥",
+      "namePlaceholder": "起个名字，方便日后辨认",
+      "add": "添加通行密钥",
+      "added": "已添加 {name}。",
+      "addedOn": "添加于 {when}",
+      "lastUsed": "上次使用于 {when}",
+      "neverUsed": "从未使用",
+      "synced": "在你的设备之间同步",
+      "rename": "重命名",
+      "renamePrompt": "为这个通行密钥起个名字",
+      "renamed": "已重命名。",
+      "renameFailed": "无法重命名此通行密钥。",
+      "remove": "移除",
+      "removed": "已移除 {name}。",
+      "removeFailed": "无法移除此通行密钥。",
+      "confirmPassword": "输入密码以更改登录方式",
+      "loadFailed": "无法读取此账户的通行密钥。",
+      "addFailed": "无法添加此通行密钥。",
+      "cancelled": "未添加任何内容：浏览器已关闭或操作超时。",
+      "alreadyHere": "此设备已有该账户的通行密钥。"
     }
   },
   "mediaPreview": {

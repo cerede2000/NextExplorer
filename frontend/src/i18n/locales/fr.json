@@ -194,7 +194,8 @@
     "locations": "Emplacements"
   },
   "i18n": {
-    "language": "Langue"
+    "language": "Langue",
+    "followBrowser": "Suivre le navigateur"
   },
   "search": {
     "openShortcutTitle": "Ouvrir la recherche (⌘/Ctrl + K)",
@@ -370,6 +371,9 @@
     "confirmPassword": "Confirmer le mot de passe",
     "sso": {
       "continue": "Continuer avec l'authentification unique"
+    },
+    "passkey": {
+      "signIn": "Se connecter avec une clé d’accès"
     }
   },
   "breadcrumb": {
@@ -403,7 +407,8 @@
       "trash": "Corbeille et versions",
       "fileVersions": "Versions de fichiers",
       "uploads": "Téléversements",
-      "accountTwoFactor": "Double facteur"
+      "accountTwoFactor": "Double facteur",
+      "accountPasskeys": "Clés d’accès"
     },
     "about": {
       "subtitle": "Afficher les informations de build de cette application.",
@@ -457,7 +462,8 @@
       "showVersionMarks": "Signaler les fichiers qui ont des versions",
       "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique.",
       "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
-      "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui."
+      "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
+      "languageHelp": "Conservée avec votre compte, sur chaque navigateur où vous vous connectez."
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",
@@ -716,6 +722,34 @@
       "codesFailed": "Impossible de générer de nouveaux codes de secours.",
       "disableFailed": "Impossible de désactiver le double facteur.",
       "wrongPassword": "Ce mot de passe n'est pas le bon."
+    },
+    "passkeys": {
+      "title": "Clés d’accès",
+      "intro": "Connectez-vous avec votre empreinte, votre visage ou le code de votre appareil, au lieu d’un mot de passe.",
+      "notLocalUser": "Ce compte se connecte via un fournisseur d’identité, où se trouvent aussi ses clés d’accès.",
+      "unavailable": "Une clé d’accès exige une page sécurisée.",
+      "unavailableHelp": "Cette page n’est pas servie en https : le navigateur n’a rien à quoi rattacher une clé. Accédez au serveur en https, ou par localhost, pour en ajouter une.",
+      "none": "Aucune clé d’accès sur ce compte pour l’instant.",
+      "nameLabel": "Ajouter une clé d’accès",
+      "namePlaceholder": "Nommez-la, pour la reconnaître plus tard",
+      "add": "Ajouter une clé d’accès",
+      "added": "{name} ajoutée.",
+      "addedOn": "Ajoutée le {when}",
+      "lastUsed": "dernière utilisation le {when}",
+      "neverUsed": "jamais utilisée",
+      "synced": "synchronisée entre vos appareils",
+      "rename": "Renommer",
+      "renamePrompt": "Un nom pour cette clé d’accès",
+      "renamed": "Renommée.",
+      "renameFailed": "Impossible de renommer cette clé d’accès.",
+      "remove": "Supprimer",
+      "removed": "{name} supprimée.",
+      "removeFailed": "Impossible de supprimer cette clé d’accès.",
+      "confirmPassword": "Votre mot de passe, pour modifier votre façon de vous connecter",
+      "loadFailed": "Impossible de lire les clés d’accès de ce compte.",
+      "addFailed": "Impossible d’ajouter cette clé d’accès.",
+      "cancelled": "Rien n’a été ajouté : le navigateur a été fermé ou le délai a expiré.",
+      "alreadyHere": "Cet appareil détient déjà une clé d’accès pour ce compte."
     }
   },
   "mediaPreview": {

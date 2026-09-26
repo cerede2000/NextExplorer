@@ -15,6 +15,7 @@ import {
   ClockIcon,
   ArrowUpTrayIcon,
   ShieldCheckIcon,
+  FingerPrintIcon,
   UsersIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline';
@@ -46,6 +47,13 @@ const isLocalUser = computed(() => auth.currentUser?.provider === 'local');
 
 // User-facing settings
 const userCategories = [
+  {
+    key: 'account-passkeys',
+    i18nKey: 'accountPasskeys',
+    name: 'Passkeys',
+    icon: FingerPrintIcon,
+    requiresLocal: true,
+  },
   {
     key: 'account-two-factor',
     i18nKey: 'accountTwoFactor',
