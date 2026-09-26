@@ -22,6 +22,8 @@ const capabilities = require('./services/capabilities');
 const { installProcessFailureHandlers } = require('./utils/processFailures');
 const { sweepUnreferencedLogos } = require('./services/brandingLogo');
 const featureSwitches = require('./services/featureSwitches');
+const { reportLegacyCache } = require('./services/legacyCacheCheck');
+const performanceDiagnostics = require('./services/performanceDiagnostics');
 
 let server = null;
 
@@ -114,6 +116,16 @@ const startServer = async () => {
   expirySweep.unref?.();
   void sweepExpiredRecords();
 
+  // What early releases left in the cache directory: the database and app-config.json
+  // lived there up to 1.1.7, and an installation that skipped the releases in between
+  // comes up on a new, empty app.db with its accounts and shares sitting unread.
+  reportLegacyCache();
+
+  // A periodic record of what the process is costing — CPU, resident memory, event-loop
+  // delay, and the queues that can grow. Off unless PERFORMANCE_DIAGNOSTICS_ENABLED is
+  // set, and then it says only the intervals that look wrong.
+  performanceDiagnostics.start();
+
   // A logo left behind by a stop in the middle of a branding change, or by a
   // removal that failed, is 2 MB nothing can reach. Here, where nothing is being
   // placed, so a file under one of our names is a finished one.
@@ -130,6 +142,7 @@ const startServer = async () => {
     folderSizeManager.stop();
     trashMaintenance.stop();
     searchIndexManager.stop();
+    performanceDiagnostics.stop();
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);

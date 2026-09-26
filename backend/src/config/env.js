@@ -77,6 +77,28 @@ module.exports = {
   FOLDER_SIZE_MODE: process.env.FOLDER_SIZE_MODE?.trim().toLowerCase() || 'off',
   FOLDER_SIZE_MODE_SET:
     typeof process.env.FOLDER_SIZE_MODE === 'string' && process.env.FOLDER_SIZE_MODE.trim() !== '',
+  // Lightweight process and cgroup diagnostics, off by default. When enabled the
+  // sampler logs only anomalous intervals unless explicitly told otherwise.
+  PERFORMANCE_DIAGNOSTICS_ENABLED:
+    normalizeBoolean(process.env.PERFORMANCE_DIAGNOSTICS_ENABLED) ?? false,
+  PERFORMANCE_DIAGNOSTICS_INTERVAL_MS:
+    process.env.PERFORMANCE_DIAGNOSTICS_INTERVAL_MS != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_INTERVAL_MS)
+      : 15000,
+  PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL:
+    normalizeBoolean(process.env.PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL) ?? false,
+  PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD:
+    process.env.PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD)
+      : 75,
+  PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB:
+    process.env.PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB)
+      : 768,
+  PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS:
+    process.env.PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS != null
+      ? Number(process.env.PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS)
+      : 250,
   FOLDER_SIZE_EXCLUDE_PATHS: process.env.FOLDER_SIZE_EXCLUDE_PATHS || '',
   FOLDER_SIZE_CONCURRENCY: Number(process.env.FOLDER_SIZE_CONCURRENCY) || 6,
   FOLDER_SIZE_NETWORK_CONCURRENCY: Number(process.env.FOLDER_SIZE_NETWORK_CONCURRENCY) || 2,
