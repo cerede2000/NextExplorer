@@ -53,6 +53,19 @@ function onBackgroundClick() {
         <div class="p-6 py-6 text-sm">
           <slot> </slot>
         </div>
+
+        <!--
+          What a dialog asks for stays where it can be reached. Inside the
+          scrolling part, a long list pushed the buttons below the fold, on a
+          window that could not grow: the answer to a question was off the
+          screen, and the only way back was Escape.
+        -->
+        <div
+          v-if="$slots.footer"
+          class="shrink-0 border-t border-zinc-300 px-6 py-4 text-sm dark:border-zinc-800"
+        >
+          <slot name="footer" />
+        </div>
       </div>
     </div>
   </Teleport>

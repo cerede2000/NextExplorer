@@ -1240,6 +1240,7 @@
     "notReadable": "Este tipo de arquivo não pode ser exibido aqui.",
     "tooBigToRead": "Grande demais para exibir aqui: {size}, o limite é {ceiling}. Baixe ou extraia o arquivo para abri-lo.",
     "extract": "Extrair aqui",
+    "extractTo": "Extrair para…",
     "extractNamed": "Extrair {name} aqui",
     "selectAll": "Selecionar tudo aqui",
     "selectNamed": "Selecionar {name}",
@@ -1254,5 +1255,27 @@
     "empty": "Nada para escolher aqui",
     "breadcrumb": "Caminho da pasta",
     "chooseFolder": "Escolher esta pasta"
+  },
+  "destinationPicker": {
+    "moveTitle": "Mover para",
+    "copyTitle": "Copiar para",
+    "moveHere": "Mover para cá",
+    "copyHere": "Copiar para cá",
+    "noFolders": "Nenhuma pasta aqui",
+    "rootRejected": "Escolha primeiro um volume ou uma pasta",
+    "itselfRejected": "Uma pasta não pode ser movida para dentro de si mesma",
+    "descendantRejected": "Uma pasta não pode ser movida para dentro de uma de suas próprias pastas",
+    "alreadyThereRejected": "Já está aqui",
+    "restoreTitle": "Restaurar em",
+    "restoreHere": "Restaurar aqui",
+    "versionCopyTitle": "Restaurar uma cópia em",
+    "versionCopyHere": "Restaurar uma cópia aqui",
+    "replaceTitle": "Escolher o arquivo a substituir",
+    "replaceHere": "Substituir este arquivo",
+    "fileRequired": "Escolha um arquivo",
+    "sameFileRejected": "Escolha um arquivo diferente deste",
+    "nothingHere": "Nada aqui",
+    "extractTitle": "Extrair para",
+    "extractHere": "Extrair aqui"
   }
 }

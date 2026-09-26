@@ -1240,6 +1240,7 @@
     "notReadable": "Dit soort bestand kan hier niet worden getoond.",
     "tooBigToRead": "Te groot om hier te tonen: {size}, de limiet is {ceiling}. Download het of pak het uit om het te openen.",
     "extract": "Hier uitpakken",
+    "extractTo": "Uitpakken naar…",
     "extractNamed": "{name} hier uitpakken",
     "selectAll": "Alles hier selecteren",
     "selectNamed": "{name} selecteren",
@@ -1254,5 +1255,27 @@
     "empty": "Hier is niets om te kiezen",
     "breadcrumb": "Pad van de map",
     "chooseFolder": "Deze map kiezen"
+  },
+  "destinationPicker": {
+    "moveTitle": "Verplaatsen naar",
+    "copyTitle": "Kopiëren naar",
+    "moveHere": "Hierheen verplaatsen",
+    "copyHere": "Hierheen kopiëren",
+    "noFolders": "Geen mappen hier",
+    "rootRejected": "Kies eerst een volume of map",
+    "itselfRejected": "Een map kan niet in zichzelf worden verplaatst",
+    "descendantRejected": "Een map kan niet in een van zijn eigen submappen worden verplaatst",
+    "alreadyThereRejected": "Staat hier al",
+    "restoreTitle": "Terugzetten naar",
+    "restoreHere": "Hier terugzetten",
+    "versionCopyTitle": "Kopie terugzetten naar",
+    "versionCopyHere": "Kopie hier terugzetten",
+    "replaceTitle": "Kies het bestand dat vervangen wordt",
+    "replaceHere": "Dit bestand vervangen",
+    "fileRequired": "Kies een bestand",
+    "sameFileRejected": "Kies een ander bestand dan dit",
+    "nothingHere": "Hier staat niets",
+    "extractTitle": "Uitpakken naar",
+    "extractHere": "Hier uitpakken"
   }
 }

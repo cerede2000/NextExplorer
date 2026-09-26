@@ -222,6 +222,23 @@ const generateId = () =>
 const DEFAULT_FAVORITE_ICON = favorites.defaultIcon;
 
 /**
+ * Where a user has recently moved or copied things to.
+ *
+ * Kept as history rather than a preference: the point is that the folders you
+ * actually use rise to the top of the destination picker without anyone
+ * curating a list. One row per user and path — using a destination again moves
+ * it up rather than adding a duplicate.
+ */
+const RECENT_DESTINATIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS recent_destinations (
+    user_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    used_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, path)
+  );
+`;
+
+/**
  * What a user chose for one folder: how to sort it, how to show it.
  *
  * A row per folder rather than one JSON blob per user. The blob had to be
@@ -782,6 +799,15 @@ const migrate = (db) => {
         String(20)
       );
       version = 20;
+    }
+    if (version < 21) {
+      logger.info('[DB Migration] Migrating to v21: the folders somebody files into...');
+      db.exec(RECENT_DESTINATIONS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(21)
+      );
+      version = 21;
     }
   })();
 };

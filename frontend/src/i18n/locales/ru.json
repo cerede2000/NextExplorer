@@ -1240,6 +1240,7 @@
     "notReadable": "Файл такого типа нельзя показать здесь.",
     "tooBigToRead": "Слишком большой для просмотра здесь: {size}, предел — {ceiling}. Скачайте или извлеките файл, чтобы открыть его.",
     "extract": "Извлечь сюда",
+    "extractTo": "Извлечь в…",
     "extractNamed": "Извлечь {name} сюда",
     "selectAll": "Выбрать всё здесь",
     "selectNamed": "Выбрать {name}",
@@ -1254,5 +1255,27 @@
     "empty": "Здесь нечего выбрать",
     "breadcrumb": "Путь к папке",
     "chooseFolder": "Выбрать эту папку"
+  },
+  "destinationPicker": {
+    "moveTitle": "Переместить в",
+    "copyTitle": "Копировать в",
+    "moveHere": "Переместить сюда",
+    "copyHere": "Копировать сюда",
+    "noFolders": "Здесь нет папок",
+    "rootRejected": "Сначала выберите том или папку",
+    "itselfRejected": "Папку нельзя переместить в саму себя",
+    "descendantRejected": "Папку нельзя переместить в одну из её собственных папок",
+    "alreadyThereRejected": "Уже здесь",
+    "restoreTitle": "Восстановить в",
+    "restoreHere": "Восстановить сюда",
+    "versionCopyTitle": "Восстановить копию в",
+    "versionCopyHere": "Восстановить копию сюда",
+    "replaceTitle": "Выберите файл для замены",
+    "replaceHere": "Заменить этот файл",
+    "fileRequired": "Выберите файл",
+    "sameFileRejected": "Выберите другой файл, не этот",
+    "nothingHere": "Здесь ничего нет",
+    "extractTitle": "Извлечь в",
+    "extractHere": "Извлечь сюда"
   }
 }

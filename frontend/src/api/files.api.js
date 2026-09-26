@@ -60,6 +60,16 @@ async function moveItems(items, destination) {
   });
 }
 
+/**
+ * Folders this user has recently moved or copied things into, most recent
+ * first. The server only returns the ones still reachable, so the picker can
+ * offer them without checking each in turn.
+ */
+async function fetchRecentDestinations() {
+  const payload = await requestJson('/api/files/recent-destinations');
+  return Array.isArray(payload?.items) ? payload.items : [];
+}
+
 async function deleteItems(items) {
   const normalizedItems = Array.isArray(items) ? items : [];
   if (normalizedItems.length <= DELETE_BATCH_SIZE) {
@@ -386,6 +396,7 @@ export {
   refreshFolderSize,
   copyItems,
   moveItems,
+  fetchRecentDestinations,
   deleteItems,
   getDeleteImpact,
   createFile,

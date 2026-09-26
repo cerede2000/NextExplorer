@@ -353,6 +353,7 @@ const tour = async (app, { volume, requireFresh }) => {
       destination: 'Documents/Projets',
     })
   );
+  await call('GET /api/files/recent-destinations', admin.get('/api/files/recent-destinations'));
   await call(
     'POST /api/files/delete-impact',
     admin

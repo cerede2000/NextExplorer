@@ -1240,6 +1240,7 @@
     "notReadable": "Acest tip de fișier nu poate fi afișat aici.",
     "tooBigToRead": "Prea mare pentru a fi afișat aici: {size}, limita este {ceiling}. Descărcați-l sau extrageți-l pentru a-l deschide.",
     "extract": "Extrage aici",
+    "extractTo": "Extrageți în…",
     "extractNamed": "Extrage {name} aici",
     "selectAll": "Selectați tot de aici",
     "selectNamed": "Selectați {name}",
@@ -1254,5 +1255,27 @@
     "empty": "Nu este nimic de ales aici",
     "breadcrumb": "Calea folderului",
     "chooseFolder": "Alegeți acest dosar"
+  },
+  "destinationPicker": {
+    "moveTitle": "Mută în",
+    "copyTitle": "Copiază în",
+    "moveHere": "Mută aici",
+    "copyHere": "Copiază aici",
+    "noFolders": "Niciun folder aici",
+    "rootRejected": "Alegeți mai întâi un volum sau un folder",
+    "itselfRejected": "Un folder nu poate fi mutat în el însuși",
+    "descendantRejected": "Un folder nu poate fi mutat într-unul dintre folderele sale",
+    "alreadyThereRejected": "Deja aici",
+    "restoreTitle": "Restaurează în",
+    "restoreHere": "Restaurează aici",
+    "versionCopyTitle": "Restaurați o copie în",
+    "versionCopyHere": "Restaurați o copie aici",
+    "replaceTitle": "Alegeți fișierul de înlocuit",
+    "replaceHere": "Înlocuiți acest fișier",
+    "fileRequired": "Alegeți un fișier",
+    "sameFileRejected": "Alegeți alt fișier decât acesta",
+    "nothingHere": "Nimic aici",
+    "extractTitle": "Extrageți în",
+    "extractHere": "Extrageți aici"
   }
 }

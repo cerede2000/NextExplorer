@@ -1240,6 +1240,7 @@
     "notReadable": "This kind of file cannot be shown here.",
     "tooBigToRead": "Too large to show here: {size}, and up to {ceiling} can be shown. Download it or extract it to open it.",
     "extract": "Extract here",
+    "extractTo": "Extract to…",
     "extractNamed": "Extract {name} here",
     "selectAll": "Select everything here",
     "selectNamed": "Select {name}",
@@ -1254,5 +1255,27 @@
     "empty": "Nothing here to pick",
     "breadcrumb": "Folder path",
     "chooseFolder": "Choose this folder"
+  },
+  "destinationPicker": {
+    "moveTitle": "Move to",
+    "copyTitle": "Copy to",
+    "moveHere": "Move here",
+    "copyHere": "Copy here",
+    "noFolders": "No folders here",
+    "rootRejected": "Pick a volume or folder first",
+    "itselfRejected": "A folder cannot be moved into itself",
+    "descendantRejected": "A folder cannot be moved into one of its own folders",
+    "alreadyThereRejected": "Already here",
+    "restoreTitle": "Restore to",
+    "restoreHere": "Restore here",
+    "versionCopyTitle": "Restore a copy to",
+    "versionCopyHere": "Restore a copy here",
+    "replaceTitle": "Choose the file to replace",
+    "replaceHere": "Replace this file",
+    "fileRequired": "Pick a file",
+    "sameFileRejected": "Pick a file other than this one",
+    "nothingHere": "Nothing here",
+    "extractTitle": "Extract to",
+    "extractHere": "Extract here"
   }
 }

@@ -201,6 +201,15 @@
             >
               {{ $t('archive.extract') }}
             </button>
+            <button
+              type="button"
+              class="rounded border border-neutral-300 px-2 py-1 hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+              :disabled="Boolean(extracting)"
+              data-testid="archive-extract-elsewhere"
+              @click="extractElsewhere"
+            >
+              {{ $t('archive.extractTo') }}
+            </button>
           </template>
         </div>
       </template>
@@ -214,6 +223,7 @@ import { useI18n } from 'vue-i18n';
 import { ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronRightIcon } from '@heroicons/vue/24/outline';
 
 import { browseArchive, archiveEntryUrl, extractFromArchive } from '@/api';
+import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { formatBytes } from '@/utils';
 import { isEditableExtension } from '@/config/editor';
 import FileIcon from '@/icons/FileIcon.vue';
@@ -249,6 +259,7 @@ const reading = ref(null);
 /** The entries ticked at this level, by their path inside the archive. */
 const selection = ref(new Set());
 
+const picker = useDestinationPicker();
 const extracted = ref('');
 
 /** The archive, then every folder of the position, each one a way back to it. */
@@ -353,6 +364,23 @@ const takeOut = async (paths, destination = '') => {
 };
 
 const extract = (entry) => takeOut([entry.path]);
+
+/**
+ * Somewhere other than the folder the archive is in.
+ *
+ * The dialog the rest of the application uses for "move to", so the folders
+ * offered first are the ones this person actually files things in. Closing it
+ * without choosing means do nothing — not the root, and not the default.
+ */
+const extractElsewhere = async () => {
+  const destination = await picker.pick({
+    mode: 'extract',
+    items: entries.value.filter((entry) => selection.value.has(entry.path)),
+    from: props.item?.path || '',
+  });
+  if (!destination) return;
+  await takeOut([...selection.value], destination);
+};
 
 onMounted(() => open(''));
 watch(
