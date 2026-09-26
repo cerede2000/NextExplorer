@@ -33,6 +33,7 @@ import {
   fetchOnlyOfficeConfig,
   heartbeatOnlyOfficeSession,
   renameOnlyOfficeDocument,
+  requestOnlyOfficeForceSave,
 } from '@/api';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
@@ -59,6 +60,9 @@ const error = ref(null);
 const documentPath = ref('');
 const sessionId = ref(null);
 let heartbeatTimer = null;
+let autoSaveTimer = null;
+let autoSaveIntervalMs = 0;
+let hasUnsavedChanges = false;
 let disposed = false;
 
 /**
@@ -83,9 +87,42 @@ const stopHeartbeat = () => {
   heartbeatTimer = null;
 };
 
+/**
+ * Write what the editor is holding, without waiting for it to decide.
+ *
+ * The Document Server writes the document through its own callback, which it
+ * sends when it considers the document finished with — seconds after the last
+ * keystroke, and long after the folder behind the editor has been listed again
+ * with the old content. Asking for it explicitly is what makes an edit visible
+ * where it was made.
+ */
+const forceSave = (reason) => {
+  if (!documentPath.value || !sessionId.value) return Promise.resolve({ queued: false });
+  return requestOnlyOfficeForceSave(documentPath.value, {
+    sessionId: sessionId.value,
+    reason,
+  }).catch(() => ({ queued: false }));
+};
+
+const startAutoSave = () => {
+  if (autoSaveTimer) clearInterval(autoSaveTimer);
+  if (disposed || !autoSaveIntervalMs || !sessionId.value) return;
+  autoSaveTimer = setInterval(() => {
+    // Only when there is something to write: the editor tells us, and asking
+    // for a save of an unchanged document costs a full conversion.
+    if (hasUnsavedChanges) void forceSave('auto');
+  }, autoSaveIntervalMs);
+};
+
+const stopAutoSave = () => {
+  if (autoSaveTimer) clearInterval(autoSaveTimer);
+  autoSaveTimer = null;
+};
+
 /** End the session, so the document stops being reported as open by whoever left. */
 const endSession = ({ beacon = false } = {}) => {
   stopHeartbeat();
+  stopAutoSave();
   const current = sessionId.value;
   if (!current || !documentPath.value) return;
   sessionId.value = null;
@@ -159,8 +196,11 @@ const load = async () => {
       documentServerUrl,
       config: cfg,
       editorSessionId,
+      autoSaveIntervalMs: configuredAutoSaveIntervalMs,
     } = await fetchOnlyOfficeConfig(path, 'edit');
     sessionId.value = editorSessionId || null;
+    autoSaveIntervalMs = Number(configuredAutoSaveIntervalMs) || 0;
+    hasUnsavedChanges = false;
     serverUrl.value = documentServerUrl;
     logger.debug('ONLYOFFICE config', cfg);
     cfg.events = {
@@ -168,6 +208,12 @@ const load = async () => {
       onDocumentReady() {
         logger.debug('ONLYOFFICE document ready', { path: documentPath.value });
         startHeartbeat();
+        startAutoSave();
+      },
+      // The editor says whether it is holding anything unwritten, which is what
+      // decides whether a periodic save is worth a document conversion.
+      onDocumentStateChange(event) {
+        if (typeof event?.data === 'boolean') hasUnsavedChanges = event.data;
       },
       onRequestRename(event) {
         void renameDocument(event?.data);

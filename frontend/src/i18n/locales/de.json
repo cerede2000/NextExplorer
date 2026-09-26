@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Umbenannt",
     "renamedBody": "Das Dokument heißt jetzt {name}.",
-    "renameFailed": "Umbenennen in {name} nicht möglich"
+    "renameFailed": "Umbenennen in {name} nicht möglich",
+    "andOthers": "und {count} weitere",
+    "transferHeading": "Datei wird bearbeitet",
+    "transferBody": "Diese Datei ist in OnlyOffice geöffnet. Fortfahren kann einen laufenden Speichervorgang stören. Möchten Sie fortfahren?",
+    "transferCancel": "Abbrechen",
+    "transferConfirm": "Fortfahren",
+    "editingBy": "Wird in ONLYOFFICE bearbeitet von: {names}",
+    "editingNow": "Wird gerade in ONLYOFFICE bearbeitet"
   }
 }

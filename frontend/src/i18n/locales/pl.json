@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "Zmieniono nazwę",
     "renamedBody": "Dokument nazywa się teraz {name}.",
-    "renameFailed": "Nie można zmienić nazwy na {name}"
+    "renameFailed": "Nie można zmienić nazwy na {name}",
+    "andOthers": "i {count} więcej",
+    "transferHeading": "Plik jest edytowany",
+    "transferBody": "Ten plik jest otwarty w OnlyOffice. Kontynuowanie może zakłócić trwający zapis. Czy chcesz kontynuować?",
+    "transferCancel": "Anuluj",
+    "transferConfirm": "Kontynuuj",
+    "editingBy": "Edytowane w ONLYOFFICE przez: {names}",
+    "editingNow": "Edytowane w ONLYOFFICE"
   }
 }

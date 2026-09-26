@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "已重命名",
     "renamedBody": "文档现在名为 {name}。",
-    "renameFailed": "无法重命名为 {name}"
+    "renameFailed": "无法重命名为 {name}",
+    "andOthers": "以及其他 {count} 项",
+    "transferHeading": "文件正在编辑中",
+    "transferBody": "此文件已在 OnlyOffice 中打开。继续可能会干扰正在进行的保存。是否继续？",
+    "transferCancel": "取消",
+    "transferConfirm": "继续",
+    "editingBy": "正在 ONLYOFFICE 中编辑：{names}",
+    "editingNow": "正在 ONLYOFFICE 中编辑"
   }
 }

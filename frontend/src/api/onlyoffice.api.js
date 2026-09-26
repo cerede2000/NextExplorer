@@ -83,3 +83,34 @@ export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}
     body: JSON.stringify({ path: normalizedPath, sessionId, newName }),
   });
 }
+
+/**
+ * Ask the server to write what the editor is holding, now.
+ *
+ * Answers as soon as the command is queued; the document is written through the
+ * ordinary callback. `close` is the flush on the way out, `auto` the periodic
+ * one — the server coalesces the two rather than queueing them side by side.
+ */
+export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'close' } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId) return { queued: false };
+
+  return requestJson('/api/onlyoffice/force-save', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId, reason }),
+  });
+}
+
+/**
+ * Wait until somebody joins or leaves a document.
+ *
+ * Held open by the server for up to twenty-five seconds, so an open folder can
+ * keep its marks current without asking every second.
+ */
+export async function waitForOnlyOfficeActivityVersion(since, options = {}) {
+  const query = Number.isInteger(since) ? `?since=${since}` : '';
+  return requestJson(`/api/onlyoffice/activity-version${query}`, {
+    method: 'GET',
+    ...options,
+  });
+}

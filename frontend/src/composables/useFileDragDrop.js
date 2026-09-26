@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
 import { moveItems, normalizePath } from '@/api';
+import { useOnlyOfficeTransferConfirm } from '@/composables/useOnlyOfficeTransferConfirm';
 import { useInputMode } from '@/composables/useInputMode';
 
 /**
@@ -9,6 +10,7 @@ import { useInputMode } from '@/composables/useInputMode';
  */
 export function useFileDragDrop() {
   const fileStore = useFileStore();
+  const onlyOfficeTransferConfirm = useOnlyOfficeTransferConfirm();
   const { isTouchDevice } = useInputMode();
   const isDraggingOver = ref(false);
   const dragOverTarget = ref(null);
@@ -23,7 +25,9 @@ export function useFileDragDrop() {
     const types = event?.dataTransfer?.types;
     if (!types) return false;
     // Our internal drags set application/json and a text/plain fallback for Safari.
-    return Array.from(types).includes('application/json') || Array.from(types).includes('text/plain');
+    return (
+      Array.from(types).includes('application/json') || Array.from(types).includes('text/plain')
+    );
   };
 
   const serializeItems = (items) =>
@@ -253,6 +257,12 @@ export function useFileDragDrop() {
       console.warn('Cannot drop a folder into its own descendant');
       return;
     }
+
+    // Moving a document somebody has open in an editor is allowed, and worth
+    // asking about: the editor will write where the file used to be, and the
+    // save that follows lands under the old name.
+    const confirmed = await onlyOfficeTransferConfirm.requestConfirmation(draggedItems);
+    if (!confirmed) return;
 
     try {
       // Prepare payload for moveItems API

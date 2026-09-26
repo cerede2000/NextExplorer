@@ -19,7 +19,7 @@ import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
 import { CheckIcon } from '@heroicons/vue/20/solid';
-import { ClockIcon } from '@heroicons/vue/24/outline';
+import { ClockIcon, PencilSquareIcon } from '@heroicons/vue/24/outline';
 import { useI18n } from 'vue-i18n';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
@@ -80,6 +80,23 @@ const isCut = computed(() =>
 );
 
 const selected = computed(() => isSelected(props.item));
+
+/**
+ * Somebody has this document open in an editor.
+ *
+ * Advisory, never a lock: the file can still be copied, moved, renamed or
+ * deleted. The mark is there so nobody does any of those by accident while an
+ * editor is about to write a newer version of it.
+ */
+const onlyofficeActivity = computed(() => props.item?.onlyofficeActivity || null);
+const onlyofficeActivityLabel = computed(() => {
+  const activity = onlyofficeActivity.value;
+  if (!activity?.active) return '';
+  const users = Array.isArray(activity.users) ? activity.users.filter(Boolean) : [];
+  return users.length > 0
+    ? t('onlyoffice.editingBy', { names: users.join(', ') })
+    : t('onlyoffice.editingNow');
+});
 
 /**
  * The file has earlier versions, and how many.
@@ -292,6 +309,15 @@ if (isTouchDevice.value) {
       >
         <CheckIcon class="h-4 w-4" />
       </button>
+      <span
+        v-if="onlyofficeActivity?.active"
+        :title="onlyofficeActivityLabel"
+        :aria-label="onlyofficeActivityLabel"
+        data-test="onlyoffice-mark"
+        class="absolute left-2 top-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100/95 text-amber-700 shadow-sm dark:bg-amber-400/20 dark:text-amber-300"
+      >
+        <PencilSquareIcon class="h-3.5 w-3.5" />
+      </span>
       <button
         v-if="versionCount"
         type="button"
@@ -361,7 +387,15 @@ if (isTouchDevice.value) {
         </template>
         <template v-else>
           {{ ellipses(item.name, (maxl = 15))
-          }}<button
+          }}<span
+            v-if="onlyofficeActivity?.active"
+            :title="onlyofficeActivityLabel"
+            :aria-label="onlyofficeActivityLabel"
+            data-test="onlyoffice-mark"
+            class="ml-1 inline-flex shrink-0 items-center align-middle text-amber-600 dark:text-amber-400"
+          >
+            <PencilSquareIcon class="h-3.5 w-3.5" /> </span
+          ><button
             v-if="versionCount"
             type="button"
             :title="versionsLabel"
@@ -432,7 +466,15 @@ if (isTouchDevice.value) {
           </template>
           <template v-else>
             {{ ellipses(item.name, (maxl = 50))
-            }}<button
+            }}<span
+              v-if="onlyofficeActivity?.active"
+              :title="onlyofficeActivityLabel"
+              :aria-label="onlyofficeActivityLabel"
+              data-test="onlyoffice-mark"
+              class="ml-1 inline-flex shrink-0 items-center align-middle text-amber-600 dark:text-amber-400"
+            >
+              <PencilSquareIcon class="h-3.5 w-3.5" /> </span
+            ><button
               v-if="versionCount"
               type="button"
               :title="versionsLabel"
@@ -518,7 +560,15 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
-          <MiddleEllipsis :text="item.name" :end-chars="10" /><button
+          <MiddleEllipsis :text="item.name" :end-chars="10" /><span
+            v-if="onlyofficeActivity?.active"
+            :title="onlyofficeActivityLabel"
+            :aria-label="onlyofficeActivityLabel"
+            data-test="onlyoffice-mark"
+            class="ml-1 inline-flex shrink-0 items-center align-middle text-amber-600 dark:text-amber-400"
+          >
+            <PencilSquareIcon class="h-3.5 w-3.5" /> </span
+          ><button
             v-if="versionCount"
             type="button"
             :title="versionsLabel"

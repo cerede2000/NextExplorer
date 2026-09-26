@@ -922,6 +922,13 @@
   "onlyoffice": {
     "renamedHeading": "नाम बदला गया",
     "renamedBody": "दस्तावेज़ का नाम अब {name} है।",
-    "renameFailed": "{name} में नाम नहीं बदला जा सका"
+    "renameFailed": "{name} में नाम नहीं बदला जा सका",
+    "andOthers": "और {count} अन्य",
+    "transferHeading": "फ़ाइल संपादित की जा रही है",
+    "transferBody": "यह फ़ाइल OnlyOffice में खुली है। जारी रखने से चल रही सेव प्रक्रिया बाधित हो सकती है। क्या आप जारी रखना चाहते हैं?",
+    "transferCancel": "रद्द करें",
+    "transferConfirm": "जारी रखें",
+    "editingBy": "ONLYOFFICE में संपादित किया जा रहा है: {names}",
+    "editingNow": "ONLYOFFICE में संपादित किया जा रहा है"
   }
 }
