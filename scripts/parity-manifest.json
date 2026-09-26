@@ -407,9 +407,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/routes/browse\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-15",
-      "note": "two ceilings nobody could raise"
+      "note": "nxzai#445 \u2014 two ceilings nobody could raise"
     },
     {
       "axis": "*",
@@ -582,9 +582,9 @@
     {
       "axis": "env",
       "match": "^PREVIEW_MAX_RENDER_SIZE$",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-15",
-      "note": "two ceilings nobody could raise"
+      "note": "nxzai#445 \u2014 two ceilings nobody could raise"
     },
     {
       "axis": "env",
