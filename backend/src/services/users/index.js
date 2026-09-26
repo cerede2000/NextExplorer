@@ -6,6 +6,7 @@ const localAuth = require('./localAuth');
 const oidcAuth = require('./oidcAuth');
 const requestUser = require('./requestUser');
 const management = require('./management');
+const twoFactor = require('./twoFactor');
 
 module.exports = {
   // User queries
@@ -21,6 +22,16 @@ module.exports = {
   changeLocalPassword: localAuth.changeLocalPassword,
   setLocalPasswordAdmin: localAuth.setLocalPasswordAdmin,
   addLocalPassword: localAuth.addLocalPassword,
+  verifyLocalPassword: localAuth.verifyLocalPassword,
+
+  // A second factor on a local account
+  beginTwoFactorEnrolment: twoFactor.beginEnrolment,
+  confirmTwoFactorEnrolment: twoFactor.confirmEnrolment,
+  disableTwoFactor: twoFactor.disableTwoFactor,
+  replaceRecoveryCodes: twoFactor.replaceRecoveryCodes,
+  twoFactorRequired: twoFactor.twoFactorRequired,
+  twoFactorStatus: twoFactor.twoFactorStatus,
+  verifySecondFactor: twoFactor.verifySecondFactor,
 
   // OIDC authentication
   getOrCreateOidcUser: oidcAuth.getOrCreateOidcUser,

@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
 const logger = require('../../utils/logger');
-const { nowIso, toClientUser, generateId, normalizeEmail } = require('./utils');
+const { nowIso, toClientUser, generateId, normalizeEmail, usernameTaken } = require('./utils');
 const { isLocked, incrementFailedAttempts, clearLock, getLock } = require('./lockout');
 const {
   NotFoundError,
@@ -11,30 +11,74 @@ const {
 } = require('../../errors/AppError');
 const { ErrorCodes } = require('../../errors/errorCodes');
 
-// Attempt local login with email + password
-const attemptLocalLogin = async ({ email, password }) => {
-  const normEmail = normalizeEmail(email);
+/**
+ * The account someone means by what they typed, or null.
+ *
+ * An email is looked up first: it is unique by schema, so it can never be
+ * ambiguous. A username is not — the column carries no uniqueness constraint,
+ * and `createLocalUser` derives one from the local part of the address, so two
+ * people on different domains genuinely can end up as `alice`.
+ *
+ * Where a name matches more than one account it identifies nobody, and picking
+ * one would be choosing whose account a stranger signs into. Those accounts
+ * keep their email, which is unambiguous by construction.
+ */
+const findUserByIdentifier = (db, typed) => {
+  const trimmed = typeof typed === 'string' ? typed.trim() : '';
+  if (!trimmed) return null;
 
-  // Check lockout
-  if (await isLocked(normEmail)) {
-    const lock = await getLock(normEmail);
+  const byEmail = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizeEmail(trimmed));
+  if (byEmail) return byEmail;
+
+  // Without regard to case, because nobody remembers whether they capitalised
+  // their own name — and because the column would let `Alice` and `alice` be
+  // two accounts, which is exactly the ambiguity refused below.
+  const matches = db
+    .prepare(
+      "SELECT * FROM users WHERE username IS NOT NULL AND username <> '' AND lower(username) = lower(?)"
+    )
+    .all(trimmed);
+
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    logger.warn(
+      { username: trimmed, accounts: matches.length },
+      'Several accounts share this username; it cannot be used to sign in. They can use their email address.'
+    );
+  }
+  return null;
+};
+
+/**
+ * Sign in with an email address or a username, and a password.
+ *
+ * @param {{identifier?: string, email?: string, password: string}} credentials
+ *   `email` is accepted as the older name for `identifier`.
+ */
+const attemptLocalLogin = async ({ identifier, email, password }) => {
+  const db = await getDb();
+
+  const user = findUserByIdentifier(db, identifier ?? email);
+  if (!user) {
+    // No counter for something that names no account. The lock is per account,
+    // so counting here would let anyone lock a colleague out by guessing at
+    // their address. Brute force is bounded by the login rate limit.
+    return null;
+  }
+
+  // Keyed on the account rather than on what was typed. One account answering
+  // to two names would otherwise get one lockout budget per name, and anyone
+  // alternating between them would never exhaust either.
+  const lockKey = user.id;
+
+  if (await isLocked(lockKey)) {
+    const lock = await getLock(lockKey);
     const until = lock.locked_until || null;
     const err = new Error('Account is temporarily locked due to failed login attempts.');
     err.status = 423;
     err.code = ErrorCodes.AUTH_ACCOUNT_LOCKED;
     err.until = until;
     throw err;
-  }
-
-  const db = await getDb();
-
-  // Find user by email
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(normEmail);
-  if (!user) {
-    // No counter for an address that has no account: the lock is keyed on the
-    // email alone, so counting here would let anyone lock a colleague out by
-    // guessing their address. Brute force is bounded by the login rate limit.
-    return null;
   }
 
   // Find local password auth method
@@ -48,19 +92,19 @@ const attemptLocalLogin = async ({ email, password }) => {
     .get(user.id);
 
   if (!authMethod || !authMethod.password_hash) {
-    await incrementFailedAttempts(normEmail);
+    await incrementFailedAttempts(lockKey);
     return null;
   }
 
   // Verify password
   const valid = await bcrypt.compare(password || '', authMethod.password_hash);
   if (!valid) {
-    await incrementFailedAttempts(normEmail);
+    await incrementFailedAttempts(lockKey);
     return null;
   }
 
   // Success - clear lockout
-  await clearLock(normEmail);
+  await clearLock(lockKey);
   db.prepare('UPDATE auth_methods SET last_used_at = ? WHERE id = ?').run(nowIso(), authMethod.id);
 
   let clientUser = toClientUser(user);
@@ -68,6 +112,27 @@ const attemptLocalLogin = async ({ email, password }) => {
     clientUser.provider = 'local';
   }
   return clientUser;
+};
+
+/**
+ * Whether this is the account's own password.
+ *
+ * For the things somebody already signed in may only do by proving it is still
+ * them — turning a second factor off, drawing new recovery codes. Deliberately
+ * not counted against the lockout: the account is signed in, the route behind
+ * it is rate limited, and a counter here would let a tab left open on a shared
+ * machine lock its owner out.
+ */
+const verifyLocalPassword = async ({ userId, password }) => {
+  const db = await getDb();
+  const authMethod = db
+    .prepare(
+      `SELECT password_hash FROM auth_methods
+       WHERE user_id = ? AND method_type = 'local_password' AND enabled = 1`
+    )
+    .get(userId);
+  if (!authMethod?.password_hash) return false;
+  return bcrypt.compare(password || '', authMethod.password_hash);
 };
 
 // Create user with local password authentication
@@ -85,6 +150,13 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
       null,
       ErrorCodes.VALIDATION_PASSWORD_TOO_SHORT
     );
+  }
+
+  // A username is something to sign in with, so it has to name one account.
+  // Nothing removes the duplicates an older version allowed; this stops more
+  // being made.
+  if (usernameTaken(db, username)) {
+    throw new ConflictError('Username already in use', ErrorCodes.CONFLICT_USER_EXISTS);
   }
 
   // Check if user exists
@@ -152,8 +224,58 @@ const createLocalUser = async ({ email, password, username, displayName, roles =
   return toClientUser(user);
 };
 
-// Change password for user with local password auth
-const changeLocalPassword = async ({ userId, currentPassword, newPassword }) => {
+/**
+ * End the sessions signed in to an account, except the one named.
+ *
+ * Changing a password is what someone does when they think it leaked. Left
+ * alone, a session opened with the old one stays signed in for as long as it
+ * lasts — thirty days by default — and whoever had the password keeps what it
+ * opened.
+ *
+ * The sessions the identity provider opened count too. They hold its tokens
+ * rather than our account id, so what names the account there is the subject
+ * of the id token — the same subject `auth_methods` keeps for this user. The
+ * store reads the tokens; only here is it known whose they are.
+ *
+ * Called before the new hash is written, in the same turn: nothing can sign in
+ * with the old password between the two, and a store that cannot end the
+ * sessions throws before the password is changed rather than after.
+ */
+const endSessionsOpenedWithOldPassword = (db, userId, keepSessionId) => {
+  // Every OIDC identity of the account, enabled or not: a method switched off
+  // can still have a session open, and every session ended here belongs to the
+  // account whose password just changed.
+  const providerIdentities = db
+    .prepare(
+      `SELECT provider_issuer AS issuer, provider_sub AS subject
+       FROM auth_methods
+       WHERE user_id = ? AND method_type = 'oidc'`
+    )
+    .all(userId);
+
+  // Required here and not at the top: loading the store opens sessions.db, which
+  // nothing that only reads accounts should do.
+  const { localStore } = require('../../utils/sessionStore');
+  return localStore.destroyByUser(userId, keepSessionId || null, providerIdentities);
+};
+
+const logEndedSessions = (userId, ended) => {
+  if (ended > 0) {
+    logger.info(
+      { userId, sessions: ended },
+      'Password changed; other sessions of the account ended'
+    );
+  }
+};
+
+/**
+ * Change password for user with local password auth.
+ *
+ * @param {object} change
+ * @param {string|null} [change.keepSessionId] the session making the change,
+ *   which stays signed in; every other session of the account ends.
+ */
+const changeLocalPassword = async ({ userId, currentPassword, newPassword, keepSessionId }) => {
   const db = await getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   if (!user) {
@@ -196,12 +318,20 @@ const changeLocalPassword = async ({ userId, currentPassword, newPassword }) => 
   }
 
   const hash = await bcrypt.hash(newPassword, 12);
+  const ended = endSessionsOpenedWithOldPassword(db, userId, keepSessionId);
   db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
+  logEndedSessions(userId, ended);
   return true;
 };
 
-// Admin path: set a local user's password without current password
-const setLocalPasswordAdmin = async ({ userId, newPassword }) => {
+/**
+ * Admin path: set a local user's password without current password.
+ *
+ * Replacing a password ends every session of the account but `keepSessionId`,
+ * for the reason `changeLocalPassword` does. Giving a password to an account
+ * that had none ends nothing: no session was opened with it.
+ */
+const setLocalPasswordAdmin = async ({ userId, newPassword, keepSessionId }) => {
   const db = await getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   if (!user) {
@@ -216,21 +346,30 @@ const setLocalPasswordAdmin = async ({ userId, newPassword }) => {
     throw e;
   }
 
-  const hash = await bcrypt.hash(newPassword, 12);
-
   // Check if user has local password auth
   const authMethod = db
     .prepare(
       `
-    SELECT id FROM auth_methods
+    SELECT id, password_hash FROM auth_methods
     WHERE user_id = ? AND method_type = 'local_password'
   `
     )
     .get(userId);
 
+  // The password it already has is not a change. The environment bootstrap sets
+  // AUTH_ADMIN_PASSWORD again on every start, and ending the administrator's
+  // sessions at each restart would sign them out for nothing.
+  if (authMethod?.password_hash && (await bcrypt.compare(newPassword, authMethod.password_hash))) {
+    return true;
+  }
+
+  const hash = await bcrypt.hash(newPassword, 12);
+
   if (authMethod) {
     // Update existing password
+    const ended = endSessionsOpenedWithOldPassword(db, userId, keepSessionId);
     db.prepare('UPDATE auth_methods SET password_hash = ? WHERE id = ?').run(hash, authMethod.id);
+    logEndedSessions(userId, ended);
   } else {
     // Create new password auth method
     const authId = generateId();
@@ -294,6 +433,7 @@ const addLocalPassword = async ({ userId, password }) => {
 };
 
 module.exports = {
+  verifyLocalPassword,
   attemptLocalLogin,
   createLocalUser,
   changeLocalPassword,

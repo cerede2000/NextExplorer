@@ -115,7 +115,8 @@
     "label": "मेरी साझा की गई फ़ाइलें",
     "path": "उदाहरण: Pictures/Holidays",
     "search": "फ़ाइलें और फ़ोल्डर खोजें…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "लोड हो रहा है…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "कोड डालें।"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "प्रमाणीकरण आवश्यक है",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "अपने उपयोगकर्ता नाम में {suffix} जोड़ें",
         "bulletPasswordSame": "आपका पासवर्ड वही रहेगा।",
         "bulletUpdateUsers": "आप व्यवस्थापक मेनू से मौजूदा उपयोगकर्ताओं को अपडेट कर सकते हैं"
-      }
+      },
+      "totpCode": "कोड",
+      "totpExplain": "आपका पासवर्ड स्वीकार हो गया। अपने प्रमाणक ऐप का कोड डालें, या अपना कोई पुनर्प्राप्ति कोड।",
+      "totpSubmit": "साइन इन करें"
     },
     "setup": {
       "headline": "सेटअप शुरू करें",
@@ -397,7 +402,8 @@
       "adminUsers": "उपयोगकर्ता प्रबंधन",
       "trash": "रीसायकल बिन और संस्करण",
       "fileVersions": "फ़ाइल संस्करण",
-      "uploads": "अपलोड"
+      "uploads": "अपलोड",
+      "accountTwoFactor": "दो-चरणीय"
     },
     "about": {
       "subtitle": "इस एप्लिकेशन के बिल्ड संबंधी जानकारी देखें।",
@@ -680,6 +686,36 @@
       "chunkedEnable": "चंक्ड अपलोड सक्षम करें",
       "chunkedEnableHelp": "बड़ी फ़ाइलों को कई छोटे अनुरोधों के माध्यम से भेजने के लिए TUS का उपयोग करें।",
       "chunkSizeInvalid": "1 से {max} MiB के बीच चंक आकार दर्ज करें।"
+    },
+    "twoFactor": {
+      "title": "दो-चरणीय प्रमाणीकरण",
+      "intro": "आपके पासवर्ड के साथ, फ़ोन से एक कोड भी।",
+      "notLocalUser": "यह खाता पहचान प्रदाता से साइन इन करता है, और दूसरा चरण वहीं सेट होता है।",
+      "off": "इस खाते पर दो-चरणीय प्रमाणीकरण बंद है।",
+      "on": "दो-चरणीय प्रमाणीकरण चालू है।",
+      "turnOn": "चालू करें",
+      "turnOff": "बंद करें",
+      "scan": "इसे अपने प्रमाणक ऐप से स्कैन करें।",
+      "orType": "या ऐप में यह गुप्त कुंजी लिखें:",
+      "qrLabel": "आपके प्रमाणक ऐप के लिए QR कोड",
+      "codeLabel": "ऐप का कोड",
+      "confirm": "पुष्टि करें",
+      "confirmPassword": "आपका पासवर्ड",
+      "codesTitle": "पुनर्प्राप्ति कोड",
+      "codesExplain": "इन्हें फ़ोन के अलावा कहीं और रखें। हर कोड एक बार साइन इन कराता है — उस दिन के लिए जब फ़ोन पास न हो। ये अभी दिख रहे हैं और फिर कभी नहीं।",
+      "copyCodes": "कॉपी करें",
+      "copied": "कॉपी हो गया।",
+      "codesLeft": "एक पुनर्प्राप्ति कोड बचा | {count} पुनर्प्राप्ति कोड बचे",
+      "newCodesButton": "नए कोड बनाएँ",
+      "newCodes": "नए पुनर्प्राप्ति कोड बन गए। पहले वाले अब काम नहीं करते।",
+      "turnedOn": "दो-चरणीय प्रमाणीकरण चालू है।",
+      "turnedOff": "दो-चरणीय प्रमाणीकरण बंद है।",
+      "loadFailed": "इस खाते की दो-चरणीय सेटिंग्स नहीं पढ़ी जा सकीं।",
+      "startFailed": "दूसरा चरण सेट करना शुरू नहीं हो सका।",
+      "confirmFailed": "यह कोड सही नहीं है।",
+      "codesFailed": "नए पुनर्प्राप्ति कोड नहीं बनाए जा सके।",
+      "disableFailed": "दो-चरणीय प्रमाणीकरण बंद नहीं हो सका।",
+      "wrongPassword": "यह पासवर्ड सही नहीं है।"
     }
   },
   "mediaPreview": {

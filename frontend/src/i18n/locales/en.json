@@ -115,7 +115,8 @@
     "label": "My Shared Files",
     "path": "e.g. Pictures/Holidays",
     "search": "Search files and folders…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Loading…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "Enter the code."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentication required",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Add {suffix} to your username",
         "bulletPasswordSame": "Your password stays the same.",
         "bulletUpdateUsers": "You can update existing users from Admin Menu"
-      }
+      },
+      "totpCode": "Code",
+      "totpExplain": "Your password was accepted. Enter the code from your authenticator app, or one of your recovery codes.",
+      "totpSubmit": "Sign in"
     },
     "setup": {
       "headline": "Let's get set up",
@@ -397,7 +402,8 @@
       "adminUsers": "User Management",
       "trash": "Trash and versions",
       "fileVersions": "File versions",
-      "uploads": "Uploads"
+      "uploads": "Uploads",
+      "accountTwoFactor": "Two-factor"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Enable chunked uploads",
       "chunkedEnableHelp": "Use TUS to send large files through multiple smaller requests.",
       "chunkSizeInvalid": "Enter a chunk size from 1 to {max} MiB."
+    },
+    "twoFactor": {
+      "title": "Two-factor authentication",
+      "intro": "A code from your phone, on top of your password.",
+      "notLocalUser": "This account signs in through an identity provider, which is where its second factor belongs.",
+      "off": "Two-factor authentication is off for this account.",
+      "on": "Two-factor authentication is on.",
+      "turnOn": "Turn on",
+      "turnOff": "Turn off",
+      "scan": "Scan this with your authenticator app.",
+      "orType": "Or type this secret into the app:",
+      "qrLabel": "QR code for your authenticator app",
+      "codeLabel": "Code from the app",
+      "confirm": "Confirm",
+      "confirmPassword": "Your password",
+      "codesTitle": "Recovery codes",
+      "codesExplain": "Keep these somewhere other than your phone. Each one signs you in once, for the day the phone is not there. They are shown now and never again.",
+      "copyCodes": "Copy",
+      "copied": "Copied.",
+      "codesLeft": "One recovery code left | {count} recovery codes left",
+      "newCodesButton": "Draw new codes",
+      "newCodes": "New recovery codes drawn. The ones before them no longer work.",
+      "turnedOn": "Two-factor authentication is on.",
+      "turnedOff": "Two-factor authentication is off.",
+      "loadFailed": "Could not read this account's two-factor settings.",
+      "startFailed": "Could not start setting up a second factor.",
+      "confirmFailed": "That code is not right.",
+      "codesFailed": "Could not draw new recovery codes.",
+      "disableFailed": "Could not turn two-factor authentication off.",
+      "wrongPassword": "That password is not right."
     }
   },
   "mediaPreview": {

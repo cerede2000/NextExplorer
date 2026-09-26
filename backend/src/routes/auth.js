@@ -9,7 +9,17 @@ const {
   addLocalPassword,
   getUserAuthMethods,
   getRequestUser,
+  verifyLocalPassword,
+  beginTwoFactorEnrolment,
+  confirmTwoFactorEnrolment,
+  disableTwoFactor,
+  replaceRecoveryCodes,
+  twoFactorRequired,
+  twoFactorStatus,
+  verifySecondFactor,
 } = require('../services/users');
+const { incrementFailedAttempts, clearLock, isLocked } = require('../services/users/lockout');
+const logger = require('../utils/logger');
 const { issueCode, redeemCode, isValidChallenge } = require('../services/oidcMobileBridge');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
@@ -22,6 +32,56 @@ const {
   ForbiddenError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
+
+/**
+ * How long the second step stays open.
+ *
+ * Long enough to find a phone, pick the app and read the digits; short enough
+ * that a machine walked away from is not a sign-in waiting to be finished by
+ * whoever sits down next.
+ */
+const SECOND_STEP_MS = 5 * 60 * 1000;
+
+/**
+ * The password was right, and the account wants a code as well.
+ *
+ * Deliberately not a signed-in session with a flag on it: nothing but
+ * `localUserId` signs anybody in, and this state does not set it. The session
+ * is regenerated here for the same reason it is regenerated at the end — an id
+ * somebody planted in the browser must not be the one that finishes the
+ * sign-in.
+ */
+const startSecondStep = (req, userId) =>
+  new Promise((resolve, reject) => {
+    if (!req.session) {
+      reject(new Error('No session to hold the second step in.'));
+      return;
+    }
+    req.session.regenerate((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      req.session.pendingTotpUserId = userId;
+      req.session.pendingTotpSince = Date.now();
+      req.session.save((saveError) => (saveError ? reject(saveError) : resolve()));
+    });
+  });
+
+/** The account halfway through signing in here, or null. */
+const secondStepUserId = (req) => {
+  const userId = req.session?.pendingTotpUserId;
+  if (!userId) return null;
+  const since = Number(req.session.pendingTotpSince) || 0;
+  if (Date.now() - since > SECOND_STEP_MS) return null;
+  return userId;
+};
+
+const forgetSecondStep = (req) => {
+  if (!req.session) return;
+  delete req.session.pendingTotpUserId;
+  delete req.session.pendingTotpSince;
+};
 
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
@@ -108,6 +168,9 @@ router.get('/status', async (req, res) => {
 
   res.json({
     requiresSetup,
+    // A reload in the middle of signing in lands back on the code, rather than
+    // on a password screen that would start the whole thing again.
+    totpPending: Boolean(secondStepUserId(req)),
     strategies,
     authEnabled: auth.enabled,
     authMode,
@@ -171,12 +234,169 @@ router.post(
     if (!user) {
       throw new UnauthorizedError('Invalid credentials.', ErrorCodes.AUTH_INVALID_CREDENTIALS);
     }
+
+    // The password was right and the account asks for a code as well. Nothing
+    // about who they are is answered here: that an account has a second factor
+    // is not something to tell whoever guessed a password correctly, so the
+    // answer carries the question and nothing else.
+    if (await twoFactorRequired(user.id)) {
+      await startSecondStep(req, user.id);
+      res.json({ totpRequired: true });
+      return;
+    }
+
     await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user logs in
     res.clearCookie('guestSession', { path: '/api' });
 
     res.json({ user });
+  })
+);
+
+/**
+ * The second step: the code from the phone, or one off the paper.
+ *
+ * Wrong codes count against the same lockout a wrong password does, so the
+ * second factor is not a place to guess a million times at six digits while
+ * the first one is bounded.
+ */
+router.post(
+  '/login/totp',
+  loginLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const userId = secondStepUserId(req);
+    if (!userId) {
+      forgetSecondStep(req);
+      throw new UnauthorizedError(
+        'That sign-in is no longer waiting for a code. Sign in again.',
+        ErrorCodes.AUTH_INVALID_CREDENTIALS
+      );
+    }
+
+    if (await isLocked(userId)) {
+      throw new RateLimitError(
+        'Account is temporarily locked due to failed login attempts.',
+        null,
+        ErrorCodes.AUTH_ACCOUNT_LOCKED
+      );
+    }
+
+    const { code } = req.body || {};
+    const outcome = await verifySecondFactor({ userId, code });
+    if (!outcome.ok) {
+      await incrementFailedAttempts(userId);
+      throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
+    }
+
+    await clearLock(userId);
+    forgetSecondStep(req);
+    await startAuthenticatedSession(req, userId);
+    res.clearCookie('guestSession', { path: '/api' });
+
+    res.json({
+      user: await getRequestUser(req),
+      usedRecoveryCode: Boolean(outcome.usedRecoveryCode),
+      recoveryCodesLeft: outcome.recoveryCodesLeft ?? null,
+    });
+  })
+);
+
+/** Whether this account asks for a code, and how many recovery codes are left. */
+router.get(
+  '/totp',
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    res.json(await twoFactorStatus(me.id));
+  })
+);
+
+/**
+ * Draw a secret and show it, which turns nothing on.
+ *
+ * What comes back is shown once and never again: the phone keeps it, and the
+ * copy here is unreadable the moment it is written.
+ */
+router.post(
+  '/totp/start',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!req.session || req.session.localUserId !== me.id) {
+      throw new ForbiddenError('Sign in with your password to set up a second factor.');
+    }
+
+    res.json(
+      await beginTwoFactorEnrolment({
+        userId: me.id,
+        account: me.email || me.username || me.id,
+      })
+    );
+  })
+);
+
+/** Turn it on, once a code proves the phone holds the same secret. */
+router.post(
+  '/totp/confirm',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+
+    const confirmed = await confirmTwoFactorEnrolment({ userId: me.id, code: req.body?.code });
+    if (!confirmed) {
+      throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
+    }
+    logger.info({ userId: me.id }, 'Two-factor authentication turned on');
+    res.json(confirmed);
+  })
+);
+
+/**
+ * New recovery codes, and the password to prove it is still the same person.
+ *
+ * A browser left unlocked is the case this is about: drawing new codes throws
+ * the old ones away, and somebody who sat down at a signed-in screen should not
+ * be able to leave with the only working set.
+ */
+router.post(
+  '/totp/recovery-codes',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
+      throw new UnauthorizedError(
+        'That password is not right.',
+        ErrorCodes.AUTH_PASSWORD_INCORRECT
+      );
+    }
+
+    res.json({ recoveryCodes: await replaceRecoveryCodes(me.id) });
+  })
+);
+
+/** Off, with the password for the same reason. */
+router.delete(
+  '/totp',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
+      throw new UnauthorizedError(
+        'That password is not right.',
+        ErrorCodes.AUTH_PASSWORD_INCORRECT
+      );
+    }
+
+    await disableTwoFactor(me.id);
+    logger.info({ userId: me.id }, 'Two-factor authentication turned off');
+    res.status(204).end();
   })
 );
 

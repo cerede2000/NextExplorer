@@ -5,6 +5,7 @@ import {
   fetchAuthStatus,
   setupAccount as setupAccountApi,
   login as loginApi,
+  submitTotpCode as submitTotpCodeApi,
   logout as logoutApi,
   fetchCurrentUser,
 } from '@/api';
@@ -19,6 +20,13 @@ export const useAuthStore = defineStore('auth', () => {
   });
   const currentUser = ref(null);
   const isLoading = ref(false);
+  /**
+   * Whether a sign-in is waiting for a code from an authenticator.
+   *
+   * The password was right; nothing about who they are is known here, and the
+   * server is holding that.
+   */
+  const totpRequired = ref(false);
   const hasStatus = ref(false);
   const lastError = ref(null);
   let initPromise = null;
@@ -53,6 +61,9 @@ export const useAuthStore = defineStore('auth', () => {
         authMode.value = typeof status?.authMode === 'string' ? status.authMode : 'local';
         strategies.value = status?.strategies || { local: true, oidc: false };
         currentUser.value = status?.user || null;
+        // A reload in the middle of signing in lands back on the code rather
+        // than on a password screen that would start the whole thing again.
+        totpRequired.value = Boolean(status?.totpPending);
 
         // Clear guest session if user is now authenticated
         if (currentUser.value) {
@@ -87,11 +98,28 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async ({ email, password }) => {
     lastError.value = null;
     const response = await loginApi({ email, password });
+    if (response?.totpRequired) {
+      totpRequired.value = true;
+      return { totpRequired: true };
+    }
+    totpRequired.value = false;
     hasStatus.value = true;
     currentUser.value = response?.user || null;
 
     // Clear guest session when user logs in
     sessionStorage.removeItem('guestSessionId');
+    return { totpRequired: false };
+  };
+
+  /** The second step. Which account this is remains the server's to know. */
+  const submitTotpCode = async (code) => {
+    lastError.value = null;
+    const response = await submitTotpCodeApi(code);
+    totpRequired.value = false;
+    hasStatus.value = true;
+    currentUser.value = response?.user || null;
+    sessionStorage.removeItem('guestSessionId');
+    return response;
   };
 
   const logout = async () => {
@@ -135,6 +163,8 @@ export const useAuthStore = defineStore('auth', () => {
     ensureStatus: initialize,
     setupAccount,
     login,
+    totpRequired,
+    submitTotpCode,
     logout,
     clearError,
     refreshCurrentUser,

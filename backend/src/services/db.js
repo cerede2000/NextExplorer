@@ -70,6 +70,40 @@ const ONLYOFFICE_EDITOR_SESSIONS_DDL = `
   CREATE INDEX IF NOT EXISTS idx_onlyoffice_sessions_expiry ON onlyoffice_editor_sessions(expires_at);
 `;
 
+/**
+ * Two-factor on a local account.
+ *
+ * One row per account, and only a confirmed one counts: a secret written while
+ * somebody was halfway through setting their phone up must never be what
+ * stands between them and their files. `last_step` is what stops a code being
+ * used twice — the six digits are good for thirty seconds, and for one login.
+ *
+ * Recovery codes are hashed like passwords, so losing the key file beside the
+ * database costs an authenticator, not an account.
+ */
+const TWO_FACTOR_DDL = `
+  CREATE TABLE IF NOT EXISTS totp_credentials (
+    user_id TEXT PRIMARY KEY,
+    secret TEXT NOT NULL,
+    confirmed_at TEXT,
+    last_step INTEGER,
+    last_used_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS totp_recovery_codes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    used_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_totp_recovery_user ON totp_recovery_codes(user_id);
+`;
+
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -492,6 +526,15 @@ const migrate = (db) => {
       );
       version = 15;
     }
+    if (version < 16) {
+      logger.info('[DB Migration] Migrating to v16: a second factor...');
+      db.exec(TWO_FACTOR_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(16)
+      );
+      version = 16;
+    }
   })();
 };
 
@@ -734,6 +777,11 @@ const getDb = async () => {
   }
   // Same reason again: a /config shared with another build may already record a
   // later schema version without carrying these tables.
+  try {
+    db.exec(TWO_FACTOR_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure the two-factor tables');
+  }
   try {
     db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);
   } catch (err) {

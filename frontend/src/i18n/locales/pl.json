@@ -115,7 +115,8 @@
     "label": "Moje udostępnione pliki",
     "path": "np. Obrazy/Wakacje",
     "search": "Szukaj plików i folderów…",
-    "volumeLabel": "e.g. Documents, Projects, Media"
+    "volumeLabel": "e.g. Documents, Projects, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Ładowanie…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is required",
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
-    "removeVolume": "Failed to remove volume"
+    "removeVolume": "Failed to remove volume",
+    "totpCodeRequired": "Wpisz kod."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Wymagana autentykacja",
@@ -346,7 +348,10 @@
         "bulletAddSuffix": "Dodaj {suffix} do swojej nazwy użytkownika",
         "bulletPasswordSame": "Twoje hasło pozostaje bez zmian.",
         "bulletUpdateUsers": "Możesz zaktualizować istniejących użytkowników w menu administracyjnym"
-      }
+      },
+      "totpCode": "Kod",
+      "totpExplain": "Hasło zostało przyjęte. Wpisz kod z aplikacji uwierzytelniającej albo jeden z kodów zapasowych.",
+      "totpSubmit": "Zaloguj się"
     },
     "setup": {
       "headline": "Skonfigurujmy wszystko",
@@ -397,7 +402,8 @@
       "adminUsers": "Zarządzanie użytkownikami",
       "trash": "Kosz i wersje",
       "fileVersions": "Wersje plików",
-      "uploads": "Przesyłanie"
+      "uploads": "Przesyłanie",
+      "accountTwoFactor": "Dwa składniki"
     },
     "about": {
       "subtitle": "Wyświetl informacje o kompilacji tej aplikacji.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Włącz przesyłanie fragmentaryczne",
       "chunkedEnableHelp": "Wykorzystuje protokół TUS, aby wysyłać duże pliki w wielu mniejszych żądaniach.",
       "chunkSizeInvalid": "Podaj rozmiar fragmentu od 1 do {max} MiB."
+    },
+    "twoFactor": {
+      "title": "Uwierzytelnianie dwuskładnikowe",
+      "intro": "Kod z telefonu, oprócz hasła.",
+      "notLocalUser": "To konto loguje się przez dostawcę tożsamości i tam należy ustawić drugi składnik.",
+      "off": "Uwierzytelnianie dwuskładnikowe jest wyłączone dla tego konta.",
+      "on": "Uwierzytelnianie dwuskładnikowe jest włączone.",
+      "turnOn": "Włącz",
+      "turnOff": "Wyłącz",
+      "scan": "Zeskanuj to aplikacją uwierzytelniającą.",
+      "orType": "Albo wpisz ten sekret w aplikacji:",
+      "qrLabel": "Kod QR dla aplikacji uwierzytelniającej",
+      "codeLabel": "Kod z aplikacji",
+      "confirm": "Potwierdź",
+      "confirmPassword": "Twoje hasło",
+      "codesTitle": "Kody zapasowe",
+      "codesExplain": "Przechowuj je gdzie indziej niż w telefonie. Każdy loguje raz, na dzień, w którym telefonu nie ma. Są pokazane teraz i nigdy więcej.",
+      "copyCodes": "Kopiuj",
+      "copied": "Skopiowano.",
+      "codesLeft": "Został jeden kod zapasowy | Zostały {count} kody zapasowe",
+      "newCodesButton": "Wygeneruj nowe kody",
+      "newCodes": "Wygenerowano nowe kody zapasowe. Poprzednie już nie działają.",
+      "turnedOn": "Uwierzytelnianie dwuskładnikowe jest włączone.",
+      "turnedOff": "Uwierzytelnianie dwuskładnikowe jest wyłączone.",
+      "loadFailed": "Nie udało się odczytać ustawień dwuskładnikowych tego konta.",
+      "startFailed": "Nie udało się rozpocząć konfiguracji drugiego składnika.",
+      "confirmFailed": "Ten kod jest nieprawidłowy.",
+      "codesFailed": "Nie udało się wygenerować nowych kodów zapasowych.",
+      "disableFailed": "Nie udało się wyłączyć uwierzytelniania dwuskładnikowego.",
+      "wrongPassword": "To hasło jest nieprawidłowe."
     }
   },
   "mediaPreview": {

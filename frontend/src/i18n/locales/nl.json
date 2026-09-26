@@ -115,7 +115,8 @@
     "label": "Mijn gedeelde bestanden",
     "path": "bijv. Afbeeldingen/Vakanties",
     "search": "Bestanden en mappen zoeken…",
-    "volumeLabel": "bijv. Documenten, Projecten, Media"
+    "volumeLabel": "bijv. Documenten, Projecten, Media",
+    "totpCode": "123456"
   },
   "loading": {
     "default": "Laden…",
@@ -155,7 +156,8 @@
     "labelRequired": "Label is vereist",
     "pathRequired": "Pad is vereist",
     "saveVolume": "Volume opslaan is mislukt",
-    "removeVolume": "Volume verwijderen is mislukt"
+    "removeVolume": "Volume verwijderen is mislukt",
+    "totpCodeRequired": "Voer de code in."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authenticatie vereist",
@@ -346,7 +348,10 @@
         "bulletPasswordSame": "Uw wachtwoord blijft hetzelfde.",
         "bulletUpdateUsers": "U kunt bestaande gebruikers bijwerken via het beheerdersmenu"
       },
-      "announcementConfirm": "Markeren als gelezen"
+      "announcementConfirm": "Markeren als gelezen",
+      "totpCode": "Code",
+      "totpExplain": "Uw wachtwoord is geaccepteerd. Voer de code uit uw authenticatie-app in, of een van uw herstelcodes.",
+      "totpSubmit": "Aanmelden"
     },
     "setup": {
       "headline": "Laten we alles opzetten",
@@ -397,7 +402,8 @@
       "adminUsers": "Gebruikersbeheer",
       "trash": "Prullenbak en versies",
       "fileVersions": "Bestandsversies",
-      "uploads": "Uploads"
+      "uploads": "Uploads",
+      "accountTwoFactor": "Tweestaps"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -680,6 +686,36 @@
       "chunkedEnable": "Uploads in delen inschakelen",
       "chunkedEnableHelp": "Gebruik TUS om grote bestanden in meerdere kleinere verzoeken te verzenden.",
       "chunkSizeInvalid": "Vul een deelgrootte van 1 tot {max} MiB in."
+    },
+    "twoFactor": {
+      "title": "Tweestapsverificatie",
+      "intro": "Een code van uw telefoon, bovenop uw wachtwoord.",
+      "notLocalUser": "Dit account meldt zich aan via een identiteitsaanbieder; daar hoort de tweede stap thuis.",
+      "off": "Tweestapsverificatie staat uit voor dit account.",
+      "on": "Tweestapsverificatie staat aan.",
+      "turnOn": "Inschakelen",
+      "turnOff": "Uitschakelen",
+      "scan": "Scan dit met uw authenticatie-app.",
+      "orType": "Of typ dit geheim in de app:",
+      "qrLabel": "QR-code voor uw authenticatie-app",
+      "codeLabel": "Code uit de app",
+      "confirm": "Bevestigen",
+      "confirmPassword": "Uw wachtwoord",
+      "codesTitle": "Herstelcodes",
+      "codesExplain": "Bewaar deze ergens anders dan op uw telefoon. Elke code meldt u één keer aan, voor de dag dat de telefoon er niet is. Ze worden nu getoond en daarna nooit meer.",
+      "copyCodes": "Kopiëren",
+      "copied": "Gekopieerd.",
+      "codesLeft": "Nog één herstelcode | Nog {count} herstelcodes",
+      "newCodesButton": "Nieuwe codes maken",
+      "newCodes": "Nieuwe herstelcodes gemaakt. De vorige werken niet meer.",
+      "turnedOn": "Tweestapsverificatie staat aan.",
+      "turnedOff": "Tweestapsverificatie staat uit.",
+      "loadFailed": "De tweestapsinstellingen van dit account konden niet worden gelezen.",
+      "startFailed": "Het instellen van een tweede stap kon niet worden gestart.",
+      "confirmFailed": "Die code klopt niet.",
+      "codesFailed": "Er konden geen nieuwe herstelcodes worden gemaakt.",
+      "disableFailed": "Tweestapsverificatie kon niet worden uitgeschakeld.",
+      "wrongPassword": "Dat wachtwoord klopt niet."
     }
   },
   "share": {
