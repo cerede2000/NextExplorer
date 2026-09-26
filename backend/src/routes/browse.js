@@ -126,6 +126,9 @@ router.get(
         sourceFolderName: pathParts[pathParts.length - 1] || '',
       };
     }
+    // Listings carry transient information such as active OnlyOffice sessions.
+    // Keep browser and proxy caches from serving an out-of-date directory view.
+    res.setHeader('Cache-Control', 'private, no-store');
 
     res.json(response);
   })

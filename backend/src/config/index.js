@@ -675,8 +675,35 @@ const performanceDiagnostics = {
   eventLoopDelayThresholdMs: atLeast(env.PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS, 1, 250),
 };
 
+/**
+ * How much of a document the preview will render.
+ *
+ * Not the same question as what the editor will open, and the difference is
+ * why this is a setting of its own. The editor streams text into a code view;
+ * the preview parses the document, sanitises the HTML it produces and then
+ * hands the browser every node to lay out — all on the one thread the
+ * interface has. A six-megabyte markdown file opens in the editor and freezes
+ * the tab in the preview, on the same machine, from the same file.
+ *
+ * It was hard-coded before this, which meant someone who raised
+ * EDITOR_MAX_FILESIZE in good faith was refused at a number that appeared in
+ * no setting and no document.
+ *
+ * Generous by default because freezing is no longer the failure mode: the
+ * preview renders in slices of a frame and hands the browser back between
+ * them. What is left is the weight of the document in the tab, which is a
+ * reader's problem rather than an application's. And the preview reads through
+ * the editor's endpoint, so EDITOR_MAX_FILESIZE already caps what can reach
+ * it — this only bites when it is set lower than that.
+ */
+const previewMaxRenderBytes = (() => {
+  const parsed = parseByteSize(env.PREVIEW_MAX_RENDER_SIZE);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 16 * 1024 * 1024;
+})();
+
 module.exports = {
   performanceDiagnostics,
+  preview: { maxRenderBytes: previewMaxRenderBytes },
   folderSize,
   webauthn,
   activity,
