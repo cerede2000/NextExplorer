@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "Authentication required",
     "AUTH_INVALID_CREDENTIALS": "Invalid email or password",
     "AUTH_ACCOUNT_LOCKED": "Account is temporarily locked due to failed login attempts",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account locked after too many failed sign-in attempts. Try again in {minutes} minute | Account locked after too many failed sign-in attempts. Try again in {minutes} minutes",
     "AUTH_PASSWORD_INCORRECT": "Current password is incorrect",
     "VALIDATION_EMAIL_REQUIRED": "Email is required",
     "VALIDATION_PASSWORD_REQUIRED": "Password is required",

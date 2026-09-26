@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "Se requiere autenticación",
     "AUTH_INVALID_CREDENTIALS": "Correo electrónico o contraseña no válidos",
     "AUTH_ACCOUNT_LOCKED": "La cuenta está bloqueada temporalmente debido a intentos fallidos de inicio de sesión",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Cuenta bloqueada tras demasiados intentos fallidos de inicio de sesión. Inténtalo de nuevo en {minutes} minuto | Cuenta bloqueada tras demasiados intentos fallidos de inicio de sesión. Inténtalo de nuevo en {minutes} minutos",
     "AUTH_PASSWORD_INCORRECT": "La contraseña actual es incorrecta",
     "VALIDATION_EMAIL_REQUIRED": "El correo electrónico es obligatorio",
     "VALIDATION_PASSWORD_REQUIRED": "La contraseña es obligatoria",

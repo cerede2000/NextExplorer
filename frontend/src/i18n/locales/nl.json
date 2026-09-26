@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "Authenticatie vereist",
     "AUTH_INVALID_CREDENTIALS": "Ongeldige aanmeldgegevens",
     "AUTH_ACCOUNT_LOCKED": "Account is tijdelijk geblokkeerd vanwege mislukte inlogpogingen",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Account vergrendeld na te veel mislukte aanmeldpogingen. Probeer het over {minutes} minuut opnieuw | Account vergrendeld na te veel mislukte aanmeldpogingen. Probeer het over {minutes} minuten opnieuw",
     "AUTH_PASSWORD_INCORRECT": "Huidig wachtwoord is onjuist",
     "VALIDATION_EMAIL_REQUIRED": "E-mailadres is vereist",
     "VALIDATION_PASSWORD_REQUIRED": "Wachtwoord is vereist",

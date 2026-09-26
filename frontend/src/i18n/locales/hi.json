@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "प्रमाणीकरण आवश्यक है",
     "AUTH_INVALID_CREDENTIALS": "अमान्य ईमेल या पासवर्ड",
     "AUTH_ACCOUNT_LOCKED": "असफल लॉगिन प्रयासों के कारण खाता अस्थायी रूप से लॉक है",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "बहुत अधिक असफल साइन-इन प्रयासों के बाद खाता लॉक है। {minutes} मिनट बाद फिर से प्रयास करें",
     "AUTH_PASSWORD_INCORRECT": "वर्तमान पासवर्ड गलत है",
     "VALIDATION_EMAIL_REQUIRED": "ईमेल आवश्यक है",
     "VALIDATION_PASSWORD_REQUIRED": "पासवर्ड आवश्यक है",
