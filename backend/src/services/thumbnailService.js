@@ -1,10 +1,10 @@
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
-const { spawn } = require('child_process');
 const sharp = require('sharp');
-const ffmpeg = require('fluent-ffmpeg');
+const ffmpegRunner = require('./ffmpegRunner');
 const PQueue = require('p-queue').default;
 
 const { ensureDir } = require('../utils/fsUtils');
@@ -13,6 +13,13 @@ const env = require('../config/env');
 const { getSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const { getRawPreviewJpegPath } = require('./rawPreviewService');
+const {
+  CACHE_CLEANUP_BATCH_SIZE,
+  CACHE_CLEANUP_INTERVAL_MS,
+  CACHE_TTL_MS,
+  findAbandonedTempFiles,
+  statCacheEntries,
+} = require('../utils/cacheCleanup');
 
 const getThumbOptions = async () => {
   const settings = await getSettings();
@@ -23,54 +30,31 @@ const getThumbOptions = async () => {
 
 const currentConcurrency = sharp.concurrency();
 sharp.concurrency(Math.max(1, Math.min(8, currentConcurrency)));
-sharp.cache({ memory: 256, files: 0 });
-
-const EXECUTABLE_CANDIDATES = {
-  ffmpeg: [env.FFMPEG_PATH, '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg'],
-  ffprobe: [
-    env.FFPROBE_PATH,
-    '/usr/local/bin/ffprobe',
-    '/usr/bin/ffprobe',
-    '/opt/homebrew/bin/ffprobe',
-  ],
+const SHARP_CACHE_MEMORY_MB = Number.isFinite(env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)
+  ? Math.max(0, Math.min(256, Math.floor(env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)))
+  : 32;
+const configureSharpCache = () => {
+  sharp.cache({
+    memory: SHARP_CACHE_MEMORY_MB,
+    files: 0,
+    items: SHARP_CACHE_MEMORY_MB > 0 ? 100 : 0,
+  });
 };
-
-let canProcessVideoThumbnails = false;
-
-const resolveExecutable = (candidates = []) => {
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-
-    try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return candidate;
-    } catch (error) {
-      // try next candidate
-    }
-  }
-
-  return null;
+const trimSharpCache = () => {
+  sharp.cache(false);
+  configureSharpCache();
 };
+configureSharpCache();
 
-const configureFfmpegBinaries = () => {
-  const ffmpegPath = resolveExecutable(EXECUTABLE_CANDIDATES.ffmpeg);
-  if (ffmpegPath) {
-    ffmpeg.setFfmpegPath(ffmpegPath);
-  } else {
-    logger.warn('FFmpeg binary not found. Video thumbnails will be skipped.');
-  }
+// ffprobe is only needed when the seek point is a percentage of the duration;
+// a fixed seek needs ffmpeg alone.
+const ffprobeRequired = env.THUMBNAIL_VIDEO_SEEK_PERCENT != null;
+const canProcessVideoThumbnails =
+  ffmpegRunner.hasFfmpeg() && (!ffprobeRequired || ffmpegRunner.hasFfprobe());
 
-  const ffprobePath = resolveExecutable(EXECUTABLE_CANDIDATES.ffprobe);
-  if (ffprobePath) {
-    ffmpeg.setFfprobePath(ffprobePath);
-  } else {
-    logger.warn('ffprobe binary not found. Video thumbnails will be skipped.');
-  }
-
-  canProcessVideoThumbnails = Boolean(ffmpegPath && ffprobePath);
-};
-
-configureFfmpegBinaries();
+if (ffprobeRequired && !ffmpegRunner.hasFfprobe()) {
+  logger.warn('ffprobe binary not found. Video thumbnails will be skipped.');
+}
 
 const isImage = (ext) => extensions.images.includes(ext);
 const isRawImage = (ext) => (extensions.rawImages || []).includes(ext);
@@ -79,8 +63,81 @@ const isPdf = (ext) => ext === 'pdf';
 const isHeic = (ext) => ext === 'heic';
 
 const inflight = new Map();
+const failedThumbnails = new Map();
 
-const THUMBNAIL_CACHE_VERSION = 2;
+const THUMBNAIL_CACHE_VERSION = 3;
+const QUEUE_CONCURRENCY_REFRESH_INTERVAL_MS = 30 * 1000;
+const FAILED_THUMBNAIL_TTL_MS = 10 * 60 * 1000;
+const FAILED_THUMBNAIL_MAX_ENTRIES = 1000;
+const THUMBNAIL_CACHE_MAX_FILES = Number.isFinite(env.THUMBNAIL_CACHE_MAX_FILES)
+  ? Math.max(0, Math.floor(env.THUMBNAIL_CACHE_MAX_FILES))
+  : 3000;
+// Read once in utils/cacheCleanup, which bounds the RAW previews with them too.
+const THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS = CACHE_CLEANUP_INTERVAL_MS;
+const THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE = CACHE_CLEANUP_BATCH_SIZE;
+const THUMBNAIL_CACHE_TTL_MS = CACHE_TTL_MS;
+const THUMBNAIL_VIDEO_CONCURRENCY = Number.isFinite(env.THUMBNAIL_VIDEO_CONCURRENCY)
+  ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_CONCURRENCY)))
+  : 3;
+const THUMBNAIL_VIDEO_SEEK_SECONDS = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_SECONDS)
+  ? Math.max(0, Math.floor(env.THUMBNAIL_VIDEO_SEEK_SECONDS))
+  : 5;
+const THUMBNAIL_VIDEO_SEEK_PERCENT = Number.isFinite(env.THUMBNAIL_VIDEO_SEEK_PERCENT)
+  ? Math.max(0, Math.min(1, Number(env.THUMBNAIL_VIDEO_SEEK_PERCENT)))
+  : null;
+const THUMBNAIL_VIDEO_THREADS = Number.isFinite(env.THUMBNAIL_VIDEO_THREADS)
+  ? Math.max(1, Math.min(8, Math.floor(env.THUMBNAIL_VIDEO_THREADS)))
+  : 2;
+const THUMBNAIL_VIDEO_SCALE_FLAGS = /^[a-z0-9_+.-]+$/i.test(env.THUMBNAIL_VIDEO_SCALE_FLAGS || '')
+  ? env.THUMBNAIL_VIDEO_SCALE_FLAGS
+  : 'fast_bilinear';
+const THUMBNAIL_BACKGROUND_QUEUE_LIMIT = Number.isFinite(env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
+  ? Math.max(1, Math.min(100, Math.floor(env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)))
+  : 16;
+const THUMBNAIL_DIAGNOSTICS_ENABLED = env.THUMBNAIL_DIAGNOSTICS_ENABLED === true;
+const THUMBNAIL_DIAGNOSTICS_INTERVAL_MS = Number.isFinite(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS)
+  ? Math.max(5000, Math.floor(env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS))
+  : 30000;
+const THUMBNAIL_SLOW_JOB_MS = Number.isFinite(env.THUMBNAIL_SLOW_JOB_MS)
+  ? Math.max(1000, Math.floor(env.THUMBNAIL_SLOW_JOB_MS))
+  : 10000;
+// Generous on purpose: a long video on a slow disk is allowed to take minutes,
+// and a thumbnail killed early is a thumbnail that never appears. See
+// startFfmpegCeiling.
+const THUMBNAIL_FFMPEG_TIMEOUT_MS = Number.isFinite(env.THUMBNAIL_FFMPEG_TIMEOUT_MS)
+  ? Math.max(1000, Math.floor(env.THUMBNAIL_FFMPEG_TIMEOUT_MS))
+  : 5 * 60 * 1000;
+const THUMBNAIL_PROCESS_NICE = Number.isFinite(env.THUMBNAIL_PROCESS_NICE)
+  ? Math.max(0, Math.min(19, Math.floor(env.THUMBNAIL_PROCESS_NICE)))
+  : 10;
+const THUMBNAIL_CACHE_CONTINUE_DELAY_MS = 30 * 1000;
+const THUMBNAIL_CACHE_DIR = path.resolve(directories.thumbnails);
+const THUMBNAIL_CACHE_FILE_PATTERN = /^v\d+-(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
+// Releases up to 2.0.3 named a thumbnail after its key alone; the version prefix
+// arrived with 734508f. Such a file is a thumbnail all the same — counted, and
+// outdated by definition — but only the cleanup needs to know the name: a source
+// file that merely looks like one must still get a thumbnail of its own.
+const LEGACY_THUMBNAIL_FILE_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp$/i;
+// A thumbnail on its way into place (buildTempThumbnailPath), under either naming.
+// 2.0.x wrote `.tmp-<pid>-<ms>`; the UUID came later.
+const THUMBNAIL_TEMP_FILE_PATTERN =
+  /^(?:v\d+-)?(?:[a-f0-9]{40}|[a-f0-9]{64})\.webp\.tmp-\d+-\d+(?:-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})?$/i;
+// Temporary files this process is still writing, by name. See atomicWriteSharpFile.
+const liveThumbnailTempFiles = new Set();
+const THUMBNAILS_ENABLED = env.THUMBNAILS_ENABLED !== false;
+const activeThumbnailJobs = new Map();
+const activeExternalProcesses = new Map();
+const thumbnailStats = {
+  requests: 0,
+  cacheHits: 0,
+  queued: 0,
+  generated: 0,
+  failed: 0,
+  failedTtlSkips: 0,
+  cacheCleanupDeleted: 0,
+  backgroundQueueSkipped: 0,
+  ffmpegStarted: 0,
+};
 
 // Create thumbnail generation queue with concurrency limit
 // This prevents overwhelming the system with too many concurrent sharp/ffmpeg operations
@@ -91,52 +148,472 @@ const thumbnailQueue = new PQueue({
   throwOnTimeout: false,
 });
 
-// Update queue concurrency from settings
-const updateQueueConcurrency = async () => {
+const videoThumbnailQueue = new PQueue({
+  concurrency: THUMBNAIL_VIDEO_CONCURRENCY,
+  timeout: 30000,
+  throwOnTimeout: false,
+});
+// Removing an obsolete cache entry is never worth delaying a file operation.
+// Keep it small and serial so a large deletion cannot turn cache housekeeping
+// into another source of filesystem pressure.
+const thumbnailRemovalQueue = new PQueue({ concurrency: 1 });
+
+let queueConcurrencyRefreshPromise = null;
+let lastQueueConcurrencyRefreshAt = 0;
+let lastQueueConcurrency = thumbnailQueue.concurrency;
+let sharpCacheTrimTimer = null;
+let thumbnailCacheCleanupPromise = null;
+let thumbnailCacheCleanupTimer = null;
+// Set by stopThumbnailWork: a pass finishing afterwards schedules no other.
+let thumbnailCacheCleanupStopped = false;
+let lastThumbnailCacheCleanupAt = 0;
+let thumbnailDiagnosticsTimer = null;
+
+const toMb = (bytes) => Math.round((Number(bytes) || 0) / 1024 / 1024);
+
+// Cheap snapshots used on hot paths (per job/process). Avoid building the full
+// getDiagnosticsSnapshot() object when only memory or queue depth is needed.
+const currentMemoryMb = () => {
+  const memory = process.memoryUsage();
+  return {
+    rss: toMb(memory.rss),
+    heapUsed: toMb(memory.heapUsed),
+    heapTotal: toMb(memory.heapTotal),
+    external: toMb(memory.external),
+    arrayBuffers: toMb(memory.arrayBuffers),
+  };
+};
+
+const queuesSnapshot = () => ({
+  thumbnail: {
+    size: thumbnailQueue.size,
+    pending: thumbnailQueue.pending,
+    concurrency: thumbnailQueue.concurrency,
+  },
+  video: {
+    size: videoThumbnailQueue.size,
+    pending: videoThumbnailQueue.pending,
+    concurrency: videoThumbnailQueue.concurrency,
+  },
+});
+
+const summarizeActiveMap = (map, { now = Date.now(), limit = 5 } = {}) =>
+  Array.from(map.values())
+    .map((item) => ({
+      id: item.id,
+      type: item.type,
+      ext: item.ext,
+      fileName: item.fileName,
+      pid: item.pid,
+      ageMs: now - item.startedAt,
+    }))
+    .sort((a, b) => b.ageMs - a.ageMs)
+    .slice(0, limit);
+
+const countBy = (items, key) =>
+  items.reduce((acc, item) => {
+    const value = item[key] || 'unknown';
+    acc[value] = (acc[value] || 0) + 1;
+    return acc;
+  }, {});
+
+const safeSharpDiagnostics = () => {
   try {
-    const settings = await getSettings();
-    const concurrency = settings?.thumbnails?.concurrency || 10;
-    thumbnailQueue.concurrency = concurrency;
-    logger.info({ concurrency }, 'Thumbnail queue concurrency set');
+    return {
+      cache: sharp.cache(),
+      counters: sharp.counters(),
+    };
   } catch (error) {
-    logger.warn({ err: error }, 'Failed to update thumbnail queue concurrency');
+    return { error: error.message };
   }
 };
 
-// Initialize concurrency from settings
-updateQueueConcurrency();
+const getDiagnosticsSnapshot = () => {
+  const now = Date.now();
+  const activeJobs = Array.from(activeThumbnailJobs.values());
+  const activeProcesses = Array.from(activeExternalProcesses.values());
 
-// Log queue stats periodically for monitoring
-thumbnailQueue.on('active', () => {
-  logger.debug(
-    {
-      size: thumbnailQueue.size,
-      pending: thumbnailQueue.pending,
-      concurrency: thumbnailQueue.concurrency,
+  return {
+    memoryMb: currentMemoryMb(),
+    queues: queuesSnapshot(),
+    counts: {
+      inflight: inflight.size,
+      failedCache: failedThumbnails.size,
+      activeJobs: activeJobs.length,
+      activeExternalProcesses: activeProcesses.length,
     },
-    'Thumbnail queue status'
-  );
-});
+    activeByType: countBy(activeJobs, 'type'),
+    activeByExt: countBy(activeJobs, 'ext'),
+    activeExternalByType: countBy(activeProcesses, 'type'),
+    oldestJobs: summarizeActiveMap(activeThumbnailJobs, { now }),
+    oldestExternalProcesses: summarizeActiveMap(activeExternalProcesses, { now }),
+    stats: { ...thumbnailStats },
+    sharp: safeSharpDiagnostics(),
+    cleanup: {
+      cacheMaxFiles: THUMBNAIL_CACHE_MAX_FILES,
+      cleanupInProgress: Boolean(thumbnailCacheCleanupPromise),
+      cleanupTimerScheduled: Boolean(thumbnailCacheCleanupTimer),
+      lastCleanupAgeMs: lastThumbnailCacheCleanupAt ? now - lastThumbnailCacheCleanupAt : null,
+    },
+  };
+};
 
-const hashForFile = async (filePath, stats = null) => {
-  const info = stats || (await fsPromises.stat(filePath));
+const logThumbnailDiagnostics = (reason, extra = {}) => {
+  if (!THUMBNAIL_DIAGNOSTICS_ENABLED) return;
+  logger.info({ reason, ...getDiagnosticsSnapshot(), ...extra }, 'Thumbnail diagnostics');
+};
+
+const startThumbnailDiagnostics = () => {
+  if (!THUMBNAIL_DIAGNOSTICS_ENABLED || thumbnailDiagnosticsTimer) {
+    return;
+  }
+
+  logger.info(
+    {
+      intervalMs: THUMBNAIL_DIAGNOSTICS_INTERVAL_MS,
+      slowJobMs: THUMBNAIL_SLOW_JOB_MS,
+      cacheMaxFiles: THUMBNAIL_CACHE_MAX_FILES,
+      sharpCacheMemoryMb: SHARP_CACHE_MEMORY_MB,
+      videoConcurrency: THUMBNAIL_VIDEO_CONCURRENCY,
+      videoSeekSeconds: THUMBNAIL_VIDEO_SEEK_SECONDS,
+      videoSeekPercent: THUMBNAIL_VIDEO_SEEK_PERCENT,
+      videoThreads: THUMBNAIL_VIDEO_THREADS,
+      videoScaleFlags: THUMBNAIL_VIDEO_SCALE_FLAGS,
+      backgroundQueueLimit: THUMBNAIL_BACKGROUND_QUEUE_LIMIT,
+      processNice: THUMBNAIL_PROCESS_NICE,
+      uvThreadpoolSize: process.env.UV_THREADPOOL_SIZE || null,
+    },
+    'Thumbnail diagnostics enabled'
+  );
+
+  thumbnailDiagnosticsTimer = setInterval(() => {
+    logThumbnailDiagnostics('interval');
+  }, THUMBNAIL_DIAGNOSTICS_INTERVAL_MS);
+
+  if (typeof thumbnailDiagnosticsTimer.unref === 'function') {
+    thumbnailDiagnosticsTimer.unref();
+  }
+};
+
+const startThumbnailJob = (filePath, thumbPath) => {
+  const id = crypto.randomUUID();
+  const ext = path.extname(filePath).toLowerCase().slice(1) || 'unknown';
+  const type = isVideo(ext)
+    ? 'video'
+    : isHeic(ext)
+      ? 'heic'
+      : isRawImage(ext)
+        ? 'raw'
+        : isImage(ext)
+          ? 'image'
+          : ext;
+  const job = {
+    id,
+    type,
+    ext,
+    fileName: path.basename(filePath),
+    thumbFile: path.basename(thumbPath),
+    startedAt: Date.now(),
+  };
+
+  activeThumbnailJobs.set(id, job);
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
+    logger.info({ job, queues: queuesSnapshot() }, 'Thumbnail job started');
+  }
+  return id;
+};
+
+const finishThumbnailJob = (id, status, error = null) => {
+  const job = activeThumbnailJobs.get(id);
+  if (!job) return;
+
+  activeThumbnailJobs.delete(id);
+  const durationMs = Date.now() - job.startedAt;
+  if (!THUMBNAIL_DIAGNOSTICS_ENABLED && durationMs < THUMBNAIL_SLOW_JOB_MS) {
+    return;
+  }
+
+  logger.info(
+    {
+      job,
+      status,
+      durationMs,
+      memoryMb: currentMemoryMb(),
+      error: error ? error.message : undefined,
+    },
+    'Thumbnail job finished'
+  );
+};
+
+// Lower the CPU scheduling priority of a spawned ffmpeg so the
+// Node event loop — and therefore directory listings and navigation — keeps CPU
+// during heavy thumbnail generation. Only ever applied to child PIDs, never to
+// the main process. Best-effort: setpriority may be unavailable or denied.
+const lowerChildProcessPriority = (pid) => {
+  if (!pid || THUMBNAIL_PROCESS_NICE <= 0) {
+    return;
+  }
+
+  try {
+    os.setPriority(pid, THUMBNAIL_PROCESS_NICE);
+  } catch (error) {
+    logger.debug({ pid, err: error }, 'Failed to lower thumbnail process priority');
+  }
+};
+
+const registerExternalProcess = (type, filePath, pid, extra = {}) => {
+  const id = crypto.randomUUID();
+  const item = {
+    id,
+    type,
+    ext: path.extname(filePath).toLowerCase().slice(1) || 'unknown',
+    fileName: path.basename(filePath),
+    pid: pid || null,
+    startedAt: Date.now(),
+    ...extra,
+  };
+
+  activeExternalProcesses.set(id, item);
+  if (type === 'ffmpeg') thumbnailStats.ffmpegStarted += 1;
+
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED) {
+    logger.info(
+      { process: item, memoryMb: currentMemoryMb() },
+      'Thumbnail external process started'
+    );
+  }
+
+  return id;
+};
+
+const unregisterExternalProcess = (id, status, error = null) => {
+  if (!id) return;
+  const item = activeExternalProcesses.get(id);
+  if (!item) return;
+
+  activeExternalProcesses.delete(id);
+  const durationMs = Date.now() - item.startedAt;
+  if (THUMBNAIL_DIAGNOSTICS_ENABLED || durationMs >= THUMBNAIL_SLOW_JOB_MS) {
+    logger.info(
+      {
+        process: item,
+        status,
+        durationMs,
+        error: error ? error.message : undefined,
+        memoryMb: currentMemoryMb(),
+      },
+      'Thumbnail external process finished'
+    );
+  }
+};
+
+startThumbnailDiagnostics();
+
+const scheduleSharpCacheTrim = ({ delayMs = 2 * 1000 } = {}) => {
+  if (sharpCacheTrimTimer) {
+    clearTimeout(sharpCacheTrimTimer);
+  }
+
+  sharpCacheTrimTimer = setTimeout(() => {
+    sharpCacheTrimTimer = null;
+    if (thumbnailQueue.size === 0 && thumbnailQueue.pending === 0) {
+      trimSharpCache();
+      logger.debug({ memoryMb: SHARP_CACHE_MEMORY_MB }, 'Sharp thumbnail cache trimmed');
+      return;
+    }
+
+    scheduleSharpCacheTrim({ delayMs });
+  }, delayMs);
+
+  if (typeof sharpCacheTrimTimer.unref === 'function') {
+    sharpCacheTrimTimer.unref();
+  }
+};
+
+const isInsideDirectory = (candidatePath, directoryPath) => {
+  if (!candidatePath) {
+    return false;
+  }
+
+  const relativePath = path.relative(directoryPath, path.resolve(candidatePath));
+  return (
+    relativePath === '' ||
+    (!!relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+  );
+};
+
+const isThumbnailCachePath = (filePath) => {
+  if (!filePath) {
+    return false;
+  }
+
+  return (
+    isInsideDirectory(filePath, THUMBNAIL_CACHE_DIR) ||
+    THUMBNAIL_CACHE_FILE_PATTERN.test(path.basename(filePath))
+  );
+};
+
+// Update queue concurrency from settings
+const updateQueueConcurrency = async ({ force = false } = {}) => {
+  const now = Date.now();
+  if (!force && now - lastQueueConcurrencyRefreshAt < QUEUE_CONCURRENCY_REFRESH_INTERVAL_MS) {
+    return;
+  }
+
+  if (queueConcurrencyRefreshPromise) {
+    return queueConcurrencyRefreshPromise;
+  }
+
+  queueConcurrencyRefreshPromise = (async () => {
+    lastQueueConcurrencyRefreshAt = Date.now();
+
+    try {
+      const settings = await getSettings();
+      const rawConcurrency = Number(settings?.thumbnails?.concurrency) || 10;
+      const concurrency = Math.max(1, Math.min(50, Math.floor(rawConcurrency)));
+
+      if (concurrency !== lastQueueConcurrency) {
+        thumbnailQueue.concurrency = concurrency;
+        lastQueueConcurrency = concurrency;
+        logger.info({ concurrency }, 'Thumbnail queue concurrency set');
+      }
+    } catch (error) {
+      logger.warn({ err: error }, 'Failed to update thumbnail queue concurrency');
+    } finally {
+      queueConcurrencyRefreshPromise = null;
+    }
+  })();
+
+  return queueConcurrencyRefreshPromise;
+};
+
+// Initialize concurrency from settings
+updateQueueConcurrency({ force: true });
+
+const resolveThumbnailSourceIdentity = async (filePath) => {
+  try {
+    return await fsPromises.realpath(filePath);
+  } catch (_) {
+    return path.resolve(filePath);
+  }
+};
+
+const hashForFile = async (filePath) => {
+  const sourceIdentity = await resolveThumbnailSourceIdentity(filePath);
   const hash = crypto.createHash('sha1');
-  hash.update(filePath);
-  hash.update(String(info.size));
-  hash.update(String(Math.floor(info.mtimeMs)));
+  hash.update(sourceIdentity);
   return hash.digest('hex');
 };
 
-const atomicWrite = async (finalPath, buffer) => {
+const buildTempThumbnailPath = (finalPath) =>
+  `${finalPath}.tmp-${process.pid}-${Date.now()}-${crypto.randomUUID()}`;
+
+/** How much of ffmpeg's complaint to keep, and how long to wait to hear it. */
+const FFMPEG_STDERR_TAIL_BYTES = 2048;
+const FFMPEG_EXIT_GRACE_MS = 1000;
+
+/**
+ * Listen to ffmpeg, so a failure can be reported as ffmpeg's.
+ *
+ * Two things went wrong without this, and the second hid the first.
+ *
+ * ffmpeg is spawned with stderr on a pipe. A pipe nobody reads fills — 64 KB on
+ * Linux — and the process then blocks on its next write and never exits. A run
+ * that only ever succeeds quietly never reaches that, which is why it went
+ * unnoticed; a file ffmpeg has a lot to say about is exactly the file that
+ * hangs. Attaching a reader is what drains it.
+ *
+ * And when ffmpeg does fail it writes nothing to stdout, so sharp is handed an
+ * empty buffer and raises "Input buffer contains unsupported image format".
+ * That is the line that reached the log — sharp's name, an image-format
+ * complaint, about a video file — while the actual reason sat unread in stderr.
+ * A sharp error therefore waits briefly for the exit code before it is
+ * believed, and carries ffmpeg's own words when there are any.
+ */
+const attachFfmpegDiagnostics = (command) => {
+  let stderrTail = '';
+  let exitCode = null;
+
+  command.stderr?.on('data', (chunk) => {
+    stderrTail = (stderrTail + String(chunk)).slice(-FFMPEG_STDERR_TAIL_BYTES);
+  });
+
+  const exited = new Promise((resolve) => {
+    command.on('close', (code) => {
+      exitCode = code;
+      resolve(code);
+    });
+  });
+
+  /** Wait for the exit code, but never longer than it takes to be useful. */
+  const settledExit = () =>
+    Promise.race([
+      exited,
+      new Promise((resolve) => {
+        const timer = setTimeout(resolve, FFMPEG_EXIT_GRACE_MS);
+        timer.unref?.();
+      }),
+    ]);
+
+  const describeFailure = (error) => {
+    if (exitCode === null || exitCode === 0) return error;
+    const detail = stderrTail.trim().split('\n').slice(-3).join(' | ');
+    const described = new Error(`FFmpeg exited with ${exitCode}${detail ? `: ${detail}` : ''}`);
+    described.cause = error;
+    return described;
+  };
+
+  return { describeFailure, settledExit };
+};
+
+/**
+ * The longest one ffmpeg may take over one thumbnail.
+ *
+ * Nothing else ends a run that has stopped making progress. The queues do time
+ * out, but a timeout there only frees the slot — deliberately, so that a job
+ * still working is not started a second time — and the file stays in flight
+ * behind the process nobody is waiting for any more. One ffmpeg that never
+ * exits therefore meant one file with no thumbnail until a restart, whoever
+ * asked for it and however often.
+ *
+ * The ceiling sits far above what the work takes, because everything under it
+ * is a thumbnail that would have arrived: a long video on a slow disk is
+ * allowed its minutes. Past it the process is killed and the run fails like
+ * any other failure — remembered for its ten minutes, then asked for again.
+ *
+ * @param {(error: Error) => void} expire  the run's own `fail`
+ * @returns {() => void} stops it; every way out of the run calls this
+ */
+const startFfmpegCeiling = (expire) => {
+  const timer = setTimeout(() => {
+    expire(new Error(`FFmpeg did not finish within ${THUMBNAIL_FFMPEG_TIMEOUT_MS} ms`));
+  }, THUMBNAIL_FFMPEG_TIMEOUT_MS);
+  return () => clearTimeout(timer);
+};
+
+const atomicWriteSharpFile = async (finalPath, pipeline) => {
   await ensureDir(path.dirname(finalPath));
-  const tmpPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
-  await fsPromises.writeFile(tmpPath, buffer);
-  await fsPromises.rename(tmpPath, finalPath);
+  const tmpPath = buildTempThumbnailPath(finalPath);
+  // Until the rename or the removal below has happened, the cleanup must leave
+  // this file alone however long the write takes. The queues cannot say so: a
+  // job they stop waiting for after their timeout goes on running.
+  const tmpName = path.basename(tmpPath);
+  liveThumbnailTempFiles.add(tmpName);
+
+  try {
+    await pipeline.toFile(tmpPath);
+    await fsPromises.rename(tmpPath, finalPath);
+  } catch (error) {
+    await fsPromises.rm(tmpPath, { force: true }).catch(() => {});
+    throw error;
+  } finally {
+    liveThumbnailTempFiles.delete(tmpName);
+  }
 };
 
 const makeImageThumb = async (srcPath, destPath) => {
   const { size, quality } = await getThumbOptions();
-  const buffer = await sharp(srcPath)
+  const pipeline = sharp(srcPath)
     .rotate()
     .resize({
       width: size,
@@ -145,10 +622,9 @@ const makeImageThumb = async (srcPath, destPath) => {
       withoutEnlargement: true,
       fastShrinkOnLoad: true,
     })
-    .webp({ quality, effort: 4 })
-    .toBuffer();
+    .webp({ quality, effort: 3 });
 
-  await atomicWrite(destPath, buffer);
+  await atomicWriteSharpFile(destPath, pipeline);
 };
 
 const makeRawImageThumb = async (srcPath, destPath) => {
@@ -156,17 +632,23 @@ const makeRawImageThumb = async (srcPath, destPath) => {
   await makeImageThumb(previewJpegPath, destPath);
 };
 
-const probeDuration = (filePath) =>
-  new Promise((resolve) => {
-    ffmpeg.ffprobe(filePath, (error, data) => {
-      if (error || !data?.format?.duration) {
-        resolve(null);
-        return;
-      }
+const probeDuration = async (filePath) => {
+  const data = await ffmpegRunner.probe(filePath);
+  return Number(data?.format?.duration) || null;
+};
 
-      resolve(Number(data.format.duration) || null);
-    });
-  });
+const resolveVideoSeekSeconds = async (filePath) => {
+  if (THUMBNAIL_VIDEO_SEEK_PERCENT == null) {
+    return THUMBNAIL_VIDEO_SEEK_SECONDS;
+  }
+
+  const duration = await probeDuration(filePath);
+  if (!duration || !Number.isFinite(duration)) {
+    return THUMBNAIL_VIDEO_SEEK_SECONDS;
+  }
+
+  return Math.max(0, Math.floor(duration * THUMBNAIL_VIDEO_SEEK_PERCENT));
+};
 
 const makeVideoThumb = async (srcPath, destPath) => {
   if (!canProcessVideoThumbnails) {
@@ -174,19 +656,14 @@ const makeVideoThumb = async (srcPath, destPath) => {
     return;
   }
 
-  const duration = await probeDuration(srcPath);
-  const seconds =
-    duration && Number.isFinite(duration) ? Math.max(1, Math.floor(duration * 0.05)) : 1;
+  const seconds = await resolveVideoSeekSeconds(srcPath);
+  const { size, quality } = await getThumbOptions();
 
   await new Promise((resolve, reject) => {
-    // Size is dynamic; capture inside ffmpeg filter
-    let size = 200;
-    getThumbOptions()
-      .then(({ size: sz }) => {
-        size = sz;
-      })
-      .catch(() => {});
     const inputOptions = ['-hide_banner', '-loglevel', 'error'];
+    if (THUMBNAIL_VIDEO_THREADS > 0) {
+      inputOptions.push('-threads', String(THUMBNAIL_VIDEO_THREADS));
+    }
 
     if (env.FFMPEG_HWACCEL) {
       inputOptions.push('-hwaccel', env.FFMPEG_HWACCEL);
@@ -200,71 +677,209 @@ const makeVideoThumb = async (srcPath, destPath) => {
       inputOptions.push('-hwaccel_output_format', env.FFMPEG_HWACCEL_OUTPUT_FORMAT);
     }
 
-    const command = ffmpeg(srcPath)
-      .inputOptions(inputOptions)
-      .seekInput(seconds)
-      .outputOptions(['-frames:v', '1', '-vf', `scale=${size}:-1:flags=lanczos`, '-vcodec', 'png'])
-      .format('image2pipe')
-      .on('error', reject);
+    let stream = null;
+    let pipeline = null;
+    let command = null;
+    let externalProcessId = null;
+    let settled = false;
+    let stopCeiling = null;
 
-    const stream = command.pipe();
-    stream.on('error', reject);
+    const cleanup = ({ killProcess = false } = {}) => {
+      stopCeiling?.();
+      if (killProcess) {
+        try {
+          command?.kill('SIGKILL');
+        } catch (_) {
+          // noop
+        }
+      }
+      if (stream && !stream.destroyed) {
+        stream.destroy();
+      }
+      if (pipeline && !pipeline.destroyed) {
+        pipeline.destroy();
+      }
+    };
 
-    (async () => {
-      const { quality } = await getThumbOptions();
-      const pipeline = sharp().webp({ quality, effort: 4 });
-      stream.pipe(pipeline);
-      pipeline
-        .toBuffer()
-        .then((buffer) => atomicWrite(destPath, buffer))
-        .then(resolve)
-        .catch(reject);
-    })().catch(reject);
+    let diagnostics = null;
+
+    const fail = (rawError) => {
+      if (settled) return;
+      settled = true;
+      const error = diagnostics ? diagnostics.describeFailure(rawError) : rawError;
+      unregisterExternalProcess(externalProcessId, 'error', error);
+      cleanup({ killProcess: true });
+      reject(error);
+    };
+
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      unregisterExternalProcess(externalProcessId, 'success');
+      cleanup();
+      resolve();
+    };
+
+    // `-ss` before `-i` seeks by keyframe, which is what makes a thumbnail of
+    // a long video fast: the alternative decodes everything up to that point.
+    command = ffmpegRunner.run([
+      ...inputOptions,
+      '-ss',
+      String(seconds),
+      '-i',
+      srcPath,
+      '-map',
+      '0:v:0',
+      '-an',
+      '-sn',
+      '-dn',
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
+      '-threads',
+      String(THUMBNAIL_VIDEO_THREADS),
+      '-vcodec',
+      'mjpeg',
+      '-q:v',
+      '4',
+      '-f',
+      'image2pipe',
+      'pipe:1',
+    ]);
+
+    externalProcessId = registerExternalProcess('ffmpeg', srcPath, command.pid, {
+      seekSeconds: seconds,
+      size,
+    });
+    lowerChildProcessPriority(command.pid);
+
+    diagnostics = attachFfmpegDiagnostics(command);
+    stopCeiling = startFfmpegCeiling(fail);
+    command.on('error', fail);
+    command.on('close', (code) => {
+      // Stop tracking it as running the moment it exits, rather than when the
+      // thumbnail has finished being written.
+      if (code === 0) unregisterExternalProcess(externalProcessId, 'success');
+    });
+
+    stream = command.stdout;
+    stream.on('error', fail);
+
+    pipeline = sharp().webp({ quality, effort: 3 });
+    stream.pipe(pipeline);
+    atomicWriteSharpFile(destPath, pipeline)
+      .then(done)
+      .catch(async (error) => {
+        // Whose failure this really is depends on the exit code, which may not
+        // have arrived yet.
+        await diagnostics.settledExit();
+        fail(error);
+      });
   });
 };
 
+/**
+ * A HEIC thumbnail, decoded by ffmpeg.
+ *
+ * This used to shell out to ImageMagick's `convert`, which was the only reason
+ * the image carried ImageMagick at all — 9.8 MB of packages for one format.
+ * ffmpeg is already here for video, and since 7.1 its HEIF demuxer reconstructs
+ * tiled images, which is what an iPhone photo actually is: a grid of HEVC
+ * tiles. A decoder that reads only the first item returns one square of the
+ * picture, so "it opens the file" was never the bar.
+ *
+ * Rotation stays ffmpeg's to apply. A HEIC records it as an `irot` property
+ * that the demuxer exports as display-matrix side data, and ffmpeg's own
+ * autorotate — on by default — inserts the transpose ahead of our scale filter.
+ * Doing it a second time in sharp would undo it.
+ */
 const makeHeicThumb = async (srcPath, destPath) => {
   const { size, quality } = await getThumbOptions();
 
   await new Promise((resolve, reject) => {
-    // Use ImageMagick to convert HEIC to PNG, then pipe to sharp for WebP conversion
-    const convert = spawn('convert', [
+    let externalProcessId = null;
+    let command = null;
+    let stream = null;
+    let pipeline = null;
+    let settled = false;
+    let stopCeiling = null;
+
+    const cleanup = ({ killProcess = false } = {}) => {
+      stopCeiling?.();
+      if (killProcess && command) {
+        try {
+          command.kill('SIGKILL');
+        } catch (_) {
+          // The process may already be gone; nothing left to stop.
+        }
+      }
+      if (stream && !stream.destroyed) stream.destroy();
+      if (pipeline && !pipeline.destroyed) pipeline.destroy();
+    };
+
+    let diagnostics = null;
+
+    const fail = (rawError) => {
+      if (settled) return;
+      settled = true;
+      const error = diagnostics ? diagnostics.describeFailure(rawError) : rawError;
+      unregisterExternalProcess(externalProcessId, 'error', error);
+      cleanup({ killProcess: true });
+      reject(error);
+    };
+
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      unregisterExternalProcess(externalProcessId, 'success');
+      cleanup();
+      resolve();
+    };
+
+    command = ffmpegRunner.run([
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
       srcPath,
-      '-auto-orient',
-      '-resize',
-      `${size}x`,
-      '-quality',
-      '100',
-      'png:-',
+      '-map',
+      '0:v:0',
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${size}:-1:flags=${THUMBNAIL_VIDEO_SCALE_FLAGS}`,
+      // PNG between the two processes: the WebP below is the only lossy step,
+      // so a small thumbnail is not compressed twice.
+      '-vcodec',
+      'png',
+      '-f',
+      'image2pipe',
+      'pipe:1',
     ]);
 
-    let stderr = '';
-    convert.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
+    externalProcessId = registerExternalProcess('ffmpeg', srcPath, command.pid, { size });
+    lowerChildProcessPriority(command.pid);
 
-    convert.on('error', (err) => {
-      reject(new Error(`Failed to spawn ImageMagick convert: ${err.message}`));
-    });
+    diagnostics = attachFfmpegDiagnostics(command);
+    stopCeiling = startFfmpegCeiling(fail);
+    command.on('error', fail);
 
-    convert.on('exit', (code) => {
-      if (code !== 0 && code !== null) {
-        reject(new Error(`ImageMagick convert exited with code ${code}: ${stderr}`));
-      }
-    });
+    stream = command.stdout;
+    stream.on('error', fail);
 
-    const pipeline = sharp().webp({ quality, effort: 4 });
-    convert.stdout.pipe(pipeline);
-
-    pipeline
-      .toBuffer()
-      .then((buffer) => atomicWrite(destPath, buffer))
-      .then(resolve)
-      .catch(reject);
+    pipeline = sharp().webp({ quality, effort: 3 });
+    stream.pipe(pipeline);
+    atomicWriteSharpFile(destPath, pipeline)
+      .then(done)
+      .catch(async (error) => {
+        await diagnostics.settledExit();
+        fail(error);
+      });
   });
 };
 
-const generateThumbnail = async (filePath, thumbPath) => {
+const generateThumbnail = async (filePath, thumbPath, { priority = 0 } = {}) => {
   const extension = path.extname(filePath).toLowerCase().slice(1);
 
   if (isPdf(extension)) {
@@ -287,42 +902,251 @@ const generateThumbnail = async (filePath, thumbPath) => {
   }
 
   if (isVideo(extension)) {
-    await makeVideoThumb(filePath, thumbPath);
+    // Waits for the thumbnail, not for the queue. The queue stops waiting after
+    // its timeout and frees the slot while ffmpeg goes on; a generation that
+    // ended there found no thumbnail yet, called it missing, and let the next
+    // request start a second ffmpeg on the same file beside the first.
+    let making = null;
+    await videoThumbnailQueue.add(
+      () => {
+        making = makeVideoThumb(filePath, thumbPath);
+        return making;
+      },
+      { priority }
+    );
+    await making;
     return;
   }
 
   throw new Error(`Unsupported file type: .${extension}`);
 };
 
-const buildThumbnailPaths = async (filePath, stats = null) => {
-  const key = await hashForFile(filePath, stats);
+const buildThumbnailPaths = async (filePath) => {
+  const key = await hashForFile(filePath);
   const thumbFile = `v${THUMBNAIL_CACHE_VERSION}-${key}.webp`;
   const thumbPath = path.join(directories.thumbnails, thumbFile);
   return { thumbFile, thumbPath };
 };
 
-const getThumbnailPathIfExists = async (filePath, stats = null) => {
-  if (filePath.includes(directories.thumbnails)) {
-    return '';
-  }
+const removeThumbnailForSource = async (filePath) => {
+  if (!filePath || isThumbnailCachePath(filePath)) return false;
 
-  const extension = path.extname(filePath).toLowerCase().slice(1);
-  if (isPdf(extension)) {
-    return '';
-  }
+  const { thumbPath } = await buildThumbnailPaths(filePath);
+  await fsPromises.rm(thumbPath, { force: true });
+  return true;
+};
 
-  const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath, stats);
+const scheduleThumbnailRemoval = (filePath) => {
+  // A bulk deletion can contain thousands of files. The expiration pass will
+  // reclaim the rest, so cap immediate bookkeeping rather than competing with
+  // the deletion itself.
+  if (thumbnailRemovalQueue.size + thumbnailRemovalQueue.pending >= 256) return;
+  thumbnailRemovalQueue.add(() => removeThumbnailForSource(filePath).catch(() => false));
+};
 
+const findExpiredThumbnails = (entries, now) => {
+  if (THUMBNAIL_CACHE_TTL_MS <= 0) return [];
+
+  return entries
+    .filter((entry) => now - entry.mtimeMs >= THUMBNAIL_CACHE_TTL_MS)
+    .map((entry) => entry.name);
+};
+
+const getThumbnailQueueLoad = () =>
+  inflight.size +
+  thumbnailQueue.size +
+  thumbnailQueue.pending +
+  videoThumbnailQueue.size +
+  videoThumbnailQueue.pending;
+
+const isThumbnailFresh = async (thumbPath, sourceStats = null, filePath = null) => {
   try {
-    await fsPromises.access(thumbPath, fs.constants.F_OK);
-    return `/static/thumbnails/${thumbFile}`;
-  } catch (error) {
-    return '';
+    const [thumbStats, currentSourceStats] = await Promise.all([
+      fsPromises.stat(thumbPath),
+      sourceStats ? Promise.resolve(sourceStats) : fsPromises.stat(filePath),
+    ]);
+
+    return thumbStats.mtimeMs >= currentSourceStats.mtimeMs;
+  } catch (_) {
+    return false;
   }
 };
 
-const getThumbnail = async (filePath) => {
-  if (filePath.includes(directories.thumbnails)) {
+const getFailedThumbnail = (thumbPath) => {
+  const failedAt = failedThumbnails.get(thumbPath);
+  if (!failedAt) {
+    return false;
+  }
+
+  if (Date.now() - failedAt > FAILED_THUMBNAIL_TTL_MS) {
+    failedThumbnails.delete(thumbPath);
+    return false;
+  }
+
+  return true;
+};
+
+const markFailedThumbnail = (thumbPath) => {
+  if (failedThumbnails.size >= FAILED_THUMBNAIL_MAX_ENTRIES) {
+    const oldestKey = failedThumbnails.keys().next().value;
+    if (oldestKey) {
+      failedThumbnails.delete(oldestKey);
+    }
+  }
+
+  failedThumbnails.set(thumbPath, Date.now());
+};
+
+/**
+ * A limit of zero lifts the limit on the count, and only that. It used to leave
+ * the directory unmanaged altogether, so another version's thumbnails, those
+ * past their lifetime and abandoned temporary files stayed there for good.
+ */
+const cleanupThumbnailCache = async () => {
+  if (thumbnailCacheCleanupPromise) {
+    return thumbnailCacheCleanupPromise;
+  }
+
+  thumbnailCacheCleanupPromise = (async () => {
+    lastThumbnailCacheCleanupAt = Date.now();
+    let shouldContinueCleanup = false;
+
+    try {
+      await ensureDir(directories.thumbnails);
+      const dirents = await fsPromises.readdir(directories.thumbnails, { withFileTypes: true });
+      const fileNames = dirents.filter((entry) => entry.isFile()).map((entry) => entry.name);
+
+      // The patterns decide what belongs to this cache, and they decide for every
+      // question below rather than only for the first two. The pattern used to
+      // filter the expired and the outdated, and then be dropped for the overflow
+      // trim, which took `fileNames` whole — so anything else in this directory
+      // both counted towards the limit and could be deleted to satisfy it.
+      const thumbnailNames = fileNames.filter(
+        (name) =>
+          THUMBNAIL_CACHE_FILE_PATTERN.test(name) || LEGACY_THUMBNAIL_FILE_PATTERN.test(name)
+      );
+      const now = Date.now();
+
+      // An unprefixed legacy name is not the current version either.
+      const currentVersionPrefix = `v${THUMBNAIL_CACHE_VERSION}-`;
+      const oldVersionNames = thumbnailNames.filter(
+        (name) => !name.startsWith(currentVersionPrefix)
+      );
+      // Stated once, oldest first: the lifetime reads the age, and a cache past
+      // its limit gives up its least recently written thumbnails first rather
+      // than whatever the directory listing happened to put first.
+      const entries = (await statCacheEntries(directories.thumbnails, thumbnailNames)).sort(
+        (a, b) => a.mtimeMs - b.mtimeMs
+      );
+      const expiredNames = findExpiredThumbnails(entries, now);
+      const removableNames = new Set([...oldVersionNames, ...expiredNames]);
+
+      // A temporary file is not a thumbnail: it neither counts towards the limit
+      // nor is trimmed to meet it. One that is clearly abandoned is removed.
+      const abandonedTempNames = await findAbandonedTempFiles(directories.thumbnails, fileNames, {
+        pattern: THUMBNAIL_TEMP_FILE_PATTERN,
+        live: liveThumbnailTempFiles,
+        now,
+      });
+
+      // What is still over the limit once the removable thumbnails are gone.
+      // Those are among the counted names and the temporary files are not, so
+      // the three add up; taking the larger of two, as this once did, stops
+      // short of the limit as soon as anything uncounted is removed as well.
+      const overflowCount =
+        THUMBNAIL_CACHE_MAX_FILES > 0
+          ? Math.max(0, thumbnailNames.length - removableNames.size - THUMBNAIL_CACHE_MAX_FILES)
+          : 0;
+      const wantedCount = abandonedTempNames.length + removableNames.size + overflowCount;
+
+      if (wantedCount <= 0) {
+        return;
+      }
+
+      const toDelete = [
+        ...abandonedTempNames,
+        ...removableNames,
+        ...entries
+          .filter((entry) => !removableNames.has(entry.name))
+          .slice(0, overflowCount)
+          .map((entry) => entry.name),
+      ].slice(0, THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE);
+
+      let deleted = 0;
+      for (const name of toDelete) {
+        try {
+          await fsPromises.rm(path.join(directories.thumbnails, name), { force: true });
+          deleted += 1;
+        } catch (_) {
+          // Best-effort cache cleanup.
+        }
+      }
+
+      logger.info(
+        {
+          deleted,
+          before: thumbnailNames.length,
+          remainingEstimate: Math.max(0, fileNames.length - deleted),
+          max: THUMBNAIL_CACHE_MAX_FILES,
+          batchSize: THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE,
+          oldVersionCandidates: oldVersionNames.length,
+          expiredCandidates: expiredNames.length,
+          abandonedTempCandidates: abandonedTempNames.length,
+        },
+        'Thumbnail cache cleanup batch completed'
+      );
+      thumbnailStats.cacheCleanupDeleted += deleted;
+      logThumbnailDiagnostics('cache-cleanup', { cleanupDeleted: deleted });
+
+      if (wantedCount > deleted) {
+        shouldContinueCleanup = true;
+      }
+    } catch (error) {
+      logger.warn({ err: error }, 'Thumbnail cache cleanup failed');
+    } finally {
+      thumbnailCacheCleanupPromise = null;
+      // The next pass is always on the clock. It used to be asked for only when
+      // a thumbnail was generated, so a server that generated none any more
+      // never applied the lifetime, the version rules or the limit again.
+      scheduleThumbnailCacheCleanup({
+        force: true,
+        delayMs: shouldContinueCleanup
+          ? THUMBNAIL_CACHE_CONTINUE_DELAY_MS
+          : THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS,
+      });
+    }
+  })();
+
+  return thumbnailCacheCleanupPromise;
+};
+
+const scheduleThumbnailCacheCleanup = ({ force = false, delayMs = 5000 } = {}) => {
+  if (thumbnailCacheCleanupStopped) {
+    return;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastThumbnailCacheCleanupAt < THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  if (thumbnailCacheCleanupTimer || thumbnailCacheCleanupPromise) {
+    return;
+  }
+
+  thumbnailCacheCleanupTimer = setTimeout(() => {
+    thumbnailCacheCleanupTimer = null;
+    cleanupThumbnailCache().catch(() => {});
+  }, delayMs);
+  if (typeof thumbnailCacheCleanupTimer.unref === 'function') {
+    thumbnailCacheCleanupTimer.unref();
+  }
+};
+
+scheduleThumbnailCacheCleanup({ force: true, delayMs: 2 * 60 * 1000 });
+
+const getThumbnailPathIfExists = async (filePath, stats = null) => {
+  if (!THUMBNAILS_ENABLED || isThumbnailCachePath(filePath)) {
     return '';
   }
 
@@ -333,12 +1157,40 @@ const getThumbnail = async (filePath) => {
 
   const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath);
 
-  // Check if thumbnail already exists (fast path)
   try {
-    await fsPromises.access(thumbPath, fs.constants.F_OK);
+    if (!(await isThumbnailFresh(thumbPath, stats, filePath))) {
+      return '';
+    }
     return `/static/thumbnails/${thumbFile}`;
-  } catch (error) {
-    // Thumbnail doesn't exist, need to generate
+  } catch (_) {
+    return '';
+  }
+};
+
+const getThumbnail = async (filePath, { priority = 0 } = {}) => {
+  if (!THUMBNAILS_ENABLED || isThumbnailCachePath(filePath)) {
+    return '';
+  }
+  thumbnailStats.requests += 1;
+
+  const extension = path.extname(filePath).toLowerCase().slice(1);
+  if (isPdf(extension)) {
+    return '';
+  }
+
+  const sourceStats = await fsPromises.stat(filePath);
+  const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath);
+
+  // Check if thumbnail already exists (fast path)
+  if (await isThumbnailFresh(thumbPath, sourceStats, filePath)) {
+    failedThumbnails.delete(thumbPath);
+    thumbnailStats.cacheHits += 1;
+    return `/static/thumbnails/${thumbFile}`;
+  }
+
+  if (getFailedThumbnail(thumbPath)) {
+    thumbnailStats.failedTtlSkips += 1;
+    return '';
   }
 
   // Update queue concurrency from settings (non-blocking)
@@ -347,41 +1199,67 @@ const getThumbnail = async (filePath) => {
   // Check if generation is already in progress for this file
   let pending = inflight.get(thumbPath);
   if (!pending) {
+    thumbnailStats.queued += 1;
+    // The file stays in flight until its generation has ended, not until the
+    // queue stops waiting for it. The queue gives up after its timeout and frees
+    // the slot while the job goes on; forgetting the file then let the next
+    // request start the same thumbnail a second time beside the first.
+    let started = false;
+    const release = () => {
+      inflight.delete(thumbPath);
+      scheduleSharpCacheTrim();
+    };
     // Queue the thumbnail generation with concurrency limit
     pending = thumbnailQueue
-      .add(async () => {
-        try {
-          // Double-check if another request created it while we were queued
+      .add(
+        async () => {
+          started = true;
+          const jobId = startThumbnailJob(filePath, thumbPath);
           try {
-            await fsPromises.access(thumbPath, fs.constants.F_OK);
-            return `/static/thumbnails/${thumbFile}`;
+            // Double-check if another request created it while we were queued
+            try {
+              if (!(await isThumbnailFresh(thumbPath, sourceStats, filePath))) {
+                throw new Error('Stale or missing thumbnail');
+              }
+              thumbnailStats.cacheHits += 1;
+              finishThumbnailJob(jobId, 'cache-hit');
+              return `/static/thumbnails/${thumbFile}`;
+            } catch (_) {
+              // Still doesn't exist, generate it
+            }
+
+            await generateThumbnail(filePath, thumbPath, { priority });
+            scheduleThumbnailCacheCleanup();
+
+            // Verify generation succeeded
+            try {
+              await fsPromises.access(thumbPath, fs.constants.F_OK);
+              thumbnailStats.generated += 1;
+              finishThumbnailJob(jobId, 'generated');
+              return `/static/thumbnails/${thumbFile}`;
+            } catch (_) {
+              logger.warn(
+                { filePath, thumbPath },
+                'Thumbnail generation completed but file not found'
+              );
+              finishThumbnailJob(jobId, 'missing');
+              return '';
+            }
           } catch (error) {
-            // Still doesn't exist, generate it
+            thumbnailStats.failed += 1;
+            markFailedThumbnail(thumbPath);
+            logger.error({ filePath, err: error }, 'Thumbnail generation failed');
+            finishThumbnailJob(jobId, 'error', error);
+            throw error;
+          } finally {
+            release();
           }
-
-          logger.debug({ filePath, thumbPath }, 'Generating thumbnail');
-          await generateThumbnail(filePath, thumbPath);
-
-          // Verify generation succeeded
-          try {
-            await fsPromises.access(thumbPath, fs.constants.F_OK);
-            logger.debug({ filePath, thumbPath }, 'Thumbnail generated successfully');
-            return `/static/thumbnails/${thumbFile}`;
-          } catch (missing) {
-            logger.warn(
-              { filePath, thumbPath },
-              'Thumbnail generation completed but file not found'
-            );
-            return '';
-          }
-        } catch (error) {
-          logger.error({ filePath, err: error }, 'Thumbnail generation failed');
-          throw error;
-        }
-      })
+        },
+        { priority }
+      )
       .finally(() => {
-        // Clean up inflight map when done
-        inflight.delete(thumbPath);
+        // A job that never ran has nothing of its own to release it.
+        if (!started) release();
       });
 
     inflight.set(thumbPath, pending);
@@ -390,24 +1268,96 @@ const getThumbnail = async (filePath) => {
   return pending;
 };
 
-const queueThumbnailGeneration = (filePath) => {
-  if (!filePath || filePath.includes(directories.thumbnails)) {
-    return;
+const queueThumbnailGeneration = async (filePath, { priority = 0, onlyWhenIdle = false } = {}) => {
+  if (!THUMBNAILS_ENABLED || !filePath || isThumbnailCachePath(filePath)) {
+    return { thumbnail: '', pending: false, queued: false };
   }
 
   const extension = path.extname(filePath).toLowerCase().slice(1);
   if (isPdf(extension)) {
-    return;
+    return { thumbnail: '', pending: false, queued: false };
   }
 
-  getThumbnail(filePath).catch((error) => {
+  const sourceStats = await fsPromises.stat(filePath);
+  const { thumbFile, thumbPath } = await buildThumbnailPaths(filePath);
+  if (await isThumbnailFresh(thumbPath, sourceStats, filePath)) {
+    failedThumbnails.delete(thumbPath);
+    thumbnailStats.cacheHits += 1;
+    return {
+      thumbnail: `/static/thumbnails/${thumbFile}`,
+      pending: false,
+      queued: false,
+    };
+  }
+
+  if (getFailedThumbnail(thumbPath)) {
+    thumbnailStats.failedTtlSkips += 1;
+    return { thumbnail: '', pending: false, queued: false };
+  }
+
+  if (inflight.has(thumbPath)) {
+    return { thumbnail: '', pending: true, queued: true };
+  }
+
+  // Opportunistic work must never compete with thumbnails already needed by a
+  // visible item. The browser retries it later, after the queue is quiet again.
+  if (onlyWhenIdle && getThumbnailQueueLoad() > 0) {
+    thumbnailStats.backgroundQueueSkipped += 1;
+    return { thumbnail: '', pending: true, queued: false, retryAfterMs: 2000 };
+  }
+
+  if (getThumbnailQueueLoad() >= THUMBNAIL_BACKGROUND_QUEUE_LIMIT) {
+    thumbnailStats.backgroundQueueSkipped += 1;
+    return { thumbnail: '', pending: true, queued: false, retryAfterMs: 1500 };
+  }
+
+  getThumbnail(filePath, { priority }).catch((error) => {
     logger.warn({ filePath, err: error }, 'Queued thumbnail generation failed');
   });
+
+  return { thumbnail: '', pending: true, queued: true };
+};
+
+/**
+ * Stop generating, and forget what is still queued.
+ *
+ * Three queues and three timers outlive whatever asked for a thumbnail. In a
+ * running server that is exactly right; when the ground is being removed —
+ * a test's temporary cache, or a shutdown — work that goes on writing into a
+ * directory being deleted fails the removal itself (`ENOTEMPTY`) and lands on
+ * whatever comes next.
+ */
+const stopThumbnailWork = async () => {
+  thumbnailQueue.clear();
+  videoThumbnailQueue.clear();
+  thumbnailRemovalQueue.clear();
+
+  thumbnailCacheCleanupStopped = true;
+  if (sharpCacheTrimTimer) clearTimeout(sharpCacheTrimTimer);
+  if (thumbnailCacheCleanupTimer) clearTimeout(thumbnailCacheCleanupTimer);
+  if (thumbnailDiagnosticsTimer) clearInterval(thumbnailDiagnosticsTimer);
+  sharpCacheTrimTimer = null;
+  thumbnailCacheCleanupTimer = null;
+  thumbnailDiagnosticsTimer = null;
+
+  // Clearing drops what is queued; what is already running still has to finish
+  // writing before its directory can go.
+  await Promise.all([
+    thumbnailQueue.onIdle(),
+    videoThumbnailQueue.onIdle(),
+    thumbnailRemovalQueue.onIdle(),
+    thumbnailCacheCleanupPromise?.catch(() => {}),
+  ]);
 };
 
 module.exports = {
-  generateThumbnail,
-  getThumbnail,
+  stopThumbnailWork,
+  // Exported for the tests: the cleanup is reached only through timers, and
+  // what it decides to delete is worth stating rather than waiting out.
+  cleanupThumbnailCache,
   getThumbnailPathIfExists,
+  isThumbnailCachePath,
   queueThumbnailGeneration,
+  getDiagnosticsSnapshot,
+  scheduleThumbnailRemoval,
 };

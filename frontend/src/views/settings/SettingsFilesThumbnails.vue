@@ -22,7 +22,10 @@ const dirty = computed(
     local.enabled !== original.value.enabled ||
     local.quality !== original.value.quality ||
     local.size !== original.value.size ||
-    local.concurrency !== original.value.concurrency
+    // A stored section without a concurrency means the default the field shows,
+    // not a change: read as one, the page offered to save before the settings
+    // had even loaded, and saving then wrote its defaults over what was stored.
+    local.concurrency !== (original.value.concurrency ?? 10)
 );
 
 watch(
@@ -38,6 +41,21 @@ watch(
   { immediate: true }
 );
 
+// The bounds the server holds these to. A value outside them was sent as typed
+// and brought within them there, and an emptied field was dropped: what was
+// saved was not what the page showed.
+const BOUNDS = {
+  quality: [1, 100],
+  size: [64, 1024],
+  concurrency: [1, 50],
+};
+
+const invalid = computed(() =>
+  Object.entries(BOUNDS).some(
+    ([key, [min, max]]) => !(Number.isInteger(local[key]) && local[key] >= min && local[key] <= max)
+  )
+);
+
 const reset = () => {
   const t = appSettings.systemSettings?.thumbnails || appSettings.state.thumbnails;
   if (t) {
@@ -49,6 +67,7 @@ const reset = () => {
 };
 
 const save = async () => {
+  if (invalid.value) return;
   await appSettings.save({
     thumbnails: {
       enabled: local.enabled,
@@ -69,7 +88,10 @@ const save = async () => {
       <div class="text-sm">{{ t('common.unsavedChanges') }}</div>
       <div class="flex gap-2">
         <button
-          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400"
+          type="button"
+          data-test="thumbnail-settings-save"
+          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400 disabled:opacity-50"
+          :disabled="invalid"
           @click="save"
         >
           {{ t('common.save') }}
@@ -98,7 +120,9 @@ const save = async () => {
       class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6"
     >
       <div class="space-y-6">
-        <div class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
               {{ t('settings.thumbs.enable') }}

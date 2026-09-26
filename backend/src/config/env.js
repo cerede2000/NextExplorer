@@ -151,6 +151,76 @@ module.exports = {
   UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED),
   MAX_CHUNK_SIZE_MIB: process.env.MAX_CHUNK_SIZE_MIB,
   UPLOAD_INACTIVITY_TIMEOUT: process.env.UPLOAD_INACTIVITY_TIMEOUT,
+  THUMBNAILS_ENABLED: normalizeBoolean(process.env.THUMBNAILS_ENABLED) ?? true,
+  THUMBNAIL_CACHE_MAX_FILES:
+    process.env.THUMBNAIL_CACHE_MAX_FILES != null
+      ? Number(process.env.THUMBNAIL_CACHE_MAX_FILES)
+      : 3000,
+  THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS:
+    process.env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS != null
+      ? Number(process.env.THUMBNAIL_CACHE_CLEANUP_INTERVAL_MS)
+      : 60 * 60 * 1000,
+  THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE:
+    process.env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE != null
+      ? Number(process.env.THUMBNAIL_CACHE_CLEANUP_BATCH_SIZE)
+      : 500,
+  THUMBNAIL_CACHE_TTL_DAYS:
+    process.env.THUMBNAIL_CACHE_TTL_DAYS != null
+      ? Number(process.env.THUMBNAIL_CACHE_TTL_DAYS)
+      : 30,
+  // ExifTool from the machine rather than the one in the archive: 23 MB of
+  // Perl somebody who already has it would rather not carry twice (#9).
+  // Empty means the bundled copy, which is the default and needs nothing.
+  EXIFTOOL_PATH: process.env.EXIFTOOL_PATH || '',
+  // Embedded RAW previews are full-size JPEGs, far larger than a thumbnail, and
+  // a new one is extracted whenever a RAW file changes.
+  RAW_PREVIEW_CACHE_MAX_FILES:
+    process.env.RAW_PREVIEW_CACHE_MAX_FILES != null
+      ? Number(process.env.RAW_PREVIEW_CACHE_MAX_FILES)
+      : 500,
+  THUMBNAIL_SHARP_CACHE_MEMORY_MB:
+    process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB != null
+      ? Number(process.env.THUMBNAIL_SHARP_CACHE_MEMORY_MB)
+      : 0,
+  THUMBNAIL_VIDEO_CONCURRENCY:
+    process.env.THUMBNAIL_VIDEO_CONCURRENCY != null
+      ? Number(process.env.THUMBNAIL_VIDEO_CONCURRENCY)
+      : 3,
+  THUMBNAIL_VIDEO_SEEK_SECONDS:
+    process.env.THUMBNAIL_VIDEO_SEEK_SECONDS != null
+      ? Number(process.env.THUMBNAIL_VIDEO_SEEK_SECONDS)
+      : 5,
+  THUMBNAIL_VIDEO_SEEK_PERCENT:
+    process.env.THUMBNAIL_VIDEO_SEEK_PERCENT != null &&
+    process.env.THUMBNAIL_VIDEO_SEEK_PERCENT.trim() !== ''
+      ? Number(process.env.THUMBNAIL_VIDEO_SEEK_PERCENT)
+      : null,
+  THUMBNAIL_VIDEO_THREADS:
+    process.env.THUMBNAIL_VIDEO_THREADS != null ? Number(process.env.THUMBNAIL_VIDEO_THREADS) : 2,
+  THUMBNAIL_VIDEO_SCALE_FLAGS: process.env.THUMBNAIL_VIDEO_SCALE_FLAGS?.trim() || 'fast_bilinear',
+  THUMBNAIL_BACKGROUND_QUEUE_LIMIT:
+    process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT != null
+      ? Number(process.env.THUMBNAIL_BACKGROUND_QUEUE_LIMIT)
+      : 16,
+  THUMBNAIL_DIAGNOSTICS_ENABLED:
+    normalizeBoolean(process.env.THUMBNAIL_DIAGNOSTICS_ENABLED) ?? false,
+  THUMBNAIL_DIAGNOSTICS_INTERVAL_MS:
+    process.env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS != null
+      ? Number(process.env.THUMBNAIL_DIAGNOSTICS_INTERVAL_MS)
+      : 30000,
+  THUMBNAIL_SLOW_JOB_MS:
+    process.env.THUMBNAIL_SLOW_JOB_MS != null ? Number(process.env.THUMBNAIL_SLOW_JOB_MS) : 10000,
+  // How long one ffmpeg may take over a single thumbnail before it is killed.
+  // Not a deadline anything waits on — the queue has given up long before —
+  // but the only thing that ends a process that has stopped making progress.
+  THUMBNAIL_FFMPEG_TIMEOUT_MS:
+    process.env.THUMBNAIL_FFMPEG_TIMEOUT_MS != null
+      ? Number(process.env.THUMBNAIL_FFMPEG_TIMEOUT_MS)
+      : 5 * 60 * 1000,
+  // Niceness applied to child ffmpeg/convert processes (0 = disabled, 1-19 lowers
+  // their CPU priority so the Node event loop stays responsive during generation).
+  THUMBNAIL_PROCESS_NICE:
+    process.env.THUMBNAIL_PROCESS_NICE != null ? Number(process.env.THUMBNAIL_PROCESS_NICE) : 10,
   TUS_UPLOAD_DIR: process.env.TUS_UPLOAD_DIR?.trim() || null,
   TUS_INCOMPLETE_UPLOAD_TTL_MS: process.env.TUS_INCOMPLETE_UPLOAD_TTL_MS,
   TUS_CLEANUP_INTERVAL_MS: process.env.TUS_CLEANUP_INTERVAL_MS,

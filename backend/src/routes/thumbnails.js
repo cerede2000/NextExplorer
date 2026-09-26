@@ -4,7 +4,11 @@ const path = require('path');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { extensions } = require('../config/index');
-const { getThumbnail } = require('../services/thumbnailService');
+const env = require('../config/env');
+const {
+  getThumbnailPathIfExists,
+  queueThumbnailGeneration,
+} = require('../services/thumbnailService');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { withThumbnailToken } = require('../utils/thumbnailTokens');
 const logger = require('../utils/logger');
@@ -30,7 +34,8 @@ router.get(
   '/thumbnails/{*splat}',
   asyncHandler(async (req, res) => {
     const settings = await getSettings();
-    const thumbsEnabled = settings?.thumbnails?.enabled !== false;
+    const thumbsEnabled =
+      env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     if (!thumbsEnabled) {
       return res.json({ thumbnail: '' });
     }
@@ -46,7 +51,7 @@ router.get(
     let resolved;
     try {
       ({ accessInfo, resolved } = await resolvePathWithAccess(context, relativePath));
-    } catch (error) {
+    } catch (_) {
       throw new NotFoundError('File not found.');
     }
 
@@ -78,29 +83,40 @@ router.get(
       throw new ValidationError('Thumbnails are not available for this file type.');
     }
 
-    // The check above is the only one this thumbnail will get: the picture
-    // itself is served from /static, outside the authentication middleware. The
-    // token carries that decision to the handler there.
-    let thumbnail = '';
     try {
-      thumbnail = await getThumbnail(absolutePath);
+      // The access check above is the only one this thumbnail will get: the
+      // file itself is served from /static, outside the auth middleware. The
+      // token carries that decision to the static handler.
+      const cachedThumbnail = await getThumbnailPathIfExists(absolutePath, stats);
+      if (cachedThumbnail) {
+        return res.json({ thumbnail: withThumbnailToken(cachedThumbnail), pending: false });
+      }
+
+      // A prefetch is deliberately lower priority and is admitted only while
+      // no interactive thumbnail work is in progress. Authorization remains
+      // identical to a regular thumbnail request.
+      const isBackgroundPrefetch = req.query.background === '1';
+      const result = await queueThumbnailGeneration(
+        absolutePath,
+        isBackgroundPrefetch ? { priority: -10, onlyWhenIdle: true } : undefined
+      );
+      return res
+        .status(result.pending ? 202 : 200)
+        .json({ ...result, thumbnail: withThumbnailToken(result.thumbnail) });
     } catch (error) {
       logger.warn(
         { absolutePath, err: error },
-        'Thumbnail generation failed, falling back to original file'
+        'Thumbnail generation scheduling failed, falling back to original file'
       );
     }
 
-    // If thumbnail generation failed or produced no result, fall back to the original file
-    if (
-      !thumbnail &&
-      (extensions.images.includes(extension) || (extensions.rawImages || []).includes(extension))
-    ) {
+    // If thumbnail scheduling failed unexpectedly, fall back to the original file for images.
+    if (extensions.images.includes(extension) || (extensions.rawImages || []).includes(extension)) {
       const previewUrl = `/api/preview?path=${encodeURIComponent(logicalPath)}`;
       return res.json({ thumbnail: previewUrl });
     }
 
-    res.json({ thumbnail: withThumbnailToken(thumbnail || '') });
+    res.json({ thumbnail: '', pending: false });
   })
 );
 
