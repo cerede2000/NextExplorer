@@ -288,9 +288,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/folderSizeHooks\\.js|backend/src/services/folderSizeIndex\\.js|backend/src/services/folderSizeManager\\.js|backend/src/routes/upload\\.js|backend/src/routes/files/folder\\.js|backend/src/routes/files/file\\.js|backend/src/routes/editor\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-11",
-      "note": "the size index kept current by the write, not by the sweep"
+      "note": "nxzai#443 \u2014 the size index kept current by the write, not by the sweep"
     },
     {
       "axis": "*",
@@ -734,9 +734,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/routes/folderSize\\.js|backend/src/services/folderSizeIndexer\\.js|frontend/src/stores/folderSize\\.js)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-11",
-      "note": "the size index kept current by the write, not by the sweep"
+      "note": "nxzai#443 \u2014 the size index kept current by the write, not by the sweep"
     },
     {
       "axis": "*",
