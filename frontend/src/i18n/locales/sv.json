@@ -125,7 +125,8 @@
     "path": "t.ex. Bilder/Semestrar",
     "search": "Sök efter filer och mappar…",
     "volumeLabel": "e.g. Documents, Projects, Media",
-    "totpCode": "123456"
+    "totpCode": "123456",
+    "emailOrUsername": "namn{'@'}foretag.se eller namn"
   },
   "loading": {
     "default": "Läser in…",
@@ -166,7 +167,8 @@
     "pathRequired": "Path is required",
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
-    "totpCodeRequired": "Ange koden."
+    "totpCodeRequired": "Ange koden.",
+    "identifierRequired": "En e-postadress eller ett användarnamn krävs"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -375,7 +377,9 @@
       },
       "totpCode": "Kod",
       "totpExplain": "Ditt lösenord godtogs. Ange koden från din autentiseringsapp, eller en av dina återställningskoder.",
-      "totpSubmit": "Logga in"
+      "totpSubmit": "Logga in",
+      "sessionExpired": "Din session har gått ut. Logga in igen för att fortsätta där du slutade.",
+      "totpBack": "Börja om"
     },
     "setup": {
       "headline": "Låt oss komma igång",
@@ -397,7 +401,8 @@
     },
     "passkey": {
       "signIn": "Logga in med en lösenordsnyckel"
-    }
+    },
+    "emailOrUsername": "E-postadress eller användarnamn"
   },
   "breadcrumb": {
     "volumes": "Volymer",
@@ -556,7 +561,8 @@
       "confirm": "Bekräfta nytt lösenord",
       "update": "Uppdatera lösenordet",
       "success": "Lösenordet har uppdaterats.",
-      "validation": "Fyll i alla fält; nytt lösenord måste vara minst 6 tecken och stämma överens."
+      "validation": "Fyll i alla fält; nytt lösenord måste vara minst 6 tecken och stämma överens.",
+      "successOtherSessionsEnded": "Lösenordet har uppdaterats. Alla andra sessioner för det här kontot har loggats ut."
     },
     "users": {
       "subtitle": "Manage users, roles, and access credentials.",
