@@ -2,6 +2,7 @@ const { getDb } = require('./db');
 const env = require('../config/env');
 const { parseByteSize } = require('../utils/env');
 const { normalizeRelativePath } = require('../utils/pathUtils');
+const { ruleAppliesToAdmins } = require('../utils/accessRules');
 const storage = require('./storage/jsonStorage'); // Keep for backward compatibility fallback
 
 const generateId = () => {
@@ -59,9 +60,27 @@ const sanitizeAccessRules = (rules = []) => {
         path: normalizedPath,
         recursive: Boolean(rule.recursive),
         permissions,
+        // Stored as a plain yes or no, so the page shows a definite box and
+        // nothing downstream has to guess again. What a rule written before
+        // this switch existed means is decided in one place, utils/accessRules.
+        appliesToAdmins: ruleAppliesToAdmins({ ...rule, permissions }),
       };
     })
     .filter(Boolean);
+};
+
+/**
+ * The access section: the rules, and whether they hold administrators.
+ *
+ * Kept together because the two are read together — a rule says whether it
+ * holds administrators, and this setting holds them to all of them at once.
+ */
+const sanitizeAccess = (access = {}) => {
+  const source = access && typeof access === 'object' && !Array.isArray(access) ? access : {};
+  return {
+    rules: sanitizeAccessRules(source.rules || []),
+    applyToAdmins: source.applyToAdmins === true,
+  };
 };
 
 /**
@@ -135,6 +154,25 @@ const sanitizeVersions = (versions = {}) => {
     dailyDays,
     maxPerFile: integer('maxPerFile'),
     sessionCheckpointMinutes: integer('sessionCheckpointMinutes'),
+  };
+};
+
+/**
+ * The activity log settings in force: on or off, and how long a line is kept.
+ *
+ * Off is the default and stays the default: a log nobody asked for is a record
+ * of somebody's day that nobody reads.
+ */
+const sanitizeActivity = (activity = {}) => {
+  // eslint-disable-next-line global-require
+  const { activity: defaults } = require('../config/index');
+  const source = activity && typeof activity === 'object' ? activity : {};
+  const retentionDays = Number(source.retentionDays);
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+    retentionDays: Number.isFinite(retentionDays)
+      ? Math.max(1, Math.min(3650, Math.round(retentionDays)))
+      : defaults.retentionDays,
   };
 };
 
@@ -271,22 +309,22 @@ const getSystemSettings = async () => {
     let trash = {};
     let versions = {};
     let uploads = {};
+    let activity = {};
 
     for (const row of rows) {
       try {
         if (row.key === 'thumbnails') {
           Object.assign(thumbnails, JSON.parse(row.value));
         } else if (row.key === 'access') {
-          const accessData = JSON.parse(row.value);
-          if (accessData.rules) {
-            access.rules = accessData.rules;
-          }
+          Object.assign(access, JSON.parse(row.value));
         } else if (row.key === 'trash') {
           trash = JSON.parse(row.value);
         } else if (row.key === 'versions') {
           versions = JSON.parse(row.value);
         } else if (row.key === 'uploads') {
           uploads = JSON.parse(row.value);
+        } else if (row.key === 'activity') {
+          activity = JSON.parse(row.value);
         }
       } catch (err) {
         // Skip invalid JSON
@@ -295,12 +333,11 @@ const getSystemSettings = async () => {
 
     return {
       thumbnails: sanitizeThumbnails(thumbnails),
-      access: {
-        rules: sanitizeAccessRules(access.rules),
-      },
+      access: sanitizeAccess(access),
       trash: sanitizeTrash(trash),
       versions: sanitizeVersions(versions),
       uploads: sanitizeUploads(uploads),
+      activity: sanitizeActivity(activity),
     };
   } catch (err) {
     // Fallback to JSON storage
@@ -309,21 +346,21 @@ const getSystemSettings = async () => {
       const settings = data.settings || {};
       return {
         thumbnails: sanitizeThumbnails(settings.thumbnails),
-        access: {
-          rules: sanitizeAccessRules(settings.access?.rules || []),
-        },
+        access: sanitizeAccess(settings.access),
         trash: sanitizeTrash(settings.trash),
         versions: sanitizeVersions(settings.versions),
         uploads: sanitizeUploads(settings.uploads),
+        activity: sanitizeActivity(settings.activity),
       };
     } catch (err2) {
       // Return defaults
       return {
         thumbnails: sanitizeThumbnails({}),
-        access: { rules: [] },
+        access: sanitizeAccess({}),
         trash: sanitizeTrash({}),
         versions: sanitizeVersions({}),
         uploads: sanitizeUploads({}),
+        activity: sanitizeActivity({}),
       };
     }
   }
@@ -353,6 +390,7 @@ const getSettingsForUser = async (user) => {
       result.trash = systemSettings.trash;
       result.versions = systemSettings.versions;
       result.uploads = systemSettings.uploads;
+      result.activity = systemSettings.activity;
     }
   }
 
@@ -479,9 +517,7 @@ const setSystemSetting = async (category, key, value) => {
   if (key === 'thumbnails') {
     sanitizedValue = sanitizeThumbnails(value);
   } else if (key === 'access') {
-    sanitizedValue = {
-      rules: sanitizeAccessRules(value.rules || []),
-    };
+    sanitizedValue = sanitizeAccess(value);
   } else if (key === 'branding') {
     sanitizedValue = sanitizeBranding(value);
   } else if (key === 'trash') {
@@ -490,6 +526,8 @@ const setSystemSetting = async (category, key, value) => {
     sanitizedValue = sanitizeVersions(value);
   } else if (key === 'uploads') {
     sanitizedValue = sanitizeUploads(value);
+  } else if (key === 'activity') {
+    sanitizedValue = sanitizeActivity(value);
   }
 
   const valueJson = JSON.stringify(sanitizedValue);
@@ -538,6 +576,12 @@ const setSettings = async (partial) => {
     thumbnails: { ...current.thumbnails, ...(partial.thumbnails || {}) },
     access: {
       rules: partial.access?.rules !== undefined ? partial.access.rules : current.access.rules,
+      // Saved apart from the rules on the settings page, so each has to survive
+      // the other being saved on its own.
+      applyToAdmins:
+        partial.access?.applyToAdmins !== undefined
+          ? partial.access.applyToAdmins
+          : current.access.applyToAdmins,
     },
     branding: { ...current.branding, ...(partial.branding || {}) },
   };
@@ -583,8 +627,10 @@ module.exports = {
   USER_SETTING_KEYS,
   MAX_UPLOAD_CHUNK_SIZE_BYTES,
   getPublicSettings,
+  sanitizeAccess,
   sanitizeTrash,
   sanitizeVersions,
+  sanitizeActivity,
   getUserSettings,
   getSystemSettings,
   getSettingsForUser,

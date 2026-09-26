@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const { directories, excludedFiles, features, hiddenFiles } = require('../config/index');
 const asyncHandler = require('../utils/asyncHandler');
 const { getVolumesForUser } = require('../services/userVolumesService');
+const { getAccessInfo } = require('../services/accessManager');
 
 const router = express.Router();
 
@@ -25,17 +26,41 @@ const getAllVolumes = async () => {
     }));
 };
 
+/**
+ * Drop the ones this caller may not reach.
+ *
+ * A `hidden` rule on a volume kept it out of the folder listing and refused it
+ * by its address, and left its name in the sidebar and on the home page for
+ * everybody — which is the one place a hidden folder is most visible. This is
+ * the same question the listing asks, asked of the volumes.
+ */
+const visibleTo = async (context, volumes) => {
+  const answers = await Promise.all(
+    volumes.map(async (volume) => {
+      try {
+        return (await getAccessInfo(context, volume.path))?.canAccess === true;
+      } catch {
+        // A volume nothing can answer for stays listed: opening it is refused
+        // on its own, and a sidebar that empties itself on a transient failure
+        // is worse than one naming a folder that turns out to be closed.
+        return true;
+      }
+    })
+  );
+  return volumes.filter((_volume, index) => answers[index]);
+};
+
 router.get(
   '/volumes',
   asyncHandler(async (req, res) => {
     const user = req.user;
     const isAdmin = user?.roles?.includes('admin');
     const userVolumesEnabled = features.userVolumes;
+    const context = { user, guestSession: req.guestSession };
 
     // If USER_VOLUMES is disabled or user is admin, show all volumes from VOLUME_ROOT
     if (!userVolumesEnabled || isAdmin) {
-      const volumeData = await getAllVolumes();
-      return res.json(volumeData);
+      return res.json(await visibleTo(context, await getAllVolumes()));
     }
 
     // For regular users when USER_VOLUMES is enabled, show only assigned volumes
@@ -53,7 +78,7 @@ router.get(
       actualPath: vol.path, // Include actual path for reference
     }));
 
-    res.json(volumeData);
+    res.json(await visibleTo(context, volumeData));
   })
 );
 

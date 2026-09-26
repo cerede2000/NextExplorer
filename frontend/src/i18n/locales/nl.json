@@ -408,7 +408,8 @@
       "fileVersions": "Bestandsversies",
       "uploads": "Uploads",
       "accountTwoFactor": "Tweestaps",
-      "accountPasskeys": "Passkeys"
+      "accountPasskeys": "Passkeys",
+      "activity": "Activiteitenlogboek"
     },
     "about": {
       "subtitle": "Versieinformatie voor deze applicatie.",
@@ -489,7 +490,11 @@
       "recursive": "Recursief",
       "readWrite": "Lezen & Schrijven",
       "readOnly": "Alleen-lezen",
-      "hidden": "Verborgen"
+      "hidden": "Verborgen",
+      "adminNote": "Elke regel zegt of die voor beheerders geldt. Zonder dat laat een regel ‘Alleen lezen’ hen schrijven en verbergt een regel ‘Verborgen’ de map ook voor hen.",
+      "applyToAdmins": "Alle regels op beheerders toepassen",
+      "applyToAdminsHint": "Aan laat geen enkele regel een beheerder door — het vinkje van elke regel wordt genegeerd.",
+      "appliesToAdmins": "Geldt voor beheerders"
     },
     "comingSoon": {
       "subtitle": "Deze sectie Instellingen wordt momenteel gebouwd. Blijf op de hoogte!"
@@ -750,6 +755,52 @@
       "addFailed": "Kon deze passkey niet toevoegen.",
       "cancelled": "Er is niets toegevoegd: de browser werd gesloten of het duurde te lang.",
       "alreadyHere": "Dit apparaat heeft al een passkey voor dit account."
+    },
+    "activity": {
+      "title": "Activiteitenlogboek",
+      "intro": "Wie wat deed, wanneer en vanwaar. Uit tot je erom vraagt.",
+      "enabled": "Activiteit vastleggen",
+      "enabledHelp": "Aanmeldingen, downloads, uploads, verwijderingen, terugzettingen, deellinks en accountwijzigingen worden vastgelegd zolang dit aanstaat. Wat daarvoor gebeurde staat er niet in.",
+      "retention": "Bewaren (dagen)",
+      "retentionInvalid": "Tussen 1 en 3650 dagen.",
+      "saveFailed": "Kon deze instellingen niet opslaan.",
+      "off": "Het logboek staat uit, er wordt niets vastgelegd.",
+      "none": "Nog niets vastgelegd.",
+      "loadFailed": "Kon het logboek niet lezen.",
+      "clearFailed": "Kon het logboek niet legen.",
+      "filterAction": "Soort",
+      "anyAction": "Alle soorten",
+      "filterText": "Zoeken",
+      "filterTextPlaceholder": "Een naam of een pad",
+      "refresh": "Vernieuwen",
+      "clear": "Logboek legen",
+      "more": "Meer tonen",
+      "when": "Wanneer",
+      "who": "Wie",
+      "what": "Wat",
+      "target": "Op",
+      "from": "Vanaf",
+      "refused": "geweigerd",
+      "actions": {
+        "sign-in": "Aangemeld",
+        "sign-out": "Afgemeld",
+        "account-password": "Wachtwoord gewijzigd",
+        "account-two-factor": "Tweede factor gewijzigd",
+        "account-passkey": "Passkey gewijzigd",
+        "admin-user": "Account gewijzigd",
+        "admin-settings": "Instellingen gewijzigd",
+        "admin-activity-clear": "Logboek geleegd",
+        "share-create": "Deellink gemaakt",
+        "share-delete": "Deellink verwijderd",
+        "share-download": "Via een link gedownload",
+        "share-upload": "Via een link geüpload",
+        "file-download": "Gedownload",
+        "file-upload": "Geüpload",
+        "file-delete": "Naar de prullenbak",
+        "file-restore": "Teruggezet",
+        "file-purge": "Definitief verwijderd",
+        "versions-purge": "Versies verwijderd"
+      }
     }
   },
   "share": {

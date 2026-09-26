@@ -6,6 +6,7 @@ const { sendCompressible } = require('../utils/compressedResponse');
 const { startNdjsonStream } = require('../utils/ndjsonStream');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const trash = require('../services/trash');
+const activityLog = require('../services/activityLog');
 
 const router = express.Router();
 
@@ -24,7 +25,20 @@ router.get(
 router.post(
   '/trash/restore',
   asyncHandler(async (req, res) => {
-    res.json(await trash.restoreItems(req.body?.ids, contextOf(req), { shares: req.body?.shares }));
+    const outcome = await trash.restoreItems(req.body?.ids, contextOf(req), {
+      shares: req.body?.shares,
+    });
+    // What came back, under the name it came back as: a restore that had to
+    // take "name (1)" is exactly the line somebody will be looking for.
+    const restored = (outcome.items || []).filter((item) => item.status === 'restored');
+    await activityLog.record({
+      action: 'file.restore',
+      user: req.user,
+      target: restored[0]?.restoredName || restored[0]?.name || null,
+      detail: { items: restored.length },
+      req,
+    });
+    res.json(outcome);
   })
 );
 
@@ -130,11 +144,16 @@ router.post(
 router.post(
   '/trash/delete',
   asyncHandler(async (req, res) => {
-    res.json(
-      await trash.purgeItems(req.body?.ids, contextOf(req), {
-        forgetUnavailable: req.body?.forgetUnavailable === true,
-      })
-    );
+    const outcome = await trash.purgeItems(req.body?.ids, contextOf(req), {
+      forgetUnavailable: req.body?.forgetUnavailable === true,
+    });
+    await activityLog.record({
+      action: 'file.purge',
+      user: req.user,
+      detail: { items: Array.isArray(req.body?.ids) ? req.body.ids.length : 1 },
+      req,
+    });
+    res.json(outcome);
   })
 );
 
@@ -142,7 +161,9 @@ router.post(
 router.post(
   '/trash/empty',
   asyncHandler(async (req, res) => {
-    res.json(await trash.emptyTrash(contextOf(req)));
+    const outcome = await trash.emptyTrash(contextOf(req));
+    await activityLog.record({ action: 'file.purge', user: req.user, detail: { all: true }, req });
+    res.json(outcome);
   })
 );
 

@@ -408,7 +408,8 @@
       "fileVersions": "檔案版本",
       "uploads": "上傳",
       "accountTwoFactor": "兩步驗證",
-      "accountPasskeys": "通行金鑰"
+      "accountPasskeys": "通行金鑰",
+      "activity": "活動記錄"
     },
     "about": {
       "subtitle": "查看此應用的構建資訊。",
@@ -489,7 +490,11 @@
       "recursive": "遞迴套用",
       "readWrite": "讀寫",
       "readOnly": "只讀",
-      "hidden": "隱藏"
+      "hidden": "隱藏",
+      "adminNote": "每條規則都會說明是否適用於管理員。否則，「唯讀」規則仍允許他們寫入，而「隱藏」規則也會對他們隱藏該資料夾。",
+      "applyToAdmins": "將所有規則套用於管理員",
+      "applyToAdminsHint": "開啟後，任何規則都不會放過管理員——每條規則自己的勾選將被忽略。",
+      "appliesToAdmins": "同樣適用於管理員"
     },
     "comingSoon": {
       "subtitle": "此設置部分正在建置中，敬請期待！"
@@ -750,6 +755,52 @@
       "addFailed": "無法新增此通行金鑰。",
       "cancelled": "未新增任何項目：瀏覽器已關閉或操作逾時。",
       "alreadyHere": "此裝置已有此帳戶的通行金鑰。"
+    },
+    "activity": {
+      "title": "活動記錄",
+      "intro": "誰在何時、從何處做了什麼。除非你開啟，否則不記錄。",
+      "enabled": "記錄活動",
+      "enabledHelp": "開啟期間，登入、下載、上傳、刪除、還原、分享與帳戶變更都會被記錄。開啟之前發生的事不在其中。",
+      "retention": "保留（天）",
+      "retentionInvalid": "1 到 3650 天之間。",
+      "saveFailed": "無法儲存這些設定。",
+      "off": "記錄已關閉，沒有記錄任何內容。",
+      "none": "尚未記錄任何內容。",
+      "loadFailed": "無法讀取記錄。",
+      "clearFailed": "無法清空記錄。",
+      "filterAction": "類型",
+      "anyAction": "所有類型",
+      "filterText": "搜尋",
+      "filterTextPlaceholder": "名稱或路徑",
+      "refresh": "重新整理",
+      "clear": "清空記錄",
+      "more": "顯示更多",
+      "when": "時間",
+      "who": "誰",
+      "what": "做了什麼",
+      "target": "對象",
+      "from": "來源",
+      "refused": "遭拒",
+      "actions": {
+        "sign-in": "登入",
+        "sign-out": "登出",
+        "account-password": "變更密碼",
+        "account-two-factor": "變更兩步驗證",
+        "account-passkey": "變更通行金鑰",
+        "admin-user": "變更帳戶",
+        "admin-settings": "變更設定",
+        "admin-activity-clear": "清空日誌",
+        "share-create": "建立分享",
+        "share-delete": "刪除分享",
+        "share-download": "透過連結下載",
+        "share-upload": "透過連結上傳",
+        "file-download": "下載",
+        "file-upload": "上傳",
+        "file-delete": "移至回收桶",
+        "file-restore": "還原",
+        "file-purge": "永久刪除",
+        "versions-purge": "版本已刪除"
+      }
     }
   },
   "mediaPreview": {

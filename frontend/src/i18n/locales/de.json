@@ -408,7 +408,8 @@
       "fileVersions": "Dateiversionen",
       "uploads": "Uploads",
       "accountTwoFactor": "Zwei-Faktor",
-      "accountPasskeys": "Passkeys"
+      "accountPasskeys": "Passkeys",
+      "activity": "Aktivitätsprotokoll"
     },
     "about": {
       "subtitle": "Build-Informationen für diese Anwendung anzeigen.",
@@ -489,7 +490,11 @@
       "recursive": "Rekursiv",
       "readWrite": "Lesen & Schreiben",
       "readOnly": "Nur Lesen",
-      "hidden": "Ausgeblendet"
+      "hidden": "Ausgeblendet",
+      "adminNote": "Jede Regel sagt, ob sie für Administratoren gilt. Ohne das lässt eine Regel „Nur Lesen“ sie schreiben, und eine Regel „Versteckt“ verbirgt den Ordner auch vor ihnen.",
+      "applyToAdmins": "Alle Regeln auf Administratoren anwenden",
+      "applyToAdminsHint": "Eingeschaltet lässt keine Regel einen Administrator durch – das Kästchen der einzelnen Regel wird ignoriert.",
+      "appliesToAdmins": "Gilt für Administratoren"
     },
     "comingSoon": {
       "subtitle": "Dieser Einstellungsbereich wird derzeit entwickelt. Bleiben Sie dran!"
@@ -750,6 +755,52 @@
       "addFailed": "Dieser Passkey konnte nicht hinzugefügt werden.",
       "cancelled": "Nichts wurde hinzugefügt: Der Browser wurde geschlossen oder es hat zu lange gedauert.",
       "alreadyHere": "Dieses Gerät hat bereits einen Passkey für dieses Konto."
+    },
+    "activity": {
+      "title": "Aktivitätsprotokoll",
+      "intro": "Wer wann was getan hat, und von wo. Aus, solange Sie es nicht einschalten.",
+      "enabled": "Aktivität aufzeichnen",
+      "enabledHelp": "Anmeldungen, Downloads, Uploads, Löschungen, Wiederherstellungen, Freigabelinks und Kontoänderungen werden aufgezeichnet, solange dies aktiv ist. Was davor geschah, steht nicht darin.",
+      "retention": "Aufbewahren (Tage)",
+      "retentionInvalid": "Zwischen 1 und 3650 Tagen.",
+      "saveFailed": "Diese Einstellungen konnten nicht gespeichert werden.",
+      "off": "Das Protokoll ist aus, es wird nichts aufgezeichnet.",
+      "none": "Noch nichts aufgezeichnet.",
+      "loadFailed": "Das Protokoll konnte nicht gelesen werden.",
+      "clearFailed": "Das Protokoll konnte nicht geleert werden.",
+      "filterAction": "Art",
+      "anyAction": "Alle Arten",
+      "filterText": "Suchen",
+      "filterTextPlaceholder": "Ein Name oder ein Pfad",
+      "refresh": "Aktualisieren",
+      "clear": "Protokoll leeren",
+      "more": "Mehr anzeigen",
+      "when": "Wann",
+      "who": "Wer",
+      "what": "Was",
+      "target": "Wobei",
+      "from": "Von",
+      "refused": "abgelehnt",
+      "actions": {
+        "sign-in": "Angemeldet",
+        "sign-out": "Abgemeldet",
+        "account-password": "Passwort geändert",
+        "account-two-factor": "Zweiter Faktor geändert",
+        "account-passkey": "Passkey geändert",
+        "admin-user": "Konto geändert",
+        "admin-settings": "Einstellungen geändert",
+        "admin-activity-clear": "Protokoll geleert",
+        "share-create": "Freigabe erstellt",
+        "share-delete": "Freigabe gelöscht",
+        "share-download": "Über einen Link heruntergeladen",
+        "share-upload": "Über einen Link hochgeladen",
+        "file-download": "Heruntergeladen",
+        "file-upload": "Hochgeladen",
+        "file-delete": "In den Papierkorb verschoben",
+        "file-restore": "Wiederhergestellt",
+        "file-purge": "Endgültig gelöscht",
+        "versions-purge": "Versionen gelöscht"
+      }
     }
   },
   "mediaPreview": {

@@ -18,3 +18,4 @@ export * from './trash.api';
 export * from './versions.api';
 export * from './archive.api';
 export * from './passkeys.api';
+export * from './activity.api';

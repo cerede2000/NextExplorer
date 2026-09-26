@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 
+const activityLog = require('../services/activityLog');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
 const { sendCompressible } = require('../utils/compressedResponse');
@@ -112,6 +113,19 @@ router.post(
       ids: req.body?.ids,
       all: req.body?.all === true,
     });
+
+    // Earlier copies going while the file stays: apart from `file.purge`
+    // because they are apart in the interface too, and because this is the
+    // half that nothing else can put back.
+    if (Number(outcome?.deleted) > 0) {
+      await activityLog.record({
+        action: 'versions.purge',
+        user: req.user,
+        target: typeof req.body?.path === 'string' ? req.body.path : null,
+        detail: { versions: outcome.deleted, with: 'panel' },
+        req,
+      });
+    }
 
     res.json(outcome);
   })

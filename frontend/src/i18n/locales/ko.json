@@ -408,7 +408,8 @@
       "fileVersions": "파일 버전",
       "uploads": "업로드",
       "accountTwoFactor": "2단계 인증",
-      "accountPasskeys": "패스키"
+      "accountPasskeys": "패스키",
+      "activity": "활동 로그"
     },
     "about": {
       "subtitle": "애플리케이션의 빌드 정보를 확인합니다.",
@@ -489,7 +490,11 @@
       "recursive": "하위 폴더에도 적용",
       "readWrite": "읽기/쓰기",
       "readOnly": "읽기 전용",
-      "hidden": "숨김"
+      "hidden": "숨김",
+      "adminNote": "각 규칙은 관리자에게 적용되는지 여부를 나타냅니다. 그렇지 않으면 ‘읽기 전용’ 규칙은 관리자가 쓸 수 있게 두고, ‘숨김’ 규칙은 관리자에게도 폴더를 숨깁니다.",
+      "applyToAdmins": "모든 규칙을 관리자에게 적용",
+      "applyToAdminsHint": "켜면 어떤 규칙도 관리자를 통과시키지 않습니다 — 각 규칙의 확인란은 무시됩니다.",
+      "appliesToAdmins": "관리자에게도 적용"
     },
     "comingSoon": {
       "subtitle": "이 설정 항목은 현재 개발 중입니다. 기대해주세요!"
@@ -750,6 +755,52 @@
       "addFailed": "이 패스키를 추가하지 못했습니다.",
       "cancelled": "아무것도 추가되지 않았습니다: 브라우저가 닫혔거나 시간이 초과되었습니다.",
       "alreadyHere": "이 기기에는 이미 이 계정의 패스키가 있습니다."
+    },
+    "activity": {
+      "title": "활동 로그",
+      "intro": "누가, 언제, 어디서 무엇을 했는지. 요청하기 전에는 꺼져 있습니다.",
+      "enabled": "활동 기록",
+      "enabledHelp": "켜져 있는 동안 로그인, 다운로드, 업로드, 삭제, 복원, 공유, 계정 변경이 기록됩니다. 켜기 전의 일은 남아 있지 않습니다.",
+      "retention": "보관 기간(일)",
+      "retentionInvalid": "1일에서 3650일 사이.",
+      "saveFailed": "설정을 저장하지 못했습니다.",
+      "off": "로그가 꺼져 있어 아무것도 기록되지 않습니다.",
+      "none": "아직 기록된 항목이 없습니다.",
+      "loadFailed": "로그를 읽지 못했습니다.",
+      "clearFailed": "로그를 비우지 못했습니다.",
+      "filterAction": "종류",
+      "anyAction": "모든 종류",
+      "filterText": "검색",
+      "filterTextPlaceholder": "이름 또는 경로",
+      "refresh": "새로 고침",
+      "clear": "로그 비우기",
+      "more": "더 보기",
+      "when": "시각",
+      "who": "누가",
+      "what": "무엇",
+      "target": "대상",
+      "from": "출처",
+      "refused": "거부됨",
+      "actions": {
+        "sign-in": "로그인",
+        "sign-out": "로그아웃",
+        "account-password": "비밀번호 변경",
+        "account-two-factor": "2단계 인증 변경",
+        "account-passkey": "패스키 변경",
+        "admin-user": "계정 변경",
+        "admin-settings": "설정 변경",
+        "admin-activity-clear": "기록 비움",
+        "share-create": "공유 링크 생성",
+        "share-delete": "공유 링크 삭제",
+        "share-download": "링크로 다운로드",
+        "share-upload": "링크로 업로드",
+        "file-download": "다운로드",
+        "file-upload": "업로드",
+        "file-delete": "휴지통으로 이동",
+        "file-restore": "복원",
+        "file-purge": "영구 삭제",
+        "versions-purge": "버전 삭제됨"
+      }
     }
   },
   "mediaPreview": {

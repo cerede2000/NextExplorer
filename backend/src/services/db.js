@@ -141,6 +141,36 @@ const PASSKEYS_DDL = `
   CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id);
 `;
 
+/**
+ * The activity log: who did what, when, and from where.
+ *
+ * Off unless somebody asks for it, which is why nothing else depends on it —
+ * the table is created either way and stays empty until the setting is on.
+ *
+ * Deliberately no foreign key to `users`. An account that is deleted takes its
+ * files, its passkeys and its sessions with it; what it did while it existed
+ * is the one thing a log is for, and a cascade would remove exactly the rows
+ * somebody came looking for. The actor's name is written into the row for the
+ * same reason.
+ */
+const ACTIVITY_DDL = `
+  CREATE TABLE IF NOT EXISTS activity_events (
+    id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    action TEXT NOT NULL,
+    outcome TEXT NOT NULL DEFAULT 'ok',
+    user_id TEXT,
+    actor TEXT NOT NULL,
+    target TEXT,
+    detail TEXT,
+    ip TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_activity_at ON activity_events(at DESC);
+  CREATE INDEX IF NOT EXISTS idx_activity_action ON activity_events(action, at DESC);
+  CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_events(user_id, at DESC);
+`;
+
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -581,6 +611,15 @@ const migrate = (db) => {
       );
       version = 17;
     }
+    if (version < 18) {
+      logger.info('[DB Migration] Migrating to v18: an activity log...');
+      db.exec(ACTIVITY_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(18)
+      );
+      version = 18;
+    }
   })();
 };
 
@@ -832,6 +871,11 @@ const getDb = async () => {
     db.exec(PASSKEYS_DDL);
   } catch (err) {
     logger.warn({ err }, '[DB] Failed to ensure the passkeys table');
+  }
+  try {
+    db.exec(ACTIVITY_DDL);
+  } catch (err) {
+    logger.warn({ err }, '[DB] Failed to ensure the activity log table');
   }
   try {
     db.exec(ONLYOFFICE_DOCUMENT_KEYS_DDL);

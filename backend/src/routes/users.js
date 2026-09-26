@@ -10,6 +10,7 @@ const {
   getById,
   countAdmins,
 } = require('../services/users');
+const activityLog = require('../services/activityLog');
 const asyncHandler = require('../utils/asyncHandler');
 const { searchLocalUsers } = require('../services/userSearchService');
 const {
@@ -100,6 +101,16 @@ router.patch(
       });
     }
 
+    if (Array.isArray(roles) || hasProfileUpdates) {
+      await activityLog.record({
+        action: 'admin.user',
+        user: req.user,
+        target: user.username || user.email || id,
+        detail: { roles: Array.isArray(roles) ? roles : undefined, profile: hasProfileUpdates },
+        req,
+      });
+    }
+
     res.json({ user });
   })
 );
@@ -118,6 +129,13 @@ router.post(
       password,
       roles: r,
     });
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: user.username || user.email || user.id,
+      detail: { created: true, roles: r },
+      req,
+    });
     res.status(201).json({ user });
   })
 );
@@ -130,6 +148,13 @@ router.post(
     const { id } = req.params || {};
     const { newPassword } = req.body || {};
     await setLocalPasswordAdmin({ userId: id, newPassword });
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: id,
+      detail: { passwordReset: true },
+      req,
+    });
     res.status(204).end();
   })
 );
@@ -156,6 +181,13 @@ router.delete(
       }
     }
     await deleteUser({ userId: id });
+    await activityLog.record({
+      action: 'admin.user',
+      user: req.user,
+      target: existing.username || existing.email || id,
+      detail: { deleted: true },
+      req,
+    });
     res.status(204).end();
   })
 );

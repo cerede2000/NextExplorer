@@ -25,6 +25,7 @@ const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
 const { startAuthenticatedSession } = require('../utils/authenticatedSession');
 const passkeys = require('../services/users/passkeys');
+const activityLog = require('../services/activityLog');
 const { WebAuthnError } = require('../utils/webauthn');
 const {
   ValidationError,
@@ -303,6 +304,14 @@ router.post(
       throw e;
     }
     if (!user) {
+      await activityLog.record({
+        action: 'sign-in',
+        outcome: 'refused',
+        // The name that was typed, not one this server confirmed exists.
+        actor: String(emailOrUsername || '').slice(0, 200) || 'unknown',
+        detail: { method: 'password' },
+        req,
+      });
       throw new UnauthorizedError('Invalid credentials.', ErrorCodes.AUTH_INVALID_CREDENTIALS);
     }
 
@@ -317,6 +326,7 @@ router.post(
     }
 
     await startAuthenticatedSession(req, user.id);
+    await activityLog.record({ action: 'sign-in', user, detail: { method: 'password' }, req });
 
     // Clear guest session cookie when user logs in
     res.clearCookie('guestSession', { path: '/api' });
@@ -389,6 +399,13 @@ router.post(
         response: req.body?.response,
         name: req.body?.name,
         expected: { challenge, origins, rpId },
+      });
+      await activityLog.record({
+        action: 'account.passkey',
+        user: me,
+        target: passkey.name,
+        detail: { added: true },
+        req,
       });
       res.status(201).json({ passkey });
     } catch (error) {
@@ -523,7 +540,14 @@ router.post(
       { userId: outcome.userId, passkeyId: outcome.passkeyId },
       'Signed in with a passkey'
     );
-    res.json({ user: await getRequestUser(req) });
+    const signedIn = await getRequestUser(req);
+    await activityLog.record({
+      action: 'sign-in',
+      user: signedIn,
+      detail: { method: 'passkey', passkey: outcome.name },
+      req,
+    });
+    res.json({ user: signedIn });
   })
 );
 
@@ -560,6 +584,13 @@ router.post(
     const outcome = await verifySecondFactor({ userId, code });
     if (!outcome.ok) {
       await incrementFailedAttempts(userId);
+      await activityLog.record({
+        action: 'sign-in',
+        outcome: 'refused',
+        userId,
+        detail: { method: 'code' },
+        req,
+      });
       throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
     }
 
@@ -568,8 +599,15 @@ router.post(
     await startAuthenticatedSession(req, userId);
     res.clearCookie('guestSession', { path: '/api' });
 
+    const signedIn = await getRequestUser(req);
+    await activityLog.record({
+      action: 'sign-in',
+      user: signedIn,
+      detail: { method: outcome.usedRecoveryCode ? 'recovery code' : 'code' },
+      req,
+    });
     res.json({
-      user: await getRequestUser(req),
+      user: signedIn,
       usedRecoveryCode: Boolean(outcome.usedRecoveryCode),
       recoveryCodesLeft: outcome.recoveryCodesLeft ?? null,
     });
@@ -625,6 +663,7 @@ router.post(
       throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
     }
     logger.info({ userId: me.id }, 'Two-factor authentication turned on');
+    await activityLog.record({ action: 'account.two-factor', user: me, detail: { on: true }, req });
     res.json(confirmed);
   })
 );
@@ -669,6 +708,12 @@ router.delete(
 
     await disableTwoFactor(me.id);
     logger.info({ userId: me.id }, 'Two-factor authentication turned off');
+    await activityLog.record({
+      action: 'account.two-factor',
+      user: me,
+      detail: { on: false },
+      req,
+    });
     res.status(204).end();
   })
 );
@@ -684,7 +729,20 @@ router.post(
     }
 
     const { currentPassword, newPassword } = req.body || {};
-    await changeLocalPassword({ userId: me.id, currentPassword, newPassword });
+    // Every other session of the account ends; this one stays signed in. The
+    // service takes the session to keep and says so, and nothing passed it, so
+    // the person changing their own password was signed out of their own
+    // browser along with everybody else. Only when this session is signed in
+    // here as this account: one the identity provider opened is not one a
+    // password could have opened, and is not this account's to keep.
+    const signedInHere = Boolean(req.session) && req.session.localUserId === me.id;
+    await changeLocalPassword({
+      userId: me.id,
+      currentPassword,
+      newPassword,
+      keepSessionId: signedInHere ? req.sessionID : null,
+    });
+    await activityLog.record({ action: 'account.password', user: me, req });
     res.status(204).end();
   })
 );
@@ -729,7 +787,10 @@ router.get(
   })
 );
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  // Read who this is before the session that says so is destroyed.
+  await activityLog.record({ action: 'sign-out', user: await getRequestUser(req), req });
+
   // Clear local app session if present (local auth)
   if (req.session) {
     try {

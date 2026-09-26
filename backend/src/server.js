@@ -17,6 +17,7 @@ const { cleanupExpiredShares } = require('./services/sharesService');
 const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const { purgeExpiredDocumentKeys } = require('./services/onlyofficeDocumentKeyService');
 const editorSessions = require('./services/onlyofficeEditorSessionService');
+const { sweepActivity } = require('./services/activityLog');
 
 let server = null;
 
@@ -77,16 +78,19 @@ const startServer = async () => {
   const EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
   const sweepExpiredRecords = async () => {
     try {
-      const [shares, sessions, documentKeys] = await Promise.all([
+      const [shares, sessions, documentKeys, activity] = await Promise.all([
         cleanupExpiredShares(),
         cleanupExpiredSessions(),
         purgeExpiredDocumentKeys(),
         editorSessions.purgeExpired(),
+        // Whether or not the log is on: switching it off should let the disk go
+        // back rather than freeze yesterday's rows for ever.
+        sweepActivity(),
       ]);
-      if (shares || sessions || documentKeys) {
+      if (shares || sessions || documentKeys || activity) {
         logger.info(
-          { shares, sessions, documentKeys },
-          'Purged expired shares, guest sessions and ONLYOFFICE document keys'
+          { shares, sessions, documentKeys, activity },
+          'Purged expired shares, guest sessions, ONLYOFFICE document keys and activity'
         );
       }
     } catch (error) {

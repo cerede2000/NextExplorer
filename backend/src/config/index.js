@@ -443,6 +443,20 @@ if (onlyoffice.serverUrl && !env.ONLYOFFICE_SECRET) {
 // Derived from the session secret, so it lasts as long as that does; when even
 // that could not be stored, a restart only means already-loaded pages fetch
 // their thumbnails again through the API, which re-runs the access check.
+// --- Activity log ---
+// Defaults only, like the trash's. Off: on a machine one person uses, a record
+// of what that person did all day is weight without a reader.
+const activity = (() => {
+  const retentionDays = Number(env.ACTIVITY_RETENTION_DAYS);
+  return {
+    enabled: env.ACTIVITY_ENABLED === true,
+    retentionDays:
+      Number.isFinite(retentionDays) && retentionDays >= 1
+        ? Math.min(3650, Math.round(retentionDays))
+        : 90,
+  };
+})();
+
 // --- Passkeys (WebAuthn) ---
 // The relying party: the name a browser shows when it asks for a passkey, and
 // the domain the key is bound to. The domain is left unset by default and taken
@@ -649,6 +663,7 @@ const folderSize = {
 module.exports = {
   folderSize,
   webauthn,
+  activity,
   archives,
   port: env.PORT,
   address: env.ADDRESS,

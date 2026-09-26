@@ -55,14 +55,14 @@ const listDirectoryItems = async ({
   excludeDownloadArtifacts = false,
   includeHiddenFiles = false,
   itemExtras = null,
-  permissionRules = null,
+  access = null,
   shareCache = null,
   userVolumeCache = null,
 }) => {
-  const permissionResolver =
-    Array.isArray(permissionRules) && permissionRules.length
-      ? createPermissionResolver(permissionRules)
-      : null;
+  // The whole access section rather than the rules alone: whom a rule holds is
+  // decided by the rule and by the setting above it together, so a resolver
+  // built from half of it would answer for the wrong caller.
+  const permissionResolver = access?.rules?.length ? createPermissionResolver(access) : null;
 
   const accessOptions = {
     ...(permissionResolver ? { permissionResolver } : null),

@@ -408,7 +408,8 @@
       "fileVersions": "Versiones de archivos",
       "uploads": "Subidas",
       "accountTwoFactor": "Doble factor",
-      "accountPasskeys": "Claves de acceso"
+      "accountPasskeys": "Claves de acceso",
+      "activity": "Registro de actividad"
     },
     "about": {
       "subtitle": "Ver la información de compilación de esta aplicación.",
@@ -489,7 +490,11 @@
       "recursive": "Recursivo",
       "readWrite": "Lectura y escritura",
       "readOnly": "Solo lectura",
-      "hidden": "Oculta"
+      "hidden": "Oculta",
+      "adminNote": "Cada regla indica si se aplica a los administradores. Sin eso, una regla «Solo lectura» les deja escribir y una regla «Oculto» también les oculta la carpeta.",
+      "applyToAdmins": "Aplicar todas las reglas a los administradores",
+      "applyToAdminsHint": "Activado, ninguna regla deja pasar a un administrador: se ignora la casilla de cada regla.",
+      "appliesToAdmins": "Se aplica a los administradores"
     },
     "comingSoon": {
       "subtitle": "Esta sección de configuración está en desarrollo. ¡Permanece atento!"
@@ -750,6 +755,52 @@
       "addFailed": "No se ha podido añadir esta clave de acceso.",
       "cancelled": "No se ha añadido nada: se cerró el navegador o tardó demasiado.",
       "alreadyHere": "Este dispositivo ya tiene una clave de acceso para esta cuenta."
+    },
+    "activity": {
+      "title": "Registro de actividad",
+      "intro": "Quién hizo qué, cuándo y desde dónde. Desactivado mientras no lo pidas.",
+      "enabled": "Registrar la actividad",
+      "enabledHelp": "Inicios de sesión, descargas, subidas, eliminaciones, restauraciones, enlaces y cambios de cuenta se anotan mientras esté activo. Lo anterior a activarlo no aparece.",
+      "retention": "Conservar (días)",
+      "retentionInvalid": "Entre 1 y 3650 días.",
+      "saveFailed": "No se han podido guardar estos ajustes.",
+      "off": "El registro está desactivado: no se anota nada.",
+      "none": "Todavía no hay nada registrado.",
+      "loadFailed": "No se ha podido leer el registro.",
+      "clearFailed": "No se ha podido vaciar el registro.",
+      "filterAction": "Tipo",
+      "anyAction": "Cualquier tipo",
+      "filterText": "Buscar",
+      "filterTextPlaceholder": "Un nombre o una ruta",
+      "refresh": "Actualizar",
+      "clear": "Vaciar el registro",
+      "more": "Mostrar más",
+      "when": "Cuándo",
+      "who": "Quién",
+      "what": "Qué",
+      "target": "Sobre",
+      "from": "Desde",
+      "refused": "rechazado",
+      "actions": {
+        "sign-in": "Inicio de sesión",
+        "sign-out": "Cierre de sesión",
+        "account-password": "Contraseña cambiada",
+        "account-two-factor": "Segundo factor cambiado",
+        "account-passkey": "Clave de acceso cambiada",
+        "admin-user": "Cuenta modificada",
+        "admin-settings": "Ajustes cambiados",
+        "admin-activity-clear": "Registro vaciado",
+        "share-create": "Enlace creado",
+        "share-delete": "Enlace eliminado",
+        "share-download": "Descargado con un enlace",
+        "share-upload": "Subido con un enlace",
+        "file-download": "Descargado",
+        "file-upload": "Subido",
+        "file-delete": "Enviado a la papelera",
+        "file-restore": "Restaurado",
+        "file-purge": "Eliminado definitivamente",
+        "versions-purge": "Versiones eliminadas"
+      }
     }
   },
   "mediaPreview": {

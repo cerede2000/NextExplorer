@@ -453,6 +453,10 @@ const deleteItems = async (items = [], options = {}) => {
     }
 
     let trashItemId = null;
+    // What a permanent deletion took with the file. Carried back so the
+    // deletion can be written down whole: one file on screen can be ten
+    // earlier copies of it on disk, and those are the half nothing restores.
+    let versionsTaken = null;
     if (useTrash) {
       const outcome = await trash.trashTarget(target, context, { budgetFor });
       if (outcome.status === 'missing') {
@@ -480,7 +484,7 @@ const deleteItems = async (items = [], options = {}) => {
       // Deleted for good, the history goes with it; into the trash, it went
       // along with the item inside trashTarget.
       // eslint-disable-next-line global-require
-      await require('./versions/lifecycle').onDeleted(absolutePath);
+      versionsTaken = await require('./versions/lifecycle').onDeleted(absolutePath);
     }
     // In the trash, a share is switched off but kept with the item, so a restore
     // can bring it back; deleted for good, it goes for good.
@@ -512,6 +516,9 @@ const deleteItems = async (items = [], options = {}) => {
       ...(trashItemId ? { trashItemId } : {}),
       ...(deletedShareCount > 0 ? { deletedShareCount } : {}),
       ...(removedFavoriteCount > 0 ? { removedFavoriteCount } : {}),
+      ...(versionsTaken?.versions > 0
+        ? { versionsPurged: versionsTaken.versions, versionBytesPurged: versionsTaken.bytes }
+        : {}),
     });
     reportProgress(target, relativePath);
   }

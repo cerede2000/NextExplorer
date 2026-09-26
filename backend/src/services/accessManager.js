@@ -63,8 +63,10 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
   const { user, guestSession } = context;
   const permissionResolver =
     typeof options.permissionResolver === 'function' ? options.permissionResolver : null;
-  const getPerm = async (p) =>
-    permissionResolver ? permissionResolver(p) : await getPermissionForPath(p);
+  // Who is asking travels with the path: a rule holds an administrator only
+  // when it says so, or when the setting above the rules says so for all.
+  const getPerm = async (p, who) =>
+    permissionResolver ? permissionResolver(p, who) : await getPermissionForPath(p, who);
 
   // Guests cannot access volumes directly (only through shares).
   // If an authenticated user is present, prefer the user context over any stale guest session.
@@ -96,7 +98,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     const isReadOnly = userVolume.accessMode === 'readonly';
 
     // Also check path-level access control rules
-    const permission = await getPerm(relativePath);
+    const permission = await getPerm(relativePath, { isAdmin: false });
     if (permission === 'hidden') {
       return createDeniedAccess('Path is hidden');
     }
@@ -138,8 +140,11 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     return createDeniedAccess(PERSONAL_SIDEWAYS);
   }
 
-  // Check access control rules
-  const permission = await getPerm(relativePath);
+  // Check access control rules. A rule that does not hold administrators was
+  // already passed over while resolving, so what comes back is what binds this
+  // caller — and an administrator is no longer excused from it a second time
+  // here, which is how a read-only rule left them the Create button.
+  const permission = await getPerm(relativePath, { isAdmin });
   if (permission === 'hidden') {
     return createDeniedAccess('Path is hidden');
   }
@@ -149,10 +154,10 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
   return {
     canAccess: true,
     canRead: true,
-    canWrite: !isReadOnly || isAdmin,
-    canDelete: !isReadOnly || isAdmin,
-    canUpload: !isReadOnly || isAdmin,
-    canCreateFolder: !isReadOnly || isAdmin,
+    canWrite: !isReadOnly,
+    canDelete: !isReadOnly,
+    canUpload: !isReadOnly,
+    canCreateFolder: !isReadOnly,
     canShare: true,
     canDownload: true,
     isShared: false,
@@ -203,8 +208,13 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
   const { user, guestSession } = context;
   const permissionResolver =
     typeof options.permissionResolver === 'function' ? options.permissionResolver : null;
+  // What a share opens is bound by the rules whoever follows the link is: the
+  // link is the lens, not the account behind it, so no rule is waived here for
+  // an administrator.
   const getPerm = async (p) =>
-    permissionResolver ? permissionResolver(p) : await getPermissionForPath(p);
+    permissionResolver
+      ? permissionResolver(p, { isAdmin: false })
+      : await getPermissionForPath(p, { isAdmin: false });
   const shareCache = options && options.shareCache instanceof Map ? options.shareCache : null;
   const userVolumeCache =
     options && options.userVolumeCache instanceof Map ? options.userVolumeCache : null;

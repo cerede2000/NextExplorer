@@ -30,13 +30,14 @@ export const useAppSettings = defineStore('appSettings', () => {
 
   const systemSettings = ref({
     thumbnails: { enabled: true, size: 200, quality: 70 },
-    access: { rules: [] },
+    access: { rules: [], applyToAdmins: false },
     // What the server answers for the trash and the versions. Held as it comes:
     // the screen that shows them sends back what it was given, and the server
     // is the one that decides what a value may be.
     trash: null,
     versions: null,
     uploads: null,
+    activity: null,
   });
 
   // Computed state that combines all settings (for backward compatibility)
@@ -131,9 +132,11 @@ export const useAppSettings = defineStore('appSettings', () => {
       if (s?.trash) systemSettings.value.trash = { ...s.trash };
       if (s?.versions) systemSettings.value.versions = { ...s.versions };
       if (s?.uploads) systemSettings.value.uploads = { ...s.uploads };
+      if (s?.activity) systemSettings.value.activity = { ...s.activity };
       if (s?.access) {
         systemSettings.value.access = {
           rules: Array.isArray(s.access.rules) ? s.access.rules : [],
+          applyToAdmins: s.access.applyToAdmins === true,
         };
       }
 
@@ -192,6 +195,7 @@ export const useAppSettings = defineStore('appSettings', () => {
       if (updated?.trash) systemSettings.value.trash = { ...updated.trash };
       if (updated?.versions) systemSettings.value.versions = { ...updated.versions };
       if (updated?.uploads) systemSettings.value.uploads = { ...updated.uploads };
+      if (updated?.activity) systemSettings.value.activity = { ...updated.activity };
       if (updated?.thumbnails) {
         systemSettings.value.thumbnails = {
           enabled: true,
@@ -204,6 +208,7 @@ export const useAppSettings = defineStore('appSettings', () => {
       if (updated?.access) {
         systemSettings.value.access = {
           rules: Array.isArray(updated.access.rules) ? updated.access.rules : [],
+          applyToAdmins: updated.access.applyToAdmins === true,
         };
       }
 

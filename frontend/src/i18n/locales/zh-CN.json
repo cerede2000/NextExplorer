@@ -408,7 +408,8 @@
       "fileVersions": "文件版本",
       "uploads": "上传",
       "accountTwoFactor": "两步验证",
-      "accountPasskeys": "通行密钥"
+      "accountPasskeys": "通行密钥",
+      "activity": "活动日志"
     },
     "about": {
       "subtitle": "查看此应用的构建信息。",
@@ -489,7 +490,11 @@
       "recursive": "递归",
       "readWrite": "读写",
       "readOnly": "只读",
-      "hidden": "隐藏"
+      "hidden": "隐藏",
+      "adminNote": "每条规则都会说明是否适用于管理员。否则，“只读”规则仍允许他们写入，而“隐藏”规则也会对他们隐藏该文件夹。",
+      "applyToAdmins": "将所有规则应用于管理员",
+      "applyToAdminsHint": "开启后，任何规则都不会放过管理员——每条规则自己的勾选将被忽略。",
+      "appliesToAdmins": "同样适用于管理员"
     },
     "comingSoon": {
       "subtitle": "此设置部分正在构建中，敬请期待！"
@@ -750,6 +755,52 @@
       "addFailed": "无法添加此通行密钥。",
       "cancelled": "未添加任何内容：浏览器已关闭或操作超时。",
       "alreadyHere": "此设备已有该账户的通行密钥。"
+    },
+    "activity": {
+      "title": "活动日志",
+      "intro": "谁在何时、从何处做了什么。除非你开启，否则不记录。",
+      "enabled": "记录活动",
+      "enabledHelp": "开启期间，登录、下载、上传、删除、还原、分享和账户变更会被记录。开启之前发生的事不在其中。",
+      "retention": "保留（天）",
+      "retentionInvalid": "1 到 3650 天之间。",
+      "saveFailed": "无法保存这些设置。",
+      "off": "日志已关闭，没有记录任何内容。",
+      "none": "尚未记录任何内容。",
+      "loadFailed": "无法读取日志。",
+      "clearFailed": "无法清空日志。",
+      "filterAction": "类型",
+      "anyAction": "所有类型",
+      "filterText": "搜索",
+      "filterTextPlaceholder": "名称或路径",
+      "refresh": "刷新",
+      "clear": "清空日志",
+      "more": "显示更多",
+      "when": "时间",
+      "who": "谁",
+      "what": "做了什么",
+      "target": "对象",
+      "from": "来源",
+      "refused": "被拒绝",
+      "actions": {
+        "sign-in": "登录",
+        "sign-out": "退出登录",
+        "account-password": "修改密码",
+        "account-two-factor": "修改两步验证",
+        "account-passkey": "修改通行密钥",
+        "admin-user": "修改账户",
+        "admin-settings": "修改设置",
+        "admin-activity-clear": "清空日志",
+        "share-create": "创建分享",
+        "share-delete": "删除分享",
+        "share-download": "通过链接下载",
+        "share-upload": "通过链接上传",
+        "file-download": "下载",
+        "file-upload": "上传",
+        "file-delete": "移入回收站",
+        "file-restore": "还原",
+        "file-purge": "永久删除",
+        "versions-purge": "版本已删除"
+      }
     }
   },
   "mediaPreview": {

@@ -408,7 +408,8 @@
       "fileVersions": "Filversioner",
       "uploads": "Uppladdningar",
       "accountTwoFactor": "Tvåfaktor",
-      "accountPasskeys": "Lösenordsnycklar"
+      "accountPasskeys": "Lösenordsnycklar",
+      "activity": "Aktivitetslogg"
     },
     "about": {
       "subtitle": "Visa bygginformation för denna applikation.",
@@ -489,7 +490,11 @@
       "recursive": "Rekursiv",
       "readWrite": "Läs-skriv",
       "readOnly": "Skrivskyddad",
-      "hidden": "Dold"
+      "hidden": "Dold",
+      "adminNote": "Varje regel säger om den gäller administratörer. Utan det låter en regel ”Skrivskyddad” dem skriva, och en regel ”Dold” döljer mappen även för dem.",
+      "applyToAdmins": "Tillämpa alla regler på administratörer",
+      "applyToAdminsHint": "På släpper ingen regel igenom en administratör – varje regels egen ruta ignoreras.",
+      "appliesToAdmins": "Gäller administratörer"
     },
     "comingSoon": {
       "subtitle": "Denna inställningssektion håller på att byggas. Vänta och se!"
@@ -750,6 +755,52 @@
       "addFailed": "Det gick inte att lägga till nyckeln.",
       "cancelled": "Ingenting lades till: webbläsaren stängdes eller det tog för lång tid.",
       "alreadyHere": "Den här enheten har redan en nyckel för det här kontot."
+    },
+    "activity": {
+      "title": "Aktivitetslogg",
+      "intro": "Vem som gjorde vad, när och varifrån. Av tills du ber om den.",
+      "enabled": "Registrera aktivitet",
+      "enabledHelp": "Inloggningar, nedladdningar, uppladdningar, borttagningar, återställningar, delningar och kontoändringar skrivs ned så länge detta är på. Det som hände innan finns inte med.",
+      "retention": "Behåll (dagar)",
+      "retentionInvalid": "Mellan 1 och 3650 dagar.",
+      "saveFailed": "Det gick inte att spara inställningarna.",
+      "off": "Loggen är av, ingenting registreras.",
+      "none": "Ingenting registrerat ännu.",
+      "loadFailed": "Det gick inte att läsa loggen.",
+      "clearFailed": "Det gick inte att tömma loggen.",
+      "filterAction": "Sort",
+      "anyAction": "Alla sorter",
+      "filterText": "Sök",
+      "filterTextPlaceholder": "Ett namn eller en sökväg",
+      "refresh": "Uppdatera",
+      "clear": "Töm loggen",
+      "more": "Visa fler",
+      "when": "När",
+      "who": "Vem",
+      "what": "Vad",
+      "target": "På",
+      "from": "Från",
+      "refused": "nekad",
+      "actions": {
+        "sign-in": "Inloggad",
+        "sign-out": "Utloggad",
+        "account-password": "Lösenord ändrat",
+        "account-two-factor": "Andra faktorn ändrad",
+        "account-passkey": "Nyckel ändrad",
+        "admin-user": "Konto ändrat",
+        "admin-settings": "Inställningar ändrade",
+        "admin-activity-clear": "Loggen tömd",
+        "share-create": "Delning skapad",
+        "share-delete": "Delning borttagen",
+        "share-download": "Hämtad via en länk",
+        "share-upload": "Uppladdad via en länk",
+        "file-download": "Hämtad",
+        "file-upload": "Uppladdad",
+        "file-delete": "Till papperskorgen",
+        "file-restore": "Återställd",
+        "file-purge": "Borttagen för gott",
+        "versions-purge": "Versioner borttagna"
+      }
     }
   },
   "mediaPreview": {

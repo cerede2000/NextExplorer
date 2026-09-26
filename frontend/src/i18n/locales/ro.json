@@ -408,7 +408,8 @@
       "fileVersions": "Versiuni de fișiere",
       "uploads": "Încărcări",
       "accountTwoFactor": "Doi factori",
-      "accountPasskeys": "Chei de acces"
+      "accountPasskeys": "Chei de acces",
+      "activity": "Jurnal de activitate"
     },
     "about": {
       "subtitle": "Vezi informațiile de build pentru această aplicație.",
@@ -489,7 +490,11 @@
       "recursive": "Recursiv",
       "readWrite": "Citire și scriere",
       "readOnly": "Doar citire",
-      "hidden": "Ascuns"
+      "hidden": "Ascuns",
+      "adminNote": "Fiecare regulă spune dacă se aplică administratorilor. Fără asta, o regulă „Doar citire” îi lasă să scrie, iar o regulă „Ascuns” le ascunde și lor dosarul.",
+      "applyToAdmins": "Aplică toate regulile administratorilor",
+      "applyToAdminsHint": "Activat, nicio regulă nu lasă un administrator să treacă — caseta fiecărei reguli este ignorată.",
+      "appliesToAdmins": "Se aplică administratorilor"
     },
     "comingSoon": {
       "subtitle": "Această secțiune de setări este în lucru. Revino în curând!"
@@ -750,6 +755,52 @@
       "addFailed": "Cheia de acces nu a putut fi adăugată.",
       "cancelled": "Nu s-a adăugat nimic: browserul a fost închis sau a durat prea mult.",
       "alreadyHere": "Acest dispozitiv are deja o cheie de acces pentru acest cont."
+    },
+    "activity": {
+      "title": "Jurnal de activitate",
+      "intro": "Cine ce a făcut, când și de unde. Oprit până îl cereți.",
+      "enabled": "Înregistrează activitatea",
+      "enabledHelp": "Conectările, descărcările, încărcările, ștergerile, restaurările, partajările și schimbările de cont sunt notate cât timp este pornit. Ce a fost înainte nu apare.",
+      "retention": "Păstrează (zile)",
+      "retentionInvalid": "Între 1 și 3650 de zile.",
+      "saveFailed": "Aceste setări nu au putut fi salvate.",
+      "off": "Jurnalul este oprit: nu se înregistrează nimic.",
+      "none": "Încă nu s-a înregistrat nimic.",
+      "loadFailed": "Jurnalul nu a putut fi citit.",
+      "clearFailed": "Jurnalul nu a putut fi golit.",
+      "filterAction": "Tip",
+      "anyAction": "Orice tip",
+      "filterText": "Caută",
+      "filterTextPlaceholder": "Un nume sau o cale",
+      "refresh": "Reîmprospătează",
+      "clear": "Golește jurnalul",
+      "more": "Arată mai multe",
+      "when": "Când",
+      "who": "Cine",
+      "what": "Ce",
+      "target": "Asupra",
+      "from": "De la",
+      "refused": "refuzat",
+      "actions": {
+        "sign-in": "Conectare",
+        "sign-out": "Deconectare",
+        "account-password": "Parolă schimbată",
+        "account-two-factor": "Al doilea factor schimbat",
+        "account-passkey": "Cheie de acces schimbată",
+        "admin-user": "Cont modificat",
+        "admin-settings": "Setări modificate",
+        "admin-activity-clear": "Jurnal golit",
+        "share-create": "Partajare creată",
+        "share-delete": "Partajare ștearsă",
+        "share-download": "Descărcat printr-un link",
+        "share-upload": "Încărcat printr-un link",
+        "file-download": "Descărcat",
+        "file-upload": "Încărcat",
+        "file-delete": "Trimis la coșul de gunoi",
+        "file-restore": "Restaurat",
+        "file-purge": "Șters definitiv",
+        "versions-purge": "Versiuni șterse"
+      }
     }
   },
   "mediaPreview": {

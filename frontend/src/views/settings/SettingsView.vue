@@ -16,6 +16,7 @@ import {
   ArrowUpTrayIcon,
   ShieldCheckIcon,
   FingerPrintIcon,
+  ListBulletIcon,
   UsersIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline';
@@ -111,6 +112,12 @@ const adminCategories = [
     i18nKey: 'uploads',
     name: 'Uploads',
     icon: ArrowUpTrayIcon,
+  },
+  {
+    key: 'activity',
+    i18nKey: 'activity',
+    name: 'Activity',
+    icon: ListBulletIcon,
   },
   {
     key: 'access-control',
