@@ -314,7 +314,12 @@ const completeness = (() => {
 
 // ── the manifest decides ────────────────────────────────────────────────────
 const manifest = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { rules: [] };
-const VERDICTS = ['OURS', 'SHAPE', 'PORT', 'DONE'];
+// THEIRS is the verdict the first version of this could not express: upstream's
+// version of a shared file is the newer one, and the fork is what has to move. It was
+// found on `betterSqliteSessionStore.js`, where upstream opens the session database
+// lazily and this fork still opens it when the module is required — so porting "ours"
+// over it would have broken the one check upstream's CI runs.
+const VERDICTS = ['OURS', 'THEIRS', 'SHAPE', 'PORT', 'DONE'];
 
 const compiled = (manifest.rules || []).map((rule) => ({
   ...rule,

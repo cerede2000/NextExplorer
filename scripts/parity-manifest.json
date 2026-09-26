@@ -350,6 +350,18 @@
     },
     {
       "axis": "*",
+      "match": "^backend/src/utils/betterSqliteSessionStore\\.js(:|$)",
+      "verdict": "THEIRS",
+      "note": "upstream opens the session database on first use; this fork still opens it when the module is required, which turns requiring it into a filesystem write and fails the module-load check. The fork takes upstream's version"
+    },
+    {
+      "axis": "*",
+      "match": "^backend/src/utils/bootstrap\\.js(:|$)",
+      "verdict": "THEIRS",
+      "note": "one line, and upstream's is the tighter one: `let roles;` rather than an array nothing reads before it is assigned"
+    },
+    {
+      "axis": "*",
       "match": "^(backend/src/services/db\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-14",
