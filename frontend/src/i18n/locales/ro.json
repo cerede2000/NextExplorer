@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "Nimic de aici nu poate deschide {name}.",
     "backToFolder": "Înapoi la dosar"
+  },
+  "archive": {
+    "password": {
+      "title": "Parolă necesară",
+      "description": "Această arhivă este protejată. Introdu parola pentru a o extrage.",
+      "label": "Parola arhivei",
+      "invalid": "Parolă incorectă sau arhivă deteriorată.",
+      "submit": "Extrage",
+      "extracting": "Se extrage..."
+    },
+    "breadcrumb": "În arhivă",
+    "empty": "Acest folder este gol.",
+    "download": "Descarcă",
+    "downloadNamed": "Descarcă {name}",
+    "outside": "O intrare nu este afișată: numele ei indică în afara arhivei. | {count} intrări nu sunt afișate: numele lor indică în afara arhivei.",
+    "unreadable": "Această arhivă nu a putut fi citită.",
+    "readFailed": "Acest fișier nu a putut fi citit.",
+    "notReadable": "Acest tip de fișier nu poate fi afișat aici.",
+    "tooBigToRead": "Prea mare pentru a fi afișat aici: {size}, limita este {ceiling}. Descărcați-l sau extrageți-l pentru a-l deschide.",
+    "extract": "Extrage aici",
+    "extractNamed": "Extrage {name} aici",
+    "selectAll": "Selectați tot de aici",
+    "selectNamed": "Selectați {name}",
+    "selected": "Un element selectat | {count} elemente selectate",
+    "extracted": "Extras: {name}",
+    "extractedNothing": "Nu a ieșit nimic.",
+    "extractFailed": "Acest lucru nu a putut fi extras.",
+    "count": "O intrare în această arhivă | {count} intrări în această arhivă"
   }
 }

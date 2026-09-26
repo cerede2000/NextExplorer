@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "Hier kan niets {name} openen.",
     "backToFolder": "Terug naar de map"
+  },
+  "archive": {
+    "password": {
+      "title": "Wachtwoord vereist",
+      "description": "Dit archief is beveiligd. Voer het wachtwoord in om het uit te pakken.",
+      "label": "Wachtwoord van het archief",
+      "invalid": "Onjuist wachtwoord, of het archief is beschadigd.",
+      "submit": "Uitpakken",
+      "extracting": "Bezig met uitpakken..."
+    },
+    "breadcrumb": "In het archief",
+    "empty": "Deze map is leeg.",
+    "download": "Downloaden",
+    "downloadNamed": "{name} downloaden",
+    "outside": "Eén item wordt niet getoond: de naam wijst buiten het archief. | {count} items worden niet getoond: hun namen wijzen buiten het archief.",
+    "unreadable": "Dit archief kon niet worden gelezen.",
+    "readFailed": "Dit bestand kon niet worden gelezen.",
+    "notReadable": "Dit soort bestand kan hier niet worden getoond.",
+    "tooBigToRead": "Te groot om hier te tonen: {size}, de limiet is {ceiling}. Download het of pak het uit om het te openen.",
+    "extract": "Hier uitpakken",
+    "extractNamed": "{name} hier uitpakken",
+    "selectAll": "Alles hier selecteren",
+    "selectNamed": "{name} selecteren",
+    "selected": "Eén item geselecteerd | {count} items geselecteerd",
+    "extracted": "Uitgepakt: {name}",
+    "extractedNothing": "Er kwam niets uit.",
+    "extractFailed": "Dit kon niet worden uitgepakt.",
+    "count": "Eén item in dit archief | {count} items in dit archief"
   }
 }

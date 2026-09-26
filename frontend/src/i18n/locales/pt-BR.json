@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "Nada aqui consegue abrir {name}.",
     "backToFolder": "Voltar para a pasta"
+  },
+  "archive": {
+    "password": {
+      "title": "Senha necessária",
+      "description": "Este arquivo está protegido. Digite a senha para extraí-lo.",
+      "label": "Senha do arquivo",
+      "invalid": "Senha incorreta, ou o arquivo está danificado.",
+      "submit": "Extrair",
+      "extracting": "Extraindo..."
+    },
+    "breadcrumb": "Dentro do arquivo",
+    "empty": "Esta pasta está vazia.",
+    "download": "Baixar",
+    "downloadNamed": "Baixar {name}",
+    "outside": "Uma entrada não é exibida: o nome dela aponta para fora do arquivo. | {count} entradas não são exibidas: os nomes delas apontam para fora do arquivo.",
+    "unreadable": "Não foi possível ler este arquivo.",
+    "readFailed": "Não foi possível ler este arquivo.",
+    "notReadable": "Este tipo de arquivo não pode ser exibido aqui.",
+    "tooBigToRead": "Grande demais para exibir aqui: {size}, o limite é {ceiling}. Baixe ou extraia o arquivo para abri-lo.",
+    "extract": "Extrair aqui",
+    "extractNamed": "Extrair {name} aqui",
+    "selectAll": "Selecionar tudo aqui",
+    "selectNamed": "Selecionar {name}",
+    "selected": "Um item selecionado | {count} itens selecionados",
+    "extracted": "Extraído: {name}",
+    "extractedNothing": "Nada saiu dele.",
+    "extractFailed": "Não foi possível extrair isto.",
+    "count": "Uma entrada neste arquivo | {count} entradas neste arquivo"
   }
 }

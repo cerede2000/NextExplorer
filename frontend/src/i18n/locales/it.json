@@ -949,5 +949,33 @@
   "preview": {
     "nothingOpensIt": "Qui niente sa aprire {name}.",
     "backToFolder": "Torna alla cartella"
+  },
+  "archive": {
+    "password": {
+      "title": "Password richiesta",
+      "description": "Questo archivio è protetto. Inserisci la sua password per estrarlo.",
+      "label": "Password dell'archivio",
+      "invalid": "Password errata o archivio danneggiato.",
+      "submit": "Estrai",
+      "extracting": "Estrazione in corso..."
+    },
+    "breadcrumb": "Dentro l'archivio",
+    "empty": "Questa cartella è vuota.",
+    "download": "Scarica",
+    "downloadNamed": "Scarica {name}",
+    "outside": "Una voce non è mostrata: il suo nome punta fuori dall'archivio. | {count} voci non sono mostrate: i loro nomi puntano fuori dall'archivio.",
+    "unreadable": "Non è stato possibile leggere questo archivio.",
+    "readFailed": "Non è stato possibile leggere questo file.",
+    "notReadable": "Questo tipo di file non può essere mostrato qui.",
+    "tooBigToRead": "Troppo grande per essere mostrato qui: {size}, il limite è {ceiling}. Scaricalo o estrailo per aprirlo.",
+    "extract": "Estrai qui",
+    "extractNamed": "Estrai {name} qui",
+    "selectAll": "Seleziona tutto qui",
+    "selectNamed": "Seleziona {name}",
+    "selected": "Un elemento selezionato | {count} elementi selezionati",
+    "extracted": "Estratto: {name}",
+    "extractedNothing": "Non ne è uscito nulla.",
+    "extractFailed": "Non è stato possibile estrarre questo.",
+    "count": "Una voce in questo archivio | {count} voci in questo archivio"
   }
 }

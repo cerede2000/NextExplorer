@@ -12,12 +12,15 @@ const terminalService = require('../services/terminalService');
 const { getTrashSettings } = require('../services/trash/settings');
 const { getVersionSettings } = require('../services/versions/settings');
 const { MAX_UPLOAD_CHUNK_SIZE_BYTES } = require('../services/settingsService');
+const { getSupportedArchiveExtensions } = require('../services/archiveService');
 const packageJson = require('../../package.json');
 
 const router = express.Router();
 
 // GET /api/features -> returns enabled/disabled feature flags derived from env
 router.get('/features', async (_req, res) => {
+  // Probed once at startup, then cached — this await is effectively free.
+  const archiveExtensions = await getSupportedArchiveExtensions().catch(() => ['zip']);
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -55,6 +58,11 @@ router.get('/features', async (_req, res) => {
       (settings) => ({ enabled: settings.enabled }),
       () => ({ enabled: false })
     ),
+    archives: {
+      // What the 7-Zip build on this machine can actually open, rather than a
+      // list kept in the browser that a different image would make wrong.
+      extensions: archiveExtensions,
+    },
     uploads: {
       // The ceiling an administrator may raise the chunk size to
       // (MAX_CHUNK_SIZE_MIB), so the screen can say what it is rather than

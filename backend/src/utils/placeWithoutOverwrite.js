@@ -192,7 +192,26 @@ const reserveAvailableName = async (
   throw taken(path.join(directory, desiredName));
 };
 
+/**
+ * The name `placeWithoutOverwrite` would take if nothing changed meanwhile, to
+ * tell somebody what to expect — never to place anything under. By the time the
+ * move happens the name may be held, and the move then takes the next one
+ * itself. A name that cannot be looked at is answered as asked.
+ */
+const predictAvailableName = async (directory, desiredName, { style = 'copy' } = {}) => {
+  for (let index = 0; index < MAX_CANDIDATES; index += 1) {
+    const name = candidateName(desiredName, index, style);
+    try {
+      await fs.lstat(path.join(directory, name));
+    } catch (error) {
+      return error.code === 'ENOENT' ? name : desiredName;
+    }
+  }
+  return desiredName;
+};
+
 module.exports = {
+  predictAvailableName,
   candidateName,
   moveNoReplace,
   placeWithoutOverwrite,
