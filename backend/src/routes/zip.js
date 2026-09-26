@@ -29,6 +29,7 @@ const {
   archiveBaseName,
   normalizeArchivePassword,
 } = require('../services/archiveService');
+const folderSizeHooks = require('../services/folderSizeHooks');
 const {
   ensureArchiveWithinLimits,
   buildItemMetadata,
@@ -208,6 +209,7 @@ router.post(
         );
         // The archive has produced an entire new tree. Queue its index refresh,
         // but never hold the archive operation open on background filesystem I/O.
+        folderSizeHooks.onDirectoryTreeCreated(placed.path);
 
         const item = await buildItemMetadata(placed.path, parentRelativePath, placed.name);
         writeEvent({ type: 'done', success: true, item, items: [item] });
@@ -410,6 +412,8 @@ router.post(
         destinationAbsolutePath,
         requestedName
       );
+      const zipStats = await fs.stat(placed.path);
+      await folderSizeHooks.onFileWritten(placed.path, zipStats.size);
 
       const item = await buildItemMetadata(placed.path, normalizedDestination, placed.name);
       writeEvent({ type: 'done', success: true, item });

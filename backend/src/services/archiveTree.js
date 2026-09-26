@@ -30,7 +30,7 @@ const { getSettings } = require('./settingsService');
  */
 const readAccess = async () => {
   const settings = await getSettings();
-  return settings?.access || null;
+  return settings?.access && typeof settings.access === 'object' ? settings.access : { rules: [] };
 };
 
 /**
@@ -42,8 +42,9 @@ const readAccess = async () => {
  */
 const collectArchiveEntries = async (context, sources) => {
   const access = await readAccess();
+  const rules = Array.isArray(access.rules) ? access.rules : [];
   const accessOptions = {
-    permissionResolver: access?.rules?.length ? createPermissionResolver(access) : undefined,
+    permissionResolver: rules.length ? createPermissionResolver(access) : undefined,
     shareCache: new Map(),
     userVolumeCache: new Map(),
   };
@@ -56,7 +57,7 @@ const collectArchiveEntries = async (context, sources) => {
     if (guardPersonalRoot && isInsidePersonalRoot(absolutePath)) return false;
     // With no rules, nothing below a readable folder is less readable than it:
     // every other decision was made once, for the source.
-    if (!access?.rules?.length) return true;
+    if (!rules.length) return true;
     const info = await getAccessInfo(context, logicalPath, accessOptions);
     return Boolean(info?.canAccess && info.canRead);
   };

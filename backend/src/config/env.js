@@ -72,6 +72,8 @@ module.exports = {
   // --- Archive extraction ---
   MAX_EXTRACTED_ARCHIVE_SIZE: process.env.MAX_EXTRACTED_ARCHIVE_SIZE?.trim() || null,
   MAX_ARCHIVE_ENTRIES: Number(process.env.MAX_ARCHIVE_ENTRIES) || 100000,
+  MAX_BROWSABLE_ARCHIVE_SIZE: process.env.MAX_BROWSABLE_ARCHIVE_SIZE?.trim() || null,
+  ARCHIVE_CACHE_MAX_SIZE: process.env.ARCHIVE_CACHE_MAX_SIZE?.trim() || null,
   ARCHIVE_EXTENSIONS: process.env.ARCHIVE_EXTENSIONS || '',
   // --- Folder size index ---
   FOLDER_SIZE_MODE: process.env.FOLDER_SIZE_MODE?.trim().toLowerCase() || 'off',
