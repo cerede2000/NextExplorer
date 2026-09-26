@@ -428,9 +428,9 @@
     {
       "axis": "*",
       "match": "^(docs/admin/trash\\.md|docs/admin/versions\\.md|docs/configuration/environment\\.md|docs/experience/features\\.md|docs/experience/workflows\\.md|docs/admin/guide\\.md|docs/configuration/personal\\-folders\\.md|docs/installation/deployment\\.md|docs/installation/reverse\\-proxy\\.md|docs/reference/contributing\\.md|docs/reference/faq\\.md)(:|$)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-05",
-      "note": "the documentation the delivered batches left behind"
+      "note": "nxzai#437 \u2014 the documentation the delivered batches left behind"
     },
     {
       "axis": "*",
