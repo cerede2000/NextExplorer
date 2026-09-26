@@ -5,6 +5,11 @@
     "structure \u2014 nxzai#373 placed this outside the plan), PORT (must be reversed, with",
     "its batch), DONE (reversed, with its pull request).",
     "",
+    "Batches are numbered P3-nn: phase 3, in the order they are to be delivered. The",
+    "thirty-three of nxzai#373 were phase 2; continuing that counter past 33 read as if",
+    "the plan had grown, which it had not \u2014 phase 3 is a different list, found by",
+    "measurement rather than written in advance. P3-01 to P3-04 are already reversed.",
+    "",
     "The first matching rule wins, so the specific ones come first. `match` is a",
     "regular expression unless `exact` is true.",
     "",
@@ -67,7 +72,12 @@
       "verdict": "OURS",
       "note": "the inline quick-actions menu was offered upstream in nxzai#333 and closed. It stays ours unless the maintainer asks for it"
     },
-    { "axis": "env", "match": "^DEMO_", "verdict": "OURS", "note": "our Render demo" },
+    {
+      "axis": "env",
+      "match": "^DEMO_",
+      "verdict": "OURS",
+      "note": "our Render demo"
+    },
     {
       "axis": "file-upstream",
       "match": ".",
@@ -108,410 +118,413 @@
       "axis": "*",
       "match": "^(backend/src/config/sessionSecret\\.js)(:|$)",
       "verdict": "DONE",
-      "note": "nxzai#434"
+      "note": "nxzai#434",
+      "batch": "P3-02"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/processFailures\\.js)(:|$)",
       "verdict": "DONE",
-      "note": "nxzai#435"
+      "note": "nxzai#435",
+      "batch": "P3-03"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/NewOfficeDocumentDialog\\.vue)(:|$)",
       "verdict": "DONE",
-      "note": "nxzai#436"
+      "note": "nxzai#436",
+      "batch": "P3-04"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/oidcRedirect\\.js|backend/src/utils/oidcAvailability\\.js|backend/src/middleware/oidc\\.js|backend/src/routes/auth\\.js|docs/integrations/oidc\\.md)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 38",
+      "batch": "P3-08",
       "note": "OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "i18n",
       "match": "^auth\\.",
       "verdict": "PORT",
-      "batch": "batch 38",
+      "batch": "P3-08",
       "note": "OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/brandingLogo\\.js|frontend/src/views/settings/SettingsBranding\\.vue|frontend/src/components/HeaderLogo\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 39",
+      "batch": "P3-09",
       "note": "a logo that can be changed back"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.branding\\.",
       "verdict": "PORT",
-      "batch": "batch 39",
+      "batch": "P3-09",
       "note": "a logo that can be changed back"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/httpRange\\.js|backend/src/routes/files/preview\\.js|backend/src/routes/files/download\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 40",
+      "batch": "P3-10",
       "note": "one Range parser, not two that disagree"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/exifDetails\\.js|backend/src/routes/metadata\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 41",
+      "batch": "P3-11",
       "note": "EXIF without a parser nobody maintains"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/featureSwitches\\.js|backend/src/routes/features\\.js|frontend/src/stores/features\\.js|frontend/src/views/settings/SettingsSearchIndex\\.vue|frontend/src/views/settings/SettingsFolderSize\\.vue|backend/src/services/searchIndexer\\.js|docs/configuration/settings\\.md)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 42",
+      "batch": "P3-05",
       "note": "the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "i18n",
       "match": "^search\\.",
       "verdict": "PORT",
-      "batch": "batch 42",
+      "batch": "P3-05",
       "note": "the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/folderSizeHooks\\.js|backend/src/services/folderSizeIndex\\.js|backend/src/services/folderSizeManager\\.js|backend/src/routes/upload\\.js|backend/src/routes/files/folder\\.js|backend/src/routes/files/file\\.js|backend/src/routes/editor\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 43",
+      "batch": "P3-12",
       "note": "the size index kept current by the write, not by the sweep"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/pathBindingsService\\.js|backend/src/services/orphanedBindingsService\\.js|backend/src/services/favoritesService\\.js|backend/src/services/renameService\\.js|backend/src/routes/files/rename\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 44",
+      "batch": "P3-13",
       "note": "the rows that point at a path that is gone"
     },
     {
       "axis": "i18n",
       "match": "^favorites\\.",
       "verdict": "PORT",
-      "batch": "batch 44",
+      "batch": "P3-13",
       "note": "the rows that point at a path that is gone"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/legacyCacheCheck\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 45",
+      "batch": "P3-14",
       "note": "what releases up to 1.1.7 left in the cache"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/performanceDiagnostics\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 46",
+      "batch": "P3-15",
       "note": "the periodic performance record"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/stores/folderPreference\\.js|frontend/src/stores/folderScroll\\.js|backend/src/services/settingsService\\.js|frontend/src/stores/settings\\.js|frontend/src/stores/appSettings\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue|frontend/src/api/settings\\.api\\.js|backend/src/routes/settings\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 47",
+      "batch": "P3-20",
       "note": "sort and view remembered per folder"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.(?!branding\\.)",
       "verdict": "PORT",
-      "batch": "batch 47",
+      "batch": "P3-20",
       "note": "sort and view remembered per folder"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/db\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 48",
+      "batch": "P3-16",
       "note": "one database handle, and its prepared statements"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/fileTransferService\\.js|frontend/src/stores/operationTasks\\.js|frontend/src/utils/transferRate\\.js|frontend/src/components/ClipboardProgress\\.vue|backend/src/routes/files/transfer\\.js|frontend/src/composables/fileActions\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 49",
+      "batch": "P3-06",
       "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23"
     },
     {
       "axis": "i18n",
       "match": "^clipboard\\.",
       "verdict": "PORT",
-      "batch": "batch 49",
+      "batch": "P3-06",
       "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/recentDestinationsService\\.js|frontend/src/components/DestinationPickerDialog\\.vue|frontend/src/composables/useDestinationPicker\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 50",
+      "batch": "P3-21",
       "note": "the destination dialog, and the folders somebody actually files into"
     },
     {
       "axis": "i18n",
       "match": "^destinationPicker\\.",
       "verdict": "PORT",
-      "batch": "batch 50",
+      "batch": "P3-21",
       "note": "the destination dialog, and the folders somebody actually files into"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/archiveTree\\.js|backend/src/services/archiveExtraction\\.js|frontend/src/plugins/archive/ArchivePreview\\.vue|backend/src/routes/zip\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 51",
+      "batch": "P3-17",
       "note": "bounds on browsing inside an archive"
     },
     {
       "axis": "i18n",
       "match": "^archive\\.",
       "verdict": "PORT",
-      "batch": "batch 51",
+      "batch": "P3-17",
       "note": "bounds on browsing inside an archive"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/composables/uploadEngine\\.js|frontend/src/composables/uploadCommon\\.js|frontend/src/composables/uploadTarget\\.js|frontend/src/utils/uploadFallback\\.js|frontend/src/utils/uploadMode\\.js|frontend/src/composables/fileUploader\\.js|backend/src/services/tusUploadService\\.js|frontend/src/views/settings/SettingsUploads\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 52",
+      "batch": "P3-19",
       "note": "the chunked fallback, and the switch that governs it"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/browse\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 53",
+      "batch": "P3-18",
       "note": "two ceilings nobody could raise"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/api/sessionExpiry\\.js|frontend/src/api/errorHandler\\.js|frontend/src/stores/auth\\.js|frontend/src/views/AuthLoginView\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 54",
+      "batch": "P3-22",
       "note": "a session that ends while nobody is navigating"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/router/authRedirect\\.js|frontend/src/router/settingsGuard\\.js|frontend/src/router/skipHome\\.js|frontend/src/router/index\\.js|frontend/src/router/shareGuard\\.js|frontend/src/views/HomeView\\.vue|frontend/src/composables/navigation\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 55",
+      "batch": "P3-23",
       "note": "the navigation guards, each a function of its inputs"
     },
     {
       "axis": "i18n",
       "match": "^nav\\.",
       "verdict": "PORT",
-      "batch": "batch 55",
+      "batch": "P3-23",
       "note": "the navigation guards, each a function of its inputs"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/stores/volumeUsage\\.js|frontend/src/components/VolumeUsageBar\\.vue|backend/src/routes/usage\\.js|frontend/src/components/VolMenu\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 56",
+      "batch": "P3-24",
       "note": "how full a volume is"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/shares/ShareListState\\.vue|frontend/src/components/shares/ShareListToolbar\\.vue|frontend/src/composables/shareList\\.js|frontend/src/views/SharedByMeView\\.vue|frontend/src/components/ShareDialog\\.vue|frontend/src/api/shares\\.api\\.js|backend/src/services/sharesService\\.js|backend/src/routes/shares\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 57",
+      "batch": "P3-25",
       "note": "the list of shares, seen"
     },
     {
       "axis": "i18n",
       "match": "^(share|links)\\.",
       "verdict": "PORT",
-      "batch": "batch 57",
+      "batch": "P3-25",
       "note": "the list of shares, seen"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/utils/searchMatch\\.js|frontend/src/utils/virtualWindow\\.js|frontend/src/components/SpotlightSearch\\.vue|frontend/src/views/SearchResultsView\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 58",
+      "batch": "P3-26",
       "note": "finding a name in a folder nobody can scroll"
     },
     {
       "axis": "*",
       "match": "^(docs/admin/trash\\.md|docs/admin/versions\\.md|docs/configuration/environment\\.md|docs/experience/features\\.md|docs/experience/workflows\\.md|docs/admin/guide\\.md|docs/configuration/personal\\-folders\\.md|docs/installation/deployment\\.md|docs/installation/reverse\\-proxy\\.md|docs/reference/contributing\\.md|docs/reference/faq\\.md)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 59",
+      "batch": "P3-07",
       "note": "the documentation the delivered batches left behind"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/trash\\.js|backend/src/services/trash/index\\.js|backend/src/services/trash/operations\\.js|backend/src/services/versions/index\\.js|backend/src/services/versions/operations\\.js|frontend/src/components/VersionsPanel\\.vue|frontend/src/views/TrashView\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 60",
+      "batch": "P3-27",
       "note": "the trash and the versions panel, their remainder"
     },
     {
       "axis": "i18n",
       "match": "^versions\\.",
       "verdict": "PORT",
-      "batch": "batch 60",
+      "batch": "P3-27",
       "note": "the trash and the versions panel, their remainder"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/accessControlService\\.js|backend/src/services/accessManager\\.js|backend/src/routes/permissions\\.js|frontend/src/views/settings/SettingsAccessControl\\.vue|backend/src/services/personalFolders\\.js|backend/src/services/directoryListingService\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 61",
+      "batch": "P3-28",
       "note": "access rules and what they hold"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/users\\.js|frontend/src/views/settings/AdminUsers\\.vue|frontend/src/views/settings/components/UserDetail\\.vue|frontend/src/views/settings/components/UserList\\.vue|frontend/src/api/users\\.api\\.js|backend/src/services/users/requestUser\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 62",
+      "batch": "P3-29",
       "note": "the accounts screens"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/onlyoffice\\.js|backend/src/routes/collabora\\.js|frontend/src/plugins/onlyoffice/OnlyOfficePreview\\.vue|frontend/src/plugins/onlyoffice/onlyofficePreview\\.js|frontend/src/plugins/collabora/CollaboraPreview\\.vue|frontend/src/api/onlyoffice\\.api\\.js|frontend/src/views/EditorView\\.vue|docs/integrations/onlyoffice\\.md)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 63",
+      "batch": "P3-30",
       "note": "ONLYOFFICE and Collabora, their remainder"
     },
     {
       "axis": "i18n",
       "match": "^(onlyoffice|editor)\\.",
       "verdict": "PORT",
-      "batch": "batch 63",
+      "batch": "P3-30",
       "note": "ONLYOFFICE and Collabora, their remainder"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/composables/contextMenuSections\\.js|frontend/src/composables/deleteDialogWording\\.js|frontend/src/composables/useDeleteConfirm\\.js|frontend/src/components/ExplorerContextMenu\\.vue|frontend/src/composables/useFileDragDrop\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 64",
+      "batch": "P3-31",
       "note": "the context menu, and saying what a deletion will do"
     },
     {
       "axis": "i18n",
       "match": "^context\\.",
       "verdict": "PORT",
-      "batch": "batch 64",
+      "batch": "P3-31",
       "note": "the context menu, and saying what a deletion will do"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/icons/fileBadges\\.js|frontend/src/utils/favoriteIcons\\.js|frontend/src/icons/FileIcon\\.vue|frontend/src/utils/fileKinds\\.js|frontend/src/components/FileObject\\.vue|frontend/src/components/InfoPanel\\.vue|frontend/src/components/FavMenu\\.vue|frontend/src/utils/revealOffset\\.js|frontend/src/utils/folderKeyboard\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 65",
+      "batch": "P3-32",
       "note": "what a file looks like in the list"
     },
     {
       "axis": "i18n",
       "match": "^(info|preview|placeholders)\\.",
       "verdict": "PORT",
-      "batch": "batch 65",
+      "batch": "P3-32",
       "note": "what a file looks like in the list"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/plugins/markdown/slabs\\.js|frontend/src/plugins/markdown/MarkdownPreview\\.vue|frontend/src/utils/textBlocks\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 66",
+      "batch": "P3-33",
       "note": "the Markdown preview"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/utils/terminalInput\\.js|frontend/src/components/TerminalPanel\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 67",
+      "batch": "P3-34",
       "note": "what the terminal does with what is typed"
     },
     {
       "axis": "*",
       "match": "^(backend/src/errors/AppError\\.js|backend/src/middleware/errorHandler\\.js|backend/src/middleware/authMiddleware\\.js|backend/src/utils/env\\.js|backend/src/config/env\\.js|backend/src/config/index\\.js|backend/src/app\\.js|backend/src/server\\.js|frontend/src/api/files\\.api\\.js|frontend/src/stores/notifications\\.js|frontend/src/stores/fileStore\\.js|backend/src/services/versions/operations\\.js|backend/src/routes/files/download\\.js|backend/src/scripts/downloadSamples\\.js|frontend/src/components/ModalDialog\\.vue|frontend/src/components/CreateNew\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 68",
+      "batch": "P3-35",
       "note": "strings whose screens are covered by the batches above"
     },
     {
       "axis": "i18n",
       "match": "^(common|errors|serverErrors|actions|create)\\.",
       "verdict": "PORT",
-      "batch": "batch 68",
+      "batch": "P3-35",
       "note": "strings whose screens are covered by the batches above"
     },
     {
       "axis": "env",
       "match": "^COPY_PRESERVE_PERMISSIONS$",
       "verdict": "PORT",
-      "batch": "batch 49",
+      "batch": "P3-06",
       "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23"
     },
     {
       "axis": "env",
       "match": "^UPLOAD_CHUNKED_AUTO_FALLBACK$",
       "verdict": "PORT",
-      "batch": "batch 52",
+      "batch": "P3-19",
       "note": "the chunked fallback, and the switch that governs it"
     },
     {
       "axis": "env",
       "match": "^PREVIEW_MAX_RENDER_SIZE$",
       "verdict": "PORT",
-      "batch": "batch 53",
+      "batch": "P3-18",
       "note": "two ceilings nobody could raise"
     },
     {
       "axis": "env",
       "match": "^BULK_DELETE_CONCURRENCY$",
       "verdict": "PORT",
-      "batch": "batch 53",
+      "batch": "P3-18",
       "note": "two ceilings nobody could raise"
     },
     {
       "axis": "env",
       "match": "^MAX_BROWSABLE_ARCHIVE_SIZE$",
       "verdict": "PORT",
-      "batch": "batch 51",
+      "batch": "P3-17",
       "note": "bounds on browsing inside an archive"
     },
     {
       "axis": "env",
       "match": "^ARCHIVE_CACHE_MAX_SIZE$",
       "verdict": "PORT",
-      "batch": "batch 51",
+      "batch": "P3-17",
       "note": "bounds on browsing inside an archive"
     },
     {
       "axis": "env",
       "match": "^SEARCH_INDEX_SET$",
       "verdict": "PORT",
-      "batch": "batch 42",
+      "batch": "P3-05",
       "note": "the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "env",
       "match": "^FOLDER_SIZE_MODE_SET$",
       "verdict": "PORT",
-      "batch": "batch 42",
+      "batch": "P3-05",
       "note": "the switches in Settings \u2014 the remainder of published batch 31"
     },
     {
       "axis": "env",
       "match": "^PERFORMANCE_DIAGNOSTICS_",
       "verdict": "PORT",
-      "batch": "batch 46",
+      "batch": "P3-15",
       "note": "the periodic performance record"
     },
     {
       "axis": "migration",
       "match": ".",
       "verdict": "PORT",
-      "batch": "batch 44/47/50",
+      "batch": "P3-13 / P3-20 / P3-21",
       "note": "the schema the batches below add; each migration travels with the feature that needs it"
     },
     {
@@ -530,70 +543,70 @@
       "axis": "*",
       "match": "^(backend/src/openapi/paths/admin\\.js|backend/src/openapi/paths/files\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 69",
+      "batch": "P3-36",
       "note": "the OpenAPI description follows every route these batches add; it goes last, when there is nothing left to describe"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/volumes\\.js|backend/src/services/guestSessionService\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 61",
+      "batch": "P3-28",
       "note": "access rules and what they hold"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/trash/zones\\.js|backend/src/services/versions/lifecycle\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 60",
+      "batch": "P3-27",
       "note": "the trash and the versions panel, their remainder"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/betterSqliteSessionStore\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 48",
+      "batch": "P3-16",
       "note": "one database handle, and its prepared statements"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/logger\\.js|backend/src/utils/staticServer\\.js|backend/src/utils/pathUtils\\.js)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 68",
+      "batch": "P3-35",
       "note": "strings whose screens are covered by the batches above"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/ConfigWarningNotice\\.vue|frontend/src/components/UserMenu\\.vue|frontend/src/views/settings/SettingsView\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 62",
+      "batch": "P3-29",
       "note": "the accounts screens"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/FavoriteEditDialog\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 44",
+      "batch": "P3-13",
       "note": "the rows that point at a path that is gone"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/PermissionsPanel\\.vue|frontend/src/views/SharedWithMeView\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 57",
+      "batch": "P3-25",
       "note": "the list of shares, seen"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/plugins/preview/MediaPreview\\.vue|frontend/src/views/settings/SettingsFilesThumbnails\\.vue)(:|$)",
       "verdict": "PORT",
-      "batch": "batch 65",
+      "batch": "P3-32",
       "note": "what a file looks like in the list"
     },
     {
       "axis": "i18n",
       "match": "^(notifications|spotlight|upload)\\.",
       "verdict": "PORT",
-      "batch": "batch 68",
+      "batch": "P3-35",
       "note": "strings whose screens are covered by the batches above"
     }
   ]
