@@ -24,6 +24,20 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": "^(auth\\.login\\.sessionExpired|serverErrors\\.AUTH_ACCOUNT_LOCKED_RETRY)$",
+      "verdict": "DONE",
+      "batch": "P3-19",
+      "note": "nxzai#438 \u2014 what a session that ended, and a locked account, say"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/api/errorHandler\\.js|frontend/src/stores/auth\\.js|frontend/src/views/AuthLoginView\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-19",
+      "note": "nxzai#438 \u2014 the sign-in chain, all of it: one name for what was typed, and the code step the screen reads"
+    },
+    {
       "axis": "*",
       "match": "^(backend/src/utils/env\\.js:parseByteSize|backend/src/services/archiveExtraction\\.js|backend/src/routes/zip\\.js|backend/src/services/archiveTree\\.js|backend/src/config/env\\.js:ARCHIVE|backend/src/config/env\\.js:MAX_BROWSABLE)(:|$)",
       "verdict": "DONE",
