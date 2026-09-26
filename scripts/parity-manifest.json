@@ -24,6 +24,48 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^(backend/src/utils/env\\.js:parseByteSize|backend/src/services/archiveExtraction\\.js|backend/src/routes/zip\\.js|backend/src/services/archiveTree\\.js|backend/src/config/env\\.js:ARCHIVE|backend/src/config/env\\.js:MAX_BROWSABLE)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-18",
+      "note": "nxzai#449 \u2014 the archive bounds, and a size written with a capital B"
+    },
+    {
+      "axis": "env",
+      "match": "^(MAX_BROWSABLE_ARCHIVE_SIZE|ARCHIVE_CACHE_MAX_SIZE)$",
+      "verdict": "DONE",
+      "batch": "P3-18",
+      "note": "nxzai#449 \u2014 the two bounds the cache already read"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/plugins/archive/ArchivePreview\\.vue|frontend/src/components/ModalDialog\\.vue|frontend/src/layouts/BrowserLayout\\.vue:DestinationPickerDialog)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 the dialog's first caller, and the footer it needed"
+    },
+    {
+      "axis": "i18n",
+      "match": "^archive\\.extractTo$",
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 extract somewhere else"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/archive\\.js|backend/src/services/archiveCacheService\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-42",
+      "note": "only the eslint-disable comments differ, and upstream's config still needs them: they go with the config"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/plugins/archive/ArchiveEntryReader\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-43",
+      "note": "a newer prettier formats this closing tag differently: it goes with the versions"
+    },
+    {
       "axis": "i18n",
       "match": "^destinationPicker\\.",
       "verdict": "DONE",
