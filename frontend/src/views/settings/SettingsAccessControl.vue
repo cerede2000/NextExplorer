@@ -54,7 +54,7 @@ const runChecks = async () => {
   const paths = [...new Set(local.rules.map((rule) => String(rule.path || '').trim()))].filter(
     Boolean
   );
-  const round = (checkRound += 1);
+  const round = ++checkRound;
   if (paths.length === 0) {
     checks.value = {};
     return;
@@ -116,15 +116,28 @@ const reset = () => {
   local.rules = original.value.rules.map((r) => ({ ...r }));
   local.applyToAdmins = original.value.applyToAdmins;
 };
+// Why the last save was refused. Without it, a refusal left nothing but the
+// unsaved-changes bar, and an administrator could believe a folder was hidden.
+const saveError = ref('');
+
 const save = async () => {
-  // basic sanitization client-side
-  const cleaned = local.rules
-    .map((r) => ({
-      ...r,
-      path: String(r.path || '').replace(/^\/+|\/+$/g, ''),
-    }))
-    .filter((r) => r.path);
-  await appSettings.save({ access: { rules: cleaned, applyToAdmins: local.applyToAdmins } });
+  // Every row on screen is sent, with the slashes around its path taken off.
+  // A row whose path was empty used to be dropped here, and the server dropped
+  // the rules it could not store: either way the row left the page the moment
+  // it was saved, and an administrator was left believing a folder was hidden
+  // that never was. The server refuses such a rule now and says which one, so
+  // nothing decides on its own that a rule is not worth sending.
+  const cleaned = local.rules.map((r) => ({
+    ...r,
+    path: String(r.path || '').replace(/^\/+|\/+$/g, ''),
+  }));
+  saveError.value = '';
+  try {
+    await appSettings.save({ access: { rules: cleaned, applyToAdmins: local.applyToAdmins } });
+  } catch (error) {
+    saveError.value = error?.message || t('settings.trash.saveFailed');
+    return;
+  }
   local.rules = appSettings.state.access.rules.map((r) => ({ ...r }));
   local.applyToAdmins = appSettings.state.access.applyToAdmins === true;
 };
@@ -152,6 +165,10 @@ const save = async () => {
         </button>
       </div>
     </div>
+
+    <p v-if="saveError" class="text-sm text-red-600" role="alert" data-test="access-save-error">
+      {{ saveError }}
+    </p>
 
     <!-- Header -->
     <div class="flex items-center justify-between">
@@ -182,8 +199,8 @@ const save = async () => {
       class="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
     >
       <input
-        v-model="local.applyToAdmins"
         type="checkbox"
+        v-model="local.applyToAdmins"
         data-test="access-apply-to-admins"
         class="mt-0.5 h-4 w-4 rounded-sm border-zinc-300 text-zinc-600 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800"
       />
@@ -279,8 +296,8 @@ const save = async () => {
                   </div>
                 </div>
               </td>
-              <td class="px-6 py-4">
-                <label class="inline-flex cursor-pointer items-center">
+              <td class="px-6 py-4 align-top">
+                <label class="inline-flex cursor-pointer items-center pt-2">
                   <input
                     type="checkbox"
                     v-model="rule.recursive"
@@ -288,9 +305,9 @@ const save = async () => {
                   />
                 </label>
               </td>
-              <td class="px-6 py-4">
+              <td class="px-6 py-4 align-top">
                 <label
-                  class="inline-flex items-center"
+                  class="inline-flex items-center pt-2"
                   :class="local.applyToAdmins ? 'cursor-not-allowed' : 'cursor-pointer'"
                   :title="local.applyToAdmins ? t('settings.access.applyToAdminsHint') : ''"
                 >
@@ -304,7 +321,7 @@ const save = async () => {
                   />
                 </label>
               </td>
-              <td class="px-6 py-4">
+              <td class="px-6 py-4 align-top">
                 <select
                   v-model="rule.permissions"
                   class="block w-full rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
@@ -320,7 +337,7 @@ const save = async () => {
                   </option>
                 </select>
               </td>
-              <td class="px-6 py-4">
+              <td class="px-6 py-4 align-top">
                 <button
                   class="inline-flex items-center rounded-md border border-transparent bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/40"
                   @click="removeRule(idx)"
@@ -337,7 +354,8 @@ const save = async () => {
     <StoragePickerDialog
       v-model="pickerOpen"
       choose-folder
-      :title="t('settings.access.browse')"
+      :title="t('settings.access.pickFolderTitle')"
+      :initial-path="pickerRule?.path || ''"
       @select="chosen"
     />
   </div>

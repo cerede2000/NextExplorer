@@ -1,5 +1,5 @@
 const { getDb } = require('../db');
-const { toClientUser, toShareableUser, normalizeEmail, nowIso } = require('./utils');
+const { toClientUser, toShareableUser, normalizeEmail, nowIso, usernameTaken } = require('./utils');
 const { countAdmins } = require('./queries');
 
 const listUsers = async () => {
@@ -75,6 +75,12 @@ const updateUserProfile = async ({ userId, email, username, displayName }) => {
 
   if (typeof username === 'string') {
     const trimmed = username.trim();
+    // A username is something to sign in with, so it has to name one account.
+    if (trimmed && usernameTaken(db, trimmed, userId)) {
+      const err = new Error('Username already in use.');
+      err.status = 409;
+      throw err;
+    }
     updates.push('username = ?');
     values.push(trimmed || null);
   }
@@ -132,8 +138,24 @@ const deleteUser = async ({ userId }) => {
     /* ignore parse errors */
   }
 
-  // Delete user (cascade will delete auth_methods)
-  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  // One transaction. The account goes (its auth_methods cascade with it); its
+  // folder name stays reserved while its folder is on disk (personalFolders.js);
+  // and the rows that only ever described this account go too — none of these
+  // tables points at users through a foreign key, so nothing else removes them.
+  db.transaction(() => {
+    if (row.personal_folder_name) {
+      db.prepare(
+        'INSERT OR REPLACE INTO personal_folder_reservations (name, user_id, reserved_at) VALUES (?, ?, ?)'
+      ).run(row.personal_folder_name, userId, new Date().toISOString());
+    }
+    db.prepare('DELETE FROM folder_preferences WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM recent_destinations WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM auth_locks WHERE key = ?').run(userId);
+    // Its API tokens do cascade, and are removed here all the same: a way into
+    // an account is the one leftover worth writing twice.
+    db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  })();
   return true;
 };
 

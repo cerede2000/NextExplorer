@@ -18,17 +18,18 @@ const { auth, features, directories } = require('../config/index');
  * everyone is the same synthetic admin who already browses the whole
  * filesystem, so the prompt would only lock the share without protecting it.
  *
- * Everyone else is subject to it, and that includes a signed-in account: being
- * authenticated is not knowing the password. The check used to be "is there a
- * user or a guest session", so any account on the instance opening a protected
- * link walked straight past the prompt its owner set up.
+ * Everyone else is subject to it, and that includes a visitor with no account
+ * at all — the very people a public password is for. This used to require a
+ * user, so the predicate answered "no password here" for anonymous callers and
+ * each caller made up the difference on its own: one added `|| (hasPassword &&
+ * !user)` to what it reported, another let the case fall through to a later
+ * branch that happened to refuse. The protection was real and lived in two
+ * places under a name that promised one.
  */
 const sharePasswordApplies = (share, user) =>
   Boolean(share.hasPassword) &&
   auth.enabled !== false &&
   !(user && String(user.id) === String(share.ownerId));
-
-const PERSONAL_SIDEWAYS = 'Personal folders are reached through the personal space';
 
 /**
  * Get comprehensive access information for a path
@@ -91,7 +92,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     // The same rule as below, from the folder this account was assigned.
     const innerPath = relativePath.split('/').filter(Boolean).slice(1).join('/');
     if (reachesIntoPersonalRoot(userVolume.path, path.resolve(userVolume.path, innerPath))) {
-      return createDeniedAccess(PERSONAL_SIDEWAYS);
+      return createDeniedAccess('Personal folders are reached through the personal space');
     }
 
     // Use the volume's access mode
@@ -128,23 +129,22 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
   // Somebody's personal folder is not part of the volume, even where it sits
   // inside it — `<volume>/_users` by default. Resolving such a path already
   // refuses; this is the same answer for a caller who asks about a path it
-  // never resolves. The search is one: ripgrep and the index read the whole
-  // volume and ask only this whether each path may be shown, so an ordinary
-  // account searching the volume was offered another account's private
-  // files, by name and by the line that matched.
+  // never resolves. The search is one: it takes paths from the index, which
+  // reads the whole volume, and asks only this whether each may be shown. An
+  // ordinary account searching the volume was offered another account's
+  // private files, by name and by what they said.
   if (
     reachesIntoPersonalRoot(
       directories.volume,
       path.resolve(directories.volume, relativePath || '')
     )
   ) {
-    return createDeniedAccess(PERSONAL_SIDEWAYS);
+    return createDeniedAccess('Personal folders are reached through the personal space');
   }
 
   // Check access control rules. A rule that does not hold administrators was
   // already passed over while resolving, so what comes back is what binds this
-  // caller — and an administrator is no longer excused from it a second time
-  // here, which is how a read-only rule left them the Create button.
+  // caller: an administrator is no longer excused from it here.
   const permission = await getPerm(relativePath, { isAdmin });
   if (permission === 'hidden') {
     return createDeniedAccess('Path is hidden');
@@ -205,146 +205,124 @@ const getPersonalAccess = async (context, relativePath) => {
 };
 
 /**
- * Get access info for share paths
+ * Whether the share itself may be opened, before anyone is considered.
+ *
+ * @returns {object|null} a denial, or null when the share is usable
  */
-const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
-  const { user, guestSession } = context;
-  const permissionResolver =
-    typeof options.permissionResolver === 'function' ? options.permissionResolver : null;
-  // What a share opens is bound by the rules whoever follows the link is: the
-  // link is the lens, not the account behind it, so no rule is waived here for
-  // an administrator.
-  const getPerm = async (p) =>
-    permissionResolver
-      ? permissionResolver(p, { isAdmin: false })
-      : await getPermissionForPath(p, { isAdmin: false });
-  const shareCache = options && options.shareCache instanceof Map ? options.shareCache : null;
-  const userVolumeCache =
-    options && options.userVolumeCache instanceof Map ? options.userVolumeCache : null;
+const shareIsUnusable = (share) => {
+  if (!share) return createDeniedAccess('Share not found');
+  if (isShareExpired(share)) return createDeniedAccess('Share has expired');
+  return null;
+};
 
-  if (!shareToken) {
-    return createDeniedAccess('Share token is required');
-  }
-
-  // Validate share exists
-  let share = shareCache ? shareCache.get(shareToken) : null;
-  if (!share) {
-    share = await getShareByToken(shareToken);
-    if (shareCache && share) shareCache.set(shareToken, share);
-  }
-  if (!share) {
-    return createDeniedAccess('Share not found');
-  }
-
-  // Check expiration
-  if (isShareExpired(share)) {
-    return createDeniedAccess('Share has expired');
-  }
-
-  // Check sharing type and permissions
+/**
+ * Whether this caller may open it.
+ *
+ * The two sharing types ask different questions — one wants an account on the
+ * list, the other wants a session that came through the door — and anything
+ * else fails closed rather than falling through to the grant below.
+ *
+ * @returns {Promise<object|null>} a denial, or null when the caller may open it
+ */
+const callerMayNotOpen = async (share, { user, guestSession }) => {
   if (share.sharingType === 'users') {
-    // User-specific share requires authentication
-    if (!user || !user.id) {
-      return createDeniedAccess('Authentication required');
-    }
-
-    // Check if user has permission
+    if (!user || !user.id) return createDeniedAccess('Authentication required');
     const permitted = await hasUserPermission(share.id, user.id);
-    if (!permitted) {
-      return createDeniedAccess('Access denied');
-    }
-  } else if (share.sharingType === 'anyone') {
-    // Anyone shares require either user auth OR guest session
-    if (!user && !guestSession) {
-      // Password verification happens during share access/login
-      // If neither user nor guest session exists, they need to go through verification
-      return createDeniedAccess('Share access required');
-    }
+    return permitted ? null : createDeniedAccess('Access denied');
+  }
 
-    // If guest session exists, verify it belongs to this share
+  if (share.sharingType === 'anyone') {
+    // Password verification happens during share access; a caller with neither
+    // an account nor a guest session has been through neither.
+    if (!user && !guestSession) return createDeniedAccess('Share access required');
+
     if (guestSession && !user && guestSession.shareId !== share.id) {
       return createDeniedAccess('Invalid guest session for this share');
     }
 
-    // A guest session for this share is the proof the password was typed.
+    // Being signed in is not the same as knowing the password. Without this,
+    // any authenticated user opening a protected link skipped the prompt the
+    // owner set it up for.
     if (sharePasswordApplies(share, user)) {
       const verified = guestSession && guestSession.shareId === share.id;
       if (!verified) return createDeniedAccess('Password verification required');
     }
-  } else {
-    // Neither of the two types this knows: fail closed rather than fall
-    // through to the grant below.
-    return createDeniedAccess('Unknown sharing type');
+    return null;
   }
 
-  const isOwner = user && user.id === share.ownerId;
-  const shareReadWrite = share.accessMode === 'readwrite';
+  // Fail closed: a sharing type we do not know about must not fall through to
+  // the permission grant.
+  return createDeniedAccess('Unknown sharing type');
+};
 
-  // Cap share write permissions by the underlying source permission.
-  // This allows admin changes (hide/ro/user-volume readonly) to take effect immediately.
+/**
+ * What the location underneath still allows, which caps what the share grants.
+ *
+ * An administrator hiding a folder, marking it read-only or reassigning a
+ * personal volume takes effect on every existing link immediately, because the
+ * answer is read here on every request rather than frozen when the link was
+ * made.
+ *
+ * @returns {Promise<{denial: object}|{readOnly: boolean}>}
+ */
+const readSourceLimits = async (share, innerPath, { getPerm, userVolumeCache }) => {
   const isDirShare = Boolean(share.isDirectory);
   const safeInnerPath = typeof innerPath === 'string' ? innerPath : '';
-  let underlyingPermission = 'rw';
-  let underlyingReadOnly = false;
+  const under = (base) =>
+    isDirShare && safeInnerPath ? combineRelativePath(base, safeInnerPath) : base;
+
+  // Somebody's personal folder is not handed out by a share of a folder that
+  // holds it, any more than by the volume itself.
+  const personalRootDenial = (root, inner) =>
+    reachesIntoPersonalRoot(root, path.resolve(root, inner || ''))
+      ? { denial: createDeniedAccess('Personal folders are reached through the personal space') }
+      : null;
 
   if (share.sourceSpace === 'volume') {
-    const combined =
-      isDirShare && safeInnerPath
-        ? combineRelativePath(share.sourcePath, safeInnerPath)
-        : share.sourcePath;
-    // Somebody's personal folder is not handed out by a share of a folder that
-    // holds it, any more than by the volume itself.
-    if (
-      reachesIntoPersonalRoot(directories.volume, path.resolve(directories.volume, combined || ''))
-    ) {
-      return createDeniedAccess(PERSONAL_SIDEWAYS);
-    }
-    underlyingPermission = await getPerm(combined);
-    if (underlyingPermission === 'hidden') {
-      return createDeniedAccess('Path is hidden');
-    }
-    underlyingReadOnly = underlyingPermission === 'ro';
-  } else if (share.sourceSpace === 'user_volume') {
+    const refused = personalRootDenial(directories.volume, under(share.sourcePath));
+    if (refused) return refused;
+    // What a share opens is bound by the rules whoever follows the link is:
+    // the link is the lens, not the account behind it, so no rule is waived
+    // here for an administrator.
+    const permission = await getPerm(under(share.sourcePath), { isAdmin: false });
+    if (permission === 'hidden') return { denial: createDeniedAccess('Path is hidden') };
+    return { readOnly: permission === 'ro' };
+  }
+
+  if (share.sourceSpace === 'user_volume') {
     const [volumeId, ...rest] = String(share.sourcePath || '')
       .split('/')
       .filter(Boolean);
-    if (!volumeId) {
-      return createDeniedAccess('Share source volume is invalid');
-    }
+    if (!volumeId) return { denial: createDeniedAccess('Share source volume is invalid') };
+
     let userVolume = userVolumeCache ? userVolumeCache.get(volumeId) : null;
     if (!userVolume) {
       userVolume = await getVolumeById(volumeId);
       if (userVolumeCache && userVolume) userVolumeCache.set(volumeId, userVolume);
     }
-    if (!userVolume) {
-      return createDeniedAccess('Share source volume not found');
-    }
+    if (!userVolume) return { denial: createDeniedAccess('Share source volume not found') };
+
+    // A share may only hand out a volume its own owner holds: without this, an
+    // account that once had one assigned could go on sharing it afterwards.
     if (String(userVolume.userId) !== String(share.ownerId)) {
-      return createDeniedAccess('Share source volume mismatch');
+      return { denial: createDeniedAccess('Share source volume mismatch') };
     }
 
-    const baseWithinVolume = rest.join('/');
-    const combinedWithinVolume =
-      isDirShare && safeInnerPath
-        ? combineRelativePath(baseWithinVolume, safeInnerPath)
-        : baseWithinVolume;
-    if (
-      reachesIntoPersonalRoot(
-        userVolume.path,
-        path.resolve(userVolume.path, combinedWithinVolume || '')
-      )
-    ) {
-      return createDeniedAccess(PERSONAL_SIDEWAYS);
-    }
-    const logicalForRules = `${userVolume.label}${combinedWithinVolume ? `/${combinedWithinVolume}` : ''}`;
-    underlyingPermission = await getPerm(logicalForRules);
-    if (underlyingPermission === 'hidden') {
-      return createDeniedAccess('Path is hidden');
-    }
-    underlyingReadOnly = userVolume.accessMode === 'readonly' || underlyingPermission === 'ro';
+    const refused = personalRootDenial(userVolume.path, under(rest.join('/')));
+    if (refused) return refused;
+
+    const logicalForRules = `${userVolume.label}${under(rest.join('/')) ? `/${under(rest.join('/'))}` : ''}`;
+    const permission = await getPerm(logicalForRules, { isAdmin: false });
+    if (permission === 'hidden') return { denial: createDeniedAccess('Path is hidden') };
+    return { readOnly: userVolume.accessMode === 'readonly' || permission === 'ro' };
   }
 
-  const isReadWrite = shareReadWrite && !underlyingReadOnly;
+  return { readOnly: false };
+};
+
+/** What the share hands out, once the location underneath has had its say. */
+const grantFor = (share, { user, readOnly }) => {
+  const isReadWrite = share.accessMode === 'readwrite' && !readOnly;
 
   return {
     canAccess: true,
@@ -366,13 +344,67 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
       shareToken: share.shareToken,
       accessMode: isReadWrite ? 'readwrite' : 'readonly',
       expiresAt: share.expiresAt,
-      isOwner,
+      isOwner: Boolean(user && user.id === share.ownerId),
       label: share.label,
     },
     share, // Include full share object for path resolution (avoids duplicate DB query)
     effectivePermission: isReadWrite ? 'rw' : 'ro',
     denialReason: null,
   };
+};
+
+/**
+ * What a caller may do with a path inside a share.
+ *
+ * Three questions in order, each answerable on its own: may this share be
+ * opened at all, may this caller open it, and what does the location underneath
+ * still allow. Only then is a grant composed. It was one function of fifty-three
+ * paths, which is fifty-three tests to know it — and the reason it is worth
+ * splitting is that it decides what a link hands out.
+ */
+/**
+ * The optional machinery a caller may hand in: a permission resolver, and two
+ * caches for a route that is asking about many paths at once. Normalised here
+ * so the decision below reads as the sequence of questions it is.
+ */
+const readOptions = (options = {}) => {
+  const permissionResolver =
+    typeof options.permissionResolver === 'function' ? options.permissionResolver : null;
+
+  return {
+    getPerm: async (p, who) =>
+      permissionResolver ? permissionResolver(p, who) : getPermissionForPath(p, who),
+    shareCache: options.shareCache instanceof Map ? options.shareCache : null,
+    userVolumeCache: options.userVolumeCache instanceof Map ? options.userVolumeCache : null,
+  };
+};
+
+/** The share this token names, from the caller's cache when it has one. */
+const loadShare = async (shareToken, shareCache) => {
+  const cached = shareCache ? shareCache.get(shareToken) : null;
+  if (cached) return cached;
+
+  const share = await getShareByToken(shareToken);
+  if (shareCache && share) shareCache.set(shareToken, share);
+  return share;
+};
+
+const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
+  if (!shareToken) return createDeniedAccess('Share token is required');
+
+  const { getPerm, shareCache, userVolumeCache } = readOptions(options);
+  const share = await loadShare(shareToken, shareCache);
+
+  const unusable = shareIsUnusable(share);
+  if (unusable) return unusable;
+
+  const refused = await callerMayNotOpen(share, context);
+  if (refused) return refused;
+
+  const limits = await readSourceLimits(share, innerPath, { getPerm, userVolumeCache });
+  if (limits.denial) return limits.denial;
+
+  return grantFor(share, { user: context.user, readOnly: limits.readOnly });
 };
 
 /**
@@ -386,6 +418,7 @@ const createDeniedAccess = (reason) => {
     canDelete: false,
     canUpload: false,
     canCreateFolder: false,
+    canCreateFile: false,
     canShare: false,
     canDownload: false,
     isShared: false,
@@ -440,42 +473,12 @@ const resolvePathWithAccess = async (context, relativePath, options = {}) => {
   return { accessInfo, resolved };
 };
 
-/**
- * Check if user can create shares (only authenticated users, not guests)
- */
-const canCreateShare = (context) => {
-  const { user, guestSession } = context;
-
-  // Guests cannot create shares
-  if (guestSession) {
-    return false;
-  }
-
-  // Must be authenticated
-  return Boolean(user && user.id);
-};
-
-/**
- * Get context from request object
- */
-const getContextFromRequest = (req) => {
-  return {
-    user: req.user || null,
-    guestSession: req.guestSession || null,
-    shareToken: req.shareToken || null,
-  };
-};
-
 module.exports = {
   getAccessInfo,
-  getVolumeAccess,
   getPersonalAccess,
-  sharePasswordApplies,
   getShareAccess,
   canAccess,
   canWrite,
-  canCreateShare,
-  getContextFromRequest,
-  createDeniedAccess,
+  sharePasswordApplies,
   resolvePathWithAccess,
 };

@@ -575,7 +575,9 @@
       "pathInvalid": "Ce chemin n'est dans aucun volume : la règle ne s'appliquera jamais.",
       "pathMissing": "Aucun dossier à ce chemin. Une règle utilise le chemin tel que NextExplorer l'affiche, en commençant par le nom du volume.",
       "useSuggestion": "Utiliser {path}",
-      "title": "Accès"
+      "title": "Accès",
+      "pickFolderTitle": "Dossier de cette règle",
+      "appliesToAdminsHint": "Soumettre aussi les administrateurs à cette règle."
     },
     "comingSoon": {
       "subtitle": "Cette section de paramètres est en cours de développement. Restez à l'écoute !"

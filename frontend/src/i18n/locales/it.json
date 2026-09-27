@@ -575,7 +575,9 @@
       "pathInvalid": "Questo percorso non è in nessun volume, quindi la regola non si applicherà mai.",
       "pathMissing": "Nessuna cartella a questo percorso. Una regola usa il percorso come lo mostra NextExplorer, a partire dal nome del volume.",
       "useSuggestion": "Usa {path}",
-      "title": "Accesso"
+      "title": "Accesso",
+      "pickFolderTitle": "Cartella per questa regola",
+      "appliesToAdminsHint": "Vincolare a questa regola anche gli amministratori."
     },
     "comingSoon": {
       "subtitle": "Questa sezione delle impostazioni è in costruzione. Resta sintonizzato!"

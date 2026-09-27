@@ -575,7 +575,9 @@
       "pathInvalid": "Este caminho não está dentro de nenhum volume, então a regra nunca será aplicada.",
       "pathMissing": "Não há pasta neste caminho. Uma regra usa o caminho como o NextExplorer o mostra, começando pelo nome do volume.",
       "useSuggestion": "Usar {path}",
-      "title": "Acesso"
+      "title": "Acesso",
+      "pickFolderTitle": "Pasta desta regra",
+      "appliesToAdminsHint": "Sujeitar também os administradores a esta regra."
     },
     "comingSoon": {
       "subtitle": "Esta seção de configurações está em construção. Aguarde!"

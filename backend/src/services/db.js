@@ -207,6 +207,9 @@ const ACTIVITY_DDL = `
   CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_events(user_id, at DESC);
 `;
 
+const tableExists = (db, name) =>
+  Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
+
 const getDbPath = () => {
   const configDir = directories.config;
   // Generic app database for auth, shares, and user settings.
@@ -382,6 +385,14 @@ const ensureShareOperationPermissionColumns = (db) => {
     db.exec(`UPDATE shares SET ${column} = 1 WHERE sharing_type = 'users'`);
   }
 };
+
+const PERSONAL_FOLDER_RESERVATIONS_DDL = `
+  CREATE TABLE IF NOT EXISTS personal_folder_reservations (
+    name TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    reserved_at TEXT NOT NULL
+  );
+`;
 
 const migrate = (db) => {
   // Simple schema versioning
@@ -856,6 +867,23 @@ const migrate = (db) => {
         String(22)
       );
       version = 22;
+    }
+    if (version < 23) {
+      logger.info('[DB Migration] Migrating to v23: one personal folder per account...');
+      db.exec(PERSONAL_FOLDER_RESERVATIONS_DDL);
+      // Rows an account's deletion used to leave behind. None of these tables
+      // points at users through a foreign key, so nothing ever removed them.
+      if (tableExists(db, 'folder_preferences')) {
+        db.exec('DELETE FROM folder_preferences WHERE user_id NOT IN (SELECT id FROM users)');
+      }
+      if (tableExists(db, 'recent_destinations')) {
+        db.exec('DELETE FROM recent_destinations WHERE user_id NOT IN (SELECT id FROM users)');
+      }
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(23)
+      );
+      version = 23;
     }
   })();
 };

@@ -4,8 +4,6 @@ const fs = require('fs/promises');
 const { getDb } = require('./db');
 const { generateId, nowIso } = require('../utils/ids');
 
-
-
 const RESERVED_VOLUME_LABELS = new Set(['personal', 'share', 'volumes']);
 
 const assertValidVolumeLabel = (labelRaw) => {

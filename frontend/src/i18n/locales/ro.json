@@ -575,7 +575,9 @@
       "pathInvalid": "Această cale nu se află în niciun volum, așa că regula nu se va aplica niciodată.",
       "pathMissing": "Nu există niciun dosar la această cale. O regulă folosește calea așa cum o arată NextExplorer, începând cu numele volumului.",
       "useSuggestion": "Folosiți {path}",
-      "title": "Acces"
+      "title": "Acces",
+      "pickFolderTitle": "Dosarul acestei reguli",
+      "appliesToAdminsHint": "Supune acestei reguli și administratorii."
     },
     "comingSoon": {
       "subtitle": "Această secțiune de setări este în lucru. Revino în curând!"

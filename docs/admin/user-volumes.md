@@ -29,12 +29,14 @@ Each assignment creates a top-level entry in the user’s sidebar using the assi
 Make sure the directories you want to expose exist inside the container and are readable/writable by the container user as appropriate.
 
 Typical pattern:
+
 - `VOLUME_ROOT=/mnt`
 - Mount team folders as subdirectories under `/mnt` (e.g., `/mnt/Projects`, `/mnt/Media`, `/mnt/Finance`)
 
 ### 2) Create or pick a user profile
 
 Go to **Settings → Admin → Users**, then:
+
 - Select an existing user profile, or
 - Create a new local user profile (so you can pre-assign volumes before their first login)
 

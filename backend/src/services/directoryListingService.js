@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { excludedFiles, extensions, hiddenFiles } = require('../config/index');
-const { combineRelativePath } = require('../utils/pathUtils');
+const { combineRelativePath, resolveLogicalPath } = require('../utils/pathUtils');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const logger = require('../utils/logger');
@@ -42,27 +42,53 @@ const mapWithConcurrency = async (items, concurrency, mapper) => {
 };
 
 /**
+ * Whether a symbolic link leads out of the space it sits in.
+ *
+ * Asked of the same resolver every operation goes through, so the listing and
+ * the operations cannot disagree: a link the resolver refuses is one nothing
+ * can be done through. A link it cannot follow at all — to nothing — is left to
+ * the stat that comes next, which skips it as before.
+ */
+const linkLeavesTheSpace = async (context, logicalPath, access) => {
+  try {
+    await resolveLogicalPath(logicalPath, {
+      user: context?.user || null,
+      guestSession: context?.guestSession || null,
+      share: access?.share || null,
+      userVolume: access?.userVolume || null,
+    });
+    return false;
+  } catch (error) {
+    return error?.statusCode === 403;
+  }
+};
+
+/**
  * List a directory and filter out entries that the caller cannot access.
  *
  * - Uses accessManager for per-child visibility (covers shares + user volumes + hidden rules).
  * - Does not throw for child-level failures; unreadable / inaccessible children are skipped.
+ * - A symbolic link that leads out of the space is listed as what it is — a link,
+ *   marked `link: 'outside'` — and never followed. It used to be described by
+ *   what it points at: the size and type of a file outside the volume, on a row
+ *   every action then refused with "Resolved path is outside the configured
+ *   volume root", with nothing on screen to say why.
  */
 const listDirectoryItems = async ({
   absoluteDir,
   parentLogicalPath,
   context,
   thumbsEnabled,
-  excludeDownloadArtifacts = false,
   includeHiddenFiles = false,
   itemExtras = null,
   access = null,
   shareCache = null,
   userVolumeCache = null,
 }) => {
-  // The whole access section rather than the rules alone: whom a rule holds is
-  // decided by the rule and by the setting above it together, so a resolver
-  // built from half of it would answer for the wrong caller.
-  const permissionResolver = access?.rules?.length ? createPermissionResolver(access) : null;
+  // The whole section, never the bare list: a caller handing over the rules
+  // alone would silently drop the setting that says whom they hold.
+  const permissionResolver =
+    Array.isArray(access?.rules) && access.rules.length ? createPermissionResolver(access) : null;
 
   const accessOptions = {
     ...(permissionResolver ? { permissionResolver } : null),
@@ -70,21 +96,40 @@ const listDirectoryItems = async ({
     ...(userVolumeCache instanceof Map ? { userVolumeCache } : null),
   };
 
+  /**
+   * Which entries carry the read-only mark: the ones a rule holds this caller
+   * to, and only where that starts.
+   *
+   * A rule was invisible until something was attempted in the folder it covers,
+   * and on an account no rule held it was never refused at all
+   * (nxzai/NextExplorer#407). The mark says it up front — but a recursive rule
+   * covers everything below it, and a lock on every row inside a folder that is
+   * already read-only says nothing the row above did not. So it is drawn where
+   * the restriction begins: on the entry whose folder is not itself read-only.
+   *
+   * Asked of the rules alone, not of the whole access decision: this mark is
+   * about a rule, and a volume read-only for another reason carries its own.
+   */
+  const isAdmin = Boolean(context?.user?.roles?.includes?.('admin'));
+  const ruleSays = (logicalPath) =>
+    permissionResolver ? permissionResolver(logicalPath || '', { isAdmin }) : 'rw';
+  const insideReadOnly = ruleSays(parentLogicalPath) === 'ro';
+
   const entries = await fs.readdir(absoluteDir);
 
   const filtered = entries
     .filter((name) => !excludedFiles.includes(name))
-    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name))
-    .filter((name) =>
-      excludeDownloadArtifacts ? path.extname(name).toLowerCase() !== '.download' : true
-    );
+    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name));
 
   const items = await mapWithConcurrency(filtered, LIST_DIRECTORY_CONCURRENCY, async (name) => {
     const filePath = path.join(absoluteDir, name);
+    const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
 
     let stats;
+    let entry;
     try {
-      stats = await fs.stat(filePath);
+      entry = await fs.lstat(filePath);
+      stats = entry.isSymbolicLink() ? null : entry;
     } catch (err) {
       if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
         logger.warn({ filePath, err }, 'Skipping unreadable entry');
@@ -93,10 +138,31 @@ const listDirectoryItems = async ({
       throw err;
     }
 
-    const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
     const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
     if (!childAccess?.canAccess) {
       return null;
+    }
+
+    if (!stats) {
+      if (await linkLeavesTheSpace(context, logicalChildPath, childAccess)) {
+        return {
+          name,
+          path: parentLogicalPath,
+          dateModified: entry.mtime,
+          size: null,
+          kind: toKind(entry, name),
+          link: 'outside',
+        };
+      }
+      try {
+        stats = await fs.stat(filePath);
+      } catch (err) {
+        if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
+          logger.warn({ filePath, err }, 'Skipping unreadable entry');
+          return null;
+        }
+        throw err;
+      }
     }
 
     const kind = toKind(stats, name);
@@ -108,8 +174,6 @@ const listDirectoryItems = async ({
       kind,
     };
 
-    // Advisory only, and never a lock: who has this document open in an
-    // editor, so the row can say so and a move can ask first.
     if (stats.isFile()) {
       const activity = onlyofficeActivity.get(filePath);
       if (activity?.active) item.onlyofficeActivity = activity;
@@ -118,6 +182,9 @@ const listDirectoryItems = async ({
     if (thumbsEnabled && stats.isFile() && kind !== 'pdf' && previewable.has(kind.toLowerCase())) {
       item.supportsThumbnail = true;
     }
+
+    // `access`, as a volume held to reading says it: the same lock, the same reason.
+    if (!insideReadOnly && ruleSays(logicalChildPath) === 'ro') item.readOnly = 'access';
 
     if (typeof itemExtras === 'function') {
       Object.assign(item, itemExtras({ name, stats, kind, access: childAccess }) || {});

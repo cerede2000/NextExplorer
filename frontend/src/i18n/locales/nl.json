@@ -575,7 +575,9 @@
       "pathInvalid": "Dit pad ligt niet in een volume, dus de regel wordt nooit toegepast.",
       "pathMissing": "Er is geen map op dit pad. Een regel gebruikt het pad zoals NextExplorer het toont, beginnend met de naam van het volume.",
       "useSuggestion": "{path} gebruiken",
-      "title": "Toegang"
+      "title": "Toegang",
+      "pickFolderTitle": "Map voor deze regel",
+      "appliesToAdminsHint": "Ook beheerders aan deze regel houden."
     },
     "comingSoon": {
       "subtitle": "Deze sectie Instellingen wordt momenteel gebouwd. Blijf op de hoogte!"
