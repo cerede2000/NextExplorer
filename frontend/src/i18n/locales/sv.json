@@ -319,7 +319,8 @@
     "emptyTitle": "Inga favoriter ännu",
     "emptyDescription": "Välj en katalog och tryck på stjärnan i huvudverktygsfältet för att fästa den här.",
     "editTitle": "Redigera favorit",
-    "icon": "Ikon"
+    "icon": "Ikon",
+    "volumeUnavailable": "Volymen är inte tillgänglig – den är inte monterad eller inte längre konfigurerad."
   },
   "notifications": {
     "open": "Öppna aviseringar",
@@ -553,7 +554,8 @@
       "maxDim": "Max mått",
       "maxDimHelp": "Längsta sidan i bildpunkter. Standard är 200.",
       "concurrency": "Samtidig generering",
-      "concurrencyHelp": "Antal miniatyrbilder som ska genereras samtidigt (1–50). Standard är 10."
+      "concurrencyHelp": "Antal miniatyrbilder som ska genereras samtidigt (1–50). Standard är 10.",
+      "invalid": "Kontrollera värdena: kvalitet 1 till 100, max mått 64 till 1024 px, samtidig generering 1 till 50."
     },
     "security": {
       "subtitle": "Kontrollera åtkomst till appen.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Inget här kan öppna {name}.",
-    "backToFolder": "Tillbaka till mappen"
+    "backToFolder": "Tillbaka till mappen",
+    "tooLargeToRenderSized": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren. Öppna det i redigeraren eller ladda ner det.",
+    "tooLargeToRenderWithEditor": "Dokumentet är {size}. Förhandsvisningen stannar vid {limit}, eftersom den placerar varje element i webbläsaren; redigeraren öppnar upp till {editorLimit}. Öppna det i redigeraren eller ladda ner det.",
+    "stillRendering": "Renderar… {percent} %"
   },
   "archive": {
     "password": {

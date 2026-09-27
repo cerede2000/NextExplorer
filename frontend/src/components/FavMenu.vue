@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import * as OutlineIcons from '@heroicons/vue/24/outline';
-import * as SolidIcons from '@heroicons/vue/24/solid';
+import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import { storeToRefs } from 'pinia';
 import draggable from 'vuedraggable';
 import { useFavoritesStore } from '@/stores/favorites';
@@ -10,6 +10,8 @@ import { useNavigation } from '@/composables/navigation';
 import { normalizePath } from '@/api';
 import { useI18n } from 'vue-i18n';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
+import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
+import { useFileDragDrop } from '@/composables/useFileDragDrop';
 
 const {
   ChevronDownIcon,
@@ -27,35 +29,10 @@ const { favorites } = storeToRefs(favoritesStore);
 const route = useRoute();
 const { openBreadcrumb } = useNavigation();
 const { openEditorForFavorite } = useFavoriteEditor();
+const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTarget } =
+  useFileDragDrop();
 
-const ICON_VARIANTS = {
-  outline: OutlineIcons,
-  solid: SolidIcons,
-};
-
-const resolveIconComponent = (iconName) => {
-  if (typeof iconName !== 'string') {
-    return StarIconOutline;
-  }
-
-  const trimmed = iconName.trim();
-  if (!trimmed) {
-    return StarIconOutline;
-  }
-
-  if (trimmed.includes(':')) {
-    const [variantRaw, iconRaw] = trimmed.split(':', 2);
-    const variantKey = variantRaw.toLowerCase();
-    const iconKey = iconRaw.trim();
-    const registry = ICON_VARIANTS[variantKey];
-    if (registry && registry[iconKey]) {
-      return registry[iconKey];
-    }
-  }
-
-  return OutlineIcons[trimmed] || SolidIcons[trimmed] || StarIconOutline;
-};
-
+const resolveIconComponent = resolveFavoriteIcon;
 const getFavoriteLabel = (favorite = {}) => {
   const path = favorite.path || '';
   const autoLabel = path.split('/').pop() || path;
@@ -86,6 +63,19 @@ const handleOpenFavorite = (favorite) => {
   }
   openBreadcrumb(favorite.path);
 };
+
+const favoriteDropTarget = (favorite = {}) => {
+  const destinationPath = normalizePath(favorite.path || '');
+  const segments = destinationPath.split('/').filter(Boolean);
+  return {
+    name: segments.at(-1) || '',
+    path: segments.slice(0, -1).join('/'),
+    destinationPath,
+  };
+};
+
+const isFavoriteDragTarget = (favorite) => isDragTarget(favoriteDropTarget(favorite));
+const isFavoriteCopyTarget = (favorite) => isCopyDragTarget(favoriteDropTarget(favorite));
 
 const toggleEditMode = () => {
   if (!favorites.value.length) return;
@@ -156,6 +146,7 @@ onBeforeUnmount(() => {
           {{ t('common.edit') }}
         </button>
         <button
+          :aria-label="t('common.toggleSection')"
           @click="open = !open"
           class="hidden group-hover:block active:text-black dark:active:text-white text-neutral-500"
           type="button"
@@ -184,7 +175,7 @@ onBeforeUnmount(() => {
               handle=".favorite-drag-handle"
               :disabled="!isEditMode || favorites.length < 2"
               :animation="250"
-              :easing="'cubic-bezier(0.25, 0.46, 0.45, 0.94)'"
+              easing="cubic-bezier(0.25, 0.46, 0.45, 0.94)"
               ghost-class="favorite-ghost"
               chosen-class="favorite-chosen"
               drag-class="favorite-drag"
@@ -192,7 +183,7 @@ onBeforeUnmount(() => {
               @end="handleReorderEnd"
             >
               <template #item="{ element: favorite }">
-                <div class="group/item mb-3 flex items-center gap-2 favorite-drag-handle">
+                <div class="group/item relative mb-3 flex items-center gap-2 favorite-drag-handle">
                   <Bars3Icon
                     v-if="isEditMode"
                     class="h-4 w-4 shrink-0 cursor-grab text-neutral-400 group-hover/item:text-white dark:text-neutral-500 dark:group-hover/item:text-neutral-100 transition-colors duration-150"
@@ -200,12 +191,24 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     @click="handleOpenFavorite(favorite)"
+                    @dragover="handleDragOver($event, favoriteDropTarget(favorite))"
+                    @dragleave="handleDragLeave($event, favoriteDropTarget(favorite))"
+                    @drop="handleDrop($event, favoriteDropTarget(favorite))"
                     class="truncate"
+                    :title="
+                      favorite.available === false ? t('favorites.volumeUnavailable') : undefined
+                    "
                     :class="[
-                      'cursor-pointer flex w-full items-center gap-3 rounded-lg text-sm',
+                      'cursor-pointer flex w-full items-center gap-3 rounded-lg text-sm transition-colors',
+                      favorite.available === false ? 'opacity-50' : '',
                       isActiveFav(favorite.path)
                         ? 'text-neutral-950 dark:text-white'
                         : 'text-neutral-950 dark:text-neutral-300/90',
+                      isFavoriteCopyTarget(favorite)
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 ring-2 ring-inset ring-emerald-500 dark:ring-emerald-400'
+                        : isFavoriteDragTarget(favorite)
+                          ? 'bg-blue-50 dark:bg-blue-950/40 ring-2 ring-inset ring-blue-500 dark:ring-blue-400'
+                          : '',
                     ]"
                   >
                     <component
@@ -214,9 +217,15 @@ onBeforeUnmount(() => {
                       :style="{ color: favorite.color || 'currentColor' }"
                     />
                     <span class="truncate">{{ getFavoriteLabel(favorite) }}</span>
+                    <ExclamationTriangleIcon
+                      v-if="favorite.available === false"
+                      class="h-4 w-4 shrink-0 text-amber-500"
+                      :aria-label="t('favorites.volumeUnavailable')"
+                    />
                   </button>
                   <template v-if="isEditMode">
                     <button
+                      :aria-label="t('common.edit')"
                       type="button"
                       class="shrink-0 rounded-md text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700 transition-colors duration-150"
                       @click.stop="handleEditFavorite(favorite)"
@@ -224,6 +233,7 @@ onBeforeUnmount(() => {
                       <PencilSquareIcon class="h-4 w-4" />
                     </button>
                     <button
+                      :aria-label="t('common.remove')"
                       type="button"
                       class="shrink-0 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors duration-150"
                       @click.stop="handleRemoveFavorite(favorite)"

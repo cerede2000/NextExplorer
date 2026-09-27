@@ -319,7 +319,8 @@
     "emptyTitle": "Noch keine Favoriten",
     "emptyDescription": "Wählen Sie ein Verzeichnis aus und klicken Sie im Haupttoolbereich auf den Stern, um es hier anzupinnen.",
     "editTitle": "Favorit bearbeiten",
-    "icon": "Symbol"
+    "icon": "Symbol",
+    "volumeUnavailable": "Volume nicht verfügbar — es ist nicht eingebunden oder nicht mehr konfiguriert."
   },
   "notifications": {
     "open": "Benachrichtigungen öffnen",
@@ -553,7 +554,8 @@
       "maxDim": "Maximale Abmessung",
       "maxDimHelp": "Längste Seite in Pixeln. Standard ist 200.",
       "concurrency": "Parallele Generierung",
-      "concurrencyHelp": "Anzahl der gleichzeitig zu generierenden Miniaturen (1–50). Standard ist 10."
+      "concurrencyHelp": "Anzahl der gleichzeitig zu generierenden Miniaturen (1–50). Standard ist 10.",
+      "invalid": "Prüfen Sie die Werte: Qualität 1 bis 100, maximale Abmessung 64 bis 1024 px, parallele Generierung 1 bis 50."
     },
     "security": {
       "subtitle": "Steuern Sie den Zugriff auf die App.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Hier kann nichts {name} öffnen.",
-    "backToFolder": "Zurück zum Ordner"
+    "backToFolder": "Zurück zum Ordner",
+    "tooLargeToRenderSized": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt. Öffnen Sie es im Editor oder laden Sie es herunter.",
+    "tooLargeToRenderWithEditor": "Dieses Dokument ist {size} groß. Die Vorschau endet bei {limit}, weil sie jedes Element im Browser darstellt; der Editor öffnet bis zu {editorLimit}. Öffnen Sie es im Editor oder laden Sie es herunter.",
+    "stillRendering": "Wird dargestellt… {percent} %"
   },
   "archive": {
     "password": {

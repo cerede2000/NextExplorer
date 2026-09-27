@@ -319,7 +319,8 @@
     "emptyTitle": "Nessun preferito",
     "emptyDescription": "Seleziona una directory e tocca la stella nella barra principale per fissarla qui.",
     "editTitle": "Modifica preferito",
-    "icon": "Icona"
+    "icon": "Icona",
+    "volumeUnavailable": "Volume non disponibile: non è montato o non è più configurato."
   },
   "notifications": {
     "open": "Apri notifiche",
@@ -553,7 +554,8 @@
       "maxDim": "Dimensione massima",
       "maxDimHelp": "Lato più lungo in pixel. Il valore predefinito è 200.",
       "concurrency": "Generazione parallela",
-      "concurrencyHelp": "Numero di miniature da generare contemporaneamente (1–50). Il valore predefinito è 10."
+      "concurrencyHelp": "Numero di miniature da generare contemporaneamente (1–50). Il valore predefinito è 10.",
+      "invalid": "Controlla i valori: qualità da 1 a 100, dimensione massima da 64 a 1024 px, generazione parallela da 1 a 50."
     },
     "security": {
       "subtitle": "Controlla l'accesso all'app.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Qui niente sa aprire {name}.",
-    "backToFolder": "Torna alla cartella"
+    "backToFolder": "Torna alla cartella",
+    "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",
+    "tooLargeToRenderWithEditor": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser; l'editor apre fino a {editorLimit}. Aprilo nell'editor o scaricalo.",
+    "stillRendering": "Rendering in corso… {percent} %"
   },
   "archive": {
     "password": {

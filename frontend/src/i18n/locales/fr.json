@@ -319,7 +319,8 @@
     "emptyTitle": "Aucun favori pour le moment",
     "emptyDescription": "Sélectionnez un répertoire et appuyez sur l'étoile dans la barre d'outils principale pour l'épingler ici.",
     "editTitle": "Modifier le favori",
-    "icon": "Icône"
+    "icon": "Icône",
+    "volumeUnavailable": "Volume indisponible — il n'est pas monté, ou n'est plus configuré."
   },
   "notifications": {
     "open": "Ouvrir les notifications",
@@ -553,7 +554,8 @@
       "maxDim": "Dimension maximale",
       "maxDimHelp": "Côté le plus long en pixels. La valeur par défaut est 200.",
       "concurrency": "Génération parallèle",
-      "concurrencyHelp": "Nombre de vignettes générées simultanément (1–50). La valeur par défaut est 10."
+      "concurrencyHelp": "Nombre de vignettes générées simultanément (1–50). La valeur par défaut est 10.",
+      "invalid": "Vérifiez les valeurs : qualité de 1 à 100, dimension maximale de 64 à 1024 px, génération parallèle de 1 à 50."
     },
     "security": {
       "subtitle": "Contrôlez l'accès à l'application.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",
-    "backToFolder": "Retour au dossier"
+    "backToFolder": "Retour au dossier",
+    "tooLargeToRenderSized": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur. Ouvrez-le dans l'éditeur ou téléchargez-le.",
+    "tooLargeToRenderWithEditor": "Ce document fait {size}. L'aperçu s'arrête à {limit}, parce qu'il met en page chaque élément dans le navigateur ; l'éditeur, lui, ouvre jusqu'à {editorLimit}. Ouvrez-le dans l'éditeur ou téléchargez-le.",
+    "stillRendering": "Rendu en cours… {percent} %"
   },
   "archive": {
     "password": {

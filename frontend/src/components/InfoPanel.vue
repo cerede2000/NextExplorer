@@ -1,9 +1,10 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, watch, ref } from 'vue';
-import { XMarkIcon } from '@heroicons/vue/24/outline';
+import { ArrowPathIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { useInfoPanelStore } from '@/stores/infoPanel';
-import { useVersionsPanelStore } from '@/stores/versionsPanel';
+import { useFolderSizeStore } from '@/stores/folderSize';
 import { useFeaturesStore } from '@/stores/features';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileStore } from '@/stores/fileStore';
 import { formatBytes, formatDate } from '@/utils';
 import { getKindLabel } from '@/utils/fileKinds';
@@ -14,13 +15,47 @@ import { fetchMetadata, fetchPermissions, changePermissions, changeOwnership } f
 import { useI18n } from 'vue-i18n';
 
 const store = useInfoPanelStore();
+const folderSizeStore = useFolderSizeStore();
+const featuresStore = useFeaturesStore();
 
 const isOpen = computed(() => store.isOpen);
 const item = computed(() => store.item);
 const relativePath = computed(() => store.relativePath);
+const isSharedPath = computed(() => String(relativePath.value || '').startsWith('share/'));
 
 const { t } = useI18n();
-const featuresStore = useFeaturesStore();
+const title = computed(() => item.value?.name || t('common.details'));
+const kindLabel = computed(() => (item.value ? getKindLabel(item.value) : ''));
+const indexedFolderSize = computed(() => folderSizeStore.sizeFor(relativePath.value));
+
+const directorySizeLabel = computed(() => {
+  if (indexedFolderSize.value?.excluded) return t('info.folderSizeExcluded');
+  const indexedSize = indexedFolderSize.value?.sizeBytes;
+  if (Number.isFinite(indexedSize)) return formatBytes(indexedSize);
+  const metadataSize = details.value?.directory?.totalSize;
+  return Number.isFinite(metadataSize) ? formatBytes(metadataSize) : '—';
+});
+
+const sizeLabel = computed(() => {
+  const it = item.value;
+  if (!it) return '';
+  if (it.kind === 'directory') {
+    if (indexedFolderSize.value?.excluded) return t('info.folderSizeExcluded');
+    const size = indexedFolderSize.value?.sizeBytes;
+    return Number.isFinite(size) ? formatBytes(size) : '—';
+  }
+  if (typeof it.size === 'number') return formatBytes(it.size);
+  return '';
+});
+
+const modifiedLabel = computed(() => {
+  const it = item.value;
+  if (!it || !it.dateModified) return '';
+  return formatDate(it.dateModified);
+});
+
+const locationLabel = computed(() => item.value?.path || '');
+
 const versionsPanel = useVersionsPanelStore();
 const fileStore = useFileStore();
 // Through a share whose owner keeps the history hidden, the listing says so.
@@ -38,25 +73,6 @@ const openVersions = () => {
   versionsPanel.open(target);
 };
 
-const title = computed(() => item.value?.name || t('common.details'));
-const kindLabel = computed(() => (item.value ? getKindLabel(item.value) : ''));
-
-const sizeLabel = computed(() => {
-  const it = item.value;
-  if (!it) return '';
-  if (it.kind === 'directory') return '—';
-  if (typeof it.size === 'number') return formatBytes(it.size);
-  return '';
-});
-
-const modifiedLabel = computed(() => {
-  const it = item.value;
-  if (!it || !it.dateModified) return '';
-  return formatDate(it.dateModified);
-});
-
-const locationLabel = computed(() => item.value?.path || '');
-
 const loading = ref(false);
 const details = ref(null);
 const errorMsg = ref('');
@@ -64,6 +80,26 @@ const errorMsg = ref('');
 const permissionsLoading = ref(false);
 const permissions = ref(null);
 const permissionsError = ref('');
+const refreshingFolderSize = ref(false);
+const folderSizeRefreshError = ref('');
+
+const canRefreshDirectorySize = computed(
+  () => item.value?.kind === 'directory' && featuresStore.folderSizeEnabled
+);
+
+const refreshDirectorySize = async () => {
+  if (!canRefreshDirectorySize.value || !relativePath.value || refreshingFolderSize.value) return;
+
+  refreshingFolderSize.value = true;
+  folderSizeRefreshError.value = '';
+  try {
+    await folderSizeStore.refreshFolder(relativePath.value);
+  } catch (error) {
+    folderSizeRefreshError.value = error?.message || t('errors.loadMetadata');
+  } finally {
+    refreshingFolderSize.value = false;
+  }
+};
 
 const loadDetails = async () => {
   if (!isOpen.value || !relativePath.value) {
@@ -98,7 +134,7 @@ const loadPermissions = async () => {
 };
 
 const handleChangePermissions = async ({ mode, recursive }) => {
-  if (!relativePath.value) return;
+  if (!relativePath.value || isSharedPath.value) return;
 
   permissionsLoading.value = true;
   permissionsError.value = '';
@@ -115,7 +151,7 @@ const handleChangePermissions = async ({ mode, recursive }) => {
 };
 
 const handleChangeOwner = async ({ owner, group }) => {
-  if (!relativePath.value) return;
+  if (!relativePath.value || isSharedPath.value) return;
 
   permissionsLoading.value = true;
   permissionsError.value = '';
@@ -210,6 +246,17 @@ onBeforeUnmount(() => {
               {{ title }}
             </h2>
           </div>
+          <button
+            v-if="canRefreshDirectorySize"
+            type="button"
+            class="rounded-md p-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-wait disabled:opacity-60 dark:text-neutral-400 dark:hover:bg-zinc-800 dark:hover:text-neutral-200"
+            :disabled="refreshingFolderSize"
+            :title="$t('common.refresh')"
+            :aria-label="$t('common.refresh')"
+            @click="refreshDirectorySize"
+          >
+            <ArrowPathIcon :class="['h-5 w-5', refreshingFolderSize ? 'animate-spin' : '']" />
+          </button>
           <button
             type="button"
             class="ml-auto rounded-md p-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-zinc-800 dark:hover:text-neutral-200"
@@ -311,7 +358,7 @@ onBeforeUnmount(() => {
               <p class="text-neutral-900 dark:text-neutral-100">
                 {{
                   t('info.folderSize', {
-                    size: formatBytes(details.directory.totalSize || 0),
+                    size: directorySizeLabel,
                   })
                 }}
               </p>
@@ -322,6 +369,9 @@ onBeforeUnmount(() => {
                     folders: details.directory.dirCount || 0,
                   })
                 }}
+              </p>
+              <p v-if="folderSizeRefreshError" class="mt-2 text-sm text-red-600 dark:text-red-400">
+                {{ folderSizeRefreshError }}
               </p>
             </div>
 
@@ -428,6 +478,7 @@ onBeforeUnmount(() => {
               :permissions="permissions"
               :is-directory="item?.kind === 'directory'"
               :loading="permissionsLoading"
+              :read-only="isSharedPath"
               @change-permissions="handleChangePermissions"
               @change-owner="handleChangeOwner"
             />
