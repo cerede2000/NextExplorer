@@ -6,6 +6,7 @@ const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { takeInventory } = require('../utils/ownedTree');
 const { ValidationError } = require('../errors/AppError');
 const { archives } = require('../config/index');
+const folderSizeHooks = require('./folderSizeHooks');
 
 /**
  * What is shared between extracting a whole archive and extracting part of one.
@@ -78,6 +79,13 @@ const extractIntoCurrentFolder = async ({
       entryName
     );
     movedPaths.push({ path: destinationPath, inventory });
+
+    if (entry.isDirectory()) {
+      folderSizeHooks.onDirectoryTreeCreated(destinationPath);
+    } else {
+      const stats = await fs.stat(destinationPath);
+      folderSizeHooks.onFileWritten(destinationPath, stats.size);
+    }
 
     items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
   }
