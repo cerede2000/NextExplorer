@@ -1562,6 +1562,10 @@
     {
       "match": "^frontend/src/router/shareGuard\\.js$",
       "note": "`signedInMayOpenShare` and `resetShareGuard`, the shape upstream's own spec asks the module for; the spec here asks the guard itself"
+    },
+    {
+      "match": "^frontend/src/plugins/preview/MediaPreview\\.vue$",
+      "note": "how the video is laid out. The element is sized to the picture here, so the native control bar sits under it at the picture's own width; upstream makes the element the whole stage and lets object-contain letterbox inside it, which puts the bar across a black field. Upstream's own spec asserts its version and the browser suite here measures this one, so it is the maintainer's to settle. Rotate, zoom, the mouse drag and the message for a picture that will not load came from upstream and stayed"
     }
   ]
 }
