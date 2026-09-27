@@ -141,13 +141,31 @@ describe('a folder listing', () => {
     expect(activity.users.sort()).toEqual(['Alice', 'Bob']);
   });
 
-  it('stops marking it once the last editor has gone', async () => {
+  /**
+   * Closing the frame is not the document server letting go of the document. It
+   * may still be force-saving what was typed, and until it says it has released
+   * the file, somebody else opening it would join an editing session that is
+   * still being written — so the mark stays until the terminal callback arrives.
+   */
+  it('keeps marking it until the document server lets go', async () => {
     const opened = await openDocument();
     await heartbeat(opened.body.editorSessionId);
+    const callbackUrl = new URL(opened.body.config.editorConfig.callbackUrl);
+    const backend = callbackUrl.searchParams.get('backend');
 
     await request(app)
       .post('/api/onlyoffice/session-end')
       .send({ path: DOCUMENT, sessionId: opened.body.editorSessionId });
+
+    expect(rowFor((await listing()).body, 'report.docx').onlyofficeActivity).toMatchObject({
+      active: true,
+    });
+
+    await request(app)
+      .post('/api/onlyoffice/callback')
+      .query({ path: DOCUMENT, backend })
+      .set('Authorization', `Bearer ${jwt.sign({ any: true }, SECRET)}`)
+      .send({ status: 4, key: opened.body.config.document.key });
 
     expect(rowFor((await listing()).body, 'report.docx').onlyofficeActivity).toBeUndefined();
   });
