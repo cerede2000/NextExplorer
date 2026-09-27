@@ -126,8 +126,15 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
 
+      # Allowed to fail, and tried again below. The base image's manifest is the
+      # first thing every one of these builds asks public.ecr.aws for, six of
+      # them start within seconds of each other, and the registry answers 429 to
+      # some share of that burst — three runs in a row lost a different leg to it,
+      # each time before a single layer had been built. Nothing about the build is
+      # wrong, so it is asked once more rather than reported as broken.
       - name: Build and push by digest
         id: build
+        continue-on-error: true
         uses: docker/build-push-action@v7
         with:
           pull: true
@@ -154,13 +161,53 @@ jobs:
           # change nothing at all.
           no-cache-filters: ${{ inputs.package_refresh && 'runtime' || '' }}
 
+      # A minute is enough for the burst to have passed.
+      - name: Let the registry breathe
+        if: steps.build.outcome == 'failure'
+        run: sleep 60
+
+      - name: Build and push by digest, once more
+        id: rebuild
+        if: steps.build.outcome == 'failure'
+        uses: docker/build-push-action@v7
+        with:
+          pull: true
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.target.platform }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
+            REPO_URL=https://github.com/${{ github.repository }}
+            ${{ matrix.variant.args }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ inputs.push }}
+          # Same scopes and the same refresh rule as the attempt above; see there
+          # for why each is what it is.
+          cache-from: type=gha,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant.name }}-${{ matrix.target.arch }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope_prefix }}${{ matrix.variant.name }}-${{ matrix.target.arch }}
+          no-cache-filters: ${{ inputs.package_refresh && 'runtime' || '' }}
+
+      # Whichever attempt produced it, named once so that everything below reads
+      # one place rather than choosing between two. A build that is not pushed has
+      # no digest to give, and nothing below asks for one.
+      - name: The digest of what was built
+        id: image
+        run: |
+          digest='${{ steps.build.outputs.digest || steps.rebuild.outputs.digest }}'
+          if [ -z "$digest" ] && [ '${{ inputs.push }}' = 'true' ]; then
+            echo '::error::Neither build attempt produced an image digest'
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
       # Everything below runs on the architecture it is checking, which is new:
       # emulated builds could only ever start the amd64 half, so nothing had
       # ever run the arm64 image at all.
       - name: Check the image names the commit it was built from
         if: ${{ inputs.push }}
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}
         run: |
           echo "Inspecting $IMAGE"
           stamped="$(docker run --rm --entrypoint sh "$IMAGE" -c 'printf "%s" "$GIT_COMMIT"')"
@@ -179,7 +226,7 @@ jobs:
       - name: Check the image starts as a non-root user
         if: ${{ inputs.push }}
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}
         run: |
           echo "Starting $IMAGE as 1000:1000"
           if ! docker run --rm --user 1000:1000 "$IMAGE" node -e 'process.exit(0)'; then
@@ -209,7 +256,7 @@ jobs:
       - name: Check the image's ffmpeg decodes a HEIC
         if: ${{ inputs.push }}
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}
         run: |
           pixels="$(docker run --rm --entrypoint node -w /app \
               -v "$PWD/docker/check-heic.cjs:/tmp/check-heic.cjs:ro" \
@@ -232,7 +279,7 @@ jobs:
       - name: Check the image's ffmpeg is at least the pinned one
         if: ${{ inputs.push }}
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}
         run: |
           pinned="$(sed -n 's/^ARG FFMPEG_VERSION=//p' Dockerfile)"
           carried="$(docker run --rm --entrypoint sh "$IMAGE" -c 'ffmpeg -version | head -n 1' | awk '{ print $3 }')"
@@ -251,7 +298,7 @@ jobs:
         if: ${{ inputs.package_refresh && inputs.push }}
         continue-on-error: true
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}
         run: |
           {
             echo "## ${{ matrix.variant.name }} (${{ matrix.target.arch }})"
@@ -265,7 +312,7 @@ jobs:
         if: ${{ inputs.push }}
         run: |
           mkdir -p /tmp/digests
-          printf '%s' '${{ steps.build.outputs.digest }}' > "/tmp/digests/${{ matrix.target.arch }}"
+          printf '%s' '${{ steps.image.outputs.digest }}' > "/tmp/digests/${{ matrix.target.arch }}"
 
       - name: Keep it
         if: ${{ inputs.push }}
