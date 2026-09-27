@@ -1565,7 +1565,7 @@
   "residue": [
     {
       "match": "^backend/src/routes/(browse|editor|index|files/download)\\.js$",
-      "note": "this fork is the one ahead: the thumbnails switch a listing must not promise around, the identity a saved file answers with, a bounded resolution and a public link's own download count, and health mounted once rather than twice. Goes upstream in P3-45"
+      "note": "this fork is the one ahead: the thumbnails switch a listing must not promise around, the identity a saved file answers with, a bounded resolution and a public link's own download count, and health mounted once rather than twice. nxzai#470"
     },
     {
       "match": "^backend/src/routes/onlyoffice\\.js$",
