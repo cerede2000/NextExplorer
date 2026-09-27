@@ -205,6 +205,28 @@ Two things will move the total upward on their own, and are expected to: upstrea
 merging its own work, and a batch turning up small things around the files it opens.
 Both make the script fail until they are spoken for, which is the point.
 
+### Before saying the two are the same
+
+```
+node scripts/equivalence.mjs --theirs ../NextExplorer-upstream
+```
+
+`parity.mjs` reads the two source trees. Everything it knows, it knows from what
+the source says — and every gap that got through this phase was invisible there: a
+call nobody made, so the indexes never left app.db; a control that left with the
+file holding it; a sentence written into a component in French, with no key to
+compare; a `.static` rule in the shipped stylesheet, from a word in a comment in a
+test server; pages describing an application the batches had already changed.
+
+So this compares what reaches somebody rather than what produces it. Four things
+do: the frontend the build produces, the answers a running server gives on every
+read-only endpoint, the database a first start creates, and the pages. A difference
+in any of them is a difference a reader can find, whatever the source says.
+
+It builds both trees and starts both servers, so it takes minutes rather than
+seconds — which is why it is not a gate on every push. It is the one to run before
+claiming the two are the same, and the claim is not to be made without its output.
+
 ### 0 PORT was not the end
 
 It was reached, on 27 September 2026, and two more batches followed it. Both came
