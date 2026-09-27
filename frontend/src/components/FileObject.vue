@@ -106,9 +106,12 @@ const onlyofficeActivityLabel = computed(() => {
   const activity = onlyofficeActivity.value;
   if (!activity?.active) return '';
   const users = Array.isArray(activity.users) ? activity.users.filter(Boolean) : [];
+  // Asked of the catalogue rather than written here: this label is the one place
+  // the whole listing tells a reader something in words, and a sentence written
+  // into the component is a sentence every other language reads in French.
   return users.length > 0
-    ? `Édition en cours dans OnlyOffice : ${users.join(', ')}`
-    : 'Édition en cours dans OnlyOffice';
+    ? t('onlyoffice.editingBy', { names: users.join(', ') })
+    : t('onlyoffice.editingNow');
 });
 
 /**
