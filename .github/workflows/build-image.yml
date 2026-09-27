@@ -430,6 +430,12 @@ jobs:
           # publishes latest-lean rather than overwriting latest.
           flavor: ${{ inputs.channel == 'release' && format('suffix={0},onlatest=true', matrix.variant.suffix) || '' }}
 
+      # Both of the steps below reach the registry over the network, and both have
+      # failed there on a read the registry cut short — `connection reset by peer`
+      # fetching a blob it had just accepted. That says nothing about the images or
+      # the manifest, and a build thrown away for it is an hour of machine time and
+      # a red branch nobody can act on. So each is attempted three times, and only
+      # the third silence is taken for an answer.
       - name: Create the manifest, on every registry at once
         env:
           SOURCE: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
@@ -440,10 +446,22 @@ jobs:
           for file in /tmp/digests/*; do
             sources="$sources $SOURCE@$(cat "$file")"
           done
-          # shellcheck disable=SC2046
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ steps.meta.outputs.json }}') \
-            $sources
+          created=""
+          for attempt in 1 2 3; do
+            # shellcheck disable=SC2046
+            if docker buildx imagetools create \
+              $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ steps.meta.outputs.json }}') \
+              $sources; then
+              created=yes
+              break
+            fi
+            echo "Attempt $attempt could not write the manifest"
+            [ "$attempt" = 3 ] || sleep $((attempt * 10))
+          done
+          if [ -z "$created" ]; then
+            echo "::error::the manifest could not be written to the registry"
+            exit 1
+          fi
 
       # A tag that points at one architecture is the failure this arrangement
       # exists to prevent, so it is read back rather than assumed.
@@ -454,7 +472,21 @@ jobs:
           set -eu
           tag="$(printf '%s' '${{ steps.meta.outputs.tags }}' | head -n 1)"
           echo "Reading $tag"
-          got="$(docker buildx imagetools inspect "$tag" --format '{{range .Manifest.Manifests}}{{if ne .Platform.Architecture "unknown"}}{{.Platform.OS}}/{{.Platform.Architecture}} {{end}}{{end}}')"
+          read_it=""
+          for attempt in 1 2 3; do
+            if got="$(docker buildx imagetools inspect "$tag" --format '{{range .Manifest.Manifests}}{{if ne .Platform.Architecture "unknown"}}{{.Platform.OS}}/{{.Platform.Architecture}} {{end}}{{end}}')"; then
+              read_it=yes
+              break
+            fi
+            echo "Attempt $attempt could not read $tag"
+            [ "$attempt" = 3 ] || sleep $((attempt * 10))
+          done
+          # An empty answer is a manifest with nothing in it, which the loop below
+          # reports; not being able to read it at all is this.
+          if [ -z "$read_it" ]; then
+            echo "::error::$tag could not be read from the registry"
+            exit 1
+          fi
           echo "The manifest lists: $got"
           for platform in $(printf '%s' "$EXPECTED" | tr ',' ' '); do
             case " $got " in
