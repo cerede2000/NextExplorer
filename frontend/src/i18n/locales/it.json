@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi.",
       "showVersionMarks": "Segnalare i file con versioni",
       "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia.",
-      "languageHelp": "Salvata con il tuo account, su ogni browser da cui accedi."
+      "languageHelp": "Salvata con il tuo account, su ogni browser da cui accedi.",
+      "quickActions": "Menu azioni rapide",
+      "quickActionsHelp": "Mostra un piccolo menu di azioni al passaggio del mouse su ogni riga file/cartella e sul nome della cartella in alto.",
+      "quickActionsReorder": "Scegli e riordina le azioni mostrate.",
+      "quickActionsMode": "Visualizzazione menu",
+      "quickActionsModeFull": "Tutte le icone al passaggio del mouse",
+      "quickActionsModeCompact": "Icona … (espandi al passaggio del mouse)"
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Collegamento esterno a questo volume",
     "outsideExplained": "{name} è un collegamento a una posizione esterna a questo volume. Non può essere aperto, rinominato o eliminato da qui; rimuovilo sul server se non serve più."
+  },
+  "quickActions": {
+    "menu": "Azioni rapide"
   }
 }

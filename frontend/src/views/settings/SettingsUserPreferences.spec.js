@@ -323,3 +323,15 @@ describe('the language', () => {
     expect(sentUser().locale).toBeNull();
   });
 });
+
+describe('the quick-actions menu', () => {
+  it('is applied straight away in this browser, outside what the page saves', async () => {
+    await open();
+
+    await toggle('quickActions').trigger('click');
+
+    expect(quickActions.setEnabled).toHaveBeenCalledWith(true);
+    expect(button('common.save')).toBeUndefined();
+    expect(appSettings.save).not.toHaveBeenCalled();
+  });
+});

@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。",
       "showVersionMarks": "标记有版本的文件",
       "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。",
-      "languageHelp": "保存在您的账户中，在您登录的每个浏览器上生效。"
+      "languageHelp": "保存在您的账户中，在您登录的每个浏览器上生效。",
+      "quickActions": "快捷操作菜单",
+      "quickActionsHelp": "在每个文件/文件夹行以及顶部的文件夹名称上，鼠标悬停时显示一个小型操作菜单。",
+      "quickActionsReorder": "选择并重新排序显示的操作。",
+      "quickActionsMode": "菜单显示",
+      "quickActionsModeFull": "悬停时显示所有图标",
+      "quickActionsModeCompact": "… 图标（悬停时展开）"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "指向此卷外部的链接",
     "outsideExplained": "{name} 是指向此卷外部位置的链接。无法在此打开、重命名或删除它；如果不再需要，请在服务器上将其移除。"
+  },
+  "quickActions": {
+    "menu": "快捷操作"
   }
 }

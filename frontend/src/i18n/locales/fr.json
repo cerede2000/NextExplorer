@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
       "showVersionMarks": "Signaler les fichiers qui ont des versions",
       "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique.",
-      "languageHelp": "Conservée avec votre compte, sur chaque navigateur où vous vous connectez."
+      "languageHelp": "Conservée avec votre compte, sur chaque navigateur où vous vous connectez.",
+      "quickActions": "Menu d’actions rapides",
+      "quickActionsHelp": "Affiche au survol un petit menu d’actions sur chaque ligne fichier/dossier et sur le nom du dossier en haut.",
+      "quickActionsReorder": "Choisissez et réordonnez les actions affichées.",
+      "quickActionsMode": "Affichage du menu",
+      "quickActionsModeFull": "Toutes les icônes au survol",
+      "quickActionsModeCompact": "Icône … (déplier au survol)"
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Lien hors de ce volume",
     "outsideExplained": "{name} est un lien vers un emplacement hors de ce volume. Il ne peut être ni ouvert, ni renommé, ni supprimé d’ici ; supprimez-le sur le serveur s’il ne sert plus."
+  },
+  "quickActions": {
+    "menu": "Actions rapides"
   }
 }

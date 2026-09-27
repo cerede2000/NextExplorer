@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
       "showVersionMarks": "Marchează fișierele care au versiuni",
       "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul.",
-      "languageHelp": "Se păstrează în contul dumneavoastră, în orice browser din care vă conectați."
+      "languageHelp": "Se păstrează în contul dumneavoastră, în orice browser din care vă conectați.",
+      "quickActions": "Meniu de acțiuni rapide",
+      "quickActionsHelp": "Afișează la trecerea cu mouse-ul un mic meniu de acțiuni pe fiecare rând de fișier/dosar și pe numele dosarului din partea de sus.",
+      "quickActionsReorder": "Alege și reordonează acțiunile afișate.",
+      "quickActionsMode": "Afișarea meniului",
+      "quickActionsModeFull": "Toate pictogramele la trecerea cu mouse-ul",
+      "quickActionsModeCompact": "Pictograma … (extinde la trecerea cu mouse-ul)"
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Legătură în afara acestui volum",
     "outsideExplained": "{name} este o legătură către o locație din afara acestui volum. Nu poate fi deschisă, redenumită sau ștearsă de aici; eliminați-o pe server dacă nu mai este necesară."
+  },
+  "quickActions": {
+    "menu": "Acțiuni rapide"
   }
 }

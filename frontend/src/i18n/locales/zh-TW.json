@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
       "showVersionMarks": "標示有版本的檔案",
       "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。",
-      "languageHelp": "儲存在您的帳戶中，在您登入的每個瀏覽器上生效。"
+      "languageHelp": "儲存在您的帳戶中，在您登入的每個瀏覽器上生效。",
+      "quickActions": "快速動作選單",
+      "quickActionsHelp": "在每個檔案/檔案夾列以及頂部的檔案夾名稱上，於懸停時顯示一個小型的動作選單。",
+      "quickActionsReorder": "選擇並重新排序顯示的動作。",
+      "quickActionsMode": "選單顯示",
+      "quickActionsModeFull": "懸停時顯示所有圖示",
+      "quickActionsModeCompact": "… 圖示（懸停時展開）"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "指向此磁碟區外部的連結",
     "outsideExplained": "{name} 是指向此磁碟區外部位置的連結。無法在此開啟、重新命名或刪除；如果不再需要，請在伺服器上將其移除。"
+  },
+  "quickActions": {
+    "menu": "快速動作"
   }
 }

@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
       "showVersionMarks": "Oznaczaj pliki, które mają wersje",
       "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię.",
-      "languageHelp": "Zapisywany przy koncie, w każdej przeglądarce, w której się logujesz."
+      "languageHelp": "Zapisywany przy koncie, w każdej przeglądarce, w której się logujesz.",
+      "quickActions": "Menu szybkich akcji",
+      "quickActionsHelp": "Wyświetla po najechaniu małe menu akcji w każdym wierszu pliku/folderu oraz na nazwie folderu u góry.",
+      "quickActionsReorder": "Wybierz i zmień kolejność wyświetlanych akcji.",
+      "quickActionsMode": "Wyświetlanie menu",
+      "quickActionsModeFull": "Wszystkie ikony po najechaniu",
+      "quickActionsModeCompact": "Ikona … (rozwiń po najechaniu)"
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Łącze poza ten wolumin",
     "outsideExplained": "{name} to łącze do miejsca poza tym woluminem. Nie można go stąd otworzyć, zmienić jego nazwy ani usunąć; usuń je na serwerze, jeśli nie jest już potrzebne."
+  },
+  "quickActions": {
+    "menu": "Szybkie akcje"
   }
 }
