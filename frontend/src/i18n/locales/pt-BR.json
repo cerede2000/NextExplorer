@@ -983,7 +983,8 @@
       "auto": "Automático",
       "inline": "Visualizar",
       "raw": "Bruto",
-      "download": "Baixar"
+      "download": "Baixar",
+      "editor": "Editor"
     },
     "shareLinkCreatedSuccess": "Link de compartilhamento criado com sucesso!",
     "access": "Modo de Acesso",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Carregando usuários...",
     "password": "Senha",
     "protected": "Protegido",
-    "sharedWith": "Compartilhado com"
+    "sharedWith": "Compartilhado com",
+    "editShareLink": "Editar o link de compartilhamento",
+    "saveShare": "Salvar as alterações",
+    "advancedPermissions": "Avançado",
+    "allowDelete": "Permitir excluir arquivos",
+    "allowCreateFolder": "Permitir criar pastas",
+    "allowCreateFile": "Permitir criar arquivos",
+    "allowUpload": "Permitir enviar arquivos e pastas",
+    "activity": "Atividade",
+    "activityDetails": "Detalhes da atividade",
+    "accesses": "acessos",
+    "downloads": "downloads",
+    "accessCount": "Número de acessos",
+    "downloadCount": "Número de downloads",
+    "lastAccessIp": "IP do último acesso",
+    "lastDownloaded": "Último download",
+    "lastDownloadIp": "IP do último download",
+    "noActivity": "Nunca",
+    "noIpRecorded": "Nenhum IP registrado",
+    "allowDownload": "Permitir download",
+    "allowDownloadHelp": "Desative para que os arquivos possam ser lidos sem que se leve uma cópia.",
+    "versionsVisible": "Mostrar versões dos arquivos",
+    "versionsVisibleHelp": "Quem usa este compartilhamento vê as versões anteriores dos arquivos e pode restaurá-las se tiver permissão para editar.",
+    "versionsDownload": "Permitir baixar versões"
   },
   "trash": {
     "title": "Lixeira",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Nada aqui",
     "extractTitle": "Extrair para",
     "extractHere": "Extrair aqui"
+  },
+  "links": {
+    "outside": "Link para fora deste volume",
+    "outsideExplained": "{name} é um link para um local fora deste volume. Não pode ser aberto, renomeado nem excluído daqui; remova-o no servidor se não for mais necessário."
   }
 }

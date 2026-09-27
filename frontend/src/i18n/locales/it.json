@@ -1034,7 +1034,8 @@
       "auto": "Automatico",
       "inline": "Visualizza",
       "raw": "Grezzo",
-      "download": "Scarica"
+      "download": "Scarica",
+      "editor": "Editor"
     },
     "deleteShareTitle": "Rimuovere la condivisione?",
     "deleteShareMessage": "Le persone con questo link non potranno più accedere all’elemento condiviso.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Caricamento utenti...",
     "password": "Password",
     "protected": "Protetto",
-    "sharedWith": "Condiviso con"
+    "sharedWith": "Condiviso con",
+    "editShareLink": "Modifica link di condivisione",
+    "saveShare": "Salva modifiche",
+    "advancedPermissions": "Avanzate",
+    "allowDelete": "Consenti l'eliminazione dei file",
+    "allowCreateFolder": "Consenti la creazione di cartelle",
+    "allowCreateFile": "Consenti la creazione di file",
+    "allowUpload": "Consenti il caricamento di file e cartelle",
+    "activity": "Attività",
+    "activityDetails": "Dettagli attività",
+    "accesses": "accessi",
+    "downloads": "download",
+    "accessCount": "Numero di accessi",
+    "downloadCount": "Numero di download",
+    "lastAccessIp": "IP ultimo accesso",
+    "lastDownloaded": "Ultimo download",
+    "lastDownloadIp": "IP ultimo download",
+    "noActivity": "Mai",
+    "noIpRecorded": "Nessun IP registrato",
+    "allowDownload": "Consenti il download",
+    "allowDownloadHelp": "Disattiva per far leggere i file senza permetterne una copia.",
+    "versionsVisible": "Mostra le versioni dei file",
+    "versionsVisibleHelp": "Chi usa questa condivisione vede le versioni precedenti dei suoi file e può ripristinarle se ha il permesso di modifica.",
+    "versionsDownload": "Consenti il download delle versioni"
   },
   "trash": {
     "title": "Cestino",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Qui non c'è niente",
     "extractTitle": "Estrai in",
     "extractHere": "Estrai qui"
+  },
+  "links": {
+    "outside": "Collegamento esterno a questo volume",
+    "outsideExplained": "{name} è un collegamento a una posizione esterna a questo volume. Non può essere aperto, rinominato o eliminato da qui; rimuovilo sul server se non serve più."
   }
 }

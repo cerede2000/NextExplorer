@@ -1034,7 +1034,8 @@
       "auto": "Automatycznie",
       "inline": "Wyświetl",
       "raw": "Surowy",
-      "download": "Pobierz"
+      "download": "Pobierz",
+      "editor": "Edytor"
     },
     "deleteShareTitle": "Usunąć udostępnienie?",
     "deleteShareMessage": "Osoby z tym linkiem nie będą już mogły uzyskać dostępu do udostępnionego elementu.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Ładowanie użytkowników...",
     "password": "Hasło",
     "protected": "Chronione",
-    "sharedWith": "Udostępnione dla"
+    "sharedWith": "Udostępnione dla",
+    "editShareLink": "Edytuj link udostępniania",
+    "saveShare": "Zapisz zmiany",
+    "advancedPermissions": "Zaawansowane",
+    "allowDelete": "Zezwól na usuwanie plików",
+    "allowCreateFolder": "Zezwól na tworzenie folderów",
+    "allowCreateFile": "Zezwól na tworzenie plików",
+    "allowUpload": "Zezwól na przesyłanie plików i folderów",
+    "activity": "Aktywność",
+    "activityDetails": "Szczegóły aktywności",
+    "accesses": "dostępy",
+    "downloads": "pobrania",
+    "accessCount": "Liczba dostępów",
+    "downloadCount": "Liczba pobrań",
+    "lastAccessIp": "IP ostatniego dostępu",
+    "lastDownloaded": "Ostatnie pobranie",
+    "lastDownloadIp": "IP ostatniego pobrania",
+    "noActivity": "Nigdy",
+    "noIpRecorded": "Brak zarejestrowanego IP",
+    "allowDownload": "Zezwalaj na pobieranie",
+    "allowDownloadHelp": "Wyłącz, aby pliki można było czytać bez pobierania kopii.",
+    "versionsVisible": "Pokaż wersje plików",
+    "versionsVisibleHelp": "Osoby korzystające z tego udostępnienia widzą wcześniejsze wersje jego plików i mogą je przywrócić, jeśli mają prawo edycji.",
+    "versionsDownload": "Zezwól na pobieranie wersji"
   },
   "trash": {
     "title": "Kosz",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Nic tu nie ma",
     "extractTitle": "Wypakuj do",
     "extractHere": "Wypakuj tutaj"
+  },
+  "links": {
+    "outside": "Łącze poza ten wolumin",
+    "outsideExplained": "{name} to łącze do miejsca poza tym woluminem. Nie można go stąd otworzyć, zmienić jego nazwy ani usunąć; usuń je na serwerze, jeśli nie jest już potrzebne."
   }
 }

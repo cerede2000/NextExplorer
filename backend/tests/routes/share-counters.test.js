@@ -98,7 +98,15 @@ describe('a share link', () => {
     expect(await numbers(id)).toEqual({ opened: 2, downloaded: 0 });
   });
 
-  it('counts a file leaving as a download', async () => {
+  /**
+   * Counted the way the file is delivered, not by which route asked for it.
+   *
+   * Every fetch of `/file/...` used to be a download, so reading a text file in
+   * the browser — which never leaves the page — was written down as a copy
+   * taken away. An owner reading "downloaded 40 times" was reading the number
+   * of times somebody had looked at it.
+   */
+  it('counts a file shown in the page as an opening', async () => {
     const { token, id } = await seedShare();
     const app = buildApp();
 
@@ -106,6 +114,19 @@ describe('a share link', () => {
     const file = await request(app).get(`/api/share/${token}/file/file.txt`);
 
     expect(file.status).toBe(200);
+    expect(file.headers['content-disposition'] || '').not.toMatch(/attachment/);
+    expect(await numbers(id)).toEqual({ opened: 2, downloaded: 0 });
+  });
+
+  it('counts a file handed over as a download', async () => {
+    const { token, id } = await seedShare();
+    const app = buildApp();
+
+    await request(app).get(`/api/share/${token}/access`);
+    const file = await request(app).get(`/api/share/${token}/file/file.txt?mode=download`);
+
+    expect(file.status).toBe(200);
+    expect(file.headers['content-disposition'] || '').toMatch(/attachment/);
     expect(await numbers(id)).toEqual({ opened: 1, downloaded: 1 });
   });
 

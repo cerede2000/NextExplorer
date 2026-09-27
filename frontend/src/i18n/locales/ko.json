@@ -1034,7 +1034,8 @@
       "auto": "자동",
       "inline": "보기",
       "raw": "원본",
-      "download": "다운로드"
+      "download": "다운로드",
+      "editor": "에디터"
     },
     "deleteShareTitle": "공유를 제거할까요?",
     "deleteShareMessage": "이 링크가 있는 사용자는 더 이상 공유 항목에 접근할 수 없습니다.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "유저 정보 로딩 중...",
     "password": "비밀번호",
     "protected": "보호됨",
-    "sharedWith": "공유 대상"
+    "sharedWith": "공유 대상",
+    "editShareLink": "공유 링크 편집",
+    "saveShare": "변경 사항 저장",
+    "advancedPermissions": "고급",
+    "allowDelete": "파일 삭제 허용",
+    "allowCreateFolder": "폴더 생성 허용",
+    "allowCreateFile": "파일 생성 허용",
+    "allowUpload": "파일 및 폴더 업로드 허용",
+    "activity": "활동",
+    "activityDetails": "활동 상세",
+    "accesses": "접근",
+    "downloads": "다운로드",
+    "accessCount": "접근 횟수",
+    "downloadCount": "다운로드 횟수",
+    "lastAccessIp": "마지막 접근 IP",
+    "lastDownloaded": "마지막 다운로드",
+    "lastDownloadIp": "마지막 다운로드 IP",
+    "noActivity": "없음",
+    "noIpRecorded": "기록된 IP 없음",
+    "allowDownload": "다운로드 허용",
+    "allowDownloadHelp": "끄면 파일을 읽을 수는 있지만 복사본을 가져갈 수는 없습니다.",
+    "versionsVisible": "파일 버전 표시",
+    "versionsVisibleHelp": "이 공유를 사용하는 사람은 파일의 이전 버전을 볼 수 있고, 편집 권한이 있으면 복원할 수 있습니다.",
+    "versionsDownload": "버전 다운로드 허용"
   },
   "trash": {
     "title": "휴지통",
@@ -1278,5 +1302,9 @@
     "nothingHere": "여기에는 아무것도 없습니다",
     "extractTitle": "다음 위치에 풀기",
     "extractHere": "여기에 풀기"
+  },
+  "links": {
+    "outside": "이 볼륨 밖을 가리키는 링크",
+    "outsideExplained": "{name}은(는) 이 볼륨 밖의 위치를 가리키는 링크입니다. 여기서는 열거나 이름을 바꾸거나 삭제할 수 없습니다. 더 이상 필요하지 않으면 서버에서 제거하세요."
   }
 }

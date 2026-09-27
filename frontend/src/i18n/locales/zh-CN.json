@@ -1034,7 +1034,8 @@
       "auto": "自动",
       "inline": "查看",
       "raw": "原始",
-      "download": "下载"
+      "download": "下载",
+      "editor": "编辑器"
     },
     "deleteShareTitle": "移除共享？",
     "deleteShareMessage": "拥有此链接的人员将无法再访问共享项目。",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "正在加载用户...",
     "password": "密码",
     "protected": "已保护",
-    "sharedWith": "共享对象"
+    "sharedWith": "共享对象",
+    "editShareLink": "编辑共享链接",
+    "saveShare": "保存更改",
+    "advancedPermissions": "高级",
+    "allowDelete": "允许删除文件",
+    "allowCreateFolder": "允许创建文件夹",
+    "allowCreateFile": "允许创建文件",
+    "allowUpload": "允许上传文件和文件夹",
+    "activity": "活动",
+    "activityDetails": "活动详情",
+    "accesses": "访问",
+    "downloads": "下载",
+    "accessCount": "访问次数",
+    "downloadCount": "下载次数",
+    "lastAccessIp": "上次访问 IP",
+    "lastDownloaded": "上次下载",
+    "lastDownloadIp": "上次下载 IP",
+    "noActivity": "从不",
+    "noIpRecorded": "未记录 IP",
+    "allowDownload": "允许下载",
+    "allowDownloadHelp": "关闭后，他人可以阅读文件但无法下载副本。",
+    "versionsVisible": "显示文件版本",
+    "versionsVisibleHelp": "使用此共享的人可以看到其文件的历史版本，若有编辑权限还可以恢复。",
+    "versionsDownload": "允许下载版本"
   },
   "trash": {
     "title": "回收站",
@@ -1278,5 +1302,9 @@
     "nothingHere": "这里什么都没有",
     "extractTitle": "解压到",
     "extractHere": "解压到此处"
+  },
+  "links": {
+    "outside": "指向此卷外部的链接",
+    "outsideExplained": "{name} 是指向此卷外部位置的链接。无法在此打开、重命名或删除它；如果不再需要，请在服务器上将其移除。"
   }
 }

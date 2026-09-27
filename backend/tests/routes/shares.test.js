@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
 
@@ -20,9 +21,13 @@ beforeAll(async () => {
       'src/services/sharesService',
       'src/services/guestSessionService',
       'src/utils/pathUtils',
+      'src/middleware/authMiddleware',
       'src/middleware/errorHandler',
       'src/routes/shares',
       'src/routes/files/delete',
+      'src/routes/files/folder',
+      'src/routes/files/file',
+      'src/routes/permissions',
       'src/services/fileTransferService',
     ],
   });
@@ -40,29 +45,253 @@ const buildApp = ({ user } = {}) => {
 
   const sharesRoutes = envContext.requireFresh('src/routes/shares');
   const deleteRoutes = envContext.requireFresh('src/routes/files/delete');
+  const folderRoutes = envContext.requireFresh('src/routes/files/folder');
+  const fileRoutes = envContext.requireFresh('src/routes/files/file');
+  const permissionsRoutes = envContext.requireFresh('src/routes/permissions');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
 
   const app = express();
   app.use(express.json());
+  app.use(cookieParser());
 
-  app.use(async (req, _res, next) => {
-    if (user) req.user = user;
-    const guestSessionId = req.headers['x-guest-session'];
-    if (guestSessionId) {
-      const { getGuestSession } = envContext.requireFresh('src/services/guestSessionService');
-      req.guestSession = await getGuestSession(guestSessionId);
-    }
+  // The real middleware, not a stand-in for it. An earlier version of this
+  // harness attached req.guestSession unconditionally, which the middleware
+  // does not do — and a bug that lived in exactly that gap shipped green.
+  const authMiddleware = envContext.requireFresh('src/middleware/authMiddleware');
+  app.use((req, _res, next) => {
+    // express-session normally provides this; the middleware loads the user
+    // from the database, exactly as it does in production.
+    req.session = user ? { localUserId: user.id } : {};
     next();
   });
+  app.use(authMiddleware);
 
   app.use('/api/shares', sharesRoutes);
   app.use('/api/share', sharesRoutes);
   app.use('/api', deleteRoutes);
+  app.use('/api', folderRoutes);
+  app.use('/api', fileRoutes);
+  app.use('/api', permissionsRoutes);
   app.use(errorHandler);
   return app;
 };
 
 describe('Shares Routes', () => {
+  describe('Share updates', () => {
+    it('should replace recipient permissions and clear them when changing to an anyone link', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-share-updates');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'shared.txt'), 'shared');
+
+      const owner = await usersService.createLocalUser({
+        email: 'share-owner@example.com',
+        username: 'share-owner',
+        displayName: 'Share Owner',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      const recipient = await usersService.createLocalUser({
+        email: 'share-recipient@example.com',
+        username: 'share-recipient',
+        displayName: 'Share Recipient',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      await userVolumesService.addVolumeToUser({
+        userId: owner.id,
+        label: 'ShareUpdateVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user: owner });
+      const created = await request(app)
+        .post('/api/shares')
+        .send({
+          sourcePath: 'ShareUpdateVol/shared.txt',
+          accessMode: 'readonly',
+          sharingType: 'users',
+          userIds: [recipient.id],
+        });
+      expect(created.status).toBe(201);
+      expect(created.body.permittedUserIds).toEqual([recipient.id]);
+
+      const updated = await request(app).put(`/api/shares/${created.body.id}`).send({
+        accessMode: 'readwrite',
+        sharingType: 'anyone',
+        userIds: [],
+        allowDelete: false,
+        allowCreateFolder: false,
+        allowCreateFile: false,
+        allowUpload: false,
+        label: 'Updated share',
+      });
+      expect(updated.status).toBe(200);
+      expect(updated.body).toMatchObject({
+        accessMode: 'readwrite',
+        sharingType: 'anyone',
+        allowDelete: false,
+        allowCreateFolder: false,
+        allowCreateFile: false,
+        allowUpload: false,
+        label: 'Updated share',
+      });
+
+      const recipientApp = buildApp({ user: recipient });
+      const received = await request(recipientApp).get('/api/shares/shared-with-me');
+      expect(received.status).toBe(200);
+      expect(received.body.shares).toEqual([]);
+    });
+  });
+
+  describe('Shared item permissions', () => {
+    it('should allow viewing permissions through a share but reject permission changes', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-share-permissions');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'shared.txt'), 'shared');
+
+      const user = await usersService.createLocalUser({
+        email: 'share-permissions@example.com',
+        username: 'share-permissions',
+        displayName: 'Share Permissions',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharePermissionsVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const app = buildApp({ user });
+      const created = await request(app).post('/api/shares').send({
+        sourcePath: 'SharePermissionsVol/shared.txt',
+        accessMode: 'readwrite',
+        sharingType: 'anyone',
+      });
+      expect(created.status).toBe(201);
+
+      const sharedPath = `share/${created.body.shareToken}/shared.txt`;
+      const view = await request(app).get(`/api/permissions/${sharedPath}`);
+      expect(view.status).toBe(200);
+
+      const chmod = await request(app)
+        .post('/api/permissions/chmod')
+        .send({ path: sharedPath, mode: '644' });
+      expect(chmod.status).toBe(403);
+
+      const chown = await request(app)
+        .post('/api/permissions/chown')
+        .send({ path: sharedPath, owner: 'root', group: 'root' });
+      expect(chown.status).toBe(403);
+    });
+  });
+
+  describe('Granular write permissions', () => {
+    it('should apply directory write permissions to share access and mutation routes', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-granular-permissions');
+      const sharedFolder = path.join(assignedRoot, 'shared');
+      await fs.mkdir(sharedFolder, { recursive: true });
+      await fs.writeFile(path.join(sharedFolder, 'existing.txt'), 'existing');
+
+      const user = await usersService.createLocalUser({
+        email: 'permissions@example.com',
+        username: 'permissions',
+        displayName: 'Permissions',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'PermissionsVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'PermissionsVol/shared',
+        accessMode: 'readwrite',
+        allowDelete: false,
+        allowCreateFolder: false,
+        allowCreateFile: false,
+        allowUpload: false,
+        sharingType: 'anyone',
+      });
+
+      expect(create.status).toBe(201);
+      expect(create.body.allowDelete).toBe(false);
+      expect(create.body.allowCreateFolder).toBe(false);
+      expect(create.body.allowCreateFile).toBe(false);
+      expect(create.body.allowUpload).toBe(false);
+
+      const guestApp = buildApp();
+      const access = await request(guestApp).get(`/api/share/${create.body.shareToken}/access`);
+      expect(access.status).toBe(200);
+      expect(access.body.guestSessionId).toBeTruthy();
+
+      const sessionHeader = { 'X-Guest-Session': access.body.guestSessionId };
+      const browse = await request(guestApp)
+        .get(`/api/share/${create.body.shareToken}/browse/`)
+        .set(sessionHeader);
+      expect(browse.status).toBe(200);
+      expect(browse.body.access).toMatchObject({
+        canWrite: true,
+        canDelete: false,
+        canUpload: false,
+        canCreateFolder: false,
+        canCreateFile: false,
+      });
+
+      const createFolder = await request(guestApp)
+        .post('/api/files/folder')
+        .set(sessionHeader)
+        .send({ path: `share/${create.body.shareToken}`, name: 'blocked-folder' });
+      expect(createFolder.status).toBe(403);
+
+      const createFile = await request(guestApp)
+        .post('/api/files/file')
+        .set(sessionHeader)
+        .send({ path: `share/${create.body.shareToken}`, name: 'blocked.txt' });
+      expect(createFile.status).toBe(403);
+    });
+
+    it('should default granular permissions to the current full read-write behavior', async () => {
+      const sharesService = envContext.requireFresh('src/services/sharesService');
+      const usersService = envContext.requireFresh('src/services/users');
+      const owner = await usersService.createLocalUser({
+        email: 'default-permissions@example.com',
+        username: 'default-permissions',
+        displayName: 'Default Permissions',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      const share = await sharesService.createShare({
+        ownerId: owner.id,
+        sourceSpace: 'volume',
+        sourcePath: 'Volume/default-permissions',
+        isDirectory: true,
+        accessMode: 'readwrite',
+      });
+
+      expect(share).toMatchObject({
+        allowDelete: true,
+        allowCreateFolder: true,
+        allowCreateFile: true,
+        allowUpload: true,
+      });
+    });
+  });
+
   describe('User Volumes', () => {
     it('should create and browse share from assigned volume path', async () => {
       const usersService = envContext.requireFresh('src/services/users');
@@ -339,10 +568,11 @@ describe('Shares Routes', () => {
       });
 
       expect(create.status).toBe(201);
-      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}`);
+      expect(create.body.directFileUrl).not.toContain('/file');
 
       const publicApp = buildApp();
-      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}`);
 
       expect(direct.status).toBe(200);
       expect(direct.headers['content-disposition']).toContain('inline');
@@ -350,12 +580,164 @@ describe('Shares Routes', () => {
       expect(direct.text).toBe('hello direct link');
 
       const download = await request(publicApp).get(
-        `/api/share/${create.body.shareToken}/file?mode=download`
+        `/api/share/${create.body.shareToken}?mode=download`
       );
 
       expect(download.status).toBe(200);
       expect(download.headers['content-disposition']).toContain('attachment');
       expect(download.headers['content-disposition']).toContain('hello.txt');
+
+      const raw = await request(publicApp).get(`/api/share/${create.body.shareToken}?mode=raw`);
+      expect(raw.status).toBe(200);
+      expect(raw.text).toBe('hello direct link');
+
+      const legacyDirect = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/file`
+      );
+      expect(legacyDirect.status).toBe(200);
+      expect(legacyDirect.text).toBe('hello direct link');
+    });
+
+    it('records the client IP when a shared file is accessed directly', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-ip');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'ip.txt'), 'track my ip');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-ip@example.com',
+        username: 'direct-ip',
+        displayName: 'Direct Ip',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectIpVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectIpVol/ip.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      // Accessing the file directly is the common path for viewing a share; it
+      // must record the access IP (regression: it previously tracked with none).
+      const direct = await request(buildApp()).get(`/api/share/${create.body.shareToken}/file`);
+      expect(direct.status).toBe(200);
+
+      const details = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(details.status).toBe(200);
+      expect(details.body.stats.accessCount).toBeGreaterThan(0);
+      expect(typeof details.body.stats.lastAccessIp).toBe('string');
+      expect(details.body.stats.lastAccessIp.length).toBeGreaterThan(0);
+    });
+
+    it('counts direct attachment deliveries as downloads, inline views as accesses', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-download');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'notes.txt'), 'count my download');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-download@example.com',
+        username: 'direct-download',
+        displayName: 'Direct Download',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectDownloadVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectDownloadVol/notes.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      // Explicit download mode serves an attachment: it must increment the
+      // download counter (regression: it only ever counted an access).
+      const download = await request(buildApp()).get(
+        `/api/share/${create.body.shareToken}/file?mode=download`
+      );
+      expect(download.status).toBe(200);
+      expect(download.headers['content-disposition']).toContain('attachment');
+
+      const afterDownload = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(afterDownload.status).toBe(200);
+      expect(afterDownload.body.stats.downloadCount).toBe(1);
+      expect(afterDownload.body.stats.accessCount).toBe(0);
+      expect(afterDownload.body.stats.lastDownloadedAt).toBeTruthy();
+      expect(typeof afterDownload.body.stats.lastDownloadIp).toBe('string');
+      expect(afterDownload.body.stats.lastDownloadIp.length).toBeGreaterThan(0);
+
+      // An inline view of the same link still counts as an access.
+      const view = await request(buildApp()).get(`/api/share/${create.body.shareToken}/file`);
+      expect(view.status).toBe(200);
+      expect(view.headers['content-disposition']).toContain('inline');
+
+      const afterView = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(afterView.status).toBe(200);
+      expect(afterView.body.stats.accessCount).toBe(1);
+      expect(afterView.body.stats.downloadCount).toBe(1);
+    });
+
+    it('counts a direct directory ZIP delivery as a download', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-direct-zip-count');
+      await fs.mkdir(path.join(assignedRoot, 'folder'), { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'folder', 'nested.txt'), 'nested file');
+
+      const user = await usersService.createLocalUser({
+        email: 'direct-zip-count@example.com',
+        username: 'direct-zip-count',
+        displayName: 'Direct Zip Count',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'DirectZipCountVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'DirectZipCountVol/folder',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const direct = await request(buildApp()).get(`/api/share/${create.body.shareToken}/file`);
+      expect(direct.status).toBe(200);
+      expect(direct.headers['content-disposition']).toContain('attachment');
+
+      const details = await request(ownerApp).get(`/api/shares/${create.body.id}`);
+      expect(details.status).toBe(200);
+      expect(details.body.stats.downloadCount).toBe(1);
+      expect(details.body.stats.accessCount).toBe(0);
     });
 
     it('should redirect a password-protected direct file until the password is verified', async () => {
@@ -393,7 +775,7 @@ describe('Shares Routes', () => {
 
       const publicApp = buildApp();
       const directBeforePassword = await request(publicApp).get(
-        `/api/share/${create.body.shareToken}/file`
+        `/api/share/${create.body.shareToken}`
       );
       expect(directBeforePassword.status).toBe(302);
       expect(directBeforePassword.headers.location).toContain(`/share/${create.body.shareToken}`);
@@ -407,7 +789,7 @@ describe('Shares Routes', () => {
       expect(verify.body.guestSessionId).toBeDefined();
 
       const directAfterPassword = await request(publicApp)
-        .get(`/api/share/${create.body.shareToken}/file`)
+        .get(`/api/share/${create.body.shareToken}`)
         .set('X-Guest-Session', verify.body.guestSessionId);
 
       expect(directAfterPassword.status).toBe(200);
@@ -445,10 +827,11 @@ describe('Shares Routes', () => {
       });
 
       expect(create.status).toBe(201);
-      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}/file`);
+      expect(create.body.directFileUrl).toContain(`/api/share/${create.body.shareToken}`);
+      expect(create.body.directFileUrl).not.toContain('/file');
 
       const publicApp = buildApp();
-      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
+      const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}`);
 
       expect(direct.status).toBe(200);
       expect(direct.headers['content-type']).toContain('application/zip');
@@ -540,6 +923,273 @@ describe('Shares Routes', () => {
       const direct = await request(publicApp).get(`/api/share/${create.body.shareToken}/file`);
 
       expect(direct.status).toBe(403);
+    });
+  });
+
+  describe('Shared Pastebin Editor', () => {
+    it('should keep a read-only public text share read-only', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(
+        path.join(assignedRoot, 'Analyze-FileServerData.ps1'),
+        'Write-Output hello'
+      );
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor@example.com',
+        username: 'shared-editor',
+        displayName: 'Shared Editor',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorVol/Analyze-FileServerData.ps1',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const editor = await request(publicApp).get(`/api/share/${create.body.shareToken}/editor`);
+      expect(editor.status).toBe(200);
+      expect(editor.headers['cache-control']).toBe('private, no-cache');
+      expect(editor.body).toMatchObject({
+        name: 'Analyze-FileServerData.ps1',
+        content: 'Write-Output hello',
+        canDownload: true,
+        canWrite: false,
+      });
+
+      // Friendly links may include the source filename, but no arbitrary child path.
+      const friendly = await request(publicApp).get(
+        `/api/share/${create.body.shareToken}/editor/Analyze-FileServerData.ps1`
+      );
+      expect(friendly.status).toBe(200);
+      expect(friendly.body.path).toBe('');
+
+      const write = await request(publicApp)
+        .put(`/api/share/${create.body.shareToken}/editor`)
+        .send({ content: 'should never be written' });
+      expect(write.status).toBe(403);
+      expect(
+        await fs.readFile(path.join(assignedRoot, 'Analyze-FileServerData.ps1'), 'utf-8')
+      ).toBe('Write-Output hello');
+    });
+
+    it('should send a large shared text file compressed', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-large');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      const content = '# Journal\n\nUne ligne de texte, encore une.\n'.repeat(2000);
+      await fs.writeFile(path.join(assignedRoot, 'journal.md'), content);
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-large@example.com',
+        username: 'shared-editor-large',
+        displayName: 'Shared Editor Large',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorLargeVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const create = await request(buildApp({ user })).post('/api/shares').send({
+        sourcePath: 'SharedEditorLargeVol/journal.md',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const editor = await request(buildApp())
+        .get(`/api/share/${create.body.shareToken}/editor`)
+        .set('Accept-Encoding', 'gzip, deflate');
+      expect(editor.status).toBe(200);
+      expect(editor.headers['content-encoding']).toBe('gzip');
+      expect(editor.headers.vary).toMatch(/accept-encoding/i);
+      expect(editor.body).toMatchObject({ name: 'journal.md', content, canWrite: false });
+    });
+
+    /**
+     * The shared editor's answer says whether the visitor may save. Kept by the
+     * browser and revalidated, it must be read again when that changes, even
+     * though the file did not.
+     */
+    it('should never hide a change of permission behind a 304', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-etag');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'notes.txt'), 'Shared notes');
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-etag@example.com',
+        username: 'shared-editor-etag',
+        displayName: 'Shared Editor Etag',
+        password: 'secret123',
+        roles: ['user'],
+      });
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorEtagVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorEtagVol/notes.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const editorUrl = `/api/share/${create.body.shareToken}/editor`;
+      const first = await request(publicApp).get(editorUrl);
+      expect(first.body).toMatchObject({ content: 'Shared notes', canWrite: false });
+      expect(first.headers.etag).toMatch(/^W\/".+"$/);
+
+      const unchanged = await request(publicApp)
+        .get(editorUrl)
+        .set('If-None-Match', first.headers.etag);
+      expect(unchanged.status).toBe(304);
+
+      const updated = await request(ownerApp)
+        .put(`/api/shares/${create.body.id}`)
+        .send({ accessMode: 'readwrite' });
+      expect(updated.status).toBe(200);
+
+      const after = await request(publicApp)
+        .get(editorUrl)
+        .set('If-None-Match', first.headers.etag);
+      expect(after.status).toBe(200);
+      expect(after.body).toMatchObject({ content: 'Shared notes', canWrite: true });
+      expect(after.headers.etag).not.toBe(first.headers.etag);
+    });
+
+    it('should save a text file only through a read-write share', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-write');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      const filePath = path.join(assignedRoot, 'editable.txt');
+      await fs.writeFile(filePath, 'initial content');
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-write@example.com',
+        username: 'shared-editor-write',
+        displayName: 'Shared Editor Write',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorWriteVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const create = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorWriteVol/editable.txt',
+        accessMode: 'readwrite',
+        sharingType: 'anyone',
+      });
+      expect(create.status).toBe(201);
+
+      const publicApp = buildApp();
+      const editor = await request(publicApp).get(`/api/share/${create.body.shareToken}/editor`);
+      expect(editor.status).toBe(200);
+      expect(editor.body.canWrite).toBe(true);
+
+      const save = await request(publicApp)
+        .put(`/api/share/${create.body.shareToken}/editor`)
+        .send({ content: 'updated through the share' });
+      expect(save.status).toBe(200);
+      expect(await fs.readFile(filePath, 'utf-8')).toBe('updated through the share');
+    });
+
+    it('should require a verified guest session and reject binary shared files', async () => {
+      const usersService = envContext.requireFresh('src/services/users');
+      const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
+
+      const assignedRoot = path.join(envContext.tmpRoot, 'assigned-volume-shared-editor-protected');
+      await fs.mkdir(assignedRoot, { recursive: true });
+      await fs.writeFile(path.join(assignedRoot, 'protected.txt'), 'protected text');
+      await fs.writeFile(path.join(assignedRoot, 'binary.dat'), Buffer.from([0, 1, 2, 3]));
+
+      const user = await usersService.createLocalUser({
+        email: 'shared-editor-protected@example.com',
+        username: 'shared-editor-protected',
+        displayName: 'Shared Editor Protected',
+        password: 'secret123',
+        roles: ['user'],
+      });
+
+      await userVolumesService.addVolumeToUser({
+        userId: user.id,
+        label: 'SharedEditorProtectedVol',
+        volumePath: assignedRoot,
+        accessMode: 'readwrite',
+      });
+
+      const ownerApp = buildApp({ user });
+      const protectedShare = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorProtectedVol/protected.txt',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+        password: 'open-sesame',
+      });
+      const binaryShare = await request(ownerApp).post('/api/shares').send({
+        sourcePath: 'SharedEditorProtectedVol/binary.dat',
+        accessMode: 'readonly',
+        sharingType: 'anyone',
+      });
+      expect(protectedShare.status).toBe(201);
+      expect(binaryShare.status).toBe(201);
+
+      const publicApp = buildApp();
+      const beforeVerification = await request(publicApp).get(
+        `/api/share/${protectedShare.body.shareToken}/editor`
+      );
+      expect(beforeVerification.status).toBe(302);
+
+      const verify = await request(publicApp)
+        .post(`/api/share/${protectedShare.body.shareToken}/verify`)
+        .send({ password: 'open-sesame' });
+      expect(verify.status).toBe(200);
+
+      const afterVerification = await request(publicApp)
+        .get(`/api/share/${protectedShare.body.shareToken}/editor`)
+        .set('X-Guest-Session', verify.body.guestSessionId);
+      expect(afterVerification.status).toBe(200);
+      expect(afterVerification.body.content).toBe('protected text');
+
+      const binary = await request(publicApp).get(
+        `/api/share/${binaryShare.body.shareToken}/editor`
+      );
+      expect(binary.status).toBe(415);
     });
   });
 });

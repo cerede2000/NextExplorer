@@ -2,10 +2,12 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAppSettings } from '@/stores/appSettings';
+import { isEditableExtension } from '@/config/editor';
 import { calculateExpirationDate } from '@/utils/datetime';
 import ModalDialog from '@/components/ModalDialog.vue';
 import {
   createShare,
+  updateShare,
   copyDirectShareFileUrl,
   copyShareUrl,
   DIRECT_SHARE_FILE_MODES,
@@ -22,6 +24,7 @@ import {
   GlobeAltIcon,
   UsersIcon,
   CalendarIcon,
+  ChevronDownIcon,
 } from '@heroicons/vue/24/outline';
 
 const { t } = useI18n();
@@ -30,9 +33,12 @@ const appSettings = useAppSettings();
 const props = defineProps({
   modelValue: Boolean,
   item: Object, // {name, path, kind}
+  share: Object,
+  // Passed through when opened from above a full-screen overlay.
+  elevated: Boolean,
 });
 
-const emit = defineEmits(['update:modelValue', 'shareCreated']);
+const emit = defineEmits(['update:modelValue', 'shareCreated', 'shareUpdated']);
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -44,10 +50,23 @@ const accessMode = ref('readonly');
 const sharingType = ref('anyone');
 const password = ref('');
 const enablePassword = ref(false);
+const passwordDirty = ref(false);
 const selectedUserIds = ref([]);
 const expiresAtDate = ref(null);
 const enableExpiry = ref(false);
 const label = ref('');
+const showAdvancedPermissions = ref(false);
+const allowDelete = ref(true);
+// Not part of the advanced block below: it applies to a single-file share as
+// much as to a folder, and to a read-only share as much as a read-write one.
+const allowDownload = ref(true);
+const allowCreateFolder = ref(true);
+const allowCreateFile = ref(true);
+const allowUpload = ref(true);
+// What the share shows of a file's history: the list of its versions, and the
+// versions themselves.
+const versionsVisible = ref(false);
+const versionsDownload = ref(false);
 
 // UI state
 const isCreating = ref(false);
@@ -62,14 +81,26 @@ const expiresAtInputRef = ref(null);
 let expiresPicker = null;
 
 // Computed
-const isDirectory = computed(() => props.item?.kind === 'directory');
+const isEditing = computed(() => Boolean(props.share?.id));
+const isDirectory = computed(() => {
+  if (props.share?.isDirectory != null) return Boolean(props.share.isDirectory);
+  return props.item?.kind === 'directory';
+});
+const supportsSharedEditor = computed(() => {
+  const name = props.share?.sourcePath || props.item?.name || '';
+  const extension = name.includes('.') ? name.split('.').pop() : '';
+  return !isDirectory.value && isEditableExtension(extension);
+});
 const sourcePath = computed(() => {
+  if (props.share?.sourcePath) return props.share.sourcePath;
   if (!props.item) return '';
   const parentPath = props.item.path || '';
   return parentPath ? `${parentPath}/${props.item.name}` : props.item.name;
 });
 const directLinkModeOptions = computed(() =>
-  DIRECT_SHARE_FILE_MODES.map((mode) => ({
+  DIRECT_SHARE_FILE_MODES.filter(
+    (mode) => mode.value !== 'editor' || supportsSharedEditor.value
+  ).map((mode) => ({
     ...mode,
     label: t(mode.labelKey, mode.fallback),
   }))
@@ -83,17 +114,25 @@ const directShareUrl = computed(() => {
 watch(isOpen, async (opened) => {
   if (opened) {
     resetForm();
-    if (props.item?.name) {
+    if (isEditing.value) {
+      populateShareForm(props.share);
+    } else if (props.item?.name) {
       label.value = props.item.name;
     }
 
-    // Apply default share expiration if user has one set
-    const defaultExpiration = appSettings.userSettings?.defaultShareExpiration;
-    const expirationDate = calculateExpirationDate(defaultExpiration);
+    if (!isEditing.value) {
+      // Apply the default only to new shares; an existing share must keep its
+      // own expiration unchanged until the owner edits it.
+      const defaultExpiration = appSettings.userSettings?.defaultShareExpiration;
+      const expirationDate = calculateExpirationDate(defaultExpiration);
 
-    if (expirationDate) {
-      enableExpiry.value = true;
-      expiresAtDate.value = expirationDate;
+      if (expirationDate) {
+        enableExpiry.value = true;
+        expiresAtDate.value = expirationDate;
+      }
+    }
+
+    if (enableExpiry.value) {
       await nextTick();
       await initExpiresPicker();
     }
@@ -112,20 +151,67 @@ watch(sharingType, async (newType) => {
   }
 });
 
+// A share with named accounts shows the history they would see anyway; a link
+// for anyone shows none until its owner turns it on. Only for a new share: an
+// existing one keeps what its owner chose.
+watch(sharingType, (type) => {
+  if (isEditing.value) return;
+  versionsVisible.value = type === 'users';
+  versionsDownload.value = type === 'users';
+});
+
 function resetForm() {
   accessMode.value = 'readonly';
   sharingType.value = 'anyone';
   password.value = '';
   enablePassword.value = false;
+  passwordDirty.value = false;
   selectedUserIds.value = [];
   expiresAtDate.value = null;
   enableExpiry.value = false;
   label.value = '';
+  showAdvancedPermissions.value = false;
+  allowDelete.value = true;
+  allowDownload.value = true;
+  allowCreateFolder.value = true;
+  allowCreateFile.value = true;
+  allowUpload.value = true;
+  versionsVisible.value = false;
+  versionsDownload.value = false;
   error.value = '';
   shareResult.value = null;
   linkCopied.value = false;
   directLinkCopied.value = false;
   directLinkMode.value = 'auto';
+}
+
+function populateShareForm(share) {
+  accessMode.value = share.accessMode || 'readonly';
+  sharingType.value = share.sharingType || 'anyone';
+  enablePassword.value = Boolean(share.hasPassword);
+  selectedUserIds.value = Array.isArray(share.permittedUserIds) ? [...share.permittedUserIds] : [];
+  label.value = share.label || '';
+  allowDelete.value = share.allowDelete !== false;
+  allowDownload.value = share.allowDownload !== false;
+  allowCreateFolder.value = share.allowCreateFolder !== false;
+  allowCreateFile.value = share.allowCreateFile !== false;
+  allowUpload.value = share.allowUpload !== false;
+  versionsVisible.value = share.versionsVisible === true;
+  versionsDownload.value = share.versionsDownload === true;
+  showAdvancedPermissions.value =
+    isDirectory.value &&
+    (allowDelete.value === false ||
+      allowCreateFolder.value === false ||
+      allowCreateFile.value === false ||
+      allowUpload.value === false);
+
+  if (share.expiresAt) {
+    const date = new Date(share.expiresAt);
+    if (!Number.isNaN(date.getTime())) {
+      enableExpiry.value = true;
+      expiresAtDate.value = date;
+    }
+  }
 }
 
 function destroyExpiresPicker() {
@@ -199,8 +285,8 @@ function toggleUserSelection(userId) {
   }
 }
 
-async function createShareLink() {
-  if (!sourcePath.value) {
+async function submitShare() {
+  if (!isEditing.value && !sourcePath.value) {
     error.value = t(
       'share.errors.invalidSourcePath',
       'Unable to determine the item path to share.'
@@ -230,15 +316,38 @@ async function createShareLink() {
     error.value = '';
 
     const shareData = {
-      sourcePath: sourcePath.value,
       accessMode: accessMode.value,
+      allowDelete: allowDelete.value,
+      allowDownload: allowDownload.value,
+      allowCreateFolder: allowCreateFolder.value,
+      allowCreateFile: allowCreateFile.value,
+      allowUpload: allowUpload.value,
+      versionsVisible: versionsVisible.value,
+      versionsDownload: versionsVisible.value && versionsDownload.value,
       sharingType: sharingType.value,
-      password: enablePassword.value ? password.value : null,
       userIds: sharingType.value === 'users' ? selectedUserIds.value : [],
       expiresAt:
         enableExpiry.value && expiresAtDate.value ? expiresAtDate.value.toISOString() : null,
       label: label.value || null,
     };
+
+    if (isEditing.value) {
+      // Passwords apply only to anyone-with-link shares. Clear an old password
+      // when switching to named users so it cannot unexpectedly apply again if
+      // the link is later made public.
+      if (sharingType.value === 'users') {
+        shareData.password = null;
+      } else if (passwordDirty.value) {
+        shareData.password = enablePassword.value ? password.value : null;
+      }
+      const result = await updateShare(props.share.id, shareData);
+      emit('shareUpdated', result);
+      closeDialog();
+      return;
+    }
+
+    shareData.sourcePath = sourcePath.value;
+    shareData.password = enablePassword.value ? password.value : null;
 
     const result = await createShare(shareData);
     shareResult.value = result;
@@ -285,14 +394,20 @@ function closeDialog() {
 </script>
 
 <template>
-  <ModalDialog v-model="isOpen">
+  <ModalDialog v-model="isOpen" :elevated="props.elevated">
     <template #title>
       <ShareIcon class="w-5 h-5" />
-      {{ shareResult ? t('share.shareCreated') : t('share.createShareLink') }}
+      {{
+        shareResult
+          ? t('share.shareCreated')
+          : isEditing
+            ? t('share.editShareLink', 'Edit share link')
+            : t('share.createShareLink')
+      }}
     </template>
 
     <!-- Share created success view -->
-    <div v-if="shareResult" class="space-y-4">
+    <div v-if="shareResult && !isEditing" class="space-y-4">
       <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
         <div class="flex items-center gap-2 text-green-800 dark:text-green-200">
           <CheckIcon class="w-5 h-5" />
@@ -396,7 +511,7 @@ function closeDialog() {
       </div>
     </div>
 
-    <!-- Share creation form -->
+    <!-- Share creation and editing form -->
     <div v-else class="space-y-4">
       <div
         v-if="error"
@@ -410,7 +525,9 @@ function closeDialog() {
         <div class="text-sm text-gray-500 dark:text-gray-400">
           {{ t('share.sharing') }}
         </div>
-        <div class="font-medium">{{ item?.name }}</div>
+        <div class="font-medium">
+          {{ share?.label || share?.sourcePath?.split('/').filter(Boolean).pop() || item?.name }}
+        </div>
         <div class="text-xs text-gray-500">{{ sourcePath }}</div>
       </div>
 
@@ -451,6 +568,112 @@ function closeDialog() {
           >
             {{ t('settings.access.readWrite') }}
           </button>
+        </div>
+      </div>
+
+      <!-- Downloading is its own question: a share can be readable without
+           being copyable, and that holds for a single file as much as a
+           folder. So it sits here rather than inside the advanced block, which
+           only appears for a read-write folder. -->
+      <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+        <span>
+          {{ t('share.allowDownload', 'Allow downloading') }}
+          <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+            {{
+              t(
+                'share.allowDownloadHelp',
+                'Turn this off to let people read the files without taking a copy.'
+              )
+            }}
+          </span>
+        </span>
+        <input
+          v-model="allowDownload"
+          type="checkbox"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </label>
+
+      <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+        <span>
+          {{ t('share.versionsVisible') }}
+          <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+            {{ t('share.versionsVisibleHelp') }}
+          </span>
+        </span>
+        <input
+          v-model="versionsVisible"
+          type="checkbox"
+          data-test="share-versions-visible"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </label>
+      <label
+        class="flex items-center justify-between gap-3 text-sm"
+        :class="versionsVisible ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
+      >
+        <span>{{ t('share.versionsDownload') }}</span>
+        <input
+          v-model="versionsDownload"
+          type="checkbox"
+          :disabled="!versionsVisible"
+          data-test="share-versions-download"
+          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </label>
+
+      <div
+        v-if="isDirectory && accessMode === 'readwrite'"
+        class="rounded-lg border border-zinc-200 dark:border-zinc-700"
+      >
+        <button
+          type="button"
+          class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          :aria-expanded="showAdvancedPermissions"
+          @click="showAdvancedPermissions = !showAdvancedPermissions"
+        >
+          {{ t('share.advancedPermissions', 'Advanced') }}
+          <ChevronDownIcon
+            class="h-4 w-4 transition-transform"
+            :class="showAdvancedPermissions ? 'rotate-180' : ''"
+          />
+        </button>
+        <div
+          v-if="showAdvancedPermissions"
+          class="space-y-2 border-t border-zinc-200 p-3 dark:border-zinc-700"
+        >
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowDelete', 'Allow deleting files') }}</span>
+            <input
+              v-model="allowDelete"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowCreateFolder', 'Allow creating folders') }}</span>
+            <input
+              v-model="allowCreateFolder"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowCreateFile', 'Allow creating files') }}</span>
+            <input
+              v-model="allowCreateFile"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>{{ t('share.allowUpload', 'Allow uploading files and folders') }}</span>
+            <input
+              v-model="allowUpload"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </label>
         </div>
       </div>
 
@@ -521,6 +744,7 @@ function closeDialog() {
           <input
             v-model="enablePassword"
             type="checkbox"
+            @change="passwordDirty = true"
             class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
           <LockClosedIcon class="w-4 h-4" />
@@ -530,6 +754,7 @@ function closeDialog() {
           v-if="enablePassword"
           v-model="password"
           type="password"
+          @input="passwordDirty = true"
           :placeholder="t('share.enterPassword')"
           class="w-full px-3 py-2 text-sm border rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -566,11 +791,17 @@ function closeDialog() {
           {{ t('common.cancel') }}
         </button>
         <button
-          @click="createShareLink"
+          @click="submitShare"
           :disabled="isCreating"
           class="px-4 py-2 text-sm font-medium text-white transition bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
-          {{ isCreating ? t('share.creating') : t('share.createShareLink') }}
+          {{
+            isCreating
+              ? t('share.creating')
+              : isEditing
+                ? t('share.saveShare', 'Save changes')
+                : t('share.createShareLink')
+          }}
         </button>
       </div>
     </div>
