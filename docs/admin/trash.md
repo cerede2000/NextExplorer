@@ -18,7 +18,7 @@ Deleting a file or folder moves it to the trash instead of removing it. It stays
 
 ## Acting on an item
 
-Right-click an item on the **Trash** page — or hold it on a touch screen, or press the menu key on its checkbox — for what can be done with it: open a deleted folder, preview a file, restore it where it was, open its original location, or delete it for good. With several items selected, the menu acts on all of them. A double click opens a deleted folder, or previews a file.
+Right-click an item on the **Trash** page — or hold it on a touch screen, or press the menu key on its checkbox — for what can be done with it: open a deleted folder, preview a file, restore it where it was or somewhere else, open its original location, or delete it for good. With several items selected, the menu acts on all of them. A double click opens a deleted folder, or previews a file.
 
 **Preview** shows a text file — plain text, Markdown, scripts, code: the extensions the editor opens — in the editor, **read only**: nothing can be typed, there is no Save, and Close goes back to the trash. The file is read with the editor's limits, so a file that is too large, or not text, is not shown. Nothing in the trash can be changed this way.
 
@@ -31,22 +31,32 @@ A deleted folder is one item in the trash, however much it holds. Click its name
 - Whoever may restore the folder may restore what is inside it, under the same conditions.
 - A symbolic link inside a deleted folder is listed and restored as the link it is; nothing is ever opened through it. A restore is refused when the place it would go back to now leads outside the volume through a link.
 
+## Restoring somewhere else
+
+**Restore to…** puts what is selected — whole items, or entries of a deleted folder — into a folder you choose, with the same dialog as **Move to**.
+
+- It takes two rights: the right to restore the item at all, which is the same as restoring it where it was, so the trash never gives back an access that was taken away since; and the right to create files — and folders, for a folder — in the destination.
+- On the same disk it is a rename, instant whatever the size. On another disk it is a copy, shown with its progress like a transfer, and it can be cancelled. The item leaves the trash only once its copy is complete; a copy that is cancelled, fails or is interrupted by a crash leaves nothing behind in the destination, and the item stays in the trash.
+- A name that is taken in the destination gets a suffix; nothing is replaced.
+- The destination is added to your recent destinations.
+
 ## Share links
 
 - When shared content goes to the trash, its share links — and those of anything inside a deleted folder — stop working at once: nothing in the trash stays public. The delete dialog says so beforehand. The links are kept with the item.
 - When it is restored, you choose: **Restore the share links** brings them back as they were — same link, password, expiry, permitted people and label — or **Delete the share links** lets them go. Without a choice, they are deleted.
+- Restored somewhere else, share links point at the new location. Only the links you own follow content you restore elsewhere — an administrator's restore brings all of them; the others are deleted.
 - A share link that expired while in the trash, or whose owner no longer exists, cannot come back.
 - Deleted for good — from the trash, by emptying it, at the end of its retention, or straight away — an item takes its share links with it for good.
 - Visits opened through a link are not kept: whoever had it open opens it again.
 
 ## What a restore keeps
 
-Deleting and restoring on the same disk are renames: a file or folder comes back with its owner, permissions, ACLs, extended attributes and modification times as they were. A copy to another disk goes through the same copy as a transfer: in the container, `rsync` keeps permissions and modification times, and the copied files belong to the user the application runs as.
+Deleting and restoring on the same disk are renames: a file or folder comes back with its owner, permissions, ACLs, extended attributes and modification times as they were. A copy to another disk goes through the same copy as a transfer: in the container, `rsync` keeps permissions (see `COPY_PRESERVE_PERMISSIONS`) and modification times, and the copied files belong to the user the application runs as.
 
 Some things do not come back:
 
 - a folder recreated on the way back, because it no longer existed, is new, with the permissions the application gives new folders;
-- the favorites pointing at an item are forgotten when it goes to the trash, and a restore does not bring them back. Share links are the exception: see [Share links](#share-links).
+- the favorites, per-folder preferences and recent destinations pointing at an item are forgotten when it goes to the trash, and a restore does not bring them back. Share links are the exception: see [Share links](#share-links).
 
 Access rules and assigned volumes are set on paths, not on items, so they apply again as soon as an item is back under the path they name.
 
