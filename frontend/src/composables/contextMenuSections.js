@@ -3,6 +3,7 @@ import {
   DocumentTextIcon,
   CommandLineIcon,
   ArrowDownTrayIcon,
+  DocumentArrowDownIcon,
   ShareIcon,
   ArchiveBoxArrowDownIcon,
   ArrowUpOnSquareIcon,
@@ -225,11 +226,25 @@ const itemSections = (situation, run, entries, words) => {
     sections.push(openSection);
   }
 
-  sections.push([
-    mk('download', t('actions.download'), ArrowDownTrayIcon, run.download, {
-      disabled: !situation.hasSelection,
-    }),
-  ]);
+  // Two entries only where they do two different things: several items, at
+  // least one of them a file. The account's own choice is offered first, so the
+  // habit stays in the same place and the other way is one line below it.
+  if (situation.canDownloadSeparately) {
+    const asZip = mk('download-zip', t('download.asZip'), ArrowDownTrayIcon, run.downloadAsZip);
+    const asFiles = mk(
+      'download-separate',
+      t('download.asSeparateFiles'),
+      DocumentArrowDownIcon,
+      run.downloadSeparately
+    );
+    sections.push(situation.downloadMode === 'separate' ? [asFiles, asZip] : [asZip, asFiles]);
+  } else {
+    sections.push([
+      mk('download', t('actions.download'), ArrowDownTrayIcon, run.download, {
+        disabled: !situation.hasSelection,
+      }),
+    ]);
+  }
 
   const archives = archiveSection(situation, run, entries, t);
   if (archives.length) sections.push(archives);

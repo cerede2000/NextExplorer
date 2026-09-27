@@ -381,10 +381,22 @@
     "hintPattern": "Użyj * i ? aby filtrować nazwy plików, na przykład *.ps1"
   },
   "download": {
-    "preparing": "Przygotowywanie pobierania..."
+    "preparing": "Przygotowywanie pobierania...",
+    "asZip": "Pobierz jako archiwum ZIP",
+    "asSeparateFiles": "Pobierz jako osobne pliki",
+    "chooseMode": "Wybierz sposób pobierania",
+    "confirmHeading": "Pobrać {count} plików osobno?",
+    "confirmBody": "Rozpocznie to {count} pobrań naraz. Archiwum ZIP byłoby jednym plikiem.",
+    "confirmFolders": "Wybrane foldery w obu przypadkach przychodzą jako jedno archiwum.",
+    "confirmSeparate": "Pobierz osobno",
+    "confirmZip": "Pobierz ZIP",
+    "wrote": "Zapisano {count} {items} w {folder}",
+    "renamed": "Zmieniono nazwy, aby nic nie zostało nadpisane: {names}",
+    "failed": "Pobieranie zostało przerwane"
   },
   "clipboard": {
     "copying": "Kopiowanie {count} {items}…",
+    "downloading": "Pobieranie {count} {items}…",
     "moving": "Przenoszenie {count} {items}…",
     "working": "Przetwarzanie…",
     "activeTasks": "{count} operacji w toku",
@@ -579,6 +591,10 @@
       "viewPhotos": "Zdjęcia",
       "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
       "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
+      "downloadMode": "Pobieranie wielu elementów",
+      "downloadModeHelp": "Co się dzieje przy pobieraniu więcej niż jednego elementu naraz. Wybrane foldery zawsze przychodzą jako jedno archiwum.",
+      "downloadModeZip": "Jedno archiwum ZIP",
+      "downloadModeSeparate": "Osobne pliki",
       "showVersionMarks": "Oznaczaj pliki, które mają wersje",
       "showVersionMarksHelp": "Mały znak na liście przy plikach z wcześniejszymi wersjami, wraz z ich liczbą. Kliknięcie otwiera historię.",
       "languageHelp": "Zapisywany przy koncie, w każdej przeglądarce, w której się logujesz.",

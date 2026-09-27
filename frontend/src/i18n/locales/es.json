@@ -381,10 +381,22 @@
     "hintPattern": "Use * y ? para filtrar nombres de archivo, por ejemplo *.ps1"
   },
   "download": {
-    "preparing": "Preparando descarga..."
+    "preparing": "Preparando descarga...",
+    "asZip": "Descargar como archivo ZIP",
+    "asSeparateFiles": "Descargar como archivos separados",
+    "chooseMode": "Elegir cómo descargar",
+    "confirmHeading": "¿Descargar {count} archivos por separado?",
+    "confirmBody": "Eso inicia {count} descargas a la vez. Un archivo ZIP sería un solo archivo.",
+    "confirmFolders": "Las carpetas seleccionadas llegan como un único archivo comprimido en ambos casos.",
+    "confirmSeparate": "Descargar por separado",
+    "confirmZip": "Descargar un ZIP",
+    "wrote": "{count} {items} escritos en {folder}",
+    "renamed": "Renombrados para no reemplazar nada: {names}",
+    "failed": "La descarga se detuvo"
   },
   "clipboard": {
     "copying": "Copiando {count} {items}…",
+    "downloading": "Descargando {count} {items}…",
     "moving": "Moviendo {count} {items}…",
     "working": "Procesando…",
     "activeTasks": "{count} operaciones en curso",
@@ -579,6 +591,10 @@
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Abrir los documentos en una pestaña nueva",
       "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora.",
+      "downloadMode": "Descargar varios elementos",
+      "downloadModeHelp": "Qué ocurre al descargar más de un elemento a la vez. Las carpetas seleccionadas siempre llegan como un único archivo comprimido.",
+      "downloadModeZip": "Un archivo ZIP",
+      "downloadModeSeparate": "Archivos separados",
       "showVersionMarks": "Marcar los archivos con versiones",
       "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial.",
       "languageHelp": "Se guarda con su cuenta, en cualquier navegador desde el que inicie sesión.",

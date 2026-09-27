@@ -381,10 +381,22 @@
     "hintPattern": "Use * e ? para filtrar nomes de arquivos, por exemplo *.ps1"
   },
   "download": {
-    "preparing": "Preparando download..."
+    "preparing": "Preparando download...",
+    "asZip": "Baixar como arquivo ZIP",
+    "asSeparateFiles": "Baixar como arquivos separados",
+    "chooseMode": "Escolher como baixar",
+    "confirmHeading": "Baixar {count} arquivos separadamente?",
+    "confirmBody": "Isso inicia {count} downloads de uma vez. Um arquivo ZIP seria um único arquivo.",
+    "confirmFolders": "As pastas selecionadas chegam como um único arquivo compactado nos dois casos.",
+    "confirmSeparate": "Baixar separadamente",
+    "confirmZip": "Baixar um ZIP",
+    "wrote": "{count} {items} gravados em {folder}",
+    "renamed": "Renomeados para não substituir nada: {names}",
+    "failed": "O download parou"
   },
   "clipboard": {
     "copying": "Copiando {count} {items}…",
+    "downloading": "Baixando {count} {items}…",
     "moving": "Movendo {count} {items}…",
     "working": "Trabalhando…",
     "activeTasks": "{count} operações em andamento",
@@ -579,6 +591,10 @@
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Abrir documentos em uma nova aba",
       "documentsOpenInNewTabHelp": "Abrir um arquivo lhe dá uma aba do navegador só dele, então vários continuam abertos enquanto você navega. Desligado, ele abre sobre a pasta como hoje.",
+      "downloadMode": "Baixar vários itens",
+      "downloadModeHelp": "O que acontece ao baixar mais de um item de uma vez. As pastas selecionadas sempre chegam como um único arquivo compactado.",
+      "downloadModeZip": "Um único arquivo ZIP",
+      "downloadModeSeparate": "Arquivos separados",
       "showVersionMarks": "Marcar arquivos que têm versões",
       "showVersionMarksHelp": "Uma pequena marca na lista nos arquivos com versões anteriores, com a quantidade. Clique nela para abrir o histórico.",
       "languageHelp": "Salvo na sua conta, em todos os navegadores onde você entrar.",

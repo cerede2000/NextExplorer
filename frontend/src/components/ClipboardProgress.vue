@@ -156,6 +156,13 @@ const progressLabelFor = (value, rate = rateFor(value)) => {
 const titleFor = (value) => {
   if (!value) return '';
 
+  if (value.type === 'download') {
+    const count = Number(value.itemCount) || 1;
+    return t('clipboard.downloading', {
+      count,
+      items: count === 1 ? t('common.item') : t('common.items'),
+    });
+  }
   if (value.type === 'extract') return t('clipboard.extracting', { name: value.name || '' });
   if (value.type === 'compress') return t('clipboard.compressing', { name: value.name || '' });
   if (value.type === 'upload') {

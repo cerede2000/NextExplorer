@@ -1,8 +1,10 @@
 import { computed } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
 import { useFeaturesStore } from '@/stores/features';
+import { useAppSettings } from '@/stores/appSettings';
 import { buildUrl, expectBrowserNavigation, normalizePath } from '@/api';
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
+import { useSeparateDownload } from '@/composables/useSeparateDownload';
 
 function isEditableElement(el) {
   if (!el) return false;
@@ -226,15 +228,67 @@ export function useFileActions() {
     document.body.removeChild(form);
   };
 
-  const runDownload = () => {
-    if (!hasSelection.value) return;
+  /**
+   * What a selection of several things becomes on the way out (#487).
+   *
+   * A single file has always come down as itself, and a single folder can only
+   * be an archive, so the choice exists exactly when there are several things
+   * and at least one of them is a file. Where there is no choice, nothing is
+   * offered — a menu entry that does the same as the one above it is noise.
+   */
+  const downloadableSelection = computed(() =>
+    selectedItems.value.filter((item) => !isOutsideLink(item))
+  );
+  const selectedFolderCount = computed(
+    () => downloadableSelection.value.filter((item) => item?.kind === 'directory').length
+  );
+  const selectedFileCount = computed(
+    () => downloadableSelection.value.length - selectedFolderCount.value
+  );
+  const canDownloadSeparately = computed(
+    () => downloadableSelection.value.length > 1 && selectedFileCount.value > 0
+  );
 
-    const paths = selectedItems.value
-      .filter((item) => !isOutsideLink(item))
-      .map(resolveItemPath)
-      .filter(Boolean);
-    submitDownloadRequest(paths, currentDirectoryPath.value);
+  /**
+   * zip unless this account asked otherwise; zip for everyone until they do.
+   *
+   * The settings store is reached for here rather than when this composable is
+   * built: every screen that offers an action builds it, and most of them never
+   * ask about downloading at all.
+   */
+  const downloadMode = computed(() =>
+    useAppSettings().userSettings?.downloadMode === 'separate' ? 'separate' : 'zip'
+  );
+
+  const selectionPaths = () => downloadableSelection.value.map(resolveItemPath).filter(Boolean);
+
+  const runDownloadAsZip = () => {
+    if (!hasSelection.value) return;
+    submitDownloadRequest(selectionPaths(), currentDirectoryPath.value);
   };
+
+  const runDownloadSeparately = async () => {
+    if (!hasSelection.value) return;
+    if (!canDownloadSeparately.value) {
+      runDownloadAsZip();
+      return;
+    }
+
+    const outcome = await useSeparateDownload().run({
+      paths: selectionPaths(),
+      basePath: currentDirectoryPath.value,
+      fileCount: selectedFileCount.value,
+      folderCount: selectedFolderCount.value,
+    });
+
+    // The question about a large selection offers the archive as an answer.
+    if (outcome === 'zip') runDownloadAsZip();
+  };
+
+  const runDownload = () =>
+    downloadMode.value === 'separate' && canDownloadSeparately.value
+      ? runDownloadSeparately()
+      : runDownloadAsZip();
 
   const runDownloadCurrentFolder = () => {
     if (!canDownloadCurrentFolder.value) return;
@@ -258,6 +312,10 @@ export function useFileActions() {
     canCopy,
     canPaste,
     canDelete,
+    canDownloadSeparately,
+    downloadMode,
+    selectedFileCount,
+    selectedFolderCount,
     canRename,
     isArchiveSelected,
     canExtractArchive,
@@ -281,6 +339,8 @@ export function useFileActions() {
     runCompressToZip,
     deleteNow,
     runDownload,
+    runDownloadAsZip,
+    runDownloadSeparately,
     runDownloadCurrentFolder,
   };
 }

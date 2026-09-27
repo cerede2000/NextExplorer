@@ -381,10 +381,22 @@
     "hintPattern": "Folosiți * și ? pentru a filtra numele fișierelor, de exemplu *.ps1"
   },
   "download": {
-    "preparing": "Se pregătește descărcarea..."
+    "preparing": "Se pregătește descărcarea...",
+    "asZip": "Descarcă drept arhivă ZIP",
+    "asSeparateFiles": "Descarcă drept fișiere separate",
+    "chooseMode": "Alege modul de descărcare",
+    "confirmHeading": "Se descarcă {count} fișiere separat?",
+    "confirmBody": "Asta pornește {count} descărcări deodată. O arhivă ZIP ar fi un singur fișier.",
+    "confirmFolders": "Folderele selectate vin ca o singură arhivă în ambele cazuri.",
+    "confirmSeparate": "Descarcă separat",
+    "confirmZip": "Descarcă un ZIP",
+    "wrote": "{count} {items} scrise în {folder}",
+    "renamed": "Redenumite ca să nu fie înlocuit nimic: {names}",
+    "failed": "Descărcarea s-a oprit"
   },
   "clipboard": {
     "copying": "Se copiază {count} {items}…",
+    "downloading": "Se descarcă {count} {items}…",
     "moving": "Se mută {count} {items}…",
     "working": "În lucru…",
     "activeTasks": "{count} operațiuni în curs",
@@ -579,6 +591,10 @@
       "viewPhotos": "Fotografii",
       "documentsOpenInNewTab": "Deschide documentele într-o filă nouă",
       "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
+      "downloadMode": "Descărcarea mai multor elemente",
+      "downloadModeHelp": "Ce se întâmplă când se descarcă mai mult de un element deodată. Folderele selectate vin întotdeauna ca o singură arhivă.",
+      "downloadModeZip": "O singură arhivă ZIP",
+      "downloadModeSeparate": "Fișiere separate",
       "showVersionMarks": "Marchează fișierele care au versiuni",
       "showVersionMarksHelp": "Un semn discret în listă pe fișierele cu versiuni anterioare, cu numărul lor. Un clic deschide istoricul.",
       "languageHelp": "Se păstrează în contul dumneavoastră, în orice browser din care vă conectați.",

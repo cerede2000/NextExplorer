@@ -13,10 +13,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let storeState;
 let featuresState;
+let appSettingsState;
 const pick = vi.fn();
+const runSeparately = vi.fn();
 
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => storeState }));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => featuresState }));
+vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => appSettingsState }));
+vi.mock('@/composables/useSeparateDownload', () => ({
+  useSeparateDownload: () => ({ run: runSeparately }),
+}));
 vi.mock('@/composables/useDestinationPicker', () => ({
   useDestinationPicker: () => ({ pick }),
 }));
@@ -38,7 +44,13 @@ const FILE = { name: 'report.docx', path: 'Docs', kind: 'docx' };
 const ZIP = { name: 'backup.zip', path: 'Docs', kind: 'zip' };
 
 /** Everything permitted, one ordinary file selected — the baseline each test bends. */
-const setup = ({ selection = [FILE], permissions = {}, path = 'Docs', extra = {} } = {}) => {
+const setup = ({
+  selection = [FILE],
+  permissions = {},
+  path = 'Docs',
+  extra = {},
+  userSettings = {},
+} = {}) => {
   storeState = {
     selectedItems: selection,
     hasSelection: selection.length > 0,
@@ -69,11 +81,14 @@ const setup = ({ selection = [FILE], permissions = {}, path = 'Docs', extra = {}
     ...extra,
   };
   featuresState = { archiveExtensions: ['zip', '7z', 'rar'] };
+  appSettingsState = { userSettings: { downloadMode: 'zip', ...userSettings } };
   return { actions: useFileActions(), store: storeState };
 };
 
 beforeEach(() => {
   pick.mockReset();
+  runSeparately.mockReset();
+  runSeparately.mockResolvedValue('done');
 });
 
 describe('each guard reads the permission it is named after', () => {
@@ -442,6 +457,103 @@ describe('a link out of the volume', () => {
     actions.runDownload();
 
     expect(submitted).toEqual(['Docs/report.docx']);
+    submit.mockRestore();
+  });
+});
+
+/**
+ * Which of the two ways a selection leaves by (#487).
+ *
+ * The choice only exists where the two ways differ, and where it does not the
+ * preference must not invent it: one file downloads as itself either way, and
+ * one folder can only be an archive. A menu entry doing what the entry above it
+ * does is worse than no entry, so the guard is what the menu is built from.
+ */
+describe('downloading a selection as separate files', () => {
+  const FOLDER = { name: 'Photos', path: 'Docs', kind: 'directory' };
+  const OTHER = { name: 'note.txt', path: 'Docs', kind: 'txt' };
+
+  const formSubmits = () =>
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {});
+
+  it.each([
+    ['one file', [FILE], false],
+    ['one folder', [FOLDER], false],
+    ['two folders and nothing else', [FOLDER, { ...FOLDER, name: 'Scans' }], false],
+    ['two files', [FILE, OTHER], true],
+    ['a folder and a file', [FOLDER, FILE], true],
+  ])('is offered for %s: %s', (_label, selection, expected) => {
+    expect(setup({ selection }).actions.canDownloadSeparately.value).toBe(expected);
+  });
+
+  it('counts the files and the folders apart, as the question needs them', () => {
+    const { actions } = setup({ selection: [FOLDER, FILE, OTHER] });
+    expect(actions.selectedFileCount.value).toBe(2);
+    expect(actions.selectedFolderCount.value).toBe(1);
+  });
+
+  it('takes the account at its word when it asked for separate files', async () => {
+    const submit = formSubmits();
+    const { actions } = setup({
+      selection: [FILE, OTHER],
+      userSettings: { downloadMode: 'separate' },
+    });
+
+    await actions.runDownload();
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(runSeparately).toHaveBeenCalledWith({
+      paths: ['Docs/report.docx', 'Docs/note.txt'],
+      basePath: 'Docs',
+      fileCount: 2,
+      folderCount: 0,
+    });
+    submit.mockRestore();
+  });
+
+  /** One file is the same download either way, and the server already sends it. */
+  it('still posts the form when the selection leaves no choice', async () => {
+    const submit = formSubmits();
+    const { actions } = setup({ selection: [FILE], userSettings: { downloadMode: 'separate' } });
+
+    await actions.runDownload();
+
+    expect(runSeparately).not.toHaveBeenCalled();
+    expect(submit).toHaveBeenCalled();
+    submit.mockRestore();
+  });
+
+  it('leaves the archive alone for an account that never asked', async () => {
+    const submit = formSubmits();
+    const { actions } = setup({ selection: [FILE, OTHER] });
+
+    await actions.runDownload();
+
+    expect(runSeparately).not.toHaveBeenCalled();
+    expect(submit).toHaveBeenCalled();
+    submit.mockRestore();
+  });
+
+  /** The question about a large selection offers the archive as an answer. */
+  it('downloads the archive when the question was answered that way', async () => {
+    const submit = formSubmits();
+    runSeparately.mockResolvedValue('zip');
+    const { actions } = setup({ selection: [FILE, OTHER] });
+
+    await actions.runDownloadSeparately();
+
+    expect(submit).toHaveBeenCalled();
+    submit.mockRestore();
+  });
+
+  it.each(['cancelled', 'failed', 'done'])('downloads nothing else after %s', async (outcome) => {
+    const submit = formSubmits();
+    runSeparately.mockResolvedValue(outcome);
+    const { actions } = setup({ selection: [FILE, OTHER] });
+
+    await actions.runDownloadSeparately();
+
+    expect(submit).not.toHaveBeenCalled();
     submit.mockRestore();
   });
 });

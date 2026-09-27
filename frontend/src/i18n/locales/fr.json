@@ -381,10 +381,22 @@
     "hintPattern": "Utilisez * et ? pour filtrer les noms de fichiers, par exemple *.ps1"
   },
   "download": {
-    "preparing": "Préparation du téléchargement..."
+    "preparing": "Préparation du téléchargement...",
+    "asZip": "Télécharger dans une archive ZIP",
+    "asSeparateFiles": "Télécharger en fichiers séparés",
+    "chooseMode": "Choisir le mode de téléchargement",
+    "confirmHeading": "Télécharger {count} fichiers séparément ?",
+    "confirmBody": "Cela lance {count} téléchargements d'un coup. Une archive ZIP n'en ferait qu'un seul fichier.",
+    "confirmFolders": "Les dossiers sélectionnés arrivent dans une archive dans les deux cas.",
+    "confirmSeparate": "Télécharger séparément",
+    "confirmZip": "Télécharger un ZIP",
+    "wrote": "{count} {items} écrits dans {folder}",
+    "renamed": "Renommés pour ne rien remplacer : {names}",
+    "failed": "Le téléchargement s'est arrêté"
   },
   "clipboard": {
     "copying": "Copie de {count} {items}…",
+    "downloading": "Téléchargement de {count} {items}…",
     "moving": "Déplacement de {count} {items}…",
     "working": "Traitement…",
     "activeTasks": "{count} opérations en cours",
@@ -579,6 +591,10 @@
       "viewPhotos": "Photos",
       "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
       "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
+      "downloadMode": "Téléchargement de plusieurs éléments",
+      "downloadModeHelp": "Ce qui se passe quand plusieurs éléments sont téléchargés à la fois. Les dossiers sélectionnés arrivent toujours dans une archive.",
+      "downloadModeZip": "Une archive ZIP",
+      "downloadModeSeparate": "Fichiers séparés",
       "showVersionMarks": "Signaler les fichiers qui ont des versions",
       "showVersionMarksHelp": "Une petite marque dans la liste sur les fichiers qui ont des versions antérieures, avec leur nombre. Cliquez dessus pour ouvrir l’historique.",
       "languageHelp": "Conservée avec votre compte, sur chaque navigateur où vous vous connectez.",

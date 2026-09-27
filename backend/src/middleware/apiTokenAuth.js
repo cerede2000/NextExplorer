@@ -55,10 +55,14 @@ const ALWAYS_OPEN = new Set(['/api/auth/me']);
  *
  * Downloading a selection sends the list of names in a body because a hundred
  * of them do not fit in a URL. It writes nothing, so refusing it to a
- * read-only token would be refusing a read — and an allowlist of one is easier
+ * read-only token would be refusing a read — and a short allowlist is easier
  * to keep honest than a rule about which POSTs are really reads.
+ *
+ * Asking for the same selection as separate files is the same read, described
+ * before it is taken: it resolves the names and answers with sizes. The parts
+ * themselves arrive as GETs and never come through here.
  */
-const READ_ONLY_POSTS = new Set(['/api/download']);
+const READ_ONLY_POSTS = new Set(['/api/download', '/api/download/plan']);
 
 /**
  * Every way this path could be read, reduced to one spelling each.

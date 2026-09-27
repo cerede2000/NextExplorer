@@ -12,6 +12,7 @@ const {
   stream,
   errors,
   splatParam,
+  pathParam,
   query,
   header,
   body,
@@ -393,6 +394,80 @@ module.exports = {
       responses: {
         200: {
           description: 'The file, or a zip.',
+          content: {
+            'application/octet-stream': { schema: { type: 'string', format: 'binary' } },
+            'application/zip': { schema: { type: 'string', format: 'binary' } },
+          },
+        },
+        ...errors(400, 401, 403, 404),
+      },
+    }),
+  },
+  '/api/download/plan': {
+    post: op({
+      id: 'planDownload',
+      summary: 'The same selection, described instead of sent',
+      description:
+        'Answers the names and sizes of the loose files, the one zip the selected folders become, and a token naming those parts — for taking a selection away as separate files rather than as one archive. This is where a public link’s download is counted and where the activity log names it, once for the selection, so fetching the parts adds neither. The token is worth ten minutes from its last use and only to the caller who asked for it. The other POST a `read` API token may make.',
+      tag: 'Files',
+      access: 'account',
+      body: body(
+        obj({
+          basePath: str('The folder the names are relative to, which the zip starts from.'),
+          currentPath: str('Older name for `basePath`.', { deprecated: true }),
+          path: str('One path.'),
+          paths: arrayOf(str()),
+          items: arrayOf(obj({ path: str(), name: str() })),
+        })
+      ),
+      responses: {
+        200: json(
+          obj(
+            {
+              token: str('Names the parts; needed for every one of them.'),
+              files: arrayOf(
+                obj(
+                  {
+                    index: int('What to ask for this file as.'),
+                    name: str('What to call it, already free of collisions within the selection.'),
+                    size: int('Its length in bytes.'),
+                  },
+                  { required: ['index', 'name', 'size'] }
+                )
+              ),
+              archive: nullable(
+                obj(
+                  {
+                    name: str('What to call the zip.'),
+                    folders: int('How many selected folders are in it.'),
+                  },
+                  { required: ['name', 'folders'] }
+                ),
+                'Absent when nothing selected was a folder.'
+              ),
+            },
+            { required: ['token', 'files'] }
+          )
+        ),
+        ...errors(400, 401, 403, 404),
+      },
+    }),
+  },
+  '/api/download/part/{token}/{part}': {
+    get: op({
+      id: 'downloadPart',
+      summary: 'One part of a planned download',
+      description:
+        'A file by its position in the plan, or `archive` for the zip holding the folders that were selected with it. Every part is resolved and checked again: a plan records what was asked and never carries the permission forward. Neither the link’s counter nor the activity log moves here — the plan already accounted for the selection.',
+      tag: 'Files',
+      access: 'account',
+      params: [
+        pathParam('token', 'The token the plan answered with.'),
+        pathParam('part', 'A file’s index, or `archive`.'),
+      ],
+      responses: {
+        200: {
+          description: 'The file, or the zip.',
           content: {
             'application/octet-stream': { schema: { type: 'string', format: 'binary' } },
             'application/zip': { schema: { type: 'string', format: 'binary' } },

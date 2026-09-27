@@ -491,6 +491,55 @@ async function downloadItems(paths, basePath = '') {
   });
 }
 
+/**
+ * The same selection, described instead of sent (#487).
+ *
+ * Answers the names and sizes of the loose files, plus the one archive the
+ * selected folders become, and a token naming those parts. The counting and the
+ * log entry happen here, once, so that fetching the parts adds neither.
+ */
+async function createDownloadPlan(paths, basePath = '') {
+  const normalizedList = (Array.isArray(paths) ? paths : [paths])
+    .map((item) => normalizePath(item))
+    .filter(Boolean);
+
+  if (normalizedList.length === 0) {
+    throw new Error('At least one path is required for download.');
+  }
+
+  return requestJson('/api/download/plan', {
+    method: 'POST',
+    body: JSON.stringify({
+      items: normalizedList,
+      basePath: normalizePath(basePath || ''),
+    }),
+  });
+}
+
+const downloadPartPath = (token, part) =>
+  `/api/download/part/${encodeURIComponent(token)}/${encodeURIComponent(part)}`;
+
+/**
+ * Where one part of a plan is, as an address.
+ *
+ * For the browsers without a folder picker, where each part is taken by an
+ * anchor carrying `download`: a navigation, not a request, so it must be a URL
+ * and it must be a GET. The browser then streams it to disk itself.
+ */
+function downloadPartUrl(token, part) {
+  return buildUrl(downloadPartPath(token, part));
+}
+
+/**
+ * One part of a plan, as a response whose body is still arriving.
+ *
+ * For writing into a folder the reader picked: the bytes are piped from here
+ * into a file handle, so a file larger than memory is never held in the page.
+ */
+function fetchDownloadPart(token, part, options = {}) {
+  return requestRaw(downloadPartPath(token, part), { method: 'GET', ...options });
+}
+
 async function extractZip(relativePath, options = {}) {
   const normalizedPath = normalizePath(relativePath);
   if (!normalizedPath) {
@@ -665,6 +714,9 @@ export {
   fetchThumbnail,
   fetchMetadata,
   downloadItems,
+  createDownloadPlan,
+  downloadPartUrl,
+  fetchDownloadPart,
   extractZip,
   compressToZip,
   search,
