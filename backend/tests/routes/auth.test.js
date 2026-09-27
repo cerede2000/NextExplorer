@@ -5,7 +5,7 @@ import express from 'express';
 import session from 'express-session';
 import bodyParser from 'body-parser';
 import request from 'supertest';
-import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
+import { setupTestEnv, clearModuleCache, modulePath } from '../helpers/env-test-utils.js';
 
 let envContext;
 
@@ -20,12 +20,26 @@ afterAll(async () => {
   await envContext.cleanup();
 });
 
-const buildApp = ({ authEnabled } = {}) => {
+const buildApp = async ({ authEnabled } = {}) => {
   if (!envContext) {
     throw new Error('Test environment not initialized');
   }
 
   // Ensure each test app starts with a clean database.
+  //
+  // Closed before it is removed, not only dropped from the module cache. SQLite
+  // keeps an unlinked file alive for whoever still holds it open, so the second
+  // app in a file went on reading the first one's accounts through the old
+  // handle: `/auth/setup` answered "already configured" and the test that
+  // needed a fresh install failed on its very first call, for a reason that had
+  // nothing to do with what it was testing.
+  try {
+    // The instance that has it open, not a fresh one: `requireFresh` would hand
+    // back a module that has never opened anything, and close nothing.
+    await require(modulePath('src/services/db')).closeDb();
+  } catch (_) {
+    // Nothing had opened it yet.
+  }
   try {
     fs.rmSync(path.join(envContext.configDir, 'app.db'), { force: true });
   } catch (_) {
@@ -72,7 +86,7 @@ const buildApp = ({ authEnabled } = {}) => {
 describe('Auth Routes', () => {
   describe('Authentication Flow', () => {
     it('should complete setup -> login -> me -> password -> logout flow', async () => {
-      const app = buildApp({ authEnabled: true });
+      const app = await buildApp({ authEnabled: true });
 
       // status before setup
       const s1 = await request(app).get('/api/auth/status');
@@ -81,13 +95,11 @@ describe('Auth Routes', () => {
       expect(s1.body.authEnabled).toBe(true);
 
       // setup admin
-      const setup = await request(app)
-        .post('/api/auth/setup')
-        .send({
-          email: 'admin@example.com',
-          username: 'admin',
-          password: 'secret123',
-        });
+      const setup = await request(app).post('/api/auth/setup').send({
+        email: 'admin@example.com',
+        username: 'admin',
+        password: 'secret123',
+      });
       expect(setup.status).toBe(201);
       expect(setup.body.user).toBeDefined();
       expect(setup.body.user.roles).toContain('admin');
@@ -116,16 +128,14 @@ describe('Auth Routes', () => {
     });
 
     it('should return JSON 401 when current password is incorrect', async () => {
-      const app = buildApp({ authEnabled: true });
+      const app = await buildApp({ authEnabled: true });
 
       // setup admin
-      const setup = await request(app)
-        .post('/api/auth/setup')
-        .send({
-          email: 'admin@example.com',
-          username: 'admin',
-          password: 'secret123',
-        });
+      const setup = await request(app).post('/api/auth/setup').send({
+        email: 'admin@example.com',
+        username: 'admin',
+        password: 'secret123',
+      });
       expect(setup.status).toBe(201);
 
       // login
@@ -149,7 +159,7 @@ describe('Auth Routes', () => {
 
   describe('Auth Status', () => {
     it('should reflect disabled auth via AUTH_ENABLED', async () => {
-      const app = buildApp({ authEnabled: false });
+      const app = await buildApp({ authEnabled: false });
 
       const status = await request(app).get('/api/auth/status');
       expect(status.status).toBe(200);

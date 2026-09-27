@@ -73,7 +73,8 @@
     "add": "추가",
     "back": "뒤로 가기",
     "logoAlt": "{name} 로고",
-    "toggleSection": "섹션 펼치기/접기"
+    "toggleSection": "섹션 펼치기/접기",
+    "dismissWarning": "경고 닫기"
   },
   "editor": {
     "editing": "편집 중",
@@ -170,7 +171,8 @@
     "saveVolume": "볼륨 저장 실패",
     "removeVolume": "볼륨 제거 실패",
     "totpCodeRequired": "코드를 입력하세요.",
-    "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다"
+    "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다",
+    "unlockUser": "계정 잠금을 해제할 수 없습니다"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "인증이 필요합니다",
@@ -625,7 +627,9 @@
       "volumePath": "볼륨 경로",
       "pathCannotChange": "생성된 이후에는 경로를 변경할 수 없습니다. 필요 시에는 이 볼륨을 제거하고 새로운 볼륨을 생성해야 합니다.",
       "accessMode": "접근 모드",
-      "noUsers": "유저가 없습니다"
+      "noUsers": "유저가 없습니다",
+      "lockedBadge": "잠김",
+      "lockedUntil": "{time}까지 잠김"
     },
     "userDetails": {
       "profileTab": "프로필",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC 제공자",
       "oidcLinkedProfile": "연결된 프로필",
-      "noOidcProfileMessage": "이 계정과 연결된 OIDC 프로필이 없습니다."
+      "noOidcProfileMessage": "이 계정과 연결된 OIDC 프로필이 없습니다.",
+      "signInLock": "로그인 잠금",
+      "lockedHint": "로그인 실패가 너무 많아 잠겼습니다. {time}에 자동으로 해제됩니다.",
+      "notLockedHint": "잠겨 있지 않습니다. 로그인 실패가 너무 많으면 계정이 잠시 잠깁니다.",
+      "unlock": "지금 잠금 해제"
     },
     "trash": {
       "title": "휴지통 및 버전",

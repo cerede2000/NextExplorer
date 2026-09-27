@@ -14,6 +14,7 @@ const logger = require('../utils/logger');
 const {
   countUsers,
   createLocalUser,
+  getById,
   attemptLocalLogin,
   changeLocalPassword,
   addLocalPassword,
@@ -28,15 +29,13 @@ const {
   twoFactorStatus,
   verifySecondFactor,
 } = require('../services/users');
-const { incrementFailedAttempts, clearLock, isLocked } = require('../services/users/lockout');
+const passkeys = require('../services/users/passkeys');
+const apiTokens = require('../services/apiTokens');
+const activityLog = require('../services/activityLog');
+const { WebAuthnError } = require('../utils/webauthn');
 const { issueCode, redeemCode, isValidChallenge } = require('../services/oidcMobileBridge');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
-const { startAuthenticatedSession } = require('../utils/authenticatedSession');
-const passkeys = require('../services/users/passkeys');
-const activityLog = require('../services/activityLog');
-const apiTokens = require('../services/apiTokens');
-const { WebAuthnError } = require('../utils/webauthn');
 const {
   ValidationError,
   UnauthorizedError,
@@ -46,116 +45,9 @@ const {
   ServiceUnavailableError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
-
-/**
- * The relying party: who is asking for a passkey, and where from.
- *
- * A key is bound to a domain, and the browser refuses to use it anywhere else.
- * The domain is taken from the public address when one is configured and from
- * the request otherwise, because a deployment reached by several names would
- * otherwise bind every key to whichever one was written down.
- */
-const relyingParty = (req) => {
-  const known = uniqueOrigins(publicConfig.origins || []);
-  const origins = known.length
-    ? known
-    : uniqueOrigins([`${req.protocol}://${req.get('host') || ''}`]);
-
-  let rpId = webauthnConfig.rpId;
-  if (!rpId) {
-    try {
-      rpId = new URL(publicConfig.url || origins[0] || '').hostname;
-    } catch (_) {
-      rpId = null;
-    }
-  }
-  if (!rpId) rpId = req.hostname;
-  return { rpId, rpName: webauthnConfig.rpName, origins };
-};
-
-/**
- * Keep the question until the answer arrives, and spend it then.
- *
- * In the session, not in a table: it belongs to one browser and one moment.
- * Spending it means taking it away — an answer is worth one sign-in, and a
- * challenge still lying about is one somebody else can answer with a recording
- * of the first.
- */
-const rememberChallenge = (req, purpose, challenge) =>
-  new Promise((resolve, reject) => {
-    if (!req.session) {
-      reject(new Error('A passkey needs a session to ask its question in.'));
-      return;
-    }
-    req.session.webauthn = { purpose, challenge, at: Date.now() };
-    req.session.save((error) => (error ? reject(error) : resolve()));
-  });
-
-const spendChallenge = (req, purpose) => {
-  const held = req.session?.webauthn;
-  if (req.session) delete req.session.webauthn;
-  if (!held || held.purpose !== purpose) return null;
-  if (Date.now() - (Number(held.at) || 0) > passkeys.CEREMONY_TIMEOUT_MS) return null;
-  return held.challenge;
-};
-
-/** Every refusal reads the same from outside, and says what happened in the log. */
-const refusePasskey = (error) => {
-  if (!(error instanceof WebAuthnError)) throw error;
-  if (error.status === 409) throw new ValidationError(error.message);
-  logger.warn({ reason: error.message }, 'A passkey was refused');
-  throw new UnauthorizedError('That passkey was not accepted.', ErrorCodes.AUTH_PASSKEY_REJECTED);
-};
-
-/**
- * How long the second step stays open.
- *
- * Long enough to find a phone, pick the app and read the digits; short enough
- * that a machine walked away from is not a sign-in waiting to be finished by
- * whoever sits down next.
- */
-const SECOND_STEP_MS = 5 * 60 * 1000;
-
-/**
- * The password was right, and the account wants a code as well.
- *
- * Deliberately not a signed-in session with a flag on it: nothing but
- * `localUserId` signs anybody in, and this state does not set it. The session
- * is regenerated here for the same reason it is regenerated at the end — an id
- * somebody planted in the browser must not be the one that finishes the
- * sign-in.
- */
-const startSecondStep = (req, userId) =>
-  new Promise((resolve, reject) => {
-    if (!req.session) {
-      reject(new Error('No session to hold the second step in.'));
-      return;
-    }
-    req.session.regenerate((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      req.session.pendingTotpUserId = userId;
-      req.session.pendingTotpSince = Date.now();
-      req.session.save((saveError) => (saveError ? reject(saveError) : resolve()));
-    });
-  });
-
-/** The account halfway through signing in here, or null. */
-const secondStepUserId = (req) => {
-  const userId = req.session?.pendingTotpUserId;
-  if (!userId) return null;
-  const since = Number(req.session.pendingTotpSince) || 0;
-  if (Date.now() - since > SECOND_STEP_MS) return null;
-  return userId;
-};
-
-const forgetSecondStep = (req) => {
-  if (!req.session) return;
-  delete req.session.pendingTotpUserId;
-  delete req.session.pendingTotpSince;
-};
+const { startAuthenticatedSession } = require('../utils/authenticatedSession');
+const { incrementFailedAttempts, clearLock, isLocked } = require('../services/users/lockout');
+const { clientAddress } = require('../utils/clientAddress');
 
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
@@ -218,6 +110,56 @@ const oneSetupAtATime = (task) => {
   return run;
 };
 
+/**
+ * How long the second step stays open.
+ *
+ * Long enough to find a phone, pick the app and read the digits; short enough
+ * that a machine walked away from is not a sign-in waiting to be finished by
+ * whoever sits down next.
+ */
+const SECOND_STEP_MS = 5 * 60 * 1000;
+
+/**
+ * The password was right, and the account wants a code as well.
+ *
+ * Deliberately not a signed-in session with a flag on it: nothing but
+ * `localUserId` signs anybody in, and this state does not set it. The session
+ * is regenerated here for the same reason it is regenerated at the end — an id
+ * somebody planted in the browser must not be the one that finishes the
+ * sign-in.
+ */
+const startSecondStep = (req, userId) =>
+  new Promise((resolve, reject) => {
+    if (!req.session) {
+      reject(new Error('A second factor needs a session to wait in.'));
+      return;
+    }
+    req.session.regenerate((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      req.session.pendingTotpUserId = userId;
+      req.session.pendingTotpSince = Date.now();
+      req.session.save((saveError) => (saveError ? reject(saveError) : resolve()));
+    });
+  });
+
+/** The account halfway through signing in here, or null. */
+const secondStepUserId = (req) => {
+  const userId = req.session?.pendingTotpUserId;
+  if (!userId) return null;
+  const since = Number(req.session.pendingTotpSince) || 0;
+  if (Date.now() - since > SECOND_STEP_MS) return null;
+  return userId;
+};
+
+const forgetSecondStep = (req) => {
+  if (!req.session) return;
+  delete req.session.pendingTotpUserId;
+  delete req.session.pendingTotpSince;
+};
+
 const respondWithUser = async (req, res) => {
   const user = await getRequestUser(req);
   res.json({ user });
@@ -251,10 +193,10 @@ router.get('/status', async (req, res) => {
 
   res.json({
     requiresSetup,
+    strategies,
     // A reload in the middle of signing in lands back on the code, rather than
     // on a password screen that would start the whole thing again.
     totpPending: Boolean(secondStepUserId(req)),
-    strategies,
     authEnabled: auth.enabled,
     authMode,
     authenticated: auth.enabled ? Boolean(isEoc || hasLocal) : true,
@@ -290,9 +232,8 @@ router.post(
     await startAuthenticatedSession(req, user.id);
 
     // Clear guest session cookie when user sets up account
-    // Both paths: the cookie has been set on `/api` and on `/`, and a guest
-    // session left behind on the other one outlives the sign-in that should
-    // have ended it.
+    // Clear both scopes: the cookie used to be set on /api, and browsers
+    // still holding that one would otherwise keep it.
     res.clearCookie('guestSession', { path: '/' });
     res.clearCookie('guestSession', { path: '/api' });
 
@@ -300,24 +241,33 @@ router.post(
   })
 );
 
-// Local login with email + password
+// Local login with an email address or a username, and a password
 router.post(
   '/login',
   loginLimiter,
   asyncHandler(async (req, res) => {
     refuseWithoutPasswordSignIn();
     const { identifier, email, password, username } = req.body || {};
-    // One box on the sign-in screen, and three names for what was typed into
-    // it: `identifier` is what that screen sends, `email` and `username` are
-    // the older names a script or an older client may still use.
+    // `email` and `username` are the older field names; both carried whatever
+    // was typed into the one box on the sign-in screen.
     const typed = identifier || email || username;
 
-    let user = null;
+    let user;
     try {
       user = await attemptLocalLogin({ identifier: typed, password });
     } catch (e) {
       if (e?.status === 423) {
-        throw new RateLimitError(e.message, e.until);
+        // Seconds in `retryAfter`, which is what the interface reads, with the
+        // deadline itself beside it, under a code of its own so the message
+        // translates. The ISO date used to sit in `retryAfter` under a generic
+        // code, and the sign-in screen could say neither how long nor in what
+        // language.
+        const lockedUntil = e.until || null;
+        const msLeft = lockedUntil ? Date.parse(lockedUntil) - Date.now() : NaN;
+        const retryAfter = Number.isFinite(msLeft) ? Math.max(1, Math.ceil(msLeft / 1000)) : null;
+        const locked = new RateLimitError(e.message, retryAfter, ErrorCodes.AUTH_ACCOUNT_LOCKED);
+        if (lockedUntil) locked.details = { ...locked.details, lockedUntil };
+        throw locked;
       }
       throw e;
     }
@@ -334,9 +284,9 @@ router.post(
     }
 
     // The password was right and the account asks for a code as well. Nothing
-    // about who they are is answered here: that an account has a second factor
-    // is not something to tell whoever guessed a password correctly, so the
-    // answer carries the question and nothing else.
+    // about who they are is answered here: an account that has a second factor
+    // is not something to tell anybody who guessed a password correctly, so
+    // the answer carries the question and nothing else.
     if (await twoFactorRequired(user.id)) {
       await startSecondStep(req, user.id);
       res.json({ totpRequired: true });
@@ -347,9 +297,8 @@ router.post(
     await activityLog.record({ action: 'sign-in', user, detail: { method: 'password' }, req });
 
     // Clear guest session cookie when user logs in
-    // Both paths: the cookie has been set on `/api` and on `/`, and a guest
-    // session left behind on the other one outlives the sign-in that should
-    // have ended it.
+    // Clear both scopes: the cookie used to be set on /api, and browsers
+    // still holding that one would otherwise keep it.
     res.clearCookie('guestSession', { path: '/' });
     res.clearCookie('guestSession', { path: '/api' });
 
@@ -357,7 +306,256 @@ router.post(
   })
 );
 
-/** The passkeys on this account, so they can be named and taken away. */
+/**
+ * The second step: the code from the phone, or one off the paper.
+ *
+ * Wrong codes count against the same lockout a wrong password does, so the
+ * second factor is not a place to guess a million times at six digits while
+ * the first one is bounded.
+ */
+router.post(
+  '/login/totp',
+  loginLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const userId = secondStepUserId(req);
+    if (!userId) {
+      forgetSecondStep(req);
+      throw new UnauthorizedError(
+        'That sign-in is no longer waiting for a code. Sign in again.',
+        ErrorCodes.AUTH_INVALID_CREDENTIALS
+      );
+    }
+
+    if (await isLocked(userId)) {
+      throw new RateLimitError(
+        'Account is temporarily locked due to failed login attempts.',
+        null,
+        ErrorCodes.AUTH_ACCOUNT_LOCKED
+      );
+    }
+
+    const { code } = req.body || {};
+    const outcome = await verifySecondFactor({ userId, code });
+    if (!outcome.ok) {
+      await incrementFailedAttempts(userId);
+      await activityLog.record({
+        action: 'sign-in',
+        outcome: 'refused',
+        userId,
+        actor: (await getById(userId))?.username || userId,
+        detail: { method: 'code' },
+        req,
+      });
+      throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
+    }
+
+    await clearLock(userId);
+    forgetSecondStep(req);
+    await startAuthenticatedSession(req, userId);
+
+    res.clearCookie('guestSession', { path: '/' });
+    res.clearCookie('guestSession', { path: '/api' });
+
+    const user = await getRequestUser(req);
+    await activityLog.record({
+      action: 'sign-in',
+      user,
+      detail: { method: outcome.usedRecoveryCode ? 'recovery code' : 'code' },
+      req,
+    });
+    res.json({
+      user,
+      usedRecoveryCode: Boolean(outcome.usedRecoveryCode),
+      recoveryCodesLeft: outcome.recoveryCodesLeft ?? null,
+    });
+  })
+);
+
+/** Whether this account asks for a code, and how many recovery codes are left. */
+router.get(
+  '/totp',
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    res.json(await twoFactorStatus(me.id));
+  })
+);
+
+/**
+ * Draw a secret and show it, which turns nothing on.
+ *
+ * What comes back is shown once and never again: the phone keeps it, and the
+ * copy here is unreadable the moment it is written.
+ */
+router.post(
+  '/totp/start',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    refuseWithoutPasswordSignIn();
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!req.session || req.session.localUserId !== me.id) {
+      throw new ForbiddenError('Sign in with your password to set up a second factor.');
+    }
+
+    const enrolment = await beginTwoFactorEnrolment({
+      userId: me.id,
+      account: me.email || me.username || me.id,
+    });
+    res.json(enrolment);
+  })
+);
+
+/** Turn it on, once a code proves the phone holds the same secret. */
+router.post(
+  '/totp/confirm',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+
+    const confirmed = await confirmTwoFactorEnrolment({ userId: me.id, code: req.body?.code });
+    if (!confirmed) {
+      throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
+    }
+    logger.info({ userId: me.id }, 'Two-factor authentication turned on');
+    await activityLog.record({ action: 'account.two-factor', user: me, detail: { on: true }, req });
+    res.json(confirmed);
+  })
+);
+
+/**
+ * New recovery codes, and the password to prove it is still the same person.
+ *
+ * A browser left unlocked is the case this is about: drawing new codes throws
+ * the old ones away, and somebody who sat down at a signed-in screen should
+ * not be able to leave with the only working set.
+ */
+router.post(
+  '/totp/recovery-codes',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
+      throw new UnauthorizedError(
+        'That password is not right.',
+        ErrorCodes.AUTH_PASSWORD_INCORRECT
+      );
+    }
+
+    res.json({ recoveryCodes: await replaceRecoveryCodes(me.id) });
+  })
+);
+
+/** Off, with the password for the same reason. */
+router.delete(
+  '/totp',
+  passwordLimiter,
+  asyncHandler(async (req, res) => {
+    const me = await getRequestUser(req);
+    if (!me) throw new UnauthorizedError('Authentication required.');
+    if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
+      throw new UnauthorizedError(
+        'That password is not right.',
+        ErrorCodes.AUTH_PASSWORD_INCORRECT
+      );
+    }
+
+    await disableTwoFactor(me.id);
+    logger.info({ userId: me.id }, 'Two-factor authentication turned off');
+    await activityLog.record({
+      action: 'account.two-factor',
+      user: me,
+      detail: { on: false },
+      req,
+    });
+    res.status(204).end();
+  })
+);
+
+/**
+ * The site a passkey is bound to, and the pages allowed to use one.
+ *
+ * A passkey is made for a name and signs only for that name — which is the
+ * phishing resistance, and also the reason an installation reached through two
+ * hostnames has to pick one. PUBLIC_URL answers it where it is set; where it
+ * is not, the name this request arrived on is the answer, which is right for
+ * the single-hostname installation that never configured anything. An operator
+ * who needs to settle it sets WEBAUTHN_RP_ID.
+ *
+ * Browsers refuse a passkey on an address that is not a name, and on a page
+ * that is not secure: a LAN IP or plain http offers nothing to bind to. That
+ * refusal happens in the browser, before this is reached.
+ */
+const relyingParty = (req) => {
+  const known = uniqueOrigins(publicConfig.origins || []);
+  const origins = known.length
+    ? known
+    : uniqueOrigins([`${req.protocol}://${req.get('host') || ''}`]);
+
+  let rpId = webauthnConfig.rpId;
+  if (!rpId) {
+    try {
+      rpId = new URL(publicConfig.url || origins[0] || '').hostname;
+    } catch (_) {
+      rpId = null;
+    }
+  }
+  if (!rpId) rpId = req.hostname;
+  return { rpId, rpName: webauthnConfig.rpName, origins };
+};
+
+/**
+ * Keep the question until the answer arrives, and spend it then.
+ *
+ * In the session, not in a table: it belongs to one browser and one moment.
+ * Spending it means taking it away — an answer is worth one sign-in, and a
+ * challenge still lying about is one somebody else can answer with a recording
+ * of the first.
+ */
+const rememberChallenge = (req, purpose, challenge) =>
+  new Promise((resolve, reject) => {
+    if (!req.session) {
+      reject(new Error('A passkey needs a session to ask its question in.'));
+      return;
+    }
+    req.session.webauthn = { purpose, challenge, at: Date.now() };
+    req.session.save((error) => (error ? reject(error) : resolve()));
+  });
+
+const spendChallenge = (req, purpose) => {
+  const held = req.session?.webauthn;
+  if (req.session) delete req.session.webauthn;
+  if (!held || held.purpose !== purpose) return null;
+  if (Date.now() - (Number(held.at) || 0) > passkeys.CEREMONY_TIMEOUT_MS) return null;
+  return held.challenge;
+};
+
+/** Every refusal reads the same from outside, and says what happened in the log. */
+const refusePasskey = (error, req) => {
+  if (!(error instanceof WebAuthnError)) throw error;
+  if (error.status === 409) {
+    throw new ValidationError(error.message);
+  }
+  logger.warn({ reason: error.message, ip: clientAddress(req) }, 'A passkey was refused');
+  // Not awaited: this is the throwing path, and a log line is not worth
+  // holding a refusal for. `record` never rejects.
+  activityLog.record({
+    action: 'sign-in',
+    outcome: 'refused',
+    actor: 'unknown',
+    detail: { method: 'passkey' },
+    req,
+  });
+  throw new UnauthorizedError(
+    'That passkey did not open anything here.',
+    ErrorCodes.AUTH_PASSKEY_REJECTED
+  );
+};
+
+/** The passkeys on this account. */
 router.get(
   '/passkeys',
   asyncHandler(async (req, res) => {
@@ -431,7 +629,7 @@ router.post(
       });
       res.status(201).json({ passkey });
     } catch (error) {
-      refusePasskey(error);
+      refusePasskey(error, req);
     }
   })
 );
@@ -485,6 +683,12 @@ router.delete(
         'This is the only way into this account. Add a password, or another passkey, before removing it.'
       );
     }
+    await activityLog.record({
+      action: 'account.passkey',
+      user: me,
+      detail: { added: false },
+      req,
+    });
     res.status(204).end();
   })
 );
@@ -513,8 +717,8 @@ router.post(
  *
  * A passkey that was unlocked — a fingerprint, a face, a PIN — is already two
  * things: the device, and whoever can open it. That is why it satisfies an
- * account that asks for a second factor, and why one that was not unlocked does
- * not: that proves only that the device was there.
+ * account that asks for a second factor, and why one that was not unlocked
+ * does not: it proves only that the device was there.
  */
 router.post(
   '/login/passkey/finish',
@@ -537,7 +741,7 @@ router.post(
         expected: { challenge, origins, rpId },
       });
     } catch (error) {
-      refusePasskey(error);
+      refusePasskey(error, req);
     }
 
     if (await isLocked(outcome.userId)) {
@@ -556,9 +760,6 @@ router.post(
     }
 
     await startAuthenticatedSession(req, outcome.userId);
-    // Both paths: the cookie has been set on `/api` and on `/`, and a guest
-    // session left behind on the other one outlives the sign-in that should
-    // have ended it.
     res.clearCookie('guestSession', { path: '/' });
     res.clearCookie('guestSession', { path: '/api' });
 
@@ -566,185 +767,14 @@ router.post(
       { userId: outcome.userId, passkeyId: outcome.passkeyId },
       'Signed in with a passkey'
     );
-    const signedIn = await getRequestUser(req);
+    const user = await getRequestUser(req);
     await activityLog.record({
       action: 'sign-in',
-      user: signedIn,
+      user,
       detail: { method: 'passkey', passkey: outcome.name },
       req,
     });
-    res.json({ user: signedIn });
-  })
-);
-
-/**
- * The second step: the code from the phone, or one off the paper.
- *
- * Wrong codes count against the same lockout a wrong password does, so the
- * second factor is not a place to guess a million times at six digits while
- * the first one is bounded.
- */
-router.post(
-  '/login/totp',
-  loginLimiter,
-  asyncHandler(async (req, res) => {
-    refuseWithoutPasswordSignIn();
-    const userId = secondStepUserId(req);
-    if (!userId) {
-      forgetSecondStep(req);
-      throw new UnauthorizedError(
-        'That sign-in is no longer waiting for a code. Sign in again.',
-        ErrorCodes.AUTH_INVALID_CREDENTIALS
-      );
-    }
-
-    if (await isLocked(userId)) {
-      throw new RateLimitError(
-        'Account is temporarily locked due to failed login attempts.',
-        null,
-        ErrorCodes.AUTH_ACCOUNT_LOCKED
-      );
-    }
-
-    const { code } = req.body || {};
-    const outcome = await verifySecondFactor({ userId, code });
-    if (!outcome.ok) {
-      await incrementFailedAttempts(userId);
-      await activityLog.record({
-        action: 'sign-in',
-        outcome: 'refused',
-        userId,
-        detail: { method: 'code' },
-        req,
-      });
-      throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
-    }
-
-    await clearLock(userId);
-    forgetSecondStep(req);
-    await startAuthenticatedSession(req, userId);
-    // Both paths: the cookie has been set on `/api` and on `/`, and a guest
-    // session left behind on the other one outlives the sign-in that should
-    // have ended it.
-    res.clearCookie('guestSession', { path: '/' });
-    res.clearCookie('guestSession', { path: '/api' });
-
-    const signedIn = await getRequestUser(req);
-    await activityLog.record({
-      action: 'sign-in',
-      user: signedIn,
-      detail: { method: outcome.usedRecoveryCode ? 'recovery code' : 'code' },
-      req,
-    });
-    res.json({
-      user: signedIn,
-      usedRecoveryCode: Boolean(outcome.usedRecoveryCode),
-      recoveryCodesLeft: outcome.recoveryCodesLeft ?? null,
-    });
-  })
-);
-
-/** Whether this account asks for a code, and how many recovery codes are left. */
-router.get(
-  '/totp',
-  asyncHandler(async (req, res) => {
-    const me = await getRequestUser(req);
-    if (!me) throw new UnauthorizedError('Authentication required.');
-    res.json(await twoFactorStatus(me.id));
-  })
-);
-
-/**
- * Draw a secret and show it, which turns nothing on.
- *
- * What comes back is shown once and never again: the phone keeps it, and the
- * copy here is unreadable the moment it is written.
- */
-router.post(
-  '/totp/start',
-  passwordLimiter,
-  asyncHandler(async (req, res) => {
-    refuseWithoutPasswordSignIn();
-    const me = await getRequestUser(req);
-    if (!me) throw new UnauthorizedError('Authentication required.');
-    if (!req.session || req.session.localUserId !== me.id) {
-      throw new ForbiddenError('Sign in with your password to set up a second factor.');
-    }
-
-    res.json(
-      await beginTwoFactorEnrolment({
-        userId: me.id,
-        account: me.email || me.username || me.id,
-      })
-    );
-  })
-);
-
-/** Turn it on, once a code proves the phone holds the same secret. */
-router.post(
-  '/totp/confirm',
-  passwordLimiter,
-  asyncHandler(async (req, res) => {
-    const me = await getRequestUser(req);
-    if (!me) throw new UnauthorizedError('Authentication required.');
-
-    const confirmed = await confirmTwoFactorEnrolment({ userId: me.id, code: req.body?.code });
-    if (!confirmed) {
-      throw new UnauthorizedError('That code is not right.', ErrorCodes.AUTH_INVALID_TOTP_CODE);
-    }
-    logger.info({ userId: me.id }, 'Two-factor authentication turned on');
-    await activityLog.record({ action: 'account.two-factor', user: me, detail: { on: true }, req });
-    res.json(confirmed);
-  })
-);
-
-/**
- * New recovery codes, and the password to prove it is still the same person.
- *
- * A browser left unlocked is the case this is about: drawing new codes throws
- * the old ones away, and somebody who sat down at a signed-in screen should not
- * be able to leave with the only working set.
- */
-router.post(
-  '/totp/recovery-codes',
-  passwordLimiter,
-  asyncHandler(async (req, res) => {
-    const me = await getRequestUser(req);
-    if (!me) throw new UnauthorizedError('Authentication required.');
-    if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
-      throw new UnauthorizedError(
-        'That password is not right.',
-        ErrorCodes.AUTH_PASSWORD_INCORRECT
-      );
-    }
-
-    res.json({ recoveryCodes: await replaceRecoveryCodes(me.id) });
-  })
-);
-
-/** Off, with the password for the same reason. */
-router.delete(
-  '/totp',
-  passwordLimiter,
-  asyncHandler(async (req, res) => {
-    const me = await getRequestUser(req);
-    if (!me) throw new UnauthorizedError('Authentication required.');
-    if (!(await verifyLocalPassword({ userId: me.id, password: req.body?.password }))) {
-      throw new UnauthorizedError(
-        'That password is not right.',
-        ErrorCodes.AUTH_PASSWORD_INCORRECT
-      );
-    }
-
-    await disableTwoFactor(me.id);
-    logger.info({ userId: me.id }, 'Two-factor authentication turned off');
-    await activityLog.record({
-      action: 'account.two-factor',
-      user: me,
-      detail: { on: false },
-      req,
-    });
-    res.status(204).end();
+    res.json({ user });
   })
 );
 
@@ -769,6 +799,7 @@ router.post(
       newPassword,
       keepSessionId: signedInHere ? req.sessionID : null,
     });
+    if (signedInHere) await startAuthenticatedSession(req, me.id);
     await activityLog.record({ action: 'account.password', user: me, req });
     res.status(204).end();
   })
@@ -1176,9 +1207,8 @@ router.post(
       throw new UnauthorizedError('User no longer exists.', ErrorCodes.AUTH_INVALID_CREDENTIALS);
     }
 
-    // Both paths: the cookie has been set on `/api` and on `/`, and a guest
-    // session left behind on the other one outlives the sign-in that should
-    // have ended it.
+    // Clear both scopes: the cookie used to be set on /api, and browsers still
+    // holding that one would otherwise keep it.
     res.clearCookie('guestSession', { path: '/' });
     res.clearCookie('guestSession', { path: '/api' });
     res.json({ user });

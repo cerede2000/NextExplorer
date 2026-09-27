@@ -73,7 +73,8 @@
     "add": "Dodaj",
     "back": "Wstecz",
     "logoAlt": "Logo {name}",
-    "toggleSection": "Pokaż lub ukryj sekcję"
+    "toggleSection": "Pokaż lub ukryj sekcję",
+    "dismissWarning": "Odrzuć ostrzeżenie"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Wpisz kod.",
-    "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika"
+    "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika",
+    "unlockUser": "Nie udało się odblokować konta"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Wymagana autentykacja",
@@ -625,7 +627,9 @@
       "volumePath": "Ścieżka woluminu",
       "pathCannotChange": "Ścieżki nie można zmienić po utworzeniu. Usuń ten wolumin i utwórz nowy w razie potrzeby.",
       "accessMode": "Tryb dostępu",
-      "noUsers": "Brak dostępnych użytkowników"
+      "noUsers": "Brak dostępnych użytkowników",
+      "lockedBadge": "Zablokowane",
+      "lockedUntil": "Zablokowane do {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Blokada logowania",
+      "lockedHint": "Zablokowane po zbyt wielu nieudanych próbach logowania. Blokada zniknie sama o {time}.",
+      "notLockedHint": "Niezablokowane. Zbyt wiele nieudanych prób logowania blokuje konto na pewien czas.",
+      "unlock": "Odblokuj teraz"
     },
     "trash": {
       "title": "Kosz i wersje",

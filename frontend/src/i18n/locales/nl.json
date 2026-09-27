@@ -73,7 +73,8 @@
     "add": "Toevoegen",
     "back": "Terug",
     "logoAlt": "Logo van {name}",
-    "toggleSection": "Sectie in- of uitklappen"
+    "toggleSection": "Sectie in- of uitklappen",
+    "dismissWarning": "Waarschuwing sluiten"
   },
   "editor": {
     "editing": "Bewerken",
@@ -170,7 +171,8 @@
     "saveVolume": "Volume opslaan is mislukt",
     "removeVolume": "Volume verwijderen is mislukt",
     "totpCodeRequired": "Voer de code in.",
-    "identifierRequired": "Een e-mailadres of gebruikersnaam is verplicht"
+    "identifierRequired": "Een e-mailadres of gebruikersnaam is verplicht",
+    "unlockUser": "Het account kon niet worden ontgrendeld"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authenticatie vereist",
@@ -625,7 +627,9 @@
       "accessMode": "Toegangsmodus",
       "makeAdmin": "Beheerder maken",
       "editUser": "Gebruiker bewerken",
-      "noUsers": "Geen gebruikers beschikbaar"
+      "noUsers": "Geen gebruikers beschikbaar",
+      "lockedBadge": "Vergrendeld",
+      "lockedUntil": "Vergrendeld tot {time}"
     },
     "userDetails": {
       "profileTab": "Profiel",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Gekoppeld profiel",
-      "noOidcProfileMessage": "Geen OIDC-profielen gekoppeld aan dit account."
+      "noOidcProfileMessage": "Geen OIDC-profielen gekoppeld aan dit account.",
+      "signInLock": "Aanmeldvergrendeling",
+      "lockedHint": "Vergrendeld na te veel mislukte aanmeldpogingen. De vergrendeling vervalt om {time}.",
+      "notLockedHint": "Niet vergrendeld. Te veel mislukte aanmeldpogingen vergrendelen een account een tijdje.",
+      "unlock": "Nu ontgrendelen"
     },
     "trash": {
       "title": "Prullenbak en versies",

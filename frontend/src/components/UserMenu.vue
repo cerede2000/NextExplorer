@@ -76,25 +76,27 @@ const handleThemeToggle = () => {
 };
 
 const handleLogout = async () => {
-  // Capture whether the session is OIDC-backed before clearing state
-  const wasOidcUser = auth.currentUser?.provider === 'oidc';
-
-  // Always clear local session on the backend
-  try {
-    await auth.logout();
-  } catch (_) {}
+  // Preserve the OIDC session until the provider-aware logout endpoint has
+  // consumed its ID token. Clearing it first prevents a federated logout.
+  const isOidcUser = auth.currentUser?.provider === 'oidc';
 
   isExpanded.value = false;
 
-  // If the current user was an OIDC user (or OIDC is enabled),
-  // bounce through the provider-aware /logout endpoint to clear IdP session.
-  const isOidcUser = wasOidcUser || auth.strategies?.oidc === true;
   if (isOidcUser) {
+    // The login view uses this same-tab marker to avoid immediately starting a
+    // new OIDC flow when the IdP redirects the browser back after logout.
+    window.sessionStorage.setItem('oidcSignedOut', '1');
     const base = apiBase || '';
     const returnTo = '/auth/login';
     const logoutUrl = `${base}/logout?returnTo=${encodeURIComponent(returnTo)}`;
     window.location.href = logoutUrl;
     return;
+  }
+
+  try {
+    await auth.logout();
+  } catch (_) {
+    // Nothing to recover from here.
   }
 
   router.push({ name: 'auth-login' });
@@ -153,17 +155,22 @@ const handleLogout = async () => {
         </transition>
       </div>
 
-      <div
+      <button
         type="button"
         class="group flex w-full items-center gap-3 text-left transition"
         @click="toggleMenu"
         :aria-expanded="isExpanded"
       >
+        <!-- Named "Account" followed by the name and address it shows, so voice
+             control answers to what is on screen. The avatar only repeats the
+             name beside it. -->
+        <span class="sr-only">{{ $t('user.account') }}</span>
         <span
+          aria-hidden="true"
           class="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-base font-semibold uppercase text-accent transition group-hover:bg-accent/25 dark:bg-white/10 dark:text-white dark:group-hover:bg-white/20"
         >
           <template v-if="avatarUrl">
-            <img :src="avatarUrl" alt="User avatar" class="h-9 w-9 rounded-full object-cover" />
+            <img :src="avatarUrl" alt="" class="h-9 w-9 rounded-full object-cover" />
           </template>
           <template v-else-if="avatarLetter">{{ avatarLetter }}</template>
           <UserCircleIcon v-else class="h-6 w-6" />
@@ -182,7 +189,7 @@ const handleLogout = async () => {
           class="h-3 w-3 text-neutral-400 transition group-hover:text-neutral-700 dark:text-white/60 dark:group-hover:text-white/80"
           :class="{ 'rotate-180': isExpanded }"
         />
-      </div>
+      </button>
     </div>
   </div>
 </template>

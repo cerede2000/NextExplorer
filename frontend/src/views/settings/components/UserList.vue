@@ -1,9 +1,8 @@
 <script setup>
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { UserCircleIcon, KeyIcon, CloudIcon } from '@heroicons/vue/24/outline';
+import { UserCircleIcon, KeyIcon, CloudIcon, LockClosedIcon } from '@heroicons/vue/24/outline';
 
-const props = defineProps({
+defineProps({
   users: {
     type: Array,
     default: () => [],
@@ -11,8 +10,18 @@ const props = defineProps({
   loading: Boolean,
 });
 
-const emit = defineEmits(['select', 'create']);
-const { t } = useI18n();
+defineEmits(['select', 'create']);
+const { t, locale } = useI18n();
+
+// The list is read once and can sit open past a lock's end, so a lock whose time
+// has passed is not shown: it refuses nothing any more.
+const activeLockUntil = (user) => {
+  const until = Date.parse(user?.lockedUntil || '');
+  return Number.isFinite(until) && until > Date.now() ? user.lockedUntil : null;
+};
+
+const lockTime = (iso) =>
+  new Date(iso).toLocaleTimeString(locale?.value, { hour: '2-digit', minute: '2-digit' });
 
 const getInitials = (name) => {
   return (name || 'U').substring(0, 2).toUpperCase();
@@ -98,6 +107,17 @@ const getAuthLabel = (auth) => {
                   class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
                 >
                   {{ t('common.admin') }}
+                </span>
+                <span
+                  v-if="activeLockUntil(user)"
+                  data-test="locked-badge"
+                  :title="
+                    t('settings.users.lockedUntil', { time: lockTime(activeLockUntil(user)) })
+                  "
+                  class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                >
+                  <LockClosedIcon class="w-3 h-3" aria-hidden="true" />
+                  {{ t('settings.users.lockedBadge') }}
                 </span>
               </div>
               <p class="text-sm text-zinc-500 dark:text-zinc-400 truncate">

@@ -73,7 +73,8 @@
     "add": "Aggiungi",
     "back": "Indietro",
     "logoAlt": "Logo di {name}",
-    "toggleSection": "Mostra o nascondi la sezione"
+    "toggleSection": "Mostra o nascondi la sezione",
+    "dismissWarning": "Ignora l'avviso"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Impossibile salvare il volume",
     "removeVolume": "Impossibile rimuovere il volume",
     "totpCodeRequired": "Inserisci il codice.",
-    "identifierRequired": "È richiesto un indirizzo email o un nome utente"
+    "identifierRequired": "È richiesto un indirizzo email o un nome utente",
+    "unlockUser": "Impossibile sbloccare l'account"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
@@ -625,7 +627,9 @@
       "volumePath": "Percorso volume",
       "pathCannotChange": "Il percorso non può essere cambiato dopo la creazione. Rimuovi questo volume e creane uno nuovo se necessario.",
       "accessMode": "Modalità di accesso",
-      "noUsers": "Nessun utente disponibile"
+      "noUsers": "Nessun utente disponibile",
+      "lockedBadge": "Bloccato",
+      "lockedUntil": "Bloccato fino alle {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Blocco dell'accesso",
+      "lockedHint": "Bloccato dopo troppi tentativi di accesso falliti. Si sblocca da solo alle {time}.",
+      "notLockedHint": "Non bloccato. Troppi tentativi di accesso falliti bloccano un account per un po'.",
+      "unlock": "Sblocca ora"
     },
     "trash": {
       "title": "Cestino e versioni",

@@ -73,7 +73,8 @@
     "add": "Добавить",
     "back": "Назад",
     "logoAlt": "Логотип {name}",
-    "toggleSection": "Показать или скрыть раздел"
+    "toggleSection": "Показать или скрыть раздел",
+    "dismissWarning": "Скрыть предупреждение"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Не удалось сохранить том",
     "removeVolume": "Не удалось удалить том",
     "totpCodeRequired": "Введите код.",
-    "identifierRequired": "Требуется адрес электронной почты или имя пользователя"
+    "identifierRequired": "Требуется адрес электронной почты или имя пользователя",
+    "unlockUser": "Не удалось разблокировать учетную запись"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Требуется аутентификация",
@@ -625,7 +627,9 @@
       "volumePath": "Путь к тому",
       "pathCannotChange": "Путь нельзя изменить после создания. При необходимости удалите этот том и создайте новый.",
       "accessMode": "Режим доступа",
-      "noUsers": "Нет доступных пользователей"
+      "noUsers": "Нет доступных пользователей",
+      "lockedBadge": "Заблокирован",
+      "lockedUntil": "Заблокирован до {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Блокировка входа",
+      "lockedHint": "Заблокирован после слишком многих неудачных попыток входа. Блокировка снимется сама в {time}.",
+      "notLockedHint": "Не заблокирован. После слишком многих неудачных попыток входа учетная запись блокируется на время.",
+      "unlock": "Разблокировать сейчас"
     },
     "trash": {
       "title": "Корзина и версии",

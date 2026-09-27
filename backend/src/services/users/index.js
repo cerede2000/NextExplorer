@@ -35,8 +35,8 @@ module.exports = {
 
   // OIDC authentication
   getOrCreateOidcUser: oidcAuth.getOrCreateOidcUser,
-  deriveRolesFromClaims: oidcAuth.deriveRolesFromClaims,
   rolesFromClaimsAreAuthoritative: oidcAuth.rolesFromClaimsAreAuthoritative,
+  deriveRolesFromClaims: oidcAuth.deriveRolesFromClaims,
 
   // Request user handling
   getRequestUser: requestUser.getRequestUser,

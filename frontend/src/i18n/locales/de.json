@@ -73,7 +73,8 @@
     "add": "Hinzufügen",
     "back": "Zurück",
     "logoAlt": "Logo von {name}",
-    "toggleSection": "Abschnitt ein-/ausklappen"
+    "toggleSection": "Abschnitt ein-/ausklappen",
+    "dismissWarning": "Warnung ausblenden"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Geben Sie den Code ein.",
-    "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich"
+    "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich",
+    "unlockUser": "Das Konto konnte nicht entsperrt werden"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
@@ -625,7 +627,9 @@
       "volumePath": "Volumenpfad",
       "pathCannotChange": "Der Pfad kann nach der Erstellung nicht mehr geändert werden. Entfernen Sie dieses Volume und erstellen Sie bei Bedarf ein neues.",
       "accessMode": "Zugriffsmodus",
-      "noUsers": "Keine Benutzer verfügbar"
+      "noUsers": "Keine Benutzer verfügbar",
+      "lockedBadge": "Gesperrt",
+      "lockedUntil": "Gesperrt bis {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Anmeldesperre",
+      "lockedHint": "Nach zu vielen fehlgeschlagenen Anmeldeversuchen gesperrt. Die Sperre endet von selbst um {time}.",
+      "notLockedHint": "Nicht gesperrt. Zu viele fehlgeschlagene Anmeldeversuche sperren ein Konto für eine Weile.",
+      "unlock": "Jetzt entsperren"
     },
     "trash": {
       "title": "Papierkorb und Versionen",
