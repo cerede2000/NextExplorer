@@ -274,9 +274,15 @@ Building it in the batch's own tree found something this one could not have foun
 `backend/tests/routes/settings-preferences.test.js` exists there and not here. It
 holds every key the settings service sanitises to a round trip through the route
 with **a value that key really takes**, and `true` is not one the new preference
-takes — so the batch went red where `integration` was green. A test written while
-porting that never came home, which is the eleventh of its kind and the reason
-that gate exists at all.
+takes — so the batch went red where `integration` was green.
+
+It does not come home, and that is the unusual part: our own
+`settings-user-preferences.test.js` already holds the same property and holds it
+better. It asserts the key is listed in `NON_DEFAULT` — failing with "add
+`downloadMode` to NON_DEFAULT", which is the remedy — where the batch's copy
+invents `true`, watches the sanitiser refuse it, and reports the key as
+"dropped". Taking it would be a second, weaker gate over one property. So the
+batch's copy was given the message ours has instead, and nothing came back.
 
 ## What is not in the thirty-three
 
