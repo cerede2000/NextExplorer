@@ -1,4 +1,10 @@
+/* A fixture is not the interface. Tailwind finds its own sources and reads
+   everything the repository is not ignoring, which put a `.static` rule nothing
+   uses into the shipped stylesheet — from the word appearing in a comment in the
+   browser suite's own server. What the interface is made of decides what the
+   stylesheet holds. */
 @import 'tailwindcss';
+@source not '../../e2e';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
