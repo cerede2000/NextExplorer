@@ -24,6 +24,20 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": "^favorites\\.",
+      "verdict": "DONE",
+      "batch": "P3-26",
+      "note": "nxzai#456 \u2014 a favorite whose volume has gone"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/orphanedBindingsService\\.js|backend/src/services/pathBindingsService\\.js|backend/src/routes/files/rename\\.js|backend/src/services/favoritesService\\.js|backend/src/services/renameService\\.js|frontend/src/components/FavoriteEditDialog\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-26",
+      "note": "nxzai#456 \u2014 what pointed at a folder moves with it, and is forgotten with it"
+    },
+    {
       "axis": "*",
       "match": "^frontend/src/plugins/preview/MediaPreview\\.vue(:|$)",
       "verdict": "THEIRS",
