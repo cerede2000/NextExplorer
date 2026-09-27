@@ -69,12 +69,13 @@ it. Run it:
 node scripts/parity.mjs --upstream origin/main --ours HEAD
 ```
 
-**Eleven axes**, because a route count only sees capability that arrives as a route:
+**Twelve axes**, because a route count only sees capability that arrives as a route:
 files on either side · routes · symbols inside files both trees have · files whose
 bodies differ at all · documentation pages · translation keys, across every
-catalogue and not only English · environment variables · database migrations ·
-dependencies, per manifest and per package · how the image is built · and the
-coverage of the ten above.
+catalogue and not only English · what those catalogues say under the keys both
+sides have · environment variables · database migrations · dependencies, per
+manifest and per package · how the image is built · and the coverage of the eleven
+above.
 
 That last one is the important one. It reports **any file that differs and that no
 other axis spoke for**, which is what makes a missing axis visible. The first
@@ -191,17 +192,46 @@ It ends when `node scripts/parity.mjs` reports **0 PORT** — a condition a mach
 checks. Each batch moves its own findings from PORT to DONE in the commit that sends
 them, so the remainder is readable at any moment and only goes down.
 
-What is left then is 84 findings, and none of it is capability: our release
+What is left then is 92 findings, and none of it is capability: our release
 workflows and packaging, the demo and `render.yaml`, our planning documents and
-release notes, our own tooling, the ignore lists, the quick-actions menu upstream
-closed in nxzai#333, and the files upstream has that this fork does not. `main`
-upstream will do everything `integration` does, be written the same way, run the same
-tests, install the same packages and build the same image. It will not carry this
-fork's own scaffolding, and it should not.
+release notes, our own tooling, the ignore lists, the quick-actions menu offered in
+nxzai#333 and withdrawn, and the files upstream has that this fork does not — eight
+of them, imported by nothing there. `main` upstream will do everything
+`integration` does, be written the same way, run the same tests, install the same
+packages and build the same image. It will not carry this fork's own scaffolding,
+and it should not.
 
 Two things will move the total upward on their own, and are expected to: upstream
 merging its own work, and a batch turning up small things around the files it opens.
 Both make the script fail until they are spoken for, which is the point.
+
+### 0 PORT was not the end
+
+It was reached, on 27 September 2026, and two more batches followed it. Both came
+from the same blind spot, and it was a blind spot of direction: the instrument asks
+what this fork has that upstream does not. It never asked the reverse, and it never
+looked twice at a file a batch had already claimed.
+
+- **Ten files had drifted towards upstream.** A session store that opened its
+  database when the module was required, a copy that stamped every file with the
+  moment it ran, a volume a `hidden` rule kept out of every listing and left named
+  in the sidebar, a search offering results that open nothing. Upstream's own work,
+  and improvements written while porting that never came home. They are home now,
+  and the `residue` gate compares the contents of files a batch sent — against the
+  tip of the batch stack, because a batch waiting in a pull request has not reached
+  `main`.
+- **Five files are the other way**, and went up in nxzai#470: the thumbnails switch
+  a listing must not promise around, the identity a saved file answers with, a
+  bounded resolution and a public link's own download count, and health mounted
+  once rather than twice.
+- **Six hundred and fifty-six sentences differed under keys both sides had**, and
+  in 467 of them upstream held the English while the translation existed here. The
+  key axis had reached zero and stopped there. nxzai#472 carries them; the
+  `i18n-value` axis now reads what the catalogues say.
+
+The lesson is not that the instrument was wrong. It is that every gate it has was
+added after something got through it, and that a count reaching zero says only that
+the axes it has are satisfied.
 
 ## What is not in the thirty-three
 
