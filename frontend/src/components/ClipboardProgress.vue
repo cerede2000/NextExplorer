@@ -1,7 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ChevronDownIcon, QueueListIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+import {
+  ChevronDownIcon,
+  PauseIcon,
+  PlayIcon,
+  QueueListIcon,
+  XMarkIcon,
+} from '@heroicons/vue/24/outline';
 import { useFileStore } from '@/stores/fileStore';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { formatBytes } from '@/utils';
@@ -192,6 +198,20 @@ const cancelOperation = () => {
   if (operation.value?.id) operationTasksStore.cancelOperation(operation.value.id);
 };
 
+/**
+ * Hold the transfer, or let it go again.
+ *
+ * Offered only where the operation says it can be held — a chunked upload keeps
+ * its place and picks it up, and nothing else here can. Somebody who needs the
+ * line for a call should not have to cancel a transfer to get it back.
+ */
+const togglePause = () => {
+  const current = operation.value;
+  if (!current?.id) return;
+  if (current.paused) operationTasksStore.resumeOperation(current.id);
+  else operationTasksStore.pauseOperation(current.id);
+};
+
 const cancelTask = (id) => {
   operationTasksStore.cancelOperation(id);
 };
@@ -229,6 +249,18 @@ const cancelTask = (id) => {
           class="h-3.5 w-3.5 transition-transform"
           :class="{ 'rotate-180': isListOpen }"
         />
+      </button>
+      <button
+        v-if="operation.pausable"
+        type="button"
+        class="shrink-0 rounded-md p-1.5 text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:text-zinc-200 dark:hover:bg-zinc-600"
+        :disabled="operation.cancelling"
+        :title="operation.paused ? t('upload.resumeUploads') : t('upload.pauseUploads')"
+        :aria-label="operation.paused ? t('upload.resumeUploads') : t('upload.pauseUploads')"
+        @click="togglePause"
+      >
+        <PlayIcon v-if="operation.paused" class="h-5 w-5" />
+        <PauseIcon v-else class="h-5 w-5" />
       </button>
       <button
         v-if="operation.cancellable"
