@@ -235,21 +235,46 @@ report the whole suite as a divergence. That left one direction unmeasured, and
 P3-57 walked into it — `settings-preferences.test.js` exists on the batch stack
 and not here, so the batch went red in its own tree where `integration` was green.
 
-    node scripts/test-drift.mjs p3-57
+    node scripts/test-drift.mjs <ref>
 
-compares the two trees by their **cases** rather than by their files, because the
-first version of it compared paths and read `two-factor.test.js` — under
-`services/` here, `routes/` there — as a file missing when it was a file moved.
-Against P3-57 it reports 303 cases the stack has and this tree does not, 37 of
-them in files nothing here answers to.
+compares the two trees by their **cases**, in both directions that matter: what the
+batch stack holds, and what `main` upstream holds. It reported **303** against the
+stack and 60 against `main`. Both now report **0**, and the CI runs both.
 
-It prints a list to read, not a verdict: a case renamed while porting reads as a
-case missing, and so does a suite the porting work split under other names — our
-`onlyoffice-*` files against theirs. The first one read was not a rewording,
-though. `no-shell.test.js` holds the two remote executions of nxzai#450 and #453
-to their fix, it went upstream with that fix, and this tree had the fix and no test
-of it. It is here now, and it still bites: loosening `ACCOUNT_NAME_PATTERN` turns
-it red.
+Two wrong readings on the way there, worth keeping because the second one was
+mine and the first instrument's:
+
+- comparing **paths** called forty files missing. `two-factor.test.js` sits under
+  `services/` here and `routes/` there, so it read as a file gone.
+- comparing **cases** to correct that called it a file _moved_, which it is not:
+  ours tests the service and theirs tests the route. A service test cannot reach
+  a route — `if (false && ...)` on the second-factor check in `routes/auth.js`
+  turns seven of their twelve cases red and leaves all eighteen of ours green.
+  Three files were that: `two-factor`, `archive-browse`, `version-marks`.
+
+What came of reading all of it: **37 files brought home** (250 cases), four shared
+files replaced by the stack's strict supersets, three cases ported one at a time,
+one file left where it was as a weaker duplicate of ours, one addition taken back
+out when the mutation meant to prove it turned _our_ case red as well, and fourteen
+readings written into `scripts/test-drift-manifest.json` with what answers each.
+4034 backend cases became 4322.
+
+The first one read was not a rewording, and it is why this exists at all.
+`no-shell.test.js` holds the two remote executions of nxzai#450 and #453 to their
+fix, it went upstream with that fix, and this tree had the fix and no test of it.
+It is here now, with `usage-no-shell.test.js` beside it, and it still bites:
+loosening `ACCOUNT_NAME_PATTERN` turns it red.
+
+### P3-58, where the quick actions sit
+
+Sent as nxzai#485, on top of P3-57, and `batchTip` moved to `p3-58`. The inline
+actions sat immediately right of the name, so their place followed its length and
+no two rows agreed; the setting now offers either edge of the name column, and the
+row keeps the room for them whether it is hovered or not.
+
+It carries one thing that is not the feature: the features page gains the
+quick-actions menu itself. P3-50 sent the menu and not its paragraph, so the page
+has never mentioned it.
 
 ### 0 PORT was not the end
 
