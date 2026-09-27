@@ -964,7 +964,8 @@
       "auto": "Autom.",
       "inline": "Weergeven",
       "raw": "Ruw",
-      "download": "Downloaden"
+      "download": "Downloaden",
+      "editor": "Editor"
     },
     "shareLinkCreatedSuccess": "Share-link met succes aangemaakt!",
     "access": "Toegangsmodus",
@@ -1026,7 +1027,30 @@
     "loadingUsers": "Gebruikers laden...",
     "password": "Wachtwoord",
     "protected": "Beveiligd",
-    "sharedWith": "Gedeeld met"
+    "sharedWith": "Gedeeld met",
+    "editShareLink": "Deellink bewerken",
+    "saveShare": "Wijzigingen opslaan",
+    "advancedPermissions": "Geavanceerd",
+    "allowDelete": "Verwijderen van bestanden toestaan",
+    "allowCreateFolder": "Aanmaken van mappen toestaan",
+    "allowCreateFile": "Aanmaken van bestanden toestaan",
+    "allowUpload": "Uploaden van bestanden en mappen toestaan",
+    "activity": "Activiteit",
+    "activityDetails": "Details van de activiteit",
+    "accesses": "keer geopend",
+    "downloads": "downloads",
+    "accessCount": "Aantal keer geopend",
+    "downloadCount": "Aantal downloads",
+    "lastAccessIp": "IP van laatste toegang",
+    "lastDownloaded": "Laatst gedownload",
+    "lastDownloadIp": "IP van laatste download",
+    "noActivity": "Nooit",
+    "noIpRecorded": "Geen IP vastgelegd",
+    "allowDownload": "Downloaden toestaan",
+    "allowDownloadHelp": "Schakel dit uit om mensen de bestanden te laten lezen zonder er een kopie van te nemen.",
+    "versionsVisible": "Bestandsversies tonen",
+    "versionsVisibleHelp": "Wie deze deellink gebruikt, ziet de eerdere versies van de bestanden en kan ze terugzetten als bewerken is toegestaan.",
+    "versionsDownload": "Downloaden van versies toestaan"
   },
   "mediaPreview": {
     "download": "Media downloaden",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Hier staat niets",
     "extractTitle": "Uitpakken naar",
     "extractHere": "Hier uitpakken"
+  },
+  "links": {
+    "outside": "Link buiten dit volume",
+    "outsideExplained": "{name} is een link naar een plek buiten dit volume. Hij kan hier niet worden geopend, hernoemd of verwijderd; verwijder hem op de server als hij niet meer nodig is."
   }
 }

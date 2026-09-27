@@ -88,8 +88,14 @@ describe('checking a share password', () => {
       .post(`/api/share/${token}/verify`)
       .send({ password: 'open-sesame' });
 
+    // The one being handed out, not the one being cleared. The cookie moved
+    // from /api to the root — an <img> asking /static for a thumbnail cannot
+    // carry a header, and a cookie scoped to /api never reaches it — so the
+    // old one is cleared in the same answer, and a browser keeps both headers.
     const cookieOf = (response) =>
-      [].concat(response.headers['set-cookie'] || []).find((c) => c.startsWith('guestSession='));
+      []
+        .concat(response.headers['set-cookie'] || [])
+        .find((c) => /^guestSession=.+/.test(c) && !/Expires=Thu, 01 Jan 1970/.test(c));
     expect(overHttps.status).toBe(200);
     expect(cookieOf(overHttps)).toMatch(/;\s*Secure/i);
     // The control: plain HTTP cannot carry a Secure cookie back at all.

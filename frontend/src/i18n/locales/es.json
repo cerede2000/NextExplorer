@@ -1034,7 +1034,8 @@
       "auto": "Automático",
       "inline": "Ver",
       "raw": "Sin procesar",
-      "download": "Descargar"
+      "download": "Descargar",
+      "editor": "Editor"
     },
     "deleteShareTitle": "¿Eliminar enlace compartido?",
     "deleteShareMessage": "Las personas con este enlace ya no podrán acceder al elemento compartido.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Cargando usuarios...",
     "password": "Contraseña",
     "protected": "Protegido",
-    "sharedWith": "Compartido con"
+    "sharedWith": "Compartido con",
+    "editShareLink": "Editar enlace para compartir",
+    "saveShare": "Guardar cambios",
+    "advancedPermissions": "Avanzado",
+    "allowDelete": "Permitir eliminar archivos",
+    "allowCreateFolder": "Permitir crear carpetas",
+    "allowCreateFile": "Permitir crear archivos",
+    "allowUpload": "Permitir subir archivos y carpetas",
+    "activity": "Actividad",
+    "activityDetails": "Detalles de actividad",
+    "accesses": "accesos",
+    "downloads": "descargas",
+    "accessCount": "Número de accesos",
+    "downloadCount": "Número de descargas",
+    "lastAccessIp": "IP del último acceso",
+    "lastDownloaded": "Última descarga",
+    "lastDownloadIp": "IP de la última descarga",
+    "noActivity": "Nunca",
+    "noIpRecorded": "Ninguna IP registrada",
+    "allowDownload": "Permitir la descarga",
+    "allowDownloadHelp": "Desactívelo para que se puedan leer los archivos sin llevarse una copia.",
+    "versionsVisible": "Mostrar las versiones de los archivos",
+    "versionsVisibleHelp": "Quienes usan este enlace compartido ven las versiones anteriores de sus archivos y pueden restaurarlas si tienen permiso para editar.",
+    "versionsDownload": "Permitir descargar versiones"
   },
   "trash": {
     "title": "Papelera",
@@ -1278,5 +1302,9 @@
     "nothingHere": "No hay nada aquí",
     "extractTitle": "Extraer en",
     "extractHere": "Extraer aquí"
+  },
+  "links": {
+    "outside": "Enlace fuera de este volumen",
+    "outsideExplained": "{name} es un enlace a un lugar fuera de este volumen. No se puede abrir, renombrar ni eliminar desde aquí; elimínelo en el servidor si ya no lo necesita."
   }
 }

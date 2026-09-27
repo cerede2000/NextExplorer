@@ -983,7 +983,8 @@
       "auto": "Auto",
       "inline": "Visualiser",
       "raw": "Raw",
-      "download": "Télécharger"
+      "download": "Télécharger",
+      "editor": "Éditeur"
     },
     "shareLinkCreatedSuccess": "Lien de partage créé avec succès !",
     "access": "Access Mode",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Chargement des utilisateurs...",
     "password": "Mot de passe",
     "protected": "Protégé",
-    "sharedWith": "Partagé avec"
+    "sharedWith": "Partagé avec",
+    "editShareLink": "Modifier le lien de partage",
+    "saveShare": "Enregistrer les modifications",
+    "advancedPermissions": "Avancé",
+    "allowDelete": "Autoriser la suppression de fichiers",
+    "allowCreateFolder": "Autoriser la création de dossiers",
+    "allowCreateFile": "Autoriser la création de fichiers",
+    "allowUpload": "Autoriser l'envoi de fichiers et dossiers",
+    "activity": "Activité",
+    "activityDetails": "Détails d'activité",
+    "accesses": "accès",
+    "downloads": "téléchargements",
+    "accessCount": "Nombre d'accès",
+    "downloadCount": "Nombre de téléchargements",
+    "lastAccessIp": "Dernière IP d'accès",
+    "lastDownloaded": "Dernier téléchargement",
+    "lastDownloadIp": "Dernière IP de téléchargement",
+    "noActivity": "Jamais",
+    "noIpRecorded": "Aucune IP enregistrée",
+    "allowDownload": "Autoriser le téléchargement",
+    "allowDownloadHelp": "Désactivez pour laisser consulter les fichiers sans pouvoir en prendre une copie.",
+    "versionsVisible": "Afficher les versions des fichiers",
+    "versionsVisibleHelp": "Les personnes qui utilisent ce partage voient les versions antérieures de ses fichiers, et peuvent les restaurer si elles ont le droit de modifier.",
+    "versionsDownload": "Autoriser le téléchargement des versions"
   },
   "trash": {
     "title": "Corbeille",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Rien ici",
     "extractTitle": "Extraire vers",
     "extractHere": "Extraire ici"
+  },
+  "links": {
+    "outside": "Lien hors de ce volume",
+    "outsideExplained": "{name} est un lien vers un emplacement hors de ce volume. Il ne peut être ni ouvert, ni renommé, ni supprimé d’ici ; supprimez-le sur le serveur s’il ne sert plus."
   }
 }

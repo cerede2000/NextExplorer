@@ -14,6 +14,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  readOnly: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['change-permissions', 'change-owner']);
@@ -94,6 +98,7 @@ const hasChanges = computed(() => {
 });
 
 const applyChanges = () => {
+  if (props.readOnly) return;
   emit('change-permissions', {
     mode: currentOctal.value,
     recursive: applyToItems.value,
@@ -107,11 +112,13 @@ const newOwner = ref('');
 const newGroup = ref('');
 
 const startEditOwner = () => {
+  if (props.readOnly) return;
   newOwner.value = props.permissions?.owner || '';
   editingOwner.value = true;
 };
 
 const startEditGroup = () => {
+  if (props.readOnly) return;
   newGroup.value = props.permissions?.group || '';
   editingGroup.value = true;
 };
@@ -139,6 +146,16 @@ const cancelEditGroup = () => {
   editingGroup.value = false;
   newGroup.value = '';
 };
+
+// The details panel stays mounted from one item to the next. A name typed for
+// the owner of one file, left open, would otherwise be saved onto the next.
+watch(
+  () => props.permissions,
+  () => {
+    cancelEditOwner();
+    cancelEditGroup();
+  }
+);
 </script>
 
 <template>
@@ -188,12 +205,15 @@ const cancelEditGroup = () => {
             </button>
           </div>
           <button
-            v-else
+            v-else-if="!readOnly"
             @click="startEditOwner"
             class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             {{ permissions.owner || 'Unknown' }}
           </button>
+          <span v-else class="text-sm text-neutral-900 dark:text-neutral-100">
+            {{ permissions.owner || 'Unknown' }}
+          </span>
         </div>
 
         <!-- Group -->
@@ -221,12 +241,15 @@ const cancelEditGroup = () => {
             </button>
           </div>
           <button
-            v-else
+            v-else-if="!readOnly"
             @click="startEditGroup"
             class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             {{ permissions.group || 'Unknown' }}
           </button>
+          <span v-else class="text-sm text-neutral-900 dark:text-neutral-100">
+            {{ permissions.group || 'Unknown' }}
+          </span>
         </div>
       </div>
 
@@ -249,6 +272,7 @@ const cancelEditGroup = () => {
             <input
               v-model="ownerRead"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -256,6 +280,7 @@ const cancelEditGroup = () => {
             <input
               v-model="ownerWrite"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -263,6 +288,7 @@ const cancelEditGroup = () => {
             <input
               v-model="ownerExecute"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -275,6 +301,7 @@ const cancelEditGroup = () => {
             <input
               v-model="groupRead"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -282,6 +309,7 @@ const cancelEditGroup = () => {
             <input
               v-model="groupWrite"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -289,6 +317,7 @@ const cancelEditGroup = () => {
             <input
               v-model="groupExecute"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -301,6 +330,7 @@ const cancelEditGroup = () => {
             <input
               v-model="othersRead"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -308,6 +338,7 @@ const cancelEditGroup = () => {
             <input
               v-model="othersWrite"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -315,6 +346,7 @@ const cancelEditGroup = () => {
             <input
               v-model="othersExecute"
               type="checkbox"
+              :disabled="readOnly"
               class="h-4 w-4 rounded border-neutral-300 dark:border-white/10 text-blue-600 focus:ring-blue-500"
             />
           </div>
@@ -323,7 +355,7 @@ const cancelEditGroup = () => {
 
       <!-- Apply to items checkbox for directories -->
       <div
-        v-if="isDirectory"
+        v-if="isDirectory && !readOnly"
         class="flex items-center gap-2 pt-3 border-t border-neutral-200 dark:border-white/5"
       >
         <input
@@ -339,7 +371,7 @@ const cancelEditGroup = () => {
 
       <!-- Apply button (only shows when changes detected) -->
       <button
-        v-if="hasChanges"
+        v-if="hasChanges && !readOnly"
         @click="applyChanges"
         class="w-full mt-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
       >

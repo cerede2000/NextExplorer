@@ -1034,7 +1034,8 @@
       "auto": "स्वचालित",
       "inline": "देखें",
       "raw": "रॉ",
-      "download": "डाउनलोड करें"
+      "download": "डाउनलोड करें",
+      "editor": "संपादक"
     },
     "deleteShareTitle": "शेयर हटाएँ?",
     "deleteShareMessage": "इस लिंक वाले लोग अब साझा किए गए आइटम तक पहुँच नहीं कर पाएँगे।",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "उपयोगकर्ता लोड हो रहे हैं...",
     "password": "पासवर्ड",
     "protected": "सुरक्षित",
-    "sharedWith": "इनके साथ साझा"
+    "sharedWith": "इनके साथ साझा",
+    "editShareLink": "शेयर लिंक संपादित करें",
+    "saveShare": "परिवर्तन सहेजें",
+    "advancedPermissions": "उन्नत",
+    "allowDelete": "फ़ाइलें हटाने की अनुमति दें",
+    "allowCreateFolder": "फ़ोल्डर बनाने की अनुमति दें",
+    "allowCreateFile": "फ़ाइलें बनाने की अनुमति दें",
+    "allowUpload": "फ़ाइलें और फ़ोल्डर अपलोड करने की अनुमति दें",
+    "activity": "गतिविधि",
+    "activityDetails": "गतिविधि विवरण",
+    "accesses": "एक्सेस",
+    "downloads": "डाउनलोड",
+    "accessCount": "एक्सेस संख्या",
+    "downloadCount": "डाउनलोड संख्या",
+    "lastAccessIp": "अंतिम एक्सेस IP",
+    "lastDownloaded": "अंतिम डाउनलोड",
+    "lastDownloadIp": "अंतिम डाउनलोड IP",
+    "noActivity": "कभी नहीं",
+    "noIpRecorded": "कोई IP दर्ज नहीं",
+    "allowDownload": "डाउनलोड की अनुमति दें",
+    "allowDownloadHelp": "इसे बंद करें ताकि फ़ाइलें पढ़ी जा सकें पर उनकी प्रति न ली जा सके।",
+    "versionsVisible": "फ़ाइल संस्करण दिखाएँ",
+    "versionsVisibleHelp": "इस साझाकरण का उपयोग करने वाले इसकी फ़ाइलों के पिछले संस्करण देखते हैं, और संपादन की अनुमति होने पर उन्हें पुनर्स्थापित कर सकते हैं।",
+    "versionsDownload": "संस्करण डाउनलोड करने दें"
   },
   "trash": {
     "title": "रीसायकल बिन",
@@ -1278,5 +1302,9 @@
     "nothingHere": "यहाँ कुछ नहीं है",
     "extractTitle": "यहाँ निकालें",
     "extractHere": "यहीं निकालें"
+  },
+  "links": {
+    "outside": "इस वॉल्यूम से बाहर का लिंक",
+    "outsideExplained": "{name} इस वॉल्यूम के बाहर किसी स्थान का लिंक है। इसे यहाँ से खोला, नाम बदला या हटाया नहीं जा सकता; अगर अब इसकी ज़रूरत नहीं है तो इसे सर्वर पर हटाएँ।"
   }
 }

@@ -1034,7 +1034,8 @@
       "auto": "Automat",
       "inline": "Vizualizează",
       "raw": "Brut",
-      "download": "Descarcă"
+      "download": "Descarcă",
+      "editor": "Editor"
     },
     "deleteShareTitle": "Elimini partajarea?",
     "deleteShareMessage": "Persoanele cu acest link nu vor mai putea accesa elementul partajat.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Se încarcă utilizatorii...",
     "password": "Parolă",
     "protected": "Protejat",
-    "sharedWith": "Partajat cu"
+    "sharedWith": "Partajat cu",
+    "editShareLink": "Editează linkul de partajare",
+    "saveShare": "Salvează modificările",
+    "advancedPermissions": "Avansat",
+    "allowDelete": "Permite ștergerea fișierelor",
+    "allowCreateFolder": "Permite crearea de dosare",
+    "allowCreateFile": "Permite crearea de fișiere",
+    "allowUpload": "Permite încărcarea de fișiere și dosare",
+    "activity": "Activitate",
+    "activityDetails": "Detalii activitate",
+    "accesses": "accesări",
+    "downloads": "descărcări",
+    "accessCount": "Număr de accesări",
+    "downloadCount": "Număr de descărcări",
+    "lastAccessIp": "Ultima IP de accesare",
+    "lastDownloaded": "Ultima descărcare",
+    "lastDownloadIp": "Ultima IP de descărcare",
+    "noActivity": "Niciodată",
+    "noIpRecorded": "Nicio IP înregistrată",
+    "allowDownload": "Permite descărcarea",
+    "allowDownloadHelp": "Dezactivați pentru a permite citirea fișierelor fără a lua o copie.",
+    "versionsVisible": "Afișați versiunile fișierelor",
+    "versionsVisibleHelp": "Cei care folosesc această partajare văd versiunile anterioare ale fișierelor și le pot restaura dacă au dreptul de editare.",
+    "versionsDownload": "Permiteți descărcarea versiunilor"
   },
   "trash": {
     "title": "Coș de gunoi",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Nimic aici",
     "extractTitle": "Extrageți în",
     "extractHere": "Extrageți aici"
+  },
+  "links": {
+    "outside": "Legătură în afara acestui volum",
+    "outsideExplained": "{name} este o legătură către o locație din afara acestui volum. Nu poate fi deschisă, redenumită sau ștearsă de aici; eliminați-o pe server dacă nu mai este necesară."
   }
 }

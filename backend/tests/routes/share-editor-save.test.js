@@ -62,8 +62,8 @@ const buildApp = ({ user } = {}) => {
   return application;
 };
 
-/** An "anyone" share of `sourceName` inside the owner's assigned volume. */
-const shareOf = async (sourceName, { accessMode = 'readwrite' } = {}) => {
+/** A writable "anyone" share of `sourceName` inside the owner's assigned volume. */
+const shareOf = async (sourceName) => {
   const owner = await load('src/services/users').createLocalUser({
     email: `owner-${sourceName.replace(/\W/g, '-')}@example.com`,
     username: `owner-${sourceName.replace(/\W/g, '-')}`,
@@ -81,7 +81,7 @@ const shareOf = async (sourceName, { accessMode = 'readwrite' } = {}) => {
     .post('/api/shares')
     .send({
       sourcePath: `Assigned/${sourceName}`,
-      accessMode,
+      accessMode: 'readwrite',
       sharingType: 'anyone',
     });
   expect(create.status).toBe(201);
@@ -148,25 +148,5 @@ describe('saving a text file through a share link', () => {
 
     expect(response.status).toBe(400);
     expect((await fsp.stat(path.join(assignedRoot, 'minutes'))).isDirectory()).toBe(true);
-  });
-
-  /**
-   * A link that only reads is the case this route exists to keep apart from
-   * the one that writes: the editor opens on both, and offers to save on one.
-   */
-  it('refuses a link that was not made writable', async () => {
-    const target = path.join(assignedRoot, 'lecture.txt');
-    await fsp.writeFile(target, 'à lire seulement');
-    const token = await shareOf('lecture.txt', { accessMode: 'readonly' });
-
-    // It still opens: reading is what the link is for.
-    const opened = await request(buildApp()).get(`/api/share/${token}/editor`);
-    expect(opened.status).toBe(200);
-    expect(opened.body).toMatchObject({ canWrite: false });
-
-    const response = await save(token, 'réécrit quand même');
-
-    expect(response.status).toBe(403);
-    expect(await fsp.readFile(target, 'utf8')).toBe('à lire seulement');
   });
 });

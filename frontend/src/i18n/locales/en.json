@@ -983,7 +983,8 @@
       "auto": "Auto",
       "inline": "View",
       "raw": "Raw",
-      "download": "Download"
+      "download": "Download",
+      "editor": "Editor"
     },
     "shareLinkCreatedSuccess": "Share link created successfully!",
     "access": "Access Mode",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Loading users...",
     "password": "Password",
     "protected": "Protected",
-    "sharedWith": "Shared with"
+    "sharedWith": "Shared with",
+    "editShareLink": "Edit share link",
+    "saveShare": "Save changes",
+    "advancedPermissions": "Advanced",
+    "allowDelete": "Allow deleting files",
+    "allowCreateFolder": "Allow creating folders",
+    "allowCreateFile": "Allow creating files",
+    "allowUpload": "Allow uploading files and folders",
+    "activity": "Activity",
+    "activityDetails": "Activity details",
+    "accesses": "accesses",
+    "downloads": "downloads",
+    "accessCount": "Access count",
+    "downloadCount": "Download count",
+    "lastAccessIp": "Last access IP",
+    "lastDownloaded": "Last downloaded",
+    "lastDownloadIp": "Last download IP",
+    "noActivity": "Never",
+    "noIpRecorded": "No IP recorded",
+    "allowDownload": "Allow downloading",
+    "allowDownloadHelp": "Turn this off to let people read the files without taking a copy.",
+    "versionsVisible": "Show file versions",
+    "versionsVisibleHelp": "People using this share see the earlier versions of its files, and can restore them if they may edit.",
+    "versionsDownload": "Allow downloading versions"
   },
   "trash": {
     "title": "Trash",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Nothing here",
     "extractTitle": "Extract to",
     "extractHere": "Extract here"
+  },
+  "links": {
+    "outside": "Link out of this volume",
+    "outsideExplained": "{name} is a link to a place outside this volume. It cannot be opened, renamed or deleted from here; remove it on the server if it is no longer needed."
   }
 }

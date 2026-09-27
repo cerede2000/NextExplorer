@@ -1034,7 +1034,8 @@
       "auto": "Automatisch",
       "inline": "Anzeigen",
       "raw": "Roh",
-      "download": "Herunterladen"
+      "download": "Herunterladen",
+      "editor": "Editor"
     },
     "deleteShareTitle": "Freigabe entfernen?",
     "deleteShareMessage": "Personen mit diesem Link können nicht mehr auf das freigegebene Element zugreifen.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Benutzer werden geladen...",
     "password": "Passwort",
     "protected": "Geschützt",
-    "sharedWith": "Geteilt mit"
+    "sharedWith": "Geteilt mit",
+    "editShareLink": "Freigabelink bearbeiten",
+    "saveShare": "Änderungen speichern",
+    "advancedPermissions": "Erweitert",
+    "allowDelete": "Löschen von Dateien erlauben",
+    "allowCreateFolder": "Erstellen von Ordnern erlauben",
+    "allowCreateFile": "Erstellen von Dateien erlauben",
+    "allowUpload": "Hochladen von Dateien und Ordnern erlauben",
+    "activity": "Aktivität",
+    "activityDetails": "Aktivitätsdetails",
+    "accesses": "Zugriffe",
+    "downloads": "Downloads",
+    "accessCount": "Anzahl der Zugriffe",
+    "downloadCount": "Anzahl der Downloads",
+    "lastAccessIp": "Letzte Zugriffs-IP",
+    "lastDownloaded": "Zuletzt heruntergeladen",
+    "lastDownloadIp": "Letzte Download-IP",
+    "noActivity": "Nie",
+    "noIpRecorded": "Keine IP erfasst",
+    "allowDownload": "Herunterladen erlauben",
+    "allowDownloadHelp": "Ausschalten, damit die Dateien gelesen, aber nicht kopiert werden können.",
+    "versionsVisible": "Dateiversionen anzeigen",
+    "versionsVisibleHelp": "Wer diese Freigabe nutzt, sieht die früheren Versionen ihrer Dateien und kann sie wiederherstellen, wenn Bearbeiten erlaubt ist.",
+    "versionsDownload": "Herunterladen von Versionen erlauben"
   },
   "trash": {
     "title": "Papierkorb",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Hier ist nichts",
     "extractTitle": "Entpacken nach",
     "extractHere": "Hierher entpacken"
+  },
+  "links": {
+    "outside": "Verknüpfung außerhalb dieses Volumes",
+    "outsideExplained": "{name} ist eine Verknüpfung zu einem Ort außerhalb dieses Volumes. Sie kann hier weder geöffnet, umbenannt noch gelöscht werden; entfernen Sie sie auf dem Server, wenn sie nicht mehr gebraucht wird."
   }
 }

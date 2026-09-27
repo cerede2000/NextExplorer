@@ -6,11 +6,20 @@ import { requestJson, normalizePath, encodePath } from './http';
 async function createShare({
   sourcePath,
   accessMode = 'readonly',
+  allowDelete = true,
+  allowCreateFolder = true,
+  allowCreateFile = true,
+  allowUpload = true,
+  allowDownload = true,
   sharingType = 'anyone',
   password = null,
   userIds = [],
   expiresAt = null,
   label = null,
+  // Left out of the body when not given, so the server's default for the kind
+  // of share applies: shown for named people, hidden for a link for anyone.
+  versionsVisible,
+  versionsDownload,
 }) {
   const normalizedPath = normalizePath(sourcePath);
 
@@ -19,11 +28,18 @@ async function createShare({
     body: JSON.stringify({
       sourcePath: normalizedPath,
       accessMode,
+      allowDelete,
+      allowCreateFolder,
+      allowCreateFile,
+      allowUpload,
+      allowDownload,
       sharingType,
       password,
       userIds,
       expiresAt,
       label,
+      versionsVisible,
+      versionsDownload,
     }),
   });
 }
@@ -40,13 +56,6 @@ async function getMyShares() {
  */
 async function getSharedWithMe() {
   return requestJson('/api/shares/shared-with-me', { method: 'GET' });
-}
-
-/**
- * Get share details by ID
- */
-async function getShareById(shareId) {
-  return requestJson(`/api/shares/${shareId}`, { method: 'GET' });
 }
 
 /**
@@ -95,39 +104,33 @@ async function accessShare(shareToken) {
 /**
  * Browse share contents
  */
-async function browseShare(shareToken, innerPath = '') {
+async function browseShare(shareToken, innerPath = '', options = {}) {
   const normalizedInnerPath = normalizePath(innerPath);
   const encodedPath = encodePath(normalizedInnerPath);
   const endpoint = encodedPath
     ? `/api/share/${shareToken}/browse/${encodedPath}`
     : `/api/share/${shareToken}/browse/`;
 
-  return requestJson(endpoint, { method: 'GET' });
+  return requestJson(endpoint, { method: 'GET', signal: options.signal });
 }
 
 /**
  * Store guest session ID in sessionStorage
  */
-function setGuestSession(sessionId) {
+function setGuestSession(sessionId, shareToken = '') {
   if (sessionId) {
     sessionStorage.setItem('guestSessionId', sessionId);
+    if (shareToken) {
+      sessionStorage.setItem('guestSessionShareToken', shareToken);
+    }
   } else {
     sessionStorage.removeItem('guestSessionId');
+    sessionStorage.removeItem('guestSessionShareToken');
   }
 }
 
-/**
- * Get guest session ID from sessionStorage
- */
-function getGuestSession() {
-  return sessionStorage.getItem('guestSessionId');
-}
-
-/**
- * Clear guest session
- */
-function clearGuestSession() {
-  sessionStorage.removeItem('guestSessionId');
+function getGuestSessionShareToken() {
+  return sessionStorage.getItem('guestSessionShareToken');
 }
 
 /**
@@ -142,6 +145,7 @@ const DIRECT_SHARE_FILE_MODES = [
   { value: 'auto', labelKey: 'share.directLinkModes.auto', fallback: 'Auto' },
   { value: 'inline', labelKey: 'share.directLinkModes.inline', fallback: 'View' },
   { value: 'raw', labelKey: 'share.directLinkModes.raw', fallback: 'Raw' },
+  { value: 'editor', labelKey: 'share.directLinkModes.editor', fallback: 'Editor' },
   { value: 'download', labelKey: 'share.directLinkModes.download', fallback: 'Download' },
 ];
 
@@ -160,9 +164,21 @@ function getDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
   const encodedInnerPath = encodePath(normalizedInnerPath);
   const url = encodedInnerPath
     ? `${baseUrl}/api/share/${encodedToken}/file/${encodedInnerPath}`
-    : `${baseUrl}/api/share/${encodedToken}/file`;
+    : `${baseUrl}/api/share/${encodedToken}`;
   const normalizedMode = normalizeDirectShareFileMode(mode);
+  if (normalizedMode === 'editor') {
+    return getDirectShareEditorUrl(shareToken, normalizedInnerPath);
+  }
   return normalizedMode === 'auto' ? url : `${url}?mode=${encodeURIComponent(normalizedMode)}`;
+}
+
+function getDirectShareEditorUrl(shareToken, innerPath = '') {
+  const baseUrl = window.location.origin;
+  const encodedToken = encodeURIComponent(shareToken);
+  const encodedInnerPath = encodePath(normalizePath(innerPath));
+  return encodedInnerPath
+    ? `${baseUrl}/editor/share/${encodedToken}/${encodedInnerPath}`
+    : `${baseUrl}/editor/share/${encodedToken}`;
 }
 
 const writeToClipboard = async (value) => {
@@ -203,7 +219,6 @@ export {
   createShare,
   getMyShares,
   getSharedWithMe,
-  getShareById,
   updateShare,
   deleteShare,
   getShareInfo,
@@ -211,9 +226,7 @@ export {
   accessShare,
   browseShare,
   setGuestSession,
-  getGuestSession,
-  clearGuestSession,
-  getShareUrl,
+  getGuestSessionShareToken,
   DIRECT_SHARE_FILE_MODES,
   getDirectShareFileUrl,
   copyShareUrl,

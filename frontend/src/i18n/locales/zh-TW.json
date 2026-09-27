@@ -1034,7 +1034,8 @@
       "auto": "自動",
       "inline": "檢視",
       "raw": "原始",
-      "download": "下載"
+      "download": "下載",
+      "editor": "編輯器"
     },
     "deleteShareTitle": "移除分享？",
     "deleteShareMessage": "擁有此連結的人將無法再存取分享的項目。",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "正在載入使用者...",
     "password": "密碼",
     "protected": "已保護",
-    "sharedWith": "分享對象"
+    "sharedWith": "分享對象",
+    "editShareLink": "編輯分享連結",
+    "saveShare": "儲存變更",
+    "advancedPermissions": "進階",
+    "allowDelete": "允許刪除檔案",
+    "allowCreateFolder": "允許建立檔案夾",
+    "allowCreateFile": "允許建立檔案",
+    "allowUpload": "允許上傳檔案和檔案夾",
+    "activity": "活動",
+    "activityDetails": "活動詳細資訊",
+    "accesses": "次存取",
+    "downloads": "次下載",
+    "accessCount": "存取次數",
+    "downloadCount": "下載次數",
+    "lastAccessIp": "上次存取 IP",
+    "lastDownloaded": "上次下載",
+    "lastDownloadIp": "上次下載 IP",
+    "noActivity": "從未",
+    "noIpRecorded": "未記錄 IP",
+    "allowDownload": "允許下載",
+    "allowDownloadHelp": "關閉後，他人可以閱讀檔案但無法下載副本。",
+    "versionsVisible": "顯示檔案版本",
+    "versionsVisibleHelp": "使用此共用的人可以看到其檔案的先前版本，若有編輯權限還可以還原。",
+    "versionsDownload": "允許下載版本"
   },
   "trash": {
     "title": "資源回收筒",
@@ -1278,5 +1302,9 @@
     "nothingHere": "這裡什麼都沒有",
     "extractTitle": "解壓縮到",
     "extractHere": "解壓縮到此處"
+  },
+  "links": {
+    "outside": "指向此磁碟區外部的連結",
+    "outsideExplained": "{name} 是指向此磁碟區外部位置的連結。無法在此開啟、重新命名或刪除；如果不再需要，請在伺服器上將其移除。"
   }
 }

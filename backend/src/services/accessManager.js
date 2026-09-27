@@ -112,6 +112,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
       canDelete: !effectiveReadOnly,
       canUpload: !effectiveReadOnly,
       canCreateFolder: !effectiveReadOnly,
+      canCreateFile: !effectiveReadOnly,
       canShare: true,
       canDownload: true,
       isShared: false,
@@ -158,6 +159,7 @@ const getVolumeAccess = async (context, relativePath, options = {}) => {
     canDelete: !isReadOnly,
     canUpload: !isReadOnly,
     canCreateFolder: !isReadOnly,
+    canCreateFile: !isReadOnly,
     canShare: true,
     canDownload: true,
     isShared: false,
@@ -192,6 +194,7 @@ const getPersonalAccess = async (context, relativePath) => {
     canDelete: true,
     canUpload: true,
     canCreateFolder: true,
+    canCreateFile: true,
     canShare: true,
     canDownload: true,
     isShared: false,
@@ -347,11 +350,16 @@ const getShareAccess = async (context, shareToken, innerPath, options = {}) => {
     canAccess: true,
     canRead: true,
     canWrite: isReadWrite,
-    canDelete: isReadWrite,
-    canUpload: isReadWrite,
-    canCreateFolder: isReadWrite,
+    canDelete: isReadWrite && share.allowDelete !== false,
+    canUpload: isReadWrite && share.allowUpload !== false,
+    canCreateFolder: isReadWrite && share.allowCreateFolder !== false,
+    canCreateFile: isReadWrite && share.allowCreateFile !== false,
     canShare: false, // Cannot create shares within shares
-    canDownload: true,
+    // Deliberately not gated on `isReadWrite` like the others above it: a
+    // read-only share is exactly where withholding downloads means something —
+    // "read this" rather than "take a copy of this". Defaults to allowed, so
+    // every share made before this existed behaves as it always did.
+    canDownload: share.allowDownload !== false,
     isShared: true,
     shareInfo: {
       shareId: share.id,

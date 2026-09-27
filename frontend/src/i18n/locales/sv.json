@@ -1034,7 +1034,8 @@
       "auto": "Automatiskt",
       "inline": "Visa",
       "raw": "Rå",
-      "download": "Hämta"
+      "download": "Hämta",
+      "editor": "Redigerare"
     },
     "deleteShareTitle": "Ta bort delning?",
     "deleteShareMessage": "Personer med den här länken kommer inte längre åt det delade objektet.",
@@ -1043,7 +1044,30 @@
     "loadingUsers": "Läser in användare...",
     "password": "Lösenord",
     "protected": "Skyddad",
-    "sharedWith": "Delad med"
+    "sharedWith": "Delad med",
+    "editShareLink": "Redigera delningslänk",
+    "saveShare": "Spara ändringar",
+    "advancedPermissions": "Avancerat",
+    "allowDelete": "Tillåt att radera filer",
+    "allowCreateFolder": "Tillåt att skapa mappar",
+    "allowCreateFile": "Tillåt att skapa filer",
+    "allowUpload": "Tillåt uppladdning av filer och mappar",
+    "activity": "Aktivitet",
+    "activityDetails": "Aktivitetsdetaljer",
+    "accesses": "åtkomster",
+    "downloads": "nerladdningar",
+    "accessCount": "Antal åtkomster",
+    "downloadCount": "Antal nerladdningar",
+    "lastAccessIp": "Senaste åtkomst-IP",
+    "lastDownloaded": "Senast nerladdad",
+    "lastDownloadIp": "Senaste nerladdnings-IP",
+    "noActivity": "Aldrig",
+    "noIpRecorded": "Ingen IP registrerad",
+    "allowDownload": "Tillåt nedladdning",
+    "allowDownloadHelp": "Stäng av för att låta filerna läsas utan att en kopia tas.",
+    "versionsVisible": "Visa filversioner",
+    "versionsVisibleHelp": "De som använder den här delningen ser tidigare versioner av dess filer och kan återställa dem om de får redigera.",
+    "versionsDownload": "Tillåt nedladdning av versioner"
   },
   "trash": {
     "title": "Papperskorg",
@@ -1278,5 +1302,9 @@
     "nothingHere": "Inget här",
     "extractTitle": "Packa upp till",
     "extractHere": "Packa upp här"
+  },
+  "links": {
+    "outside": "Länk utanför den här volymen",
+    "outsideExplained": "{name} är en länk till en plats utanför den här volymen. Den kan inte öppnas, byta namn eller tas bort härifrån; ta bort den på servern om den inte längre behövs."
   }
 }
