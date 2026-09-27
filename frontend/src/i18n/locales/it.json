@@ -1240,6 +1240,7 @@
     "notReadable": "Questo tipo di file non può essere mostrato qui.",
     "tooBigToRead": "Troppo grande per essere mostrato qui: {size}, il limite è {ceiling}. Scaricalo o estrailo per aprirlo.",
     "extract": "Estrai qui",
+    "extractTo": "Estrai in…",
     "extractNamed": "Estrai {name} qui",
     "selectAll": "Seleziona tutto qui",
     "selectNamed": "Seleziona {name}",
@@ -1254,5 +1255,27 @@
     "empty": "Non c'è nulla da scegliere qui",
     "breadcrumb": "Percorso della cartella",
     "chooseFolder": "Scegli questa cartella"
+  },
+  "destinationPicker": {
+    "moveTitle": "Sposta in",
+    "copyTitle": "Copia in",
+    "moveHere": "Sposta qui",
+    "copyHere": "Copia qui",
+    "noFolders": "Nessuna cartella qui",
+    "rootRejected": "Scegli prima un volume o una cartella",
+    "itselfRejected": "Una cartella non può essere spostata in se stessa",
+    "descendantRejected": "Una cartella non può essere spostata in una delle proprie cartelle",
+    "alreadyThereRejected": "Già qui",
+    "restoreTitle": "Ripristina in",
+    "restoreHere": "Ripristina qui",
+    "versionCopyTitle": "Ripristina una copia in",
+    "versionCopyHere": "Ripristina una copia qui",
+    "replaceTitle": "Scegli il file da sostituire",
+    "replaceHere": "Sostituisci questo file",
+    "fileRequired": "Scegli un file",
+    "sameFileRejected": "Scegli un file diverso da questo",
+    "nothingHere": "Qui non c'è niente",
+    "extractTitle": "Estrai in",
+    "extractHere": "Estrai qui"
   }
 }

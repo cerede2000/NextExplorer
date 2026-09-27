@@ -3221,6 +3221,47 @@
         }
       }
     },
+    "/api/files/recent-destinations": {
+      "get": {
+        "operationId": "listRecentDestinations",
+        "summary": "Folders this account recently copied or moved into",
+        "description": "Only those it can still reach.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
     "/api/files/delete-impact": {
       "post": {
         "operationId": "describeDeletion",

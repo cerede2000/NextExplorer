@@ -1240,6 +1240,7 @@
     "notReadable": "這類檔案無法在此顯示。",
     "tooBigToRead": "太大，無法在此顯示：{size}，上限為 {ceiling}。請下載或解壓縮後開啟。",
     "extract": "解壓縮到此處",
+    "extractTo": "解壓縮到…",
     "extractNamed": "將 {name} 解壓縮到此處",
     "selectAll": "全選目前層級",
     "selectNamed": "選擇 {name}",
@@ -1254,5 +1255,27 @@
     "empty": "這裡沒有可選項目",
     "breadcrumb": "資料夾路徑",
     "chooseFolder": "選擇此資料夾"
+  },
+  "destinationPicker": {
+    "moveTitle": "移動到",
+    "copyTitle": "複製到",
+    "moveHere": "移動到此處",
+    "copyHere": "複製到此處",
+    "noFolders": "此處沒有資料夾",
+    "rootRejected": "請先選擇磁碟區或資料夾",
+    "itselfRejected": "資料夾不能移動到自身",
+    "descendantRejected": "資料夾不能移動到其自身的子資料夾",
+    "alreadyThereRejected": "已在此處",
+    "restoreTitle": "還原到",
+    "restoreHere": "還原到此處",
+    "versionCopyTitle": "將副本還原到",
+    "versionCopyHere": "將副本還原到此處",
+    "replaceTitle": "選擇要取代的檔案",
+    "replaceHere": "取代此檔案",
+    "fileRequired": "請選擇一個檔案",
+    "sameFileRejected": "請選擇此檔案以外的檔案",
+    "nothingHere": "這裡什麼都沒有",
+    "extractTitle": "解壓縮到",
+    "extractHere": "解壓縮到此處"
   }
 }

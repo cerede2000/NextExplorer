@@ -132,6 +132,16 @@ module.exports = {
       },
     }),
   },
+  '/api/files/recent-destinations': {
+    get: op({
+      id: 'listRecentDestinations',
+      summary: 'Folders this account recently copied or moved into',
+      description: 'Only those it can still reach.',
+      tag: TAG,
+      access: 'account',
+      responses: { 200: json(obj({ items: arrayOf(str()) }, ['items'])), ...errors(401) },
+    }),
+  },
   '/api/files/delete-impact': {
     post: op({
       id: 'describeDeletion',

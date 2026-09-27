@@ -1240,6 +1240,7 @@
     "notReadable": "Dieser Dateityp kann hier nicht angezeigt werden.",
     "tooBigToRead": "Zu groß für die Anzeige hier: {size}, das Limit liegt bei {ceiling}. Laden Sie die Datei herunter oder entpacken Sie sie.",
     "extract": "Hier entpacken",
+    "extractTo": "Entpacken nach…",
     "extractNamed": "{name} hier entpacken",
     "selectAll": "Alles hier auswählen",
     "selectNamed": "{name} auswählen",
@@ -1254,5 +1255,27 @@
     "empty": "Hier gibt es nichts auszuwählen",
     "breadcrumb": "Ordnerpfad",
     "chooseFolder": "Diesen Ordner wählen"
+  },
+  "destinationPicker": {
+    "moveTitle": "Verschieben nach",
+    "copyTitle": "Kopieren nach",
+    "moveHere": "Hierher verschieben",
+    "copyHere": "Hierher kopieren",
+    "noFolders": "Keine Ordner hier",
+    "rootRejected": "Wählen Sie zuerst ein Volume oder einen Ordner",
+    "itselfRejected": "Ein Ordner kann nicht in sich selbst verschoben werden",
+    "descendantRejected": "Ein Ordner kann nicht in einen seiner eigenen Ordner verschoben werden",
+    "alreadyThereRejected": "Bereits hier",
+    "restoreTitle": "Wiederherstellen nach",
+    "restoreHere": "Hier wiederherstellen",
+    "versionCopyTitle": "Kopie wiederherstellen nach",
+    "versionCopyHere": "Kopie hier wiederherstellen",
+    "replaceTitle": "Zu ersetzende Datei wählen",
+    "replaceHere": "Diese Datei ersetzen",
+    "fileRequired": "Wählen Sie eine Datei",
+    "sameFileRejected": "Wählen Sie eine andere Datei als diese",
+    "nothingHere": "Hier ist nichts",
+    "extractTitle": "Entpacken nach",
+    "extractHere": "Hierher entpacken"
   }
 }

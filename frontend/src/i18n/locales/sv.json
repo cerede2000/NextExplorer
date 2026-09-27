@@ -1240,6 +1240,7 @@
     "notReadable": "Den här filtypen kan inte visas här.",
     "tooBigToRead": "För stor för att visas här: {size}, gränsen är {ceiling}. Ladda ner eller packa upp filen för att öppna den.",
     "extract": "Extrahera hit",
+    "extractTo": "Packa upp till…",
     "extractNamed": "Extrahera {name} hit",
     "selectAll": "Markera allt här",
     "selectNamed": "Markera {name}",
@@ -1254,5 +1255,27 @@
     "empty": "Det finns inget att välja här",
     "breadcrumb": "Mappsökväg",
     "chooseFolder": "Välj den här mappen"
+  },
+  "destinationPicker": {
+    "moveTitle": "Flytta till",
+    "copyTitle": "Kopiera till",
+    "moveHere": "Flytta hit",
+    "copyHere": "Kopiera hit",
+    "noFolders": "Inga mappar här",
+    "rootRejected": "Välj en volym eller mapp först",
+    "itselfRejected": "En mapp kan inte flyttas in i sig själv",
+    "descendantRejected": "En mapp kan inte flyttas till en av sina egna mappar",
+    "alreadyThereRejected": "Redan här",
+    "restoreTitle": "Återställ till",
+    "restoreHere": "Återställ hit",
+    "versionCopyTitle": "Återställ en kopia till",
+    "versionCopyHere": "Återställ en kopia här",
+    "replaceTitle": "Välj filen som ska ersättas",
+    "replaceHere": "Ersätt den här filen",
+    "fileRequired": "Välj en fil",
+    "sameFileRejected": "Välj en annan fil än den här",
+    "nothingHere": "Inget här",
+    "extractTitle": "Packa upp till",
+    "extractHere": "Packa upp här"
   }
 }

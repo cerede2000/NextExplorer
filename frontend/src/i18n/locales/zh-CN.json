@@ -1240,6 +1240,7 @@
     "notReadable": "此类文件无法在此显示。",
     "tooBigToRead": "太大，无法在此显示：{size}，上限为 {ceiling}。请下载或解压后打开。",
     "extract": "解压到此处",
+    "extractTo": "解压到…",
     "extractNamed": "将 {name} 解压到此处",
     "selectAll": "全选当前层级",
     "selectNamed": "选择 {name}",
@@ -1254,5 +1255,27 @@
     "empty": "这里没有可选项",
     "breadcrumb": "文件夹路径",
     "chooseFolder": "选择此文件夹"
+  },
+  "destinationPicker": {
+    "moveTitle": "移动到",
+    "copyTitle": "复制到",
+    "moveHere": "移动到此处",
+    "copyHere": "复制到此处",
+    "noFolders": "此处没有文件夹",
+    "rootRejected": "请先选择卷或文件夹",
+    "itselfRejected": "文件夹不能移动到自身",
+    "descendantRejected": "文件夹不能移动到其自身的子文件夹",
+    "alreadyThereRejected": "已在此处",
+    "restoreTitle": "还原到",
+    "restoreHere": "还原到此处",
+    "versionCopyTitle": "将副本恢复到",
+    "versionCopyHere": "将副本恢复到此处",
+    "replaceTitle": "选择要替换的文件",
+    "replaceHere": "替换此文件",
+    "fileRequired": "请选择一个文件",
+    "sameFileRejected": "请选择此文件以外的文件",
+    "nothingHere": "这里什么都没有",
+    "extractTitle": "解压到",
+    "extractHere": "解压到此处"
   }
 }
