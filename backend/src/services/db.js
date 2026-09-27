@@ -7,6 +7,7 @@ const { ensureDir } = require('../utils/fsUtils');
 const logger = require('../utils/logger');
 const { TRASH_DDL } = require('./trash/schema');
 const { VERSIONS_DDL } = require('./versions/schema');
+const indexDb = require('./indexDb');
 
 let dbInstance = null;
 
@@ -1102,13 +1103,23 @@ const openDb = async () => {
 
   const db = new Database(dbPath);
   migrate(db);
-  // Applied on every open as well as by the migration above: a database created
-  // by another build sharing this /config may already be past v10 without the
-  // table, which would make the indexer fail with "no such table".
+  // The indexes live in a database of their own under the cache directory (see
+  // indexDb.js), and this is what gets them there. The migrations above still
+  // create their tables here, for an installation coming from before the split,
+  // and this carries them over once — copying the rows when there are any, and
+  // dropping the tables either way, so the space they held leaves app.db with
+  // them.
+  //
+  // `folder_size_index` used to be re-created here on every open as well, for a
+  // database another build sharing this /config had taken past v10 without it.
+  // That is indexDb's business now: re-creating it here put it straight back
+  // after this call had taken it out, so app.db kept a table nothing reads while
+  // the indexer read the one in the cache — and an installation upgrading would
+  // have re-walked its whole volume to fill an index it already had.
   try {
-    db.exec(FOLDER_SIZE_INDEX_DDL);
+    indexDb.moveIndexesOutOf(db);
   } catch (err) {
-    logger.warn({ err }, '[DB] Failed to ensure folder_size_index table');
+    logger.warn({ err }, '[DB] Failed to move the indexes out of app.db');
   }
   // Applied on every open too: a database created by another build sharing this
   // /config may be past v12 without the trash tables.
