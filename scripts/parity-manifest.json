@@ -25,6 +25,40 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^backend/src/routes/volumes\\.js(:|$)",
+      "verdict": "THEIRS",
+      "note": "upstream drops the volumes a caller may not reach (nxzai#425); the fork has not caught up, and taking its version would put every hidden volume's name back in the sidebar. The fork takes upstream's"
+    },
+    {
+      "axis": "migration",
+      "match": "^personal_folder_reservations$",
+      "verdict": "DONE",
+      "batch": "P3-23",
+      "note": "nxzai#453 \u2014 a folder name outlives the account it belonged to"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.access\\.",
+      "verdict": "DONE",
+      "batch": "P3-23",
+      "note": "nxzai#453 \u2014 the access rules screen"
+    },
+    {
+      "axis": "doc-drift",
+      "match": "^docs/admin/user-volumes\\.md$",
+      "verdict": "DONE",
+      "batch": "P3-23",
+      "note": "nxzai#453 \u2014 the volumes an account is assigned"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/permissions\\.js|backend/src/routes/userVolumes\\.js|backend/src/services/accessControlService\\.js|backend/src/services/accessManager\\.js|backend/src/services/authorizationService\\.js|backend/src/services/directoryListingService\\.js|backend/src/services/guestSessionService\\.js|backend/src/services/personalFolders\\.js|backend/src/services/userVolumesService\\.js|backend/src/services/users/management\\.js|backend/src/utils/ownedTree\\.js|frontend/src/views/settings/SettingsAccessControl\\.vue|frontend/src/views/settings/components/VolumeAssignModal\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-23",
+      "note": "nxzai#453 \u2014 chown takes arguments, and a rule hides a volume everywhere"
+    },
+    {
+      "axis": "*",
       "match": "^backend/src/routes/search\\.js(:|$)",
       "verdict": "THEIRS",
       "note": "upstream stats the page of results before handing it out and drops what is gone. The fork answers from the catalogue and lets a sweep tidy up later, which offers results that open nothing. The fork takes upstream's version"
