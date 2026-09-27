@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Hai modifiche non salvate. Chiudere senza salvare?",
     "trashReadOnly": "Nel cestino · sola lettura",
-    "versionReadOnly": "Versione precedente, sola lettura"
+    "versionReadOnly": "Versione precedente, sola lettura",
+    "highlightingOffTooLarge": "Evidenziazione della sintassi disattivata per questo file: una parte è troppo grande per essere evidenziata senza bloccare la pagina.",
+    "raw": "Grezzo",
+    "selectTheme": "Scegli il tema dell'editor"
   },
   "status": {
     "updated": "Aggiornato con successo",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} è stato aggiunto accanto all’originale.",
     "saveAsFailed": "Impossibile salvare {name}",
     "editingBody": "{names} è aperto in OnlyOffice. {action} continuerà. | {names} sono aperti in OnlyOffice. {action} continuerà.",
-    "editingHeading": "File in fase di modifica"
+    "editingHeading": "File in fase di modifica",
+    "pickFailed": "Impossibile usare il file selezionato"
   },
   "preview": {
     "nothingOpensIt": "Qui niente sa aprire {name}.",

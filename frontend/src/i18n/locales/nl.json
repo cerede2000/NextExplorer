@@ -84,7 +84,10 @@
     "wrapLines": "Automatische terugloop",
     "confirmCloseWithoutSaving": "Er zijn niet-opgeslagen wijzigingen. Sluiten zonder opslaan?",
     "trashReadOnly": "In de prullenbak · alleen-lezen",
-    "versionReadOnly": "Eerdere versie, alleen-lezen"
+    "versionReadOnly": "Eerdere versie, alleen-lezen",
+    "highlightingOffTooLarge": "Syntaxiskleuring staat uit voor dit bestand: een deel ervan is te groot om te kleuren zonder de pagina te laten vastlopen.",
+    "raw": "Onbewerkt",
+    "selectTheme": "Editorthema kiezen"
   },
   "status": {
     "updated": "Met succes bijgewerkt",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} is naast het origineel toegevoegd.",
     "saveAsFailed": "{name} kon niet worden opgeslagen",
     "editingBody": "{names} is geopend in OnlyOffice. De {action} gaat door. | {names} zijn geopend in OnlyOffice. De {action} gaat door.",
-    "editingHeading": "Bestand wordt bewerkt"
+    "editingHeading": "Bestand wordt bewerkt",
+    "pickFailed": "Het gekozen bestand kon niet worden gebruikt"
   },
   "preview": {
     "nothingOpensIt": "Hier kan niets {name} openen.",

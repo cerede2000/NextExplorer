@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "You have unsaved changes. Close without saving?",
     "trashReadOnly": "In the trash · read only",
-    "versionReadOnly": "Earlier version, read-only"
+    "versionReadOnly": "Earlier version, read-only",
+    "highlightingOffTooLarge": "Syntax highlighting is off for this file: part of it is too large to highlight without freezing the page.",
+    "raw": "Raw",
+    "selectTheme": "Select editor theme"
   },
   "status": {
     "updated": "Updated successfully",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} was added next to the original.",
     "saveAsFailed": "Could not save {name}",
     "editingBody": "{names} is open in OnlyOffice. The {action} will continue. | {names} are open in OnlyOffice. The {action} will continue.",
-    "editingHeading": "File is being edited"
+    "editingHeading": "File is being edited",
+    "pickFailed": "Could not use the selected file"
   },
   "preview": {
     "nothingOpensIt": "Nothing here can open {name}.",

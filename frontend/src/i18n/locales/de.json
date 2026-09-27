@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Sie haben ungespeicherte Änderungen. Ohne Speichern schließen?",
     "trashReadOnly": "Im Papierkorb · schreibgeschützt",
-    "versionReadOnly": "Frühere Version, schreibgeschützt"
+    "versionReadOnly": "Frühere Version, schreibgeschützt",
+    "highlightingOffTooLarge": "Syntaxhervorhebung für diese Datei ausgeschaltet: Ein Teil davon ist zu groß, um ihn hervorzuheben, ohne die Seite einzufrieren.",
+    "raw": "Roh",
+    "selectTheme": "Editor-Thema wählen"
   },
   "status": {
     "updated": "Erfolgreich aktualisiert",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} wurde neben dem Original abgelegt.",
     "saveAsFailed": "{name} konnte nicht gespeichert werden",
     "editingBody": "{names} ist in OnlyOffice geöffnet. {action} wird fortgesetzt. | {names} sind in OnlyOffice geöffnet. {action} wird fortgesetzt.",
-    "editingHeading": "Datei wird bearbeitet"
+    "editingHeading": "Datei wird bearbeitet",
+    "pickFailed": "Die ausgewählte Datei konnte nicht verwendet werden"
   },
   "preview": {
     "nothingOpensIt": "Hier kann nichts {name} öffnen.",

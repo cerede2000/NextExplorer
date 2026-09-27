@@ -1,7 +1,7 @@
 <template>
   <teleport to="body">
     <!-- Standalone plugins render directly -->
-    <div v-if="isStandalone">
+    <div v-if="isStandalone" data-test="preview-surface">
       <component v-if="component" :is="component" v-bind="activeItem" />
       <!-- Lightweight fallback while standalone plugin component loads -->
       <div
@@ -18,6 +18,7 @@
     <transition v-else name="preview-fade">
       <div
         v-if="isOpen"
+        data-test="preview-surface"
         class="fixed inset-0 z-2000 flex items-center justify-center bg-black/70"
         @click.self="handleClose"
         @keydown.esc="handleClose"

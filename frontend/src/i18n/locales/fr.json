@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
     "trashReadOnly": "Dans la corbeille · lecture seule",
-    "versionReadOnly": "Version antérieure, lecture seule"
+    "versionReadOnly": "Version antérieure, lecture seule",
+    "highlightingOffTooLarge": "Coloration syntaxique désactivée pour ce fichier : une partie est trop grande pour être colorée sans figer la page.",
+    "raw": "Brut",
+    "selectTheme": "Choisir le thème de l'éditeur"
   },
   "status": {
     "updated": "Mis à jour avec succès",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} a été ajouté à côté de l’original.",
     "saveAsFailed": "Impossible d’enregistrer {name}",
     "editingBody": "{names} est ouvert dans OnlyOffice. {action} continue. | {names} sont ouverts dans OnlyOffice. {action} continue.",
-    "editingHeading": "Fichier en cours d’édition"
+    "editingHeading": "Fichier en cours d’édition",
+    "pickFailed": "Impossible d'utiliser le fichier choisi"
   },
   "preview": {
     "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",

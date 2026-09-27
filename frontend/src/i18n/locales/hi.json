@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "आपके पास बिना सहेजे परिवर्तन हैं। बिना सहेजे बंद करें?",
     "trashReadOnly": "रीसायकल बिन में · केवल पढ़ने के लिए",
-    "versionReadOnly": "पिछला संस्करण, केवल पढ़ने के लिए"
+    "versionReadOnly": "पिछला संस्करण, केवल पढ़ने के लिए",
+    "highlightingOffTooLarge": "इस फ़ाइल के लिए सिंटैक्स हाइलाइटिंग बंद है: इसका एक हिस्सा इतना बड़ा है कि पेज को अटकाए बिना उसे हाइलाइट नहीं किया जा सकता।",
+    "raw": "कच्चा",
+    "selectTheme": "संपादक की थीम चुनें"
   },
   "status": {
     "updated": "सफलतापूर्वक अपडेट किया गया",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} को मूल फ़ाइल के बगल में जोड़ा गया।",
     "saveAsFailed": "{name} को सहेजा नहीं जा सका",
     "editingBody": "{names} OnlyOffice में खुली है। {action} जारी रहेगा। | {names} OnlyOffice में खुली हैं। {action} जारी रहेगा।",
-    "editingHeading": "फ़ाइल संपादित की जा रही है"
+    "editingHeading": "फ़ाइल संपादित की जा रही है",
+    "pickFailed": "चयनित फ़ाइल का उपयोग नहीं किया जा सका"
   },
   "preview": {
     "nothingOpensIt": "यहाँ कुछ भी {name} को नहीं खोल सकता।",

@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "У вас есть несохраненные изменения. Закрыть без сохранения?",
     "trashReadOnly": "В корзине · только чтение",
-    "versionReadOnly": "Предыдущая версия, только чтение"
+    "versionReadOnly": "Предыдущая версия, только чтение",
+    "highlightingOffTooLarge": "Подсветка синтаксиса для этого файла отключена: его часть слишком велика, чтобы подсветить её без зависания страницы.",
+    "raw": "Исходный",
+    "selectTheme": "Выбрать тему редактора"
   },
   "status": {
     "updated": "Успешно обновлено",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} добавлен рядом с оригиналом.",
     "saveAsFailed": "Не удалось сохранить {name}",
     "editingBody": "{names} открыт в OnlyOffice. {action} будет продолжено. | {names} открыты в OnlyOffice. {action} будет продолжено.",
-    "editingHeading": "Файл редактируется"
+    "editingHeading": "Файл редактируется",
+    "pickFailed": "Не удалось использовать выбранный файл"
   },
   "preview": {
     "nothingOpensIt": "Здесь нечем открыть {name}.",

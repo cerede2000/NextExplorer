@@ -147,12 +147,14 @@ export const usePreviewManager = defineStore('preview-manager', () => {
   };
 
   /**
-   * The page is going away, and there is one synchronous moment left.
+   * The page is going away, and there is no time left to ask for anything.
    *
-   * Nothing can be awaited here, so the plugin is told outright what is
-   * happening, and one that has something to tell the server sends it in one
-   * breath — see the ONLYOFFICE plugin, which ends its editing session with a
-   * single beacon rather than the two calls it makes when there is time.
+   * A tab being closed gives a handler one synchronous moment: a promise
+   * chained after a request will not run, and a second request that waited for
+   * the first would never be sent. So the close hook is told that this is what
+   * is happening, and a plugin that has something to tell the server sends it
+   * in one breath — see the ONLYOFFICE plugin, which ends its editing session
+   * with a single beacon rather than the two calls it makes when there is time.
    *
    * Nothing here touches the state: whatever this store holds is about to stop
    * existing anyway, and clearing it would only risk cancelling the very
