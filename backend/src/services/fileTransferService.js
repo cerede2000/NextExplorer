@@ -536,6 +536,19 @@ const copyFileWithProgress = async (sourcePath, destinationPath, mode, onBytes, 
     await fs.unlink(destinationPath).catch(() => {});
     throw error;
   }
+
+  // When it was last written, kept. A copy that stamps everything with the
+  // moment it ran turns a folder of photographs sorted by date into a folder
+  // all dated today, and there is no getting the dates back. `fs.cp` and rsync
+  // both keep them; the path that reports progress reads a file itself, so it
+  // has to put them back itself. Best-effort: a filesystem that will not take
+  // them is not a reason to fail a copy that has already landed.
+  try {
+    const { atime, mtime } = await fs.lstat(sourcePath);
+    await fs.utimes(destinationPath, atime, mtime);
+  } catch (error) {
+    logger.debug({ err: error, destinationPath }, 'Could not carry the times over to the copy');
+  }
 };
 
 /** Make a symbolic link at `destinationPath`, pointing where the source's points. */

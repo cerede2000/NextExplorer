@@ -58,6 +58,8 @@ module.exports = {
               documentServerUrl: str(),
               config: loose('What `DocsAPI.DocEditor` takes, `token` included.'),
               forceSaveSessionId: str(),
+              // The same value under the name this answer has always carried.
+              editorSessionId: str(),
               autoSaveIntervalMs: num(),
             },
             ['documentServerUrl', 'config']

@@ -1200,7 +1200,12 @@
     "audioTrackNumbered": "Pista {number}",
     "subtitleForced": "forțate",
     "subtitleExternal": "fișier extern",
-    "noPlayableVideo": "Acest videoclip este în {codecs}, pe care browserul nu îl poate decoda. Deschide-l într-un player media."
+    "noPlayableVideo": "Acest videoclip este în {codecs}, pe care browserul nu îl poate decoda. Deschide-l într-un player media.",
+    "imageLoadError": "Această imagine nu a putut fi afișată.",
+    "rotateLeft": "Rotește la stânga",
+    "rotateRight": "Rotește la dreapta",
+    "zoomIn": "Mărește",
+    "zoomOut": "Micșorează"
   },
   "preview": {
     "tooLargeToRenderSized": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser. Deschideți-l în editor sau descărcați-l.",

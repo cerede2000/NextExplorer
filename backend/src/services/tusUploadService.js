@@ -7,7 +7,7 @@ const { pipeline } = require('node:stream/promises');
 const { Server } = require('@tus/server');
 const { FileStore } = require('@tus/file-store');
 
-const { upload: uploadConfig } = require('../config');
+const { uploads: uploadConfig } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const { isTopLevelEntry, normalizeRelativePath } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
@@ -36,9 +36,16 @@ let lastCleanupAt = 0;
 // data this hook has just moved to its destination. Expiry is handled by
 // cleanupInactiveUploads below, which covers more ground anyway (it also
 // reclaims data files whose metadata never made it to disk).
-const fileStore = new FileStore({
-  directory: TUS_CACHE_DIR,
-});
+// `FileStore` creates its directory in its constructor, which turns requiring
+// this file into a filesystem write — one that fails outright wherever the
+// cache directory is not there yet, including the check that every module
+// loads. A server that has never been asked to take an upload has no business
+// creating a cache for one either.
+let fileStoreInstance = null;
+const store = () => {
+  if (!fileStoreInstance) fileStoreInstance = new FileStore({ directory: TUS_CACHE_DIR });
+  return fileStoreInstance;
+};
 
 /**
  * A metadata value, or '' when the client did not really send one.
@@ -381,7 +388,7 @@ const validateExistingUploadAccess = async (req, uploadId) => {
     throw tusError(401, 'Authentication required.');
   }
 
-  const upload = await fileStore.getUpload(uploadId);
+  const upload = await store().getUpload(uploadId);
   await resolveTusUploadTarget(nodeReq, upload.metadata || {});
 };
 
@@ -653,7 +660,7 @@ const finalizeUpload = async (nodeReq, upload) => {
   }
 
   try {
-    await fileStore.configstore.delete(upload.id);
+    await store().configstore.delete(upload.id);
   } catch (err) {
     logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
   }
@@ -752,76 +759,85 @@ const EXPOSED_HEADERS = [
   FINALIZE_ERROR_HEADER,
 ];
 
-const server = new Server({
-  path: TUS_PATH,
-  datastore: fileStore,
-  relativeLocation: false,
-  respectForwardedHeaders: true,
-  allowedCredentials: true,
-  allowedHeaders: [
-    'Authorization',
-    'Content-Type',
-    'Upload-Length',
-    'Upload-Metadata',
-    'Upload-Offset',
-    'Tus-Resumable',
-  ],
-  exposedHeaders: EXPOSED_HEADERS,
-  async onIncomingRequest(req, uploadId) {
-    if (req.method === 'OPTIONS') {
-      return;
-    }
+// Built on first use, for the same reason the store is: its datastore creates
+// a directory, and requiring a module must not write to the disk.
+let serverInstance = null;
+const tusServer = () => {
+  if (!serverInstance) serverInstance = buildServer();
+  return serverInstance;
+};
 
-    await ensureTusEnabled();
+const buildServer = () =>
+  new Server({
+    path: TUS_PATH,
+    datastore: store(),
+    relativeLocation: false,
+    respectForwardedHeaders: true,
+    allowedCredentials: true,
+    allowedHeaders: [
+      'Authorization',
+      'Content-Type',
+      'Upload-Length',
+      'Upload-Metadata',
+      'Upload-Offset',
+      'Tus-Resumable',
+    ],
+    exposedHeaders: EXPOSED_HEADERS,
+    async onIncomingRequest(req, uploadId) {
+      if (req.method === 'OPTIONS') {
+        return;
+      }
 
-    const { nodeReq } = getContext(req);
-    if (!nodeReq?.user && !nodeReq?.guestSession) {
-      throw tusError(401, 'Authentication required.');
-    }
+      await ensureTusEnabled();
 
-    if (req.method !== 'POST') {
-      await validateExistingUploadAccess(req, uploadId);
-    }
-  },
-  async onUploadCreate(req, upload) {
-    await cleanupExpiredUploads();
+      const { nodeReq } = getContext(req);
+      if (!nodeReq?.user && !nodeReq?.guestSession) {
+        throw tusError(401, 'Authentication required.');
+      }
 
-    const { nodeReq } = getContext(req);
-    const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
-    const uploadSize = Number.isFinite(upload.size) ? upload.size : null;
+      if (req.method !== 'POST') {
+        await validateExistingUploadAccess(req, uploadId);
+      }
+    },
+    async onUploadCreate(req, upload) {
+      await cleanupExpiredUploads();
 
-    // What a copy killed halfway left in the destination, as a direct upload
-    // does before the same check: what it removes is space about to be measured.
-    await sweepStaleUploadRemnants(target.destinationDir);
+      const { nodeReq } = getContext(req);
+      const target = await resolveTusUploadTarget(nodeReq, upload.metadata || {});
+      const uploadSize = Number.isFinite(upload.size) ? upload.size : null;
 
-    await ensureTusStorageAvailable(TUS_CACHE_DIR, uploadSize, 'temporary upload storage');
-    await ensureTusStorageAvailable(target.destinationDir, uploadSize, 'destination storage');
+      // What a copy killed halfway left in the destination, as a direct upload
+      // does before the same check: what it removes is space about to be measured.
+      await sweepStaleUploadRemnants(target.destinationDir);
 
-    return {
-      metadata: {
-        ...(upload.metadata || {}),
-        uploadTo: target.uploadTo,
-        relativePath: target.relativePath,
-        resolvedRelativePath: target.relativePath,
-        logicalBase: target.logicalBase,
-        logicalRelativePath: target.logicalRelativePath,
-      },
-    };
-  },
-  async onUploadFinish(req, upload) {
-    const { nodeReq } = getContext(req);
-    try {
-      await finalizeOnce(nodeReq, upload);
-      return {};
-    } catch (err) {
-      // Answered rather than thrown: see finalizeFailure.
-      return finalizeFailure(err);
-    }
-  },
-  onResponseError(req, err) {
-    logger.warn({ err, method: req.method, url: req.url }, 'TUS upload request failed');
-  },
-});
+      await ensureTusStorageAvailable(TUS_CACHE_DIR, uploadSize, 'temporary upload storage');
+      await ensureTusStorageAvailable(target.destinationDir, uploadSize, 'destination storage');
+
+      return {
+        metadata: {
+          ...(upload.metadata || {}),
+          uploadTo: target.uploadTo,
+          relativePath: target.relativePath,
+          resolvedRelativePath: target.relativePath,
+          logicalBase: target.logicalBase,
+          logicalRelativePath: target.logicalRelativePath,
+        },
+      };
+    },
+    async onUploadFinish(req, upload) {
+      const { nodeReq } = getContext(req);
+      try {
+        await finalizeOnce(nodeReq, upload);
+        return {};
+      } catch (err) {
+        // Answered rather than thrown: see finalizeFailure.
+        return finalizeFailure(err);
+      }
+    },
+    onResponseError(req, err) {
+      logger.warn({ err, method: req.method, url: req.url }, 'TUS upload request failed');
+    },
+  });
 
 // The upload's id, the last segment after the TUS path — wherever the app is
 // mounted, as @tus/server itself reads it.
@@ -836,7 +852,7 @@ const answerHead = (req, res, status, headers) => {
   res.writeHead(status, {
     'Tus-Resumable': TUS_RESUMABLE,
     'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': server.getCorsOrigin(req.headers.origin),
+    'Access-Control-Allow-Origin': tusServer().getCorsOrigin(req.headers.origin),
     'Access-Control-Expose-Headers': EXPOSED_HEADERS.join(', '),
     'Access-Control-Allow-Credentials': 'true',
     ...headers,
@@ -894,7 +910,7 @@ const answerFinishedUploadHead = async (req, res) => {
   let upload = finishing.get(uploadId)?.upload;
   if (!upload) {
     try {
-      upload = await fileStore.getUpload(uploadId);
+      upload = await store().getUpload(uploadId);
     } catch {
       return false;
     }
@@ -924,7 +940,7 @@ const handleTusUpload = async (req, res) => {
   const routerUrl = req.url;
   req.url = req.originalUrl || req.url;
   try {
-    await server.handle(req, res);
+    await tusServer().handle(req, res);
   } finally {
     req.url = routerUrl;
   }

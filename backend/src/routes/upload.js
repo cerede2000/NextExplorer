@@ -3,18 +3,18 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { createUploadMiddleware } = require('../services/uploadService');
-const activityLog = require('../services/activityLog');
 const { handleTusUpload, listFinalizations } = require('../services/tusUploadService');
 const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
 const { responseEndCompat } = require('../middleware/responseEndCompat');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const { uploads } = require('../config/index');
+const activityLog = require('../services/activityLog');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
+const folderSizeHooks = require('../services/folderSizeHooks');
 const asyncHandler = require('../utils/asyncHandler');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
-const folderSizeHooks = require('../services/folderSizeHooks');
 
 const router = express.Router();
 const upload = createUploadMiddleware();
@@ -35,12 +35,13 @@ router.all('/upload/tus{*splat}', responseEndCompat, handleTusUpload);
 
 /**
  * Files whose transfer is over but which are still being written where they
- * belong. The client polls this while its own progress bar has nothing left to
- * report, so a long cross-filesystem copy doesn't look like a frozen 100%.
+ * belong. The client asks about these while its own progress bar has nothing
+ * left to report, so a long copy across filesystems does not look like a frozen
+ * hundred per cent.
  *
  * Answers only for what the caller uploaded, and says nothing when there is
  * nothing to say — the usual case, where the move is a rename and returns
- * before anyone could ask.
+ * before anybody could ask.
  */
 router.get(
   '/upload/finalizations',
@@ -49,6 +50,13 @@ router.get(
   })
 );
 
+/**
+ * The folder a whole uploaded tree lands in, decided once.
+ *
+ * Every file of a picked folder carries the same relative path prefix, and each
+ * one arriving on its own would otherwise take its own "(1)" when the name is
+ * held — scattering one folder across several.
+ */
 router.post(
   '/upload/folder-session',
   asyncHandler(async (req, res) => {
@@ -66,8 +74,8 @@ router.post(
     }
 
     // The destination is authorized above; the folder the session is about to
-    // create inside it is a path of its own, and is authorized before the
-    // mkdir rather than when the first file arrives.
+    // create inside it is a path of its own, and is authorized before the mkdir
+    // rather than when the first file arrives.
     const targetRoot = await reserveFolderUploadTarget({
       destinationRoot: resolved.absolutePath,
       logicalBase: resolved.relativePath,
@@ -93,8 +101,8 @@ router.post(
     for (const file of req.files.filedata) {
       const stats = await fs.stat(file.path);
 
-      // The file's exact size is already known here — feed the folder size index
-      // a precise positive delta without any additional filesystem traversal.
+      // The file's exact size is already known here: the index takes a precise
+      // positive delta, with no filesystem traversal of its own.
       folderSizeHooks.onFileWritten(file.path, stats.size);
 
       // Prefer logicalPath set by upload service; fall back to empty string

@@ -392,6 +392,15 @@ const uploads = {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 64 * 1024 * 1024 * 1024;
   })(),
   maxFilesPerRequest: env.MAX_FILES_PER_UPLOAD,
+  // One section for everything about taking an upload, as this repository has
+  // always had it: what a direct request may carry, how long a stalled one is
+  // waited for, where the resumable ones are kept, and the free space held back
+  // so a full volume never takes the database down with it.
+  inactivityTimeoutMs: uploadInactivityTimeoutMs,
+  tusUploadDir,
+  tusIncompleteUploadTtlMs,
+  tusCleanupIntervalMs,
+  storageReserveBytes: uploadStorageReserveBytes,
 };
 
 // --- OnlyOffice ---
@@ -734,13 +743,6 @@ module.exports = {
   address: env.ADDRESS,
   http: {
     requestTimeoutMs,
-  },
-  upload: {
-    inactivityTimeoutMs: uploadInactivityTimeoutMs,
-    storageReserveBytes: uploadStorageReserveBytes,
-    tusUploadDir,
-    tusIncompleteUploadTtlMs,
-    tusCleanupIntervalMs,
   },
   directories,
 

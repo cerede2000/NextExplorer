@@ -4,12 +4,12 @@ import { useI18n } from 'vue-i18n';
 import ModalDialog from '@/components/ModalDialog.vue';
 
 /**
- * Name a new office document before it exists.
+ * Name a new document before it exists.
  *
- * The rest of the app creates a file first and renames it in the list, which
+ * Everything else here creates a file first and renames it in the list, which
  * works because the file stays in view. A document created here opens straight
- * into an editor covering the whole window, so the rename box would be behind
- * it — the name has to be settled first.
+ * into an editor covering the whole window, so the rename box would be behind it
+ * — the name has to be settled first.
  *
  * The extension is shown but not editable: the format was chosen from the menu,
  * and the server owns the extension either way.
@@ -17,7 +17,7 @@ import ModalDialog from '@/components/ModalDialog.vue';
 
 const props = defineProps({
   modelValue: Boolean,
-  /** 'docx' | 'xlsx' | 'pptx' */
+  /** 'docx' | 'xlsx' | 'pptx' | 'pdf' | 'txt' | 'md' | 'csv' */
   format: { type: String, default: 'docx' },
   title: { type: String, default: '' },
   defaultName: { type: String, default: '' },
@@ -54,8 +54,8 @@ watch(
     if (!opened) return;
     name.value = props.defaultName;
     await nextTick();
-    // Selecting the text rather than placing a caret: the default name is a
-    // suggestion, and typing over it is what most people do next.
+    // Selected rather than given a caret: the default name is a suggestion, and
+    // typing over it is what most people do next.
     inputRef.value?.focus();
     inputRef.value?.select();
   }

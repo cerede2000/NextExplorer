@@ -1200,7 +1200,12 @@
     "audioTrackNumbered": "Track {number}",
     "subtitleForced": "forced",
     "subtitleExternal": "external file",
-    "noPlayableVideo": "This video is {codecs}, which your browser cannot decode. Play it in a media player instead."
+    "noPlayableVideo": "This video is {codecs}, which your browser cannot decode. Play it in a media player instead.",
+    "imageLoadError": "This image could not be displayed.",
+    "rotateLeft": "Rotate left",
+    "rotateRight": "Rotate right",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
   },
   "preview": {
     "tooLargeToRenderSized": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser. Open it in the editor or download it.",

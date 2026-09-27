@@ -1200,7 +1200,12 @@
     "audioTrackNumbered": "Spoor {number}",
     "subtitleForced": "geforceerd",
     "subtitleExternal": "extern bestand",
-    "noPlayableVideo": "Deze video is {codecs}, dat uw browser niet kan decoderen. Speel hem af in een mediaspeler."
+    "noPlayableVideo": "Deze video is {codecs}, dat uw browser niet kan decoderen. Speel hem af in een mediaspeler.",
+    "imageLoadError": "Deze afbeelding kon niet worden weergegeven.",
+    "rotateLeft": "Naar links draaien",
+    "rotateRight": "Naar rechts draaien",
+    "zoomIn": "Inzoomen",
+    "zoomOut": "Uitzoomen"
   },
   "preview": {
     "tooLargeToRenderSized": "Dit document is {size}. Het voorbeeld stopt bij {limit}, omdat het elk element in de browser opmaakt. Open het in de editor of download het.",

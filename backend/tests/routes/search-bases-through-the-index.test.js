@@ -67,6 +67,10 @@ const buildIndex = async (...folders) => {
   expect(store.hasNameCatalogue(db)).toBe(true);
 
   for (const folder of folders) {
+    // In the catalogue before the disk loses it, so a search leaving it out is
+    // the search checking rather than a pass that never saw it.
+    const rows = db.prepare('SELECT path FROM search_documents').pluck().all();
+    expect(rows.some((row) => row.endsWith('fantome-rapport.txt'))).toBe(true);
     await fs.rm(path.join(folder, 'fantome-rapport.txt'));
     await fs.writeFile(path.join(folder, 'neuf.txt'), 'pangolin arrivé depuis');
   }
@@ -99,7 +103,13 @@ const expectIndexAnswered = async (who, base) => {
   const byName = await search(who, base, 'rapport');
   const byContents = await search(who, base, 'pangolin');
 
-  expect(byName).toEqual([`${base}/sous/rapport-2026.txt`, `${base}/fantome-rapport.txt`]);
+  // `sous/rapport-2026.txt` sits below the folder the search was started from,
+  // and the one folder still read from the storage is that folder itself — so
+  // naming what is under it is the catalogue's doing. `fantome-rapport.txt` is
+  // in the catalogue and gone from the disk, and is left out for that reason.
+  // `neuf.txt` arrived after the pass: its words are not found, which is the
+  // same answer read from the other side.
+  expect(byName).toEqual([`${base}/sous/rapport-2026.txt`]);
   expect(byContents).toEqual([`${base}/sous/rapport-2026.txt`]);
 };
 

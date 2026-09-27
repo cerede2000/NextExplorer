@@ -1,5 +1,12 @@
 const path = require('path');
 const fs = require('fs/promises');
+
+/*
+ * Everything this file removes is its own: the extraction cache under the
+ * application's cache directory, written here and read here. Nothing anybody
+ * put anywhere ever passes through it, so it does not go through the trash.
+ */
+
 const fss = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');

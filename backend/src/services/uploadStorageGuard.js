@@ -1,6 +1,6 @@
 const fs = require('fs/promises');
 
-const { upload: uploadConfig } = require('../config');
+const { uploads: uploadConfig } = require('../config');
 const { ensureDir } = require('../utils/fsUtils');
 const { InsufficientStorageError } = require('../errors/AppError');
 const logger = require('../utils/logger');

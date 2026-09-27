@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import express from 'express';
 import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { useWalkingRipgrep } from '../helpers/fake-ripgrep.js';
 
 /**
  * Finding a file by its name without walking the storage.
@@ -140,20 +141,55 @@ describe('a name the index can answer for', () => {
     expect(await search('*.ps1')).toEqual(['Docs/scripts/deploy.ps1']);
   });
 
-  // What proves the answer came from the catalogue and not from a walk: a file
-  // the storage no longer holds. Results are as fresh as the last pass, which
-  // is the trade being made here, and it is also the only thing a walk could
-  // never say.
+  // What proves the answer came from the catalogue and not from a walk: the walk
+  // is a file list taken from the storage, and it is asked for by name. With a
+  // finished pass it is never asked for; without one it is — and the answer is
+  // the same either way, which is the whole point of the catalogue.
   it('answers from the catalogue, and not from the storage', async () => {
+    const docs = await seed();
+    const ripgrep = useWalkingRipgrep();
+    try {
+      await fs.mkdir(path.join(docs, 'loin/dessous'), { recursive: true });
+      await fs.writeFile(path.join(docs, 'loin/dessous/trouve-dessous.txt'), 'x');
+      const { db, store } = await buildIndex({ complete: false });
+      expect(store.hasNameCatalogue(db)).toBe(false);
+
+      expect(await search('trouve')).toContain('Docs/loin/dessous/trouve-dessous.txt');
+      expect(ripgrep.calls().some((args) => args.includes('--files'))).toBe(true);
+
+      store.markPassComplete(db);
+      expect(store.hasNameCatalogue(db)).toBe(true);
+      const walksBefore = ripgrep.calls().length;
+
+      expect(await search('trouve')).toContain('Docs/loin/dessous/trouve-dessous.txt');
+      const after = ripgrep.calls().slice(walksBefore);
+      expect(after.some((args) => args.includes('--files'))).toBe(false);
+    } finally {
+      ripgrep.restore();
+    }
+  });
+
+  // The other side of the same trade: the catalogue is as fresh as the last
+  // pass, so a file deleted outside the application is still a row in it. A
+  // result that opens nothing is worse than a result that is missing, so what
+  // is about to be handed out is confirmed on the disk first — a page of rows,
+  // not a walk of the tree.
+  it('leaves out a row whose file the disk no longer holds', async () => {
     const docs = await seed();
     await fs.mkdir(path.join(docs, 'loin/dessous'), { recursive: true });
     await fs.writeFile(path.join(docs, 'loin/dessous/disparu-ensuite.txt'), 'x');
+    await fs.mkdir(path.join(docs, 'loin/parti'), { recursive: true });
     const { db, store } = await buildIndex();
     expect(store.hasNameCatalogue(db)).toBe(true);
+    const rows = db.prepare('SELECT path FROM search_documents').pluck().all();
+    expect(rows).toContain('Docs/loin/dessous/disparu-ensuite.txt');
+    expect(rows).toContain('Docs/loin/parti');
 
     await fs.rm(path.join(docs, 'loin/dessous/disparu-ensuite.txt'));
+    await fs.rmdir(path.join(docs, 'loin/parti'));
 
-    expect(await search('disparu')).toContain('Docs/loin/dessous/disparu-ensuite.txt');
+    expect(await search('disparu')).toEqual([]);
+    expect(await search('parti')).toEqual([]);
   });
 
   it('keeps to the folder the search was started from', async () => {

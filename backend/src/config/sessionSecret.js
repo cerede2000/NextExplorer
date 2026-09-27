@@ -6,15 +6,14 @@ const logger = require('../utils/logger');
 /**
  * The secret sessions are signed with, when nobody configured one.
  *
- * It used to be drawn at random at every start. Sessions themselves outlive a
- * restart — they are kept in CACHE_DIR/sessions.db — but a cookie signed with
- * the previous secret no longer verifies, so every restart, every upgrade and
- * every crash signed everyone out. The secrets derived from it (ONLYOFFICE
- * without ONLYOFFICE_SECRET, the thumbnail links) changed with it.
+ * It was drawn at random at every start. Sessions themselves outlive a restart
+ * — they are kept in CACHE_DIR/sessions.db — but a cookie signed with the
+ * previous secret no longer verifies, so every restart, every upgrade and every
+ * crash signed everyone out. The secrets derived from it (ONLYOFFICE without
+ * ONLYOFFICE_SECRET, the thumbnail links) changed with it.
  *
- * So the first start draws one and keeps it in CONFIG_DIR, and later starts
- * read it back. SESSION_SECRET or SESSION_SECRET_FILE, when set, always wins
- * and nothing is written.
+ * So the first start draws one and keeps it in CONFIG_DIR, and later starts read
+ * it back. SESSION_SECRET, when set, always wins and nothing is written.
  *
  * Synchronous on purpose: the configuration is required before anything else
  * runs, and every value derived from the secret is computed at that moment.
@@ -43,19 +42,19 @@ const readStored = (file) => {
   logger.warn(
     { file, reason: value ? 'not a 64-character hexadecimal secret' : 'empty' },
     'The stored session secret is unusable and is being replaced; sessions signed with it end ' +
-      'here. To choose the secret yourself, set SESSION_SECRET or SESSION_SECRET_FILE instead.'
+      'here. To choose the secret yourself, set SESSION_SECRET instead.'
   );
   return { secret: null };
 };
 
 /**
- * Write the secret beside its final name, then rename it into place, so a
- * start interrupted half-way leaves either no file or a whole one — never a
- * truncated secret that the next start would have to throw away.
+ * Write the secret beside its final name, then rename it into place, so a start
+ * interrupted half-way leaves either no file or a whole one — never a truncated
+ * secret that the next start would have to throw away.
  *
- * The staging name is fixed rather than unique: a write that keeps failing
- * (a full disk) then leaves one stray file that the next attempt reuses, not a
- * new one per start. Removing it is not this module's business.
+ * The staging name is fixed rather than unique: a write that keeps failing (a
+ * full disk) then leaves one stray file that the next attempt reuses, not a new
+ * one per start. Removing it is not this module's business.
  */
 const store = (configDir, file, secret) => {
   fs.mkdirSync(configDir, { recursive: true });
@@ -93,13 +92,13 @@ const warnEphemeral = (configDir, error, action) => {
     { directory: configDir, code: error.code || null, err: { message: error.message } },
     `Could not ${action} the session secret in CONFIG_DIR, so a new one is used for this run ` +
       'only: everyone will be signed out at the next restart. Make CONFIG_DIR writable by the ' +
-      'user the server runs as, or set SESSION_SECRET or SESSION_SECRET_FILE.'
+      'user the server runs as, or set SESSION_SECRET.'
   );
 };
 
 /**
  * @param {object} options
- * @param {string|null} options.configured SESSION_SECRET, already read from the environment or its file
+ * @param {string|null|undefined} options.configured SESSION_SECRET, as read from the environment
  * @param {string} options.configDir The resolved CONFIG_DIR
  * @returns {string}
  */

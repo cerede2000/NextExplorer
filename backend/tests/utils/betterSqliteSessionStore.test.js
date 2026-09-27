@@ -13,7 +13,9 @@ const temporaryDirectories = [];
 const createStore = () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nextexplorer-session-store-'));
   temporaryDirectories.push(directory);
-  return new BetterSqliteSessionStore(path.join(directory, 'sessions.db'));
+  // The database opens on first use, and the cases below reach into it
+  // directly, so the store is asked for it here rather than in each of them.
+  return new BetterSqliteSessionStore(path.join(directory, 'sessions.db')).ready();
 };
 
 const callStore = (store, method, ...args) =>

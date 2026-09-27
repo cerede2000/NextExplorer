@@ -375,6 +375,25 @@ async function* streamShallowNameMatches(
  * only then handed out. Holding a read open across an await is how a scan
  * keeps a checkpoint waiting.
  */
+/**
+ * Whether a row the catalogue offers is still a file on the disk.
+ *
+ * The catalogue is what the last pass saw. A file deleted outside the
+ * application — or moved, or on a volume that has gone — is still in it until
+ * the next one, and a search result that opens nothing is worse than a search
+ * that missed something. Asked only of what is about to be handed out, which
+ * is at most a page of results: the cost an index exists to avoid is walking
+ * the tree, not confirming the handful of rows that survived it.
+ */
+const stillThere = async (baseAbsPath, relBasePath, rel) => {
+  const inside =
+    relBasePath && rel.startsWith(`${relBasePath}/`) ? rel.slice(relBasePath.length + 1) : rel;
+  return fs.lstat(path.join(baseAbsPath, inside)).then(
+    () => true,
+    () => false
+  );
+};
+
 async function* streamIndexNameMatches(
   baseAbsPath,
   relBasePath,
@@ -431,6 +450,7 @@ async function* streamIndexNameMatches(
     if (folders.length >= ceiling) break;
   }
   for (const dirPath of folders) {
+    if (!(await stillThere(baseAbsPath, relBasePath, dirPath))) continue;
     if (await shouldInclude(dirPath)) yield formatResult(dirPath, 'dir');
   }
 
@@ -445,6 +465,7 @@ async function* streamIndexNameMatches(
     if (files.length >= ceiling) break;
   }
   for (const rel of files) {
+    if (!(await stillThere(baseAbsPath, relBasePath, rel))) continue;
     if (await shouldInclude(rel)) yield formatResult(rel, 'file');
   }
 }

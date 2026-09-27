@@ -178,6 +178,7 @@ const reserveAvailableName = async (
         await fs.mkdir(target);
       } else {
         const handle = await fs.open(target, 'wx');
+
         await handle.close();
       }
       return { name, path: target };
@@ -190,7 +191,7 @@ const reserveAvailableName = async (
 
 /**
  * The name `placeWithoutOverwrite` would take if nothing changed meanwhile, to
- * tell someone what to expect — never to place anything under. By the time the
+ * tell somebody what to expect — never to place anything under. By the time the
  * move happens the name may be held, and the move then takes the next one
  * itself. A name that cannot be looked at is answered as asked.
  */
@@ -207,10 +208,10 @@ const predictAvailableName = async (directory, desiredName, { style = 'copy' } =
 };
 
 module.exports = {
+  predictAvailableName,
   candidateName,
   moveNoReplace,
   placeWithoutOverwrite,
-  predictAvailableName,
   reserveAvailableName,
   removeOwnPlaceholder,
 };

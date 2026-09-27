@@ -23,7 +23,7 @@ const contextOf = (req) => ({ user: req.user, guestSession: req.guestSession });
 router.get(
   '/versions',
   asyncHandler(async (req, res) => {
-    res.set('Cache-Control', 'no-store');
+    res.set('Cache-Control', 'private, no-store');
     res.json(await versions.listVersions(contextOf(req), req.query?.path));
   })
 );
@@ -52,7 +52,7 @@ router.get(
   '/versions/:id/text',
   asyncHandler(async (req, res) => {
     const text = await versions.readVersionText(contextOf(req), req.query?.path, req.params.id);
-    res.set('Cache-Control', 'no-store');
+    res.set('Cache-Control', 'private, no-store');
     await sendCompressible(req, res, text);
   })
 );

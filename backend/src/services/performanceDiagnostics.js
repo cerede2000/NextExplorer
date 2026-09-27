@@ -76,9 +76,13 @@ const sample = async () => {
   const memory = process.memoryUsage();
   const [cgroupMemory, thumbnail, folderSize, transfers] = await Promise.all([
     readCgroupMemory(),
-    Promise.resolve(thumbnailService.getDiagnosticsSnapshot()),
-    Promise.resolve(folderSizeManager.getDiagnosticsSnapshot()),
-    Promise.resolve(fileTransferService.getDiagnosticsSnapshot()),
+    // Each queue reports itself when it can. One that does not is a queue this
+    // installation has no report for, not a reason for the whole record to fail — a
+    // diagnostic that throws is a diagnostic that says nothing at the moment it is
+    // most wanted.
+    Promise.resolve(thumbnailService.getDiagnosticsSnapshot?.() ?? null),
+    Promise.resolve(folderSizeManager.getDiagnosticsSnapshot?.() ?? null),
+    Promise.resolve(fileTransferService.getDiagnosticsSnapshot?.() ?? null),
   ]);
 
   const elapsedMs = previousSample ? Math.max(1, now - previousSample.at) : null;

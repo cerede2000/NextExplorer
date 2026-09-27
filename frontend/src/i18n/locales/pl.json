@@ -1200,7 +1200,12 @@
     "audioTrackNumbered": "Ścieżka {number}",
     "subtitleForced": "wymuszone",
     "subtitleExternal": "plik zewnętrzny",
-    "noPlayableVideo": "Ten film jest w {codecs}, czego przeglądarka nie potrafi zdekodować. Otwórz go w odtwarzaczu multimedialnym."
+    "noPlayableVideo": "Ten film jest w {codecs}, czego przeglądarka nie potrafi zdekodować. Otwórz go w odtwarzaczu multimedialnym.",
+    "imageLoadError": "Nie udało się wyświetlić tego obrazu.",
+    "rotateLeft": "Obróć w lewo",
+    "rotateRight": "Obróć w prawo",
+    "zoomIn": "Powiększ",
+    "zoomOut": "Pomniejsz"
   },
   "preview": {
     "tooLargeToRenderSized": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce. Otwórz go w edytorze lub pobierz.",

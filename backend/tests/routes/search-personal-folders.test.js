@@ -98,6 +98,9 @@ const seed = async (engine) => {
     // search, not by a pass that happened to skip the folder.
     const rows = db.prepare('SELECT path FROM search_documents').pluck().all();
     expect(rows).toContain('_users/bob/secret-rapport.txt');
+    // In the catalogue before the disk loses it, so the search leaving it out
+    // below is the search checking, not a pass that never saw it.
+    expect(rows).toContain('Public/fantome-rapport.txt');
   }
 
   await fs.rm(path.join(volume, 'Public', 'fantome-rapport.txt'));
@@ -120,17 +123,23 @@ const searchAs = async (user, term, base = '') => {
 };
 
 /** That the engine named is the one that answered. */
-const expectEngine = (engine, { byName, byContents }) => {
+const expectEngine = (engine, { byName, byNewName, byContents }) => {
   if (engine.ripgrep && !engine.index) {
     expect(ripgrep.calls().some((args) => args.includes('--files'))).toBe(true);
   }
+  // A row the catalogue holds for a file the disk no longer has is not offered,
+  // whichever engine answered: a result that opens nothing is worse than a
+  // result that is missing.
+  expect(byName).not.toContain('Public/fantome-rapport.txt');
   if (engine.index) {
-    // Named from the index: the disk no longer has it.
-    expect(byName).toContain('Public/fantome-rapport.txt');
-    // Read from the storage only: written after the pass.
+    // `neuf.txt` was written after the pass, so it is on the disk and not in
+    // the catalogue. The only folder still read from the storage is the one the
+    // search started from — the volume root — and that is not where it sits, so
+    // an index answer cannot name it, and cannot read it either.
+    expect(byNewName).toEqual([]);
     expect(byContents).not.toContain('Public/neuf.txt');
   } else {
-    expect(byName).not.toContain('Public/fantome-rapport.txt');
+    expect(byNewName).toContain('Public/neuf.txt');
     expect(byContents).toContain('Public/neuf.txt');
   }
 };
@@ -148,12 +157,13 @@ for (const [name, engine] of Object.entries(ENGINES)) {
         await seed(engine);
 
         const byName = await searchAs(user, 'rapport');
+        const byNewName = await searchAs(user, 'neuf');
         const byContents = await searchAs(user, 'pangolin');
         const byFolder = await searchAs(user, 'bob');
 
         expect(byName).toContain('Public/ouvert-rapport.txt');
         expect(byContents).toContain('Public/ouvert-rapport.txt');
-        expectEngine(engine, { byName, byContents });
+        expectEngine(engine, { byName, byNewName, byContents });
 
         expect(fromSomebodysFolder(byName)).toEqual([]);
         expect(fromSomebodysFolder(byContents)).toEqual([]);

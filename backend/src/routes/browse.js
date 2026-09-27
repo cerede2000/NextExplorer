@@ -3,6 +3,7 @@ const express = require('express');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
 const env = require('../config/env');
+const { withStorage } = require('../services/storageWritability');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
@@ -11,17 +12,16 @@ const { NotFoundError } = require('../errors/AppError');
 const router = express.Router();
 const { resolvePathWithAccess } = require('../services/accessManager');
 const { listDirectoryItems } = require('../services/directoryListingService');
-const { withStorage } = require('../services/storageWritability');
 const versions = require('../services/versions');
 const { rightsFrom: versionRights } = versions;
 
 /**
  * The mark that says a file has earlier versions, for a whole listing.
  *
- * Counted once for the folder rather than once per row, and only when
- * somebody asked to see it — the preference is on by default, and turning it
- * off takes the query away as well as the icon, so it costs nothing to
- * somebody who does not want it.
+ * Counted once for the folder rather than once per row, and only when somebody
+ * asked to see it — the preference is on by default, and turning it off takes
+ * the query away as well as the icon, so it costs nothing to somebody who does
+ * not want it.
  *
  * The right to see a history is the row's own and not the folder's: a share
  * hands out histories only when its owner said so, and that is decided here
@@ -52,12 +52,10 @@ const versionMarks = async (directoryPath, userSettings) => {
 router.get(
   '/browse/{*splat}',
   asyncHandler(async (req, res) => {
-    // Listings carry transient information such as active OnlyOffice sessions.
-    // Keep browser and proxy caches from serving an out-of-date directory view.
-    res.setHeader('Cache-Control', 'private, no-store');
-
     const settings = await getSettings();
     const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
+    // Off for the whole installation, or off in the settings: either one means
+    // the listing must not promise a thumbnail the server will never make.
     const thumbsEnabled =
       env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
@@ -106,6 +104,8 @@ router.get(
         canUpload: access.canUpload,
         canDelete: access.canDelete,
         canCreateFolder: access.canCreateFolder,
+        // A share may permit folders and refuse files, or the other way
+        // round, so the two are answered apart.
         canCreateFile: access.canCreateFile,
         canShare: access.canShare,
         canDownload: access.canDownload,
@@ -132,6 +132,9 @@ router.get(
         sourceFolderName: pathParts[pathParts.length - 1] || '',
       };
     }
+    // Listings carry transient information such as active OnlyOffice sessions.
+    // Keep browser and proxy caches from serving an out-of-date directory view.
+    res.setHeader('Cache-Control', 'private, no-store');
 
     res.json(response);
   })

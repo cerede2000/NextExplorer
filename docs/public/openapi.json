@@ -10766,6 +10766,9 @@
                     "forceSaveSessionId": {
                       "type": "string"
                     },
+                    "editorSessionId": {
+                      "type": "string"
+                    },
                     "autoSaveIntervalMs": {
                       "type": "number"
                     }

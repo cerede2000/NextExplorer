@@ -68,6 +68,9 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
     return { relativePath: logicalPath, absolutePath, stats, shareId };
   });
 
+  // A public link's own counter, for a download that came through the files
+  // route rather than the share one: the same fetch, reached by a different
+  // address, and a last-downloaded date that skipped it was simply wrong.
   const shareDownloadIds = [...new Set(targets.map(({ shareId }) => shareId).filter(Boolean))];
   await mapWithConcurrency(shareDownloadIds, (shareId) =>
     trackShareDownload(shareId, { ipAddress: clientAddress(req) })
@@ -141,8 +144,8 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   archive.pipe(res);
 
-  // Only what a listing of those folders would show: never the trash zone, a
-  // personal root inside the volume, or a path an access rule hides.
+  // Only what a listing of those folders would show: never a personal root
+  // inside the volume, a name listings leave out, or a path an access rule hides.
   const { entries } = await collectArchiveEntries(
     context,
     targets.map(({ relativePath, absolutePath, stats }) => {

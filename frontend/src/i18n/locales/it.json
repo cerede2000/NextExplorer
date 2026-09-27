@@ -1200,7 +1200,12 @@
     "audioTrackNumbered": "Traccia {number}",
     "subtitleForced": "forzati",
     "subtitleExternal": "file esterno",
-    "noPlayableVideo": "Questo video è in {codecs}, che il browser non sa decodificare. Aprilo in un lettore multimediale."
+    "noPlayableVideo": "Questo video è in {codecs}, che il browser non sa decodificare. Aprilo in un lettore multimediale.",
+    "imageLoadError": "Non è stato possibile visualizzare questa immagine.",
+    "rotateLeft": "Ruota a sinistra",
+    "rotateRight": "Ruota a destra",
+    "zoomIn": "Ingrandisci",
+    "zoomOut": "Riduci"
   },
   "preview": {
     "tooLargeToRenderSized": "Questo documento occupa {size}. L'anteprima si ferma a {limit}, perché dispone ogni elemento nel browser. Aprilo nell'editor o scaricalo.",

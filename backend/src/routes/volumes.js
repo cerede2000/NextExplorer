@@ -12,6 +12,24 @@ const { whyNotWritable } = require('../services/storageWritability');
 const router = express.Router();
 
 /**
+ * Get all volumes from VOLUME_ROOT (admin view or when USER_VOLUMES is disabled)
+ */
+const getAllVolumes = async () => {
+  const entries = await fs.readdir(directories.volume, { withFileTypes: true });
+
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((name) => !excludedFiles.includes(name))
+    .filter((name) => !hiddenFiles.isHiddenName(name))
+    .map((name) => ({
+      name,
+      path: name,
+      kind: 'volume',
+    }));
+};
+
+/**
  * Why nothing can be written in a volume, for the mark beside its name on the
  * home page and in the sidebar — or null when something can.
  *
@@ -41,21 +59,27 @@ const withReadOnly = (context, volumes, absoluteOf) =>
   );
 
 /**
- * Get all volumes from VOLUME_ROOT (admin view or when USER_VOLUMES is disabled)
+ * Drop the ones this caller may not reach.
+ *
+ * A `hidden` rule on a volume kept it out of the folder listing and refused it
+ * by its address, and left its name in the sidebar and on the home page for
+ * everybody — which is the one place a hidden folder is most visible. This is
+ * the same question the listing asks, asked of the volumes.
  */
-const getAllVolumes = async () => {
-  const entries = await fs.readdir(directories.volume, { withFileTypes: true });
-
-  return entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((name) => !excludedFiles.includes(name))
-    .filter((name) => !hiddenFiles.isHiddenName(name))
-    .map((name) => ({
-      name,
-      path: name,
-      kind: 'volume',
-    }));
+const visibleTo = async (context, volumes) => {
+  const answers = await Promise.all(
+    volumes.map(async (volume) => {
+      try {
+        return (await getAccessInfo(context, volume.path))?.canAccess === true;
+      } catch {
+        // A volume nothing can answer for stays listed: opening it is refused
+        // on its own, and a sidebar that empties itself on a transient failure
+        // is worse than one naming a folder that turns out to be closed.
+        return true;
+      }
+    })
+  );
+  return volumes.filter((_volume, index) => answers[index]);
 };
 
 router.get(
@@ -64,27 +88,21 @@ router.get(
     const user = req.user;
     const isAdmin = user?.roles?.includes('admin');
     const userVolumesEnabled = features.userVolumes;
-
-    // A share visitor has no business listing the volumes: they reach files
-    // through their share token only. Without this the next branch would run
-    // for them too, since USER_VOLUMES is off by default.
-    if (!user || !user.id) {
-      return res.json([]);
-    }
-
-    // If USER_VOLUMES is disabled or user is admin, show all volumes from VOLUME_ROOT
     const context = { user, guestSession: req.guestSession };
 
+    // If USER_VOLUMES is disabled or user is admin, show all volumes from VOLUME_ROOT
     if (!userVolumesEnabled || isAdmin) {
-      const volumeData = await getAllVolumes();
+      const visible = await visibleTo(context, await getAllVolumes());
       return res.json(
-        await withReadOnly(context, volumeData, (volume) =>
-          path.join(directories.volume, volume.name)
-        )
+        await withReadOnly(context, visible, (volume) => path.join(directories.volume, volume.name))
       );
     }
 
     // For regular users when USER_VOLUMES is enabled, show only assigned volumes
+    if (!user || !user.id) {
+      return res.json([]);
+    }
+
     const userVolumes = await getVolumesForUser(user.id);
 
     const volumeData = userVolumes.map((vol) => ({
@@ -95,7 +113,8 @@ router.get(
       actualPath: vol.path, // Include actual path for reference
     }));
 
-    res.json(await withReadOnly(context, volumeData, (volume) => volume.actualPath));
+    const visible = await visibleTo(context, volumeData);
+    res.json(await withReadOnly(context, visible, (volume) => volume.actualPath));
   })
 );
 

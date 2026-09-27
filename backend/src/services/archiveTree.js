@@ -13,17 +13,21 @@ const { getSettings } = require('./settingsService');
  * What goes into an archive of a folder somebody may download.
  *
  * Handing the folder to the archiver whole took everything under it, including
- * what nobody browsing it can see: the `.nextexplorer` zone with other people's
- * deleted files and every earlier version of every file, a personal root kept
- * inside the volume, and the paths an access rule hides. A download is a read,
- * so it gets exactly what a listing would show — the same excluded names, the
- * same personal root, and the same per-path access decision.
+ * what nobody browsing it can see: a personal root kept inside the volume, the
+ * names a listing leaves out, and the paths an access rule hides. A download is
+ * a read, so it gets exactly what a listing would show — the same excluded
+ * names, the same personal root, and the same per-path access decision.
  *
  * The walk returns the entries rather than writing them, so the same list feeds
  * a zip streamed to the browser and a zip written next to the folder.
  */
 
-/** The access section as stored: the rules, and who they hold. */
+/**
+ * The whole access section, not the rules alone: whom a rule holds is decided
+ * by the rule and by the setting above it together, and an archive that asked
+ * with half of it would answer for the wrong caller — which is a hidden folder
+ * inside a zip somebody downloaded.
+ */
 const readAccess = async () => {
   const settings = await getSettings();
   return settings?.access && typeof settings.access === 'object' ? settings.access : { rules: [] };
@@ -65,16 +69,20 @@ const collectArchiveEntries = async (context, sources) => {
       const absolutePath = path.join(absoluteDir, child.name);
       const logicalPath = combineRelativePath(logicalDir, child.name);
       const name = `${entryDir}/${child.name}`;
+
       if (!(await visible({ absolutePath, logicalPath, name: child.name, guardPersonalRoot }))) {
         excluded += 1;
         continue;
       }
+
       const stats = await fs.lstat(absolutePath);
       if (stats.isSymbolicLink()) {
         // Kept as the link it is, never followed: its target is text, not content.
+
         entries.push({ type: 'symlink', name, target: await fs.readlink(absolutePath) });
       } else if (stats.isDirectory()) {
         entries.push({ type: 'directory', name });
+
         await walk({
           absoluteDir: absolutePath,
           logicalDir: logicalPath,
@@ -97,6 +105,7 @@ const collectArchiveEntries = async (context, sources) => {
       entries.push({ type: 'directory', name: entryName });
       // A folder that is itself inside the personal root was reached through the
       // personal space, or a share of it, which already decided whose it is.
+
       await walk({
         absoluteDir: source.absolutePath,
         logicalDir: source.logicalPath,

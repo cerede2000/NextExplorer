@@ -550,6 +550,7 @@ const versionViewConfig = async (req, relativePath, versionId, uiTheme) => {
     documentServerUrl: onlyoffice.serverUrl,
     config,
     forceSaveSessionId: null,
+    editorSessionId: null,
     autoSaveIntervalMs: 0,
     version: { id: located.version.id, modifiedAt: located.version.modifiedAt },
   };
@@ -830,6 +831,10 @@ router.post(
       documentServerUrl: onlyoffice.serverUrl,
       config,
       forceSaveSessionId,
+      // The same value under the name the answer has also always carried.
+      // `forceSaveSessionId` says what it is for; `editorSessionId` says what it
+      // is, and anything already reading that one keeps working.
+      editorSessionId: forceSaveSessionId,
       autoSaveIntervalMs: canEdit ? onlyoffice.autoSaveIntervalMs : 0,
     });
   })

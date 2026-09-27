@@ -112,17 +112,26 @@ const MULTIPART_REFUSALS = {
 };
 
 /**
- * A write the storage itself refused because it is mounted read-only.
+ * A write the storage itself refused: the mount is read-only, or the folder
+ * belongs to somebody the server does not run as.
  *
- * It surfaced as a 500 carrying the system's own words — `EROFS: read-only
- * file system, mkdir` — for what is neither a fault of the server nor
- * something a retry would change. The listing now says beforehand that such a
- * folder cannot be written in; this is the answer for whatever still tries.
+ * Both surfaced as a 500 carrying the system's own words — `EROFS: read-only
+ * file system, mkdir`, `EACCES: permission denied, mkdir` — for what is
+ * neither a fault of the server nor something a retry would change, and with
+ * an absolute path from inside the container in the message. The listing now
+ * says beforehand that such a folder cannot be written in; this is the answer
+ * for whatever still tries.
  */
-const storageRefusal = (err) =>
-  err?.code === 'EROFS'
-    ? { statusCode: 403, message: 'This storage is read-only: nothing can be written here.' }
-    : null;
+const STORAGE_REFUSALS = {
+  EROFS: 'This storage is read-only: nothing can be written here.',
+  EACCES: 'The server is not allowed to write in this folder.',
+  EPERM: 'The server is not allowed to write in this folder.',
+};
+
+const storageRefusal = (err) => {
+  const message = STORAGE_REFUSALS[err?.code];
+  return message ? { statusCode: 403, message } : null;
+};
 
 const multipartRefusal = (err) => {
   if (!(err instanceof multer.MulterError)) return null;

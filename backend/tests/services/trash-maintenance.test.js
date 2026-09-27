@@ -158,7 +158,7 @@ describe('the budget', () => {
     maintenance.measureVolume.mockResolvedValue({ totalBytes: 1_000_000, freeBytes: 2 });
     // The same configuration object the pass holds: reloading it would give the
     // test a copy the pass never reads.
-    load('src/config/index').upload.storageReserveBytes = 5;
+    load('src/config/index').uploads.storageReserveBytes = 5;
     await trashAt('Projects/a.txt', { daysAgo: 2, content: '1234' });
     await trashAt('Projects/b.txt', { daysAgo: 1, content: '1234' });
 

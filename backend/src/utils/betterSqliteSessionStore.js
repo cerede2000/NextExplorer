@@ -31,8 +31,24 @@ class BetterSqliteSessionStore extends session.Store {
   constructor(filename) {
     super();
 
-    fs.mkdirSync(path.dirname(filename), { recursive: true });
-    this.db = new Database(filename);
+    this.filename = filename;
+    this.db = null;
+  }
+
+  /**
+   * Opened on first use, not when this module is required.
+   *
+   * Opening it creates the cache directory and the database in it, which turns
+   * requiring this file into a filesystem write — one that fails wherever the
+   * cache is not there yet, including the check that every module loads. A
+   * process that has not been asked to hold a session has no business creating
+   * a place to hold one either.
+   */
+  ready() {
+    if (this.db) return this;
+
+    fs.mkdirSync(path.dirname(this.filename), { recursive: true });
+    this.db = new Database(this.filename);
     this.db.pragma('busy_timeout = 5000');
     // Every expired session the daily cleanup deletes leaves its pages behind,
     // and SQLite keeps them: a burst of logins — a script, a scan — grew the
@@ -87,6 +103,7 @@ class BetterSqliteSessionStore extends session.Store {
     this.cleanupExpiredSessions();
     this.cleanupTimer = setInterval(() => this.cleanupExpiredSessions(), ONE_DAY_MS);
     this.cleanupTimer.unref();
+    return this;
   }
 
   callback(callback, error, value) {
@@ -103,6 +120,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   cleanupExpiredSessions() {
+    this.ready();
     try {
       this.cleanupStatement.run(Date.now());
     } catch (error) {
@@ -111,6 +129,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   get(sid, callback = () => {}) {
+    this.ready();
     try {
       const row = this.getStatement.get(sid, Date.now());
       this.callback(callback, null, row ? JSON.parse(row.sess) : undefined);
@@ -120,6 +139,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   set(sid, sessionData, callback = () => {}) {
+    this.ready();
     try {
       this.setStatement.run(sid, this.expiresAt(sessionData), JSON.stringify(sessionData));
       this.callback(callback, null);
@@ -129,6 +149,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   destroy(sid, callback = () => {}) {
+    this.ready();
     try {
       this.destroyStatement.run(sid);
       this.callback(callback, null);
@@ -157,6 +178,7 @@ class BetterSqliteSessionStore extends session.Store {
    * @returns {number} how many sessions were ended
    */
   destroyByUser(userId, exceptSid = null, providerIdentities = []) {
+    this.ready();
     // No guard needed for a missing id: NULL equals nothing in SQL, and no
     // session carries an empty one.
     const ended = this.destroyByUserStatement.run(userId, exceptSid || null).changes;
@@ -176,6 +198,7 @@ class BetterSqliteSessionStore extends session.Store {
    * @returns {number} how many sessions were ended
    */
   destroyProviderSessions(providerIdentities, exceptSid = null) {
+    this.ready();
     const wanted = new Set(
       (Array.isArray(providerIdentities) ? providerIdentities : [])
         .map((identity) => identityKey(identity?.issuer, identity?.subject))
@@ -194,6 +217,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   touch(sid, sessionData, callback = () => {}) {
+    this.ready();
     try {
       this.touchStatement.run(this.expiresAt(sessionData), sid, Date.now());
       this.callback(callback, null);
@@ -203,6 +227,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   clear(callback = () => {}) {
+    this.ready();
     try {
       this.clearStatement.run();
       this.callback(callback, null);
@@ -212,6 +237,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   length(callback = () => {}) {
+    this.ready();
     try {
       this.callback(callback, null, this.lengthStatement.get(Date.now()).count);
     } catch (error) {
@@ -220,6 +246,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   all(callback = () => {}) {
+    this.ready();
     try {
       const sessions = this.allStatement.all(Date.now()).map((row) => JSON.parse(row.sess));
       this.callback(callback, null, sessions);
@@ -229,6 +256,7 @@ class BetterSqliteSessionStore extends session.Store {
   }
 
   close() {
+    if (!this.db) return;
     clearInterval(this.cleanupTimer);
     this.db.close();
   }

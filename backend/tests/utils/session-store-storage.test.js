@@ -48,6 +48,10 @@ const leaveFreePages = (db, megabytes) => {
 const openStore = () => {
   const module = envContext.requireFresh('src/utils/sessionStore');
   store = module.localStore;
+  // The file is made on first use, not when the module is required, so the test
+  // asks for the store before it looks inside it — which is also what the test
+  // below relies on when it expects no sessions.db at all.
+  store.ready();
   return store;
 };
 

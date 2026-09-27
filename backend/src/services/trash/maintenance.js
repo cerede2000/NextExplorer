@@ -64,7 +64,7 @@ const limitsFor = async (root, settings) => {
       maxPercent: settings.maxPercent,
       maxBytes: settings.maxBytes,
     }),
-    floorBytes: config.upload?.storageReserveBytes ?? 0,
+    floorBytes: config.uploads?.storageReserveBytes ?? 0,
   };
 };
 
@@ -272,6 +272,7 @@ const runPass = async ({ reason = 'manual' } = {}) => {
     let results;
     do {
       again = false;
+
       results = await runOnce({ reason });
     } while (again);
     return results;
@@ -317,11 +318,13 @@ const makeRoom = async (directory, requiredBytes) => {
     // Emptying a trash for an upload that would be refused anyway destroys
     // people's deleted files for nothing: only when the trash can cover the
     // shortfall is anything purged.
+
     const { freeBytes } = await module.exports.measureVolume(root);
     const held =
       trashedItemsOf(db, zone).reduce((total, item) => total + item.size, 0) +
       versionBytesIn(db, zone);
     if (Number.isFinite(freeBytes) && freeBytes + held < requiredBytes) continue;
+
     const summary = await maintainZone(zone, settings, { floorBytes: requiredBytes });
     freed += summary.purgedBytes || 0;
   }
@@ -336,6 +339,7 @@ const zonesOverview = async () => {
   for (const zone of store.listZones(db)) {
     const inspection = await zones.inspectZone(zone);
     const items = store.listItemsByZone(db, zone.id);
+
     const limits = inspection.available ? await limitsFor(zone.root, settings) : null;
     overview.push({
       id: zone.id,

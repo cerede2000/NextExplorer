@@ -78,6 +78,13 @@ const metaValue = (db, key) => {
   }
 };
 
+/**
+ * The search index and the files SQLite keeps beside it.
+ *
+ * Nothing anybody put anywhere passes through here: the index is built from
+ * the volume and made again whenever it is missing, which is why it does not
+ * go through the trash.
+ */
 const removeFile = (file) => {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
     fs.rmSync(`${file}${suffix}`, { force: true });

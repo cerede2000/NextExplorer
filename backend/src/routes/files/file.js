@@ -3,10 +3,10 @@ const fs = require('fs/promises');
 
 const { normalizeRelativePath, ensureValidName, splitName } = require('../../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../../services/authorizationService');
+const folderSizeHooks = require('../../services/folderSizeHooks');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../errors/AppError');
 const { buildItemMetadata } = require('./utils');
-const folderSizeHooks = require('../../services/folderSizeHooks');
 
 const router = require('express').Router();
 

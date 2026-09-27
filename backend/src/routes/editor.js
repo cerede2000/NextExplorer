@@ -5,11 +5,11 @@ const fs = require('fs/promises');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ensureDir } = require('../utils/fsUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
+const versions = require('../services/versions/operations');
+const folderSizeHooks = require('../services/folderSizeHooks');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendTextFile } = require('../utils/textFileResponse');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/AppError');
-const folderSizeHooks = require('../services/folderSizeHooks');
-const versions = require('../services/versions/operations');
 const {
   readFileEncoding,
   encodeText,
@@ -26,6 +26,7 @@ async function resolveReadableFile(req, relative) {
 
   const relativePath = normalizeRelativePath(relative);
   const context = { user: req.user, guestSession: req.guestSession };
+
   let accessInfo;
   let resolved;
   try {
@@ -93,13 +94,13 @@ router.put(
     if (typeof relative !== 'string' || !relative) {
       throw new ValidationError('A valid file path is required.');
     }
+    // Answered rather than thrown at the write: `null` used to reach the file
+    // itself, where it failed as a server error after the document had already
+    // been opened for writing.
     if (typeof content !== 'string') {
-      throw new ValidationError('Text editor content must be a string.');
+      throw new ValidationError('The content to save must be text.');
     }
-    // Refused for the same reason the editor refuses to open it. Without this
-    // the editor wrote whatever it was given — paste two megabytes into a small
-    // file, save, and the next attempt to open it answered that the file is too
-    // large. The shared-editor route has always checked; this one did not.
+
     const relativePath = normalizeRelativePath(relative);
 
     // Prevent creating files directly in the volume root
@@ -134,15 +135,11 @@ router.put(
     const { absolutePath } = resolved;
 
     await ensureDir(path.dirname(absolutePath));
-    let previousSize = 0;
-    let existed = false;
-    try {
-      const previous = await fs.stat(absolutePath);
-      existed = previous.isFile();
-      previousSize = existed ? previous.size : 0;
-    } catch {
-      // A new file is the expected path.
-    }
+    // What the file weighed before, for the index: a save replaces content, so the
+    // folder it sits in gains the difference rather than the whole of the new file.
+    const before = await fs.stat(absolutePath).catch(() => null);
+    const existed = Boolean(before?.isFile());
+    const previousSize = existed ? before.size : 0;
 
     // Written back in the encoding it already had: a UTF-16 file saved as UTF-8
     // reads perfectly well here and breaks whatever wrote it.
@@ -155,9 +152,12 @@ router.put(
     if (payload.length > MAX_EDITOR_FILE_SIZE) {
       throw new ValidationError('This file is too large to save in the text editor.');
     }
-    // Written beside the file and renamed over it: writing in place left a
-    // truncated file behind a crash in the middle of a save. What it replaces
-    // is kept as a version.
+
+    // Written beside the file and put in place once whole, with what it
+    // replaces kept as a version: a save used to go straight over the file, so
+    // a stop halfway through left it truncated and the state it replaced was
+    // gone. Somebody pressed Save, so it is a state worth keeping — there is no
+    // session here to group it with, as there is in the office editors.
     let written = null;
     await versions.saveFile(
       absolutePath,
@@ -165,13 +165,22 @@ router.put(
         await fs.writeFile(temporaryPath, payload, { flag: 'wx' });
         written = await fs.stat(temporaryPath, { bigint: true });
       },
-      { author: versions.authorOf(context), source: 'editor' }
+      {
+        purpose: 'editor',
+        author: versions.authorOf({ user: req.user, guestSession: req.guestSession }),
+        source: 'editor',
+        explicit: true,
+      }
     );
-    const updated = await fs.stat(absolutePath, { bigint: true });
-    if (existed) {
-      await folderSizeHooks.onFileReplaced(absolutePath, previousSize, Number(updated.size));
-    } else {
-      await folderSizeHooks.onFileWritten(absolutePath, Number(updated.size));
+    // The index takes the difference the save made, from the size it can already
+    // see, instead of waiting for the periodic sweep to walk the folder again.
+    const updated = await fs.stat(absolutePath, { bigint: true }).catch(() => null);
+    if (updated) {
+      if (existed) {
+        await folderSizeHooks.onFileReplaced(absolutePath, previousSize, Number(updated.size));
+      } else {
+        await folderSizeHooks.onFileWritten(absolutePath, Number(updated.size));
+      }
     }
     // The identity the next read of the file will carry — given only when the
     // file now at the path is the one this save wrote. A save set aside, or one
@@ -180,12 +189,14 @@ router.put(
     // this answer would name content it did not send.
     if (
       written &&
+      updated &&
       updated.ino === written.ino &&
       updated.size === written.size &&
       updated.mtimeNs === written.mtimeNs
     ) {
       res.setHeader('ETag', textFileEtag(updated));
     }
+
     res.send({ success: true });
   })
 );

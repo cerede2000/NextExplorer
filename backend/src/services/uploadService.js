@@ -14,9 +14,9 @@ const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
+const { track: trackInFlight } = require('./inFlightFiles');
 const { ForbiddenError, ValidationError } = require('../errors/AppError');
 const logger = require('../utils/logger');
-const { upload: uploadConfig } = require('../config');
 
 const RETRYABLE_CLEANUP_ERRORS = new Set(['EBUSY', 'ENOTEMPTY', 'EPERM']);
 
@@ -193,7 +193,12 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
     // going: enough to undo it if the upload is refused after this point.
     let createdDirectoryRoot = null;
     let preparedDestinationDir = null;
+    // Recorded while the bytes arrive, released however the upload ends: a stop
+    // half-way leaves the record, and the sweep at the next start removes the
+    // hidden file it names.
+    let inFlight = null;
     const fail = async (error) => {
+      inFlight?.release();
       await removeEmptyCreatedDirectories(preparedDestinationDir, createdDirectoryRoot);
       cb(error);
     };
@@ -249,6 +254,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         destinationDir,
         `.upload-${crypto.randomBytes(8).toString('hex')}${UPLOADING_SUFFIX}`
       );
+      inFlight = trackInFlight(temporaryPath, 'partial-upload');
 
       const cleanupTemporary = async () => {
         let lastError = null;
@@ -276,7 +282,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
       let uploadFinished = false;
       let abortError = null;
       let inactivityTimer = null;
-      const inactivityTimeoutMs = uploadConfig?.inactivityTimeoutMs ?? 120000;
+      const inactivityTimeoutMs = uploads?.inactivityTimeoutMs ?? 120000;
 
       const clearInactivityTimer = () => {
         if (!inactivityTimer) return;
@@ -358,6 +364,7 @@ CustomStorage.prototype._handleFile = function handleFile(req, file, cb) {
         // "name (1).ext" and so on: nothing already there is ever replaced. What
         // was taken is what the response reports.
         const placed = await placeWithoutOverwrite(temporaryPath, destinationDir, desiredName);
+        inFlight?.release();
         cb(null, {
           path: placed.path,
           size: outStream.bytesWritten,
