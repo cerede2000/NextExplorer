@@ -1090,7 +1090,6 @@
     "created": "建立時間",
     "noMyShares": "你還沒有建立任何分享。",
     "noMySharesDescription": "從任意文件或檔案夾建立分享連結後，會在此處顯示。",
-    "mySharesCount": "{count} 個有效分享連結",
     "confirmDeleteShare": "確定要移除此分享嗎？擁有該連結的人將不再能夠存取。",
     "removeShare": "移除分享",
     "sharedWithAnyone": "所有人",

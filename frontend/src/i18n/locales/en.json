@@ -1103,7 +1103,6 @@
     "created": "Created",
     "noMyShares": "You haven't created any shares yet.",
     "noMySharesDescription": "Create a share from any file or folder to see it listed here.",
-    "mySharesCount": "{count} active share links",
     "confirmDeleteShare": "Remove this share? People with the link will no longer have access.",
     "deleteShareTitle": "Remove share?",
     "deleteShareMessage": "People with this link will no longer be able to access the shared item.",

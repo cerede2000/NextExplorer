@@ -1103,7 +1103,6 @@
     "created": "Criado",
     "noMyShares": "Você ainda não criou nenhum compartilhamento.",
     "noMySharesDescription": "Crie um compartilhamento de qualquer arquivo ou pasta para vê-lo listado aqui.",
-    "mySharesCount": "{count} link de compartilhamento ativo | {count} links de compartilhamento ativos",
     "confirmDeleteShare": "Remover este compartilhamento? As pessoas com o link não terão mais acesso.",
     "deleteShareTitle": "Remover compartilhamento?",
     "deleteShareMessage": "As pessoas com este link não poderão mais acessar o item compartilhado.",
