@@ -32,10 +32,7 @@ const mountedRoutes = (requireFresh) => {
         const guards = handlers.slice(0, -1).filter(Boolean);
         for (const routePath of paths) {
           for (const method of methods) {
-            // A router mounted at `/` gives a prefix that would double the
-            // slash of every path under it.
-            const at = `${prefix === '/' ? '' : prefix}${routePath}`;
-            routes.push({ method, path: at, router: label, guards });
+            routes.push({ method, path: `${prefix}${routePath}`, router: label, guards });
           }
         }
       } else if (layer.handle && Array.isArray(layer.handle.stack)) {
@@ -52,6 +49,8 @@ const mountedRoutes = (requireFresh) => {
       if (typeof prefix === 'string') walk(prefix, router, prefix);
     },
   });
+  walk('', requireFresh('src/routes/health'), '/');
+
   return routes;
 };
 

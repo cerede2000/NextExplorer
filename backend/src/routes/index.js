@@ -26,16 +26,10 @@ const versionsRoutes = require('./versions');
 const versionsAdminRoutes = require('./versionsAdmin');
 const activityRoutes = require('./activity');
 const capabilitiesRoutes = require('./capabilities');
-const healthRoutes = require('./health');
 const openapiRoutes = require('./openapi');
 const { onlyoffice, collabora } = require('../config/index');
 
 const registerRoutes = (app) => {
-  // Health endpoints (no /api prefix, unauthenticated). A container's own
-  // healthcheck calls this, so it answers before anything else is mounted and
-  // without asking who is calling.
-  app.use('/', healthRoutes);
-
   // Health endpoints (no /api prefix, unauthenticated)
 
   app.use('/api/auth', authRoutes);

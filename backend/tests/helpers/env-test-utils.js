@@ -165,6 +165,15 @@ const quiesceLoadedServices = async () => {
     /* nothing queued is nothing to drain */
   }
 
+  // The RAW previews keep a cleanup timer of their own, and an extraction in
+  // progress writes into the same cache directory.
+  const rawPreviews = loadedModule('src/services/rawPreviewService');
+  try {
+    await rawPreviews?.stopRawPreviewWork?.();
+  } catch {
+    /* nothing extracting and nothing scheduled */
+  }
+
   // The trash maintenance schedules a pass shortly after a deletion; one landing
   // after the database is closed would fail on the next test's time.
   const trashMaintenance = loadedModule('src/services/trash/maintenance');
@@ -173,6 +182,31 @@ const quiesceLoadedServices = async () => {
     await trashMaintenance?.idle?.();
   } catch {
     /* nothing scheduled is nothing to stop */
+  }
+
+  const indexDb = loadedModule('src/services/indexDb');
+  try {
+    indexDb?.closeIndexDb?.();
+  } catch {
+    /* an unopened index has no handle to close */
+  }
+
+  // The chunked-upload cache sweep runs on a timer once started, and recreates
+  // the cache directory it inspects.
+  const tusUploads = loadedModule('src/services/tusUploadService');
+  try {
+    await tusUploads?.stopCacheSweep?.();
+  } catch {
+    /* a sweep that never started has nothing to stop */
+  }
+
+  // Changing a password opens sessions.db to end the account's sessions, and
+  // the store keeps its handle and a daily cleanup timer until closed.
+  const sessionStore = loadedModule('src/utils/sessionStore');
+  try {
+    sessionStore?.localStore?.close?.();
+  } catch {
+    /* already closed by the test */
   }
 
   const db = loadedModule('src/services/db');

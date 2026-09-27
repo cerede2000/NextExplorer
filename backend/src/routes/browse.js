@@ -2,6 +2,7 @@ const express = require('express');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { pathExists } = require('../utils/fsUtils');
+const env = require('../config/env');
 const { withStorage } = require('../services/storageWritability');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const logger = require('../utils/logger');
@@ -53,7 +54,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const settings = await getSettings();
     const userSettings = req.user?.id ? await getUserSettings(req.user.id) : {};
-    const thumbsEnabled = settings?.thumbnails?.enabled !== false;
+    // Off for the whole installation, or off in the settings: either one means
+    // the listing must not promise a thumbnail the server will never make.
+    const thumbsEnabled =
+      env.THUMBNAILS_ENABLED !== false && settings?.thumbnails?.enabled !== false;
     const includeHiddenFiles = userSettings?.showHiddenFiles === true;
     const rawPath = (req.params.splat || []).join('/');
     const inputRelativePath = normalizeRelativePath(rawPath);
@@ -83,7 +87,6 @@ router.get(
       parentLogicalPath: relativePath,
       context,
       thumbsEnabled,
-      excludeDownloadArtifacts: true,
       includeHiddenFiles,
       access: settings?.access || null,
       itemExtras: await versionMarks(directoryPath, userSettings),
