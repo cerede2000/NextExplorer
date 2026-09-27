@@ -561,12 +561,14 @@ describe('forgetting what is gone', () => {
   });
 
   // Nothing walks a folder that is not there, so nothing asks what it held.
+  // Three rows go, not two: a folder has a row of its own now, so that somebody
+  // can find it by its name without knowing what is inside it.
   it('forgets a folder that was removed outright', async () => {
     await fs.rm(volumePath('Docs', 'Notes'), { recursive: true });
 
     const result = await indexAll();
 
-    expect(result.removed).toBe(2);
+    expect(result.removed).toBe(3);
     expect(store.search(db, 'pangolin')).toEqual(['Docs/kept.txt']);
   });
 

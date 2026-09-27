@@ -1,4 +1,5 @@
 <script setup>
+import { matchLabelKey } from '@/utils/searchMatch';
 import { ref, computed, watch, nextTick, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn, onKeyStroke } from '@vueuse/core';
@@ -7,6 +8,7 @@ import { search as searchApi, normalizePath } from '@/api';
 import { useSpotlightStore } from '@/stores/spotlight';
 import FileIcon from '@/icons/FileIcon.vue';
 import { useI18n } from 'vue-i18n';
+import { folderRoute } from '@/utils/folderRoute';
 
 const router = useRouter();
 const route = useRoute();
@@ -31,30 +33,121 @@ const basePath = computed(() => {
   return normalizePath(fromBrowse || fromQuery || '');
 });
 
-const performSearch = useDebounceFn(async () => {
+/**
+ * A search is coming, before it has started.
+ *
+ * Typing sets this immediately; the request itself only begins a second later,
+ * once the debounce lets it. Without it there is a second where nothing is
+ * loading and nothing has been found, which the panel showed as "no matches" —
+ * a search that had not run yet, reported as one that had answered.
+ */
+const pending = ref(false);
+
+/**
+ * Only the newest search may write to the panel.
+ *
+ * The debounce delays the start of a request; it does nothing about one
+ * already in flight. Typing `*.doc*`, then `*.docx`, then `*.doc*` sent
+ * three searches, and a deep one takes seconds — so the panel showed
+ * whichever came back last, which is not the one being asked for. Superseding
+ * a search also aborts it, so the server stops looking for an answer nobody
+ * will read.
+ */
+let currentRequest = 0;
+let inFlight = null;
+
+/** Why the answer is short of everything, or null when it is not. */
+const shortfall = ref(null);
+/** Whether what was typed is too short to be worth sending. */
+const tooShort = ref(false);
+let lastAsked = null;
+const MIN_TERM_LENGTH = 3;
+/**
+ * How many results this search has asked for.
+ *
+ * A page is a hundred, and somebody who wants the rest asks again for more
+ * rather than being handed a cursor: holding a search open between requests
+ * would mean keeping its generator, its subprocesses and its database cursor
+ * alive per person and per term, which is a great deal of machinery to avoid
+ * repeating a query the index answers in milliseconds.
+ */
+const LIMIT_STEPS = [100, 300, 500];
+const askedLimit = ref(LIMIT_STEPS[0]);
+const canShowMore = computed(
+  () => shortfall.value?.kind === 'first' && askedLimit.value < LIMIT_STEPS[LIMIT_STEPS.length - 1]
+);
+const showMore = () => {
+  askedLimit.value = LIMIT_STEPS.find((step) => step > askedLimit.value) ?? askedLimit.value;
+  runSearch();
+};
+
+const runSearch = async () => {
   const term = query.value.trim();
+  const request = (currentRequest += 1);
+
+  inFlight?.abort();
+  inFlight = null;
 
   errorMsg.value = '';
   activeIndex.value = -1;
-
-  if (!term) {
-    results.value = [];
-    return;
+  if (term !== lastAsked) {
+    lastAsked = term;
+    askedLimit.value = LIMIT_STEPS[0];
   }
 
+  // Below this the server refuses, and rightly: one or two characters describe
+  // most of a volume. Said here rather than sent and bounced back.
+  if (term.length < MIN_TERM_LENGTH) {
+    results.value = [];
+    shortfall.value = null;
+    pending.value = false;
+    tooShort.value = term.length > 0;
+    return;
+  }
+  tooShort.value = false;
+
+  const controller = new AbortController();
+  inFlight = controller;
   loading.value = true;
   try {
-    const { items = [] } = await searchApi(basePath.value, term);
+    const {
+      items = [],
+      truncated = false,
+      complete = true,
+      limit,
+    } = await searchApi(basePath.value, term, askedLimit.value, { signal: controller.signal });
+    if (request !== currentRequest) return;
     // Limit results to prevent performance issues with massive lists
     const limitedItems = Array.isArray(items) ? items : [];
     results.value = Object.freeze(limitedItems);
+    // Why the list may be shorter than the truth, said rather than left to
+    // look like the whole answer.
+    shortfall.value = truncated
+      ? { kind: 'stopped' }
+      : complete
+        ? null
+        : { kind: 'first', count: Number.isFinite(limit) ? limit : limitedItems.length };
   } catch (e) {
+    // A search this one replaced has nothing to say, and an abort is not a
+    // failure to report: it is this function having moved on.
+    if (request !== currentRequest) return;
     errorMsg.value = e?.message || t('errors.searchFailed');
     results.value = [];
+    shortfall.value = null;
   } finally {
-    loading.value = false;
+    if (request === currentRequest) {
+      inFlight = null;
+      loading.value = false;
+      pending.value = false;
+    }
   }
-}, 1000);
+  // A second was long enough that the panel felt slower than the search: the
+  // wait before asking was most of what people were waiting for. Short enough
+  // now to feel immediate, long enough that typing a word is still one query.
+};
+
+// Typing waits; asking for more does not — the decision was just made.
+const performSearch = useDebounceFn(runSearch, 350);
 
 function scrollToActiveItem() {
   if (activeIndex.value < 0 || activeIndex.value >= results.value.length) return;
@@ -104,15 +197,9 @@ function openResult(item) {
 
   const normalizedPath = normalizePath(targetPath);
 
-  if (!isDirectory && item.name) {
-    router.push({
-      name: 'FolderView',
-      params: { path: normalizedPath },
-      query: { select: item.name },
-    });
-  } else {
-    router.push({ name: 'FolderView', params: { path: normalizedPath } });
-  }
+  router.push(
+    folderRoute(normalizedPath, !isDirectory && item.name ? { select: item.name } : undefined)
+  );
   spotlight.close();
 }
 
@@ -123,6 +210,8 @@ function resetSpotlight() {
   errorMsg.value = '';
   activeIndex.value = -1;
   loading.value = false;
+  // Closing the panel cancels the search that was about to run with it.
+  pending.value = false;
 }
 
 // Create a stable item object that won't trigger FileIcon watchers
@@ -143,7 +232,12 @@ function toIconItem(item) {
 }
 
 // Only watch query changes, not spotlight state
-watch(query, performSearch);
+watch(query, () => {
+  // Set here rather than inside the debounced call: the whole point is to
+  // cover the wait before it runs.
+  pending.value = query.value.trim().length > 0;
+  performSearch();
+});
 
 // Separate watcher for spotlight open/close
 watch(
@@ -229,7 +323,10 @@ onKeyStroke(
 
         <!-- Results -->
         <div ref="resultsContainerRef" class="max-h-[60vh] overflow-y-auto">
-          <div v-if="loading" class="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
+          <div
+            v-if="loading || pending"
+            class="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400"
+          >
             {{ t('search.searching') }}
           </div>
           <div v-else-if="errorMsg" class="px-4 py-3 text-sm text-red-600">
@@ -241,6 +338,16 @@ onKeyStroke(
           >
             {{ t('spotlight.hintWithin') }}
             <span class="font-mono">/{{ basePath }}</span>
+            <p class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+              {{ t('spotlight.hintPattern') }}
+            </p>
+          </div>
+          <div
+            v-else-if="tooShort"
+            data-test="search-too-short"
+            class="px-4 py-6 text-sm text-neutral-500 dark:text-neutral-400"
+          >
+            {{ t('search.tooShort', { count: MIN_TERM_LENGTH }) }}
           </div>
           <div
             v-else-if="results.length === 0"
@@ -270,8 +377,17 @@ onKeyStroke(
                   class="w-8 h-8 shrink-0"
                 />
                 <div class="min-w-0">
-                  <div class="text-[15px] text-neutral-900 dark:text-neutral-100 truncate">
-                    {{ item.name }}
+                  <div class="flex items-baseline gap-2 min-w-0">
+                    <div class="text-[15px] text-neutral-900 dark:text-neutral-100 truncate">
+                      {{ item.name }}
+                    </div>
+                    <span
+                      v-if="matchLabelKey(item)"
+                      data-test="match-kind"
+                      class="shrink-0 rounded-full px-1.5 text-[0.65rem] font-medium leading-4 text-neutral-500 ring-1 ring-neutral-300 dark:text-neutral-400 dark:ring-neutral-600"
+                    >
+                      {{ t(matchLabelKey(item)) }}
+                    </span>
                   </div>
                   <div
                     class="text-[12px] text-neutral-500 dark:text-neutral-400 font-mono truncate"
@@ -292,6 +408,27 @@ onKeyStroke(
                 </div>
               </div>
             </button>
+
+            <p
+              v-if="shortfall"
+              data-test="search-shortfall"
+              class="px-3 py-2 text-xs text-amber-700 dark:text-amber-400/90"
+            >
+              {{
+                shortfall.kind === 'stopped'
+                  ? t('search.stoppedEarly')
+                  : t('search.firstOnly', { count: shortfall.count })
+              }}
+              <button
+                v-if="canShowMore"
+                data-test="search-show-more"
+                type="button"
+                class="ml-2 underline underline-offset-2 hover:no-underline"
+                @click="showMore"
+              >
+                {{ t('search.showMore') }}
+              </button>
+            </p>
           </div>
         </div>
       </div>

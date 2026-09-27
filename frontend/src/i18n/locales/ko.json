@@ -217,7 +217,14 @@
     "searching": "검색 중…",
     "noMatches": "검색 결과 없음",
     "openFolder": "폴더 열기",
-    "line": "라인"
+    "line": "라인",
+    "matchedByName": "이름",
+    "matchedByContent": "내용",
+    "matchedByBoth": "이름과 내용",
+    "stoppedEarly": "제한 시간에 도달해 중단되었습니다 — 지금까지 찾은 결과입니다.",
+    "firstOnly": "처음 {count}개의 결과입니다. 더 보려면 검색을 좁히세요.",
+    "tooShort": "{count}자 이상 입력하세요.",
+    "showMore": "더 보기"
   },
   "user": {
     "account": "계정",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "검색어를 입력하세요"
+    "hintWithin": "검색어를 입력하세요",
+    "hintPattern": "파일 이름을 찾으려면 * 와 ? 를 사용하세요. 예: *.ps1"
   },
   "download": {
     "preparing": "다운로드 준비 중..."

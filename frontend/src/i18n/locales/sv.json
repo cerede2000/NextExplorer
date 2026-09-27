@@ -217,7 +217,14 @@
     "searching": "Söker…",
     "noMatches": "Inga träffar hittades",
     "openFolder": "Öppna mapp",
-    "line": "rad"
+    "line": "rad",
+    "matchedByName": "namn",
+    "matchedByContent": "innehåll",
+    "matchedByBoth": "namn och innehåll",
+    "stoppedEarly": "Avbröts vid tidsgränsen — det här hittades.",
+    "firstOnly": "De första {count} träffarna. Avgränsa sökningen för att se fler.",
+    "tooShort": "Skriv minst {count} tecken.",
+    "showMore": "Visa fler"
   },
   "user": {
     "account": "Konto",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "Skriv för att söka inom"
+    "hintWithin": "Skriv för att söka inom",
+    "hintPattern": "Använd * och ? för att filtrera filnamn, till exempel *.ps1"
   },
   "download": {
     "preparing": "Förbereder nerladdning..."

@@ -217,7 +217,14 @@
     "searching": "正在搜尋…",
     "noMatches": "未找到吻合的結果",
     "openFolder": "打開檔案夾",
-    "line": "行"
+    "line": "行",
+    "matchedByName": "檔名",
+    "matchedByContent": "內容",
+    "matchedByBoth": "檔名和內容",
+    "stoppedEarly": "已達時間上限而停止 — 以下是已找到的內容。",
+    "firstOnly": "前 {count} 筆結果。縮小搜尋範圍可查看更多。",
+    "tooShort": "請至少輸入 {count} 個字元。",
+    "showMore": "顯示更多"
   },
   "user": {
     "account": "帳號",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "輸入關鍵字來搜尋"
+    "hintWithin": "輸入關鍵字來搜尋",
+    "hintPattern": "使用 * 和 ? 比對檔案名稱，例如 *.ps1"
   },
   "download": {
     "preparing": "正在準備下載..."
