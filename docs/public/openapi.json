@@ -3072,34 +3072,88 @@
         },
         "responses": {
           "200": {
-            "description": "What landed where, once it has all landed.",
+            "description": "Progress as it goes, and what landed where.",
             "content": {
-              "application/json": {
+              "application/x-ndjson": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "destination": {
-                      "type": "string"
-                    },
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "from": {
-                            "type": "string"
-                          },
-                          "to": {
-                            "type": "string"
-                          }
+                  "description": "One line; the stream is a sequence of these.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "start"
                         }
-                      }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "progress"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "done"
+                            }
+                          },
+                          "required": ["type"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "destination": {
+                              "type": "string"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "error"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "message"],
+                      "additionalProperties": true
                     }
-                  },
-                  "additionalProperties": true
+                  ]
                 }
               }
             }
@@ -3171,34 +3225,88 @@
         },
         "responses": {
           "200": {
-            "description": "What landed where, once it has all landed.",
+            "description": "Progress as it goes, and what landed where.",
             "content": {
-              "application/json": {
+              "application/x-ndjson": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "destination": {
-                      "type": "string"
-                    },
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "from": {
-                            "type": "string"
-                          },
-                          "to": {
-                            "type": "string"
-                          }
+                  "description": "One line; the stream is a sequence of these.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "start"
                         }
-                      }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "progress"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "done"
+                            }
+                          },
+                          "required": ["type"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "destination": {
+                              "type": "string"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "error"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "message"],
+                      "additionalProperties": true
                     }
-                  },
-                  "additionalProperties": true
+                  ]
                 }
               }
             }

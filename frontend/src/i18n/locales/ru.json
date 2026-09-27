@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "Копирование {count} {items}…",
     "moving": "Перемещение {count} {items}…",
-    "working": "Обработка…"
+    "working": "Обработка…",
+    "activeTasks": "Активных операций: {count}",
+    "compressing": "Сжатие {name}…",
+    "copyingUnknown": "Копирование…",
+    "extracting": "Извлечение {name}…",
+    "movingUnknown": "Перемещение…",
+    "perSecond": "{value}/с",
+    "reposition": "Вернуться к объекту по завершении",
+    "restoring": "Восстановление: {count} {items}…",
+    "restoringUnknown": "Восстановление…"
   },
   "upload": {
     "toggleDetailsShow": "Показать детали",
     "toggleDetailsHide": "Скрыть детали",
     "pauseUploads": "Приостановить загрузку",
     "resumeUploads": "Возобновить загрузку",
-    "uploads": "Загрузка {count} {items}"
+    "uploads": "Загрузка {count} {items}",
+    "finalizing": "Завершение"
   },
   "info": {
     "aria": "Панель информации",

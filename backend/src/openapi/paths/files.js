@@ -113,7 +113,7 @@ module.exports = {
       access: 'account',
       body: body(obj({ items: arrayOf(itemRef), destination: str() }, ['items', 'destination'])),
       responses: {
-        200: json(transferDone, 'What landed where, once it has all landed.'),
+        200: ndjson(transferDone, 'Progress as it goes, and what landed where.'),
         ...errors(400, 401, 403, 404, 507),
       },
     }),
@@ -127,7 +127,7 @@ module.exports = {
       access: 'account',
       body: body(obj({ items: arrayOf(itemRef), destination: str() }, ['items', 'destination'])),
       responses: {
-        200: json(transferDone, 'What landed where, once it has all landed.'),
+        200: ndjson(transferDone, 'Progress as it goes, and what landed where.'),
         ...errors(400, 401, 403, 404, 507),
       },
     }),

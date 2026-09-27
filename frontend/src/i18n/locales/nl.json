@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "{count} {items} kopiëren…",
     "moving": "{count} {items} verplaatsen…",
-    "working": "Bezig…"
+    "working": "Bezig…",
+    "activeTasks": "{count} bewerkingen bezig",
+    "compressing": "{name} comprimeren…",
+    "copyingUnknown": "Kopiëren…",
+    "extracting": "{name} uitpakken…",
+    "movingUnknown": "Verplaatsen…",
+    "perSecond": "{value}/s",
+    "reposition": "Na afloop terug naar het item",
+    "restoring": "{count} {items} terugzetten…",
+    "restoringUnknown": "Terugzetten…"
   },
   "upload": {
     "uploads": "{count} {items} uploaden",
     "toggleDetailsShow": "Details weergeven",
     "toggleDetailsHide": "Details verbergen",
     "pauseUploads": "Uploads pauzeren",
-    "resumeUploads": "Uploads hervatten"
+    "resumeUploads": "Uploads hervatten",
+    "finalizing": "Bezig met afronden"
   },
   "info": {
     "aria": "Infopaneel",

@@ -62,7 +62,7 @@ const copyWith = async (engine, name) => {
   process.env.FILE_TRANSFER_ENGINE = engine;
   const source = path.join(env.tmpRoot, 'source');
   const destination = path.join(env.tmpRoot, name);
-  await transfer.copyEntry(source, destination, true);
+  await transfer.copyEntryWithProgress(source, destination, true);
   return describeTree(destination);
 };
 
@@ -109,7 +109,7 @@ describe('copying a folder', () => {
 
     process.env.FILE_TRANSFER_ENGINE = 'native';
     const destination = path.join(env.tmpRoot, 'timed');
-    await transfer.copyEntry(source, destination, true);
+    await transfer.copyEntryWithProgress(source, destination, true);
 
     const copiedTime = (await fs.stat(path.join(destination, 'top.txt'))).mtimeMs;
     expect(Math.abs(copiedTime - sourceTime)).toBeLessThan(1000);

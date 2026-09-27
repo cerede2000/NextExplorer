@@ -8,13 +8,14 @@ const logger = require('../utils/logger');
 /**
  * What an operation is writing, recorded until it is done.
  *
- * Extracting or compressing an archive, and receiving an upload, write
- * something that is not finished yet — a staging folder, a hidden zip beside
- * the name it will take, a hidden file filling up with an upload's bytes — and
- * remove it when they fail. Nothing removed it when the process was stopped
- * half-way: a container restarted mid-extraction left a
- * `.nextexplorer-extract-*` folder or a half-written zip in the volume for
- * good, out of sight.
+ * Saving a file, pulling a document from ONLYOFFICE, extracting or compressing
+ * an archive: each writes something that is not finished yet — a hidden
+ * temporary beside the file, a staging folder, a new folder filling up, a
+ * hidden zip beside the name it will take — and removes it when it fails.
+ * Nothing removed it when the process was stopped half-way: a container
+ * restarted mid-extraction left a `.nextexplorer-extract-*` folder, a
+ * half-written zip or a half-filled folder in the volume for good, and the
+ * hidden ones out of sight.
  *
  * So each operation records the path before creating it and releases the
  * record when it is done, however it ends. A record still there at the next

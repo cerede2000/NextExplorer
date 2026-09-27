@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "正在複製 {count} 個{items}…",
     "moving": "正在移動 {count} 個{items}…",
-    "working": "處理中…"
+    "working": "處理中…",
+    "activeTasks": "{count} 個操作進行中",
+    "compressing": "正在壓縮 {name}…",
+    "copyingUnknown": "正在複製…",
+    "extracting": "正在解壓 {name}…",
+    "movingUnknown": "正在移動…",
+    "perSecond": "{value}/秒",
+    "reposition": "完成後返回該項目",
+    "restoring": "正在還原 {count} 個{items}…",
+    "restoringUnknown": "正在還原…"
   },
   "upload": {
     "toggleDetailsShow": "顯示詳細資訊",
     "toggleDetailsHide": "隱藏詳細資訊",
     "pauseUploads": "暫停上傳",
     "resumeUploads": "繼續上傳",
-    "uploads": "正在上傳 {count} 個{items}"
+    "uploads": "正在上傳 {count} 個{items}",
+    "finalizing": "正在收尾"
   },
   "info": {
     "aria": "資訊面板",

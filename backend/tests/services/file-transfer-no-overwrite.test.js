@@ -242,13 +242,17 @@ describe('a move to another disk', () => {
   it('keeps the source when the copy fails, and leaves nothing half-written', async () => {
     await setup();
     seedAlbum();
-    const cp = fsp.cp.bind(fsp);
+    // The copy reads and writes file by file, reporting as it goes, so the
+    // disk fills on the first file it opens rather than inside one `fs.cp`.
+    const open = fsp.open.bind(fsp);
     vi.spyOn(fsp, 'rename').mockRejectedValue(
       Object.assign(new Error('cross-device link not permitted'), { code: 'EXDEV' })
     );
-    vi.spyOn(fsp, 'cp').mockImplementation(async (from, to, options) => {
-      await cp(from, to, options);
-      throw Object.assign(new Error('No space left on device'), { code: 'ENOSPC' });
+    vi.spyOn(fsp, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(flags) === 'wx') {
+        throw Object.assign(new Error('No space left on device'), { code: 'ENOSPC' });
+      }
+      return open(target, flags, mode);
     });
 
     await expect(transfer([{ path: 'From', name: 'Album' }], 'To', 'move')).rejects.toThrow(
@@ -270,21 +274,31 @@ describe('a copy on its way', () => {
   it('is a hidden entry, recorded until it is in place', async () => {
     await setup();
     seedAlbum();
-    const cp = fsp.cp.bind(fsp);
+    // Caught at the rename that puts the copy in place: everything has been
+    // written under the hidden name, and nothing has taken the real one yet.
+    const rename = fsp.rename.bind(fsp);
     let seen = null;
-    vi.spyOn(fsp, 'cp').mockImplementation(async (from, to, options) => {
-      await cp(from, to, options);
-      seen = {
-        listing: names(at('To')),
-        recorded: records().map((name) => JSON.parse(read(path.join(journal(), name)))),
-      };
+    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
+      // The one that gives the copy its real name, not a rename inside it.
+      if (String(to) === at('To', 'Album')) {
+        seen = {
+          listing: names(at('To')),
+          recorded: records().map((name) => JSON.parse(read(path.join(journal(), name)))),
+        };
+      }
+      return rename(from, to);
     });
 
     await transfer([{ path: 'From', name: 'Album' }], 'To', 'copy');
 
-    expect(seen.listing).toEqual([expect.stringMatching(/^\.nextexplorer-copy-/)]);
+    // Two entries, and both are the point: the copy under a hidden name, and
+    // the name it will take, held from the moment it was chosen. Nothing else
+    // can arrive under that name while the copy is being written, which is how
+    // two copies started at once end up as `Album` and `Album (1)` rather than
+    // one landing on top of the other.
+    expect(seen.listing.sort()).toEqual([expect.stringMatching(/^\.nextexplorer-copy/), 'Album']);
     expect(seen.recorded).toEqual([
-      expect.objectContaining({ path: at('To', seen.listing[0]), kind: 'partial-copy' }),
+      expect.objectContaining({ path: at('To', seen.listing[0]), kind: 'staging-copy' }),
     ]);
     expect(names(at('To'))).toEqual(['Album']);
     expect(records()).toEqual([]);
@@ -293,10 +307,14 @@ describe('a copy on its way', () => {
   it('that fails leaves neither the hidden copy nor anything under the name', async () => {
     await setup();
     fs.writeFileSync(at('From', 'note.txt'), 'mine');
-    const copyFile = fsp.copyFile.bind(fsp);
-    vi.spyOn(fsp, 'copyFile').mockImplementation(async (from, to, mode) => {
-      await copyFile(from, to, mode);
-      throw Object.assign(new Error('Input/output error'), { code: 'EIO' });
+    // A file is written through a handle now, so that the copy can report what
+    // it has moved and be stopped; the disk fails as it is opened.
+    const open = fsp.open.bind(fsp);
+    vi.spyOn(fsp, 'open').mockImplementation(async (target, flags, mode) => {
+      if (String(flags) === 'wx') {
+        throw Object.assign(new Error('Input/output error'), { code: 'EIO' });
+      }
+      return open(target, flags, mode);
     });
 
     await expect(transfer([{ path: 'From', name: 'note.txt' }], 'To', 'copy')).rejects.toThrow(

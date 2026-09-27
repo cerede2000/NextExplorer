@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "Kopierar {count} {items}…",
     "moving": "Flyttar {count} {items}…",
-    "working": "Arbetar…"
+    "working": "Arbetar…",
+    "activeTasks": "{count} åtgärder pågår",
+    "compressing": "Komprimerar {name}…",
+    "copyingUnknown": "Kopierar…",
+    "extracting": "Extraherar {name}…",
+    "movingUnknown": "Flyttar…",
+    "perSecond": "{value}/s",
+    "reposition": "Återgå till objektet när det är klart",
+    "restoring": "Återställer {count} {items}…",
+    "restoringUnknown": "Återställer…"
   },
   "upload": {
     "toggleDetailsShow": "Visa detaljer",
     "toggleDetailsHide": "Dölj detaljer",
     "pauseUploads": "Pausa uppladdningar",
     "resumeUploads": "Återuppta uppladdningar",
-    "uploads": "Laddar upp {count} {items}"
+    "uploads": "Laddar upp {count} {items}",
+    "finalizing": "Slutför"
   },
   "info": {
     "aria": "Infopanel",

@@ -35,15 +35,15 @@ router.post(
  * Read from what each deletion did, and not from the `permanent` flag the
  * request carried. That flag is what the caller asked for, which is not what
  * happened: with the trash switched off, the interface asks for nothing in
- * particular — there is no trash to choose — so every file it deleted for good
- * would be written down as having been moved to a trash that does not exist.
- * The service already answers per item, `trashed` or `deleted`, and that is
- * the only account of it that cannot be wrong.
+ * particular — there is no trash to choose — and every file it deleted for
+ * good was written down as having been moved to the trash that does not
+ * exist. The service already answers per item, `trashed` or `deleted`, and
+ * that is the only account of it that cannot be wrong.
  *
- * One line per outcome, so a selection that was partly kept and partly removed
- * says both rather than the first one twice. An item that did not go anywhere
- * — already missing, or refused by the trash and left where it is — writes
- * nothing at all.
+ * One line per outcome, so a selection that was partly kept and partly
+ * removed says both rather than the first one twice. An item that did not go
+ * anywhere — already missing, or refused by the trash and left where it is —
+ * writes nothing at all, where it used to be counted among the deleted.
  */
 const ACTION_FOR = { trashed: 'file.delete', deleted: 'file.purge' };
 
@@ -67,9 +67,9 @@ const recordDeletion = async ({ results, req }) => {
   }
 
   // The part of a deletion that nothing on screen showed. A file is one line
-  // in a folder and its earlier versions are none, so a deletion that took ten
-  // of them said as much as one that took none — and versions are the half
-  // that cannot be restored from anywhere.
+  // in a folder and its earlier versions are none, so a deletion that took
+  // ten of them said as much as one that took none — and versions are the
+  // half that cannot be restored from anywhere.
   const withHistory = (Array.isArray(results) ? results : []).filter(
     (result) => Number(result?.versionsPurged) > 0
   );

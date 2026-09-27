@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "Copying {count} {items}…",
     "moving": "Moving {count} {items}…",
-    "working": "Working…"
+    "working": "Working…",
+    "activeTasks": "{count} operations in progress",
+    "compressing": "Compressing {name}…",
+    "copyingUnknown": "Copying…",
+    "extracting": "Extracting {name}…",
+    "movingUnknown": "Moving…",
+    "perSecond": "{value}/s",
+    "reposition": "Return to the item when done",
+    "restoring": "Restoring {count} {items}…",
+    "restoringUnknown": "Restoring…"
   },
   "upload": {
     "toggleDetailsShow": "Show details",
     "toggleDetailsHide": "Hide details",
     "pauseUploads": "Pause uploads",
     "resumeUploads": "Resume uploads",
-    "uploads": "Uploading {count} {items}"
+    "uploads": "Uploading {count} {items}",
+    "finalizing": "Finishing up"
   },
   "info": {
     "aria": "Info panel",
