@@ -24,6 +24,27 @@
   ],
   "rules": [
     {
+      "axis": "migration",
+      "match": "^shares\\.",
+      "verdict": "DONE",
+      "batch": "P3-21",
+      "note": "nxzai#451 \u2014 what a share permits, and when it was last used"
+    },
+    {
+      "axis": "i18n",
+      "match": "^(share\\.|links\\.outside)",
+      "verdict": "DONE",
+      "batch": "P3-21",
+      "note": "nxzai#451 \u2014 the shares screens"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/shares\\.js|backend/src/services/sharesService\\.js|frontend/src/api/shares\\.api\\.js|frontend/src/components/PermissionsPanel\\.vue|frontend/src/components/ShareDialog\\.vue|frontend/src/components/SharesMenu\\.vue|frontend/src/views/SharedByMeView\\.vue|frontend/src/views/SharedWithMeView\\.vue|frontend/src/components/shares/|frontend/src/composables/shareList\\.js)",
+      "verdict": "DONE",
+      "batch": "P3-21",
+      "note": "nxzai#451 \u2014 what a share permits, and what its owner can see of it"
+    },
+    {
       "axis": "i18n",
       "match": "^common\\.toggleSection$",
       "verdict": "DONE",
