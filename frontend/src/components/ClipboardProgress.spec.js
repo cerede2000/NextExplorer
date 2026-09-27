@@ -28,7 +28,12 @@ const i18n = createI18n({
         restoring: 'Restoring {count} {items}…',
         restoringUnknown: 'Restoring…',
       },
-      upload: { uploads: 'Uploading {count} {items}', finalizing: 'Finishing up' },
+      upload: {
+        uploads: 'Uploading {count} {items}',
+        finalizing: 'Finishing up',
+        pauseUploads: 'Pause uploads',
+        resumeUploads: 'Resume uploads',
+      },
     },
   },
 });
@@ -95,6 +100,61 @@ describe('ClipboardProgress', () => {
  * for every upload at once, each row of the expanded list only for itself, and
  * a paused transfer speaks for nothing at all.
  */
+/**
+ * Holding a transfer is the one thing a chunked upload can do that a copy on the
+ * server cannot: the bytes already sent stay sent, and it picks up where it
+ * stopped. Upstream had this and it went away when this panel replaced its
+ * upload one — so the button is held here, and so is the fact that it is not
+ * offered where it would be a lie.
+ */
+describe('ClipboardProgress and holding a transfer', () => {
+  let store;
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    store = useOperationTasksStore();
+  });
+
+  const pauseButton = (wrapper) =>
+    wrapper
+      .findAll('button')
+      .find((button) => /Pause uploads|Resume uploads/.test(button.attributes('aria-label') || ''));
+
+  it("offers to hold a chunked upload, and says so in the reader's language", async () => {
+    const pause = vi.fn();
+    const resume = vi.fn();
+    uploadOf(store, { pausable: true, pause, resume });
+    const wrapper = mountPanel();
+
+    const button = pauseButton(wrapper);
+    expect(button?.attributes('aria-label')).toBe('Pause uploads');
+
+    await button.trigger('click');
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(pauseButton(wrapper)?.attributes('aria-label')).toBe('Resume uploads');
+
+    await pauseButton(wrapper).trigger('click');
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(pauseButton(wrapper)?.attributes('aria-label')).toBe('Pause uploads');
+  });
+
+  it('offers nothing where there is nothing to pick up from', () => {
+    // A direct upload: no chunk boundary to resume at.
+    uploadOf(store);
+
+    expect(pauseButton(mountPanel())).toBeUndefined();
+  });
+
+  it('leaves the cancel button where it was', () => {
+    uploadOf(store, { pausable: true, cancellable: true, cancel: vi.fn() });
+    const wrapper = mountPanel();
+
+    expect(wrapper.findAll('button').some((b) => b.attributes('aria-label') === 'Cancel')).toBe(
+      true
+    );
+  });
+});
+
 describe('ClipboardProgress rate', () => {
   let store;
 
