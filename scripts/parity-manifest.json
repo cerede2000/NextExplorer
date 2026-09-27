@@ -24,6 +24,40 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^(backend/src/openapi/paths/(admin|files)\\.js|docs/\\.vitepress/|docs/public/openapi\\.json)",
+      "verdict": "DONE",
+      "batch": "P3-40",
+      "note": "nxzai#466 \u2014 the description follows the routes"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/vitest\\.setup\\.js|frontend/src/components/ModalDialog\\.vue|frontend/src/assets/base\\.css)$",
+      "verdict": "DONE",
+      "batch": "P3-41",
+      "note": "nxzai#468 \u2014 what the suites need, and the dialog they found"
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/.*\\.spec\\.js$",
+      "verdict": "DONE",
+      "batch": "P3-41",
+      "note": "nxzai#468 \u2014 the frontend suites"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend|frontend)/vitest\\.config\\.js$",
+      "verdict": "DONE",
+      "batch": "P3-41",
+      "note": "nxzai#468 \u2014 without this fork's own node-version notice and coverage floors"
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/e2e/",
+      "verdict": "OURS",
+      "note": "the Playwright suite needs a browser, and nothing upstream installs one"
+    },
+    {
       "axis": "i18n",
       "match": ".",
       "verdict": "DONE",
