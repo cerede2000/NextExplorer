@@ -512,8 +512,12 @@ function hasTool(tool) {
  * has been given one.
  */
 describe('the upgrade command and the release feed', () => {
+  // `bash`, as the installer above is run and as its own shebang asks. Handed to
+  // `sh` it runs under dash on Linux and bash on a Mac, and the arrays it has
+  // always had are a syntax error under dash — so `sh` tests something nobody
+  // does, and passes or fails by which machine is asking.
   const upgrade = (env) =>
-    spawnSync('sh', [path.join(release, 'upgrade.sh'), '--check'], {
+    spawnSync('bash', [path.join(release, 'upgrade.sh'), '--check'], {
       encoding: 'utf8',
       env: {
         ...process.env,
