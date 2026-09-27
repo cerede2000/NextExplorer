@@ -35,6 +35,7 @@ const local = reactive({
   documentsOpenInNewTab: false,
   showVersionMarks: true,
   locale: null,
+  downloadMode: 'zip',
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -57,7 +58,8 @@ const dirty = computed(() => {
     local.markdownOpensInEditor !== (orig.markdownOpensInEditor ?? false) ||
     local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
     local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
-    local.locale !== (orig.locale ?? null)
+    local.locale !== (orig.locale ?? null) ||
+    local.downloadMode !== (orig.downloadMode ?? 'zip')
   );
 });
 
@@ -127,6 +129,7 @@ watch(
     local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
     local.showVersionMarks = userSettings.showVersionMarks ?? true;
     local.locale = userSettings.locale ?? null;
+    local.downloadMode = userSettings.downloadMode ?? 'zip';
   },
   { immediate: true }
 );
@@ -154,6 +157,7 @@ const reset = () => {
   local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
   local.showVersionMarks = userSettings.showVersionMarks ?? true;
   local.locale = userSettings.locale ?? null;
+  local.downloadMode = userSettings.downloadMode ?? 'zip';
 };
 
 const save = async () => {
@@ -176,6 +180,7 @@ const save = async () => {
       documentsOpenInNewTab: local.documentsOpenInNewTab,
       showVersionMarks: local.showVersionMarks,
       locale: local.locale,
+      downloadMode: local.downloadMode,
     },
   });
 };
@@ -410,6 +415,29 @@ const save = async () => {
               <option value="list">{{ t('settings.userPreferences.viewList') }}</option>
               <option value="tab">{{ t('settings.userPreferences.viewColumns') }}</option>
               <option value="photos">{{ t('settings.userPreferences.viewPhotos') }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.downloadMode') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.downloadModeHelp') }}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <select
+              v-model="local.downloadMode"
+              data-test="preferences-download-mode"
+              class="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
+            >
+              <option value="zip">{{ t('settings.userPreferences.downloadModeZip') }}</option>
+              <option value="separate">
+                {{ t('settings.userPreferences.downloadModeSeparate') }}
+              </option>
             </select>
           </div>
         </div>

@@ -381,10 +381,22 @@
     "hintPattern": "使用 * 和 ? 匹配文件名，例如 *.ps1"
   },
   "download": {
-    "preparing": "正在准备下载..."
+    "preparing": "正在准备下载...",
+    "asZip": "下载为 ZIP 压缩包",
+    "asSeparateFiles": "下载为独立文件",
+    "chooseMode": "选择下载方式",
+    "confirmHeading": "分别下载 {count} 个文件？",
+    "confirmBody": "这会同时开始 {count} 个下载。压缩包只会是一个文件。",
+    "confirmFolders": "所选文件夹在两种方式下都会作为一个压缩包。",
+    "confirmSeparate": "分别下载",
+    "confirmZip": "下载压缩包",
+    "wrote": "已将 {count} 个{items}写入 {folder}",
+    "renamed": "已重命名，未替换任何文件：{names}",
+    "failed": "下载已停止"
   },
   "clipboard": {
     "copying": "正在复制 {count} 个{items}…",
+    "downloading": "正在下载 {count} 个{items}…",
     "moving": "正在移动 {count} 个{items}…",
     "working": "处理中…",
     "activeTasks": "{count} 个操作进行中",
@@ -579,6 +591,10 @@
       "viewPhotos": "照片",
       "documentsOpenInNewTab": "在新标签页中打开文档",
       "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。",
+      "downloadMode": "下载多个项目",
+      "downloadModeHelp": "同时下载多个项目时的处理方式。所选文件夹始终作为一个压缩包。",
+      "downloadModeZip": "一个 ZIP 压缩包",
+      "downloadModeSeparate": "独立文件",
       "showVersionMarks": "标记有版本的文件",
       "showVersionMarksHelp": "在列表中为有历史版本的文件加一个小标记，并显示数量。点击即可打开历史记录。",
       "languageHelp": "保存在您的账户中，在您登录的每个浏览器上生效。",

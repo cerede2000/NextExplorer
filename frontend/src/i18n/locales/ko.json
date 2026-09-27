@@ -381,10 +381,22 @@
     "hintPattern": "파일 이름을 찾으려면 * 와 ? 를 사용하세요. 예: *.ps1"
   },
   "download": {
-    "preparing": "다운로드 준비 중..."
+    "preparing": "다운로드 준비 중...",
+    "asZip": "ZIP 압축 파일로 다운로드",
+    "asSeparateFiles": "개별 파일로 다운로드",
+    "chooseMode": "다운로드 방식 선택",
+    "confirmHeading": "{count}개 파일을 개별로 다운로드할까요?",
+    "confirmBody": "한 번에 {count}개의 다운로드가 시작됩니다. ZIP 압축 파일이라면 파일 하나입니다.",
+    "confirmFolders": "선택한 폴더는 어느 방식에서도 하나의 압축 파일로 받습니다.",
+    "confirmSeparate": "개별로 다운로드",
+    "confirmZip": "ZIP으로 다운로드",
+    "wrote": "{count}개 {items}을 {folder}에 저장했습니다",
+    "renamed": "덮어쓰지 않도록 이름을 바꿨습니다: {names}",
+    "failed": "다운로드가 중단되었습니다"
   },
   "clipboard": {
     "copying": "{count}개 {items} 복사 중…",
+    "downloading": "{count}개 {items} 다운로드 중…",
     "moving": "{count}개 {items} 이동 중…",
     "working": "처리 중…",
     "activeTasks": "{count}개 작업 진행 중",
@@ -579,6 +591,10 @@
       "viewPhotos": "사진",
       "documentsOpenInNewTab": "문서를 새 탭에서 열기",
       "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다.",
+      "downloadMode": "여러 항목 다운로드",
+      "downloadModeHelp": "한 번에 두 개 이상을 다운로드할 때의 동작입니다. 선택한 폴더는 항상 하나의 압축 파일로 받습니다.",
+      "downloadModeZip": "하나의 ZIP 압축 파일",
+      "downloadModeSeparate": "개별 파일",
       "showVersionMarks": "버전이 있는 파일 표시",
       "showVersionMarksHelp": "이전 버전이 있는 파일에 개수와 함께 목록에서 작은 표시를 붙입니다. 누르면 기록이 열립니다.",
       "languageHelp": "계정에 저장되어 로그인하는 모든 브라우저에 적용됩니다.",

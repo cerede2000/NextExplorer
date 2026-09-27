@@ -381,10 +381,22 @@
     "hintPattern": "Mit * und ? nach Dateinamen filtern, zum Beispiel *.ps1"
   },
   "download": {
-    "preparing": "Download wird vorbereitet..."
+    "preparing": "Download wird vorbereitet...",
+    "asZip": "Als ZIP-Archiv herunterladen",
+    "asSeparateFiles": "Als einzelne Dateien herunterladen",
+    "chooseMode": "Art des Downloads wählen",
+    "confirmHeading": "{count} Dateien einzeln herunterladen?",
+    "confirmBody": "Das startet {count} Downloads gleichzeitig. Ein ZIP-Archiv wäre eine einzige Datei.",
+    "confirmFolders": "Die ausgewählten Ordner kommen in beiden Fällen als ein Archiv.",
+    "confirmSeparate": "Einzeln herunterladen",
+    "confirmZip": "ZIP herunterladen",
+    "wrote": "{count} {items} nach {folder} geschrieben",
+    "renamed": "Umbenannt, damit nichts überschrieben wird: {names}",
+    "failed": "Der Download wurde abgebrochen"
   },
   "clipboard": {
     "copying": "Kopieren von {count} {items}…",
+    "downloading": "{count} {items} werden heruntergeladen…",
     "moving": "Verschieben von {count} {items}…",
     "working": "Wird verarbeitet…",
     "activeTasks": "{count} laufende Vorgänge",
@@ -579,6 +591,10 @@
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
       "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner.",
+      "downloadMode": "Mehrere Elemente herunterladen",
+      "downloadModeHelp": "Was beim Herunterladen von mehr als einem Element gleichzeitig geschieht. Ausgewählte Ordner kommen immer als ein Archiv.",
+      "downloadModeZip": "Ein ZIP-Archiv",
+      "downloadModeSeparate": "Einzelne Dateien",
       "showVersionMarks": "Dateien mit Versionen kennzeichnen",
       "showVersionMarksHelp": "Ein kleines Zeichen in der Liste bei Dateien mit früheren Versionen, mit deren Anzahl. Ein Klick öffnet den Verlauf.",
       "languageHelp": "Wird bei Ihrem Konto gespeichert, in jedem Browser, in dem Sie sich anmelden.",

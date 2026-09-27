@@ -217,6 +217,8 @@ const runPasteIntoCurrent = async () => {
 const runRename = () => actions.runRename();
 
 const runDownload = () => actions.runDownload();
+const runDownloadAsZip = () => actions.runDownloadAsZip();
+const runDownloadSeparately = () => actions.runDownloadSeparately();
 
 const openArchivePasswordDialog = (result) => {
   if (!result?.requiresPassword) return;
@@ -437,6 +439,8 @@ const menuSections = computed(() => {
       canPaste: actions.canPaste.value,
       canRename: actions.canRename.value,
       canDelete: actions.canDelete.value,
+      canDownloadSeparately: actions.canDownloadSeparately.value,
+      downloadMode: actions.downloadMode.value,
       canShowVersions: canShowVersions.value,
       canOpenWithTerminal: canOpenWithTerminal.value,
       isArchiveSelected: actions.isArchiveSelected.value,
@@ -452,6 +456,8 @@ const menuSections = computed(() => {
       openWithEditor: runOpenWithEditor,
       openWithTerminal: runOpenWithTerminal,
       download: runDownload,
+      downloadAsZip: runDownloadAsZip,
+      downloadSeparately: runDownloadSeparately,
       extract: runExtractArchive,
       extractHere: runExtractArchiveIntoCurrentFolder,
       compress: runCompressToZip,

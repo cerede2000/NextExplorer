@@ -15,6 +15,8 @@ const RUN_NAMES = [
   'openWithEditor',
   'openWithTerminal',
   'download',
+  'downloadAsZip',
+  'downloadSeparately',
   'extract',
   'extractHere',
   'compress',
@@ -247,5 +249,58 @@ describe('the quick actions on a row', () => {
     expect(quickActionAvailable({ kind: 'txt', name: 'a' }, 'favorite', location)).toBe(false);
     expect(quickActionAvailable({ kind: 'txt', name: 'a' }, 'launch', location)).toBe(false);
     expect(quickActionAvailable(null, 'info', location)).toBe(false);
+  });
+});
+
+/**
+ * The two ways a selection can leave, offered only where they differ (#487).
+ *
+ * One file downloads as itself either way and one folder can only be an archive,
+ * so in those situations a second entry would do exactly what the first does.
+ * The account's own choice is offered first: the habit stays where it was, and
+ * the other way is the line below it.
+ */
+describe('downloading a selection', () => {
+  const ids = (situation) =>
+    buildMenuSections(situation, handlers(), words)
+      .flat()
+      .map((entry) => entry.id);
+
+  it('is one entry where there is no choice to make', () => {
+    const offered = ids(allowed({ canDownloadSeparately: false }));
+    expect(offered).toContain('download');
+    expect(offered).not.toContain('download-zip');
+    expect(offered).not.toContain('download-separate');
+  });
+
+  it('is two entries where the two ways differ', () => {
+    const offered = ids(allowed({ canDownloadSeparately: true }));
+    expect(offered).not.toContain('download');
+    expect(offered).toContain('download-zip');
+    expect(offered).toContain('download-separate');
+  });
+
+  it.each([
+    ['zip', ['download-zip', 'download-separate']],
+    ['separate', ['download-separate', 'download-zip']],
+  ])('puts the %s choice first for an account that asked for it', (mode, expected) => {
+    const offered = ids(allowed({ canDownloadSeparately: true, downloadMode: mode })).filter((id) =>
+      id.startsWith('download-')
+    );
+    expect(offered).toEqual(expected);
+  });
+
+  it('runs the one it says it runs', () => {
+    const run = handlers();
+    const entries = buildMenuSections(allowed({ canDownloadSeparately: true }), run, words)
+      .flat()
+      .filter((entry) => entry.id.startsWith('download-'));
+
+    entries.find((entry) => entry.id === 'download-separate').run();
+    expect(run.downloadSeparately).toHaveBeenCalled();
+    expect(run.downloadAsZip).not.toHaveBeenCalled();
+
+    entries.find((entry) => entry.id === 'download-zip').run();
+    expect(run.downloadAsZip).toHaveBeenCalled();
   });
 });

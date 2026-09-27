@@ -800,6 +800,43 @@ test('a file with versions is marked in the listing, and an administrator can cl
  * one that crosses all of them, including the reload that proves the server
  * kept the choice rather than the page remembering it.
  */
+/**
+ * Several files taken away without an archive (#487).
+ *
+ * The browsers that have a folder picker open a dialog belonging to the
+ * operating system, which nothing here can answer — so the picker is taken away
+ * and what runs is the other path, the one Firefox and Safari get: one download
+ * per file, each named by the plan.
+ *
+ * The chain is what this is for. The menu asks the server to describe the
+ * selection, that description is where the download is counted, and each part
+ * then arrives as its own file — three pieces that the unit suites each prove
+ * alone and that have to add up in a browser.
+ */
+test('several files download one by one, without a zip', async () => {
+  fs.writeFileSync(path.join(volume, 'premier.txt'), 'un');
+  fs.writeFileSync(path.join(volume, 'second.txt'), 'deux');
+
+  await page.goto('/browse/Projects');
+  await page.evaluate(() => {
+    delete window.showDirectoryPicker;
+  });
+
+  await page.getByRole('button', { name: 'Select premier.txt' }).click();
+  await page.getByRole('button', { name: 'Select second.txt' }).click();
+  await page.getByRole('button', { name: 'Select second.txt' }).click({ button: 'right' });
+
+  const downloads = [];
+  page.on('download', (download) => downloads.push(download));
+  await page.getByRole('button', { name: 'Download as separate files' }).click();
+
+  await expect.poll(() => downloads.length).toBe(2);
+  expect(downloads.map((download) => download.suggestedFilename()).sort()).toEqual([
+    'premier.txt',
+    'second.txt',
+  ]);
+});
+
 test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
   await page.goto('/settings/search-index');
   const indexSwitch = page.locator('[data-testid="search-index-switch"]');

@@ -255,6 +255,21 @@ The lesson is not that the instrument was wrong. It is that every gate it has wa
 added after something got through it, and that a count reaching zero says only that
 the axes it has are satisfied.
 
+### P3-57, the first batch a new feature made
+
+Zero is not a state this repository stays in, and the two things named above as
+certain to move the total have a third beside them: something new written here.
+Every batch up to P3-56 came from measuring what had already been written. P3-57 is
+the other kind — a feature added after the count closed, and therefore a divergence
+from the commit that made it.
+
+Taking a selection away without an archive: `POST /api/download/plan` and
+`GET /api/download/part/<token>/<n>`, the two entries in the right-click menu, the
+arrow beside the download button, and the `downloadMode` preference. Thirteen
+findings. The `residue` and `controls` gates name it as well, and their notes say
+why: the branch is not cut, so the tip of the batch stack does not carry it, and
+measuring against that tip is the only honest thing either gate can do.
+
 ## What is not in the thirty-three
 
 Stated so the count closes:

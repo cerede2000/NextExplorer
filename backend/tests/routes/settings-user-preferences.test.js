@@ -63,6 +63,8 @@ const NON_DEFAULT = {
   defaultView: 'list',
   // Null by default, which means "follow the browser".
   locale: 'nl',
+  // `zip` by default, which is what every version before this one did.
+  downloadMode: 'separate',
 };
 
 describe('PATCH /api/settings — user preferences', () => {
@@ -198,6 +200,32 @@ describe('PATCH /api/settings — user preferences', () => {
       expect(saved.body.user[key]).toBe(stored);
       const reread = await request(app).get('/api/settings').expect(200);
       expect(reread.body.user[key]).toBe(stored);
+    } finally {
+      await envContext.cleanup();
+    }
+  });
+
+  /**
+   * The same reasoning as the view mode below: a word that is not one of the two
+   * ways a selection can leave is refused, so a typo cannot quietly put an
+   * account back on the archive it had just moved away from.
+   */
+  it('leaves the download mode as it was when sent a word there is no such thing as', async () => {
+    const { envContext, app } = await buildContext();
+    try {
+      await request(app)
+        .patch('/api/settings')
+        .send({ user: { downloadMode: 'separate' } })
+        .expect(200);
+
+      const saved = await request(app)
+        .patch('/api/settings')
+        .send({ user: { downloadMode: 'tarball' } })
+        .expect(200);
+
+      expect(saved.body.user.downloadMode).toBe('separate');
+      const reread = await request(app).get('/api/settings').expect(200);
+      expect(reread.body.user.downloadMode).toBe('separate');
     } finally {
       await envContext.cleanup();
     }
