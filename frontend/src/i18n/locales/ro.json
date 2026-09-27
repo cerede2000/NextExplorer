@@ -247,7 +247,8 @@
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Registru",
     "defaultPresentationName": "Prezentare",
-    "defaultDataName": "Date"
+    "defaultDataName": "Date",
+    "documentFailed": "Documentul nu a putut fi creat"
   },
   "context": {
     "getInfo": "Obține informații",
@@ -356,7 +357,8 @@
       "warning": "Avertismente",
       "success": "Succes",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Copiați detaliile"
   },
   "spotlight": {
     "hintWithin": "Tastează pentru a căuta în interior",
@@ -1306,7 +1308,9 @@
     "editingNow": "Se editează în ONLYOFFICE",
     "savedAsHeading": "Salvat în acest folder",
     "savedAsBody": "{name} a fost adăugat lângă original.",
-    "saveAsFailed": "{name} nu a putut fi salvat"
+    "saveAsFailed": "{name} nu a putut fi salvat",
+    "editingBody": "{names} este deschis în OnlyOffice. {action} va continua. | {names} sunt deschise în OnlyOffice. {action} va continua.",
+    "editingHeading": "Fișierul este în curs de editare"
   },
   "preview": {
     "nothingOpensIt": "Nimic de aici nu poate deschide {name}.",

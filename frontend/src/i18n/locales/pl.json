@@ -247,7 +247,8 @@
     "defaultDocumentName": "Dokument",
     "defaultSpreadsheetName": "Arkusz",
     "defaultPresentationName": "Prezentacja",
-    "defaultDataName": "Dane"
+    "defaultDataName": "Dane",
+    "documentFailed": "Nie udało się utworzyć dokumentu"
   },
   "context": {
     "getInfo": "Informacje",
@@ -356,7 +357,8 @@
       "warning": "Ostrzeżenia",
       "success": "Sukces",
       "info": "Informacje"
-    }
+    },
+    "copyDetails": "Kopiuj szczegóły"
   },
   "spotlight": {
     "hintWithin": "Wpisz, aby wyszukać wewnątrz",
@@ -1306,7 +1308,9 @@
     "editingNow": "Edytowane w ONLYOFFICE",
     "savedAsHeading": "Zapisano w tym folderze",
     "savedAsBody": "{name} został dodany obok oryginału.",
-    "saveAsFailed": "Nie można zapisać {name}"
+    "saveAsFailed": "Nie można zapisać {name}",
+    "editingBody": "{names} jest otwarty w OnlyOffice. {action} będzie kontynuowane. | {names} są otwarte w OnlyOffice. {action} będzie kontynuowane. | {names} jest otwartych w OnlyOffice. {action} będzie kontynuowane.",
+    "editingHeading": "Plik jest edytowany"
   },
   "preview": {
     "nothingOpensIt": "Nic tutaj nie otworzy {name}.",

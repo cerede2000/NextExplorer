@@ -247,7 +247,8 @@
     "defaultDocumentName": "Документ",
     "defaultSpreadsheetName": "Книга",
     "defaultPresentationName": "Презентация",
-    "defaultDataName": "Данные"
+    "defaultDataName": "Данные",
+    "documentFailed": "Не удалось создать документ"
   },
   "context": {
     "getInfo": "Свойства",
@@ -356,7 +357,8 @@
       "warning": "Предупреждения",
       "success": "Успех",
       "info": "Инфо"
-    }
+    },
+    "copyDetails": "Копировать подробности"
   },
   "spotlight": {
     "hintWithin": "Введите для поиска в",
@@ -1306,7 +1308,9 @@
     "editingNow": "Редактируется в ONLYOFFICE",
     "savedAsHeading": "Сохранено в эту папку",
     "savedAsBody": "{name} добавлен рядом с оригиналом.",
-    "saveAsFailed": "Не удалось сохранить {name}"
+    "saveAsFailed": "Не удалось сохранить {name}",
+    "editingBody": "{names} открыт в OnlyOffice. {action} будет продолжено. | {names} открыты в OnlyOffice. {action} будет продолжено.",
+    "editingHeading": "Файл редактируется"
   },
   "preview": {
     "nothingOpensIt": "Здесь нечем открыть {name}.",

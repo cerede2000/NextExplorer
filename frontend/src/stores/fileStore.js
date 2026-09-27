@@ -1,567 +1,177 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { useStorage } from '@vueuse/core';
-import {
-  browse,
-  copyItems,
-  moveItems,
-  deleteItems,
-  normalizePath,
-  createFile as createFileApi,
-  createOfficeDocument as createOfficeDocumentApi,
-  createFolder as createFolderApi,
-  renameItem as renameItemApi,
-  fetchThumbnail as fetchThumbnailApi,
-  extractZip as extractZipApi,
-  compressToZip as compressToZipApi,
-  browseShare,
-} from '@/api';
+import { browse, normalizePath, browseShare } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
-import { useAppSettings } from '@/stores/appSettings';
 import { useFavoritesStore } from '@/stores/favorites';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFolderSizeStore } from '@/stores/folderSize';
+import { useFeaturesStore } from '@/stores/features';
+import { useOperationTasksStore } from '@/stores/operationTasks';
+import { useNotificationsStore } from '@/stores/notifications';
+import { isAbortError, itemKey } from './files/items';
+import { sortItems } from './files/sorting';
+import { mergeListing, folderData } from './files/listing';
+import { createThumbnailQueue, createThumbnails } from './files/thumbnails';
+import {
+  createOnlyofficeActivityPolling,
+  createOnlyofficeWarning,
+} from './files/onlyofficeActivity';
+import { createSelection } from './files/selection';
+import { createRename } from './files/rename';
+import { createTransfers } from './files/transfers';
+import { createOperations } from './files/operations';
 
+/**
+ * The folder on screen: what it holds, what is selected in it, and what can be
+ * done to it.
+ *
+ * The listing lives here; everything else is in `stores/files/`, each part
+ * given only what it needs — the selection the entries on screen, the
+ * clipboard the selection and a way to list again. What components see is the
+ * same store it always was.
+ */
 export const useFileStore = defineStore('fileStore', () => {
   // State
   const currentPath = ref('');
   const currentPathItems = ref([]);
   const currentPathData = ref(null);
-  const selectedItems = ref([]);
-  const selectionMode = ref(false);
-  const renameState = ref(null);
 
-  const clipboardOperation = ref(null);
-  const deleteOperation = ref(null);
   const favoritesStore = useFavoritesStore();
+  const volumeUsageStore = useVolumeUsageStore();
+  const folderSizeStore = useFolderSizeStore();
+  const featuresStore = useFeaturesStore();
+  const operationTasksStore = useOperationTasksStore();
+  const notificationsStore = useNotificationsStore();
 
-  const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
-  const cutItems = useStorage('nextExplorer_clipboard_cut', []);
-  const thumbnailRequests = new Map();
+  let activeBrowseController = null;
+  let browseRequestGeneration = 0;
 
-  const hasSelection = computed(() => selectedItems.value.length > 0);
-  const selectedItemKeys = computed(() => {
-    const keys = new Set();
-    for (const item of selectedItems.value) {
-      const key = itemKey(item);
-      if (key) keys.add(key);
-    }
-    return keys;
+  const refreshSizes = () => {
+    volumeUsageStore.scheduleRefresh();
+    folderSizeStore.scheduleRefresh();
+  };
+
+  const warnAboutOnlyOfficeActivity = createOnlyofficeWarning(notificationsStore);
+  const selection = createSelection(currentPathItems);
+  const thumbnailQueue = createThumbnailQueue();
+  const thumbnails = createThumbnails({
+    findItemByKey: selection.findItemByKey,
+    queue: thumbnailQueue,
   });
-  const hasClipboardItems = computed(
-    () => copiedItems.value.length > 0 || cutItems.value.length > 0
-  );
+  const onlyofficeActivity = createOnlyofficeActivityPolling({
+    featuresStore,
+    isBrowsing: () => Boolean(activeBrowseController),
+    refresh: () => fetchPathItems(currentPath.value, { preserveInteraction: true }),
+  });
+  const rename = createRename({
+    currentPath,
+    selection,
+    fetchPathItems,
+    warn: warnAboutOnlyOfficeActivity,
+  });
+  const transfers = createTransfers({
+    currentPath,
+    selection,
+    fetchPathItems,
+    refreshSizes,
+    operationTasksStore,
+    warn: warnAboutOnlyOfficeActivity,
+  });
 
-  const clearSelection = () => {
-    selectedItems.value = [];
+  // Reflect a confirmed delete immediately. The authoritative browse refresh
+  // below remains the source of truth and restores the list if the request is
+  // rejected, but this avoids making a successful delete look inert while the
+  // server finishes its cleanup work.
+  const removeItemsFromCurrentView = (items) => {
+    const keys = new Set((Array.isArray(items) ? items : []).map((item) => itemKey(item)));
+    if (keys.size === 0) return;
+    currentPathItems.value = currentPathItems.value.filter((item) => !keys.has(itemKey(item)));
   };
 
-  const setSelectionMode = (enabled, options = {}) => {
-    selectionMode.value = Boolean(enabled);
-
-    const clearOnDisable = options?.clearOnDisable ?? true;
-    if (!selectionMode.value && clearOnDisable) {
-      clearSelection();
-    }
-  };
-
-  const toggleSelectionMode = (options = {}) => {
-    setSelectionMode(!selectionMode.value, options);
-  };
-
-  const itemKey = (item) => {
-    if (!item || !item.name) {
-      return '';
-    }
-
-    const parent = normalizePath(item.path || '');
-    return `${parent}::${item.name}`;
-  };
-
-  const findItemByKey = (key) => currentPathItems.value.find((item) => itemKey(item) === key);
-
-  const resolveItemRelativePath = (item) => {
-    if (!item || !item.name) {
-      return null;
-    }
-
-    const parent = normalizePath(item.path || '');
-    const combined = parent ? `${parent}/${item.name}` : item.name;
-    return normalizePath(combined);
-  };
-
-  const serializeItems = (items) =>
-    items
-      .filter((item) => item && item.name && item.kind !== 'volume')
-      .map((item) => ({
-        name: item.name,
-        path: normalizePath(item.path || ''),
-        kind: item.kind,
-      }));
-
-  const resetClipboard = () => {
-    copiedItems.value = [];
-    cutItems.value = [];
-  };
-
-  const copy = () => {
-    if (!hasSelection.value) return;
-    cutItems.value = [];
-    copiedItems.value = selectedItems.value.map((item) => ({ ...item }));
-  };
-
-  const cut = () => {
-    if (!hasSelection.value) return;
-    copiedItems.value = [];
-    cutItems.value = selectedItems.value.map((item) => ({ ...item }));
-  };
-
-  const paste = async (targetPath) => {
-    const hasTarget = typeof targetPath === 'string' && targetPath.trim().length > 0;
-    const destination = normalizePath(hasTarget ? targetPath : currentPath.value || '');
-    const refreshTarget = normalizePath(currentPath.value || '');
-
-    const copyPayload = serializeItems(copiedItems.value);
-    const movePayload = serializeItems(cutItems.value);
-    const totalCount = copyPayload.length + movePayload.length;
-
-    if (totalCount > 0) {
-      clipboardOperation.value = {
-        type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
-        destination,
-        itemCount: totalCount,
-        startedAt: Date.now(),
-      };
-    }
-
-    try {
-      if (copiedItems.value.length > 0) {
-        if (copyPayload.length > 0) {
-          await copyItems(copyPayload, destination);
-        }
-        copiedItems.value = [];
-      }
-
-      if (cutItems.value.length > 0) {
-        if (movePayload.length > 0) {
-          await moveItems(movePayload, destination);
-        }
-        cutItems.value = [];
-      }
-
-      await fetchPathItems(refreshTarget);
-    } finally {
-      clipboardOperation.value = null;
-    }
-  };
-
-  const del = async () => {
-    const payload = serializeItems(selectedItems.value);
-    if (payload.length === 0) return;
-
-    deleteOperation.value = {
-      type: 'delete',
-      itemCount: payload.length,
-      startedAt: Date.now(),
-    };
-
-    try {
-      await deleteItems(payload);
-      clearSelection();
-      await favoritesStore.loadFavorites();
-      await fetchPathItems(currentPath.value);
-    } finally {
-      deleteOperation.value = null;
-    }
-  };
-
-  const createFolder = async (baseName) => {
-    const destination = normalizePath(currentPath.value || '');
-    const response = await createFolderApi(destination, baseName);
-    const createdName = response?.item?.name;
-
-    await fetchPathItems(destination);
-
-    if (createdName) {
-      const createdKey = `${destination}::${createdName}`;
-      const createdItem = findItemByKey(createdKey);
-      if (createdItem) {
-        selectedItems.value = [createdItem];
-        beginRename(createdItem, { isNew: true });
-      }
-    }
-
-    return response;
-  };
-
-  const createFile = async (baseName) => {
-    const destination = normalizePath(currentPath.value || '');
-    const defaultName =
-      typeof baseName === 'string' && baseName.trim() ? baseName.trim() : 'Untitled.txt';
-
-    // The server picks the free name, as it does for a folder. Choosing one
-    // here from the listing was a guess about a directory somebody else may be
-    // writing in — and writing the file through the editor's save meant an
-    // empty file could land on top of one that arrived meanwhile.
-    const created = await createFileApi(destination, defaultName);
-    // The route answers `{ success, item }`. Read from the root, this was always
-    // undefined and always fell back to the name that was asked for — so when
-    // that name was taken and the server picked the next free one, the rename box
-    // opened on whatever already held the asked-for name instead of on the new
-    // file.
-    const candidate = created?.item?.name || defaultName;
-
-    // Refresh and start rename for the created item
-    await fetchPathItems(destination);
-
-    const createdKey = `${destination}::${candidate}`;
-    const createdItem = findItemByKey(createdKey);
-    if (createdItem) {
-      selectedItems.value = [createdItem];
-      beginRename(createdItem, { isNew: true });
-    }
-
-    return { success: true, name: candidate };
-  };
-
-  /**
-   * Create a blank office document in the current folder and return it.
-   *
-   * Unlike `createFile` this starts no inline rename: the name was settled before
-   * the document existed, and the caller opens it in an editor straight away — a
-   * rename box behind a full-window editor is a rename box nobody can see.
-   */
-  const createOfficeDocument = async ({ format, name } = {}) => {
-    const destination = normalizePath(currentPath.value || '');
-    const created = await createOfficeDocumentApi(destination, { format, name });
-
-    await fetchPathItems(destination);
-
-    // From the refreshed listing where it can be found, so what is handed to the
-    // editor carries everything the listing knows about it.
-    const createdName = created?.item?.name;
-    const fromListing = createdName ? findItemByKey(`${destination}::${createdName}`) : null;
-    return fromListing || created?.item || null;
-  };
-
-  const extractZipArchive = async (relativePath) => {
-    const normalized = normalizePath(relativePath || '');
-    if (!normalized) return null;
-
-    const response = await extractZipApi(normalized);
-
-    const parent = (() => {
-      const idx = normalized.lastIndexOf('/');
-      return idx >= 0 ? normalized.slice(0, idx) : '';
-    })();
-
-    await fetchPathItems(parent);
-
-    const createdName = response?.item?.name;
-    if (createdName) {
-      const createdKey = `${normalizePath(parent)}::${createdName}`;
-      const createdItem = findItemByKey(createdKey);
-      if (createdItem) {
-        selectedItems.value = [createdItem];
-      }
-    }
-
-    return response;
-  };
-
-  const compressSelectionToZip = async (name) => {
-    const destination = normalizePath(currentPath.value || '');
-    const payload = serializeItems(selectedItems.value);
-    if (payload.length === 0) return null;
-
-    const response = await compressToZipApi(payload, destination, name);
-    const createdName = response?.item?.name;
-
-    await fetchPathItems(destination);
-
-    if (createdName) {
-      const createdKey = `${destination}::${createdName}`;
-      const createdItem = findItemByKey(createdKey);
-      if (createdItem) {
-        selectedItems.value = [createdItem];
-        beginRename(createdItem, { isNew: true });
-      }
-    }
-
-    return response;
-  };
-
-  const beginRename = (item, options = {}) => {
-    if (!item || !item.name) return;
-
-    const key = itemKey(item);
-    const existing = findItemByKey(key);
-    const target = existing || { ...item };
-
-    selectedItems.value = [target];
-
-    renameState.value = {
-      key,
-      path: normalizePath(target.path || currentPath.value || ''),
-      originalName: target.name,
-      draft: target.name,
-      kind: target.kind,
-      isNew: Boolean(options.isNew),
-    };
-  };
-
-  const setRenameDraft = (value) => {
-    if (!renameState.value) return;
-    renameState.value.draft = value;
-  };
-
-  const cancelRename = () => {
-    renameState.value = null;
-  };
-
-  const applyRename = async () => {
-    const state = renameState.value;
-    if (!state) return;
-
-    const newName = state.draft ?? '';
-    if (!newName.trim()) {
-      renameState.value = null;
-      return;
-    }
-
-    if (newName === state.originalName) {
-      renameState.value = null;
-      return;
-    }
-
-    const targetPath = state.path;
-
-    const response = await renameItemApi(targetPath, state.originalName, newName);
-    const renamedName = response?.item?.name ?? newName;
-    renameState.value = null;
-    await fetchPathItems(targetPath);
-    const renamedKey = `${targetPath}::${renamedName}`;
-    const renamedItem = findItemByKey(renamedKey);
-    if (renamedItem) {
-      selectedItems.value = [renamedItem];
-    }
-  };
-
-  const isItemBeingRenamed = (item) => {
-    if (!renameState.value) return false;
-    return itemKey(item) === renameState.value.key;
-  };
-
-  // How long the client waits for a thumbnail being made, and how it spaces the
-  // asking. Increasing, because the first one is usually ready straight away
-  // and the ones that are not are the slow kind.
-  const THUMBNAIL_RETRY_DELAYS_MS = [400, 900, 1800, 3000, 5000];
-  const THUMBNAIL_RETRIES = THUMBNAIL_RETRY_DELAYS_MS.length;
-
-  const ensureItemThumbnail = async (item) => {
-    if (!item || !item.name) {
-      return null;
-    }
-
-    const kind = (item.kind || '').toLowerCase();
-    if (kind === 'directory' || kind === 'pdf') {
-      return null;
-    }
-
-    // Check if item supports thumbnails (set by backend)
-    if (!item.supportsThumbnail) {
-      return null;
-    }
-
-    try {
-      const appSettings = useAppSettings();
-      if (appSettings.thumbnailsEnabledForSession === false) {
-        return null;
-      }
-    } catch (e) {
-      // If settings store fails, fail open to avoid breaking UI, but do not spam
-    }
-
-    const key = itemKey(item);
-    if (!key) {
-      return null;
-    }
-
-    const existing = findItemByKey(key);
-    if (existing?.thumbnail) {
-      return existing.thumbnail;
-    }
-
-    let pending = thumbnailRequests.get(key);
-    if (!pending) {
-      const relativePath = resolveItemRelativePath(item);
-      if (!relativePath) {
-        return null;
-      }
-
-      pending = (async () => {
-        try {
-          // The server answers at once with a thumbnail it already has, and
-          // otherwise queues one and says so. A long video on a slow disk takes
-          // seconds, so the answer is asked for again rather than the request
-          // held open — a held request costs a connection for every tile on
-          // screen, and a folder of five hundred has five hundred tiles.
-          for (let attempt = 0; attempt <= THUMBNAIL_RETRIES; attempt += 1) {
-            const response = await fetchThumbnailApi(relativePath);
-            const thumbnail = response?.thumbnail || '';
-            if (thumbnail) {
-              const target = findItemByKey(key);
-              if (target) {
-                target.thumbnail = thumbnail;
-              }
-              return thumbnail;
-            }
-            if (!response?.pending || attempt === THUMBNAIL_RETRIES) return null;
-            await new Promise((resolve) => setTimeout(resolve, THUMBNAIL_RETRY_DELAYS_MS[attempt]));
-          }
-          return null;
-        } catch (error) {
-          console.error(`Failed to fetch thumbnail for ${relativePath}`, error);
-          return null;
-        } finally {
-          thumbnailRequests.delete(key);
-        }
-      })();
-
-      thumbnailRequests.set(key, pending);
-    }
-
-    return pending;
-  };
+  const operations = createOperations({
+    currentPath,
+    selection,
+    fetchPathItems,
+    removeItemsFromCurrentView,
+    beginRename: rename.beginRename,
+    refreshSizes,
+    favoritesStore,
+    operationTasksStore,
+    warn: warnAboutOnlyOfficeActivity,
+  });
 
   const getCurrentPath = computed(() => currentPath.value);
 
-  const getCurrentPathItems = computed(() => {
-    const settings = useSettingsStore();
-    const direction = settings.sortBy.order === 'asc' ? 1 : -1;
-
-    return [...currentPathItems.value].sort((a, b) => {
-      // keep directories first
-      const isDirDiff = (b.kind === 'directory') - (a.kind === 'directory');
-      if (isDirDiff) return isDirDiff; // returns -1 or 1
-
-      const aValue = a[settings.sortBy.by];
-      const bValue = b[settings.sortBy.by];
-      if (aValue === bValue) return 0;
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return aValue.localeCompare(bValue, undefined, { sensitivity: 'base' }) * direction;
-      }
-      return (aValue > bValue ? 1 : -1) * direction;
-    });
-  });
+  const getCurrentPathItems = computed(() =>
+    sortItems(currentPathItems.value, useSettingsStore().sortBy, (full) =>
+      folderSizeStore.sizeFor(full)
+    )
+  );
 
   // Actions
   function setCurrentPath(path) {
     currentPath.value = normalizePath(path);
   }
 
-  // Fields this store puts on an item itself, which no listing ever sends and
-  // which must survive a refresh.
-  const LOCAL_ONLY_ITEM_FIELDS = new Set(['thumbnail']);
-
-  async function fetchPathItems(path) {
+  async function fetchPathItems(path, options = {}) {
     const previousItems = Array.isArray(currentPathItems.value) ? currentPathItems.value : [];
 
     const normalizedPath = normalizePath(typeof path === 'string' ? path : currentPath.value);
-    // Before the path changes, so the sort and the view this folder was left in
-    // are the ones the first render uses rather than a frame of the previous
-    // folder's.
+    thumbnailQueue.cancel();
+    const requestGeneration = ++browseRequestGeneration;
+    activeBrowseController?.abort();
+    const controller = new AbortController();
+    activeBrowseController = controller;
     useSettingsStore().restoreFolderPreferences(normalizedPath);
     currentPath.value = normalizedPath;
-    clearSelection();
-    // When changing folders, exit selection mode (mobile UX).
-    setSelectionMode(false, { clearOnDisable: false });
+    if (!options.preserveInteraction) {
+      selection.clearSelection();
+      // When changing folders, exit selection mode (mobile UX).
+      selection.setSelectionMode(false, { clearOnDisable: false });
+    }
 
     let response;
 
     // For share paths, use the dedicated share browse endpoint so that
     // file shares can be treated as virtual one-item directories.
-    if (normalizedPath && normalizedPath.startsWith('share/')) {
-      const segments = normalizedPath.split('/');
-      const shareToken = segments[1];
-      const innerPath = segments.slice(2).join('/');
-      response = await browseShare(shareToken, innerPath);
-    } else {
-      response = await browse(normalizedPath);
-    }
-
-    // Merge new items into existing list by stable key so that
-    // unchanged entries keep their object identity (and any local
-    // UI fields such as thumbnails), while still updating metadata
-    // and adding/removing items as needed.
-    const mergeItems = (items) => {
-      if (!Array.isArray(items)) return [];
-
-      const existingByKey = new Map(
-        previousItems.filter((it) => it && it.name).map((it) => [itemKey(it), it])
-      );
-
-      const merged = [];
-
-      for (const incoming of items) {
-        if (!incoming || !incoming.name) continue;
-
-        const key = itemKey(incoming);
-        const existing = existingByKey.get(key);
-
-        if (existing) {
-          // Preserve any locally-added thumbnail if the backend
-          // does not send one, but refresh all other metadata.
-          const prevThumbnail = existing.thumbnail;
-          // A field the listing has stopped sending has to go, not merely be
-          // overwritten: `Object.assign` cannot remove anything, so a mark the
-          // row no longer carries — a document nobody has open any more, a
-          // history that was just emptied — stayed for as long as the folder
-          // was on screen. `supportsThumbnail` was patched for exactly this,
-          // one field at a time; this is the same rule for all of them.
-          for (const key of Object.keys(existing)) {
-            if (!(key in incoming) && !LOCAL_ONLY_ITEM_FIELDS.has(key)) delete existing[key];
-          }
-          Object.assign(existing, incoming);
-          if (!incoming.thumbnail && prevThumbnail) {
-            existing.thumbnail = prevThumbnail;
-          }
-          // `supportsThumbnail` can be toggled by system settings; if the backend does not
-          // include it for an item, treat it as false so we don't keep stale truthy values.
-          existing.supportsThumbnail = Boolean(incoming.supportsThumbnail);
-          merged.push(existing);
-        } else {
-          merged.push(incoming);
-        }
+    try {
+      if (normalizedPath && normalizedPath.startsWith('share/')) {
+        const segments = normalizedPath.split('/');
+        const shareToken = segments[1];
+        const innerPath = segments.slice(2).join('/');
+        response = await browseShare(shareToken, innerPath, { signal: controller.signal });
+      } else {
+        response = await browse(normalizedPath, { signal: controller.signal });
       }
-
-      return merged;
-    };
-
-    // Handle new response format with items and access metadata
-    if (response && typeof response === 'object' && Array.isArray(response.items)) {
-      currentPathItems.value = mergeItems(response.items);
-      const access =
-        response.access && typeof response.access === 'object' ? response.access : null;
-      currentPathData.value = {
-        path: response.path || normalizedPath,
-        canRead: access?.canRead ?? true,
-        // If the backend doesn't include access metadata, fail open so the UI
-        // doesn't hide core actions for older response formats.
-        canWrite: access?.canWrite ?? true,
-        canUpload: access?.canUpload ?? true,
-        canDelete: access?.canDelete ?? true,
-        canShare: access?.canShare ?? true,
-        canDownload: access?.canDownload ?? true,
-        isDirectory: response.current?.isDirectory ?? null,
-        // Include share metadata if present
-        shareInfo: response.shareInfo || null,
-      };
-    } else {
-      // Fallback for old response format (array of items)
-      currentPathItems.value = mergeItems(Array.isArray(response) ? response : []);
-      currentPathData.value = null;
+    } catch (error) {
+      // A newer navigation supersedes this request. Let it finish quietly:
+      // otherwise a rapid folder traversal can surface a stale failure.
+      if (requestGeneration !== browseRequestGeneration && isAbortError(error)) {
+        return null;
+      }
+      throw error;
+    } finally {
+      if (activeBrowseController === controller) {
+        activeBrowseController = null;
+      }
     }
 
+    // Browsing a deep tree can start several requests before the first one
+    // returns. Ignore an older response even when it raced with abort(), so it
+    // can never overwrite the listing for the route currently in the address
+    // bar and breadcrumb.
+    if (requestGeneration !== browseRequestGeneration) {
+      return null;
+    }
+
+    // The current answer carries the items with what the folder allows; an
+    // older one was the bare array of items.
+    const data = folderData(response, normalizedPath);
+    const incoming = data ? response.items : Array.isArray(response) ? response : [];
+    currentPathItems.value = mergeListing(previousItems, incoming);
+    currentPathData.value = data;
+
+    void onlyofficeActivity.start();
     return currentPathItems.value;
   }
 
@@ -573,34 +183,39 @@ export const useFileStore = defineStore('fileStore', () => {
     currentPathData,
     getCurrentPathItems,
     fetchPathItems,
-    selectedItems,
-    selectedItemKeys,
-    selectionMode,
-    setSelectionMode,
-    toggleSelectionMode,
-    clearSelection,
-    clipboardOperation,
-    deleteOperation,
-    copiedItems,
-    cutItems,
-    hasSelection,
-    hasClipboardItems,
-    copy,
-    cut,
-    paste,
-    del,
-    resetClipboard,
-    createFolder,
-    createFile,
-    createOfficeDocument,
-    extractZipArchive,
-    compressSelectionToZip,
-    renameState,
-    beginRename,
-    setRenameDraft,
-    cancelRename,
-    applyRename,
-    isItemBeingRenamed,
-    ensureItemThumbnail,
+    selectedItems: selection.selectedItems,
+    keyboardActionItem: selection.keyboardActionItem,
+    setKeyboardActionItem: selection.setKeyboardActionItem,
+    clearKeyboardActionItem: selection.clearKeyboardActionItem,
+    selectedItemKeys: selection.selectedItemKeys,
+    selectionMode: selection.selectionMode,
+    setSelectionMode: selection.setSelectionMode,
+    toggleSelectionMode: selection.toggleSelectionMode,
+    clearSelection: selection.clearSelection,
+    repositionAfterTransfer: transfers.repositionAfterTransfer,
+    copiedItems: transfers.copiedItems,
+    cutItems: transfers.cutItems,
+    hasSelection: selection.hasSelection,
+    hasClipboardItems: transfers.hasClipboardItems,
+    copy: transfers.copy,
+    cut: transfers.cut,
+    paste: transfers.paste,
+    transferSelectionTo: transfers.transferSelectionTo,
+    del: operations.del,
+    resetClipboard: transfers.resetClipboard,
+    createFolder: operations.createFolder,
+    createFile: operations.createFile,
+    createOfficeDocument: operations.createOfficeDocument,
+    extractZipArchive: operations.extractZipArchive,
+    compressSelectionToZip: operations.compressSelectionToZip,
+    renameState: rename.renameState,
+    beginRename: rename.beginRename,
+    setRenameDraft: rename.setRenameDraft,
+    cancelRename: rename.cancelRename,
+    applyRename: rename.applyRename,
+    isItemBeingRenamed: rename.isItemBeingRenamed,
+    warnAboutOnlyOfficeActivity,
+    ensureItemThumbnail: thumbnails.ensureItemThumbnail,
+    prefetchItemThumbnail: thumbnails.prefetchItemThumbnail,
   };
 });

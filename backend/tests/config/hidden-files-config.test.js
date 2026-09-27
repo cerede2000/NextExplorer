@@ -24,8 +24,13 @@ describe('Hidden files config', () => {
     });
 
     const config = requireFreshConfig();
-    expect(config.hiddenFiles.patterns).toEqual(['.']);
+    // The dot, and the two suffixes the application's own in-flight files
+    // carry: a download being fetched and an upload being written. They are
+    // hidden for the same reason a dot-file is — nobody put them there and
+    // nobody should open them — and they disappear when the operation ends.
+    expect(config.hiddenFiles.patterns).toEqual(['.', 'regex:\\.download$', 'regex:\\.uploading$']);
     expect(config.hiddenFiles.isHiddenName('.env')).toBe(true);
+    expect(config.hiddenFiles.isHiddenName('holiday.mp4.download')).toBe(true);
     expect(config.hiddenFiles.isHiddenName('visible.txt')).toBe(false);
   });
 

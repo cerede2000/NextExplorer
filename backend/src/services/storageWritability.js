@@ -35,7 +35,13 @@ const whyNotWritable = async (absoluteDir) => {
 };
 
 /** The permissions that need to write in the folder itself. */
-const WRITE_PERMISSIONS = ['canWrite', 'canUpload', 'canDelete', 'canCreateFolder'];
+const WRITE_PERMISSIONS = [
+  'canWrite',
+  'canUpload',
+  'canDelete',
+  'canCreateFolder',
+  'canCreateFile',
+];
 
 /**
  * An access answer with the writes taken away when the storage refuses them,

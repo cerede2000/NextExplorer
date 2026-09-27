@@ -34,6 +34,7 @@ const toggleTerminal = () => {
     >
       {{ t('terminal.menuHeading') }}
       <button
+        :aria-label="t('common.toggleSection')"
         @click="open = !open"
         class="hidden group-hover:block active:text-black dark:active:text-white text-neutral-500"
       >

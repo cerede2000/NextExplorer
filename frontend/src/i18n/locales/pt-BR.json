@@ -247,7 +247,8 @@
     "defaultDocumentName": "Documento",
     "defaultSpreadsheetName": "Planilha",
     "defaultPresentationName": "Apresentação",
-    "defaultDataName": "Dados"
+    "defaultDataName": "Dados",
+    "documentFailed": "Não foi possível criar o documento"
   },
   "context": {
     "getInfo": "Obter Informações",
@@ -356,7 +357,8 @@
       "warning": "Avisos",
       "success": "Sucessos",
       "info": "Informações"
-    }
+    },
+    "copyDetails": "Copiar detalhes"
   },
   "spotlight": {
     "hintWithin": "Digite para pesquisar dentro de",
@@ -1306,7 +1308,9 @@
     "editingNow": "Sendo editado no ONLYOFFICE",
     "savedAsHeading": "Salvo nesta pasta",
     "savedAsBody": "{name} foi adicionado ao lado do original.",
-    "saveAsFailed": "Não foi possível salvar {name}"
+    "saveAsFailed": "Não foi possível salvar {name}",
+    "editingBody": "{names} está aberto no OnlyOffice. A {action} vai continuar. | {names} estão abertos no OnlyOffice. A {action} vai continuar.",
+    "editingHeading": "O arquivo está sendo editado"
   },
   "preview": {
     "nothingOpensIt": "Nada aqui consegue abrir {name}.",

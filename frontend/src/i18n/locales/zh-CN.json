@@ -247,7 +247,8 @@
     "defaultDocumentName": "文档",
     "defaultSpreadsheetName": "工作簿",
     "defaultPresentationName": "演示文稿",
-    "defaultDataName": "数据"
+    "defaultDataName": "数据",
+    "documentFailed": "无法创建文档"
   },
   "context": {
     "getInfo": "获取信息",
@@ -356,7 +357,8 @@
       "warning": "警告",
       "success": "成功",
       "info": "信息"
-    }
+    },
+    "copyDetails": "复制详细信息"
   },
   "spotlight": {
     "hintWithin": "键入以在其中搜索",
@@ -1306,7 +1308,9 @@
     "editingNow": "正在 ONLYOFFICE 中编辑",
     "savedAsHeading": "已保存到此文件夹",
     "savedAsBody": "{name} 已添加到原文件旁边。",
-    "saveAsFailed": "无法保存 {name}"
+    "saveAsFailed": "无法保存 {name}",
+    "editingBody": "{names} 已在 OnlyOffice 中打开。{action}操作将继续。 | {names} 已在 OnlyOffice 中打开。{action}操作将继续。",
+    "editingHeading": "文件正在编辑中"
   },
   "preview": {
     "nothingOpensIt": "这里没有什么能打开 {name}。",

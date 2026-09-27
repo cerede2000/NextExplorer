@@ -103,16 +103,6 @@ class RateLimitError extends AppError {
 }
 
 /**
- * 500 Internal Server Error - for unexpected server errors
- */
-class InternalError extends AppError {
-  constructor(message = 'Internal server error') {
-    super(message, 500);
-    this.name = 'InternalError';
-  }
-}
-
-/**
  * 415 Unsupported Media Type - for unsupported file types
  */
 class UnsupportedMediaTypeError extends AppError {
@@ -122,7 +112,6 @@ class UnsupportedMediaTypeError extends AppError {
   }
 }
 
-/** 507: the storage cannot hold what is being sent. */
 /**
  * 503 Service Unavailable - something this server depends on did not answer
  *
@@ -137,9 +126,12 @@ class ServiceUnavailableError extends AppError {
   }
 }
 
+/**
+ * 507 Insufficient Storage - the destination cannot hold what was sent
+ */
 class InsufficientStorageError extends AppError {
   constructor(message = 'Insufficient storage') {
-    super(message, 507, 'INSUFFICIENT_STORAGE');
+    super(message, 507);
     this.name = 'InsufficientStorageError';
   }
 }
@@ -152,7 +144,6 @@ module.exports = {
   NotFoundError,
   ConflictError,
   RateLimitError,
-  InternalError,
   UnsupportedMediaTypeError,
   ServiceUnavailableError,
   InsufficientStorageError,

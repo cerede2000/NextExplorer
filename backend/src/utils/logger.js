@@ -1,17 +1,6 @@
 const pino = require('pino');
 const loggingConfig = require('../config/logging');
 
-const prettyOptions = {
-  colorize: true,
-  levelFirst: true,
-  translateTime: 'SYS:standard',
-  ignore: 'pid,hostname',
-};
-
-// Keep development formatting in-process. The worker-backed Pino transport can
-// crash under Node's watch runner while the worker is starting or stopping.
-const prettyStream = loggingConfig.isDebug ? require('pino-pretty')(prettyOptions) : undefined;
-
 /**
  * Values that must never reach the log files, wherever they are attached.
  *
@@ -35,15 +24,23 @@ const REDACTED_PATHS = [
   '*.secret',
 ];
 
-const logger = pino(
-  {
-    level: loggingConfig.level,
-    base: { service: 'nextExplorer-backend' },
-    redact: { paths: REDACTED_PATHS, censor: '[redacted]' },
-    timestamp: pino.stdTimeFunctions.isoTime,
-  },
-  prettyStream
-);
+const logger = pino({
+  level: loggingConfig.level,
+  base: { service: 'nextExplorer-backend' },
+  redact: { paths: REDACTED_PATHS, censor: '[redacted]' },
+  timestamp: pino.stdTimeFunctions.isoTime,
+  transport: loggingConfig.isDebug
+    ? {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          levelFirst: true,
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname',
+        },
+      }
+    : undefined,
+});
 
 logger.debug({ level: loggingConfig.level }, 'Logger initialized');
 

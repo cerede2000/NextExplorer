@@ -247,7 +247,8 @@
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Werkmap",
     "defaultPresentationName": "Presentatie",
-    "defaultDataName": "Gegevens"
+    "defaultDataName": "Gegevens",
+    "documentFailed": "Het document kon niet worden gemaakt"
   },
   "context": {
     "getInfo": "Eigenschappen",
@@ -356,7 +357,8 @@
       "warning": "Waarschuwingen",
       "success": "Succes",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Details kopiëren"
   },
   "spotlight": {
     "hintWithin": "Typ om te zeken in",
@@ -1306,7 +1308,9 @@
     "editingNow": "Wordt bewerkt in ONLYOFFICE",
     "savedAsHeading": "Opgeslagen in deze map",
     "savedAsBody": "{name} is naast het origineel toegevoegd.",
-    "saveAsFailed": "{name} kon niet worden opgeslagen"
+    "saveAsFailed": "{name} kon niet worden opgeslagen",
+    "editingBody": "{names} is geopend in OnlyOffice. De {action} gaat door. | {names} zijn geopend in OnlyOffice. De {action} gaat door.",
+    "editingHeading": "Bestand wordt bewerkt"
   },
   "preview": {
     "nothingOpensIt": "Hier kan niets {name} openen.",

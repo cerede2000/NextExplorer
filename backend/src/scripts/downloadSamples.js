@@ -187,11 +187,11 @@ async function main() {
   });
 
   console.log(`INFO: Extracting ${zipPath} to ${samplesDir}`);
-  const unzip = spawnSync('unzip', ['-q', zipPath, '-d', samplesDir], {
+  const extract = spawnSync('7z', ['x', '-y', '-bd', `-o${samplesDir}`, zipPath], {
     stdio: 'inherit',
   });
-  if (unzip.error) throw unzip.error;
-  if (unzip.status !== 0) throw new Error(`unzip failed with exit code ${unzip.status}`);
+  if (extract.error) throw extract.error;
+  if (extract.status !== 0) throw new Error(`7z failed with exit code ${extract.status}`);
 
   await removeMacJunk(samplesDir);
   await chmodReadOnlyRecursive(samplesDir);
