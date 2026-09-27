@@ -431,7 +431,9 @@
   },
   "upload": {
     "uploads": "Uploading {count} {items}",
-    "finalizing": "Finishing up"
+    "finalizing": "Finishing up",
+    "pauseUploads": "Pause uploads",
+    "resumeUploads": "Resume uploads"
   },
   "info": {
     "aria": "Info panel",

@@ -431,7 +431,9 @@
   },
   "upload": {
     "uploads": "{count} {items} uploaden",
-    "finalizing": "Bezig met afronden"
+    "finalizing": "Bezig met afronden",
+    "pauseUploads": "Uploads pauzeren",
+    "resumeUploads": "Uploads hervatten"
   },
   "info": {
     "aria": "Infopaneel",

@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "Загрузка {count} {items}",
-    "finalizing": "Завершение"
+    "finalizing": "Завершение",
+    "pauseUploads": "Приостановить загрузку",
+    "resumeUploads": "Возобновить загрузку"
   },
   "info": {
     "aria": "Панель информации",

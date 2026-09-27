@@ -431,7 +431,9 @@
   },
   "upload": {
     "uploads": "Enviando {count} {items}",
-    "finalizing": "Finalizando"
+    "finalizing": "Finalizando",
+    "pauseUploads": "Pausar envios",
+    "resumeUploads": "Retomar envios"
   },
   "info": {
     "aria": "Painel de informações",

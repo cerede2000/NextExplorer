@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "正在上傳 {count} 個{items}",
-    "finalizing": "正在收尾"
+    "finalizing": "正在收尾",
+    "pauseUploads": "暫停上傳",
+    "resumeUploads": "繼續上傳"
   },
   "info": {
     "aria": "資訊面板",

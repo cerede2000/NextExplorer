@@ -207,6 +207,13 @@ export const createUploadEngine = async () => {
         removeUploadFile(file);
         scheduleUploadViewRefresh(100);
       },
+      // A chunked upload can be held and picked up again: the bytes already sent
+      // stay sent. A direct one cannot — there is nothing to pick up from — so it
+      // is not offered. A file that falls back to chunks is added again under a
+      // new id, and the task it starts then says so on its own.
+      pausable: uploadPluginMode === 'tus',
+      pause: () => uppy.pauseResume(file.id),
+      resume: () => uppy.pauseResume(file.id),
     });
     uploadTaskIds.set(file.id, operationId);
   };

@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "Caricamento di {count} {items}",
-    "finalizing": "Completamento"
+    "finalizing": "Completamento",
+    "pauseUploads": "Metti in pausa caricamenti",
+    "resumeUploads": "Riprendi caricamenti"
   },
   "info": {
     "aria": "Pannello informazioni",

@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "{count} {items} अपलोड हो रहे हैं",
-    "finalizing": "पूरा किया जा रहा है"
+    "finalizing": "पूरा किया जा रहा है",
+    "pauseUploads": "अपलोड रोकें",
+    "resumeUploads": "अपलोड फिर शुरू करें"
   },
   "info": {
     "aria": "जानकारी पैनल",

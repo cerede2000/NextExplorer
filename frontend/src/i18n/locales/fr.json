@@ -431,7 +431,9 @@
   },
   "upload": {
     "uploads": "Téléversement de {count} {items}",
-    "finalizing": "Finalisation"
+    "finalizing": "Finalisation",
+    "pauseUploads": "Mettre en pause les téléversements",
+    "resumeUploads": "Reprendre les téléversements"
   },
   "info": {
     "aria": "Panneau d'informations",

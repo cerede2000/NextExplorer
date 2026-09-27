@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "Se încarcă {count} {items}",
-    "finalizing": "Se finalizează"
+    "finalizing": "Se finalizează",
+    "pauseUploads": "Pune pe pauză încărcările",
+    "resumeUploads": "Reia încărcările"
   },
   "info": {
     "aria": "Panou informații",

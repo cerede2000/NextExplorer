@@ -108,6 +108,42 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     }
   };
 
+  /**
+   * Hold an operation where it is, and let it go again.
+   *
+   * Only an operation that says it can be paused is: a chunked upload keeps its
+   * place in the file and picks it up, while a direct one has nowhere to pick up
+   * from and a copy on the server is not ours to stop. The flag sits beside
+   * `cancellable` for the same reason — the panel asks the operation what it can
+   * do rather than guessing from its type.
+   *
+   * The flag is set before the call and put back if the call throws, so a pause
+   * that did not happen is not shown as one that did.
+   */
+  const pauseOperation = (id) => {
+    const operation = operations.value.find((entry) => entry.id === id);
+    if (!operation?.pausable || operation.paused || operation.cancelling) return;
+
+    updateOperation(id, { paused: true });
+    try {
+      operation.pause?.();
+    } catch (_) {
+      updateOperation(id, { paused: false });
+    }
+  };
+
+  const resumeOperation = (id) => {
+    const operation = operations.value.find((entry) => entry.id === id);
+    if (!operation?.pausable || !operation.paused) return;
+
+    updateOperation(id, { paused: false });
+    try {
+      operation.resume?.();
+    } catch (_) {
+      updateOperation(id, { paused: true });
+    }
+  };
+
   const cancelOperation = (id) => {
     const operation = operations.value.find((entry) => entry.id === id);
     if (!operation?.cancellable || operation.cancelling) return;
@@ -130,6 +166,8 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     rateFor,
     selectOperation,
     finishOperation,
+    pauseOperation,
+    resumeOperation,
     cancelOperation,
   };
 });

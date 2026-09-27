@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "{count}개 {items} 업로드 중",
-    "finalizing": "마무리 중"
+    "finalizing": "마무리 중",
+    "pauseUploads": "업로드 정지",
+    "resumeUploads": "업로드 재개"
   },
   "info": {
     "aria": "정보 패널",

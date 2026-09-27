@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "Laddar upp {count} {items}",
-    "finalizing": "Slutför"
+    "finalizing": "Slutför",
+    "pauseUploads": "Pausa uppladdningar",
+    "resumeUploads": "Återuppta uppladdningar"
   },
   "info": {
     "aria": "Infopanel",

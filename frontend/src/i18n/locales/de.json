@@ -428,7 +428,9 @@
   },
   "upload": {
     "uploads": "{count} {items} werden hochgeladen",
-    "finalizing": "Wird abgeschlossen"
+    "finalizing": "Wird abgeschlossen",
+    "pauseUploads": "Uploads pausieren",
+    "resumeUploads": "Uploads fortsetzen"
   },
   "info": {
     "aria": "Info-Panel",
