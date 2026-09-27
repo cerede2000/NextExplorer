@@ -603,7 +603,12 @@
       "quickActionsReorder": "選擇並重新排序顯示的動作。",
       "quickActionsMode": "選單顯示",
       "quickActionsModeFull": "懸停時顯示所有圖示",
-      "quickActionsModeCompact": "… 圖示（懸停時展開）"
+      "quickActionsModeCompact": "… 圖示（懸停時展開）",
+      "quickActionsPosition": "圖示的位置",
+      "quickActionsPositionHelp": "對齊到名稱欄的一側後，它們在每一列都在同一位置；無論是否停留，所需的空間都會保留。",
+      "quickActionsPositionAfter": "名稱之後",
+      "quickActionsPositionStart": "名稱欄的開頭",
+      "quickActionsPositionEnd": "名稱欄的結尾"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",

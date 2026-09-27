@@ -603,7 +603,12 @@
       "quickActionsReorder": "Kies welke acties worden getoond en in welke volgorde.",
       "quickActionsMode": "Weergave van het menu",
       "quickActionsModeFull": "Alle pictogrammen bij aanwijzen",
-      "quickActionsModeCompact": "…-pictogram (uitklappen bij aanwijzen)"
+      "quickActionsModeCompact": "…-pictogram (uitklappen bij aanwijzen)",
+      "quickActionsPosition": "Waar de pictogrammen staan",
+      "quickActionsPositionHelp": "Uitgelijnd op een rand van de naamkolom staan ze op elke rij op dezelfde plek; de ruimte die ze nodig hebben blijft vrij, of de rij aangewezen wordt of niet.",
+      "quickActionsPositionAfter": "Na de naam",
+      "quickActionsPositionStart": "Aan het begin van de naamkolom",
+      "quickActionsPositionEnd": "Aan het eind van de naamkolom"
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",

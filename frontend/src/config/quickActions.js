@@ -91,3 +91,30 @@ export const DEFAULT_QUICK_ACTIONS_ON = [
 
 export const defaultQuickActionConfig = () =>
   DEFAULT_QUICK_ACTION_ORDER.map((id) => ({ id, on: DEFAULT_QUICK_ACTIONS_ON.includes(id) }));
+
+/**
+ * Where the icons sit inside the name column.
+ *
+ * `after` is where they have always been: immediately right of the name, so
+ * their place on screen follows the length of the name and no two rows agree.
+ * The other two put them at an edge of the column, which is the only way they
+ * line up down the list — `start` before the name, `end` after everything.
+ */
+export const QUICK_ACTION_POSITIONS = ['after', 'start', 'end'];
+
+/**
+ * How much room to keep at that edge, in pixels, for `count` icons.
+ *
+ * Reserved from the count the reader configured rather than from what a given
+ * row offers: a row where half the actions do not apply would otherwise reserve
+ * less and put its name — and its icons — somewhere no other row has them.
+ *
+ * Reserved whether or not the row is hovered, and in compact mode reserved as
+ * though the "…" had already expanded. Both for the same reason: the name must
+ * not move when the pointer arrives, and the icons must not open over it.
+ *
+ * The numbers are the buttons' own: `h-6 w-6` is 24 and the `gap-0.5` between
+ * them is 2. The space between the icons and the name is not in here — that one
+ * is the row's own `gap-x-1.5`, and counting it twice would be a gap of twelve.
+ */
+export const quickActionsReservedWidth = (count) => (count > 0 ? count * 24 + (count - 1) * 2 : 0);
