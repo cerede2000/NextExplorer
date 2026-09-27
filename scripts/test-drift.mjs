@@ -1,0 +1,92 @@
+import { execFileSync } from 'node:child_process';
+
+/**
+ * What the other side tests and this one does not.
+ *
+ *   node scripts/test-drift.mjs <their ref> [our ref]
+ *
+ * The axes in parity.mjs deliberately look past the tests: a test of ours travels
+ * with the batch that brings what it tests, so comparing them file by file would
+ * report the whole suite as a divergence. That left one direction unmeasured —
+ * a test written *on a batch branch*, which never came home. `settings-preferences`
+ * was found by accident, by building P3-57 in its own tree and watching it go red
+ * where `integration` was green. This is that accident, on purpose.
+ *
+ * Compared by the *cases*, over both trees at once, and not by file: the first
+ * version of this compared paths, and `two-factor.test.js` — sitting under
+ * `services/` here and `routes/` there — read as forty files missing when it was
+ * one file moved. A case is what a suite is; where it lives is filing.
+ *
+ * What it prints is a list to read, not a verdict. A case renamed while porting
+ * reads as a case missing, and so does a file the porting work split in two under
+ * other names — our `onlyoffice-*` suites against theirs. It says where to look.
+ */
+
+const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 });
+const IS_TEST = (file) => /\.(spec|test)\.[jt]s$/.test(file);
+
+const CASE =
+  /\b(?:it|test)(?:\.each\([\s\S]*?\))?(?:\.(?:only|skip|todo|concurrent|fails))*\s*\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+
+/** Every case in a tree: its title, and the file that declares it. */
+const casesOf = (ref) => {
+  const found = new Map();
+  for (const file of git('ls-tree', '-r', '--name-only', ref).split('\n').filter(Boolean)) {
+    if (!IS_TEST(file)) continue;
+    let source;
+    try {
+      source = git('show', `${ref}:${file}`);
+    } catch {
+      continue;
+    }
+    for (const match of source.matchAll(CASE)) {
+      const title = match[2].replace(/\s+/g, ' ').trim();
+      if (!title) continue;
+      if (!found.has(title)) found.set(title, []);
+      found.get(title).push(file);
+    }
+  }
+  return found;
+};
+
+const theirRef = process.argv[2];
+const ourRef = process.argv[3] || 'HEAD';
+
+const theirs = casesOf(theirRef);
+const ours = casesOf(ourRef);
+
+const onlyThere = [...theirs].filter(([title]) => !ours.has(title));
+
+/** Grouped by the file that declares them there, which is how they travel. */
+const byFile = new Map();
+for (const [title, files] of onlyThere) {
+  const file = files[0];
+  if (!byFile.has(file)) byFile.set(file, []);
+  byFile.get(file).push(title);
+}
+
+const basenames = (map) => new Set([...map.values()].flat().map((f) => f.split('/').pop()));
+const theirNames = basenames(theirs);
+const ourNames = basenames(ours);
+
+console.log(`\n${theirRef} against ${ourRef}\n`);
+console.log(`  ${String(theirs.size).padStart(5)} case(s) there, in ${theirNames.size} file(s)`);
+console.log(`  ${String(ours.size).padStart(5)} case(s) here,  in ${ourNames.size} file(s)`);
+console.log(`  ${String(onlyThere.length).padStart(5)} case(s) only there\n`);
+
+const whole = [...byFile].filter(([file]) => !ourNames.has(file.split('/').pop()));
+const partial = [...byFile].filter(([file]) => ourNames.has(file.split('/').pop()));
+
+console.log(`── files this tree has nothing of (${whole.length}) ──`);
+for (const [file, titles] of whole.sort()) console.log(`  ! ${file} — ${titles.length} case(s)`);
+if (!whole.length) console.log('  none');
+
+console.log(`\n── files that are here, missing cases (${partial.length}) ──`);
+for (const [file, titles] of partial.sort()) {
+  console.log(`  ! ${file} — ${titles.length} case(s) not here`);
+  for (const title of titles) console.log(`      · ${title}`);
+}
+if (!partial.length) console.log('  none');
+
+console.log(`\n${onlyThere.length} case(s) the other side has and this one does not.`);
+process.exit(onlyThere.length > 0 ? 1 : 0);

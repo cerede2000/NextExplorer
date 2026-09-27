@@ -633,7 +633,7 @@
     },
     {
       "axis": "*",
-      "match": "^scripts/(parity\\.mjs|parity-manifest\\.json|check-batch\\.sh|check-commit-tests\\.sh|check-endpoints\\.mjs|measure-solid-7z\\.mjs|node-major-notice\\.mjs|prune-dockerhub\\.js|prune-images\\.js|version\\.js)$",
+      "match": "^scripts/(parity\\.mjs|test-drift\\.mjs|parity-manifest\\.json|check-batch\\.sh|check-commit-tests\\.sh|check-endpoints\\.mjs|measure-solid-7z\\.mjs|node-major-notice\\.mjs|prune-dockerhub\\.js|prune-images\\.js|version\\.js)$",
       "verdict": "OURS",
       "note": "our own tooling, this instrument included"
     },

@@ -227,6 +227,30 @@ It builds both trees and starts both servers, so it takes minutes rather than
 seconds — which is why it is not a gate on every push. It is the one to run before
 claiming the two are the same, and the claim is not to be made without its output.
 
+### The tests the batches have and this tree does not
+
+Every axis in `parity.mjs` looks past the tests on purpose: a test of ours travels
+with the batch that brings what it tests, so comparing them file by file would
+report the whole suite as a divergence. That left one direction unmeasured, and
+P3-57 walked into it — `settings-preferences.test.js` exists on the batch stack
+and not here, so the batch went red in its own tree where `integration` was green.
+
+    node scripts/test-drift.mjs p3-57
+
+compares the two trees by their **cases** rather than by their files, because the
+first version of it compared paths and read `two-factor.test.js` — under
+`services/` here, `routes/` there — as a file missing when it was a file moved.
+Against P3-57 it reports 303 cases the stack has and this tree does not, 37 of
+them in files nothing here answers to.
+
+It prints a list to read, not a verdict: a case renamed while porting reads as a
+case missing, and so does a suite the porting work split under other names — our
+`onlyoffice-*` files against theirs. The first one read was not a rewording,
+though. `no-shell.test.js` holds the two remote executions of nxzai#450 and #453
+to their fix, it went upstream with that fix, and this tree had the fix and no test
+of it. It is here now, and it still bites: loosening `ACCOUNT_NAME_PATTERN` turns
+it red.
+
 ### 0 PORT was not the end
 
 It was reached, on 27 September 2026, and two more batches followed it. Both came
