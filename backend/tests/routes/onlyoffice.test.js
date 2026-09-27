@@ -1,0 +1,272 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs/promises';
+import http from 'node:http';
+import path from 'node:path';
+import request from 'supertest';
+import jwt from 'jsonwebtoken';
+import { createTestApp, setupTestEnv } from '../helpers/env-test-utils.js';
+
+describe('ONLYOFFICE routes', () => {
+  let env;
+  let commandServer;
+  let app;
+
+  afterEach(async () => {
+    if (commandServer) {
+      await new Promise((resolve, reject) => {
+        commandServer.close((error) => (error ? reject(error) : resolve()));
+      });
+      commandServer = null;
+    }
+    if (env) {
+      await env.cleanup();
+      env = null;
+    }
+  });
+
+  it('queues signed close and live force-saves without blocking the preview', async () => {
+    let commandPayload = null;
+    let commandRequestUrl = null;
+    let callbackPath = null;
+    let callbackToken = null;
+    const commandPayloads = [];
+    const callbackPromises = [];
+    let resolveCommand;
+    let resolveSecondCommand;
+    let releaseFirstCallback;
+    const commandReceived = new Promise((resolve) => {
+      resolveCommand = resolve;
+    });
+    const secondCommandReceived = new Promise((resolve) => {
+      resolveSecondCommand = resolve;
+    });
+    const firstCallbackReleased = new Promise((resolve) => {
+      releaseFirstCallback = resolve;
+    });
+    commandServer = http.createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/saved.docx') {
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.end('updated');
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/broken.docx') {
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': '1024',
+        });
+        res.write('partial');
+        setTimeout(() => res.destroy(), 10);
+        return;
+      }
+
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', () => {
+        commandRequestUrl = req.url;
+        commandPayload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        commandPayloads.push(commandPayload);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 0 }));
+
+        const callback = () =>
+          request(app)
+            .post(callbackPath)
+            .set('Authorization', `Bearer ${callbackToken}`)
+            .send({
+              status: 6,
+              key: commandPayload.key,
+              forcesavetype: 0,
+              userdata: commandPayload.userdata,
+              url: `http://127.0.0.1:${port}/saved.docx`,
+            })
+            .then((response) => response);
+        const callbackPromise =
+          commandPayloads.length === 1 ? firstCallbackReleased.then(callback) : callback();
+        callbackPromises.push(callbackPromise);
+        if (commandPayloads.length === 1) resolveCommand();
+        else resolveSecondCommand();
+      });
+    });
+    await new Promise((resolve, reject) => {
+      commandServer.once('error', reject);
+      commandServer.listen(0, '127.0.0.1', resolve);
+    });
+    const { port } = commandServer.address();
+
+    env = await setupTestEnv({
+      tag: 'onlyoffice-route-',
+      modules: [
+        'src/routes/onlyoffice',
+        'src/services/accessManager',
+        'src/services/folderSizeHooks',
+        'src/middleware/errorHandler',
+      ],
+      env: {
+        PUBLIC_URL: 'https://files.example.com',
+        ONLYOFFICE_URL: `http://127.0.0.1:${port}`,
+        ONLYOFFICE_SECRET: 'onlyoffice-test-secret',
+        ONLYOFFICE_FORCE_SAVE: 'true',
+        ONLYOFFICE_FORCE_SAVE_TIMEOUT_MS: '20',
+        ONLYOFFICE_AUTO_SAVE_INTERVAL_MS: '30000',
+      },
+    });
+
+    const filename = 'report.docx';
+    await fs.writeFile(path.join(env.volumeDir, filename), Buffer.from('original'));
+
+    const routes = env.requireFresh('src/routes/onlyoffice');
+    const { errorHandler } = env.requireFresh('src/middleware/errorHandler');
+    app = createTestApp({
+      router: routes,
+      mountPath: '/api',
+      user: { id: 'admin-user', roles: ['admin'] },
+      errorHandler,
+    });
+
+    const configResponse = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: filename });
+
+    expect(configResponse.status).toBe(200);
+    expect(configResponse.body.config.editorConfig.customization.forcesave).toBe(true);
+    expect(configResponse.body.forceSaveSessionId).toEqual(expect.any(String));
+    expect(configResponse.body.autoSaveIntervalMs).toBe(30000);
+    callbackPath = `${new URL(configResponse.body.config.editorConfig.callbackUrl).pathname}${
+      new URL(configResponse.body.config.editorConfig.callbackUrl).search
+    }`;
+    callbackToken = configResponse.body.config.token;
+
+    const initialActivityVersion = await request(app).get('/api/onlyoffice/activity-version');
+    expect(initialActivityVersion.status).toBe(200);
+    expect(initialActivityVersion.body.version).toEqual(expect.any(Number));
+
+    // Asking for a configuration says nothing about whether the document will
+    // open, so it must not announce presence — a file the editor then refuses
+    // would otherwise be shown to everyone as being edited until it expired.
+    // The key still has to be stable, so reopening an untouched document reuses
+    // the Document Server's cache.
+    const secondConfigResponse = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: filename });
+    expect(secondConfigResponse.status).toBe(200);
+    expect(secondConfigResponse.body.config.document.key).toBe(
+      configResponse.body.config.document.key
+    );
+    const afterSecondConfig = await request(app).get('/api/onlyoffice/activity-version');
+    expect(afterSecondConfig.body.version).toBe(initialActivityVersion.body.version);
+
+    // The heartbeat declares the document open. The client starts it when
+    // ONLYOFFICE reports the document ready, which is the only point at which
+    // the document is known to have opened.
+    const liveActivityUpdate = request(app)
+      .get(`/api/onlyoffice/activity-version?since=${initialActivityVersion.body.version}`)
+      .then((response) => response);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const heartbeatResponse = await request(app).post('/api/onlyoffice/session-heartbeat').send({
+      path: filename,
+      sessionId: configResponse.body.forceSaveSessionId,
+    });
+    expect(heartbeatResponse.status).toBe(200);
+    expect(heartbeatResponse.body).toEqual({ active: true });
+
+    const activityUpdate = await liveActivityUpdate;
+    expect(activityUpdate.status).toBe(200);
+    expect(activityUpdate.body).toMatchObject({ changed: true });
+    expect(activityUpdate.body.version).toBeGreaterThan(initialActivityVersion.body.version);
+
+    const forceSaveResponse = await request(app)
+      .post('/api/onlyoffice/force-save')
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId, reason: 'auto' });
+
+    expect(forceSaveResponse.status).toBe(202);
+    expect(forceSaveResponse.body).toMatchObject({ queued: true, requestId: expect.any(String) });
+    await commandReceived;
+    expect(commandPayload).toMatchObject({ c: 'forcesave' });
+    expect(new URL(commandRequestUrl, `http://127.0.0.1:${port}`).pathname).toBe('/command');
+    expect(
+      new URL(commandRequestUrl, `http://127.0.0.1:${port}`).searchParams.get('shardkey')
+    ).toBe(commandPayload.key);
+    expect(commandPayload.userdata).toMatch(/^nextexplorer-force-save:/);
+    expect(jwt.verify(commandPayload.token, 'onlyoffice-test-secret')).toMatchObject({
+      c: 'forcesave',
+      key: commandPayload.key,
+      userdata: commandPayload.userdata,
+    });
+
+    const closeForceSaveResponse = await request(app)
+      .post('/api/onlyoffice/force-save')
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
+    expect(closeForceSaveResponse.status).toBe(202);
+    expect(closeForceSaveResponse.body).toMatchObject({
+      queued: true,
+      requestId: forceSaveResponse.body.requestId,
+      coalesced: true,
+      followUp: true,
+    });
+
+    releaseFirstCallback();
+    expect((await callbackPromises[0]).body).toEqual({ error: 0 });
+    expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
+    await secondCommandReceived;
+    expect(commandPayloads[1].key).toBe(configResponse.body.config.document.key);
+    expect((await callbackPromises[1]).body).toEqual({ error: 0 });
+
+    // Reopening while the document is still open reuses the key, even though
+    // the save just changed the file: a different key would put this viewer in
+    // a second editing session on the same document, invisible to the first,
+    // and whichever saved last would silently overwrite the other.
+    const reopenedConfigResponse = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: filename });
+    expect(reopenedConfigResponse.status).toBe(200);
+    expect(reopenedConfigResponse.body.config.document.key).toBe(
+      configResponse.body.config.document.key
+    );
+
+    const failedCallback = await request(app)
+      .post(callbackPath)
+      .set('Authorization', `Bearer ${callbackToken}`)
+      .send({
+        status: 6,
+        key: commandPayload.key,
+        url: `http://127.0.0.1:${port}/broken.docx`,
+      });
+    expect(failedCallback.body).toEqual({ error: 1 });
+    expect(await fs.readFile(path.join(env.volumeDir, filename), 'utf8')).toBe('updated');
+
+    const closeResponse = await request(app).post('/api/onlyoffice/session-end').send({
+      path: filename,
+      sessionId: configResponse.body.forceSaveSessionId,
+    });
+    expect(closeResponse.status).toBe(200);
+    expect(closeResponse.body.ended).toBe(true);
+
+    // Closing NextExplorer's embedded frame is not the same thing as
+    // Document Server releasing the document. Keep the activity visible until
+    // its terminal callback confirms the release.
+    const versionBeforeDocumentRelease = await request(app).get('/api/onlyoffice/activity-version');
+    const activityAfterRelease = request(app)
+      .get(`/api/onlyoffice/activity-version?since=${versionBeforeDocumentRelease.body.version}`)
+      .then((response) => response);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const documentReleased = await request(app)
+      .post(callbackPath)
+      .set('Authorization', `Bearer ${callbackToken}`)
+      .send({ status: 4 });
+    expect(documentReleased.body).toEqual({ error: 0 });
+
+    const releasedActivity = await activityAfterRelease;
+    expect(releasedActivity.status).toBe(200);
+    expect(releasedActivity.body).toMatchObject({ changed: true });
+    expect(releasedActivity.body.version).toBeGreaterThan(
+      versionBeforeDocumentRelease.body.version
+    );
+
+    const expiredHeartbeatResponse = await request(app)
+      .post('/api/onlyoffice/session-heartbeat')
+      .send({ path: filename, sessionId: configResponse.body.forceSaveSessionId });
+    expect(expiredHeartbeatResponse.status).toBe(403);
+  });
+});

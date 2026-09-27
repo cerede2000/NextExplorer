@@ -371,7 +371,7 @@ describe('the session', () => {
     expect(beat.status).toBe(403);
   });
 
-  it('ends, and the document stops being reported as open', async () => {
+  it('ends, and the document stays reported as open until it is released', async () => {
     const opened = await openDocument();
     await heartbeat(DOCUMENT, opened.body.editorSessionId);
 
@@ -380,8 +380,12 @@ describe('the session', () => {
       .send({ path: DOCUMENT, sessionId: opened.body.editorSessionId });
 
     expect(ended.status).toBe(200);
+    // Closing the frame is not the document server letting go. It may still be
+    // force-saving what was typed — the end above asks it to — so the document
+    // is reported as open until the terminal callback says it has been
+    // released. What the end does settle is the session: it is over.
     const activity = load('src/services/onlyofficeActivityService');
-    expect(activity.get(volume('Projects', 'report.docx'))?.active).toBeFalsy();
+    expect(activity.get(volume('Projects', 'report.docx'))?.active).toBe(true);
     // And it is gone: a second end is no longer a session anybody holds.
     expect(
       (

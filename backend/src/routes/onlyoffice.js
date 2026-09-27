@@ -831,9 +831,9 @@ router.post(
       documentServerUrl: onlyoffice.serverUrl,
       config,
       forceSaveSessionId,
-      // The name this answer has always carried. `forceSaveSessionId` says what
-      // it is for; `editorSessionId` says what it is, and anything already
-      // reading it — a client, a script, a test — keeps working.
+      // The same value under the name the answer has also always carried.
+      // `forceSaveSessionId` says what it is for; `editorSessionId` says what it
+      // is, and anything already reading that one keeps working.
       editorSessionId: forceSaveSessionId,
       autoSaveIntervalMs: canEdit ? onlyoffice.autoSaveIntervalMs : 0,
     });
@@ -1161,7 +1161,7 @@ router.post(
       throw new ValidationError('A valid ONLYOFFICE editing session is required.');
     }
     const context = { user: req.user, guestSession: req.guestSession };
-    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+    const { accessInfo } = await resolvePathWithAccess(context, relativePath);
     if (!accessInfo?.canAccess || !accessInfo.canRead) throw new ForbiddenError('Access denied.');
     const session = await getEditorSession(req, sessionId, relativePath);
 
@@ -1185,10 +1185,6 @@ router.post(
         });
     }
 
-    // The presence goes with the session. Without this the document stayed
-    // marked as open by somebody who had closed it, in every listing, until
-    // the entry aged out.
-    onlyofficeActivity.close({ absolutePath: resolved.absolutePath, sessionId });
     await editorSessions.remove(sessionId);
     res.json({ ended: true, flushed: Boolean(requestId), requestId });
   })
