@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "请输入验证码。",
     "identifierRequired": "需要邮箱地址或用户名",
-    "unlockUser": "无法解锁账户"
+    "unlockUser": "无法解锁账户",
+    "oidcNotConfigured": "此服务器未配置单点登录。",
+    "oidcProviderUnavailable": "无法启动单点登录。配置项都在，具体原因见服务器日志。",
+    "totpCodeWrong": "验证码不正确。"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "未找到用户",
     "CONFLICT_USER_EXISTS": "用户已存在",
     "CONFLICT_PASSWORD_EXISTS": "您已有密码身份验证",
-    "CONFLICT_SETUP_COMPLETE": "应用程序已配置"
+    "CONFLICT_SETUP_COMPLETE": "应用程序已配置",
+    "FORBIDDEN": "访问被拒绝",
+    "NOT_FOUND": "未找到",
+    "CONFLICT": "冲突",
+    "RATE_LIMIT_EXCEEDED": "请求过多",
+    "AUTH_INVALID_TOTP_CODE": "验证码不正确。"
   },
   "titles": {
     "volumes": "卷",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "无法保存 {name}",
     "editingBody": "{names} 已在 OnlyOffice 中打开。{action}操作将继续。 | {names} 已在 OnlyOffice 中打开。{action}操作将继续。",
     "editingHeading": "文件正在编辑中",
-    "pickFailed": "无法使用所选文件"
+    "pickFailed": "无法使用所选文件",
+    "actionCopy": "复制",
+    "actionDelete": "删除",
+    "actionMove": "移动",
+    "actionRename": "重命名",
+    "pickCompare": "与文档比较",
+    "pickDocument": "选择文档",
+    "pickImage": "插入图片",
+    "pickSpreadsheet": "选择电子表格"
   },
   "preview": {
     "nothingOpensIt": "这里没有什么能打开 {name}。",

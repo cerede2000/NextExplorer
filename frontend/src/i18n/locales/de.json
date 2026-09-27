@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Geben Sie den Code ein.",
     "identifierRequired": "E-Mail-Adresse oder Benutzername ist erforderlich",
-    "unlockUser": "Das Konto konnte nicht entsperrt werden"
+    "unlockUser": "Das Konto konnte nicht entsperrt werden",
+    "oidcNotConfigured": "Single Sign-On ist auf diesem Server nicht konfiguriert.",
+    "oidcProviderUnavailable": "Single Sign-On konnte nicht gestartet werden. Die Einstellungen sind vorhanden; das Serverprotokoll nennt den Grund.",
+    "totpCodeWrong": "Dieser Code stimmt nicht."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentifizierung erforderlich",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Benutzer nicht gefunden",
     "CONFLICT_USER_EXISTS": "Benutzer existiert bereits",
     "CONFLICT_PASSWORD_EXISTS": "Sie haben bereits eine Passwort-Authentifizierung",
-    "CONFLICT_SETUP_COMPLETE": "Anwendung bereits konfiguriert"
+    "CONFLICT_SETUP_COMPLETE": "Anwendung bereits konfiguriert",
+    "FORBIDDEN": "Zugriff verweigert",
+    "NOT_FOUND": "Nicht gefunden",
+    "CONFLICT": "Konflikt",
+    "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen",
+    "AUTH_INVALID_TOTP_CODE": "Dieser Code stimmt nicht."
   },
   "titles": {
     "volumes": "Volumes",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "{name} konnte nicht gespeichert werden",
     "editingBody": "{names} ist in OnlyOffice geöffnet. {action} wird fortgesetzt. | {names} sind in OnlyOffice geöffnet. {action} wird fortgesetzt.",
     "editingHeading": "Datei wird bearbeitet",
-    "pickFailed": "Die ausgewählte Datei konnte nicht verwendet werden"
+    "pickFailed": "Die ausgewählte Datei konnte nicht verwendet werden",
+    "actionCopy": "Das Kopieren",
+    "actionDelete": "Das Löschen",
+    "actionMove": "Das Verschieben",
+    "actionRename": "Das Umbenennen",
+    "pickCompare": "Mit einem Dokument vergleichen",
+    "pickDocument": "Dokument auswählen",
+    "pickImage": "Bild einfügen",
+    "pickSpreadsheet": "Tabelle auswählen"
   },
   "preview": {
     "nothingOpensIt": "Hier kann nichts {name} öffnen.",

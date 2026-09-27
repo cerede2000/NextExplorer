@@ -185,7 +185,10 @@
     "removeVolume": "볼륨 제거 실패",
     "totpCodeRequired": "코드를 입력하세요.",
     "identifierRequired": "이메일 주소 또는 사용자 이름이 필요합니다",
-    "unlockUser": "계정 잠금을 해제할 수 없습니다"
+    "unlockUser": "계정 잠금을 해제할 수 없습니다",
+    "oidcNotConfigured": "이 서버에는 SSO(Single Sign-On)가 구성되어 있지 않습니다.",
+    "oidcProviderUnavailable": "SSO(Single Sign-On)를 시작할 수 없습니다. 설정은 갖춰져 있으며, 서버 로그에 원인이 기록되어 있습니다.",
+    "totpCodeWrong": "코드가 올바르지 않습니다."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "인증이 필요합니다",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "유저를 찾을 수 없습니다",
     "CONFLICT_USER_EXISTS": "유저가 이미 존재합니다",
     "CONFLICT_PASSWORD_EXISTS": "이미 비밀번호 인증이 존재합니다",
-    "CONFLICT_SETUP_COMPLETE": "애플리케이션이 이미 설정되었습니다"
+    "CONFLICT_SETUP_COMPLETE": "애플리케이션이 이미 설정되었습니다",
+    "FORBIDDEN": "접근이 거부되었습니다",
+    "NOT_FOUND": "찾을 수 없음",
+    "CONFLICT": "충돌",
+    "RATE_LIMIT_EXCEEDED": "요청이 너무 많습니다",
+    "AUTH_INVALID_TOTP_CODE": "코드가 올바르지 않습니다."
   },
   "titles": {
     "volumes": "볼륨",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "{name}을(를) 저장하지 못했습니다",
     "editingBody": "{names} 파일이(가) OnlyOffice에서 열려 있습니다. {action} 작업을 계속 진행합니다. | {names} 파일이(가) OnlyOffice에서 열려 있습니다. {action} 작업을 계속 진행합니다.",
     "editingHeading": "파일 편집 중",
-    "pickFailed": "선택한 파일을 사용할 수 없습니다"
+    "pickFailed": "선택한 파일을 사용할 수 없습니다",
+    "actionCopy": "복사",
+    "actionDelete": "삭제",
+    "actionMove": "이동",
+    "actionRename": "이름 바꾸기",
+    "pickCompare": "문서와 비교",
+    "pickDocument": "문서 선택",
+    "pickImage": "이미지 삽입",
+    "pickSpreadsheet": "스프레드시트 선택"
   },
   "preview": {
     "nothingOpensIt": "여기에서 {name}을(를) 열 수 있는 것이 없습니다.",

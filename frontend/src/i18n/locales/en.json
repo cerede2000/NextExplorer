@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Enter the code.",
     "identifierRequired": "An email address or username is required",
-    "unlockUser": "Could not unlock the account"
+    "unlockUser": "Could not unlock the account",
+    "oidcNotConfigured": "Single Sign-On is not configured on this server.",
+    "oidcProviderUnavailable": "Single Sign-On could not be started. The settings are there; the server log says what went wrong.",
+    "totpCodeWrong": "That code is not right."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentication required",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "User not found",
     "CONFLICT_USER_EXISTS": "User already exists",
     "CONFLICT_PASSWORD_EXISTS": "You already have password authentication",
-    "CONFLICT_SETUP_COMPLETE": "Application already configured"
+    "CONFLICT_SETUP_COMPLETE": "Application already configured",
+    "FORBIDDEN": "Access denied",
+    "NOT_FOUND": "Not found",
+    "CONFLICT": "Conflict",
+    "RATE_LIMIT_EXCEEDED": "Too many requests",
+    "AUTH_INVALID_TOTP_CODE": "That code is not right."
   },
   "titles": {
     "volumes": "Volumes",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Could not save {name}",
     "editingBody": "{names} is open in OnlyOffice. The {action} will continue. | {names} are open in OnlyOffice. The {action} will continue.",
     "editingHeading": "File is being edited",
-    "pickFailed": "Could not use the selected file"
+    "pickFailed": "Could not use the selected file",
+    "actionCopy": "copy",
+    "actionDelete": "deletion",
+    "actionMove": "move",
+    "actionRename": "rename",
+    "pickCompare": "Compare with a document",
+    "pickDocument": "Choose a document",
+    "pickImage": "Insert an image",
+    "pickSpreadsheet": "Choose a spreadsheet"
   },
   "preview": {
     "nothingOpensIt": "Nothing here can open {name}.",

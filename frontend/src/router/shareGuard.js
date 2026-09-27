@@ -71,7 +71,7 @@ export const signedInMayOpenShare = async (shareToken, viewerId) => {
   // Asked directly rather than through the API layer, which reports every
   // refusal as an error: this one is the expected answer for somebody who has
   // not typed it yet, and the prompt is where it leads.
-  let response = null;
+  let response;
   try {
     response = await fetch(buildUrl(`/api/share/${encodeURIComponent(shareToken)}/access`), {
       credentials: 'include',

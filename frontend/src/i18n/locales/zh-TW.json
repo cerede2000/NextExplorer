@@ -185,7 +185,10 @@
     "removeVolume": "移除儲存卷失敗",
     "totpCodeRequired": "請輸入驗證碼。",
     "identifierRequired": "需要電子郵件地址或使用者名稱",
-    "unlockUser": "無法解鎖帳戶"
+    "unlockUser": "無法解鎖帳戶",
+    "oidcNotConfigured": "此伺服器未設定單一登入。",
+    "oidcProviderUnavailable": "無法啟動單一登入。設定項目都在，詳細原因請見伺服器記錄。",
+    "totpCodeWrong": "驗證碼不正確。"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份驗證",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "找不到使用者",
     "CONFLICT_USER_EXISTS": "使用者已存在",
     "CONFLICT_PASSWORD_EXISTS": "您已有密碼驗證",
-    "CONFLICT_SETUP_COMPLETE": "應用程式已設定"
+    "CONFLICT_SETUP_COMPLETE": "應用程式已設定",
+    "FORBIDDEN": "存取遭拒",
+    "NOT_FOUND": "找不到",
+    "CONFLICT": "衝突",
+    "RATE_LIMIT_EXCEEDED": "要求過多",
+    "AUTH_INVALID_TOTP_CODE": "驗證碼不正確。"
   },
   "titles": {
     "volumes": "儲存卷",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "無法儲存 {name}",
     "editingBody": "{names} 已在 OnlyOffice 中開啟。{action}操作將繼續。 | {names} 已在 OnlyOffice 中開啟。{action}操作將繼續。",
     "editingHeading": "檔案正在編輯中",
-    "pickFailed": "無法使用所選檔案"
+    "pickFailed": "無法使用所選檔案",
+    "actionCopy": "複製",
+    "actionDelete": "刪除",
+    "actionMove": "移動",
+    "actionRename": "重新命名",
+    "pickCompare": "與文件比較",
+    "pickDocument": "選擇文件",
+    "pickImage": "插入圖片",
+    "pickSpreadsheet": "選擇試算表"
   },
   "preview": {
     "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",

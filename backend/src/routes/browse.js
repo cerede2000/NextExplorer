@@ -101,6 +101,9 @@ router.get(
         canUpload: access.canUpload,
         canDelete: access.canDelete,
         canCreateFolder: access.canCreateFolder,
+        // A share may permit folders and refuse files, or the other way
+        // round, so the two are answered apart.
+        canCreateFile: access.canCreateFile,
         canShare: access.canShare,
         canDownload: access.canDownload,
         // Whether the files here show their history, which a share hands out

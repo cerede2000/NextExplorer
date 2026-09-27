@@ -1114,6 +1114,12 @@ const openDb = async () => {
   // /config may be past v12 without the trash tables.
   try {
     db.exec(TRASH_DDL);
+    addColumnIfMissing(db, 'trash_items', 'restore_entry', 'restore_entry TEXT');
+    // `CREATE TABLE IF NOT EXISTS` adds nothing to a table that is already
+    // there, so an installation that made `trash_items` before this column
+    // joined the definition never gets it — and a restore into a chosen folder
+    // writes it. Added here rather than in a numbered migration because the
+    // table itself is ensured on every open, for the same reason.
   } catch (err) {
     logger.warn({ err }, '[DB] Failed to ensure trash tables');
   }

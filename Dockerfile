@@ -1,7 +1,22 @@
+# syntax=docker/dockerfile:1
+
+# Declared before the first stage so it can choose one. Repeated inside the
+# runtime stage, where a value is needed in a RUN — a global ARG is visible to
+# FROM lines and to nothing else.
+ARG FFMPEG_VARIANT=apk
+
+# The ffmpeg both images carry, pinned once. The lean image compiles it (the
+# ffmpeg_build stage); the full one builds Alpine's package at this version
+# whenever Alpine's own is older (the ffmpeg_recipe stage). Each stage that
+# needs them repeats the two names without a value, which is what brings a
+# global ARG into a stage.
+ARG FFMPEG_VERSION=8.1.3
+ARG FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3
+
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:24-alpine AS base
+FROM public.ecr.aws/docker/library/node:24.21-alpine3.24 AS base
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
@@ -38,10 +53,216 @@ COPY frontend/ ./frontend/
 RUN npm run -w frontend build -- --sourcemap false
 
 # ---------------------------------------------------------------------------
-# Stage 3: Final runtime image — no compilers, no build tools
+# Stage 3: Official static 7-Zip
+#
+# Alpine's p7zip build does not include the RAR codec.  Use the official,
+# architecture-specific static binary instead so zip, 7z and RAR extraction
+# have the same capabilities in the full and lean images.
+#
+# Taking the binary out of apk's hands means its security updates are this
+# pin's job, and the archive handlers are the part of the image a visitor
+# reaches most directly: every extension in DEFAULT_ARCHIVE_EXTENSIONS is a
+# parser fed bytes someone uploaded. 26.02 fixed a heap overflow in the XZ
+# decoder (CVE-2026-14266, remote code execution), and `xz`/`txz` are in that
+# list — so this version is not a detail to leave where it was.
 # ---------------------------------------------------------------------------
+FROM alpine:3.24 AS seven_zip
+ARG TARGETARCH
+ARG SEVEN_ZIP_VERSION=26.03
+
+RUN apk add --no-cache curl libarchive-tools \
+  && case "$TARGETARCH" in \
+    amd64) archive_arch=x64; archive_sha256=dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695 ;; \
+    arm64) archive_arch=arm64; archive_sha256=2389ba20e4d8295e8709c20b6263b69bd1ec4972fe38a04ad7a1badbf595b996 ;; \
+    *) echo "Unsupported 7-Zip architecture: $TARGETARCH" >&2; exit 1 ;; \
+  esac \
+  && archive_version=$(printf '%s' "$SEVEN_ZIP_VERSION" | tr -d .) \
+  && curl -fsSL -o /tmp/7z.tar.xz "https://github.com/ip7z/7zip/releases/download/${SEVEN_ZIP_VERSION}/7z${archive_version}-linux-${archive_arch}.tar.xz" \
+  && echo "${archive_sha256}  /tmp/7z.tar.xz" | sha256sum -c - \
+  && mkdir -p /out /tmp/7z \
+  && bsdtar -xJf /tmp/7z.tar.xz -C /tmp/7z \
+  && install -m 0755 "$(find /tmp/7z -type f -name 7zzs -print -quit)" /out/7z
+
+# ---------------------------------------------------------------------------
+# ffmpeg, built here rather than taken from anywhere.
+#
+# Alpine's `ffmpeg` package is a full build: 106 MB of codec libraries behind a
+# 0.6 MB binary, and almost all of that weight is *encoding* — x264, x265, aom,
+# vpx, lame, opus, theora, ass. This application only ever decodes: one frame
+# for a video thumbnail, one still out of a HEIC, and ffprobe for metadata.
+#
+# So the shape of this build is deliberately the opposite of the obvious one.
+# `--disable-everything` would be smaller still and is the wrong tool: it is
+# opt-in, and the way it fails is a format quietly losing its previews with
+# nothing logged anywhere. Instead every native decoder, demuxer and parser is
+# kept — they are small — and only the encoders and muxers are cut back to the
+# two we write. Nothing this application can open stops being openable.
+#
+# `--disable-autodetect` means the build cannot pick up a library by accident,
+# so what is linked is exactly what is listed. libdav1d is the one external
+# decoder worth having: ffmpeg's native AV1 decoder works but is much slower.
+# No `--enable-gpl`, because nothing here needs a GPL component once the
+# encoders are gone — the result is LGPL.
+#
+# The checksum is pinned the way the 7-Zip download above is. ffmpeg.org also
+# publishes a detached signature (ffmpeg-<version>.tar.xz.asc) for anyone who
+# wants to go further than pinning the bytes.
+# ---------------------------------------------------------------------------
+FROM alpine:3.24 AS ffmpeg_build
+ARG FFMPEG_VERSION
+ARG FFMPEG_SHA256
+
+# `ffmpeg` here is a build dependency and never ships: the verification below
+# uses it to synthesise a clip per format, which the binary we build then has
+# to decode.
+# No `-static` variants: this links against Alpine's shared libraries, which
+# keeps the binary small and leaves security updates to apk rather than to a
+# rebuild. `dav1d-static` does not exist in Alpine 3.23 in any case.
+RUN apk add --no-cache \
+      build-base coreutils curl xz pkgconf nasm yasm \
+      zlib-dev bzip2-dev dav1d-dev \
+      ffmpeg
+
+RUN curl -fsSL -o /tmp/ffmpeg.tar.xz \
+      "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
+  && echo "${FFMPEG_SHA256}  /tmp/ffmpeg.tar.xz" | sha256sum -c - \
+  && mkdir -p /tmp/ffmpeg-src \
+  && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg-src --strip-components=1
+
+WORKDIR /tmp/ffmpeg-src
+RUN ./configure \
+      --prefix=/out \
+      --disable-autodetect \
+      --disable-doc \
+      --disable-debug \
+      --disable-network \
+      --disable-ffplay \
+      --enable-zlib \
+      --enable-bzlib \
+      --enable-libdav1d \
+      --disable-encoders \
+      --enable-encoder=mjpeg \
+      --enable-encoder=png \
+      --enable-encoder=webvtt \
+      --disable-muxers \
+      --enable-muxer=image2 \
+      --enable-muxer=image2pipe \
+      --enable-muxer=rawvideo \
+      --enable-muxer=webvtt \
+      --enable-small \
+  && make -j"$(nproc)" \
+  && make install
+
+# Fails the build if any format the explorer offers previews for cannot be
+# decoded. See docker/verify-ffmpeg.sh for what that means and why.
+COPY docker/verify-ffmpeg.sh /usr/local/bin/verify-ffmpeg.sh
+RUN chmod +x /usr/local/bin/verify-ffmpeg.sh \
+  && /usr/local/bin/verify-ffmpeg.sh /out/bin/ffmpeg /out/bin/ffprobe \
+  && strip /out/bin/ffmpeg /out/bin/ffprobe \
+  && ls -la /out/bin
+
+
+# ---------------------------------------------------------------------------
+# ffmpeg for the full image: Alpine's own build, at the version pinned above
+#
+# The full image takes ffmpeg from Alpine for everything that build carries —
+# VA-API, VDPAU, Vulkan, QSV on amd64, and every external decoder — and Alpine
+# can be days or weeks behind a security release. 8.1.3 closed three CVEs in
+# decoders this image hands uploads to (CVE-2026-66038, CVE-2026-70629,
+# CVE-2026-70631) on 21 September 2026, and the 3.24 branch was still on
+# 8.1.2-r0; it took Alpine ten days to take 8.1.2 onto the stable branch.
+#
+# So this builds Alpine's package itself, from its recipe at a pinned aports
+# commit, and changes one thing: the version. Same configure line, same
+# patches, same libraries, split into the same packages — what Alpine would
+# publish, a release earlier. The runtime stage installs whichever is newer,
+# this or Alpine's, so the weekly rebuild goes back to Alpine's package the
+# day it catches up, without anybody having to remember to.
+#
+# The recipe is fetched by commit and its hash checked — from Alpine's mirror
+# on GitHub, because their GitLab answers a build runner with a 418 meant for
+# robots; the commit and the bytes are the same. The patches it lists are
+# checked by abuild against the sums inside it; the tarball is checked
+# against FFMPEG_SHA256 before its sha512 is written into the recipe. `abuild
+# -r` installs the build dependencies and takes them away again, so what is
+# left of this stage is the packages.
+# ---------------------------------------------------------------------------
+FROM alpine:3.24 AS ffmpeg_recipe
+ARG FFMPEG_VERSION
+ARG FFMPEG_SHA256
+ARG APORTS_COMMIT=d2c3ca384892f415fc1b92abd87f78c1d5d0cbba
+ARG APKBUILD_SHA256=76c1c842c47b25fbb8133a86979f642a86545f7e505f46b13d46aa13764a9a1d
+
+RUN set -eu; \
+    apk add --no-cache alpine-sdk curl; \
+    SUDO= abuild-keygen -a -i -n; \
+    mkdir -p /recipe/community/ffmpeg /var/cache/distfiles; \
+    cd /recipe/community/ffmpeg; \
+    aports="https://raw.githubusercontent.com/alpinelinux/aports/${APORTS_COMMIT}/community/ffmpeg"; \
+    for file in APKBUILD add-av_stream_get_first_dts-for-chromium.patch posix-ioctl.patch; do \
+      curl -fsSL -o "$file" "$aports/$file"; \
+    done; \
+    echo "${APKBUILD_SHA256}  APKBUILD" | sha256sum -c -; \
+    tarball="/var/cache/distfiles/ffmpeg-${FFMPEG_VERSION}.tar.xz"; \
+    curl -fsSL -o "$tarball" "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"; \
+    echo "${FFMPEG_SHA256}  $tarball" | sha256sum -c -; \
+    sha512="$(sha512sum "$tarball" | cut -d ' ' -f 1)"; \
+    sed -i \
+      -e "s/^pkgver=.*/pkgver=${FFMPEG_VERSION}/" \
+      -e "s/^pkgrel=.*/pkgrel=0/" \
+      -e "s/^[0-9a-f]\{128\}  ffmpeg-[0-9.]*\.tar\.xz\$/${sha512}  ffmpeg-${FFMPEG_VERSION}.tar.xz/" \
+      APKBUILD; \
+    grep -qx "pkgver=${FFMPEG_VERSION}" APKBUILD; \
+    grep -qx "${sha512}  ffmpeg-${FFMPEG_VERSION}.tar.xz" APKBUILD; \
+    apk update --quiet; \
+    abuild -F -r -P /out; \
+    ls /out/community/*/ffmpeg-"${FFMPEG_VERSION}"-r0.apk; \
+    rm -rf /recipe /var/cache/distfiles/* /var/cache/apk/*
+
+# Every format the explorer previews has to decode with what was just built,
+# as it does for the lean image — installed here and nowhere else, to check.
+COPY docker/verify-ffmpeg.sh /usr/local/bin/verify-ffmpeg.sh
+RUN set -eu; \
+    dir="$(dirname "$(ls /out/community/*/ffmpeg-"${FFMPEG_VERSION}"-r0.apk)")"; \
+    apk add --no-cache --allow-untrusted "$dir/ffmpeg-${FFMPEG_VERSION}-r0.apk" \
+      "$dir"/ffmpeg-libav*-"${FFMPEG_VERSION}"-r0.apk \
+      "$dir"/ffmpeg-libsw*-"${FFMPEG_VERSION}"-r0.apk; \
+    ffmpeg -version | head -n 1 | grep -q "^ffmpeg version ${FFMPEG_VERSION} "; \
+    chmod +x /usr/local/bin/verify-ffmpeg.sh; \
+    /usr/local/bin/verify-ffmpeg.sh "$(command -v ffmpeg)" "$(command -v ffprobe)"
+
+
+# ---------------------------------------------------------------------------
+# Which ffmpeg the runtime gets, decided before anything is built
+#
+# The runtime mounts a stage rather than copying from it, so no bytes of the
+# source build reach a layer it does not use. But a mount is a dependency:
+# naming `ffmpeg_build` directly made BuildKit compile it for every image,
+# including the ones that go on to install Alpine's package and never read it.
+#
+# On amd64 that was a quiet waste. On arm64 under emulation it was the whole
+# build: the release job spent over forty minutes compiling an ffmpeg the full
+# image discards, and was cut off at its hour limit having published nothing.
+#
+# Selecting the stage here means the compile happens only for the variant that
+# asked for it: `source` is the lean image's build, `apk` the packages built
+# from Alpine's recipe — just the packages, so the mount carries nothing of
+# the stage that made them.
+# ---------------------------------------------------------------------------
+FROM scratch AS ffmpeg_apk
+COPY --from=ffmpeg_recipe /out /out
+
+FROM ffmpeg_build AS ffmpeg_source
+
+# An unknown value fails here, by name, rather than silently building neither.
+FROM ffmpeg_${FFMPEG_VARIANT} AS ffmpeg_selected
+
 FROM base AS runtime
 ENV NODE_ENV=production
+# Enlarge the libuv thread pool so directory-listing fs.stat calls are not
+# starved by concurrent thumbnail-generation fs operations (keeps navigation
+# responsive while a large media folder is being processed). Tunable at runtime.
+ENV UV_THREADPOOL_SIZE=16
 
 # Create the baseline app user; UID/GID may be mutated at runtime via entrypoint.sh.
 # Alpine uses busybox addgroup/adduser instead of Debian's groupadd/useradd.
@@ -51,48 +272,106 @@ RUN addgroup -S appuser && \
 # Runtime packages only.
 #
 # Core (always installed):
-#   ffmpeg          – video thumbnail extraction & software transcoding
+#   ffmpeg          – video thumbnails and metadata, and HEIC stills: since 7.1
+#                     its HEIF demuxer reconstructs the tile grid a phone photo
+#                     is made of, which is why ImageMagick is no longer here.
 #   gosu            – UID/GID remapping in entrypoint
 #   ripgrep         – fast file-content search
-#   imagemagick     – HEIC → PNG thumbnail conversion
+#   poppler-utils   – pdftotext, so a search can read the words in a PDF. Only
+#                     ones with a text layer; a scan needs OCR, which is
+#                     seconds per page and does not belong in a request.
 #   openssh-client  – optional SSH remote access (terminal only)
-#   unzip           – demo mode sample extraction (downloadSamples.js)
+#   7zzs            – official static 7-Zip binary, copied below; supports
+#                     encrypted ZIP/7z/RAR archives and the RAR codec
 #   bash            – entrypoint.sh is a bash script
 #   shadow          – provides usermod/groupmod for UID/GID remapping
 #   curl            – For terminal users
+#   rsync           – native, cancellable local copies with byte progress
 #
 # Optional (see INCLUDE_RAW / INCLUDE_VAAPI build args below):
 #   perl            – required by exiftool-vendored for RAW image previews
 #   libva           – core VA-API runtime (includes libva-drm)
-#   mesa-va-gallium – Mesa VA-API GPU drivers (pulls Mesa + LLVM, ~80 MB)
+#   mesa-va-gallium – Mesa VA-API GPU drivers (pulls Mesa + LLVM: 211 MB, measured
+#                     as the marginal cost of libva + mesa-va-gallium over the
+#                     rest of this list, against the Alpine 3.23 package index)
 
 
 # Optional feature stacks — toggled at build time. Defaults keep the FULL image
 # byte-for-byte identical to before.
 #   INCLUDE_RAW=false    drops perl + the exiftool-vendored node module: removes
-#                        RAW-photo previews only (normal EXIF still works via exifr).
-#   INCLUDE_VAAPI=false  drops libva + mesa-va-gallium (Mesa + LLVM, ~80 MB): ffmpeg
+#                        RAW-photo previews only; ordinary EXIF is read from the
+#                        block sharp hands back, which costs nothing extra.
+#   INCLUDE_VAAPI=false  drops libva + mesa-va-gallium (Mesa + LLVM, 211 MB): ffmpeg
 #                        still decodes video in software. VA-API is opt-in anyway,
 #                        used only when FFMPEG_HWACCEL is set with a GPU passed in.
+#                        This is by far the largest thing in the image, and it is
+#                        inert on any host that does not pass a GPU to the
+#                        container: the -lean variant exists mainly to drop it.
+#   FFMPEG_VARIANT=source  builds ffmpeg from source with the encoders stripped
+#                        out (see the ffmpeg_build stage). Every decoder,
+#                        demuxer and parser is kept, so nothing stops being
+#                        previewable. Requires INCLUDE_VAAPI=false: that build
+#                        has no VA-API, and enabling it would pull back most of
+#                        what this removes.
 ARG INCLUDE_RAW=true
 ARG INCLUDE_VAAPI=true
+ARG FFMPEG_VARIANT=apk
 
 RUN apk add --no-cache \
-      ffmpeg \
       gosu \
       ripgrep \
-      rsync \
-      p7zip \
       poppler-utils \
-      imagemagick \
       openssh-client \
-      unzip \
       bash \
       shadow \
       curl \
+      rsync \
   && if [ "$INCLUDE_RAW" = "true" ]; then apk add --no-cache perl; fi \
   && if [ "$INCLUDE_VAAPI" = "true" ]; then apk add --no-cache libva mesa-va-gallium; fi \
   && rm -rf /tmp/* /var/cache/apk/*
+
+# ffmpeg, from one source or the other. The build stage is mounted rather than
+# copied, so none of its bytes reach a layer they are not installed into.
+#
+# The runtime libraries have to come with it: both builds link against the
+# Alpine ones rather than being static, which keeps them small and keeps the
+# security updates of those libraries coming from apk rather than from a
+# rebuild.
+#
+# For `apk`, the newer of two wins: Alpine's own package, or the one built
+# from its recipe at FFMPEG_VERSION. Alpine's wins as soon as it is at least as
+# new, which is what lets the weekly rebuild — this stage is never taken from
+# the cache there — move on without an edit. A version apk cannot read fails
+# the build rather than choosing by accident.
+RUN --mount=from=ffmpeg_selected,target=/ffmpeg-built \
+    set -eu; \
+    if [ "$FFMPEG_VARIANT" = "source" ]; then \
+      if [ "$INCLUDE_VAAPI" = "true" ]; then \
+        echo "FFMPEG_VARIANT=source has no VA-API; build with INCLUDE_VAAPI=false" >&2; \
+        exit 1; \
+      fi; \
+      apk add --no-cache dav1d libbz2; \
+      install -m 0755 /ffmpeg-built/out/bin/ffmpeg /ffmpeg-built/out/bin/ffprobe /usr/local/bin/; \
+    else \
+      built="$(ls /ffmpeg-built/out/community/*/ffmpeg-[0-9]*.apk)"; \
+      dir="$(dirname "$built")"; \
+      ours="$(basename "$built" .apk)"; \
+      ours="${ours#ffmpeg-}"; \
+      apk update --quiet; \
+      theirs="$(apk search -x ffmpeg | sed -n 's/^ffmpeg-//p')"; \
+      apk version -c "$ours" "$theirs"; \
+      if [ "$(apk version -t "$theirs" "$ours")" = "<" ]; then \
+        apk add --no-cache --allow-untrusted "$built" \
+          "$dir"/ffmpeg-libav*-"$ours".apk "$dir"/ffmpeg-libsw*-"$ours".apk; \
+        echo "ffmpeg $ours, built from Alpine's recipe; Alpine has $theirs"; \
+      else \
+        apk add --no-cache ffmpeg; \
+        echo "ffmpeg $theirs, Alpine's own; the recipe build is $ours"; \
+      fi; \
+    fi; \
+    rm -rf /var/cache/apk/*; \
+    ffmpeg -version >/dev/null; \
+    ffprobe -version >/dev/null
 
 WORKDIR /app
 
@@ -106,15 +385,39 @@ ENV REPO_URL=${REPO_URL}
 
 # Bring in backend production node_modules (pre-compiled for Alpine musl).
 # Build tools from backend_deps stage are NOT included — only the output.
-COPY --from=backend_deps /app/node_modules ./node_modules
-COPY --from=backend_deps /app/package.json ./
-
-# When RAW support is disabled, drop the vendored ExifTool (~20 MB) from the
-# runtime node_modules. rawPreviewService.js already degrades gracefully when the
-# module is absent (the require is wrapped in try/catch).
-RUN if [ "$INCLUDE_RAW" != "true" ]; then \
+#
+# Mounted and copied in one step rather than COPY'd, so that a build without RAW
+# support can drop the vendored ExifTool before the layer is committed. Deleting
+# it afterwards, which is what this did, removes it from the filesystem and from
+# nothing else: the bytes stay in the earlier layer, get pulled on every pull,
+# and are still counted in the image size. That was 23 MB of Perl in the lean
+# image, with no interpreter present to run it.
+#
+# The same step drops any `coverage/` a dependency published by accident — 11 MB
+# of it, almost entirely fluent-ffmpeg, whose npm tarball carries its own V8
+# coverage dumps beside a lib/ of 110 KB. Nothing requires its own coverage
+# output at runtime, so the rule is safe to apply across the tree.
+RUN --mount=from=backend_deps,source=/app,target=/deps \
+    set -eu; \
+    cp -a /deps/node_modules ./node_modules; \
+    cp /deps/package.json ./; \
+    if [ "$INCLUDE_RAW" != "true" ]; then \
       rm -rf node_modules/exiftool-vendored node_modules/exiftool-vendored.pl; \
-    fi
+    fi; \
+    find node_modules -type d \( -name coverage -o -name .nyc_output \) \
+      -prune -exec rm -rf {} +; \
+    rm -rf node_modules/@types node_modules/@redis node_modules/ioredis node_modules/@babel
+COPY --from=seven_zip /out/7z /usr/local/bin/7z
+COPY docker/verify-7zip-password.js ./verify-7zip-password.js
+# Verify both the RAR codec and the non-interactive password flow through the
+# same PTY mechanism used by the backend. The sentinel password is build-only.
+RUN 7z i | grep -qi 'rar' \
+  && mkdir -p /tmp/7z-password-check/input /tmp/7z-password-check/output \
+  && printf 'ok' > /tmp/7z-password-check/input/check.txt \
+  && (cd /tmp/7z-password-check/input && 7z a -t7z -y -pbuild-check ../archive.7z check.txt >/dev/null) \
+  && node ./verify-7zip-password.js /tmp/7z-password-check/archive.7z /tmp/7z-password-check/output build-check \
+  && test "$(cat /tmp/7z-password-check/output/check.txt)" = 'ok' \
+  && rm -rf /tmp/7z-password-check ./verify-7zip-password.js
 
 # Copy backend source and healthcheck.
 COPY backend/src ./src

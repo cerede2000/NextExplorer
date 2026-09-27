@@ -185,7 +185,10 @@
     "removeVolume": "Nu s-a putut elimina volumul",
     "totpCodeRequired": "Introduceți codul.",
     "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator",
-    "unlockUser": "Contul nu a putut fi deblocat"
+    "unlockUser": "Contul nu a putut fi deblocat",
+    "oidcNotConfigured": "Single Sign-On nu este configurat pe acest server.",
+    "oidcProviderUnavailable": "Autentificarea Single Sign-On nu a putut fi pornită. Setările există; jurnalul serverului arată ce nu a funcționat.",
+    "totpCodeWrong": "Acest cod nu este corect."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentificare necesară",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Utilizator negăsit",
     "CONFLICT_USER_EXISTS": "Utilizatorul există deja",
     "CONFLICT_PASSWORD_EXISTS": "Aveți deja autentificare prin parolă",
-    "CONFLICT_SETUP_COMPLETE": "Aplicația este deja configurată"
+    "CONFLICT_SETUP_COMPLETE": "Aplicația este deja configurată",
+    "FORBIDDEN": "Acces refuzat",
+    "NOT_FOUND": "Negăsit",
+    "CONFLICT": "Conflict",
+    "RATE_LIMIT_EXCEEDED": "Prea multe cereri",
+    "AUTH_INVALID_TOTP_CODE": "Acest cod nu este corect."
   },
   "titles": {
     "volumes": "Volume",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "{name} nu a putut fi salvat",
     "editingBody": "{names} este deschis în OnlyOffice. {action} va continua. | {names} sunt deschise în OnlyOffice. {action} va continua.",
     "editingHeading": "Fișierul este în curs de editare",
-    "pickFailed": "Fișierul selectat nu a putut fi folosit"
+    "pickFailed": "Fișierul selectat nu a putut fi folosit",
+    "actionCopy": "Copierea",
+    "actionDelete": "Ștergerea",
+    "actionMove": "Mutarea",
+    "actionRename": "Redenumirea",
+    "pickCompare": "Compară cu un document",
+    "pickDocument": "Alege un document",
+    "pickImage": "Inserează o imagine",
+    "pickSpreadsheet": "Alege o foaie de calcul"
   },
   "preview": {
     "nothingOpensIt": "Nimic de aici nu poate deschide {name}.",

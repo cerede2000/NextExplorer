@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Wpisz kod.",
     "identifierRequired": "Wymagany jest adres e-mail lub nazwa użytkownika",
-    "unlockUser": "Nie udało się odblokować konta"
+    "unlockUser": "Nie udało się odblokować konta",
+    "oidcNotConfigured": "Logowanie jednokrotne nie jest skonfigurowane na tym serwerze.",
+    "oidcProviderUnavailable": "Nie udało się rozpocząć logowania jednokrotnego. Ustawienia są na miejscu; dziennik serwera wyjaśnia, co zawiodło.",
+    "totpCodeWrong": "Ten kod jest nieprawidłowy."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Wymagana autentykacja",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Nie znaleziono użytkownika",
     "CONFLICT_USER_EXISTS": "Użytkownik już istnieje",
     "CONFLICT_PASSWORD_EXISTS": "Masz już uwierzytelnianie hasłem",
-    "CONFLICT_SETUP_COMPLETE": "Aplikacja jest już skonfigurowana"
+    "CONFLICT_SETUP_COMPLETE": "Aplikacja jest już skonfigurowana",
+    "FORBIDDEN": "Odmowa dostępu",
+    "NOT_FOUND": "Nie znaleziono",
+    "CONFLICT": "Konflikt",
+    "RATE_LIMIT_EXCEEDED": "Zbyt wiele żądań",
+    "AUTH_INVALID_TOTP_CODE": "Ten kod jest nieprawidłowy."
   },
   "titles": {
     "volumes": "Woluminy",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Nie można zapisać {name}",
     "editingBody": "{names} jest otwarty w OnlyOffice. {action} będzie kontynuowane. | {names} są otwarte w OnlyOffice. {action} będzie kontynuowane. | {names} jest otwartych w OnlyOffice. {action} będzie kontynuowane.",
     "editingHeading": "Plik jest edytowany",
-    "pickFailed": "Nie udało się użyć wybranego pliku"
+    "pickFailed": "Nie udało się użyć wybranego pliku",
+    "actionCopy": "Kopiowanie",
+    "actionDelete": "Usuwanie",
+    "actionMove": "Przenoszenie",
+    "actionRename": "Zmienianie nazwy",
+    "pickCompare": "Porównaj z dokumentem",
+    "pickDocument": "Wybierz dokument",
+    "pickImage": "Wstaw obraz",
+    "pickSpreadsheet": "Wybierz arkusz"
   },
   "preview": {
     "nothingOpensIt": "Nic tutaj nie otworzy {name}.",

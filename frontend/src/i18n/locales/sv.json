@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Ange koden.",
     "identifierRequired": "En e-postadress eller ett användarnamn krävs",
-    "unlockUser": "Kontot kunde inte låsas upp"
+    "unlockUser": "Kontot kunde inte låsas upp",
+    "oidcNotConfigured": "Enkel inloggning är inte konfigurerad på den här servern.",
+    "oidcProviderUnavailable": "Enkel inloggning kunde inte startas. Inställningarna finns; serverloggen berättar vad som gick fel.",
+    "totpCodeWrong": "Den koden stämmer inte."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Användare hittades inte",
     "CONFLICT_USER_EXISTS": "Användaren finns redan",
     "CONFLICT_PASSWORD_EXISTS": "Du har redan lösenordsautentisering",
-    "CONFLICT_SETUP_COMPLETE": "Applikationen är redan konfigurerad"
+    "CONFLICT_SETUP_COMPLETE": "Applikationen är redan konfigurerad",
+    "FORBIDDEN": "Åtkomst nekad",
+    "NOT_FOUND": "Hittades inte",
+    "CONFLICT": "Konflikt",
+    "RATE_LIMIT_EXCEEDED": "För många förfrågningar",
+    "AUTH_INVALID_TOTP_CODE": "Den koden stämmer inte."
   },
   "titles": {
     "volumes": "Volymer",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Det gick inte att spara {name}",
     "editingBody": "{names} är öppen i OnlyOffice. {action} fortsätter. | {names} är öppna i OnlyOffice. {action} fortsätter.",
     "editingHeading": "Filen redigeras",
-    "pickFailed": "Det gick inte att använda den valda filen"
+    "pickFailed": "Det gick inte att använda den valda filen",
+    "actionCopy": "Kopieringen",
+    "actionDelete": "Raderingen",
+    "actionMove": "Flytten",
+    "actionRename": "Namnbytet",
+    "pickCompare": "Jämför med ett dokument",
+    "pickDocument": "Välj ett dokument",
+    "pickImage": "Infoga en bild",
+    "pickSpreadsheet": "Välj ett kalkylblad"
   },
   "preview": {
     "nothingOpensIt": "Inget här kan öppna {name}.",

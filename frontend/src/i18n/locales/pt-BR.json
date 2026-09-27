@@ -185,7 +185,10 @@
     "removeVolume": "Falha ao remover volume",
     "totpCodeRequired": "Digite o código.",
     "identifierRequired": "É necessário um e-mail ou nome de usuário",
-    "unlockUser": "Não foi possível desbloquear a conta"
+    "unlockUser": "Não foi possível desbloquear a conta",
+    "oidcNotConfigured": "O Single Sign-On não está configurado neste servidor.",
+    "oidcProviderUnavailable": "Não foi possível iniciar o Single Sign-On. As configurações estão presentes; o log do servidor diz o que falhou.",
+    "totpCodeWrong": "Esse código não está certo."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticação necessária",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Usuário não encontrado",
     "CONFLICT_USER_EXISTS": "O usuário já existe",
     "CONFLICT_PASSWORD_EXISTS": "Você já tem autenticação por senha",
-    "CONFLICT_SETUP_COMPLETE": "O aplicativo já está configurado"
+    "CONFLICT_SETUP_COMPLETE": "O aplicativo já está configurado",
+    "FORBIDDEN": "Acesso negado",
+    "NOT_FOUND": "Não encontrado",
+    "CONFLICT": "Conflito",
+    "RATE_LIMIT_EXCEEDED": "Solicitações demais",
+    "AUTH_INVALID_TOTP_CODE": "Esse código não está certo."
   },
   "titles": {
     "volumes": "Volumes",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Não foi possível salvar {name}",
     "editingBody": "{names} está aberto no OnlyOffice. A {action} vai continuar. | {names} estão abertos no OnlyOffice. A {action} vai continuar.",
     "editingHeading": "O arquivo está sendo editado",
-    "pickFailed": "Não foi possível usar o arquivo selecionado"
+    "pickFailed": "Não foi possível usar o arquivo selecionado",
+    "actionCopy": "cópia",
+    "actionDelete": "exclusão",
+    "actionMove": "movimentação",
+    "actionRename": "renomeação",
+    "pickCompare": "Comparar com um documento",
+    "pickDocument": "Escolher um documento",
+    "pickImage": "Inserir uma imagem",
+    "pickSpreadsheet": "Escolher uma planilha"
   },
   "preview": {
     "nothingOpensIt": "Nada aqui consegue abrir {name}.",
