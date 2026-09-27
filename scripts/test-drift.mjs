@@ -31,6 +31,12 @@ import { fileURLToPath } from 'node:url';
  * makes it answered. What is left is a count rather than a list, and it goes to
  * zero — which is the only state worth keeping, because a list nobody has read to
  * the end is indistinguishable from a list with nothing in it.
+ *
+ * Swapping the two refs asks the other question — what this tree has and the other
+ * does not — and that one is a diagnostic rather than a gate: `parity.mjs` already
+ * governs it, file by file, with a verdict and a reason for each. Running it that
+ * way is still worth doing, because it is what showed `^backend/tests/` calling
+ * every test DONE, six of which test this fork's own scripts and have nowhere to go.
  */
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 });

@@ -122,6 +122,12 @@
     },
     {
       "axis": "*",
+      "match": "^backend/tests/scripts/(commit-test-guard|install-script|minimal-archive|node-version-pinned|prune-dockerhub|version-documentation)\\.test\\.js$",
+      "verdict": "OURS",
+      "note": "the tests of this fork's own tooling: the packaging scripts, the release script, the Docker Hub pruner, the commit guard and the node-major notice, every one of which is OURS above. `^backend/tests/` below calls every test DONE, which is right for the tests of what the batches carry and wrong for these six — they have nowhere to go. `delete-guard-lint.test.js` is deliberately not among them: the rule it guards is in the shared lint configuration, and it travelled with it."
+    },
+    {
+      "axis": "*",
       "match": "^backend/tests/",
       "verdict": "DONE",
       "batch": "P3-40",
