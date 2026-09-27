@@ -24,6 +24,34 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": ".",
+      "verdict": "DONE",
+      "batch": "P3-43",
+      "note": "nxzai#467 \u2014 the strings the screens ask for"
+    },
+    {
+      "axis": "doc-drift",
+      "match": ".",
+      "verdict": "DONE",
+      "batch": "P3-43",
+      "note": "nxzai#467 \u2014 the documentation the batches left behind"
+    },
+    {
+      "axis": "deps",
+      "match": ".",
+      "verdict": "DONE",
+      "batch": "P3-43",
+      "note": "nxzai#467 \u2014 the versions this fork runs"
+    },
+    {
+      "axis": "*",
+      "match": "^(eslint\\.config\\.mjs|backend/src/routes/archive\\.js|backend/src/services/archiveCacheService\\.js|backend/src/utils/placeWithoutOverwrite\\.js|frontend/src/plugins/archive/ArchiveEntryReader\\.vue|frontend/src/router/shareGuard\\.js|frontend/src/App\\.spec\\.js)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-43",
+      "note": "nxzai#467 \u2014 one lint configuration, and the frontend tests that nothing ran"
+    },
+    {
       "axis": "*",
       "match": "^backend/src/services/indexDb\\.js(:|$)",
       "verdict": "DONE",
