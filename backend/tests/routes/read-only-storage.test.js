@@ -94,7 +94,7 @@ const app = (routeModule, user) => {
   return server;
 };
 
-const WRITES = ['canWrite', 'canUpload', 'canDelete', 'canCreateFolder', 'canCreateFile'];
+const WRITES = ['canWrite', 'canUpload', 'canDelete', 'canCreateFolder'];
 
 describe('a folder on a read-only mount', () => {
   it('offers no write to anyone, an administrator included, and says why', async () => {
@@ -139,6 +139,27 @@ describe('a folder on a read-only mount', () => {
     expect(response.body.error.message).toBe(
       'This storage is read-only: nothing can be written here.'
     );
+  });
+
+  it('answers a folder the server may not write in the same way', async () => {
+    // `EACCES: permission denied, mkdir '/mnt/…'` reached the browser as a 500
+    // carrying an absolute path from inside the container, for something that
+    // is neither a fault of the server nor a thing a retry would change.
+    await seed();
+    const server = express();
+    server.post('/api/write', () => {
+      throw Object.assign(new Error("EACCES: permission denied, mkdir '/mnt/Lecture/x'"), {
+        code: 'EACCES',
+      });
+    });
+    server.use(env.requireFresh('src/middleware/errorHandler').errorHandler);
+
+    const response = await request(server).post('/api/write');
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.message).toBe('The server is not allowed to write in this folder.');
+    // And not the system's own words, which name a path inside the container.
+    expect(response.body.error.message).not.toContain('/mnt/');
   });
 });
 

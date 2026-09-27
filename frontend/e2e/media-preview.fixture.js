@@ -33,6 +33,9 @@ const previewUrls = {
 };
 
 const item = media[0];
+// A swipe down closes the viewer, and a stub that swallowed the call left the
+// test unable to tell a gesture that closed it from one that did nothing.
+window.previewClosed = false;
 
 createApp(MediaPreview, {
   item,
@@ -40,7 +43,9 @@ createApp(MediaPreview, {
   filePath: `${item.path}/${item.name}`,
   previewUrl: previewUrls[item.name],
   api: {
-    close: () => {},
+    close: () => {
+      window.previewClosed = true;
+    },
     download: () => {},
     getPreviewUrl: (target) => previewUrls[target.name],
     getSiblings: () => media,

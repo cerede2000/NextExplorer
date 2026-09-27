@@ -1,0 +1,43 @@
+{
+  "about": "What scripts/test-drift.mjs may stop reporting, and why. A case the other side has and this tree does not is either coverage to bring home or the same property under other words — and the difference is a judgement nobody can make twice from the output alone. Each entry is that judgement, written once. `file` is a regular expression on the path as the other side spells it; `cases` narrows an entry to particular titles, for a file where only some of them are answered.",
+  "answered": [
+    {
+      "file": "^backend/tests/routes/settings-preferences\\.test\\.js$",
+      "note": "settings-user-preferences.test.js here holds the same property — every writable preference round-trips through the route — and holds it better: it asserts the key is listed in NON_DEFAULT and fails with the remedy, where this one invents `true`, watches the sanitiser refuse it, and reports the key as dropped. A second gate over one property, with the worse message."
+    },
+    {
+      "file": "^backend/tests/config/session-secret\\.test\\.js$",
+      "note": "four cases against eleven here, each of the four a rewording of one of ours: a secret kept across a restart, one the operator set, where a generated one is stored, and an unusable one replaced without logging it. Ours also cover a staging file's permissions and a CONFIG_DIR that is not a directory."
+    },
+    {
+      "file": "^backend/tests/utils/webauthn\\.test\\.js$",
+      "note": "eighteen cases against thirty-five here. Every property of theirs is asserted here under other words — the counter replay, a synchronised key's counter of zero, a changed signature byte, a key made for another domain, base64url — and ours add the curves, the key types, a missing coordinate, extension data and trailing bytes."
+    },
+    {
+      "file": "^backend/tests/routes/health\\.test\\.js$",
+      "note": "`should return ok status` and `should return ready status` are the original wording of what this tree asserts as the payload of /healthz and /readyz, inside cases that also hold the probes to answering without a session, without a store and without a cookie."
+    },
+    {
+      "file": "^backend/tests/routes/archive-visibility\\.test\\.js$",
+      "note": "the same three assertions, each of ours naming the trash zone as well as the personal folders and the hidden paths theirs name."
+    },
+    {
+      "file": "^backend/tests/routes/trash\\.test\\.js$",
+      "note": "`puts items in the chosen folder, and says how far it got` is ours with `and remembers the folder` on the end."
+    },
+    {
+      "file": "^backend/tests/utils/process-failures\\.test\\.js$",
+      "note": "eight cases against twelve here, reworded one for one — including taking the handlers off again, which ours calls `leaves nothing listening` and which asserts more: that nothing is logged afterwards either. Deleting the two `off` calls in processFailures.js turns ours red, which is how this was settled after nearly adding the case twice."
+    },
+    {
+      "file": "^backend/tests/routes/password-change-sessions\\.test\\.js$",
+      "cases": ["^is the new password that signs in afterwards$"],
+      "note": "brought home, and kept under a title that says the other half: `is the new password that signs in afterwards, and not the old one`."
+    },
+    {
+      "file": "^frontend/e2e/media-preview\\.spec\\.js$",
+      "cases": ["^swipes through mixed media and swipes down to close$"],
+      "note": "brought home, in the case named `swipes through mixed media, and a swipe down closes rather than navigating` — which keeps what ours already said about a vertical gesture not turning the page."
+    }
+  ]
+}

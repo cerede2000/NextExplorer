@@ -275,3 +275,33 @@ describe('signing in', { timeout: 30_000 }, () => {
     expect(response.body.error.message).toMatch(/Too many login attempts/);
   });
 });
+
+describe('checking a password', { timeout: 30_000 }, () => {
+  /**
+   * bcrypt is slow on purpose, and its synchronous form stops Node doing
+   * anything else for that time: every sign-in attempt — reachable without an
+   * account — held the whole server for the length of a hash. What pins it is
+   * not the speed of one check but that a timer keeps firing while several run;
+   * with the synchronous form it does not fire once until they are all done.
+   */
+  it('leaves the server free to do other work while several are checked', async () => {
+    const { app, users } = await build();
+    await setUp(app);
+
+    let ticks = 0;
+    const timer = setInterval(() => {
+      ticks += 1;
+    }, 5);
+    try {
+      await Promise.all(
+        Array.from({ length: 4 }, () =>
+          users.attemptLocalLogin({ email: 'owner@example.com', password: 'not-the-password' })
+        )
+      );
+    } finally {
+      clearInterval(timer);
+    }
+
+    expect(ticks).toBeGreaterThan(0);
+  });
+});

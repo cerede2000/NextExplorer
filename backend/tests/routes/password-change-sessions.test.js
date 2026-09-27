@@ -123,6 +123,34 @@ describe('changing your own password', { timeout: 30_000 }, () => {
   });
 
   /**
+   * The sessions are only half of it: the point of changing a password is that
+   * the old one stops working and the new one starts. Nothing here asserted
+   * either, and a change that ended every session while leaving the old password
+   * valid would have read as a pass.
+   */
+  it('is the new password that signs in afterwards, and not the old one', async () => {
+    const { app } = await build();
+    const { browser: here } = await setUpOwner(app);
+
+    expect(
+      (
+        await here
+          .post('/api/auth/password')
+          .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+      ).status
+    ).toBe(204);
+
+    const stale = request.agent(app);
+    expect(
+      (await stale.post('/api/auth/login').send({ identifier: 'owner', password: PASSWORD })).status
+    ).toBe(401);
+    expect(
+      (await stale.post('/api/auth/login').send({ identifier: 'owner', password: NEW_PASSWORD }))
+        .status
+    ).toBe(200);
+  });
+
+  /**
    * The session that made the change moves to a new id. A copy of its cookie,
    * taken along with the password, would otherwise be the one session the
    * change left open.

@@ -132,3 +132,37 @@ describe('what may still be left out', () => {
     expect(found).toEqual([]);
   });
 });
+
+/**
+ * And the third place the same four names were written down.
+ *
+ * The index is a fourth engine, not a variant of the other two: it walks the
+ * volume itself, on its own schedule, and the search answers from what it
+ * catalogued. A name it never walked into is a name no amount of asking will
+ * return — and unlike the other two, being absent from the index shows up as
+ * an empty answer with nothing to explain it, however the search is run.
+ */
+describe('a folder named like a build directory, catalogued', () => {
+  const indexAndSearch = async (relDir, name, term) => {
+    const docs = await seed({ SEARCH_INDEX_ENABLED: 'true' });
+    const dir = path.join(docs, relDir);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, name), 'le mot pangolin');
+
+    const indexDb = envContext.requireFresh('src/services/indexDb');
+    const db = await indexDb.getIndexDb();
+    const indexer = envContext.requireFresh('src/services/searchIndexer');
+    await indexer.indexTree({ db, rootAbs: envContext.volumeDir, cpuPercent: 100 });
+
+    const store = envContext.requireFresh('src/services/searchIndexStore');
+    return { catalogued: store.search(db, term) };
+  };
+
+  for (const folder of ['build', 'dist', 'node_modules']) {
+    it(`catalogues what is under ${folder}`, async () => {
+      const { catalogued } = await indexAndSearch(`projets/${folder}`, 'rapport.txt', 'pangolin');
+
+      expect(catalogued).toContain(`Docs/projets/${folder}/rapport.txt`);
+    });
+  }
+});

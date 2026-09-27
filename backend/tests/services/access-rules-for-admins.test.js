@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import express from 'express';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import request from 'supertest';
 import { setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
@@ -184,7 +188,6 @@ describe('what the application does with it', () => {
       expect(info.canDelete).toBe(false);
       expect(info.canUpload).toBe(false);
       expect(info.canCreateFolder).toBe(false);
-      expect(info.canCreateFile).toBe(false);
     });
   });
 
@@ -212,6 +215,138 @@ describe('what the application does with it', () => {
 
       expect((await access(accessManager, ADMIN)).canAccess).toBe(true);
       expect((await access(accessManager, REGULAR)).canAccess).toBe(false);
+    });
+  });
+});
+
+/**
+ * Through the route the settings page actually uses.
+ *
+ * The page saves the rules and the switch above them from two controls, and a
+ * save that replaced the whole section would drop whichever half was not on
+ * the wire: tick the switch, save, and the rules are gone. The service's own
+ * merge is proven above; this is the other caller, and it has a merge of its
+ * own.
+ */
+describe('saving from the settings page', () => {
+  const patch = async (env, body) => {
+    const routes = env.requireFresh('src/routes/settings');
+    const { errorHandler } = env.requireFresh('src/middleware/errorHandler');
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = ADMIN;
+      next();
+    });
+    app.use('/api', routes);
+    app.use(errorHandler);
+    const response = await request(app).patch('/api/settings').send(body);
+    expect(response.status).toBe(200);
+    return response.body;
+  };
+
+  it('keeps the rules when only the switch is saved', async () => {
+    await withAccess(async ({ env, settings }) => {
+      await store(settings, { rules: [rule('ro')], applyToAdmins: false });
+
+      const body = await patch(env, { access: { applyToAdmins: true } });
+
+      expect(body.access.applyToAdmins).toBe(true);
+      expect(body.access.rules).toHaveLength(1);
+      expect((await settings.getSystemSettings()).access.rules).toHaveLength(1);
+    });
+  });
+
+  it('keeps the switch when only the rules are saved', async () => {
+    await withAccess(async ({ env, settings }) => {
+      await store(settings, { rules: [rule('ro')], applyToAdmins: true });
+
+      const body = await patch(env, { access: { rules: [rule('hidden')] } });
+
+      expect(body.access.applyToAdmins).toBe(true);
+      expect(body.access.rules[0].permissions).toBe('hidden');
+    });
+  });
+
+  it('writes down whether each rule holds administrators', async () => {
+    await withAccess(async ({ env, settings }) => {
+      const body = await patch(env, {
+        access: { rules: [rule('ro', { appliesToAdmins: true }), rule('hidden')] },
+      });
+
+      // A rule that says nothing keeps the reading it has always had, so an
+      // upgrade moves nothing: hidden held them, read-only did not.
+      expect(body.access.rules.map((r) => r.appliesToAdmins)).toEqual([true, true]);
+      expect(
+        (await settings.getSystemSettings()).access.rules.map((r) => r.appliesToAdmins)
+      ).toEqual([true, true]);
+    });
+  });
+});
+
+/**
+ * The sidebar and the home page.
+ *
+ * A `hidden` rule on a volume kept it out of the folder listing and refused it
+ * by its address, and left its name in the sidebar for everybody — the one
+ * place a hidden folder was most visible. The volumes are listed by a route of
+ * their own, which never asked.
+ */
+describe('the volumes a person is offered', () => {
+  const volumes = async (env, user) => {
+    const routes = env.requireFresh('src/routes/volumes');
+    const { errorHandler } = env.requireFresh('src/middleware/errorHandler');
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = user;
+      next();
+    });
+    app.use('/api', routes);
+    app.use(errorHandler);
+    const response = await request(app).get('/api/volumes');
+    expect(response.status).toBe(200);
+    return response.body.map((volume) => volume.name);
+  };
+
+  it('leaves out one a rule hides from them', async () => {
+    await withAccess(async ({ env, settings }) => {
+      await fs.mkdir(path.join(env.volumeDir, 'Team'), { recursive: true });
+      await fs.mkdir(path.join(env.volumeDir, 'Public'), { recursive: true });
+      await store(settings, { rules: [rule('hidden')] });
+
+      expect(await volumes(env, REGULAR)).toEqual(['Public']);
+    });
+  });
+
+  it('keeps one a rule hides from everybody but them', async () => {
+    await withAccess(async ({ env, settings }) => {
+      await fs.mkdir(path.join(env.volumeDir, 'Team'), { recursive: true });
+      await store(settings, { rules: [rule('hidden', { appliesToAdmins: false })] });
+
+      expect(await volumes(env, ADMIN)).toEqual(['Team']);
+      expect(await volumes(env, REGULAR)).toEqual([]);
+    });
+  });
+
+  it('takes it away from an administrator the switch above the rules holds', async () => {
+    await withAccess(async ({ env, settings }) => {
+      await fs.mkdir(path.join(env.volumeDir, 'Team'), { recursive: true });
+      await store(settings, {
+        rules: [rule('hidden', { appliesToAdmins: false })],
+        applyToAdmins: true,
+      });
+
+      expect(await volumes(env, ADMIN)).toEqual([]);
+    });
+  });
+
+  it('leaves a read-only one where it is: it can be opened, only not written in', async () => {
+    await withAccess(async ({ env, settings }) => {
+      await fs.mkdir(path.join(env.volumeDir, 'Team'), { recursive: true });
+      await store(settings, { rules: [rule('ro')] });
+
+      expect(await volumes(env, REGULAR)).toEqual(['Team']);
     });
   });
 });

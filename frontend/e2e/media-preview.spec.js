@@ -38,7 +38,7 @@ const dispatchTouchSwipe = async (page, locator, deltaX, deltaY) => {
   }
 };
 
-test('swipes through mixed media without treating vertical gestures as navigation', async ({
+test('swipes through mixed media, and a swipe down closes rather than navigating', async ({
   page,
 }) => {
   await page.goto('/e2e/media-preview.html');
@@ -53,6 +53,8 @@ test('swipes through mixed media without treating vertical gestures as navigatio
   await dispatchTouchSwipe(page, preview, 160, 0);
   await expect(page.locator('img')).toBeVisible();
 
+  // Down is not a page turn — and it is not nothing either: it closes.
   await dispatchTouchSwipe(page, preview, 0, 160);
   await expect(page.locator('img')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.previewClosed)).toBe(true);
 });

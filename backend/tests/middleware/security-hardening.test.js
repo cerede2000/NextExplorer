@@ -81,3 +81,25 @@ describe('Client error messages', () => {
     }
   });
 });
+
+describe('The application', () => {
+  // The middleware on its own proves what it sets; this proves the
+  // application actually mounts it, in front of every route.
+  it('answers every route with the baseline headers, and without naming its framework', async () => {
+    const env = await setupTestEnv({ tag: 'app-headers-', env: { AUTH_ENABLED: 'true' } });
+    try {
+      const { createApp } = env.requireFresh('src/app');
+      const app = await createApp({ skipOidc: true, skipStaticFiles: true });
+
+      for (const route of ['/api/features', '/api/volumes', '/healthz']) {
+        const response = await request(app).get(route);
+        expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
+        expect(response.headers['x-content-type-options']).toBe('nosniff');
+        expect(response.headers['referrer-policy']).toBe('same-origin');
+        expect(response.headers['x-powered-by']).toBeUndefined();
+      }
+    } finally {
+      await env.cleanup();
+    }
+  }, 30000);
+});
