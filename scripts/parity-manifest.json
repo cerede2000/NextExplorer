@@ -24,6 +24,27 @@
   ],
   "rules": [
     {
+      "axis": "migration",
+      "match": "^recent_destinations$",
+      "verdict": "DONE",
+      "batch": "P3-17",
+      "note": "nxzai#448 \u2014 the folders somebody files into"
+    },
+    {
+      "axis": "i18n",
+      "match": "^(clipboard\\.|upload\\.finalizing)",
+      "verdict": "DONE",
+      "batch": "P3-27",
+      "note": "nxzai#457 \u2014 what a running operation says"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/stores/operationTasks\\.js|frontend/src/utils/transferRate\\.js|backend/src/routes/files/delete\\.js|backend/src/routes/files/transfer\\.js|backend/src/routes/files/utils\\.js|backend/src/services/fileTransferService\\.js|backend/src/services/inFlightFiles\\.js|frontend/src/components/ClipboardProgress\\.vue|frontend/src/composables/fileActions\\.js|frontend/src/api/http\\.js|frontend/src/api/sessionExpiry\\.js|frontend/src/utils/index\\.js)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-27",
+      "note": "nxzai#457 \u2014 a copy that reports and can be stopped, with the HTTP layer the download needs"
+    },
+    {
       "axis": "i18n",
       "match": "^favorites\\.",
       "verdict": "DONE",
