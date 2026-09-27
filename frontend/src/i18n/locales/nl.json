@@ -95,8 +95,7 @@
   "status": {
     "updated": "Met succes bijgewerkt",
     "failed": "Mislukt",
-    "passwordUpdated": "Wachtwoord bijgewerkt",
-    "completePercent": "{percent}% voltooid"
+    "passwordUpdated": "Wachtwoord bijgewerkt"
   },
   "actions": {
     "newFolder": "Nieuwe map",
@@ -115,14 +114,12 @@
     "addRule": "Regel toevoegen",
     "clearAll": "Alles wissen",
     "cancelAll": "Alles annuleren",
-    "extractZip": "ZIP uitpakken",
     "newWordDocument": "Nieuw Word-document",
     "newSpreadsheet": "Nieuwe Excel-werkmap",
     "newPresentation": "Nieuwe PowerPoint-presentatie",
     "newTextFile": "Nieuw tekstbestand",
     "newMarkdownFile": "Nieuw Markdown-bestand",
     "newCsvFile": "Nieuw CSV-bestand",
-    "newDocument": "Nieuw document",
     "extractArchive": "Archief uitpakken",
     "extractArchiveIntoCurrentFolder": "Uitpakken in huidige map",
     "copyPath": "Pad kopiëren",
@@ -402,8 +399,6 @@
   },
   "upload": {
     "uploads": "{count} {items} uploaden",
-    "toggleDetailsShow": "Details weergeven",
-    "toggleDetailsHide": "Details verbergen",
     "pauseUploads": "Uploads pauzeren",
     "resumeUploads": "Uploads hervatten",
     "finalizing": "Bezig met afronden"
@@ -439,12 +434,8 @@
       "submit": "Inloggen",
       "announcementMigration": {
         "title": "We hebben de manier waarop u zich aanmeldt bijgewerkt",
-        "intro": "U moet nu uw nieuwe gebruikersnaam in e-mailstijl gebruiken.",
-        "bulletAddSuffix": "Voeg {suffix} toe aan uw gebruikersnaam",
-        "bulletPasswordSame": "Uw wachtwoord blijft hetzelfde.",
-        "bulletUpdateUsers": "U kunt bestaande gebruikers bijwerken via het beheerdersmenu"
+        "intro": "U moet nu uw nieuwe gebruikersnaam in e-mailstijl gebruiken."
       },
-      "announcementConfirm": "Markeren als gelezen",
       "totpCode": "Code",
       "totpExplain": "Uw wachtwoord is geaccepteerd. Voer de code uit uw authenticatie-app in, of een van uw herstelcodes.",
       "totpSubmit": "Aanmelden",
@@ -457,11 +448,8 @@
       "submit": "Installatie voltooien",
       "bullets": {
         "permissions": "Gedetailleerde machtigingen en gebruikersbeheer.",
-        "sso": "Naadloze ondersteuning voor Single Sign-On.",
-        "encryption": "Sterke versleuteling en auditvriendelijke acties."
-      },
-      "formTitle": "Maak uw account aan",
-      "formSubtitle": "Vul een e-mailadres en een sterk wachtwoord in om de installatie te voltooien."
+        "sso": "Naadloze ondersteuning voor Single Sign-On."
+      }
     },
     "emailAddress": "E-mailadres",
     "usernameOptional": "Gebruikersnaam (optioneel)",
@@ -550,12 +538,6 @@
       "preview": "Voorbeeld",
       "showPoweredBy": "Bronvermelding weergeven",
       "showPoweredByHelp": "Toon een 'Aangedreven door nextExplorer'-link in de voettekst om het project te ondersteunen",
-      "appLogoUrl": "Logoafbeelding",
-      "appLogoUrlHelp": "Upload een SVG-, PNG- of JPG-bestand als aangepast logo (max. 2 MB).",
-      "uploading": "Uploaden…",
-      "uploadSuccess": "Logo succesvol geüpload",
-      "uploadError": "Logo uploaden mislukt",
-      "fileTooLargeForDataUri": "Bestand is te groot. Gebruik een kleinere afbeelding (voor het beste resultaat minder dan 500 KB).",
       "defaultLogoSelected": "Standaardlogo geselecteerd. Klik op Opslaan om het toe te passen.",
       "appNameRequired": "De naam van de toepassing mag niet leeg zijn.",
       "chooseLogo": "Logo kiezen",
@@ -616,8 +598,7 @@
     "security": {
       "subtitle": "Toegangscontrole tot de app.",
       "enable": "Authenticatie inschakelen",
-      "enableHelp": "Wanneer uitgeschakeld, kan iedereen toegang krijgen tot uw bestanden.",
-      "confirmDisable": "Als u authenticatie uitschakelt, worden uw bestanden openbaar toegankelijk. Doorgaan?"
+      "enableHelp": "Wanneer uitgeschakeld, kan iedereen toegang krijgen tot uw bestanden."
     },
     "access": {
       "subtitle": "Stel per-map machtigingen in: lezen-schrijven, alleen-lezen of verborgen.",
@@ -649,7 +630,6 @@
       "confirm": "Nieuw wachtwoord bevestigen",
       "update": "Wachtwoord bijwerken",
       "validation": "Vul alle velden in; het nieuwe wachtwoord moet tenminste 6 tekens lang zijn en overeenkomen.",
-      "success": "Wachtwoord succesvol bijgewerkt.",
       "successOtherSessionsEnded": "Wachtwoord bijgewerkt. Alle andere sessies van dit account zijn afgemeld."
     },
     "users": {
@@ -683,8 +663,6 @@
       "volumePath": "Volume-pad",
       "pathCannotChange": "Het pad kan na aanmaak niet worden gewijzigd. Verwijder dit volume en maak zonodig een nieuwe aan.",
       "accessMode": "Toegangsmodus",
-      "makeAdmin": "Beheerder maken",
-      "editUser": "Gebruiker bewerken",
       "noUsers": "Geen gebruikers beschikbaar",
       "lockedBadge": "Vergrendeld",
       "lockedUntil": "Vergrendeld tot {time}"
@@ -1094,13 +1072,6 @@
     "removeShare": "Share verwijderen",
     "sharedWithAnyone": "Iedereen",
     "expiresNever": "Nooit",
-    "sharedWithMeDescription": "Bestanden en mappen die anderen met uw account hebben gedeeld.",
-    "sharedByMeDescription": "Links en mappen die u met anderen hebt gedeeld.",
-    "noSharedItemsYet": "Wanneer iemand bestanden of mappen met u deelt, verschijnen ze hier.",
-    "adjustFilters": "Pas uw filters aan of wis de zoekopdracht om meer items te zien.",
-    "noMyShares": "U hebt nog geen shares aangemaakt.",
-    "noMySharesDescription": "Maak een share van een bestand of map om die hier te zien.",
-    "sharedWithUsers": "{count} gebruiker | {count} gebruikers",
     "creating": "Bezig met maken…",
     "expires": "Verloopt",
     "loadingUsers": "Gebruikers laden...",

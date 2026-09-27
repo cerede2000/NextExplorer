@@ -95,8 +95,7 @@
   "status": {
     "updated": "Erfolgreich aktualisiert",
     "failed": "Fehlgeschlagen",
-    "passwordUpdated": "Passwort aktualisiert",
-    "completePercent": "{percent}% abgeschlossen"
+    "passwordUpdated": "Passwort aktualisiert"
   },
   "actions": {
     "newFolder": "Neuer Ordner",
@@ -109,7 +108,6 @@
     "rename": "Umbenennen",
     "download": "Herunterladen",
     "downloadFolder": "Ordner herunterladen",
-    "extractZip": "ZIP entpacken",
     "compressToZip": "In ZIP komprimieren",
     "search": "Suchen",
     "sortBy": "Sortieren nach",
@@ -122,7 +120,6 @@
     "newTextFile": "Neue Textdatei",
     "newMarkdownFile": "Neue Markdown-Datei",
     "newCsvFile": "Neue CSV-Datei",
-    "newDocument": "Neues Dokument",
     "extractArchive": "Archiv entpacken",
     "extractArchiveIntoCurrentFolder": "In den aktuellen Ordner entpacken",
     "copyPath": "Pfad kopieren",
@@ -401,8 +398,6 @@
     "restoringUnknown": "Wird wiederhergestellt…"
   },
   "upload": {
-    "toggleDetailsShow": "Details anzeigen",
-    "toggleDetailsHide": "Details ausblenden",
     "pauseUploads": "Uploads pausieren",
     "resumeUploads": "Uploads fortsetzen",
     "uploads": "{count} {items} werden hochgeladen",
@@ -436,14 +431,10 @@
     "login": {
       "welcome": "Willkommen zurück",
       "subtitle": "Melden Sie sich an, um auf {appName} zuzugreifen.",
-      "announcementConfirm": "Als gelesen markieren",
       "submit": "Anmelden",
       "announcementMigration": {
         "title": "Wir haben die Anmeldung aktualisiert",
-        "intro": "Sie müssen jetzt Ihren neuen E-Mail-ähnlichen Benutzernamen verwenden.",
-        "bulletAddSuffix": "Fügen Sie {suffix} zu Ihrem Benutzernamen hinzu",
-        "bulletPasswordSame": "Ihr Passwort bleibt gleich.",
-        "bulletUpdateUsers": "Sie können bestehende Benutzer im Admin-Menü aktualisieren"
+        "intro": "Sie müssen jetzt Ihren neuen E-Mail-ähnlichen Benutzernamen verwenden."
       },
       "totpCode": "Code",
       "totpExplain": "Ihr Passwort wurde akzeptiert. Geben Sie den Code aus Ihrer Authenticator-App ein oder einen Ihrer Wiederherstellungscodes.",
@@ -454,11 +445,8 @@
     "setup": {
       "headline": "Lassen Sie uns loslegen",
       "subtitle": "Erstellen Sie Ihr Administratorkonto, um Ihre Dateien zu sichern und zu verwalten.",
-      "formTitle": "Konto erstellen",
-      "formSubtitle": "Geben Sie eine E-Mail-Adresse und ein sicheres Passwort an, um die Einrichtung abzuschließen.",
       "submit": "Einrichtung abschließen",
       "bullets": {
-        "encryption": "Starke Verschlüsselung und revisionssichere Aktionen.",
         "permissions": "Granulare Berechtigungen und Benutzerverwaltung.",
         "sso": "Nahtlose Unterstützung für Single Sign-On."
       }
@@ -543,16 +531,10 @@
       "subtitle": "Passen Sie den in der Oberfläche angezeigten Anwendungsnamen und das Logo an.",
       "appName": "Anwendungsname",
       "appNameHelp": "Der Name, der in Kopfzeilen, auf der Anmeldeseite und in der Fußzeile angezeigt wird (max. 100 Zeichen).",
-      "appLogoUrl": "Logo-Bild",
-      "appLogoUrlHelp": "Laden Sie eine SVG-, PNG- oder JPG-Datei für Ihr benutzerdefiniertes Logo hoch (max. 2 MB).",
       "logo": "Logo-Bild",
       "logoHelp": "Laden Sie eine SVG-, PNG- oder JPG-Datei für Ihr benutzerdefiniertes Logo hoch (max. 2 MB).",
-      "uploading": "Wird hochgeladen...",
-      "uploadSuccess": "Logo erfolgreich hochgeladen",
-      "uploadError": "Logo konnte nicht hochgeladen werden",
       "invalidFileType": "Bitte SVG, PNG oder JPG hochladen",
       "logoError": "Datei muss kleiner als 2 MB sein",
-      "fileTooLargeForDataUri": "Datei ist zu groß. Bitte verwenden Sie ein kleineres Bild (unter 500 KB für beste Ergebnisse)",
       "preview": "Vorschau",
       "showPoweredBy": "Attributionslink anzeigen",
       "showPoweredByHelp": "Zeigt in der Fußzeile einen Link 'Powered by nextExplorer', um das Projekt zu unterstützen",
@@ -616,8 +598,7 @@
     "security": {
       "subtitle": "Steuern Sie den Zugriff auf die App.",
       "enable": "Authentifizierung aktivieren",
-      "enableHelp": "Wenn deaktiviert, kann jeder auf Ihre Dateien zugreifen.",
-      "confirmDisable": "Das Deaktivieren der Authentifizierung macht Ihre Dateien öffentlich zugänglich. Fortfahren?"
+      "enableHelp": "Wenn deaktiviert, kann jeder auf Ihre Dateien zugreifen."
     },
     "access": {
       "subtitle": "Legen Sie Ordnerberechtigungen fest: Lesen/Schreiben, Nur Lesen oder Ausgeblendet.",
@@ -648,7 +629,6 @@
       "new": "Neues Passwort",
       "confirm": "Neues Passwort bestätigen",
       "update": "Passwort aktualisieren",
-      "success": "Passwort erfolgreich aktualisiert.",
       "validation": "Bitte füllen Sie alle Felder aus; das neue Passwort muss mindestens 6 Zeichen lang sein und mit der Bestätigung übereinstimmen.",
       "successOtherSessionsEnded": "Passwort aktualisiert. Alle anderen Sitzungen dieses Kontos wurden abgemeldet."
     },
@@ -660,11 +640,9 @@
       "grantAdmin": "Adminrechte erteilen",
       "grantAdminHint": "Gewährt vollen Zugriff auf alle Einstellungen und Benutzer.",
       "displayName": "Anzeigename",
-      "makeAdmin": "Zum Admin machen",
       "resetPassword": "Passwort setzen/zurücksetzen",
       "removeUser": "Benutzer entfernen",
       "promptNewPassword": "Geben Sie ein neues Passwort für {user} ein (mindestens 6 Zeichen):",
-      "editUser": "Benutzer bearbeiten",
       "volumes": "Volumes",
       "assignedVolumes": "Zugewiesene Volumes",
       "addVolume": "Volume hinzufügen",
@@ -1047,9 +1025,7 @@
   },
   "share": {
     "sharedWithMe": "Mit mir geteilt",
-    "sharedWithMeDescription": "Dateien und Ordner, die andere Personen mit Ihrem Konto geteilt haben.",
     "sharedByMe": "Von mir geteilt",
-    "sharedByMeDescription": "Links und Ordner, die Sie mit anderen Personen geteilt haben.",
     "shareCreated": "Freigabe erstellt",
     "createShareLink": "Freigabelink erstellen",
     "shareLink": "Freigabelink",
@@ -1090,18 +1066,13 @@
     "signInToAccess": "Zur Freigabe anmelden",
     "requiresAuthentication": "Diese Freigabe erfordert eine Authentifizierung.",
     "noSharedItemsToShow": "Keine freigegebenen Elemente anzuzeigen",
-    "noSharedItemsYet": "Wenn jemand Dateien oder Ordner mit Ihnen teilt, erscheinen sie hier.",
-    "adjustFilters": "Passen Sie Ihre Filter an oder löschen Sie die Suche, um mehr Elemente zu sehen.",
     "filterByNameOrPath": "Nach Name oder Pfad filtern",
     "sharedBy": "Geteilt vom Besitzer",
     "lastAccessed": "Zuletzt aufgerufen",
     "created": "Erstellt",
-    "noMyShares": "Sie haben noch keine Freigaben erstellt.",
-    "noMySharesDescription": "Erstellen Sie eine Freigabe für eine Datei oder einen Ordner, um sie hier zu sehen.",
     "confirmDeleteShare": "Diese Freigabe entfernen? Personen mit dem Link haben danach keinen Zugriff mehr.",
     "removeShare": "Freigabe entfernen",
     "sharedWithAnyone": "Alle",
-    "sharedWithUsers": "{count} Benutzer | {count} Benutzer",
     "expiresNever": "Nie",
     "directFileLink": "Direkter Dateilink",
     "directFolderLink": "Direkter ZIP-Link des Ordners",

@@ -95,8 +95,7 @@
   "status": {
     "updated": "Updated successfully",
     "failed": "Failed",
-    "passwordUpdated": "Password updated",
-    "completePercent": "{percent}% complete"
+    "passwordUpdated": "Password updated"
   },
   "actions": {
     "newFolder": "New Folder",
@@ -109,7 +108,6 @@
     "rename": "Rename",
     "download": "Download",
     "downloadFolder": "Download folder",
-    "extractZip": "Extract ZIP",
     "compressToZip": "Compress to ZIP",
     "search": "Search",
     "sortBy": "Sort by",
@@ -122,7 +120,6 @@
     "newTextFile": "New text file",
     "newMarkdownFile": "New Markdown file",
     "newCsvFile": "New CSV file",
-    "newDocument": "New document",
     "extractArchive": "Extract archive",
     "extractArchiveIntoCurrentFolder": "Extract into current folder",
     "copyPath": "Copy path",
@@ -401,8 +398,6 @@
     "restoringUnknown": "Restoring…"
   },
   "upload": {
-    "toggleDetailsShow": "Show details",
-    "toggleDetailsHide": "Hide details",
     "pauseUploads": "Pause uploads",
     "resumeUploads": "Resume uploads",
     "uploads": "Uploading {count} {items}",
@@ -436,14 +431,10 @@
     "login": {
       "welcome": "Welcome back",
       "subtitle": "Log in to access {appName}.",
-      "announcementConfirm": "Mark as read",
       "submit": "Log In",
       "announcementMigration": {
         "title": "We've updated how you sign in",
-        "intro": "You now need to use your new email-style username.",
-        "bulletAddSuffix": "Add {suffix} to your username",
-        "bulletPasswordSame": "Your password stays the same.",
-        "bulletUpdateUsers": "You can update existing users from Admin Menu"
+        "intro": "You now need to use your new email-style username."
       },
       "totpCode": "Code",
       "totpExplain": "Your password was accepted. Enter the code from your authenticator app, or one of your recovery codes.",
@@ -454,11 +445,8 @@
     "setup": {
       "headline": "Let's get set up",
       "subtitle": "Create your administrator account to secure and manage your files.",
-      "formTitle": "Create your account",
-      "formSubtitle": "Provide an email and secure password to finish setup.",
       "submit": "Finish Setup",
       "bullets": {
-        "encryption": "Strong encryption and audit-friendly actions.",
         "permissions": "Granular permissions and user management.",
         "sso": "Seamless Single Sign-On support."
       }
@@ -543,16 +531,10 @@
       "subtitle": "Customize the application name and logo displayed throughout the interface.",
       "appName": "Application Name",
       "appNameHelp": "The name displayed in headers, login page, and footer (max 100 characters).",
-      "appLogoUrl": "Logo Image",
-      "appLogoUrlHelp": "Upload an SVG, PNG, or JPG file for your custom logo (max 2MB).",
       "logo": "Logo Image",
       "logoHelp": "Upload an SVG, PNG, or JPG file for your custom logo (max 2MB).",
-      "uploading": "Uploading...",
-      "uploadSuccess": "Logo uploaded successfully",
-      "uploadError": "Failed to upload logo",
       "invalidFileType": "Please upload SVG, PNG, or JPG",
       "logoError": "File must be smaller than 2MB",
-      "fileTooLargeForDataUri": "File is too large. Please use a smaller image (under 500KB for best results)",
       "preview": "Preview",
       "showPoweredBy": "Display attribution link",
       "showPoweredByHelp": "Show a 'Powered by nextExplorer' link in the footer to help support the project",
@@ -616,8 +598,7 @@
     "security": {
       "subtitle": "Control access to the app.",
       "enable": "Enable authentication",
-      "enableHelp": "When off, anyone can access your files.",
-      "confirmDisable": "Disabling authentication will make your files publicly accessible. Continue?"
+      "enableHelp": "When off, anyone can access your files."
     },
     "access": {
       "subtitle": "Set per-folder permissions: read-write, read-only, or hidden.",
@@ -648,7 +629,6 @@
       "new": "New password",
       "confirm": "Confirm new password",
       "update": "Update Password",
-      "success": "Password updated successfully.",
       "validation": "Please fill all fields; new password must be at least 6 characters and match confirmation.",
       "successOtherSessionsEnded": "Password updated. Every other session of this account has been signed out."
     },
@@ -660,11 +640,9 @@
       "grantAdmin": "Grant admin",
       "grantAdminHint": "Grants full access to all settings and users.",
       "displayName": "Display Name",
-      "makeAdmin": "Make admin",
       "resetPassword": "Set/Reset password",
       "removeUser": "Remove user",
       "promptNewPassword": "Enter a new password for {user} (min 6 chars):",
-      "editUser": "Edit user",
       "volumes": "Volumes",
       "assignedVolumes": "Assigned Volumes",
       "addVolume": "Add Volume",
@@ -1047,9 +1025,7 @@
   },
   "share": {
     "sharedWithMe": "Shared With Me",
-    "sharedWithMeDescription": "Files and folders other people have shared with your account.",
     "sharedByMe": "Shared By Me",
-    "sharedByMeDescription": "Links and folders you have shared with other people.",
     "shareCreated": "Share Created",
     "createShareLink": "Create Share Link",
     "shareLink": "Share Link",
@@ -1103,20 +1079,15 @@
     "signInToAccess": "Sign In to Access",
     "requiresAuthentication": "This share requires authentication.",
     "noSharedItemsToShow": "No shared items to show",
-    "noSharedItemsYet": "When someone shares files or folders with you, they will appear here.",
-    "adjustFilters": "Adjust your filters or clear the search to see more items.",
     "filterByNameOrPath": "Filter by name or path",
     "sharedBy": "Shared by owner",
     "lastAccessed": "Last accessed",
     "created": "Created",
-    "noMyShares": "You haven't created any shares yet.",
-    "noMySharesDescription": "Create a share from any file or folder to see it listed here.",
     "confirmDeleteShare": "Remove this share? People with the link will no longer have access.",
     "deleteShareTitle": "Remove share?",
     "deleteShareMessage": "People with this link will no longer be able to access the shared item.",
     "removeShare": "Remove share",
     "sharedWithAnyone": "Everyone",
-    "sharedWithUsers": "{count} user | {count} users",
     "expiresNever": "Never",
     "creating": "Creating…",
     "expires": "Expires",

@@ -95,8 +95,7 @@
   "status": {
     "updated": "Actualizat cu succes",
     "failed": "Eșuat",
-    "passwordUpdated": "Parola a fost actualizată",
-    "completePercent": "{percent}% finalizat"
+    "passwordUpdated": "Parola a fost actualizată"
   },
   "actions": {
     "newFolder": "Dosar nou",
@@ -109,7 +108,6 @@
     "rename": "Redenumește",
     "download": "Descarcă",
     "downloadFolder": "Descarcă dosarul",
-    "extractZip": "Extrage ZIP",
     "compressToZip": "Comprimă în ZIP",
     "search": "Caută",
     "sortBy": "Sortează după",
@@ -122,7 +120,6 @@
     "newTextFile": "Fișier text nou",
     "newMarkdownFile": "Fișier Markdown nou",
     "newCsvFile": "Fișier CSV nou",
-    "newDocument": "Document nou",
     "extractArchive": "Extrage arhiva",
     "extractArchiveIntoCurrentFolder": "Extrage în dosarul curent",
     "copyPath": "Copiază calea",
@@ -401,8 +398,6 @@
     "restoringUnknown": "Se restaurează…"
   },
   "upload": {
-    "toggleDetailsShow": "Afișează detalii",
-    "toggleDetailsHide": "Ascunde detalii",
     "pauseUploads": "Pune pe pauză încărcările",
     "resumeUploads": "Reia încărcările",
     "uploads": "Se încarcă {count} {items}",
@@ -436,14 +431,10 @@
     "login": {
       "welcome": "Bine ai revenit",
       "subtitle": "Conectează-te pentru a accesa {appName}.",
-      "announcementConfirm": "Marchează ca citit",
       "submit": "Conectare",
       "announcementMigration": {
         "title": "Am actualizat modul de conectare",
-        "intro": "Acum trebuie să folosești noul nume de utilizator în format email.",
-        "bulletAddSuffix": "Adaugă {suffix} la numele tău de utilizator",
-        "bulletPasswordSame": "Parola rămâne aceeași.",
-        "bulletUpdateUsers": "Poți actualiza utilizatorii existenți din meniul Admin"
+        "intro": "Acum trebuie să folosești noul nume de utilizator în format email."
       },
       "totpCode": "Cod",
       "totpExplain": "Parola a fost acceptată. Introduceți codul din aplicația de autentificare sau unul dintre codurile de recuperare.",
@@ -454,11 +445,8 @@
     "setup": {
       "headline": "Să configurăm totul",
       "subtitle": "Creează contul tău de administrator pentru a-ți securiza și gestiona fișierele.",
-      "formTitle": "Creează-ți contul",
-      "formSubtitle": "Furnizează un email și o parolă sigură pentru a finaliza configurarea.",
       "submit": "Finalizează configurarea",
       "bullets": {
-        "encryption": "Criptare puternică și acțiuni prietenoase pentru audit.",
         "permissions": "Permisiuni granulare și gestionare utilizatori.",
         "sso": "Suport Single Sign-On fără întreruperi."
       }
@@ -543,16 +531,10 @@
       "subtitle": "Personalizează numele aplicației și sigla afișate în întreaga interfață.",
       "appName": "Numele aplicației",
       "appNameHelp": "Numele afișat în antete, pe pagina de autentificare și în subsol (max. 100 de caractere).",
-      "appLogoUrl": "Imagine siglă",
-      "appLogoUrlHelp": "Încarcă un fișier SVG, PNG sau JPG pentru sigla ta personalizată (max. 2 MB).",
       "logo": "Imagine siglă",
       "logoHelp": "Încarcă un fișier SVG, PNG sau JPG pentru sigla ta personalizată (max. 2 MB).",
-      "uploading": "Se încarcă...",
-      "uploadSuccess": "Sigla a fost încărcată cu succes",
-      "uploadError": "Încărcarea siglei a eșuat",
       "invalidFileType": "Te rugăm să încarci un fișier SVG, PNG sau JPG",
       "logoError": "Fișierul trebuie să fie mai mic de 2 MB",
-      "fileTooLargeForDataUri": "Fișierul este prea mare. Folosește o imagine mai mică (sub 500 KB pentru cele mai bune rezultate)",
       "preview": "Previzualizare",
       "showPoweredBy": "Afișează linkul de atribuire",
       "showPoweredByHelp": "Afișează în subsol un link „Powered by nextExplorer” pentru a ajuta la susținerea proiectului",
@@ -616,8 +598,7 @@
     "security": {
       "subtitle": "Controlează accesul la aplicație.",
       "enable": "Activează autentificarea",
-      "enableHelp": "Când este dezactivată, oricine poate accesa fișierele tale.",
-      "confirmDisable": "Dezactivarea autentificării va face fișierele tale accesibile public. Continui?"
+      "enableHelp": "Când este dezactivată, oricine poate accesa fișierele tale."
     },
     "access": {
       "subtitle": "Setează permisiuni pe dosare: citire-scriere, doar citire sau ascuns.",
@@ -648,7 +629,6 @@
       "new": "Parolă nouă",
       "confirm": "Confirmă parola nouă",
       "update": "Actualizează parola",
-      "success": "Parola a fost actualizată cu succes.",
       "validation": "Completează toate câmpurile; parola nouă trebuie să aibă cel puțin 6 caractere și să se potrivească cu confirmarea.",
       "successOtherSessionsEnded": "Parola a fost actualizată. Toate celelalte sesiuni ale acestui cont au fost deconectate."
     },
@@ -660,11 +640,9 @@
       "grantAdmin": "Acordă admin",
       "grantAdminHint": "Acordă acces complet la toate setările și la utilizatori.",
       "displayName": "Nume afișat",
-      "makeAdmin": "Fă admin",
       "resetPassword": "Setează/Resetează parola",
       "removeUser": "Elimină utilizator",
       "promptNewPassword": "Introdu o parolă nouă pentru {user} (minim 6 caractere):",
-      "editUser": "Editează utilizator",
       "volumes": "Volume",
       "assignedVolumes": "Volume atribuite",
       "addVolume": "Adaugă volum",
@@ -1047,9 +1025,7 @@
   },
   "share": {
     "sharedWithMe": "Partajate cu mine",
-    "sharedWithMeDescription": "Fișiere și dosare pe care alți oameni le-au partajat cu contul tău.",
     "sharedByMe": "Partajate de mine",
-    "sharedByMeDescription": "Linkuri și dosare pe care le-ai partajat cu alți oameni.",
     "shareCreated": "Partajare creată",
     "createShareLink": "Creează link de partajare",
     "shareLink": "Link de partajare",
@@ -1090,18 +1066,13 @@
     "signInToAccess": "Conectează-te pentru a accesa",
     "requiresAuthentication": "Această partajare necesită autentificare.",
     "noSharedItemsToShow": "Nu există elemente partajate de afișat",
-    "noSharedItemsYet": "Când cineva îți partajează fișiere sau dosare, acestea vor apărea aici.",
-    "adjustFilters": "Ajustează filtrele sau șterge căutarea pentru a vedea mai multe elemente.",
     "filterByNameOrPath": "Filtrează după nume sau cale",
     "sharedBy": "Partajat de proprietar",
     "lastAccessed": "Ultima accesare",
     "created": "Creat",
-    "noMyShares": "Încă nu ai creat nicio partajare.",
-    "noMySharesDescription": "Creează o partajare din orice fișier sau dosar pentru a o vedea listată aici.",
     "confirmDeleteShare": "Elimini această partajare? Persoanele cu linkul nu vor mai avea acces.",
     "removeShare": "Elimină partajarea",
     "sharedWithAnyone": "Oricine",
-    "sharedWithUsers": "{count} utilizator | {count} utilizatori",
     "expiresNever": "Niciodată",
     "directFileLink": "Link direct către fișier",
     "directFolderLink": "Link direct ZIP către dosar",
