@@ -25,6 +25,13 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^frontend/src/plugins/markdown/",
+      "verdict": "DONE",
+      "batch": "P3-31",
+      "note": "nxzai#461 \u2014 a long Markdown document rendered in pieces"
+    },
+    {
+      "axis": "*",
       "match": "^(backend/src/services/trash/(maintenance|settings|verify)\\.js|backend/src/services/versions/(settings|verify)\\.js)(:|$)",
       "verdict": "THEIRS",
       "note": "maintenance reads the storage floor from `uploads`, which is what the section is called here; the fork reads `upload.` and the floor came back zero, so the trash stopped giving space back. The rest differ only by eslint comments upstream's config still needs"
