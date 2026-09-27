@@ -25,6 +25,13 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^(frontend/src/utils/virtualWindow\\.js|frontend/src/components/(FolderViewToolbar|MiddleEllipsis)\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-36",
+      "note": "nxzai#464 \u2014 the rows in view are the rows drawn"
+    },
+    {
+      "axis": "*",
       "match": "^backend/src/utils/placeWithoutOverwrite\\.js(:|$)",
       "verdict": "PORT",
       "batch": "P3-42",
