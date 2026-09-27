@@ -24,6 +24,20 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": "^(settings\\.(users|userDetails)\\.|common\\.dismissWarning|errors\\.unlockUser)",
+      "verdict": "DONE",
+      "batch": "P3-24",
+      "note": "nxzai#454 \u2014 the accounts screens"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/auth\\.js|backend/src/routes/users\\.js|backend/src/services/users/index\\.js|backend/src/services/users/requestUser\\.js|frontend/src/api/users\\.api\\.js|frontend/src/components/ConfigWarningNotice\\.vue|frontend/src/components/UserMenu\\.vue|frontend/src/views/settings/AdminUsers\\.vue|frontend/src/views/settings/SettingsView\\.vue|frontend/src/views/settings/components/UserDetail\\.vue|frontend/src/views/settings/components/UserList\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-24",
+      "note": "nxzai#454 \u2014 an account locked out says so, and an administrator can unlock it"
+    },
+    {
       "axis": "*",
       "match": "^backend/src/routes/volumes\\.js(:|$)",
       "verdict": "THEIRS",
