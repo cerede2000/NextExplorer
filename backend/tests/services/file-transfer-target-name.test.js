@@ -9,7 +9,8 @@ import { setupTestEnv } from '../helpers/env-test-utils.js';
  * Authorization is decided for the destination folder, and the item's name is
  * then joined onto it. That name came from the request as it was: `../x`
  * wrote beside or above the destination — into a folder the caller may only
- * read, or out of a share into the volume. A new name has to be a name; without one, the item
+ * read, or out of a share into the volume — and `.nextexplorer` planted the
+ * name of a trash zone. A new name has to be a name; without one, the item
  * keeps the name it has on disk, not the one the request spelled.
  */
 
@@ -27,6 +28,7 @@ const REGULAR = { id: 'regular', roles: ['user'] };
 const setup = async () => {
   currentEnv = await setupTestEnv({
     tag: 'file-transfer-target-name-',
+    env: { FILE_TRANSFER_ENGINE: 'stream', FOLDER_SIZE_MODE: 'off' },
   });
   const db = await currentEnv.requireFresh('src/services/db').getDb();
   const now = new Date().toISOString();
@@ -49,8 +51,10 @@ const setup = async () => {
   return { service, volume };
 };
 
-const run = (service, items, destination) =>
-  service.transferItems(items, destination, 'copy', { user: REGULAR });
+const run = async (service, items, destination) => {
+  const prep = await service.prepareTransfer(items, destination, 'copy', { user: REGULAR });
+  return service.executeTransfer(prep, 'copy', undefined, {});
+};
 
 describe('a new name for the copy', () => {
   it('is refused when it climbs out of the destination, and nothing lands above it', async () => {
@@ -61,6 +65,16 @@ describe('a new name for the copy', () => {
     ).rejects.toThrow(/path separators/i);
 
     expect((await fs.readdir(path.join(volume, 'Vol'))).sort()).toEqual(['drop', 'readme.txt']);
+  });
+
+  it('is refused when it is the name of a trash zone', async () => {
+    const { service, volume } = await setup();
+
+    await expect(
+      run(service, [{ path: 'Vol/drop', name: 'mine.txt', newName: '.nextexplorer' }], 'Vol/drop')
+    ).rejects.toThrow(/not allowed/i);
+
+    expect((await fs.readdir(path.join(volume, 'Vol', 'drop'))).sort()).toEqual(['mine.txt']);
   });
 
   it('is taken when it is a name', async () => {

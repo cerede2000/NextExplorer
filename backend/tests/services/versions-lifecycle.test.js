@@ -2,8 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import express from 'express';
-import request from 'supertest';
 import { modulePath, setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
@@ -31,24 +29,6 @@ let settingsService;
 let db;
 
 const load = (relative) => require(modulePath(relative));
-
-// Rename goes through the route, as the application does it, so the version hook
-// it wires in is what is exercised.
-const renameThrough = async (parentRelative, currentName, newName) => {
-  const app = express();
-  app.use(express.json());
-  app.use((req, _res, next) => {
-    req.user = admin;
-    next();
-  });
-  app.use('/api', load('src/routes/files/rename'));
-  app.use(load('src/middleware/errorHandler').errorHandler);
-  const response = await request(app)
-    .post('/api/files/rename')
-    .send({ path: parentRelative, name: currentName, newName });
-  if (response.status !== 200)
-    throw new Error(`rename failed: ${response.status} ${response.text}`);
-};
 
 const admin = { id: 'admin-1', username: 'admin', roles: ['admin'] };
 
@@ -133,7 +113,12 @@ describe('a history follows its file', () => {
   it('through a rename', async () => {
     await withHistory('Projects/report.txt', 'one', 'two');
 
-    await renameThrough('Projects', 'report.txt', 'final.txt');
+    await load('src/services/renameService').renameEntry({
+      context: { user: admin },
+      parentRelative: 'Projects',
+      currentName: 'report.txt',
+      newName: 'final.txt',
+    });
 
     expect(historyAt('Projects/report.txt')).toBeNull();
     expect(await keptContents(historyAt('Projects/final.txt'))).toEqual(['one']);
@@ -143,7 +128,12 @@ describe('a history follows its file', () => {
   it('through the rename of the folder that holds it', async () => {
     await withHistory('Projects/client/brief.txt', 'draft', 'final');
 
-    await renameThrough('Projects', 'client', 'customer');
+    await load('src/services/renameService').renameEntry({
+      context: { user: admin },
+      parentRelative: 'Projects',
+      currentName: 'client',
+      newName: 'customer',
+    });
 
     expect(await keptContents(historyAt('Projects/customer/brief.txt'))).toEqual(['draft']);
     await expectConsistent();
@@ -151,12 +141,15 @@ describe('a history follows its file', () => {
 
   it('through a move to another volume, its versions staying where they were kept', async () => {
     await withHistory('Projects/report.txt', 'one', 'two');
-    await load('src/services/fileTransferService').transferItems(
+    const transfers = load('src/services/fileTransferService');
+
+    const prep = await transfers.prepareTransfer(
       [{ path: 'Projects', name: 'report.txt' }],
       'Photos',
       'move',
       { user: admin }
     );
+    await transfers.executeTransfer(prep, 'move', () => {});
 
     const file = historyAt('Photos/report.txt');
     expect(file.zoneId).toBe(zoneAt('Photos').id);
@@ -170,12 +163,15 @@ describe('a history follows its file', () => {
 
   it('but a copy starts with none', async () => {
     await withHistory('Projects/report.txt', 'one', 'two');
-    await load('src/services/fileTransferService').transferItems(
+    const transfers = load('src/services/fileTransferService');
+
+    const prep = await transfers.prepareTransfer(
       [{ path: 'Projects', name: 'report.txt' }],
       'Photos',
       'copy',
       { user: admin }
     );
+    await transfers.executeTransfer(prep, 'copy', () => {});
 
     expect(historyAt('Photos/report.txt')).toBeNull();
     expect(await keptContents(historyAt('Projects/report.txt'))).toEqual(['one']);

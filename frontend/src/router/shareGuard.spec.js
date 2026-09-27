@@ -1,77 +1,148 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-
-const getShareInfo = vi.fn();
-vi.mock('@/api/shares.api', () => ({ getShareInfo: (...args) => getShareInfo(...args) }));
-
-import { signedInMayOpenShare, resetShareGuard } from './shareGuard';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * A signed-in account arriving at a folder inside a password-protected share.
- *
- * The server asks it for the password unless it owns the share or has already
- * given it, and the page cannot tell which: the proof is a cookie it cannot
- * read. So the guard asks the server, and only when the share says this viewer
- * needs a password at all.
+ * This guard decides whether a visitor sees the shared files or a password
+ * prompt, before the view loads. It had no test at all, and the backend half
+ * of the same rule shipped broken once already.
  */
 
-let fetchMock;
+const getShareInfo = vi.fn();
+const getGuestSessionShareToken = vi.fn();
+
+vi.mock('@/api/shares.api', () => ({ getShareInfo: (...args) => getShareInfo(...args) }));
+vi.mock('@/api', () => ({
+  getGuestSessionShareToken: (...args) => getGuestSessionShareToken(...args),
+}));
+
+const { resolveShareAccess, resetShareInfoCache } = await import('./shareGuard');
+
+const anonymous = { isAuthenticated: false, currentUser: null };
+const signedIn = (id = 'user-1') => ({ isAuthenticated: true, currentUser: { id } });
+
+const open = (auth, shareToken = 'TOKEN') =>
+  resolveShareAccess({ shareToken, fullPath: `/browse/share/${shareToken}`, auth });
 
 beforeEach(() => {
-  resetShareGuard();
+  resetShareInfoCache();
   getShareInfo.mockReset();
-  fetchMock = vi.fn();
-  vi.stubGlobal('fetch', fetchMock);
+  getGuestSessionShareToken.mockReset();
+  sessionStorage.clear();
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+describe('Share guard', () => {
+  it('sends an anonymous visitor to the password prompt', async () => {
+    expect(await open(anonymous)).toEqual({
+      name: 'ShareLogin',
+      params: { token: 'TOKEN' },
+      query: { redirect: '/browse/share/TOKEN' },
+    });
+    // No point asking the backend: an anonymous visitor needs the prompt
+    // whether or not the link is protected.
+    expect(getShareInfo).not.toHaveBeenCalled();
+  });
 
-describe('a signed-in account opening a share', () => {
-  it('goes straight in when the share asks it for no password', async () => {
+  it('lets a verified guest session through without asking the backend', async () => {
+    sessionStorage.setItem('guestSessionId', 'guest-1');
+    getGuestSessionShareToken.mockReturnValue('TOKEN');
+
+    expect(await open(anonymous)).toBe(true);
+    expect(getShareInfo).not.toHaveBeenCalled();
+  });
+
+  it('honours a guest session read before auth cleared it', async () => {
+    // auth.initialize() removes guestSessionId as soon as it sees a signed-in
+    // user. The router reads the session before that call and passes it in;
+    // reading it here instead would send a visitor who already typed the
+    // password back to the prompt on every reload.
+    sessionStorage.clear();
+    getGuestSessionShareToken.mockReturnValue(null);
+
+    const decision = await resolveShareAccess({
+      shareToken: 'TOKEN',
+      fullPath: '/browse/share/TOKEN',
+      auth: signedIn(),
+      guestSession: { id: 'guest-1', shareToken: 'TOKEN' },
+    });
+
+    expect(decision).toBe(true);
+    expect(getShareInfo).not.toHaveBeenCalled();
+  });
+
+  it('ignores a guest session belonging to another share', async () => {
+    sessionStorage.setItem('guestSessionId', 'guest-1');
+    getGuestSessionShareToken.mockReturnValue('OTHER-TOKEN');
+
+    expect(await open(anonymous)).toMatchObject({ name: 'ShareLogin' });
+  });
+
+  it('lets a signed-in visitor through when the link has no password', async () => {
     getShareInfo.mockResolvedValue({ requiresPassword: false });
 
-    expect(await signedInMayOpenShare('tok', 'bob')).toBe(true);
-    // Nothing else to ask: the owner, or a share without a password.
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await open(signedIn())).toBe(true);
   });
 
-  it('is sent to the password when the server refuses it the share', async () => {
+  it('sends a signed-in stranger to the prompt when the link is protected', async () => {
     getShareInfo.mockResolvedValue({ requiresPassword: true });
-    fetchMock.mockResolvedValue({ status: 401, ok: false });
 
-    expect(await signedInMayOpenShare('tok', 'bob')).toBe(false);
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/share/tok/access'),
-      expect.objectContaining({ credentials: 'include' })
-    );
+    expect(await open(signedIn())).toMatchObject({ name: 'ShareLogin' });
   });
 
-  it('goes in once the server says it has given the password, and is not asked again', async () => {
-    getShareInfo.mockResolvedValue({ requiresPassword: true });
-    fetchMock.mockResolvedValue({ status: 200, ok: true });
+  it('does not send the owner to a prompt for their own share', async () => {
+    // requiresPassword is computed by the backend for the caller, so the owner
+    // gets false even though the link carries a password.
+    getShareInfo.mockResolvedValue({ hasPassword: true, requiresPassword: false });
 
-    expect(await signedInMayOpenShare('tok', 'bob')).toBe(true);
-    expect(await signedInMayOpenShare('tok', 'bob')).toBe(true);
-    // One question per share and account while the tab is open, not one per
-    // folder the account moves through.
+    expect(await open(signedIn('owner-1'))).toBe(true);
+  });
+
+  it('lets the view surface the error when the share cannot be read', async () => {
+    getShareInfo.mockRejectedValue(new Error('network down'));
+
+    // Redirecting here would hide the real problem behind a password prompt.
+    expect(await open(signedIn())).toBe(true);
+  });
+});
+
+describe('Share info cache', () => {
+  it('asks once per token, however many folders are opened', async () => {
+    getShareInfo.mockResolvedValue({ requiresPassword: false });
+    const auth = signedIn();
+
+    await open(auth);
+    await open(auth);
+    await open(auth);
+
+    // Without this, every folder change paid a serialized round-trip.
     expect(getShareInfo).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('asks again for another account in the same tab', async () => {
-    getShareInfo.mockResolvedValue({ requiresPassword: true });
-    fetchMock.mockResolvedValueOnce({ status: 200, ok: true });
-    fetchMock.mockResolvedValueOnce({ status: 401, ok: false });
+  it('asks again for a different viewer', async () => {
+    getShareInfo.mockResolvedValue({ requiresPassword: false });
 
-    expect(await signedInMayOpenShare('tok', 'bob')).toBe(true);
-    expect(await signedInMayOpenShare('tok', 'carol')).toBe(false);
+    await open(signedIn('user-1'));
+    await open(signedIn('user-2'));
+
+    // The answer depends on who is asking: the owner skips the prompt.
+    expect(getShareInfo).toHaveBeenCalledTimes(2);
   });
 
-  it('leaves an unknown share to the view, which says what is wrong with it', async () => {
-    getShareInfo.mockRejectedValue(new Error('Share not found'));
+  it('asks again for a different token', async () => {
+    getShareInfo.mockResolvedValue({ requiresPassword: false });
+    const auth = signedIn();
 
-    expect(await signedInMayOpenShare('gone', 'bob')).toBe(true);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await open(auth, 'TOKEN-A');
+    await open(auth, 'TOKEN-B');
+
+    expect(getShareInfo).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries after a failure instead of caching it', async () => {
+    getShareInfo.mockRejectedValueOnce(new Error('network down'));
+    getShareInfo.mockResolvedValueOnce({ requiresPassword: true });
+    const auth = signedIn();
+
+    expect(await open(auth)).toBe(true);
+    expect(await open(auth)).toMatchObject({ name: 'ShareLogin' });
+    expect(getShareInfo).toHaveBeenCalledTimes(2);
   });
 });
