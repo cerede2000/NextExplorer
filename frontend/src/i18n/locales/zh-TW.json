@@ -1234,7 +1234,9 @@
       "rename": "命名…",
       "pin": "釘選",
       "unpin": "取消釘選",
-      "delete": "刪除"
+      "delete": "刪除",
+      "restoreCopy": "還原為副本…",
+      "replaceOther": "取代其他檔案…"
     },
     "confirm": {
       "restoreTitle": "還原此版本？",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "刪除 {count} 個版本？",
       "deleteMessage": "{count} 個版本將被永久刪除。",
       "deleteAllTitle": "刪除所有版本？",
-      "deleteAllMessage": "「{name}」的所有先前版本都將被永久刪除，包括已釘選的版本。檔案本身保留。"
+      "deleteAllMessage": "「{name}」的所有先前版本都將被永久刪除，包括已釘選的版本。檔案本身保留。",
+      "replaceTitle": "取代「{target}」？",
+      "replaceMessage": "「{target}」的內容將改為「{name}」的此版本。它目前的內容會保留在它自己的版本中。",
+      "replace": "取代"
     },
     "rename": {
       "title": "為此版本命名",
@@ -1255,7 +1260,9 @@
       "deleted": "已刪除 {count} 個版本",
       "renamed": "版本已命名",
       "pinned": "版本已釘選：自動清理會保留它",
-      "unpinned": "已取消釘選版本"
+      "unpinned": "已取消釘選版本",
+      "copied": "已建立副本：{path}",
+      "replaced": "已取代「{path}」"
     },
     "errors": {
       "action": "對此版本的動作失敗"

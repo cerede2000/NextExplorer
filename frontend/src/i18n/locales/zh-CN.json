@@ -1234,7 +1234,9 @@
       "rename": "命名…",
       "pin": "固定",
       "unpin": "取消固定",
-      "delete": "删除"
+      "delete": "删除",
+      "restoreCopy": "恢复为副本…",
+      "replaceOther": "替换其他文件…"
     },
     "confirm": {
       "restoreTitle": "恢复此版本？",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "删除 {count} 个版本？",
       "deleteMessage": "{count} 个版本将被永久删除。",
       "deleteAllTitle": "删除所有版本？",
-      "deleteAllMessage": "“{name}”的所有历史版本都将被永久删除，包括已固定的版本。文件本身保留。"
+      "deleteAllMessage": "“{name}”的所有历史版本都将被永久删除，包括已固定的版本。文件本身保留。",
+      "replaceTitle": "替换“{target}”？",
+      "replaceMessage": "“{target}”的内容将变为“{name}”的此版本。它当前的内容会保留在它自己的版本中。",
+      "replace": "替换"
     },
     "rename": {
       "title": "为此版本命名",
@@ -1255,7 +1260,9 @@
       "deleted": "已删除 {count} 个版本",
       "renamed": "版本已命名",
       "pinned": "版本已固定：自动清理会保留它",
-      "unpinned": "已取消固定版本"
+      "unpinned": "已取消固定版本",
+      "copied": "已创建副本：{path}",
+      "replaced": "已替换“{path}”"
     },
     "errors": {
       "action": "对此版本的操作失败"

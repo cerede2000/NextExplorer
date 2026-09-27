@@ -1234,7 +1234,9 @@
       "rename": "이름 지정…",
       "pin": "고정",
       "unpin": "고정 해제",
-      "delete": "삭제"
+      "delete": "삭제",
+      "restoreCopy": "사본으로 복원…",
+      "replaceOther": "다른 파일 바꾸기…"
     },
     "confirm": {
       "restoreTitle": "이 버전을 복원할까요?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "버전 {count}개를 삭제할까요?",
       "deleteMessage": "버전 {count}개가 영구적으로 삭제됩니다.",
       "deleteAllTitle": "모든 버전을 삭제할까요?",
-      "deleteAllMessage": "\"{name}\"의 모든 이전 버전이 고정된 버전까지 영구적으로 삭제됩니다. 파일 자체는 그대로 남습니다."
+      "deleteAllMessage": "\"{name}\"의 모든 이전 버전이 고정된 버전까지 영구적으로 삭제됩니다. 파일 자체는 그대로 남습니다.",
+      "replaceTitle": "\"{target}\"을(를) 바꿀까요?",
+      "replaceMessage": "\"{target}\"의 내용이 \"{name}\"의 이 버전으로 바뀝니다. 현재 내용은 해당 파일의 버전으로 보관됩니다.",
+      "replace": "바꾸기"
     },
     "rename": {
       "title": "이 버전의 이름 지정",
@@ -1255,7 +1260,9 @@
       "deleted": "버전 {count}개를 삭제했습니다",
       "renamed": "버전 이름을 지정했습니다",
       "pinned": "버전을 고정했습니다. 자동 정리에서 보존됩니다",
-      "unpinned": "버전 고정을 해제했습니다"
+      "unpinned": "버전 고정을 해제했습니다",
+      "copied": "사본을 만들었습니다: {path}",
+      "replaced": "\"{path}\"을(를) 바꿨습니다"
     },
     "errors": {
       "action": "이 버전에 대한 작업이 실패했습니다"

@@ -7,6 +7,7 @@ import {
   ArrowUturnLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  FolderArrowDownIcon,
   FolderOpenIcon,
   MapPinIcon,
   TrashIcon,
@@ -14,18 +15,22 @@ import {
 import FileIcon from '@/icons/FileIcon.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import TrashContextMenu from '@/components/TrashContextMenu.vue';
+import { isEditableExtension } from '@/config/editor';
 import {
   deleteTrashItems,
   emptyTrash,
   getTrash,
   getTrashEntries,
   restoreTrashEntries,
+  restoreTrashEntriesTo,
   restoreTrashItems,
+  restoreTrashItemsTo,
 } from '@/api';
+import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 import { formatBytes, formatLocalDateTime } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
-import { isEditableExtension } from '@/config/editor';
 
 /**
  * The trash: what this person deleted, and what came from their own folder or
@@ -391,11 +396,58 @@ const restoreWholeFolder = async () => {
   });
 };
 
-/*
- * Putting something back somewhere else is not here yet: choosing the folder
- * wants the destination dialog, which arrives with the rest of the file
- * operations. Restoring puts an item back where it was deleted from.
+const picker = useDestinationPicker();
+const operationTasks = useOperationTasksStore();
+
+/**
+ * Put what is selected in a folder chosen with the dialog a move uses. Across
+ * disks that is a copy, so it runs as a task with its progress and a cancel,
+ * like a transfer; whatever the cancel stops stays in the trash, and the list
+ * reloaded afterwards shows exactly what came out.
  */
+const restoreElsewhere = async ({ entries = false } = {}) => {
+  const count = entries ? selectedEntryCount.value : selectedCount.value;
+  if (count === 0 || busy.value) return;
+  const destination = await picker.pick({ mode: 'restore' });
+  if (!destination) return;
+  const shares = await askAboutShares(keptSharesOf({ entries }), { elsewhere: true });
+  if (shares === null) return;
+
+  const controller = new AbortController();
+  const operationId = operationTasks.startOperation({
+    type: 'restore',
+    itemCount: count,
+    destination,
+    cancellable: true,
+    cancel: () => controller.abort(),
+  });
+  const onEvent = (event) => {
+    if (event?.type !== 'start' && event?.type !== 'progress') return;
+    operationTasks.updateOperation(operationId, {
+      totalBytes: Number(event.totalBytes) || 0,
+      copiedBytes: Number(event.copiedBytes) || 0,
+    });
+  };
+  const options = { onEvent, signal: controller.signal, ...sharesOption(shares) };
+
+  await runBusy(async () => {
+    try {
+      const response = entries
+        ? await restoreTrashEntriesTo(
+            folderId.value,
+            [...selectedEntries.value].map((name) => joinPath(folderPath.value, name)),
+            destination,
+            options
+          )
+        : await restoreTrashItemsTo([...selectedIds.value], destination, options);
+      reportRestored(response?.items || []);
+    } catch (err) {
+      if (!controller.signal.aborted && err?.name !== 'AbortError') throw err;
+    } finally {
+      operationTasks.finishOperation(operationId);
+    }
+  });
+};
 
 const deleteSelected = () =>
   runBusy(async () => {
@@ -484,11 +536,26 @@ const refresh = () => (folderId.value ? loadFolder() : load());
 
 const menuState = ref({ open: false, x: 0, y: 0, type: null, target: null });
 
-/*
- * Showing the text of a file that is in the trash is not here yet: it wants
- * the text service, which arrives with the editor. A row opens a folder; a
- * file is put back to be read.
- */
+const extensionOf = (name = '') => {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1) : '';
+};
+
+/** A file whose text the editor can show — read only, from the trash. */
+const canPreview = (entry) =>
+  entry?.kind === 'file' && isEditableExtension(extensionOf(entry.name));
+
+const previewItem = (item) =>
+  router.push({ name: 'TrashFileViewer', params: { itemId: item.id, entryPath: [] } });
+
+const previewEntry = (entry) =>
+  router.push({
+    name: 'TrashFileViewer',
+    params: {
+      itemId: folderId.value,
+      entryPath: joinPath(folderPath.value, entry.name).split('/'),
+    },
+  });
 
 /** A right click on a row that is not selected acts on that row alone, as in the explorer. */
 const openMenu = (event, type, target) => {
@@ -516,27 +583,6 @@ const menuLabel = computed(() => {
     : t('trash.contextMenu.label', { name: target.name });
 });
 
-const extensionOf = (name = '') => {
-  const dot = name.lastIndexOf('.');
-  return dot > 0 ? name.slice(dot + 1) : '';
-};
-
-/** A file whose text the editor can show — read only, from the trash. */
-const canPreview = (entry) =>
-  entry?.kind === 'file' && isEditableExtension(extensionOf(entry.name));
-
-const previewItem = (item) =>
-  router.push({ name: 'TrashFileViewer', params: { itemId: item.id, entryPath: [] } });
-
-const previewEntry = (entry) =>
-  router.push({
-    name: 'TrashFileViewer',
-    params: {
-      itemId: folderId.value,
-      entryPath: joinPath(folderPath.value, entry.name).split('/'),
-    },
-  });
-
 const menuSections = computed(() => {
   const { type, target } = menuState.value;
   if (!target) return [];
@@ -556,6 +602,12 @@ const menuSections = computed(() => {
       id: 'restore',
       label: t('trash.actions.restore'),
       icon: ArrowUturnLeftIcon,
+      disabled: busy.value,
+    },
+    {
+      id: 'restoreTo',
+      label: t('trash.actions.restoreTo'),
+      icon: FolderArrowDownIcon,
       disabled: busy.value,
     },
   ];
@@ -589,6 +641,7 @@ const runMenuAction = (id) => {
     open: () => (onItems ? openFolder(target) : openEntry(target)),
     preview: () => (onItems ? previewItem(target) : previewEntry(target)),
     restore: () => (onItems ? restoreSelected() : restoreSelectedEntries()),
+    restoreTo: () => restoreElsewhere({ entries: !onItems }),
     openLocation: () => openLocation(target),
     delete: () => askToDelete(),
   };
@@ -739,6 +792,15 @@ defineExpose({ load });
           </button>
           <button
             type="button"
+            data-test="trash-restore-entries-to"
+            class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            :disabled="selectedEntryCount === 0 || busy || !folder"
+            @click="restoreElsewhere({ entries: true })"
+          >
+            {{ t('trash.actions.restoreTo') }}
+          </button>
+          <button
+            type="button"
             data-test="trash-restore-folder"
             class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
             :disabled="busy || !folder"
@@ -757,6 +819,15 @@ defineExpose({ load });
           >
             <ArrowUturnLeftIcon class="h-4 w-4" />
             {{ t('trash.actions.restore') }}
+          </button>
+          <button
+            type="button"
+            data-test="trash-restore-to"
+            class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            :disabled="selectedCount === 0 || busy"
+            @click="restoreElsewhere()"
+          >
+            {{ t('trash.actions.restoreTo') }}
           </button>
           <button
             type="button"

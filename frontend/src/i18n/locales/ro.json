@@ -1234,7 +1234,9 @@
       "rename": "Denumiți…",
       "pin": "Fixați",
       "unpin": "Anulați fixarea",
-      "delete": "Ștergeți"
+      "delete": "Ștergeți",
+      "restoreCopy": "Restaurați ca o copie…",
+      "replaceOther": "Înlocuiți alt fișier…"
     },
     "confirm": {
       "restoreTitle": "Restaurați această versiune?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Ștergeți această versiune? | Ștergeți {count} versiuni?",
       "deleteMessage": "Această versiune este ștearsă definitiv. | Aceste {count} versiuni sunt șterse definitiv.",
       "deleteAllTitle": "Ștergeți toate versiunile?",
-      "deleteAllMessage": "Toate versiunile anterioare ale „{name}” sunt șterse definitiv, inclusiv cele fixate. Fișierul în sine rămâne."
+      "deleteAllMessage": "Toate versiunile anterioare ale „{name}” sunt șterse definitiv, inclusiv cele fixate. Fișierul în sine rămâne.",
+      "replaceTitle": "Înlocuiți „{target}”?",
+      "replaceMessage": "„{target}” primește ca conținut această versiune a „{name}”. Conținutul lui actual este păstrat în propriile versiuni.",
+      "replace": "Înlocuiți"
     },
     "rename": {
       "title": "Denumiți această versiune",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} versiune ștearsă | {count} versiuni șterse",
       "renamed": "Versiune denumită",
       "pinned": "Versiune fixată: curățarea automată o păstrează",
-      "unpinned": "Fixarea versiunii a fost anulată"
+      "unpinned": "Fixarea versiunii a fost anulată",
+      "copied": "Copie creată: {path}",
+      "replaced": "„{path}” înlocuit"
     },
     "errors": {
       "action": "Acțiunea asupra acestei versiuni a eșuat"

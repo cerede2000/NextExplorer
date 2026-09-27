@@ -29,11 +29,18 @@ const operations = require('./operations');
 const { thinVersions } = require('./policy');
 const store = require('./store');
 
-const escapeLike = (value) => String(value).replace(/[\\%_]/g, '\\$&');
-
-/** `column` is `prefix`, or something inside it. */
-const under = (column) => `(${column} = ? OR ${column} LIKE ? ESCAPE '\\')`;
-const underValues = (prefix) => [prefix, `${escapeLike(prefix)}/%`];
+/**
+ * `column` is `prefix`, or something inside it: every path that begins with
+ * `prefix/` sorts at or after it and before `prefix0`, `0` being the character
+ * right after `/`.
+ *
+ * It was `LIKE 'prefix/%'`, which ignores case for ASCII as SQLite's LIKE
+ * always does. Moving `Docs` reassigned the histories of `docs/…` to files
+ * under the new name, and deleting it for good purged them — another folder,
+ * on a Linux volume, and its versions gone with the wrong one.
+ */
+const under = (column) => `(${column} = ? OR (${column} >= ? AND ${column} < ?))`;
+const underValues = (prefix) => [prefix, `${prefix}/`, `${prefix}0`];
 
 /** What is left of `full` inside `prefix`: '' for the prefix itself. */
 const inside = (full, prefix) => (full === prefix ? '' : full.slice(prefix.length + 1));
@@ -158,7 +165,6 @@ const relinkRestored = (db, { itemId, entryPath = null, target, restorePath }) =
 const purgeFiles = async (fileIds) => {
   for (const fileId of fileIds) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       await operations.purgeFile(fileId);
     } catch (error) {
       logger.warn({ err: error, fileId }, 'A file history could not be purged');
@@ -184,6 +190,58 @@ const historiesUnder = async (db, absolutePath) => {
     )
     .all(...zoneIds, ...underValues(prefix));
   return { root: located.root, prefix, rows };
+};
+
+/**
+ * What deleting here for good would destroy, before anyone has agreed to it.
+ *
+ * Versions are the one thing a deletion takes that cannot be seen from the
+ * folder: the file is on screen and its history is not, so "delete" reads as
+ * one file going and takes ten earlier copies of it with it. Asked for a path
+ * or a whole tree, because a folder is deleted the same way and every file
+ * under it brings its own.
+ *
+ * Counted in one query rather than over the rows, so a folder with a thousand
+ * versioned files under it is one question to the database and not a thousand
+ * — and no list of ids long enough to run into the limit on how many a
+ * statement may carry.
+ */
+const countUnder = async (absolutePath) => {
+  const none = { files: 0, versions: 0, bytes: 0 };
+  try {
+    const db = await getDb();
+    const located = await zones.locateZoneRoot(path.resolve(absolutePath));
+    if (!located.root) return none;
+    const zoneIds = trashStore
+      .listZones(db)
+      .filter((zone) => zone.root === located.root)
+      .map((zone) => zone.id);
+    if (zoneIds.length === 0) return none;
+
+    const prefix = toRelative(located.root, path.resolve(absolutePath));
+    const row = db
+      .prepare(
+        `SELECT COUNT(DISTINCT vf.id) AS files,
+                COUNT(v.id) AS versions,
+                COALESCE(SUM(v.size_bytes), 0) AS bytes
+           FROM version_files vf
+           JOIN file_versions v ON v.file_id = vf.id AND v.state = 'kept'
+          WHERE vf.zone_id IN (${zoneIds.map(() => '?').join(', ')})
+            AND vf.state IN ('live', 'orphaned') AND ${under('vf.relative_path')}`
+      )
+      .get(...zoneIds, ...underValues(prefix));
+
+    return {
+      files: Number(row?.files) || 0,
+      versions: Number(row?.versions) || 0,
+      bytes: Number(row?.bytes) || 0,
+    };
+  } catch (error) {
+    // A count is not worth failing a confirmation over: the dialog says what
+    // it knows, and the deletion itself is unchanged.
+    logger.debug({ err: error, absolutePath }, 'File versions were not counted for a deletion');
+    return none;
+  }
 };
 
 /**
@@ -235,62 +293,14 @@ const onMoved = async (fromAbsolute, toAbsolute) => {
  * A file or folder deleted for good by the application: its histories go with
  * it, now — the space comes back at once rather than at the next pass.
  */
-/**
- * What a deletion at `absolutePath` is about to take with it.
- *
- * Counted before anything goes, because afterwards there is nothing left to
- * count — and a deletion that took ten earlier copies of a file said exactly
- * as much as one that took none. Asked for a path or a whole tree, because a
- * folder is deleted the same way and every file under it brings its own.
- *
- * One query rather than one per row, so a folder with a thousand versioned
- * files under it is a single question to the database.
- */
-const countUnder = async (absolutePath) => {
-  const none = { files: 0, versions: 0, bytes: 0 };
-  try {
-    const db = await getDb();
-    const located = await zones.locateZoneRoot(path.resolve(absolutePath));
-    if (!located.root) return none;
-    const zoneIds = trashStore
-      .listZones(db)
-      .filter((zone) => zone.root === located.root)
-      .map((zone) => zone.id);
-    if (zoneIds.length === 0) return none;
-
-    const prefix = toRelative(located.root, path.resolve(absolutePath));
-    const row = db
-      .prepare(
-        `SELECT COUNT(DISTINCT vf.id) AS files,
-                COUNT(v.id) AS versions,
-                COALESCE(SUM(v.size_bytes), 0) AS bytes
-           FROM version_files vf
-           JOIN file_versions v ON v.file_id = vf.id AND v.state = 'kept'
-          WHERE vf.zone_id IN (${zoneIds.map(() => '?').join(', ')})
-            AND vf.state IN ('live', 'orphaned') AND ${under('vf.relative_path')}`
-      )
-      .get(...zoneIds, ...underValues(prefix));
-
-    return {
-      files: Number(row?.files) || 0,
-      versions: Number(row?.versions) || 0,
-      bytes: Number(row?.bytes) || 0,
-    };
-  } catch (error) {
-    // A count is not worth failing a deletion over: the line written down says
-    // what it knows, and the deletion itself is unchanged.
-    logger.debug({ err: error, absolutePath }, 'File versions were not counted for a deletion');
-    return none;
-  }
-};
-
 const onDeleted = async (absolutePath) => {
   const none = { files: 0, versions: 0, bytes: 0 };
   try {
     const db = await getDb();
     const { rows } = await historiesUnder(db, absolutePath);
     if (rows.length === 0) return none;
-    // Counted before they go, so a deletion can say what it took.
+    // Counted before they go, so a deletion can say what it took. Afterwards
+    // there is nothing left to count.
     const taken = await countUnder(absolutePath);
     db.transaction(() => {
       for (const row of rows) store.setFileState(db, row.id, 'purging');
@@ -328,7 +338,6 @@ const reviewZone = async (
     .filter((file) => file.state === 'live' || file.state === 'orphaned');
   const checked = [];
   for (let index = 0; index < files.length; index += REVIEW_BATCH) {
-    // eslint-disable-next-line no-await-in-loop
     const batch = await Promise.all(
       files.slice(index, index + REVIEW_BATCH).map(async (file) => {
         const stats = await lstatOrNull(path.join(zone.root, ...file.relativePath.split('/')));
@@ -367,7 +376,6 @@ const reviewZone = async (
   for (const file of store.listFiles(db, { zoneId: zone.id, state: 'orphaned' })) {
     const orphanedAt = Date.parse(file.orphanedAt || '');
     if (Number.isFinite(orphanedAt) && orphanedAt > expiry) continue;
-    // eslint-disable-next-line no-await-in-loop
     await purgeFiles([file.id]);
     report.expired += 1;
   }
@@ -414,7 +422,6 @@ const zoneVersions = (db, zone, { now, settings }) => {
 };
 
 module.exports = {
-  countUnder,
   relinkTrashed,
   filesInTrashItem,
   targetForRestore,
@@ -422,6 +429,7 @@ module.exports = {
   purgeFiles,
   onMoved,
   onDeleted,
+  countUnder,
   reviewZone,
   zoneVersions,
 };
