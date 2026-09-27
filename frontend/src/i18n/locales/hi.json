@@ -247,7 +247,8 @@
     "defaultDocumentName": "दस्तावेज़",
     "defaultSpreadsheetName": "स्प्रेडशीट",
     "defaultPresentationName": "प्रस्तुति",
-    "defaultDataName": "डेटा"
+    "defaultDataName": "डेटा",
+    "documentFailed": "दस्तावेज़ नहीं बनाया जा सका"
   },
   "context": {
     "getInfo": "जानकारी प्राप्त करें",
@@ -356,7 +357,8 @@
       "warning": "चेतावनियाँ",
       "success": "सफलता",
       "info": "जानकारी"
-    }
+    },
+    "copyDetails": "विवरण कॉपी करें"
   },
   "spotlight": {
     "hintWithin": "अंदर खोजने के लिए टाइप करें",
@@ -1306,7 +1308,9 @@
     "editingNow": "ONLYOFFICE में संपादित किया जा रहा है",
     "savedAsHeading": "इस फ़ोल्डर में सहेजा गया",
     "savedAsBody": "{name} को मूल फ़ाइल के बगल में जोड़ा गया।",
-    "saveAsFailed": "{name} को सहेजा नहीं जा सका"
+    "saveAsFailed": "{name} को सहेजा नहीं जा सका",
+    "editingBody": "{names} OnlyOffice में खुली है। {action} जारी रहेगा। | {names} OnlyOffice में खुली हैं। {action} जारी रहेगा।",
+    "editingHeading": "फ़ाइल संपादित की जा रही है"
   },
   "preview": {
     "nothingOpensIt": "यहाँ कुछ भी {name} को नहीं खोल सकता।",

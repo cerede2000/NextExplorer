@@ -247,7 +247,8 @@
     "defaultDocumentName": "文件",
     "defaultSpreadsheetName": "活頁簿",
     "defaultPresentationName": "簡報",
-    "defaultDataName": "資料"
+    "defaultDataName": "資料",
+    "documentFailed": "無法建立文件"
   },
   "context": {
     "getInfo": "詳細資訊",
@@ -356,7 +357,8 @@
       "warning": "警告",
       "success": "成功",
       "info": "資訊"
-    }
+    },
+    "copyDetails": "複製詳細資訊"
   },
   "spotlight": {
     "hintWithin": "輸入關鍵字來搜尋",
@@ -1306,7 +1308,9 @@
     "editingNow": "正在 ONLYOFFICE 中編輯",
     "savedAsHeading": "已儲存到此資料夾",
     "savedAsBody": "{name} 已新增至原檔案旁。",
-    "saveAsFailed": "無法儲存 {name}"
+    "saveAsFailed": "無法儲存 {name}",
+    "editingBody": "{names} 已在 OnlyOffice 中開啟。{action}操作將繼續。 | {names} 已在 OnlyOffice 中開啟。{action}操作將繼續。",
+    "editingHeading": "檔案正在編輯中"
   },
   "preview": {
     "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",

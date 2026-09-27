@@ -6,6 +6,156 @@ const { applyApiToken } = require('./apiTokenAuth');
 const apiTokens = require('../services/apiTokens');
 
 /**
+ * Whoever a request arrives as, when authentication is switched off.
+ *
+ * A deployment behind its own front door runs with no accounts at all, and the
+ * rest of the application asks who is calling — so it has to be told
+ * something.
+ */
+const ANONYMOUS_USER = {
+  id: 'anonymous',
+  username: 'anonymous',
+  email: 'anonymous@local',
+  displayName: 'Anonymous User',
+  roles: ['admin'],
+};
+
+/**
+ * A share link is opened by someone with no account, which is the point of it.
+ *
+ * Browsing *inside* one is deliberately not on that list: it needs either an
+ * account or a guest session, which is the only proof the password was typed.
+ */
+const isPublicShareRoute = (requestPath) =>
+  requestPath.startsWith('/api/share/') && !requestPath.includes('/browse/');
+
+/**
+ * The paths an editor's server calls back on, which carry their own signed
+ * token and are checked by the route.
+ *
+ * Open only while the integration is configured — otherwise they are
+ * unauthenticated endpoints for no reason.
+ */
+const isConfiguredIntegrationCallback = (requestPath) => {
+  try {
+    const { onlyoffice, collabora } = require('../config/index');
+
+    if (
+      onlyoffice?.serverUrl &&
+      (requestPath.startsWith('/api/onlyoffice/file') ||
+        requestPath.startsWith('/api/onlyoffice/callback'))
+    ) {
+      return true;
+    }
+
+    if (collabora?.url && collabora?.secret && requestPath.startsWith('/api/collabora/wopi/')) {
+      return true;
+    }
+  } catch (_) {
+    /* an integration that cannot be read about is an integration that is off */
+  }
+
+  return false;
+};
+
+/** What is answered before anyone is asked to identify themselves. */
+const needsNoIdentity = (req, requestPath) => {
+  if (!requestPath.startsWith('/api')) return true;
+  if (req.method === 'OPTIONS') return true;
+  // Feature flags are needed for plugin registration, and the login page draws
+  // its branding before anyone has signed in. Neither carries anything private.
+  if (requestPath.startsWith('/api/features')) return true;
+  if (requestPath === '/api/branding') return true;
+  // The API's description says what the published documentation says.
+  if (requestPath === '/api/openapi.json') return true;
+  return isConfiguredIntegrationCallback(requestPath);
+};
+
+/**
+ * Attach the visitor's guest session, when they have a valid one.
+ *
+ * Enrichment and not a gate: it decides nothing on its own, and every access
+ * check downstream reads it for itself.
+ */
+const attachGuestSession = async (req, requestPath) => {
+  const guestSessionId = req.headers['x-guest-session'] || req.cookies?.guestSession;
+
+  if (!guestSessionId) {
+    if (requestPath.startsWith('/api/preview') || requestPath.startsWith('/api/thumbnails')) {
+      logger.debug(
+        {
+          path: requestPath,
+          hasHeader: Boolean(req.headers['x-guest-session']),
+          hasCookie: Boolean(req.cookies?.guestSession),
+          cookies: Object.keys(req.cookies || {}),
+        },
+        'No guest session for preview/thumbnail request'
+      );
+    }
+    return;
+  }
+
+  logger.debug(
+    {
+      source: req.headers['x-guest-session'] ? 'header' : 'cookie',
+      sessionId: guestSessionId,
+      path: requestPath,
+      cookies: Object.keys(req.cookies || {}),
+    },
+    'Guest session found'
+  );
+
+  try {
+    const {
+      getGuestSession,
+      isGuestSessionValid,
+      updateGuestSessionActivity,
+    } = require('../services/guestSessionService');
+
+    if (!(await isGuestSessionValid(guestSessionId))) {
+      logger.debug({ sessionId: guestSessionId }, 'Guest session invalid or expired');
+      return;
+    }
+
+    req.guestSession = await getGuestSession(guestSessionId);
+    await updateGuestSessionActivity(guestSessionId);
+    logger.debug(
+      { sessionId: guestSessionId, shareId: req.guestSession.shareId, path: requestPath },
+      'Guest session validated'
+    );
+  } catch (err) {
+    logger.debug({ err }, 'Guest session validation failed');
+  }
+};
+
+/** Whether this request carries a session, and of which kind. */
+const sessionsOn = (req) => ({
+  throughIdentityProvider: Boolean(
+    req.oidc && typeof req.oidc.isAuthenticated === 'function' && req.oidc.isAuthenticated()
+  ),
+  throughLocalAccount: Boolean(req.session && req.session.localUserId),
+});
+
+/**
+ * Attach the account this session belongs to.
+ *
+ * @throws {ForbiddenError} when the identity provider vouches for somebody this
+ *   installation has no account for and does not create accounts on the fly.
+ *   A guest or a share link is let through without one; anything else is not,
+ *   because every check below asks what this user may do.
+ */
+const attachAuthenticatedUser = async (req, { throughIdentityProvider, requestPath }) => {
+  const user = await getRequestUser(req);
+  if (user) req.user = user;
+  if (user || !throughIdentityProvider) return;
+
+  if ((auth?.oidc?.autoCreateUsers ?? true) !== false) return;
+  if (isPublicShareRoute(requestPath) || req.guestSession) return;
+
+  throw new ForbiddenError('Profile does not exist.');
+};
+
+/**
  * Say, once in a while, that a token this server knows was refused.
  *
  * Only tokens it knows: gibberish in an Authorization header is noise anybody
@@ -18,7 +168,6 @@ const reportRefusal = async (req, refused) => {
   if (!refused?.tokenId) return;
   if (!apiTokens.shouldReportRefusal(refused.tokenId)) return;
   try {
-    // eslint-disable-next-line global-require
     const activityLog = require('../services/activityLog');
     await activityLog.record({
       action: 'sign-in',
@@ -82,216 +231,92 @@ const authenticateWithToken = async (req) => {
   return { authenticated: true };
 };
 
+/**
+ * The path, spelled the one way every decision below is written for.
+ *
+ * Express matches routes without regard to case, so `/API/Files/list` reaches
+ * the same handler `/api/files/list` does. Every check in this file compares a
+ * prefix, and a prefix compared as it arrived does not match that — so
+ * `/API/anything` answered the very first question ("does this need an
+ * identity?") with *no*, and walked past authentication entirely. It was not a
+ * way in: no session was attached either, so the routes that ask who is
+ * calling refused. It was worse than that — it was a gate that did not hold,
+ * in front of routes that are entitled to assume it did.
+ *
+ * Folded once, here, rather than at each of the comparisons below, because the
+ * one that gets forgotten is the one that matters.
+ */
+const pathForDecisions = (req) => (req.path || '').toLowerCase();
+
+/**
+ * Who is calling, and whether they may be here at all.
+ *
+ * Four questions in order, each answerable on its own: what needs no identity,
+ * what runs with no accounts at all, what the visitor's guest session says,
+ * and finally what account this session belongs to. Anything that reaches the
+ * end is refused.
+ *
+ * It was one function of forty-six paths, in front of every request the
+ * application serves.
+ */
 const authMiddleware = async (req, res, next) => {
-  // Express matches routes without regard to case, so `/API/volumes` reaches
-  // the same handler as `/api/volumes`. Every decision below compares the path
-  // with a lower-case prefix, and a path compared as it arrived was answered
-  // "not an API route" and waved through with no identity at all. Folded once,
-  // here, rather than at each comparison, because the one that gets forgotten
-  // is the one that matters.
-  const requestPath = (req.path || '').toLowerCase();
-  const apiRoute = requestPath.startsWith('/api');
-  const isAuthRoute = requestPath.startsWith('/api/auth');
-  // Allow public share access routes (single share with token: /api/share/:token/*)
-  // Note: /api/shares/* are management endpoints and require authentication.
-  // Important: exclude /api/share/:token/browse/* so browse requests still require
-  // an authenticated user and/or a valid guest session.
-  const isPublicShareRoute =
-    requestPath.startsWith('/api/share/') && !requestPath.includes('/browse/');
+  const requestPath = pathForDecisions(req);
 
-  if (!apiRoute) {
-    next();
-    return;
-  }
-
-  if (req.method === 'OPTIONS') {
+  if (needsNoIdentity(req, requestPath)) {
     next();
     return;
   }
 
   if (auth.enabled === false) {
-    // Inject a synthetic anonymous user for features that require user context
-    req.user = {
-      id: 'anonymous',
-      username: 'anonymous',
-      email: 'anonymous@local',
-      displayName: 'Anonymous User',
-      roles: ['admin'],
-    };
+    req.user = { ...ANONYMOUS_USER };
     next();
     return;
   }
 
-  // Allow public feature flags endpoint (contains no sensitive data)
-  // its needed for plugin registrations
-  if (requestPath === '/api/features' || requestPath.startsWith('/api/features')) {
+  // A script's credential, before anything a browser carries. A request that
+  // presents a token is answered as that token, with that token's scope — a
+  // session cookie that happened to ride along does not widen it.
+  const withToken = await authenticateWithToken(req);
+  if (withToken.error) {
+    next(withToken.error);
+    return;
+  }
+  if (withToken.authenticated) {
     next();
     return;
   }
 
-  // The API's description says what the published documentation says, and
-  // carries nothing private: a client reads it before it has a token.
-  if (requestPath === '/api/openapi.json') {
+  await attachGuestSession(req, requestPath);
+
+  if (requestPath.startsWith('/api/auth')) {
     next();
     return;
   }
 
-  // Allow public branding endpoint (no sensitive data, used on login page)
-  if (requestPath === '/api/branding') {
-    next();
-    return;
-  }
-
-  // Allow ONLYOFFICE server callbacks and file fetches (token-guarded in route)
-  // Only when ONLYOFFICE integration is enabled
-  let isOnlyofficeGuest = false;
-  try {
-    const { onlyoffice } = require('../config/index');
-    if (onlyoffice && onlyoffice.serverUrl) {
-      isOnlyofficeGuest =
-        requestPath.startsWith('/api/onlyoffice/file') ||
-        requestPath.startsWith('/api/onlyoffice/callback');
-    }
-  } catch (_) {
-    /* ignore */
-  }
-
-  if (isOnlyofficeGuest) {
-    next();
-    return;
-  }
-
-  // Allow Collabora WOPI endpoints (token-guarded in route)
-  // Only when Collabora integration is enabled
-  let isCollaboraGuest = false;
-  try {
-    const { collabora } = require('../config/index');
-    if (collabora && collabora.url && collabora.secret) {
-      isCollaboraGuest = requestPath.startsWith('/api/collabora/wopi/');
-    }
-  } catch (_) {
-    /* ignore */
-  }
-
-  if (isCollaboraGuest) {
-    next();
-    return;
-  }
-
-  // A token, if one was presented. Asked before the session, because a script
-  // sending one is saying which credential it wants judged: a stale cookie in
-  // the same jar must not be what answers for it.
-  const byToken = await authenticateWithToken(req);
-  if (byToken.error) {
-    next(byToken.error);
-    return;
-  }
-  if (byToken.authenticated) {
-    next();
-    return;
-  }
-
-  // Check for guest session (on all routes)
-  const guestSessionId = req.headers['x-guest-session'] || req.cookies?.guestSession;
-  if (guestSessionId) {
-    logger.debug(
-      {
-        source: req.headers['x-guest-session'] ? 'header' : 'cookie',
-        sessionId: guestSessionId,
-        path: requestPath,
-        cookies: Object.keys(req.cookies || {}),
-      },
-      'Guest session found'
-    );
-
+  const { throughIdentityProvider, throughLocalAccount } = sessionsOn(req);
+  if (throughIdentityProvider || throughLocalAccount) {
     try {
-      const {
-        getGuestSession,
-        isGuestSessionValid,
-        updateGuestSessionActivity,
-      } = require('../services/guestSessionService');
-      if (await isGuestSessionValid(guestSessionId)) {
-        const session = await getGuestSession(guestSessionId);
-        req.guestSession = session;
-        // Update activity timestamp
-        await updateGuestSessionActivity(guestSessionId);
-
-        logger.debug(
-          {
-            sessionId: guestSessionId,
-            shareId: session.shareId,
-            path: requestPath,
-          },
-          'Guest session validated'
-        );
-      } else {
-        logger.debug({ sessionId: guestSessionId }, 'Guest session invalid or expired');
-      }
-    } catch (err) {
-      logger.debug({ err }, 'Guest session validation failed');
-    }
-  } else if (requestPath.startsWith('/api/preview') || requestPath.startsWith('/api/thumbnails')) {
-    logger.debug(
-      {
-        path: requestPath,
-        hasHeader: !!req.headers['x-guest-session'],
-        hasCookie: !!req.cookies?.guestSession,
-        cookies: Object.keys(req.cookies || {}),
-      },
-      'No guest session for preview/thumbnail request'
-    );
-  }
-
-  if (isAuthRoute) {
-    next();
-    return;
-  }
-
-  // Accept either EOC session or local session
-  const isEocAuthenticated = Boolean(
-    req.oidc && typeof req.oidc.isAuthenticated === 'function' && req.oidc.isAuthenticated()
-  );
-  const hasLocalSession = Boolean(req.session && req.session.localUserId);
-  if (isEocAuthenticated || hasLocalSession) {
-    try {
-      const user = await getRequestUser(req);
-      if (user) req.user = user;
-      if (isEocAuthenticated && !user && (auth?.oidc?.autoCreateUsers ?? true) === false) {
-        // Allow guest/public access without an app user profile.
-        if (isPublicShareRoute || req.guestSession) {
-          next();
-          return;
-        }
-        throw new ForbiddenError('Profile does not exist.');
-      }
+      await attachAuthenticatedUser(req, { throughIdentityProvider, requestPath });
     } catch (err) {
       if (err && err.isOperational) {
         next(err);
         return;
       }
-      /* ignore */
+      /* anything else is a lookup that failed; the checks below still apply */
     }
 
-    // A guest session stays beside the user. For a password-protected share it
-    // is the proof that this account typed the password, and dropping it here
-    // refused a signed-in visitor on every request after they had. Every
-    // access check already prefers the user when both are present.
-
+    // The guest session is kept alongside the user: it is the only proof that
+    // this visitor typed the password of a protected share. Dropping it here
+    // made that check unsatisfiable for signed-in visitors. Each access check
+    // decides on its own, and every one of them prefers the user when both are
+    // present, so a stale guest session can no longer shadow user access.
     next();
     return;
   }
 
-  // Public share routes should be accessible without authentication, but we still
-  // tried to attach an authenticated user above (if present) to support
-  // user-specific shares opened via share links.
-  if (isPublicShareRoute) {
-    next();
-    return;
-  }
-
-  // Allow access if valid guest session exists (for share paths on browse, files, etc.)
-  if (req.guestSession) {
-    logger.debug('Allowing request with guest session');
+  // Reached with no account: a share link is still open to anyone, and a guest
+  // session is what a visitor to a protected one carries instead.
+  if (isPublicShareRoute(requestPath) || req.guestSession) {
     next();
     return;
   }

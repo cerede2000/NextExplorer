@@ -3,27 +3,39 @@
  * This file is responsible for starting the server and should NOT be imported in tests.
  * Tests should import the app directly from ./app.js
  */
+
+// Size the libuv thread pool up front, before any async filesystem work runs.
+// Directory listings do one fs.stat per entry through this pool; with the Node
+// default of 4 threads those stats queue behind concurrent thumbnail-generation
+// fs operations (realpath/stat/rename), which makes folder navigation stall
+// while a large media folder is being processed. Overridable via the env var
+// (also set in the Docker image); this default only applies when unset.
+if (!process.env.UV_THREADPOOL_SIZE) {
+  process.env.UV_THREADPOOL_SIZE = '16';
+}
+
 const { createApp } = require('./app');
 const { port, http, features, address } = require('./config/index');
 const logger = require('./utils/logger');
 const { printStartupBanner } = require('./utils/startupBanner');
-const terminalService = require('./services/terminalService');
-const searchIndexManager = require('./services/searchIndexManager');
-const folderSizeManager = require('./services/folderSizeManager');
-const { sweepInterrupted } = require('./services/inFlightFiles');
-const trashMaintenance = require('./services/trash/maintenance');
-const tusUploads = require('./services/tusUploadService');
 const { cleanupExpiredShares } = require('./services/sharesService');
 const { cleanupExpiredSessions } = require('./services/guestSessionService');
 const { purgeExpiredDocumentKeys } = require('./services/onlyofficeDocumentKeyService');
-const editorSessions = require('./services/onlyofficeEditorSessionService');
-const { sweepActivity } = require('./services/activityLog');
-const capabilities = require('./services/capabilities');
-const { installProcessFailureHandlers } = require('./utils/processFailures');
-const { sweepUnreferencedLogos } = require('./services/brandingLogo');
+const terminalService = require('./services/terminalService');
+const folderSizeManager = require('./services/folderSizeManager');
+const searchIndexManager = require('./services/searchIndexManager');
 const featureSwitches = require('./services/featureSwitches');
-const { reportLegacyCache } = require('./services/legacyCacheCheck');
+const capabilities = require('./services/capabilities');
 const performanceDiagnostics = require('./services/performanceDiagnostics');
+const { reportOrphanedBindings } = require('./services/orphanedBindingsService');
+const { reportLegacyCache } = require('./services/legacyCacheCheck');
+const { sweepUnreferencedLogos } = require('./services/brandingLogo');
+const { sweepInterrupted } = require('./services/inFlightFiles');
+const trashMaintenance = require('./services/trash/maintenance');
+const { sweepActivity } = require('./services/activityLog');
+const databaseMaintenance = require('./services/databaseMaintenance');
+const tusUploads = require('./services/tusUploadService');
+const { installProcessFailureHandlers } = require('./utils/processFailures');
 
 let server = null;
 
@@ -64,31 +76,32 @@ const startServer = async () => {
     logger.warn('Terminal disabled at runtime');
   }
 
-  // Deliberately not awaited: a server does not wait for its index to be
-  // ready, it answers from the live search until it is.
-  // Whether each worker runs: the environment's answer when somebody set the
-  // variable, and Settings' otherwise — read before either of them starts, so one
-  // switched on from the page comes back on after a restart.
+  // Whether the two background workers run is the environment's to say when it
+  // said it, and Settings' otherwise — read before either of them starts, so
+  // one switched on from the page comes back on after a restart.
   await featureSwitches.load();
 
+  // Start the folder size indexer worker (no-op unless its mode is not off).
+  // It runs off the Express event loop and keeps the folder_size_index fresh.
   folderSizeManager.start();
   searchIndexManager.start();
   // Which optional tools are here and which are not, said once. Not awaited: a
   // server does not wait on `--version` to answer its first request.
   capabilities.report();
+  performanceDiagnostics.start();
   // Finishes what a crash interrupted before anything else touches a zone,
   // then keeps each zone within its retention and budget.
   trashMaintenance.start();
   // Chunked uploads abandoned, or finished and never moved into place, leave
   // the upload cache once past TUS_INCOMPLETE_UPLOAD_TTL_MS.
   tusUploads.startCacheSweep();
+  // Hands the database's free space back to the filesystem once there is
+  // enough of it to matter, so that /config and its backups do not keep it.
+  databaseMaintenance.start();
 
-  // Rows that expire and were never swept. The ONLYOFFICE key of a document
-  // whose browser was closed is one: only a terminal callback released a key,
-  // so a crash or a restart left the row for good, one for every document ever
-  // opened. The same sweep takes the two that were already here and had no
-  // caller at all — `cleanupExpiredShares` and `cleanupExpiredSessions` — so an
-  // expired share no longer sits on disk indefinitely.
+  // Expired shares and guest sessions were never purged: the services had a
+  // cleanup function each, and nothing ever called them, so both tables grew
+  // forever and an expired share stayed on disk indefinitely.
   const EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
   const sweepExpiredRecords = async () => {
     try {
@@ -96,9 +109,8 @@ const startServer = async () => {
         cleanupExpiredShares(),
         cleanupExpiredSessions(),
         purgeExpiredDocumentKeys(),
-        editorSessions.purgeExpired(),
-        // Whether or not the log is on: switching it off should let the disk go
-        // back rather than freeze yesterday's rows for ever.
+        // Whether or not the log is on: switching it off should let the disk
+        // go back rather than freeze yesterday's rows for ever.
         sweepActivity(),
       ]);
       if (shares || sessions || documentKeys || activity) {
@@ -114,35 +126,34 @@ const startServer = async () => {
   const expirySweep = setInterval(sweepExpiredRecords, EXPIRY_SWEEP_INTERVAL_MS);
   // Never keep the process alive just for the sweep.
   expirySweep.unref?.();
-  void sweepExpiredRecords();
+  sweepExpiredRecords();
 
-  // What early releases left in the cache directory: the database and app-config.json
-  // lived there up to 1.1.7, and an installation that skipped the releases in between
-  // comes up on a new, empty app.db with its accounts and shares sitting unread.
+  // Say what points at a volume that is not there. Removing nothing is the
+  // whole point: an unmounted volume and a deleted one look identical from
+  // here, and only a person can tell them apart.
+  reportOrphanedBindings();
+  // And what releases before 2.0.3 left in the cache directory: an old app.db
+  // nothing reads, or the links 1.1.8 left beside it.
   reportLegacyCache();
 
-  // A periodic record of what the process is costing — CPU, resident memory, event-loop
-  // delay, and the queues that can grow. Off unless PERFORMANCE_DIAGNOSTICS_ENABLED is
-  // set, and then it says only the intervals that look wrong.
-  performanceDiagnostics.start();
-
   // A logo left behind by a stop in the middle of a branding change, or by a
-  // removal that failed, is 2 MB nothing can reach. Here, where nothing is being
-  // placed, so a file under one of our names is a finished one.
+  // removal that failed, is 2 MB nothing can reach. Here, where nothing is
+  // being placed, so a file under one of our names is a finished one.
   sweepUnreferencedLogos().catch((error) => {
     logger.warn({ err: error }, 'Sweeping logos no longer in use failed');
   });
 
   // Cleanup on process termination
-  const cleanup = () => {
+  const cleanup = async () => {
     logger.info('Shutting down server...');
-    terminalService.cleanup();
     clearInterval(expirySweep);
-    tusUploads.stopCacheSweep();
-    folderSizeManager.stop();
-    trashMaintenance.stop();
-    searchIndexManager.stop();
+    terminalService.cleanup();
     performanceDiagnostics.stop();
+    trashMaintenance.stop();
+    await tusUploads.stopCacheSweep();
+    databaseMaintenance.stop();
+    await folderSizeManager.stop();
+    searchIndexManager.stop();
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);

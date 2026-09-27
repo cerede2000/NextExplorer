@@ -247,7 +247,8 @@
     "defaultDocumentName": "Dokument",
     "defaultSpreadsheetName": "Arbetsbok",
     "defaultPresentationName": "Presentation",
-    "defaultDataName": "Data"
+    "defaultDataName": "Data",
+    "documentFailed": "Det gick inte att skapa dokumentet"
   },
   "context": {
     "getInfo": "Hämta info",
@@ -356,7 +357,8 @@
       "warning": "Varningar",
       "success": "Lyckade",
       "info": "Info"
-    }
+    },
+    "copyDetails": "Kopiera detaljerna"
   },
   "spotlight": {
     "hintWithin": "Skriv för att söka inom",
@@ -1306,7 +1308,9 @@
     "editingNow": "Redigeras i ONLYOFFICE",
     "savedAsHeading": "Sparad i den här mappen",
     "savedAsBody": "{name} lades till bredvid originalet.",
-    "saveAsFailed": "Det gick inte att spara {name}"
+    "saveAsFailed": "Det gick inte att spara {name}",
+    "editingBody": "{names} är öppen i OnlyOffice. {action} fortsätter. | {names} är öppna i OnlyOffice. {action} fortsätter.",
+    "editingHeading": "Filen redigeras"
   },
   "preview": {
     "nothingOpensIt": "Inget här kan öppna {name}.",

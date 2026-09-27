@@ -10,21 +10,15 @@ import {
   DescriptionOutlined,
 } from '@vicons/material';
 
-import { useFileUploader } from '@/composables/fileUploader';
-import { useFileStore } from '@/stores/fileStore';
-import { useFeaturesStore } from '@/stores/features';
-import { usePreviewManager } from '@/plugins/preview/manager';
-import NewOfficeDocumentDialog from '@/components/NewOfficeDocumentDialog.vue';
-
 const popuplRef = ref(null);
 const toggleRef = ref(null);
 const drawerOpen = ref(false);
 
 const [menuOpen, toggle] = useToggle();
 
-// The button that opens the menu sits outside it. Left to count as outside, its
-// click shut the menu in the capture phase and its own toggle opened it again, so
-// the button could open the menu and never close it.
+// The button that opens the menu is outside it. Left to count as outside, its
+// click shut the menu in the capture phase and its own toggle opened it again,
+// so the button could open the menu and never close it.
 onClickOutside(
   popuplRef,
   () => {
@@ -33,32 +27,45 @@ onClickOutside(
   { ignore: [toggleRef] }
 );
 
-// The drawer lives inside the menu, so it disappears with it — but its state does
-// not. Without this it would be open again the next time the menu is.
+// The drawer lives inside the menu, so it disappears with it — but its state
+// does not. Without this it would be open again the next time the menu is.
 watch(menuOpen, (open) => {
   if (!open) drawerOpen.value = false;
 });
 
+import { useI18n } from 'vue-i18n';
+import { useFileUploader } from '@/composables/fileUploader';
+import { useFileStore } from '@/stores/fileStore';
+import { useFeaturesStore } from '@/stores/features';
+import { useNotificationsStore } from '@/stores/notifications';
+import { usePreviewManager } from '@/plugins/preview/manager';
+import NewOfficeDocumentDialog from '@/components/NewOfficeDocumentDialog.vue';
+
 const { openDialog } = useFileUploader();
+const { t } = useI18n();
 const fileStore = useFileStore();
 const featuresStore = useFeaturesStore();
+const notifications = useNotificationsStore();
 const previewManager = usePreviewManager();
 const isCreating = ref(false);
+const canCreateFolder = computed(() => fileStore.currentPathData?.canCreateFolder ?? true);
+const canCreateFile = computed(() => fileStore.currentPathData?.canCreateFile ?? true);
+const canUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
 
 /**
- * Blank office documents are only worth offering when something can open them:
- * with no editor configured, this would create files the app can only download.
+ * Blank documents are only worth offering when something can open them: with
+ * no editor configured, this would create files the app can only download.
  */
 const hasOfficeEditor = computed(
   () => featuresStore.onlyofficeEnabled || featuresStore.collaboraEnabled
 );
 
 /**
- * What the "New document" drawer offers.
+ * What the "New file" drawer offers.
  *
- * `office` entries need an editor to be worth creating; the text ones are useful
- * on their own and are always listed. Order is deliberate: the office formats are
- * what the drawer was added for, the plain ones sit below.
+ * `office` entries need an editor to be worth creating; the text ones are
+ * useful on their own and are always listed. Order is deliberate: the office
+ * formats are what the drawer was added for, the plain ones sit below.
  */
 const DOCUMENT_TYPES = [
   {
@@ -81,6 +88,13 @@ const DOCUMENT_TYPES = [
     titleKey: 'actions.newPresentation',
     nameKey: 'create.defaultPresentationName',
     tint: 'text-orange-500',
+  },
+  {
+    format: 'pdf',
+    office: true,
+    titleKey: 'actions.newPdf',
+    nameKey: 'create.defaultDocumentName',
+    tint: 'text-red-500',
   },
   {
     format: 'txt',
@@ -106,21 +120,18 @@ const documentTypes = computed(() =>
   DOCUMENT_TYPES.filter((type) => !type.office || hasOfficeEditor.value)
 );
 
-const dialogOpen = ref(false);
-const chosen = ref(DOCUMENT_TYPES[0]);
+const officeDialogOpen = ref(false);
+const officeDocument = ref(DOCUMENT_TYPES[0]);
 
-// The drawer opens beside its row, which says nothing about whether it fits.
-// Measured against the viewport each time: a menu near the right edge has to hand
-// its drawer to the other side or it opens off-screen.
+// The drawer opens on hover, which says nothing about where it fits. Measured
+// against the viewport each time it opens: a menu near the right edge has to
+// hand its drawer to the other side or it opens off-screen.
 const drawerOnLeft = ref(false);
-const documentRowRef = ref(null);
+const newFileRef = ref(null);
 const DRAWER_WIDTH = 240;
 
-// Opening only, never a toggle: the row opens the drawer on hover too, so a
-// toggle closed again the drawer the pointer had just opened on its way to the
-// click. It closes when a format is chosen or when the menu does.
 const openDrawer = () => {
-  const rect = documentRowRef.value?.getBoundingClientRect();
+  const rect = newFileRef.value?.getBoundingClientRect();
   if (rect) {
     const room = window.innerWidth - rect.right;
     drawerOnLeft.value = room < DRAWER_WIDTH && rect.left > room;
@@ -133,18 +144,18 @@ const closeMenus = () => {
   menuOpen.value = false;
 };
 
-const promptFor = (type) => {
-  chosen.value = type;
+const promptOfficeDocument = (document) => {
+  officeDocument.value = document;
   closeMenus();
-  dialogOpen.value = true;
+  officeDialogOpen.value = true;
 };
 
 /**
- * Create the document, then open it in the editor it was made for. Landing back
- * in the file list would leave the user to find and open a document they have
+ * Create the document, then open it in the editor it was made for. Landing
+ * back in the file list would leave the user to find and open a document they
  * just asked for by name.
  */
-const createDocument = async ({ format, name }) => {
+const createOfficeDocument = async ({ format, name }) => {
   if (isCreating.value) return;
 
   isCreating.value = true;
@@ -152,7 +163,11 @@ const createDocument = async ({ format, name }) => {
     const item = await fileStore.createOfficeDocument({ format, name });
     if (item) previewManager.open(item);
   } catch (error) {
-    console.error('Failed to create document', error);
+    notifications.addNotification({
+      type: 'error',
+      heading: t('create.documentFailed'),
+      body: error?.message || '',
+    });
   } finally {
     isCreating.value = false;
   }
@@ -160,10 +175,12 @@ const createDocument = async ({ format, name }) => {
 
 const uploadFolder = async () => {
   await openDialog({ directory: true });
+  //process()
 };
 
 const uploadFiles = async () => {
   await openDialog();
+  //process()
 };
 
 const createFolder = async () => {
@@ -214,6 +231,7 @@ const createFile = async () => {
       class="absolute top-full mt-2 left-0 z-50 min-w-[200px] bg-white dark:bg-zinc-700 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-600"
     >
       <button
+        v-if="canCreateFolder"
         @click="createFolder"
         :disabled="isCreating"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 rounded-t-lg disabled:opacity-60 disabled:cursor-not-allowed"
@@ -221,53 +239,67 @@ const createFile = async () => {
         <CreateNewFolderRound class="w-6 text-yellow-400" />
         {{ $t('actions.newFolder') }}
       </button>
-      <button
-        @click="createFile"
-        :disabled="isCreating"
-        class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
+      <!--
+        "New file" keeps doing what it always did on click. The drawer beside
+        it is where the typed documents live, so the common case stays one
+        click and the choice is there for anyone who wants it.
+      -->
+      <div
+        v-if="canCreateFile"
+        ref="newFileRef"
+        class="relative"
+        @mouseenter="openDrawer"
+        @mouseleave="drawerOpen = false"
       >
-        <FileOpenOutlined class="w-6 text-orange-400" />{{ $t('actions.newFile') }}
-      </button>
-
-      <div ref="documentRowRef" class="relative" @mouseenter="openDrawer">
         <button
-          type="button"
+          @click="createFile"
+          @keydown.right.prevent="openDrawer"
+          @keydown.left.prevent="drawerOpen = false"
           :disabled="isCreating"
-          @click="openDrawer"
-          class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
           :aria-expanded="drawerOpen"
+          aria-haspopup="menu"
+          class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <DescriptionOutlined class="w-6 text-blue-500" />
-          <span class="flex-1 text-left">{{ $t('actions.newDocument') }}</span>
-          <ChevronRightIcon class="w-4 h-4 shrink-0" />
+          <FileOpenOutlined class="w-6 text-orange-400" />
+          <span class="flex-1 text-left">{{ $t('actions.newFile') }}</span>
+          <ChevronRightIcon class="w-4 h-4 shrink-0 opacity-60" aria-hidden="true" />
         </button>
 
         <div
           v-if="drawerOpen"
-          class="absolute top-0 z-50 min-w-[220px] bg-white dark:bg-zinc-700 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden"
+          role="menu"
+          class="absolute top-0 z-50 min-w-[240px] bg-white dark:bg-zinc-700 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-600"
           :class="drawerOnLeft ? 'right-full mr-1' : 'left-full ml-1'"
         >
           <button
-            v-for="type in documentTypes"
+            v-for="(type, index) in documentTypes"
             :key="type.format"
-            type="button"
+            role="menuitem"
+            @click="promptOfficeDocument(type)"
             :disabled="isCreating"
-            @click="promptFor(type)"
             class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+            :class="[
+              index === 0 ? 'rounded-t-lg' : '',
+              index === documentTypes.length - 1
+                ? 'rounded-b-lg'
+                : 'border-b border-gray-300 dark:border-gray-600',
+            ]"
           >
             <DescriptionOutlined class="w-6 shrink-0" :class="type.tint" />
-            <span class="flex-1 text-left">{{ $t(type.titleKey) }}</span>
+            <span class="flex-1 text-left whitespace-nowrap">{{ $t(type.titleKey) }}</span>
+            <span class="shrink-0 text-xs opacity-60">.{{ type.format }}</span>
           </button>
         </div>
       </div>
-
       <button
+        v-if="canUpload"
         @click="uploadFiles"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white border-b border-gray-300 dark:border-gray-600"
       >
         <UploadFileOutlined class="w-6 text-sky-400" />{{ $t('actions.fileUpload') }}
       </button>
       <button
+        v-if="canUpload"
         @click="uploadFolder"
         class="cursor-pointer w-full flex items-center gap-2 p-2 px-4 hover:bg-blue-500 hover:text-white rounded-b-lg"
       >
@@ -276,11 +308,11 @@ const createFile = async () => {
     </div>
 
     <NewOfficeDocumentDialog
-      v-model="dialogOpen"
-      :format="chosen.format"
-      :title="$t(chosen.titleKey)"
-      :default-name="$t(chosen.nameKey)"
-      @create="createDocument"
+      v-model="officeDialogOpen"
+      :format="officeDocument.format"
+      :title="$t(officeDocument.titleKey)"
+      :default-name="$t(officeDocument.nameKey)"
+      @create="createOfficeDocument"
     />
   </div>
 </template>

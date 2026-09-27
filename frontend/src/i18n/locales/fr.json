@@ -247,7 +247,8 @@
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Classeur",
     "defaultPresentationName": "Présentation",
-    "defaultDataName": "Données"
+    "defaultDataName": "Données",
+    "documentFailed": "Impossible de créer le document"
   },
   "context": {
     "getInfo": "Obtenir des informations",
@@ -356,7 +357,8 @@
       "warning": "Avertissements",
       "success": "Succès",
       "info": "Infos"
-    }
+    },
+    "copyDetails": "Copier les détails"
   },
   "spotlight": {
     "hintWithin": "Tapez pour rechercher à l'intérieur",
@@ -1306,7 +1308,9 @@
     "editingNow": "Édition en cours dans ONLYOFFICE",
     "savedAsHeading": "Enregistré dans ce dossier",
     "savedAsBody": "{name} a été ajouté à côté de l’original.",
-    "saveAsFailed": "Impossible d’enregistrer {name}"
+    "saveAsFailed": "Impossible d’enregistrer {name}",
+    "editingBody": "{names} est ouvert dans OnlyOffice. {action} continue. | {names} sont ouverts dans OnlyOffice. {action} continue.",
+    "editingHeading": "Fichier en cours d’édition"
   },
   "preview": {
     "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",

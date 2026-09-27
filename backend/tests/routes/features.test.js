@@ -53,7 +53,12 @@ describe('Features Routes', () => {
       expect(response.body.collabora.enabled).toBe(false);
       expect(response.body.collabora.extensions).toEqual([]);
       expect(response.body.editor.extensions).toEqual([]);
-      expect(response.body.hiddenFiles.patterns).toEqual(['.']);
+      // The dot, and the suffixes the application's own in-flight files carry.
+      expect(response.body.hiddenFiles.patterns).toEqual([
+        '.',
+        'regex:\\.download$',
+        'regex:\\.uploading$',
+      ]);
       expect(response.body.terminal.extensions).toEqual(['sh']);
       expect(response.body.volumeUsage.enabled).toBe(false);
       expect(response.body.navigation.skipHome).toBe(false);

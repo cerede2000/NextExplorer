@@ -12,9 +12,6 @@ const configureHttpLogging = (app) => {
   app.use(
     pinoHttp({
       logger: logger.child({ context: 'http' }),
-      // pino-http logs the whole request by default: the URL with whatever
-      // token its query string carries, and every header, the session cookie
-      // included.
       serializers: {
         req: sanitizeHttpRequestForLog,
       },
