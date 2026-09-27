@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-56",
+  "batchTip": "p3-57",
   "rules": [
     {
       "axis": "*",
@@ -1550,9 +1550,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/downloadPlans\\.js|backend/src/middleware/apiTokenAuth\\.js|backend/src/openapi/paths/browsing\\.js|frontend/src/components/(SeparateDownloadConfirm|MenuItemInfo)\\.vue|frontend/src/composables/(separateDownloads|useSeparateDownload|useSeparateDownloadConfirm)\\.js)",
-      "verdict": "PORT",
+      "verdict": "DONE",
       "batch": "P3-57",
-      "note": "taking a selection away without an archive: the plan endpoint and its parts, the two menu entries, the split button and the preference"
+      "note": "nxzai#484 — taking a selection away without an archive: the plan endpoint and its parts, the two menu entries, the split button and the preference"
     }
   ],
   "residue": [
@@ -1579,16 +1579,6 @@
     {
       "match": "^docs/reference/api\\.md$",
       "note": "one line: the examples were run against this fork's live demo, and upstream has no demo to name. Everything else on the page is the same, including the shared editor's save, which came home with this"
-    },
-    {
-      "match": "^(backend/src/middleware/apiTokenAuth\\.js|backend/src/openapi/paths/browsing\\.js|backend/src/routes/files/download\\.js|backend/src/services/settingsService\\.js|frontend/src/api/files\\.api\\.js|frontend/src/components/(ClipboardProgress|ExplorerContextMenu|MenuItemInfo)\\.vue|frontend/src/composables/(contextMenuSections|fileActions)\\.js|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/stores/appSettings\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue)$",
-      "note": "downloading a selection without an archive is newer than the batch stack: it is P3-57 and no branch carries it yet, so the lines that are only here are that feature and nothing else"
-    }
-  ],
-  "controls": [
-    {
-      "match": "^download\\.(chooseMode|asZip|asSeparateFiles|confirmZip|confirmSeparate)$",
-      "note": "the two ways a selection can leave, and the question asked about a large one — P3-57, not yet in a batch"
     }
   ]
 }

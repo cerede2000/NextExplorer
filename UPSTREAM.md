@@ -266,9 +266,17 @@ from the commit that made it.
 Taking a selection away without an archive: `POST /api/download/plan` and
 `GET /api/download/part/<token>/<n>`, the two entries in the right-click menu, the
 arrow beside the download button, and the `downloadMode` preference. Thirteen
-findings. The `residue` and `controls` gates name it as well, and their notes say
-why: the branch is not cut, so the tip of the batch stack does not carry it, and
-measuring against that tip is the only honest thing either gate can do.
+findings, sent as nxzai#484 the same day, and `batchTip` moved to `p3-57` with
+them — so the `residue` and `controls` gates read the feature on both sides again
+and the count is back to 0 PORT.
+
+Building it in the batch's own tree found something this one could not have found:
+`backend/tests/routes/settings-preferences.test.js` exists there and not here. It
+holds every key the settings service sanitises to a round trip through the route
+with **a value that key really takes**, and `true` is not one the new preference
+takes — so the batch went red where `integration` was green. A test written while
+porting that never came home, which is the eleventh of its kind and the reason
+that gate exists at all.
 
 ## What is not in the thirty-three
 
