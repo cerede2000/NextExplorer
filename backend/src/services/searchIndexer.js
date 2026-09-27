@@ -31,7 +31,19 @@ const { containerMemoryLimitBytes } = require('../utils/containerMemory');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.cache']);
+/**
+ * Folders the pass does not walk into.
+ *
+ * Dot-folders only, and for one reason each: the application keeps its trash
+ * and its file versions in one of them, and the rest are somebody's hidden
+ * things, which the search refuses to show unless they asked. `.git`,
+ * `node_modules`, `dist` and `build` used to be here too — an editor's habits
+ * in a file server, where those are ordinary folder names somebody may have a
+ * year of work in, and nothing that decides what is not worth finding belongs
+ * in the source (#11). The administrator's exclusion list is where that is
+ * said.
+ */
+const isSkippedDirectoryName = (name) => name.startsWith('.');
 
 /**
  * How much of one document is worth indexing, and how much may be held at once.
@@ -61,10 +73,39 @@ const NON_TEXT_EXTENSIONS = new Set([
   ...extensions.rawImages,
   ...extensions.videos,
   ...extensions.audios,
-  'zip', 'rar', '7z', 'gz', 'bz2', 'xz', 'zst', 'tar', 'tgz', 'iso', 'dmg', 'jar',
-  'exe', 'dll', 'so', 'dylib', 'bin', 'o', 'a', 'class', 'pyc', 'wasm',
-  'ttf', 'otf', 'woff', 'woff2', 'eot',
-  'db', 'sqlite', 'sqlite3', 'mdb', 'pack', 'idx',
+  'zip',
+  'rar',
+  '7z',
+  'gz',
+  'bz2',
+  'xz',
+  'zst',
+  'tar',
+  'tgz',
+  'iso',
+  'dmg',
+  'jar',
+  'exe',
+  'dll',
+  'so',
+  'dylib',
+  'bin',
+  'o',
+  'a',
+  'class',
+  'pyc',
+  'wasm',
+  'ttf',
+  'otf',
+  'woff',
+  'woff2',
+  'eot',
+  'db',
+  'sqlite',
+  'sqlite3',
+  'mdb',
+  'pack',
+  'idx',
 ]);
 
 const extensionOf = (absolutePath) => path.extname(absolutePath).slice(1).toLowerCase();
@@ -182,6 +223,7 @@ const indexTree = async ({
   let pendingBytes = 0;
   let indexed = 0;
   let skipped = 0;
+  let folders = 0;
   let batches = 0;
   let interrupted = false;
 
@@ -351,7 +393,14 @@ const indexTree = async ({
     const batch = pending.splice(0, pending.length);
     pendingBytes = 0;
     writeBatch(batch);
-    indexed += batch.length;
+    // Counted apart: `indexed` has always meant files this pass had to read,
+    // and a folder row is written without opening anything. Folding the two
+    // together would make a volume of empty folders look like a volume that
+    // changes constantly.
+    for (const document of batch) {
+      if (document.isDirectory) folders += 1;
+      else indexed += 1;
+    }
     batches += 1;
 
     if (typeof onProgress === 'function' && Date.now() - lastReport >= progressMs) {
@@ -369,7 +418,9 @@ const indexTree = async ({
         skipped,
         batches,
         reindexed: reindexedKnown,
-        ...(worstFolder ? { rereadTopFolder: worstFolder.value, rereadTopCount: worstFolder.count } : {}),
+        ...(worstFolder
+          ? { rereadTopFolder: worstFolder.value, rereadTopCount: worstFolder.count }
+          : {}),
         ...cost(),
       });
     }
@@ -392,7 +443,7 @@ const indexTree = async ({
     for (const entry of entries) {
       throwIfAborted();
 
-      if (entry.name.startsWith('.') || IGNORED_DIRECTORIES.has(entry.name)) continue;
+      if (isSkippedDirectoryName(entry.name)) continue;
 
       const absolutePath = path.join(dirAbs, entry.name);
       const relativePath = dirRel ? `${dirRel}/${entry.name}` : entry.name;
@@ -400,16 +451,28 @@ const indexTree = async ({
       if (isExcluded(relativePath)) continue;
 
       if (entry.isDirectory()) {
-        // eslint-disable-next-line no-await-in-loop
+        // A row of its own, so a folder nobody has put anything in yet can be
+        // found by its name. Its own timestamps say nothing useful — a folder's
+        // mtime moves when its children do — so the row is written once and
+        // left alone.
+        seenHere.add(relativePath);
+        if (!store.getIndexedDocument(db, relativePath)) {
+          pending.push({
+            path: relativePath,
+            mtimeMs: 0,
+            size: 0,
+            text: null,
+            isDirectory: true,
+          });
+          if (pending.length >= batchSize) flush();
+        }
         await walk(absolutePath, relativePath);
         continue;
       }
       if (!entry.isFile()) continue;
 
-      // eslint-disable-next-line no-await-in-loop
       const stats = await fs.stat(absolutePath).catch(() => null);
       if (!stats) continue;
-      if (maxFileSizeBytes && stats.size > maxFileSizeBytes) continue;
 
       seenHere.add(relativePath);
 
@@ -418,7 +481,6 @@ const indexTree = async ({
       const known = store.getIndexedDocument(db, relativePath);
       if (store.isUpToDate(known, stats)) {
         skipped += 1;
-        // eslint-disable-next-line no-await-in-loop
         await payForTimeUsed();
         continue;
       }
@@ -453,24 +515,27 @@ const indexTree = async ({
         }
       }
 
-      // eslint-disable-next-line no-await-in-loop
-      const text = await readIndexableText(absolutePath, stats.size, scratch);
-      if (text === null || !text.trim()) continue;
+      // The size bound is on reading a file, not on knowing it is there. A
+      // two-gigabyte recording has no words worth keeping and a name somebody
+      // will look for, and the row costs what the stat above already paid.
+      const tooLargeToRead = maxFileSizeBytes && stats.size > maxFileSizeBytes;
+      const text = tooLargeToRead
+        ? null
+        : await readIndexableText(absolutePath, stats.size, scratch);
+      const indexable = text === null || !text.trim() ? null : capText(text);
 
-      const indexable = capText(text);
       pending.push({
         path: relativePath,
         mtimeMs: stats.mtimeMs,
         size: stats.size,
         text: indexable,
       });
-      pendingBytes += indexable.length;
+      pendingBytes += indexable ? indexable.length : 0;
 
       // Whichever ceiling is reached first. The byte one is what keeps a
       // handful of large documents from being held together.
       if (pending.length >= batchSize || pendingBytes >= MAX_TEXT_PER_BATCH) flush();
 
-      // eslint-disable-next-line no-await-in-loop
       await payForTimeUsed();
     }
 
@@ -516,6 +581,7 @@ const indexTree = async ({
   return {
     indexed,
     skipped,
+    folders,
     removed,
     batches,
     pauses,
@@ -538,29 +604,22 @@ const indexFile = async (db, relativePath, absolutePath) => {
     return { removed: true };
   }
 
-  const maxBytes = searchConfig?.maxFileSizeBytes ?? 0;
-  if (maxBytes && stats.size > maxBytes) {
-    store.removeDocument(db, relativePath);
-    return { skipped: true };
-  }
-
   if (store.isUpToDate(store.getIndexedDocument(db, relativePath), stats)) {
     return { unchanged: true };
   }
 
-  const text = await readIndexableText(absolutePath, stats.size);
-  if (text === null || !text.trim()) {
-    store.removeDocument(db, relativePath);
-    return { skipped: true };
-  }
+  const maxBytes = searchConfig?.maxFileSizeBytes ?? 0;
+  const text =
+    maxBytes && stats.size > maxBytes ? null : await readIndexableText(absolutePath, stats.size);
+  const indexable = text === null || !text.trim() ? null : capText(text);
 
   store.upsertDocument(db, {
     path: relativePath,
     mtimeMs: stats.mtimeMs,
     size: stats.size,
-    text: capText(text),
+    text: indexable,
   });
-  return { indexed: true };
+  return indexable ? { indexed: true } : { catalogued: true };
 };
 
 module.exports = { indexTree, indexFile, readIndexableText };

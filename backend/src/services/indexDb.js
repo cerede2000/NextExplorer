@@ -78,14 +78,8 @@ const metaValue = (db, key) => {
   }
 };
 
-/**
- * An index database of this application's own, under the cache, and the write-
- * ahead files beside it. Nothing anybody put anywhere is ever in one, so it
- * does not go through the trash.
- */
 const removeFile = (file) => {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
-    // eslint-disable-next-line no-restricted-properties
     fs.rmSync(`${file}${suffix}`, { force: true });
   }
 };

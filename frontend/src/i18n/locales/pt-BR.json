@@ -217,7 +217,14 @@
     "searching": "Pesquisando…",
     "noMatches": "Nenhum resultado encontrado",
     "openFolder": "Abrir pasta",
-    "line": "linha"
+    "line": "linha",
+    "matchedByName": "nome",
+    "matchedByContent": "conteúdo",
+    "matchedByBoth": "nome e conteúdo",
+    "stoppedEarly": "Interrompida ao atingir o limite de tempo — isto é o que foi encontrado.",
+    "firstOnly": "Os primeiros {count} resultados. Refine a busca para ver mais.",
+    "tooShort": "Digite ao menos {count} caracteres.",
+    "showMore": "Ver mais"
   },
   "user": {
     "account": "Conta",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "Digite para pesquisar dentro de"
+    "hintWithin": "Digite para pesquisar dentro de",
+    "hintPattern": "Use * e ? para filtrar nomes de arquivos, por exemplo *.ps1"
   },
   "download": {
     "preparing": "Preparando download..."

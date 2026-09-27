@@ -217,7 +217,14 @@
     "searching": "正在搜索…",
     "noMatches": "未找到匹配结果",
     "openFolder": "打开文件夹",
-    "line": "行"
+    "line": "行",
+    "matchedByName": "文件名",
+    "matchedByContent": "内容",
+    "matchedByBoth": "文件名和内容",
+    "stoppedEarly": "已达时间上限而停止 — 以下是已找到的内容。",
+    "firstOnly": "前 {count} 条结果。缩小搜索范围可查看更多。",
+    "tooShort": "请至少输入 {count} 个字符。",
+    "showMore": "显示更多"
   },
   "user": {
     "account": "账户",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "键入以在其中搜索"
+    "hintWithin": "键入以在其中搜索",
+    "hintPattern": "使用 * 和 ? 匹配文件名，例如 *.ps1"
   },
   "download": {
     "preparing": "正在准备下载..."

@@ -217,7 +217,14 @@
     "searching": "Zoeken…",
     "noMatches": "Geen overeenkomst gevonden",
     "openFolder": "Map openen",
-    "line": "regel"
+    "line": "regel",
+    "matchedByName": "naam",
+    "matchedByContent": "inhoud",
+    "matchedByBoth": "naam en inhoud",
+    "stoppedEarly": "Gestopt bij de tijdslimiet — dit is wat tot nu toe is gevonden.",
+    "firstOnly": "De eerste {count} resultaten. Verfijn de zoekopdracht voor meer.",
+    "tooShort": "Typ minstens {count} tekens.",
+    "showMore": "Meer tonen"
   },
   "user": {
     "account": "Account",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "Typ om te zeken in"
+    "hintWithin": "Typ om te zeken in",
+    "hintPattern": "Gebruik * en ? om bestandsnamen te zoeken, bijvoorbeeld *.ps1"
   },
   "download": {
     "preparing": "Download voorbereiden…"

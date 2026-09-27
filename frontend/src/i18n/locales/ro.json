@@ -217,7 +217,14 @@
     "searching": "Se caută…",
     "noMatches": "Nu a fost găsit niciun rezultat",
     "openFolder": "Deschide dosarul",
-    "line": "linie"
+    "line": "linie",
+    "matchedByName": "nume",
+    "matchedByContent": "conținut",
+    "matchedByBoth": "nume și conținut",
+    "stoppedEarly": "Oprită la limita de timp — acestea sunt rezultatele găsite până acum.",
+    "firstOnly": "Primele {count} rezultate. Restrânge căutarea pentru a vedea mai multe.",
+    "tooShort": "Scrie cel puțin {count} caractere.",
+    "showMore": "Arată mai multe"
   },
   "user": {
     "account": "Cont",
@@ -324,7 +331,8 @@
     }
   },
   "spotlight": {
-    "hintWithin": "Tastează pentru a căuta în interior"
+    "hintWithin": "Tastează pentru a căuta în interior",
+    "hintPattern": "Folosiți * și ? pentru a filtra numele fișierelor, de exemplu *.ps1"
   },
   "download": {
     "preparing": "Se pregătește descărcarea..."
