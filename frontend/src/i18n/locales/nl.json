@@ -1234,7 +1234,9 @@
       "rename": "Naam geven…",
       "pin": "Vastzetten",
       "unpin": "Losmaken",
-      "delete": "Verwijderen"
+      "delete": "Verwijderen",
+      "restoreCopy": "Als kopie terugzetten…",
+      "replaceOther": "Een ander bestand vervangen…"
     },
     "confirm": {
       "restoreTitle": "Deze versie terugzetten?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Deze versie verwijderen? | {count} versies verwijderen?",
       "deleteMessage": "Deze versie wordt definitief verwijderd. | Deze {count} versies worden definitief verwijderd.",
       "deleteAllTitle": "Alle versies verwijderen?",
-      "deleteAllMessage": "Elke eerdere versie van \"{name}\" wordt definitief verwijderd, vastgezette inbegrepen. Het bestand zelf blijft."
+      "deleteAllMessage": "Elke eerdere versie van \"{name}\" wordt definitief verwijderd, vastgezette inbegrepen. Het bestand zelf blijft.",
+      "replaceTitle": "\"{target}\" vervangen?",
+      "replaceMessage": "\"{target}\" krijgt deze versie van \"{name}\" als inhoud. De huidige inhoud wordt in de eigen versies bewaard.",
+      "replace": "Vervangen"
     },
     "rename": {
       "title": "Deze versie een naam geven",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} versie verwijderd | {count} versies verwijderd",
       "renamed": "Versie benoemd",
       "pinned": "Versie vastgezet: de automatische opschoning bewaart hem",
-      "unpinned": "Versie losgemaakt"
+      "unpinned": "Versie losgemaakt",
+      "copied": "Kopie gemaakt: {path}",
+      "replaced": "\"{path}\" vervangen"
     },
     "errors": {
       "action": "De actie op deze versie is mislukt"

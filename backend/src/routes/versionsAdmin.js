@@ -2,8 +2,8 @@ const express = require('express');
 
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
-const versions = require('../services/versions');
 const activityLog = require('../services/activityLog');
+const versions = require('../services/versions');
 
 /**
  * Every file that has a history, for an administrator.
@@ -60,10 +60,6 @@ router.get(
  * A POST with a body rather than a DELETE with a list, as the route beside it
  * does, so that deleting forty versions is one request and one answer per
  * version — a DELETE per id would report forty times and fail in the middle.
- *
- * This is the one route here that destroys something, and what it destroys may
- * belong to somebody else — which is the case the log exists for. It is off by
- * default and never fails a request.
  */
 router.post(
   '/versions/admin/files/:id/delete',
@@ -77,6 +73,9 @@ router.post(
       all: req.body?.all === true,
     });
 
+    // The one route here that destroys something, and the data it destroys
+    // may belong to somebody else — which is the case the log exists for. It
+    // is off by default and never fails a request.
     await activityLog.record({
       action: 'versions.purge',
       user: req.user,

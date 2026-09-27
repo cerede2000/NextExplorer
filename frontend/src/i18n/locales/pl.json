@@ -1234,7 +1234,9 @@
       "rename": "Nazwij…",
       "pin": "Przypnij",
       "unpin": "Odepnij",
-      "delete": "Usuń"
+      "delete": "Usuń",
+      "restoreCopy": "Przywróć jako kopię…",
+      "replaceOther": "Zastąp inny plik…"
     },
     "confirm": {
       "restoreTitle": "Przywrócić tę wersję?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Usunąć tę wersję? | Usunąć {count} wersje? | Usunąć {count} wersji?",
       "deleteMessage": "Ta wersja zostanie trwale usunięta. | Te {count} wersje zostaną trwale usunięte. | Tych {count} wersji zostanie trwale usuniętych.",
       "deleteAllTitle": "Usunąć wszystkie wersje?",
-      "deleteAllMessage": "Wszystkie wcześniejsze wersje „{name}” zostaną trwale usunięte, łącznie z przypiętymi. Sam plik pozostaje."
+      "deleteAllMessage": "Wszystkie wcześniejsze wersje „{name}” zostaną trwale usunięte, łącznie z przypiętymi. Sam plik pozostaje.",
+      "replaceTitle": "Zastąpić „{target}”?",
+      "replaceMessage": "„{target}” otrzymuje jako zawartość tę wersję „{name}”. Jego obecna zawartość zostaje zachowana w jego własnych wersjach.",
+      "replace": "Zastąp"
     },
     "rename": {
       "title": "Nazwij tę wersję",
@@ -1255,7 +1260,9 @@
       "deleted": "Usunięto {count} wersję | Usunięto {count} wersje | Usunięto {count} wersji",
       "renamed": "Wersja nazwana",
       "pinned": "Wersja przypięta: automatyczne czyszczenie ją zachowa",
-      "unpinned": "Wersja odpięta"
+      "unpinned": "Wersja odpięta",
+      "copied": "Utworzono kopię: {path}",
+      "replaced": "Zastąpiono „{path}”"
     },
     "errors": {
       "action": "Działanie na tej wersji nie powiodło się"

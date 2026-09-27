@@ -13,14 +13,17 @@ import ModalDialog from '@/components/ModalDialog.vue';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useFileStore } from '@/stores/fileStore';
+import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { formatBytes, formatLocalDateTime } from '@/utils';
 import {
+  copyVersionTo,
   deleteVersions,
   getVersionDownloadUrl,
   getVersions,
   normalizePath,
+  replaceWithVersion,
   restoreVersion,
   updateVersion,
 } from '@/api';
@@ -39,6 +42,7 @@ const MAX_LABEL_LENGTH = 200;
 const store = useVersionsPanelStore();
 const notifications = useNotificationsStore();
 const fileStore = useFileStore();
+const picker = useDestinationPicker();
 const router = useRouter();
 const { t } = useI18n();
 
@@ -107,7 +111,7 @@ const close = () => store.close();
 
 useEventListener(window, 'keydown', (event) => {
   if (event.key !== 'Escape' || !isOpen.value) return;
-  if (confirmation.value || naming.value) return;
+  if (confirmation.value || naming.value || picker.isOpen.value) return;
   if (openMenu.value) {
     openMenu.value = null;
     return;
@@ -153,8 +157,8 @@ const extension = computed(() => {
 const previewManager = usePreviewManager();
 
 /**
- * Whether an office editor opens this document, and can open one of its
- * versions to be read. A text file goes to the text editor instead.
+ * Whether an office editor opens this document, and can open one of its versions
+ * to be read. A text file goes to the text editor instead.
  */
 const officeViewer = computed(() => {
   if (isEditableExtension(extension.value) || !fileName.value) return null;
@@ -169,8 +173,6 @@ const officeViewer = computed(() => {
 const actionsFor = (version) => {
   const usable = version.available !== false;
   const list = [];
-  // A text file opens in the text editor, read only on that version; an office
-  // document opens in its own, the same way.
   if (usable && (isEditableExtension(extension.value) || officeViewer.value)) {
     list.push({ id: 'preview', label: t('versions.actions.preview') });
   }
@@ -179,6 +181,10 @@ const actionsFor = (version) => {
   }
   if (usable && rights.value.restore) {
     list.push({ id: 'restore', label: t('versions.actions.restore') });
+  }
+  if (usable && rights.value.download) {
+    list.push({ id: 'restoreCopy', label: t('versions.actions.restoreCopy') });
+    list.push({ id: 'replaceOther', label: t('versions.actions.replaceOther') });
   }
   if (rights.value.restore) {
     list.push({ id: 'rename', label: t('versions.actions.rename') });
@@ -252,7 +258,7 @@ const download = (version) => {
 const preview = (version) => {
   const path = filePath.value;
   close();
-  // A document opens in its office editor, read only on that version; the
+  // A document opens in its office editor, read-only on that version; the
   // editor is closed like any preview, and the history reopened from there.
   if (officeViewer.value) {
     previewManager.open({
@@ -266,6 +272,34 @@ const preview = (version) => {
   router.push({ name: 'VersionFileViewer', params: { versionId: version.id, path } });
 };
 
+const restoreCopy = async (version) => {
+  const destination = await picker.pick({
+    mode: 'version-copy',
+    items: [{ name: fileName.value, path: parentPath.value, kind: 'file' }],
+    from: parentPath.value,
+  });
+  if (!destination) return;
+  await work(async () => {
+    const result = await copyVersionTo(filePath.value, version.id, destination);
+    notifications.addNotification({
+      type: 'success',
+      heading: t('versions.results.copied', { path: result?.path || destination }),
+      durationMs: 5000,
+    });
+    await refreshListing(destination);
+  });
+};
+
+const replaceOther = async (version) => {
+  const target = await picker.pick({
+    mode: 'file',
+    items: [{ name: fileName.value, path: parentPath.value, kind: 'file' }],
+    from: parentPath.value,
+  });
+  if (!target) return;
+  confirmation.value = { kind: 'replace', version, target };
+};
+
 const runAction = (action, version) => {
   openMenu.value = null;
   switch (action.id) {
@@ -277,6 +311,12 @@ const runAction = (action, version) => {
       break;
     case 'restore':
       confirmation.value = { kind: 'restore', version };
+      break;
+    case 'restoreCopy':
+      void restoreCopy(version);
+      break;
+    case 'replaceOther':
+      void replaceOther(version);
       break;
     case 'rename':
       naming.value = { version, value: version.label || '' };
@@ -310,6 +350,9 @@ const confirmationTitle = computed(() => {
   const request = confirmation.value;
   if (!request) return '';
   if (request.kind === 'restore') return t('versions.confirm.restoreTitle');
+  if (request.kind === 'replace') {
+    return t('versions.confirm.replaceTitle', { target: request.target.split('/').pop() });
+  }
   if (request.kind === 'deleteAll') return t('versions.confirm.deleteAllTitle');
   return t('versions.confirm.deleteTitle', { count: request.ids.length }, request.ids.length);
 });
@@ -321,6 +364,12 @@ const confirmationMessage = computed(() => {
     return t('versions.confirm.restoreMessage', {
       name: fileName.value,
       date: formatLocalDateTime(request.version.modifiedAt),
+    });
+  }
+  if (request.kind === 'replace') {
+    return t('versions.confirm.replaceMessage', {
+      target: request.target.split('/').pop(),
+      name: fileName.value,
     });
   }
   if (request.kind === 'deleteAll') {
@@ -336,6 +385,7 @@ const confirmationDanger = computed(() =>
 /** The button says what happens. */
 const confirmationButton = computed(() => {
   if (confirmation.value?.kind === 'restore') return t('versions.actions.restore');
+  if (confirmation.value?.kind === 'replace') return t('versions.confirm.replace');
   return t('common.delete');
 });
 
@@ -356,6 +406,15 @@ const confirm = async () => {
         durationMs: 4000,
       });
       await refreshListing(parentPath.value);
+    } else if (request.kind === 'replace') {
+      await replaceWithVersion(filePath.value, request.version.id, request.target);
+      notifications.addNotification({
+        type: 'success',
+        heading: t('versions.results.replaced', { path: request.target }),
+        durationMs: 5000,
+      });
+      const folder = request.target.split('/').slice(0, -1).join('/');
+      await refreshListing(folder);
     } else {
       const result = await deleteVersions(
         filePath.value,

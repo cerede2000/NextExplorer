@@ -29,9 +29,10 @@ const fsp = require('fs/promises');
 const path = require('path');
 
 const { generateId } = require('../../utils/ids');
-const { placeWithoutOverwrite } = require('../../utils/placeWithoutOverwrite');
 const logger = require('../../utils/logger');
+const { placeWithoutOverwrite } = require('../../utils/placeWithoutOverwrite');
 const { getDb } = require('../db');
+const { track: trackInFlight } = require('../inFlightFiles');
 const clock = require('../trash/clock');
 const failpoints = require('../trash/failpoints');
 const { admission } = require('../trash/policy');
@@ -141,9 +142,7 @@ const placeOf = async (absolutePath) => {
 
 /** Whether content of this size could ever fit in the zone's budget. */
 const tooLargeFor = async (root, size) => {
-  // eslint-disable-next-line global-require
   const maintenance = require('../trash/maintenance');
-  // eslint-disable-next-line global-require
   const { getTrashSettings } = require('../trash/settings');
   const { budgetBytes } = await maintenance.limitsFor(root, await getTrashSettings());
   return admission({ size, budgetBytes }) === 'too-large';
@@ -151,7 +150,6 @@ const tooLargeFor = async (root, size) => {
 
 const requestPass = () => {
   try {
-    // eslint-disable-next-line global-require
     require('../trash/maintenance').requestPass();
   } catch (error) {
     logger.debug({ err: error }, 'No maintenance pass could be requested after a capture');
@@ -212,7 +210,6 @@ const purgeFile = async (fileId) => {
     states: ['capturing', 'kept', 'purging'],
   });
   for (const version of versions) {
-    // eslint-disable-next-line no-await-in-loop
     const outcome = await purgeVersion(version.id);
     if (outcome.status !== 'purged' && outcome.status !== 'missing') left += 1;
   }
@@ -234,7 +231,6 @@ const thinFile = async (fileId) => {
     }));
   const drop = thinVersions({ versions, now: clock.now(), settings });
   for (const entry of drop) {
-    // eslint-disable-next-line no-await-in-loop
     await purgeVersion(entry.id);
   }
   return drop;
@@ -498,11 +494,13 @@ const temporaryPathFor = (absolutePath, purpose = 'save') =>
  */
 const saveFile = async (absolutePath, writeContent, meta = {}) => {
   const temporaryPath = temporaryPathFor(absolutePath, meta.purpose || 'save');
+  const inFlight = trackInFlight(temporaryPath, 'temporary-file');
   try {
     await writeContent(temporaryPath);
     return await replaceWithTemporary(absolutePath, temporaryPath, meta);
   } finally {
     await fsp.rm(temporaryPath, { force: true }).catch(() => {});
+    inFlight.release();
   }
 };
 
@@ -511,12 +509,12 @@ const saveFile = async (absolutePath, writeContent, meta = {}) => {
  * free name after it, "notes (1).md". Answers the name and path it took.
  *
  * The content is written beside the name by `writeContent`, then put under it
- * by a move that never replaces anything. A file that did not exist has no
- * history, so nothing is recorded, as `saveFile` records nothing when it
- * creates a file. Whatever happens, no temporary file is left behind.
- *
- * `versions/index.js` has called this since copying a version to a new file
- * was added, and it was never written: every such copy answered a 500.
+ * by a move that never replaces anything. Going through `saveFile` with a name
+ * chosen beforehand meant a file that arrived under that name while the content
+ * was being written was replaced, its content kept as an earlier version of a
+ * file it had nothing to do with. A file that did not exist has no history, so
+ * nothing is recorded, as `saveFile` records nothing when it creates a file.
+ * Whatever happens, no temporary file is left behind.
  *
  * @param {string} directory
  * @param {string} desiredName
@@ -526,11 +524,13 @@ const saveFile = async (absolutePath, writeContent, meta = {}) => {
  */
 const saveNewFile = async (directory, desiredName, writeContent, meta = {}) => {
   const temporaryPath = temporaryPathFor(path.join(directory, desiredName), meta.purpose || 'save');
+  const inFlight = trackInFlight(temporaryPath, 'temporary-file');
   try {
     await writeContent(temporaryPath);
     return await placeWithoutOverwrite(temporaryPath, directory, desiredName);
   } finally {
     await fsp.rm(temporaryPath, { force: true }).catch(() => {});
+    inFlight.release();
   }
 };
 
@@ -598,20 +598,17 @@ const recoverZone = async (
       }
       const file = store.getFile(db, row.fileId);
       const livePath = file?.state === 'live' ? absolutePathOf(db, file) : null;
-      // eslint-disable-next-line no-await-in-loop
       const [content, live] = await Promise.all([
         lstatOrNull(payload),
         livePath ? lstatOrNull(livePath) : null,
       ]);
       if (!row.aside && content && live && content.ino === live.ino && content.dev === live.dev) {
-        // eslint-disable-next-line no-await-in-loop
         await fsp.rm(payload, { force: true });
         store.deleteVersion(db, row.id);
         report.undone += 1;
       } else if (!row.aside && content && livePath && !live) {
         // Renamed out of the way on a filesystem without hard links, and the
         // new content never took its place: the file gets its content back.
-        // eslint-disable-next-line no-await-in-loop
         await fsp.rename(payload, livePath);
         store.deleteVersion(db, row.id);
         report.undone += 1;
@@ -620,7 +617,6 @@ const recoverZone = async (
         report.finished += 1;
       }
     } else if (row.state === 'purging') {
-      // eslint-disable-next-line no-await-in-loop
       await fsp.rm(payload, { force: true });
       store.deleteVersion(db, row.id);
       report.purged += 1;
@@ -635,7 +631,6 @@ const recoverZone = async (
     if (onDisk.has(row.id)) continue;
     // Looked at again: a capture that finished since the directory was read
     // is not a loss.
-    // eslint-disable-next-line no-await-in-loop
     if (!(await lstatOrNull(path.join(directory, row.id)))) vanished.push(row);
   }
   if (
@@ -668,7 +663,6 @@ const recoverZone = async (
     for (const version of versions) {
       if (version.zoneId !== zone.id || inflight.has(version.id)) continue;
       if (!VERSION_ID_PATTERN.test(version.id)) continue;
-      // eslint-disable-next-line no-await-in-loop
       await fsp.rm(contentPath(zone, version.id), { force: true });
       store.deleteVersion(db, version.id);
       report.purged += 1;
@@ -686,10 +680,8 @@ const recoverZone = async (
     if (known.has(name) || stillKnown.has(name) || inflight.has(name)) continue;
     if (!VERSION_ID_PATTERN.test(name)) continue;
     const absolute = path.join(directory, name);
-    // eslint-disable-next-line no-await-in-loop
     const stats = await lstatOrNull(absolute);
     if (!stats || (graceMs > 0 && clock.now() - stats.ctimeMs < graceMs)) continue;
-    // eslint-disable-next-line no-await-in-loop
     await fsp.rm(absolute, { recursive: true, force: true });
     report.removedContents += 1;
   }
@@ -704,10 +696,10 @@ module.exports = {
   hashFile,
   absolutePathOf,
   placeOf,
-  saveNewFile,
   temporaryPathFor,
   replaceWithTemporary,
   saveFile,
+  saveNewFile,
   authorOf,
   locateVersion,
   purgeVersion,

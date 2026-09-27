@@ -1,11 +1,11 @@
 const express = require('express');
 const fs = require('fs');
 
-const activityLog = require('../services/activityLog');
 const asyncHandler = require('../utils/asyncHandler');
-const logger = require('../utils/logger');
+const activityLog = require('../services/activityLog');
 const { sendCompressible } = require('../utils/compressedResponse');
-const { mimeTypes } = require('../config/index');
+const logger = require('../utils/logger');
+const { resolveMimeType, toExtension } = require('../utils/fileTypes');
 const versions = require('../services/versions');
 const { encodeContentDisposition } = require('./files/utils');
 
@@ -20,13 +20,10 @@ const router = express.Router();
 
 const contextOf = (req) => ({ user: req.user, guestSession: req.guestSession });
 
-const mimeTypeOf = (name = '') =>
-  mimeTypes[String(name).split('.').pop().toLowerCase()] || 'application/octet-stream';
-
 router.get(
   '/versions',
   asyncHandler(async (req, res) => {
-    res.set('Cache-Control', 'no-store');
+    res.set('Cache-Control', 'private, no-store');
     res.json(await versions.listVersions(contextOf(req), req.query?.path));
   })
 );
@@ -36,7 +33,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const located = await versions.downloadVersion(contextOf(req), req.query?.path, req.params.id);
     res.writeHead(200, {
-      'Content-Type': mimeTypeOf(located.name),
+      'Content-Type': resolveMimeType(toExtension(located.name)) || 'application/octet-stream',
       'Content-Length': located.size,
       'Content-Disposition': encodeContentDisposition(located.downloadName, 'attachment'),
       'Cache-Control': 'private, no-store',
@@ -51,10 +48,6 @@ router.get(
   })
 );
 
-/**
- * The text of a version, for the editor to show read only. Never cached: what a
- * version holds does not change, but what this person may read does.
- */
 router.get(
   '/versions/:id/text',
   asyncHandler(async (req, res) => {
@@ -114,10 +107,10 @@ router.post(
       all: req.body?.all === true,
     });
 
-    // Earlier copies going while the file stays: apart from `file.purge`
-    // because they are apart in the interface too, and because this is the
-    // half that nothing else can put back.
-    if (Number(outcome?.deleted) > 0) {
+    // Recorded like every other way versions go. Leaving this one out would
+    // have made the log answer "nobody" to the only question it is asked
+    // about a history that is no longer there.
+    if (outcome.deleted > 0) {
       await activityLog.record({
         action: 'versions.purge',
         user: req.user,

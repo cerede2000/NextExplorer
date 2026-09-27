@@ -1234,7 +1234,9 @@
       "rename": "Nommer…",
       "pin": "Épingler",
       "unpin": "Désépingler",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "restoreCopy": "Restaurer en copie…",
+      "replaceOther": "Remplacer un autre fichier…"
     },
     "confirm": {
       "restoreTitle": "Restaurer cette version ?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Supprimer cette version ? | Supprimer {count} versions ?",
       "deleteMessage": "Cette version est supprimée définitivement. | Ces {count} versions sont supprimées définitivement.",
       "deleteAllTitle": "Supprimer toutes les versions ?",
-      "deleteAllMessage": "Toutes les versions antérieures de « {name} » sont supprimées définitivement, épinglées comprises. Le fichier lui-même reste."
+      "deleteAllMessage": "Toutes les versions antérieures de « {name} » sont supprimées définitivement, épinglées comprises. Le fichier lui-même reste.",
+      "replaceTitle": "Remplacer « {target} » ?",
+      "replaceMessage": "« {target} » prend pour contenu cette version de « {name} ». Son contenu actuel est gardé dans ses propres versions.",
+      "replace": "Remplacer"
     },
     "rename": {
       "title": "Nommer cette version",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} version supprimée | {count} versions supprimées",
       "renamed": "Version nommée",
       "pinned": "Version épinglée : le nettoyage automatique la garde",
-      "unpinned": "Version désépinglée"
+      "unpinned": "Version désépinglée",
+      "copied": "Copie créée : {path}",
+      "replaced": "« {path} » remplacé"
     },
     "errors": {
       "action": "L'action sur cette version a échoué"

@@ -1234,7 +1234,9 @@
       "rename": "Benennen…",
       "pin": "Anheften",
       "unpin": "Lösen",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "restoreCopy": "Als Kopie wiederherstellen…",
+      "replaceOther": "Andere Datei ersetzen…"
     },
     "confirm": {
       "restoreTitle": "Diese Version wiederherstellen?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Diese Version löschen? | {count} Versionen löschen?",
       "deleteMessage": "Diese Version wird endgültig gelöscht. | Diese {count} Versionen werden endgültig gelöscht.",
       "deleteAllTitle": "Alle Versionen löschen?",
-      "deleteAllMessage": "Alle früheren Versionen von „{name}“ werden endgültig gelöscht, angeheftete eingeschlossen. Die Datei selbst bleibt."
+      "deleteAllMessage": "Alle früheren Versionen von „{name}“ werden endgültig gelöscht, angeheftete eingeschlossen. Die Datei selbst bleibt.",
+      "replaceTitle": "„{target}“ ersetzen?",
+      "replaceMessage": "„{target}“ erhält diese Version von „{name}“ als Inhalt. Sein aktueller Inhalt wird in seinen eigenen Versionen behalten.",
+      "replace": "Ersetzen"
     },
     "rename": {
       "title": "Diese Version benennen",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} Version gelöscht | {count} Versionen gelöscht",
       "renamed": "Version benannt",
       "pinned": "Version angeheftet: Die automatische Bereinigung behält sie",
-      "unpinned": "Version gelöst"
+      "unpinned": "Version gelöst",
+      "copied": "Kopie erstellt: {path}",
+      "replaced": "„{path}“ ersetzt"
     },
     "errors": {
       "action": "Die Aktion für diese Version ist fehlgeschlagen"

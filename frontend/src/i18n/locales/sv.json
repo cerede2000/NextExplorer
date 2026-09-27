@@ -1234,7 +1234,9 @@
       "rename": "Namnge…",
       "pin": "Fäst",
       "unpin": "Lossa",
-      "delete": "Ta bort"
+      "delete": "Ta bort",
+      "restoreCopy": "Återställ som kopia…",
+      "replaceOther": "Ersätt en annan fil…"
     },
     "confirm": {
       "restoreTitle": "Återställa den här versionen?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Ta bort den här versionen? | Ta bort {count} versioner?",
       "deleteMessage": "Den här versionen tas bort permanent. | Dessa {count} versioner tas bort permanent.",
       "deleteAllTitle": "Ta bort alla versioner?",
-      "deleteAllMessage": "Alla tidigare versioner av ”{name}” tas bort permanent, även fästa. Själva filen finns kvar."
+      "deleteAllMessage": "Alla tidigare versioner av ”{name}” tas bort permanent, även fästa. Själva filen finns kvar.",
+      "replaceTitle": "Ersätta ”{target}”?",
+      "replaceMessage": "”{target}” får den här versionen av ”{name}” som innehåll. Dess nuvarande innehåll behålls i dess egna versioner.",
+      "replace": "Ersätt"
     },
     "rename": {
       "title": "Namnge den här versionen",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} version borttagen | {count} versioner borttagna",
       "renamed": "Versionen namngiven",
       "pinned": "Versionen fäst: den automatiska rensningen behåller den",
-      "unpinned": "Versionen lossad"
+      "unpinned": "Versionen lossad",
+      "copied": "Kopia skapad: {path}",
+      "replaced": "”{path}” ersatt"
     },
     "errors": {
       "action": "Åtgärden på den här versionen misslyckades"

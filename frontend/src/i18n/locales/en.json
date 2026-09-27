@@ -1234,7 +1234,9 @@
       "rename": "Name…",
       "pin": "Pin",
       "unpin": "Unpin",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restoreCopy": "Restore as a copy…",
+      "replaceOther": "Replace another file…"
     },
     "confirm": {
       "restoreTitle": "Restore this version?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "Delete this version? | Delete {count} versions?",
       "deleteMessage": "This version is deleted for good. | These {count} versions are deleted for good.",
       "deleteAllTitle": "Delete all versions?",
-      "deleteAllMessage": "Every earlier version of \"{name}\" is deleted for good, pinned ones included. The file itself stays."
+      "deleteAllMessage": "Every earlier version of \"{name}\" is deleted for good, pinned ones included. The file itself stays.",
+      "replaceTitle": "Replace \"{target}\"?",
+      "replaceMessage": "\"{target}\" takes this version of \"{name}\" as its content. What it holds now is kept in its own versions.",
+      "replace": "Replace"
     },
     "rename": {
       "title": "Name this version",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} version deleted | {count} versions deleted",
       "renamed": "Version named",
       "pinned": "Version pinned: the automatic cleanup keeps it",
-      "unpinned": "Version unpinned"
+      "unpinned": "Version unpinned",
+      "copied": "Copy created: {path}",
+      "replaced": "\"{path}\" replaced"
     },
     "errors": {
       "action": "The action on this version failed"

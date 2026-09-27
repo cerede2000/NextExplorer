@@ -1234,7 +1234,9 @@
       "rename": "Nombrar…",
       "pin": "Fijar",
       "unpin": "Dejar de fijar",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "restoreCopy": "Restaurar como copia…",
+      "replaceOther": "Reemplazar otro archivo…"
     },
     "confirm": {
       "restoreTitle": "¿Restaurar esta versión?",
@@ -1242,7 +1244,10 @@
       "deleteTitle": "¿Eliminar esta versión? | ¿Eliminar {count} versiones?",
       "deleteMessage": "Esta versión se elimina definitivamente. | Estas {count} versiones se eliminan definitivamente.",
       "deleteAllTitle": "¿Eliminar todas las versiones?",
-      "deleteAllMessage": "Todas las versiones anteriores de «{name}» se eliminan definitivamente, incluidas las fijadas. El archivo en sí se mantiene."
+      "deleteAllMessage": "Todas las versiones anteriores de «{name}» se eliminan definitivamente, incluidas las fijadas. El archivo en sí se mantiene.",
+      "replaceTitle": "¿Reemplazar «{target}»?",
+      "replaceMessage": "«{target}» toma como contenido esta versión de «{name}». Lo que contiene ahora se conserva en sus propias versiones.",
+      "replace": "Reemplazar"
     },
     "rename": {
       "title": "Nombrar esta versión",
@@ -1255,7 +1260,9 @@
       "deleted": "{count} versión eliminada | {count} versiones eliminadas",
       "renamed": "Versión nombrada",
       "pinned": "Versión fijada: la limpieza automática la conserva",
-      "unpinned": "Versión desfijada"
+      "unpinned": "Versión desfijada",
+      "copied": "Copia creada: {path}",
+      "replaced": "«{path}» reemplazado"
     },
     "errors": {
       "action": "La acción sobre esta versión falló"

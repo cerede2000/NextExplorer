@@ -30,6 +30,8 @@ const logger = require('../../utils/logger');
 const { ensureValidName, normalizeRelativePath } = require('../../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve, authorizePath } = require('../authorizationService');
 const { getDb } = require('../db');
+const folderSizeHooks = require('../folderSizeHooks');
+const recentDestinations = require('../recentDestinationsService');
 const { readTextFile } = require('../textEditorService');
 const clock = require('../trash/clock');
 const trashStore = require('../trash/store');
@@ -287,27 +289,23 @@ const readVersionText = async (context, relativePath, versionId) => {
 
 /**
  * After a restore, an editor still open on the file holds the content it
- * replaced. Its next save is set aside as a version of its own rather than
- * written over what was just restored, and the document is given a fresh
- * identity so whoever opens it next gets what was restored rather than the
- * Document Server's cached copy of what it replaced.
+ * replaced. Its next save is set aside rather than written, and the document is
+ * given a fresh identity so whoever opens it next gets what was restored.
  */
 const markRestored = async (absolutePath, relative) => {
   try {
     const db = await getDb();
     const file = await historyOf(db, absolutePath);
     if (file) store.setRestoredAt(db, file.id, clock.nowIso());
-    // Required here rather than at the top: the key service is part of the
-    // office integration, which reaches back into the versions.
-    // eslint-disable-next-line global-require
     await require('../onlyofficeDocumentKeyService').releaseDocumentKey(relative);
   } catch (error) {
     logger.warn({ err: error, absolutePath }, 'A restore could not be announced to open editors');
   }
 };
 
-/** Put a version's content into a file, the way every save does. */
+/** Put a version's content into a file, the way every save does, telling folder sizes. */
 const writeVersionInto = async (located, destination, context) => {
+  const previous = await fsp.stat(destination).catch(() => null);
   const result = await operations.saveFile(
     destination,
     (temporaryPath) =>
@@ -319,6 +317,16 @@ const writeVersionInto = async (located, destination, context) => {
       explicit: true,
     }
   );
+  try {
+    const after = await fsp.stat(destination);
+    if (previous?.isFile()) {
+      await folderSizeHooks.onFileReplaced(destination, previous.size, after.size);
+    } else {
+      await folderSizeHooks.onFileWritten(destination, after.size);
+    }
+  } catch (error) {
+    logger.debug({ err: error, destination }, 'Folder sizes were not told about a restore');
+  }
   return result;
 };
 
@@ -376,6 +384,23 @@ const copyVersionTo = async (context, relativePath, versionId, { destination, na
     { purpose: 'restore' }
   );
   const finalName = placed.name;
+  try {
+    const after = await fsp.stat(placed.path);
+    await folderSizeHooks.onFileWritten(placed.path, after.size);
+  } catch (error) {
+    logger.debug(
+      { err: error, destination: placed.path },
+      'Folder sizes were not told about a copy'
+    );
+  }
+
+  if (context?.user?.id) {
+    try {
+      await recentDestinations.record(context.user.id, folder.relative);
+    } catch (error) {
+      logger.debug({ err: error }, 'The destination was not remembered');
+    }
+  }
   return { path: `${folder.relative}/${finalName}`, name: finalName };
 };
 
