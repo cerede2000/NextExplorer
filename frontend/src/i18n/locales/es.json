@@ -116,7 +116,9 @@
     "newTextFile": "Nuevo archivo de texto",
     "newMarkdownFile": "Nuevo archivo Markdown",
     "newCsvFile": "Nuevo archivo CSV",
-    "newDocument": "Nuevo documento"
+    "newDocument": "Nuevo documento",
+    "extractArchive": "Extraer archivo comprimido",
+    "extractArchiveIntoCurrentFolder": "Extraer en la carpeta actual"
   },
   "placeholders": {
     "email": "usuario{'@'}ejemplo.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "¿Seguro que quieres eliminar \"{name}\"? Esta acción no se puede deshacer.",
       "multiple": "¿Seguro que quieres eliminar estos {count} elementos? Esta acción no se puede deshacer.",
-      "generic": "No hay elementos seleccionados."
+      "generic": "No hay elementos seleccionados.",
+      "trashSingle": "\"{name}\" irá a la papelera, que lo conserva {count} día. | \"{name}\" irá a la papelera, que lo conserva {count} días.",
+      "trashMultiple": "Estos {items} elementos irán a la papelera, que los conserva {count} día. | Estos {items} elementos irán a la papelera, que los conserva {count} días."
     },
     "checkingDeleteImpact": "Comprobando enlaces compartidos...",
     "deleteImpactUnavailable": "No se pudieron comprobar los enlaces compartidos. El servidor seguirá aplicando la eliminación.",
-    "deleteLinkedShares": "Este contenido tiene {count} enlace compartido que se eliminará junto con él. | Este contenido tiene {count} enlaces compartidos que se eliminarán junto con él."
+    "deleteLinkedShares": "Este contenido tiene {count} enlace compartido que se eliminará junto con él. | Este contenido tiene {count} enlaces compartidos que se eliminarán junto con él.",
+    "moveToTrash": "Mover a la papelera",
+    "deletePermanently": "Eliminar definitivamente",
+    "deleteSomePermanent": "{count} de ellos no puede ir a la papelera y se eliminará definitivamente. | {count} de ellos no pueden ir a la papelera y se eliminarán definitivamente.",
+    "trashReasons": {
+      "otherDevice": "Está en otro disco distinto al de la papelera de su volumen.",
+      "tooLarge": "Es más grande que toda la papelera de su volumen.",
+      "zoneRoot": "Un volumen entero no puede ir a su propia papelera.",
+      "zoneUnwritable": "No se puede escribir en la papelera de su volumen.",
+      "noZone": "No está en un lugar con papelera.",
+      "disabled": "La papelera está desactivada."
+    },
+    "keptTitle": "No se pudo mover a la papelera",
+    "keptMessage": "Este elemento se ha dejado donde estaba. ¿Eliminarlo definitivamente? | Estos {count} elementos se han dejado donde estaban. ¿Eliminarlos definitivamente?",
+    "keptReasons": {
+      "tooLarge": "{size}, más de los {budget} que admite la papelera de su volumen."
+    },
+    "deleteLinkedSharesTrash": "Este contenido tiene {count} enlace compartido. Deja de funcionar mientras el contenido está en la papelera y se puede recuperar al restaurarlo. | Este contenido tiene {count} enlaces compartidos. Dejan de funcionar mientras el contenido está en la papelera y se pueden recuperar al restaurarlo.",
+    "deleteLinkedSharesPermanent": "Este contenido tiene {count} enlace compartido, que se eliminará definitivamente con él. | Este contenido tiene {count} enlaces compartidos, que se eliminarán definitivamente con él.",
+    "deleteOnlyofficeOpen": "{names} está abierto en OnlyOffice. Aún se puede eliminar, pero los cambios no guardados podrían perderse. | {names} están abiertos en OnlyOffice. Aún se pueden eliminar, pero los cambios no guardados podrían perderse.",
+    "deleteVersionsNotice": "{count} versión anterior se elimina también ({size}); no se conserva ninguna copia. | {count} versiones anteriores se eliminan también ({size}); no se conserva ninguna copia."
   },
   "folder": {
     "kind": "Tipo",

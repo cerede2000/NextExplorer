@@ -45,11 +45,15 @@ import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { apiBase, createTerminalSession } from '@/api';
 import { useFileStore } from '@/stores/fileStore';
 import { useTerminalStore } from '@/stores/terminal';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFolderSizeStore } from '@/stores/folderSize';
 import { onClickOutside } from '@vueuse/core';
 import logger from '@/utils/logger';
 
 const terminalStore = useTerminalStore();
 const fileStore = useFileStore();
+const volumeUsageStore = useVolumeUsageStore();
+const folderSizeStore = useFolderSizeStore();
 const { isOpen, launchPath, launchInput, launchKey } = storeToRefs(terminalStore);
 const { close } = terminalStore;
 
@@ -94,6 +98,9 @@ const refreshBrowserState = () => {
   if (terminalPath && currentPath === terminalPath) {
     fileStore.fetchPathItems(currentPath).catch(() => {});
   }
+
+  volumeUsageStore.scheduleRefresh({ delayMs: 300, force: true });
+  folderSizeStore.scheduleRefresh({ delayMs: 300, force: true });
 };
 
 const scheduleBrowserRefresh = (delayMs = 900) => {

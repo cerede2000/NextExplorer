@@ -116,7 +116,9 @@
     "newTextFile": "新建文本文件",
     "newMarkdownFile": "新建 Markdown 文件",
     "newCsvFile": "新建 CSV 文件",
-    "newDocument": "新建文档"
+    "newDocument": "新建文档",
+    "extractArchive": "解压缩",
+    "extractArchiveIntoCurrentFolder": "解压到当前文件夹"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "确定要删除 \"{name}\" 吗？此操作无法撤销。",
       "multiple": "确定要删除这 {count} 个项目吗？此操作无法撤销。",
-      "generic": "未选择任何项目。"
+      "generic": "未选择任何项目。",
+      "trashSingle": "\"{name}\" 将移至回收站，保留 {count} 天。",
+      "trashMultiple": "这 {items} 项将移至回收站，保留 {count} 天。"
     },
     "checkingDeleteImpact": "正在检查关联的共享...",
     "deleteImpactUnavailable": "无法检查关联的共享。服务器仍会执行删除操作。",
-    "deleteLinkedShares": "此内容有 {count} 个关联的共享，将随其一并删除。"
+    "deleteLinkedShares": "此内容有 {count} 个关联的共享，将随其一并删除。",
+    "moveToTrash": "移至回收站",
+    "deletePermanently": "永久删除",
+    "deleteSomePermanent": "其中 {count} 项无法移至回收站，将被永久删除。",
+    "trashReasons": {
+      "otherDevice": "它与所在卷的回收站不在同一磁盘上。",
+      "tooLarge": "它比所在卷的整个回收站还大。",
+      "zoneRoot": "整个卷无法移至自己的回收站。",
+      "zoneUnwritable": "无法写入所在卷的回收站。",
+      "noZone": "它不在有回收站的位置。",
+      "disabled": "回收站已关闭。"
+    },
+    "keptTitle": "无法移至回收站",
+    "keptMessage": "{count} 项已保留在原位。要永久删除吗？",
+    "keptReasons": {
+      "tooLarge": "{size}，超过所在卷回收站可容纳的 {budget}。"
+    },
+    "deleteLinkedSharesTrash": "此内容有 {count} 个共享链接。内容在回收站中时链接失效，还原时可以恢复。",
+    "deleteLinkedSharesPermanent": "此内容有 {count} 个共享链接，将随之被永久删除。",
+    "deleteOnlyofficeOpen": "{names} 已在 OnlyOffice 中打开。仍可删除，但尚未保存的更改可能会丢失。 | {names} 已在 OnlyOffice 中打开。仍可删除，但尚未保存的更改可能会丢失。",
+    "deleteVersionsNotice": "另有 {count} 个历史版本一并删除（{size}），任何地方都不会保留副本。"
   },
   "folder": {
     "kind": "类型",

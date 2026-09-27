@@ -116,7 +116,9 @@
     "newTextFile": "新增文字檔",
     "newMarkdownFile": "新增 Markdown 檔",
     "newCsvFile": "新增 CSV 檔",
-    "newDocument": "新增文件"
+    "newDocument": "新增文件",
+    "extractArchive": "解壓縮",
+    "extractArchiveIntoCurrentFolder": "解壓縮至目前檔案夾"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "確定要刪除 \"{name}\" 嗎？此動作無法還原。",
       "multiple": "確定要刪除這 {count} 個項目嗎？此動作無法還原。",
-      "generic": "未選擇任何項目。"
+      "generic": "未選擇任何項目。",
+      "trashSingle": "\"{name}\" 將移至資源回收筒，保留 {count} 天。",
+      "trashMultiple": "這 {items} 個項目將移至資源回收筒，保留 {count} 天。"
     },
     "checkingDeleteImpact": "正在檢查已連結的分享...",
     "deleteImpactUnavailable": "無法檢查已連結的分享。伺服器仍會執行刪除作業。",
-    "deleteLinkedShares": "此內容有 {count} 個已連結的分享，將隨其一併移除。"
+    "deleteLinkedShares": "此內容有 {count} 個已連結的分享，將隨其一併移除。",
+    "moveToTrash": "移至資源回收筒",
+    "deletePermanently": "永久刪除",
+    "deleteSomePermanent": "其中 {count} 個項目無法移至資源回收筒，將被永久刪除。",
+    "trashReasons": {
+      "otherDevice": "它與所在磁碟區的資源回收筒不在同一顆磁碟上。",
+      "tooLarge": "它比所在磁碟區的整個資源回收筒還大。",
+      "zoneRoot": "整個磁碟區無法移至自己的資源回收筒。",
+      "zoneUnwritable": "無法寫入所在磁碟區的資源回收筒。",
+      "noZone": "它不在有資源回收筒的位置。",
+      "disabled": "資源回收筒已關閉。"
+    },
+    "keptTitle": "無法移至資源回收筒",
+    "keptMessage": "{count} 個項目已保留在原處。要永久刪除嗎？",
+    "keptReasons": {
+      "tooLarge": "{size}，超過所在磁碟區資源回收筒可容納的 {budget}。"
+    },
+    "deleteLinkedSharesTrash": "此內容有 {count} 個分享連結。內容在資源回收筒中時連結失效，還原時可以恢復。",
+    "deleteLinkedSharesPermanent": "此內容有 {count} 個分享連結，將隨之永久刪除。",
+    "deleteOnlyofficeOpen": "{names} 已在 OnlyOffice 中開啟。仍可刪除，但尚未儲存的變更可能會遺失。 | {names} 已在 OnlyOffice 中開啟。仍可刪除，但尚未儲存的變更可能會遺失。",
+    "deleteVersionsNotice": "另有 {count} 個舊版本一併刪除（{size}），任何地方都不會保留副本。"
   },
   "folder": {
     "kind": "類型",

@@ -1,9 +1,11 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
-import { offset, flip, shift, useFloating } from '@floating-ui/vue';
+import { offset, flip, shift, useFloating, autoUpdate } from '@floating-ui/vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { explorerContextMenuSymbol } from '@/composables/contextMenu';
+import { buildMenuSections, quickActionAvailable } from '@/composables/contextMenuSections';
+import { useDeleteDialogWording } from '@/composables/deleteDialogWording';
 import { useFileStore } from '@/stores/fileStore';
 import { useSelection } from '@/composables/itemSelection';
 import { useFileActions } from '@/composables/fileActions';
@@ -12,44 +14,33 @@ import { normalizePath } from '@/api';
 import { modKeyLabel, deleteKeyLabel } from '@/utils/keyboard';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
 import ModalDialog from '@/components/ModalDialog.vue';
+import ArchivePasswordDialog from '@/components/ArchivePasswordDialog.vue';
 import ShareDialog from '@/components/ShareDialog.vue';
 import { useFavoritesStore } from '@/stores/favorites';
-import {
-  StarIcon as StarOutline,
-  DocumentTextIcon,
-  CommandLineIcon,
-  ArrowDownTrayIcon,
-  ShareIcon,
-  ArchiveBoxArrowDownIcon,
-  ArrowUpOnSquareIcon,
-  ClockIcon,
-} from '@heroicons/vue/24/outline';
-import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
+import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
 import { useFeaturesStore } from '@/stores/features';
-import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { isTerminalExtension } from '@/config/terminal';
-// Icons
-import {
-  CreateNewFolderRound,
-  InsertDriveFileRound,
-  ContentCutRound,
-  ContentCopyRound,
-  ContentPasteRound,
-  DriveFileRenameOutlineRound,
-  InfoRound,
-  DeleteRound,
-} from '@vicons/material';
+import { itemExtension, terminalInputFor } from '@/utils/terminalInput';
+
+/**
+ * The right-click menu of the explorer, and the dialogs it opens.
+ *
+ * What it offers is decided in `contextMenuSections.js` and what the delete
+ * confirmation says in `deleteDialogWording.js`, both from plain descriptions
+ * of the situation. What is left here is opening at the cursor, what each
+ * entry does, and the dialogs.
+ */
 
 const fileStore = useFileStore();
 const infoPanel = useInfoPanelStore();
+const versionsPanel = useVersionsPanelStore();
 const { clearSelection } = useSelection();
 const favoritesStore = useFavoritesStore();
 const { openEditorForFavorite } = useFavoriteEditor();
 const terminalStore = useTerminalStore();
 const featuresStore = useFeaturesStore();
-const versionsPanel = useVersionsPanelStore();
 const router = useRouter();
 
 const isOpen = ref(false);
@@ -63,13 +54,20 @@ const floatingRef = ref(null);
 
 const { x, y, strategy, update } = useFloating(referenceRef, floatingRef, {
   placement: 'right-start',
+  strategy: 'fixed',
   middleware: [offset(4), flip(), shift()],
+  // Position as soon as the menu mounts (and keep it pinned) so it appears
+  // instantly at the cursor instead of flashing at the top-left for a frame.
+  whileElementsMounted: autoUpdate,
 });
 
 const floatingStyles = computed(() => ({
   position: strategy.value,
-  left: `${Math.max(x.value ?? 0, 0)}px`,
-  top: `${Math.max(y.value ?? 0, 0)}px`,
+  // Until floating-ui computes (x/y null on the very first frame), fall back to
+  // the cursor position so the menu paints AT the cursor immediately — no visible
+  // delay or top-left flash — then gets refined (offset/flip/shift) in place.
+  left: `${Math.max(x.value ?? pointer.value.x, 0)}px`,
+  top: `${Math.max(y.value ?? pointer.value.y, 0)}px`,
   zIndex: 1600,
 }));
 
@@ -81,17 +79,15 @@ const referenceStyles = computed(() => ({
 
 const actions = useFileActions();
 const { t } = useI18n();
-const selectedItems = actions.selectedItems;
 const hasSelection = actions.hasSelection;
 const primaryItem = actions.primaryItem;
 const isSingleItemSelected = actions.isSingleItemSelected;
-const canRename = actions.canRename;
 const locationCanWrite = actions.locationCanWrite;
-const locationCanUpload = actions.locationCanUpload;
 const locationCanDelete = actions.locationCanDelete;
-const canAcceptPasteHere = computed(() => locationCanWrite.value || locationCanUpload.value);
 const isShareDialogOpen = ref(false);
 const itemToShare = ref(null);
+const archivePasswordRequest = ref(null);
+const isArchivePasswordBusy = ref(false);
 
 const isVolumesView = computed(() => {
   const p = normalizePath(fileStore.getCurrentPath || '');
@@ -105,53 +101,45 @@ const isShareView = computed(() => {
 
 const locationCanShare = computed(() => fileStore.currentPathData?.canShare ?? true);
 
+/** Sharing is offered here at all: not the volumes, not inside a share. */
+const canShareHere = computed(
+  () => !isVolumesView.value && !isShareView.value && locationCanShare.value
+);
+
 const canShare = computed(
   () =>
-    !isVolumesView.value &&
-    !isShareView.value &&
-    locationCanShare.value &&
+    canShareHere.value &&
     isSingleItemSelected.value &&
     Boolean(primaryItem.value) &&
     primaryItem.value?.kind !== 'volume'
 );
 
-const deleteDialogTitle = computed(() => {
-  const count = selectedItems.value.length;
-  if (count === 1 && primaryItem.value) {
-    return t('context.deleteTitle.single', { name: primaryItem.value.name });
-  }
-  if (count > 1) {
-    return t('context.deleteTitle.multiple', { count });
-  }
-  return t('context.deleteTitle.generic');
-});
-
-const deleteDialogMessage = computed(() => {
-  const count = selectedItems.value.length;
-  if (count === 1 && primaryItem.value) {
-    return t('context.deleteMessage.single', { name: primaryItem.value.name });
-  }
-  if (count > 1) {
-    return t('context.deleteMessage.multiple', { count });
-  }
-  return t('context.deleteMessage.generic');
-});
-
+const deleteConfirm = useDeleteConfirm();
 const {
   isDeleteConfirmOpen,
   isDeleting,
   isLoadingDeleteImpact,
-  deleteImpact,
   deleteImpactError,
+  keptItems,
+  isKeptConfirmOpen,
   requestDelete,
   confirmDelete,
-} = useDeleteConfirm();
+  confirmKept,
+  closeKeptConfirm,
+  closeDeleteConfirm,
+} = deleteConfirm;
 
-const deleteShareImpactMessage = computed(() => {
-  const count = Number(deleteImpact.value?.shareCount || 0);
-  if (count <= 0) return '';
-  return t('context.deleteLinkedShares', { count });
-});
+const {
+  deleteDialogTitle,
+  deleteDialogMessage,
+  deletePermanentNotice,
+  deleteVersionsNotice,
+  goesToTrash,
+  keptDialogMessage,
+  keptItemReason,
+  deleteShareImpactMessage,
+  deleteOnlyOfficeActivityMessage,
+} = useDeleteDialogWording({ t, featuresStore, confirm: deleteConfirm });
 
 const closeMenu = () => {
   isOpen.value = false;
@@ -226,19 +214,50 @@ const runPasteIntoCurrent = async () => {
   await actions.runPasteIntoCurrent();
 };
 
-const runCreateFile = async () => {
-  await fileStore.createFile();
-};
-
-const runCreateFolder = async () => {
-  await fileStore.createFolder();
-};
-
 const runRename = () => actions.runRename();
 
 const runDownload = () => actions.runDownload();
 
-const runExtractZip = () => actions.runExtractZip();
+const openArchivePasswordDialog = (result) => {
+  if (!result?.requiresPassword) return;
+  archivePasswordRequest.value = {
+    path: result.path,
+    destination: result.destination,
+    invalidPassword: result.invalidPassword,
+  };
+};
+
+const runExtractArchive = async () => {
+  openArchivePasswordDialog(await actions.runExtractArchive());
+};
+
+const runExtractArchiveIntoCurrentFolder = async () => {
+  openArchivePasswordDialog(await actions.runExtractArchiveIntoCurrentFolder());
+};
+
+const closeArchivePasswordDialog = () => {
+  if (!isArchivePasswordBusy.value) archivePasswordRequest.value = null;
+};
+
+const submitArchivePassword = async (password) => {
+  const request = archivePasswordRequest.value;
+  if (!request) return;
+
+  isArchivePasswordBusy.value = true;
+  try {
+    const result = await fileStore.extractZipArchive(request.path, {
+      destination: request.destination,
+      password,
+    });
+    if (result?.requiresPassword) {
+      archivePasswordRequest.value = { ...request, invalidPassword: result.invalidPassword };
+    } else {
+      archivePasswordRequest.value = null;
+    }
+  } finally {
+    isArchivePasswordBusy.value = false;
+  }
+};
 const runCompressToZip = () => actions.runCompressToZip();
 
 const runShare = () => {
@@ -284,43 +303,23 @@ const runOpenWithEditor = () => {
   router.push({ path: `/editor/${encodedPath}` });
 };
 
-const getItemExtension = (item) => {
-  const name = String(item?.name || '');
-  const lastDot = name.lastIndexOf('.');
-  if (lastDot > 0 && lastDot < name.length - 1) {
-    return name.slice(lastDot + 1).toLowerCase();
-  }
-
-  const kind = String(item?.kind || '').toLowerCase();
-  return kind && kind !== 'file' && kind !== 'directory' && kind !== 'volume' ? kind : '';
-};
-
-const shellEscape = (value) => String(value).replace(/([^A-Za-z0-9_@%+=:,./-])/g, '\\$1');
-
-const buildTerminalInputForItem = (item) => {
-  const name = String(item?.name || '').trim();
-  if (!name) return '';
-
-  return shellEscape(`./${name}`);
-};
-
 const canOpenWithTerminal = computed(() => {
   if (!featuresStore.terminalEnabled || contextKind.value !== 'file' || !primaryItem.value) {
     return false;
   }
 
-  return isTerminalExtension(getItemExtension(primaryItem.value));
+  return isTerminalExtension(itemExtension(primaryItem.value));
 });
 
 const runOpenWithTerminal = () => {
   if (!canOpenWithTerminal.value || !primaryItem.value) return;
   const item = primaryItem.value;
   const parentPath = normalizePath(item.path || fileStore.getCurrentPath || '');
-  const initialInput = buildTerminalInputForItem(item);
-  terminalStore.open(parentPath, initialInput);
+  terminalStore.open(parentPath, terminalInputFor(item));
 };
 
-// Favorites support
+// Favorites: the folder right-clicked, or from the background the folder on
+// screen — and from the quick actions, the folder they were opened on.
 const selectedDirectoryPath = computed(() => {
   if (contextKind.value !== 'directory') return null;
   const item = targetItem.value;
@@ -328,253 +327,152 @@ const selectedDirectoryPath = computed(() => {
   return normalizePath(actions.resolveItemPath(item));
 });
 
-const isFavoriteDirectory = computed(() => {
-  const path = selectedDirectoryPath.value;
-  if (!path) return false;
-  return favoritesStore.isFavorite(path);
-});
-
 const currentDirectoryPath = computed(() => normalizePath(fileStore.getCurrentPath || ''));
-const isFavoriteCurrentDirectory = computed(() => {
-  const path = currentDirectoryPath.value;
-  if (!path) return false;
-  return favoritesStore.isFavorite(path);
-});
 
-const runToggleFavoriteForDirectory = async () => {
-  const path = selectedDirectoryPath.value;
+/** The folder the favourite entry of the open menu is about. */
+const menuFavoritePath = computed(() =>
+  contextKind.value === 'background' ? currentDirectoryPath.value : selectedDirectoryPath.value
+);
+
+/** Add a folder to the favourites, or take it off: one at a time. */
+const toggleFavoriteAt = async (path) => {
   if (!path || isMutatingFavorite.value) return;
   isMutatingFavorite.value = true;
   try {
-    if (isFavoriteDirectory.value) {
+    if (favoritesStore.isFavorite(path)) {
       await favoritesStore.removeFavorite(path);
     } else {
       const favorite = await favoritesStore.addFavorite({ path });
-      if (favorite) {
-        openEditorForFavorite(favorite);
-      }
+      if (favorite) openEditorForFavorite(favorite);
     }
   } finally {
     isMutatingFavorite.value = false;
   }
 };
 
-const runToggleFavoriteForCurrent = async () => {
-  const path = currentDirectoryPath.value;
-  if (!path || isMutatingFavorite.value) return;
-  isMutatingFavorite.value = true;
+const runToggleFavoriteForDirectory = () => toggleFavoriteAt(selectedDirectoryPath.value);
+const runToggleFavoriteForCurrent = () => toggleFavoriteAt(currentDirectoryPath.value);
+
+// Inline quick-actions menu: run a single action against a specific item without
+// opening the full right-click menu. Reuses this component's action machinery
+// (share/delete dialogs, favorites) so there is a single implementation. The item
+// is selected first so the selection-based run functions target it.
+const copyTextToClipboard = async (text) => {
   try {
-    if (isFavoriteCurrentDirectory.value) {
-      await favoritesStore.removeFavorite(path);
-    } else {
-      const favorite = await favoritesStore.addFavorite({ path });
-      if (favorite) {
-        openEditorForFavorite(favorite);
-      }
-    }
-  } finally {
-    isMutatingFavorite.value = false;
+    await navigator.clipboard?.writeText?.(String(text || ''));
+  } catch {
+    // Clipboard unavailable (insecure context / denied) — ignore.
   }
 };
 
-// Build grouped, themed menu sections with icons + shortcuts
+const isQuickActionAvailable = (item, id) =>
+  quickActionAvailable(item, id, {
+    locationCanWrite: locationCanWrite.value,
+    locationCanDelete: locationCanDelete.value,
+    canShareHere: canShareHere.value,
+  });
+
+const runQuickAction = async (item, id) => {
+  if (!item) return;
+  ensureItemInSelection(item);
+  switch (id) {
+    case 'info':
+      runGetInfo();
+      break;
+    case 'download':
+      runDownload();
+      break;
+    case 'copyName':
+      await copyTextToClipboard(item.name || '');
+      break;
+    case 'copyPath':
+      await copyTextToClipboard(actions.resolveItemPath(item));
+      break;
+    case 'copy':
+      runCopy();
+      break;
+    case 'cut':
+      runCut();
+      break;
+    case 'rename':
+      runRename();
+      break;
+    case 'share':
+      runShare();
+      break;
+    case 'compress':
+      runCompressToZip();
+      break;
+    case 'favorite':
+      if (item.kind === 'directory')
+        await toggleFavoriteAt(normalizePath(actions.resolveItemPath(item)));
+      break;
+    case 'delete':
+      requestDelete();
+      break;
+    default:
+      break;
+  }
+};
+
 const menuSections = computed(() => {
   if (!isOpen.value) return [];
 
-  const mk = (id, label, icon, run, opts = {}) => ({
-    id,
-    label,
-    icon,
-    run,
-    disabled: Boolean(opts.disabled),
-    shortcut: opts.shortcut || '',
-    danger: Boolean(opts.danger),
-  });
-
-  if (contextKind.value === 'background') {
-    const sections = [];
-    sections.push([
-      mk('get-info', t('context.getInfo'), InfoRound, runGetInfo, {
-        disabled: !primaryItem.value,
-      }),
-    ]);
-    sections.push([
-      mk(
-        'fav-current',
-        isFavoriteCurrentDirectory.value
-          ? t('context.removeFromFavorites')
-          : t('context.addToFavorites'),
-        isFavoriteCurrentDirectory.value ? StarSolid : StarOutline,
-        runToggleFavoriteForCurrent,
-        { disabled: !currentDirectoryPath.value || isMutatingFavorite.value }
-      ),
-    ]);
-
-    if (locationCanWrite.value) {
-      sections.push([
-        mk('new-folder', t('actions.newFolder'), CreateNewFolderRound, runCreateFolder),
-        mk('new-file', t('actions.newFile'), InsertDriveFileRound, runCreateFile),
-      ]);
-    }
-
-    if (canAcceptPasteHere.value) {
-      sections.push([
-        mk('paste', t('actions.paste'), ContentPasteRound, runPasteIntoCurrent, {
-          disabled: !actions.canPaste.value,
-          shortcut: `${modKeyLabel}V`,
-        }),
-      ]);
-    }
-
-    return sections;
-  }
-
-  const sections = [];
-  const infoSection = [
-    mk('get-info', t('context.getInfo'), InfoRound, runGetInfo, {
-      disabled: !primaryItem.value,
-    }),
-  ];
-  if (canShowVersions.value) {
-    infoSection.push(mk('versions', t('versions.menu'), ClockIcon, runShowVersions));
-  }
-  sections.push(infoSection);
-
-  // Add "Open with Editor" for files only
-  if (contextKind.value === 'file') {
-    const openSection = [
-      mk('open-with-editor', t('context.openWithEditor'), DocumentTextIcon, runOpenWithEditor, {
-        disabled: !primaryItem.value,
-      }),
-    ];
-
-    if (canOpenWithTerminal.value) {
-      openSection.push(
-        mk(
-          'open-with-terminal',
-          t('context.openWithTerminal'),
-          CommandLineIcon,
-          runOpenWithTerminal,
-          {
-            disabled: !primaryItem.value,
-          }
-        )
-      );
-    }
-
-    sections.push(openSection);
-  }
-
-  // Add download option
-  sections.push([
-    mk('download', t('actions.download'), ArrowDownTrayIcon, runDownload, {
-      disabled: !hasSelection.value,
-    }),
-  ]);
-
-  // Add zip archive actions
-  if (!isVolumesView.value) {
-    const archiveSection = [];
-
-    if (actions.primaryItem.value && contextKind.value === 'file') {
-      const kind = String(actions.primaryItem.value.kind || '').toLowerCase();
-      if (
-        kind === 'zip' ||
-        String(actions.primaryItem.value.name || '')
-          .toLowerCase()
-          .endsWith('.zip')
-      ) {
-        archiveSection.push(
-          mk('extract-zip', t('actions.extractZip'), ArrowUpOnSquareIcon, runExtractZip, {
-            disabled: !actions.canExtractZip.value,
-          })
-        );
-      }
-    }
-
-    if (hasSelection.value) {
-      archiveSection.push(
-        mk('compress-zip', t('actions.compressToZip'), ArchiveBoxArrowDownIcon, runCompressToZip, {
-          disabled: !actions.canCompressToZip.value,
-        })
-      );
-    }
-
-    if (archiveSection.length) {
-      sections.push(archiveSection);
-    }
-  }
-
-  // Add share option (same availability rules as toolbar)
-  if (!isVolumesView.value && !isShareView.value && locationCanShare.value) {
-    sections.push([
-      mk('share', t('share.shareSelectedItem'), ShareIcon, runShare, {
-        disabled: !canShare.value,
-      }),
-    ]);
-  }
-
-  const clipboardSection = [];
-  if (locationCanWrite.value && locationCanDelete.value) {
-    clipboardSection.push(
-      mk('cut', t('actions.cut'), ContentCutRound, runCut, {
-        disabled: !actions.canCut.value,
-        shortcut: `${modKeyLabel}X`,
-      })
-    );
-  }
-  clipboardSection.push(
-    mk('copy', t('actions.copy'), ContentCopyRound, runCopy, {
-      disabled: !actions.canCopy.value,
-      shortcut: `${modKeyLabel}C`,
-    })
+  const favoritePath = menuFavoritePath.value;
+  return buildMenuSections(
+    {
+      kind: contextKind.value,
+      hasPrimary: Boolean(primaryItem.value),
+      hasSelection: hasSelection.value,
+      isVolumesView: isVolumesView.value,
+      isShareView: isShareView.value,
+      locationCanShare: locationCanShare.value,
+      locationCanWrite: locationCanWrite.value,
+      locationCanDelete: locationCanDelete.value,
+      locationCanCreateFolder: actions.locationCanCreateFolder.value,
+      locationCanCreateFile: actions.locationCanCreateFile.value,
+      canShare: canShare.value,
+      canCut: actions.canCut.value,
+      canCopy: actions.canCopy.value,
+      canPaste: actions.canPaste.value,
+      canRename: actions.canRename.value,
+      canDelete: actions.canDelete.value,
+      canShowVersions: canShowVersions.value,
+      canOpenWithTerminal: canOpenWithTerminal.value,
+      isArchiveSelected: actions.isArchiveSelected.value,
+      canExtractArchive: actions.canExtractArchive.value,
+      canCompressToZip: actions.canCompressToZip.value,
+      isFavorite: Boolean(favoritePath) && favoritesStore.isFavorite(favoritePath),
+      hasFavoritePath: Boolean(favoritePath),
+      isMutatingFavorite: isMutatingFavorite.value,
+    },
+    {
+      getInfo: runGetInfo,
+      showVersions: runShowVersions,
+      openWithEditor: runOpenWithEditor,
+      openWithTerminal: runOpenWithTerminal,
+      download: runDownload,
+      extract: runExtractArchive,
+      extractHere: runExtractArchiveIntoCurrentFolder,
+      compress: runCompressToZip,
+      share: runShare,
+      cut: runCut,
+      copy: runCopy,
+      moveTo: () => actions.runMoveTo(),
+      copyTo: () => actions.runCopyTo(),
+      pasteIntoDirectory: runPasteIntoDirectory,
+      pasteIntoCurrent: runPasteIntoCurrent,
+      rename: runRename,
+      toggleFavorite:
+        contextKind.value === 'background'
+          ? runToggleFavoriteForCurrent
+          : runToggleFavoriteForDirectory,
+      delete: requestDelete,
+      newFolder: () => fileStore.createFolder(),
+      newFile: () => fileStore.createFile(),
+    },
+    { t, modKeyLabel, deleteKeyLabel }
   );
-  if (contextKind.value === 'directory') {
-    if (canAcceptPasteHere.value) {
-      clipboardSection.push(
-        mk('paste', t('actions.paste'), ContentPasteRound, runPasteIntoDirectory, {
-          disabled: !actions.canPaste.value,
-          shortcut: `${modKeyLabel}V`,
-        })
-      );
-    }
-  }
-  if (clipboardSection.length) {
-    sections.push(clipboardSection);
-  }
-
-  if (locationCanWrite.value) {
-    sections.push([
-      mk('rename', t('actions.rename'), DriveFileRenameOutlineRound, runRename, {
-        disabled: !canRename.value,
-        shortcut: 'F2',
-      }),
-    ]);
-  }
-
-  if (contextKind.value === 'directory') {
-    sections.push([
-      mk(
-        'fav',
-        isFavoriteDirectory.value ? t('context.removeFromFavorites') : t('context.addToFavorites'),
-        isFavoriteDirectory.value ? StarSolid : StarOutline,
-        runToggleFavoriteForDirectory,
-        { disabled: !selectedDirectoryPath.value || isMutatingFavorite.value }
-      ),
-    ]);
-  }
-
-  if (locationCanDelete.value) {
-    sections.push([
-      mk('delete', t('common.delete'), DeleteRound, requestDelete, {
-        disabled: !actions.canDelete.value,
-        danger: true,
-        shortcut: deleteKeyLabel,
-      }),
-    ]);
-  }
-
-  return sections;
 });
 
 const runAction = async (action) => {
@@ -602,12 +500,9 @@ const handleGlobalKeydown = (event) => {
   }
 };
 
-watch(isOpen, async (open) => {
-  if (!open) return;
-  await nextTick();
-  update();
-});
-
+// `whileElementsMounted: autoUpdate` positions the menu the moment it opens, so no
+// explicit reposition-on-open is needed. Reopening at a new cursor position while
+// the menu is already mounted still needs a nudge.
 watch(
   pointer,
   async () => {
@@ -633,6 +528,8 @@ provide(explorerContextMenuSymbol, {
   openBackgroundMenu,
   closeMenu,
   clearSelection,
+  runQuickAction,
+  quickActionAvailable: isQuickActionAvailable,
 });
 </script>
 
@@ -651,7 +548,7 @@ provide(explorerContextMenuSymbol, {
       v-if="isOpen"
       ref="floatingRef"
       :style="floatingStyles"
-      class="min-w-[220px] rounded-xl border border-white/10 bg-white/70 p-1.5 text-sm text-zinc-800 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-neutral-800/70 dark:text-zinc-200"
+      class="min-w-[220px] rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-800 shadow-2xl dark:border-white/10 dark:bg-neutral-800 dark:text-zinc-200"
       @contextmenu.prevent
       @click.stop
     >
@@ -685,7 +582,7 @@ provide(explorerContextMenuSymbol, {
     </div>
   </teleport>
 
-  <ModalDialog v-model="isDeleteConfirmOpen">
+  <ModalDialog :model-value="isDeleteConfirmOpen" @update:model-value="closeDeleteConfirm">
     <template #title>{{ deleteDialogTitle }}</template>
     <p class="mb-6 text-base text-zinc-700 dark:text-zinc-200">
       {{ deleteDialogMessage }}
@@ -694,7 +591,13 @@ provide(explorerContextMenuSymbol, {
       {{ $t('context.checkingDeleteImpact') }}
     </p>
     <p
-      v-else-if="deleteShareImpactMessage"
+      v-if="deleteOnlyOfficeActivityMessage"
+      class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
+    >
+      {{ deleteOnlyOfficeActivityMessage }}
+    </p>
+    <p
+      v-if="!isLoadingDeleteImpact && deleteShareImpactMessage"
       class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
     >
       {{ deleteShareImpactMessage }}
@@ -702,26 +605,92 @@ provide(explorerContextMenuSymbol, {
     <p v-else-if="deleteImpactError" class="-mt-3 mb-6 text-sm text-amber-700 dark:text-amber-300">
       {{ $t('context.deleteImpactUnavailable') }}
     </p>
+    <p
+      v-if="!isLoadingDeleteImpact && deletePermanentNotice"
+      data-test="delete-permanent-notice"
+      class="-mt-3 mb-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-700/60 dark:bg-red-900/20 dark:text-red-100"
+    >
+      {{ deletePermanentNotice }}
+    </p>
+    <p
+      v-if="!isLoadingDeleteImpact && deleteVersionsNotice"
+      data-test="delete-versions-notice"
+      class="-mt-3 mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100"
+    >
+      {{ deleteVersionsNotice }}
+    </p>
     <div class="flex justify-end gap-3">
       <button
         type="button"
         class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
-        @click="isDeleteConfirmOpen = false"
+        @click="closeDeleteConfirm"
         :disabled="isDeleting"
       >
         {{ $t('common.cancel') }}
       </button>
       <button
+        v-if="goesToTrash"
         type="button"
+        data-test="delete-permanently"
+        class="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/50 dark:text-red-300 dark:hover:bg-red-500/10"
+        @click="confirmDelete({ permanent: true })"
+        :disabled="isDeleting"
+      >
+        {{ $t('context.deletePermanently') }}
+      </button>
+      <button
+        type="button"
+        data-test="delete-confirm"
         class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 active:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
-        @click="confirmDelete"
+        @click="confirmDelete()"
         :disabled="isDeleting"
       >
         <span v-if="isDeleting">{{ $t('common.deleting') }}</span>
+        <span v-else-if="goesToTrash">{{ $t('context.moveToTrash') }}</span>
         <span v-else>{{ $t('common.delete') }}</span>
       </button>
     </div>
   </ModalDialog>
+
+  <ModalDialog :model-value="isKeptConfirmOpen" @update:model-value="closeKeptConfirm">
+    <template #title>{{ $t('context.keptTitle') }}</template>
+    <p class="mb-3 text-base text-zinc-700 dark:text-zinc-200">{{ keptDialogMessage }}</p>
+    <ul
+      data-test="kept-items"
+      class="mb-6 max-h-48 space-y-1 overflow-y-auto text-sm text-zinc-600 dark:text-zinc-300"
+    >
+      <li v-for="item in keptItems" :key="`${item.path}/${item.name}`">
+        <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ item.name }}</span>
+        — {{ keptItemReason(item) }}
+      </li>
+    </ul>
+    <div class="flex justify-end gap-3">
+      <button
+        type="button"
+        class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-700"
+        @click="closeKeptConfirm"
+      >
+        {{ $t('common.cancel') }}
+      </button>
+      <button
+        type="button"
+        data-test="kept-delete-permanently"
+        class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
+        @click="confirmKept"
+        :disabled="isDeleting"
+      >
+        {{ $t('context.deletePermanently') }}
+      </button>
+    </div>
+  </ModalDialog>
+
+  <ArchivePasswordDialog
+    :model-value="Boolean(archivePasswordRequest)"
+    :busy="isArchivePasswordBusy"
+    :invalid-password="archivePasswordRequest?.invalidPassword"
+    @update:model-value="closeArchivePasswordDialog"
+    @submit="submitArchivePassword"
+  />
 
   <ShareDialog v-model="isShareDialogOpen" :item="itemToShare" />
 </template>

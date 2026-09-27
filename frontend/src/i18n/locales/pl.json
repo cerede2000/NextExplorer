@@ -116,7 +116,9 @@
     "newTextFile": "Nowy plik tekstowy",
     "newMarkdownFile": "Nowy plik Markdown",
     "newCsvFile": "Nowy plik CSV",
-    "newDocument": "Nowy dokument"
+    "newDocument": "Nowy dokument",
+    "extractArchive": "Wypakuj archiwum",
+    "extractArchiveIntoCurrentFolder": "Wypakuj do bieżącego folderu"
   },
   "placeholders": {
     "email": "uzytkownik{'@'}przyklad.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Na pewno chcesz usunąć \"{name}\"? Tej operacji nie można cofnąć.",
       "multiple": "Na pewno chcesz usunąć te {count} elementy? Tej operacji nie można cofnąć.",
-      "generic": "Nie wybrano żadnych elementów."
+      "generic": "Nie wybrano żadnych elementów.",
+      "trashSingle": "\"{name}\" trafi do kosza, który przechowa go przez {count} dzień. | \"{name}\" trafi do kosza, który przechowa go przez {count} dni. | \"{name}\" trafi do kosza, który przechowa go przez {count} dni.",
+      "trashMultiple": "Te elementy ({items}) trafią do kosza, który przechowa je przez {count} dzień. | Te elementy ({items}) trafią do kosza, który przechowa je przez {count} dni. | Te elementy ({items}) trafią do kosza, który przechowa je przez {count} dni."
     },
     "checkingDeleteImpact": "Sprawdzanie powiązanych udostępnień...",
     "deleteImpactUnavailable": "Nie można sprawdzić powiązanych udostępnień. Usunięcie nadal zostanie wymuszone przez serwer.",
-    "deleteLinkedShares": "Ta zawartość ma {count} powiązane udostępnienie, które zostanie usunięte wraz z nią. | Ta zawartość ma {count} powiązane udostępnienia, które zostaną usunięte wraz z nią. | Ta zawartość ma {count} powiązanych udostępnień, które zostaną usunięte wraz z nią."
+    "deleteLinkedShares": "Ta zawartość ma {count} powiązane udostępnienie, które zostanie usunięte wraz z nią. | Ta zawartość ma {count} powiązane udostępnienia, które zostaną usunięte wraz z nią. | Ta zawartość ma {count} powiązanych udostępnień, które zostaną usunięte wraz z nią.",
+    "moveToTrash": "Przenieś do kosza",
+    "deletePermanently": "Usuń trwale",
+    "deleteSomePermanent": "{count} z nich nie może trafić do kosza i zostanie usunięty trwale. | {count} z nich nie mogą trafić do kosza i zostaną usunięte trwale. | {count} z nich nie może trafić do kosza i zostanie usuniętych trwale.",
+    "trashReasons": {
+      "otherDevice": "Znajduje się na innym dysku niż kosz swojego woluminu.",
+      "tooLarge": "Jest większy niż cały kosz swojego woluminu.",
+      "zoneRoot": "Cały wolumin nie może trafić do własnego kosza.",
+      "zoneUnwritable": "Nie można zapisywać w koszu jego woluminu.",
+      "noZone": "Nie znajduje się w miejscu z koszem.",
+      "disabled": "Kosz jest wyłączony."
+    },
+    "keptTitle": "Nie udało się przenieść do kosza",
+    "keptMessage": "Ten element pozostał na swoim miejscu. Usunąć go trwale? | Te {count} elementy pozostały na swoim miejscu. Usunąć je trwale? | Tych {count} elementów pozostało na swoim miejscu. Usunąć je trwale?",
+    "keptReasons": {
+      "tooLarge": "{size}, więcej niż {budget}, które mieści kosz jego woluminu."
+    },
+    "deleteLinkedSharesTrash": "Ta zawartość ma linki udostępniania ({count}). Nie działają, dopóki zawartość jest w koszu, i można je przywrócić razem z nią.",
+    "deleteLinkedSharesPermanent": "Ta zawartość ma linki udostępniania ({count}), które zostaną trwale usunięte razem z nią.",
+    "deleteOnlyofficeOpen": "{names} jest otwarty w OnlyOffice. Nadal można go usunąć, ale niezapisane zmiany mogą zostać utracone. | {names} są otwarte w OnlyOffice. Nadal można je usunąć, ale niezapisane zmiany mogą zostać utracone. | {names} jest otwartych w OnlyOffice. Nadal można je usunąć, ale niezapisane zmiany mogą zostać utracone.",
+    "deleteVersionsNotice": "Usunięta zostanie też {count} wcześniejsza wersja ({size}); nigdzie nie ma jej kopii. | Usunięte zostaną też {count} wcześniejsze wersje ({size}); nigdzie nie ma ich kopii. | Usuniętych zostanie też {count} wcześniejszych wersji ({size}); nigdzie nie ma ich kopii."
   },
   "folder": {
     "kind": "Rodzaj",

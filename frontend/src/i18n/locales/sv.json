@@ -116,7 +116,9 @@
     "newTextFile": "Ny textfil",
     "newMarkdownFile": "Ny Markdown-fil",
     "newCsvFile": "Ny CSV-fil",
-    "newDocument": "Nytt dokument"
+    "newDocument": "Nytt dokument",
+    "extractArchive": "Extrahera arkiv",
+    "extractArchiveIntoCurrentFolder": "Extrahera till aktuell mapp"
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Är du säker på att du vill radera \"{name}\"? Denna åtgärd går inte att ångra.",
       "multiple": "Är du säker på att du vill radera dessa {count} objekt? Denna åtgärd går inte att ångra.",
-      "generic": "Inga objekt valda."
+      "generic": "Inga objekt valda.",
+      "trashSingle": "\"{name}\" flyttas till papperskorgen, som sparar det i {count} dag. | \"{name}\" flyttas till papperskorgen, som sparar det i {count} dagar.",
+      "trashMultiple": "Dessa {items} objekt flyttas till papperskorgen, som sparar dem i {count} dag. | Dessa {items} objekt flyttas till papperskorgen, som sparar dem i {count} dagar."
     },
     "checkingDeleteImpact": "Kontrollerar länkade delningar...",
     "deleteImpactUnavailable": "Det gick inte att kontrollera länkade delningar. Raderingen kommer fortfarande att verkställas av servern.",
-    "deleteLinkedShares": "Det här innehållet har {count} länkad delning som tas bort tillsammans med det. | Det här innehållet har {count} länkade delningar som tas bort tillsammans med det."
+    "deleteLinkedShares": "Det här innehållet har {count} länkad delning som tas bort tillsammans med det. | Det här innehållet har {count} länkade delningar som tas bort tillsammans med det.",
+    "moveToTrash": "Flytta till papperskorgen",
+    "deletePermanently": "Radera permanent",
+    "deleteSomePermanent": "{count} av dem kan inte flyttas till papperskorgen och raderas permanent. | {count} av dem kan inte flyttas till papperskorgen och raderas permanent.",
+    "trashReasons": {
+      "otherDevice": "Det ligger på en annan disk än volymens papperskorg.",
+      "tooLarge": "Det är större än hela volymens papperskorg.",
+      "zoneRoot": "En hel volym kan inte flyttas till sin egen papperskorg.",
+      "zoneUnwritable": "Det går inte att skriva till volymens papperskorg.",
+      "noZone": "Det ligger inte på en plats med papperskorg.",
+      "disabled": "Papperskorgen är avstängd."
+    },
+    "keptTitle": "Kunde inte flyttas till papperskorgen",
+    "keptMessage": "Det här objektet lämnades kvar där det var. Radera det permanent? | Dessa {count} objekt lämnades kvar där de var. Radera dem permanent?",
+    "keptReasons": {
+      "tooLarge": "{size}, mer än de {budget} som volymens papperskorg rymmer."
+    },
+    "deleteLinkedSharesTrash": "Innehållet har {count} delningslänk. Den fungerar inte medan innehållet ligger i papperskorgen och kan återställas tillsammans med det. | Innehållet har {count} delningslänkar. De fungerar inte medan innehållet ligger i papperskorgen och kan återställas tillsammans med det.",
+    "deleteLinkedSharesPermanent": "Innehållet har {count} delningslänk, som tas bort permanent tillsammans med det. | Innehållet har {count} delningslänkar, som tas bort permanent tillsammans med det.",
+    "deleteOnlyofficeOpen": "{names} är öppen i OnlyOffice. Den kan fortfarande tas bort, men ändringar som inte har sparats kan gå förlorade. | {names} är öppna i OnlyOffice. De kan fortfarande tas bort, men ändringar som inte har sparats kan gå förlorade.",
+    "deleteVersionsNotice": "Även {count} tidigare version tas bort ({size}); ingen kopia av den finns kvar. | Även {count} tidigare versioner tas bort ({size}); inga kopior av dem finns kvar."
   },
   "folder": {
     "kind": "Typ",

@@ -116,7 +116,9 @@
     "newTextFile": "New text file",
     "newMarkdownFile": "New Markdown file",
     "newCsvFile": "New CSV file",
-    "newDocument": "New document"
+    "newDocument": "New document",
+    "extractArchive": "Extract archive",
+    "extractArchiveIntoCurrentFolder": "Extract into current folder"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
       "multiple": "Are you sure you want to delete these {count} items? This action cannot be undone.",
-      "generic": "No items selected."
+      "generic": "No items selected.",
+      "trashSingle": "\"{name}\" will go to the trash, which keeps it for {count} day. | \"{name}\" will go to the trash, which keeps it for {count} days.",
+      "trashMultiple": "These {items} items will go to the trash, which keeps them for {count} day. | These {items} items will go to the trash, which keeps them for {count} days."
     },
     "checkingDeleteImpact": "Checking linked shares...",
     "deleteImpactUnavailable": "Unable to check linked shares. Deletion will still be enforced by the server.",
-    "deleteLinkedShares": "This content has {count} linked share that will be removed with it. | This content has {count} linked shares that will be removed with it."
+    "deleteLinkedShares": "This content has {count} linked share that will be removed with it. | This content has {count} linked shares that will be removed with it.",
+    "moveToTrash": "Move to Trash",
+    "deletePermanently": "Delete permanently",
+    "deleteSomePermanent": "{count} of them cannot go to the trash and will be deleted for good. | {count} of them cannot go to the trash and will be deleted for good.",
+    "trashReasons": {
+      "otherDevice": "It is on another disk than its volume's trash.",
+      "tooLarge": "It is larger than the whole trash of its volume.",
+      "zoneRoot": "A whole volume cannot go into its own trash.",
+      "zoneUnwritable": "The trash of its volume cannot be written to.",
+      "noZone": "It is not in a place that has a trash.",
+      "disabled": "The trash is switched off."
+    },
+    "keptTitle": "Could not go to the trash",
+    "keptMessage": "This item was left where it is. Delete it permanently? | These {count} items were left where they are. Delete them permanently?",
+    "keptReasons": {
+      "tooLarge": "{size}, more than the {budget} its volume's trash can hold."
+    },
+    "deleteLinkedSharesTrash": "This content has {count} share link. It stops working while the content is in the trash, and can be brought back when it is restored. | This content has {count} share links. They stop working while the content is in the trash, and can be brought back when it is restored.",
+    "deleteLinkedSharesPermanent": "This content has {count} share link, which will be deleted for good with it. | This content has {count} share links, which will be deleted for good with it.",
+    "deleteOnlyofficeOpen": "{names} is open in OnlyOffice. It can still be deleted, but changes not yet saved there may be lost. | {names} are open in OnlyOffice. They can still be deleted, but changes not yet saved there may be lost.",
+    "deleteVersionsNotice": "Also deleting {count} earlier version ({size}), which nothing keeps a copy of. | Also deleting {count} earlier versions ({size}), which nothing keeps a copy of."
   },
   "folder": {
     "kind": "Kind",

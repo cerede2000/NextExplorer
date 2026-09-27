@@ -116,7 +116,9 @@
     "newTextFile": "Nouveau fichier texte",
     "newMarkdownFile": "Nouveau fichier Markdown",
     "newCsvFile": "Nouveau fichier CSV",
-    "newDocument": "Nouveau document"
+    "newDocument": "Nouveau document",
+    "extractArchive": "Extraire l'archive",
+    "extractArchiveIntoCurrentFolder": "Extraire dans le dossier courant"
   },
   "placeholders": {
     "email": "utilisateur{'@'}exemple.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Voulez-vous vraiment supprimer \"{name}\" ? Cette action est irréversible.",
       "multiple": "Voulez-vous vraiment supprimer ces {count} éléments ? Cette action est irréversible.",
-      "generic": "Aucun élément sélectionné."
+      "generic": "Aucun élément sélectionné.",
+      "trashSingle": "\"{name}\" ira dans la corbeille, qui le conserve {count} jour. | \"{name}\" ira dans la corbeille, qui le conserve {count} jours.",
+      "trashMultiple": "Ces {items} éléments iront dans la corbeille, qui les conserve {count} jour. | Ces {items} éléments iront dans la corbeille, qui les conserve {count} jours."
     },
     "checkingDeleteImpact": "Vérification des partages associés...",
     "deleteImpactUnavailable": "Impossible de vérifier les partages associés. La suppression restera contrôlée côté serveur.",
-    "deleteLinkedShares": "Ce contenu possède {count} lien de partage associé qui sera supprimé avec lui. | Ce contenu possède {count} liens de partage associés qui seront supprimés avec lui."
+    "deleteLinkedShares": "Ce contenu possède {count} lien de partage associé qui sera supprimé avec lui. | Ce contenu possède {count} liens de partage associés qui seront supprimés avec lui.",
+    "moveToTrash": "Mettre à la corbeille",
+    "deletePermanently": "Supprimer définitivement",
+    "deleteSomePermanent": "{count} d'entre eux ne peut pas aller dans la corbeille et sera supprimé définitivement. | {count} d'entre eux ne peuvent pas aller dans la corbeille et seront supprimés définitivement.",
+    "trashReasons": {
+      "otherDevice": "Il se trouve sur un autre disque que la corbeille de son volume.",
+      "tooLarge": "Il est plus volumineux que toute la corbeille de son volume.",
+      "zoneRoot": "Un volume entier ne peut pas aller dans sa propre corbeille.",
+      "zoneUnwritable": "La corbeille de son volume n'est pas accessible en écriture.",
+      "noZone": "Il n'est pas dans un emplacement doté d'une corbeille.",
+      "disabled": "La corbeille est désactivée."
+    },
+    "keptTitle": "Impossible de mettre à la corbeille",
+    "keptMessage": "Cet élément a été laissé à sa place. Le supprimer définitivement ? | Ces {count} éléments ont été laissés à leur place. Les supprimer définitivement ?",
+    "keptReasons": {
+      "tooLarge": "{size}, plus que les {budget} que peut contenir la corbeille de son volume."
+    },
+    "deleteLinkedSharesTrash": "Ce contenu possède {count} lien de partage. Il ne fonctionnera plus tant que le contenu est dans la corbeille, et pourra être rétabli à la restauration. | Ce contenu possède {count} liens de partage. Ils ne fonctionneront plus tant que le contenu est dans la corbeille, et pourront être rétablis à la restauration.",
+    "deleteLinkedSharesPermanent": "Ce contenu possède {count} lien de partage, qui sera supprimé définitivement avec lui. | Ce contenu possède {count} liens de partage, qui seront supprimés définitivement avec lui.",
+    "deleteOnlyofficeOpen": "{names} est ouvert dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue. | {names} sont ouverts dans OnlyOffice. La suppression reste possible, mais une modification non enregistrée peut être perdue.",
+    "deleteVersionsNotice": "{count} version antérieure part également ({size}) ; rien n’en garde de copie. | {count} versions antérieures partent également ({size}) ; rien n’en garde de copie."
   },
   "folder": {
     "kind": "Type",

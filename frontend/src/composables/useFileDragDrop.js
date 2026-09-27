@@ -1,8 +1,16 @@
 import { ref } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
-import { moveItems, normalizePath } from '@/api';
-import { useOnlyOfficeTransferConfirm } from '@/composables/useOnlyOfficeTransferConfirm';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
+import { useFolderSizeStore } from '@/stores/folderSize';
+import { copyItems, moveItems, normalizePath } from '@/api';
 import { useInputMode } from '@/composables/useInputMode';
+import { useOperationTasksStore } from '@/stores/operationTasks';
+import { useOnlyOfficeTransferConfirm } from '@/composables/useOnlyOfficeTransferConfirm';
+
+// A drag can cross from the file view into the sidebar, where a different
+// composable instance handles dragover. Keep the preview state module-wide so
+// Option/Alt can still update the same drag image in either destination.
+let activeDragImage = null;
 
 /**
  * Composable for handling file and folder drag and drop operations.
@@ -10,10 +18,14 @@ import { useInputMode } from '@/composables/useInputMode';
  */
 export function useFileDragDrop() {
   const fileStore = useFileStore();
+  const volumeUsageStore = useVolumeUsageStore();
+  const folderSizeStore = useFolderSizeStore();
+  const operationTasksStore = useOperationTasksStore();
   const onlyOfficeTransferConfirm = useOnlyOfficeTransferConfirm();
   const { isTouchDevice } = useInputMode();
   const isDraggingOver = ref(false);
   const dragOverTarget = ref(null);
+  const dragOperation = ref('move');
 
   const isExternalFileDrag = (event) => {
     const types = event?.dataTransfer?.types;
@@ -39,7 +51,21 @@ export function useFileDragDrop() {
         kind: item.kind,
       }));
 
+  const resolveCurrentItems = (items) =>
+    (Array.isArray(items) ? items : []).map((draggedItem) => {
+      const currentItem = fileStore.currentPathItems?.find(
+        (item) =>
+          item?.name === draggedItem?.name &&
+          normalizePath(item?.path || '') === normalizePath(draggedItem?.path || '')
+      );
+      return currentItem || draggedItem;
+    });
+
   const resolveFolderDestination = (targetFolder) => {
+    if (targetFolder?.destinationPath) {
+      return normalizePath(targetFolder.destinationPath);
+    }
+
     if (!targetFolder || !targetFolder.name) {
       return normalizePath(fileStore.currentPath || '');
     }
@@ -55,6 +81,10 @@ export function useFileDragDrop() {
   const canDragDrop = () => {
     return !isTouchDevice.value;
   };
+
+  // Option on macOS and Alt on Windows/Linux both set altKey. Copy is kept as
+  // a modifier rather than a persistent mode, matching Finder and Explorer.
+  const isCopyModifierPressed = (event) => Boolean(event?.altKey);
 
   /**
    * Handle drag start on a file/folder item
@@ -82,20 +112,33 @@ export function useFileDragDrop() {
     event.dataTransfer.setData('application/json', dragData);
     // Safari is inconsistent about exposing custom types during dragover/drop, so add a fallback.
     event.dataTransfer.setData('text/plain', dragData);
-    event.dataTransfer.effectAllowed = 'move';
+    // Let the browser negotiate the copy operation too. This is the only
+    // reliable way to keep macOS and the terminal drop event in agreement.
+    event.dataTransfer.effectAllowed = 'copyMove';
 
-    // Create custom drag image with badge
-    createDragImage(event, itemsToDrag, item);
+    const copy = isCopyModifierPressed(event);
+    activeDragImage = {
+      items: itemsToDrag,
+      primaryItem: item,
+      sourceEl: event.currentTarget,
+      copy,
+    };
+
+    // Keep the native preview. Besides matching the familiar cursor placement,
+    // it lets the browser animate the preview back to its source on a cancelled
+    // drag, which is smoother than recreating the complete card ourselves.
+    createNativeDragImage(event, activeDragImage);
+    activeDragImage = { ...activeDragImage, copy };
   };
 
   /**
-  /**
-   * Create a custom drag image with a badge showing the number of items
-   * @param {DragEvent} event - The drag event
-   * @param {Array} items - Items being dragged
-   * @param {Object} primaryItem - The main item being dragged (under cursor)
+   * Build the native drag preview with its item-count badge.
+   * @param {Object} state - Source items, primary item and active operation
    */
-  const createDragImage = (event, items, primaryItem) => {
+  const buildDragPreview = (state) => {
+    if (!state) return null;
+
+    const { items, primaryItem, sourceEl } = state;
     const count = items.length;
     const dragImage = document.createElement('div');
     dragImage.className = 'file-drag-image';
@@ -105,9 +148,12 @@ export function useFileDragDrop() {
     const stackDepth = Math.min(count, 3);
 
     let iconNode = null;
-    const sourceEl = event.currentTarget;
     if (sourceEl) {
-      const foundIcon = sourceEl.querySelector('svg') || sourceEl.querySelector('.bg-contain');
+      const foundIcon =
+        sourceEl.querySelector('.block.aspect-square svg') ||
+        sourceEl.querySelector('.block.aspect-square') ||
+        sourceEl.querySelector('svg') ||
+        sourceEl.querySelector('.bg-contain');
       if (foundIcon) {
         iconNode = foundIcon.cloneNode(true);
         iconNode.style.width = '24px';
@@ -150,18 +196,26 @@ export function useFileDragDrop() {
     const badge = document.createElement('div');
     badge.className = 'file-drag-badge';
     badge.textContent = count.toString();
-
     dragImage.appendChild(badge);
+    return dragImage;
+  };
+
+  const createNativeDragImage = (event, state) => {
+    if (typeof event?.dataTransfer?.setDragImage !== 'function' || !state) return;
+
+    const dragImage = buildDragPreview(state);
+    if (!dragImage) return;
     document.body.appendChild(dragImage);
 
-    const xOffset = -10;
-    const yOffset = 10;
+    // Preserve the original native cursor anchor.
+    event.dataTransfer.setDragImage(dragImage, -10, 10);
 
-    event.dataTransfer.setDragImage(dragImage, xOffset, yOffset);
+    window.setTimeout(() => dragImage.remove(), 100);
+  };
 
-    setTimeout(() => {
-      document.body.removeChild(dragImage);
-    }, 100);
+  const updateDragOperation = (copy) => {
+    if (!activeDragImage) return;
+    activeDragImage = { ...activeDragImage, copy };
   };
 
   /**
@@ -176,10 +230,13 @@ export function useFileDragDrop() {
     if (!isInternalMoveDrag(event)) return;
 
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    const copy = isCopyModifierPressed(event);
+    event.dataTransfer.dropEffect = copy ? 'copy' : 'move';
+    updateDragOperation(copy);
 
     // Store the target folder for drag leave/drop handling
     dragOverTarget.value = targetFolder;
+    dragOperation.value = copy ? 'copy' : 'move';
     isDraggingOver.value = true;
   };
 
@@ -200,8 +257,9 @@ export function useFileDragDrop() {
     const y = event.clientY;
 
     if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-      if (dragOverTarget.value === targetFolder) {
+      if (isDragTarget(targetFolder)) {
         dragOverTarget.value = null;
+        dragOperation.value = 'move';
         isDraggingOver.value = false;
       }
     }
@@ -222,18 +280,39 @@ export function useFileDragDrop() {
     event.preventDefault();
     event.stopPropagation();
 
+    // Chromium can omit altKey from the terminal drop event. Prefer the native
+    // negotiated operation, then the operation seen during dragover.
+    const copy =
+      event.dataTransfer.dropEffect === 'copy' ||
+      activeDragImage?.copy === true ||
+      isCopyModifierPressed(event);
+    activeDragImage = null;
     isDraggingOver.value = false;
     dragOverTarget.value = null;
+    dragOperation.value = 'move';
 
     // Get the dragged items from dataTransfer
-    const dragData = event.dataTransfer.getData('application/json');
+    const dragData =
+      event.dataTransfer.getData('application/json') || event.dataTransfer.getData('text/plain');
     if (!dragData) return;
 
-    const draggedItems = JSON.parse(dragData);
+    let draggedItems;
+    try {
+      draggedItems = JSON.parse(dragData);
+    } catch {
+      return;
+    }
     if (!Array.isArray(draggedItems) || draggedItems.length === 0) return;
 
     // Get the destination path (target folder's full relative path)
     const destination = resolveFolderDestination(targetFolder);
+
+    // Moving an item into its own parent does nothing. Copying there is useful
+    // though: it creates the usual "(1)", "(2)" duplicate in the current folder.
+    const isCurrentFolderDestination = draggedItems.every(
+      (item) => normalizePath(item.path || '') === destination
+    );
+    if (isCurrentFolderDestination && !copy) return;
 
     // Validate: prevent dropping a folder into itself
     const isSelfDrop = draggedItems.some(
@@ -258,25 +337,76 @@ export function useFileDragDrop() {
       return;
     }
 
-    // Moving a document somebody has open in an editor is allowed, and worth
-    // asking about: the editor will write where the file used to be, and the
-    // save that follows lands under the old name.
-    const confirmed = await onlyOfficeTransferConfirm.requestConfirmation(draggedItems);
-    if (!confirmed) return;
-
     try {
-      // Prepare payload for moveItems API
-      const movePayload = serializeItems(draggedItems);
-      if (movePayload.length === 0) return;
+      const transferPayload = serializeItems(draggedItems);
+      if (transferPayload.length === 0) return;
 
-      // Call the moveItems API
-      await moveItems(movePayload, destination);
+      // A native drag cannot render a toast while it is in progress. Present
+      // an application confirmation after the drop and before the transfer.
+      // The dialog names the documents, not the operation, so there is
+      // nothing to pass here — and nothing to hard-code in one language.
+      const confirmed = await onlyOfficeTransferConfirm.requestConfirmation(
+        resolveCurrentItems(draggedItems)
+      );
+      if (!confirmed) return;
+
+      const controller = new AbortController();
+      const operationId = operationTasksStore.startOperation({
+        type: copy ? 'copy' : 'move',
+        destination,
+        itemCount: transferPayload.length,
+        cancellable: true,
+        cancel: () => controller.abort(),
+      });
+
+      const onTransferEvent = (streamEvent) => {
+        if (!streamEvent) return;
+        if (streamEvent.type === 'start') {
+          operationTasksStore.updateOperation(operationId, {
+            totalBytes: Number(streamEvent.totalBytes) || 0,
+            copiedBytes: 0,
+          });
+        } else if (streamEvent.type === 'progress') {
+          operationTasksStore.updateOperation(operationId, {
+            ...(streamEvent.totalBytes != null
+              ? { totalBytes: Number(streamEvent.totalBytes) || 0 }
+              : {}),
+            copiedBytes: Number(streamEvent.copiedBytes) || 0,
+            ...(streamEvent.percent != null ? { percent: Number(streamEvent.percent) || 0 } : {}),
+          });
+        }
+      };
+
+      try {
+        const transfer = copy ? copyItems : moveItems;
+        await transfer(transferPayload, destination, {
+          signal: controller.signal,
+          onEvent: onTransferEvent,
+        });
+      } finally {
+        operationTasksStore.finishOperation(operationId);
+      }
 
       // Refresh the current path to show the changes
       await fileStore.fetchPathItems(fileStore.currentPath);
+      volumeUsageStore.scheduleRefresh();
+      folderSizeStore.scheduleRefresh();
     } catch (error) {
-      console.error('Failed to move items:', error);
+      if (error?.name === 'AbortError' || /aborted/i.test(error?.message || '')) {
+        await fileStore.fetchPathItems(fileStore.currentPath);
+        volumeUsageStore.scheduleRefresh();
+        folderSizeStore.scheduleRefresh();
+        return;
+      }
+      console.error(`Failed to ${copy ? 'copy' : 'move'} items:`, error);
     }
+  };
+
+  const handleDragEnd = () => {
+    activeDragImage = null;
+    isDraggingOver.value = false;
+    dragOverTarget.value = null;
+    dragOperation.value = 'move';
   };
 
   /**
@@ -286,8 +416,10 @@ export function useFileDragDrop() {
    */
   const isDragTarget = (folder) => {
     if (!dragOverTarget.value) return false;
-    return dragOverTarget.value.name === folder.name && dragOverTarget.value.path === folder.path;
+    return resolveFolderDestination(dragOverTarget.value) === resolveFolderDestination(folder);
   };
+
+  const isCopyDragTarget = (folder) => isDragTarget(folder) && dragOperation.value === 'copy';
 
   return {
     isDraggingOver,
@@ -296,6 +428,8 @@ export function useFileDragDrop() {
     handleDragOver,
     handleDragLeave,
     handleDrop,
+    handleDragEnd,
     isDragTarget,
+    isCopyDragTarget,
   };
 }
