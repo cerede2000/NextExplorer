@@ -1579,6 +1579,10 @@
     {
       "match": "^docs/reference/api\\.md$",
       "note": "one line: the examples were run against this fork's live demo, and upstream has no demo to name. Everything else on the page is the same, including the shared editor's save, which came home with this"
+    },
+    {
+      "match": "^(frontend/src/components/FileObject\\.vue|frontend/src/config/quickActions\\.js|frontend/src/stores/quickActions\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue)$",
+      "note": "where the quick actions sit in the name column — newer than the batch stack, and P3-58 when it goes"
     }
   ]
 }
