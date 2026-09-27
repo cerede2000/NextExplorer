@@ -95,8 +95,7 @@
   "status": {
     "updated": "更新成功",
     "failed": "失败",
-    "passwordUpdated": "密码已更新",
-    "completePercent": "已完成 {percent}%"
+    "passwordUpdated": "密码已更新"
   },
   "actions": {
     "newFolder": "新建文件夹",
@@ -109,7 +108,6 @@
     "rename": "重命名",
     "download": "下载",
     "downloadFolder": "下载文件夹",
-    "extractZip": "解压 ZIP",
     "compressToZip": "压缩为 ZIP",
     "search": "搜索",
     "sortBy": "排序方式",
@@ -122,7 +120,6 @@
     "newTextFile": "新建文本文件",
     "newMarkdownFile": "新建 Markdown 文件",
     "newCsvFile": "新建 CSV 文件",
-    "newDocument": "新建文档",
     "extractArchive": "解压缩",
     "extractArchiveIntoCurrentFolder": "解压到当前文件夹",
     "copyPath": "复制路径",
@@ -401,8 +398,6 @@
     "restoringUnknown": "正在还原…"
   },
   "upload": {
-    "toggleDetailsShow": "显示详细信息",
-    "toggleDetailsHide": "隐藏详细信息",
     "pauseUploads": "暂停上传",
     "resumeUploads": "继续上传",
     "uploads": "正在上传 {count} 个{items}",
@@ -436,14 +431,10 @@
     "login": {
       "welcome": "欢迎回来",
       "subtitle": "登录以访问 {appName}。",
-      "announcementConfirm": "标记为已读",
       "submit": "登录",
       "announcementMigration": {
         "title": "我们更新了登录方式",
-        "intro": "您现在需要使用新的邮箱格式用户名。",
-        "bulletAddSuffix": "在用户名后添加 {suffix}",
-        "bulletPasswordSame": "您的密码保持不变。",
-        "bulletUpdateUsers": "您可以在管理菜单中更新现有用户"
+        "intro": "您现在需要使用新的邮箱格式用户名。"
       },
       "totpCode": "验证码",
       "totpExplain": "密码已通过。请输入验证器应用中的验证码，或一个恢复码。",
@@ -454,11 +445,8 @@
     "setup": {
       "headline": "开始设置",
       "subtitle": "创建管理员账户以保护并管理您的文件。",
-      "formTitle": "创建账户",
-      "formSubtitle": "提供邮箱和安全密码以完成设置。",
       "submit": "完成设置",
       "bullets": {
-        "encryption": "强加密和审计友好操作。",
         "permissions": "细粒度权限和用户管理。",
         "sso": "无缝支持单点登录。"
       }
@@ -543,16 +531,10 @@
       "subtitle": "自定义在界面中显示的应用名称和标志。",
       "appName": "应用名称",
       "appNameHelp": "在页眉、登录页和页脚中显示的名称（最多 100 个字符）。",
-      "appLogoUrl": "标志图片",
-      "appLogoUrlHelp": "上传 SVG、PNG 或 JPG 文件作为自定义标志（最大 2MB）。",
       "logo": "标志图片",
       "logoHelp": "上传 SVG、PNG 或 JPG 文件作为自定义标志（最大 2MB）。",
-      "uploading": "正在上传...",
-      "uploadSuccess": "标志上传成功",
-      "uploadError": "标志上传失败",
       "invalidFileType": "请上传 SVG、PNG 或 JPG",
       "logoError": "文件必须小于 2MB",
-      "fileTooLargeForDataUri": "文件过大。请使用更小的图片（建议小于 500KB 以获得最佳效果）",
       "preview": "预览",
       "showPoweredBy": "显示署名链接",
       "showPoweredByHelp": "在页脚显示 “Powered by nextExplorer” 链接以支持项目",
@@ -616,8 +598,7 @@
     "security": {
       "subtitle": "控制对应用的访问。",
       "enable": "启用身份验证",
-      "enableHelp": "关闭时，任何人都可以访问您的文件。",
-      "confirmDisable": "禁用身份验证将使您的文件公开可访问。继续？"
+      "enableHelp": "关闭时，任何人都可以访问您的文件。"
     },
     "access": {
       "subtitle": "为每个文件夹设置权限：读写、只读或隐藏。",
@@ -648,7 +629,6 @@
       "new": "新密码",
       "confirm": "确认新密码",
       "update": "更新密码",
-      "success": "密码更新成功。",
       "validation": "请填写所有字段；新密码至少 6 个字符，并且需要与确认密码一致。",
       "successOtherSessionsEnded": "密码已更新。此账户的其他所有会话均已退出登录。"
     },
@@ -660,11 +640,9 @@
       "grantAdmin": "授予管理员权限",
       "grantAdminHint": "授予对所有设置和用户的完全访问权限。",
       "displayName": "显示名称",
-      "makeAdmin": "设为管理员",
       "resetPassword": "设置/重置密码",
       "removeUser": "删除用户",
       "promptNewPassword": "为 {user} 输入新密码（至少 6 个字符）：",
-      "editUser": "编辑用户",
       "volumes": "卷",
       "assignedVolumes": "已分配卷",
       "addVolume": "添加卷",
@@ -1047,9 +1025,7 @@
   },
   "share": {
     "sharedWithMe": "与我共享",
-    "sharedWithMeDescription": "其他人与你的账户共享的文件和文件夹。",
     "sharedByMe": "我共享的内容",
-    "sharedByMeDescription": "你与其他人共享的链接和文件夹。",
     "shareCreated": "共享已创建",
     "createShareLink": "创建共享链接",
     "shareLink": "共享链接",
@@ -1090,18 +1066,13 @@
     "signInToAccess": "登录以访问",
     "requiresAuthentication": "此共享需要身份验证。",
     "noSharedItemsToShow": "没有可显示的共享项目",
-    "noSharedItemsYet": "当有人与您共享文件或文件夹时，它们会显示在此处。",
-    "adjustFilters": "调整筛选条件或清除搜索以查看更多项目。",
     "filterByNameOrPath": "按名称或路径筛选",
     "sharedBy": "由所有者共享",
     "lastAccessed": "上次访问",
     "created": "创建时间",
-    "noMyShares": "你还没有创建任何共享。",
-    "noMySharesDescription": "从任意文件或文件夹创建共享链接后，会在此处显示。",
     "confirmDeleteShare": "确定要移除此共享吗？拥有该链接的人将不再能够访问。",
     "removeShare": "移除共享",
     "sharedWithAnyone": "所有人",
-    "sharedWithUsers": "{count} 位用户",
     "expiresNever": "永不",
     "directFileLink": "直接文件链接",
     "directFolderLink": "文件夹 ZIP 直接链接",

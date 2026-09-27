@@ -95,8 +95,7 @@
   "status": {
     "updated": "Atualizado com sucesso",
     "failed": "Falhou",
-    "passwordUpdated": "Senha atualizada",
-    "completePercent": "{percent}% concluído"
+    "passwordUpdated": "Senha atualizada"
   },
   "actions": {
     "newFolder": "Nova Pasta",
@@ -109,7 +108,6 @@
     "rename": "Renomear",
     "download": "Baixar",
     "downloadFolder": "Baixar pasta",
-    "extractZip": "Extrair ZIP",
     "compressToZip": "Comprimir em ZIP",
     "search": "Pesquisar",
     "sortBy": "Ordenar por",
@@ -122,7 +120,6 @@
     "newTextFile": "Novo arquivo de texto",
     "newMarkdownFile": "Novo arquivo Markdown",
     "newCsvFile": "Novo arquivo CSV",
-    "newDocument": "Novo documento",
     "extractArchive": "Extrair arquivo compactado",
     "extractArchiveIntoCurrentFolder": "Extrair na pasta atual",
     "copyPath": "Copiar caminho",
@@ -401,8 +398,6 @@
     "restoringUnknown": "Restaurando…"
   },
   "upload": {
-    "toggleDetailsShow": "Mostrar detalhes",
-    "toggleDetailsHide": "Ocultar detalhes",
     "pauseUploads": "Pausar envios",
     "resumeUploads": "Retomar envios",
     "uploads": "Enviando {count} {items}",
@@ -436,14 +431,10 @@
     "login": {
       "welcome": "Bem-vindo de volta",
       "subtitle": "Entre para acessar {appName}.",
-      "announcementConfirm": "Marcar como lido",
       "submit": "Entrar",
       "announcementMigration": {
         "title": "Atualizamos a forma de entrar",
-        "intro": "Agora você precisa usar seu novo nome de usuário no formato de e-mail.",
-        "bulletAddSuffix": "Adicione {suffix} ao seu nome de usuário",
-        "bulletPasswordSame": "Sua senha permanece a mesma.",
-        "bulletUpdateUsers": "Você pode atualizar usuários existentes no menu de Administração"
+        "intro": "Agora você precisa usar seu novo nome de usuário no formato de e-mail."
       },
       "totpCode": "Código",
       "totpExplain": "Sua senha foi aceita. Digite o código do seu aplicativo autenticador, ou um dos seus códigos de recuperação.",
@@ -454,11 +445,8 @@
     "setup": {
       "headline": "Vamos configurar",
       "subtitle": "Crie sua conta de administrador para proteger e gerenciar seus arquivos.",
-      "formTitle": "Crie sua conta",
-      "formSubtitle": "Informe um e-mail e uma senha segura para concluir a configuração.",
       "submit": "Concluir Configuração",
       "bullets": {
-        "encryption": "Criptografia forte e ações amigáveis a auditoria.",
         "permissions": "Permissões granulares e gerenciamento de usuários.",
         "sso": "Suporte a Single Sign-On sem interrupções."
       }
@@ -543,16 +531,10 @@
       "subtitle": "Personalize o nome e o logotipo do aplicativo exibidos em toda a interface.",
       "appName": "Nome do Aplicativo",
       "appNameHelp": "O nome exibido nos cabeçalhos, na página de login e no rodapé (máx. 100 caracteres).",
-      "appLogoUrl": "Imagem do Logotipo",
-      "appLogoUrlHelp": "Envie um arquivo SVG, PNG ou JPG para seu logotipo personalizado (máx. 2MB).",
       "logo": "Imagem do Logotipo",
       "logoHelp": "Envie um arquivo SVG, PNG ou JPG para seu logotipo personalizado (máx. 2MB).",
-      "uploading": "Enviando...",
-      "uploadSuccess": "Logotipo enviado com sucesso",
-      "uploadError": "Falha ao enviar o logotipo",
       "invalidFileType": "Envie um arquivo SVG, PNG ou JPG",
       "logoError": "O arquivo deve ser menor que 2MB",
-      "fileTooLargeForDataUri": "O arquivo é muito grande. Use uma imagem menor (menos de 500KB para melhores resultados)",
       "preview": "Pré-visualização",
       "showPoweredBy": "Exibir link de atribuição",
       "showPoweredByHelp": "Exibir um link 'Desenvolvido por nextExplorer' no rodapé para apoiar o projeto",
@@ -616,8 +598,7 @@
     "security": {
       "subtitle": "Controle o acesso ao aplicativo.",
       "enable": "Ativar autenticação",
-      "enableHelp": "Quando desativada, qualquer pessoa pode acessar seus arquivos.",
-      "confirmDisable": "Desativar a autenticação tornará seus arquivos publicamente acessíveis. Continuar?"
+      "enableHelp": "Quando desativada, qualquer pessoa pode acessar seus arquivos."
     },
     "access": {
       "subtitle": "Defina permissões por pasta: leitura-escrita, somente leitura ou ocultas.",
@@ -648,7 +629,6 @@
       "new": "Nova senha",
       "confirm": "Confirmar nova senha",
       "update": "Atualizar Senha",
-      "success": "Senha atualizada com sucesso.",
       "validation": "Preencha todos os campos; a nova senha deve ter pelo menos 6 caracteres e coincidir com a confirmação.",
       "successOtherSessionsEnded": "Senha atualizada. Todas as outras sessões desta conta foram encerradas."
     },
@@ -660,11 +640,9 @@
       "grantAdmin": "Conceder admin",
       "grantAdminHint": "Concede acesso total a todas as configurações e usuários.",
       "displayName": "Nome de Exibição",
-      "makeAdmin": "Tornar admin",
       "resetPassword": "Definir/Redefinir senha",
       "removeUser": "Remover usuário",
       "promptNewPassword": "Digite uma nova senha para {user} (mín. 6 caracteres):",
-      "editUser": "Editar usuário",
       "volumes": "Volumes",
       "assignedVolumes": "Volumes Atribuídos",
       "addVolume": "Adicionar Volume",
@@ -1047,9 +1025,7 @@
   },
   "share": {
     "sharedWithMe": "Compartilhado Comigo",
-    "sharedWithMeDescription": "Arquivos e pastas que outras pessoas compartilharam com sua conta.",
     "sharedByMe": "Compartilhado Por Mim",
-    "sharedByMeDescription": "Links e pastas que você compartilhou com outras pessoas.",
     "shareCreated": "Compartilhamento Criado",
     "createShareLink": "Criar Link de Compartilhamento",
     "shareLink": "Link de Compartilhamento",
@@ -1103,20 +1079,15 @@
     "signInToAccess": "Entrar para Acessar",
     "requiresAuthentication": "Este compartilhamento requer autenticação.",
     "noSharedItemsToShow": "Nenhum item compartilhado para exibir",
-    "noSharedItemsYet": "Quando alguém compartilhar arquivos ou pastas com você, eles aparecerão aqui.",
-    "adjustFilters": "Ajuste seus filtros ou limpe a pesquisa para ver mais itens.",
     "filterByNameOrPath": "Filtrar por nome ou caminho",
     "sharedBy": "Compartilhado pelo proprietário",
     "lastAccessed": "Último acesso",
     "created": "Criado",
-    "noMyShares": "Você ainda não criou nenhum compartilhamento.",
-    "noMySharesDescription": "Crie um compartilhamento de qualquer arquivo ou pasta para vê-lo listado aqui.",
     "confirmDeleteShare": "Remover este compartilhamento? As pessoas com o link não terão mais acesso.",
     "deleteShareTitle": "Remover compartilhamento?",
     "deleteShareMessage": "As pessoas com este link não poderão mais acessar o item compartilhado.",
     "removeShare": "Remover compartilhamento",
     "sharedWithAnyone": "Todos",
-    "sharedWithUsers": "{count} usuário | {count} usuários",
     "expiresNever": "Nunca",
     "creating": "Criando…",
     "expires": "Expira em",
