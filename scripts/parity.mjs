@@ -339,6 +339,66 @@ const compiled = (manifest.rules || []).map((rule) => ({
     (rule.exact ? id === rule.match : new RegExp(rule.match).test(id)),
 }));
 
+// ── the residue a batch left behind ─────────────────────────────────────────
+// A verdict on a file is not a verdict on its contents. A file a batch sent is
+// marked DONE and nothing looks inside it again — and ten of them did not match
+// upstream afterwards: upstream had moved on, or the batch wrote something
+// better than what it took and this fork never got it back. Neither direction
+// showed up anywhere, because both sides were spoken for.
+//
+// So the contents are compared too, comments and blank lines aside — Prettier
+// and a rewritten sentence change those without changing what runs — and as
+// multisets, so moving a line does not count either. What is left has to be
+// spoken for under `residue` in the manifest, with the reason it may stand.
+const RUNNING_LINES = (text) =>
+  (text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line &&
+        !line.startsWith('//') &&
+        !line.startsWith('*') &&
+        !line.startsWith('/*') &&
+        line !== '*/' &&
+        !line.startsWith('<!--') &&
+        !line.startsWith('-->')
+    )
+    .sort();
+
+const residue = [];
+const residueRules = (manifest.residue || []).map((entry) => ({
+  ...entry,
+  test: (id) => new RegExp(entry.match).test(id),
+}));
+for (const finding of findings) {
+  if (finding.axis !== 'drift') continue;
+  const file = finding.id;
+  const mineLines = RUNNING_LINES(show(OURS, file));
+  const theirLines = RUNNING_LINES(show(UPSTREAM, file));
+  if (mineLines.join('\n') === theirLines.join('\n')) continue;
+  const count = (a, b) => {
+    const pool = [...b];
+    let n = 0;
+    for (const line of a) {
+      const at = pool.indexOf(line);
+      if (at === -1) n += 1;
+      else pool.splice(at, 1);
+    }
+    return n;
+  };
+  const onlyHere = count(mineLines, theirLines);
+  const onlyUpstream = count(theirLines, mineLines);
+  const rule = residueRules.find((entry) => entry.test(file));
+  residue.push({
+    id: file,
+    detail: `${onlyHere} line(s) only here, ${onlyUpstream} only upstream`,
+    note: rule?.note || null,
+    spokenFor: Boolean(rule),
+  });
+}
+const residueUnspoken = residue.filter((item) => !item.spokenFor);
+
 const counts = Object.fromEntries(VERDICTS.map((v) => [v, 0]));
 const unclassified = [];
 const byVerdict = Object.fromEntries(VERDICTS.map((v) => [v, []]));
@@ -647,6 +707,12 @@ if (AS_JSON) {
   );
   for (const line of stranded.slice(0, 20)) console.log(`  ${line.batch}  ${line.id}`);
   if (stranded.length) console.log('');
+  console.log(
+    `what a batch left behind  ${residue.length ? `${residue.length} file(s) a batch sent still run differently` : 'every file a batch sent runs the same on both sides'}\n`
+  );
+  for (const item of residue.slice(0, 30))
+    console.log(`  ${item.spokenFor ? ' ' : '!'} ${item.id} — ${item.detail}`);
+  if (residue.length) console.log('');
 
   if (unclassified.length) {
     console.log(`UNCLASSIFIED — every one of these must be given a verdict:\n`);
@@ -669,6 +735,15 @@ if (strandedUnclassified.length) {
       'batch ports. Upstream has no such file, so the batch does not build there unless that ' +
       'part is left out. Say which in scripts/parity-manifest.json, on the `stranded` axis:\n  ' +
       strandedUnclassified.map((f) => f.id).join('\n  ')
+  );
+  process.exit(1);
+}
+if (residueUnspoken.length) {
+  console.error(
+    `${residueUnspoken.length} file(s) a batch sent, whose two versions still do different ` +
+      'things. Bring the better one home, send the better one up, or say under `residue` in ' +
+      'scripts/parity-manifest.json why the difference may stand:\n  ' +
+      residueUnspoken.map((item) => `${item.id} — ${item.detail}`).join('\n  ')
   );
   process.exit(1);
 }

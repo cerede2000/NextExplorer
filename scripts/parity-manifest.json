@@ -4,7 +4,7 @@
     "Three verdicts now: OURS, PORT, DONE.",
     "",
     "SHAPE is gone. It held the pieces where upstream has the same capability by another",
-    "structure \u2014 the file store, the folder view, the HTTP layer \u2014 on the grounds that",
+    "structure — the file store, the folder view, the HTTP layer — on the grounds that",
     "nxzai#373 placed them outside its plan. The goal is `main` upstream equal to",
     "`integration`, not upstream merely able to do everything `integration` does, and",
     "those are not the same statement. So they are PORT, in batches P3-37 to P3-40,",
@@ -34,49 +34,49 @@
       "match": "^frontend/vite\\.config\\.js$",
       "verdict": "DONE",
       "batch": "P3-44",
-      "note": "nxzai#469 \u2014 which browsers the build is written for, with the image that serves it"
+      "note": "nxzai#469 — which browsers the build is written for, with the image that serves it"
     },
     {
       "axis": "image",
       "match": ".",
       "verdict": "DONE",
       "batch": "P3-44",
-      "note": "nxzai#469 \u2014 the image"
+      "note": "nxzai#469 — the image"
     },
     {
       "axis": "*",
       "match": "^(Dockerfile|Dockerfile\\.dev|docker/|backend/Dockerfile|frontend/Dockerfile)",
       "verdict": "DONE",
       "batch": "P3-44",
-      "note": "nxzai#469 \u2014 the image, with the tools the application looks for"
+      "note": "nxzai#469 — the image, with the tools the application looks for"
     },
     {
       "axis": "*",
       "match": "^(backend/src/openapi/paths/(admin|files)\\.js|docs/\\.vitepress/|docs/public/openapi\\.json)",
       "verdict": "DONE",
       "batch": "P3-40",
-      "note": "nxzai#466 \u2014 the description follows the routes"
+      "note": "nxzai#466 — the description follows the routes"
     },
     {
       "axis": "*",
       "match": "^(frontend/vitest\\.setup\\.js|frontend/src/components/ModalDialog\\.vue|frontend/src/assets/base\\.css)$",
       "verdict": "DONE",
       "batch": "P3-41",
-      "note": "nxzai#468 \u2014 what the suites need, and the dialog they found"
+      "note": "nxzai#468 — what the suites need, and the dialog they found"
     },
     {
       "axis": "*",
       "match": "^frontend/src/.*\\.spec\\.js$",
       "verdict": "DONE",
       "batch": "P3-41",
-      "note": "nxzai#468 \u2014 the frontend suites"
+      "note": "nxzai#468 — the frontend suites"
     },
     {
       "axis": "*",
       "match": "^(backend|frontend)/vitest\\.config\\.js$",
       "verdict": "DONE",
       "batch": "P3-41",
-      "note": "nxzai#468 \u2014 without this fork's own node-version notice and coverage floors"
+      "note": "nxzai#468 — without this fork's own node-version notice and coverage floors"
     },
     {
       "axis": "*",
@@ -89,42 +89,42 @@
       "match": ".",
       "verdict": "DONE",
       "batch": "P3-43",
-      "note": "nxzai#467 \u2014 the strings the screens ask for"
+      "note": "nxzai#467 — the strings the screens ask for"
     },
     {
       "axis": "doc-drift",
       "match": ".",
       "verdict": "DONE",
       "batch": "P3-43",
-      "note": "nxzai#467 \u2014 the documentation the batches left behind"
+      "note": "nxzai#467 — the documentation the batches left behind"
     },
     {
       "axis": "deps",
       "match": ".",
       "verdict": "DONE",
       "batch": "P3-43",
-      "note": "nxzai#467 \u2014 the versions this fork runs"
+      "note": "nxzai#467 — the versions this fork runs"
     },
     {
       "axis": "*",
       "match": "^(eslint\\.config\\.mjs|backend/src/routes/archive\\.js|backend/src/services/archiveCacheService\\.js|backend/src/utils/placeWithoutOverwrite\\.js|frontend/src/plugins/archive/ArchiveEntryReader\\.vue|frontend/src/router/shareGuard\\.js|frontend/src/App\\.spec\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-43",
-      "note": "nxzai#467 \u2014 one lint configuration, and the frontend tests that nothing ran"
+      "note": "nxzai#467 — one lint configuration, and the frontend tests that nothing ran"
     },
     {
       "axis": "*",
       "match": "^backend/src/services/indexDb\\.js(:|$)",
       "verdict": "DONE",
       "batch": "P3-40",
-      "note": "nxzai#466 \u2014 why the index may be removed directly"
+      "note": "nxzai#466 — why the index may be removed directly"
     },
     {
       "axis": "*",
       "match": "^backend/tests/",
       "verdict": "DONE",
       "batch": "P3-40",
-      "note": "nxzai#466 \u2014 the tests for everything the batches sent"
+      "note": "nxzai#466 — the tests for everything the batches sent"
     },
     {
       "axis": "*",
@@ -136,28 +136,28 @@
       "axis": "*",
       "match": "^backend/tests/(routes/(search-name-catalogue|search-bases-through-the-index|editor-caching|onlyoffice)\\.test\\.js|services/(database-maintenance|db-migrations|db-legacy-conversions|index-db)\\.test\\.js|utils/(betterSqliteSessionStore|session-store-storage)\\.test\\.js)$",
       "verdict": "OURS",
-      "note": "asserts what upstream deliberately does differently \u2014 the catalogue answering for a file that is gone, the session store opening at require time, the fork's schema numbers \u2014 or a subject that has not been sent"
+      "note": "asserts what upstream deliberately does differently — the catalogue answering for a file that is gone, the session store opening at require time, the fork's schema numbers — or a subject that has not been sent"
     },
     {
       "axis": "i18n",
       "match": "^(editor\\.|onlyoffice\\.|collabora\\.|mediaPreview\\.|preview\\.)",
       "verdict": "DONE",
       "batch": "P3-39",
-      "note": "nxzai#465 \u2014 the editors and the previews"
+      "note": "nxzai#465 — the editors and the previews"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/editor/|frontend/src/utils/textBlocks\\.js|backend/src/openapi/paths/integrations\\.js|backend/src/routes/(collabora|onlyoffice)\\.js|backend/src/services/(collaboraDiscoveryService|wopiLockService)\\.js|frontend/src/api/(collabora|onlyoffice)\\.api\\.js|frontend/src/config/editor\\.js|frontend/src/plugins/(collabora|onlyoffice|preview|index)|frontend/src/views/EditorView\\.vue)",
       "verdict": "DONE",
       "batch": "P3-39",
-      "note": "nxzai#465 \u2014 the document closes with its editor, and the code surface is a component"
+      "note": "nxzai#465 — the document closes with its editor, and the code surface is a component"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/utils/virtualWindow\\.js|frontend/src/components/(FolderViewToolbar|MiddleEllipsis)\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-36",
-      "note": "nxzai#464 \u2014 the rows in view are the rows drawn"
+      "note": "nxzai#464 — the rows in view are the rows drawn"
     },
     {
       "axis": "*",
@@ -171,42 +171,42 @@
       "match": "^(COPY_PRESERVE_PERMISSIONS|BULK_DELETE_CONCURRENCY)$",
       "verdict": "DONE",
       "batch": "P3-27",
-      "note": "nxzai#457 \u2014 the copy that reports"
+      "note": "nxzai#457 — the copy that reports"
     },
     {
       "axis": "i18n",
       "match": "^(serverErrors\\.|errors\\.|notifications\\.|create\\.|onlyoffice\\.editing)",
       "verdict": "DONE",
       "batch": "P3-35",
-      "note": "nxzai#463 \u2014 what an answer says"
+      "note": "nxzai#463 — what an answer says"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/stores/files/|backend/src/(app|server)\\.js|backend/src/config/(env|index)\\.js|backend/src/errors/|backend/src/middleware/(authMiddleware|errorHandler|logging)\\.js|backend/src/routes/index\\.js|backend/src/scripts/downloadSamples\\.js|backend/src/services/(capabilities|documentText|pdfTextExtract|storageWritability)\\.js|backend/src/utils/(env|fsUtils|logSanitizer|logger|mapWithConcurrency|pathUtils|staticServer)\\.js|frontend/src/(App\\.vue|main\\.js)|frontend/src/api/(files\\.api|index)\\.js|frontend/src/components/(CreateNew|LanguageSelector|NotificationItem|NotificationToast|TerminalMenu)\\.vue|frontend/src/stores/(fileStore|notifications)\\.js)",
       "verdict": "DONE",
       "batch": "P3-35",
-      "note": "nxzai#463 \u2014 a refusal says what it is, and the file store is nine modules"
+      "note": "nxzai#463 — a refusal says what it is, and the file store is nine modules"
     },
     {
       "axis": "i18n",
       "match": "^(context\\.|actions\\.extractArchive)",
       "verdict": "DONE",
       "batch": "P3-33",
-      "note": "nxzai#462 \u2014 the context menu and the delete dialog"
+      "note": "nxzai#462 — the context menu and the delete dialog"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/composables/(contextMenuSections|deleteDialogWording|keyboardShortcuts|useDeleteConfirm|useFileDragDrop)\\.js|frontend/src/utils/(terminalInput|keyboard)\\.js|frontend/src/components/(ExplorerContextMenu|TerminalPanel)\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-33",
-      "note": "nxzai#462 \u2014 a deletion says what it will do, and the terminal takes what is typed"
+      "note": "nxzai#462 — a deletion says what it will do, and the terminal takes what is typed"
     },
     {
       "axis": "*",
       "match": "^frontend/src/plugins/markdown/",
       "verdict": "DONE",
       "batch": "P3-31",
-      "note": "nxzai#461 \u2014 a long Markdown document rendered in pieces"
+      "note": "nxzai#461 — a long Markdown document rendered in pieces"
     },
     {
       "axis": "*",
@@ -219,35 +219,35 @@
       "match": "^trash_items\\.",
       "verdict": "DONE",
       "batch": "P3-30",
-      "note": "nxzai#460 \u2014 which entry a restore is taking out"
+      "note": "nxzai#460 — which entry a restore is taking out"
     },
     {
       "axis": "i18n",
       "match": "^versions\\.",
       "verdict": "DONE",
       "batch": "P3-30",
-      "note": "nxzai#460 \u2014 the versions panel"
+      "note": "nxzai#460 — the versions panel"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/trash\\.js|backend/src/routes/versions\\.js|backend/src/routes/versionsAdmin\\.js|backend/src/services/trash/(index|operations|zones)\\.js|backend/src/services/versions/(index|lifecycle|operations)\\.js|frontend/src/components/VersionsPanel\\.vue|frontend/src/views/TrashView\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-30",
-      "note": "nxzai#460 \u2014 restore somewhere else, and three ways to put a version back"
+      "note": "nxzai#460 — restore somewhere else, and three ways to put a version back"
     },
     {
       "axis": "i18n",
       "match": "^nav\\.",
       "verdict": "DONE",
       "batch": "P3-29",
-      "note": "nxzai#459 \u2014 the navigation"
+      "note": "nxzai#459 — the navigation"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/router/|frontend/src/stores/folderScroll\\.js|frontend/src/composables/navigation\\.js|frontend/src/views/HomeView\\.vue)",
       "verdict": "DONE",
       "batch": "P3-29",
-      "note": "nxzai#459 \u2014 a folder's address keeps its slashes, and each guard is a function of its inputs"
+      "note": "nxzai#459 — a folder's address keeps its slashes, and each guard is a function of its inputs"
     },
     {
       "axis": "*",
@@ -260,56 +260,56 @@
       "match": "^UPLOAD_CHUNKED_AUTO_FALLBACK$",
       "verdict": "DONE",
       "batch": "P3-28",
-      "note": "nxzai#458 \u2014 the automatic fallback"
+      "note": "nxzai#458 — the automatic fallback"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.uploads\\.",
       "verdict": "DONE",
       "batch": "P3-28",
-      "note": "nxzai#458 \u2014 the uploads screen"
+      "note": "nxzai#458 — the uploads screen"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/composables/upload(Common|Engine|Target)\\.js|frontend/src/utils/uploadFallback\\.js|backend/src/services/tusUploadService\\.js|frontend/src/composables/fileUploader\\.js|frontend/src/utils/uploadMode\\.js|frontend/src/utils/uploads\\.js|frontend/src/views/settings/SettingsUploads\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-28",
-      "note": "nxzai#458 \u2014 direct first, chunks only when the direct attempt is refused"
+      "note": "nxzai#458 — direct first, chunks only when the direct attempt is refused"
     },
     {
       "axis": "migration",
       "match": "^recent_destinations$",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 the folders somebody files into"
+      "note": "nxzai#448 — the folders somebody files into"
     },
     {
       "axis": "i18n",
       "match": "^(clipboard\\.|upload\\.finalizing)",
       "verdict": "DONE",
       "batch": "P3-27",
-      "note": "nxzai#457 \u2014 what a running operation says"
+      "note": "nxzai#457 — what a running operation says"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/stores/operationTasks\\.js|frontend/src/utils/transferRate\\.js|backend/src/routes/files/delete\\.js|backend/src/routes/files/transfer\\.js|backend/src/routes/files/utils\\.js|backend/src/services/fileTransferService\\.js|backend/src/services/inFlightFiles\\.js|frontend/src/components/ClipboardProgress\\.vue|frontend/src/composables/fileActions\\.js|frontend/src/api/http\\.js|frontend/src/api/sessionExpiry\\.js|frontend/src/utils/index\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-27",
-      "note": "nxzai#457 \u2014 a copy that reports and can be stopped, with the HTTP layer the download needs"
+      "note": "nxzai#457 — a copy that reports and can be stopped, with the HTTP layer the download needs"
     },
     {
       "axis": "i18n",
       "match": "^favorites\\.",
       "verdict": "DONE",
       "batch": "P3-26",
-      "note": "nxzai#456 \u2014 a favorite whose volume has gone"
+      "note": "nxzai#456 — a favorite whose volume has gone"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/orphanedBindingsService\\.js|backend/src/services/pathBindingsService\\.js|backend/src/routes/files/rename\\.js|backend/src/services/favoritesService\\.js|backend/src/services/renameService\\.js|frontend/src/components/FavoriteEditDialog\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-26",
-      "note": "nxzai#456 \u2014 what pointed at a folder moves with it, and is forgotten with it"
+      "note": "nxzai#456 — what pointed at a folder moves with it, and is forgotten with it"
     },
     {
       "axis": "*",
@@ -322,28 +322,28 @@
       "match": "^(placeholders\\.|info\\.folderSizeExcluded|settings\\.thumbs\\.|preview\\.tooLargeToRender|preview\\.stillRendering|favorites\\.volumeUnavailable)",
       "verdict": "DONE",
       "batch": "P3-25",
-      "note": "nxzai#455 \u2014 the listing and the information panel"
+      "note": "nxzai#455 — the listing and the information panel"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/icons/fileBadges\\.js|frontend/src/utils/favoriteIcons\\.js|frontend/src/utils/folderKeyboard\\.js|frontend/src/utils/revealOffset\\.js|frontend/src/components/FavMenu\\.vue|frontend/src/components/FileObject\\.vue|frontend/src/components/InfoPanel\\.vue|frontend/src/composables/useFavoriteEditor\\.js|frontend/src/icons/FileIcon\\.vue|frontend/src/utils/fileKinds\\.js|frontend/src/views/settings/SettingsFilesThumbnails\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-25",
-      "note": "nxzai#455 \u2014 what a file looks like in the list, and what a folder weighs"
+      "note": "nxzai#455 — what a file looks like in the list, and what a folder weighs"
     },
     {
       "axis": "i18n",
       "match": "^(settings\\.(users|userDetails)\\.|common\\.dismissWarning|errors\\.unlockUser)",
       "verdict": "DONE",
       "batch": "P3-24",
-      "note": "nxzai#454 \u2014 the accounts screens"
+      "note": "nxzai#454 — the accounts screens"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/auth\\.js|backend/src/routes/users\\.js|backend/src/services/users/index\\.js|backend/src/services/users/requestUser\\.js|frontend/src/api/users\\.api\\.js|frontend/src/components/ConfigWarningNotice\\.vue|frontend/src/components/UserMenu\\.vue|frontend/src/views/settings/AdminUsers\\.vue|frontend/src/views/settings/SettingsView\\.vue|frontend/src/views/settings/components/UserDetail\\.vue|frontend/src/views/settings/components/UserList\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-24",
-      "note": "nxzai#454 \u2014 an account locked out says so, and an administrator can unlock it"
+      "note": "nxzai#454 — an account locked out says so, and an administrator can unlock it"
     },
     {
       "axis": "*",
@@ -356,28 +356,28 @@
       "match": "^personal_folder_reservations$",
       "verdict": "DONE",
       "batch": "P3-23",
-      "note": "nxzai#453 \u2014 a folder name outlives the account it belonged to"
+      "note": "nxzai#453 — a folder name outlives the account it belonged to"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.access\\.",
       "verdict": "DONE",
       "batch": "P3-23",
-      "note": "nxzai#453 \u2014 the access rules screen"
+      "note": "nxzai#453 — the access rules screen"
     },
     {
       "axis": "doc-drift",
       "match": "^docs/admin/user-volumes\\.md$",
       "verdict": "DONE",
       "batch": "P3-23",
-      "note": "nxzai#453 \u2014 the volumes an account is assigned"
+      "note": "nxzai#453 — the volumes an account is assigned"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/permissions\\.js|backend/src/routes/userVolumes\\.js|backend/src/services/accessControlService\\.js|backend/src/services/accessManager\\.js|backend/src/services/authorizationService\\.js|backend/src/services/directoryListingService\\.js|backend/src/services/guestSessionService\\.js|backend/src/services/personalFolders\\.js|backend/src/services/userVolumesService\\.js|backend/src/services/users/management\\.js|backend/src/utils/ownedTree\\.js|frontend/src/views/settings/SettingsAccessControl\\.vue|frontend/src/views/settings/components/VolumeAssignModal\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-23",
-      "note": "nxzai#453 \u2014 chown takes arguments, and a rule hides a volume everywhere"
+      "note": "nxzai#453 — chown takes arguments, and a rule hides a volume everywhere"
     },
     {
       "axis": "*",
@@ -390,91 +390,91 @@
       "match": "^(search\\.|spotlight\\.hintPattern)",
       "verdict": "DONE",
       "batch": "P3-22",
-      "note": "nxzai#452 \u2014 what a search says about itself"
+      "note": "nxzai#452 — what a search says about itself"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/utils/searchMatch\\.js|backend/src/services/searchIndexer\\.js|backend/src/services/indexDb\\.js|backend/src/services/searchCollector\\.js|backend/src/services/userSearchService\\.js|frontend/src/components/SpotlightSearch\\.vue|frontend/src/views/SearchResultsView\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-22",
-      "note": "nxzai#452 \u2014 a folder named build is catalogued, and a result says how it was found"
+      "note": "nxzai#452 — a folder named build is catalogued, and a result says how it was found"
     },
     {
       "axis": "migration",
       "match": "^shares\\.",
       "verdict": "DONE",
       "batch": "P3-21",
-      "note": "nxzai#451 \u2014 what a share permits, and when it was last used"
+      "note": "nxzai#451 — what a share permits, and when it was last used"
     },
     {
       "axis": "i18n",
       "match": "^(share\\.|links\\.outside)",
       "verdict": "DONE",
       "batch": "P3-21",
-      "note": "nxzai#451 \u2014 the shares screens"
+      "note": "nxzai#451 — the shares screens"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/shares\\.js|backend/src/services/sharesService\\.js|frontend/src/api/shares\\.api\\.js|frontend/src/components/PermissionsPanel\\.vue|frontend/src/components/ShareDialog\\.vue|frontend/src/components/SharesMenu\\.vue|frontend/src/views/SharedByMeView\\.vue|frontend/src/views/SharedWithMeView\\.vue|frontend/src/components/shares/|frontend/src/composables/shareList\\.js)",
       "verdict": "DONE",
       "batch": "P3-21",
-      "note": "nxzai#451 \u2014 what a share permits, and what its owner can see of it"
+      "note": "nxzai#451 — what a share permits, and what its owner can see of it"
     },
     {
       "axis": "i18n",
       "match": "^common\\.toggleSection$",
       "verdict": "DONE",
       "batch": "P3-20",
-      "note": "nxzai#450 \u2014 the sidebar section the usage bar sits in"
+      "note": "nxzai#450 — the sidebar section the usage bar sits in"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/usage\\.js|frontend/src/components/VolumeUsageBar\\.vue|frontend/src/stores/volumeUsage\\.js|frontend/src/components/VolMenu\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-20",
-      "note": "nxzai#450 \u2014 how full a volume is, asked of the filesystem rather than of a shell"
+      "note": "nxzai#450 — how full a volume is, asked of the filesystem rather than of a shell"
     },
     {
       "axis": "i18n",
       "match": "^(auth\\.login\\.sessionExpired|serverErrors\\.AUTH_ACCOUNT_LOCKED_RETRY)$",
       "verdict": "DONE",
       "batch": "P3-19",
-      "note": "nxzai#438 \u2014 what a session that ended, and a locked account, say"
+      "note": "nxzai#438 — what a session that ended, and a locked account, say"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/api/errorHandler\\.js|frontend/src/stores/auth\\.js|frontend/src/views/AuthLoginView\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-19",
-      "note": "nxzai#438 \u2014 the sign-in chain, all of it: one name for what was typed, and the code step the screen reads"
+      "note": "nxzai#438 — the sign-in chain, all of it: one name for what was typed, and the code step the screen reads"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/env\\.js:parseByteSize|backend/src/services/archiveExtraction\\.js|backend/src/routes/zip\\.js|backend/src/services/archiveTree\\.js|backend/src/config/env\\.js:ARCHIVE|backend/src/config/env\\.js:MAX_BROWSABLE)(:|$)",
       "verdict": "DONE",
       "batch": "P3-18",
-      "note": "nxzai#449 \u2014 the archive bounds, and a size written with a capital B"
+      "note": "nxzai#449 — the archive bounds, and a size written with a capital B"
     },
     {
       "axis": "env",
       "match": "^(MAX_BROWSABLE_ARCHIVE_SIZE|ARCHIVE_CACHE_MAX_SIZE)$",
       "verdict": "DONE",
       "batch": "P3-18",
-      "note": "nxzai#449 \u2014 the two bounds the cache already read"
+      "note": "nxzai#449 — the two bounds the cache already read"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/plugins/archive/ArchivePreview\\.vue|frontend/src/components/ModalDialog\\.vue|frontend/src/layouts/BrowserLayout\\.vue:DestinationPickerDialog)(:|$)",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 the dialog's first caller, and the footer it needed"
+      "note": "nxzai#448 — the dialog's first caller, and the footer it needed"
     },
     {
       "axis": "i18n",
       "match": "^archive\\.extractTo$",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 extract somewhere else"
+      "note": "nxzai#448 — extract somewhere else"
     },
     {
       "axis": "*",
@@ -495,35 +495,35 @@
       "match": "^destinationPicker\\.",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 strings for the destination dialog"
+      "note": "nxzai#448 — strings for the destination dialog"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/recentDestinationsService\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 the folders a transfer lands in, recorded by the transfer itself"
+      "note": "nxzai#448 — the folders a transfer lands in, recorded by the transfer itself"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/recentDestinationsService\\.js|backend/src/routes/files/delete\\.js|backend/src/routes/files/utils\\.js|backend/src/services/inFlightFiles\\.js|backend/src/utils/placeWithoutOverwrite\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-27",
-      "note": "the destination a transfer lands in, recorded by the transfer itself \u2014 with the route that records it"
+      "note": "the destination a transfer lands in, recorded by the transfer itself — with the route that records it"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/composables/useDestinationPicker\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 asking where to put something"
+      "note": "nxzai#448 — asking where to put something"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/components/DestinationPickerDialog\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 the destination dialog, mounted once with the layout"
+      "note": "nxzai#448 — the destination dialog, mounted once with the layout"
     },
     {
       "axis": "*",
@@ -599,7 +599,7 @@
       "match": "^backend/tests/",
       "verdict": "PORT",
       "batch": "with its subject",
-      "note": "upstream runs the backend suite, so a test of ours is portable. Each one travels with the batch that brings what it tests \u2014 which is how every batch so far was sent. Listed so none is forgotten"
+      "note": "upstream runs the backend suite, so a test of ours is portable. Each one travels with the batch that brings what it tests — which is how every batch so far was sent. Listed so none is forgotten"
     },
     {
       "axis": "*",
@@ -775,35 +775,35 @@
       "match": "^(backend/src/utils/oidcRedirect\\.js|backend/src/utils/oidcAvailability\\.js|backend/src/middleware/oidc\\.js|backend/src/routes/auth\\.js|docs/integrations/oidc\\.md)(:|$)",
       "verdict": "DONE",
       "batch": "P3-06",
-      "note": "nxzai#438 \u2014 OIDC behind a proxy, and which of two failures it was"
+      "note": "nxzai#438 — OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "i18n",
       "match": "^auth\\.",
       "verdict": "DONE",
       "batch": "P3-06",
-      "note": "nxzai#438 \u2014 OIDC behind a proxy, and which of two failures it was"
+      "note": "nxzai#438 — OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/brandingLogo\\.js|frontend/src/views/settings/SettingsBranding\\.vue|frontend/src/components/HeaderLogo\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-07",
-      "note": "nxzai#439 \u2014 a logo that can be changed back"
+      "note": "nxzai#439 — a logo that can be changed back"
     },
     {
       "axis": "i18n",
       "match": "^settings\\.branding\\.",
       "verdict": "DONE",
       "batch": "P3-07",
-      "note": "nxzai#439 \u2014 a logo that can be changed back"
+      "note": "nxzai#439 — a logo that can be changed back"
     },
     {
       "axis": "*",
       "match": "^(backend/src/utils/httpRange\\.js|backend/src/routes/files/preview\\.js|backend/src/routes/files/download\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-09",
-      "note": "nxzai#441 \u2014 one Range parser, not two that disagree"
+      "note": "nxzai#441 — one Range parser, not two that disagree"
     },
     {
       "axis": "*",
@@ -817,7 +817,7 @@
       "match": "^(backend/src/utils/exifDetails\\.js|backend/src/routes/metadata\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-10",
-      "note": "nxzai#442 \u2014 EXIF without a parser nobody maintains"
+      "note": "nxzai#442 — EXIF without a parser nobody maintains"
     },
     {
       "axis": "*",
@@ -838,21 +838,21 @@
       "match": "^(backend/src/services/featureSwitches\\.js|backend/src/routes/features\\.js|frontend/src/stores/features\\.js|frontend/src/views/settings/SettingsSearchIndex\\.vue|frontend/src/views/settings/SettingsFolderSize\\.vue|backend/src/services/searchIndexer\\.js|docs/configuration/settings\\.md)(:|$)",
       "verdict": "DONE",
       "batch": "P3-08",
-      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 — the switches in Settings — the remainder of published batch 31"
     },
     {
       "axis": "i18n",
       "match": "^search\\.",
       "verdict": "DONE",
       "batch": "P3-08",
-      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 — the switches in Settings — the remainder of published batch 31"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/folderSizeHooks\\.js|backend/src/services/folderSizeIndex\\.js|backend/src/services/folderSizeManager\\.js|backend/src/routes/upload\\.js|backend/src/routes/files/folder\\.js|backend/src/routes/files/file\\.js|backend/src/routes/editor\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-11",
-      "note": "nxzai#443 \u2014 the size index kept current by the write, not by the sweep"
+      "note": "nxzai#443 — the size index kept current by the write, not by the sweep"
     },
     {
       "axis": "*",
@@ -873,35 +873,35 @@
       "match": "^(backend/src/services/legacyCacheCheck\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-12",
-      "note": "nxzai#444 \u2014 what releases up to 1.1.7 left in the cache"
+      "note": "nxzai#444 — what releases up to 1.1.7 left in the cache"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/performanceDiagnostics\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-13",
-      "note": "nxzai#444 \u2014 the periodic performance record"
+      "note": "nxzai#444 — the periodic performance record"
     },
     {
       "axis": "symbol",
       "match": "^backend/src/routes/settings\\.js:(LOGO_MAX_BYTES|acceptLogo|brandingSection|brandingSentWithLogo)$",
       "verdict": "DONE",
       "batch": "P3-07",
-      "note": "nxzai#439 \u2014 a logo that can be changed back. The route handler travels with it: a service nothing calls is green and useless"
+      "note": "nxzai#439 — a logo that can be changed back. The route handler travels with it: a service nothing calls is green and useless"
     },
     {
       "axis": "symbol",
       "match": "^backend/src/routes/settings\\.js:(featureSwitches|searchIndexSection|folderSizeSection)$",
       "verdict": "DONE",
       "batch": "P3-08",
-      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 — the switches in Settings — the remainder of published batch 31"
     },
     {
       "axis": "*",
       "match": "^(frontend/src/stores/folderPreference\\.js|backend/src/services/settingsService\\.js|frontend/src/stores/settings\\.js|frontend/src/stores/appSettings\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue|frontend/src/api/settings\\.api\\.js|backend/src/routes/settings\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-16",
-      "note": "nxzai#447 \u2014 sort and view remembered per folder"
+      "note": "nxzai#447 — sort and view remembered per folder"
     },
     {
       "axis": "i18n",
@@ -942,7 +942,7 @@
       "match": "^settings\\.(?!branding\\.)",
       "verdict": "DONE",
       "batch": "P3-16",
-      "note": "nxzai#447 \u2014 sort and view remembered per folder"
+      "note": "nxzai#447 — sort and view remembered per folder"
     },
     {
       "axis": "*",
@@ -961,21 +961,21 @@
       "match": "^(backend/src/services/db\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-14",
-      "note": "nxzai#446 \u2014 one database handle, and its prepared statements"
+      "note": "nxzai#446 — one database handle, and its prepared statements"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/fileTransferService\\.js|frontend/src/stores/operationTasks\\.js|frontend/src/utils/transferRate\\.js|frontend/src/components/ClipboardProgress\\.vue|backend/src/routes/files/transfer\\.js|frontend/src/composables/fileActions\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-27",
-      "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23"
+      "note": "a copy that reports and can be stopped — the remainder of published batch 23"
     },
     {
       "axis": "i18n",
       "match": "^clipboard\\.",
       "verdict": "PORT",
       "batch": "P3-27",
-      "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23"
+      "note": "a copy that reports and can be stopped — the remainder of published batch 23"
     },
     {
       "axis": "*",
@@ -989,7 +989,7 @@
       "match": "^destinationPicker\\.",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 strings for the destination dialog"
+      "note": "nxzai#448 — strings for the destination dialog"
     },
     {
       "axis": "*",
@@ -1017,7 +1017,7 @@
       "match": "^(backend/src/routes/browse\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-15",
-      "note": "nxzai#445 \u2014 two ceilings nobody could raise"
+      "note": "nxzai#445 — two ceilings nobody could raise"
     },
     {
       "axis": "*",
@@ -1073,7 +1073,7 @@
       "match": "^(docs/admin/trash\\.md|docs/admin/versions\\.md|docs/configuration/environment\\.md|docs/experience/features\\.md|docs/experience/workflows\\.md|docs/admin/guide\\.md|docs/configuration/personal\\-folders\\.md|docs/installation/deployment\\.md|docs/installation/reverse\\-proxy\\.md|docs/reference/contributing\\.md|docs/reference/faq\\.md)(:|$)",
       "verdict": "DONE",
       "batch": "P3-05",
-      "note": "nxzai#437 \u2014 the documentation the delivered batches left behind"
+      "note": "nxzai#437 — the documentation the delivered batches left behind"
     },
     {
       "axis": "*",
@@ -1178,7 +1178,7 @@
       "match": "^COPY_PRESERVE_PERMISSIONS$",
       "verdict": "PORT",
       "batch": "P3-27",
-      "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23"
+      "note": "a copy that reports and can be stopped — the remainder of published batch 23"
     },
     {
       "axis": "env",
@@ -1192,14 +1192,14 @@
       "match": "^PREVIEW_MAX_RENDER_SIZE$",
       "verdict": "DONE",
       "batch": "P3-15",
-      "note": "nxzai#445 \u2014 two ceilings nobody could raise"
+      "note": "nxzai#445 — two ceilings nobody could raise"
     },
     {
       "axis": "env",
       "match": "^BULK_DELETE_CONCURRENCY$",
       "verdict": "PORT",
       "batch": "P3-27",
-      "note": "a copy that reports and can be stopped \u2014 the remainder of published batch 23. BULK_DELETE_CONCURRENCY is read by the transfer service, so it travels with it"
+      "note": "a copy that reports and can be stopped — the remainder of published batch 23. BULK_DELETE_CONCURRENCY is read by the transfer service, so it travels with it"
     },
     {
       "axis": "env",
@@ -1220,28 +1220,28 @@
       "match": "^SEARCH_INDEX_SET$",
       "verdict": "DONE",
       "batch": "P3-08",
-      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 — the switches in Settings — the remainder of published batch 31"
     },
     {
       "axis": "env",
       "match": "^FOLDER_SIZE_MODE_SET$",
       "verdict": "DONE",
       "batch": "P3-08",
-      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 — the switches in Settings — the remainder of published batch 31"
     },
     {
       "axis": "env",
       "match": "^PERFORMANCE_DIAGNOSTICS_",
       "verdict": "DONE",
       "batch": "P3-13",
-      "note": "nxzai#444 \u2014 the periodic performance record"
+      "note": "nxzai#444 — the periodic performance record"
     },
     {
       "axis": "migration",
       "match": "^folder_preferences$",
       "verdict": "DONE",
       "batch": "P3-16",
-      "note": "nxzai#447 \u2014 a folder's remembered sort and view, as rows"
+      "note": "nxzai#447 — a folder's remembered sort and view, as rows"
     },
     {
       "axis": "migration",
@@ -1255,7 +1255,7 @@
       "match": "^recent_destinations$",
       "verdict": "DONE",
       "batch": "P3-17",
-      "note": "nxzai#448 \u2014 the folders somebody files into"
+      "note": "nxzai#448 — the folders somebody files into"
     },
     {
       "axis": "migration",
@@ -1316,7 +1316,7 @@
       "match": "^(backend/src/utils/betterSqliteSessionStore\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-14",
-      "note": "nxzai#446 \u2014 one database handle, and its prepared statements"
+      "note": "nxzai#446 — one database handle, and its prepared statements"
     },
     {
       "axis": "*",
@@ -1365,28 +1365,28 @@
       "match": "^(backend/src/services/oidcService\\.js|backend/src/services/oidcMobileBridge\\.js|backend/src/api/auth\\.api\\.js|frontend/src/api/auth\\.api\\.js|docs/integrations/authelia\\.md|backend/src/utils/authenticatedSession\\.js|frontend/src/views/settings/SettingsPassword\\.vue|frontend/src/layouts/AuthLayout\\.vue|frontend/src/views/ShareLoginView\\.vue)(:|$)",
       "verdict": "DONE",
       "batch": "P3-06",
-      "note": "nxzai#438 \u2014 OIDC behind a proxy, and which of two failures it was"
+      "note": "nxzai#438 — OIDC behind a proxy, and which of two failures it was"
     },
     {
       "axis": "*",
       "match": "^(backend/src/services/documentText\\.js|backend/src/services/pdfTextExtract\\.js|backend/src/services/capabilities\\.js|frontend/src/config/media\\.js|frontend/src/plugins/preview/useMediaTracks\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-10",
-      "note": "nxzai#442 \u2014 EXIF without a parser nobody maintains"
+      "note": "nxzai#442 — EXIF without a parser nobody maintains"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/folderSize\\.js|backend/src/services/folderSizeIndexer\\.js|frontend/src/stores/folderSize\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-11",
-      "note": "nxzai#443 \u2014 the size index kept current by the write, not by the sweep"
+      "note": "nxzai#443 — the size index kept current by the write, not by the sweep"
     },
     {
       "axis": "*",
       "match": "^(backend/src/routes/search\\.js|backend/src/services/searchCollector\\.js|backend/src/services/indexDb\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-08",
-      "note": "nxzai#440 \u2014 the switches in Settings \u2014 the remainder of published batch 31"
+      "note": "nxzai#440 — the switches in Settings — the remainder of published batch 31"
     },
     {
       "axis": "*",
@@ -1407,7 +1407,7 @@
       "match": "^(backend/src/middleware/session\\.js|backend/src/utils/bootstrap\\.js)(:|$)",
       "verdict": "DONE",
       "batch": "P3-14",
-      "note": "nxzai#446 \u2014 one database handle, and its prepared statements"
+      "note": "nxzai#446 — one database handle, and its prepared statements"
     },
     {
       "axis": "*",
@@ -1491,7 +1491,7 @@
       "match": "exif-reader",
       "verdict": "DONE",
       "batch": "P3-10",
-      "note": "nxzai#442 \u2014 EXIF without a parser nobody maintains"
+      "note": "nxzai#442 — EXIF without a parser nobody maintains"
     },
     {
       "axis": "deps",
@@ -1519,7 +1519,7 @@
       "match": ".",
       "verdict": "PORT",
       "batch": "P3-44",
-      "note": "the image as this fork builds it \u2014 446 lines against 143, plus the entrypoint. It is last: every package a batch above needs must already be asked for before the image that installs them is rewritten"
+      "note": "the image as this fork builds it — 446 lines against 143, plus the entrypoint. It is last: every package a batch above needs must already be asked for before the image that installs them is rewritten"
     },
     {
       "axis": "uncovered",
@@ -1560,6 +1560,28 @@
       "verdict": "PORT",
       "batch": "P3-35",
       "note": "the errors an answer carries, the notifications that show them, and the strings the screens above ask for"
+    }
+  ],
+  "residue": [
+    {
+      "match": "^backend/src/routes/(browse|editor|index|onlyoffice|files/download)\\.js$",
+      "note": "this fork is the one ahead: the thumbnails switch the listing must not promise around, the identity a saved file answers with, a bounded resolution and a public link's own download count, health mounted once rather than twice, and a presence released by the document server rather than by the frame closing. Goes upstream in P3-45"
+    },
+    {
+      "match": "^backend/src/services/db\\.js$",
+      "note": "the migration numbers diverged before this phase began — 24 here against 19 there — so the schema is compared by table and by column instead, and the two files will not read alike until long after they describe the same database"
+    },
+    {
+      "match": "^frontend/src/(components/(FileObject|FolderViewToolbar)\\.vue|views/settings/SettingsUserPreferences\\.vue)$",
+      "note": "where the quick-actions menu is wired in, and the card that switches it on: it was offered upstream in nxzai#333 and withdrawn, so it stays ours"
+    },
+    {
+      "match": "^backend/src/services/fileTransferService\\.js$",
+      "note": "`transferItems`, the one-call wrapper upstream's own suites ask for; nothing here calls it, and adding it would be dead code"
+    },
+    {
+      "match": "^frontend/src/router/shareGuard\\.js$",
+      "note": "`signedInMayOpenShare` and `resetShareGuard`, the shape upstream's own spec asks the module for; the spec here asks the guard itself"
     }
   ]
 }
