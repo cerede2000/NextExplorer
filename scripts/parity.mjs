@@ -440,8 +440,14 @@ const residueRules = (manifest.residue || []).map((entry) => ({
 if (BATCHES) {
   const differing = git('diff', '--name-only', BATCHES, OURS).split('\n').filter(Boolean);
   for (const file of differing) {
-    if (IS_TEST(file) || !CODE.test(file)) continue;
-    if (!/^(backend|frontend)\/src\//.test(file)) continue;
+    // Documentation counts as much as code. The axes hold a page a batch touched
+    // to that batch and stop there, so four of them still described a different
+    // application from the one the batches built — spoken for, and never read.
+    const isDoc = /\.md$/.test(file);
+    if (!isDoc) {
+      if (IS_TEST(file) || !CODE.test(file)) continue;
+      if (!/^(backend|frontend)\/src\//.test(file)) continue;
+    }
     const mine = show(OURS, file);
     const theirs = show(BATCHES, file);
     if (mine === null || theirs === null) continue;

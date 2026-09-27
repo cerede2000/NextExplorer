@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-54",
+  "batchTip": "p3-55",
   "rules": [
     {
       "axis": "*",
@@ -1546,6 +1546,26 @@
     {
       "match": "^backend/src/services/db\\.js$",
       "note": "the migration numbers diverged before this phase began — 24 here against 19 there — so the schema is compared by table and by column instead, and the two files will not read alike until long after they describe the same database"
+    },
+    {
+      "match": "^README\\.md$",
+      "note": "this fork's own readme: its name, its image, its release badges and the installation paths it offers"
+    },
+    {
+      "match": "^docs/reference/releases\\.md$",
+      "note": "this fork's release notes — its own history, version by version, which is not upstream's to carry"
+    },
+    {
+      "match": "^docs/experience/features\\.md$",
+      "note": "the row for installing without Docker, and what it is compared against: the standalone archive is this fork's, so the line that says the row is a tick is too"
+    },
+    {
+      "match": "^docs/installation/deployment\\.md$",
+      "note": "two links to the standalone installation page, which exists only here"
+    },
+    {
+      "match": "^docs/reference/api\\.md$",
+      "note": "one line: the examples were run against this fork's live demo, and upstream has no demo to name. Everything else on the page is the same, including the shared editor's save, which came home with this"
     }
   ]
 }
