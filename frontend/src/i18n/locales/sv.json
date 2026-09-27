@@ -74,7 +74,10 @@
     "back": "Bakåt",
     "logoAlt": "Logotyp för {name}",
     "toggleSection": "Visa eller dölj avsnittet",
-    "dismissWarning": "Avfärda varningen"
+    "dismissWarning": "Avfärda varningen",
+    "reset": "Återställ",
+    "moveUp": "Flytta upp",
+    "moveDown": "Flytta ner"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "Ny CSV-fil",
     "newDocument": "Nytt dokument",
     "extractArchive": "Extrahera arkiv",
-    "extractArchiveIntoCurrentFolder": "Extrahera till aktuell mapp"
+    "extractArchiveIntoCurrentFolder": "Extrahera till aktuell mapp",
+    "copyPath": "Kopiera sökväg",
+    "copyName": "Kopiera namn",
+    "share": "Dela",
+    "copied": "Kopierat",
+    "newPdf": "Nytt PDF-dokument"
   },
   "placeholders": {
     "email": "användare{'@'}exempel.se",

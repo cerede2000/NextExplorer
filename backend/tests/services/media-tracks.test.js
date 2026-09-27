@@ -49,22 +49,58 @@ const buildFixture = async (dir) => {
 
   const output = path.join(dir, 'film.mkv');
   await execFileAsync('ffmpeg', [
-    '-v', 'error', '-y',
-    '-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=25:duration=3',
-    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3',
-    '-f', 'lavfi', '-i', 'sine=frequency=880:duration=3',
-    '-i', frSrt,
-    '-i', enSrt,
-    '-map', '0:v', '-map', '1:a', '-map', '2:a', '-map', '3:s', '-map', '4:s',
-    '-c:v', 'libx264', '-preset', 'ultrafast',
-    '-c:a:0', 'aac', '-c:a:1', 'ac3', '-c:s', 'srt',
+    '-v',
+    'error',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'testsrc=size=160x120:rate=25:duration=3',
+    '-f',
+    'lavfi',
+    '-i',
+    'sine=frequency=440:duration=3',
+    '-f',
+    'lavfi',
+    '-i',
+    'sine=frequency=880:duration=3',
+    '-i',
+    frSrt,
+    '-i',
+    enSrt,
+    '-map',
+    '0:v',
+    '-map',
+    '1:a',
+    '-map',
+    '2:a',
+    '-map',
+    '3:s',
+    '-map',
+    '4:s',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'ultrafast',
+    '-c:a:0',
+    'aac',
+    '-c:a:1',
+    'ac3',
+    '-c:s',
+    'srt',
     // `fre` rather than `fra`: both are ISO 639-2 for French, and a container
     // may carry either. A caption menu that shows them as two languages is the
     // bug this tag exists to catch.
-    '-metadata:s:a:0', 'language=fre', '-metadata:s:a:0', 'title=VF',
-    '-metadata:s:a:1', 'language=eng',
-    '-metadata:s:s:0', 'language=fre',
-    '-metadata:s:s:1', 'language=eng',
+    '-metadata:s:a:0',
+    'language=fre',
+    '-metadata:s:a:0',
+    'title=VF',
+    '-metadata:s:a:1',
+    'language=eng',
+    '-metadata:s:s:0',
+    'language=fre',
+    '-metadata:s:s:1',
+    'language=eng',
     output,
   ]);
   return output;
@@ -158,10 +194,27 @@ describe.skipIf(!(await ffmpegAvailable()))('what the player is told about sound
   it('separates having audio from being able to play it', async () => {
     const acThree = path.join(fixtureDir, 'ac3-only.mkv');
     await execFileAsync('ffmpeg', [
-      '-v', 'error', '-y',
-      '-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=25:duration=2',
-      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
-      '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'ac3',
+      '-v',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=size=160x120:rate=25:duration=2',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=440:duration=2',
+      '-map',
+      '0:v',
+      '-map',
+      '1:a',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'ultrafast',
+      '-c:a',
+      'ac3',
       acThree,
     ]);
 
@@ -174,9 +227,18 @@ describe.skipIf(!(await ffmpegAvailable()))('what the player is told about sound
   it('reports no audio at all for a video without any', async () => {
     const silent = path.join(fixtureDir, 'silent.mkv');
     await execFileAsync('ffmpeg', [
-      '-v', 'error', '-y',
-      '-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=25:duration=2',
-      '-an', '-c:v', 'libx264', '-preset', 'ultrafast',
+      '-v',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=size=160x120:rate=25:duration=2',
+      '-an',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'ultrafast',
       silent,
     ]);
 
@@ -203,7 +265,9 @@ describe.skipIf(!(await ffmpegAvailable()))('language tags', () => {
 
     const tracks = await read();
     const sidecar = tracks.subtitles.find((track) => track.source === 'sidecar');
-    const embedded = tracks.subtitles.find((track) => track.language === 'fr' && track.index !== null);
+    const embedded = tracks.subtitles.find(
+      (track) => track.language === 'fr' && track.index !== null
+    );
 
     expect(sidecar.language).toBe(embedded.language);
   });
@@ -211,10 +275,27 @@ describe.skipIf(!(await ffmpegAvailable()))('language tags', () => {
   it('leaves an untagged track without a language rather than inventing one', async () => {
     const untagged = path.join(fixtureDir, 'untagged.mkv');
     await execFileAsync('ffmpeg', [
-      '-v', 'error', '-y',
-      '-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=25:duration=2',
-      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
-      '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac',
+      '-v',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=size=160x120:rate=25:duration=2',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=440:duration=2',
+      '-map',
+      '0:v',
+      '-map',
+      '1:a',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'ultrafast',
+      '-c:a',
+      'aac',
       untagged,
     ]);
 

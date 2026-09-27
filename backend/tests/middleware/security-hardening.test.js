@@ -92,7 +92,6 @@ describe('The application', () => {
       const app = await createApp({ skipOidc: true, skipStaticFiles: true });
 
       for (const route of ['/api/features', '/api/volumes', '/healthz']) {
-        // eslint-disable-next-line no-await-in-loop
         const response = await request(app).get(route);
         expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
         expect(response.headers['x-content-type-options']).toBe('nosniff');

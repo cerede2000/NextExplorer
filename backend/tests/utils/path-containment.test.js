@@ -37,7 +37,9 @@ describe('Volume path containment', () => {
 
     // The lexical check passes (the string starts with the volume root), so
     // only the real-path check can catch this.
-    await expect(resolveVolumePath('escape/secret.txt')).rejects.toThrow(/outside the configured volume/i);
+    await expect(resolveVolumePath('escape/secret.txt')).rejects.toThrow(
+      /outside the configured volume/i
+    );
     await expect(resolveVolumePath('escape')).rejects.toThrow(/outside the configured volume/i);
   });
 
@@ -93,7 +95,9 @@ describe('Volume path containment', () => {
     const { resolveVolumePath } = env.requireFresh('src/utils/pathUtils');
 
     await expect(resolveVolumePath('dead')).rejects.toThrow(/outside the configured volume/i);
-    await expect(resolveVolumePath('dead/child.txt')).rejects.toThrow(/outside the configured volume/i);
+    await expect(resolveVolumePath('dead/child.txt')).rejects.toThrow(
+      /outside the configured volume/i
+    );
   });
 
   it('accepts a broken link whose target stays inside the volume', async () => {
@@ -205,9 +209,9 @@ describe('Other spaces containment', () => {
     await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
     await fs.symlink(outside, path.join(userRoot, 'escape'));
 
-    await expect(
-      resolveLogicalPath('personal/escape/secret.txt', { user })
-    ).rejects.toThrow(/outside the configured user directory/i);
+    await expect(resolveLogicalPath('personal/escape/secret.txt', { user })).rejects.toThrow(
+      /outside the configured user directory/i
+    );
   });
 
   /** A refusal must reach the caller, not the process. */
@@ -360,7 +364,9 @@ describe('the containment check on its own', () => {
     await expect(assertRealPathWithinRoot('/etc/nothing/here', env.volumeDir)).rejects.toThrow(
       /outside the configured volume/i
     );
-    await expect(assertRealPathWithinRoot(path.join(env.tmpRoot, 'elsewhere', 'file.txt'), env.volumeDir)).rejects.toThrow(/outside the configured volume/i);
+    await expect(
+      assertRealPathWithinRoot(path.join(env.tmpRoot, 'elsewhere', 'file.txt'), env.volumeDir)
+    ).rejects.toThrow(/outside the configured volume/i);
   });
 
   it('refuses a path outside the root when it does exist', async () => {
@@ -369,18 +375,22 @@ describe('the containment check on its own', () => {
     await fs.mkdir(outside, { recursive: true });
     await fs.writeFile(path.join(outside, 'secret.txt'), 'not yours');
 
-    await expect(assertRealPathWithinRoot(path.join(outside, 'secret.txt'), env.volumeDir)).rejects.toThrow(
-      /outside the configured volume/i
-    );
+    await expect(
+      assertRealPathWithinRoot(path.join(outside, 'secret.txt'), env.volumeDir)
+    ).rejects.toThrow(/outside the configured volume/i);
   });
 
   it('accepts what is inside, existing or not', async () => {
     const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-inside-');
     await fs.mkdir(path.join(env.volumeDir, 'Documents'), { recursive: true });
 
-    await expect(assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents'), env.volumeDir)).resolves.not.toThrow();
+    await expect(
+      assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents'), env.volumeDir)
+    ).resolves.not.toThrow();
     // A file about to be created is not an escape.
-    await expect(assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents', 'new.txt'), env.volumeDir)).resolves.not.toThrow();
+    await expect(
+      assertRealPathWithinRoot(path.join(env.volumeDir, 'Documents', 'new.txt'), env.volumeDir)
+    ).resolves.not.toThrow();
     await expect(assertRealPathWithinRoot(env.volumeDir, env.volumeDir)).resolves.not.toThrow();
   });
 
@@ -390,6 +400,8 @@ describe('the containment check on its own', () => {
     const { env, assertRealPathWithinRoot } = await withRoot('containment-direct-absent-');
     const absent = path.join(env.tmpRoot, 'not-mounted-yet');
 
-    await expect(assertRealPathWithinRoot(path.join(absent, 'file.txt'), absent)).resolves.not.toThrow();
+    await expect(
+      assertRealPathWithinRoot(path.join(absent, 'file.txt'), absent)
+    ).resolves.not.toThrow();
   });
 });

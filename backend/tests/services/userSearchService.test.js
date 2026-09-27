@@ -121,7 +121,15 @@ describe('User Search Service', () => {
         INSERT INTO users (id, email, username, display_name, roles, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `
-      ).run('user-no-display', 'nodisplay@example.com', 'nodisplayuser', null, '["user"]', now, now);
+      ).run(
+        'user-no-display',
+        'nodisplay@example.com',
+        'nodisplayuser',
+        null,
+        '["user"]',
+        now,
+        now
+      );
 
       const result = await searchUsersForMentions('nodisplay', 10);
       expect(result.Users.length).toBe(1);

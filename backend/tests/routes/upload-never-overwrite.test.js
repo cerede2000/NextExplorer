@@ -72,9 +72,8 @@ const temporaries = async (dir) =>
 const waitFor = async (predicate, timeoutMs = 3000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    // eslint-disable-next-line no-await-in-loop
     if (await predicate()) return true;
-    // eslint-disable-next-line no-await-in-loop
+
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   return false;

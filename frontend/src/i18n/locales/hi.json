@@ -74,7 +74,10 @@
     "back": "पीछे",
     "logoAlt": "{name} का लोगो",
     "toggleSection": "अनुभाग दिखाएँ या छिपाएँ",
-    "dismissWarning": "चेतावनी हटाएँ"
+    "dismissWarning": "चेतावनी हटाएँ",
+    "reset": "रीसेट करें",
+    "moveUp": "ऊपर ले जाएँ",
+    "moveDown": "नीचे ले जाएँ"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "नई CSV फ़ाइल",
     "newDocument": "नया दस्तावेज़",
     "extractArchive": "संग्रह निकालें",
-    "extractArchiveIntoCurrentFolder": "वर्तमान फ़ोल्डर में निकालें"
+    "extractArchiveIntoCurrentFolder": "वर्तमान फ़ोल्डर में निकालें",
+    "copyPath": "पथ कॉपी करें",
+    "copyName": "नाम कॉपी करें",
+    "share": "साझा करें",
+    "copied": "कॉपी किया गया",
+    "newPdf": "नया PDF दस्तावेज़"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

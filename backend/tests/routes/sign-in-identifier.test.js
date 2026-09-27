@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import request from 'supertest';
 
-import { createTestApp, modulePath, setupTestEnv } from '../helpers/env-test-utils.js';
+import { createTestApp, setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
  * One box on the sign-in screen, and the same name for it all the way down.

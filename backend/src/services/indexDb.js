@@ -87,7 +87,6 @@ const metaValue = (db, key) => {
  */
 const removeFile = (file) => {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
-    // eslint-disable-next-line no-restricted-properties
     fs.rmSync(`${file}${suffix}`, { force: true });
   }
 };

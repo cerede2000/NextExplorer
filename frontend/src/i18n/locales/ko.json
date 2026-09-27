@@ -74,7 +74,10 @@
     "back": "뒤로 가기",
     "logoAlt": "{name} 로고",
     "toggleSection": "섹션 펼치기/접기",
-    "dismissWarning": "경고 닫기"
+    "dismissWarning": "경고 닫기",
+    "reset": "초기화",
+    "moveUp": "위로 이동",
+    "moveDown": "아래로 이동"
   },
   "editor": {
     "editing": "편집 중",
@@ -121,7 +124,12 @@
     "newCsvFile": "새 CSV 파일",
     "newDocument": "새 문서",
     "extractArchive": "압축 풀기",
-    "extractArchiveIntoCurrentFolder": "현재 폴더에 압축 풀기"
+    "extractArchiveIntoCurrentFolder": "현재 폴더에 압축 풀기",
+    "copyPath": "경로 복사",
+    "copyName": "이름 복사",
+    "share": "공유",
+    "copied": "복사됨",
+    "newPdf": "새 PDF 문서"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

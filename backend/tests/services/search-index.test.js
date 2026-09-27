@@ -134,7 +134,6 @@ describe('being interruptible', () => {
     await build();
     await fs.mkdir(volumePath('Docs'), { recursive: true });
     for (let index = 0; index < 60; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `file-${index}.txt`), `document ${index} pangolin\n`);
     }
   });
@@ -245,7 +244,6 @@ describe('how much it holds at once', () => {
     // Six documents of two megabytes each: counted in documents that is one
     // batch, counted in bytes it cannot be.
     for (let index = 0; index < 6; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(
         volumePath('Docs', `big-${index}.txt`),
         `pangolin ${'lorem ipsum dolor sit amet '.repeat(80000)}`
@@ -339,7 +337,6 @@ describe('what a pass costs', () => {
   // it costs the machine, so time is what it has to be paid in.
   it('stands aside on elapsed time, not on how many files went by', async () => {
     for (let index = 0; index < 40; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
     }
 
@@ -381,7 +378,6 @@ describe('what a pass costs', () => {
   // large volume is where the two gigabytes came from.
   it('compiles its queries once, not once per document', async () => {
     for (let index = 0; index < 40; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
     }
 
@@ -408,7 +404,6 @@ describe('what a pass costs', () => {
   // end the indexing that happens to be running at the same moment.
   it('does not stop on one reading that another task caused', async () => {
     for (let index = 0; index < 40; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
     }
 
@@ -432,7 +427,6 @@ describe('what a pass costs', () => {
   // costs; this one holds when a belief turns out to be wrong.
   it('stops rather than let the process grow without end', async () => {
     for (let index = 0; index < 40; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
     }
 
@@ -480,7 +474,6 @@ describe('how much runs at once', () => {
 
   it('reads one announced file at a time, however many are announced', async () => {
     for (let index = 0; index < 30; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `note-${index}.txt`), `pangolin ${index}\n`);
     }
 
@@ -577,7 +570,6 @@ describe('forgetting what is gone', () => {
   it('keeps the deletions it was sure of when it is cut short', async () => {
     await fs.rm(volumePath('Docs', 'Notes', 'one.txt'));
     for (let index = 0; index < 60; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', `filler-${index}.txt`), `pangolin ${index}\n`);
     }
 
@@ -611,16 +603,14 @@ describe('saying why a file was read again', () => {
     await fs.mkdir(volumePath('Docs', 'Churn'), { recursive: true });
     const settled = new Date(1_700_000_000_000);
     for (let index = 0; index < 8; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', 'Churn', `c-${index}.txt`), `pangolin ${index}\n`);
-      // eslint-disable-next-line no-await-in-loop
+
       await fs.utimes(volumePath('Docs', 'Churn', `c-${index}.txt`), settled, settled);
     }
     await indexAll();
 
     const moved = new Date(1_700_000_060_000);
     for (let index = 0; index < 8; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.utimes(volumePath('Docs', 'Churn', `c-${index}.txt`), moved, moved);
     }
 
@@ -669,9 +659,8 @@ describe('saying why a file was read again', () => {
     // report exists to tell apart from a signal.
     const before = new Date(1_700_000_000_000);
     for (let index = 0; index < 6; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.writeFile(volumePath('Docs', 'Bruyant', `n-${index}.txt`), `pangolin ${index}\n`);
-      // eslint-disable-next-line no-await-in-loop
+
       await fs.utimes(volumePath('Docs', 'Bruyant', `n-${index}.txt`), before, before);
     }
     await indexAll();
@@ -680,7 +669,6 @@ describe('saying why a file was read again', () => {
     // signature of storage that rounds, and of nothing else.
     const shifted = new Date(1_700_000_120_000);
     for (let index = 0; index < 6; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.utimes(volumePath('Docs', 'Bruyant', `n-${index}.txt`), shifted, shifted);
     }
 

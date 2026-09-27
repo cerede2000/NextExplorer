@@ -74,7 +74,10 @@
     "back": "Назад",
     "logoAlt": "Логотип {name}",
     "toggleSection": "Показать или скрыть раздел",
-    "dismissWarning": "Скрыть предупреждение"
+    "dismissWarning": "Скрыть предупреждение",
+    "reset": "Сбросить",
+    "moveUp": "Переместить вверх",
+    "moveDown": "Переместить вниз"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "Новый файл CSV",
     "newDocument": "Новый документ",
     "extractArchive": "Извлечь архив",
-    "extractArchiveIntoCurrentFolder": "Извлечь в текущую папку"
+    "extractArchiveIntoCurrentFolder": "Извлечь в текущую папку",
+    "copyPath": "Копировать путь",
+    "copyName": "Копировать имя",
+    "share": "Поделиться",
+    "copied": "Скопировано",
+    "newPdf": "Новый документ PDF"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

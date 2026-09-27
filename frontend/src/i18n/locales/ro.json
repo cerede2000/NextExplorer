@@ -74,7 +74,10 @@
     "back": "Înapoi",
     "logoAlt": "Sigla {name}",
     "toggleSection": "Afișează sau ascunde secțiunea",
-    "dismissWarning": "Închideți avertismentul"
+    "dismissWarning": "Închideți avertismentul",
+    "reset": "Resetează",
+    "moveUp": "Mută în sus",
+    "moveDown": "Mută în jos"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "Fișier CSV nou",
     "newDocument": "Document nou",
     "extractArchive": "Extrage arhiva",
-    "extractArchiveIntoCurrentFolder": "Extrage în dosarul curent"
+    "extractArchiveIntoCurrentFolder": "Extrage în dosarul curent",
+    "copyPath": "Copiază calea",
+    "copyName": "Copiază numele",
+    "share": "Partajează",
+    "copied": "Copiat",
+    "newPdf": "Document PDF nou"
   },
   "placeholders": {
     "email": "utilizator{'@'}exemplu.com",

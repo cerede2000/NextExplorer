@@ -89,15 +89,16 @@ describe('GET /api/items', () => {
 ### `setupTestEnv(options)`
 
 Creates an isolated test environment with:
+
 - Temporary directories for config, cache, and volume
 - Environment variable overrides
 - Module cache management for fresh requires
 
 ```javascript
 const envContext = await setupTestEnv({
-  tag: 'my-test-',           // Prefix for temp directory
+  tag: 'my-test-', // Prefix for temp directory
   modules: ['src/services/db'], // Modules to clear from cache
-  env: { MY_VAR: 'value' },     // Additional env vars
+  env: { MY_VAR: 'value' }, // Additional env vars
 });
 
 // Use envContext.requireFresh() for clean module imports
@@ -148,5 +149,6 @@ npm run test:coverage
 ```
 
 Coverage reports are generated in:
+
 - `coverage/` - HTML report (open `coverage/index.html`)
 - Terminal output with summary

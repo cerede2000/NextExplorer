@@ -74,7 +74,10 @@
     "back": "Wstecz",
     "logoAlt": "Logo {name}",
     "toggleSection": "Pokaż lub ukryj sekcję",
-    "dismissWarning": "Odrzuć ostrzeżenie"
+    "dismissWarning": "Odrzuć ostrzeżenie",
+    "reset": "Resetuj",
+    "moveUp": "Przesuń w górę",
+    "moveDown": "Przesuń w dół"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "Nowy plik CSV",
     "newDocument": "Nowy dokument",
     "extractArchive": "Wypakuj archiwum",
-    "extractArchiveIntoCurrentFolder": "Wypakuj do bieżącego folderu"
+    "extractArchiveIntoCurrentFolder": "Wypakuj do bieżącego folderu",
+    "copyPath": "Kopiuj ścieżkę",
+    "copyName": "Kopiuj nazwę",
+    "share": "Udostępnij",
+    "copied": "Skopiowano",
+    "newPdf": "Nowy dokument PDF"
   },
   "placeholders": {
     "email": "uzytkownik{'@'}przyklad.com",

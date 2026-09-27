@@ -74,7 +74,10 @@
     "back": "Terug",
     "logoAlt": "Logo van {name}",
     "toggleSection": "Sectie in- of uitklappen",
-    "dismissWarning": "Waarschuwing sluiten"
+    "dismissWarning": "Waarschuwing sluiten",
+    "reset": "Herstellen",
+    "moveUp": "Omhoog",
+    "moveDown": "Omlaag"
   },
   "editor": {
     "editing": "Bewerken",
@@ -121,7 +124,12 @@
     "newCsvFile": "Nieuw CSV-bestand",
     "newDocument": "Nieuw document",
     "extractArchive": "Archief uitpakken",
-    "extractArchiveIntoCurrentFolder": "Uitpakken in huidige map"
+    "extractArchiveIntoCurrentFolder": "Uitpakken in huidige map",
+    "copyPath": "Pad kopiëren",
+    "copyName": "Naam kopiëren",
+    "share": "Delen",
+    "copied": "Gekopieerd",
+    "newPdf": "Nieuw PDF-document"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

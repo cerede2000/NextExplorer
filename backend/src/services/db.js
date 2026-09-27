@@ -727,7 +727,7 @@ const migrate = (db) => {
     }
     if (version < 9) {
       logger.info('[DB Migration] Migrating to v9: Full-text search index...');
-      // eslint-disable-next-line global-require
+
       db.exec(require('./searchIndexStore').SEARCH_INDEX_DDL);
       db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
         'schema_version',
@@ -752,7 +752,7 @@ const migrate = (db) => {
       db.exec(
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_personal_folder ON users(personal_folder_name);'
       );
-      // eslint-disable-next-line global-require
+
       const { claimAllPersonalFolderNames } = require('./personalFolders');
       const claimed = claimAllPersonalFolderNames(db);
       logger.info({ claimed }, '[DB Migration] Personal folder names assigned');

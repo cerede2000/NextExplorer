@@ -6,7 +6,7 @@ const fs = require('fs/promises');
  * application's cache directory, written here and read here. Nothing anybody
  * put anywhere ever passes through it, so it does not go through the trash.
  */
-/* eslint-disable no-restricted-properties */
+
 const fss = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');

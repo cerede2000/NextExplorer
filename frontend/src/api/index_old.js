@@ -43,7 +43,7 @@ const requestJson = async (endpoint, options = {}) => {
       if (errorData?.error) {
         errorMessage = errorData.error;
       }
-    } catch (error) {
+    } catch (_) {
       // Ignore JSON parsing errors and fall back to default error message
     }
     throw new Error(errorMessage);
@@ -200,7 +200,7 @@ const downloadItems = async (paths, basePath = '') => {
       if (errorData?.error) {
         errorMessage = errorData.error;
       }
-    } catch (error) {
+    } catch (_) {
       // Ignore JSON parsing errors and fall back to default error message
     }
     throw new Error(errorMessage);

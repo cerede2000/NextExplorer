@@ -141,7 +141,9 @@ describe('recognising a wrong password in what the extractor said', () => {
     const service = await setup();
 
     expect(service.isArchivePasswordError(new Error('No space left on device'))).toBe(false);
-    expect(service.isArchivePasswordError(new Error('Cannot open the file as archive'))).toBe(false);
+    expect(service.isArchivePasswordError(new Error('Cannot open the file as archive'))).toBe(
+      false
+    );
   });
 
   it('says no rather than throwing on something that is not an error', async () => {
