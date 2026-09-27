@@ -24,6 +24,34 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^backend/src/utils/placeWithoutOverwrite\\.js(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-42",
+      "note": "only the eslint-disable comments differ, and upstream's config still needs them: they go with the config"
+    },
+    {
+      "axis": "env",
+      "match": "^(COPY_PRESERVE_PERMISSIONS|BULK_DELETE_CONCURRENCY)$",
+      "verdict": "DONE",
+      "batch": "P3-27",
+      "note": "nxzai#457 \u2014 the copy that reports"
+    },
+    {
+      "axis": "i18n",
+      "match": "^(serverErrors\\.|errors\\.|notifications\\.|create\\.|onlyoffice\\.editing)",
+      "verdict": "DONE",
+      "batch": "P3-35",
+      "note": "nxzai#463 \u2014 what an answer says"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/stores/files/|backend/src/(app|server)\\.js|backend/src/config/(env|index)\\.js|backend/src/errors/|backend/src/middleware/(authMiddleware|errorHandler|logging)\\.js|backend/src/routes/index\\.js|backend/src/scripts/downloadSamples\\.js|backend/src/services/(capabilities|documentText|pdfTextExtract|storageWritability)\\.js|backend/src/utils/(env|fsUtils|logSanitizer|logger|mapWithConcurrency|pathUtils|staticServer)\\.js|frontend/src/(App\\.vue|main\\.js)|frontend/src/api/(files\\.api|index)\\.js|frontend/src/components/(CreateNew|LanguageSelector|NotificationItem|NotificationToast|TerminalMenu)\\.vue|frontend/src/stores/(fileStore|notifications)\\.js)",
+      "verdict": "DONE",
+      "batch": "P3-35",
+      "note": "nxzai#463 \u2014 a refusal says what it is, and the file store is nine modules"
+    },
+    {
       "axis": "i18n",
       "match": "^(context\\.|actions\\.extractArchive)",
       "verdict": "DONE",
