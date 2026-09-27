@@ -469,6 +469,81 @@ if (BATCHES) {
   residue.sort((a, b) => a.id.localeCompare(b.id));
 }
 const residueUnspoken = residue.filter((item) => !item.spokenFor);
+// ── two more things a batch can lose, measured against the batches ──────────
+// Both of these were found the hard way, and both are measured against the tip of
+// the batch stack for the same reason `residue` is: `main` has not received the
+// batches, so comparing there would call the whole backlog a loss.
+//
+// Sentences written into the code. A key both sides hold, with the same sentence
+// under it, still says nothing about a sentence that never reached a catalogue at
+// all: one row label had been written into a component in French, so every other
+// language read French, and no axis could see it because there was no key. Both
+// trees carry a couple of hundred such literals — a joint debt, not a divergence.
+// What this is for is one appearing on a single side.
+const READER_LITERAL = /(['"`])([A-Z][a-zé][^'"`\n]*\s[^'"`\n]{2,})\1/g;
+const NOT_A_SENTENCE = /^(https?|\/|[A-Z_]+$)|[{}<>$]|\.(js|vue|json|png|svg)$/;
+const literalsOf = (ref) => {
+  const found = new Set();
+  for (const file of listFiles(ref, 'frontend/src')) {
+    if (!/\.(vue|js)$/.test(file) || IS_TEST(file) || file.includes('/i18n/locales/')) continue;
+    const source = show(ref, file) || '';
+    for (const match of source.matchAll(READER_LITERAL)) {
+      const sentence = match[2];
+      if (NOT_A_SENTENCE.test(sentence)) continue;
+      const before = source.slice(Math.max(0, match.index - 30), match.index);
+      if (/\b\$?t\(\s*$|\bte\(\s*$|i18n\.global\.t\(\s*$/.test(before)) continue;
+      found.add(`${file}: ${sentence}`);
+    }
+  }
+  return found;
+};
+
+// What a reader can press. Pause and resume on an upload existed upstream and went
+// away when a batch replaced the panel holding them: the files were spoken for, the
+// keys were spoken for, and nothing enumerated the controls. Two translated strings
+// sitting unread in fifteen catalogues were the only trace.
+const PRESSABLE = /<(button|a|input|select|textarea|label|summary)\b[^>]*>/gs;
+const CONTROL_LABEL = /(?::?(?:aria-label|title|placeholder|alt)\s*=\s*)(["'])(.*?)\1/gs;
+const LABEL_KEY = /\bt\(\s*['"`]([\w.$-]+)['"`]/g;
+const controlsOf = (ref) => {
+  const found = new Set();
+  for (const file of listFiles(ref, 'frontend/src')) {
+    if (!file.endsWith('.vue')) continue;
+    const source = show(ref, file) || '';
+    for (const tag of source.matchAll(PRESSABLE)) {
+      for (const label of tag[0].matchAll(CONTROL_LABEL)) {
+        const value = label[2].trim();
+        if (!value) continue;
+        const keys = [...value.matchAll(LABEL_KEY)].map((k) => k[1]);
+        if (keys.length) keys.forEach((key) => found.add(key));
+        else if (!/[{}]/.test(value) && value.length > 1) found.add(`"${value}"`);
+      }
+    }
+    for (const button of source.matchAll(/<button\b[\s\S]*?<\/button>/g)) {
+      for (const key of button[0].matchAll(LABEL_KEY)) found.add(key[1]);
+    }
+  }
+  return found;
+};
+
+const sided = (label, mine, theirs) => {
+  const out = [];
+  for (const id of mine) if (!theirs.has(id)) out.push({ side: 'ici', id });
+  for (const id of theirs) if (!mine.has(id)) out.push({ side: 'dans les lots', id });
+  const rules = (manifest[label] || []).map((entry) => ({
+    ...entry,
+    test: (id) => new RegExp(entry.match).test(id),
+  }));
+  return out.map((item) => {
+    const rule = rules.find((entry) => entry.test(item.id));
+    return { ...item, note: rule?.note || null, spokenFor: Boolean(rule) };
+  });
+};
+
+const literals = BATCHES ? sided('literals', literalsOf(OURS), literalsOf(BATCHES)) : [];
+const controls = BATCHES ? sided('controls', controlsOf(OURS), controlsOf(BATCHES)) : [];
+const literalsUnspoken = literals.filter((item) => !item.spokenFor);
+const controlsUnspoken = controls.filter((item) => !item.spokenFor);
 
 const counts = Object.fromEntries(VERDICTS.map((v) => [v, 0]));
 const unclassified = [];
@@ -779,6 +854,30 @@ if (AS_JSON) {
   for (const line of stranded.slice(0, 20)) console.log(`  ${line.batch}  ${line.id}`);
   if (stranded.length) console.log('');
   console.log(
+    'sentences in the code    ' +
+      (!BATCHES
+        ? 'not measured: no batch tip to compare with'
+        : literals.length
+          ? `${literals.length} written on one side only`
+          : 'the same on both sides') +
+      '\n'
+  );
+  for (const item of literals.slice(0, 20))
+    console.log(`  ${item.spokenFor ? ' ' : '!'} ${item.side}: ${item.id}`);
+  if (literals.length) console.log('');
+  console.log(
+    'what a reader can press  ' +
+      (!BATCHES
+        ? 'not measured: no batch tip to compare with'
+        : controls.length
+          ? `${controls.length} control(s) on one side only`
+          : 'every control is on both sides') +
+      '\n'
+  );
+  for (const item of controls.slice(0, 20))
+    console.log(`  ${item.spokenFor ? ' ' : '!'} ${item.side}: ${item.id}`);
+  if (controls.length) console.log('');
+  console.log(
     'what a batch left behind  ' +
       (!BATCHES
         ? 'not measured: no batch tip to compare with (--batches, or `batchTip` in the manifest)'
@@ -812,6 +911,18 @@ if (strandedUnclassified.length) {
       'batch ports. Upstream has no such file, so the batch does not build there unless that ' +
       'part is left out. Say which in scripts/parity-manifest.json, on the `stranded` axis:\n  ' +
       strandedUnclassified.map((f) => f.id).join('\n  ')
+  );
+  process.exit(1);
+}
+if (literalsUnspoken.length || controlsUnspoken.length) {
+  console.error(
+    `${literalsUnspoken.length} sentence(s) written into the code on one side only, and ` +
+      `${controlsUnspoken.length} control(s) a reader can press on one side only. Bring it ` +
+      'across, or say under `literals` / `controls` in scripts/parity-manifest.json why it ' +
+      'stays where it is:\n  ' +
+      [...literalsUnspoken, ...controlsUnspoken]
+        .map((item) => `${item.side}: ${item.id}`)
+        .join('\n  ')
   );
   process.exit(1);
 }

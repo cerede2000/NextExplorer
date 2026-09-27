@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-47",
+  "batchTip": "p3-53",
   "rules": [
     {
       "axis": "*",
@@ -1544,28 +1544,8 @@
   ],
   "residue": [
     {
-      "match": "^backend/src/routes/onlyoffice\\.js$",
-      "note": "when a document stops being reported as open. Here it waits for the document server's own release, because closing the frame is not the server letting go and a force-save is still landing; upstream ends it with the session. Each side has a suite that proves its own, so this one is the maintainer's to settle rather than ours to send"
-    },
-    {
       "match": "^backend/src/services/db\\.js$",
       "note": "the migration numbers diverged before this phase began — 24 here against 19 there — so the schema is compared by table and by column instead, and the two files will not read alike until long after they describe the same database"
-    },
-    {
-      "match": "^frontend/src/(components/(FileObject|FolderViewToolbar)\\.vue|views/settings/SettingsUserPreferences\\.vue)$",
-      "note": "where the quick-actions menu is wired in, and the card that switches it on: it was offered upstream in nxzai#333 and withdrawn, so it stays ours"
-    },
-    {
-      "match": "^backend/src/services/fileTransferService\\.js$",
-      "note": "`transferItems`, the one-call wrapper upstream's own suites ask for; nothing here calls it, and adding it would be dead code"
-    },
-    {
-      "match": "^frontend/src/router/shareGuard\\.js$",
-      "note": "`signedInMayOpenShare` and `resetShareGuard`, the shape upstream's own spec asks the module for; the spec here asks the guard itself"
-    },
-    {
-      "match": "^frontend/src/plugins/preview/MediaPreview\\.vue$",
-      "note": "how the video is laid out. The element is sized to the picture here, so the native control bar sits under it at the picture's own width; upstream makes the element the whole stage and lets object-contain letterbox inside it, which puts the bar across a black field. Upstream's own spec asserts its version and the browser suite here measures this one, so it is the maintainer's to settle. Rotate, zoom, the mouse drag and the message for a picture that will not load came from upstream and stayed"
     }
   ]
 }
