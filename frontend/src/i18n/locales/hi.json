@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "{count} {items} कॉपी किए जा रहे हैं…",
     "moving": "{count} {items} स्थानांतरित किए जा रहे हैं…",
-    "working": "प्रक्रिया जारी है…"
+    "working": "प्रक्रिया जारी है…",
+    "activeTasks": "{count} कार्य चल रहे हैं",
+    "compressing": "{name} संपीड़ित किया जा रहा है…",
+    "copyingUnknown": "कॉपी किया जा रहा है…",
+    "extracting": "{name} निकाला जा रहा है…",
+    "movingUnknown": "स्थानांतरित किया जा रहा है…",
+    "perSecond": "{value}/से",
+    "reposition": "पूरा होने पर आइटम पर लौटें",
+    "restoring": "{count} {items} पुनर्स्थापित हो रहे हैं…",
+    "restoringUnknown": "पुनर्स्थापित हो रहा है…"
   },
   "upload": {
     "toggleDetailsShow": "विवरण दिखाएँ",
     "toggleDetailsHide": "विवरण छिपाएँ",
     "pauseUploads": "अपलोड रोकें",
     "resumeUploads": "अपलोड फिर शुरू करें",
-    "uploads": "{count} {items} अपलोड हो रहे हैं"
+    "uploads": "{count} {items} अपलोड हो रहे हैं",
+    "finalizing": "पूरा किया जा रहा है"
   },
   "info": {
     "aria": "जानकारी पैनल",

@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "Copia di {count} {items}…",
     "moving": "Spostamento di {count} {items}…",
-    "working": "In corso…"
+    "working": "In corso…",
+    "activeTasks": "{count} operazioni in corso",
+    "compressing": "Compressione di {name}…",
+    "copyingUnknown": "Copia in corso…",
+    "extracting": "Estrazione di {name}…",
+    "movingUnknown": "Spostamento in corso…",
+    "perSecond": "{value}/s",
+    "reposition": "Torna all'elemento al termine",
+    "restoring": "Ripristino di {count} {items}…",
+    "restoringUnknown": "Ripristino in corso…"
   },
   "upload": {
     "toggleDetailsShow": "Mostra dettagli",
     "toggleDetailsHide": "Nascondi dettagli",
     "pauseUploads": "Metti in pausa caricamenti",
     "resumeUploads": "Riprendi caricamenti",
-    "uploads": "Caricamento di {count} {items}"
+    "uploads": "Caricamento di {count} {items}",
+    "finalizing": "Completamento"
   },
   "info": {
     "aria": "Pannello informazioni",

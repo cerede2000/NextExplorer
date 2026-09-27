@@ -1,6 +1,8 @@
 import { computed } from 'vue';
 import { useFileStore } from '@/stores/fileStore';
-import { buildUrl, normalizePath } from '@/api';
+import { useFeaturesStore } from '@/stores/features';
+import { buildUrl, expectBrowserNavigation, normalizePath } from '@/api';
+import { useDestinationPicker } from '@/composables/useDestinationPicker';
 
 function isEditableElement(el) {
   if (!el) return false;
@@ -9,6 +11,9 @@ function isEditableElement(el) {
   if (el.isContentEditable) return true;
   return false;
 }
+
+// A link out of the volume, as the listing marks it.
+const isOutsideLink = (item) => item?.link === 'outside';
 
 function resolveItemPath(item) {
   if (!item || !item.name) return '';
@@ -19,13 +24,20 @@ function resolveItemPath(item) {
 
 export function useFileActions() {
   const fileStore = useFileStore();
+  const destinationPicker = useDestinationPicker();
+  const featuresStore = useFeaturesStore();
 
   const selectedItems = computed(() => fileStore.selectedItems);
   const hasSelection = computed(() => fileStore.hasSelection);
   const isSingleItemSelected = computed(() => selectedItems.value.length === 1);
   const primaryItem = computed(() => selectedItems.value[0] ?? null);
+  const renameTarget = computed(() => fileStore.keyboardActionItem || primaryItem.value);
 
   const locationCanWrite = computed(() => fileStore.currentPathData?.canWrite ?? true);
+  const locationCanCreateFolder = computed(
+    () => fileStore.currentPathData?.canCreateFolder ?? true
+  );
+  const locationCanCreateFile = computed(() => fileStore.currentPathData?.canCreateFile ?? true);
   const locationCanUpload = computed(() => fileStore.currentPathData?.canUpload ?? true);
   const locationCanDelete = computed(() => fileStore.currentPathData?.canDelete ?? true);
   const locationCanDownload = computed(() => fileStore.currentPathData?.canDownload ?? true);
@@ -33,12 +45,17 @@ export function useFileActions() {
   const currentPathIsDirectory = computed(() => fileStore.currentPathData?.isDirectory === true);
   const isSharePath = computed(() => currentDirectoryPath.value.startsWith('share/'));
 
-  const isZipSelected = computed(() => {
+  const isArchiveSelected = computed(() => {
     if (!isSingleItemSelected.value || !primaryItem.value) return false;
+    // Offer extraction only for the formats the server-side 7-Zip build
+    // reported as supported (falls back to plain zip).
+    const supported = Array.isArray(featuresStore.archiveExtensions)
+      ? featuresStore.archiveExtensions
+      : ['zip'];
     const kind = String(primaryItem.value.kind || '').toLowerCase();
-    if (kind === 'zip') return true;
+    if (supported.includes(kind)) return true;
     const name = String(primaryItem.value.name || '').toLowerCase();
-    return name.endsWith('.zip');
+    return supported.some((ext) => name.endsWith(`.${ext}`));
   });
 
   const selectionHasUniformParent = computed(() => {
@@ -52,27 +69,47 @@ export function useFileActions() {
     return rawParents.size === 1;
   });
 
+  // A link out of the volume: listed so it can be seen, but the server refuses
+  // every operation on it, so none is offered.
+  const selectionHasOutsideLink = computed(() =>
+    selectedItems.value.some((item) => isOutsideLink(item))
+  );
+
   const canCut = computed(
-    () => hasSelection.value && locationCanWrite.value && locationCanDelete.value
+    () =>
+      hasSelection.value &&
+      !selectionHasOutsideLink.value &&
+      locationCanWrite.value &&
+      locationCanDelete.value
   );
-  const canCopy = computed(() => hasSelection.value);
+  const canCopy = computed(() => hasSelection.value && !selectionHasOutsideLink.value);
   const canPaste = computed(
-    () => fileStore.hasClipboardItems && (locationCanWrite.value || locationCanUpload.value)
+    () =>
+      fileStore.hasClipboardItems && (locationCanCreateFolder.value || locationCanCreateFile.value)
   );
-  const canDelete = computed(() => hasSelection.value && locationCanDelete.value);
+  const canDelete = computed(
+    () => hasSelection.value && !selectionHasOutsideLink.value && locationCanDelete.value
+  );
   const canRename = computed(
     () =>
-      isSingleItemSelected.value && primaryItem.value?.kind !== 'volume' && locationCanWrite.value
+      Boolean(renameTarget.value) &&
+      renameTarget.value?.kind !== 'volume' &&
+      !isOutsideLink(renameTarget.value) &&
+      locationCanWrite.value
   );
-  const canExtractZip = computed(
-    () => isZipSelected.value && locationCanWrite.value && primaryItem.value?.kind !== 'volume'
+  const canExtractArchive = computed(
+    () =>
+      isArchiveSelected.value &&
+      locationCanCreateFolder.value &&
+      locationCanCreateFile.value &&
+      primaryItem.value?.kind !== 'volume'
   );
   const canCompressToZip = computed(
     () =>
       hasSelection.value &&
-      locationCanWrite.value &&
+      locationCanCreateFile.value &&
       selectionHasUniformParent.value &&
-      selectedItems.value.every((item) => item?.kind !== 'volume')
+      selectedItems.value.every((item) => item?.kind !== 'volume' && !isOutsideLink(item))
   );
   const canDownloadCurrentFolder = computed(
     () =>
@@ -91,6 +128,29 @@ export function useFileActions() {
   const runCopy = () => {
     if (canCopy.value) fileStore.copy();
   };
+  /**
+   * Ask where to put the selection, then put it there.
+   *
+   * The only route to a transfer that needs no dragging — which matters
+   * because dragging is switched off entirely on touch devices.
+   */
+  const runTransferToDestination = async (mode) => {
+    const items = selectedItems.value.map((item) => ({ ...item }));
+    if (!items.length) return;
+
+    const destination = await destinationPicker.pick({
+      mode,
+      items,
+      from: fileStore.currentPath || '',
+    });
+    if (!destination) return;
+
+    await fileStore.transferSelectionTo(destination, mode);
+  };
+
+  const runMoveTo = async () => runTransferToDestination('move');
+  const runCopyTo = async () => runTransferToDestination('copy');
+
   const runPasteToDestination = async (destinationPath) => {
     if (!canPaste.value) return;
     const dest = typeof destinationPath === 'string' ? destinationPath : '';
@@ -99,15 +159,22 @@ export function useFileActions() {
   const runPasteIntoCurrent = async () => runPasteToDestination('');
 
   const runRename = () => {
-    if (!canRename.value || !primaryItem.value) return;
-    fileStore.beginRename(primaryItem.value);
+    if (!canRename.value || !renameTarget.value) return;
+    fileStore.beginRename(renameTarget.value);
   };
 
-  const runExtractZip = async () => {
-    if (!canExtractZip.value || !primaryItem.value) return;
-    const zipPath = resolveItemPath(primaryItem.value);
-    if (!zipPath) return;
-    await fileStore.extractZipArchive(zipPath);
+  const runExtractArchive = async () => {
+    if (!canExtractArchive.value || !primaryItem.value) return;
+    const archivePath = resolveItemPath(primaryItem.value);
+    if (!archivePath) return;
+    return fileStore.extractZipArchive(archivePath);
+  };
+
+  const runExtractArchiveIntoCurrentFolder = async () => {
+    if (!canExtractArchive.value || !primaryItem.value) return;
+    const archivePath = resolveItemPath(primaryItem.value);
+    if (!archivePath) return;
+    return fileStore.extractZipArchive(archivePath, { destination: 'current' });
   };
 
   const runCompressToZip = async () => {
@@ -115,9 +182,11 @@ export function useFileActions() {
     await fileStore.compressSelectionToZip();
   };
 
-  const deleteNow = async () => {
-    if (!canDelete.value) return;
-    await fileStore.del();
+  const deleteNow = async (items, options) => {
+    if (items === undefined && !canDelete.value) return;
+    // What the server said about each item: the confirmation reads it to find
+    // what the trash turned away.
+    return fileStore.del(items, options);
   };
 
   const submitDownloadRequest = (paths, basePath = '') => {
@@ -149,6 +218,10 @@ export function useFileActions() {
     form.appendChild(basePathInput);
 
     document.body.appendChild(form);
+    // Submitting is a navigation: the browser may suspend the page while it
+    // takes the file, and the requests in flight end without a response. Said
+    // here so that silence is read as a download rather than as a lost session.
+    expectBrowserNavigation();
     form.submit();
     document.body.removeChild(form);
   };
@@ -156,7 +229,10 @@ export function useFileActions() {
   const runDownload = () => {
     if (!hasSelection.value) return;
 
-    const paths = selectedItems.value.map(resolveItemPath).filter(Boolean);
+    const paths = selectedItems.value
+      .filter((item) => !isOutsideLink(item))
+      .map(resolveItemPath)
+      .filter(Boolean);
     submitDownloadRequest(paths, currentDirectoryPath.value);
   };
 
@@ -173,6 +249,8 @@ export function useFileActions() {
     // guards
     hasSelection,
     locationCanWrite,
+    locationCanCreateFolder,
+    locationCanCreateFile,
     locationCanUpload,
     locationCanDelete,
     locationCanDownload,
@@ -181,7 +259,8 @@ export function useFileActions() {
     canPaste,
     canDelete,
     canRename,
-    canExtractZip,
+    isArchiveSelected,
+    canExtractArchive,
     canCompressToZip,
     canDownloadCurrentFolder,
     isCutActive,
@@ -193,9 +272,12 @@ export function useFileActions() {
     runCut,
     runCopy,
     runPasteToDestination,
+    runMoveTo,
+    runCopyTo,
     runPasteIntoCurrent,
     runRename,
-    runExtractZip,
+    runExtractArchive,
+    runExtractArchiveIntoCurrentFolder,
     runCompressToZip,
     deleteNow,
     runDownload,

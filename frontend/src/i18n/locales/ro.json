@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "Se copiază {count} {items}…",
     "moving": "Se mută {count} {items}…",
-    "working": "În lucru…"
+    "working": "În lucru…",
+    "activeTasks": "{count} operațiuni în curs",
+    "compressing": "Se comprimă {name}…",
+    "copyingUnknown": "Se copiază…",
+    "extracting": "Se extrage {name}…",
+    "movingUnknown": "Se mută…",
+    "perSecond": "{value}/s",
+    "reposition": "Revino la element la final",
+    "restoring": "Se restaurează {count} {items}…",
+    "restoringUnknown": "Se restaurează…"
   },
   "upload": {
     "toggleDetailsShow": "Afișează detalii",
     "toggleDetailsHide": "Ascunde detalii",
     "pauseUploads": "Pune pe pauză încărcările",
     "resumeUploads": "Reia încărcările",
-    "uploads": "Se încarcă {count} {items}"
+    "uploads": "Se încarcă {count} {items}",
+    "finalizing": "Se finalizează"
   },
   "info": {
     "aria": "Panou informații",

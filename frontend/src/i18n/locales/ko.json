@@ -343,14 +343,24 @@
   "clipboard": {
     "copying": "{count}개 {items} 복사 중…",
     "moving": "{count}개 {items} 이동 중…",
-    "working": "처리 중…"
+    "working": "처리 중…",
+    "activeTasks": "{count}개 작업 진행 중",
+    "compressing": "{name} 압축 중…",
+    "copyingUnknown": "복사 중…",
+    "extracting": "{name} 압축 푸는 중…",
+    "movingUnknown": "이동 중…",
+    "perSecond": "{value}/초",
+    "reposition": "완료 후 항목으로 돌아가기",
+    "restoring": "{count}개 {items} 복원 중…",
+    "restoringUnknown": "복원 중…"
   },
   "upload": {
     "toggleDetailsShow": "상세 정보 보기",
     "toggleDetailsHide": "상세 정보 숨기기",
     "pauseUploads": "업로드 정지",
     "resumeUploads": "업로드 재개",
-    "uploads": "{count}개 {items} 업로드 중"
+    "uploads": "{count}개 {items} 업로드 중",
+    "finalizing": "마무리 중"
   },
   "info": {
     "aria": "정보 패널",

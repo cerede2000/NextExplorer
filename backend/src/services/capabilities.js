@@ -138,7 +138,7 @@ const probeMachine = async () => {
   const ffmpegRunner = require('./ffmpegRunner');
   const { hasPdfToText } = require('./pdfTextExtract');
   const archives = require('./archiveService');
-  const { nativeCopyEnabled } = require('./fileTransferService');
+  const { nativeTransferEnabled } = require('./fileTransferService');
 
   const [ripgrep, rsync, pdftotext, exiftool, sevenZip, missingFormats] = await Promise.all([
     probe('rg', ['--version']),
@@ -181,7 +181,7 @@ const probeMachine = async () => {
     exiftool,
     sevenZip,
     missingFormats,
-    nativeTransfers: nativeCopyEnabled(),
+    nativeTransfers: nativeTransferEnabled(),
     versions,
   };
 };
