@@ -1,11 +1,15 @@
 const express = require('express');
 const { promisify } = require('util');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
 const asyncHandler = require('../utils/asyncHandler');
-const execp = promisify(exec);
+// `execFile`, not `exec`: the path goes in as an argument rather than into a
+// command line. A folder whose name contains a quote used to end the quoting and
+// leave the rest for the shell to run, as the user this server runs as, the moment
+// somebody opened it — and any account that can make a folder could name one.
+const execp = promisify(execFile);
 const router = express.Router();
 
 // Fast directory size using du command
@@ -13,7 +17,7 @@ const dirSize = async (root) => {
   try {
     // -sb: summarize in bytes, don't follow symlinks
     // This is orders of magnitude faster than fs.stat() recursion
-    const { stdout } = await execp(`du -sb "${root}"`, {
+    const { stdout } = await execp('du', ['-sb', root], {
       maxBuffer: 1024 * 1024 * 10, // 10MB buffer for large outputs
     });
 
@@ -45,7 +49,7 @@ router.get(
     // Run both commands in parallel for maximum speed
     const [size, dfResult] = await Promise.all([
       dirSize(abs),
-      execp(`df -Pk "${abs}"`).catch(() => ({ stdout: '' })),
+      execp('df', ['-Pk', abs]).catch(() => ({ stdout: '' })),
     ]);
 
     let total = 0,
