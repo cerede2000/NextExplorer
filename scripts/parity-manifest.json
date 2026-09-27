@@ -1564,8 +1564,12 @@
   ],
   "residue": [
     {
-      "match": "^backend/src/routes/(browse|editor|index|onlyoffice|files/download)\\.js$",
-      "note": "this fork is the one ahead: the thumbnails switch the listing must not promise around, the identity a saved file answers with, a bounded resolution and a public link's own download count, health mounted once rather than twice, and a presence released by the document server rather than by the frame closing. Goes upstream in P3-45"
+      "match": "^backend/src/routes/(browse|editor|index|files/download)\\.js$",
+      "note": "this fork is the one ahead: the thumbnails switch a listing must not promise around, the identity a saved file answers with, a bounded resolution and a public link's own download count, and health mounted once rather than twice. Goes upstream in P3-45"
+    },
+    {
+      "match": "^backend/src/routes/onlyoffice\\.js$",
+      "note": "when a document stops being reported as open. Here it waits for the document server's own release, because closing the frame is not the server letting go and a force-save is still landing; upstream ends it with the session. Each side has a suite that proves its own, so this one is the maintainer's to settle rather than ours to send"
     },
     {
       "match": "^backend/src/services/db\\.js$",
