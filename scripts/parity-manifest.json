@@ -24,6 +24,26 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^backend/src/routes/search\\.js(:|$)",
+      "verdict": "THEIRS",
+      "note": "upstream stats the page of results before handing it out and drops what is gone. The fork answers from the catalogue and lets a sweep tidy up later, which offers results that open nothing. The fork takes upstream's version"
+    },
+    {
+      "axis": "i18n",
+      "match": "^(search\\.|spotlight\\.hintPattern)",
+      "verdict": "DONE",
+      "batch": "P3-22",
+      "note": "nxzai#452 \u2014 what a search says about itself"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/utils/searchMatch\\.js|backend/src/services/searchIndexer\\.js|backend/src/services/indexDb\\.js|backend/src/services/searchCollector\\.js|backend/src/services/userSearchService\\.js|frontend/src/components/SpotlightSearch\\.vue|frontend/src/views/SearchResultsView\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-22",
+      "note": "nxzai#452 \u2014 a folder named build is catalogued, and a result says how it was found"
+    },
+    {
       "axis": "migration",
       "match": "^shares\\.",
       "verdict": "DONE",
