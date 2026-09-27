@@ -50,9 +50,16 @@ vi.mock('@/stores/settings', () => ({
 }));
 const notifications = vi.hoisted(() => ({ addNotification: vi.fn() }));
 vi.mock('@/stores/notifications', () => ({ useNotificationsStore: () => notifications }));
+// The key and everything handed to it. Echoing only `name` let a label built
+// with any other parameter come back as the bare key, which is how a sentence
+// written into the component instead of asked of the catalogue passed for one
+// that was asked.
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key, params) => (params?.name ? `${key}:${params.name}` : key),
+    t: (key, params) => {
+      const values = params ? Object.values(params).filter((v) => v !== undefined) : [];
+      return values.length ? `${key}:${values.join(',')}` : key;
+    },
   }),
 }));
 
@@ -453,16 +460,19 @@ describe('which rows the photo view shows', () => {
 describe('a document somebody else has open', () => {
   const open = (users) => ({ ...FILE, onlyofficeActivity: { active: true, users } });
 
-  it('says who is editing it', async () => {
+  it("says who is editing it, in the reader's language", async () => {
     mountRow(open(['alice', 'bob']));
 
+    // The catalogue's key, not a sentence: this label was written into the
+    // component in French, so every other language read French.
+    expect(wrapper.html()).toContain('onlyoffice.editingBy');
     expect(wrapper.html()).toContain('alice, bob');
   });
 
   it('says so even without knowing who', async () => {
     mountRow(open([]));
 
-    expect(wrapper.html()).toContain('OnlyOffice');
+    expect(wrapper.html()).toContain('onlyoffice.editingNow');
   });
 
   it('says nothing for a document nobody has open', async () => {
