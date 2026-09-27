@@ -1,0 +1,208 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import sharp from 'sharp';
+
+import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { ffmpegReadsHeif, hasFfmpeg, HEIC_FIXTURE } from '../helpers/media-tools.js';
+
+/**
+ * A whole-file budget, against a vitest default of five seconds.
+ *
+ * Every test here waits on a spawned ffmpeg. The suite runs one worker per
+ * core, so on a contended machine that process is not slow — it is queued, and
+ * a budget sized for an idle machine turns ordinary scheduling into a failure
+ * that names the wrong thing. Deliberately oversubscribing the pool failed
+ * these in half the runs before this.
+ */
+vi.setConfig({ testTimeout: 30_000 });
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Video and HEIC thumbnails, made from real files by a real ffmpeg.
+ *
+ * `fluent-ffmpeg` was removed and its seven calls replaced with plain process
+ * spawning. The whole suite stayed green through that change, which proves
+ * nothing at all: not one test decoded a frame. A builder API swapped for an
+ * argument list can produce a command that runs, exits zero and writes nothing,
+ * and the only visible symptom is a thumbnail that never appears.
+ *
+ * So this encodes a clip, asks the service for a thumbnail, and looks at the
+ * pixels that come out. Skipped where ffmpeg is absent, which is stated rather
+ * than silent.
+ */
+
+let ctx;
+
+// Asked once, at load: skipIf needs the answer before the tests are declared.
+const ffmpeg = await hasFfmpeg();
+const heif = ffmpeg && (await ffmpegReadsHeif());
+
+const setup = async (env = {}) => {
+  ctx = await setupTestEnv({
+    tag: 'ffmpeg-thumbs-',
+    env: { THUMBNAILS: 'true', ...env },
+    modules: [
+      'src/config/env',
+      'src/config/index',
+      'src/services/ffmpegRunner',
+      'src/services/thumbnailService',
+    ],
+  });
+  return ctx;
+};
+
+afterEach(async () => {
+  if (ctx) {
+    const service = ctx.loaded?.('src/services/thumbnailService');
+    try {
+      await service?.stopThumbnailWork?.();
+    } catch (_) {
+      // Nothing in flight.
+    }
+    await ctx.cleanup();
+    ctx = null;
+  }
+});
+
+/**
+ * An eight-second clip whose left half is red and right half is blue.
+ *
+ * Longer than the default seek point of five seconds on purpose: a clip shorter
+ * than the seek yields no frame at all, which looks exactly like a broken
+ * decoder and is how the first version of this file failed.
+ */
+const makeClip = async (file, args = []) => {
+  await execFileAsync('ffmpeg', [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=red:size=64x64:duration=8:rate=10',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=blue:size=64x64:duration=8:rate=10',
+    '-filter_complex',
+    '[0:v][1:v]hstack=inputs=2',
+    ...args,
+    file,
+  ]);
+};
+
+/**
+ * Ask for a thumbnail and wait for the file. Generation is queued, so the call
+ * returns before the work is done.
+ */
+const thumbnailFor = async (env, service, source) => {
+  const result = await service.queueThumbnailGeneration(source, { priority: 10 });
+  const thumbDir = path.join(env.cacheDir, 'thumbnails');
+  // Long enough to survive a contended machine: this waits on a spawned
+  // ffmpeg, which under load is queued rather than slow.
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const entries = await fs.readdir(thumbDir).catch(() => []);
+    const done = entries.filter((name) => name.endsWith('.webp'));
+    if (done.length) return path.join(thumbDir, done[0]);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`no thumbnail appeared (queue said ${JSON.stringify(result)})`);
+};
+
+const colourAt = async (file, x, y) => {
+  const { data, info } = await sharp(file).raw().toBuffer({ resolveWithObject: true });
+  const i = (y * info.width + x) * info.channels;
+  return { r: data[i], g: data[i + 1], b: data[i + 2] };
+};
+
+describe('a video thumbnail', () => {
+  it.skipIf(!ffmpeg)('is produced from a real clip', async () => {
+    const env = await setup();
+    const service = env.requireFresh('src/services/thumbnailService');
+    const source = path.join(env.volumeDir, 'clip.mp4');
+    await makeClip(source, ['-c:v', 'libx264', '-pix_fmt', 'yuv420p']);
+
+    const thumb = await thumbnailFor(env, service, source);
+
+    expect((await fs.stat(thumb)).size).toBeGreaterThan(0);
+  });
+
+  /**
+   * The assertion an argument-list mistake cannot survive. A command that runs
+   * and writes nothing useful still exits zero; a picture with red on the left
+   * and blue on the right came from decoding the actual frame.
+   */
+  it.skipIf(!ffmpeg)('holds the picture that was in the clip', async () => {
+    const env = await setup();
+    const service = env.requireFresh('src/services/thumbnailService');
+    const source = path.join(env.volumeDir, 'clip.mp4');
+    await makeClip(source, ['-c:v', 'libx264', '-pix_fmt', 'yuv420p']);
+
+    const thumb = await thumbnailFor(env, service, source);
+    const meta = await sharp(thumb).metadata();
+    const left = await colourAt(thumb, 4, Math.floor(meta.height / 2));
+    const right = await colourAt(thumb, meta.width - 4, Math.floor(meta.height / 2));
+
+    expect(meta.format).toBe('webp');
+    expect(left.r).toBeGreaterThan(140);
+    expect(left.b).toBeLessThan(90);
+    expect(right.b).toBeGreaterThan(140);
+    expect(right.r).toBeLessThan(90);
+  });
+
+  it.skipIf(!ffmpeg)('works for a container ffmpeg has to seek into', async () => {
+    const env = await setup();
+    const service = env.requireFresh('src/services/thumbnailService');
+    const source = path.join(env.volumeDir, 'clip.mkv');
+    await makeClip(source, ['-c:v', 'libx264', '-pix_fmt', 'yuv420p']);
+
+    await expect(thumbnailFor(env, service, source)).resolves.toBeTruthy();
+  });
+
+  /**
+   * Seeking by a percentage is the branch that needs ffprobe: the duration has
+   * to be read before the seek point can be worked out. It is a separate code
+   * path from the fixed seek, and the one that silently falls back.
+   */
+  it.skipIf(!ffmpeg)('seeks by percentage, which means ffprobe answered', async () => {
+    const env = await setup({ THUMBNAIL_VIDEO_SEEK_PERCENT: '0.5' });
+    const service = env.requireFresh('src/services/thumbnailService');
+    const source = path.join(env.volumeDir, 'clip.mp4');
+    await makeClip(source, ['-c:v', 'libx264', '-pix_fmt', 'yuv420p']);
+
+    await expect(thumbnailFor(env, service, source)).resolves.toBeTruthy();
+  });
+
+  it.skipIf(!ffmpeg)('gives up quietly on a file that is not a video at all', async () => {
+    const env = await setup();
+    const service = env.requireFresh('src/services/thumbnailService');
+    const source = path.join(env.volumeDir, 'broken.mp4');
+    await fs.writeFile(source, Buffer.from('not a video'));
+
+    await expect(service.queueThumbnailGeneration(source, { priority: 10 })).resolves.toBeDefined();
+  });
+});
+
+describe('a HEIC thumbnail', () => {
+  // The same ffmpeg has to be new enough for HEIF (7.1); older ones cannot open it.
+  it.skipIf(!heif)('is produced, and holds the picture', async () => {
+    const env = await setup();
+    const service = env.requireFresh('src/services/thumbnailService');
+    const source = path.join(env.volumeDir, 'photo.heic');
+    await fs.copyFile(HEIC_FIXTURE, source);
+
+    const thumb = await thumbnailFor(env, service, source);
+
+    const meta = await sharp(thumb).metadata();
+    const left = await colourAt(thumb, 3, Math.floor(meta.height / 2));
+    const right = await colourAt(thumb, meta.width - 3, Math.floor(meta.height / 2));
+
+    expect(left.r).toBeGreaterThan(140);
+    expect(right.b).toBeGreaterThan(140);
+  });
+});
