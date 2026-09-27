@@ -381,10 +381,22 @@
     "hintPattern": "使用 * 和 ? 比對檔案名稱，例如 *.ps1"
   },
   "download": {
-    "preparing": "正在準備下載..."
+    "preparing": "正在準備下載...",
+    "asZip": "下載為 ZIP 壓縮檔",
+    "asSeparateFiles": "下載為個別檔案",
+    "chooseMode": "選擇下載方式",
+    "confirmHeading": "分別下載 {count} 個檔案？",
+    "confirmBody": "這會同時開始 {count} 個下載。壓縮檔只會是一個檔案。",
+    "confirmFolders": "所選資料夾在兩種方式下都會作為一個壓縮檔。",
+    "confirmSeparate": "分別下載",
+    "confirmZip": "下載壓縮檔",
+    "wrote": "已將 {count} 個{items}寫入 {folder}",
+    "renamed": "已重新命名，未取代任何檔案：{names}",
+    "failed": "下載已停止"
   },
   "clipboard": {
     "copying": "正在複製 {count} 個{items}…",
+    "downloading": "正在下載 {count} 個{items}…",
     "moving": "正在移動 {count} 個{items}…",
     "working": "處理中…",
     "activeTasks": "{count} 個操作進行中",
@@ -579,6 +591,10 @@
       "viewPhotos": "相片",
       "documentsOpenInNewTab": "在新分頁中開啟文件",
       "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
+      "downloadMode": "下載多個項目",
+      "downloadModeHelp": "同時下載多個項目時的處理方式。所選資料夾一律作為一個壓縮檔。",
+      "downloadModeZip": "一個 ZIP 壓縮檔",
+      "downloadModeSeparate": "個別檔案",
       "showVersionMarks": "標示有版本的檔案",
       "showVersionMarksHelp": "在清單中為有舊版本的檔案加上一個小標記，並顯示數量。點一下即可開啟歷程記錄。",
       "languageHelp": "儲存在您的帳戶中，在您登入的每個瀏覽器上生效。",

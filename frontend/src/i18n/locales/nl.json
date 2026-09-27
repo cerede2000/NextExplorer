@@ -381,10 +381,22 @@
     "hintPattern": "Gebruik * en ? om bestandsnamen te zoeken, bijvoorbeeld *.ps1"
   },
   "download": {
-    "preparing": "Download voorbereiden…"
+    "preparing": "Download voorbereiden…",
+    "asZip": "Downloaden als ZIP-archief",
+    "asSeparateFiles": "Downloaden als losse bestanden",
+    "chooseMode": "Kies hoe te downloaden",
+    "confirmHeading": "{count} bestanden los downloaden?",
+    "confirmBody": "Dat start {count} downloads tegelijk. Een ZIP-archief zou één bestand zijn.",
+    "confirmFolders": "De geselecteerde mappen komen in beide gevallen als één archief.",
+    "confirmSeparate": "Los downloaden",
+    "confirmZip": "Een ZIP downloaden",
+    "wrote": "{count} {items} naar {folder} geschreven",
+    "renamed": "Hernoemd zodat niets is vervangen: {names}",
+    "failed": "De download is gestopt"
   },
   "clipboard": {
     "copying": "{count} {items} kopiëren…",
+    "downloading": "{count} {items} downloaden…",
     "moving": "{count} {items} verplaatsen…",
     "working": "Bezig…",
     "activeTasks": "{count} bewerkingen bezig",
@@ -579,6 +591,10 @@
       "viewPhotos": "Foto's",
       "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
       "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
+      "downloadMode": "Meerdere items downloaden",
+      "downloadModeHelp": "Wat er gebeurt als er meer dan één item tegelijk wordt gedownload. Geselecteerde mappen komen altijd als één archief.",
+      "downloadModeZip": "Één ZIP-archief",
+      "downloadModeSeparate": "Losse bestanden",
       "showVersionMarks": "Bestanden met versies markeren",
       "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen.",
       "languageHelp": "Wordt bij uw account bewaard, in elke browser waarmee u zich aanmeldt.",

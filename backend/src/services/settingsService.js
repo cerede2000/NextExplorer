@@ -627,6 +627,20 @@ const asViewMode = (value) => {
  * as a view mode is: a typo would otherwise read as "follow the browser" and
  * the choice would put itself back where it was.
  */
+/**
+ * How a selection of several things leaves (#487).
+ *
+ * `zip` gathers everything into one archive, which is what every version until
+ * now did. `separate` takes the loose files one by one, as the browser's own
+ * multi-file download, and keeps the archive for the folders — a folder taken
+ * apart is a folder lost.
+ *
+ * An unknown word is refused rather than turned into the default, as a view
+ * mode is: a typo would otherwise put the choice back where it was, quietly.
+ */
+const DOWNLOAD_MODES = ['zip', 'separate'];
+const asDownloadMode = (value) => (DOWNLOAD_MODES.includes(value) ? value : undefined);
+
 const LANGUAGE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 const asLocale = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -661,6 +675,7 @@ const USER_SETTINGS = {
   skipHome: asNullableBoolean,
   defaultView: asViewMode,
   locale: asLocale,
+  downloadMode: asDownloadMode,
 };
 
 /**

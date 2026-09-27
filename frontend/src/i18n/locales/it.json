@@ -381,10 +381,22 @@
     "hintPattern": "Usa * e ? per filtrare i nomi dei file, ad esempio *.ps1"
   },
   "download": {
-    "preparing": "Preparazione download..."
+    "preparing": "Preparazione download...",
+    "asZip": "Scarica come archivio ZIP",
+    "asSeparateFiles": "Scarica come file separati",
+    "chooseMode": "Scegli come scaricare",
+    "confirmHeading": "Scaricare {count} file separatamente?",
+    "confirmBody": "Questo avvia {count} download in una volta. Un archivio ZIP sarebbe un solo file.",
+    "confirmFolders": "Le cartelle selezionate arrivano come un unico archivio in entrambi i casi.",
+    "confirmSeparate": "Scarica separatamente",
+    "confirmZip": "Scarica uno ZIP",
+    "wrote": "{count} {items} scritti in {folder}",
+    "renamed": "Rinominati per non sostituire nulla: {names}",
+    "failed": "Il download si è interrotto"
   },
   "clipboard": {
     "copying": "Copia di {count} {items}…",
+    "downloading": "Download di {count} {items}…",
     "moving": "Spostamento di {count} {items}…",
     "working": "In corso…",
     "activeTasks": "{count} operazioni in corso",
@@ -579,6 +591,10 @@
       "viewPhotos": "Foto",
       "documentsOpenInNewTab": "Aprire i documenti in una nuova scheda",
       "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi.",
+      "downloadMode": "Scaricare più elementi",
+      "downloadModeHelp": "Cosa accade quando si scarica più di un elemento alla volta. Le cartelle selezionate arrivano sempre come un unico archivio.",
+      "downloadModeZip": "Un unico archivio ZIP",
+      "downloadModeSeparate": "File separati",
       "showVersionMarks": "Segnalare i file con versioni",
       "showVersionMarksHelp": "Un piccolo segno nell’elenco sui file con versioni precedenti, con il loro numero. Un clic apre la cronologia.",
       "languageHelp": "Salvata con il tuo account, su ogni browser da cui accedi.",

@@ -34,6 +34,7 @@ import SpotlightSearch from '@/components/SpotlightSearch.vue';
 import FavoriteEditDialog from '@/components/FavoriteEditDialog.vue';
 import DestinationPickerDialog from '@/components/DestinationPickerDialog.vue';
 import OnlyOfficeTransferConfirm from '@/components/OnlyOfficeTransferConfirm.vue';
+import SeparateDownloadConfirm from '@/components/SeparateDownloadConfirm.vue';
 import {
   Bars3Icon,
   ArrowRightOnRectangleIcon,
@@ -240,6 +241,7 @@ const handleGuestLogin = () => {
     <FavoriteEditDialog />
     <DestinationPickerDialog />
     <OnlyOfficeTransferConfirm />
+    <SeparateDownloadConfirm />
     <NotificationToastContainer />
     <NotificationPanel />
     <TerminalPanel v-if="featuresStore.terminalEnabled" />

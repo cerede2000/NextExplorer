@@ -381,10 +381,22 @@
     "hintPattern": "Use * and ? to match filenames, for example *.ps1"
   },
   "download": {
-    "preparing": "Preparing download..."
+    "preparing": "Preparing download...",
+    "asZip": "Download as ZIP archive",
+    "asSeparateFiles": "Download as separate files",
+    "chooseMode": "Choose how to download",
+    "confirmHeading": "Download {count} files separately?",
+    "confirmBody": "That starts {count} downloads at once. A ZIP archive would be a single file.",
+    "confirmFolders": "The selected folders come as one archive either way.",
+    "confirmSeparate": "Download separately",
+    "confirmZip": "Download a ZIP",
+    "wrote": "{count} {items} written to {folder}",
+    "renamed": "Renamed so nothing was replaced: {names}",
+    "failed": "The download stopped"
   },
   "clipboard": {
     "copying": "Copying {count} {items}…",
+    "downloading": "Downloading {count} {items}…",
     "moving": "Moving {count} {items}…",
     "working": "Working…",
     "activeTasks": "{count} operations in progress",
@@ -579,6 +591,10 @@
       "viewPhotos": "Photos",
       "documentsOpenInNewTab": "Open documents in a new tab",
       "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today.",
+      "downloadMode": "Downloading several items",
+      "downloadModeHelp": "What happens when more than one item is downloaded at once. Selected folders always come as one archive.",
+      "downloadModeZip": "One ZIP archive",
+      "downloadModeSeparate": "Separate files",
       "showVersionMarks": "Mark files that have versions",
       "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history.",
       "languageHelp": "Kept with your account, on every browser you sign in from.",

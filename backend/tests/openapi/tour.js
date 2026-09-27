@@ -463,6 +463,22 @@ const tour = async (app, { volume, requireFresh }) => {
     admin.post('/api/download').send({ basePath: '', paths: ['Documents/Projets'] })
   );
 
+  // The same selection, described and then taken part by part.
+  const plan = await call(
+    'POST /api/download/plan',
+    admin
+      .post('/api/download/plan')
+      .send({ basePath: 'Documents', paths: ['Documents/notes.md', 'Documents/Projets'] })
+  );
+  await call(
+    'GET /api/download/part/{token}/{part}',
+    admin.get(`/api/download/part/${plan.body.token}/0`)
+  );
+  await call(
+    'GET /api/download/part/{token}/{part}',
+    admin.get(`/api/download/part/${plan.body.token}/archive`)
+  );
+
   // Changing who owns what, as far as this machine allows.
   await call(
     'POST /api/permissions/chmod',

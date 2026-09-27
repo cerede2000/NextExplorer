@@ -45,6 +45,7 @@ const STORED = {
   defaultView: 'list',
   markdownOpensInEditor: true,
   documentsOpenInNewTab: true,
+  downloadMode: 'separate',
 };
 
 /** As the store holds them for somebody who never chose anything. */
@@ -181,6 +182,7 @@ describe('the preferences', () => {
         documentsOpenInNewTab: true,
         showVersionMarks: true,
         locale: null,
+        downloadMode: 'separate',
       },
     });
     expect(sentUser()).not.toHaveProperty('folderSorts');

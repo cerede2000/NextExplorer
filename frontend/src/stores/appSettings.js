@@ -42,6 +42,10 @@ export const useAppSettings = defineStore('appSettings', () => {
     // The language this account is read in. null follows the browser, which is
     // what everybody got before there was anywhere to say otherwise.
     locale: null,
+    // What a selection of several things becomes on the way out. `zip` is what
+    // every version until now did, so nobody's downloads change shape until
+    // they ask for it (#487).
+    downloadMode: 'zip',
   });
 
   const createDefaultTrashSettings = () => ({

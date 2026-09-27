@@ -77,15 +77,21 @@ describe('a preference the screen offers', () => {
     skipHome: null,
     locale: 'fr',
     defaultView: 'list',
+    downloadMode: 'separate',
   };
 
   it('accepts exactly what the settings service calls a preference', async () => {
     const { WRITABLE_USER_SETTINGS } = load('src/services/settingsService');
 
     for (const key of WRITABLE_USER_SETTINGS) {
+      // `true` is the value a switch takes. A preference that takes something
+      // else has to say so above, and the message says that rather than leaving
+      // the next person to work out why their key was "dropped": the sanitiser
+      // refused the value this loop invented, not the key.
       const value = key in A_VALUE_IT_TAKES ? A_VALUE_IT_TAKES[key] : true;
       const response = await save({ [key]: value });
-      expect(response.body.user?.[key], `${key} was dropped`).toEqual(value);
+      const remedy = `${key} was dropped — add a value it takes to A_VALUE_IT_TAKES`;
+      expect(response.body.user?.[key], remedy).toEqual(value);
       expect((await stored())[key], `${key} was not stored`).toEqual(value);
     }
   });

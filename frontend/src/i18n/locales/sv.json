@@ -381,10 +381,22 @@
     "hintPattern": "Använd * och ? för att filtrera filnamn, till exempel *.ps1"
   },
   "download": {
-    "preparing": "Förbereder nerladdning..."
+    "preparing": "Förbereder nerladdning...",
+    "asZip": "Ladda ner som ZIP-arkiv",
+    "asSeparateFiles": "Ladda ner som separata filer",
+    "chooseMode": "Välj hur nerladdningen sker",
+    "confirmHeading": "Ladda ner {count} filer separat?",
+    "confirmBody": "Det startar {count} nerladdningar samtidigt. Ett ZIP-arkiv skulle vara en enda fil.",
+    "confirmFolders": "De valda mapparna kommer som ett arkiv i båda fallen.",
+    "confirmSeparate": "Ladda ner separat",
+    "confirmZip": "Ladda ner ett ZIP",
+    "wrote": "{count} {items} skrevs till {folder}",
+    "renamed": "Omdöpta så att inget ersattes: {names}",
+    "failed": "Nerladdningen avbröts"
   },
   "clipboard": {
     "copying": "Kopierar {count} {items}…",
+    "downloading": "Laddar ner {count} {items}…",
     "moving": "Flyttar {count} {items}…",
     "working": "Arbetar…",
     "activeTasks": "{count} åtgärder pågår",
@@ -579,6 +591,10 @@
       "viewPhotos": "Foton",
       "documentsOpenInNewTab": "Öppna dokument i en ny flik",
       "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag.",
+      "downloadMode": "Ladda ner flera element",
+      "downloadModeHelp": "Vad som händer när mer än ett element laddas ner samtidigt. Valda mappar kommer alltid som ett arkiv.",
+      "downloadModeZip": "Ett ZIP-arkiv",
+      "downloadModeSeparate": "Separata filer",
       "showVersionMarks": "Märk filer som har versioner",
       "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken.",
       "languageHelp": "Sparas med ditt konto, i varje webbläsare du loggar in från.",
