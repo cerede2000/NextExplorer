@@ -661,7 +661,22 @@ const folderSize = {
   rebuild: env.FOLDER_SIZE_REBUILD,
 };
 
+// --- Runtime diagnostics ---
+// --- Runtime diagnostics ---
+const atLeast = (value, minimum, fallback) =>
+  Number.isFinite(value) && value >= minimum ? value : fallback;
+
+const performanceDiagnostics = {
+  enabled: env.PERFORMANCE_DIAGNOSTICS_ENABLED,
+  intervalMs: atLeast(env.PERFORMANCE_DIAGNOSTICS_INTERVAL_MS, 5000, 15000),
+  logEveryInterval: env.PERFORMANCE_DIAGNOSTICS_LOG_EVERY_INTERVAL,
+  cpuThreshold: atLeast(env.PERFORMANCE_DIAGNOSTICS_CPU_THRESHOLD, 1, 75),
+  rssThresholdMb: atLeast(env.PERFORMANCE_DIAGNOSTICS_RSS_THRESHOLD_MB, 1, 768),
+  eventLoopDelayThresholdMs: atLeast(env.PERFORMANCE_DIAGNOSTICS_EVENT_LOOP_DELAY_MS, 1, 250),
+};
+
 module.exports = {
+  performanceDiagnostics,
   folderSize,
   webauthn,
   activity,

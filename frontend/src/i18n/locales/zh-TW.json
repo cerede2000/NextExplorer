@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "需要身份驗證",
     "AUTH_INVALID_CREDENTIALS": "電子郵件或密碼無效",
     "AUTH_ACCOUNT_LOCKED": "由於登入嘗試失敗，帳戶已暫時鎖定",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "登入失敗次數過多，帳戶已被鎖定。請在{minutes}分鐘後重試",
     "AUTH_PASSWORD_INCORRECT": "目前密碼不正確",
     "VALIDATION_EMAIL_REQUIRED": "電子郵件為必填",
     "VALIDATION_PASSWORD_REQUIRED": "密碼為必填",

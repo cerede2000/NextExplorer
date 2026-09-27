@@ -306,13 +306,15 @@ router.post(
   loginLimiter,
   asyncHandler(async (req, res) => {
     refuseWithoutPasswordSignIn();
-    const { email, password, username } = req.body || {};
-    // Support both email and username (backward compatibility)
-    const emailOrUsername = email || username;
+    const { identifier, email, password, username } = req.body || {};
+    // One box on the sign-in screen, and three names for what was typed into
+    // it: `identifier` is what that screen sends, `email` and `username` are
+    // the older names a script or an older client may still use.
+    const typed = identifier || email || username;
 
     let user = null;
     try {
-      user = await attemptLocalLogin({ email: emailOrUsername, password });
+      user = await attemptLocalLogin({ identifier: typed, password });
     } catch (e) {
       if (e?.status === 423) {
         throw new RateLimitError(e.message, e.until);
@@ -324,7 +326,7 @@ router.post(
         action: 'sign-in',
         outcome: 'refused',
         // The name that was typed, not one this server confirmed exists.
-        actor: String(emailOrUsername || '').slice(0, 200) || 'unknown',
+        actor: String(typed || '').slice(0, 200) || 'unknown',
         detail: { method: 'password' },
         req,
       });

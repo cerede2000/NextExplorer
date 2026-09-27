@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "Authentification requise",
     "AUTH_INVALID_CREDENTIALS": "E-mail ou mot de passe invalide",
     "AUTH_ACCOUNT_LOCKED": "Le compte est temporairement verrouillé en raison de tentatives de connexion échouées",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minute | Compte verrouillé après trop de tentatives de connexion échouées. Réessayez dans {minutes} minutes",
     "AUTH_PASSWORD_INCORRECT": "Le mot de passe actuel est incorrect",
     "VALIDATION_EMAIL_REQUIRED": "L'e-mail est obligatoire",
     "VALIDATION_PASSWORD_REQUIRED": "Le mot de passe est obligatoire",

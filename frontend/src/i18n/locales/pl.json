@@ -175,6 +175,7 @@
     "AUTH_REQUIRED": "Wymagana autentykacja",
     "AUTH_INVALID_CREDENTIALS": "Nieprawidłowy adres e-mail lub hasło",
     "AUTH_ACCOUNT_LOCKED": "Konto jest tymczasowo zablokowane z powodu nieudanych prób logowania",
+    "AUTH_ACCOUNT_LOCKED_RETRY": "Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minutę | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minuty | Konto zablokowane po zbyt wielu nieudanych próbach logowania. Spróbuj ponownie za {minutes} minut",
     "AUTH_PASSWORD_INCORRECT": "Obecne hasło jest nieprawidłowe",
     "VALIDATION_EMAIL_REQUIRED": "Adres e-mail jest wymagany",
     "VALIDATION_PASSWORD_REQUIRED": "Hasło jest wymagane",
