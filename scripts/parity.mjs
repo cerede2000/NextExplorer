@@ -341,15 +341,35 @@ const compiled = (manifest.rules || []).map((rule) => ({
 
 // ── the residue a batch left behind ─────────────────────────────────────────
 // A verdict on a file is not a verdict on its contents. A file a batch sent is
-// marked DONE and nothing looks inside it again — and ten of them did not match
-// upstream afterwards: upstream had moved on, or the batch wrote something
+// marked DONE and nothing looks inside it again — and eleven of them did not
+// match upstream afterwards: upstream had moved on, or the batch wrote something
 // better than what it took and this fork never got it back. Neither direction
 // showed up anywhere, because both sides were spoken for.
 //
-// So the contents are compared too, comments and blank lines aside — Prettier
-// and a rewritten sentence change those without changing what runs — and as
-// multisets, so moving a line does not count either. What is left has to be
-// spoken for under `residue` in the manifest, with the reason it may stand.
+// The comparison is against the tip of the batch stack, not against `main`: a
+// batch still waiting in a pull request has not reached `main`, so measuring
+// there would call every file it carries a residue. Without such a ref the gate
+// says so and passes, rather than pretending to have looked.
+//
+// Comments and blank lines are set aside — Prettier and a rewritten sentence
+// change those without changing what runs — and lines are compared as multisets,
+// so a moved import is not a difference either. What is left has to be spoken
+// for under `residue` in the manifest, with the reason it may stand.
+const refExists = (ref) => {
+  if (!ref) return false;
+  try {
+    git('rev-parse', '--verify', '--quiet', `${ref}^{commit}`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const BATCHES = (() => {
+  const asked = flag('batches', null);
+  if (asked) return refExists(asked) ? asked : null;
+  return refExists(manifest.batchTip) ? manifest.batchTip : null;
+})();
+
 const RUNNING_LINES = (text) =>
   (text || '')
     .split('\n')
@@ -371,31 +391,36 @@ const residueRules = (manifest.residue || []).map((entry) => ({
   ...entry,
   test: (id) => new RegExp(entry.match).test(id),
 }));
-for (const finding of findings) {
-  if (finding.axis !== 'drift') continue;
-  const file = finding.id;
-  const mineLines = RUNNING_LINES(show(OURS, file));
-  const theirLines = RUNNING_LINES(show(UPSTREAM, file));
-  if (mineLines.join('\n') === theirLines.join('\n')) continue;
-  const count = (a, b) => {
-    const pool = [...b];
-    let n = 0;
-    for (const line of a) {
-      const at = pool.indexOf(line);
-      if (at === -1) n += 1;
-      else pool.splice(at, 1);
-    }
-    return n;
-  };
-  const onlyHere = count(mineLines, theirLines);
-  const onlyUpstream = count(theirLines, mineLines);
-  const rule = residueRules.find((entry) => entry.test(file));
-  residue.push({
-    id: file,
-    detail: `${onlyHere} line(s) only here, ${onlyUpstream} only upstream`,
-    note: rule?.note || null,
-    spokenFor: Boolean(rule),
-  });
+if (BATCHES) {
+  const differing = git('diff', '--name-only', BATCHES, OURS).split('\n').filter(Boolean);
+  for (const file of differing) {
+    if (IS_TEST(file) || !CODE.test(file)) continue;
+    if (!/^(backend|frontend)\/src\//.test(file)) continue;
+    const mine = show(OURS, file);
+    const theirs = show(BATCHES, file);
+    if (mine === null || theirs === null) continue;
+    const mineLines = RUNNING_LINES(mine);
+    const theirLines = RUNNING_LINES(theirs);
+    if (mineLines.join('\n') === theirLines.join('\n')) continue;
+    const count = (a, b) => {
+      const pool = [...b];
+      let n = 0;
+      for (const line of a) {
+        const at = pool.indexOf(line);
+        if (at === -1) n += 1;
+        else pool.splice(at, 1);
+      }
+      return n;
+    };
+    const rule = residueRules.find((entry) => entry.test(file));
+    residue.push({
+      id: file,
+      detail: `${count(mineLines, theirLines)} line(s) only here, ${count(theirLines, mineLines)} only in the batches`,
+      note: rule?.note || null,
+      spokenFor: Boolean(rule),
+    });
+  }
+  residue.sort((a, b) => a.id.localeCompare(b.id));
 }
 const residueUnspoken = residue.filter((item) => !item.spokenFor);
 
@@ -708,7 +733,13 @@ if (AS_JSON) {
   for (const line of stranded.slice(0, 20)) console.log(`  ${line.batch}  ${line.id}`);
   if (stranded.length) console.log('');
   console.log(
-    `what a batch left behind  ${residue.length ? `${residue.length} file(s) a batch sent still run differently` : 'every file a batch sent runs the same on both sides'}\n`
+    'what a batch left behind  ' +
+      (!BATCHES
+        ? 'not measured: no batch tip to compare with (--batches, or `batchTip` in the manifest)'
+        : residue.length
+          ? `${residue.length} file(s) a batch sent still run differently`
+          : 'every file a batch sent runs the same on both sides') +
+      '\n'
   );
   for (const item of residue.slice(0, 30))
     console.log(`  ${item.spokenFor ? ' ' : '!'} ${item.id} — ${item.detail}`);

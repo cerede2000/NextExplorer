@@ -112,10 +112,17 @@ jobs:
       # classified fails here: the plan of nxzai#373 was closed on a route count
       # while three of its batches were short, and a count nobody re-runs is how
       # that happens. This is the count, and it re-runs.
+      # The tip of the batch stack comes too, for the one gate that cannot be
+      # measured against `main`: a batch still waiting in a pull request has not
+      # reached `main`, so every file it carries would read as a divergence there.
+      # When that branch is gone — every batch merged — the fetch fails, the gate
+      # says it was not measured, and the rest still runs.
       - name: Parity with upstream is accounted for
         run: |
           git remote add upstream https://github.com/nxzai/NextExplorer.git 2>/dev/null || true
           git fetch --quiet --depth=1 upstream main
+          tip="$(node -p "require('./scripts/parity-manifest.json').batchTip")"
+          git fetch --quiet --depth=1 origin "$tip:$tip" || echo "no $tip to fetch"
           node scripts/parity.mjs --upstream upstream/main --ours HEAD
 
       - name: Version consistency
