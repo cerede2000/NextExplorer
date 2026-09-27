@@ -151,6 +151,8 @@ certificates and must outlive the container, for the same reason as Traefik's
 A proxy that does limit the size of a request — Cloudflare's, at 100 MB on the
 free plan — is what chunked uploads are for: turn them on in **Settings →
 Uploads**, or let the automatic fallback find a size that passes
+(`UPLOAD_CHUNKED_AUTO_FALLBACK`, see [the environment
+reference](/configuration/environment)).
 
 To check the result: `https://files.example.com/healthz` answers
 `{"status":"ok"}` through the proxy, the browser shows the certificate as
