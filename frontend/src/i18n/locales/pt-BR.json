@@ -603,7 +603,12 @@
       "quickActionsReorder": "Escolha e reordene as ações exibidas.",
       "quickActionsMode": "Exibição do menu",
       "quickActionsModeFull": "Todos os ícones ao passar o mouse",
-      "quickActionsModeCompact": "Ícone … (expande ao passar o mouse)"
+      "quickActionsModeCompact": "Ícone … (expande ao passar o mouse)",
+      "quickActionsPosition": "Onde ficam os ícones",
+      "quickActionsPositionHelp": "Alinhados a uma borda da coluna de nomes, ficam no mesmo lugar em todas as linhas; o espaço necessário fica reservado, com o ponteiro sobre a linha ou não.",
+      "quickActionsPositionAfter": "Depois do nome",
+      "quickActionsPositionStart": "No início da coluna de nomes",
+      "quickActionsPositionEnd": "No fim da coluna de nomes"
     },
     "thumbs": {
       "subtitle": "Personalize as pré-visualizações em miniatura de imagens e vídeos.",

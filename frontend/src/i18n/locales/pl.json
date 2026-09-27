@@ -603,7 +603,12 @@
       "quickActionsReorder": "Wybierz i zmień kolejność wyświetlanych akcji.",
       "quickActionsMode": "Wyświetlanie menu",
       "quickActionsModeFull": "Wszystkie ikony po najechaniu",
-      "quickActionsModeCompact": "Ikona … (rozwiń po najechaniu)"
+      "quickActionsModeCompact": "Ikona … (rozwiń po najechaniu)",
+      "quickActionsPosition": "Gdzie stoją ikony",
+      "quickActionsPositionHelp": "Wyrównane do krawędzi kolumny nazw zajmują to samo miejsce w każdym wierszu; miejsce dla nich jest zarezerwowane niezależnie od tego, czy wskaźnik jest nad wierszem.",
+      "quickActionsPositionAfter": "Po nazwie",
+      "quickActionsPositionStart": "Na początku kolumny nazw",
+      "quickActionsPositionEnd": "Na końcu kolumny nazw"
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",

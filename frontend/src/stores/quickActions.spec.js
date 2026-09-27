@@ -90,3 +90,77 @@ describe('quickActions store', () => {
     expect([...ids].sort()).toEqual([...QUICK_ACTION_IDS].sort()); // exactly the catalog
   });
 });
+
+/**
+ * Where the icons sit, and the room the row keeps for them.
+ *
+ * The point of asking for them to be aligned is that they are in the same place
+ * on every row, so the width is read from the actions the reader turned on and
+ * not from the ones a particular row offers — and it is kept whether the row is
+ * hovered or not, or the name would move the moment the pointer arrived.
+ */
+describe('where the quick actions sit', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  const ready = (position) => {
+    const store = useQuickActionsStore();
+    store.reset();
+    store.setEnabled(true);
+    store.setPosition(position);
+    return store;
+  };
+
+  it('follows the name until asked otherwise', () => {
+    const store = useQuickActionsStore();
+    store.reset();
+    expect(store.position).toBe('after');
+    store.setEnabled(true);
+    expect(store.alignedSlot).toBeNull();
+  });
+
+  it.each(['start', 'end'])('keeps a slot at the %s of the name column', (side) => {
+    const store = ready(side);
+    // Eight actions are on by default: eight 24px buttons with 2px between them.
+    const width = defaultOnIds.length * 24 + (defaultOnIds.length - 1) * 2;
+    expect(store.alignedSlot).toEqual({ side, width: `${width}px` });
+  });
+
+  it('measures the slot by what is turned on, not by what a row offers', () => {
+    const store = ready('start');
+    const before = store.alignedSlot.width;
+
+    store.setActionOn('info', false);
+
+    expect(store.alignedSlot.width).not.toBe(before);
+    const count = defaultOnIds.length - 1;
+    expect(store.alignedSlot.width).toBe(`${count * 24 + (count - 1) * 2}px`);
+  });
+
+  it('keeps no slot while the whole menu is off', () => {
+    const store = ready('start');
+    store.setEnabled(false);
+    expect(store.alignedSlot).toBeNull();
+  });
+
+  it('keeps no slot when every action has been turned off', () => {
+    const store = ready('end');
+    for (const id of QUICK_ACTION_IDS) store.setActionOn(id, false);
+    expect(store.alignedSlot).toBeNull();
+  });
+
+  /** A word this does not know would leave the rows laid out by nothing. */
+  it('falls back to following the name when given a word it does not know', () => {
+    const store = ready('end');
+    store.setPosition('somewhere');
+    expect(store.position).toBe('after');
+    expect(store.alignedSlot).toBeNull();
+  });
+
+  it('is put back where it was by a reset', () => {
+    const store = ready('start');
+    store.reset();
+    expect(store.position).toBe('after');
+  });
+});

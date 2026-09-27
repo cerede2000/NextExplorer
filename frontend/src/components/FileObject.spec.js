@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { useQuickActionsStore } from '@/stores/quickActions';
 
 /**
  * One row of the folder.
@@ -618,5 +619,78 @@ describe('a folder a rule holds to reading', () => {
     mountRow(FOLDER);
 
     expect(lock().exists()).toBe(false);
+  });
+});
+
+/**
+ * Where the quick actions sit in the name column.
+ *
+ * Following the name, their place on screen follows its length and no two rows
+ * agree. Aligned, they take a slot at one edge — and the slot is held whether
+ * the row is hovered or not, because the reason for asking was that things stop
+ * moving, and a slot that appeared on hover would move the name instead.
+ */
+describe('where the quick actions sit in the row', () => {
+  const nameCell = () => wrapper.findAll('.grid > div')[1];
+  const slot = () => nameCell().find('[data-test="quick-actions-slot"]');
+  const actions = () => nameCell().findAll('inline-quick-actions-stub');
+
+  const configured = (position) => {
+    const store = useQuickActionsStore();
+    store.reset();
+    store.setEnabled(true);
+    store.setPosition(position);
+    return store;
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('follows the name until asked otherwise, with no slot kept', () => {
+    configured('after');
+    mountRow();
+
+    expect(actions()).toHaveLength(1);
+    expect(slot().exists()).toBe(false);
+  });
+
+  it.each([
+    ['start', true],
+    ['end', false],
+  ])('takes a slot at the %s of the column', (position, beforeTheName) => {
+    const store = configured(position);
+    mountRow();
+
+    // One set of icons, and it is the one in the slot.
+    expect(actions()).toHaveLength(1);
+    expect(slot().exists()).toBe(true);
+    expect(slot().attributes('style')).toContain(store.alignedSlot.width);
+
+    expect(slot().attributes('data-side')).toBe(position);
+
+    // Which end of the row it sits at, read from the row rather than from the
+    // class names that put it there.
+    const siblings = [...slot().element.parentElement.children];
+    const expected = beforeTheName ? 0 : siblings.length - 1;
+    expect(siblings.indexOf(slot().element)).toBe(expected);
+  });
+
+  /** Held at rest, or the name would move the moment the pointer arrived. */
+  it('keeps the slot on a row nobody is pointing at', () => {
+    configured('start');
+    mountRow();
+
+    expect(slot().exists()).toBe(true);
+    expect(slot().attributes('style')).toMatch(/width:\s*\d+px/);
+  });
+
+  it('keeps no slot while the menu is off', () => {
+    const store = useQuickActionsStore();
+    store.reset();
+    store.setPosition('start');
+    mountRow();
+
+    expect(slot().exists()).toBe(false);
   });
 });
