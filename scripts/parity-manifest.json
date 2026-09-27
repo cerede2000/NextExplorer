@@ -24,6 +24,32 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^backend/src/services/indexDb\\.js(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-40",
+      "note": "nxzai#466 \u2014 why the index may be removed directly"
+    },
+    {
+      "axis": "*",
+      "match": "^backend/tests/",
+      "verdict": "DONE",
+      "batch": "P3-40",
+      "note": "nxzai#466 \u2014 the tests for everything the batches sent"
+    },
+    {
+      "axis": "*",
+      "match": "^backend/tests/scripts/",
+      "verdict": "OURS",
+      "note": "tests of this fork's own repository tooling: a commit guard, an install script, an image pruner. Not this application"
+    },
+    {
+      "axis": "*",
+      "match": "^backend/tests/(routes/(search-name-catalogue|search-bases-through-the-index|editor-caching|onlyoffice)\\.test\\.js|services/(database-maintenance|db-migrations|db-legacy-conversions|index-db)\\.test\\.js|utils/(betterSqliteSessionStore|session-store-storage)\\.test\\.js)$",
+      "verdict": "OURS",
+      "note": "asserts what upstream deliberately does differently \u2014 the catalogue answering for a file that is gone, the session store opening at require time, the fork's schema numbers \u2014 or a subject that has not been sent"
+    },
+    {
       "axis": "i18n",
       "match": "^(editor\\.|onlyoffice\\.|collabora\\.|mediaPreview\\.|preview\\.)",
       "verdict": "DONE",
