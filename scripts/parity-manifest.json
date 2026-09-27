@@ -25,6 +25,33 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^frontend/playwright\\.config\\.js$",
+      "verdict": "OURS",
+      "note": "the Playwright suite needs a browser, and nothing upstream installs one"
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/vite\\.config\\.js$",
+      "verdict": "DONE",
+      "batch": "P3-44",
+      "note": "nxzai#469 \u2014 which browsers the build is written for, with the image that serves it"
+    },
+    {
+      "axis": "image",
+      "match": ".",
+      "verdict": "DONE",
+      "batch": "P3-44",
+      "note": "nxzai#469 \u2014 the image"
+    },
+    {
+      "axis": "*",
+      "match": "^(Dockerfile|Dockerfile\\.dev|docker/|backend/Dockerfile|frontend/Dockerfile)",
+      "verdict": "DONE",
+      "batch": "P3-44",
+      "note": "nxzai#469 \u2014 the image, with the tools the application looks for"
+    },
+    {
+      "axis": "*",
       "match": "^(backend/src/openapi/paths/(admin|files)\\.js|docs/\\.vitepress/|docs/public/openapi\\.json)",
       "verdict": "DONE",
       "batch": "P3-40",
