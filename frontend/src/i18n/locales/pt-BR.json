@@ -302,7 +302,8 @@
     "home": "Início",
     "back": "Voltar",
     "forward": "Avançar",
-    "upOneFolder": "Subir uma pasta"
+    "upOneFolder": "Subir uma pasta",
+    "refresh": "Atualizar a pasta"
   },
   "view": {
     "list": "Exibição em lista",

@@ -1,9 +1,10 @@
 import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
+import { folderRoute } from '@/utils/folderRoute';
+import { documentRoute } from '@/utils/documentRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
-import { documentRoute } from '@/utils/documentRoute';
 
 // Kept beside the markdown preview plugin's own list, which matches the same
 // two extensions.
@@ -33,52 +34,52 @@ export function useNavigation() {
           : '';
 
     if (kind === 'volume') {
-      navigate({ name: 'FolderView', params: { path: name } });
+      navigate(folderRoute(name));
       return;
     }
     if (kind === 'personal') {
-      navigate({ name: 'FolderView', params: { path: 'personal' } });
+      navigate(folderRoute('personal'));
       return;
     }
     if (kind === 'directory') {
       const newPath = currentPath ? `${currentPath}/${name}` : name;
-      navigate({ name: 'FolderView', params: { path: newPath } });
+      navigate(folderRoute(newPath));
       return;
     }
 
     const extensionFromKind = kind.toLowerCase();
     const extensionFromName = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
-    const editable =
-      isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);
 
     // Markdown is the one kind of file that has both a preview and an editor,
     // so it is the only one where opening it is a choice. Whoever mostly writes
-    // markdown was going through the preview and clicking Edit every time; this
-    // sends them straight where they were heading. Everything else keeps
-    // preview-first: an image or a video has no editor to go to.
+    // markdown was going through the preview and clicking Edit every time
+    // (#347); this sends them straight where they were heading. Everything else
+    // keeps preview-first: an image or a video has no editor to go to.
     const opensInEditor =
       appSettings.userSettings?.markdownOpensInEditor &&
       (MARKDOWN_EXTENSIONS.includes(extensionFromKind) ||
         MARKDOWN_EXTENSIONS.includes(extensionFromName));
+
     const basePath = item.path ? `${item.path}/${name}` : name;
     const fullPath = basePath.replace(/^\/+/, '');
-    const encodedPath = fullPath.split('/').map(encodeURIComponent).join('/');
+    const editable =
+      isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);
 
     // A tab of its own, when that is what this account asked for.
     //
     // One decision for every kind of file rather than one per plugin: a
-    // spreadsheet and a photograph open the same way, because a preference that
-    // holds for some files and not others is a preference nobody can predict.
-    // Both addresses already exist — `/open` for anything with a preview,
-    // `/editor` for anything the text editor opens — so this is the browser
-    // being handed one of them instead of this page filling itself.
+    // spreadsheet and a photograph open the same way, because a preference
+    // that holds for some files and not others is a preference nobody can
+    // predict. Both addresses already exist — `/open` for anything with a
+    // preview, `/editor` for anything the text editor opens — so this is the
+    // browser being handed one of them instead of this page filling itself.
     if (appSettings.userSettings?.documentsOpenInNewTab) {
       // Asked once: matching a plugin builds a context and walks the list.
       const previewable = !opensInEditor && Boolean(previewManager.findPlugin(item));
       const target = previewable
         ? documentRoute(fullPath)
         : opensInEditor || editable
-          ? { path: `/editor/${encodedPath}` }
+          ? { path: `/editor/${fullPath.split('/').map(encodeURIComponent).join('/')}` }
           : null;
 
       if (target) {
@@ -95,8 +96,9 @@ export function useNavigation() {
     }
 
     if (editable) {
+      // Encode each segment for editor path
+      const encodedPath = fullPath.split('/').map(encodeURIComponent).join('/');
       navigate({ path: `/editor/${encodedPath}` });
-      return;
     }
   };
 
@@ -109,7 +111,7 @@ export function useNavigation() {
       navigate({ name: 'HomeView' });
       return;
     }
-    navigate({ name: 'FolderView', params: { path } });
+    navigate(folderRoute(path));
   };
 
   const goUp = () => {
@@ -125,7 +127,7 @@ export function useNavigation() {
     segments.pop();
     const newPath = segments.join('/');
     if (newPath) {
-      navigate({ name: 'FolderView', params: { path: newPath } });
+      navigate(folderRoute(newPath));
       return;
     }
     navigate({ name: 'HomeView' });
