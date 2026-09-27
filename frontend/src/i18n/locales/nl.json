@@ -116,7 +116,9 @@
     "newTextFile": "Nieuw tekstbestand",
     "newMarkdownFile": "Nieuw Markdown-bestand",
     "newCsvFile": "Nieuw CSV-bestand",
-    "newDocument": "Nieuw document"
+    "newDocument": "Nieuw document",
+    "extractArchive": "Archief uitpakken",
+    "extractArchiveIntoCurrentFolder": "Uitpakken in huidige map"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Weet u zeker dat u \"{name}\" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.",
       "multiple": "Weet u zeker dat u deze {count} items wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.",
-      "generic": "Geen items geselecteerd."
+      "generic": "Geen items geselecteerd.",
+      "trashSingle": "\"{name}\" gaat naar de prullenbak, die het {count} dag bewaart. | \"{name}\" gaat naar de prullenbak, die het {count} dagen bewaart.",
+      "trashMultiple": "Deze {items} items gaan naar de prullenbak, die ze {count} dag bewaart. | Deze {items} items gaan naar de prullenbak, die ze {count} dagen bewaart."
     },
     "checkingDeleteImpact": "Gekoppelde shares controleren…",
     "deleteImpactUnavailable": "Kan gekoppelde shares niet controleren. Verwijdering zal nog steeds door de server worden afgedwongen.",
-    "deleteLinkedShares": "Deze inhoud bevat {count} gekoppelde share die ook zal worden verwijderd. | Deze inhoud bevat {count} gekoppelde shares die ook zullen worden verwijderd."
+    "deleteLinkedShares": "Deze inhoud bevat {count} gekoppelde share die ook zal worden verwijderd. | Deze inhoud bevat {count} gekoppelde shares die ook zullen worden verwijderd.",
+    "moveToTrash": "Naar prullenbak verplaatsen",
+    "deletePermanently": "Definitief verwijderen",
+    "deleteSomePermanent": "{count} ervan kan niet naar de prullenbak en wordt definitief verwijderd. | {count} ervan kunnen niet naar de prullenbak en worden definitief verwijderd.",
+    "trashReasons": {
+      "otherDevice": "Het staat op een andere schijf dan de prullenbak van het volume.",
+      "tooLarge": "Het is groter dan de volledige prullenbak van het volume.",
+      "zoneRoot": "Een volledig volume kan niet in zijn eigen prullenbak.",
+      "zoneUnwritable": "Er kan niet naar de prullenbak van het volume worden geschreven.",
+      "noZone": "Het staat niet op een plek met een prullenbak.",
+      "disabled": "De prullenbak is uitgeschakeld."
+    },
+    "keptTitle": "Kon niet naar de prullenbak",
+    "keptMessage": "Dit item is blijven staan. Definitief verwijderen? | Deze {count} items zijn blijven staan. Definitief verwijderen?",
+    "keptReasons": {
+      "tooLarge": "{size}, meer dan de {budget} die de prullenbak van het volume kan bevatten."
+    },
+    "deleteLinkedSharesTrash": "Deze inhoud heeft {count} deellink. Die werkt niet meer zolang de inhoud in de prullenbak ligt, en kan bij het terugzetten worden hersteld. | Deze inhoud heeft {count} deellinks. Die werken niet meer zolang de inhoud in de prullenbak ligt, en kunnen bij het terugzetten worden hersteld.",
+    "deleteLinkedSharesPermanent": "Deze inhoud heeft {count} deellink, die er definitief mee wordt verwijderd. | Deze inhoud heeft {count} deellinks, die er definitief mee worden verwijderd.",
+    "deleteOnlyofficeOpen": "{names} is geopend in OnlyOffice. Verwijderen kan nog steeds, maar niet-opgeslagen wijzigingen kunnen verloren gaan. | {names} zijn geopend in OnlyOffice. Verwijderen kan nog steeds, maar niet-opgeslagen wijzigingen kunnen verloren gaan.",
+    "deleteVersionsNotice": "Ook {count} eerdere versie wordt verwijderd ({size}); daarvan wordt nergens een kopie bewaard. | Ook {count} eerdere versies worden verwijderd ({size}); daarvan wordt nergens een kopie bewaard."
   },
   "folder": {
     "kind": "Soort",

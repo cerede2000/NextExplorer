@@ -116,7 +116,9 @@
     "newTextFile": "새 텍스트 파일",
     "newMarkdownFile": "새 Markdown 파일",
     "newCsvFile": "새 CSV 파일",
-    "newDocument": "새 문서"
+    "newDocument": "새 문서",
+    "extractArchive": "압축 풀기",
+    "extractArchiveIntoCurrentFolder": "현재 폴더에 압축 풀기"
   },
   "placeholders": {
     "email": "user{'@'}example.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "정말 \"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
       "multiple": "정말 선택한 {count}개 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-      "generic": "선택된 항목이 없습니다."
+      "generic": "선택된 항목이 없습니다.",
+      "trashSingle": "\"{name}\"은(는) 휴지통으로 이동하며 {count}일 동안 보관됩니다.",
+      "trashMultiple": "이 항목 {items}개는 휴지통으로 이동하며 {count}일 동안 보관됩니다."
     },
     "checkingDeleteImpact": "연결된 공유를 확인하는 중...",
     "deleteImpactUnavailable": "연결된 공유를 확인할 수 없습니다. 삭제는 계속 서버에서 적용됩니다.",
-    "deleteLinkedShares": "이 콘텐츠에는 함께 제거될 연결된 공유가 {count}개 있습니다."
+    "deleteLinkedShares": "이 콘텐츠에는 함께 제거될 연결된 공유가 {count}개 있습니다.",
+    "moveToTrash": "휴지통으로 이동",
+    "deletePermanently": "영구 삭제",
+    "deleteSomePermanent": "그중 {count}개는 휴지통으로 이동할 수 없어 영구 삭제됩니다.",
+    "trashReasons": {
+      "otherDevice": "볼륨의 휴지통과 다른 디스크에 있습니다.",
+      "tooLarge": "볼륨의 휴지통 전체보다 큽니다.",
+      "zoneRoot": "볼륨 전체는 자신의 휴지통으로 이동할 수 없습니다.",
+      "zoneUnwritable": "볼륨의 휴지통에 쓸 수 없습니다.",
+      "noZone": "휴지통이 있는 위치에 있지 않습니다.",
+      "disabled": "휴지통이 꺼져 있습니다."
+    },
+    "keptTitle": "휴지통으로 이동할 수 없음",
+    "keptMessage": "항목 {count}개를 원래 위치에 그대로 두었습니다. 영구 삭제하시겠습니까?",
+    "keptReasons": {
+      "tooLarge": "{size}로, 볼륨의 휴지통이 담을 수 있는 {budget}보다 큽니다."
+    },
+    "deleteLinkedSharesTrash": "이 콘텐츠에는 공유 링크 {count}개가 있습니다. 콘텐츠가 휴지통에 있는 동안에는 작동하지 않으며, 복원할 때 되살릴 수 있습니다.",
+    "deleteLinkedSharesPermanent": "이 콘텐츠에는 공유 링크 {count}개가 있으며, 함께 영구적으로 삭제됩니다.",
+    "deleteOnlyofficeOpen": "{names} 파일이(가) OnlyOffice에서 열려 있습니다. 삭제는 계속할 수 있지만 저장되지 않은 변경 사항은 사라질 수 있습니다. | {names} 파일이(가) OnlyOffice에서 열려 있습니다. 삭제는 계속할 수 있지만 저장되지 않은 변경 사항은 사라질 수 있습니다.",
+    "deleteVersionsNotice": "이전 버전 {count}개도 함께 삭제됩니다({size}). 사본은 어디에도 남지 않습니다."
   },
   "folder": {
     "kind": "종류",

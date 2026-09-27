@@ -116,7 +116,9 @@
     "newTextFile": "Neue Textdatei",
     "newMarkdownFile": "Neue Markdown-Datei",
     "newCsvFile": "Neue CSV-Datei",
-    "newDocument": "Neues Dokument"
+    "newDocument": "Neues Dokument",
+    "extractArchive": "Archiv entpacken",
+    "extractArchiveIntoCurrentFolder": "In den aktuellen Ordner entpacken"
   },
   "placeholders": {
     "email": "benutzer{'@'}beispiel.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Sind Sie sicher, dass Sie \"{name}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "multiple": "Sind Sie sicher, dass Sie diese {count} Elemente löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
-      "generic": "Keine Elemente ausgewählt."
+      "generic": "Keine Elemente ausgewählt.",
+      "trashSingle": "\"{name}\" wird in den Papierkorb verschoben und dort {count} Tag aufbewahrt. | \"{name}\" wird in den Papierkorb verschoben und dort {count} Tage aufbewahrt.",
+      "trashMultiple": "Diese {items} Elemente werden in den Papierkorb verschoben und dort {count} Tag aufbewahrt. | Diese {items} Elemente werden in den Papierkorb verschoben und dort {count} Tage aufbewahrt."
     },
     "checkingDeleteImpact": "Verknüpfte Freigaben werden geprüft...",
     "deleteImpactUnavailable": "Verknüpfte Freigaben konnten nicht geprüft werden. Das Löschen wird weiterhin vom Server erzwungen.",
-    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden."
+    "deleteLinkedShares": "Dieser Inhalt hat {count} verknüpfte Freigabe, die zusammen mit ihm entfernt wird. | Dieser Inhalt hat {count} verknüpfte Freigaben, die zusammen mit ihm entfernt werden.",
+    "moveToTrash": "In den Papierkorb",
+    "deletePermanently": "Endgültig löschen",
+    "deleteSomePermanent": "{count} davon kann nicht in den Papierkorb und wird endgültig gelöscht. | {count} davon können nicht in den Papierkorb und werden endgültig gelöscht.",
+    "trashReasons": {
+      "otherDevice": "Es liegt auf einem anderen Datenträger als der Papierkorb seines Volumes.",
+      "tooLarge": "Es ist größer als der gesamte Papierkorb seines Volumes.",
+      "zoneRoot": "Ein ganzes Volume kann nicht in seinen eigenen Papierkorb.",
+      "zoneUnwritable": "In den Papierkorb seines Volumes kann nicht geschrieben werden.",
+      "noZone": "Es liegt an keinem Ort mit Papierkorb.",
+      "disabled": "Der Papierkorb ist ausgeschaltet."
+    },
+    "keptTitle": "Konnte nicht in den Papierkorb",
+    "keptMessage": "Dieses Element wurde an seinem Ort belassen. Endgültig löschen? | Diese {count} Elemente wurden an ihrem Ort belassen. Endgültig löschen?",
+    "keptReasons": {
+      "tooLarge": "{size}, mehr als die {budget}, die der Papierkorb seines Volumes fassen kann."
+    },
+    "deleteLinkedSharesTrash": "Für diesen Inhalt gibt es {count} Freigabelink. Er funktioniert nicht, solange der Inhalt im Papierkorb liegt, und kann beim Wiederherstellen zurückgeholt werden. | Für diesen Inhalt gibt es {count} Freigabelinks. Sie funktionieren nicht, solange der Inhalt im Papierkorb liegt, und können beim Wiederherstellen zurückgeholt werden.",
+    "deleteLinkedSharesPermanent": "Für diesen Inhalt gibt es {count} Freigabelink, der mit ihm endgültig gelöscht wird. | Für diesen Inhalt gibt es {count} Freigabelinks, die mit ihm endgültig gelöscht werden.",
+    "deleteOnlyofficeOpen": "{names} ist in OnlyOffice geöffnet. Löschen ist weiterhin möglich, aber noch nicht gespeicherte Änderungen können verloren gehen. | {names} sind in OnlyOffice geöffnet. Löschen ist weiterhin möglich, aber noch nicht gespeicherte Änderungen können verloren gehen.",
+    "deleteVersionsNotice": "{count} frühere Version geht ebenfalls ({size}); davon wird nirgends eine Kopie aufbewahrt. | {count} frühere Versionen gehen ebenfalls ({size}); davon wird nirgends eine Kopie aufbewahrt."
   },
   "folder": {
     "kind": "Art",

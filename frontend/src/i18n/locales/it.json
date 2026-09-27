@@ -116,7 +116,9 @@
     "newTextFile": "Nuovo file di testo",
     "newMarkdownFile": "Nuovo file Markdown",
     "newCsvFile": "Nuovo file CSV",
-    "newDocument": "Nuovo documento"
+    "newDocument": "Nuovo documento",
+    "extractArchive": "Estrai archivio",
+    "extractArchiveIntoCurrentFolder": "Estrai nella cartella corrente"
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Sei sicuro di voler eliminare \"{name}\"? Questa azione non può essere annullata.",
       "multiple": "Sei sicuro di voler eliminare questi {count} elementi? Questa azione non può essere annullata.",
-      "generic": "Nessun elemento selezionato."
+      "generic": "Nessun elemento selezionato.",
+      "trashSingle": "\"{name}\" andrà nel cestino, che lo conserva per {count} giorno. | \"{name}\" andrà nel cestino, che lo conserva per {count} giorni.",
+      "trashMultiple": "Questi {items} elementi andranno nel cestino, che li conserva per {count} giorno. | Questi {items} elementi andranno nel cestino, che li conserva per {count} giorni."
     },
     "checkingDeleteImpact": "Verifica delle condivisioni collegate...",
     "deleteImpactUnavailable": "Impossibile controllare le condivisioni collegate. L’eliminazione verrà comunque applicata dal server.",
-    "deleteLinkedShares": "Questo contenuto ha {count} condivisione collegata che verrà rimossa con esso. | Questo contenuto ha {count} condivisioni collegate che verranno rimosse con esso."
+    "deleteLinkedShares": "Questo contenuto ha {count} condivisione collegata che verrà rimossa con esso. | Questo contenuto ha {count} condivisioni collegate che verranno rimosse con esso.",
+    "moveToTrash": "Sposta nel cestino",
+    "deletePermanently": "Elimina definitivamente",
+    "deleteSomePermanent": "{count} di essi non può andare nel cestino e sarà eliminato definitivamente. | {count} di essi non possono andare nel cestino e saranno eliminati definitivamente.",
+    "trashReasons": {
+      "otherDevice": "Si trova su un disco diverso da quello del cestino del suo volume.",
+      "tooLarge": "È più grande dell'intero cestino del suo volume.",
+      "zoneRoot": "Un intero volume non può andare nel proprio cestino.",
+      "zoneUnwritable": "Non è possibile scrivere nel cestino del suo volume.",
+      "noZone": "Non si trova in un luogo dotato di cestino.",
+      "disabled": "Il cestino è disattivato."
+    },
+    "keptTitle": "Impossibile spostare nel cestino",
+    "keptMessage": "Questo elemento è stato lasciato dov'era. Eliminarlo definitivamente? | Questi {count} elementi sono stati lasciati dov'erano. Eliminarli definitivamente?",
+    "keptReasons": {
+      "tooLarge": "{size}, più dei {budget} che il cestino del suo volume può contenere."
+    },
+    "deleteLinkedSharesTrash": "Questo contenuto ha {count} link di condivisione. Non funziona finché il contenuto è nel cestino e può essere ripristinato insieme a esso. | Questo contenuto ha {count} link di condivisione. Non funzionano finché il contenuto è nel cestino e possono essere ripristinati insieme a esso.",
+    "deleteLinkedSharesPermanent": "Questo contenuto ha {count} link di condivisione, che verrà eliminato definitivamente con esso. | Questo contenuto ha {count} link di condivisione, che verranno eliminati definitivamente con esso.",
+    "deleteOnlyofficeOpen": "{names} è aperto in OnlyOffice. È ancora possibile eliminarlo, ma le modifiche non salvate potrebbero andare perse. | {names} sono aperti in OnlyOffice. È ancora possibile eliminarli, ma le modifiche non salvate potrebbero andare perse.",
+    "deleteVersionsNotice": "Viene eliminata anche {count} versione precedente ({size}); non ne resta alcuna copia. | Vengono eliminate anche {count} versioni precedenti ({size}); non ne resta alcuna copia."
   },
   "folder": {
     "kind": "Tipo",

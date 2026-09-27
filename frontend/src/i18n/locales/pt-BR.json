@@ -116,7 +116,9 @@
     "newTextFile": "Novo arquivo de texto",
     "newMarkdownFile": "Novo arquivo Markdown",
     "newCsvFile": "Novo arquivo CSV",
-    "newDocument": "Novo documento"
+    "newDocument": "Novo documento",
+    "extractArchive": "Extrair arquivo compactado",
+    "extractArchiveIntoCurrentFolder": "Extrair na pasta atual"
   },
   "placeholders": {
     "email": "usuario{'@'}exemplo.com",
@@ -261,11 +263,33 @@
     "deleteMessage": {
       "single": "Tem certeza de que deseja excluir \"{name}\"? Esta ação não pode ser desfeita.",
       "multiple": "Tem certeza de que deseja excluir estes {count} itens? Esta ação não pode ser desfeita.",
-      "generic": "Nenhum item selecionado."
+      "generic": "Nenhum item selecionado.",
+      "trashSingle": "\"{name}\" irá para a lixeira, que o guarda por {count} dia. | \"{name}\" irá para a lixeira, que o guarda por {count} dias.",
+      "trashMultiple": "Estes {items} itens irão para a lixeira, que os guarda por {count} dia. | Estes {items} itens irão para a lixeira, que os guarda por {count} dias."
     },
     "checkingDeleteImpact": "Verificando compartilhamentos vinculados...",
     "deleteImpactUnavailable": "Não foi possível verificar os compartilhamentos vinculados. A exclusão ainda será aplicada pelo servidor.",
-    "deleteLinkedShares": "Este conteúdo tem {count} compartilhamento vinculado que será removido com ele. | Este conteúdo tem {count} compartilhamentos vinculados que serão removidos com ele."
+    "deleteLinkedShares": "Este conteúdo tem {count} compartilhamento vinculado que será removido com ele. | Este conteúdo tem {count} compartilhamentos vinculados que serão removidos com ele.",
+    "moveToTrash": "Mover para a lixeira",
+    "deletePermanently": "Excluir permanentemente",
+    "deleteSomePermanent": "{count} deles não pode ir para a lixeira e será excluído permanentemente. | {count} deles não podem ir para a lixeira e serão excluídos permanentemente.",
+    "trashReasons": {
+      "otherDevice": "Está em um disco diferente do da lixeira do seu volume.",
+      "tooLarge": "É maior que toda a lixeira do seu volume.",
+      "zoneRoot": "Um volume inteiro não pode ir para a própria lixeira.",
+      "zoneUnwritable": "Não é possível gravar na lixeira do seu volume.",
+      "noZone": "Não está em um local com lixeira.",
+      "disabled": "A lixeira está desativada."
+    },
+    "keptTitle": "Não foi possível mover para a lixeira",
+    "keptMessage": "Este item foi deixado onde estava. Excluí-lo permanentemente? | Estes {count} itens foram deixados onde estavam. Excluí-los permanentemente?",
+    "keptReasons": {
+      "tooLarge": "{size}, mais do que os {budget} que a lixeira do seu volume comporta."
+    },
+    "deleteLinkedSharesTrash": "Este conteúdo tem {count} link de compartilhamento. Ele deixa de funcionar enquanto o conteúdo estiver na lixeira e pode ser recuperado na restauração. | Este conteúdo tem {count} links de compartilhamento. Eles deixam de funcionar enquanto o conteúdo estiver na lixeira e podem ser recuperados na restauração.",
+    "deleteLinkedSharesPermanent": "Este conteúdo tem {count} link de compartilhamento, que será excluído definitivamente com ele. | Este conteúdo tem {count} links de compartilhamento, que serão excluídos definitivamente com ele.",
+    "deleteOnlyofficeOpen": "{names} está aberto no OnlyOffice. Ainda é possível excluí-lo, mas alterações não salvas podem ser perdidas. | {names} estão abertos no OnlyOffice. Ainda é possível excluí-los, mas alterações não salvas podem ser perdidas.",
+    "deleteVersionsNotice": "{count} versão anterior também é excluída ({size}); nenhuma cópia dela é mantida. | {count} versões anteriores também são excluídas ({size}); nenhuma cópia delas é mantida."
   },
   "folder": {
     "kind": "Tipo",
