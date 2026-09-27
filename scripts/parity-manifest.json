@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-53",
+  "batchTip": "p3-54",
   "rules": [
     {
       "axis": "*",
