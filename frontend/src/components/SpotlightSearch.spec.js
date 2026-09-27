@@ -1,0 +1,396 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mount, flushPromises } from '@vue/test-utils';
+import { reactive } from 'vue';
+import { createI18n } from 'vue-i18n';
+import { createPinia, setActivePinia } from 'pinia';
+
+const search = vi.fn();
+
+vi.mock('@/api', () => ({
+  search: (...args) => search(...args),
+  normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+}));
+
+const route = reactive({ path: '/browse', query: {}, params: {} });
+vi.mock('vue-router', () => ({
+  useRoute: () => route,
+  useRouter: () => ({ push: vi.fn() }),
+  createRouter: () => ({
+    beforeEach: vi.fn(),
+    afterEach: vi.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+    install: vi.fn(),
+  }),
+  createWebHistory: vi.fn(),
+  RouterLink: { template: '<a><slot /></a>' },
+  RouterView: { template: '<div />' },
+}));
+
+import SpotlightSearch from './SpotlightSearch.vue';
+import { useSpotlightStore } from '@/stores/spotlight';
+
+/**
+ * Typing does not start a search; it starts a second's wait for one. For that
+ * second nothing was loading and nothing had been found, and the panel read
+ * that as "no matches" — a search that had not run yet, reported as one that
+ * had answered and come back empty. Someone who typed a word and read that
+ * stopped waiting for results that were about to arrive.
+ */
+
+const i18n = createI18n({
+  legacy: false,
+  locale: 'en',
+  messages: {
+    en: {
+      search: {
+        searching: 'Searching…',
+        noMatches: 'No matches found',
+        line: 'line',
+        matchedByName: 'name',
+        matchedByContent: 'contents',
+        matchedByBoth: 'name and contents',
+        stoppedEarly: 'Stopped at its time limit',
+        firstOnly: 'First {count} results',
+        showMore: 'Show more',
+        tooShort: 'Type at least {count} characters',
+      },
+      spotlight: { hintWithin: 'Search within', placeholder: 'Search', close: 'Close' },
+      common: { in: 'in' },
+      errors: { searchFailed: 'Search failed' },
+    },
+  },
+});
+
+const mountSpotlight = () =>
+  mount(SpotlightSearch, {
+    global: { plugins: [i18n], stubs: { FileIcon: true, MagnifyingGlassIcon: true } },
+    attachTo: document.body,
+  });
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  vi.useFakeTimers();
+  search.mockReset();
+  search.mockResolvedValue({ items: [] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('the moment after someone types', () => {
+  const openWith = async (term) => {
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+
+    const input = wrapper.find('input');
+    await input.setValue(term);
+    return wrapper;
+  };
+
+  it('says it is searching, not that there is nothing', async () => {
+    const wrapper = await openWith('Linting');
+
+    // The debounce has not elapsed: no request has been made yet.
+    expect(search).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('Searching…');
+    expect(wrapper.text()).not.toContain('No matches found');
+  });
+
+  it('goes on saying it while the request is in flight', async () => {
+    let resolve;
+    search.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+
+    const wrapper = await openWith('Linting');
+    await vi.advanceTimersByTimeAsync(1100);
+
+    expect(search).toHaveBeenCalled();
+    expect(wrapper.text()).toContain('Searching…');
+    expect(wrapper.text()).not.toContain('No matches found');
+
+    resolve({ items: [] });
+    await flushPromises();
+
+    // Now it has an answer, and may say so.
+    expect(wrapper.text()).toContain('No matches found');
+  });
+
+  it('stops waiting when the search box is emptied', async () => {
+    const wrapper = await openWith('Linting');
+    await wrapper.find('input').setValue('');
+    await vi.advanceTimersByTimeAsync(1100);
+
+    expect(wrapper.text()).not.toContain('Searching…');
+  });
+});
+
+/**
+ * Typing `*.doc*`, then `*.docx`, then `*.doc*` sends three searches, and a
+ * deep one runs for seconds. Nothing said which answer belonged to what was
+ * being asked, so the panel showed whichever came back last — a list of `.doc`
+ * files under a box reading `*.docx`, and no way to tell.
+ */
+describe('changing the search while one is running', () => {
+  const typeInto = async (wrapper, term) => {
+    await wrapper.find('input').setValue(term);
+    await vi.advanceTimersByTimeAsync(400);
+  };
+
+  const openPanel = async () => {
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    return wrapper;
+  };
+
+  it('shows the newest answer even when an older one comes back after it', async () => {
+    const settle = {};
+    search.mockImplementation(
+      (path, term) =>
+        new Promise((resolve) => {
+          settle[term] = resolve;
+        })
+    );
+
+    const wrapper = await openPanel();
+    await typeInto(wrapper, '*.doc*');
+    await typeInto(wrapper, '*.docx');
+
+    // The newer search answers first, the older one afterwards — the order
+    // that made the panel wrong.
+    settle['*.docx']({ items: [{ name: 'budget.docx', path: 'Docs', isDirectory: false }] });
+    await flushPromises();
+    settle['*.doc*']({ items: [{ name: 'old.doc', path: 'Docs', isDirectory: false }] });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('budget.docx');
+    expect(wrapper.text()).not.toContain('old.doc');
+  });
+
+  it('aborts the search it replaced, so the server stops looking', async () => {
+    const signals = {};
+    search.mockImplementation(
+      (path, term, limit, options) =>
+        new Promise((resolve) => {
+          signals[term] = options?.signal;
+          if (term === '*.docx') resolve({ items: [] });
+        })
+    );
+
+    const wrapper = await openPanel();
+    await typeInto(wrapper, '*.doc*');
+    expect(signals['*.doc*']?.aborted).toBe(false);
+
+    await typeInto(wrapper, '*.docx');
+    expect(signals['*.doc*'].aborted).toBe(true);
+  });
+
+  it('does not report an abandoned search as a failure', async () => {
+    search.mockImplementation((path, term) =>
+      term === '*.doc*'
+        ? Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+        : Promise.resolve({ items: [] })
+    );
+
+    const wrapper = await openPanel();
+    await typeInto(wrapper, '*.doc*');
+    await typeInto(wrapper, '*.docx');
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('Search failed');
+  });
+});
+
+/**
+ * Which half of the search answered, on the result itself.
+ *
+ * It could only be read as an absence before: a result with a matched line
+ * came from the contents, one without it from the name, and telling them apart
+ * meant having two results side by side to compare.
+ */
+describe('what each result was found by', () => {
+  const openWithResults = async (items) => {
+    search.mockResolvedValue({ items });
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('pangolin');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('marks the name, the contents and the one that is both', async () => {
+    const wrapper = await openWithResults([
+      { name: 'pangolin.jpg', path: 'Docs', kind: 'file', matchedName: true },
+      {
+        name: 'notes.md',
+        path: 'Docs',
+        kind: 'file',
+        matchLine: 'le mot pangolin',
+        matchLineNumber: 3,
+        matchedContent: true,
+      },
+      {
+        name: 'pangolin-notes.md',
+        path: 'Docs',
+        kind: 'file',
+        matchLine: 'le mot pangolin',
+        matchLineNumber: 1,
+        matchedName: true,
+        matchedContent: true,
+      },
+    ]);
+
+    const marks = wrapper.findAll('[data-test="match-kind"]').map((node) => node.text());
+    expect(marks).toEqual(['name', 'contents', 'name and contents']);
+  });
+
+  it('says nothing rather than guessing, for an answer that does not say', async () => {
+    const wrapper = await openWithResults([{ name: 'ancien.txt', path: 'Docs', kind: 'file' }]);
+
+    expect(wrapper.findAll('[data-test="match-kind"]')).toHaveLength(0);
+  });
+});
+
+/**
+ * Why a list may be shorter than the truth.
+ *
+ * Both were known on the server and neither left the building, which is how a
+ * search that ran out of time read as a file that does not exist.
+ */
+describe('an answer that is not the whole answer', () => {
+  const openWith = async (body) => {
+    search.mockResolvedValue(body);
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('pangolin');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    return wrapper;
+  };
+
+  const one = { name: 'a.txt', path: 'Docs', kind: 'file', matchedName: true };
+
+  it('says when the budget ended the search', async () => {
+    const wrapper = await openWith({ items: [one], truncated: true, complete: false, limit: 100 });
+
+    expect(wrapper.find('[data-test="search-shortfall"]').text()).toContain(
+      'Stopped at its time limit'
+    );
+  });
+
+  it('says when a full page is only the first of them', async () => {
+    const wrapper = await openWith({
+      items: Array.from({ length: 100 }, (_, i) => ({ ...one, name: `a-${i}.txt` })),
+      truncated: false,
+      complete: false,
+      limit: 100,
+    });
+
+    expect(wrapper.find('[data-test="search-shortfall"]').text()).toContain('First 100 results');
+  });
+
+  it('says nothing when the answer is the whole answer', async () => {
+    const wrapper = await openWith({ items: [one], truncated: false, complete: true, limit: 100 });
+
+    expect(wrapper.find('[data-test="search-shortfall"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * Asking for the rest.
+ *
+ * A page is a hundred; somebody who wants more asks again with a larger limit
+ * rather than being handed a cursor, because holding a search open between
+ * requests would mean keeping its generator, its subprocesses and its database
+ * cursor alive per person and per term.
+ */
+describe('asking for more than a page', () => {
+  const full = (limit) => ({
+    items: Array.from({ length: limit }, (_, i) => ({
+      name: `a-${i}.txt`,
+      path: 'Docs',
+      kind: 'file',
+      matchedName: true,
+    })),
+    truncated: false,
+    complete: false,
+    limit,
+  });
+
+  const open = async () => {
+    search.mockResolvedValue(full(100));
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('pangolin');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('asks for three hundred, then five', async () => {
+    const wrapper = await open();
+    expect(search).toHaveBeenLastCalledWith('', 'pangolin', 100, expect.anything());
+
+    search.mockResolvedValue(full(300));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+    expect(search).toHaveBeenLastCalledWith('', 'pangolin', 300, expect.anything());
+
+    search.mockResolvedValue(full(500));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+    expect(search).toHaveBeenLastCalledWith('', 'pangolin', 500, expect.anything());
+  });
+
+  it('stops offering it once there is no more to ask for', async () => {
+    const wrapper = await open();
+    search.mockResolvedValue(full(300));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+    search.mockResolvedValue(full(500));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="search-show-more"]').exists()).toBe(false);
+    // And the notice stays, because the answer is still not the whole of it.
+    expect(wrapper.find('[data-test="search-shortfall"]').exists()).toBe(true);
+  });
+
+  it('goes back to a page when the term changes', async () => {
+    const wrapper = await open();
+    search.mockResolvedValue(full(300));
+    await wrapper.find('[data-test="search-show-more"]').trigger('click');
+    await flushPromises();
+
+    search.mockResolvedValue(full(100));
+    await wrapper.find('input').setValue('autre-chose');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+
+    expect(search).toHaveBeenLastCalledWith('', 'autre-chose', 100, expect.anything());
+  });
+
+  it('says nothing was typed enough of', async () => {
+    const wrapper = mountSpotlight();
+    useSpotlightStore().open();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('input').setValue('ab');
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="search-too-short"]').text()).toContain(
+      'Type at least 3 characters'
+    );
+    expect(search).not.toHaveBeenCalled();
+  });
+});

@@ -1090,7 +1090,6 @@
     "created": "Creado",
     "noMyShares": "Todavía no has creado ninguna compartición.",
     "noMySharesDescription": "Crea una compartición desde cualquier archivo o carpeta para verla aquí.",
-    "mySharesCount": "{count} enlaces de compartición activos",
     "confirmDeleteShare": "¿Eliminar esta compartición? Las personas con el enlace ya no tendrán acceso.",
     "removeShare": "Eliminar compartición",
     "sharedWithAnyone": "Todos",

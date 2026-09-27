@@ -1103,7 +1103,6 @@
     "created": "Créé",
     "noMyShares": "Vous n'avez pas encore créé de partage.",
     "noMySharesDescription": "Créez un partage à partir de n'importe quel fichier ou dossier pour le voir apparaître ici.",
-    "mySharesCount": "{count} liens de partage actifs",
     "confirmDeleteShare": "Supprimer ce partage ? Les personnes disposant du lien n'y auront plus accès.",
     "deleteShareTitle": "Supprimer le partage ?",
     "deleteShareMessage": "Les personnes disposant de ce lien ne pourront plus accéder à l’élément partagé.",

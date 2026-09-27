@@ -1,0 +1,976 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mount, flushPromises } from '@vue/test-utils';
+
+/**
+ * The text editor.
+ *
+ * 174 statements at five per cent, and what they hold is somebody's unsaved
+ * work: whether the save button is live, whether leaving asks first, and
+ * whether a listing that arrives late overwrites the file now on screen. It
+ * serves two quite different situations from the same screen — a file of your
+ * own, and a file reached through a share, which may be read-only — and telling
+ * them apart wrongly either refuses a save that was allowed or offers one that
+ * was not.
+ */
+
+const shared = vi.hoisted(() => ({ objects: {}, guards: [] }));
+
+const api = vi.hoisted(() => ({
+  fetchFileContent: vi.fn(async () => ({ content: 'hello' })),
+  fetchSharedFileContent: vi.fn(async () => ({
+    content: 'shared hello',
+    name: 'notes.md',
+    path: 'notes.md',
+    canWrite: true,
+    canDownload: true,
+  })),
+  saveFileContent: vi.fn(async () => ({})),
+  saveSharedFileContent: vi.fn(async () => ({})),
+  getRawFileUrl: vi.fn((path) => `/api/raw/${path}`),
+  getDirectShareFileUrl: vi.fn((token, path, mode) => `/d/${token}/${path}?mode=${mode}`),
+  getTrashFileText: vi.fn(async () => ({ name: 'run.sh', content: '#!/bin/sh\necho hi\n' })),
+  getVersionText: vi.fn(async () => ({ name: 'notes.md', content: '# as it was\n' })),
+}));
+
+vi.mock('@/api', () => ({
+  ...api,
+  fetchFileContent: (...args) => api.fetchFileContent(...args),
+  fetchSharedFileContent: (...args) => api.fetchSharedFileContent(...args),
+  saveFileContent: (...args) => api.saveFileContent(...args),
+  saveSharedFileContent: (...args) => api.saveSharedFileContent(...args),
+  getRawFileUrl: (...args) => api.getRawFileUrl(...args),
+  getDirectShareFileUrl: (...args) => api.getDirectShareFileUrl(...args),
+  normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+}));
+
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
+
+vi.mock('vue-router', async () => {
+  const { reactive } = await import('vue');
+  shared.objects.route = reactive({
+    name: 'Editor',
+    fullPath: '/editor/Docs/notes.md',
+    params: { path: 'Docs/notes.md' },
+  });
+  return {
+    useRoute: () => shared.objects.route,
+    useRouter: () => router,
+    onBeforeRouteLeave: (guard) => shared.guards.push(guard),
+  };
+});
+
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
+
+const folderScroll = vi.hoisted(() => ({ permitExplicitRestore: vi.fn() }));
+// The instance's name, for the tab's title, as Settings → Branding set it.
+vi.mock('@/stores/appSettings', () => ({
+  useAppSettings: () => ({ state: { branding: { appName: 'Chez Benjy' } } }),
+}));
+
+vi.mock('@/stores/folderScroll', () => ({ useFolderScrollStore: () => folderScroll }));
+
+const versionsPanel = vi.hoisted(() => ({ openPath: vi.fn() }));
+vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versionsPanel }));
+
+/**
+ * CodeMirror is a text area with a parser in it; nothing here is about that.
+ * `CodeSurface.spec.js` holds it to what it owes this screen. The stand-in keeps
+ * the same promise: a document, a way to type into it, and whether it differs
+ * from what was last read or saved.
+ */
+const surface = vi.hoisted(() => ({ view: null, current: null }));
+
+vi.mock('@/components/editor/CodeSurface.vue', async () => {
+  const { defineComponent: define, onMounted, onBeforeUnmount } = await import('vue');
+  return {
+    default: define({
+      name: 'CodeSurfaceStub',
+      props: ['content', 'extensions', 'autofocus'],
+      emits: ['ready', 'edit', 'dirty-change'],
+      setup(props, { emit, expose }) {
+        let text = props.content;
+        let saved = props.content;
+        const handle = {
+          typeText: (value) => {
+            text = value;
+            emit('edit');
+            emit('dirty-change', value !== saved);
+          },
+          snapshot: () => text,
+          markSaved: (doc) => {
+            saved = doc;
+            emit('dirty-change', text !== saved);
+          },
+        };
+        // What the screen reaches through its template ref, and what the tests
+        // type through.
+        expose(handle);
+        surface.current = handle;
+        onMounted(() => emit('ready', { view: surface.view }));
+        onBeforeUnmount(() => {
+          if (surface.current === handle) surface.current = null;
+        });
+        return () => null;
+      },
+    }),
+  };
+});
+
+const languageData = vi.hoisted(() => ({
+  markdown: { name: 'Markdown', extensions: ['md', 'markdown'], load: vi.fn(async () => []) },
+  json: { name: 'JSON', extensions: ['json'], load: vi.fn(async () => []) },
+}));
+
+vi.mock('@codemirror/language-data', () => ({
+  languages: [languageData.markdown, languageData.json],
+}));
+
+const EditorViewComponent = (await import('./EditorView.vue')).default;
+
+const route = () => shared.objects.route;
+
+let wrapper = null;
+
+const mountEditor = async () => {
+  wrapper = mount(EditorViewComponent, {
+    global: { mocks: { $t: (key) => key } },
+  });
+  await flushPromises();
+  return wrapper.vm;
+};
+
+const asShare = () => {
+  Object.assign(route(), {
+    name: 'SharedEditor',
+    fullPath: '/share/tok/edit/notes.md',
+    params: { token: 'tok', sharedPath: 'notes.md' },
+  });
+};
+
+/** Typed into the editor, when there is an editor on screen to type into. */
+const type = async (view, text) => {
+  surface.current?.typeText(text);
+  await flushPromises();
+};
+
+/**
+ * How many entries this tab's history holds.
+ *
+ * One means the tab was opened for this file and nothing else, which is when
+ * closing it is the right way out. Everything below reaches the editor from
+ * somewhere else in the application, so the default here is a tab that has
+ * been around.
+ */
+let historyLength = 3;
+
+beforeEach(() => {
+  Object.defineProperty(window.history, 'length', {
+    configurable: true,
+    get: () => historyLength,
+  });
+  historyLength = 3;
+  vi.spyOn(window, 'close').mockImplementation(() => {});
+  localStorage.clear();
+  surface.view = { dispatch: vi.fn() };
+  surface.current = null;
+  languageData.markdown.load.mockClear();
+  languageData.json.load.mockClear();
+  shared.guards.length = 0;
+  Object.values(api).forEach((fn) => fn.mockClear());
+  api.fetchFileContent.mockResolvedValue({ content: 'hello' });
+  api.fetchSharedFileContent.mockResolvedValue({
+    content: 'shared hello',
+    name: 'notes.md',
+    path: 'notes.md',
+    canWrite: true,
+    canDownload: true,
+  });
+  router.replace.mockClear();
+  folderScroll.permitExplicitRestore.mockClear();
+  Object.assign(route(), {
+    name: 'Editor',
+    fullPath: '/editor/Docs/notes.md',
+    params: { path: 'Docs/notes.md', token: undefined, sharedPath: undefined },
+  });
+});
+
+afterEach(() => {
+  wrapper?.unmount();
+  wrapper = null;
+  // Without this the spy on `window.close` wraps the previous one and keeps
+  // its calls, so a test that must not close sees the call of the one before.
+  vi.restoreAllMocks();
+});
+
+describe('opening a file', () => {
+  it('reads the one the route names', async () => {
+    await mountEditor();
+
+    expect(api.fetchFileContent).toHaveBeenCalledWith('Docs/notes.md');
+  });
+
+  it('shows what came back', async () => {
+    const view = await mountEditor();
+
+    expect(view.loadedContent).toBe('hello');
+    expect(view.hasUnsavedChanges).toBe(false);
+  });
+
+  // It had no title of its own: opened directly the tab read "Explorer", and
+  // opened from a folder it kept that folder's name.
+  it('names the browser tab after the file, and the instance', async () => {
+    await mountEditor();
+
+    expect(window.document.title).toBe('notes.md | Chez Benjy');
+  });
+
+  it('says why it could not', async () => {
+    api.fetchFileContent.mockRejectedValue(new Error('File not found'));
+
+    const view = await mountEditor();
+
+    expect(view.loadError).toBe('File not found');
+  });
+
+  it('reads nothing at all when the route names no file', async () => {
+    route().params = { path: '' };
+
+    await mountEditor();
+
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Two files opened in quick succession answer in whatever order the network
+   * feels like. The slower one arriving second must not replace the file the
+   * reader is now looking at — and must not report its own failure either.
+   */
+  it('ignores an answer for a file no longer being edited', async () => {
+    let answerFirst;
+    api.fetchFileContent.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answerFirst = resolve;
+        })
+    );
+    const view = await mountEditor();
+
+    route().params = { path: 'Docs/other.md' };
+    route().fullPath = '/editor/Docs/other.md';
+    await flushPromises();
+    answerFirst({ content: 'the old file' });
+    await flushPromises();
+
+    expect(view.loadedContent).toBe('hello');
+  });
+
+  it('ignores a failure for a file no longer being edited', async () => {
+    let failFirst;
+    api.fetchFileContent.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          failFirst = reject;
+        })
+    );
+    const view = await mountEditor();
+
+    route().params = { path: 'Docs/other.md' };
+    route().fullPath = '/editor/Docs/other.md';
+    await flushPromises();
+    failFirst(new Error('too late'));
+    await flushPromises();
+
+    expect(view.loadError).toBe('');
+  });
+});
+
+describe('opening a file through a share', () => {
+  beforeEach(asShare);
+
+  it('reads it through the share, with its token', async () => {
+    await mountEditor();
+
+    expect(api.fetchSharedFileContent).toHaveBeenCalledWith('tok', 'notes.md');
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+  });
+
+  it('shows the name the share gave it', async () => {
+    const view = await mountEditor();
+
+    expect(view.displayPath).toBe('notes.md');
+  });
+
+  it('names the browser tab after the shared file', async () => {
+    await mountEditor();
+
+    expect(window.document.title).toBe('notes.md | Chez Benjy');
+  });
+
+  /** What the share allows is the share"s to say, not the editor"s to assume. */
+  it('takes the share"s word for what may be done with it', async () => {
+    api.fetchSharedFileContent.mockResolvedValue({
+      content: 'x',
+      name: 'notes.md',
+      canWrite: false,
+      canDownload: false,
+    });
+
+    const view = await mountEditor();
+
+    expect(view.isSharedReadOnly).toBe(true);
+    expect(view.sharedCanDownload).toBe(false);
+  });
+
+  it('never treats an own file as writable by a share', async () => {
+    Object.assign(route(), { name: 'Editor', params: { path: 'Docs/notes.md' } });
+    api.fetchFileContent.mockResolvedValue({ content: 'x', canWrite: true, canDownload: true });
+
+    const view = await mountEditor();
+
+    expect(view.sharedCanWrite).toBe(false);
+    expect(view.sharedCanDownload).toBe(false);
+  });
+});
+
+describe('whether saving is offered', () => {
+  it('is not, until something is changed', async () => {
+    const view = await mountEditor();
+
+    expect(view.canSave).toBe(false);
+  });
+
+  it('is, once something is', async () => {
+    const view = await mountEditor();
+
+    await type(view, 'hello, world');
+
+    expect(view.canSave).toBe(true);
+    expect(view.hasUnsavedChanges).toBe(true);
+  });
+
+  it('is not while the file is still being read', async () => {
+    api.fetchFileContent.mockImplementation(() => new Promise(() => {}));
+    wrapper = mount(EditorViewComponent, {
+      global: { mocks: { $t: (key) => key } },
+    });
+    await flushPromises();
+
+    await type(wrapper.vm, 'anything');
+
+    expect(wrapper.vm.canSave).toBe(false);
+  });
+
+  it('is not on a file that could not be read', async () => {
+    api.fetchFileContent.mockRejectedValue(new Error('gone'));
+    const view = await mountEditor();
+
+    await type(view, 'anything');
+
+    expect(view.canSave).toBe(false);
+  });
+
+  /** A read-only share is read-only however much is typed into it. */
+  it('is not on a share that only allows reading', async () => {
+    asShare();
+    api.fetchSharedFileContent.mockResolvedValue({ content: 'x', name: 'n.md', canWrite: false });
+    const view = await mountEditor();
+
+    await type(view, 'anything');
+
+    expect(view.canSave).toBe(false);
+  });
+});
+
+describe('saving', () => {
+  it('writes the file back', async () => {
+    const view = await mountEditor();
+    await type(view, 'hello, world');
+
+    await view.saveFile();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith('Docs/notes.md', 'hello, world');
+  });
+
+  it('writes it back through the share it was opened from', async () => {
+    asShare();
+    const view = await mountEditor();
+    await type(view, 'edited');
+
+    await view.saveFile();
+
+    expect(api.saveSharedFileContent).toHaveBeenCalledWith('tok', 'notes.md', 'edited');
+  });
+
+  it('stops calling it unsaved once it is saved', async () => {
+    const view = await mountEditor();
+    await type(view, 'hello, world');
+
+    await view.saveFile();
+
+    expect(view.hasUnsavedChanges).toBe(false);
+  });
+
+  /** Still unsaved: the marker is the only sign the work is still at risk. */
+  it('keeps calling it unsaved when the write failed, and says why', async () => {
+    api.saveFileContent.mockRejectedValue(new Error('Disk full'));
+    const view = await mountEditor();
+    await type(view, 'hello, world');
+
+    await view.saveFile();
+
+    expect(view.saveError).toBe('Disk full');
+    expect(view.hasUnsavedChanges).toBe(true);
+  });
+
+  it('clears a stale complaint as soon as typing resumes', async () => {
+    api.saveFileContent.mockRejectedValue(new Error('Disk full'));
+    const view = await mountEditor();
+    await type(view, 'hello, world');
+    await view.saveFile();
+
+    await type(view, 'hello again');
+
+    expect(view.saveError).toBe('');
+  });
+
+  it('writes nothing when there is nothing to write', async () => {
+    const view = await mountEditor();
+
+    await view.saveFile();
+
+    expect(api.saveFileContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('leaving the editor', () => {
+  /**
+   * The preference that opens documents in their own tab sends editable files
+   * here too, and leaving used to turn that tab into a second explorer — two
+   * identical tabs and nothing to tell them apart (nxzai#303).
+   */
+  it('closes a tab that was opened for this file alone', async () => {
+    historyLength = 1;
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(window.close).toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  // The tab somebody opened the whole application in is also "created by web
+  // content"; closing it because they shut one file would take their session
+  // with it.
+  it('does not close a tab that has been somewhere else', async () => {
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(window.close).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
+  });
+
+  it('goes back to the folder the file lives in', async () => {
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
+  });
+
+  it('goes back to the root for a file that lives there', async () => {
+    route().params = { path: 'notes.md' };
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(router.replace).toHaveBeenCalledWith('/browse');
+  });
+
+  it('goes back to the share for a file opened through one', async () => {
+    asShare();
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(router.replace).toHaveBeenCalledWith('/share/tok');
+  });
+
+  /** Leaving with unsaved work is a decision, not a side effect of a click. */
+  it('asks first when there is unsaved work', async () => {
+    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const view = await mountEditor();
+    await type(view, 'unsaved');
+
+    view.requestClose();
+
+    expect(confirmed).toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    confirmed.mockRestore();
+  });
+
+  it('leaves when the answer is yes', async () => {
+    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const view = await mountEditor();
+    await type(view, 'unsaved');
+
+    view.requestClose();
+
+    expect(router.replace).toHaveBeenCalled();
+    confirmed.mockRestore();
+  });
+
+  it('does not ask when there is nothing unsaved', async () => {
+    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(confirmed).not.toHaveBeenCalled();
+    confirmed.mockRestore();
+  });
+
+  /**
+   * Half a write is the one moment when leaving is genuinely unsafe — and the
+   * one moment when saying yes to the question must not be enough.
+   */
+  it('refuses to leave in the middle of a write', async () => {
+    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const view = await mountEditor();
+    await type(view, 'unsaved');
+    api.saveFileContent.mockImplementation(() => new Promise(() => {}));
+    view.saveFile();
+    await flushPromises();
+
+    view.requestClose();
+
+    expect(router.replace).not.toHaveBeenCalled();
+    confirmed.mockRestore();
+  });
+
+  /**
+   * The folder view is unmounted while a file is being edited, so it cannot
+   * work out on its own that this was a return journey.
+   */
+  it('tells the folder it is coming back to that it may restore its place', async () => {
+    await mountEditor();
+
+    shared.guards.forEach((guard) => guard({ name: 'FolderView', params: { path: 'Docs' } }));
+
+    expect(folderScroll.permitExplicitRestore).toHaveBeenCalledWith('Docs');
+  });
+
+  it('says nothing to a folder it was not editing inside', async () => {
+    await mountEditor();
+
+    shared.guards.forEach((guard) => guard({ name: 'FolderView', params: { path: 'Elsewhere' } }));
+
+    expect(folderScroll.permitExplicitRestore).not.toHaveBeenCalled();
+  });
+
+  it('says nothing when leaving for anywhere else', async () => {
+    await mountEditor();
+
+    shared.guards.forEach((guard) => guard({ name: 'Settings', params: {} }));
+
+    expect(folderScroll.permitExplicitRestore).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A file in the trash, opened to be read before deciding what to do with it.
+ * The editor shows it, and nothing more: no save, no raw link, no question on
+ * leaving, since nothing typed there could ever be written back.
+ */
+describe('reading a file from the trash', () => {
+  const asTrash = (entryPath = ['drafts', 'run.sh']) => {
+    Object.assign(route(), {
+      name: 'TrashFileViewer',
+      fullPath: `/trash/view/id-1/${entryPath.join('/')}`,
+      params: { itemId: 'id-1', entryPath },
+    });
+  };
+
+  it('reads it from the trash, by the item and the path inside it', async () => {
+    asTrash();
+
+    const view = await mountEditor();
+
+    expect(api.getTrashFileText).toHaveBeenCalledWith('id-1', 'drafts/run.sh');
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(view.loadedContent).toBe('#!/bin/sh\necho hi\n');
+    expect(view.displayPath).toBe('run.sh');
+  });
+
+  it('says it is in the trash and read only, and offers neither save nor raw file', async () => {
+    asTrash();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('editor.trashReadOnly');
+    expect(wrapper.find('[aria-label="common.save"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('editor.raw');
+  });
+
+  it('never writes anything, whatever is typed or pressed', async () => {
+    asTrash();
+    const view = await mountEditor();
+
+    await type(view, 'changed anyway');
+    expect(view.canSave).toBe(false);
+    await view.saveFile();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+    await flushPromises();
+
+    expect(api.saveFileContent).not.toHaveBeenCalled();
+    expect(api.saveSharedFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain('editor.unsavedChanges');
+  });
+
+  it('goes back to the deleted folder it was read from, without asking', async () => {
+    asTrash(['drafts', 'run.sh']);
+    const view = await mountEditor();
+    await type(view, 'changed anyway');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    view.requestClose();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith({
+      name: 'Trash',
+      query: { item: 'id-1', path: 'drafts' },
+    });
+    confirm.mockRestore();
+  });
+
+  it('goes back to the top of the deleted folder for a file at its top', async () => {
+    asTrash(['run.sh']);
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(router.replace).toHaveBeenCalledWith({ name: 'Trash', query: { item: 'id-1' } });
+  });
+
+  it('goes back to the trash itself for a deleted file', async () => {
+    asTrash([]);
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(api.getTrashFileText).toHaveBeenCalledWith('id-1', '');
+    expect(router.replace).toHaveBeenCalledWith({ name: 'Trash', query: {} });
+  });
+
+  it('says why when the file cannot be shown', async () => {
+    api.getTrashFileText.mockRejectedValueOnce(new Error('This file appears to be binary.'));
+    asTrash();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('This file appears to be binary.');
+  });
+});
+
+describe('reading an earlier version of a file', () => {
+  const asVersion = (path = 'Docs/notes.md', versionId = 'v-1') => {
+    Object.assign(route(), {
+      name: 'VersionFileViewer',
+      fullPath: `/versions/view/${versionId}/${path}`,
+      params: { versionId, path },
+    });
+  };
+
+  beforeEach(() => {
+    versionsPanel.openPath.mockClear();
+  });
+
+  it('reads that version, by the file and the version', async () => {
+    asVersion();
+
+    const view = await mountEditor();
+
+    expect(api.getVersionText).toHaveBeenCalledWith('Docs/notes.md', 'v-1');
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(view.loadedContent).toBe('# as it was\n');
+    expect(view.displayPath).toBe('notes.md');
+  });
+
+  it('reads the other version when the address changes to it', async () => {
+    asVersion('Docs/notes.md', 'v-1');
+    await mountEditor();
+
+    asVersion('Docs/notes.md', 'v-2');
+    await flushPromises();
+
+    expect(api.getVersionText).toHaveBeenLastCalledWith('Docs/notes.md', 'v-2');
+  });
+
+  it('says it is an earlier version and read only, and offers neither save nor raw file', async () => {
+    asVersion();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('editor.versionReadOnly');
+    expect(wrapper.find('[aria-label="common.save"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('editor.raw');
+  });
+
+  it('never writes the file, whatever is typed or pressed', async () => {
+    asVersion();
+    const view = await mountEditor();
+
+    await type(view, 'changed anyway');
+    expect(view.canSave).toBe(false);
+    await view.saveFile();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+    await flushPromises();
+
+    expect(api.saveFileContent).not.toHaveBeenCalled();
+    expect(api.saveSharedFileContent).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain('editor.unsavedChanges');
+  });
+
+  it('goes back to the folder with the history open again, without asking', async () => {
+    asVersion('Docs/notes.md');
+    const view = await mountEditor();
+    await type(view, 'changed anyway');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    view.requestClose();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(versionsPanel.openPath).toHaveBeenCalledWith('Docs/notes.md');
+    expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
+    confirm.mockRestore();
+  });
+
+  it('says why when the version cannot be shown', async () => {
+    api.getVersionText.mockRejectedValueOnce(new Error('This file appears to be binary.'));
+    asVersion();
+
+    await mountEditor();
+
+    expect(wrapper.text()).toContain('This file appears to be binary.');
+  });
+});
+
+describe('looking at the file as it really is', () => {
+  const opened = () => window.open.mock.calls.at(-1)?.[0];
+
+  beforeEach(() => {
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('opens the raw file', async () => {
+    const view = await mountEditor();
+
+    view.openRaw();
+
+    expect(opened()).toBe('/api/raw/Docs/notes.md');
+  });
+
+  it('opens it through the share when that is how it was reached', async () => {
+    asShare();
+    const view = await mountEditor();
+
+    view.openRaw();
+
+    expect(opened()).toBe('/d/tok/notes.md?mode=raw');
+  });
+
+  it('opens nothing when there is no file', async () => {
+    route().params = { path: '' };
+    const view = await mountEditor();
+
+    view.openRaw();
+
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('downloads it when the share allows that', async () => {
+    asShare();
+    const view = await mountEditor();
+
+    view.openDownload();
+
+    expect(opened()).toBe('/d/tok/notes.md?mode=download');
+  });
+
+  it('downloads nothing when the share does not', async () => {
+    asShare();
+    api.fetchSharedFileContent.mockResolvedValue({
+      content: 'x',
+      name: 'n.md',
+      canWrite: true,
+      canDownload: false,
+    });
+    const view = await mountEditor();
+
+    view.openDownload();
+
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('offers no download for a file of one"s own, which is not a share', async () => {
+    const view = await mountEditor();
+
+    view.openDownload();
+
+    expect(window.open).not.toHaveBeenCalled();
+  });
+});
+
+describe('choosing a theme', () => {
+  it('remembers it for next time', async () => {
+    const view = await mountEditor();
+
+    view.updateTheme('githubLight');
+    await flushPromises();
+
+    expect(view.themeId).toBe('githubLight');
+    expect(localStorage.getItem('editor:theme')).toContain('githubLight');
+  });
+
+  it('closes the menu once one is chosen', async () => {
+    const view = await mountEditor();
+    view.isThemeMenuOpen = true;
+
+    view.updateTheme('githubLight');
+
+    expect(view.isThemeMenuOpen).toBe(false);
+  });
+
+  it('offers no half of a merge view, which is not a theme', async () => {
+    const view = await mountEditor();
+
+    expect(view.themeOptions.some((option) => option.id.includes('Merge'))).toBe(false);
+  });
+
+  it('names the one in use, in words', async () => {
+    const view = await mountEditor();
+
+    view.updateTheme('githubLight');
+
+    expect(view.currentThemeLabel).toBe('Github Light');
+  });
+});
+
+/**
+ * Colouring a Markdown file means parsing it, and the parser reads a paragraph
+ * whole once it ends. A large file that never leaves a blank line is one
+ * paragraph, and reading it held the page for seconds right after the editor
+ * opened. Such a file opens as plain text, and says why it has no colours.
+ */
+describe('colouring a Markdown file', () => {
+  const settleLanguage = async () => {
+    await vi.dynamicImportSettled();
+    await flushPromises();
+  };
+
+  it('colours an ordinary one', async () => {
+    api.fetchFileContent.mockResolvedValue({ content: '# Title\n\nSome text.\n' });
+
+    await mountEditor();
+    await settleLanguage();
+
+    expect(languageData.markdown.load).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(false);
+  });
+
+  it('opens one with a block too long to parse as plain text, and says so', async () => {
+    const oneBlock = 'a line of an export\n'.repeat(16000);
+    api.fetchFileContent.mockResolvedValue({ content: oneBlock });
+
+    await mountEditor();
+    await settleLanguage();
+
+    expect(languageData.markdown.load).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').text()).toBe(
+      'editor.highlightingOffTooLarge'
+    );
+  });
+
+  it('colours a long one made of ordinary paragraphs', async () => {
+    const paragraphs = 'a paragraph of prose\n\n'.repeat(16000);
+    api.fetchFileContent.mockResolvedValue({ content: paragraphs });
+
+    await mountEditor();
+    await settleLanguage();
+
+    expect(languageData.markdown.load).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * The other parsers divide a document by lines, and cannot divide one line. A
+ * large JSON file written on a single line held the page in jolts for seconds.
+ */
+describe('colouring a file in another language', () => {
+  const openJson = async (content) => {
+    Object.assign(route(), {
+      fullPath: '/editor/Docs/data.json',
+      params: { path: 'Docs/data.json' },
+    });
+    api.fetchFileContent.mockResolvedValue({ content });
+    await mountEditor();
+    await vi.dynamicImportSettled();
+    await flushPromises();
+  };
+
+  it('colours one written over ordinary lines, however long the file', async () => {
+    await openJson(`[\n${'  {"id": 1, "name": "an item"},\n'.repeat(20000)}]`);
+
+    expect(languageData.json.load).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(false);
+  });
+
+  it('opens one with a line too long to parse as plain text, and says so', async () => {
+    await openJson(`[${'{"id":1,"name":"an item"},'.repeat(4000)}{}]`);
+
+    expect(languageData.json.load).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="editor-highlighting-off"]').exists()).toBe(true);
+  });
+});
+
+describe('typing while a save is being written', () => {
+  /** What was written is saved; what was typed after it was taken is not. */
+  it('saves the text as it was when the save began, and keeps the rest unsaved', async () => {
+    let finish;
+    api.saveFileContent.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const view = await mountEditor();
+    await type(view, 'hello, world');
+
+    const saving = view.saveFile();
+    await type(view, 'hello, world, and more');
+    finish({});
+    await saving;
+    await flushPromises();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith('Docs/notes.md', 'hello, world');
+    expect(view.hasUnsavedChanges).toBe(true);
+  });
+});
+
+describe('wrapping lines', () => {
+  /** The menu said the option was on while no line was wrapped. */
+  it('starts off, as the editor does, and turns on at the first press', async () => {
+    const view = await mountEditor();
+    expect(view.isLineWrapping).toBe(false);
+
+    view.toggleLineWrapping();
+
+    expect(view.isLineWrapping).toBe(true);
+    expect(surface.view.dispatch).toHaveBeenCalled();
+  });
+});

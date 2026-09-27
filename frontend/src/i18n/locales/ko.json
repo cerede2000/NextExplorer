@@ -1090,7 +1090,6 @@
     "created": "생성됨",
     "noMyShares": "아직 생성된 공유가 없습니다.",
     "noMySharesDescription": "파일 및 폴더에 대한 공유를 생성하면 이 곳에 표시됩니다.",
-    "mySharesCount": "{count}개 공유 링크 활성화됨",
     "confirmDeleteShare": "이 공유를 삭제하시겠습니까? 이 링크를 가진 사람들이 더 이상 접근할 수 없습니다.",
     "removeShare": "공유 삭제",
     "sharedWithAnyone": "모두",

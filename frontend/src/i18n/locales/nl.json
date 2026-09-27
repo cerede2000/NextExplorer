@@ -1092,7 +1092,6 @@
     "adjustFilters": "Pas uw filters aan of wis de zoekopdracht om meer items te zien.",
     "noMyShares": "U hebt nog geen shares aangemaakt.",
     "noMySharesDescription": "Maak een share van een bestand of map om die hier te zien.",
-    "mySharesCount": "{count} actieve sharelink | {count} actieve sharelinks",
     "sharedWithUsers": "{count} gebruiker | {count} gebruikers",
     "creating": "Bezig met maken…",
     "expires": "Verloopt",

@@ -1090,7 +1090,6 @@
     "created": "Skspad",
     "noMyShares": "Du har inte skapat några utdelningar än.",
     "noMySharesDescription": "Skapa en delning från valfri fil eller mapp för att se den listad här.",
-    "mySharesCount": "{count} aktiva utdelningslänkar",
     "confirmDeleteShare": "Ta bort denna utdelning? Personer som har länken kommer inte längre ha åtkomst.",
     "removeShare": "Ta bort utdelning",
     "sharedWithAnyone": "Alla",
