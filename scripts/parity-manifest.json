@@ -24,6 +24,26 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^frontend/src/plugins/preview/MediaPreview\\.vue(:|$)",
+      "verdict": "THEIRS",
+      "note": "upstream has rotate and zoom that this fork's version lost, and its video already sits in a grid that contains it. The fork takes upstream's version"
+    },
+    {
+      "axis": "i18n",
+      "match": "^(placeholders\\.|info\\.folderSizeExcluded|settings\\.thumbs\\.|preview\\.tooLargeToRender|preview\\.stillRendering|favorites\\.volumeUnavailable)",
+      "verdict": "DONE",
+      "batch": "P3-25",
+      "note": "nxzai#455 \u2014 the listing and the information panel"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/icons/fileBadges\\.js|frontend/src/utils/favoriteIcons\\.js|frontend/src/utils/folderKeyboard\\.js|frontend/src/utils/revealOffset\\.js|frontend/src/components/FavMenu\\.vue|frontend/src/components/FileObject\\.vue|frontend/src/components/InfoPanel\\.vue|frontend/src/composables/useFavoriteEditor\\.js|frontend/src/icons/FileIcon\\.vue|frontend/src/utils/fileKinds\\.js|frontend/src/views/settings/SettingsFilesThumbnails\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-25",
+      "note": "nxzai#455 \u2014 what a file looks like in the list, and what a folder weighs"
+    },
+    {
       "axis": "i18n",
       "match": "^(settings\\.(users|userDetails)\\.|common\\.dismissWarning|errors\\.unlockUser)",
       "verdict": "DONE",
