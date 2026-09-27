@@ -24,6 +24,33 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^(backend/src/services/uploadService\\.js|backend/src/services/uploadStorageGuard\\.js)(:|$)",
+      "verdict": "THEIRS",
+      "note": "upstream records an upload while its bytes arrive and releases it however it ends; the fork's version dropped that, which leaves a hidden file nothing removes. The fork takes upstream's"
+    },
+    {
+      "axis": "env",
+      "match": "^UPLOAD_CHUNKED_AUTO_FALLBACK$",
+      "verdict": "DONE",
+      "batch": "P3-28",
+      "note": "nxzai#458 \u2014 the automatic fallback"
+    },
+    {
+      "axis": "i18n",
+      "match": "^settings\\.uploads\\.",
+      "verdict": "DONE",
+      "batch": "P3-28",
+      "note": "nxzai#458 \u2014 the uploads screen"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/composables/upload(Common|Engine|Target)\\.js|frontend/src/utils/uploadFallback\\.js|backend/src/services/tusUploadService\\.js|frontend/src/composables/fileUploader\\.js|frontend/src/utils/uploadMode\\.js|frontend/src/utils/uploads\\.js|frontend/src/views/settings/SettingsUploads\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-28",
+      "note": "nxzai#458 \u2014 direct first, chunks only when the direct attempt is refused"
+    },
+    {
       "axis": "migration",
       "match": "^recent_destinations$",
       "verdict": "DONE",
