@@ -1160,7 +1160,9 @@
     "pickDocument": "選擇文件",
     "pickSpreadsheet": "選擇試算表",
     "pickCompare": "與文件比較",
-    "pickFailed": "無法使用所選檔案"
+    "pickFailed": "無法使用所選檔案",
+    "editingBy": "正在 ONLYOFFICE 中編輯：{names}",
+    "editingNow": "正在 ONLYOFFICE 中編輯"
   },
   "storagePicker": {
     "root": "儲存空間",

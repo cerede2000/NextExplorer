@@ -1160,7 +1160,9 @@
     "pickDocument": "Document kiezen",
     "pickSpreadsheet": "Werkmap kiezen",
     "pickCompare": "Vergelijken met een document",
-    "pickFailed": "Het gekozen bestand kon niet worden gebruikt"
+    "pickFailed": "Het gekozen bestand kon niet worden gebruikt",
+    "editingBy": "Wordt bewerkt in ONLYOFFICE door {names}",
+    "editingNow": "Wordt bewerkt in ONLYOFFICE"
   },
   "storagePicker": {
     "root": "Opslag",

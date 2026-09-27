@@ -1160,7 +1160,9 @@
     "pickDocument": "Wybierz dokument",
     "pickSpreadsheet": "Wybierz arkusz",
     "pickCompare": "Porównaj z dokumentem",
-    "pickFailed": "Nie udało się użyć wybranego pliku"
+    "pickFailed": "Nie udało się użyć wybranego pliku",
+    "editingBy": "Edytowane w ONLYOFFICE przez: {names}",
+    "editingNow": "Edytowane w ONLYOFFICE"
   },
   "storagePicker": {
     "root": "Magazyn",

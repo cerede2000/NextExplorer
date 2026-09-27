@@ -1160,7 +1160,9 @@
     "pickDocument": "选择文档",
     "pickSpreadsheet": "选择电子表格",
     "pickCompare": "与文档比较",
-    "pickFailed": "无法使用所选文件"
+    "pickFailed": "无法使用所选文件",
+    "editingBy": "正在 ONLYOFFICE 中编辑：{names}",
+    "editingNow": "正在 ONLYOFFICE 中编辑"
   },
   "storagePicker": {
     "root": "存储",

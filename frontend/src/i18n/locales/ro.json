@@ -1160,7 +1160,9 @@
     "pickDocument": "Alege un document",
     "pickSpreadsheet": "Alege o foaie de calcul",
     "pickCompare": "Compară cu un document",
-    "pickFailed": "Fișierul selectat nu a putut fi folosit"
+    "pickFailed": "Fișierul selectat nu a putut fi folosit",
+    "editingBy": "Se editează în ONLYOFFICE de către {names}",
+    "editingNow": "Se editează în ONLYOFFICE"
   },
   "storagePicker": {
     "root": "Stocare",

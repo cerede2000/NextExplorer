@@ -1160,7 +1160,9 @@
     "pickDocument": "दस्तावेज़ चुनें",
     "pickSpreadsheet": "स्प्रेडशीट चुनें",
     "pickCompare": "दस्तावेज़ से तुलना करें",
-    "pickFailed": "चयनित फ़ाइल का उपयोग नहीं किया जा सका"
+    "pickFailed": "चयनित फ़ाइल का उपयोग नहीं किया जा सका",
+    "editingBy": "ONLYOFFICE में संपादित किया जा रहा है: {names}",
+    "editingNow": "ONLYOFFICE में संपादित किया जा रहा है"
   },
   "storagePicker": {
     "root": "भंडारण",

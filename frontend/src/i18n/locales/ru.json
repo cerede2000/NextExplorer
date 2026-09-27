@@ -1160,7 +1160,9 @@
     "pickDocument": "Выбрать документ",
     "pickSpreadsheet": "Выбрать таблицу",
     "pickCompare": "Сравнить с документом",
-    "pickFailed": "Не удалось использовать выбранный файл"
+    "pickFailed": "Не удалось использовать выбранный файл",
+    "editingBy": "Редактируется в ONLYOFFICE: {names}",
+    "editingNow": "Редактируется в ONLYOFFICE"
   },
   "storagePicker": {
     "root": "Хранилище",

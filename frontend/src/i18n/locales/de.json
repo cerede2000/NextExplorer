@@ -1160,7 +1160,9 @@
     "pickDocument": "Dokument auswählen",
     "pickSpreadsheet": "Tabelle auswählen",
     "pickCompare": "Mit einem Dokument vergleichen",
-    "pickFailed": "Die ausgewählte Datei konnte nicht verwendet werden"
+    "pickFailed": "Die ausgewählte Datei konnte nicht verwendet werden",
+    "editingBy": "Wird in ONLYOFFICE bearbeitet von: {names}",
+    "editingNow": "Wird gerade in ONLYOFFICE bearbeitet"
   },
   "storagePicker": {
     "root": "Speicher",

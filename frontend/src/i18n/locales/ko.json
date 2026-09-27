@@ -1160,7 +1160,9 @@
     "pickDocument": "문서 선택",
     "pickSpreadsheet": "스프레드시트 선택",
     "pickCompare": "문서와 비교",
-    "pickFailed": "선택한 파일을 사용할 수 없습니다"
+    "pickFailed": "선택한 파일을 사용할 수 없습니다",
+    "editingBy": "ONLYOFFICE에서 편집 중: {names}",
+    "editingNow": "ONLYOFFICE에서 편집 중"
   },
   "storagePicker": {
     "root": "저장소",

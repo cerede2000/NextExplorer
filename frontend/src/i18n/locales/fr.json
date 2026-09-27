@@ -1160,7 +1160,9 @@
     "pickDocument": "Choisir un document",
     "pickSpreadsheet": "Choisir un classeur",
     "pickCompare": "Comparer avec un document",
-    "pickFailed": "Impossible d'utiliser le fichier choisi"
+    "pickFailed": "Impossible d'utiliser le fichier choisi",
+    "editingBy": "Édition en cours dans ONLYOFFICE : {names}",
+    "editingNow": "Édition en cours dans ONLYOFFICE"
   },
   "storagePicker": {
     "root": "Stockage",

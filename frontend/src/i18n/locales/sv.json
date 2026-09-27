@@ -1160,7 +1160,9 @@
     "pickDocument": "Välj ett dokument",
     "pickSpreadsheet": "Välj ett kalkylblad",
     "pickCompare": "Jämför med ett dokument",
-    "pickFailed": "Det gick inte att använda den valda filen"
+    "pickFailed": "Det gick inte att använda den valda filen",
+    "editingBy": "Redigeras i ONLYOFFICE av {names}",
+    "editingNow": "Redigeras i ONLYOFFICE"
   },
   "storagePicker": {
     "root": "Lagring",
