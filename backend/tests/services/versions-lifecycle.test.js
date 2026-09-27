@@ -94,7 +94,6 @@ const save = (relative, content) =>
 const withHistory = async (relative, ...contents) => {
   await write(relative, contents[0]);
   for (const content of contents.slice(1)) {
-    // eslint-disable-next-line no-await-in-loop
     await save(relative, content);
   }
 };
@@ -121,7 +120,6 @@ const keptContents = async (file) => {
 
 const expectConsistent = async () => {
   for (const zone of trashStore.listZones(db)) {
-    // eslint-disable-next-line no-await-in-loop
     expect((await verify.verifyZone(zone)).violations).toEqual([]);
   }
 };
@@ -366,11 +364,9 @@ describe('a file that disappears outside the application', () => {
 
   it('orphans nothing when too many files vanish at once', async () => {
     for (let index = 0; index < 6; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await withHistory(`Projects/file-${index}.txt`, 'before', 'after');
     }
     for (let index = 0; index < 6; index += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await fs.rm(volume(`Projects/file-${index}.txt`));
     }
 

@@ -150,7 +150,6 @@ const placeWithoutOverwrite = async (source, directory, desiredName, { style = '
     const name = candidateName(desiredName, index, style);
     const target = path.join(directory, name);
     try {
-      // eslint-disable-next-line no-await-in-loop
       await moveNoReplace(source, target);
       return { name, path: target };
     } catch (error) {
@@ -176,12 +175,10 @@ const reserveAvailableName = async (
     const target = path.join(directory, name);
     try {
       if (isDirectory) {
-        // eslint-disable-next-line no-await-in-loop
         await fs.mkdir(target);
       } else {
-        // eslint-disable-next-line no-await-in-loop
         const handle = await fs.open(target, 'wx');
-        // eslint-disable-next-line no-await-in-loop
+
         await handle.close();
       }
       return { name, path: target };

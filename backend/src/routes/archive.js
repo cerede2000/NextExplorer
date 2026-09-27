@@ -289,7 +289,7 @@ router.post(
       // The staging directory is this route's own, created a moment ago under
       // the cache: it never holds anything anybody put there, so it does not
       // go through the trash.
-      // eslint-disable-next-line no-restricted-properties
+
       await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
       writeEvent({
         type: 'done',
@@ -302,7 +302,7 @@ router.post(
         { err: error, archive: archive.relativePath },
         'Extracting from an archive failed'
       );
-      // eslint-disable-next-line no-restricted-properties
+
       await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
       // What this placed, and only that: a file somebody saved into a placed
       // folder in the meantime stays, with the folders holding it.

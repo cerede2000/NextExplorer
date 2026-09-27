@@ -74,7 +74,10 @@
     "back": "Indietro",
     "logoAlt": "Logo di {name}",
     "toggleSection": "Mostra o nascondi la sezione",
-    "dismissWarning": "Ignora l'avviso"
+    "dismissWarning": "Ignora l'avviso",
+    "reset": "Reimposta",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "Nuovo file CSV",
     "newDocument": "Nuovo documento",
     "extractArchive": "Estrai archivio",
-    "extractArchiveIntoCurrentFolder": "Estrai nella cartella corrente"
+    "extractArchiveIntoCurrentFolder": "Estrai nella cartella corrente",
+    "copyPath": "Copia percorso",
+    "copyName": "Copia nome",
+    "share": "Condividi",
+    "copied": "Copiato",
+    "newPdf": "Nuovo documento PDF"
   },
   "placeholders": {
     "email": "utente{'@'}esempio.com",

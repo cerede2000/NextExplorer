@@ -9,6 +9,13 @@ const dismissConfigWarning = vi.fn(() => {
   }
 });
 
+// The language somebody's account is set to is watched from here now, which
+// reaches a store. This test is about the configuration gate above it, and a
+// store it never exercises would only be a second thing to keep in step.
+vi.mock('@/composables/useAccountLanguage', () => ({
+  useAccountLanguage: () => {},
+}));
+
 vi.mock('@/composables/useConfigErrorGate', () => ({
   useConfigErrorGate: () => ({
     configError,

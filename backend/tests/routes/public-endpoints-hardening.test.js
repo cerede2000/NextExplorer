@@ -64,7 +64,6 @@ describe('checking a share password', () => {
     const { app, token } = await shareApp();
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       const response = await request(app)
         .post(`/api/share/${token}/verify`)
         .send({ password: `guess-${attempt}` });
@@ -109,7 +108,6 @@ describe('a failed sign-in for an address with no account', () => {
     const users = envContext.requireFresh('src/services/users');
 
     for (let attempt = 0; attempt < 12; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       expect(
         await users.attemptLocalLogin({ email: 'newcomer@example.com', password: 'guess' })
       ).toBeNull();

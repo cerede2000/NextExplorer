@@ -21,9 +21,7 @@ describe('Collabora Discovery Service', () => {
 
       const docx = map.get('docx');
       expect(docx).toBeDefined();
-      expect(docx.edit).toBe(
-        'https://office.example.com/loleaflet/123/loleaflet.html?WOPISrc='
-      );
+      expect(docx.edit).toBe('https://office.example.com/loleaflet/123/loleaflet.html?WOPISrc=');
       expect(docx.view).toBe(
         'https://office.example.com/loleaflet/123/loleaflet.html?permission=readonly&WOPISrc='
       );

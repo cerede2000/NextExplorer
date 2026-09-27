@@ -74,7 +74,10 @@
     "back": "後退",
     "logoAlt": "{name} 的標誌",
     "toggleSection": "展開或摺疊此區段",
-    "dismissWarning": "忽略此警告"
+    "dismissWarning": "忽略此警告",
+    "reset": "重設",
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "新增 CSV 檔",
     "newDocument": "新增文件",
     "extractArchive": "解壓縮",
-    "extractArchiveIntoCurrentFolder": "解壓縮至目前檔案夾"
+    "extractArchiveIntoCurrentFolder": "解壓縮至目前檔案夾",
+    "copyPath": "複製路徑",
+    "copyName": "複製名稱",
+    "share": "分享",
+    "copied": "已複製",
+    "newPdf": "新增 PDF 文件"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

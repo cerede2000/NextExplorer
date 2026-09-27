@@ -44,8 +44,7 @@
       v-else
       class="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-xs whitespace-pre-wrap text-neutral-800 dark:text-neutral-200"
       data-testid="archive-reader-text"
-      >{{ text }}</pre
-    >
+      >{{ text }}</pre>
   </div>
 </template>
 

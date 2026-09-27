@@ -74,7 +74,10 @@
     "back": "Back",
     "logoAlt": "{name} logo",
     "toggleSection": "Toggle section",
-    "dismissWarning": "Dismiss warning"
+    "dismissWarning": "Dismiss warning",
+    "reset": "Reset",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "editor": {
     "editing": "Editing",
@@ -121,7 +124,12 @@
     "newCsvFile": "New CSV file",
     "newDocument": "New document",
     "extractArchive": "Extract archive",
-    "extractArchiveIntoCurrentFolder": "Extract into current folder"
+    "extractArchiveIntoCurrentFolder": "Extract into current folder",
+    "copyPath": "Copy path",
+    "copyName": "Copy name",
+    "share": "Share",
+    "copied": "Copied",
+    "newPdf": "New PDF document"
   },
   "placeholders": {
     "email": "user{'@'}example.com",

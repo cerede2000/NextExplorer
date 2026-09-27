@@ -1,7 +1,10 @@
 {
   "name": "nextexplorer",
-  "version": "3.1.0",
+  "version": "3.11.0",
   "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
   "workspaces": [
     "backend",
     "frontend",
@@ -16,16 +19,28 @@
     "docs:build": "npm run docs:build -w docs --",
     "docs:preview": "npm run docs:preview -w docs --",
     "build": "npm run build -w frontend",
-    "test": "npm run test -w backend",
+    "test": "npm run test -w backend && npm run test:unit -w frontend",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "version:check": "node scripts/version.js --check",
+    "version:set": "node scripts/version.js",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "download_samples": "npm run download_samples - backend"
+    "download_samples": "npm run download_samples - backend",
+    "test:backend": "npm run test -w backend",
+    "test:frontend": "npm run test:unit -w frontend",
+    "test:coverage:backend": "npm run test:coverage -w backend",
+    "test:coverage:frontend": "npm run test:coverage -w frontend",
+    "test:e2e": "npm run test:e2e -w frontend"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.2",
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/ui": "^4.1.11",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.11.0",
+    "globals": "^16.5.0",
     "prettier": "^3.6.2"
   }
 }

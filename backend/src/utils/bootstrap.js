@@ -49,7 +49,7 @@ const ensureEnvAdminUser = async () => {
   const username = normalizedEmail.split('@')[0] || 'admin';
 
   const ensureAdminRole = async (userId, rolesJson) => {
-    let roles = [];
+    let roles;
     try {
       roles = JSON.parse(rolesJson || '[]');
     } catch (_) {

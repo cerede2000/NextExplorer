@@ -28,7 +28,7 @@ const lint = async (relativeFile, code) => {
 // ESLint puts the restricted name in front of the message for one of the two
 // rules, so the reason is what is matched, not the whole line.
 const GUARD = expect.stringContaining(
-  'Deleting from disk goes through services/trash (see .eslintrc.cjs).'
+  'Deleting from disk goes through services/trash (see eslint.config.mjs).'
 );
 
 describe('removing from disk outside the trash', () => {

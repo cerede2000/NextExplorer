@@ -5,16 +5,16 @@ nextExplorer is packaged as a single Docker image that hosts both the API/backen
 ## What you need
 
 - **Docker Engine 24+ & Docker Compose v2.** The official image targets modern platforms; use the Compose workflow shown below for reproducibility.
-- **Host folders to expose as volumes.** Every `/host/path:/mnt/Label` mount becomes a top-level volume in the UI. Keep the folder readable by the container user (use `PUID`/`PGID` to match the host if needed).
-- **Persistent config storage.** Mount a directory to `/config` so SQLite, `app-config.json`, extensions, and the generated session secret survive upgrades. Back this directory up before major changes.
-- **Optional cache storage.** Thumbnails, search indexes, and temporary files go into `/cache`; it can be cleared safely when troubleshooting.
+- **Host folders to expose as volumes.** Every `/host/path:/mnt/Label` mount becomes a top-level volume in the UI. A volume is the mount itself, so the application never renames, moves or deletes one, and never creates one: that is done where the server is configured. Keep the folder readable by the container user (use `PUID`/`PGID` to match the host if needed). A volume mounted `:ro`, or one the container user may not write in, shows a lock on the home page and in the sidebar, and offers no writes to anyone.
+- **Persistent config storage.** Mount a directory to `/config` so `app.db` — accounts, shares, settings — your logo and the session secret survive upgrades. Back this directory up before major changes. Without `SESSION_SECRET`, a secret is generated at the first start and kept in `/config/session-secret`, so sessions survive restarts as long as `/config` does.
+- **Cache storage.** Thumbnails, RAW previews, sessions and `index.db` — the search index and folder sizes — go into `/cache`. Nothing in it needs a backup, but mount it persistently: clearing it signs everyone out and rebuilds the indexes with a pass over the volumes.
 
 ## Sample Docker Compose (production focused)
 
 ```yaml
 services:
   nextexplorer:
-    image: nxzai/explorer:latest
+    image: ghcr.io/cerede2000/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:
@@ -39,8 +39,8 @@ services:
 ## Volume strategy
 
 - **Each `/mnt/Label` mount becomes a sidebar volume.** Give folders human-friendly labels to avoid confusion, e.g., `/mnt/Projects`, `/mnt/Media`.
-- **`/config`:** Stores the SQLite database, `app-config.json`, and any installed extensions/themes (see `backend/src/config/env.js` for how `CONFIG_DIR` can be overridden). Back this folder up before upgrades.
-- **`/cache`:** Holds thumbnails, ripgrep indexes, and other ephemeral state; deleting it is safe but will trigger regrowth.
+- **`/config`:** Stores `app.db`, `logos/` and `session-secret` (see `backend/src/config/env.js` for how `CONFIG_DIR` can be overridden). Back this folder up before upgrades.
+- **`/cache`:** Holds thumbnails, RAW previews, `sessions.db`, `index.db` and uploads in progress. Deleting it loses no data, but signs everyone out and rebuilds the indexes.
 - **Permission tip:** The entrypoint chown’s `/config` and `/cache` to the container user (default `1000:1000`). Override with `PUID`/`PGID` for custom ownership.
 
 ## First run checklist
@@ -63,7 +63,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Persistent state lives under your `/config` mount (`app.db`, `app-config.json`, extensions) while `/cache` can be rebuilt. After pulling an image, verify the entrypoint remaps any legacy `/cache` configs to `/config` and restart the service.
+Persistent state lives under your `/config` mount (`app.db`, `logos/`, `session-secret`) while `/cache` can be rebuilt. An installation that started on 1.1.7 or earlier kept `app.db` in `/cache`: nothing moves it any more, so copy it to `/config` by hand before upgrading it. The server warns at start when it finds such a file there.
 
 ## What’s next
 
