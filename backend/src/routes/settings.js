@@ -3,53 +3,26 @@ const {
   getPublicSettings,
   getSettingsForUser,
   setUserSetting,
-  USER_SETTING_KEYS,
-  setSystemSetting,
-  getSettings,
+  setUserFolderSort,
+  setUserFolderView,
+  checkSystemSection,
+  mergeSystemSection,
+  replaceBranding,
+  WRITABLE_USER_SETTINGS,
 } = require('../services/settingsService');
+const { forgetReplacedLogo, replaceLogo } = require('../services/brandingLogo');
 const activityLog = require('../services/activityLog');
+const asyncHandler = require('../utils/asyncHandler');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
-const { checkRulePath } = require('../services/accessControlService');
+const multer = require('multer');
 const { ValidationError } = require('../errors/AppError');
+const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
-const asyncHandler = require('../utils/asyncHandler');
-const multer = require('multer');
 const featureSwitches = require('../services/featureSwitches');
-const { explainMultipartRefusals, describeBytes } = require('../middleware/multipartRefusals');
-const { replaceLogo, forgetReplacedLogo } = require('../services/brandingLogo');
-
-/**
- * A number somebody chose.
- *
- * Every numeric setting here has a floor above zero, and every one of them is
- * a field on a form: emptied, it arrives as 0. Stored, the sanitizer lifts it
- * to the floor — so clearing the trash retention used to leave a trash that
- * keeps one day and sweeps everything older within the hour, and clearing the
- * share of a volume left one percent. Nothing arriving means nothing chosen,
- * and what is stored stays.
- *
- * One reading for all of them rather than a condition per field, so a section
- * added later cannot be the one that forgot.
- */
-const chosenNumber = (value) => Number.isFinite(value) && value > 0;
+const { checkRulePath } = require('../services/accessControlService');
 
 const router = express.Router();
-
-// Middleware to check if user is admin
-const keepValid = (section, fields) => {
-  const update = {};
-  for (const [name, isAcceptable] of Object.entries(fields)) {
-    if (isAcceptable(section[name])) update[name] = section[name];
-  }
-  return update;
-};
-
-const isBoolean = (value) => typeof value === 'boolean';
-
-// An application name of spaces is no name: the header and the sign-in page showed
-// nothing where it belonged.
-const isName = (value) => typeof value === 'string' && value.trim() !== '';
 
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -72,6 +45,7 @@ const upload = multer({
 const acceptLogo = explainMultipartRefusals(upload.single('logo'), {
   LIMIT_FILE_SIZE: `A logo can be at most ${describeBytes(LOGO_MAX_BYTES)}.`,
 });
+
 /**
  * GET /api/branding
  * Returns public branding settings (no auth required)
@@ -169,277 +143,314 @@ router.post(
  * - Users can update their own user settings (user.*)
  * - Admins can update system settings (thumbnails, access, branding)
  */
+/**
+ * Keep the fields of a section that arrived in a shape worth storing.
+ *
+ * A field nobody sent is not a field set to nothing, and a size that is not a
+ * number is a size nobody chose: both are left out, so the stored value stays
+ * what it was rather than becoming something the caller never asked for.
+ */
+const keepValid = (section, fields) => {
+  const update = {};
+  for (const [name, isAcceptable] of Object.entries(fields)) {
+    if (isAcceptable(section[name])) update[name] = section[name];
+  }
+  return update;
+};
+
+const isBoolean = (value) => typeof value === 'boolean';
+const isText = (value) => typeof value === 'string';
+
+// A size or a count of nothing, or of less than nothing, is what an emptied or
+// mistyped field sends, not a value anyone chose. The service would bring it up
+// to its lowest bound — a chunk size of 0 became 1 MiB — which replaced what
+// was stored with something nobody asked for. A positive value outside the
+// bounds is still brought within them there.
+const isPositiveNumber = (value) => Number.isFinite(value) && value > 0;
+
+// An application name of spaces is no name: the header and the sign-in page
+// showed nothing where it belonged.
+const isName = (value) => typeof value === 'string' && value.trim() !== '';
+
+/**
+ * Merge an update over what is stored, and give back the whole section.
+ *
+ * The merge is the service's, which reads the stored section and writes it
+ * back without yielding in between. Merging over the settings read at the
+ * start of the request, as this did, left two awaits between the read and the
+ * write: two saves of one section at once both started from the same stored
+ * value, and the second wrote over the first's field while telling the person
+ * who set it that it was saved. Branding already had its own reason for a
+ * read and a write in one step; every section has this one.
+ *
+ * @returns {Promise<object|null>} null when there was nothing to change, so a
+ *   caller can tell "no valid field" from "field set to its current value".
+ */
+const mergeSection = async (category, key, update) => {
+  if (Object.keys(update).length === 0) return null;
+  return mergeSystemSection(category, key, update);
+};
+
+/** A person's own preferences, which they may change whatever their role. */
+const applyUserPreferences = async (user, section) => {
+  const updates = {};
+
+  for (const [key, value] of Object.entries(section)) {
+    if (key === 'folderSort') {
+      const folderSorts = await setUserFolderSort(user.id, value?.path, value?.sort);
+      if (folderSorts) updates.folderSorts = folderSorts;
+    } else if (key === 'folderView') {
+      const folderViews = await setUserFolderView(user.id, value?.path, value?.view);
+      if (folderViews) updates.folderViews = folderViews;
+    } else if (WRITABLE_USER_SETTINGS.has(key)) {
+      updates[key] = await setUserSetting(user.id, key, value);
+    }
+  }
+
+  return Object.keys(updates).length > 0 ? updates : null;
+};
+
+/**
+ * A section checked in one step and written in another.
+ *
+ * Both halves exist because one save carries several sections: a refusal in
+ * the third must not leave the first two stored. `check` answers what is to be
+ * written, or null when the section sends nothing this route stores, and it is
+ * where a refusal comes from. `write` stores it, and cannot refuse.
+ */
+const merging = (key, fields) => ({
+  check: (section) => keepValid(section, fields),
+  write: (update) => mergeSection('system', key, update),
+});
+
+const thumbnailsSection = merging('thumbnails', {
+  // Anything but a boolean used to be read as "on": "false" switched
+  // thumbnails on for everybody.
+  enabled: isBoolean,
+  size: isPositiveNumber,
+  quality: isPositiveNumber,
+  concurrency: isPositiveNumber,
+});
+
+const uploadsSection = merging('uploads', {
+  chunkedEnabled: isBoolean,
+  chunkedAutoFallback: isBoolean,
+  chunkSizeBytes: isPositiveNumber,
+});
+
+// The trash's size cap is the one field where nothing is a value: null removes
+// the cap. Zero is not that — it is what an emptied field sends, and the
+// service read it as "no cap given" and put the default back.
+const isPositiveNumberOrNull = (value) => value === null || isPositiveNumber(value);
+
+// A retention of no days, or of fewer than none, is what an emptied or
+// mistyped field sends. The service brought each up to its lowest bound — a
+// retention of 0 became one day, of -5 became one day — in place of the ninety
+// the administrator had. The settings page refuses them with the same bounds;
+// this is what an API client used to see instead.
+const trashSection = merging('trash', {
+  enabled: isBoolean,
+  retentionDays: isPositiveNumber,
+  maxPercent: isPositiveNumber,
+  maxBytes: isPositiveNumberOrNull,
+});
+
+const versionsSection = merging('versions', {
+  enabled: isBoolean,
+  keepAllHours: isPositiveNumber,
+  hourlyDays: isPositiveNumber,
+  dailyDays: isPositiveNumber,
+  maxPerFile: isPositiveNumber,
+  sessionCheckpointMinutes: isPositiveNumber,
+});
+
+const activitySection = merging('activity', {
+  enabled: isBoolean,
+  retentionDays: isPositiveNumber,
+});
+
+/**
+ * Branding is read and written in one step rather than merged over the
+ * settings read at the start of the request, because a logo it replaces is
+ * then removed: reset to the default, or pointed elsewhere, the old file would
+ * otherwise stay behind with nothing to serve or remove it.
+ */
+const brandingSection = {
+  check: (section) => {
+    const update = keepValid(section, {
+      appName: isName,
+      appLogoUrl: isText,
+      showPoweredBy: isBoolean,
+    });
+    return Object.keys(update).length > 0 ? update : null;
+  },
+  write: async (update) => {
+    const { previous, current } = await replaceBranding(update);
+    await forgetReplacedLogo(previous.appLogoUrl, current.appLogoUrl);
+  },
+};
+
+/**
+ * Access rules replace the list rather than merging into it, and they are the
+ * one section that refuses what it was sent: a rule with no folder, or a
+ * permission that is not one of the three, is answered rather than dropped.
+ * Which is why it is checked here, before any other section is written — a
+ * list sent as something that is not a list is still dropped, as it always
+ * was, because then there is nothing to store.
+ *
+ * The switch that holds administrators to every rule is saved from a control of
+ * its own, so each half is taken only when it was sent and merged over what is
+ * stored: saving the rules must not switch it off, and switching it must not
+ * empty the rules.
+ */
+const accessSection = {
+  check: (section) => {
+    const update = {};
+    if (Array.isArray(section.rules)) {
+      update.rules = checkSystemSection('access', { rules: section.rules }).rules;
+    }
+    if (section.applyToAdmins !== undefined) {
+      update.applyToAdmins = checkSystemSection('access', {
+        applyToAdmins: section.applyToAdmins,
+      }).applyToAdmins;
+    }
+    return Object.keys(update).length > 0 ? update : null;
+  },
+  write: (update) => mergeSystemSection('system', 'access', update),
+};
+
+/**
+ * A background worker: the folders it leaves alone, and whether it runs.
+ *
+ * The list is stored and handed to the worker, which answers with the list it
+ * is actually applying — the stored one plus whatever the environment set,
+ * which an administrator cannot remove from here.
+ *
+ * The switch follows the same rule. When the environment set it, it is refused
+ * rather than quietly stored: an administrator who flips a switch and sees
+ * nothing happen deserves to be told which variable is in the way, and a page
+ * that shows the switch locked will not send it in the first place.
+ *
+ * @param {string} key          the settings section
+ * @param {object} manager      the worker, for its exclusions
+ * @param {string} field        `enabled` or `mode`
+ * @param {(value: *) => *} valid  the value to store, or undefined to refuse it
+ * @param {(value: *) => Promise} apply  switch the worker to it
+ * @param {string} variable     the environment variable that would lock it
+ */
+const background = ({ key, manager, field, valid, apply, variable }) => ({
+  check: (section) => {
+    const update = {};
+    if (Array.isArray(section.excludedPaths)) update.excludedPaths = section.excludedPaths;
+
+    if (Object.prototype.hasOwnProperty.call(section, field)) {
+      if (featureSwitches.snapshot()[key].lockedBy) {
+        throw new ValidationError(
+          `${variable} is set in the environment, so this is decided there and not here.`
+        );
+      }
+      const value = valid(section[field]);
+      if (value === undefined) throw new ValidationError(`${field} is not a value ${key} takes.`);
+      update[field] = value;
+    }
+
+    return Object.keys(update).length ? update : null;
+  },
+  write: async (update) => {
+    const saved = await mergeSection('system', key, update);
+    if (!saved) return false;
+    if (update.excludedPaths) await manager.setAdminExclusions(saved.excludedPaths);
+    if (Object.prototype.hasOwnProperty.call(update, field)) await apply(saved[field]);
+    return true;
+  },
+});
+
+const searchIndexSection = background({
+  key: 'searchIndex',
+  manager: searchIndexManager,
+  field: 'enabled',
+  valid: (value) => (typeof value === 'boolean' ? value : undefined),
+  apply: (value) => featureSwitches.setSearchIndex(value),
+  variable: 'SEARCH_INDEX',
+});
+
+const folderSizeSection = background({
+  key: 'folderSize',
+  manager: folderSizeManager,
+  field: 'mode',
+  valid: (value) => (featureSwitches.FOLDER_SIZE_MODES.includes(value) ? value : undefined),
+  apply: (value) => featureSwitches.setFolderSizeMode(value),
+  variable: 'FOLDER_SIZE_MODE',
+});
+
+/** Every section only an administrator may write, and what writes it. */
+const SYSTEM_SECTIONS = {
+  thumbnails: thumbnailsSection,
+  access: accessSection,
+  uploads: uploadsSection,
+  trash: trashSection,
+  versions: versionsSection,
+  activity: activitySection,
+  branding: brandingSection,
+  folderSize: folderSizeSection,
+  searchIndex: searchIndexSection,
+};
+
 router.patch(
   '/settings',
   asyncHandler(async (req, res) => {
     const payload = req.body || {};
     const user = req.user;
     const isAdmin = user && Array.isArray(user.roles) && user.roles.includes('admin');
-    const updated = {};
 
-    // User settings (all authenticated users can update)
-    if (payload.user && typeof payload.user === 'object' && user && user.id) {
-      const userUpdates = {};
-      for (const [key, value] of Object.entries(payload.user)) {
-        // Which keys are preferences is the settings service's to say: this
-        // route used to keep a second list of its own, and a preference added
-        // to one and not the other was silently dropped here.
-        if (USER_SETTING_KEYS.has(key)) {
-          userUpdates[key] = await setUserSetting(user.id, key, value);
-        }
-      }
-      if (Object.keys(userUpdates).length > 0) {
-        updated.user = userUpdates;
-      }
-    }
-
-    // System settings (admin only)
-    if (isAdmin) {
-      const systemUpdates = {};
-
-      // Thumbnails settings
-      if (payload.thumbnails && typeof payload.thumbnails === 'object') {
-        const thumbnailsUpdate = {};
-        if (payload.thumbnails.enabled != null) {
-          thumbnailsUpdate.enabled = Boolean(payload.thumbnails.enabled);
-        }
-        if (chosenNumber(payload.thumbnails.size)) {
-          thumbnailsUpdate.size = payload.thumbnails.size;
-        }
-        if (chosenNumber(payload.thumbnails.quality)) {
-          thumbnailsUpdate.quality = payload.thumbnails.quality;
-        }
-        if (chosenNumber(payload.thumbnails.concurrency)) {
-          thumbnailsUpdate.concurrency = payload.thumbnails.concurrency;
-        }
-        if (Object.keys(thumbnailsUpdate).length > 0) {
-          const current = await getSettings();
-          await setSystemSetting('system', 'thumbnails', {
-            ...current.thumbnails,
-            ...thumbnailsUpdate,
-          });
-          systemUpdates.thumbnails = { ...current.thumbnails, ...thumbnailsUpdate };
-        }
-      }
-
-      // Access control rules, and whether they hold administrators. The two are
-      // saved apart on the settings page, so each is merged over what is stored
-      // rather than replacing the section: saving the rules used to drop the
-      // setting above them, and saving the setting used to drop the rules.
-      if (payload.access && typeof payload.access === 'object') {
-        const accessUpdate = {};
-        if (Array.isArray(payload.access.rules)) accessUpdate.rules = payload.access.rules;
-        if (typeof payload.access.applyToAdmins === 'boolean') {
-          accessUpdate.applyToAdmins = payload.access.applyToAdmins;
-        }
-        if (Object.keys(accessUpdate).length > 0) {
-          const current = await getSettings();
-          const merged = await setSystemSetting('system', 'access', {
-            ...current.access,
-            ...accessUpdate,
-          });
-          systemUpdates.access = merged;
-        }
-      }
-
-      // Trash settings: only the fields that arrived in a usable shape are
-      // merged over what is stored; setSystemSetting sanitizes and clamps them.
-      if (payload.trash && typeof payload.trash === 'object') {
-        const trashUpdate = {};
-        if (typeof payload.trash.enabled === 'boolean') {
-          trashUpdate.enabled = payload.trash.enabled;
-        }
-        if (chosenNumber(payload.trash.retentionDays)) {
-          trashUpdate.retentionDays = payload.trash.retentionDays;
-        }
-        if (chosenNumber(payload.trash.maxPercent)) {
-          trashUpdate.maxPercent = payload.trash.maxPercent;
-        }
-        if (payload.trash.maxBytes === null || chosenNumber(payload.trash.maxBytes)) {
-          trashUpdate.maxBytes = payload.trash.maxBytes;
-        }
-        if (Object.keys(trashUpdate).length > 0) {
-          const current = await getSettings();
-          const merged = await setSystemSetting('system', 'trash', {
-            ...current.trash,
-            ...trashUpdate,
-          });
-          systemUpdates.trash = merged;
-        }
-      }
-
-      // Upload settings: whether uploads go out in chunks, and how big one is.
-      if (payload.uploads && typeof payload.uploads === 'object') {
-        const uploadsUpdate = {};
-        if (typeof payload.uploads.chunkedEnabled === 'boolean') {
-          uploadsUpdate.chunkedEnabled = payload.uploads.chunkedEnabled;
-        }
-        if (chosenNumber(payload.uploads.chunkSizeBytes)) {
-          uploadsUpdate.chunkSizeBytes = payload.uploads.chunkSizeBytes;
-        }
-        if (Object.keys(uploadsUpdate).length > 0) {
-          const current = await getSettings();
-          const merged = await setSystemSetting('system', 'uploads', {
-            ...current.uploads,
-            ...uploadsUpdate,
-          });
-          systemUpdates.uploads = merged;
-        }
-      }
-
-      // File-version settings: only the fields that arrived usable are merged;
-      // setSystemSetting sanitizes and keeps them consistent.
-      if (payload.versions && typeof payload.versions === 'object') {
-        const versionsUpdate = {};
-        if (typeof payload.versions.enabled === 'boolean') {
-          versionsUpdate.enabled = payload.versions.enabled;
-        }
-        for (const key of [
-          'keepAllHours',
-          'hourlyDays',
-          'dailyDays',
-          'maxPerFile',
-          'sessionCheckpointMinutes',
-        ]) {
-          if (chosenNumber(payload.versions[key])) versionsUpdate[key] = payload.versions[key];
-        }
-        if (Object.keys(versionsUpdate).length > 0) {
-          const current = await getSettings();
-          const merged = await setSystemSetting('system', 'versions', {
-            ...current.versions,
-            ...versionsUpdate,
-          });
-          systemUpdates.versions = merged;
-        }
-      }
-
-      // Activity log settings: the switch, and how long a line is kept.
-      if (payload.activity && typeof payload.activity === 'object') {
-        const activityUpdate = {};
-        if (typeof payload.activity.enabled === 'boolean') {
-          activityUpdate.enabled = payload.activity.enabled;
-        }
-        if (chosenNumber(payload.activity.retentionDays)) {
-          activityUpdate.retentionDays = payload.activity.retentionDays;
-        }
-        if (Object.keys(activityUpdate).length > 0) {
-          const current = await getSettings();
-          const merged = await setSystemSetting('system', 'activity', {
-            ...current.activity,
-            ...activityUpdate,
-          });
-          systemUpdates.activity = merged;
-        }
-      }
-
-      // The folders each background worker leaves alone. The list is stored
-      // and handed to the worker, which answers with the list it is really
-      // applying — the stored one plus whatever the environment set, which an
-      // administrator cannot take away from here.
-      for (const [key, manager] of [
-        ['folderSize', folderSizeManager],
-        ['searchIndex', searchIndexManager],
-      ]) {
-        const section = payload[key];
-        if (!section || typeof section !== 'object') continue;
-
-        // Whether the worker runs at all, which was decided by SEARCH_INDEX and
-        // FOLDER_SIZE_MODE alone: turning either on meant editing a file on the host
-        // and restarting, while every other setting beside them was a click (#9).
-        //
-        // The environment stays the floor. A variable somebody set decides, and a
-        // switch sent for it is refused in words naming the variable, rather than
-        // accepted and quietly ignored — "false" is a decision too, so an
-        // installation that turned the index off in its file has not left it to
-        // whoever next opens the page.
-        const field = key === 'searchIndex' ? 'enabled' : 'mode';
-        if (Object.prototype.hasOwnProperty.call(section, field)) {
-          const variable = key === 'searchIndex' ? 'SEARCH_INDEX' : 'FOLDER_SIZE_MODE';
-          if (featureSwitches.snapshot()[key].lockedBy) {
-            throw new ValidationError(
-              `${variable} is set in the environment, so this is decided there and not here.`
-            );
-          }
-          const requested =
-            key === 'searchIndex'
-              ? typeof section.enabled === 'boolean'
-                ? section.enabled
-                : undefined
-              : featureSwitches.FOLDER_SIZE_MODES.includes(section.mode)
-                ? section.mode
-                : undefined;
-          if (requested === undefined) {
-            throw new ValidationError(`${field} is not a value ${key} takes.`);
-          }
-          const current = await getSettings();
-          systemUpdates[key] = await setSystemSetting('system', key, {
-            ...current[key],
-            [field]: requested,
-          });
-          if (key === 'searchIndex') await featureSwitches.setSearchIndex(requested);
-          else await featureSwitches.setFolderSizeMode(requested);
-        }
-
-        if (!Array.isArray(section.excludedPaths)) continue;
-        const current = await getSettings();
-        const merged = await setSystemSetting('system', key, {
-          ...current[key],
-          excludedPaths: section.excludedPaths,
-        });
-        await manager.setAdminExclusions(merged.excludedPaths);
-        systemUpdates[key] = merged;
-      }
-
-      // Branding settings
-      let previousLogoUrl;
-      if (payload.branding && typeof payload.branding === 'object') {
-        const brandingUpdate = {};
-        if (typeof payload.branding.appName === 'string') {
-          brandingUpdate.appName = payload.branding.appName;
-        }
-        if (typeof payload.branding.appLogoUrl === 'string') {
-          brandingUpdate.appLogoUrl = payload.branding.appLogoUrl;
-        }
-        if (typeof payload.branding.showPoweredBy === 'boolean') {
-          brandingUpdate.showPoweredBy = payload.branding.showPoweredBy;
-        }
-        if (Object.keys(brandingUpdate).length > 0) {
-          const current = await getSettings();
-          previousLogoUrl = current.branding?.appLogoUrl ?? null;
-          await setSystemSetting('branding', 'branding', {
-            ...current.branding,
-            ...brandingUpdate,
-          });
-          systemUpdates.branding = { ...current.branding, ...brandingUpdate };
-        }
-      }
-
-      if (Object.keys(systemUpdates).length > 0) {
-        Object.assign(updated, systemUpdates);
-        // Which settings, not what they were set to: values belong in the
-        // settings, and some of them are somebody's business alone.
-        await activityLog.record({
-          action: 'admin.settings',
-          user,
-          detail: { sections: Object.keys(systemUpdates) },
-          req,
-        });
-      }
-
-      // The logo that was replaced is forgotten, and only once nothing points at it
-      // any more. Removing the files under a fixed name meant a logo could not be
-      // changed back, and a branding change that failed halfway took the logo in use
-      // with it.
-      if (previousLogoUrl !== undefined) {
-        const settingsNow = await getSettings();
-        await forgetReplacedLogo(previousLogoUrl, settingsNow.branding?.appLogoUrl);
-      }
-    } else if (payload.thumbnails || payload.access || payload.branding) {
-      // Non-admin trying to update system settings
+    // Asked before anything is written, not after. The user section used to be
+    // applied first and the refusal raised afterwards, so a payload carrying
+    // both a preference and a system setting answered 403 with the preference
+    // already saved — a request reported as refused that had changed something.
+    const wantsSystemSettings = Object.keys(SYSTEM_SECTIONS).some((name) => payload[name]);
+    if (!isAdmin && wantsSystemSettings) {
       return res.status(403).json({ error: 'Admin access required for system settings.' });
     }
 
-    // Return updated settings
+    // Every section is checked before any of them is written. A save carrying
+    // a valid section and a refused one used to store the first and then answer
+    // 400: a request reported as refused that had changed something, and left
+    // the page showing settings the server had only half taken.
+    const toWrite = [];
+    if (isAdmin) {
+      for (const [name, section] of Object.entries(SYSTEM_SECTIONS)) {
+        const sent = payload[name];
+        if (!sent || typeof sent !== 'object') continue;
+        const update = section.check(sent);
+        if (update !== null) toWrite.push([name, section, update]);
+      }
+    }
+
+    if (payload.user && typeof payload.user === 'object' && user?.id) {
+      await applyUserPreferences(user, payload.user);
+    }
+
+    // What was stored, not what was sent: a section whose every field was
+    // refused writes nothing, and a log line saying otherwise would send
+    // somebody looking for a change that never happened.
+    const stored = [];
+    for (const [name, section, update] of toWrite) {
+      if (await section.write(update)) stored.push(name);
+    }
+    if (stored.length) {
+      // Which settings, not what they were set to: values belong in the
+      // settings, and some of them are somebody's business alone.
+      await activityLog.record({
+        action: 'admin.settings',
+        user,
+        detail: { sections: stored },
+        req,
+      });
+    }
+
+    // Read back rather than assembled from what was written: the stored value
+    // is sanitised on its way out, so what the caller applies to its own state
+    // is what a later request would read.
     const finalSettings = await getSettingsForUser(user);
     res.json(finalSettings);
   })

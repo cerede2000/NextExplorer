@@ -3,15 +3,8 @@ import { computed, onMounted, reactive, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { useI18n } from 'vue-i18n';
-import ToggleSwitch from '@/components/ToggleSwitch.vue';
 import { languageLabel, supportedLocaleOptions } from '@/i18n';
-
-// Each language named in itself — Deutsch, Français — since whoever is looking
-// for theirs may not read the one the page is in.
-const languages = supportedLocaleOptions.map(({ code }) => ({
-  code,
-  label: languageLabel(code),
-}));
+import ToggleSwitch from '@/components/ToggleSwitch.vue';
 
 const appSettings = useAppSettings();
 const features = useFeaturesStore();
@@ -20,15 +13,17 @@ const { t } = useI18n();
 const local = reactive({
   showHiddenFiles: false,
   showThumbnails: true,
-  showVersionMarks: true,
-  documentsOpenInNewTab: false,
-  locale: null,
   showSidebarFavorites: true,
   showSidebarShares: true,
   showSidebarTools: true,
   defaultShareExpirationValue: null,
   defaultShareExpirationUnit: 'weeks',
   skipHome: null, // null = use env, true/false = override
+  defaultView: null, // null = the built-in default, otherwise a view mode
+  markdownOpensInEditor: false,
+  documentsOpenInNewTab: false,
+  showVersionMarks: true,
+  locale: null,
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -42,15 +37,25 @@ const dirty = computed(() => {
   return (
     local.showHiddenFiles !== orig.showHiddenFiles ||
     local.showThumbnails !== orig.showThumbnails ||
-    local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
-    local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
-    local.locale !== (orig.locale ?? null) ||
     local.showSidebarFavorites !== (orig.showSidebarFavorites ?? true) ||
     local.showSidebarShares !== (orig.showSidebarShares ?? true) ||
     local.showSidebarTools !== (orig.showSidebarTools ?? true) ||
     JSON.stringify(localExpiration) !== JSON.stringify(origExpiration) ||
-    local.skipHome !== orig.skipHome
+    local.skipHome !== orig.skipHome ||
+    local.defaultView !== orig.defaultView ||
+    local.markdownOpensInEditor !== (orig.markdownOpensInEditor ?? false) ||
+    local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
+    local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
+    local.locale !== (orig.locale ?? null)
   );
+});
+
+// Empty means no default. Anything else has to be a whole number of at least
+// one, as the server takes it: minus three weeks used to be sent as it was.
+const expirationInvalid = computed(() => {
+  const value = local.defaultShareExpirationValue;
+  if (value === null || value === '') return false;
+  return !(Number.isInteger(value) && value >= 1);
 });
 
 const hiddenFilePatternsLabel = computed(() => {
@@ -61,6 +66,13 @@ const hiddenFilePatternsLabel = computed(() => {
 onMounted(() => {
   features.ensureLoaded();
 });
+
+// Named in their own language, so somebody looking for theirs finds it even
+// when the page is in one they do not read.
+const languages = supportedLocaleOptions.map(({ code }) => ({
+  code,
+  label: languageLabel(code),
+}));
 
 const sidebarPreferenceRows = [
   {
@@ -85,11 +97,6 @@ watch(
   (userSettings) => {
     local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
     local.showThumbnails = userSettings.showThumbnails ?? true;
-    local.showVersionMarks = userSettings.showVersionMarks ?? true;
-    local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
-    local.locale = userSettings.locale ?? null;
-    local.locale = userSettings.locale ?? null;
-    local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
     local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
     local.showSidebarShares = userSettings.showSidebarShares ?? true;
     local.showSidebarTools = userSettings.showSidebarTools ?? true;
@@ -104,6 +111,11 @@ watch(
     }
 
     local.skipHome = userSettings.skipHome ?? null;
+    local.defaultView = userSettings.defaultView ?? null;
+    local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
+    local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
+    local.showVersionMarks = userSettings.showVersionMarks ?? true;
+    local.locale = userSettings.locale ?? null;
   },
   { immediate: true }
 );
@@ -112,7 +124,6 @@ const reset = () => {
   const userSettings = appSettings.userSettings;
   local.showHiddenFiles = userSettings.showHiddenFiles ?? false;
   local.showThumbnails = userSettings.showThumbnails ?? true;
-  local.showVersionMarks = userSettings.showVersionMarks ?? true;
   local.showSidebarFavorites = userSettings.showSidebarFavorites ?? true;
   local.showSidebarShares = userSettings.showSidebarShares ?? true;
   local.showSidebarTools = userSettings.showSidebarTools ?? true;
@@ -127,9 +138,15 @@ const reset = () => {
   }
 
   local.skipHome = userSettings.skipHome ?? null;
+  local.defaultView = userSettings.defaultView ?? null;
+  local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
+  local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
+  local.showVersionMarks = userSettings.showVersionMarks ?? true;
+  local.locale = userSettings.locale ?? null;
 };
 
 const save = async () => {
+  if (expirationInvalid.value) return;
   const defaultShareExpiration = local.defaultShareExpirationValue
     ? { value: local.defaultShareExpirationValue, unit: local.defaultShareExpirationUnit }
     : null;
@@ -138,14 +155,16 @@ const save = async () => {
     user: {
       showHiddenFiles: local.showHiddenFiles,
       showThumbnails: local.showThumbnails,
-      showVersionMarks: local.showVersionMarks,
-      documentsOpenInNewTab: local.documentsOpenInNewTab,
-      locale: local.locale,
       showSidebarFavorites: local.showSidebarFavorites,
       showSidebarShares: local.showSidebarShares,
       showSidebarTools: local.showSidebarTools,
       defaultShareExpiration,
       skipHome: local.skipHome,
+      defaultView: local.defaultView,
+      markdownOpensInEditor: local.markdownOpensInEditor,
+      documentsOpenInNewTab: local.documentsOpenInNewTab,
+      showVersionMarks: local.showVersionMarks,
+      locale: local.locale,
     },
   });
 };
@@ -160,7 +179,10 @@ const save = async () => {
       <div class="text-sm">{{ t('common.unsavedChanges') }}</div>
       <div class="flex gap-2">
         <button
-          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400"
+          type="button"
+          data-test="preferences-save"
+          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400 disabled:opacity-50"
+          :disabled="expirationInvalid"
           @click="save"
         >
           {{ t('common.save') }}
@@ -189,6 +211,31 @@ const save = async () => {
       class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6"
     >
       <div class="space-y-6">
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('i18n.language') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.languageHelp') }}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <select
+              v-model="local.locale"
+              data-test="preferences-language"
+              class="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
+            >
+              <option :value="null">{{ t('i18n.followBrowser') }}</option>
+              <option v-for="language in languages" :key="language.code" :value="language.code">
+                {{ language.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+
         <div
           class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
         >
@@ -226,13 +273,13 @@ const save = async () => {
         >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
-              {{ t('settings.userPreferences.showVersionMarks') }}
+              {{ t('settings.userPreferences.markdownOpensInEditor') }}
             </div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              {{ t('settings.userPreferences.showVersionMarksHelp') }}
+              {{ t('settings.userPreferences.markdownOpensInEditorHelp') }}
             </div>
           </div>
-          <ToggleSwitch v-model="local.showVersionMarks" data-test="show-version-marks" />
+          <ToggleSwitch v-model="local.markdownOpensInEditor" />
         </div>
 
         <div
@@ -254,22 +301,13 @@ const save = async () => {
         >
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
-              {{ t('i18n.language') }}
+              {{ t('settings.userPreferences.showVersionMarks') }}
             </div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              {{ t('settings.userPreferences.languageHelp') }}
+              {{ t('settings.userPreferences.showVersionMarksHelp') }}
             </div>
           </div>
-          <select
-            v-model="local.locale"
-            data-test="preferences-language"
-            class="rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-          >
-            <option :value="null">{{ t('i18n.followBrowser') }}</option>
-            <option v-for="language in languages" :key="language.code" :value="language.code">
-              {{ language.label }}
-            </option>
-          </select>
+          <ToggleSwitch v-model="local.showVersionMarks" data-test="show-version-marks" />
         </div>
 
         <div
@@ -298,6 +336,13 @@ const save = async () => {
             <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
               {{ t('settings.userPreferences.defaultShareExpirationHelp') }}
             </div>
+            <p
+              v-if="expirationInvalid"
+              data-test="expiration-invalid"
+              class="mt-1 text-sm text-red-600"
+            >
+              {{ t('settings.userPreferences.defaultShareExpirationInvalid') }}
+            </p>
           </div>
           <div class="flex items-center gap-2">
             <input
@@ -309,6 +354,7 @@ const save = async () => {
             />
             <select
               v-model="local.defaultShareExpirationUnit"
+              data-test="preferences-expiry-unit"
               class="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
             >
               <option value="days">{{ t('settings.userPreferences.days') }}</option>
@@ -337,6 +383,29 @@ const save = async () => {
         <div class="flex items-center justify-between py-3">
           <div>
             <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.defaultView') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.defaultViewHelp') }}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <select
+              v-model="local.defaultView"
+              data-test="preferences-default-view"
+              class="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
+            >
+              <option :value="null">{{ t('settings.userPreferences.viewGrid') }}</option>
+              <option value="list">{{ t('settings.userPreferences.viewList') }}</option>
+              <option value="tab">{{ t('settings.userPreferences.viewColumns') }}</option>
+              <option value="photos">{{ t('settings.userPreferences.viewPhotos') }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
               {{ t('settings.userPreferences.skipHome') }}
             </div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
@@ -346,6 +415,7 @@ const save = async () => {
           <div class="flex items-center gap-2">
             <select
               v-model="local.skipHome"
+              data-test="preferences-start"
               class="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border"
             >
               <option :value="null">{{ t('settings.userPreferences.useEnvSetting') }}</option>

@@ -5,6 +5,10 @@ import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
 import { documentRoute } from '@/utils/documentRoute';
 
+// Kept beside the markdown preview plugin's own list, which matches the same
+// two extensions.
+const MARKDOWN_EXTENSIONS = ['md', 'markdown'];
+
 export function useNavigation() {
   const router = useRouter();
   const route = useRoute();
@@ -46,6 +50,16 @@ export function useNavigation() {
     const extensionFromName = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
     const editable =
       isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);
+
+    // Markdown is the one kind of file that has both a preview and an editor,
+    // so it is the only one where opening it is a choice. Whoever mostly writes
+    // markdown was going through the preview and clicking Edit every time; this
+    // sends them straight where they were heading. Everything else keeps
+    // preview-first: an image or a video has no editor to go to.
+    const opensInEditor =
+      appSettings.userSettings?.markdownOpensInEditor &&
+      (MARKDOWN_EXTENSIONS.includes(extensionFromKind) ||
+        MARKDOWN_EXTENSIONS.includes(extensionFromName));
     const basePath = item.path ? `${item.path}/${name}` : name;
     const fullPath = basePath.replace(/^\/+/, '');
     const encodedPath = fullPath.split('/').map(encodeURIComponent).join('/');
@@ -60,10 +74,10 @@ export function useNavigation() {
     // being handed one of them instead of this page filling itself.
     if (appSettings.userSettings?.documentsOpenInNewTab) {
       // Asked once: matching a plugin builds a context and walks the list.
-      const previewable = Boolean(previewManager.findPlugin(item));
+      const previewable = !opensInEditor && Boolean(previewManager.findPlugin(item));
       const target = previewable
         ? documentRoute(fullPath)
-        : editable
+        : opensInEditor || editable
           ? { path: `/editor/${encodedPath}` }
           : null;
 
@@ -76,7 +90,7 @@ export function useNavigation() {
     }
 
     // Files: try preview first (no view transition – avoids double animations)
-    if (previewManager.open(item)) {
+    if (!opensInEditor && previewManager.open(item)) {
       return;
     }
 
