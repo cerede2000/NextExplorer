@@ -24,6 +24,33 @@
   ],
   "rules": [
     {
+      "axis": "*",
+      "match": "^(backend/src/services/trash/(maintenance|settings|verify)\\.js|backend/src/services/versions/(settings|verify)\\.js)(:|$)",
+      "verdict": "THEIRS",
+      "note": "maintenance reads the storage floor from `uploads`, which is what the section is called here; the fork reads `upload.` and the floor came back zero, so the trash stopped giving space back. The rest differ only by eslint comments upstream's config still needs"
+    },
+    {
+      "axis": "migration",
+      "match": "^trash_items\\.",
+      "verdict": "DONE",
+      "batch": "P3-30",
+      "note": "nxzai#460 \u2014 which entry a restore is taking out"
+    },
+    {
+      "axis": "i18n",
+      "match": "^versions\\.",
+      "verdict": "DONE",
+      "batch": "P3-30",
+      "note": "nxzai#460 \u2014 the versions panel"
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/routes/trash\\.js|backend/src/routes/versions\\.js|backend/src/routes/versionsAdmin\\.js|backend/src/services/trash/(index|operations|zones)\\.js|backend/src/services/versions/(index|lifecycle|operations)\\.js|frontend/src/components/VersionsPanel\\.vue|frontend/src/views/TrashView\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-30",
+      "note": "nxzai#460 \u2014 restore somewhere else, and three ways to put a version back"
+    },
+    {
       "axis": "i18n",
       "match": "^nav\\.",
       "verdict": "DONE",
