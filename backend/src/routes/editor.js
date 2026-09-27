@@ -13,6 +13,7 @@ const { ValidationError, ForbiddenError, NotFoundError } = require('../errors/Ap
 const {
   readFileEncoding,
   encodeText,
+  textFileEtag,
   MAX_EDITOR_FILE_SIZE,
 } = require('../services/textEditorService');
 
@@ -157,9 +158,13 @@ router.put(
     // a stop halfway through left it truncated and the state it replaced was
     // gone. Somebody pressed Save, so it is a state worth keeping — there is no
     // session here to group it with, as there is in the office editors.
+    let written = null;
     await versions.saveFile(
       absolutePath,
-      (temporaryPath) => fs.writeFile(temporaryPath, payload, { flag: 'wx' }),
+      async (temporaryPath) => {
+        await fs.writeFile(temporaryPath, payload, { flag: 'wx' });
+        written = await fs.stat(temporaryPath, { bigint: true });
+      },
       {
         purpose: 'editor',
         author: versions.authorOf({ user: req.user, guestSession: req.guestSession }),
@@ -169,13 +174,27 @@ router.put(
     );
     // The index takes the difference the save made, from the size it can already
     // see, instead of waiting for the periodic sweep to walk the folder again.
-    const updated = await fs.stat(absolutePath).catch(() => null);
+    const updated = await fs.stat(absolutePath, { bigint: true }).catch(() => null);
     if (updated) {
       if (existed) {
-        await folderSizeHooks.onFileReplaced(absolutePath, previousSize, updated.size);
+        await folderSizeHooks.onFileReplaced(absolutePath, previousSize, Number(updated.size));
       } else {
-        await folderSizeHooks.onFileWritten(absolutePath, updated.size);
+        await folderSizeHooks.onFileWritten(absolutePath, Number(updated.size));
       }
+    }
+    // The identity the next read of the file will carry — given only when the
+    // file now at the path is the one this save wrote. A save set aside, or one
+    // whose content was already there, leaves another file in place; a write in
+    // place right after the rename changes the modification time. Either way
+    // this answer would name content it did not send.
+    if (
+      written &&
+      updated &&
+      updated.ino === written.ino &&
+      updated.size === written.size &&
+      updated.mtimeNs === written.mtimeNs
+    ) {
+      res.setHeader('ETag', textFileEtag(updated));
     }
 
     res.send({ success: true });

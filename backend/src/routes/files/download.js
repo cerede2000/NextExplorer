@@ -4,13 +4,16 @@ const { ZipArchive } = require('archiver');
 const { normalizeRelativePath } = require('../../utils/pathUtils');
 const { resolvePathWithAccess } = require('../../services/accessManager');
 const activityLog = require('../../services/activityLog');
+const { trackShareDownload } = require('../../services/sharesService');
 const asyncHandler = require('../../utils/asyncHandler');
+const { mapWithConcurrency } = require('../../utils/mapWithConcurrency');
 const { collectArchiveEntries, appendEntries } = require('../../services/archiveTree');
 const { ValidationError, ForbiddenError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
 const { collectInputPaths, encodeContentDisposition, stripBasePath, toPosix } = require('./utils');
 
 const router = require('express').Router();
+const { clientAddress } = require('../../utils/clientAddress');
 
 const getLogicalSegments = (relativePath = '') => toPosix(relativePath).split('/').filter(Boolean);
 
@@ -44,24 +47,33 @@ const handleDownloadRequest = async (paths, req, res, basePath = '') => {
 
   const context = { user: req.user, guestSession: req.guestSession };
 
-  const targets = await Promise.all(
-    normalizedPaths.map(async (relativePath) => {
-      const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
+  // The list came in the request, so the number of resolutions in flight is
+  // not the client's to choose.
+  const targets = await mapWithConcurrency(normalizedPaths, async (relativePath) => {
+    const { accessInfo, resolved } = await resolvePathWithAccess(context, relativePath);
 
-      if (
-        !accessInfo ||
-        !accessInfo.canAccess ||
-        !accessInfo.canRead ||
-        !accessInfo.canDownload ||
-        !resolved
-      ) {
-        throw new ForbiddenError(accessInfo?.denialReason || 'Download not allowed.');
-      }
+    if (
+      !accessInfo ||
+      !accessInfo.canAccess ||
+      !accessInfo.canRead ||
+      !accessInfo.canDownload ||
+      !resolved
+    ) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Download not allowed.');
+    }
 
-      const { absolutePath, relativePath: logicalPath } = resolved;
-      const stats = await fs.stat(absolutePath);
-      return { relativePath: logicalPath, absolutePath, stats };
-    })
+    const { absolutePath, relativePath: logicalPath } = resolved;
+    const stats = await fs.stat(absolutePath);
+    const shareId = resolved.shareInfo?.sharingType === 'anyone' ? resolved.shareInfo.id : null;
+    return { relativePath: logicalPath, absolutePath, stats, shareId };
+  });
+
+  // A public link's own counter, for a download that came through the files
+  // route rather than the share one: the same fetch, reached by a different
+  // address, and a last-downloaded date that skipped it was simply wrong.
+  const shareDownloadIds = [...new Set(targets.map(({ shareId }) => shareId).filter(Boolean))];
+  await mapWithConcurrency(shareDownloadIds, (shareId) =>
+    trackShareDownload(shareId, { ipAddress: clientAddress(req) })
   );
 
   // What left, named once for the whole request: a selection is one download
