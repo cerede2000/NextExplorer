@@ -1,50 +1,90 @@
 import { getShareInfo } from '@/api/shares.api';
-import { buildUrl } from '@/api/http';
+import { getGuestSessionShareToken } from '@/api';
 
 /**
- * Whether a signed-in account may open a share straight away, or has to be sent
- * to its password first.
+ * Who may open a share link, decided before the view loads.
  *
- * The server asks every account but the owner for a share's password, so a
- * signed-in visitor who has not typed it is refused everything inside the share.
- * Letting them into the folder view would show refusals where the prompt
- * belongs. Whether they have typed it is known to the server only — the proof
- * is a guest session cookie the page cannot read — so it is asked, once per
- * share and account for as long as the tab is open, and only when the share
- * says this viewer needs a password at all.
+ * This lives apart from the router so it can be tested on its own: importing
+ * the router pulls in every view, and a rule this easy to get wrong — it
+ * decides whether a visitor sees files or a password prompt — should not be
+ * verifiable only by hand.
  */
-const verdicts = new Map();
 
-export const resetShareGuard = () => verdicts.clear();
+/**
+ * The guard runs on every folder change inside a share, and the answer for a
+ * given token does not change while the tab is open. Without this cache each
+ * click paid a serialized round-trip before the folder even started loading.
+ *
+ * The viewer is part of the key: the owner skips the prompt, so signing in as
+ * someone else has to ask again.
+ */
+const shareInfoCache = new Map();
 
-export const signedInMayOpenShare = async (shareToken, viewerId) => {
-  const key = `${viewerId || 'anonymous'}:${shareToken}`;
-  if (verdicts.get(key) === true) return true;
+const cacheKey = (shareToken, viewerId) => `${viewerId || 'anonymous'}:${shareToken}`;
 
-  let info;
-  try {
-    info = await getShareInfo(shareToken);
-  } catch {
-    // An unknown or unreachable share: the view says what is wrong with it.
+const getCachedShareInfo = (shareToken, viewerId) => {
+  const key = cacheKey(shareToken, viewerId);
+  if (!shareInfoCache.has(key)) {
+    shareInfoCache.set(
+      key,
+      getShareInfo(shareToken).catch((error) => {
+        // Do not cache a failure: the next navigation should retry.
+        shareInfoCache.delete(key);
+        throw error;
+      })
+    );
+  }
+  return shareInfoCache.get(key);
+};
+
+export const resetShareInfoCache = () => shareInfoCache.clear();
+
+/**
+ * Read the guest session the visitor is carrying.
+ *
+ * Call this BEFORE auth.initialize(): that call clears guestSessionId as soon
+ * as it sees a signed-in user, so reading afterwards would lose the proof that
+ * a signed-in visitor already typed the password of a protected link — and
+ * send them back to the prompt on every reload.
+ */
+export const readGuestSession = () => ({
+  id: sessionStorage.getItem('guestSessionId'),
+  shareToken: getGuestSessionShareToken(),
+});
+
+/**
+ * @param {object} params
+ * @param {{id: string|null, shareToken: string|null}} params.guestSession read
+ *   before auth.initialize() ran.
+ * @returns {Promise<true | {name: string, params: object, query: object}>}
+ * true to let the navigation through, or the route to redirect to.
+ */
+export const resolveShareAccess = async ({ shareToken, fullPath, auth, guestSession }) => {
+  const carried = guestSession || readGuestSession();
+
+  // A verified guest session is always enough.
+  if (carried.id && carried.shareToken === shareToken) {
     return true;
   }
-  if (!info?.requiresPassword) {
-    verdicts.set(key, true);
-    return true;
+
+  // Being signed in is enough too, unless the link is password-protected: the
+  // backend asks every non-owner for it, so send them to the prompt rather
+  // than into a view that will only get refusals. requiresPassword already
+  // accounts for who is asking, so the owner is not sent to a prompt for
+  // their own share.
+  if (auth.isAuthenticated) {
+    try {
+      const info = await getCachedShareInfo(shareToken, auth.currentUser?.id);
+      if (!info?.requiresPassword) return true;
+    } catch {
+      // Unreachable or unknown share: let the view surface the error.
+      return true;
+    }
   }
 
-  // Asked directly rather than through the API layer, which reports every
-  // refusal as an error: this one is the expected answer for somebody who has
-  // not typed the password yet, and the prompt is where it leads.
-  let response = null;
-  try {
-    response = await fetch(buildUrl(`/api/share/${encodeURIComponent(shareToken)}/access`), {
-      credentials: 'include',
-    });
-  } catch {
-    return true;
-  }
-  if (response.status === 401) return false;
-  if (response.ok) verdicts.set(key, true);
-  return true;
+  return {
+    name: 'ShareLogin',
+    params: { token: shareToken },
+    query: { redirect: fullPath },
+  };
 };

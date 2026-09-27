@@ -302,7 +302,8 @@
     "home": "Home",
     "back": "Back",
     "forward": "Forward",
-    "upOneFolder": "Up one folder"
+    "upOneFolder": "Up one folder",
+    "refresh": "Refresh folder"
   },
   "view": {
     "list": "List view",

@@ -302,7 +302,8 @@
     "home": "Startpagina",
     "back": "Terug",
     "forward": "Vooruit",
-    "upOneFolder": "Eén niveau omhoog"
+    "upOneFolder": "Eén niveau omhoog",
+    "refresh": "Map vernieuwen"
   },
   "view": {
     "list": "Lijstweergave",

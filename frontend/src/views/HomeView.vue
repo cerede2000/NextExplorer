@@ -1,67 +1,34 @@
 <script setup>
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useFeaturesStore } from '@/stores/features';
-import { getVolumes, getUsage } from '@/api';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useNavigation } from '@/composables/navigation';
 import * as OutlineIcons from '@heroicons/vue/24/outline';
 import * as SolidIcons from '@heroicons/vue/24/solid';
-const ProgressBar = defineAsyncComponent(() => import('@/components/ProgressBar.vue'));
-import IconDrive from '@/icons/IconDrive.vue';
+import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
+import VolumeUsageBar from '@/components/VolumeUsageBar.vue';
 import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
-import { formatBytes } from '@/utils';
-const volumes = ref([]);
-const loading = ref(true);
+import IconDrive from '@/icons/IconDrive.vue';
+
 const favoritesStore = useFavoritesStore();
 const featuresStore = useFeaturesStore();
-const usage = ref({});
+const volumeUsageStore = useVolumeUsageStore();
 const { openItem, openBreadcrumb } = useNavigation();
 const showVolumeUsage = computed(() => featuresStore.volumeUsageEnabled);
 const personalEnabled = computed(() => featuresStore.personalEnabled);
+const volumes = computed(() => volumeUsageStore.volumes);
+const usage = computed(() => volumeUsageStore.usage);
+const loading = computed(
+  () => volumeUsageStore.isLoadingVolumes || !volumeUsageStore.hasLoadedVolumes
+);
 
 onMounted(async () => {
-  try {
-    // Ensure features are loaded before checking flags
-    await Promise.all([favoritesStore.ensureLoaded(), featuresStore.ensureLoaded()]);
-
-    // Load volumes
-    volumes.value = await getVolumes();
-
-    // Lazy-load usage for each volume only when the feature is enabled
-    if (showVolumeUsage.value) {
-      volumes.value.forEach(async (v) => {
-        try {
-          usage.value[v.path] = await getUsage(v.path);
-        } catch (_) {
-          // Ignore per-volume usage failures
-        }
-      });
-    }
-  } finally {
-    loading.value = false;
-  }
+  await Promise.all([favoritesStore.ensureLoaded(), featuresStore.ensureLoaded()]);
+  await volumeUsageStore.loadVolumes();
 });
 
-const ICON_VARIANTS = {
-  outline: OutlineIcons,
-  solid: SolidIcons,
-};
-
-const resolveIconComponent = (iconName) => {
-  if (typeof iconName !== 'string') {
-    return OutlineIcons.StarIcon;
-  }
-  const trimmed = iconName.trim();
-  if (!trimmed) return OutlineIcons.StarIcon;
-  if (trimmed.includes(':')) {
-    const [variantRaw, iconRaw] = trimmed.split(':', 2);
-    const variantKey = variantRaw.toLowerCase();
-    const iconKey = iconRaw.trim();
-    const registry = ICON_VARIANTS[variantKey];
-    if (registry && registry[iconKey]) return registry[iconKey];
-  }
-  return OutlineIcons[trimmed] || SolidIcons[trimmed] || OutlineIcons.StarIcon;
-};
+const resolveIconComponent = resolveFavoriteIcon;
 
 const quickAccess = computed(() =>
   favoritesStore.favorites.map((favorite) => {
@@ -88,7 +55,12 @@ const openPersonal = () => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8 px-8">
+  <!--
+    Scrolls itself: the content area this sits in clips, so a dashboard with
+    enough volumes on it would otherwise have its last rows nowhere to go.
+    Measured at 31 volumes: 1,120 px of content in a 660 px box.
+  -->
+  <div class="flex h-full min-h-0 flex-col gap-8 overflow-y-auto px-8">
     <!-- Quick Access -->
     <section>
       <h3
@@ -98,7 +70,7 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="quickAccess.length"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        class="grid grid-cols-[repeat(auto-fit,minmax(15.5rem,15.5rem))] gap-5"
       >
         <button
           v-for="fav in quickAccess"
@@ -106,14 +78,16 @@ const openPersonal = () => {
           type="button"
           :title="fav.label"
           @click="handleOpenFavorite(fav)"
-          class="flex items-center gap-3 py-4 rounded-md cursor-pointer select-none text-neutral-700 dark:text-neutral-300"
+          class="flex w-full items-center gap-3 rounded-md py-3 text-left text-neutral-700 select-none dark:text-neutral-300"
         >
-          <component
-            :is="fav.iconComponent"
-            class="h-12 shrink-0"
-            :style="{ color: fav.color || 'currentColor' }"
-          />
-          <div class="text-sm text-left break-all line-clamp-2 rounded-md px-2 -mx-2">
+          <div class="flex h-16 w-16 shrink-0 items-center">
+            <component
+              :is="fav.iconComponent"
+              class="h-12 shrink-0"
+              :style="{ color: fav.color || 'currentColor' }"
+            />
+          </div>
+          <div class="min-w-0 text-left text-sm break-all line-clamp-2">
             {{ fav.label }}
           </div>
         </button>
@@ -132,57 +106,46 @@ const openPersonal = () => {
       </h3>
       <div
         v-if="!loading"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        class="grid grid-cols-[repeat(auto-fit,minmax(15.5rem,15.5rem))] items-start gap-5"
       >
         <button
           v-for="vol in volumes"
           :key="vol.name"
           type="button"
           @click="openItem(vol)"
-          class="flex items-center gap-3 py-4 text-left"
+          :class="[
+            'w-full max-w-full rounded-lg py-3 pr-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60',
+            showVolumeUsage
+              ? 'grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3'
+              : 'flex items-center gap-3',
+          ]"
         >
-          <IconDrive class="h-16 shrink-0" />
-          <div>
+          <IconDrive :class="showVolumeUsage ? 'h-16 shrink-0' : 'h-12 shrink-0'" />
+          <div
+            :class="
+              showVolumeUsage
+                ? 'flex w-full min-w-0 flex-col items-stretch gap-2 pt-1'
+                : 'min-w-0 flex-1'
+            "
+          >
             <div
-              class="mb-1 flex items-center gap-1.5 truncate text-sm font-medium text-neutral-900 dark:text-white"
+              :class="
+                showVolumeUsage
+                  ? 'flex w-full min-w-0 items-center gap-1.5 !text-left text-sm font-medium text-neutral-900 dark:text-white'
+                  : 'flex min-w-0 items-center gap-1.5 text-sm font-medium text-neutral-900 dark:text-white'
+              "
+              style="text-align: left"
             >
-              {{ vol.name }}
+              <span class="truncate">{{ vol.name }}</span>
               <ReadOnlyMark :reason="vol.readOnly" />
             </div>
-            <template v-if="showVolumeUsage">
-              <template v-if="usage[vol.path]">
-                <ProgressBar
-                  :used="usage[vol.path].size || 0"
-                  :total="
-                    usage[vol.path].total ||
-                    (usage[vol.path].size || 0) + (usage[vol.path].free || 0) ||
-                    1
-                  "
-                  size="sm"
-                  :warnAt="75"
-                  :dangerAt="90"
-                  style="width: 120px"
-                  class="mb-1"
-                />
-                <div class="flex justify-between text-xs w-[120px]">
-                  <span>{{ formatBytes(usage[vol.path].size || 0) }}</span>
-                  <span>{{ formatBytes(usage[vol.path].total || 0) }}</span>
-                </div>
-              </template>
-              <template v-else>
-                <div
-                  class="mb-2 w-[120px] h-2 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse"
-                ></div>
-                <div class="flex justify-between text-xs w-[120px]">
-                  <span
-                    class="h-3 w-10 rounded-sm bg-neutral-200 dark:bg-neutral-700 animate-pulse"
-                  ></span>
-                  <span
-                    class="h-3 w-10 rounded-sm bg-neutral-200 dark:bg-neutral-700 animate-pulse"
-                  ></span>
-                </div>
-              </template>
-            </template>
+            <VolumeUsageBar
+              v-if="showVolumeUsage"
+              :usage="usage[vol.path]"
+              :loading="volumeUsageStore.isLoadingUsage"
+              percent-inside
+              class="w-full"
+            />
           </div>
         </button>
       </div>

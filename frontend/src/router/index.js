@@ -2,40 +2,43 @@ import { createRouter, createWebHistory } from 'vue-router';
 import FolderView from '@/views/FolderView.vue';
 import HomeView from '@/views/HomeView.vue';
 import EditorView from '@/views/EditorView.vue';
-import DocumentView from '@/views/DocumentView.vue';
 import BrowserLayout from '@/layouts/BrowserLayout.vue';
 import EditorLayout from '@/layouts/EditorLayout.vue';
 import SearchResultsView from '@/views/SearchResultsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import SettingsBranding from '@/views/settings/SettingsBranding.vue';
 import SettingsFilesThumbnails from '@/views/settings/SettingsFilesThumbnails.vue';
+import SettingsUploads from '@/views/settings/SettingsUploads.vue';
+import SettingsSearchIndex from '@/views/settings/SettingsSearchIndex.vue';
+import SettingsFolderSize from '@/views/settings/SettingsFolderSize.vue';
 import SettingsAccessControl from '@/views/settings/SettingsAccessControl.vue';
 import SettingsComingSoon from '@/views/settings/SettingsComingSoon.vue';
 import AdminUsers from '@/views/settings/AdminUsers.vue';
 import SettingsPassword from '@/views/settings/SettingsPassword.vue';
 import SettingsTwoFactor from '@/views/settings/SettingsTwoFactor.vue';
 import SettingsPasskeys from '@/views/settings/SettingsPasskeys.vue';
-import SettingsAbout from '@/views/settings/SettingsAbout.vue';
-import SettingsTrash from '@/views/settings/SettingsTrash.vue';
-import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
-import SettingsUploads from '@/views/settings/SettingsUploads.vue';
-import SettingsActivity from '@/views/settings/SettingsActivity.vue';
 import SettingsApiTokens from '@/views/settings/SettingsApiTokens.vue';
-import SettingsFolderSize from '@/views/settings/SettingsFolderSize.vue';
-import SettingsSearchIndex from '@/views/settings/SettingsSearchIndex.vue';
-import TrashView from '@/views/TrashView.vue';
+import DocumentView from '@/views/DocumentView.vue';
+import SettingsActivity from '@/views/settings/SettingsActivity.vue';
+import SettingsAbout from '@/views/settings/SettingsAbout.vue';
 import SettingsUserPreferences from '@/views/settings/SettingsUserPreferences.vue';
-import AboutView from '@/views/AboutView.vue';
 import AuthSetupView from '@/views/AuthSetupView.vue';
 import AuthLoginView from '@/views/AuthLoginView.vue';
 import ShareLoginView from '@/views/ShareLoginView.vue';
 import SharedWithMeView from '@/views/SharedWithMeView.vue';
 import SharedByMeView from '@/views/SharedByMeView.vue';
+import TrashView from '@/views/TrashView.vue';
+import SettingsTrash from '@/views/settings/SettingsTrash.vue';
+import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFolderScrollStore } from '@/stores/folderScroll';
 import { getVolumes } from '@/api';
-import { signedInMayOpenShare } from './shareGuard';
+import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
+import { loadAccountSettings } from '@/router/settingsGuard';
+import { authRedirect } from '@/router/authRedirect';
+import { skipHomeDestination } from '@/router/skipHome';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -64,16 +67,21 @@ const router = createRouter({
               component: SettingsFilesThumbnails,
               meta: { requiresAdmin: true },
             },
-            { path: 'account-password', component: SettingsPassword },
-            { path: 'account-two-factor', component: SettingsTwoFactor },
-            { path: 'account-passkeys', component: SettingsPasskeys },
-            { path: 'user-preferences', component: SettingsUserPreferences },
             {
-              path: 'access-control',
-              component: SettingsAccessControl,
+              path: 'uploads',
+              component: SettingsUploads,
               meta: { requiresAdmin: true },
             },
-            // Admin-only placeholder routes
+            {
+              path: 'folder-size',
+              component: SettingsFolderSize,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'search-index',
+              component: SettingsSearchIndex,
+              meta: { requiresAdmin: true },
+            },
             {
               path: 'trash',
               component: SettingsTrash,
@@ -85,26 +93,21 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             {
-              path: 'uploads',
-              component: SettingsUploads,
-              meta: { requiresAdmin: true },
-            },
-            {
               path: 'activity',
               component: SettingsActivity,
               meta: { requiresAdmin: true },
             },
+            { path: 'account-password', component: SettingsPassword },
+            { path: 'account-two-factor', component: SettingsTwoFactor },
+            { path: 'account-passkeys', component: SettingsPasskeys },
             { path: 'account-api-tokens', component: SettingsApiTokens },
+            { path: 'user-preferences', component: SettingsUserPreferences },
             {
-              path: 'folder-size',
-              component: SettingsFolderSize,
+              path: 'access-control',
+              component: SettingsAccessControl,
               meta: { requiresAdmin: true },
             },
-            {
-              path: 'search-index',
-              component: SettingsSearchIndex,
-              meta: { requiresAdmin: true },
-            },
+            // Admin-only placeholder routes
             {
               path: 'admin-overview',
               component: SettingsComingSoon,
@@ -157,12 +160,6 @@ const router = createRouter({
       ],
     },
     {
-      path: '/trash',
-      component: BrowserLayout,
-      meta: { requiresAuth: true },
-      children: [{ path: '', name: 'Trash', component: TrashView }],
-    },
-    {
       path: '/shares',
       component: BrowserLayout,
       meta: { requiresAuth: true },
@@ -180,21 +177,10 @@ const router = createRouter({
       ],
     },
     {
-      path: '/search',
+      path: '/trash',
       component: BrowserLayout,
       meta: { requiresAuth: true },
-      children: [{ path: '', component: SearchResultsView }],
-    },
-    {
-      path: '/editor',
-      component: EditorLayout,
-      meta: { requiresAuth: true, allowGuest: true },
-      children: [
-        {
-          path: ':path(.*)',
-          component: EditorView,
-        },
-      ],
+      children: [{ path: '', name: 'Trash', component: TrashView }],
     },
     {
       // A file in the trash, shown in the editor to be read: nothing there can
@@ -217,16 +203,35 @@ const router = createRouter({
       ],
     },
     {
+      path: '/search',
+      component: BrowserLayout,
+      meta: { requiresAuth: true },
+      children: [{ path: '', component: SearchResultsView }],
+    },
+    {
+      path: '/editor',
+      component: EditorLayout,
+      meta: { requiresAuth: true, allowGuest: true },
+      children: [
+        {
+          path: 'share/:token/:sharedPath(.*)*',
+          name: 'SharedEditor',
+          component: EditorView,
+          meta: { sharedEditor: true },
+        },
+        {
+          path: ':path(.*)',
+          component: EditorView,
+        },
+      ],
+    },
+    {
       // One document, at an address of its own — see views/DocumentView.vue.
-      // Outside the browser layout on purpose: a document opened in its own tab
-      // is the document, and nothing else.
+      // Outside the browser layout on purpose: a document opened in its own
+      // tab is the document, and nothing else.
       path: '/open/:path(.*)',
       component: DocumentView,
       meta: { requiresAuth: true },
-    },
-    {
-      path: '/about',
-      component: AboutView,
     },
     {
       path: '/auth/setup',
@@ -249,7 +254,29 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach(async (to) => {
+const folderPathFromRoute = (route) => {
+  if (route?.name !== 'FolderView') return '';
+  const raw = Array.isArray(route.params?.path)
+    ? route.params.path.join('/')
+    : route.params?.path || '';
+  return String(raw).replace(/^\/+|\/+$/g, '');
+};
+
+const isAncestorFolder = (candidate, current) =>
+  Boolean(candidate && current && current.startsWith(`${candidate}/`));
+
+router.beforeEach(async (to, from) => {
+  const folderScrollStore = useFolderScrollStore();
+  const destinationPath = folderPathFromRoute(to);
+  const sourcePath = folderPathFromRoute(from);
+  if (destinationPath) {
+    if (isAncestorFolder(destinationPath, sourcePath)) {
+      folderScrollStore.permitRestore(destinationPath);
+    } else {
+      folderScrollStore.preventRestore(destinationPath);
+    }
+  }
+
   const auth = useAuthStore();
   const appSettings = useAppSettings();
 
@@ -262,11 +289,20 @@ router.beforeEach(async (to) => {
   // Allow guest access for share paths (check if path starts with share/)
   const isGuestRoute = Boolean(to.meta?.allowGuest);
   const pathParam = typeof to.params?.path === 'string' ? to.params.path : '';
-  const isSharePath = pathParam.startsWith('share/');
+  const shareToken =
+    to.name === 'SharedEditor'
+      ? typeof to.params?.token === 'string'
+        ? to.params.token
+        : ''
+      : pathParam.startsWith('share/')
+        ? pathParam.split('/')[1]
+        : '';
 
-  if (isGuestRoute && isSharePath) {
-    // Check for guest session OR authenticated user
-    const guestSessionId = sessionStorage.getItem('guestSessionId');
+  if (isGuestRoute && shareToken) {
+    // Read this first: initialize() drops the guest session as soon as it sees
+    // a signed-in user, and it is the only proof that a signed-in visitor
+    // already cleared the password on a protected link.
+    const guestSession = readGuestSession();
 
     // Initialize auth if needed to check authentication status
     if (!auth.hasStatus && !auth.isLoading) {
@@ -275,30 +311,16 @@ router.beforeEach(async (to) => {
       await auth.initialize();
     }
 
-    const shareToken = pathParam.split('/')[1];
-
-    // A guest session is the proof the visitor went through the share's page.
-    if (guestSessionId) {
-      return true;
-    }
-
-    // Being signed in is enough, unless the link has a password this account
-    // has not given: the server asks everybody but the owner for it.
-    if (auth.isAuthenticated) {
-      if (!shareToken || (await signedInMayOpenShare(shareToken, auth.currentUser?.id))) {
-        return true;
-      }
-      return {
-        name: 'ShareLogin',
-        params: { token: shareToken },
-        query: { redirect: to.fullPath },
-      };
-    }
-
-    // No guest session and not authenticated - redirect to share login
-    if (shareToken) {
-      return { name: 'ShareLogin', params: { token: shareToken } };
-    }
+    const decision = await resolveShareAccess({
+      shareToken,
+      fullPath: to.fullPath,
+      auth,
+      guestSession,
+    });
+    // Handed over here rather than at the end of the guard, so the settings
+    // are asked for here too — see settingsGuard.js.
+    if (decision === true) await loadAccountSettings({ auth, appSettings });
+    return decision;
   }
 
   // Initialize auth store
@@ -309,85 +331,24 @@ router.beforeEach(async (to) => {
   }
 
   const isAuthRoute = Boolean(to.meta?.authScreen);
-  const targetRedirect = (fallback) => {
-    const candidate = typeof to.fullPath === 'string' ? to.fullPath : fallback;
-    if (!candidate || candidate.startsWith('/auth/')) {
-      return fallback;
-    }
-    return candidate;
-  };
 
-  if (auth.requiresSetup) {
-    if (!isAuthRoute || to.name !== 'auth-setup') {
-      const redirect = targetRedirect('/browse/');
-      return {
-        name: 'auth-setup',
-        ...(redirect ? { query: { redirect } } : {}),
-      };
-    }
-  } else if (!auth.isAuthenticated) {
-    if (!isAuthRoute) {
-      const redirect = targetRedirect('/browse/');
-      return {
-        name: 'auth-login',
-        ...(redirect ? { query: { redirect } } : {}),
-      };
-    }
-  }
-
-  if (to.name === 'auth-setup' && !auth.requiresSetup) {
-    const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : '/browse/';
-    if (auth.isAuthenticated) {
-      return { path: redirect };
-    }
-    return { name: 'auth-login', ...(redirect ? { query: { redirect } } : {}) };
-  }
-
-  if (to.name === 'auth-login' && auth.isAuthenticated) {
-    const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : '/browse/';
-    return { path: redirect };
-  }
+  const redirect = authRedirect(to, auth);
+  if (redirect) return redirect;
 
   // Ensure app settings are loaded for authenticated sessions.
   // This prevents deep-link refreshes (e.g. /browse/some/path) from leaving `appSettings.loaded`
   // false forever, which blocks thumbnail requests and other settings-gated UI.
-  if (!isAuthRoute && auth.isAuthenticated) {
-    try {
-      await appSettings.ensureLoaded();
-    } catch (_) {
-      // Non-fatal; the UI will behave conservatively if settings aren't available.
-    }
-  }
+  if (!isAuthRoute) await loadAccountSettings({ auth, appSettings });
 
   // Optional UX: when configured, skip the home dashboard and
   // jump straight into the only available volume (single-volume setups).
   if (to.name === 'HomeView') {
-    const featuresStore = useFeaturesStore();
-
-    try {
-      await featuresStore.ensureLoaded();
-    } catch (_) {
-      // Ignore feature loading errors; fall back to normal home view.
-    }
-
-    // Check user preference first, then fall back to env var
-    const userSkipHome = appSettings.userSettings?.skipHome;
-    const shouldSkipHome =
-      userSkipHome !== null && userSkipHome !== undefined ? userSkipHome : featuresStore.skipHome;
-
-    if (shouldSkipHome) {
-      try {
-        const volumes = await getVolumes();
-        if (Array.isArray(volumes)) {
-          const first = volumes[0];
-          if (first && first.path) {
-            return { name: 'FolderView', params: { path: first.path } };
-          }
-        }
-      } catch (_) {
-        // Ignore volume loading errors; fall through to home view.
-      }
-    }
+    const destination = await skipHomeDestination({
+      appSettings,
+      featuresStore: useFeaturesStore(),
+      getVolumes,
+    });
+    if (destination) return destination;
   }
 
   // Enforce admin-only routes if flagged
