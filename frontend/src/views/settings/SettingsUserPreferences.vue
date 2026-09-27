@@ -501,6 +501,32 @@ const save = async () => {
             </option>
           </select>
         </div>
+        <div class="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <div class="text-sm text-zinc-700 dark:text-zinc-300">
+              {{ t('settings.userPreferences.quickActionsPosition') }}
+            </div>
+            <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ t('settings.userPreferences.quickActionsPositionHelp') }}
+            </div>
+          </div>
+          <select
+            :value="quickActions.position"
+            data-test="preferences-quick-actions-position"
+            class="shrink-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs sm:text-sm p-2"
+            @change="quickActions.setPosition($event.target.value)"
+          >
+            <option value="after">
+              {{ t('settings.userPreferences.quickActionsPositionAfter') }}
+            </option>
+            <option value="start">
+              {{ t('settings.userPreferences.quickActionsPositionStart') }}
+            </option>
+            <option value="end">
+              {{ t('settings.userPreferences.quickActionsPositionEnd') }}
+            </option>
+          </select>
+        </div>
         <div class="mb-2 flex items-center justify-between">
           <div class="text-sm text-zinc-500 dark:text-zinc-400">
             {{ t('settings.userPreferences.quickActionsReorder') }}

@@ -603,7 +603,12 @@
       "quickActionsReorder": "Elige y reordena las acciones que se muestran.",
       "quickActionsMode": "Visualización del menú",
       "quickActionsModeFull": "Todos los iconos al pasar el cursor",
-      "quickActionsModeCompact": "Icono … (desplegar al pasar el cursor)"
+      "quickActionsModeCompact": "Icono … (desplegar al pasar el cursor)",
+      "quickActionsPosition": "Dónde se colocan los iconos",
+      "quickActionsPositionHelp": "Alineados en un borde de la columna de nombres, ocupan el mismo lugar en todas las filas; el espacio que necesitan se reserva, se pase o no el ratón por la fila.",
+      "quickActionsPositionAfter": "Después del nombre",
+      "quickActionsPositionStart": "Al principio de la columna de nombres",
+      "quickActionsPositionEnd": "Al final de la columna de nombres"
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",

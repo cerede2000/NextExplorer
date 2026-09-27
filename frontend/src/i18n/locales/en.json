@@ -603,7 +603,12 @@
       "quickActionsReorder": "Choose and reorder the actions shown.",
       "quickActionsMode": "Menu display",
       "quickActionsModeFull": "All icons on hover",
-      "quickActionsModeCompact": "… icon (expand on hover)"
+      "quickActionsModeCompact": "… icon (expand on hover)",
+      "quickActionsPosition": "Where the icons sit",
+      "quickActionsPositionHelp": "Aligned at an edge of the name column, they keep the same place on every row; the room they need is held whether a row is hovered or not.",
+      "quickActionsPositionAfter": "After the name",
+      "quickActionsPositionStart": "At the start of the name column",
+      "quickActionsPositionEnd": "At the end of the name column"
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",

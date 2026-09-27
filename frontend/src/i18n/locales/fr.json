@@ -603,7 +603,12 @@
       "quickActionsReorder": "Choisissez et réordonnez les actions affichées.",
       "quickActionsMode": "Affichage du menu",
       "quickActionsModeFull": "Toutes les icônes au survol",
-      "quickActionsModeCompact": "Icône … (déplier au survol)"
+      "quickActionsModeCompact": "Icône … (déplier au survol)",
+      "quickActionsPosition": "Où se placent les icônes",
+      "quickActionsPositionHelp": "Alignées sur un bord de la colonne des noms, elles gardent la même place à chaque ligne ; la place qu'il leur faut est réservée, que la ligne soit survolée ou non.",
+      "quickActionsPositionAfter": "Après le nom",
+      "quickActionsPositionStart": "Au début de la colonne des noms",
+      "quickActionsPositionEnd": "À la fin de la colonne des noms"
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",

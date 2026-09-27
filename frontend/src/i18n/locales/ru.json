@@ -603,7 +603,12 @@
       "quickActionsReorder": "Выберите и измените порядок отображаемых действий.",
       "quickActionsMode": "Отображение меню",
       "quickActionsModeFull": "Все иконки при наведении",
-      "quickActionsModeCompact": "Иконка … (раскрыть при наведении)"
+      "quickActionsModeCompact": "Иконка … (раскрыть при наведении)",
+      "quickActionsPosition": "Где стоят значки",
+      "quickActionsPositionHelp": "Выровненные по краю столбца имён, они занимают одно и то же место в каждой строке; место под них остаётся занятым независимо от того, наведён ли указатель.",
+      "quickActionsPositionAfter": "После имени",
+      "quickActionsPositionStart": "В начале столбца имён",
+      "quickActionsPositionEnd": "В конце столбца имён"
     },
     "thumbs": {
       "subtitle": "Настройте миниатюры предпросмотра для изображений и видео.",

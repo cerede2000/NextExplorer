@@ -603,7 +603,12 @@
       "quickActionsReorder": "दिखाई गई क्रियाओं को चुनें और पुनः क्रमबद्ध करें।",
       "quickActionsMode": "मेनू प्रदर्शन",
       "quickActionsModeFull": "होवर पर सभी आइकन",
-      "quickActionsModeCompact": "… आइकन (होवर पर विस्तृत करें)"
+      "quickActionsModeCompact": "… आइकन (होवर पर विस्तृत करें)",
+      "quickActionsPosition": "चिह्न कहाँ रहें",
+      "quickActionsPositionHelp": "नाम स्तंभ के किनारे पर संरेखित होने पर वे हर पंक्ति में एक ही जगह रहते हैं; उनके लिए जगह आरक्षित रहती है, चाहे पंक्ति पर माउस हो या न हो।",
+      "quickActionsPositionAfter": "नाम के बाद",
+      "quickActionsPositionStart": "नाम स्तंभ के आरंभ में",
+      "quickActionsPositionEnd": "नाम स्तंभ के अंत में"
     },
     "thumbs": {
       "subtitle": "छवियों और वीडियो के लिए पूर्वावलोकन थंबनेल अनुकूलित करें।",

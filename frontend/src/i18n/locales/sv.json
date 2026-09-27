@@ -603,7 +603,12 @@
       "quickActionsReorder": "Välj och ändra ordning på de åtgärder som visas.",
       "quickActionsMode": "Menyvisning",
       "quickActionsModeFull": "Alla ikoner vid hovring",
-      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)"
+      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)",
+      "quickActionsPosition": "Var ikonerna sitter",
+      "quickActionsPositionHelp": "Justerade mot en kant av namnkolumnen ligger de på samma plats i varje rad; utrymmet de behöver hålls ledigt vare sig raden pekas på eller inte.",
+      "quickActionsPositionAfter": "Efter namnet",
+      "quickActionsPositionStart": "I början av namnkolumnen",
+      "quickActionsPositionEnd": "I slutet av namnkolumnen"
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
