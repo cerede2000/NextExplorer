@@ -166,6 +166,38 @@ jobs:
         if: steps.build.outcome == 'failure'
         run: sleep 60
 
+      # A minute is not always enough, and waiting longer is not the answer: the
+      # 429 outlived it on three pushes in one evening, and both attempts lost the
+      # amd64 legs before a layer was built. It is that one door that is busy, not
+      # the image — the same image sits behind another, so the second attempt asks
+      # there instead.
+      #
+      # The name is read out of the Dockerfile rather than written here twice: the
+      # `FROM` is the only place the base image is chosen, and a copy of the tag in
+      # this file would be a copy to forget on the day it moves. Same rewrite the
+      # media job in ci.yml does, for the same registry and the same reason.
+      - name: Where else the base image lives
+        id: base
+        if: steps.build.outcome == 'failure'
+        run: |
+          set -eu
+          # `|| true`: no match is an answer here, and under `set -e` grep's
+          # empty-handed exit would end the step instead of giving it.
+          base="$(grep -m1 '^FROM public.ecr.aws/' Dockerfile | awk '{print $2}' || true)"
+          if [ -z "$base" ]; then
+            echo "The Dockerfile does not start from public.ecr.aws; nothing to mirror."
+            echo "override=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mirrored="mirror.gcr.io/${base#public.ecr.aws/docker/}"
+          if [ "$mirrored" = "mirror.gcr.io/$base" ]; then
+            echo "::warning::$base is not one the mirror carries; asking the same registry again"
+            echo "override=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Second attempt will take the base image from $mirrored"
+          echo "override=$base=docker-image://$mirrored" >> "$GITHUB_OUTPUT"
+
       - name: Build and push by digest, once more
         id: rebuild
         if: steps.build.outcome == 'failure'
@@ -174,6 +206,9 @@ jobs:
           pull: true
           context: .
           file: ./Dockerfile
+          # Empty when there is nothing to mirror, which leaves the Dockerfile's
+          # own `FROM` standing.
+          build-contexts: ${{ steps.base.outputs.override }}
           platforms: ${{ matrix.target.platform }}
           build-args: |
             GIT_COMMIT=${{ github.sha }}
