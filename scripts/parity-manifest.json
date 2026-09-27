@@ -24,6 +24,20 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": "^nav\\.",
+      "verdict": "DONE",
+      "batch": "P3-29",
+      "note": "nxzai#459 \u2014 the navigation"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/router/|frontend/src/stores/folderScroll\\.js|frontend/src/composables/navigation\\.js|frontend/src/views/HomeView\\.vue)",
+      "verdict": "DONE",
+      "batch": "P3-29",
+      "note": "nxzai#459 \u2014 a folder's address keeps its slashes, and each guard is a function of its inputs"
+    },
+    {
       "axis": "*",
       "match": "^(backend/src/services/uploadService\\.js|backend/src/services/uploadStorageGuard\\.js)(:|$)",
       "verdict": "THEIRS",
