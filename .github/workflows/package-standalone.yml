@@ -173,13 +173,21 @@ jobs:
           test -d /srv/nextexplorer/Photos
           systemctl is-active --quiet nextexplorer
 
+      # The runners share their addresses, and GitHub gives an unauthenticated
+      # address sixty API calls an hour before answering 403 — which the arm64 leg
+      # met while the x64 one did not. The token the workflow already holds is
+      # passed through `sudo`, because the script runs as root and sudo keeps
+      # nothing of the environment it was called with.
       - name: The update command reads the published release
+        env:
+          NEXTEXPLORER_API_TOKEN: ${{ github.token }}
         run: |
           set -eux
           # --check changes nothing, and on a machine holding an unreleased
           # build it is allowed to report either answer; what is being tested
           # is that it can read the release feed and compare.
-          sudo nextexplorer-upgrade --check | tee /tmp/upgrade-check
+          sudo --preserve-env=NEXTEXPLORER_API_TOKEN nextexplorer-upgrade --check \
+            | tee /tmp/upgrade-check
           grep -q 'installed:' /tmp/upgrade-check
           grep -q 'published:' /tmp/upgrade-check
 

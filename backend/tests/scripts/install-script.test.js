@@ -500,3 +500,63 @@ function hasTool(tool) {
     return false;
   }
 }
+
+/**
+ * Reading the release feed.
+ *
+ * GitHub gives an unauthenticated address sixty API calls an hour and answers 403
+ * after that, which a machine sharing its address with a workplace reaches without
+ * doing anything unusual — and the script reported it as "could not read the latest
+ * release", which sounds like there is not one. It says what happened and what to
+ * do now, tries again in case the refusal was momentary, and sends a token when it
+ * has been given one.
+ */
+describe('the upgrade command and the release feed', () => {
+  const upgrade = (env) =>
+    spawnSync('sh', [path.join(release, 'upgrade.sh'), '--check'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NEXTEXPLORER_PROGRAM_DIR: path.join(prefix, 'opt', 'nextexplorer'),
+        ...env,
+      },
+    });
+
+  /** A curl that refuses the way a rate limit does, without touching the network. */
+  const refusingCurl = () => {
+    const bin = path.join(sandbox, 'bin-refuse');
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(path.join(bin, 'curl'), '#!/bin/sh\nexit 22\n');
+    fs.chmodSync(path.join(bin, 'curl'), 0o755);
+    return `${bin}:${process.env.PATH}`;
+  };
+
+  it('says what to do when the feed refuses to be read', () => {
+    const result = upgrade({ PATH: refusingCurl() });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/could not read the release feed/i);
+    expect(result.stderr).toMatch(/NEXTEXPLORER_API_TOKEN/);
+  });
+
+  it('carries the token it was given to the feed', () => {
+    // A stand-in curl that answers only when the header is there, so a release
+    // name in the output can only have come from a request carrying the token.
+    const feed = path.join(sandbox, 'feed.json');
+    fs.writeFileSync(feed, '{"tag_name":"v9.9.9"}\n');
+    const bin = path.join(sandbox, 'bin-curl');
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(
+      path.join(bin, 'curl'),
+      `#!/bin/sh\ncase " $* " in *"Bearer secret-token"*) exec cat ${feed} ;; esac\nexit 22\n`
+    );
+    fs.chmodSync(path.join(bin, 'curl'), 0o755);
+
+    const result = upgrade({
+      NEXTEXPLORER_API_TOKEN: 'secret-token',
+      PATH: `${bin}:${process.env.PATH}`,
+    });
+
+    expect(result.stdout).toMatch(/published:\s*9\.9\.9/);
+  });
+});

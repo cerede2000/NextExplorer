@@ -57,8 +57,27 @@ flavour=""
 if [ -d "$PROGRAM_DIR/app" ] && [ ! -x "$PROGRAM_DIR/runtime/bin/node" ]; then
   flavour="-minimal"
 fi
-latest="$(curl -fsSL "$API_URL" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -1)"
-[ -n "$latest" ] || die "could not read the latest release from GitHub."
+# GitHub allows an unauthenticated address sixty calls an hour and answers 403
+# after that — which is a machine behind a shared address, a workplace or a CI
+# runner, being told the release feed does not exist. A token, when there is one,
+# raises that to five thousand; without one nothing changes.
+api_auth=()
+api_token="${NEXTEXPLORER_API_TOKEN:-${GITHUB_TOKEN:-${GH_TOKEN:-}}}"
+[ -n "$api_token" ] && api_auth=(-H "Authorization: Bearer $api_token")
+
+feed=""
+for attempt in 1 2 3; do
+  feed="$(curl -fsSL "${api_auth[@]+"${api_auth[@]}"}" "$API_URL" 2>/dev/null || true)"
+  [ -n "$feed" ] && break
+  # Short on purpose. A rate limit will not clear in three seconds; what this is
+  # for is a name that did not resolve or a connection dropped on the way out,
+  # and waiting longer than that only makes a real refusal slow to report.
+  [ "$attempt" = 3 ] || sleep "$attempt"
+done
+[ -n "$feed" ] || die "could not read the release feed at $API_URL. If this machine shares its address with others, GitHub may be rate-limiting it: set NEXTEXPLORER_API_TOKEN to a token, or NEXTEXPLORER_API to a feed it can read."
+
+latest="$(printf '%s' "$feed" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -1)"
+[ -n "$latest" ] || die "the release feed at $API_URL named no release."
 
 printf '\n\033[1mNextExplorer\033[0m\n'
 note "installed: $installed"

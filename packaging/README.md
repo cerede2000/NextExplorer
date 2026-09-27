@@ -65,6 +65,12 @@ alone. `--check` says what there is without changing anything.
 
 Running `./install.sh` again from a newer archive does the same thing.
 
+GitHub allows an unauthenticated address sixty calls an hour and answers 403 after
+that, which a machine sharing its address with a workplace can reach without doing
+anything unusual. Set `NEXTEXPLORER_API_TOKEN` to a token and the allowance is five
+thousand; set `NEXTEXPLORER_API` to point at another feed entirely. Neither is
+needed on a machine with an address of its own.
+
 ## Where things are
 
 |                                      |                                                  |
