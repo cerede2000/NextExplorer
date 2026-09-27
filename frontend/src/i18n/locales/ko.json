@@ -575,7 +575,9 @@
       "pathInvalid": "이 경로는 어떤 볼륨에도 속하지 않으므로 규칙이 적용되지 않습니다.",
       "pathMissing": "이 경로에 폴더가 없습니다. 규칙은 볼륨 이름부터 시작하여 NextExplorer에 표시되는 경로를 사용합니다.",
       "useSuggestion": "{path} 사용",
-      "title": "접근"
+      "title": "접근",
+      "pickFolderTitle": "이 규칙의 폴더",
+      "appliesToAdminsHint": "이 규칙을 관리자에게도 적용합니다."
     },
     "comingSoon": {
       "subtitle": "이 설정 항목은 현재 개발 중입니다. 기대해주세요!"

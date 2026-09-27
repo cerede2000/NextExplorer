@@ -26,10 +26,8 @@ const actionToFlag = (action) => {
       return 'canUpload';
     case ACTIONS.createFolder:
       return 'canCreateFolder';
-    // Upstream expresses "may put a file here" as canUpload; a trash restore of
-    // a file asks for exactly that.
     case ACTIONS.createFile:
-      return 'canUpload';
+      return 'canCreateFile';
     case ACTIONS.rename:
       return 'canWrite';
     case ACTIONS.download:

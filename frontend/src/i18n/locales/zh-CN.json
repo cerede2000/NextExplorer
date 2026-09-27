@@ -575,7 +575,9 @@
       "pathInvalid": "此路径不在任何卷内，因此该规则永远不会生效。",
       "pathMissing": "此路径下没有文件夹。规则使用 NextExplorer 显示的路径，以卷名开头。",
       "useSuggestion": "使用 {path}",
-      "title": "访问"
+      "title": "访问",
+      "pickFolderTitle": "此规则的文件夹",
+      "appliesToAdminsHint": "让该规则同样约束管理员。"
     },
     "comingSoon": {
       "subtitle": "此设置部分正在构建中，敬请期待！"

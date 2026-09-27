@@ -575,7 +575,9 @@
       "pathInvalid": "Den här sökvägen ligger inte i någon volym, så regeln kommer aldrig att gälla.",
       "pathMissing": "Det finns ingen mapp på den här sökvägen. En regel använder sökvägen så som NextExplorer visar den, med volymens namn först.",
       "useSuggestion": "Använd {path}",
-      "title": "Åtkomst"
+      "title": "Åtkomst",
+      "pickFolderTitle": "Mapp för den här regeln",
+      "appliesToAdminsHint": "Låt regeln gälla även administratörer."
     },
     "comingSoon": {
       "subtitle": "Denna inställningssektion håller på att byggas. Vänta och se!"

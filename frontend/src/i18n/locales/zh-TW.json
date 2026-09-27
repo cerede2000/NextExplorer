@@ -575,7 +575,9 @@
       "pathInvalid": "此路徑不在任何磁碟區內，因此該規則永遠不會生效。",
       "pathMissing": "此路徑下沒有資料夾。規則使用 NextExplorer 顯示的路徑，以磁碟區名稱開頭。",
       "useSuggestion": "使用 {path}",
-      "title": "存取"
+      "title": "存取",
+      "pickFolderTitle": "此規則的資料夾",
+      "appliesToAdminsHint": "讓該規則同樣約束管理員。"
     },
     "comingSoon": {
       "subtitle": "此設置部分正在建置中，敬請期待！"

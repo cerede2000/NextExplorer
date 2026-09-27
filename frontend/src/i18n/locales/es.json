@@ -575,7 +575,9 @@
       "pathInvalid": "Esta ruta no está dentro de ningún volumen, así que la regla nunca se aplicará.",
       "pathMissing": "No hay ninguna carpeta en esta ruta. Una regla usa la ruta tal como la muestra NextExplorer, empezando por el nombre del volumen.",
       "useSuggestion": "Usar {path}",
-      "title": "Acceso"
+      "title": "Acceso",
+      "pickFolderTitle": "Carpeta de esta regla",
+      "appliesToAdminsHint": "Someter también a los administradores a esta regla."
     },
     "comingSoon": {
       "subtitle": "Esta sección de configuración está en desarrollo. ¡Permanece atento!"

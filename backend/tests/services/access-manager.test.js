@@ -569,6 +569,7 @@ describe('accessManager — what a share grants', () => {
       canDelete: false,
       canUpload: false,
       canCreateFolder: false,
+      canCreateFile: false,
       effectivePermission: 'ro',
     });
   });
@@ -585,8 +586,26 @@ describe('accessManager — what a share grants', () => {
       canDelete: true,
       canUpload: true,
       canCreateFolder: true,
+      canCreateFile: true,
       effectivePermission: 'rw',
     });
+  });
+
+  it.each([
+    ['allowDelete', 'canDelete'],
+    ['allowUpload', 'canUpload'],
+    ['allowCreateFolder', 'canCreateFolder'],
+    ['allowCreateFile', 'canCreateFile'],
+  ])('withholds %s on its own, leaving the rest of the write grant', async (flag, granted) => {
+    const { share, guestSession } = await openShare(`grant-without-${flag}`, {
+      accessMode: 'readwrite',
+      [flag]: false,
+    });
+
+    const access = await accessTo(share, { guestSession });
+
+    expect(access[granted]).toBe(false);
+    expect(access.canWrite).toBe(true);
   });
 
   it('never lets a share be shared again', async () => {

@@ -2,18 +2,22 @@ const fs = require('fs/promises');
 const path = require('path');
 
 const { directories } = require('../config/index');
-const { isInsidePersonalRoot, normalizeRelativePath } = require('../utils/pathUtils');
-const { getSettings, setSettings } = require('../services/settingsService');
+const { normalizeRelativePath, isInsidePersonalRoot } = require('../utils/pathUtils');
 const { ruleAppliesToAdmins } = require('../utils/accessRules');
+const { getSettings, setSettings } = require('../services/settingsService');
 
 /**
- * Whether this rule binds the caller.
+ * Whether a rule is one of the rules this caller is held to.
  *
- * An administrator used to sit outside read-only rules and inside hidden ones,
+ * An administrator used to be outside read-only rules and inside hidden ones,
  * which is neither and was written nowhere: a read-only rule left the Create
- * button on a folder for them and they wrote into it, while a hidden rule took
- * a folder away from the one account meant to manage it, with no way to say
- * otherwise. It is one switch now, the same whatever the rule grants.
+ * button there for them (nxzai/NextExplorer#407), while a hidden rule took the
+ * folder away from the one account meant to manage it. Each rule now says it,
+ * with one switch whatever it grants, and the setting above it applies them all
+ * to administrators at once.
+ *
+ * A rule an administrator is not held to is not a rule that lets them through:
+ * it is skipped, so a later rule still has its say.
  */
 const heldTo = (rule, { isAdmin, applyToAdmins }) => {
   if (!isAdmin) return true;
@@ -22,12 +26,12 @@ const heldTo = (rule, { isAdmin, applyToAdmins }) => {
 };
 
 /**
- * The rules, as a question that can be asked many times without reading them
- * again.
+ * Resolve a path against the access rules, for one caller.
  *
- * @param {{rules?: Array<object>, applyToAdmins?: boolean}} access the access
- *   section, rules and the setting above them together — not the rules alone,
- *   because whom a rule holds is decided by both.
+ * @param {{rules?: Array<object>, applyToAdmins?: boolean}} access the rules in
+ *   force and whether every one of them also holds administrators. An object
+ *   rather than the bare list, so a caller cannot pass the rules and quietly
+ *   lose the setting that decides who they bind.
  * @returns {(relativePath: string, who?: {isAdmin?: boolean}) => 'rw'|'ro'|'hidden'}
  */
 const createPermissionResolver = (access = {}) => {
@@ -42,19 +46,12 @@ const createPermissionResolver = (access = {}) => {
     for (const rule of normalizedRules) {
       const rulePath = normalizeRelativePath(rule.path || '');
       if (!rulePath) continue;
-      // A rule that does not hold this caller does not stand in the way of a
-      // later one either: it is passed over, not matched and waived.
       if (!heldTo(rule, { isAdmin, applyToAdmins })) continue;
 
-      if (rule.recursive) {
-        if (rel === rulePath || rel.startsWith(rulePath + '/')) {
-          return rule.permissions || 'rw';
-        }
-      } else {
-        if (rel === rulePath) {
-          return rule.permissions || 'rw';
-        }
-      }
+      const matches = rule.recursive
+        ? rel === rulePath || rel.startsWith(`${rulePath}/`)
+        : rel === rulePath;
+      if (matches) return rule.permissions || 'rw';
     }
 
     return 'rw';
@@ -62,7 +59,7 @@ const createPermissionResolver = (access = {}) => {
 };
 
 // Determine permission for a given relative path: 'rw' | 'ro' | 'hidden'
-const getPermissionForPath = async (relativePath, who) => {
+const getPermissionForPath = async (relativePath, who = {}) => {
   const settings = await getSettings();
   return createPermissionResolver(settings?.access)(relativePath, who);
 };

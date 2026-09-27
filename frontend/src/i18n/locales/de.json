@@ -575,7 +575,9 @@
       "pathInvalid": "Dieser Pfad liegt in keinem Volume, daher greift die Regel nie.",
       "pathMissing": "Unter diesem Pfad gibt es keinen Ordner. Eine Regel verwendet den Pfad so, wie NextExplorer ihn anzeigt, beginnend mit dem Namen des Volumes.",
       "useSuggestion": "{path} verwenden",
-      "title": "Zugriff"
+      "title": "Zugriff",
+      "pickFolderTitle": "Ordner für diese Regel",
+      "appliesToAdminsHint": "Auch Administratoren an diese Regel binden."
     },
     "comingSoon": {
       "subtitle": "Dieser Einstellungsbereich wird derzeit entwickelt. Bleiben Sie dran!"

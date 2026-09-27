@@ -40,7 +40,6 @@ const takeInventory = async (root) => {
     owned.add(identityOf(stats));
     if (!stats.isDirectory()) return;
     for (const name of await fs.readdir(entryPath)) {
-      // eslint-disable-next-line no-await-in-loop
       await walk(path.join(entryPath, name));
     }
   };
@@ -73,7 +72,6 @@ const removeInventoried = async (root, inventory) => {
     }
 
     for (const name of await fs.readdir(entryPath)) {
-      // eslint-disable-next-line no-await-in-loop
       await visit(path.join(entryPath, name));
     }
     if (!ours) {
