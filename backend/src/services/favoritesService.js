@@ -1,16 +1,12 @@
 const fs = require('fs/promises');
-const crypto = require('crypto');
-const { getDb } = require('./db');
+const { getDb, prepared } = require('./db');
+const { listKnownVolumeNames, volumeOf } = require('./orphanedBindingsService');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { resolvePathWithAccess } = require('./accessManager');
 const config = require('../config');
+const { generateId } = require('../utils/ids');
 
 const DEFAULT_FAVORITE_ICON = config.favorites.defaultIcon;
-
-const generateId = () =>
-  typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`;
 
 /**
  * Validate and sanitize a favorite
@@ -96,7 +92,19 @@ const validatePath = async (relativePath, user) => {
     throw err;
   }
 
-  const stats = await fs.stat(resolved.absolutePath);
+  // Resolving a path does not require it to exist. Without this, bookmarking a
+  // folder that has since been deleted answered 500 instead of saying so.
+  let stats;
+  try {
+    stats = await fs.stat(resolved.absolutePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      const err = new Error('Path not found');
+      err.status = 404;
+      throw err;
+    }
+    throw error;
+  }
 
   if (!stats.isDirectory()) {
     const err = new Error('Path must be a directory');
@@ -123,7 +131,19 @@ const getFavorites = async (userId) => {
     )
     .all(userId);
 
-  return favorites.map(mapDbFavorite);
+  const mapped = favorites.map(mapDbFavorite);
+
+  // A favourite whose volume is no longer mounted is still a favourite: it is
+  // marked, not hidden and not removed, because the volume may well come back.
+  // Where the volume list cannot be established, nothing is marked — saying
+  // "unavailable" about everything would be worse than saying nothing.
+  const known = await listKnownVolumeNames();
+  if (!known) return mapped;
+
+  return mapped.map((favorite) => {
+    const volume = volumeOf(favorite.path);
+    return volume && !known.has(volume) ? { ...favorite, available: false } : favorite;
+  });
 };
 
 /**
@@ -147,7 +167,8 @@ const addFavorite = async (userOrId, { path, label, icon, color }) => {
   const id = generateId();
   const position = getNextFavoritePosition(db, userId);
 
-  db.prepare(
+  prepared(
+    db,
     `
     INSERT INTO favorites (id, user_id, path, label, icon, color, created_at, updated_at, position)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -191,7 +212,8 @@ const removeFavorite = async (userId, path) => {
   const normalizedPath = normalizeRelativePath(path);
 
   const db = await getDb();
-  db.prepare(
+  prepared(
+    db,
     `
     DELETE FROM favorites WHERE user_id = ? AND path = ?
   `
@@ -199,46 +221,6 @@ const removeFavorite = async (userId, path) => {
 
   // Return updated list
   return getFavorites(userId);
-};
-
-const escapeLikePattern = (value = '') => String(value).replace(/[\\%_]/g, '\\$&');
-
-/**
- * Remove favorites that point to a deleted path.
- * For directories, nested favorites are also removed.
- */
-const removeFavoritesForDeletedPath = async (userId, path, { includeChildren = false } = {}) => {
-  ensureUserId(userId);
-
-  const normalizedPath = normalizeRelativePath(path);
-  if (!normalizedPath) {
-    return 0;
-  }
-
-  const db = await getDb();
-  if (!includeChildren) {
-    const result = db
-      .prepare(
-        `
-      DELETE FROM favorites
-      WHERE user_id = ? AND path = ?
-    `
-      )
-      .run(userId, normalizedPath);
-    return result.changes;
-  }
-
-  const result = db
-    .prepare(
-      `
-    DELETE FROM favorites
-    WHERE user_id = ?
-      AND (path = ? OR path LIKE ? ESCAPE '\\')
-  `
-    )
-    .run(userId, normalizedPath, `${escapeLikePattern(normalizedPath)}/%`);
-
-  return result.changes;
 };
 
 /**
@@ -370,11 +352,14 @@ const reorderFavorites = async (userId, orderedIds) => {
     throw err;
   }
 
-  const updatePosition = db.prepare(`
+  const updatePosition = prepared(
+    db,
+    `
     UPDATE favorites
     SET position = ?
     WHERE user_id = ? AND id = ?
-  `);
+  `
+  );
 
   const transact = db.transaction((ids) => {
     ids.forEach((id, index) => {
@@ -402,7 +387,6 @@ module.exports = {
   getFavorites,
   addFavorite,
   removeFavorite,
-  removeFavoritesForDeletedPath,
   updateFavorite,
   reorderFavorites,
 };

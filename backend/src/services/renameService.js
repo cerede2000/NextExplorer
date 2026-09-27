@@ -15,6 +15,8 @@ const {
   NotFoundError,
   ConflictError,
 } = require('../errors/AppError');
+const folderSizeHooks = require('./folderSizeHooks');
+const pathBindings = require('./pathBindingsService');
 const versionLifecycle = require('./versions/lifecycle');
 
 /**
@@ -107,8 +109,14 @@ const renameEntry = async ({ context, parentRelative, currentName, newName }) =>
   }
 
   await fs.rename(currentAbsolute, targetAbsolute);
-  // The history follows the file, or the histories of everything inside the
-  // folder, to the new name.
+  // Same-parent rename: no size delta, but re-key an indexed directory subtree.
+  folderSizeHooks.onEntryRenamed(currentAbsolute, targetAbsolute);
+  // Favorites, shares, recent destinations and per-folder preferences follow the
+  // folder to its new name, including everything inside it. Left behind, they
+  // would point at a path that no longer exists — a share silently broken, a
+  // favorite leading nowhere.
+  await pathBindings.movePath(currentRelative, targetRelative);
+  // And the file's history, or the histories of everything inside the folder.
   await versionLifecycle.onMoved(currentAbsolute, targetAbsolute);
 
   return {

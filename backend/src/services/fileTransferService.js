@@ -18,6 +18,7 @@ const { track: trackInFlight } = require('./inFlightFiles');
 const trash = require('./trash');
 const { getTrashSettings } = require('./trash/settings');
 const favoritesService = require('./favoritesService');
+const pathBindings = require('./pathBindingsService');
 
 /**
  * Which engine copies a folder, asked at the moment it matters.
@@ -308,6 +309,12 @@ const transferItems = async (items, destination, operation, options = {}) => {
       // only.
       // eslint-disable-next-line global-require
       await require('./versions/lifecycle').onMoved(sourceAbsolute, placed.path);
+      // And so does everything that pointed at it: a favorite, a recent
+      // destination, a remembered sort. They named a path, and the path moved.
+      await pathBindings.movePath(
+        sourceRelative,
+        combineRelativePath(destinationRelative, placed.name)
+      );
     } else {
       throw new Error(`Unsupported operation: ${operation}`);
     }
@@ -515,20 +522,13 @@ const deleteItems = async (items = [], options = {}) => {
       );
     }
     const deletedShareCount = await deleteSharesByIds(affectedShares.map((share) => share.id));
-    // Favorites the deleter had on what just went away: a favorite pointing at
-    // nothing is a dead end. Best-effort, and only for a signed-in account.
-    let removedFavoriteCount = 0;
-    if (context.user?.id) {
-      try {
-        removedFavoriteCount = await favoritesService.removeFavoritesForDeletedPath(
-          context.user.id,
-          relativePath,
-          { includeChildren: isDirectory || stats.isDirectory() }
-        );
-      } catch {
-        // A favorites cleanup must never fail a deletion.
-      }
-    }
+    // Favorites, recent destinations and per-folder preferences, for every
+    // account that had them — not only whoever pressed delete. It used to clean
+    // up the deleter's favorites alone, and everybody else was left pointing at
+    // a folder that is gone.
+    const removedFavoriteCount = await pathBindings.forgetPath(relativePath, {
+      includeChildren: isDirectory || stats.isDirectory(),
+    });
     results.push({
       path: relativePath,
       status: trashItemId ? 'trashed' : 'deleted',
