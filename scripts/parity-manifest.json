@@ -24,6 +24,20 @@
   ],
   "rules": [
     {
+      "axis": "i18n",
+      "match": "^(context\\.|actions\\.extractArchive)",
+      "verdict": "DONE",
+      "batch": "P3-33",
+      "note": "nxzai#462 \u2014 the context menu and the delete dialog"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/composables/(contextMenuSections|deleteDialogWording|keyboardShortcuts|useDeleteConfirm|useFileDragDrop)\\.js|frontend/src/utils/(terminalInput|keyboard)\\.js|frontend/src/components/(ExplorerContextMenu|TerminalPanel)\\.vue)(:|$)",
+      "verdict": "DONE",
+      "batch": "P3-33",
+      "note": "nxzai#462 \u2014 a deletion says what it will do, and the terminal takes what is typed"
+    },
+    {
       "axis": "*",
       "match": "^frontend/src/plugins/markdown/",
       "verdict": "DONE",
