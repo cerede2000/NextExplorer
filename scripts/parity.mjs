@@ -108,7 +108,10 @@ const routesOf = (ref) => {
 const SYMBOL =
   /^\s*(?:export\s+)?(?:const|let|async function|function|class)\s+([A-Za-z_$][\w$]*)/gm;
 const symbolsOf = (source) => new Set([...source.matchAll(SYMBOL)].map((m) => m[1]));
-const CODE = /\.(js|mjs|cjs|vue)$/;
+// A stylesheet is code: `base.css` decides what Tailwind scans and therefore what
+// rules the image ships, and leaving `.css` out of this meant a difference there
+// was invisible to every axis that uses it.
+const CODE = /\.(js|mjs|cjs|vue|css)$/;
 for (const file of ours) {
   if (!theirs.has(file) || !CODE.test(file) || IS_TEST(file)) continue;
   if (!/^(backend|frontend)\/src\//.test(file)) continue;

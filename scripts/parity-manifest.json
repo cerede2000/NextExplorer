@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-55",
+  "batchTip": "p3-56",
   "rules": [
     {
       "axis": "*",
@@ -1533,6 +1533,12 @@
       "verdict": "DONE",
       "batch": "P3-46",
       "note": "nxzai#472 — the sentences thirteen catalogues were still reading in English"
+    },
+    {
+      "axis": "*",
+      "match": "^scripts/equivalence\\.mjs$",
+      "verdict": "OURS",
+      "note": "our own closing check: it builds and starts both checkouts to compare what they produce, which is ours to run rather than upstream's to carry"
     },
     {
       "axis": "uncovered",
