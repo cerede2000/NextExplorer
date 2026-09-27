@@ -185,7 +185,10 @@
     "removeVolume": "Не удалось удалить том",
     "totpCodeRequired": "Введите код.",
     "identifierRequired": "Требуется адрес электронной почты или имя пользователя",
-    "unlockUser": "Не удалось разблокировать учетную запись"
+    "unlockUser": "Не удалось разблокировать учетную запись",
+    "oidcNotConfigured": "Single Sign-On не настроен на этом сервере.",
+    "oidcProviderUnavailable": "Не удалось начать вход через Single Sign-On. Настройки на месте; причина указана в журнале сервера.",
+    "totpCodeWrong": "Этот код неверен."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Требуется аутентификация",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Пользователь не найден",
     "CONFLICT_USER_EXISTS": "Пользователь уже существует",
     "CONFLICT_PASSWORD_EXISTS": "У вас уже есть аутентификация по паролю",
-    "CONFLICT_SETUP_COMPLETE": "Приложение уже настроено"
+    "CONFLICT_SETUP_COMPLETE": "Приложение уже настроено",
+    "FORBIDDEN": "Доступ запрещён",
+    "NOT_FOUND": "Не найдено",
+    "CONFLICT": "Конфликт",
+    "RATE_LIMIT_EXCEEDED": "Слишком много запросов",
+    "AUTH_INVALID_TOTP_CODE": "Этот код неверен."
   },
   "titles": {
     "volumes": "Тома",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Не удалось сохранить {name}",
     "editingBody": "{names} открыт в OnlyOffice. {action} будет продолжено. | {names} открыты в OnlyOffice. {action} будет продолжено.",
     "editingHeading": "Файл редактируется",
-    "pickFailed": "Не удалось использовать выбранный файл"
+    "pickFailed": "Не удалось использовать выбранный файл",
+    "actionCopy": "Копирование",
+    "actionDelete": "Удаление",
+    "actionMove": "Перемещение",
+    "actionRename": "Переименование",
+    "pickCompare": "Сравнить с документом",
+    "pickDocument": "Выбрать документ",
+    "pickImage": "Вставить изображение",
+    "pickSpreadsheet": "Выбрать таблицу"
   },
   "preview": {
     "nothingOpensIt": "Здесь нечем открыть {name}.",

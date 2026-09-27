@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Saisissez le code.",
     "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis",
-    "unlockUser": "Impossible de déverrouiller le compte"
+    "unlockUser": "Impossible de déverrouiller le compte",
+    "oidcNotConfigured": "L'authentification unique n'est pas configurée sur ce serveur.",
+    "oidcProviderUnavailable": "L'authentification unique n'a pas pu démarrer. Les réglages sont bien présents ; le journal du serveur indique ce qui a échoué.",
+    "totpCodeWrong": "Ce code n'est pas le bon."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Utilisateur non trouvé",
     "CONFLICT_USER_EXISTS": "L'utilisateur existe déjà",
     "CONFLICT_PASSWORD_EXISTS": "Vous disposez déjà d'une authentification par mot de passe",
-    "CONFLICT_SETUP_COMPLETE": "L'application est déjà configurée"
+    "CONFLICT_SETUP_COMPLETE": "L'application est déjà configurée",
+    "FORBIDDEN": "Accès refusé",
+    "NOT_FOUND": "Introuvable",
+    "CONFLICT": "Conflit",
+    "RATE_LIMIT_EXCEEDED": "Trop de requêtes",
+    "AUTH_INVALID_TOTP_CODE": "Ce code n'est pas le bon."
   },
   "titles": {
     "volumes": "Volumes",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Impossible d’enregistrer {name}",
     "editingBody": "{names} est ouvert dans OnlyOffice. {action} continue. | {names} sont ouverts dans OnlyOffice. {action} continue.",
     "editingHeading": "Fichier en cours d’édition",
-    "pickFailed": "Impossible d'utiliser le fichier choisi"
+    "pickFailed": "Impossible d'utiliser le fichier choisi",
+    "actionCopy": "La copie",
+    "actionDelete": "La suppression",
+    "actionMove": "Le déplacement",
+    "actionRename": "Le renommage",
+    "pickCompare": "Comparer avec un document",
+    "pickDocument": "Choisir un document",
+    "pickImage": "Insérer une image",
+    "pickSpreadsheet": "Choisir un classeur"
   },
   "preview": {
     "nothingOpensIt": "Rien ici ne sait ouvrir {name}.",

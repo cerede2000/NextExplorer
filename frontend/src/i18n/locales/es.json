@@ -185,7 +185,10 @@
     "removeVolume": "",
     "totpCodeRequired": "Introduzca el código.",
     "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario",
-    "unlockUser": "No se pudo desbloquear la cuenta"
+    "unlockUser": "No se pudo desbloquear la cuenta",
+    "oidcNotConfigured": "El inicio de sesión único no está configurado en este servidor.",
+    "oidcProviderUnavailable": "No se ha podido iniciar el inicio de sesión único. La configuración está presente; el registro del servidor indica qué ha fallado.",
+    "totpCodeWrong": "Ese código no es correcto."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Se requiere autenticación",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Usuario no encontrado",
     "CONFLICT_USER_EXISTS": "El usuario ya existe",
     "CONFLICT_PASSWORD_EXISTS": "Ya tienes autenticación por contraseña",
-    "CONFLICT_SETUP_COMPLETE": "La aplicación ya está configurada"
+    "CONFLICT_SETUP_COMPLETE": "La aplicación ya está configurada",
+    "FORBIDDEN": "Acceso denegado",
+    "NOT_FOUND": "No encontrado",
+    "CONFLICT": "Conflicto",
+    "RATE_LIMIT_EXCEEDED": "Demasiadas solicitudes",
+    "AUTH_INVALID_TOTP_CODE": "Ese código no es correcto."
   },
   "titles": {
     "volumes": "Volúmenes",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "No se ha podido guardar {name}",
     "editingBody": "{names} está abierto en OnlyOffice. {action} continuará. | {names} están abiertos en OnlyOffice. {action} continuará.",
     "editingHeading": "El archivo se está editando",
-    "pickFailed": "No se pudo usar el archivo seleccionado"
+    "pickFailed": "No se pudo usar el archivo seleccionado",
+    "actionCopy": "La copia",
+    "actionDelete": "La eliminación",
+    "actionMove": "El movimiento",
+    "actionRename": "El cambio de nombre",
+    "pickCompare": "Comparar con un documento",
+    "pickDocument": "Elegir un documento",
+    "pickImage": "Insertar una imagen",
+    "pickSpreadsheet": "Elegir una hoja de cálculo"
   },
   "preview": {
     "nothingOpensIt": "Aquí nada puede abrir {name}.",

@@ -1,4 +1,20 @@
-FROM public.ecr.aws/docker/library/node:24-alpine
+FROM alpine:3.24 AS seven_zip
+ARG TARGETARCH
+ARG SEVEN_ZIP_VERSION=26.03
+RUN apk add --no-cache curl libarchive-tools \
+  && case "$TARGETARCH" in \
+    amd64) archive_arch=x64; archive_sha256=dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695 ;; \
+    arm64) archive_arch=arm64; archive_sha256=2389ba20e4d8295e8709c20b6263b69bd1ec4972fe38a04ad7a1badbf595b996 ;; \
+    *) echo "Unsupported 7-Zip architecture: $TARGETARCH" >&2; exit 1 ;; \
+  esac \
+  && archive_version=$(printf '%s' "$SEVEN_ZIP_VERSION" | tr -d .) \
+  && curl -fsSL -o /tmp/7z.tar.xz "https://github.com/ip7z/7zip/releases/download/${SEVEN_ZIP_VERSION}/7z${archive_version}-linux-${archive_arch}.tar.xz" \
+  && echo "${archive_sha256}  /tmp/7z.tar.xz" | sha256sum -c - \
+  && mkdir -p /out /tmp/7z \
+  && bsdtar -xJf /tmp/7z.tar.xz -C /tmp/7z \
+  && install -m 0755 "$(find /tmp/7z -type f -name 7zzs -print -quit)" /out/7z
+
+FROM public.ecr.aws/docker/library/node:24.21-alpine3.24
 
 WORKDIR /repo
 ENV NODE_ENV=development
@@ -12,15 +28,22 @@ RUN apk add --no-cache \
   curl \
   unzip \
   openssh-client \
+  rsync \
+  shadow \
+  perl \
   libva \
   mesa-va-gallium \
   bash \
   && rm -rf /tmp/* /var/cache/apk/*
 
+COPY --from=seven_zip /out/7z /usr/local/bin/7z
+RUN 7z i | grep -qi 'rar'
+
 # Install workspace dependencies (seeded into the named volume on first run).
 COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/package.json
 COPY frontend/package.json ./frontend/package.json
+COPY docs/package.json ./docs/package.json
 
 # Use npm install instead of npm ci for dev to properly handle optional dependencies
 # This avoids ARM64 rollup dependency issues in Docker

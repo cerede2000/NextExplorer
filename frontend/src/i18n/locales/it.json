@@ -185,7 +185,10 @@
     "removeVolume": "Impossibile rimuovere il volume",
     "totpCodeRequired": "Inserisci il codice.",
     "identifierRequired": "È richiesto un indirizzo email o un nome utente",
-    "unlockUser": "Impossibile sbloccare l'account"
+    "unlockUser": "Impossibile sbloccare l'account",
+    "oidcNotConfigured": "Il Single Sign-On non è configurato su questo server.",
+    "oidcProviderUnavailable": "Non è stato possibile avviare il Single Sign-On. Le impostazioni ci sono; il log del server dice che cosa non ha funzionato.",
+    "totpCodeWrong": "Questo codice non è corretto."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autenticazione richiesta",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Utente non trovato",
     "CONFLICT_USER_EXISTS": "L'utente esiste già",
     "CONFLICT_PASSWORD_EXISTS": "Hai già l'autenticazione tramite password",
-    "CONFLICT_SETUP_COMPLETE": "Applicazione già configurata"
+    "CONFLICT_SETUP_COMPLETE": "Applicazione già configurata",
+    "FORBIDDEN": "Accesso negato",
+    "NOT_FOUND": "Non trovato",
+    "CONFLICT": "Conflitto",
+    "RATE_LIMIT_EXCEEDED": "Troppe richieste",
+    "AUTH_INVALID_TOTP_CODE": "Questo codice non è corretto."
   },
   "titles": {
     "volumes": "Volumi",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "Impossibile salvare {name}",
     "editingBody": "{names} è aperto in OnlyOffice. {action} continuerà. | {names} sono aperti in OnlyOffice. {action} continuerà.",
     "editingHeading": "File in fase di modifica",
-    "pickFailed": "Impossibile usare il file selezionato"
+    "pickFailed": "Impossibile usare il file selezionato",
+    "actionCopy": "La copia",
+    "actionDelete": "L'eliminazione",
+    "actionMove": "Lo spostamento",
+    "actionRename": "La rinomina",
+    "pickCompare": "Confronta con un documento",
+    "pickDocument": "Scegli un documento",
+    "pickImage": "Inserisci un'immagine",
+    "pickSpreadsheet": "Scegli un foglio di calcolo"
   },
   "preview": {
     "nothingOpensIt": "Qui niente sa aprire {name}.",

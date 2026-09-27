@@ -185,7 +185,10 @@
     "removeVolume": "Volume verwijderen is mislukt",
     "totpCodeRequired": "Voer de code in.",
     "identifierRequired": "Een e-mailadres of gebruikersnaam is verplicht",
-    "unlockUser": "Het account kon niet worden ontgrendeld"
+    "unlockUser": "Het account kon niet worden ontgrendeld",
+    "oidcNotConfigured": "Single Sign-On is niet geconfigureerd op deze server.",
+    "oidcProviderUnavailable": "Single Sign-On kon niet worden gestart. De instellingen zijn aanwezig; het serverlogboek vertelt wat er misging.",
+    "totpCodeWrong": "Die code klopt niet."
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authenticatie vereist",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "Gebruiker niet gevonden",
     "CONFLICT_USER_EXISTS": "Gebruiker bestaat reeds",
     "CONFLICT_PASSWORD_EXISTS": "U beschikt al over verificatie met wachtwoord",
-    "CONFLICT_SETUP_COMPLETE": "Applicatie al ingesteld"
+    "CONFLICT_SETUP_COMPLETE": "Applicatie al ingesteld",
+    "FORBIDDEN": "Toegang geweigerd",
+    "NOT_FOUND": "Niet gevonden",
+    "CONFLICT": "Conflict",
+    "RATE_LIMIT_EXCEEDED": "Te veel verzoeken",
+    "AUTH_INVALID_TOTP_CODE": "Die code klopt niet."
   },
   "titles": {
     "volumes": "Volumes",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "{name} kon niet worden opgeslagen",
     "editingBody": "{names} is geopend in OnlyOffice. De {action} gaat door. | {names} zijn geopend in OnlyOffice. De {action} gaat door.",
     "editingHeading": "Bestand wordt bewerkt",
-    "pickFailed": "Het gekozen bestand kon niet worden gebruikt"
+    "pickFailed": "Het gekozen bestand kon niet worden gebruikt",
+    "actionCopy": "kopie",
+    "actionDelete": "verwijdering",
+    "actionMove": "verplaatsing",
+    "actionRename": "naamswijziging",
+    "pickCompare": "Vergelijken met een document",
+    "pickDocument": "Document kiezen",
+    "pickImage": "Afbeelding invoegen",
+    "pickSpreadsheet": "Werkmap kiezen"
   },
   "preview": {
     "nothingOpensIt": "Hier kan niets {name} openen.",

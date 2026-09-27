@@ -185,7 +185,10 @@
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "कोड डालें।",
     "identifierRequired": "ईमेल पता या उपयोगकर्ता नाम आवश्यक है",
-    "unlockUser": "खाता अनलॉक नहीं हो सका"
+    "unlockUser": "खाता अनलॉक नहीं हो सका",
+    "oidcNotConfigured": "इस सर्वर पर सिंगल साइन-ऑन कॉन्फ़िगर नहीं किया गया है।",
+    "oidcProviderUnavailable": "सिंगल साइन-ऑन शुरू नहीं हो सका। सेटिंग्स मौजूद हैं; सर्वर लॉग में बताया गया है कि क्या गड़बड़ हुई।",
+    "totpCodeWrong": "यह कोड सही नहीं है।"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "प्रमाणीकरण आवश्यक है",
@@ -202,7 +205,12 @@
     "NOT_FOUND_USER": "उपयोगकर्ता नहीं मिला",
     "CONFLICT_USER_EXISTS": "उपयोगकर्ता पहले से मौजूद है",
     "CONFLICT_PASSWORD_EXISTS": "आपके पास पहले से ही पासवर्ड प्रमाणीकरण है",
-    "CONFLICT_SETUP_COMPLETE": "एप्लिकेशन पहले से कॉन्फ़िगर है"
+    "CONFLICT_SETUP_COMPLETE": "एप्लिकेशन पहले से कॉन्फ़िगर है",
+    "FORBIDDEN": "पहुँच अस्वीकृत",
+    "NOT_FOUND": "नहीं मिला",
+    "CONFLICT": "टकराव",
+    "RATE_LIMIT_EXCEEDED": "बहुत अधिक अनुरोध",
+    "AUTH_INVALID_TOTP_CODE": "यह कोड सही नहीं है।"
   },
   "titles": {
     "volumes": "वॉल्यूम",
@@ -1321,7 +1329,15 @@
     "saveAsFailed": "{name} को सहेजा नहीं जा सका",
     "editingBody": "{names} OnlyOffice में खुली है। {action} जारी रहेगा। | {names} OnlyOffice में खुली हैं। {action} जारी रहेगा।",
     "editingHeading": "फ़ाइल संपादित की जा रही है",
-    "pickFailed": "चयनित फ़ाइल का उपयोग नहीं किया जा सका"
+    "pickFailed": "चयनित फ़ाइल का उपयोग नहीं किया जा सका",
+    "actionCopy": "कॉपी करना",
+    "actionDelete": "हटाना",
+    "actionMove": "स्थानांतरित करना",
+    "actionRename": "नाम बदलना",
+    "pickCompare": "दस्तावेज़ से तुलना करें",
+    "pickDocument": "दस्तावेज़ चुनें",
+    "pickImage": "छवि डालें",
+    "pickSpreadsheet": "स्प्रेडशीट चुनें"
   },
   "preview": {
     "nothingOpensIt": "यहाँ कुछ भी {name} को नहीं खोल सकता।",
