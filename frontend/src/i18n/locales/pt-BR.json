@@ -801,7 +801,11 @@
       "subtitle": "Configure como os arquivos são enviados ao servidor.",
       "chunkedEnable": "Ativar envio em partes",
       "chunkedEnableHelp": "Usar o TUS para enviar arquivos grandes por meio de várias requisições menores.",
-      "chunkSizeInvalid": "Informe um tamanho de parte de 1 a {max} MiB."
+      "chunkSizeInvalid": "Informe um tamanho de parte de 1 a {max} MiB.",
+      "autoFallback": "Recorrer automaticamente ao envio em partes",
+      "autoFallbackHelp": "Se um envio direto falhar (um proxy reverso recusando o tamanho do corpo), passa automaticamente ao envio em partes com um tamanho seguro, memorizado por endereço. Prático para continuar direto na rede local e passar às partes atrás do proxy.",
+      "autoFallbackActive": "Tamanho das partes memorizado para este endereço: {size} MiB.",
+      "autoFallbackReset": "Redefinir (voltar ao envio direto)"
     },
     "twoFactor": {
       "title": "Autenticação em dois fatores",

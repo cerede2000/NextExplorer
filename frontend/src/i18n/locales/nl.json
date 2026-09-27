@@ -801,7 +801,11 @@
       "subtitle": "Stel in hoe bestanden naar de server worden verzonden.",
       "chunkedEnable": "Uploads in delen inschakelen",
       "chunkedEnableHelp": "Gebruik TUS om grote bestanden in meerdere kleinere verzoeken te verzenden.",
-      "chunkSizeInvalid": "Vul een deelgrootte van 1 tot {max} MiB in."
+      "chunkSizeInvalid": "Vul een deelgrootte van 1 tot {max} MiB in.",
+      "autoFallback": "Automatisch terugvallen op uploads in delen",
+      "autoFallbackHelp": "Als een directe upload mislukt (een reverse proxy die de grootte weigert), automatisch overschakelen op uploads in delen met een veilige grootte, onthouden per adres. Handig om lokaal direct te uploaden en achter de proxy in delen.",
+      "autoFallbackActive": "Onthouden deelgrootte voor dit adres: {size} MiB.",
+      "autoFallbackReset": "Herstellen (terug naar direct)"
     },
     "twoFactor": {
       "title": "Tweestapsverificatie",

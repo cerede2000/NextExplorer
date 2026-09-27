@@ -1,44 +1,37 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import ToggleSwitch from '@/components/ToggleSwitch.vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
+import { getUploadFallbackMiB, resetUploadFallback } from '@/composables/fileUploader';
+import { useI18n } from 'vue-i18n';
+import ToggleSwitch from '@/components/ToggleSwitch.vue';
 
-/**
- * How uploads go out, for an administrator.
- *
- * A direct upload is one request and much faster, and it is what an upload has
- * always been here. It is also what a reverse proxy refuses outright once the
- * body passes whatever limit it enforces, and what a dropped connection loses
- * entirely however far it had got. Chunked uploads answer both: each part is
- * small enough to pass, and one that fails is retried without sending again
- * what is already there.
- */
+const appSettings = useAppSettings();
+const features = useFeaturesStore();
+const { t } = useI18n();
+
+// Per-origin remembered auto-fallback chunk size (localStorage). The reset button
+// forgets just this value → this address goes back to direct uploads.
+const fallbackMiB = ref(getUploadFallbackMiB());
+const resetFallback = () => {
+  resetUploadFallback();
+  fallbackMiB.value = null;
+};
 
 const MIB = 1024 * 1024;
 const MIN_CHUNK_SIZE_MIB = 1;
 const FALLBACK_MAX_CHUNK_SIZE_MIB = 512;
 const DEFAULT_CHUNK_SIZE_MIB = 8;
 
-const appSettings = useAppSettings();
-const featuresStore = useFeaturesStore();
-const { t } = useI18n();
+onMounted(() => features.ensureLoaded());
 
-onMounted(() => featuresStore.ensureLoaded());
-
-// The ceiling the server allows (MAX_CHUNK_SIZE_MIB): said here rather than
-// discovered by having a number refused.
+// Server-driven ceiling (env MAX_CHUNK_SIZE_MIB); caps the slider/input.
 const maxChunkSizeMiB = computed(() => {
-  const bytes = featuresStore.maxUploadChunkSizeBytes;
+  const bytes = features.maxUploadChunkSizeBytes;
   const mib =
     Number.isFinite(bytes) && bytes > 0 ? Math.floor(bytes / MIB) : FALLBACK_MAX_CHUNK_SIZE_MIB;
   return Math.max(MIN_CHUNK_SIZE_MIB, mib);
 });
-
-const current = computed(
-  () => appSettings.systemSettings?.uploads || { chunkedEnabled: false, chunkSizeBytes: 8 * MIB }
-);
 
 const bytesToMiB = (bytes) => {
   const cap = maxChunkSizeMiB.value;
@@ -46,58 +39,105 @@ const bytesToMiB = (bytes) => {
   return Math.max(MIN_CHUNK_SIZE_MIB, Math.min(cap, Math.round(bytes / MIB)));
 };
 
-const fromSettings = (settings) => ({
-  chunkedEnabled: settings.chunkedEnabled === true,
-  chunkSizeMiB: String(bytesToMiB(settings.chunkSizeBytes)),
+const local = reactive({
+  chunkedEnabled: false,
+  chunkedAutoFallback: false,
+  chunkSizeMiB: DEFAULT_CHUNK_SIZE_MIB,
 });
 
-const local = ref(fromSettings(current.value));
+const original = computed(() => appSettings.systemSettings?.uploads || appSettings.state.uploads);
+const originalChunkSizeMiB = computed(() => bytesToMiB(original.value?.chunkSizeBytes));
+const dirty = computed(
+  () =>
+    local.chunkedEnabled !== Boolean(original.value?.chunkedEnabled) ||
+    local.chunkedAutoFallback !== Boolean(original.value?.chunkedAutoFallback) ||
+    local.chunkSizeMiB !== originalChunkSizeMiB.value
+);
 
 watch(
-  current,
-  (value) => {
-    local.value = fromSettings(value);
+  () => appSettings.systemSettings?.uploads || appSettings.state.uploads,
+  (uploads) => {
+    if (!uploads) return;
+    local.chunkedEnabled = Boolean(uploads.chunkedEnabled);
+    local.chunkedAutoFallback = Boolean(uploads.chunkedAutoFallback);
+    local.chunkSizeMiB = bytesToMiB(uploads.chunkSizeBytes);
   },
-  { deep: true }
+  { immediate: true }
 );
 
-const chunkSizeMiB = computed(() => {
-  const value = Number(local.value.chunkSizeMiB);
-  return Number.isInteger(value) && value >= MIN_CHUNK_SIZE_MIB && value <= maxChunkSizeMiB.value
-    ? value
-    : null;
+// Forced chunking and auto-fallback are mutually exclusive: turning one on turns
+// the other off.
+watch(
+  () => local.chunkedAutoFallback,
+  (on) => {
+    if (on) local.chunkedEnabled = false;
+  }
+);
+watch(
+  () => local.chunkedEnabled,
+  (on) => {
+    if (on) local.chunkedAutoFallback = false;
+  }
+);
+
+// Keep the edited value within [min, server max] — auto-correct a value typed
+// above the ceiling (e.g. after MAX_CHUNK_SIZE_MIB was lowered on the server).
+watch([() => local.chunkSizeMiB, maxChunkSizeMiB], () => {
+  const v = local.chunkSizeMiB;
+  if (!Number.isFinite(v)) return;
+  const clamped = Math.max(MIN_CHUNK_SIZE_MIB, Math.min(maxChunkSizeMiB.value, Math.round(v)));
+  if (clamped !== v) local.chunkSizeMiB = clamped;
 });
 
-const invalid = computed(() => chunkSizeMiB.value === null);
-const dirty = computed(
-  () => JSON.stringify(local.value) !== JSON.stringify(fromSettings(current.value))
-);
+// An emptied field holds no number, which the watch above has nothing to bring
+// within bounds. Saved as it was, it went to the server as a size of 0.
+const chunkSizeInvalid = computed(() => !Number.isFinite(local.chunkSizeMiB));
 
-const saving = ref(false);
-const saveError = ref('');
+const reset = () => {
+  const uploads = original.value;
+  local.chunkedEnabled = Boolean(uploads?.chunkedEnabled);
+  local.chunkedAutoFallback = Boolean(uploads?.chunkedAutoFallback);
+  local.chunkSizeMiB = bytesToMiB(uploads?.chunkSizeBytes);
+};
 
 const save = async () => {
-  if (invalid.value) return;
-  saving.value = true;
-  saveError.value = '';
-  try {
-    await appSettings.save({
-      uploads: {
-        chunkedEnabled: local.value.chunkedEnabled,
-        chunkSizeBytes: chunkSizeMiB.value * MIB,
-      },
-    });
-  } catch (err) {
-    saveError.value =
-      err?.message || t('settings.uploads.chunkSizeInvalid', { max: maxChunkSizeMiB });
-  } finally {
-    saving.value = false;
-  }
+  if (chunkSizeInvalid.value) return;
+  await appSettings.save({
+    uploads: {
+      chunkedEnabled: local.chunkedEnabled,
+      chunkedAutoFallback: local.chunkedAutoFallback,
+      chunkSizeBytes: local.chunkSizeMiB * MIB,
+    },
+  });
 };
 </script>
 
 <template>
-  <div class="max-w-3xl space-y-6">
+  <div class="space-y-6">
+    <div
+      v-if="dirty"
+      class="sticky top-0 z-10 flex items-center justify-between rounded-md border border-yellow-400/30 bg-yellow-100/40 p-3 text-yellow-900 dark:border-yellow-400/20 dark:bg-yellow-500/10 dark:text-yellow-200"
+    >
+      <div class="text-sm">{{ t('common.unsavedChanges') }}</div>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          data-test="uploads-settings-save"
+          class="rounded-md bg-yellow-500 px-3 py-1 text-black hover:bg-yellow-400 disabled:opacity-50"
+          :disabled="chunkSizeInvalid"
+          @click="save"
+        >
+          {{ t('common.save') }}
+        </button>
+        <button
+          class="rounded-md border border-white/10 px-3 py-1 hover:bg-white/10"
+          @click="reset"
+        >
+          {{ t('common.discard') }}
+        </button>
+      </div>
+    </div>
+
     <div>
       <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
         {{ t('settings.uploads.title') }}
@@ -108,56 +148,90 @@ const save = async () => {
     </div>
 
     <div
-      class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+      class="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <div class="flex items-center justify-between py-3">
-        <div>
-          <div class="font-medium text-zinc-900 dark:text-zinc-100">
-            {{ t('settings.uploads.chunkedEnable') }}
+      <div class="space-y-6">
+        <div
+          class="flex items-center justify-between border-b border-zinc-100 py-3 dark:border-zinc-800"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.uploads.chunkedEnable') }}
+            </div>
+            <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ t('settings.uploads.chunkedEnableHelp') }}
+            </div>
           </div>
-          <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {{ t('settings.uploads.chunkedEnableHelp') }}
+          <ToggleSwitch v-model="local.chunkedEnabled" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3"
+          :class="{ 'pointer-events-none opacity-60': !local.chunkedEnabled }"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.uploads.chunkSize') }}
+            </div>
+            <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ t('settings.uploads.chunkSizeHelp') }}
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <input
+              v-model.number="local.chunkSizeMiB"
+              type="range"
+              :min="MIN_CHUNK_SIZE_MIB"
+              :max="maxChunkSizeMiB"
+              step="1"
+              class="h-2 w-64 appearance-none rounded-lg bg-zinc-200 accent-zinc-900 dark:bg-zinc-700 dark:accent-zinc-100"
+            />
+            <input
+              v-model.number="local.chunkSizeMiB"
+              type="number"
+              :min="MIN_CHUNK_SIZE_MIB"
+              :max="maxChunkSizeMiB"
+              step="1"
+              class="w-24 rounded-md border border-zinc-300 bg-white p-2 text-center text-zinc-900 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 sm:text-sm"
+            />
+            <span class="text-sm text-zinc-500 dark:text-zinc-400">MiB</span>
           </div>
         </div>
-        <ToggleSwitch v-model="local.chunkedEnabled" data-test="uploads-chunked" />
-      </div>
+        <p
+          v-if="chunkSizeInvalid"
+          data-test="uploads-settings-invalid"
+          class="text-sm text-red-600"
+        >
+          {{ t('settings.uploads.chunkSizeInvalid', { max: maxChunkSizeMiB }) }}
+        </p>
 
-      <div
-        class="flex items-center justify-between border-t border-zinc-100 py-3 dark:border-zinc-800"
-      >
-        <div>
-          <label for="upload-chunk-size" class="font-medium text-zinc-900 dark:text-zinc-100">
-            {{ t('settings.uploads.chunkSize') }}
-          </label>
-          <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {{ t('settings.uploads.chunkSizeHelp', { max: maxChunkSizeMiB }) }}
+        <div
+          class="flex items-center justify-between border-t border-zinc-100 py-3 dark:border-zinc-800"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.uploads.autoFallback') }}
+            </div>
+            <div class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ t('settings.uploads.autoFallbackHelp') }}
+            </div>
           </div>
+          <ToggleSwitch v-model="local.chunkedAutoFallback" />
         </div>
-        <input
-          id="upload-chunk-size"
-          v-model="local.chunkSizeMiB"
-          type="number"
-          :min="MIN_CHUNK_SIZE_MIB"
-          :max="maxChunkSizeMiB"
-          :disabled="!local.chunkedEnabled"
-          data-test="uploads-chunk-size"
-          class="w-24 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-        />
+
+        <div v-if="fallbackMiB" class="flex items-center justify-between py-2">
+          <div class="text-sm text-zinc-500 dark:text-zinc-400">
+            {{ t('settings.uploads.autoFallbackActive', { size: fallbackMiB }) }}
+          </div>
+          <button
+            type="button"
+            class="rounded-md border border-zinc-300 px-3 py-1 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            @click="resetFallback"
+          >
+            {{ t('settings.uploads.autoFallbackReset') }}
+          </button>
+        </div>
       </div>
-    </div>
-
-    <p v-if="saveError" class="text-sm text-red-600 dark:text-red-400">{{ saveError }}</p>
-
-    <div class="flex justify-end">
-      <button
-        type="button"
-        :disabled="!dirty || invalid || saving"
-        data-test="uploads-save"
-        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 hover:bg-blue-500"
-        @click="save"
-      >
-        {{ saving ? t('common.saving') : t('common.save') }}
-      </button>
     </div>
   </div>
 </template>

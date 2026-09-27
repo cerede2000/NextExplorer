@@ -65,6 +65,25 @@ async function moveItems(items, destination) {
  * first. The server only returns the ones still reachable, so the picker can
  * offer them without checking each in turn.
  */
+/**
+ * Where a whole folder is about to be uploaded.
+ *
+ * The name is settled once, before the first file goes up, so every file of the
+ * upload lands in the same place — two uploads of `Album` started together
+ * become `Album` and `Album (1)`, and neither is written into the other.
+ */
+async function reserveFolderUploadTarget(destination, sourceRoot) {
+  const uploadTo = normalizePath(destination || '');
+  if (!uploadTo || typeof sourceRoot !== 'string' || !sourceRoot.trim()) {
+    throw new Error('A destination and folder name are required to start a folder upload.');
+  }
+
+  return requestJson('/api/upload/folder-session', {
+    method: 'POST',
+    body: JSON.stringify({ uploadTo, sourceRoot }),
+  });
+}
+
 async function fetchRecentDestinations() {
   const payload = await requestJson('/api/files/recent-destinations');
   return Array.isArray(payload?.items) ? payload.items : [];
@@ -397,6 +416,7 @@ export {
   copyItems,
   moveItems,
   fetchRecentDestinations,
+  reserveFolderUploadTarget,
   deleteItems,
   getDeleteImpact,
   createFile,

@@ -801,7 +801,11 @@
       "subtitle": "Konfigurieren Sie, wie Dateien an den Server gesendet werden.",
       "chunkedEnable": "Segmentierte Uploads aktivieren",
       "chunkedEnableHelp": "Verwendet TUS, um große Dateien über mehrere kleinere Anfragen zu senden.",
-      "chunkSizeInvalid": "Geben Sie eine Segmentgröße von 1 bis {max} MiB ein."
+      "chunkSizeInvalid": "Geben Sie eine Segmentgröße von 1 bis {max} MiB ein.",
+      "autoFallback": "Automatisch auf Segmente umschalten",
+      "autoFallbackHelp": "Wenn ein direkter Upload fehlschlägt (ein Reverse-Proxy, der die Body-Größe ablehnt), wird automatisch mit einer sicheren Größe auf segmentierte Uploads umgeschaltet, gemerkt pro Adresse. Ideal, um lokal direkt zu bleiben und hinter dem Proxy auf segmentiert zu wechseln.",
+      "autoFallbackActive": "Segmentgröße für diese Adresse gemerkt: {size} MiB.",
+      "autoFallbackReset": "Zurücksetzen (zurück zu direkt)"
     },
     "twoFactor": {
       "title": "Zwei-Faktor-Authentifizierung",

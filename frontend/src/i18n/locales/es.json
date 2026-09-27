@@ -801,7 +801,11 @@
       "subtitle": "Configura cómo se envían los archivos al servidor.",
       "chunkedEnable": "Activar subidas por fragmentos",
       "chunkedEnableHelp": "Usa TUS para enviar archivos grandes en varias solicitudes más pequeñas.",
-      "chunkSizeInvalid": "Introduce un tamaño de fragmento de 1 a {max} MiB."
+      "chunkSizeInvalid": "Introduce un tamaño de fragmento de 1 a {max} MiB.",
+      "autoFallback": "Cambio automático a fragmentos",
+      "autoFallbackHelp": "Si una subida directa falla (un proxy inverso rechaza el tamaño del cuerpo), cambia automáticamente a subidas por fragmentos con un tamaño seguro, recordado por dirección. Ideal para mantenerte en directo en local y cambiar a fragmentos detrás del proxy.",
+      "autoFallbackActive": "Tamaño de fragmento recordado para esta dirección: {size} MiB.",
+      "autoFallbackReset": "Restablecer (volver a directo)"
     },
     "twoFactor": {
       "title": "Autenticación de doble factor",

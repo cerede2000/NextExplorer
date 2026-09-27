@@ -801,7 +801,11 @@
       "subtitle": "파일을 서버로 전송하는 방식을 설정합니다.",
       "chunkedEnable": "청크 업로드 활성화",
       "chunkedEnableHelp": "TUS를 사용하여 대용량 파일을 여러 개의 작은 요청으로 나누어 전송합니다.",
-      "chunkSizeInvalid": "청크 크기를 1~{max} MiB 사이로 입력하세요."
+      "chunkSizeInvalid": "청크 크기를 1~{max} MiB 사이로 입력하세요.",
+      "autoFallback": "청크 업로드로 자동 전환",
+      "autoFallbackHelp": "직접 업로드가 실패하면(리버스 프록시가 본문 크기를 거부하는 경우) 안전한 크기의 청크 업로드로 자동 전환하며, 주소별로 기억됩니다. 로컬에서는 직접 전송을 유지하고 프록시 뒤에서는 청크로 전환하기에 좋습니다.",
+      "autoFallbackActive": "이 주소에 대해 기억된 청크 크기: {size} MiB.",
+      "autoFallbackReset": "초기화 (직접 전송으로 복귀)"
     },
     "twoFactor": {
       "title": "2단계 인증",
