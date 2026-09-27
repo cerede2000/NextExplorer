@@ -73,7 +73,8 @@
     "add": "添加",
     "back": "后退",
     "logoAlt": "{name} 的徽标",
-    "toggleSection": "展开或折叠此部分"
+    "toggleSection": "展开或折叠此部分",
+    "dismissWarning": "忽略此警告"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "请输入验证码。",
-    "identifierRequired": "需要邮箱地址或用户名"
+    "identifierRequired": "需要邮箱地址或用户名",
+    "unlockUser": "无法解锁账户"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "需要身份验证",
@@ -625,7 +627,9 @@
       "volumePath": "卷路径",
       "pathCannotChange": "创建后无法更改路径。如需更改，请删除此卷并重新创建。",
       "accessMode": "访问模式",
-      "noUsers": "没有可用用户"
+      "noUsers": "没有可用用户",
+      "lockedBadge": "已锁定",
+      "lockedUntil": "锁定至 {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "登录锁定",
+      "lockedHint": "登录失败次数过多，已被锁定。将于 {time} 自动解锁。",
+      "notLockedHint": "未锁定。登录失败次数过多会使账户暂时锁定。",
+      "unlock": "立即解锁"
     },
     "trash": {
       "title": "回收站和版本",

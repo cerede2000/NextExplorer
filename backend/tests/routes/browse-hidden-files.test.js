@@ -20,6 +20,17 @@ const createBrowseContext = async () => {
     ],
   });
 
+  // The account the requests below are made as. A preference belongs to an
+  // account — `user_settings` says so with a foreign key — so writing one for
+  // an id nothing created fails on the constraint rather than on anything this
+  // test is about.
+  const db = await envContext.requireFresh('src/services/db').getDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO users (id, email, email_verified, username, display_name, roles, created_at, updated_at)
+     VALUES ('admin', 'admin@example.com', 1, 'admin', 'Admin', '["admin"]', ?, ?)`
+  ).run(now, now);
+
   const browseRoutes = envContext.requireFresh('src/routes/browse');
   const { errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
   const app = createTestApp({

@@ -73,7 +73,8 @@
     "add": "Añadir",
     "back": "Atrás",
     "logoAlt": "Logotipo de {name}",
-    "toggleSection": "Mostrar u ocultar la sección"
+    "toggleSection": "Mostrar u ocultar la sección",
+    "dismissWarning": "Descartar el aviso"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "",
     "removeVolume": "",
     "totpCodeRequired": "Introduzca el código.",
-    "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario"
+    "identifierRequired": "Se requiere un correo electrónico o un nombre de usuario",
+    "unlockUser": "No se pudo desbloquear la cuenta"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Se requiere autenticación",
@@ -625,7 +627,9 @@
       "volumePath": "Ruta del volumen",
       "pathCannotChange": "La ruta no se puede cambiar después de la creación. Elimine este volumen y cree uno nuevo si es necesario.",
       "accessMode": "Modo de acceso",
-      "noUsers": "No hay usuarios disponibles"
+      "noUsers": "No hay usuarios disponibles",
+      "lockedBadge": "Bloqueado",
+      "lockedUntil": "Bloqueado hasta las {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Bloqueo de inicio de sesión",
+      "lockedHint": "Bloqueado tras demasiados intentos fallidos de inicio de sesión. Se desbloquea solo a las {time}.",
+      "notLockedHint": "No bloqueado. Demasiados intentos fallidos de inicio de sesión bloquean una cuenta durante un tiempo.",
+      "unlock": "Desbloquear ahora"
     },
     "trash": {
       "title": "Papelera y versiones",

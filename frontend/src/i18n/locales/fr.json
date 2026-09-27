@@ -73,7 +73,8 @@
     "add": "Ajouter",
     "back": "Retour",
     "logoAlt": "Logo de {name}",
-    "toggleSection": "Afficher ou masquer la section"
+    "toggleSection": "Afficher ou masquer la section",
+    "dismissWarning": "Ignorer l'avertissement"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Saisissez le code.",
-    "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis"
+    "identifierRequired": "Une adresse e-mail ou un nom d'utilisateur est requis",
+    "unlockUser": "Impossible de déverrouiller le compte"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Authentification requise",
@@ -625,7 +627,9 @@
       "volumePath": "Chemin du volume",
       "pathCannotChange": "Le chemin ne peut pas être modifié après la création. Supprimez ce volume et créez-en un nouveau si nécessaire.",
       "accessMode": "Mode d'accès",
-      "noUsers": "Aucun utilisateur disponible"
+      "noUsers": "Aucun utilisateur disponible",
+      "lockedBadge": "Verrouillé",
+      "lockedUntil": "Verrouillé jusqu'à {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Verrouillage de connexion",
+      "lockedHint": "Verrouillé après trop de tentatives de connexion échouées. Il se libère de lui-même à {time}.",
+      "notLockedHint": "Non verrouillé. Trop de tentatives de connexion échouées verrouillent un compte pour un temps.",
+      "unlock": "Déverrouiller maintenant"
     },
     "trash": {
       "title": "Corbeille et versions",

@@ -73,7 +73,8 @@
     "add": "Adaugă",
     "back": "Înapoi",
     "logoAlt": "Sigla {name}",
-    "toggleSection": "Afișează sau ascunde secțiunea"
+    "toggleSection": "Afișează sau ascunde secțiunea",
+    "dismissWarning": "Închideți avertismentul"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Nu s-a putut salva volumul",
     "removeVolume": "Nu s-a putut elimina volumul",
     "totpCodeRequired": "Introduceți codul.",
-    "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator"
+    "identifierRequired": "Este necesară o adresă de e-mail sau un nume de utilizator",
+    "unlockUser": "Contul nu a putut fi deblocat"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentificare necesară",
@@ -625,7 +627,9 @@
       "volumePath": "Cale volum",
       "pathCannotChange": "Calea nu poate fi schimbată după creare. Șterge și creează unul nou dacă e necesar.",
       "accessMode": "Mod acces",
-      "noUsers": "Nu există utilizatori disponibili"
+      "noUsers": "Nu există utilizatori disponibili",
+      "lockedBadge": "Blocat",
+      "lockedUntil": "Blocat până la {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Blocarea autentificării",
+      "lockedHint": "Blocat după prea multe încercări eșuate de autentificare. Se deblochează singur la {time}.",
+      "notLockedHint": "Neblocat. Prea multe încercări eșuate de autentificare blochează un cont pentru o vreme.",
+      "unlock": "Deblochează acum"
     },
     "trash": {
       "title": "Coș de gunoi și versiuni",

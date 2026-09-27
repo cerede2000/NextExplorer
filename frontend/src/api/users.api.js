@@ -44,6 +44,13 @@ export async function adminSetUserPassword(userId, newPassword) {
   });
 }
 
+/** Release an account locked by failed sign-ins, before its lock runs out. */
+export async function unlockUser(userId) {
+  return requestJson(`/api/users/${encodeURIComponent(userId)}/lock`, {
+    method: 'DELETE',
+  });
+}
+
 export async function deleteUser(userId) {
   return requestJson(`/api/users/${encodeURIComponent(userId)}`, {
     method: 'DELETE',

@@ -73,7 +73,8 @@
     "add": "Lägg till",
     "back": "Bakåt",
     "logoAlt": "Logotyp för {name}",
-    "toggleSection": "Visa eller dölj avsnittet"
+    "toggleSection": "Visa eller dölj avsnittet",
+    "dismissWarning": "Avfärda varningen"
   },
   "editor": {
     "editing": "Editing",
@@ -170,7 +171,8 @@
     "saveVolume": "Failed to save volume",
     "removeVolume": "Failed to remove volume",
     "totpCodeRequired": "Ange koden.",
-    "identifierRequired": "En e-postadress eller ett användarnamn krävs"
+    "identifierRequired": "En e-postadress eller ett användarnamn krävs",
+    "unlockUser": "Kontot kunde inte låsas upp"
   },
   "serverErrors": {
     "AUTH_REQUIRED": "Autentisering krävs",
@@ -625,7 +627,9 @@
       "volumePath": "Volymsökväg",
       "pathCannotChange": "Sökvägen kan inte ändras i efterhand. Ta bort och skapa ny vid behov.",
       "accessMode": "Åtkomstläge",
-      "noUsers": "Inga användare tillgängliga"
+      "noUsers": "Inga användare tillgängliga",
+      "lockedBadge": "Låst",
+      "lockedUntil": "Låst till {time}"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -651,7 +655,11 @@
       "sso": "Single Sign-On (OIDC)",
       "oidcProvider": "OIDC Provider",
       "oidcLinkedProfile": "Linked Profile",
-      "noOidcProfileMessage": "No OIDC profiles linked to this account."
+      "noOidcProfileMessage": "No OIDC profiles linked to this account.",
+      "signInLock": "Inloggningsspärr",
+      "lockedHint": "Låst efter för många misslyckade inloggningsförsök. Spärren släpper av sig själv kl. {time}.",
+      "notLockedHint": "Inte låst. För många misslyckade inloggningsförsök låser ett konto en stund.",
+      "unlock": "Lås upp nu"
     },
     "trash": {
       "title": "Papperskorg och versioner",
