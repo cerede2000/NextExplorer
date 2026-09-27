@@ -1,13 +1,15 @@
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { normalizePath } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
 import { useFileStore } from '@/stores/fileStore';
 import { useFolderSizeStore } from '@/stores/folderSize';
+import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFeaturesStore } from '@/stores/features';
-import { useOnlyOfficeActivity } from '@/composables/useOnlyOfficeActivity';
+import { useFolderScrollStore } from '@/stores/folderScroll';
+import { revealOffset } from '@/utils/revealOffset';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { useSelection } from '@/composables/itemSelection';
 import { useExplorerContextMenu } from '@/composables/contextMenu';
@@ -25,12 +27,26 @@ import {
 } from '@heroicons/vue/20/solid';
 import { useEventListener } from '@vueuse/core';
 import { useInputMode } from '@/composables/useInputMode';
+import { LIST_ROW_HEIGHT, virtualWindow } from '@/utils/virtualWindow';
+import {
+  nextIndexInDirection,
+  rangeBetween,
+  normalizeTypeaheadText,
+  findTypeaheadMatch,
+} from '@/utils/folderKeyboard';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import { useNavigation } from '@/composables/navigation';
+import { useFileActions } from '@/composables/fileActions';
+import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
+import { useOperationTasksStore } from '@/stores/operationTasks';
 
 const settings = useSettingsStore();
 const fileStore = useFileStore();
 const folderSizeStore = useFolderSizeStore();
+const volumeUsageStore = useVolumeUsageStore();
 const featuresStore = useFeaturesStore();
+const folderScrollStore = useFolderScrollStore();
+const operationTasksStore = useOperationTasksStore();
 const route = useRoute();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
@@ -39,22 +55,60 @@ const loadMoreTrigger = ref(null);
 const isScrollable = ref(false);
 const canScrollUp = ref(false);
 const canScrollDown = ref(false);
-const { clearSelection } = useSelection();
+const { clearSelection, toggleSelection } = useSelection();
 const contextMenu = useExplorerContextMenu();
 const dropTargetRef = ref(null);
+const listHeaderRef = ref(null);
 useUppyDropTarget(dropTargetRef);
 
 const { isTouchDevice } = useInputMode();
-const { handleDragOver, handleDragLeave, handleDrop, isDragTarget } = useFileDragDrop();
+const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTarget } =
+  useFileDragDrop();
+
+const currentFolderDropTarget = computed(() => ({
+  destinationPath: normalizePath(fileStore.currentPath || ''),
+  kind: 'directory',
+}));
+
+const handleCurrentFolderDragOver = (event) => {
+  handleDragOver(event, currentFolderDropTarget.value);
+};
+
+const handleCurrentFolderDragLeave = (event) => {
+  handleDragLeave(event, currentFolderDropTarget.value);
+};
+
+const handleCurrentFolderDrop = (event) => {
+  handleDrop(event, currentFolderDropTarget.value);
+};
+const { openItem, goNext, goPrev, goUp } = useNavigation();
+const actions = useFileActions();
+const { isDeleteConfirmOpen } = useDeleteConfirm();
 
 const INITIAL_VISIBLE_ITEMS = 500;
 const VISIBLE_ITEMS_INCREMENT = 500;
-const VIRTUAL_LIST_THRESHOLD = 1000;
-const LIST_ROW_HEIGHT = 37;
-const LIST_ROW_OVERSCAN = 20;
+
+const IDLE_THUMBNAIL_PREFETCH_DELAY_MS = 1500;
+const IDLE_THUMBNAIL_PREFETCH_INTERVAL_MS = 2000;
+const IDLE_THUMBNAIL_PREFETCH_LIMIT = 24;
 let loadMoreObserver = null;
+let idleThumbnailPrefetchTimer = null;
+let idleThumbnailPrefetchGeneration = 0;
+const idleThumbnailPrefetchedKeys = new Set();
 const scrollTop = ref(0);
 const scrollViewportHeight = ref(0);
+const canRememberScroll = ref(false);
+const keyboardSelectionAnchorKey = ref('');
+const keyboardActiveItemKey = ref('');
+const keyboardTypeahead = ref('');
+let keyboardTypeaheadTimer = null;
+
+// BrowserLayout keys this view by full route, so navigating into a directory
+// replaces the component. Capture this instance's folder now: during unmount
+// the reactive route may already point to the destination.
+const scrollPositionKey = `${normalizePath(
+  Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
+)}::${settings.view}`;
 
 const getScrollTarget = () => {
   const localTarget = dropTargetRef.value;
@@ -65,46 +119,176 @@ const getScrollTarget = () => {
   return document.scrollingElement || document.documentElement;
 };
 
+const rememberScrollPosition = () => {
+  const target = getScrollTarget();
+  if (target) {
+    folderScrollStore.remember(scrollPositionKey, target.scrollTop);
+  }
+  rememberActiveItem();
+};
+
+const rememberActiveItem = (itemKey = keyboardActiveItemKey.value) => {
+  const selectedItem = fileStore.selectedItems[fileStore.selectedItems.length - 1];
+  const key = itemKey || getItemKey(selectedItem);
+  if (key) folderScrollStore.rememberActiveItem(scrollPositionKey, key);
+};
+
+/**
+ * The item a search result, or a paste, asked us to land on.
+ *
+ * Selecting it was not enough: in a folder of any size the selection lands
+ * somewhere below the fold and the folder opens looking like nothing happened.
+ * The name is kept here and acted on after the list has laid out, because
+ * where a row sits is only known then — and in a virtualised list the row does
+ * not exist in the DOM at all until the scroll position brings it into the
+ * window, so it has to be computed rather than looked up.
+ */
+const pendingRevealName = ref('');
+
 const applySelectionFromQuery = () => {
   const selectName = typeof route.query?.select === 'string' ? route.query.select : '';
   if (!selectName) return;
   const match = fileStore.getCurrentPathItems.find((it) => it?.name === selectName);
   if (match) {
     fileStore.selectedItems = [match];
+    // So the arrow keys carry on from what was just revealed rather than from
+    // the top of the folder.
+    const key = getItemKey(match);
+    keyboardSelectionAnchorKey.value = key;
+    keyboardActiveItemKey.value = key;
+    fileStore.setKeyboardActionItem(match);
+    pendingRevealName.value = selectName;
   }
 };
 
-const sortedItems = computed(() => fileStore.getCurrentPathItems);
-const useVirtualList = computed(
-  () => settings.view === 'list' && sortedItems.value.length > VIRTUAL_LIST_THRESHOLD
-);
-const virtualStartIndex = computed(() => {
-  if (!useVirtualList.value) return 0;
-  return Math.max(0, Math.floor(scrollTop.value / LIST_ROW_HEIGHT) - LIST_ROW_OVERSCAN);
-});
-const virtualEndIndex = computed(() => {
-  if (!useVirtualList.value) return visibleLimit.value;
-  const visibleCount =
-    Math.ceil(scrollViewportHeight.value / LIST_ROW_HEIGHT) + LIST_ROW_OVERSCAN * 2;
-  return Math.min(sortedItems.value.length, virtualStartIndex.value + visibleCount);
-});
-const visibleItems = computed(() => {
-  if (useVirtualList.value) {
-    return sortedItems.value.slice(virtualStartIndex.value, virtualEndIndex.value);
+const revealPendingItem = async () => {
+  const name = pendingRevealName.value;
+  if (!name) return false;
+  pendingRevealName.value = '';
+
+  const index = sortedItems.value.findIndex((item) => item?.name === name);
+  if (index < 0) return false;
+
+  const target = getScrollTarget();
+  if (!target) return false;
+
+  // A progressively rendered list has to hold the row before it can be
+  // scrolled to; a virtual one computes the position instead.
+  if (!useVirtualList.value && visibleLimit.value <= index) {
+    visibleLimit.value = sortedItems.value.length;
+    await nextTick();
+    await waitForScrollLayout();
   }
-  return sortedItems.value.slice(0, visibleLimit.value);
-});
-const hasMoreItems = computed(
-  () => !useVirtualList.value && visibleItems.value.length < sortedItems.value.length
+
+  if (useVirtualList.value) {
+    const offsetFor = () =>
+      revealOffset({
+        index,
+        rowHeight: LIST_ROW_HEIGHT,
+        viewportHeight: target.clientHeight,
+        maxScrollTop: Math.max(0, target.scrollHeight - target.clientHeight),
+      });
+
+    target.scrollTop = offsetFor();
+    // The window reacts to scrollTop one frame later, exactly as a restored
+    // position does, so it is applied again once the rows exist and the
+    // scrollable height is the real one.
+    await waitForScrollLayout();
+    target.scrollTop = offsetFor();
+  } else {
+    // Every row already carries its key for keyboard navigation, and the same
+    // key already draws the ring that marks it — so the row can be found, and
+    // it is visibly the one that was asked for once it is on screen.
+    const item = sortedItems.value[index];
+    const row = target.querySelector(`[data-keyboard-item-key="${CSS.escape(getItemKey(item))}"]`);
+    if (!row?.scrollIntoView) return false;
+    row.scrollIntoView({ block: 'center' });
+  }
+
+  updateScrollState();
+  return true;
+};
+
+const sortedItems = computed(() => fileStore.getCurrentPathItems);
+// The window arithmetic lives in utils so it can be tested without this file's
+// fifteen stores around it.
+const listWindow = computed(() =>
+  virtualWindow({
+    itemCount: sortedItems.value.length,
+    view: settings.view,
+    scrollTop: scrollTop.value,
+    viewportHeight: scrollViewportHeight.value,
+    visibleLimit: visibleLimit.value,
+  })
 );
-const virtualTopSpacerHeight = computed(() =>
-  useVirtualList.value ? virtualStartIndex.value * LIST_ROW_HEIGHT : 0
+const useVirtualList = computed(() => listWindow.value.virtualised);
+const virtualStartIndex = computed(() => listWindow.value.startIndex);
+const virtualEndIndex = computed(() => listWindow.value.endIndex);
+const visibleItems = computed(() =>
+  sortedItems.value.slice(virtualStartIndex.value, virtualEndIndex.value)
 );
-const virtualBottomSpacerHeight = computed(() =>
-  useVirtualList.value
-    ? Math.max(0, (sortedItems.value.length - virtualEndIndex.value) * LIST_ROW_HEIGHT)
-    : 0
-);
+const hasActiveFileOperation = computed(() => operationTasksStore.operationCount > 0);
+
+const isIdleThumbnailCandidate = (item) => {
+  if (!item || item.kind === 'directory' || item.thumbnail || item.thumbnailUnavailable)
+    return false;
+  return Boolean(item.supportsThumbnail);
+};
+
+const stopIdleThumbnailPrefetch = () => {
+  idleThumbnailPrefetchGeneration += 1;
+  if (idleThumbnailPrefetchTimer) {
+    window.clearTimeout(idleThumbnailPrefetchTimer);
+    idleThumbnailPrefetchTimer = null;
+  }
+};
+
+const scheduleIdleThumbnailPrefetch = (delayMs = IDLE_THUMBNAIL_PREFETCH_DELAY_MS) => {
+  stopIdleThumbnailPrefetch();
+  if (
+    loading.value ||
+    document.hidden ||
+    hasActiveFileOperation.value ||
+    idleThumbnailPrefetchedKeys.size >= IDLE_THUMBNAIL_PREFETCH_LIMIT
+  ) {
+    return;
+  }
+
+  const generation = idleThumbnailPrefetchGeneration;
+  idleThumbnailPrefetchTimer = window.setTimeout(async () => {
+    idleThumbnailPrefetchTimer = null;
+    if (
+      generation !== idleThumbnailPrefetchGeneration ||
+      loading.value ||
+      document.hidden ||
+      hasActiveFileOperation.value
+    ) {
+      return;
+    }
+
+    const nextItem = sortedItems.value.find((item) => {
+      const key = getItemKey(item);
+      return key && !idleThumbnailPrefetchedKeys.has(key) && isIdleThumbnailCandidate(item);
+    });
+    if (!nextItem) return;
+
+    const key = getItemKey(nextItem);
+    const accepted = await fileStore.prefetchItemThumbnail(nextItem);
+    if (accepted) idleThumbnailPrefetchedKeys.add(key);
+
+    if (generation === idleThumbnailPrefetchGeneration) {
+      scheduleIdleThumbnailPrefetch(IDLE_THUMBNAIL_PREFETCH_INTERVAL_MS);
+    }
+  }, delayMs);
+};
+
+const resetIdleThumbnailPrefetch = () => {
+  idleThumbnailPrefetchedKeys.clear();
+  scheduleIdleThumbnailPrefetch();
+};
+const hasMoreItems = computed(() => listWindow.value.hasMore);
+const virtualTopSpacerHeight = computed(() => listWindow.value.topSpacerHeight);
+const virtualBottomSpacerHeight = computed(() => listWindow.value.bottomSpacerHeight);
 
 const getItemKey = (item) => {
   if (!item || !item.name) return '';
@@ -152,6 +336,68 @@ const updateScrollState = () => {
   isScrollable.value = maxScrollTop > 2;
   canScrollUp.value = target.scrollTop > 2;
   canScrollDown.value = target.scrollTop < maxScrollTop - 2;
+  if (canRememberScroll.value) {
+    rememberScrollPosition();
+  }
+  scheduleIdleThumbnailPrefetch();
+};
+
+const waitForScrollLayout = () =>
+  new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+
+const applySavedScrollPosition = (savedScrollTop) => {
+  const target = getScrollTarget();
+  if (!target) return;
+
+  const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+  target.scrollTop = Math.min(savedScrollTop, maxScrollTop);
+};
+
+const restoreKeyboardActiveItem = (itemKey) => {
+  const itemIndex = getItemIndexByKey(itemKey);
+  if (itemIndex < 0) return;
+
+  const item = sortedItems.value[itemIndex];
+  if (!item) return;
+
+  keyboardSelectionAnchorKey.value = itemKey;
+  keyboardActiveItemKey.value = itemKey;
+  fileStore.selectedItems = [item];
+  fileStore.setKeyboardActionItem(item);
+};
+
+const restoreScrollPosition = async () => {
+  // Landing on a named item wins over coming back to where this folder was
+  // last left: one is what the reader just asked for, the other is where they
+  // happened to be some time ago.
+  const restoreState = folderScrollStore.consumeRestoreState(scrollPositionKey);
+  if (await revealPendingItem()) return;
+  if (!restoreState.permitted) return;
+
+  restoreKeyboardActiveItem(restoreState.activeItemKey);
+  const savedScrollTop = restoreState.scrollTop;
+  if (savedScrollTop <= 0) return;
+
+  // Non-virtual lists can initially render only 500 entries. Render their
+  // small remainder before restoring, otherwise a saved lower position would
+  // be clamped before the user can get back to it.
+  if (!useVirtualList.value && visibleLimit.value < sortedItems.value.length) {
+    visibleLimit.value = sortedItems.value.length;
+  }
+
+  await nextTick();
+  await waitForScrollLayout();
+
+  // The virtual window reacts to scrollTop, so restoring it changes the DOM
+  // one frame later. Apply the same saved value again after that frame. This
+  // also covers an IntersectionObserver extending a progressively rendered
+  // list immediately after it becomes visible.
+  applySavedScrollPosition(savedScrollTop);
+  await waitForScrollLayout();
+  applySavedScrollPosition(savedScrollTop);
+  updateScrollState();
 };
 
 const revealAllItems = async () => {
@@ -189,6 +435,244 @@ const toggleSelectAll = () => {
   }
 
   fileStore.selectedItems = [...sortedItems.value];
+};
+
+const isKeyboardNavigationBlocked = () => {
+  if (loading.value || fileStore.renameState || isDeleteConfirmOpen.value) return true;
+  const active = document.activeElement;
+  return actions.isEditableElement ? actions.isEditableElement(active) : false;
+};
+
+const getItemIndexByKey = (key) => sortedItems.value.findIndex((item) => getItemKey(item) === key);
+
+const getKeyboardActiveIndex = () => {
+  const activeIndex = getItemIndexByKey(keyboardActiveItemKey.value);
+  if (activeIndex >= 0) return activeIndex;
+
+  const selected = fileStore.selectedItems[fileStore.selectedItems.length - 1];
+  return selected ? getItemIndexByKey(getItemKey(selected)) : -1;
+};
+
+const getKeyboardSelectionAnchorIndex = () => {
+  const anchorIndex = getItemIndexByKey(keyboardSelectionAnchorKey.value);
+  if (anchorIndex >= 0) return anchorIndex;
+
+  const selected = fileStore.selectedItems[0];
+  if (selected) return getItemIndexByKey(getItemKey(selected));
+
+  return getKeyboardActiveIndex();
+};
+
+const selectItemRange = async (anchorIndex, activeIndex) => {
+  const items = sortedItems.value;
+  const [start, end] = rangeBetween(anchorIndex, activeIndex);
+  const activeItem = items[activeIndex];
+  if (!activeItem) return;
+
+  fileStore.selectedItems = items.slice(start, end + 1);
+  fileStore.setKeyboardActionItem(activeItem);
+  keyboardActiveItemKey.value = getItemKey(activeItem);
+  rememberActiveItem(getItemKey(activeItem));
+  await scrollSelectionIntoView(activeItem, activeIndex);
+};
+
+const scrollSelectionIntoView = async (item, index) => {
+  if (!item || index < 0) return;
+
+  if (useVirtualList.value) {
+    getScrollTarget()?.scrollTo({ top: index * LIST_ROW_HEIGHT, behavior: 'auto' });
+  } else if (index >= visibleLimit.value) {
+    visibleLimit.value = Math.min(sortedItems.value.length, index + 1);
+  }
+
+  await nextTick();
+  const key = getItemKey(item);
+  const element = Array.from(document.querySelectorAll('[data-keyboard-item-key]')).find(
+    (candidate) => candidate.getAttribute('data-keyboard-item-key') === key
+  );
+  if (!element) return;
+
+  element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  const target = getScrollTarget();
+  if (!target) return;
+
+  const itemRect = element.getBoundingClientRect();
+  const isDocumentScroller =
+    target === document.scrollingElement || target === document.documentElement;
+  const scrollContainerRect = dropTargetRef.value?.getBoundingClientRect?.();
+  const headerRect = listHeaderRef.value?.getBoundingClientRect?.();
+  const baseTargetRect = isDocumentScroller
+    ? {
+        // The document can scroll behind the fixed toolbar. Use the folder viewport
+        // as the actual visible bounds for keyboard focus.
+        top: scrollContainerRect?.top ?? 0,
+        bottom: Math.min(scrollContainerRect?.bottom ?? window.innerHeight, window.innerHeight),
+      }
+    : target.getBoundingClientRect();
+  // The sticky header obscures rows at the top of both document and local scrollers.
+  const targetRect = {
+    ...baseTargetRect,
+    top: Math.max(baseTargetRect.top, headerRect?.bottom ?? baseTargetRect.top),
+  };
+  const padding = 8;
+  const topAdjustment = itemRect.top - (targetRect.top + padding);
+  const bottomAdjustment = itemRect.bottom - (targetRect.bottom - padding);
+  const adjustment =
+    topAdjustment < 0 ? topAdjustment : bottomAdjustment > 0 ? bottomAdjustment : 0;
+
+  if (adjustment === 0) return;
+  if (typeof target.scrollBy === 'function') {
+    target.scrollBy({ top: adjustment, behavior: 'auto' });
+  } else {
+    target.scrollTop += adjustment;
+  }
+};
+
+const selectRelativeItem = async (direction, extendSelection = false) => {
+  const items = sortedItems.value;
+  if (!items.length) return;
+
+  const currentIndex = getKeyboardActiveIndex();
+  const nextIndex = nextIndexInDirection(currentIndex, direction, items.length);
+  const nextItem = items[nextIndex];
+  if (!nextItem) return;
+
+  if (extendSelection) {
+    const anchorIndex = getKeyboardSelectionAnchorIndex();
+    const resolvedAnchorIndex =
+      anchorIndex >= 0 ? anchorIndex : currentIndex >= 0 ? currentIndex : nextIndex;
+    keyboardSelectionAnchorKey.value = getItemKey(items[resolvedAnchorIndex]);
+    await selectItemRange(resolvedAnchorIndex, nextIndex);
+    return;
+  }
+
+  keyboardSelectionAnchorKey.value = getItemKey(nextItem);
+  keyboardActiveItemKey.value = getItemKey(nextItem);
+  fileStore.setKeyboardActionItem(nextItem);
+  rememberActiveItem(getItemKey(nextItem));
+  await scrollSelectionIntoView(nextItem, nextIndex);
+};
+
+const toggleKeyboardSelection = async () => {
+  const items = sortedItems.value;
+  if (!items.length) return;
+
+  const activeIndex = getKeyboardActiveIndex();
+  const itemIndex = activeIndex >= 0 ? activeIndex : 0;
+  const item = items[itemIndex];
+  if (!item) return;
+
+  toggleSelection(item);
+  keyboardSelectionAnchorKey.value = getItemKey(item);
+  keyboardActiveItemKey.value = getItemKey(item);
+  fileStore.setKeyboardActionItem(item);
+  rememberActiveItem(getItemKey(item));
+  await scrollSelectionIntoView(item, itemIndex);
+};
+
+const handleKeyboardItemClick = (item) => {
+  const key = getItemKey(item);
+  keyboardSelectionAnchorKey.value = key;
+  keyboardActiveItemKey.value = key;
+  fileStore.clearKeyboardActionItem();
+  rememberActiveItem(key);
+};
+
+const selectTypeaheadMatch = async (key) => {
+  const items = sortedItems.value;
+  if (!items.length) return;
+
+  const normalizedKey = normalizeTypeaheadText(key);
+  keyboardTypeahead.value += normalizedKey;
+  window.clearTimeout(keyboardTypeaheadTimer);
+  keyboardTypeaheadTimer = window.setTimeout(() => {
+    keyboardTypeahead.value = '';
+    keyboardTypeaheadTimer = null;
+  }, 600);
+
+  const activeIndex = getKeyboardActiveIndex();
+  const { match, query } = findTypeaheadMatch(
+    items,
+    keyboardTypeahead.value,
+    activeIndex,
+    normalizedKey
+  );
+  keyboardTypeahead.value = query;
+
+  if (!match) return;
+  const matchIndex = getItemIndexByKey(getItemKey(match));
+  if (matchIndex < 0) return;
+
+  fileStore.selectedItems = [match];
+  keyboardSelectionAnchorKey.value = getItemKey(match);
+  keyboardActiveItemKey.value = getItemKey(match);
+  fileStore.setKeyboardActionItem(match);
+  rememberActiveItem(getItemKey(match));
+  await scrollSelectionIntoView(match, matchIndex);
+};
+
+const handleFolderKeydown = (event) => {
+  if (event.defaultPrevented || isKeyboardNavigationBlocked()) return;
+
+  if (event.altKey && event.key === 'ArrowLeft') {
+    event.preventDefault();
+    goPrev();
+    return;
+  }
+
+  if (event.altKey && event.key === 'ArrowRight') {
+    event.preventDefault();
+    goNext();
+    return;
+  }
+
+  if (event.altKey && event.key === 'ArrowUp') {
+    event.preventDefault();
+    goUp();
+    return;
+  }
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    selectRelativeItem(1, event.shiftKey);
+    return;
+  }
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    selectRelativeItem(-1, event.shiftKey);
+    return;
+  }
+
+  if (event.key === ' ') {
+    event.preventDefault();
+    toggleKeyboardSelection();
+    return;
+  }
+
+  const activeIndex = getKeyboardActiveIndex();
+  const activeItem = activeIndex >= 0 ? sortedItems.value[activeIndex] : null;
+  const selected =
+    activeItem || (fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null);
+  if (event.key === 'Enter' || (event.key === 'ArrowRight' && selected?.kind === 'directory')) {
+    if (!selected) return;
+    event.preventDefault();
+    openItem(selected);
+    return;
+  }
+
+  if (event.key === 'Backspace' || event.key === 'ArrowLeft') {
+    event.preventDefault();
+    goUp();
+    return;
+  }
+
+  if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    event.preventDefault();
+    selectTypeaheadMatch(event.key);
+  }
 };
 
 const disconnectLoadMoreObserver = () => {
@@ -234,6 +718,7 @@ const selectionModel = computed({
 
 const loadFiles = async () => {
   loading.value = true;
+  canRememberScroll.value = false;
   resetVisibleItems();
   const path = route.params.path || '';
   try {
@@ -245,33 +730,110 @@ const loadFiles = async () => {
     loading.value = false;
     await setupLoadMoreObserver();
     await nextTick();
+    await restoreScrollPosition();
+    canRememberScroll.value = true;
     updateScrollState();
+    resetIdleThumbnailPrefetch();
   }
 };
 
-// Ask for the size of every folder currently on screen, in one request. Runs
-// again whenever the listing changes, which is what makes a folder show its
-// size the moment it appears rather than at the next pass.
+onMounted(loadFiles);
+
+// Populate folder sizes for the directories currently in view (one batch
+// request; O(1) index reads server-side). Re-runs whenever the listing changes.
+// Serving a folder also asks the server to re-check these folders' mtime in the
+// background (on-view refresh), so we schedule one follow-up fetch a few seconds
+// later to surface any external change without waiting for the periodic refresh.
+let onViewFollowupTimer = null;
 const refreshFolderSizes = () => {
   if (!featuresStore.folderSizeEnabled) return;
   const dirPaths = fileStore.getCurrentPathItems
     .filter((item) => item?.kind === 'directory')
     .map((item) => (item.path ? `${item.path}/${item.name}` : item.name));
-  if (dirPaths.length) folderSizeStore.ensureSizes(dirPaths).catch(() => {});
+  if (dirPaths.length) {
+    folderSizeStore.ensureSizes(dirPaths).catch(() => {});
+    if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
+    onViewFollowupTimer = window.setTimeout(() => folderSizeStore.scheduleRefresh(), 4000);
+  }
 };
 
-watch(() => fileStore.getCurrentPathItems, refreshFolderSizes, { immediate: true });
+watch(
+  () => fileStore.getCurrentPathItems,
+  () => {
+    refreshFolderSizes();
+    resetIdleThumbnailPrefetch();
+  },
+  { immediate: true }
+);
 
-// Whoever has a document open in an editor, kept current while this folder is
-// on screen: the server holds the request until somebody joins or leaves.
-const onlyofficeActivity = useOnlyOfficeActivity({
-  featuresStore,
-  refresh: () => fileStore.fetchPathItems(fileStore.currentPath).catch(() => {}),
+watch(hasActiveFileOperation, (active) => {
+  if (active) {
+    stopIdleThumbnailPrefetch();
+    return;
+  }
+  scheduleIdleThumbnailPrefetch();
 });
 
-onMounted(() => {
-  void loadFiles();
-  void onlyofficeActivity.start();
+// Folder sizes and volume usage are updated server-side the moment any client
+// (or the watcher) changes the filesystem, but a given browser tab only re-reads
+// them on demand. To surface changes made elsewhere without a manual refresh,
+// re-fetch both when the tab regains focus/visibility and, while the tab is
+// visible, on a gentle interval. Refreshing them together keeps the folder sizes
+// and the volume usage bar in sync (otherwise a folder size can update while the
+// volume total lags, which looks inconsistent). Both scheduleRefresh helpers are
+// throttled (2.5s) so these triggers never hammer the API.
+const refreshLiveData = () => {
+  if (featuresStore.folderSizeEnabled) folderSizeStore.scheduleRefresh();
+  if (featuresStore.volumeUsageEnabled) volumeUsageStore.scheduleRefresh();
+};
+
+const LIVE_REFRESH_INTERVAL_MS = 30000;
+const RETURN_TO_TAB_REFRESH_THROTTLE_MS = 1500;
+let currentViewRefresh = null;
+let lastCurrentViewRefreshAt = 0;
+
+const refreshCurrentView = async () => {
+  if (document.hidden || loading.value || currentViewRefresh) return currentViewRefresh;
+  if (Date.now() - lastCurrentViewRefreshAt < RETURN_TO_TAB_REFRESH_THROTTLE_MS) return null;
+
+  const path = fileStore.currentPath;
+  lastCurrentViewRefreshAt = Date.now();
+  currentViewRefresh = fileStore
+    .fetchPathItems(path)
+    .catch(() => {})
+    .finally(() => {
+      currentViewRefresh = null;
+    });
+  return currentViewRefresh;
+};
+
+const refreshOnTabReturn = () => {
+  refreshCurrentView();
+  refreshLiveData();
+};
+
+useEventListener(window, 'focus', refreshOnTabReturn);
+useEventListener(window, 'pointerdown', () => scheduleIdleThumbnailPrefetch());
+useEventListener(window, 'keydown', () => scheduleIdleThumbnailPrefetch());
+useEventListener(window, 'wheel', () => scheduleIdleThumbnailPrefetch(), { passive: true });
+useEventListener(document, 'visibilitychange', () => {
+  if (!document.hidden) {
+    refreshOnTabReturn();
+    scheduleIdleThumbnailPrefetch();
+  } else {
+    stopIdleThumbnailPrefetch();
+  }
+});
+
+const liveRefreshTimer = window.setInterval(() => {
+  if (!document.hidden) refreshLiveData();
+}, LIVE_REFRESH_INTERVAL_MS);
+
+// The keyed RouterView normally unmounts this component on folder changes, but
+// this guard runs before the route transition starts. It captures the actual
+// scroll container before a view transition or layout change can reset it.
+onBeforeRouteLeave(() => {
+  rememberScrollPosition();
 });
 
 watch(hasMoreItems, () => {
@@ -289,7 +851,14 @@ watch(
 watch(
   () => route.params.path,
   () => {
+    stopIdleThumbnailPrefetch();
+    idleThumbnailPrefetchedKeys.clear();
     resetVisibleItems();
+    keyboardSelectionAnchorKey.value = '';
+    keyboardActiveItemKey.value = '';
+    keyboardTypeahead.value = '';
+    window.clearTimeout(keyboardTypeaheadTimer);
+    keyboardTypeaheadTimer = null;
   }
 );
 
@@ -404,13 +973,15 @@ useEventListener(window, 'pointerup', stopResize);
 useEventListener(window, 'pointercancel', stopResize);
 useEventListener(window, 'resize', updateScrollState);
 useEventListener(window, 'scroll', updateScrollState, { passive: true });
+useEventListener(window, 'keydown', handleFolderKeydown);
 
 onBeforeUnmount(() => {
-  onlyofficeActivity.stop();
-});
-
-onBeforeUnmount(() => {
+  stopIdleThumbnailPrefetch();
+  rememberScrollPosition();
   stopResize();
+  window.clearInterval(liveRefreshTimer);
+  if (onViewFollowupTimer) window.clearTimeout(onViewFollowupTimer);
+  window.clearTimeout(keyboardTypeaheadTimer);
   disconnectLoadMoreObserver();
 });
 </script>
@@ -418,7 +989,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="dropTargetRef"
-    class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-y-auto"
+    class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-auto"
     @click.self="clearSelection()"
     @scroll.passive="updateScrollState"
   >
@@ -432,56 +1003,78 @@ onBeforeUnmount(() => {
         @click.self="clearSelection()"
         @contextmenu.prevent="handleBackgroundContextMenu"
       >
+        <!-- Horizontal overflow is handled by the outer scroll container so the
+             horizontal scrollbar stays pinned to the bottom of the viewport (you
+             can scroll sideways from anywhere in the list). The bottom padding in
+             list view keeps the last row from hiding under that scrollbar. -->
         <div
-          :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'overflow-x-auto' : '']"
+          :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'pb-5' : '']"
           :style="gridStyle"
+          @dragover.self="handleCurrentFolderDragOver"
+          @dragleave.self="handleCurrentFolderDragLeave"
+          @drop.self="handleCurrentFolderDrop"
         >
           <!-- Detail view header -->
           <div
             v-if="settings.view === 'list'"
-            :class="[
-              'grid items-center',
-              'px-4 py-2 text-xs',
-              'text-neutral-600 dark:text-neutral-300',
-              'uppercase tracking-wide select-none',
-              'bg-white dark:bg-default',
-              'backdrop-blur-sm',
-              'min-w-max',
-            ]"
-            :style="{
-              gridTemplateColumns: settings.listViewGridTemplateColumns,
-            }"
+            ref="listHeaderRef"
+            class="sticky top-0 z-30 isolate -mx-2 min-w-max bg-white dark:bg-default"
           >
-            <div class="flex items-center justify-center">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-                :checked="allItemsSelected"
-                :indeterminate.prop="someItemsSelected && !allItemsSelected"
-                :aria-label="allItemsSelected ? $t('folder.deselectAll') : $t('folder.selectAll')"
-                @change="toggleSelectAll"
-                @click.stop
-              />
-            </div>
-            <div v-for="col in listColumns" :key="col.key" class="relative flex items-center">
-              <button
-                type="button"
-                class="flex items-center gap-1 text-left hover:text-neutral-900 dark:hover:text-white"
+            <div
+              :class="[
+                'grid items-center',
+                'px-4 py-2 text-xs',
+                'text-neutral-600 dark:text-neutral-300',
+                'uppercase tracking-wide select-none',
+                'backdrop-blur-sm',
+                'min-w-max',
+              ]"
+              :style="{
+                gridTemplateColumns: settings.listViewGridTemplateColumns,
+              }"
+            >
+              <div class="flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                  :checked="allItemsSelected"
+                  :indeterminate.prop="someItemsSelected && !allItemsSelected"
+                  :aria-label="allItemsSelected ? $t('folder.deselectAll') : $t('folder.selectAll')"
+                  @change="toggleSelectAll"
+                  @click.stop
+                />
+              </div>
+              <div
+                v-for="col in listColumns"
+                :key="col.key"
+                role="button"
+                tabindex="0"
+                :aria-sort="
+                  sortIndicator(col.by) === 'asc'
+                    ? 'ascending'
+                    : sortIndicator(col.by) === 'desc'
+                      ? 'descending'
+                      : 'none'
+                "
+                class="relative flex cursor-pointer items-center gap-1 text-left outline-none hover:text-neutral-900 focus-visible:text-neutral-900 dark:hover:text-white dark:focus-visible:text-white"
                 @click="toggleSort(col.by, col.defaultOrder)"
+                @keydown.enter.prevent="toggleSort(col.by, col.defaultOrder)"
+                @keydown.space.prevent="toggleSort(col.by, col.defaultOrder)"
               >
                 <span>{{ $t(col.labelKey) }}</span>
                 <ChevronUpIcon v-if="sortIndicator(col.by) === 'asc'" class="h-3.5 w-3.5" />
                 <ChevronDownIcon v-else-if="sortIndicator(col.by) === 'desc'" class="h-3.5 w-3.5" />
-              </button>
-              <div
-                class="absolute -right-2 top-0 h-full w-4 cursor-col-resize touch-none"
-                title="Resize"
-                @pointerdown.stop.prevent="startResize(col.widthIndex, $event)"
-                @dblclick.stop.prevent="settings.resetListViewColumnWidths()"
-              >
                 <div
-                  class="mx-auto h-full w-px bg-transparent hover:bg-neutral-300 dark:hover:bg-neutral-600"
-                ></div>
+                  class="absolute -right-2 top-0 h-full w-4 cursor-col-resize touch-none"
+                  title="Resize"
+                  @click.stop
+                  @pointerdown.stop.prevent="startResize(col.widthIndex, $event)"
+                  @dblclick.stop.prevent="settings.resetListViewColumnWidths()"
+                >
+                  <div
+                    class="mx-auto h-full w-px bg-transparent hover:bg-neutral-300 dark:hover:bg-neutral-600"
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
@@ -497,15 +1090,22 @@ onBeforeUnmount(() => {
             :key="(item.path || '') + '::' + item.name"
             :item="item"
             :view="settings.view"
+            :data-keyboard-item-key="getItemKey(item)"
             :class="[
               'relative',
+              getItemKey(item) === keyboardActiveItemKey
+                ? 'z-10 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-1 dark:ring-offset-zinc-800 rounded-lg'
+                : '',
               item.kind === 'directory' && isDragTarget(item)
-                ? 'ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                ? isCopyDragTarget(item)
+                  ? 'z-10 ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                  : 'z-10 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
                 : '',
             ]"
             @dragover="(e) => item.kind === 'directory' && handleDragOver(e, item)"
             @dragleave="(e) => item.kind === 'directory' && handleDragLeave(e, item)"
             @drop="(e) => item.kind === 'directory' && handleDrop(e, item)"
+            @click="handleKeyboardItemClick(item)"
           />
 
           <div
