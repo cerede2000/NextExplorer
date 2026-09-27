@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-45",
+  "batchTip": "p3-46",
   "rules": [
     {
       "axis": "*",
@@ -212,8 +212,9 @@
     {
       "axis": "*",
       "match": "^(backend/src/services/trash/(maintenance|settings|verify)\\.js|backend/src/services/versions/(settings|verify)\\.js)(:|$)",
-      "verdict": "THEIRS",
-      "note": "maintenance reads the storage floor from `uploads`, which is what the section is called here; the fork reads `upload.` and the floor came back zero, so the trash stopped giving space back. The rest differ only by eslint comments upstream's config still needs"
+      "verdict": "DONE",
+      "note": "nxzai#467 — the eslint comments upstream's three old configs needed, dropped with them, and the storage floor read from `uploads` as this repository names the section. This fork already runs upstream's version of these files; what differs from `main` is what that batch carries",
+      "batch": "P3-43"
     },
     {
       "axis": "migration",
@@ -249,12 +250,6 @@
       "verdict": "DONE",
       "batch": "P3-29",
       "note": "nxzai#459 — a folder's address keeps its slashes, and each guard is a function of its inputs"
-    },
-    {
-      "axis": "*",
-      "match": "^(backend/src/services/uploadService\\.js|backend/src/services/uploadStorageGuard\\.js)(:|$)",
-      "verdict": "THEIRS",
-      "note": "upstream records an upload while its bytes arrive and releases it however it ends; the fork's version dropped that, which leaves a hidden file nothing removes. The fork takes upstream's"
     },
     {
       "axis": "env",
@@ -313,12 +308,6 @@
       "note": "nxzai#456 — what pointed at a folder moves with it, and is forgotten with it"
     },
     {
-      "axis": "*",
-      "match": "^frontend/src/plugins/preview/MediaPreview\\.vue(:|$)",
-      "verdict": "THEIRS",
-      "note": "upstream has rotate and zoom that this fork's version lost, and its video already sits in a grid that contains it. The fork takes upstream's version"
-    },
-    {
       "axis": "i18n",
       "match": "^(placeholders\\.|info\\.folderSizeExcluded|settings\\.thumbs\\.|preview\\.tooLargeToRender|preview\\.stillRendering|favorites\\.volumeUnavailable)",
       "verdict": "DONE",
@@ -347,12 +336,6 @@
       "note": "nxzai#454 — an account locked out says so, and an administrator can unlock it"
     },
     {
-      "axis": "*",
-      "match": "^backend/src/routes/volumes\\.js(:|$)",
-      "verdict": "THEIRS",
-      "note": "upstream drops the volumes a caller may not reach (nxzai#425); the fork has not caught up, and taking its version would put every hidden volume's name back in the sidebar. The fork takes upstream's"
-    },
-    {
       "axis": "migration",
       "match": "^personal_folder_reservations$",
       "verdict": "DONE",
@@ -379,12 +362,6 @@
       "verdict": "DONE",
       "batch": "P3-23",
       "note": "nxzai#453 — chown takes arguments, and a rule hides a volume everywhere"
-    },
-    {
-      "axis": "*",
-      "match": "^backend/src/routes/search\\.js(:|$)",
-      "verdict": "THEIRS",
-      "note": "upstream stats the page of results before handing it out and drops what is gone. The fork answers from the catalogue and lets a sweep tidy up later, which offers results that open nothing. The fork takes upstream's version"
     },
     {
       "axis": "i18n",
@@ -947,15 +924,10 @@
     },
     {
       "axis": "*",
-      "match": "^backend/src/utils/betterSqliteSessionStore\\.js(:|$)",
-      "verdict": "THEIRS",
-      "note": "upstream opens the session database on first use; this fork still opens it when the module is required, which turns requiring it into a filesystem write and fails the module-load check. The fork takes upstream's version"
-    },
-    {
-      "axis": "*",
       "match": "^backend/src/utils/bootstrap\\.js(:|$)",
-      "verdict": "THEIRS",
-      "note": "one line, and upstream's is the tighter one: `let roles;` rather than an array nothing reads before it is assigned"
+      "verdict": "DONE",
+      "note": "nxzai#467 — the eslint comments upstream's three old configs needed, dropped with them, and the storage floor read from `uploads` as this repository names the section. This fork already runs upstream's version of these files; what differs from `main` is what that batch carries",
+      "batch": "P3-43"
     },
     {
       "axis": "*",
@@ -1554,6 +1526,13 @@
       "match": "^\\.github/workflows/(docker-publish|docs)\\.yml$",
       "verdict": "OURS",
       "note": "our publishing workflows"
+    },
+    {
+      "axis": "i18n-value",
+      "match": ".",
+      "verdict": "DONE",
+      "batch": "P3-46",
+      "note": "nxzai#472 — the sentences thirteen catalogues were still reading in English"
     },
     {
       "axis": "uncovered",

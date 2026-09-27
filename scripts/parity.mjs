@@ -182,6 +182,52 @@ const KEY_PATHS = (node, prefix = '') =>
   }
 }
 
+// ── 5b. what the catalogues say ─────────────────────────────────────────────
+// The axis above compares the keys and stops there, and a key both sides have is
+// a key nobody reads again. Six hundred and fifty-six values differed under
+// matching keys, and for four hundred and sixty-seven of them upstream still held
+// the English sentence where this fork holds the translation: a German, Swedish
+// or Polish reader upstream was looking at English in the settings screens, and
+// no count said so. A key is a place for a sentence; the sentence is the feature.
+const FLAT = (node, prefix = '') =>
+  Object.entries(node).flatMap(([key, value]) =>
+    value && typeof value === 'object'
+      ? FLAT(value, `${prefix}${key}.`)
+      : [[`${prefix}${key}`, value]]
+  );
+{
+  const differing = new Map();
+  const english = (() => {
+    const text = show(UPSTREAM, 'frontend/src/i18n/locales/en.json');
+    return text ? new Map(FLAT(JSON.parse(text))) : new Map();
+  })();
+  for (const file of listFiles(OURS, 'frontend/src/i18n/locales')) {
+    if (!file.endsWith('.json')) continue;
+    const mine = show(OURS, file);
+    const yours = show(UPSTREAM, file);
+    if (!mine || !yours) continue;
+    const locale = path.basename(file, '.json');
+    const theirs = new Map(FLAT(JSON.parse(yours)));
+    for (const [key, value] of FLAT(JSON.parse(mine))) {
+      if (!theirs.has(key) || theirs.get(key) === value) continue;
+      if (!differing.has(key)) differing.set(key, { locales: [], untranslated: 0 });
+      const entry = differing.get(key);
+      entry.locales.push(locale);
+      // Upstream holding the English sentence in a catalogue that is not English
+      // is the worst of the two cases, and worth counting apart.
+      if (locale !== 'en' && theirs.get(key) === english.get(key)) entry.untranslated += 1;
+    }
+  }
+  for (const [key, { locales, untranslated }] of differing) {
+    report(
+      'i18n-value',
+      key,
+      `says something else in ${locales.length} catalogue(s): ${locales.join(', ')}` +
+        (untranslated ? ` — still English upstream in ${untranslated} of them` : '')
+    );
+  }
+}
+
 // ── 6. environment variables the backend reads ──────────────────────────────
 const ENV_READ = /\b(?:process\.env|env)\.([A-Z][A-Z0-9_]{2,})\b/g;
 const envOf = (ref) => {
